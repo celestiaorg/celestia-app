@@ -154,33 +154,60 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	}
 
 	// Process pay-for-fibre transactions: validate, create system blob, wrap as FibreTx.
+	// Entries in payForFibreTxs are either already-wrapped FibreTx bytes (submitted
+	// by the fibre client directly) or plain SDK MsgPayForFibre bytes (submitted by
+	// legacy clients).
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 	for _, rawTx := range payForFibreTxs {
-		sdkTx, err := dec(rawTx)
+		// Check if the entry is already a FibreTx (submitted by the fibre client).
+		existingFibreTx, isAlreadyFibreTx, _ := tx.UnmarshalFibreTx(rawTx)
+
+		var sdkTxBytes []byte
+		var marshaledFibreTx []byte
+		var fibreTxToAppend *tx.FibreTx
+
+		if isAlreadyFibreTx {
+			// Already wrapped: extract inner SDK tx for ante handler validation.
+			sdkTxBytes = existingFibreTx.Tx
+			marshaledFibreTx = rawTx
+			fibreTxToAppend = existingFibreTx
+		} else {
+			// Plain SDK MsgPayForFibre: create the system blob and marshal.
+			sdkTxBytes = rawTx
+
+			sdkTx, err := dec(sdkTxBytes)
+			if err != nil {
+				logger.Error("decoding pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+				continue
+			}
+
+			// separateTxs guarantees rawTx contains MsgPayForFibre, so the bool is safe to ignore.
+			msgPayForFibre, _ := extractMsgPayForFibre(sdkTx)
+			systemBlob, err := createSystemBlobForPayForFibre(msgPayForFibre)
+			if err != nil {
+				logger.Error("creating system blob for pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+				continue
+			}
+
+			// Marshal before appending so that an encoding failure requires no builder revert.
+			marshaledFibreTx, err = tx.MarshalFibreTx(rawTx, systemBlob)
+			if err != nil {
+				logger.Error("marshaling fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+				continue
+			}
+
+			fibreTxToAppend = &tx.FibreTx{Tx: rawTx, SystemBlob: systemBlob}
+		}
+
+		sdkTx, err := dec(sdkTxBytes)
 		if err != nil {
-			logger.Error("decoding pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			logger.Error("decoding inner SDK tx for pay-for-fibre", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
 			continue
 		}
 
-		// separateTxs guarantees rawTx contains MsgPayForFibre, so the bool is safe to ignore.
-		msgPayForFibre, _ := extractMsgPayForFibre(sdkTx)
-		systemBlob, err := createSystemBlobForPayForFibre(msgPayForFibre)
-		if err != nil {
-			logger.Error("creating system blob for pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
+		ctx = ctx.WithTxBytes(sdkTxBytes)
 
-		// Marshal before appending so that an encoding failure requires no builder revert.
-		marshaledFibreTx, err := tx.MarshalFibreTx(rawTx, systemBlob)
-		if err != nil {
-			logger.Error("marshaling fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
-
-		ctx = ctx.WithTxBytes(rawTx)
-
-		fibreTx := &tx.FibreTx{Tx: rawTx, SystemBlob: systemBlob}
-		ok, err := fsb.builder.AppendFibreTx(fibreTx)
+		ok, err := fsb.builder.AppendFibreTx(fibreTxToAppend)
 		if err != nil {
 			logger.Error("appending pay-for-fibre transaction to builder", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
 			continue
@@ -249,6 +276,18 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 		// in CheckTx. However in tests we're inserting too large of txs
 		// therefore also filter here.
 		if len(rawTx) > appconsts.MaxTxSize {
+			continue
+		}
+
+		// Already-wrapped FibreTx (submitted by the fibre client directly) is
+		// placed in payForFibreTxs. Fill detects the wrapping via UnmarshalFibreTx
+		// and passes it through without re-wrapping.
+		_, isFibre, err := tx.UnmarshalFibreTx(rawTx)
+		if isFibre {
+			if err != nil {
+				panic(err)
+			}
+			payForFibreTxs = append(payForFibreTxs, rawTx)
 			continue
 		}
 

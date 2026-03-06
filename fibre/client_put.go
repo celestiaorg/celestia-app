@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
+	gosquaretx "github.com/celestiaorg/go-square/v4/tx"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -70,13 +71,27 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 
 	// broadcast PayForFibre transaction
 	signerAddr := txClient.DefaultAddress()
+	proto := signedPromise.ToProto()
 	msg := &types.MsgPayForFibre{
 		Signer:              signerAddr.String(),
-		PaymentPromise:      *signedPromise.ToProto(),
+		PaymentPromise:      *proto,
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 	}
 
-	broadcastResp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	// Pre-build the system blob so we can wrap the SDK tx as a FibreTx before
+	// broadcast. Submitting a FibreTx ensures the tx hash is stable: PrepareProposal
+	// detects the wrapping and passes it through unchanged, so the committed hash
+	// matches what ConfirmTx polls for (instead of creating a new hash H').
+	systemBlob, err := share.NewV2Blob(ns, proto.BlobVersion, proto.Commitment, signerAddr.Bytes())
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create system blob for PayForFibre")
+		return result, fmt.Errorf("creating system blob for PayForFibre: %w", err)
+	}
+
+	broadcastResp, err := txClient.BroadcastTxWithWrap(ctx, []sdk.Msg{msg}, func(sdkTxBytes []byte) ([]byte, error) {
+		return gosquaretx.MarshalFibreTx(sdkTxBytes, systemBlob)
+	})
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to broadcast PayForFibre transaction")

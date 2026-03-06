@@ -29,6 +29,7 @@ func TestSeparateTxs(t *testing.T) {
 	normalTx := newNormalTx(t, txConfig)
 	blobTx := newBlobTx(t)
 	payForFibreTx := newPayForFibreTx(t, txConfig)
+	wrappedFibreTx := newWrappedFibreTx(t, txConfig)
 
 	tests := []struct {
 		name     string
@@ -75,6 +76,20 @@ func TestSeparateTxs(t *testing.T) {
 		{
 			name:     "two pay-for-fibre txs",
 			rawTxs:   [][]byte{payForFibreTx, payForFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  2,
+		},
+		{
+			name:     "already-wrapped FibreTx goes to payForFibreTxs",
+			rawTxs:   [][]byte{wrappedFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  1,
+		},
+		{
+			name:     "mix of plain and wrapped FibreTx",
+			rawTxs:   [][]byte{payForFibreTx, wrappedFibreTx},
 			wantNorm: 0,
 			wantBlob: 0,
 			wantPFF:  2,
@@ -228,6 +243,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	normalTx := newNormalTx(t, txConfig)
 	blobTx := newBlobTx(t)
 	payForFibreTx := newPayForFibreTx(t, txConfig)
+	wrappedFibreTx := newWrappedFibreTx(t, txConfig)
 
 	tests := []struct {
 		name              string
@@ -290,6 +306,22 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler: alwaysReject,
 			txs:         [][]byte{normalTx, blobTx, payForFibreTx},
 			// normalTx and blobTx are also rejected because alwaysReject fires for every tx type.
+			wantKeptCount:     0,
+			wantFibreTxCount:  0,
+			wantFibreInSquare: false,
+		},
+		{
+			name:              "already-wrapped FibreTx passes through unchanged",
+			anteHandler:       alwaysPass,
+			txs:               [][]byte{wrappedFibreTx},
+			wantKeptCount:     1,
+			wantFibreTxCount:  1,
+			wantFibreInSquare: true,
+		},
+		{
+			name:              "already-wrapped FibreTx rejected by ante handler is excluded",
+			anteHandler:       alwaysReject,
+			txs:               [][]byte{wrappedFibreTx},
 			wantKeptCount:     0,
 			wantFibreTxCount:  0,
 			wantFibreInSquare: false,
@@ -357,6 +389,23 @@ func newBlobTx(t *testing.T) []byte {
 	blobTxBytes, err := gosquaretx.MarshalBlobTx(nil, blob)
 	require.NoError(t, err)
 	return blobTxBytes
+}
+
+// newWrappedFibreTx creates a FibreTx (already-wrapped MsgPayForFibre) for testing,
+// simulating what the fibre client submits via BroadcastTxWithWrap.
+func newWrappedFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	sdkTxBytes := newPayForFibreTx(t, txConfig)
+	// Decode to extract the MsgPayForFibre so we can build a matching system blob.
+	sdkTx, err := txConfig.TxDecoder()(sdkTxBytes)
+	require.NoError(t, err)
+	msg, ok := extractMsgPayForFibre(sdkTx)
+	require.True(t, ok)
+	systemBlob, err := createSystemBlobForPayForFibre(msg)
+	require.NoError(t, err)
+	wrapped, err := gosquaretx.MarshalFibreTx(sdkTxBytes, systemBlob)
+	require.NoError(t, err)
+	return wrapped
 }
 
 // newPayForFibreTx creates an unsigned SDK tx containing MsgPayForFibre for testing.

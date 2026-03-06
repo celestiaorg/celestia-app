@@ -459,6 +459,15 @@ func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts 
 }
 
 func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*sdktypes.TxResponse, error) {
+	return client.BroadcastTxWithWrap(ctx, msgs, nil, opts...)
+}
+
+// BroadcastTxWithWrap signs and broadcasts a transaction, optionally applying wrap
+// to the encoded SDK tx bytes before submission. wrap may be nil.
+// This is useful for submitting FibreTx: pass a wrap function that calls
+// blobtx.MarshalFibreTx so the outer FibreTx bytes are broadcast (and thus
+// tracked by hash) instead of the plain SDK tx bytes.
+func (client *TxClient) BroadcastTxWithWrap(ctx context.Context, msgs []sdktypes.Msg, wrap func([]byte) ([]byte, error), opts ...TxOption) (*sdktypes.TxResponse, error) {
 	client.mtx.Lock()
 	defer client.mtx.Unlock()
 
@@ -524,6 +533,13 @@ func (client *TxClient) BroadcastTx(ctx context.Context, msgs []sdktypes.Msg, op
 	txBytes, err := client.signer.EncodeTx(txBuilder.GetTx())
 	if err != nil {
 		return nil, err
+	}
+
+	if wrap != nil {
+		txBytes, err = wrap(txBytes)
+		if err != nil {
+			return nil, fmt.Errorf("wrapping tx: %w", err)
+		}
 	}
 
 	return client.routeTx(ctx, txBytes, account)
@@ -635,6 +651,15 @@ func (client *TxClient) sendTxToConnection(ctx context.Context, conn *grpc.Clien
 
 // resignTransactionWithNewSequence creates a new transaction with updated sequence from existing tx bytes
 func (client *TxClient) resignTransactionWithNewSequence(txBytes []byte) ([]byte, error) {
+	// Unwrap FibreTx before resigning (checked before BlobTx since FibreTx is a distinct type).
+	fibreTx, isFibreTx, err := blobtx.UnmarshalFibreTx(txBytes)
+	if isFibreTx && err != nil {
+		return nil, err
+	}
+	if isFibreTx {
+		txBytes = fibreTx.Tx
+	}
+
 	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
 	if isBlobTx && err != nil {
 		return nil, err
@@ -682,6 +707,14 @@ func (client *TxClient) resignTransactionWithNewSequence(txBytes []byte) ([]byte
 	// Rewrap the blob tx if it was originally a blob tx
 	if isBlobTx {
 		newTxBytes, err = blobtx.MarshalBlobTx(newTxBytes, blobTx.Blobs...)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Rewrap as FibreTx if it was originally a FibreTx (preserving the system blob).
+	if isFibreTx {
+		newTxBytes, err = blobtx.MarshalFibreTx(newTxBytes, fibreTx.SystemBlob)
 		if err != nil {
 			return nil, err
 		}

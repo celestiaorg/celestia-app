@@ -37,6 +37,21 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return app.handleBlobCheckTx(req, btx)
 	}
 
+	// FibreTx wraps a MsgPayForFibre SDK tx with its system blob. Validate the
+	// inner SDK tx bytes so the tx can enter the mempool and be tracked by hash.
+	ftx, isFibre, err := blobtx.UnmarshalFibreTx(tx)
+	if isFibre && err != nil {
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+	}
+	if isFibre {
+		innerReq := &abci.RequestCheckTx{Tx: ftx.Tx, Type: req.GetType()}
+		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(ftx.Tx)
+		if err != nil {
+			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+		}
+		return app.forwardCheckTx(innerReq, sdkTx)
+	}
+
 	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
