@@ -100,11 +100,13 @@ The tool is fully resumable. If a migration is interrupted for any reason:
 ```
 
 The tool will:
+
 1. Detect the existing `data_pebble/` directory and `.migration_state.json`
 2. Skip databases that are already complete
 3. For in-progress databases, find the last migrated key and continue from there
 
 Progress is tracked at two levels:
+
 - **Per-database**: A state file tracks which databases are complete
 - **Per-key**: The last key in each PebbleDB is the durable checkpoint (no separate tracking needed)
 
