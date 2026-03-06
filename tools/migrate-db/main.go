@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v8/app/migrate"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/gofrs/flock"
 	"golang.org/x/sync/errgroup"
@@ -23,36 +23,7 @@ import (
 const (
 	// deleteChunkBytes is the amount of data migrated before deleting source keys in --no-backup mode.
 	deleteChunkBytes = 1024 * 1024 * 1024 // 1 GB
-
-	// maxDeleteBatch is the maximum size of a single delete batch written to the source DB.
-	maxDeleteBatch = 64 * 1024 * 1024 // 64 MB
-
-	// progressInterval is how often progress is logged during migration.
-	progressInterval = 2 * time.Minute
 )
-
-var allDatabases = []string{
-	"application",
-	"blockstore",
-	"state",
-	"tx_index",
-	"evidence",
-}
-
-// MigrationState tracks overall migration progress across restarts.
-type MigrationState struct {
-	StartedAt time.Time          `json:"started_at"`
-	NoBackup  bool               `json:"no_backup"`
-	Databases map[string]DBState `json:"databases"`
-}
-
-// DBState tracks the migration status of a single database.
-type DBState struct {
-	Status        string    `json:"status"` // "pending", "in_progress", "migrated", "source_deleted"
-	KeysMigrated  int64     `json:"keys_migrated"`
-	BytesMigrated int64     `json:"bytes_migrated"`
-	CompletedAt   time.Time `json:"completed_at,omitempty"`
-}
 
 type migrateOpts struct {
 	homeDir      string
@@ -72,7 +43,7 @@ func main() {
 	flag.StringVar(&opts.homeDir, "home", os.ExpandEnv("$HOME/.celestia-app"), "Node home directory")
 	flag.BoolVar(&opts.dryRun, "dry-run", false, "Run migration in dry-run mode without making changes")
 	flag.BoolVar(&opts.noBackup, "no-backup", false, "Skip backup; delete source data incrementally as it is migrated")
-	flag.IntVar(&opts.batchSizeMB, "batch-size", 64, "Batch size in MB")
+	flag.IntVar(&opts.batchSizeMB, "batch-size", 256, "Batch size in MB")
 	flag.IntVar(&opts.syncInterval, "sync-interval", 1024, "Fsync every N MB (0 = sync only at DB end)")
 	flag.IntVar(&opts.parallel, "parallel", 3, "Migrate N databases concurrently")
 	flag.BoolVar(&opts.verifyFull, "verify-full", false, "Exhaustive key-count verification instead of sampling")
@@ -118,10 +89,10 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		return fmt.Errorf("data directory does not exist: %s", dataDir)
 	}
 
-	databases := allDatabases
+	databases := migrate.AllDatabases
 	if opts.dbFilter != "" {
-		if !slices.Contains(allDatabases, opts.dbFilter) {
-			return fmt.Errorf("unknown database %q, valid options: %s", opts.dbFilter, strings.Join(allDatabases, ", "))
+		if !slices.Contains(migrate.AllDatabases, opts.dbFilter) {
+			return fmt.Errorf("unknown database %q, valid options: %s", opts.dbFilter, strings.Join(migrate.AllDatabases, ", "))
 		}
 		databases = []string{opts.dbFilter}
 	}
@@ -150,12 +121,10 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		return nil
 	}
 
-	// Create dest directory (ok if it already exists — resume case)
 	if err := os.MkdirAll(pebbleDataDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create pebble data directory: %w", err)
 	}
 
-	// Acquire kernel-level file lock (automatically released on crash)
 	lockPath := filepath.Join(pebbleDataDir, ".migration.lock")
 	fileLock := flock.New(lockPath)
 	locked, err := fileLock.TryLock()
@@ -167,22 +136,21 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 	}
 	defer fileLock.Unlock()
 
-	// Load or initialize migration state
-	state, err := loadState(pebbleDataDir)
+	state, err := migrate.LoadState(pebbleDataDir)
 	if err != nil {
 		return fmt.Errorf("failed to load migration state: %w", err)
 	}
 
 	if state == nil {
-		state = &MigrationState{
+		state = &migrate.MigrationState{
 			StartedAt: time.Now(),
 			NoBackup:  opts.noBackup,
-			Databases: make(map[string]DBState),
+			Databases: make(map[string]migrate.DBState),
 		}
-		for _, d := range allDatabases {
-			state.Databases[d] = DBState{Status: "pending"}
+		for _, d := range migrate.AllDatabases {
+			state.Databases[d] = migrate.DBState{Status: "pending"}
 		}
-		if err := saveState(state, pebbleDataDir); err != nil {
+		if err := migrate.SaveState(state, pebbleDataDir); err != nil {
 			return err
 		}
 		fmt.Println("Initialized new migration state.")
@@ -190,7 +158,7 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		fmt.Printf("Resuming migration started at %s\n", state.StartedAt.Format(time.RFC3339))
 		for name, ds := range state.Databases {
 			if ds.Status != "pending" {
-				fmt.Printf("  [%s] status=%s keys=%d bytes=%s\n", name, ds.Status, ds.KeysMigrated, humanBytes(ds.BytesMigrated))
+				fmt.Printf("  [%s] status=%s keys=%d bytes=%s\n", name, ds.Status, ds.KeysMigrated, migrate.HumanBytes(ds.BytesMigrated))
 			}
 		}
 		fmt.Println()
@@ -198,7 +166,6 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 
 	var stateMu sync.Mutex
 
-	// migrateOne handles a single database end-to-end.
 	migrateOne := func(ctx context.Context, dbName string) error {
 		stateMu.Lock()
 		ds := state.Databases[dbName]
@@ -212,13 +179,12 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		levelDBPath := filepath.Join(dataDir, dbName+".db")
 		if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
 			if ds.Status == "in_progress" {
-				// Source was deleted (--no-backup crash recovery) but dest should have data
 				fmt.Printf("[%s] Source not found but was in_progress — marking as migrated\n", dbName)
 				stateMu.Lock()
 				ds.Status = "migrated"
 				ds.CompletedAt = time.Now()
 				state.Databases[dbName] = ds
-				err := saveState(state, pebbleDataDir)
+				err := migrate.SaveState(state, pebbleDataDir)
 				stateMu.Unlock()
 				return err
 			}
@@ -229,7 +195,7 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		stateMu.Lock()
 		ds.Status = "in_progress"
 		state.Databases[dbName] = ds
-		if err := saveState(state, pebbleDataDir); err != nil {
+		if err := migrate.SaveState(state, pebbleDataDir); err != nil {
 			stateMu.Unlock()
 			return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
 		}
@@ -247,13 +213,12 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		ds.BytesMigrated = bytesMigrated
 		ds.CompletedAt = time.Now()
 		state.Databases[dbName] = ds
-		if err := saveState(state, pebbleDataDir); err != nil {
+		if err := migrate.SaveState(state, pebbleDataDir); err != nil {
 			stateMu.Unlock()
 			return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
 		}
 		stateMu.Unlock()
 
-		// Verification
 		if !opts.skipVerify {
 			fmt.Printf("[%s] Verifying...\n", dbName)
 			if opts.verifyFull {
@@ -268,7 +233,6 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 			fmt.Printf("[%s] Verification passed\n", dbName)
 		}
 
-		// Delete source if --no-backup
 		if opts.noBackup {
 			srcPath := filepath.Join(dataDir, dbName+".db")
 			fmt.Printf("[%s] Removing source LevelDB: %s\n", dbName, srcPath)
@@ -278,18 +242,17 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 			stateMu.Lock()
 			ds.Status = "source_deleted"
 			state.Databases[dbName] = ds
-			if err := saveState(state, pebbleDataDir); err != nil {
+			if err := migrate.SaveState(state, pebbleDataDir); err != nil {
 				stateMu.Unlock()
 				return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
 			}
 			stateMu.Unlock()
 		}
 
-		fmt.Printf("[%s] Complete: %d keys, %s\n", dbName, keys, humanBytes(bytesMigrated))
+		fmt.Printf("[%s] Complete: %d keys, %s\n", dbName, keys, migrate.HumanBytes(bytesMigrated))
 		return nil
 	}
 
-	// Execute migration
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(opts.parallel)
 	for _, dbName := range databases {
@@ -302,7 +265,6 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		return err
 	}
 
-	// Auto-swap
 	if opts.autoSwap {
 		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, opts.noBackup)
 	}
@@ -311,95 +273,92 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 	return nil
 }
 
+// migrateSingleDB opens source/dest databases and copies data using CopyDB.
+// It handles --no-backup incremental deletion which is specific to the offline tool.
 func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opts migrateOpts) (int64, int64, error) {
 	startTime := time.Now()
 	batchBytes := int64(opts.batchSizeMB) * 1024 * 1024
 	syncBytes := int64(opts.syncInterval) * 1024 * 1024
 
-	// Open source LevelDB
 	sourceDB, err := db.NewDB(dbName, db.GoLevelDBBackend, sourceDir)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to open source LevelDB: %w", err)
 	}
 	defer sourceDB.Close()
 
-	// Open destination PebbleDB (creates if not exists, opens if exists)
 	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to open destination PebbleDB: %w", err)
 	}
 	defer destDB.Close()
 
-	// Find resume point via reverse iterator on dest
-	var resumeKey []byte
-	var resumedKeys int64
-	revIter, err := destDB.ReverseIterator(nil, nil)
+	// If no-backup is not needed, use the simple CopyDB path
+	if !opts.noBackup {
+		lastLogTime := time.Now()
+		result, err := migrate.CopyDB(ctx, sourceDB, destDB, migrate.CopyDBOptions{
+			BatchBytes:        batchBytes,
+			SyncIntervalBytes: syncBytes,
+			ProgressFn: func(keys, bytesTotal int64) {
+				if time.Since(lastLogTime) >= 2*time.Minute {
+					elapsed := time.Since(startTime)
+					rate := float64(bytesTotal) / elapsed.Seconds()
+					fmt.Printf("[%s] %d keys, %s migrated, %s/s, elapsed %s\n",
+						dbName, keys, migrate.HumanBytes(bytesTotal), migrate.HumanBytes(int64(rate)),
+						elapsed.Round(time.Second))
+					lastLogTime = time.Now()
+				}
+			},
+		})
+		if err != nil {
+			return 0, 0, err
+		}
+		elapsed := time.Since(startTime)
+		fmt.Printf("[%s] Migration complete: %d keys, %s, elapsed %s\n",
+			dbName, result.KeysCopied, migrate.HumanBytes(result.BytesCopied), elapsed.Round(time.Second))
+		return result.KeysCopied, result.BytesCopied, nil
+	}
+
+	// --no-backup path: uses incremental source deletion
+	return migrateSingleDBWithDelete(ctx, dbName, sourceDB, destDB, batchBytes, syncBytes, startTime)
+}
+
+// migrateSingleDBWithDelete handles the --no-backup mode where source keys are
+// deleted incrementally after being copied to save disk space.
+func migrateSingleDBWithDelete(ctx context.Context, dbName string, sourceDB, destDB db.DB, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
+	resumeKey, resumedKeys, err := migrate.FindResumePoint(destDB)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to create reverse iterator: %w", err)
+		return 0, 0, err
 	}
-	if revIter.Valid() {
-		resumeKey = make([]byte, len(revIter.Key()))
-		copy(resumeKey, revIter.Key())
-	}
-	revIter.Close()
 
 	if resumeKey != nil {
-		// Count existing keys for accurate progress (fast scan)
-		countIter, err := destDB.Iterator(nil, nil)
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to count existing keys: %w", err)
-		}
-		for ; countIter.Valid(); countIter.Next() {
-			resumedKeys++
-		}
-		countIter.Close()
 		fmt.Printf("[%s] Resuming from key (already migrated: %d keys)\n", dbName, resumedKeys)
 	}
 
-	var totalKeys = resumedKeys
+	totalKeys := resumedKeys
 	var totalBytes int64
 	var bytesSinceSync int64
 	var deleteKeys [][]byte
 	var bytesSinceDelete int64
 	lastLogTime := time.Now()
 
-	// Create source iterator from resume point
-	var srcIter db.Iterator
-	if resumeKey != nil {
-		srcIter, err = sourceDB.Iterator(resumeKey, nil)
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to create source iterator: %w", err)
-		}
-		// Skip the resume key itself if it matches (already migrated)
-		if srcIter.Valid() && bytes.Equal(srcIter.Key(), resumeKey) {
-			srcIter.Next()
-		}
-	} else {
-		srcIter, err = sourceDB.Iterator(nil, nil)
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to create source iterator: %w", err)
-		}
+	srcIter, err := migrate.IteratorFrom(sourceDB, resumeKey)
+	if err != nil {
+		return 0, 0, err
 	}
 
 	batch := destDB.NewBatch()
 	var batchKeyCount int
 
-	flushBatch := func(sync bool) error {
+	flushBatch := func(doSync bool) error {
 		if batchKeyCount == 0 {
 			return nil
 		}
-		var writeErr error
-		if sync {
-			writeErr = batch.WriteSync()
-		} else {
-			writeErr = batch.Write()
+		var newBatch db.Batch
+		newBatch, err = migrate.FlushBatch(batch, destDB, doSync)
+		if err != nil {
+			return err
 		}
-		if writeErr != nil {
-			batch.Close()
-			return fmt.Errorf("failed to write batch: %w", writeErr)
-		}
-		batch.Close()
-		batch = destDB.NewBatch()
+		batch = newBatch
 		batchKeyCount = 0
 		return nil
 	}
@@ -421,14 +380,10 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 		bytesSinceSync += kvSize
 		bytesSinceDelete += kvSize
 
-		// Track keys for --no-backup deletion
-		if opts.noBackup {
-			keyCopy := make([]byte, len(key))
-			copy(keyCopy, key)
-			deleteKeys = append(deleteKeys, keyCopy)
-		}
+		keyCopy := make([]byte, len(key))
+		copy(keyCopy, key)
+		deleteKeys = append(deleteKeys, keyCopy)
 
-		// Check if batch should be flushed (byte-based)
 		currentBatchSize, _ := batch.GetByteSize()
 		if int64(currentBatchSize) >= batchBytes {
 			needSync := syncBytes > 0 && bytesSinceSync >= syncBytes
@@ -440,7 +395,6 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 				bytesSinceSync = 0
 			}
 
-			// Check for cancellation once per batch flush
 			select {
 			case <-ctx.Done():
 				srcIter.Close()
@@ -449,45 +403,35 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 			}
 		}
 
-		// Progress logging
-		if time.Since(lastLogTime) >= progressInterval {
+		if time.Since(lastLogTime) >= 2*time.Minute {
 			elapsed := time.Since(startTime)
 			rate := float64(totalBytes) / elapsed.Seconds()
 			fmt.Printf("[%s] %d keys, %s migrated, %s/s, elapsed %s\n",
-				dbName, totalKeys, humanBytes(totalBytes), humanBytes(int64(rate)),
+				dbName, totalKeys, migrate.HumanBytes(totalBytes), migrate.HumanBytes(int64(rate)),
 				elapsed.Round(time.Second))
 			lastLogTime = time.Now()
 		}
 
-		// Incremental source deletion every ~1GB
-		if opts.noBackup && bytesSinceDelete >= deleteChunkBytes {
-			// Flush any pending batch first (with sync for durability before delete)
+		if bytesSinceDelete >= deleteChunkBytes {
 			if err := flushBatch(true); err != nil {
 				srcIter.Close()
 				return 0, 0, err
 			}
 			bytesSinceSync = 0
 
-			// Close source iterator before deleting
 			lastKey := make([]byte, len(key))
 			copy(lastKey, key)
 			srcIter.Close()
 
-			// Delete migrated keys from source
-			if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
+			if err := migrate.DeleteSourceKeys(sourceDB, deleteKeys); err != nil {
 				return 0, 0, fmt.Errorf("failed to delete source keys: %w", err)
 			}
 			deleteKeys = deleteKeys[:0]
 			bytesSinceDelete = 0
 
-			// Reopen source iterator from last position
-			srcIter, err = sourceDB.Iterator(lastKey, nil)
+			srcIter, err = migrate.IteratorFrom(sourceDB, lastKey)
 			if err != nil {
-				return 0, 0, fmt.Errorf("failed to reopen source iterator: %w", err)
-			}
-			// Skip lastKey if it still exists (might have been deleted above)
-			if srcIter.Valid() && bytes.Equal(srcIter.Key(), lastKey) {
-				srcIter.Next()
+				return 0, 0, err
 			}
 		}
 	}
@@ -499,14 +443,12 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	}
 	srcIter.Close()
 
-	// Flush final batch with sync
 	if err := flushBatch(true); err != nil {
 		return 0, 0, err
 	}
 
-	// Delete any remaining tracked keys
-	if opts.noBackup && len(deleteKeys) > 0 {
-		if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
+	if len(deleteKeys) > 0 {
+		if err := migrate.DeleteSourceKeys(sourceDB, deleteKeys); err != nil {
 			return 0, 0, fmt.Errorf("failed to delete remaining source keys: %w", err)
 		}
 	}
@@ -514,37 +456,11 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	elapsed := time.Since(startTime)
 	newKeys := totalKeys - resumedKeys
 	fmt.Printf("[%s] Migration complete: %d keys total (%d new), %s, elapsed %s\n",
-		dbName, totalKeys, newKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
+		dbName, totalKeys, newKeys, migrate.HumanBytes(totalBytes), elapsed.Round(time.Second))
 
 	return totalKeys, totalBytes, nil
 }
 
-func deleteSourceKeys(sourceDB db.DB, keys [][]byte) error {
-	batch := sourceDB.NewBatch()
-	for _, key := range keys {
-		if err := batch.Delete(key); err != nil {
-			batch.Close()
-			return err
-		}
-		size, _ := batch.GetByteSize()
-		if size >= maxDeleteBatch {
-			if err := batch.WriteSync(); err != nil {
-				batch.Close()
-				return err
-			}
-			batch.Close()
-			batch = sourceDB.NewBatch()
-		}
-	}
-	if err := batch.WriteSync(); err != nil {
-		batch.Close()
-		return err
-	}
-	batch.Close()
-	return nil
-}
-
-// verifyDBSample picks evenly-spaced keys from source and verifies they exist with same value in dest.
 func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	sourceDB, err := db.NewDB(dbName, db.GoLevelDBBackend, sourceDir)
 	if err != nil {
@@ -558,7 +474,6 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	}
 	defer destDB.Close()
 
-	// First pass: count total keys
 	var totalKeys int64
 	countIter, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
@@ -579,7 +494,6 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 		stride = 1
 	}
 
-	// Second pass: sample and verify
 	iter, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
 		return err
@@ -647,47 +561,13 @@ func verifyDBFull(dbName, sourceDir, destDir string, expectedCount int64) error 
 	return nil
 }
 
-// State file management
-
-func loadState(destDir string) (*MigrationState, error) {
-	path := filepath.Join(destDir, ".migration_state.json")
-	data, err := os.ReadFile(path)
-	if os.IsNotExist(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var state MigrationState
-	if err := json.Unmarshal(data, &state); err != nil {
-		return nil, fmt.Errorf("corrupt migration state file: %w", err)
-	}
-	return &state, nil
-}
-
-func saveState(state *MigrationState, destDir string) error {
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-	tmpPath := filepath.Join(destDir, ".migration_state.json.tmp")
-	finalPath := filepath.Join(destDir, ".migration_state.json")
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
-		return err
-	}
-	return os.Rename(tmpPath, finalPath)
-}
-
-// Auto-swap: move PebbleDB files into data/ and update config.toml
-
 func performAutoSwap(homeDir, dataDir, pebbleDataDir string, noBackup bool) error {
 	fmt.Println("\nPerforming auto-swap...")
 
-	for _, dbName := range allDatabases {
+	for _, dbName := range migrate.AllDatabases {
 		srcPath := filepath.Join(pebbleDataDir, dbName+".db")
 		dstPath := filepath.Join(dataDir, dbName+".db")
 
-		// Remove old LevelDB if it still exists
 		if !noBackup {
 			if _, err := os.Stat(dstPath); err == nil {
 				fmt.Printf("  Removing old %s\n", dstPath)
@@ -697,7 +577,6 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, noBackup bool) erro
 			}
 		}
 
-		// Move PebbleDB into place
 		if _, err := os.Stat(srcPath); err == nil {
 			fmt.Printf("  Moving %s -> %s\n", srcPath, dstPath)
 			if err := os.Rename(srcPath, dstPath); err != nil {
@@ -706,7 +585,6 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, noBackup bool) erro
 		}
 	}
 
-	// Update config.toml
 	configPath := filepath.Join(homeDir, "config", "config.toml")
 	if err := updateConfigBackend(configPath, "pebbledb"); err != nil {
 		fmt.Printf("  Warning: could not update config.toml: %v\n", err)
@@ -715,7 +593,6 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, noBackup bool) erro
 		fmt.Printf("  Updated %s: db_backend = \"pebbledb\"\n", configPath)
 	}
 
-	// Clean up
 	os.Remove(filepath.Join(pebbleDataDir, ".migration_state.json"))
 	os.Remove(filepath.Join(pebbleDataDir, ".migration.lock"))
 	os.Remove(pebbleDataDir)
@@ -747,7 +624,7 @@ func updateConfigBackend(configPath, backend string) error {
 
 func printNextSteps(dataDir, pebbleDataDir string, noBackup bool) {
 	var rmCommands, mvCommands strings.Builder
-	for _, dbName := range allDatabases {
+	for _, dbName := range migrate.AllDatabases {
 		if !noBackup {
 			fmt.Fprintf(&rmCommands, "   rm -rf %s/%s.db\n", dataDir, dbName)
 		}
@@ -778,25 +655,4 @@ Next Steps:
 
 ============================================================
 `, pebbleDataDir)
-}
-
-func humanBytes(b int64) string {
-	const (
-		kb = 1024
-		mb = 1024 * kb
-		gb = 1024 * mb
-		tb = 1024 * gb
-	)
-	switch {
-	case b >= tb:
-		return fmt.Sprintf("%.2f TB", float64(b)/float64(tb))
-	case b >= gb:
-		return fmt.Sprintf("%.2f GB", float64(b)/float64(gb))
-	case b >= mb:
-		return fmt.Sprintf("%.2f MB", float64(b)/float64(mb))
-	case b >= kb:
-		return fmt.Sprintf("%.2f KB", float64(b)/float64(kb))
-	default:
-		return fmt.Sprintf("%d B", b)
-	}
 }

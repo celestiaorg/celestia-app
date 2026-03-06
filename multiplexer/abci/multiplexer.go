@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v8/app/migrate"
 	"github.com/celestiaorg/celestia-app/v8/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -41,6 +42,11 @@ import (
 const (
 	flagTraceStore = "trace-store"
 	flagGRPCOnly   = "grpc-only"
+
+	// FlagMigrateDB enables background LevelDB to PebbleDB migration.
+	FlagMigrateDB = "migrate-db"
+	// FlagMigrateRate sets the global write rate limit in MB/s for background migration.
+	FlagMigrateRate = "migrate-rate"
 )
 
 // Multiplexer is responsible for managing multiple versions of applications and coordinating their lifecycle.
@@ -86,6 +92,10 @@ type Multiplexer struct {
 	// Prometheus collector registration when enableGRPCAndAPIServers is
 	// called more than once (e.g. during a version switch).
 	metrics *telemetry.Metrics
+	// captureProvider captures CometBFT DB handles for background migration.
+	captureProvider *CaptureDBProvider
+	// appDB holds the application DB handle for background migration.
+	appDB db.DB
 }
 
 // NewMultiplexer creates a new Multiplexer.
@@ -142,6 +152,11 @@ func (m *Multiplexer) Start() error {
 		if err := m.startCmtNode(); err != nil {
 			return err
 		}
+	}
+
+	// Launch background migration if --migrate-db is set
+	if m.svrCtx.Viper.GetBool(FlagMigrateDB) {
+		m.startBackgroundMigration()
 	}
 
 	if m.isEmbeddedApp() {
@@ -382,13 +397,14 @@ func (m *Multiplexer) startNativeApp() (servertypes.Application, error) {
 	m.traceWriter = traceWriter
 
 	home := m.svrCtx.Config.RootDir
-	db, err := openDB(home, server.GetAppDBBackend(m.svrCtx.Viper))
+	appDB, err := openDB(home, server.GetAppDBBackend(m.svrCtx.Viper))
 	if err != nil {
 		return nil, err
 	}
+	m.appDB = appDB
 
 	m.logger.Debug("creating native app", "app_version", m.appVersion)
-	m.nativeApp = m.appCreator(m.logger, db, m.traceWriter, m.svrCtx.Viper)
+	m.nativeApp = m.appCreator(m.logger, appDB, m.traceWriter, m.svrCtx.Viper)
 	m.started = true
 	return m.nativeApp, nil
 }
@@ -522,6 +538,16 @@ func (m *Multiplexer) startCmtNode() error {
 		return err
 	}
 
+	// Use CaptureDBProvider when background migration is enabled to capture
+	// CometBFT DB handles (blockstore, state, tx_index, evidence).
+	var dbProvider cmtcfg.DBProvider
+	if m.svrCtx.Viper.GetBool(FlagMigrateDB) {
+		m.captureProvider = NewCaptureDBProvider()
+		dbProvider = m.captureProvider.Provide
+	} else {
+		dbProvider = cmtcfg.DefaultDBProvider
+	}
+
 	cmNode, err := node.NewNodeWithContext(
 		m.ctx,
 		cfg,
@@ -529,7 +555,7 @@ func (m *Multiplexer) startCmtNode() error {
 		nodeKey,
 		proxy.NewConnSyncLocalClientCreator(m),
 		internal.GetGenDocProvider(cfg),
-		cmtcfg.DefaultDBProvider,
+		dbProvider,
 		node.DefaultMetricsProvider(cfg.Instrumentation),
 		servercmtlog.CometLoggerWrapper{Logger: m.logger},
 	)
@@ -543,6 +569,40 @@ func (m *Multiplexer) startCmtNode() error {
 
 	m.cmNode = cmNode
 	return nil
+}
+
+// startBackgroundMigration assembles all captured DB handles and launches the
+// background migrator that copies LevelDB data to PebbleDB in data_pebble/.
+func (m *Multiplexer) startBackgroundMigration() {
+	sourceDBs := make(map[string]db.DB)
+
+	// Application DB (cosmos-db)
+	if m.appDB != nil {
+		sourceDBs["application"] = m.appDB
+	}
+
+	// CometBFT DBs (cometbft-db, wrapped via adapter)
+	if m.captureProvider != nil {
+		for name, cmtDB := range m.captureProvider.GetAll() {
+			sourceDBs[name] = migrate.WrapCometBFTDB(cmtDB)
+		}
+	}
+
+	home := m.svrCtx.Config.RootDir
+	destDir := filepath.Join(home, "data_pebble")
+	rateMBs := m.svrCtx.Viper.GetInt(FlagMigrateRate)
+	if rateMBs <= 0 {
+		rateMBs = 50
+	}
+
+	migrator := migrate.NewMigrator(sourceDBs, destDir, rateMBs, m.logger)
+	m.g.Go(func() error {
+		if err := migrator.Start(m.ctx); err != nil {
+			m.logger.Error("Background migration failed", "err", err)
+			// Don't return error — migration failure should not stop the node.
+		}
+		return nil
+	})
 }
 
 // Stop stops the multiplexer and all its components. It intentionally proceeds
