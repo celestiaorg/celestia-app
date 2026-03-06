@@ -46,6 +46,26 @@ type MigrationState struct {
 	Databases map[string]DBState `json:"databases"`
 }
 
+// stateTracker bundles MigrationState with a mutex for concurrent access and the dest dir for persistence.
+type stateTracker struct {
+	mu      sync.Mutex
+	state   *MigrationState
+	destDir string
+}
+
+func (st *stateTracker) getDBState(dbName string) DBState {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	return st.state.Databases[dbName]
+}
+
+func (st *stateTracker) updateDBState(dbName string, ds DBState) error {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	st.state.Databases[dbName] = ds
+	return saveState(st.state, st.destDir)
+}
+
 // DBState tracks the migration status of a single database.
 type DBState struct {
 	Status        string    `json:"status"` // "pending", "in_progress", "migrated", "source_deleted"
@@ -105,12 +125,12 @@ Options:
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	if err := migrateDB(ctx, opts); err != nil {
+	if err := runMigration(ctx, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
 }
 
-func migrateDB(ctx context.Context, opts migrateOpts) error {
+func runMigration(ctx context.Context, opts migrateOpts) error {
 	dataDir := filepath.Join(opts.homeDir, "data")
 	pebbleDataDir := filepath.Join(opts.homeDir, "data_pebble")
 
@@ -126,16 +146,7 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		databases = []string{opts.dbFilter}
 	}
 
-	fmt.Printf("Starting database migration from LevelDB to PebbleDB\n")
-	fmt.Printf("Home directory:    %s\n", opts.homeDir)
-	fmt.Printf("Source (LevelDB):  %s\n", dataDir)
-	fmt.Printf("Dest (PebbleDB):   %s\n", pebbleDataDir)
-	fmt.Printf("Dry-run:           %v\n", opts.dryRun)
-	fmt.Printf("No-backup:         %v\n", opts.noBackup)
-	fmt.Printf("Batch size:        %d MB\n", opts.batchSizeMB)
-	fmt.Printf("Sync interval:     %d MB\n", opts.syncInterval)
-	fmt.Printf("Parallel:          %d\n", opts.parallel)
-	fmt.Println()
+	printBanner(opts, dataDir, pebbleDataDir)
 
 	if opts.dryRun {
 		for _, dbName := range databases {
@@ -171,10 +182,47 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		}
 	}()
 
-	// Load or initialize migration state
+	state, err := loadOrInitState(pebbleDataDir, opts)
+	if err != nil {
+		return err
+	}
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.parallel)
+	for _, dbName := range databases {
+		g.Go(func() error {
+			return migrateOneDB(gctx, dbName, dataDir, state, opts)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
+
+	if opts.autoSwap {
+		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, opts.noBackup)
+	}
+
+	printNextSteps(dataDir, pebbleDataDir, opts.noBackup)
+	return nil
+}
+
+func printBanner(opts migrateOpts, dataDir, pebbleDataDir string) {
+	fmt.Printf("Starting database migration from LevelDB to PebbleDB\n")
+	fmt.Printf("Home directory:    %s\n", opts.homeDir)
+	fmt.Printf("Source (LevelDB):  %s\n", dataDir)
+	fmt.Printf("Dest (PebbleDB):   %s\n", pebbleDataDir)
+	fmt.Printf("Dry-run:           %v\n", opts.dryRun)
+	fmt.Printf("No-backup:         %v\n", opts.noBackup)
+	fmt.Printf("Batch size:        %d MB\n", opts.batchSizeMB)
+	fmt.Printf("Sync interval:     %d MB\n", opts.syncInterval)
+	fmt.Printf("Parallel:          %d\n", opts.parallel)
+	fmt.Println()
+}
+
+func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, error) {
 	state, err := loadState(pebbleDataDir)
 	if err != nil {
-		return fmt.Errorf("failed to load migration state: %w", err)
+		return nil, fmt.Errorf("failed to load migration state: %w", err)
 	}
 
 	if state == nil {
@@ -187,7 +235,7 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 			state.Databases[d] = DBState{Status: "pending"}
 		}
 		if err := saveState(state, pebbleDataDir); err != nil {
-			return err
+			return nil, err
 		}
 		fmt.Println("Initialized new migration state.")
 	} else {
@@ -200,117 +248,78 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		fmt.Println()
 	}
 
-	var stateMu sync.Mutex
+	return &stateTracker{state: state, destDir: pebbleDataDir}, nil
+}
 
-	// migrateOne handles a single database end-to-end.
-	migrateOne := func(ctx context.Context, dbName string) error {
-		stateMu.Lock()
-		ds := state.Databases[dbName]
-		stateMu.Unlock()
+func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTracker, opts migrateOpts) error {
+	ds := tracker.getDBState(dbName)
 
-		if ds.Status == "migrated" || ds.Status == "source_deleted" {
-			fmt.Printf("[%s] Already complete (status=%s), skipping\n", dbName, ds.Status)
-			return nil
-		}
-
-		levelDBPath := filepath.Join(dataDir, dbName+".db")
-		if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
-			if ds.Status == "in_progress" {
-				// Source was deleted (--no-backup crash recovery) but dest should have data
-				fmt.Printf("[%s] Source not found but was in_progress — marking as migrated\n", dbName)
-				stateMu.Lock()
-				ds.Status = "migrated"
-				ds.CompletedAt = time.Now()
-				state.Databases[dbName] = ds
-				err := saveState(state, pebbleDataDir)
-				stateMu.Unlock()
-				return err
-			}
-			fmt.Printf("[%s] Warning: LevelDB not found, skipping\n", dbName)
-			return nil
-		}
-
-		stateMu.Lock()
-		ds.Status = "in_progress"
-		state.Databases[dbName] = ds
-		if err := saveState(state, pebbleDataDir); err != nil {
-			stateMu.Unlock()
-			return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
-		}
-		stateMu.Unlock()
-
-		fmt.Printf("[%s] Starting migration...\n", dbName)
-		keys, bytesMigrated, err := migrateSingleDB(ctx, dbName, dataDir, pebbleDataDir, opts)
-		if err != nil {
-			return fmt.Errorf("[%s] migration failed: %w", dbName, err)
-		}
-
-		stateMu.Lock()
-		ds.Status = "migrated"
-		ds.KeysMigrated = keys
-		ds.BytesMigrated = bytesMigrated
-		ds.CompletedAt = time.Now()
-		state.Databases[dbName] = ds
-		if err := saveState(state, pebbleDataDir); err != nil {
-			stateMu.Unlock()
-			return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
-		}
-		stateMu.Unlock()
-
-		// Verification
-		if !opts.skipVerify {
-			fmt.Printf("[%s] Verifying...\n", dbName)
-			if opts.verifyFull {
-				if err := verifyDBFull(dbName, dataDir, pebbleDataDir, keys); err != nil {
-					return fmt.Errorf("[%s] full verification failed: %w", dbName, err)
-				}
-			} else {
-				if err := verifyDBSample(dbName, dataDir, pebbleDataDir, 1000); err != nil {
-					return fmt.Errorf("[%s] sample verification failed: %w", dbName, err)
-				}
-			}
-			fmt.Printf("[%s] Verification passed\n", dbName)
-		}
-
-		// Delete source if --no-backup
-		if opts.noBackup {
-			srcPath := filepath.Join(dataDir, dbName+".db")
-			fmt.Printf("[%s] Removing source LevelDB: %s\n", dbName, srcPath)
-			if err := os.RemoveAll(srcPath); err != nil {
-				return fmt.Errorf("[%s] failed to remove source: %w", dbName, err)
-			}
-			stateMu.Lock()
-			ds.Status = "source_deleted"
-			state.Databases[dbName] = ds
-			if err := saveState(state, pebbleDataDir); err != nil {
-				stateMu.Unlock()
-				return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
-			}
-			stateMu.Unlock()
-		}
-
-		fmt.Printf("[%s] Complete: %d keys, %s\n", dbName, keys, humanBytes(bytesMigrated))
+	if ds.Status == "migrated" || ds.Status == "source_deleted" {
+		fmt.Printf("[%s] Already complete (status=%s), skipping\n", dbName, ds.Status)
 		return nil
 	}
 
-	// Execute migration
-	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(opts.parallel)
-	for _, dbName := range databases {
-		g.Go(func() error {
-			return migrateOne(gctx, dbName)
-		})
-	}
-	if err := g.Wait(); err != nil {
-		return err
-	}
-
-	// Auto-swap
-	if opts.autoSwap {
-		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, opts.noBackup)
+	levelDBPath := filepath.Join(dataDir, dbName+".db")
+	if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
+		if ds.Status == "in_progress" {
+			// Source was deleted (--no-backup crash recovery), but dest should have data
+			fmt.Printf("[%s] Source not found but was in_progress — marking as migrated\n", dbName)
+			ds.Status = "migrated"
+			ds.CompletedAt = time.Now()
+			return tracker.updateDBState(dbName, ds)
+		}
+		fmt.Printf("[%s] Warning: LevelDB not found, skipping\n", dbName)
+		return nil
 	}
 
-	printNextSteps(dataDir, pebbleDataDir, opts.noBackup)
+	ds.Status = "in_progress"
+	if err := tracker.updateDBState(dbName, ds); err != nil {
+		return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
+	}
+
+	fmt.Printf("[%s] Starting migration...\n", dbName)
+	keys, bytesMigrated, err := migrateSingleDB(ctx, dbName, dataDir, tracker.destDir, opts)
+	if err != nil {
+		return fmt.Errorf("[%s] migration failed: %w", dbName, err)
+	}
+
+	ds.Status = "migrated"
+	ds.KeysMigrated = keys
+	ds.BytesMigrated = bytesMigrated
+	ds.CompletedAt = time.Now()
+	if err := tracker.updateDBState(dbName, ds); err != nil {
+		return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
+	}
+
+	// Verification
+	if !opts.skipVerify {
+		fmt.Printf("[%s] Verifying...\n", dbName)
+		if opts.verifyFull {
+			if err := verifyDBFull(dbName, dataDir, tracker.destDir, keys); err != nil {
+				return fmt.Errorf("[%s] full verification failed: %w", dbName, err)
+			}
+		} else {
+			if err := verifyDBSample(dbName, dataDir, tracker.destDir, 1000); err != nil {
+				return fmt.Errorf("[%s] sample verification failed: %w", dbName, err)
+			}
+		}
+		fmt.Printf("[%s] Verification passed\n", dbName)
+	}
+
+	// Delete source if --no-backup
+	if opts.noBackup {
+		srcPath := filepath.Join(dataDir, dbName+".db")
+		fmt.Printf("[%s] Removing source LevelDB: %s\n", dbName, srcPath)
+		if err := os.RemoveAll(srcPath); err != nil {
+			return fmt.Errorf("[%s] failed to remove source: %w", dbName, err)
+		}
+		ds.Status = "source_deleted"
+		if err := tracker.updateDBState(dbName, ds); err != nil {
+			return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
+		}
+	}
+
+	fmt.Printf("[%s] Complete: %d keys, %s\n", dbName, keys, humanBytes(bytesMigrated))
 	return nil
 }
 
@@ -333,12 +342,38 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	}
 	defer destDB.Close()
 
-	// Find resume point via reverse iterator on dest
-	var resumeKey []byte
-	var resumedKeys int64
+	resumeKey, resumedKeys, err := findResumePoint(destDB, dbName)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	srcIter, err := iteratorFrom(sourceDB, resumeKey)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var totalKeys, totalBytes int64
+	if opts.noBackup {
+		totalKeys, totalBytes, err = copyAndDeleteKeys(ctx, dbName, sourceDB, destDB, srcIter, batchBytes, syncBytes, resumedKeys, startTime)
+	} else {
+		totalKeys, totalBytes, err = copyAllKeys(ctx, dbName, destDB, srcIter, batchBytes, syncBytes, resumedKeys, startTime)
+	}
+	if err != nil {
+		return 0, 0, err
+	}
+
+	newKeys := totalKeys - resumedKeys
+	elapsed := time.Since(startTime)
+	fmt.Printf("[%s] Migration complete: %d keys total (%d new), %s, elapsed %s\n",
+		dbName, totalKeys, newKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
+
+	return totalKeys, totalBytes, nil
+}
+
+func findResumePoint(destDB db.DB, dbName string) (resumeKey []byte, resumedKeys int64, err error) {
 	revIter, err := destDB.ReverseIterator(nil, nil)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to create reverse iterator: %w", err)
+		return nil, 0, fmt.Errorf("failed to create reverse iterator: %w", err)
 	}
 	if revIter.Valid() {
 		resumeKey = make([]byte, len(revIter.Key()))
@@ -347,10 +382,9 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	revIter.Close()
 
 	if resumeKey != nil {
-		// Count existing keys for accurate progress (fast scan)
 		countIter, err := destDB.Iterator(nil, nil)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to count existing keys: %w", err)
+			return nil, 0, fmt.Errorf("failed to count existing keys: %w", err)
 		}
 		for ; countIter.Valid(); countIter.Next() {
 			resumedKeys++
@@ -359,53 +393,130 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 		fmt.Printf("[%s] Resuming from key (already migrated: %d keys)\n", dbName, resumedKeys)
 	}
 
-	totalKeys := resumedKeys
-	var totalBytes int64
-	var bytesSinceSync int64
-	var deleteKeys [][]byte
-	var bytesSinceDelete int64
-	lastLogTime := time.Now()
+	return resumeKey, resumedKeys, nil
+}
 
-	// Create source iterator from resume point
-	var srcIter db.Iterator
+func iteratorFrom(sourceDB db.DB, resumeKey []byte) (db.Iterator, error) {
 	if resumeKey != nil {
-		srcIter, err = sourceDB.Iterator(resumeKey, nil)
+		srcIter, err := sourceDB.Iterator(resumeKey, nil)
 		if err != nil {
-			return 0, 0, fmt.Errorf("failed to create source iterator: %w", err)
+			return nil, fmt.Errorf("failed to create source iterator: %w", err)
 		}
 		// Skip the resume key itself if it matches (already migrated)
 		if srcIter.Valid() && bytes.Equal(srcIter.Key(), resumeKey) {
 			srcIter.Next()
 		}
-	} else {
-		srcIter, err = sourceDB.Iterator(nil, nil)
-		if err != nil {
-			return 0, 0, fmt.Errorf("failed to create source iterator: %w", err)
-		}
+		return srcIter, nil
 	}
+	srcIter, err := sourceDB.Iterator(nil, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create source iterator: %w", err)
+	}
+	return srcIter, nil
+}
+
+func flushBatch(batch db.Batch, destDB db.DB, sync bool) (db.Batch, error) {
+	var writeErr error
+	if sync {
+		writeErr = batch.WriteSync()
+	} else {
+		writeErr = batch.Write()
+	}
+	if writeErr != nil {
+		batch.Close()
+		return nil, fmt.Errorf("failed to write batch: %w", writeErr)
+	}
+	batch.Close()
+	return destDB.NewBatch(), nil
+}
+
+func logProgress(dbName string, totalKeys, totalBytes int64, startTime time.Time, lastLogTime *time.Time) {
+	if time.Since(*lastLogTime) >= progressInterval {
+		elapsed := time.Since(startTime)
+		rate := float64(totalBytes) / elapsed.Seconds()
+		fmt.Printf("[%s] %d keys, %s migrated, %s/s, elapsed %s\n",
+			dbName, totalKeys, humanBytes(totalBytes), humanBytes(int64(rate)),
+			elapsed.Round(time.Second))
+		*lastLogTime = time.Now()
+	}
+}
+
+func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes, startKeys int64, startTime time.Time) (int64, int64, error) {
+	totalKeys := startKeys
+	var totalBytes, bytesSinceSync int64
+	lastLogTime := time.Now()
 
 	batch := destDB.NewBatch()
 	var batchKeyCount int
 
-	flushBatch := func(sync bool) error {
-		if batchKeyCount == 0 {
-			return nil
-		}
-		var writeErr error
-		if sync {
-			writeErr = batch.WriteSync()
-		} else {
-			writeErr = batch.Write()
-		}
-		if writeErr != nil {
+	for ; srcIter.Valid(); srcIter.Next() {
+		key := srcIter.Key()
+		value := srcIter.Value()
+		kvSize := int64(len(key) + len(value))
+
+		if err := batch.Set(key, value); err != nil {
+			srcIter.Close()
 			batch.Close()
-			return fmt.Errorf("failed to write batch: %w", writeErr)
+			return 0, 0, fmt.Errorf("failed to set key in batch: %w", err)
 		}
-		batch.Close()
-		batch = destDB.NewBatch()
-		batchKeyCount = 0
-		return nil
+
+		totalKeys++
+		batchKeyCount++
+		totalBytes += kvSize
+		bytesSinceSync += kvSize
+
+		currentBatchSize, _ := batch.GetByteSize()
+		if int64(currentBatchSize) >= batchBytes {
+			needSync := syncBytes > 0 && bytesSinceSync >= syncBytes
+			var err error
+			batch, err = flushBatch(batch, destDB, needSync)
+			if err != nil {
+				srcIter.Close()
+				return 0, 0, err
+			}
+			batchKeyCount = 0
+			if needSync {
+				bytesSinceSync = 0
+			}
+
+			select {
+			case <-ctx.Done():
+				srcIter.Close()
+				return 0, 0, fmt.Errorf("cancelled: %w", ctx.Err())
+			default:
+			}
+		}
+
+		logProgress(dbName, totalKeys, totalBytes, startTime, &lastLogTime)
 	}
+
+	if err := srcIter.Error(); err != nil {
+		srcIter.Close()
+		batch.Close()
+		return 0, 0, fmt.Errorf("iterator error: %w", err)
+	}
+	srcIter.Close()
+
+	// Flush final batch with sync
+	if batchKeyCount > 0 {
+		if _, err := flushBatch(batch, destDB, true); err != nil {
+			return 0, 0, err
+		}
+	} else {
+		batch.Close()
+	}
+
+	return totalKeys, totalBytes, nil
+}
+
+func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes, startKeys int64, startTime time.Time) (int64, int64, error) {
+	totalKeys := startKeys
+	var totalBytes, bytesSinceSync, bytesSinceDelete int64
+	var deleteKeys [][]byte
+	lastLogTime := time.Now()
+
+	batch := destDB.NewBatch()
+	var batchKeyCount int
 
 	for ; srcIter.Valid(); srcIter.Next() {
 		key := srcIter.Key()
@@ -424,26 +535,24 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 		bytesSinceSync += kvSize
 		bytesSinceDelete += kvSize
 
-		// Track keys for --no-backup deletion
-		if opts.noBackup {
-			keyCopy := make([]byte, len(key))
-			copy(keyCopy, key)
-			deleteKeys = append(deleteKeys, keyCopy)
-		}
+		keyCopy := make([]byte, len(key))
+		copy(keyCopy, key)
+		deleteKeys = append(deleteKeys, keyCopy)
 
-		// Check if batch should be flushed (byte-based)
 		currentBatchSize, _ := batch.GetByteSize()
 		if int64(currentBatchSize) >= batchBytes {
 			needSync := syncBytes > 0 && bytesSinceSync >= syncBytes
-			if err := flushBatch(needSync); err != nil {
+			var err error
+			batch, err = flushBatch(batch, destDB, needSync)
+			if err != nil {
 				srcIter.Close()
 				return 0, 0, err
 			}
+			batchKeyCount = 0
 			if needSync {
 				bytesSinceSync = 0
 			}
 
-			// Check for cancellation once per batch flush
 			select {
 			case <-ctx.Done():
 				srcIter.Close()
@@ -452,31 +561,27 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 			}
 		}
 
-		// Progress logging
-		if time.Since(lastLogTime) >= progressInterval {
-			elapsed := time.Since(startTime)
-			rate := float64(totalBytes) / elapsed.Seconds()
-			fmt.Printf("[%s] %d keys, %s migrated, %s/s, elapsed %s\n",
-				dbName, totalKeys, humanBytes(totalBytes), humanBytes(int64(rate)),
-				elapsed.Round(time.Second))
-			lastLogTime = time.Now()
-		}
+		logProgress(dbName, totalKeys, totalBytes, startTime, &lastLogTime)
 
 		// Incremental source deletion every ~1GB
-		if opts.noBackup && bytesSinceDelete >= deleteChunkBytes {
+		if bytesSinceDelete >= deleteChunkBytes {
 			// Flush any pending batch first (with sync for durability before delete)
-			if err := flushBatch(true); err != nil {
-				srcIter.Close()
-				return 0, 0, err
+			if batchKeyCount > 0 {
+				var err error
+				batch, err = flushBatch(batch, destDB, true)
+				if err != nil {
+					srcIter.Close()
+					return 0, 0, err
+				}
+				batchKeyCount = 0
+				bytesSinceSync = 0
 			}
-			bytesSinceSync = 0
 
 			// Close source iterator before deleting
 			lastKey := make([]byte, len(key))
 			copy(lastKey, key)
 			srcIter.Close()
 
-			// Delete migrated keys from source
 			if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
 				return 0, 0, fmt.Errorf("failed to delete source keys: %w", err)
 			}
@@ -484,6 +589,7 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 			bytesSinceDelete = 0
 
 			// Reopen source iterator from last position
+			var err error
 			srcIter, err = sourceDB.Iterator(lastKey, nil)
 			if err != nil {
 				return 0, 0, fmt.Errorf("failed to reopen source iterator: %w", err)
@@ -503,21 +609,20 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	srcIter.Close()
 
 	// Flush final batch with sync
-	if err := flushBatch(true); err != nil {
-		return 0, 0, err
+	if batchKeyCount > 0 {
+		if _, err := flushBatch(batch, destDB, true); err != nil {
+			return 0, 0, err
+		}
+	} else {
+		batch.Close()
 	}
 
 	// Delete any remaining tracked keys
-	if opts.noBackup && len(deleteKeys) > 0 {
+	if len(deleteKeys) > 0 {
 		if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
 			return 0, 0, fmt.Errorf("failed to delete remaining source keys: %w", err)
 		}
 	}
-
-	elapsed := time.Since(startTime)
-	newKeys := totalKeys - resumedKeys
-	fmt.Printf("[%s] Migration complete: %d keys total (%d new), %s, elapsed %s\n",
-		dbName, totalKeys, newKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
 
 	return totalKeys, totalBytes, nil
 }
