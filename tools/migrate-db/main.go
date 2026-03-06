@@ -289,28 +289,17 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 		return nil
 	}
 
-	// Execute migration — parallel or sequential
-	if opts.parallel > 1 && len(databases) > 1 {
-		g, gctx := errgroup.WithContext(ctx)
-		g.SetLimit(opts.parallel)
-		for _, dbName := range databases {
-			dbName := dbName
-			g.Go(func() error {
-				return migrateOne(gctx, dbName)
-			})
-		}
-		if err := g.Wait(); err != nil {
-			return err
-		}
-	} else {
-		for _, dbName := range databases {
-			if err := ctx.Err(); err != nil {
-				return fmt.Errorf("migration cancelled: %w", err)
-			}
-			if err := migrateOne(ctx, dbName); err != nil {
-				return err
-			}
-		}
+	// Execute migration
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(opts.parallel)
+	for _, dbName := range databases {
+		dbName := dbName
+		g.Go(func() error {
+			return migrateOne(gctx, dbName)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	// Auto-swap
