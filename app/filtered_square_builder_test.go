@@ -128,91 +128,6 @@ func TestExtractMsgPayForFibre(t *testing.T) {
 	}
 }
 
-func TestCreateSystemBlobForPayForFibre(t *testing.T) {
-	privKey := secp256k1.GenPrivKey()
-	addr := sdk.AccAddress(privKey.PubKey().Address())
-	validNs := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
-	validCommitment := bytes.Repeat([]byte{0xFF}, share.FibreCommitmentSize)
-
-	tests := []struct {
-		name      string
-		msg       *fibretypes.MsgPayForFibre
-		wantErr   string
-		checkBlob func(t *testing.T, blob *share.Blob, msg *fibretypes.MsgPayForFibre)
-	}{
-		{
-			name: "valid",
-			msg: &fibretypes.MsgPayForFibre{
-				Signer: addr.String(),
-				PaymentPromise: fibretypes.PaymentPromise{
-					Namespace:   validNs.Bytes(),
-					Commitment:  validCommitment,
-					BlobVersion: fibretypes.BlobVersionZero,
-					ChainId:     "test",
-					Height:      1,
-				},
-			},
-			checkBlob: func(t *testing.T, blob *share.Blob, msg *fibretypes.MsgPayForFibre) {
-				t.Helper()
-				require.Equal(t, share.ShareVersionTwo, blob.ShareVersion())
-				ns, err := share.NewNamespaceFromBytes(msg.PaymentPromise.Namespace)
-				require.NoError(t, err)
-				require.True(t, blob.Namespace().Equals(ns))
-				require.Equal(t, addr.Bytes(), blob.Signer())
-				blobData := blob.Data()
-				require.Len(t, blobData, share.FibreBlobVersionSize+share.FibreCommitmentSize)
-				require.Equal(t, msg.PaymentPromise.Commitment, blobData[share.FibreBlobVersionSize:])
-			},
-		},
-		{
-			name: "invalid namespace size",
-			msg: &fibretypes.MsgPayForFibre{
-				Signer: addr.String(),
-				PaymentPromise: fibretypes.PaymentPromise{
-					Namespace:  []byte{1, 2, 3}, // too short
-					Commitment: validCommitment,
-				},
-			},
-			wantErr: "invalid namespace size",
-		},
-		{
-			name: "invalid signer address",
-			msg: &fibretypes.MsgPayForFibre{
-				Signer: "not-a-valid-bech32",
-				PaymentPromise: fibretypes.PaymentPromise{
-					Namespace:  validNs.Bytes(),
-					Commitment: validCommitment,
-				},
-			},
-			wantErr: "failed to decode signer address",
-		},
-		{
-			name: "invalid commitment size",
-			msg: &fibretypes.MsgPayForFibre{
-				Signer: addr.String(),
-				PaymentPromise: fibretypes.PaymentPromise{
-					Namespace:  validNs.Bytes(),
-					Commitment: []byte{1, 2, 3}, // wrong size
-				},
-			},
-			wantErr: "invalid commitment size",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			blob, err := createSystemBlobForPayForFibre(tc.msg)
-			if tc.wantErr != "" {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.wantErr)
-				return
-			}
-			require.NoError(t, err)
-			require.NotNil(t, blob)
-			tc.checkBlob(t, blob, tc.msg)
-		})
-	}
-}
 
 func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
@@ -234,7 +149,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 		anteHandler       sdk.AnteHandler
 		txs               [][]byte
 		wantKeptCount     int
-		wantFibreTxCount  int // FibreTx-wrapped outputs
+		wantPFFCount      int // plain SDK MsgPayForFibre outputs (stable hash)
 		wantFibreInSquare bool
 	}{
 		{
@@ -242,7 +157,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler:       alwaysPass,
 			txs:               [][]byte{payForFibreTx},
 			wantKeptCount:     1,
-			wantFibreTxCount:  1,
+			wantPFFCount:      1,
 			wantFibreInSquare: true,
 		},
 		{
@@ -250,7 +165,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler:       alwaysPass,
 			txs:               [][]byte{normalTx, payForFibreTx},
 			wantKeptCount:     2,
-			wantFibreTxCount:  1,
+			wantPFFCount:      1,
 			wantFibreInSquare: true,
 		},
 		{
@@ -258,7 +173,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler:       alwaysPass,
 			txs:               [][]byte{blobTx, payForFibreTx},
 			wantKeptCount:     2,
-			wantFibreTxCount:  1,
+			wantPFFCount:      1,
 			wantFibreInSquare: true,
 		},
 		{
@@ -266,7 +181,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler:       alwaysPass,
 			txs:               [][]byte{normalTx, blobTx, payForFibreTx},
 			wantKeptCount:     3,
-			wantFibreTxCount:  1,
+			wantPFFCount:      1,
 			wantFibreInSquare: true,
 		},
 		{
@@ -274,7 +189,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler:       alwaysPass,
 			txs:               [][]byte{payForFibreTx, payForFibreTx},
 			wantKeptCount:     2,
-			wantFibreTxCount:  2,
+			wantPFFCount:      2,
 			wantFibreInSquare: true,
 		},
 		{
@@ -282,7 +197,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			anteHandler:       alwaysReject,
 			txs:               [][]byte{payForFibreTx},
 			wantKeptCount:     0,
-			wantFibreTxCount:  0,
+			wantPFFCount:      0,
 			wantFibreInSquare: false,
 		},
 		{
@@ -291,7 +206,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			txs:         [][]byte{normalTx, blobTx, payForFibreTx},
 			// normalTx and blobTx are also rejected because alwaysReject fires for every tx type.
 			wantKeptCount:     0,
-			wantFibreTxCount:  0,
+			wantPFFCount:      0,
 			wantFibreInSquare: false,
 		},
 	}
@@ -308,15 +223,19 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			kept := fsb.Fill(ctx, tc.txs)
 			require.Len(t, kept, tc.wantKeptCount)
 
-			// Count how many of the kept txs are FibreTx-wrapped.
-			fibreTxCount := 0
+			// Count how many of the kept txs are plain SDK MsgPayForFibre txs.
+			// Fill now returns rawTx (plain SDK bytes) for hash stability.
+			pffCount := 0
 			for _, rawTx := range kept {
-				_, isFibre, _ := gosquaretx.UnmarshalFibreTx(rawTx)
-				if isFibre {
-					fibreTxCount++
+				sdkTx, decErr := txConfig.TxDecoder()(rawTx)
+				if decErr != nil {
+					continue
+				}
+				if _, isPFF := extractMsgPayForFibre(sdkTx); isPFF {
+					pffCount++
 				}
 			}
-			require.Equal(t, tc.wantFibreTxCount, fibreTxCount)
+			require.Equal(t, tc.wantPFFCount, pffCount)
 
 			sq, err := fsb.Build()
 			require.NoError(t, err)

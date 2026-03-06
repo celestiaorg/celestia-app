@@ -81,23 +81,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			sdkTxBytes = blobTx.Tx
 		}
 
-		// FibreTx wraps a MsgPayForFibre SDK tx together with its system blob.
-		// Only attempt this decode when the tx is not already a BlobTx.
-		var (
-			fibreTx   *blobtx.FibreTx
-			isFibreTx bool
-		)
-		if !isBlobTx {
-			fibreTx, isFibreTx, err = blobtx.UnmarshalFibreTx(rawTx)
-			if isFibreTx {
-				if err != nil {
-					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with fibre tx %d", idx), err)
-					return reject(), nil
-				}
-				sdkTxBytes = fibreTx.Tx
-			}
-		}
-
 		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
 
 		// Set the tx bytes in the context for app version v3 and greater
@@ -107,16 +90,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// An error here means that a tx was included in the block that is not decodable.
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
 			return reject(), nil
-		}
-
-		if isFibreTx {
-			// Validate the inner SDK tx (signature, nonce, fees).
-			ctx, err = handler(ctx, sdkTx, false)
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre tx %d ante handler validation failed", idx), err)
-				return reject(), nil
-			}
-			continue
 		}
 
 		// handle non-blob transactions first

@@ -1,12 +1,9 @@
 package app
 
 import (
-	"fmt"
-
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
-	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -153,33 +150,27 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		m++
 	}
 
-	// Process pay-for-fibre transactions: validate, create system blob, wrap as FibreTx.
+	// Process pay-for-fibre transactions: synthesize system blob, validate, append to builder.
+	// Plain SDK tx bytes are returned unchanged so that the tx hash is stable: the hash the
+	// client used to submit the tx is the same hash committed in the block, allowing ConfirmTx to work.
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 	for _, rawTx := range payForFibreTxs {
+		// SynthesizeFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
+		// separateTxs guarantees rawTx contains MsgPayForFibre, so isFibre is always true.
+		fibreTx, _, err := tx.SynthesizeFibreTx(rawTx)
+		if err != nil {
+			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			continue
+		}
+
 		sdkTx, err := dec(rawTx)
 		if err != nil {
 			logger.Error("decoding pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
 			continue
 		}
 
-		// separateTxs guarantees rawTx contains MsgPayForFibre, so the bool is safe to ignore.
-		msgPayForFibre, _ := extractMsgPayForFibre(sdkTx)
-		systemBlob, err := createSystemBlobForPayForFibre(msgPayForFibre)
-		if err != nil {
-			logger.Error("creating system blob for pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
-
-		// Marshal before appending so that an encoding failure requires no builder revert.
-		marshaledFibreTx, err := tx.MarshalFibreTx(rawTx, systemBlob)
-		if err != nil {
-			logger.Error("marshaling fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
-
 		ctx = ctx.WithTxBytes(rawTx)
 
-		fibreTx := &tx.FibreTx{Tx: rawTx, SystemBlob: systemBlob}
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
 			logger.Error("appending pay-for-fibre transaction to builder", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
@@ -205,7 +196,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
-		fibreTxs = append(fibreTxs, marshaledFibreTx)
+		fibreTxs = append(fibreTxs, rawTx)
 	}
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
@@ -288,34 +279,4 @@ func extractMsgPayForFibre(sdkTx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
 	return nil, false
 }
 
-// createSystemBlobForPayForFibre creates the system-level V2 blob that
-// accompanies a MsgPayForFibre in the square.
-func createSystemBlobForPayForFibre(msg *fibretypes.MsgPayForFibre) (*share.Blob, error) {
-	namespaceBytes := msg.PaymentPromise.Namespace
-	if len(namespaceBytes) != share.NamespaceSize {
-		return nil, fmt.Errorf("invalid namespace size: expected %d bytes, got %d", share.NamespaceSize, len(namespaceBytes))
-	}
-	ns, err := share.NewNamespaceFromBytes(namespaceBytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create namespace: %w", err)
-	}
 
-	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode signer address: %w", err)
-	}
-	if len(signerAddr) != share.SignerSize {
-		return nil, fmt.Errorf("invalid signer size: expected %d bytes, got %d", share.SignerSize, len(signerAddr))
-	}
-
-	commitment := msg.PaymentPromise.Commitment
-	if len(commitment) != share.FibreCommitmentSize {
-		return nil, fmt.Errorf("invalid commitment size: expected %d bytes, got %d", share.FibreCommitmentSize, len(commitment))
-	}
-
-	blob, err := share.NewV2Blob(ns, msg.PaymentPromise.BlobVersion, commitment, signerAddr.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create V2 blob: %w", err)
-	}
-	return blob, nil
-}
