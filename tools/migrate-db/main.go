@@ -226,7 +226,7 @@ func migrateDB(ctx context.Context, opts migrateOpts) error {
 					return fmt.Errorf("[%s] full verification failed: %w", dbName, err)
 				}
 			} else {
-				if err := verifyDBSample(dbName, dataDir, pebbleDataDir, 1000); err != nil {
+				if err := verifyDBSample(dbName, dataDir, pebbleDataDir, 1000, keys); err != nil {
 					return fmt.Errorf("[%s] sample verification failed: %w", dbName, err)
 				}
 			}
@@ -461,7 +461,7 @@ func migrateSingleDBWithDelete(ctx context.Context, dbName string, sourceDB, des
 	return totalKeys, totalBytes, nil
 }
 
-func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
+func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int, knownKeyCount int64) error {
 	sourceDB, err := db.NewDB(dbName, db.GoLevelDBBackend, sourceDir)
 	if err != nil {
 		return fmt.Errorf("failed to open source for verification: %w", err)
@@ -474,90 +474,157 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	}
 	defer destDB.Close()
 
-	var totalKeys int64
-	countIter, err := sourceDB.Iterator(nil, nil)
-	if err != nil {
-		return err
-	}
-	for ; countIter.Valid(); countIter.Next() {
-		totalKeys++
-	}
-	countIter.Close()
-
-	if totalKeys == 0 {
+	if knownKeyCount == 0 {
 		fmt.Printf("[%s] Source is empty, nothing to verify\n", dbName)
 		return nil
 	}
 
-	stride := totalKeys / int64(sampleSize)
+	stride := knownKeyCount / int64(sampleSize)
 	if stride < 1 {
 		stride = 1
 	}
 
-	iter, err := sourceDB.Iterator(nil, nil)
+	// Merge-walk: iterate both source and dest in lockstep.
+	srcIter, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
+	defer srcIter.Close()
 
-	var checked, mismatches int64
-	var idx int64
-	for ; iter.Valid(); iter.Next() {
-		if idx%stride == 0 {
-			key := iter.Key()
-			srcVal := iter.Value()
-			destVal, err := destDB.Get(key)
-			if err != nil {
-				return fmt.Errorf("dest Get failed for key: %w", err)
+	destIter, err := destDB.Iterator(nil, nil)
+	if err != nil {
+		return err
+	}
+	defer destIter.Close()
+
+	var checked, mismatches, idx int64
+	for ; srcIter.Valid() && destIter.Valid(); srcIter.Next() {
+		srcKey := srcIter.Key()
+		destKey := destIter.Key()
+
+		cmp := bytes.Compare(srcKey, destKey)
+		if cmp != 0 {
+			mismatches++
+			if mismatches <= 3 {
+				fmt.Printf("[%s] Key mismatch at index %d: src=%x dest=%x\n", dbName, idx, srcKey, destKey)
 			}
-			if !bytes.Equal(srcVal, destVal) {
+			// Advance the lagging iterator to try to resync.
+			if cmp > 0 {
+				destIter.Next()
+			}
+			idx++
+			continue
+		}
+
+		// Keys match. Compare values on sampled keys.
+		if idx%stride == 0 {
+			if !bytes.Equal(srcIter.Value(), destIter.Value()) {
 				mismatches++
 				if mismatches <= 3 {
-					fmt.Printf("[%s] Mismatch at key %x\n", dbName, key)
+					fmt.Printf("[%s] Value mismatch at key %x\n", dbName, srcKey)
 				}
 			}
 			checked++
 		}
+
+		destIter.Next()
 		idx++
 	}
 
-	if mismatches > 0 {
-		return fmt.Errorf("sample verification found %d mismatches out of %d checked", mismatches, checked)
+	// Check for extra keys on either side.
+	if srcIter.Valid() && !destIter.Valid() {
+		mismatches++
+		fmt.Printf("[%s] Source has more keys than dest (dest exhausted at index %d)\n", dbName, idx)
+	} else if !srcIter.Valid() && destIter.Valid() {
+		mismatches++
+		fmt.Printf("[%s] Dest has more keys than source (source exhausted at index %d)\n", dbName, idx)
 	}
-	fmt.Printf("[%s] Sample verification passed: %d/%d keys checked\n", dbName, checked, totalKeys)
+
+	if mismatches > 0 {
+		return fmt.Errorf("sample verification found %d mismatches out of %d value-checked (%d keys walked)", mismatches, checked, idx)
+	}
+	fmt.Printf("[%s] Sample verification passed: %d/%d values checked, %d keys walked\n", dbName, checked, knownKeyCount, idx)
 	return nil
 }
 
 func verifyDBFull(dbName, sourceDir, destDir string, expectedCount int64) error {
+	sourceDB, err := db.NewDB(dbName, db.GoLevelDBBackend, sourceDir)
+	if err != nil {
+		return fmt.Errorf("failed to open source for full verification: %w", err)
+	}
+	defer sourceDB.Close()
+
 	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
 		return fmt.Errorf("failed to open PebbleDB for verification: %w", err)
 	}
 	defer destDB.Close()
 
-	iter, err := destDB.Iterator(nil, nil)
+	srcIter, err := sourceDB.Iterator(nil, nil)
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
+	defer srcIter.Close()
 
-	var actualCount int64
-	for ; iter.Valid(); iter.Next() {
-		actualCount++
-		if actualCount%1000000 == 0 {
-			fmt.Printf("[%s] Verified %d keys...\n", dbName, actualCount)
+	destIter, err := destDB.Iterator(nil, nil)
+	if err != nil {
+		return err
+	}
+	defer destIter.Close()
+
+	var verified int64
+	var mismatches int64
+	for ; srcIter.Valid() && destIter.Valid(); srcIter.Next() {
+		srcKey := srcIter.Key()
+		destKey := destIter.Key()
+
+		if !bytes.Equal(srcKey, destKey) {
+			mismatches++
+			if mismatches <= 3 {
+				fmt.Printf("[%s] Key mismatch at index %d: src=%x dest=%x\n", dbName, verified, srcKey, destKey)
+			}
+			// Try to resync by advancing the lagging iterator.
+			if bytes.Compare(srcKey, destKey) > 0 {
+				destIter.Next()
+			}
+			verified++
+			continue
+		}
+
+		if !bytes.Equal(srcIter.Value(), destIter.Value()) {
+			mismatches++
+			if mismatches <= 3 {
+				fmt.Printf("[%s] Value mismatch at key %x\n", dbName, srcKey)
+			}
+		}
+
+		destIter.Next()
+		verified++
+
+		if verified%1000000 == 0 {
+			fmt.Printf("[%s] Verified %d keys...\n", dbName, verified)
 		}
 	}
 
-	if err := iter.Error(); err != nil {
-		return fmt.Errorf("iterator error during verification: %w", err)
+	// Check for leftover keys.
+	if srcIter.Valid() {
+		mismatches++
+		fmt.Printf("[%s] Source has keys remaining after dest exhausted at %d\n", dbName, verified)
+	}
+	if destIter.Valid() {
+		mismatches++
+		fmt.Printf("[%s] Dest has keys remaining after source exhausted at %d\n", dbName, verified)
 	}
 
-	if actualCount != expectedCount {
-		return fmt.Errorf("verification failed: expected %d keys, found %d keys", expectedCount, actualCount)
+	if mismatches > 0 {
+		return fmt.Errorf("full verification failed: %d mismatches found across %d keys", mismatches, verified)
 	}
 
-	fmt.Printf("[%s] Full verification passed: %d keys\n", dbName, actualCount)
+	if verified != expectedCount {
+		return fmt.Errorf("verification failed: expected %d keys, walked %d keys", expectedCount, verified)
+	}
+
+	fmt.Printf("[%s] Full verification passed: %d keys, all values match\n", dbName, verified)
 	return nil
 }
 
