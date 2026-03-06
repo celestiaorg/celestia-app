@@ -66,9 +66,18 @@ func (st *stateTracker) updateDBState(dbName string, ds DBState) error {
 	return saveState(st.state, st.destDir)
 }
 
+type dbStatus string
+
+const (
+	statusPending       dbStatus = "pending"
+	statusInProgress    dbStatus = "in_progress"
+	statusMigrated      dbStatus = "migrated"
+	statusSourceDeleted dbStatus = "source_deleted"
+)
+
 // DBState tracks the migration status of a single database.
 type DBState struct {
-	Status        string    `json:"status"` // "pending", "in_progress", "migrated", "source_deleted"
+	Status        dbStatus  `json:"status"`
 	KeysMigrated  int64     `json:"keys_migrated"`
 	BytesMigrated int64     `json:"bytes_migrated"`
 	CompletedAt   time.Time `json:"completed_at"`
@@ -232,7 +241,7 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 			Databases: make(map[string]DBState),
 		}
 		for _, d := range allDatabases {
-			state.Databases[d] = DBState{Status: "pending"}
+			state.Databases[d] = DBState{Status: statusPending}
 		}
 		if err := saveState(state, pebbleDataDir); err != nil {
 			return nil, err
@@ -241,7 +250,7 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 	} else {
 		fmt.Printf("Resuming migration started at %s\n", state.StartedAt.Format(time.RFC3339))
 		for name, ds := range state.Databases {
-			if ds.Status != "pending" {
+			if ds.Status != statusPending {
 				fmt.Printf("  [%s] status=%s keys=%d bytes=%s\n", name, ds.Status, ds.KeysMigrated, humanBytes(ds.BytesMigrated))
 			}
 		}
@@ -254,17 +263,18 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTracker, opts migrateOpts) error {
 	ds := tracker.getDBState(dbName)
 
-	if ds.Status == "migrated" || ds.Status == "source_deleted" {
+	if ds.Status == statusMigrated || ds.Status == statusSourceDeleted {
 		fmt.Printf("[%s] Already complete (status=%s), skipping\n", dbName, ds.Status)
 		return nil
 	}
 
 	levelDBPath := filepath.Join(dataDir, dbName+".db")
 	if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
-		if ds.Status == "in_progress" {
+		if ds.Status == statusInProgress {
 			// Source was deleted (--no-backup crash recovery), but dest should have data
+			// TODO check this case and whether it can corrupt
 			fmt.Printf("[%s] Source not found but was in_progress — marking as migrated\n", dbName)
-			ds.Status = "migrated"
+			ds.Status = statusMigrated
 			ds.CompletedAt = time.Now()
 			return tracker.updateDBState(dbName, ds)
 		}
@@ -272,7 +282,7 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 		return nil
 	}
 
-	ds.Status = "in_progress"
+	ds.Status = statusInProgress
 	if err := tracker.updateDBState(dbName, ds); err != nil {
 		return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
 	}
@@ -283,7 +293,7 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 		return fmt.Errorf("[%s] migration failed: %w", dbName, err)
 	}
 
-	ds.Status = "migrated"
+	ds.Status = statusMigrated
 	ds.KeysMigrated = keys
 	ds.BytesMigrated = bytesMigrated
 	ds.CompletedAt = time.Now()
@@ -313,7 +323,7 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 		if err := os.RemoveAll(srcPath); err != nil {
 			return fmt.Errorf("[%s] failed to remove source: %w", dbName, err)
 		}
-		ds.Status = "source_deleted"
+		ds.Status = statusSourceDeleted
 		if err := tracker.updateDBState(dbName, ds); err != nil {
 			return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
 		}
