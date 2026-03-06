@@ -120,7 +120,7 @@ func ExtendRLCResults(rlcOriginal []field.GF128, n int) ([]field.GF128, error) {
 
 	// Extract GF128 values from extended Leopard shards
 	extended := make([]field.GF128, k+n)
-	for i := range k+n {
+	for i := range k + n {
 		extended[i] = unpackGF128FromLeopard(extendedShards[i])
 	}
 
