@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"github.com/celestiaorg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
 	"github.com/cometbft/cometbft/crypto"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
