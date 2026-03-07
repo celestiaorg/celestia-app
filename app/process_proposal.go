@@ -90,7 +90,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// handle non-blob transactions first
+		// Handle non-blob transactions. This includes MsgPayForFibre txs which are
+		// plain SDK txs (not wrapped in BlobTx). squarev4.Construct will detect
+		// MsgPayForFibre and synthesize system blobs when building the square.
 		if !isBlobTx {
 			msgs := sdkTx.GetMsgs()
 
@@ -101,6 +103,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
+			// MsgPayForFibre txs count toward the non-PFB message limit since
+			// they are plain SDK transactions (not blob txs).
 			nonPFBMessageCount += len(msgs)
 			if nonPFBMessageCount > appconsts.MaxNonPFBMessages {
 				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max non-PFB message count of %d", appconsts.MaxNonPFBMessages))

@@ -151,8 +151,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	}
 
 	// Process pay-for-fibre transactions: synthesize system blob, validate, append to builder.
-	// Plain SDK tx bytes are returned unchanged so that the tx hash is stable: the hash the
-	// client used to submit the tx is the same hash committed in the block, allowing ConfirmTx to work.
+	// Unlike normal and blob txs, fibre txs have no message count cap — the square size is the
+	// only limit. Plain SDK tx bytes are returned unchanged so that the tx hash is stable: the
+	// hash the client used to submit the tx is the same hash committed in the block, allowing
+	// ConfirmTx to work.
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 	for _, rawTx := range payForFibreTxs {
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.

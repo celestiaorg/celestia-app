@@ -25,6 +25,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -587,10 +588,10 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 func newSignedPayForFibreTx(t *testing.T, signer *user.Signer) []byte {
 	t.Helper()
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
-	addr := signer.Accounts()[0].Address()
+	acc := signer.Accounts()[0]
 
 	msg := &fibretypes.MsgPayForFibre{
-		Signer: addr.String(),
+		Signer: acc.Address().String(),
 		PaymentPromise: fibretypes.PaymentPromise{
 			ChainId:           testutil.ChainID,
 			Height:            1,
@@ -599,6 +600,7 @@ func newSignedPayForFibreTx(t *testing.T, signer *user.Signer) []byte {
 			BlobVersion:       fibretypes.BlobVersionZero,
 			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
 			CreationTimestamp: time.Now(),
+			SignerPublicKey:   *acc.PubKey().(*secp256k1.PubKey),
 			Signature:         make([]byte, 64),
 		},
 	}
