@@ -341,7 +341,6 @@ func GenerateRandomBlobSize(rand *rand.Rand) int {
 	return v
 }
 
-// GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
 // UnsignedBlobTx creates a minimal unsigned BlobTx for testing. The returned
 // bytes contain no SDK tx, only the blob wrapped in the BlobTx wire format.
 func UnsignedBlobTx(t *testing.T) []byte {
@@ -382,6 +381,7 @@ func UnsignedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	return txBytes
 }
 
+// GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
 func GenerateRandomBlobSizes(count int, rand *rand.Rand) []int {
 	sizes := make([]int, count)
 	for i := range sizes {
