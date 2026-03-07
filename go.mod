@@ -27,7 +27,6 @@ require (
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc3
 	github.com/celestiaorg/nmt v0.24.2
-	github.com/celestiaorg/reedsolomon v1.12.6-0.20250824224240-8b66bda83fd0
 	github.com/celestiaorg/rsmt2d v0.15.1
 	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/cometbft/cometbft v1.0.1
@@ -54,7 +53,7 @@ require (
 	github.com/ipfs/go-ds-badger4 v0.1.8
 	github.com/ipfs/go-ds-pebble v0.5.9
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/reedsolomon v1.13.2
+	github.com/klauspost/reedsolomon v1.13.3-0.20260306170200-c9e2c2ea08ce
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.34.0
