@@ -488,6 +488,98 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 	}
 }
 
+// BenchmarkVerifyMultipleRowsWithContext benchmarks verifying multiple rows
+// against the same VerificationContext. This demonstrates the benefit of
+// caching coefficients: deriveCoefficients is called once on the first row
+// and reused for all subsequent rows.
+func BenchmarkVerifyMultipleRowsWithContext(b *testing.B) {
+	// Use a fixed small config so this benchmark runs quickly and focuses
+	// on the caching effect rather than data size.
+	type benchCase struct {
+		k       int
+		n       int
+		rowSize int
+		rows    int // number of rows to verify per iteration
+	}
+
+	cases := []benchCase{
+		{k: 64, n: 64, rowSize: 1024, rows: 16},
+		{k: 256, n: 256, rowSize: 1024, rows: 64},
+		{k: 1024, n: 1024, rowSize: 1024, rows: 128},
+	}
+
+	for _, tc := range cases {
+		name := fmt.Sprintf("k=%d/n=%d/rows=%d", tc.k, tc.n, tc.rows)
+		b.Run(name, func(b *testing.B) {
+			codecConfig := &Config{
+				K:           tc.k,
+				N:           tc.n,
+				RowSize:     tc.rowSize,
+				WorkerCount: 1,
+			}
+
+			originalData := generateTestData(tc.k, tc.rowSize)
+			extData, commitment, _, err := Encode(originalData, codecConfig)
+			if err != nil {
+				b.Fatalf("Encode failed: %v", err)
+			}
+
+			// Pre-generate proofs for the rows we'll verify
+			proofs := make([]*RowProof, tc.rows)
+			for i := range tc.rows {
+				proofs[i], err = extData.GenerateRowProof(i)
+				if err != nil {
+					b.Fatalf("GenerateRowProof(%d) failed: %v", i, err)
+				}
+			}
+
+			b.ResetTimer()
+			for range b.N {
+				// Fresh context each iteration so sync.Once runs once per iteration
+				ctx, _, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
+				if err != nil {
+					b.Fatalf("CreateVerificationContext failed: %v", err)
+				}
+
+				for _, proof := range proofs {
+					if err := VerifyRowWithContext(proof, commitment, ctx); err != nil {
+						b.Fatalf("VerifyRowWithContext failed: %v", err)
+					}
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkDeriveCoefficients benchmarks the coefficient derivation that
+// caching avoids on repeated calls. This shows the per-call cost that is
+// saved for every row after the first.
+func BenchmarkDeriveCoefficients(b *testing.B) {
+	rowSizes := []int{1024, 4096, 16384}
+
+	for _, rowSize := range rowSizes {
+		b.Run(fmt.Sprintf("rowSize=%d", rowSize), func(b *testing.B) {
+			config := &Config{
+				K:           64,
+				N:           64,
+				RowSize:     rowSize,
+				WorkerCount: 1,
+			}
+			_ = config.Validate()
+
+			var rowRoot [32]byte
+			for i := range rowRoot {
+				rowRoot[i] = byte(i)
+			}
+
+			b.ResetTimer()
+			for range b.N {
+				deriveCoefficients(rowRoot, config)
+			}
+		})
+	}
+}
+
 // BenchmarkVerifyStandaloneProof benchmarks standalone proof verification
 func BenchmarkVerifyStandaloneProof(b *testing.B) {
 	configs := generateBenchmarkConfigs(false) // Verification doesn't use workers

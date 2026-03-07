@@ -72,9 +72,11 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 		return fmt.Errorf("failed to compute row root: %w", err)
 	}
 
-	// 2. Derive coefficients and compute RLC for the row
-	coeffs := deriveCoefficients(rowRoot, context.config)
-	computedRLC := computeRLC(proof.Row, coeffs)
+	// 2. Derive coefficients once and compute RLC for the row
+	context.coeffsOnce.Do(func() {
+		context.coeffs = deriveCoefficients(rowRoot, context.config)
+	})
+	computedRLC := computeRLC(proof.Row, context.coeffs)
 
 	// 3. Verify RLC matches the extended value at this index
 	if proof.Index >= len(context.rlcExtended) {

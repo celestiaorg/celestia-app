@@ -102,6 +102,41 @@ func getTestRowIndices(k, n int) []int {
 
 // Main tests
 
+// TestVerifyAllRowsWithCachedContext verifies that all K+N rows in an encoding
+// can be verified against a single VerificationContext. This exercises the
+// coefficient caching path: deriveCoefficients runs once on the first call
+// and the cached result is reused for all subsequent rows.
+func TestVerifyAllRowsWithCachedContext(t *testing.T) {
+	config := &Config{
+		K:           8,
+		N:           8,
+		RowSize:     256,
+		WorkerCount: 1,
+	}
+
+	data := makeTestData(config.K, config.RowSize)
+	extData, commitment, _, err := Encode(data, config)
+	if err != nil {
+		t.Fatalf("Encode() error: %v", err)
+	}
+
+	ctx, _, err := CreateVerificationContext(extData.rlcOrig, config)
+	if err != nil {
+		t.Fatalf("CreateVerificationContext() error: %v", err)
+	}
+
+	// Verify every row (both original and parity) with the same context
+	for i := range config.K + config.N {
+		proof, err := extData.GenerateRowProof(i)
+		if err != nil {
+			t.Fatalf("GenerateRowProof(%d) error: %v", i, err)
+		}
+		if err := VerifyRowWithContext(proof, commitment, ctx); err != nil {
+			t.Errorf("VerifyRowWithContext(%d) error: %v", i, err)
+		}
+	}
+}
+
 func TestEncodeAndVerifyWithContext(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
