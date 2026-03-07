@@ -1,18 +1,15 @@
 package app
 
 import (
-	"bytes"
 	"errors"
 	"testing"
-	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
 	"github.com/celestiaorg/go-square/v4/share"
-	gosquaretx "github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -27,8 +24,8 @@ func TestSeparateTxs(t *testing.T) {
 	txConfig := encConf.TxConfig
 
 	normalTx := newNormalTx(t, txConfig)
-	blobTx := newBlobTx(t)
-	payForFibreTx := newPayForFibreTx(t, txConfig)
+	blobTx := blobfactory.UnsignedBlobTx(t)
+	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 
 	tests := []struct {
 		name     string
@@ -102,7 +99,7 @@ func TestExtractMsgPayForFibre(t *testing.T) {
 	}{
 		{
 			name:      "MsgPayForFibre",
-			txBytes:   func() []byte { return newPayForFibreTx(t, txConfig) },
+			txBytes:   func() []byte { return blobfactory.UnsignedPayForFibreTx(t, txConfig) },
 			wantFound: true,
 		},
 		{
@@ -140,8 +137,8 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	}
 
 	normalTx := newNormalTx(t, txConfig)
-	blobTx := newBlobTx(t)
-	payForFibreTx := newPayForFibreTx(t, txConfig)
+	blobTx := blobfactory.UnsignedBlobTx(t)
+	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 
 	tests := []struct {
 		name              string
@@ -258,44 +255,6 @@ func newNormalTx(t *testing.T, txConfig client.TxConfig) []byte {
 		FromAddress: addr.String(),
 		ToAddress:   addr.String(),
 		Amount:      sdk.NewCoins(sdk.NewInt64Coin("utia", 1)),
-	}
-	builder := txConfig.NewTxBuilder()
-	require.NoError(t, builder.SetMsgs(msg))
-	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
-	require.NoError(t, err)
-	return txBytes
-}
-
-// newBlobTx creates a BlobTx for testing.
-func newBlobTx(t *testing.T) []byte {
-	t.Helper()
-	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-	blob, err := share.NewBlob(ns, []byte("test blob"), share.ShareVersionZero, nil)
-	require.NoError(t, err)
-	blobTxBytes, err := gosquaretx.MarshalBlobTx(nil, blob)
-	require.NoError(t, err)
-	return blobTxBytes
-}
-
-// newPayForFibreTx creates an unsigned SDK tx containing MsgPayForFibre for testing.
-func newPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
-	t.Helper()
-	privKey := secp256k1.GenPrivKey()
-	addr := sdk.AccAddress(privKey.PubKey().Address())
-	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
-	msg := &fibretypes.MsgPayForFibre{
-		Signer: addr.String(),
-		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           "test",
-			Height:            1,
-			Namespace:         ns.Bytes(),
-			BlobSize:          100,
-			BlobVersion:       fibretypes.BlobVersionZero,
-			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
-			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
-			Signature:         make([]byte, 64),
-		},
 	}
 	builder := txConfig.NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(msg))
