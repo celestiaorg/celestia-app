@@ -155,9 +155,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	// client used to submit the tx is the same hash committed in the block, allowing ConfirmTx to work.
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 	for _, rawTx := range payForFibreTxs {
-		// SynthesizeFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
+		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
 		// separateTxs guarantees rawTx contains MsgPayForFibre, so isFibre is always true.
-		fibreTx, _, err := tx.SynthesizeFibreTx(rawTx)
+		fibreTx, _, err := tx.TryParseFibreTx(rawTx)
 		if err != nil {
 			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
 			continue
