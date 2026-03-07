@@ -5118,11 +5118,6 @@ celestia-appd query fibre is-payment-processed &lt;payment_promise_hash&gt;
 <li><code>signer</code> must be a valid validator consensus operator address</li>
 <li><code>host</code> must be less than 90 characters</li>
 </ul>
-<p>If the <code>signer</code> is currently jailed, this will attempt to unjail them</p>
-<h2 id="failure-to-provide-fibre-info"><a class="header" href="#failure-to-provide-fibre-info">Failure to provide fibre info</a></h2>
-<p>While the network can not enforce that every validator is running an available fibre DA server, it can enforce that all validators
-in the active set have supplied an IP address. To do this, the network employs the <code>AfterValidatorBonded</code> hook in the staking module for any validator that gets added to the active set. If no info is provided, the validator is jailed. For existing active validators, at height <strong>missing_info_check_height</strong>, aimed at 1 week after the upgrade height, in <code>EndBlock</code> all active validators will be checked for missing info, those that have not supplied info will be jailed.</p>
-<p>To bypass the usage <code>MsgUnjail</code>, jailing will be for 1 year from the current blocktime. To unjail, a validator must submit the <code>MsgSetFibreProviderInfo</code> only then will the <code>JailedUntil</code> be updated and <code>Unjail</code> called.</p>
 <h2 id="events-4"><a class="header" href="#events-4">Events</a></h2>
 <h3 id="eventsetfibreproviderinfo"><a class="header" href="#eventsetfibreproviderinfo">EventSetFibreProviderInfo</a></h3>
 <p>Emitted when a validator sets or updates their fibre provider information.</p>
@@ -5171,10 +5166,7 @@ message FibreProvider {
 }
 </code></pre>
 <h2 id="parameters-3"><a class="header" href="#parameters-3">Parameters</a></h2>
-<p>The <code>x/valaddr</code> has the following parameter. These can only be adjusted in hard-fork upgrades</p>
-<ul>
-<li><strong>missing_info_check_height</strong> [int64]: when to check for validators with missing info. This acts as a grace period and can be dynamically set in the migration. (default: <strong>100,000</strong> - this is roughly 1 week from the upgrade height)</li>
-</ul>
+<p>The <code>x/valaddr</code> module has no parameters.</p>
 <h2 id="client-1"><a class="header" href="#client-1">Client</a></h2>
 <h3 id="cli-commands"><a class="header" href="#cli-commands">CLI Commands</a></h3>
 <p><strong>Query Commands:</strong></p>
