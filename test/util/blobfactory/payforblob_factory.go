@@ -5,6 +5,7 @@ import (
 	"context"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
@@ -12,11 +13,13 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -339,6 +342,46 @@ func GenerateRandomBlobSize(rand *rand.Rand) int {
 }
 
 // GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.
+// UnsignedBlobTx creates a minimal unsigned BlobTx for testing. The returned
+// bytes contain no SDK tx, only the blob wrapped in the BlobTx wire format.
+func UnsignedBlobTx(t *testing.T) []byte {
+	t.Helper()
+	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	blob, err := share.NewBlob(ns, []byte("test blob"), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+	blobTxBytes, err := tx.MarshalBlobTx(nil, blob)
+	require.NoError(t, err)
+	return blobTxBytes
+}
+
+// UnsignedPayForFibreTx creates a minimal unsigned SDK tx containing
+// MsgPayForFibre for testing.
+func UnsignedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	addr := sdk.AccAddress(privKey.PubKey().Address())
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	msg := &fibretypes.MsgPayForFibre{
+		Signer: addr.String(),
+		PaymentPromise: fibretypes.PaymentPromise{
+			ChainId:           "test",
+			Height:            1,
+			Namespace:         ns.Bytes(),
+			BlobSize:          100,
+			BlobVersion:       fibretypes.BlobVersionZero,
+			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
+			CreationTimestamp: time.Now(),
+			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
+			Signature:         make([]byte, 64),
+		},
+	}
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
+
 func GenerateRandomBlobSizes(count int, rand *rand.Rand) []int {
 	sizes := make([]int, count)
 	for i := range sizes {

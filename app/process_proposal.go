@@ -82,8 +82,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 
 		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
-
-		// Set the tx bytes in the context for app version v3 and greater
 		ctx = ctx.WithTxBytes(sdkTxBytes)
 
 		if err != nil {
