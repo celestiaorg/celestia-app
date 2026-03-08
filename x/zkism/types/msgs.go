@@ -27,8 +27,8 @@ func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {
 		return errorsmod.Wrap(ErrInvalidMerkleTreeAddress, "merkle tree address must be 32 bytes")
 	}
 
-	if len(msg.Groth16Vkey) != Groth16VkeySize {
-		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "groth16 vkey must be exactly %d bytes, got %d", Groth16VkeySize, len(msg.Groth16Vkey))
+	if err := ValidateGroth16Vkey(msg.Groth16Vkey); err != nil {
+		return errorsmod.Wrapf(ErrInvalidVerifyingKey, "%v", err)
 	}
 
 	if _, err := groth16.NewVerifyingKey(msg.Groth16Vkey); err != nil {
