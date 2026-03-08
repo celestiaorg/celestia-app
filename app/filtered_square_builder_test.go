@@ -1,10 +1,8 @@
 package app
 
 import (
-	"bytes"
 	"errors"
 	"testing"
-	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
@@ -12,7 +10,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -302,36 +299,9 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	t.Helper()
 	privKey := secp256k1.GenPrivKey()
-	addr := sdk.AccAddress(privKey.PubKey().Address())
-	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-	msg1 := &fibretypes.MsgPayForFibre{
-		Signer: addr.String(),
-		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           "test",
-			Height:            1,
-			Namespace:         ns.Bytes(),
-			BlobSize:          100,
-			BlobVersion:       fibretypes.BlobVersionZero,
-			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
-			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
-			Signature:         make([]byte, 64),
-		},
-	}
-	msg2 := &fibretypes.MsgPayForFibre{
-		Signer: addr.String(),
-		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           "test",
-			Height:            2,
-			Namespace:         ns.Bytes(),
-			BlobSize:          200,
-			BlobVersion:       fibretypes.BlobVersionZero,
-			Commitment:        bytes.Repeat([]byte{0xCD}, share.FibreCommitmentSize),
-			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
-			Signature:         make([]byte, 64),
-		},
-	}
+	pubKey := privKey.PubKey().(*secp256k1.PubKey)
+	msg1 := blobfactory.NewMsgPayForFibre(t, pubKey, "test")
+	msg2 := blobfactory.NewMsgPayForFibre(t, pubKey, "test")
 	builder := txConfig.NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(msg1, msg2))
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
@@ -345,22 +315,9 @@ func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 func newMixedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	t.Helper()
 	privKey := secp256k1.GenPrivKey()
-	addr := sdk.AccAddress(privKey.PubKey().Address())
-	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
-	pffMsg := &fibretypes.MsgPayForFibre{
-		Signer: addr.String(),
-		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           "test",
-			Height:            1,
-			Namespace:         ns.Bytes(),
-			BlobSize:          100,
-			BlobVersion:       fibretypes.BlobVersionZero,
-			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
-			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
-			Signature:         make([]byte, 64),
-		},
-	}
+	pubKey := privKey.PubKey().(*secp256k1.PubKey)
+	addr := sdk.AccAddress(pubKey.Address())
+	pffMsg := blobfactory.NewMsgPayForFibre(t, pubKey, "test")
 	sendMsg := &banktypes.MsgSend{
 		FromAddress: addr.String(),
 		ToAddress:   addr.String(),
