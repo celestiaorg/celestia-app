@@ -1,14 +1,18 @@
 package app
 
 import (
+	"bytes"
 	"errors"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -26,6 +30,7 @@ func TestSeparateTxs(t *testing.T) {
 	normalTx := newNormalTx(t, txConfig)
 	blobTx := blobfactory.UnsignedBlobTx(t)
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
+	multiPayForFibreTx := newMultiPayForFibreTx(t, txConfig)
 
 	tests := []struct {
 		name     string
@@ -76,6 +81,13 @@ func TestSeparateTxs(t *testing.T) {
 			wantBlob: 0,
 			wantPFF:  2,
 		},
+		{
+			name:     "tx with multiple MsgPayForFibre is classified as normal",
+			rawTxs:   [][]byte{multiPayForFibreTx},
+			wantNorm: 1,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
 	}
 
 	for _, tc := range tests {
@@ -88,24 +100,24 @@ func TestSeparateTxs(t *testing.T) {
 	}
 }
 
-func TestExtractMsgPayForFibre(t *testing.T) {
+func TestCountMsgPayForFibre(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	txConfig := encConf.TxConfig
 
 	tests := []struct {
 		name      string
 		txBytes   func() []byte
-		wantFound bool
+		wantCount int
 	}{
 		{
 			name:      "MsgPayForFibre",
 			txBytes:   func() []byte { return blobfactory.UnsignedPayForFibreTx(t, txConfig) },
-			wantFound: true,
+			wantCount: 1,
 		},
 		{
 			name:      "MsgSend",
 			txBytes:   func() []byte { return newNormalTx(t, txConfig) },
-			wantFound: false,
+			wantCount: 0,
 		},
 	}
 
@@ -114,13 +126,8 @@ func TestExtractMsgPayForFibre(t *testing.T) {
 			sdkTx, err := txConfig.TxDecoder()(tc.txBytes())
 			require.NoError(t, err)
 
-			msg, found := extractMsgPayForFibre(sdkTx)
-			require.Equal(t, tc.wantFound, found)
-			if tc.wantFound {
-				require.NotNil(t, msg)
-			} else {
-				require.Nil(t, msg)
-			}
+			count := countMsgPayForFibre(sdkTx)
+			require.Equal(t, tc.wantCount, count)
 		})
 	}
 }
@@ -227,7 +234,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 				if decErr != nil {
 					continue
 				}
-				if _, isPFF := extractMsgPayForFibre(sdkTx); isPFF {
+				if countMsgPayForFibre(sdkTx) > 0 {
 					pffCount++
 				}
 			}
@@ -244,6 +251,73 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := encConf.TxConfig
+
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+
+	// Create MaxPayForFibreMessages+1 pay-for-fibre txs.
+	numPFF := appconsts.MaxPayForFibreMessages + 1
+	pffTxs := make([][]byte, numPFF)
+	for i := range numPFF {
+		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
+	}
+
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+
+	db := dbm.NewMemDB()
+	ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
+	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
+
+	kept := fsb.Fill(ctx, pffTxs)
+	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
+}
+
+// newMultiPayForFibreTx creates an unsigned SDK tx containing two MsgPayForFibre messages for testing.
+func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	addr := sdk.AccAddress(privKey.PubKey().Address())
+	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	msg1 := &fibretypes.MsgPayForFibre{
+		Signer: addr.String(),
+		PaymentPromise: fibretypes.PaymentPromise{
+			ChainId:           "test",
+			Height:            1,
+			Namespace:         ns.Bytes(),
+			BlobSize:          100,
+			BlobVersion:       fibretypes.BlobVersionZero,
+			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
+			CreationTimestamp: time.Now(),
+			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
+			Signature:         make([]byte, 64),
+		},
+	}
+	msg2 := &fibretypes.MsgPayForFibre{
+		Signer: addr.String(),
+		PaymentPromise: fibretypes.PaymentPromise{
+			ChainId:           "test",
+			Height:            2,
+			Namespace:         ns.Bytes(),
+			BlobSize:          200,
+			BlobVersion:       fibretypes.BlobVersionZero,
+			Commitment:        bytes.Repeat([]byte{0xCD}, share.FibreCommitmentSize),
+			CreationTimestamp: time.Now(),
+			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
+			Signature:         make([]byte, 64),
+		},
+	}
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg1, msg2))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
 }
 
 // newNormalTx creates an unsigned MsgSend transaction for testing.

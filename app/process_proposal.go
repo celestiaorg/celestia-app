@@ -57,6 +57,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	var (
 		nonPFBMessageCount int
 		pfbMessageCount    int
+		pffMessageCount    int
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -103,12 +104,25 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// MsgPayForFibre txs count toward the non-PFB message limit since
-			// they are plain SDK transactions (not blob txs).
-			nonPFBMessageCount += len(msgs)
-			if nonPFBMessageCount > appconsts.MaxNonPFBMessages {
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max non-PFB message count of %d", appconsts.MaxNonPFBMessages))
-				return reject(), nil
+			// Count MsgPayForFibre messages separately from normal non-PFB messages.
+			pffCount := countMsgPayForFibre(sdkTx)
+			if pffCount > 0 {
+				// A tx must contain exactly one MsgPayForFibre.
+				if pffCount > 1 {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre messages, expected at most 1", idx, pffCount))
+					return reject(), nil
+				}
+				pffMessageCount += pffCount
+				if pffMessageCount > appconsts.MaxPayForFibreMessages {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", appconsts.MaxPayForFibreMessages))
+					return reject(), nil
+				}
+			} else {
+				nonPFBMessageCount += len(msgs)
+				if nonPFBMessageCount > appconsts.MaxNonPFBMessages {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max non-PFB message count of %d", appconsts.MaxNonPFBMessages))
+					return reject(), nil
+				}
 			}
 
 			// we need to increment the sequence for every transaction so that
