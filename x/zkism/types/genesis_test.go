@@ -79,6 +79,24 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
+			name: "396-byte vkey with inflated G1.K length bypasses size check",
+			malleate: func(gs *types.GenesisState) {
+				// Craft a payload that is exactly Groth16VkeySize (396 bytes)
+				// so it passes the length check, but set the G1.K length prefix
+				// at bytes 288-291 to 0xFFFFFFFF. This tests whether the
+				// inflated internal length can trigger a huge allocation in
+				// gnark's deserializer despite the outer size being correct.
+				malicious := make([]byte, types.Groth16VkeySize)
+				copy(malicious, groth16Vk[:288])
+				malicious[288] = 0xFF
+				malicious[289] = 0xFF
+				malicious[290] = 0xFF
+				malicious[291] = 0xFF
+				gs.Isms[0].Groth16Vkey = malicious
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
 			name: "invalid state transition verifying key length",
 			malleate: func(gs *types.GenesisState) {
 				gs.Isms[0].StateTransitionVkey = []byte{0x01}
