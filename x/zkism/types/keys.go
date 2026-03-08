@@ -37,6 +37,12 @@ const (
 	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
 	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
 
+	// Groth16VkeySize is the exact expected size of a serialized Groth16
+	// verifying key for the BN254 curve with 2 public inputs (SP1 scheme).
+	// Layout: 6 curve points (288 bytes) + uint32 G1.K length (4 bytes) +
+	// 3 × compressed G1 points (96 bytes) + trailing metadata (8 bytes) = 396.
+	Groth16VkeySize = 396
+
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
 	// See internal/groth16/bench_test.go
