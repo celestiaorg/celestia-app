@@ -402,8 +402,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 
 	accountIndex := 0
 
-	// Generate MaxNonPFBMessages+1 MsgSend txs.
-	numMsgSends := appconsts.MaxNonPFBMessages + 1
+	// Generate MaxSDKMessages+1 MsgSend txs.
+	numMsgSends := appconsts.MaxSDKMessages + 1
 	msgSendTxs := make([][]byte, 0, numMsgSends)
 	for range numMsgSends {
 		msg := banktypes.NewMsgSend(
@@ -448,8 +448,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:           "reject block exceeding MaxNonPFBMessages",
-			txs:            msgSendTxs[:appconsts.MaxNonPFBMessages+1],
+			name:           "reject block exceeding MaxSDKMessages",
+			txs:            msgSendTxs[:appconsts.MaxSDKMessages+1],
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
@@ -463,8 +463,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:           "accept block at exactly MaxNonPFBMessages",
-			txs:            msgSendTxs[:appconsts.MaxNonPFBMessages],
+			name:           "accept block at exactly MaxSDKMessages",
+			txs:            msgSendTxs[:appconsts.MaxSDKMessages],
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
