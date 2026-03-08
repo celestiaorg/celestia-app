@@ -507,13 +507,10 @@ func buildMsgPayForFibreTxBytes(t *testing.T) []byte {
 
 	anyMsg, err := codectypes.NewAnyWithValue(msg)
 	require.NoError(t, err)
-	// cosmos-sdk registers MsgPayForFibre with a TypeURL derived from the Go
-	// proto registration (e.g. "/celestia.fibre.v1.MsgPayForFibre") but the
-	// format may differ from the constant that TryParseFibreTx checks. Pin it
-	// explicitly so the test stays correct regardless of registration order.
+	// Verify the cosmos-sdk derived TypeURL matches the constant that
+	// TryParseFibreTx checks when parsing fibre transactions.
 	require.Equal(t, gotx.MsgPayForFibreTypeURL, anyMsg.TypeUrl,
-		"if the cosmos-sdk TypeURL already matches, the override below can be removed")
-	anyMsg.TypeUrl = gotx.MsgPayForFibreTypeURL
+		"cosmos-sdk TypeURL must match the constant that TryParseFibreTx checks")
 
 	body := &cosmostx.TxBody{
 		Messages: []*codectypes.Any{anyMsg},
