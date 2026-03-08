@@ -446,11 +446,11 @@ func sortByteArrays(arr [][]byte) {
 	})
 }
 
-// TestConstructEDS_MainnetBlocks verifies that ConstructEDS produces a data
+// TestConstructEDS_RealBlocks verifies that ConstructEDS produces a data
 // availability header whose hash matches the on-chain data hash for real
-// mainnet blocks. This ensures that the go-square version used for each app
-// version is correct and consensus-compatible.
-func TestConstructEDS_MainnetBlocks(t *testing.T) {
+// blocks from Celestia mainnet and Mocha testnet. This ensures that the
+// go-square version used for each app version is correct and consensus-compatible.
+func TestConstructEDS_RealBlocks(t *testing.T) {
 	files := []string{
 		"testdata/mainnet_block_10126899.json", // app version 6, Celestia mainnet
 		"testdata/mocha_block_10383867.json",   // app version 7, Mocha testnet
