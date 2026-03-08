@@ -2,7 +2,11 @@ package da
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -440,6 +444,58 @@ func sortByteArrays(arr [][]byte) {
 	sort.Slice(arr, func(i, j int) bool {
 		return bytes.Compare(arr[i], arr[j]) < 0
 	})
+}
+
+// TestConstructEDS_MainnetBlocks verifies that ConstructEDS produces a data
+// availability header whose hash matches the on-chain data hash for real
+// mainnet blocks. This ensures that the go-square version used for each app
+// version is correct and consensus-compatible.
+func TestConstructEDS_MainnetBlocks(t *testing.T) {
+	files := []string{
+		"testdata/mainnet_block_10126899.json", // app version 6, Celestia mainnet
+		"testdata/mocha_block_10383867.json",   // app version 7, Mocha testnet
+	}
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		require.NoError(t, err)
+
+		var block struct {
+			Height     int64    `json:"height"`
+			AppVersion uint64   `json:"app_version"`
+			DataHash   string   `json:"data_hash"`
+			SquareSize int      `json:"square_size"`
+			Txs        []string `json:"txs"`
+		}
+		require.NoError(t, json.Unmarshal(data, &block))
+
+		// Decode base64 txs.
+		txs := make([][]byte, len(block.Txs))
+		for i, b64 := range block.Txs {
+			txs[i], err = base64.StdEncoding.DecodeString(b64)
+			require.NoError(t, err)
+		}
+
+		// Decode expected data hash.
+		expectedHash, err := hex.DecodeString(block.DataHash)
+		require.NoError(t, err)
+
+		t.Run(fmt.Sprintf("height_%d_v%d", block.Height, block.AppVersion), func(t *testing.T) {
+			for _, construct := range []constructFunc{
+				constructEDSWithPool,
+				ConstructEDS,
+			} {
+				eds, err := construct(txs, block.AppVersion, block.SquareSize)
+				require.NoError(t, err)
+				require.NotNil(t, eds)
+
+				dah, err := NewDataAvailabilityHeader(eds)
+				require.NoError(t, err)
+				require.Equal(t, expectedHash, dah.Hash(),
+					"data hash mismatch for block %d (app version %d)", block.Height, block.AppVersion)
+			}
+		})
+	}
 }
 
 func TestConstructEDS_WithFibreTx(t *testing.T) {
