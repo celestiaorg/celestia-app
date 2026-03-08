@@ -224,10 +224,9 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			wantFibreInSquare: false,
 		},
 		{
-			name:        "non-fibre txs kept when ante handler rejects pay-for-fibre",
-			anteHandler: alwaysReject,
-			txs:         [][]byte{normalTx, blobTx, payForFibreTx},
-			// normalTx and blobTx are also rejected because alwaysReject fires for every tx type.
+			name:              "all txs rejected when ante handler rejects everything",
+			anteHandler:       alwaysReject,
+			txs:               [][]byte{normalTx, blobTx, payForFibreTx},
 			wantKeptCount:     0,
 			wantPFFCount:      0,
 			wantFibreInSquare: false,
