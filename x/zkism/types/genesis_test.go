@@ -66,6 +66,19 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
+			name: "groth16 vkey with inflated G1.K length is rejected before deserialization",
+			malleate: func(gs *types.GenesisState) {
+				malicious := make([]byte, 292)
+				copy(malicious, groth16Vk[:288])
+				malicious[288] = 0xFF
+				malicious[289] = 0xFF
+				malicious[290] = 0xFF
+				malicious[291] = 0xFF
+				gs.Isms[0].Groth16Vkey = malicious
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
 			name: "invalid state transition verifying key length",
 			malleate: func(gs *types.GenesisState) {
 				gs.Isms[0].StateTransitionVkey = []byte{0x01}

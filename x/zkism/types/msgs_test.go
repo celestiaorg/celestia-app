@@ -54,6 +54,23 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
+			name: "groth16 vkey with inflated G1.K length is rejected before deserialization",
+			mallate: func() {
+				// Craft a 292-byte payload: valid curve points (288 bytes from
+				// the real VK) + uint32 0xFFFFFFFF as the G1.K length prefix.
+				// Before the fix, this would allocate ~256 GiB in
+				// NewVerifyingKey. The size check now rejects it immediately.
+				malicious := make([]byte, 292)
+				copy(malicious, groth16Vk[:288])
+				malicious[288] = 0xFF
+				malicious[289] = 0xFF
+				malicious[290] = 0xFF
+				malicious[291] = 0xFF
+				msg.Groth16Vkey = malicious
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
 			name: "invalid state transition verifying key length",
 			mallate: func() {
 				msg.StateTransitionVkey = []byte{0x01}
