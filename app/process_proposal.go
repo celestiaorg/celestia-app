@@ -107,12 +107,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// Count MsgPayForFibre messages separately from normal non-PFB messages.
 			pffCount := countMsgPayForFibre(sdkTx)
 			if pffCount > 0 {
-				// A tx must contain exactly one MsgPayForFibre.
-				if pffCount > 1 {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre messages, expected at most 1", idx, pffCount))
+				// A PayForFibre tx must contain exactly one message: the MsgPayForFibre.
+				// This is consistent with BlobTx which requires exactly one MsgPayForBlobs.
+				if pffCount > 1 || len(msgs) != 1 {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))
 					return reject(), nil
 				}
-				pffMessageCount += pffCount
+				pffMessageCount += len(msgs)
 				if pffMessageCount > appconsts.MaxPayForFibreMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", appconsts.MaxPayForFibreMessages))
 					return reject(), nil
