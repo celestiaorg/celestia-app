@@ -38,8 +38,8 @@ func (gs GenesisState) Validate() error {
 			return errorsmod.Wrapf(ErrInvalidMerkleTreeAddress, "ism %s merkle tree address must be 32 bytes", ism.Id.String())
 		}
 
-		if len(ism.Groth16Vkey) != Groth16VkeySize {
-			return errorsmod.Wrapf(ErrInvalidVerifyingKey, "ism %s groth16 vkey must be exactly %d bytes, got %d", ism.Id.String(), Groth16VkeySize, len(ism.Groth16Vkey))
+		if err := ValidateGroth16Vkey(ism.Groth16Vkey); err != nil {
+			return errorsmod.Wrapf(ErrInvalidVerifyingKey, "ism %s: %v", ism.Id.String(), err)
 		}
 
 		if _, err := groth16.NewVerifyingKey(ism.Groth16Vkey); err != nil {
