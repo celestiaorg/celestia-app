@@ -52,11 +52,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	normalTxs, blobTxs, payForFibreTxs := separateTxs(fsb.txConfig, txs)
 
 	var (
-		nonPFBMessageCount = 0
-		pfbMessageCount    = 0
-		dec                = fsb.txConfig.TxDecoder()
-		n                  = 0
-		m                  = 0
+		sdkMessageCount = 0
+		pfbMessageCount = 0
+		dec             = fsb.txConfig.TxDecoder()
+		n               = 0
+		m               = 0
 	)
 
 	for _, tx := range normalTxs {
@@ -70,8 +70,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if nonPFBMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxNonPFBMessages {
-			logger.Debug("skipping tx because the max non PFB message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+		if sdkMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxSDKMessages {
+			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
 
@@ -99,7 +99,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
-		nonPFBMessageCount += len(sdkTx.GetMsgs())
+		sdkMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx
 		n++
 	}
