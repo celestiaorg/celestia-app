@@ -358,27 +358,34 @@ func UnsignedBlobTx(t *testing.T) []byte {
 func UnsignedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	t.Helper()
 	privKey := secp256k1.GenPrivKey()
-	addr := sdk.AccAddress(privKey.PubKey().Address())
-	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
-	msg := &fibretypes.MsgPayForFibre{
+	msg := NewMsgPayForFibre(t, privKey.PubKey().(*secp256k1.PubKey), "test")
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
+
+// NewMsgPayForFibre creates a MsgPayForFibre with the given public key and
+// chain ID for testing. Uses sensible defaults for all other fields.
+func NewMsgPayForFibre(t *testing.T, pubKey *secp256k1.PubKey, chainID string) *fibretypes.MsgPayForFibre {
+	t.Helper()
+	addr := sdk.AccAddress(pubKey.Address())
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
+	return &fibretypes.MsgPayForFibre{
 		Signer: addr.String(),
 		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           "test",
+			ChainId:           chainID,
 			Height:            1,
 			Namespace:         ns.Bytes(),
 			BlobSize:          100,
 			BlobVersion:       fibretypes.BlobVersionZero,
 			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
 			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
+			SignerPublicKey:   *pubKey,
 			Signature:         make([]byte, 64),
 		},
 	}
-	builder := txConfig.NewTxBuilder()
-	require.NoError(t, builder.SetMsgs(msg))
-	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
-	require.NoError(t, err)
-	return txBytes
 }
 
 // GenerateRandomBlobSizes returns a slice of random non-zero blob sizes.

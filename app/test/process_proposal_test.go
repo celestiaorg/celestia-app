@@ -621,22 +621,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 func newMsgPayForFibre(t *testing.T) *fibretypes.MsgPayForFibre {
 	t.Helper()
 	privKey := secp256k1.GenPrivKey()
-	addr := sdk.AccAddress(privKey.PubKey().Address())
-	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
-	return &fibretypes.MsgPayForFibre{
-		Signer: addr.String(),
-		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           "test",
-			Height:            1,
-			Namespace:         ns.Bytes(),
-			BlobSize:          100,
-			BlobVersion:       fibretypes.BlobVersionZero,
-			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
-			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
-			Signature:         make([]byte, 64),
-		},
-	}
+	return blobfactory.NewMsgPayForFibre(t, privKey.PubKey().(*secp256k1.PubKey), "test")
 }
 
 // newUnsignedMultiMsgTx encodes multiple sdk.Msgs into an unsigned SDK tx.
@@ -653,21 +638,7 @@ func newUnsignedMultiMsgTx(t *testing.T, txConfig client.TxConfig, msgs ...sdk.M
 func newSignedPayForFibreTx(t *testing.T, signer *user.Signer, account string) []byte {
 	t.Helper()
 	acc := signer.Account(account)
-	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
-	msg := &fibretypes.MsgPayForFibre{
-		Signer: acc.Address().String(),
-		PaymentPromise: fibretypes.PaymentPromise{
-			ChainId:           testutil.ChainID,
-			Height:            1,
-			Namespace:         ns.Bytes(),
-			BlobSize:          100,
-			BlobVersion:       fibretypes.BlobVersionZero,
-			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
-			CreationTimestamp: time.Now(),
-			SignerPublicKey:   *acc.PubKey().(*secp256k1.PubKey),
-			Signature:         make([]byte, 64),
-		},
-	}
+	msg := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
 	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(1))
 	require.NoError(t, err)
 	return txBytes
