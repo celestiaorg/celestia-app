@@ -11,4 +11,7 @@ const (
 
 	// MaxNonPFBMessages arbitrary high numbers for running benchmarks.
 	MaxNonPFBMessages = 999999999999
+
+	// MaxPayForFibreMessages arbitrary high numbers for running benchmarks.
+	MaxPayForFibreMessages = 999999999999
 )

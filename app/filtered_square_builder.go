@@ -151,12 +151,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	}
 
 	// Process pay-for-fibre transactions: synthesize system blob, validate, append to builder.
-	// Unlike normal and blob txs, fibre txs have no message count cap — the square size is the
-	// only limit. Plain SDK tx bytes are returned unchanged so that the tx hash is stable: the
-	// hash the client used to submit the tx is the same hash committed in the block, allowing
-	// ConfirmTx to work.
+	// Plain SDK tx bytes are returned unchanged so that the tx hash is stable: the hash the
+	// client used to submit the tx is the same hash committed in the block, allowing ConfirmTx
+	// to work.
+	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 	for _, rawTx := range payForFibreTxs {
+		if pffMessageCount+1 > appconsts.MaxPayForFibreMessages {
+			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+			continue
+		}
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
 		// separateTxs guarantees rawTx contains MsgPayForFibre, so fibreTx is always non-nil.
 		fibreTx, err := tx.TryParseFibreTx(rawTx)
@@ -198,6 +202,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
+		pffMessageCount++
 		fibreTxs = append(fibreTxs, rawTx)
 	}
 
@@ -260,7 +265,7 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 			continue
 		}
 
-		if _, isPayForFibre := extractMsgPayForFibre(sdkTx); isPayForFibre {
+		if count := countMsgPayForFibre(sdkTx); count == 1 {
 			payForFibreTxs = append(payForFibreTxs, rawTx)
 			continue
 		}
@@ -270,13 +275,13 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 	return normalTxs, blobTxs, payForFibreTxs
 }
 
-// extractMsgPayForFibre returns the first MsgPayForFibre from a transaction's
-// messages, and true if found; otherwise nil and false.
-func extractMsgPayForFibre(sdkTx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
+// countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
+func countMsgPayForFibre(sdkTx sdk.Tx) int {
+	count := 0
 	for _, msg := range sdkTx.GetMsgs() {
-		if pff, ok := msg.(*fibretypes.MsgPayForFibre); ok {
-			return pff, true
+		if _, ok := msg.(*fibretypes.MsgPayForFibre); ok {
+			count++
 		}
 	}
-	return nil, false
+	return count
 }
