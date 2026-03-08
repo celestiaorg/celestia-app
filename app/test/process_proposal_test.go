@@ -25,6 +25,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -431,6 +432,14 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
+	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
+	numPFFs := appconsts.MaxPayForFibreMessages + 1
+	pffTxs := make([][]byte, 0, numPFFs)
+	for range numPFFs {
+		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[accountIndex], accounts[accountIndex]))
+		accountIndex++
+	}
+
 	type testCase struct {
 		name           string
 		txs            [][]byte
@@ -449,6 +458,11 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:           "reject block exceeding MaxPayForFibreMessages",
+			txs:            pffTxs[:appconsts.MaxPayForFibreMessages+1],
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:           "accept block at exactly MaxNonPFBMessages",
 			txs:            msgSendTxs[:appconsts.MaxNonPFBMessages],
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
@@ -456,6 +470,11 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		{
 			name:           "accept block at exactly MaxPFBMessages",
 			txs:            pfbTxs[:appconsts.MaxPFBMessages],
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:           "accept block at exactly MaxPayForFibreMessages",
+			txs:            pffTxs[:appconsts.MaxPayForFibreMessages],
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 		},
 	}
@@ -489,7 +508,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 }
 
 // TestProcessProposalWithPayForFibre verifies that ProcessProposal correctly
-// handles FibreTx-wrapped transactions produced by PrepareProposal.
+// handles PayForFibre transactions: accept/reject round-trips, rejection of
+// multi-PFF txs, mixed PFF+MsgSend txs, and garbage bytes.
 func TestProcessProposalWithPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(2)
@@ -499,28 +519,25 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
 		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(t, err)
+	validPFFTx := newSignedPayForFibreTx(t, signer, accounts[0])
 
-	// Build a valid signed MsgPayForFibre transaction.
-	validPFFTx := newSignedPayForFibreTx(t, signer)
-
-	// Build a blob tx for the second account.
 	blobSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
 		user.NewAccount(accounts[1], infos[1].AccountNum, infos[1].Sequence))
 	require.NoError(t, err)
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x02}, share.NamespaceVersionZeroIDSize))
-	blob, blobErr := share.NewBlob(ns, bytes.Repeat([]byte{0x01}, 100), share.ShareVersionZero, nil)
-	require.NoError(t, blobErr)
-	blobTxBytes, _, blobTxErr := blobSigner.CreatePayForBlobs(accounts[1], []*share.Blob{blob}, user.SetGasLimit(500_000), user.SetFee(1))
-	require.NoError(t, blobTxErr)
+	blob, err := share.NewBlob(ns, bytes.Repeat([]byte{0x01}, 100), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+	blobTxBytes, _, err := blobSigner.CreatePayForBlobs(accounts[1], []*share.Blob{blob}, user.SetGasLimit(500_000), user.SetFee(1))
+	require.NoError(t, err)
 
 	tests := []struct {
 		name           string
-		setupTxs       func() [][]byte // returns txs ready for ProcessProposal
+		txs            func() [][]byte
 		expectedStatus abci.ResponseProcessProposal_ProposalStatus
 	}{
 		{
-			name: "accept block with pay-for-fibre via prepare→process round-trip",
-			setupTxs: func() [][]byte {
+			name: "accept block with pay-for-fibre via prepare-process round-trip",
+			txs: func() [][]byte {
 				resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
 					Txs:    [][]byte{validPFFTx},
 					Height: testApp.LastBlockHeight() + 1,
@@ -532,8 +549,8 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name: "accept block with blob tx and pay-for-fibre via prepare→process round-trip",
-			setupTxs: func() [][]byte {
+			name: "accept block with blob tx and pay-for-fibre",
+			txs: func() [][]byte {
 				resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
 					Txs:    [][]byte{blobTxBytes, validPFFTx},
 					Height: testApp.LastBlockHeight() + 1,
@@ -545,12 +562,28 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name: "reject block containing garbage bytes (not a valid tx)",
-			setupTxs: func() [][]byte {
-				// Garbage that fails all tx type checks and SDK decoding, so
-				// ProcessProposal rejects the block at the decode step.
-				garbage := bytes.Repeat([]byte{0xFF}, 64)
-				return [][]byte{garbage}
+			name: "reject block with garbage bytes",
+			txs: func() [][]byte {
+				return [][]byte{bytes.Repeat([]byte{0xFF}, 64)}
+			},
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "reject tx with two MsgPayForFibre",
+			txs: func() [][]byte {
+				return [][]byte{newUnsignedMultiMsgTx(t, enc.TxConfig,
+					newMsgPayForFibre(t), newMsgPayForFibre(t))}
+			},
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "reject tx with MsgPayForFibre mixed with MsgSend",
+			txs: func() [][]byte {
+				addr := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address())
+				sendMsg := banktypes.NewMsgSend(addr, addr,
+					sdk.NewCoins(sdk.NewInt64Coin("utia", 1)))
+				return [][]byte{newUnsignedMultiMsgTx(t, enc.TxConfig,
+					newMsgPayForFibre(t), sendMsg)}
 			},
 			expectedStatus: abci.ResponseProcessProposal_REJECT,
 		},
@@ -558,7 +591,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			txs := tc.setupTxs()
+			txs := tc.txs()
 
 			var dataRootHash []byte
 			var squareSize uint64
@@ -584,12 +617,43 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 	}
 }
 
-// newSignedPayForFibreTx creates a signed MsgPayForFibre transaction.
-func newSignedPayForFibreTx(t *testing.T, signer *user.Signer) []byte {
+// newMsgPayForFibre creates a MsgPayForFibre with a random signer for testing.
+func newMsgPayForFibre(t *testing.T) *fibretypes.MsgPayForFibre {
 	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	addr := sdk.AccAddress(privKey.PubKey().Address())
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
-	acc := signer.Accounts()[0]
+	return &fibretypes.MsgPayForFibre{
+		Signer: addr.String(),
+		PaymentPromise: fibretypes.PaymentPromise{
+			ChainId:           "test",
+			Height:            1,
+			Namespace:         ns.Bytes(),
+			BlobSize:          100,
+			BlobVersion:       fibretypes.BlobVersionZero,
+			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
+			CreationTimestamp: time.Now(),
+			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
+			Signature:         make([]byte, 64),
+		},
+	}
+}
 
+// newUnsignedMultiMsgTx encodes multiple sdk.Msgs into an unsigned SDK tx.
+func newUnsignedMultiMsgTx(t *testing.T, txConfig client.TxConfig, msgs ...sdk.Msg) []byte {
+	t.Helper()
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msgs...))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
+
+// newSignedPayForFibreTx creates a signed MsgPayForFibre transaction.
+func newSignedPayForFibreTx(t *testing.T, signer *user.Signer, account string) []byte {
+	t.Helper()
+	acc := signer.Account(account)
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
 	msg := &fibretypes.MsgPayForFibre{
 		Signer: acc.Address().String(),
 		PaymentPromise: fibretypes.PaymentPromise{
@@ -604,7 +668,6 @@ func newSignedPayForFibreTx(t *testing.T, signer *user.Signer) []byte {
 			Signature:         make([]byte, 64),
 		},
 	}
-
 	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(1))
 	require.NoError(t, err)
 	return txBytes
