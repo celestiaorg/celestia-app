@@ -157,12 +157,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 	for _, rawTx := range payForFibreTxs {
-		if pffMessageCount+1 > appconsts.MaxPayForFibreMessages {
-			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-			continue
-		}
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
-		// separateTxs guarantees rawTx contains MsgPayForFibre, so fibreTx is always non-nil.
+		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so fibreTx is always non-nil.
 		fibreTx, err := tx.TryParseFibreTx(rawTx)
 		if err != nil {
 			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
@@ -172,6 +168,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		sdkTx, err := dec(rawTx)
 		if err != nil {
 			logger.Error("decoding pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			continue
+		}
+
+		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPayForFibreMessages {
+			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
 			continue
 		}
 
@@ -202,7 +203,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
-		pffMessageCount++
+		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)
 	}
 
@@ -235,7 +236,11 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 }
 
 // separateTxs decodes raw tendermint txs into normal, blob, and pay-for-fibre txs.
-// This function also filters out transactions that exceed MaxTxSize.
+// This function filters out:
+//   - transactions that exceed MaxTxSize
+//   - transactions that fail SDK decoding
+//   - transactions containing MsgPayForFibre mixed with other messages
+//   - transactions containing more than one MsgPayForFibre
 func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
@@ -261,12 +266,20 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 
 		sdkTx, err := dec(rawTx)
 		if err != nil {
-			normalTxs = append(normalTxs, rawTx)
+			// Skip txs that fail decoding. ProcessProposal rejects
+			// undecodable txs, so there is no reason to include them.
 			continue
 		}
 
-		if count := countMsgPayForFibre(sdkTx); count == 1 {
+		pffCount := countMsgPayForFibre(sdkTx)
+		if pffCount == 1 && len(sdkTx.GetMsgs()) == 1 {
+			// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
+			// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
 			payForFibreTxs = append(payForFibreTxs, rawTx)
+			continue
+		}
+		if pffCount > 0 {
+			// Skip invalid txs: multiple MsgPayForFibre or MsgPayForFibre mixed with other messages.
 			continue
 		}
 

@@ -31,6 +31,7 @@ func TestSeparateTxs(t *testing.T) {
 	blobTx := blobfactory.UnsignedBlobTx(t)
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	multiPayForFibreTx := newMultiPayForFibreTx(t, txConfig)
+	mixedPayForFibreTx := newMixedPayForFibreTx(t, txConfig)
 
 	tests := []struct {
 		name     string
@@ -82,9 +83,23 @@ func TestSeparateTxs(t *testing.T) {
 			wantPFF:  2,
 		},
 		{
-			name:     "tx with multiple MsgPayForFibre is classified as normal",
+			name:     "tx with multiple MsgPayForFibre is dropped",
 			rawTxs:   [][]byte{multiPayForFibreTx},
-			wantNorm: 1,
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
+		{
+			name:     "tx with MsgPayForFibre mixed with MsgSend is dropped",
+			rawTxs:   [][]byte{mixedPayForFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
+		{
+			name:     "undecodable tx is dropped",
+			rawTxs:   [][]byte{[]byte("garbage")},
+			wantNorm: 0,
 			wantBlob: 0,
 			wantPFF:  0,
 		},
@@ -118,6 +133,11 @@ func TestCountMsgPayForFibre(t *testing.T) {
 			name:      "MsgSend",
 			txBytes:   func() []byte { return newNormalTx(t, txConfig) },
 			wantCount: 0,
+		},
+		{
+			name:      "two MsgPayForFibre",
+			txBytes:   func() []byte { return newMultiPayForFibreTx(t, txConfig) },
+			wantCount: 2,
 		},
 	}
 
@@ -315,6 +335,40 @@ func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	}
 	builder := txConfig.NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(msg1, msg2))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
+
+// newMixedPayForFibreTx creates an unsigned SDK tx containing one MsgPayForFibre
+// and one MsgSend for testing. This represents an invalid PFF tx because a
+// PayForFibre tx must contain exactly one message.
+func newMixedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	addr := sdk.AccAddress(privKey.PubKey().Address())
+	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	pffMsg := &fibretypes.MsgPayForFibre{
+		Signer: addr.String(),
+		PaymentPromise: fibretypes.PaymentPromise{
+			ChainId:           "test",
+			Height:            1,
+			Namespace:         ns.Bytes(),
+			BlobSize:          100,
+			BlobVersion:       fibretypes.BlobVersionZero,
+			Commitment:        bytes.Repeat([]byte{0xAB}, share.FibreCommitmentSize),
+			CreationTimestamp: time.Now(),
+			SignerPublicKey:   *privKey.PubKey().(*secp256k1.PubKey),
+			Signature:         make([]byte, 64),
+		},
+	}
+	sendMsg := &banktypes.MsgSend{
+		FromAddress: addr.String(),
+		ToAddress:   addr.String(),
+		Amount:      sdk.NewCoins(sdk.NewInt64Coin("utia", 1)),
+	}
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(pffMsg, sendMsg))
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
 	require.NoError(t, err)
 	return txBytes
