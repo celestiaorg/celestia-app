@@ -131,6 +131,11 @@ Options:
 
 	flag.Parse()
 
+	if opts.verify && !opts.backup {
+		fmt.Fprintf(os.Stderr, "Error: --verify requires --backup (source keys are deleted without backup)\n")
+		os.Exit(1)
+	}
+
 	if opts.parallel < 1 {
 		opts.parallel = 1
 	}
