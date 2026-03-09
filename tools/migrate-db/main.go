@@ -857,12 +857,18 @@ func saveState(state *MigrationState, destDir string) error {
 // performAutoSwap moves PebbleDB files into data/ and updates config.toml.
 // Callers must ensure all databases have been migrated before calling this.
 func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracker *stateTracker) error {
-	// Verify all databases completed migration
+	// Verify all databases completed migration.
+	// tx_index may not exist on nodes without indexing enabled — skip it if source is missing.
 	for _, dbName := range allDatabases {
 		ds := tracker.getDBState(dbName)
-		if ds.Status != statusMigrated && ds.Status != statusSourceDeleted {
-			return fmt.Errorf("database %q has status %q, expected %q or %q — cannot auto-swap", dbName, ds.Status, statusMigrated, statusSourceDeleted)
+		if ds.Status == statusMigrated || ds.Status == statusSourceDeleted {
+			continue
 		}
+		if dbName == "tx_index" && ds.Status == statusPending {
+			fmt.Printf("  Skipping %s (source not found)\n", dbName)
+			continue
+		}
+		return fmt.Errorf("database %q has status %q, expected %q or %q — cannot auto-swap", dbName, ds.Status, statusMigrated, statusSourceDeleted)
 	}
 
 	fmt.Println("\nPerforming auto-swap...")
