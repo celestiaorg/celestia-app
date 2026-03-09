@@ -63,15 +63,6 @@ message MsgSetFibreProviderInfo {
 - `signer` must be a valid validator consensus operator address
 - `host` must be less than 90 characters
 
-If the `signer` is currently jailed, this will attempt to unjail them
-
-## Failure to provide fibre info
-
-While the network can not enforce that every validator is running an available fibre DA server, it can enforce that all validators
-in the active set have supplied an IP address. To do this, the network employs the `AfterValidatorBonded` hook in the staking module for any validator that gets added to the active set. If no info is provided, the validator is jailed. For existing active validators, at height **missing_info_check_height**, aimed at 1 week after the upgrade height, in `EndBlock` all active validators will be checked for missing info, those that have not supplied info will be jailed.
-
-To bypass the usage `MsgUnjail`, jailing will be for 1 year from the current blocktime. To unjail, a validator must submit the `MsgSetFibreProviderInfo` only then will the `JailedUntil` be updated and `Unjail` called.
-
 ## Events
 
 ### EventSetFibreProviderInfo
@@ -144,9 +135,7 @@ message QueryFibreProviderInfoResponse {
 
 ## Parameters
 
-The `x/valaddr` has the following parameter. These can only be adjusted in hard-fork upgrades
-
-- **missing_info_check_height** [int64]: when to check for validators with missing info. This acts as a grace period and can be dynamically set in the migration. (default: **100,000** - this is roughly 1 week from the upgrade height)
+The `x/valaddr` module has no parameters.
 
 ## Client
 

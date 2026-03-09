@@ -135,7 +135,7 @@ func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx {
 
 func isSortedByFee(t *testing.T, ecfg encoding.Config, responses []*rpctypes.ResultTx) bool {
 	for i := 0; i < len(responses)-1; i++ {
-		if getGasPrice(t, ecfg, responses[i]) <= getGasPrice(t, ecfg, responses[i+1]) {
+		if getGasPrice(t, ecfg, responses[i]) < getGasPrice(t, ecfg, responses[i+1]) {
 			return false
 		}
 	}

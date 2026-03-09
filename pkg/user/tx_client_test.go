@@ -3,7 +3,6 @@ package user_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"net"
 	"strings"
@@ -643,18 +642,16 @@ func (m *mockEstimatorServer) stop() {
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	t.Helper()
 
-	freePort, err := testnode.GetFreePort()
+	lis, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
-	addr := fmt.Sprintf(":%d", freePort)
-	net, err := net.Listen("tcp", addr)
-	require.NoError(t, err)
+	addr := lis.Addr().String()
 
 	grpcServer := grpc.NewServer()
 	mes := &mockEstimatorServer{srv: grpcServer, addr: addr}
 	gasestimation.RegisterGasEstimatorServer(grpcServer, mes)
 
 	go func() {
-		err := grpcServer.Serve(net)
+		err := grpcServer.Serve(lis)
 		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			panic(err)
 		}
