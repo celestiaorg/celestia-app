@@ -136,12 +136,13 @@ Options:
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer cancel()
 
 	if err := runMigration(ctx, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		cancel()
 		os.Exit(1)
 	}
+	cancel()
 }
 
 // runMigration orchestrates the full LevelDB-to-PebbleDB migration.
