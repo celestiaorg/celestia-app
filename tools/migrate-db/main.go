@@ -223,7 +223,12 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 	}
 
 	if !opts.manualSwap {
-		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, opts.backup)
+		if len(databases) < len(allDatabases) {
+			fmt.Printf("\nSkipping auto-swap: only %d of %d databases were migrated (--db filter active).\n", len(databases), len(allDatabases))
+			fmt.Println("Run again without --db to migrate all databases, or use --manual-swap.")
+			return nil
+		}
+		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, opts.backup, state)
 	}
 
 	printNextSteps(dataDir, pebbleDataDir, opts.backup)
@@ -265,6 +270,10 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 		}
 		fmt.Println("Initialized new migration state.")
 	} else {
+		// Validate backup mode consistency on resume to prevent accidental data deletion
+		if state.Backup && !opts.backup {
+			return nil, fmt.Errorf("migration was started with --backup but resumed without it; pass --backup to continue (or delete %s to start fresh)", filepath.Join(pebbleDataDir, ".migration_state.json"))
+		}
 		fmt.Printf("Resuming migration started at %s\n", state.StartedAt.Format(time.RFC3339))
 		for name, ds := range state.Databases {
 			if ds.Status != statusPending {
@@ -528,10 +537,13 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 			if needSync {
 				bytesSinceSync = 0
 			}
+		}
 
-			// check whether the context was canceled
+		// Check for cancellation periodically (every 10k keys)
+		if totalKeys%10000 == 0 {
 			if err := ctx.Err(); err != nil {
 				_ = srcIter.Close()
+				_ = batch.Close()
 				return 0, 0, fmt.Errorf("cancelled: %w", err)
 			}
 		}
@@ -604,9 +616,13 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			if needSync {
 				bytesSinceSync = 0
 			}
+		}
 
+		// Check for cancellation periodically (every 10k keys)
+		if totalKeys%10000 == 0 {
 			if err := ctx.Err(); err != nil {
 				_ = srcIter.Close()
+				_ = batch.Close()
 				return 0, 0, fmt.Errorf("cancelled: %w", err)
 			}
 		}
@@ -683,11 +699,13 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 // deleteSourceKeys deletes the given keys from sourceDB in batches capped at maxDeleteBatch.
 func deleteSourceKeys(sourceDB db.DB, keys [][]byte) error {
 	batch := sourceDB.NewBatch()
+	batchCount := 0
 	for _, key := range keys {
 		if err := batch.Delete(key); err != nil {
 			_ = batch.Close()
 			return err
 		}
+		batchCount++
 		size, _ := batch.GetByteSize()
 		if size >= maxDeleteBatch {
 			if err := batch.WriteSync(); err != nil {
@@ -696,11 +714,14 @@ func deleteSourceKeys(sourceDB db.DB, keys [][]byte) error {
 			}
 			_ = batch.Close()
 			batch = sourceDB.NewBatch()
+			batchCount = 0
 		}
 	}
-	if err := batch.WriteSync(); err != nil {
-		_ = batch.Close()
-		return err
+	if batchCount > 0 {
+		if err := batch.WriteSync(); err != nil {
+			_ = batch.Close()
+			return err
+		}
 	}
 	return batch.Close()
 }
@@ -791,7 +812,7 @@ func loadState(destDir string) (*MigrationState, error) {
 	return &state, nil
 }
 
-// saveState atomically writes the migration state file via tmp+rename.
+// saveState atomically writes the migration state file via tmp+fsync+rename.
 func saveState(state *MigrationState, destDir string) error {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -799,14 +820,36 @@ func saveState(state *MigrationState, destDir string) error {
 	}
 	tmpPath := filepath.Join(destDir, ".migration_state.json.tmp")
 	finalPath := filepath.Join(destDir, ".migration_state.json")
-	if err := os.WriteFile(tmpPath, data, 0o644); err != nil {
+
+	f, err := os.Create(tmpPath)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		_ = f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, finalPath)
 }
 
 // performAutoSwap moves PebbleDB files into data/ and updates config.toml.
-func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool) error {
+// Callers must ensure all databases have been migrated before calling this.
+func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracker *stateTracker) error {
+	// Verify all databases completed migration
+	for _, dbName := range allDatabases {
+		ds := tracker.getDBState(dbName)
+		if ds.Status != statusMigrated && ds.Status != statusSourceDeleted {
+			return fmt.Errorf("database %q has status %q, expected %q or %q — cannot auto-swap", dbName, ds.Status, statusMigrated, statusSourceDeleted)
+		}
+	}
+
 	fmt.Println("\nPerforming auto-swap...")
 
 	for _, dbName := range allDatabases {
