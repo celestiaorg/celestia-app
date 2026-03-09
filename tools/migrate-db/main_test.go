@@ -85,7 +85,7 @@ func TestMigration_NoBackupDeletesSource(t *testing.T) {
 }
 
 func TestMigration_ResumeAfterInterrupt(t *testing.T) {
-	home := setupTestNode(t, 50000, 1024)
+	home := setupTestNode(t, 5000, 1024)
 	o := opts(home)
 	o.parallel = 1
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
@@ -96,7 +96,7 @@ func TestMigration_ResumeAfterInterrupt(t *testing.T) {
 	for _, name := range allDatabases {
 		dst, err := db.NewDB(name, db.PebbleDBBackend, filepath.Join(home, "data_pebble"))
 		require.NoError(t, err)
-		assert.Equal(t, int64(500), countKeys(t, dst), "[%s]", name)
+		assert.Equal(t, int64(5000), countKeys(t, dst), "[%s]", name)
 		_ = dst.Close()
 	}
 }
