@@ -53,7 +53,7 @@ require (
 	github.com/ipfs/go-ds-badger4 v0.1.8
 	github.com/ipfs/go-ds-pebble v0.5.9
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/reedsolomon v1.13.3-0.20260306170200-c9e2c2ea08ce
+	github.com/klauspost/reedsolomon v1.13.3
 	github.com/pelletier/go-toml/v2 v2.2.4
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.34.0
