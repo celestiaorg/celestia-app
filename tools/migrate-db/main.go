@@ -302,7 +302,26 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTracker, opts migrateOpts) error {
 	ds := tracker.getDBState(dbName)
 
-	if ds.Status == statusMigrated || ds.Status == statusSourceDeleted {
+	if ds.Status == statusSourceDeleted {
+		fmt.Printf("[%s] Already complete (status=%s), skipping\n", dbName, ds.Status)
+		return nil
+	}
+
+	// If migrated but source not yet deleted (crash between save and RemoveAll), retry deletion.
+	if ds.Status == statusMigrated {
+		if !opts.backup {
+			srcPath := filepath.Join(dataDir, dbName+".db")
+			if _, err := os.Stat(srcPath); err == nil {
+				fmt.Printf("[%s] Retrying source deletion (interrupted after migration)...\n", dbName)
+				if err := os.RemoveAll(srcPath); err != nil {
+					return fmt.Errorf("[%s] failed to remove source: %w", dbName, err)
+				}
+				ds.Status = statusSourceDeleted
+				if err := tracker.updateDBState(dbName, ds); err != nil {
+					return fmt.Errorf("[%s] failed to save state: %w", dbName, err)
+				}
+			}
+		}
 		fmt.Printf("[%s] Already complete (status=%s), skipping\n", dbName, ds.Status)
 		return nil
 	}
@@ -877,13 +896,12 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracke
 		srcPath := filepath.Join(pebbleDataDir, dbName+".db")
 		dstPath := filepath.Join(dataDir, dbName+".db")
 
-		// Remove old LevelDB if it still exists
-		if backup {
-			if _, err := os.Stat(dstPath); err == nil {
-				fmt.Printf("  Removing old %s\n", dstPath)
-				if err := os.RemoveAll(dstPath); err != nil {
-					return fmt.Errorf("failed to remove old %s: %w", dstPath, err)
-				}
+		// Remove old LevelDB if it still exists (always needed — in no-backup mode
+		// the source may survive a crash between statusMigrated and RemoveAll).
+		if _, err := os.Stat(dstPath); err == nil {
+			fmt.Printf("  Removing old %s\n", dstPath)
+			if err := os.RemoveAll(dstPath); err != nil {
+				return fmt.Errorf("failed to remove old %s: %w", dstPath, err)
 			}
 		}
 
