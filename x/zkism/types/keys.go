@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"strings"
@@ -37,6 +38,23 @@ const (
 	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
 	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
 
+	// groth16VkeyCurvePointsSize is the size of the 6 curve points that
+	// precede the G1.K length prefix in a serialized BN254 verifying key.
+	// G1.Alpha (32) + G1.Beta (32) + G2.Beta (64) + G2.Gamma (64) +
+	// G1.Delta (32) + G2.Delta (64) = 288 bytes.
+	groth16VkeyCurvePointsSize = 288
+
+	// Groth16VkeyG1KLength is the expected number of G1.K elements in the
+	// verifying key. For the SP1 scheme with 2 public inputs this is
+	// nPublic + 1 = 3.
+	Groth16VkeyG1KLength = 3
+
+	// Groth16VkeySize is the exact expected size of a serialized Groth16
+	// verifying key for the BN254 curve with 2 public inputs (SP1 scheme).
+	// Layout: 6 curve points (288 bytes) + uint32 G1.K length (4 bytes) +
+	// 3 × compressed G1 points (96 bytes) + trailing metadata (8 bytes) = 396.
+	Groth16VkeySize = 396
+
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
 	// See internal/groth16/bench_test.go
@@ -48,6 +66,24 @@ var (
 	MessageKeyPrefix            = collections.NewPrefix(1)
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
 )
+
+// ValidateGroth16Vkey checks that a serialized Groth16 verifying key has the
+// expected total size and that the internal G1.K length prefix matches the
+// expected number of public input commitments. This must be called before
+// passing the key to gnark's deserializer to prevent OOM from an inflated
+// length prefix.
+func ValidateGroth16Vkey(vkey []byte) error {
+	if len(vkey) != Groth16VkeySize {
+		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", Groth16VkeySize, len(vkey))
+	}
+
+	g1kLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
+	if g1kLen != Groth16VkeyG1KLength {
+		return fmt.Errorf("groth16 vkey G1.K length must be %d, got %d", Groth16VkeyG1KLength, g1kLen)
+	}
+
+	return nil
+}
 
 // EncodeHex is a convenience function to encode byte slices as 0x prefixed hexadecimal strings.
 func EncodeHex(bz []byte) string {
