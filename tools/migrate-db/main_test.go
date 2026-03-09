@@ -28,7 +28,7 @@ func setupTestNode(t *testing.T, keysPerDB, valueSize int) string {
 		for i := range keysPerDB {
 			val := make([]byte, valueSize)
 			_, _ = rand.Read(val)
-			require.NoError(t, ldb.Set([]byte(fmt.Sprintf("key-%s-%08d", name, i)), val))
+			require.NoError(t, ldb.Set(fmt.Appendf(nil, "key-%s-%08d", name, i), val))
 		}
 		require.NoError(t, ldb.Close())
 	}
@@ -201,7 +201,7 @@ func TestDeleteSourceKeys(t *testing.T) {
 	defer func() { _ = ldb.Close() }()
 	keys := make([][]byte, 100)
 	for i := range keys {
-		keys[i] = []byte(fmt.Sprintf("k%04d", i))
+		keys[i] = fmt.Appendf(nil, "k%04d", i)
 		require.NoError(t, ldb.Set(keys[i], []byte("v")))
 	}
 	require.NoError(t, deleteSourceKeys(ldb, keys))
