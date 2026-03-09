@@ -53,12 +53,14 @@ type stateTracker struct {
 	destDir string
 }
 
+// getDBState returns the current state of a database under lock.
 func (st *stateTracker) getDBState(dbName string) DBState {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	return st.state.Databases[dbName]
 }
 
+// updateDBState persists an updated database state to disk under lock.
 func (st *stateTracker) updateDBState(dbName string, ds DBState) error {
 	st.mu.Lock()
 	defer st.mu.Unlock()
@@ -139,6 +141,7 @@ Options:
 	}
 }
 
+// runMigration orchestrates the full LevelDB-to-PebbleDB migration.
 func runMigration(ctx context.Context, opts migrateOpts) error {
 	dataDir := filepath.Join(opts.homeDir, "data")
 	pebbleDataDir := filepath.Join(opts.homeDir, "data_pebble")
@@ -215,6 +218,7 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 	return nil
 }
 
+// printBanner prints the migration configuration summary.
 func printBanner(opts migrateOpts, dataDir, pebbleDataDir string) {
 	fmt.Printf("Starting database migration from LevelDB to PebbleDB\n")
 	fmt.Printf("Home directory:    %s\n", opts.homeDir)
@@ -228,6 +232,7 @@ func printBanner(opts migrateOpts, dataDir, pebbleDataDir string) {
 	fmt.Println()
 }
 
+// loadOrInitState loads existing migration state or creates a fresh one.
 func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, error) {
 	state, err := loadState(pebbleDataDir)
 	if err != nil {
@@ -260,6 +265,7 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 	return &stateTracker{state: state, destDir: pebbleDataDir}, nil
 }
 
+// migrateOneDB handles a single database end-to-end: state transitions, copy, verify, and cleanup.
 func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTracker, opts migrateOpts) error {
 	ds := tracker.getDBState(dbName)
 
@@ -333,6 +339,7 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 	return nil
 }
 
+// migrateSingleDB opens source and dest DBs, finds the resume point, and dispatches to the appropriate copy function.
 func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opts migrateOpts) (int64, int64, error) {
 	startTime := time.Now()
 	batchBytes := int64(opts.batchSizeMB) * 1024 * 1024
@@ -343,14 +350,14 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to open source LevelDB: %w", err)
 	}
-	defer sourceDB.Close()
+	defer func() { _ = sourceDB.Close() }()
 
 	// Open destination PebbleDB (creates if not exists, opens if exists)
 	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to open destination PebbleDB: %w", err)
 	}
-	defer destDB.Close()
+	defer func() { _ = destDB.Close() }()
 
 	resumeKey, err := findResumePoint(destDB, dbName)
 	if err != nil {
@@ -379,6 +386,7 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 	return totalKeys, totalBytes, nil
 }
 
+// findResumePoint returns the last key in destDB, or nil if the DB is empty.
 func findResumePoint(destDB db.DB, dbName string) ([]byte, error) {
 	revIter, err := destDB.ReverseIterator(nil, nil)
 	if err != nil {
@@ -390,10 +398,14 @@ func findResumePoint(destDB db.DB, dbName string) ([]byte, error) {
 		copy(resumeKey, revIter.Key())
 		fmt.Printf("[%s] Resuming from previous run\n", dbName)
 	}
-	revIter.Close()
+	err = revIter.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close reverse iterator: %w", err)
+	}
 	return resumeKey, nil
 }
 
+// iteratorFrom creates a source iterator positioned after resumeKey, or from the start if nil.
 func iteratorFrom(sourceDB db.DB, resumeKey []byte) (db.Iterator, error) {
 	if resumeKey != nil {
 		srcIter, err := sourceDB.Iterator(resumeKey, nil)
@@ -413,6 +425,7 @@ func iteratorFrom(sourceDB db.DB, resumeKey []byte) (db.Iterator, error) {
 	return srcIter, nil
 }
 
+// flushBatch writes the batch (sync or async), closes it, and returns a fresh batch.
 func flushBatch(batch db.Batch, destDB db.DB, sync bool) (db.Batch, error) {
 	var writeErr error
 	if sync {
@@ -421,13 +434,17 @@ func flushBatch(batch db.Batch, destDB db.DB, sync bool) (db.Batch, error) {
 		writeErr = batch.Write()
 	}
 	if writeErr != nil {
-		batch.Close()
+		_ = batch.Close()
 		return nil, fmt.Errorf("failed to write batch: %w", writeErr)
 	}
-	batch.Close()
+	err := batch.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close batch: %w", err)
+	}
 	return destDB.NewBatch(), nil
 }
 
+// logProgress logs migration throughput at progressInterval.
 func logProgress(dbName string, totalKeys, totalBytes int64, startTime time.Time, lastLogTime *time.Time) {
 	if time.Since(*lastLogTime) >= progressInterval {
 		elapsed := time.Since(startTime)
@@ -439,6 +456,7 @@ func logProgress(dbName string, totalKeys, totalBytes int64, startTime time.Time
 	}
 }
 
+// copyAllKeys copies all keys from srcIter into destDB in batches. Returns total keys and bytes copied.
 func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
 	var totalKeys int64
 	var totalBytes, bytesSinceSync int64
@@ -453,8 +471,8 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 		kvSize := int64(len(key) + len(value))
 
 		if err := batch.Set(key, value); err != nil {
-			srcIter.Close()
-			batch.Close()
+			_ = srcIter.Close()
+			_ = batch.Close()
 			return 0, 0, fmt.Errorf("failed to set key in batch: %w", err)
 		}
 
@@ -469,7 +487,7 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 			var err error
 			batch, err = flushBatch(batch, destDB, needSync)
 			if err != nil {
-				srcIter.Close()
+				_ = srcIter.Close()
 				return 0, 0, err
 			}
 			batchKeyCount = 0
@@ -477,11 +495,10 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 				bytesSinceSync = 0
 			}
 
-			select {
-			case <-ctx.Done():
-				srcIter.Close()
-				return 0, 0, fmt.Errorf("cancelled: %w", ctx.Err())
-			default:
+			// check whether the context was canceled
+			if err := ctx.Err(); err != nil {
+				_ = srcIter.Close()
+				return 0, 0, fmt.Errorf("cancelled: %w", err)
 			}
 		}
 
@@ -489,24 +506,26 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 	}
 
 	if err := srcIter.Error(); err != nil {
-		srcIter.Close()
-		batch.Close()
+		_ = srcIter.Close()
+		_ = batch.Close()
 		return 0, 0, fmt.Errorf("iterator error: %w", err)
 	}
-	srcIter.Close()
+	err := srcIter.Close()
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
+	}
 
-	// Flush final batch with sync
+	// Flush final batch with sync if non-empty, otherwise just close
 	if batchKeyCount > 0 {
 		if _, err := flushBatch(batch, destDB, true); err != nil {
 			return 0, 0, err
 		}
-	} else {
-		batch.Close()
 	}
 
 	return totalKeys, totalBytes, nil
 }
 
+// copyAndDeleteKeys copies keys into destDB and incrementally deletes them from sourceDB (--no-backup mode).
 func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
 	var totalKeys int64
 	var totalBytes, bytesSinceSync, bytesSinceDelete int64
@@ -522,8 +541,8 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 		kvSize := int64(len(key) + len(value))
 
 		if err := batch.Set(key, value); err != nil {
-			srcIter.Close()
-			batch.Close()
+			_ = srcIter.Close()
+			_ = batch.Close()
 			return 0, 0, fmt.Errorf("failed to set key in batch: %w", err)
 		}
 
@@ -543,7 +562,7 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			var err error
 			batch, err = flushBatch(batch, destDB, needSync)
 			if err != nil {
-				srcIter.Close()
+				_ = srcIter.Close()
 				return 0, 0, err
 			}
 			batchKeyCount = 0
@@ -553,7 +572,7 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 
 			select {
 			case <-ctx.Done():
-				srcIter.Close()
+				_ = srcIter.Close()
 				return 0, 0, fmt.Errorf("cancelled: %w", ctx.Err())
 			default:
 			}
@@ -568,7 +587,7 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 				var err error
 				batch, err = flushBatch(batch, destDB, true)
 				if err != nil {
-					srcIter.Close()
+					_ = srcIter.Close()
 					return 0, 0, err
 				}
 				batchKeyCount = 0
@@ -578,7 +597,9 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			// Close source iterator before deleting
 			lastKey := make([]byte, len(key))
 			copy(lastKey, key)
-			srcIter.Close()
+			if err := srcIter.Close(); err != nil {
+				return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
+			}
 
 			if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
 				return 0, 0, fmt.Errorf("failed to delete source keys: %w", err)
@@ -600,19 +621,19 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 	}
 
 	if err := srcIter.Error(); err != nil {
-		srcIter.Close()
-		batch.Close()
+		_ = srcIter.Close()
+		_ = batch.Close()
 		return 0, 0, fmt.Errorf("iterator error: %w", err)
 	}
-	srcIter.Close()
+	if err := srcIter.Close(); err != nil {
+		return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
+	}
 
 	// Flush final batch with sync
 	if batchKeyCount > 0 {
 		if _, err := flushBatch(batch, destDB, true); err != nil {
 			return 0, 0, err
 		}
-	} else {
-		batch.Close()
 	}
 
 	// Delete any remaining tracked keys
@@ -625,29 +646,29 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 	return totalKeys, totalBytes, nil
 }
 
+// deleteSourceKeys deletes the given keys from sourceDB in batches capped at maxDeleteBatch.
 func deleteSourceKeys(sourceDB db.DB, keys [][]byte) error {
 	batch := sourceDB.NewBatch()
 	for _, key := range keys {
 		if err := batch.Delete(key); err != nil {
-			batch.Close()
+			_ = batch.Close()
 			return err
 		}
 		size, _ := batch.GetByteSize()
 		if size >= maxDeleteBatch {
 			if err := batch.WriteSync(); err != nil {
-				batch.Close()
+				_ = batch.Close()
 				return err
 			}
-			batch.Close()
+			_ = batch.Close()
 			batch = sourceDB.NewBatch()
 		}
 	}
 	if err := batch.WriteSync(); err != nil {
-		batch.Close()
+		_ = batch.Close()
 		return err
 	}
-	batch.Close()
-	return nil
+	return batch.Close()
 }
 
 // verifyDBSample picks evenly-spaced keys from source and verifies they exist with same value in dest.
@@ -656,13 +677,13 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source for verification: %w", err)
 	}
-	defer sourceDB.Close()
+	defer func() { _ = sourceDB.Close() }()
 
 	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
 		return fmt.Errorf("failed to open dest for verification: %w", err)
 	}
-	defer destDB.Close()
+	defer func() { _ = destDB.Close() }()
 
 	// First pass: count total keys
 	var totalKeys int64
@@ -673,7 +694,7 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	for ; countIter.Valid(); countIter.Next() {
 		totalKeys++
 	}
-	countIter.Close()
+	_ = countIter.Close()
 
 	if totalKeys == 0 {
 		fmt.Printf("[%s] Source is empty, nothing to verify\n", dbName)
@@ -687,7 +708,7 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var checked, mismatches int64
 	var idx int64
@@ -717,18 +738,19 @@ func verifyDBSample(dbName, sourceDir, destDir string, sampleSize int) error {
 	return nil
 }
 
+// verifyDBFull counts all keys in dest and checks that it matches expectedCount.
 func verifyDBFull(dbName, sourceDir, destDir string, expectedCount int64) error {
 	destDB, err := db.NewDB(dbName, db.PebbleDBBackend, destDir)
 	if err != nil {
 		return fmt.Errorf("failed to open PebbleDB for verification: %w", err)
 	}
-	defer destDB.Close()
+	defer func() { _ = destDB.Close() }()
 
 	iter, err := destDB.Iterator(nil, nil)
 	if err != nil {
 		return err
 	}
-	defer iter.Close()
+	defer func() { _ = iter.Close() }()
 
 	var actualCount int64
 	for ; iter.Valid(); iter.Next() {
@@ -752,6 +774,7 @@ func verifyDBFull(dbName, sourceDir, destDir string, expectedCount int64) error 
 
 // State file management
 
+// loadState reads the migration state file, returning nil if it doesn't exist.
 func loadState(destDir string) (*MigrationState, error) {
 	path := filepath.Join(destDir, ".migration_state.json")
 	data, err := os.ReadFile(path)
@@ -768,6 +791,7 @@ func loadState(destDir string) (*MigrationState, error) {
 	return &state, nil
 }
 
+// saveState atomically writes the migration state file via tmp+rename.
 func saveState(state *MigrationState, destDir string) error {
 	data, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
@@ -783,6 +807,7 @@ func saveState(state *MigrationState, destDir string) error {
 
 // Auto-swap: move PebbleDB files into data/ and update config.toml
 
+// performAutoSwap moves PebbleDB files into data/ and updates config.toml.
 func performAutoSwap(homeDir, dataDir, pebbleDataDir string, noBackup bool) error {
 	fmt.Println("\nPerforming auto-swap...")
 
@@ -819,14 +844,15 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, noBackup bool) erro
 	}
 
 	// Clean up
-	os.Remove(filepath.Join(pebbleDataDir, ".migration_state.json"))
-	os.Remove(filepath.Join(pebbleDataDir, ".migration.lock"))
-	os.Remove(pebbleDataDir)
+	_ = os.Remove(filepath.Join(pebbleDataDir, ".migration_state.json"))
+	_ = os.Remove(filepath.Join(pebbleDataDir, ".migration.lock"))
+	_ = os.Remove(pebbleDataDir)
 
 	fmt.Println("\nAuto-swap complete. Start your node to verify.")
 	return nil
 }
 
+// updateConfigBackend rewrites the db_backend line in config.toml.
 func updateConfigBackend(configPath, backend string) error {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -848,6 +874,7 @@ func updateConfigBackend(configPath, backend string) error {
 	return os.WriteFile(configPath, []byte(strings.Join(lines, "\n")), 0o644)
 }
 
+// printNextSteps prints post-migration instructions to stdout.
 func printNextSteps(dataDir, pebbleDataDir string, noBackup bool) {
 	var rmCommands, mvCommands strings.Builder
 	for _, dbName := range allDatabases {
@@ -883,6 +910,7 @@ Next Steps:
 `, pebbleDataDir)
 }
 
+// humanBytes formats a byte count as a human-readable string (e.g. "1.50 GB").
 func humanBytes(b int64) string {
 	const (
 		kb = 1024
