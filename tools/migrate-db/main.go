@@ -920,9 +920,9 @@ func printNextSteps(dataDir, pebbleDataDir string, backup bool) {
 	var rmCommands, mvCommands strings.Builder
 	for _, dbName := range allDatabases {
 		if backup {
-			fmt.Fprintf(&rmCommands, "   rm -rf %s/%s.db\n", dataDir, dbName)
+			_, _ = fmt.Fprintf(&rmCommands, "   rm -rf %s/%s.db\n", dataDir, dbName)
 		}
-		fmt.Fprintf(&mvCommands, "   mv %s/%s.db %s/%s.db\n", pebbleDataDir, dbName, dataDir, dbName)
+		_, _ = fmt.Fprintf(&mvCommands, "   mv %s/%s.db %s/%s.db\n", pebbleDataDir, dbName, dataDir, dbName)
 	}
 
 	fmt.Printf(`
