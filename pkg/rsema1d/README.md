@@ -218,7 +218,7 @@ go test -bench=. ./pkg/rsema1d/...
 
 ## Dependencies
 
-- [celestiaorg/reedsolomon](https://github.com/celestiaorg/reedsolomon): Leopard Reed-Solomon codec
+- [klauspost/reedsolomon](https://github.com/klauspost/reedsolomon): Leopard Reed-Solomon codec
 - Go standard library (crypto/sha256, encoding/binary)
 
 ## References
