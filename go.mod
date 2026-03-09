@@ -25,7 +25,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.96.0
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc3.0.20260308001426-88dd14bec7a2
+	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
 	github.com/celestiaorg/nmt v0.24.2
 	github.com/celestiaorg/reedsolomon v1.12.6-0.20250824224240-8b66bda83fd0
 	github.com/celestiaorg/rsmt2d v0.15.1
