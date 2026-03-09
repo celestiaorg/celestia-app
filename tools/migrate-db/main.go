@@ -21,8 +21,9 @@ import (
 )
 
 const (
-	// deleteChunkBytes is the amount of data migrated before deleting source keys when backup is disabled.
-	deleteChunkBytes = 1024 * 1024 * 1024 // 1 GB
+	// defaultDeleteChunkMB is the default amount of data (in MB) migrated before
+	// deleting source keys when backup is disabled.
+	defaultDeleteChunkMB = 1024 // 1 GB
 
 	// maxDeleteBatch is the maximum size of a single delete batch written to the source DB.
 	maxDeleteBatch = 64 * 1024 * 1024 // 64 MB
@@ -41,9 +42,10 @@ var allDatabases = []string{
 
 // MigrationState tracks overall migration progress across restarts.
 type MigrationState struct {
-	StartedAt time.Time          `json:"started_at"`
-	Backup    bool               `json:"backup"`
-	Databases map[string]DBState `json:"databases"`
+	StartedAt        time.Time          `json:"started_at"`
+	Backup           bool               `json:"backup"`
+	DeleteChunkBytes int64              `json:"delete_chunk_bytes"`
+	Databases        map[string]DBState `json:"databases"`
 }
 
 // stateTracker bundles MigrationState with a mutex for concurrent access and the dest dir for persistence.
@@ -86,15 +88,16 @@ type DBState struct {
 }
 
 type migrateOpts struct {
-	homeDir      string
-	dryRun       bool
-	backup       bool
-	batchSizeMB  int
-	syncInterval int
-	parallel     int
-	verify       bool
-	dbFilter     string
-	manualSwap   bool
+	homeDir       string
+	dryRun        bool
+	backup        bool
+	batchSizeMB   int
+	deleteChunkMB int
+	syncInterval  int
+	parallel      int
+	verify        bool
+	dbFilter      string
+	manualSwap    bool
 }
 
 func main() {
@@ -103,6 +106,7 @@ func main() {
 	flag.BoolVar(&opts.dryRun, "dry-run", false, "Run migration in dry-run mode without making changes")
 	flag.BoolVar(&opts.backup, "backup", false, "Keep source LevelDB data after migration (default: delete incrementally)")
 	flag.IntVar(&opts.batchSizeMB, "batch-size", 64, "Batch size in MB")
+	flag.IntVar(&opts.deleteChunkMB, "delete-chunk", defaultDeleteChunkMB, "Delete source keys every N MB migrated (no-backup mode)")
 	flag.IntVar(&opts.syncInterval, "sync-interval", 1024, "Fsync every N MB (0 = sync only at DB end)")
 	flag.IntVar(&opts.parallel, "parallel", 3, "Migrate N databases concurrently")
 	flag.BoolVar(&opts.verify, "verify", false, "Run sample verification after migration")
@@ -244,6 +248,7 @@ func printBanner(opts migrateOpts, dataDir, pebbleDataDir string) {
 	fmt.Printf("Dry-run:           %v\n", opts.dryRun)
 	fmt.Printf("Backup:            %v\n", opts.backup)
 	fmt.Printf("Batch size:        %d MB\n", opts.batchSizeMB)
+	fmt.Printf("Delete chunk:      %d MB\n", opts.deleteChunkMB)
 	fmt.Printf("Sync interval:     %d MB\n", opts.syncInterval)
 	fmt.Printf("Parallel:          %d\n", opts.parallel)
 	fmt.Println()
@@ -256,11 +261,13 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 		return nil, fmt.Errorf("failed to load migration state: %w", err)
 	}
 
+	deleteChunkBytes := int64(opts.deleteChunkMB) * 1024 * 1024
 	if state == nil {
 		state = &MigrationState{
-			StartedAt: time.Now(),
-			Backup:    opts.backup,
-			Databases: make(map[string]DBState),
+			StartedAt:        time.Now(),
+			Backup:           opts.backup,
+			DeleteChunkBytes: deleteChunkBytes,
+			Databases:        make(map[string]DBState),
 		}
 		for _, d := range allDatabases {
 			state.Databases[d] = DBState{Status: statusPending}
@@ -273,6 +280,11 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 		// Validate backup mode consistency on resume to prevent accidental data deletion
 		if state.Backup && !opts.backup {
 			return nil, fmt.Errorf("migration was started with --backup but resumed without it; pass --backup to continue (or delete %s to start fresh)", filepath.Join(pebbleDataDir, ".migration_state.json"))
+		}
+		// Adopt delete-chunk from persisted state for consistency (ignore current flag value)
+		if state.DeleteChunkBytes > 0 && state.DeleteChunkBytes != deleteChunkBytes {
+			fmt.Printf("Note: using persisted --delete-chunk=%d MB (ignoring current flag value %d MB)\n",
+				state.DeleteChunkBytes/(1024*1024), opts.deleteChunkMB)
 		}
 		fmt.Printf("Resuming migration started at %s\n", state.StartedAt.Format(time.RFC3339))
 		for name, ds := range state.Databases {
@@ -314,7 +326,7 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 	}
 
 	fmt.Printf("[%s] Starting migration...\n", dbName)
-	keys, bytesMigrated, err := migrateSingleDB(ctx, dbName, dataDir, tracker.destDir, opts)
+	keys, bytesMigrated, err := migrateSingleDB(ctx, dbName, dataDir, tracker.destDir, tracker.state.DeleteChunkBytes, opts)
 	if err != nil {
 		return fmt.Errorf("[%s] migration failed: %w", dbName, err)
 	}
@@ -353,7 +365,7 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 }
 
 // migrateSingleDB opens source and dest DBs, finds the resume point, and dispatches to the appropriate copy function.
-func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opts migrateOpts) (int64, int64, error) {
+func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, deleteChunkBytes int64, opts migrateOpts) (int64, int64, error) {
 	startTime := time.Now()
 	batchBytes := int64(opts.batchSizeMB) * 1024 * 1024
 	syncBytes := int64(opts.syncInterval) * 1024 * 1024
@@ -388,7 +400,7 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, opt
 
 	var totalKeys, totalBytes int64
 	if !opts.backup {
-		totalKeys, totalBytes, err = copyAndDeleteKeys(ctx, dbName, sourceDB, destDB, srcIter, batchBytes, syncBytes, startTime)
+		totalKeys, totalBytes, err = copyAndDeleteKeys(ctx, dbName, sourceDB, destDB, srcIter, batchBytes, syncBytes, deleteChunkBytes, startTime)
 	} else {
 		totalKeys, totalBytes, err = copyAllKeys(ctx, dbName, destDB, srcIter, batchBytes, syncBytes, startTime)
 	}
@@ -573,7 +585,7 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 }
 
 // copyAndDeleteKeys copies keys into destDB and incrementally deletes them from sourceDB.
-func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
+func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes, deleteChunkBytes int64, startTime time.Time) (int64, int64, error) {
 	var totalKeys int64
 	var totalBytes, bytesSinceSync, bytesSinceDelete int64
 	var deleteKeys [][]byte
@@ -582,7 +594,7 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 	batch := destDB.NewBatch()
 	var batchKeyCount int
 
-	for ; srcIter.Valid(); srcIter.Next() {
+	for srcIter.Valid() {
 		key := srcIter.Key()
 		value := srcIter.Value()
 		kvSize := int64(len(key) + len(value))
@@ -666,7 +678,10 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			if srcIter.Valid() && bytes.Equal(srcIter.Key(), lastKey) {
 				srcIter.Next()
 			}
+			continue
 		}
+
+		srcIter.Next()
 	}
 
 	if err := srcIter.Error(); err != nil {
