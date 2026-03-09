@@ -139,6 +139,9 @@ Options:
 	if opts.parallel < 1 {
 		opts.parallel = 1
 	}
+	if opts.parallel > len(allDatabases) {
+		opts.parallel = len(allDatabases)
+	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 
