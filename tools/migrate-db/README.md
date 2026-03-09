@@ -40,6 +40,7 @@ This will:
 | `--dry-run`            | `false`           | Test without making changes                            |
 | `--backup`             | `false`           | Keep source LevelDB data after migration               |
 | `--batch-size <MB>`    | `64`              | Write batch size in MB                                 |
+| `--delete-chunk <MB>`  | `1024`            | Delete source keys every N MB migrated (no-backup mode)|
 | `--sync-interval <MB>` | `1024`            | Fsync every N MB (0 = sync only at DB end)             |
 | `--parallel <N>`       | `3`               | Migrate N databases concurrently (capped to DB count)  |
 | `--verify`             | `false`           | Run sample verification after migration                |

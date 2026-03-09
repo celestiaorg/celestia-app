@@ -48,7 +48,7 @@ func countKeys(t *testing.T, d db.DB) int64 {
 }
 
 func opts(home string) migrateOpts {
-	return migrateOpts{homeDir: home, backup: true, batchSizeMB: 1, parallel: 3, manualSwap: true}
+	return migrateOpts{homeDir: home, backup: true, batchSizeMB: 1, deleteChunkMB: defaultDeleteChunkMB, parallel: 3, manualSwap: true}
 }
 
 func TestMigration_BackupAndVerify(t *testing.T) {
@@ -192,6 +192,45 @@ func TestIteratorFrom(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "c", string(iter.Key()))
 	_ = iter.Close()
+}
+
+// TestCopyAndDeleteKeys_NoKeyLoss verifies that no keys are dropped when the
+// incremental delete threshold is reached and the source iterator is reopened.
+// Uses a small deleteChunkBytes (10 KB) to trigger the reopen path multiple times.
+func TestCopyAndDeleteKeys_NoKeyLoss(t *testing.T) {
+	dir := t.TempDir()
+	numKeys := 200
+	srcDB, err := db.NewDB("src", db.GoLevelDBBackend, dir)
+	require.NoError(t, err)
+	expected := make(map[string][]byte, numKeys)
+	for i := range numKeys {
+		key := fmt.Appendf(nil, "key-%06d", i)
+		val := make([]byte, 256)
+		_, _ = rand.Read(val)
+		require.NoError(t, srcDB.Set(key, val))
+		expected[string(key)] = val
+	}
+
+	srcIter, err := srcDB.Iterator(nil, nil)
+	require.NoError(t, err)
+	destDB, err := db.NewDB("dst", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	// 10 KB threshold triggers delete-and-reopen ~5 times for 200×256B keys
+	smallChunk := int64(10 * 1024)
+	totalKeys, _, err := copyAndDeleteKeys(context.Background(), "test", srcDB, destDB, srcIter, 1024*1024, 0, smallChunk, time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, int64(numKeys), totalKeys, "reported key count wrong")
+	assert.Equal(t, int64(numKeys), countKeys(t, destDB), "dest key count wrong — keys were lost")
+
+	for k, v := range expected {
+		dv, err := destDB.Get([]byte(k))
+		require.NoError(t, err)
+		assert.True(t, bytes.Equal(v, dv), "value mismatch at %s", k)
+	}
+
+	_ = srcDB.Close()
+	_ = destDB.Close()
 }
 
 func TestDeleteSourceKeys(t *testing.T) {
