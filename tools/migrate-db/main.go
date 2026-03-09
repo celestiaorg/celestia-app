@@ -140,6 +140,7 @@ Options:
 
 	if err := runMigration(ctx, opts); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 }
 
