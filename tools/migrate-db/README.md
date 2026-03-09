@@ -41,7 +41,7 @@ This will:
 | `--backup`             | `false`           | Keep source LevelDB data after migration               |
 | `--batch-size <MB>`    | `64`              | Write batch size in MB                                 |
 | `--sync-interval <MB>` | `1024`            | Fsync every N MB (0 = sync only at DB end)             |
-| `--parallel <N>`       | `3`               | Migrate N databases concurrently (max 5)               |
+| `--parallel <N>`       | `3`               | Migrate N databases concurrently (capped to DB count)  |
 | `--verify`             | `false`           | Run sample verification after migration                |
 | `--db <name>`          | all               | Migrate only a specific database                       |
 | `--manual-swap`        | `false`           | Skip auto-swap; print manual instructions instead      |
@@ -80,10 +80,10 @@ Uses all defaults: deletes source data incrementally to save disk space, auto-sw
 ./migrate-db --db blockstore
 ```
 
-**Migration with post-migration verification:**
+**Migration with post-migration verification (requires --backup):**
 
 ```bash
-./migrate-db --verify
+./migrate-db --backup --verify
 ```
 
 ## Migrated Databases
