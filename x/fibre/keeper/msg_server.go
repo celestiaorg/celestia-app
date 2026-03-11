@@ -282,6 +282,11 @@ func (ms msgServer) UpdateFibreParams(goCtx context.Context, msg *types.MsgUpdat
 		return nil, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "invalid authority; expected %s, got %s", ms.GetAuthority(), msg.Authority)
 	}
 
+	// Validate parameters before setting them
+	if err := msg.Params.Validate(); err != nil {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid parameters: %s", err)
+	}
+
 	// Set the new parameters
 	ms.SetParams(ctx, msg.Params)
 

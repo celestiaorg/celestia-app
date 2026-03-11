@@ -596,6 +596,61 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 		suite.Nil(resp)
 		suite.Contains(err.Error(), "invalid authority")
 	})
+
+	suite.T().Run("invalid params zero GasPerBlobByte", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(0, 24*time.Hour, time.Hour, 24*time.Hour, 1000),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+
+	suite.T().Run("invalid params zero WithdrawalDelay", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(1, 0, time.Hour, 24*time.Hour, 1000),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+
+	suite.T().Run("invalid params zero PaymentPromiseTimeout", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(1, 24*time.Hour, 0, 24*time.Hour, 1000),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+
+	suite.T().Run("invalid params zero PaymentPromiseRetentionWindow", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 0, 1000),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+
+	suite.T().Run("invalid params zero PaymentPromiseHeightWindow", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 24*time.Hour, 0),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
 }
 
 // Helper functions
