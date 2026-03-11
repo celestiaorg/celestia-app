@@ -78,10 +78,10 @@ var (
 )
 
 // ValidateGroth16Vkey checks that a serialized Groth16 verifying key has the
-// expected total size and that the internal G1.K length prefix matches the
-// expected number of public input commitments. This must be called before
-// passing the key to gnark's deserializer to prevent OOM from an inflated
-// length prefix.
+// expected total size and that the internal length prefixes (G1.K,
+// CommitmentKeys, and PublicAndCommitmentCommitted) have their expected values.
+// This must be called before passing the key to gnark's deserializer to
+// prevent OOM from inflated length prefixes.
 func ValidateGroth16Vkey(vkey []byte) error {
 	if len(vkey) != Groth16VkeySize {
 		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", Groth16VkeySize, len(vkey))

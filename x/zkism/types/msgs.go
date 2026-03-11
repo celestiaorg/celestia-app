@@ -57,7 +57,7 @@ func (msg *MsgUpdateInterchainSecurityModule) ValidateBasic() error {
 	}
 
 	if len(msg.PublicValues) > MaxStateTransitionValuesBytes {
-		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxStateMembershipValuesBytes)
+		return errorsmod.Wrapf(ErrInvalidPublicValuesLength, "public values must not exceed %d bytes", MaxStateTransitionValuesBytes)
 	}
 
 	return nil
