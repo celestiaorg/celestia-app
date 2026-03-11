@@ -18,17 +18,17 @@ func TestTelemetryDisableEnv(t *testing.T) {
 		{
 			name: "v3 binary",
 			path: "/tmp/bin/celestia-appd-v3",
-			want: []string{"CELESTIA_APPD_V3_TELEMETRY_PROMETHEUS_RETENTION_TIME=0"},
+			want: []string{"CELESTIA_APP_TELEMETRY_PROMETHEUS_RETENTION_TIME=0"},
 		},
 		{
 			name: "v6 binary",
 			path: "/usr/local/bin/celestia-appd-v6",
-			want: []string{"CELESTIA_APPD_V6_TELEMETRY_PROMETHEUS_RETENTION_TIME=0"},
+			want: []string{"CELESTIA_APP_TELEMETRY_PROMETHEUS_RETENTION_TIME=0"},
 		},
 		{
 			name: "binary with dots in version",
 			path: "/tmp/bin/celestia-appd-v3.10.0",
-			want: []string{"CELESTIA_APPD_V3_10_0_TELEMETRY_PROMETHEUS_RETENTION_TIME=0"},
+			want: []string{"CELESTIA_APP_TELEMETRY_PROMETHEUS_RETENTION_TIME=0"},
 		},
 	}
 
@@ -55,15 +55,15 @@ func TestGetEnv(t *testing.T) {
 				for _, e := range os.Environ() {
 					require.Contains(t, env, e)
 				}
-				require.Contains(t, env, "CELESTIA_APPD_V3_TELEMETRY_PROMETHEUS_RETENTION_TIME=0")
+				require.Contains(t, env, "CELESTIA_APP_TELEMETRY_PROMETHEUS_RETENTION_TIME=0")
 			},
 		},
 		{
 			name:   "overrides existing telemetry env var",
 			path:   "/tmp/bin/celestia-appd-v3",
-			setenv: map[string]string{"CELESTIA_APPD_V3_TELEMETRY_PROMETHEUS_RETENTION_TIME": "60"},
+			setenv: map[string]string{"CELESTIA_APP_TELEMETRY_PROMETHEUS_RETENTION_TIME": "60"},
 			assert: func(t *testing.T, a *Appd, env []string) {
-				envKey := "CELESTIA_APPD_V3_TELEMETRY_PROMETHEUS_RETENTION_TIME"
+				envKey := "CELESTIA_APP_TELEMETRY_PROMETHEUS_RETENTION_TIME"
 				var matches []string
 				for _, e := range env {
 					if strings.HasPrefix(e, envKey+"=") {
