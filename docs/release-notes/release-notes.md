@@ -24,7 +24,7 @@ No manual action is required, but validators should be aware of this change.
 
 #### LevelDB Deprecation
 
-LevelDB (`goleveldb`) is deprecated starting in v7. Node operators should migrate to PebbleDB using the [`migrate-db` tool](../../tools/migrate-db/README.md). LevelDB support will be removed in v8.
+LevelDB (`goleveldb`) is deprecated starting in v7. PebbleDB provides faster performance when saving blocks and is required for Fibre. Node operators should migrate to PebbleDB using the [`migrate-db` tool](../../tools/migrate-db/README.md). LevelDB support will be removed in v8.
 
 #### Horcrux Deprecation
 
