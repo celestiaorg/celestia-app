@@ -72,52 +72,49 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	cctx = NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 	cctx.tmNode = tmNode
 
+	// Build up cleanup incrementally so that if a later step fails, the
+	// returned cleanup function tears down all previously acquired resources.
+	cleanup = func() {
+		cancel()
+	}
+
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	if err != nil {
-		cancel()
 		return Context{}, "", "", cleanup, err
+	}
+	cleanup = func() {
+		cancel()
+		if err := stopNode(); err != nil {
+			t.Logf("error stopping node %v", err)
+		}
 	}
 
 	coreEnv, err := tmNode.ConfigureRPC()
 	if err != nil {
-		cancel()
 		return Context{}, "", "", cleanup, err
 	}
 
 	grpcServer, cctx, cleanupGRPC, err := StartGRPCServer(log.NewTestLogger(t), app, config.AppConfig, cctx, coreEnv)
 	if err != nil {
-		cancel()
 		return Context{}, "", "", cleanup, err
+	}
+	prevCleanup := cleanup
+	cleanup = func() {
+		prevCleanup()
+		if err := cleanupGRPC(); err != nil {
+			t.Logf("error when cleaning up GRPC %v", err)
+		}
 	}
 
 	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx, grpcServer)
 	if err != nil {
-		cancel()
 		return Context{}, "", "", cleanup, err
 	}
-
+	prevCleanup2 := cleanup
 	cleanup = func() {
 		t.Log("tearing down testnode")
-		// Cancel the context first so that background goroutines (gRPC
-		// server, block event listener, API server) receive the shutdown
-		// signal before we tear down the servers and temp directories.
-		cancel()
-		err := stopNode()
-		if err != nil {
-			// the test has already completed so log the error instead of
-			// failing the test.
-			t.Logf("error stopping node %v", err)
-		}
-		err = cleanupGRPC()
-		if err != nil {
-			// the test has already completed so just log the error instead of
-			// failing the test.
-			t.Logf("error when cleaning up GRPC %v", err)
-		}
-		err = apiServer.Close()
-		if err != nil {
-			// the test has already completed so just log the error instead of
-			// failing the test.
+		prevCleanup2()
+		if err := apiServer.Close(); err != nil {
 			t.Logf("error when closing API server %v", err)
 		}
 	}
