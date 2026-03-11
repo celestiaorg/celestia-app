@@ -30,10 +30,10 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 	for attempt := range maxRetries {
 		result, rpc, grpc, cleanup, err := tryStartNetwork(t, config)
 		if err != nil {
+			if cleanup != nil {
+				cleanup()
+			}
 			if isPortBindingError(err) {
-				if cleanup != nil {
-					cleanup()
-				}
 				time.Sleep(time.Second)
 				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
