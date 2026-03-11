@@ -68,33 +68,40 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 
 	cctx = NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 	cctx.tmNode = tmNode
 
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	if err != nil {
+		cancel()
 		return Context{}, "", "", cleanup, err
 	}
 
 	coreEnv, err := tmNode.ConfigureRPC()
 	if err != nil {
+		cancel()
 		return Context{}, "", "", cleanup, err
 	}
 
 	grpcServer, cctx, cleanupGRPC, err := StartGRPCServer(log.NewTestLogger(t), app, config.AppConfig, cctx, coreEnv)
 	if err != nil {
+		cancel()
 		return Context{}, "", "", cleanup, err
 	}
 
 	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx, grpcServer)
 	if err != nil {
+		cancel()
 		return Context{}, "", "", cleanup, err
 	}
 
 	cleanup = func() {
 		t.Log("tearing down testnode")
+		// Cancel the context first so that background goroutines (gRPC
+		// server, block event listener, API server) receive the shutdown
+		// signal before we tear down the servers and temp directories.
+		cancel()
 		err := stopNode()
 		if err != nil {
 			// the test has already completed so log the error instead of
