@@ -52,8 +52,18 @@ const (
 	// Groth16VkeySize is the exact expected size of a serialized Groth16
 	// verifying key for the BN254 curve with 2 public inputs (SP1 scheme).
 	// Layout: 6 curve points (288 bytes) + uint32 G1.K length (4 bytes) +
-	// 3 × compressed G1 points (96 bytes) + trailing metadata (8 bytes) = 396.
+	// 3 × compressed G1 points (96 bytes) + uint32 CommitmentKeys length (4 bytes) +
+	// uint32 PublicAndCommitmentCommitted length (4 bytes) = 396.
 	Groth16VkeySize = 396
+
+	// groth16VkeyCommitmentKeysOffset is the byte offset of the uint32
+	// CommitmentKeys length prefix in a serialized BN254 verifying key.
+	// 288 (curve points) + 4 (G1.K length) + 96 (3 × G1.K elements) = 388.
+	groth16VkeyCommitmentKeysOffset = groth16VkeyCurvePointsSize + 4 + (Groth16VkeyG1KLength * 32)
+
+	// groth16VkeyPubCommittedOffset is the byte offset of the uint32
+	// PublicAndCommitmentCommitted length prefix in a serialized BN254 verifying key.
+	groth16VkeyPubCommittedOffset = groth16VkeyCommitmentKeysOffset + 4
 
 	// DefaultProofVerifyCostGroth16 is the default gas cost metered for verifying a groth16 proof.
 	// NOTE: This is informed by benchmark comparisons with Secp256k1 signature verification.
@@ -80,6 +90,16 @@ func ValidateGroth16Vkey(vkey []byte) error {
 	g1kLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
 	if g1kLen != Groth16VkeyG1KLength {
 		return fmt.Errorf("groth16 vkey G1.K length must be %d, got %d", Groth16VkeyG1KLength, g1kLen)
+	}
+
+	commitmentKeysLen := binary.BigEndian.Uint32(vkey[groth16VkeyCommitmentKeysOffset : groth16VkeyCommitmentKeysOffset+4])
+	if commitmentKeysLen != 0 {
+		return fmt.Errorf("groth16 vkey CommitmentKeys length must be 0, got %d", commitmentKeysLen)
+	}
+
+	pubCommittedLen := binary.BigEndian.Uint32(vkey[groth16VkeyPubCommittedOffset : groth16VkeyPubCommittedOffset+4])
+	if pubCommittedLen != 0 {
+		return fmt.Errorf("groth16 vkey PublicAndCommitmentCommitted length must be 0, got %d", pubCommittedLen)
 	}
 
 	return nil
