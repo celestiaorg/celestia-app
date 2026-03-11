@@ -89,6 +89,35 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
+			name: "396-byte vkey with inflated CommitmentKeys length is rejected",
+			mallate: func() {
+				malicious := make([]byte, types.Groth16VkeySize)
+				copy(malicious, groth16Vk)
+				// Set CommitmentKeys length at offset 388 to 0xFFFFFFFF.
+				// Passes size and G1.K checks but would OOM gnark.
+				malicious[388] = 0xFF
+				malicious[389] = 0xFF
+				malicious[390] = 0xFF
+				malicious[391] = 0xFF
+				msg.Groth16Vkey = malicious
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
+			name: "396-byte vkey with inflated PublicAndCommitmentCommitted length is rejected",
+			mallate: func() {
+				malicious := make([]byte, types.Groth16VkeySize)
+				copy(malicious, groth16Vk)
+				// Set PublicAndCommitmentCommitted length at offset 392 to 0xFFFFFFFF.
+				malicious[392] = 0xFF
+				malicious[393] = 0xFF
+				malicious[394] = 0xFF
+				malicious[395] = 0xFF
+				msg.Groth16Vkey = malicious
+			},
+			expErr: types.ErrInvalidVerifyingKey,
+		},
+		{
 			name: "invalid state transition verifying key length",
 			mallate: func() {
 				msg.StateTransitionVkey = []byte{0x01}
