@@ -4,6 +4,7 @@ import (
 	"math"
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -21,19 +22,25 @@ func TestCalculatePaymentAmount(t *testing.T) {
 			name:           "normal case",
 			blobSize:       1000,
 			gasPerBlobByte: 8,
-			want:           sdk.NewInt64Coin(appconsts.BondDenom, 8000),
+			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(8000)),
 		},
 		{
 			name:           "overflow case: product exceeds uint32 max",
 			blobSize:       8_388_608, // 8 MiB
 			gasPerBlobByte: 1000,
-			want:           sdk.NewInt64Coin(appconsts.BondDenom, 8_388_608_000),
+			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(8_388_608_000)),
 		},
 		{
 			name:           "large values near uint32 max",
 			blobSize:       math.MaxUint32,
 			gasPerBlobByte: 2,
-			want:           sdk.NewInt64Coin(appconsts.BondDenom, 2*int64(math.MaxUint32)),
+			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2*uint64(math.MaxUint32))),
+		},
+		{
+			name:           "max uint32 * max uint32 does not overflow",
+			blobSize:       math.MaxUint32,
+			gasPerBlobByte: math.MaxUint32,
+			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(uint64(math.MaxUint32)*uint64(math.MaxUint32))),
 		},
 	}
 
