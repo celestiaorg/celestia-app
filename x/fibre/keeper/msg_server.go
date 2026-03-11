@@ -298,7 +298,13 @@ func (ms msgServer) UpdateFibreParams(goCtx context.Context, msg *types.MsgUpdat
 func (ms msgServer) calculatePaymentAmount(ctx sdk.Context, blobSize uint32) sdk.Coin {
 	params := ms.GetParams(ctx)
 	// TODO: this assumes 1 utia per gas which may not be correct.
-	return sdk.NewInt64Coin(appconsts.BondDenom, int64(blobSize*params.GasPerBlobByte))
+	return CalculatePaymentAmount(blobSize, params.GasPerBlobByte)
+}
+
+// CalculatePaymentAmount computes the payment coin from blobSize and gasPerBlobByte.
+// Both operands are widened to uint64 before multiplication to prevent uint32 overflow.
+func CalculatePaymentAmount(blobSize, gasPerBlobByte uint32) sdk.Coin {
+	return sdk.NewInt64Coin(appconsts.BondDenom, int64(uint64(blobSize)*uint64(gasPerBlobByte)))
 }
 
 // validateValidatorSignatures validates validator signatures using the existing SignatureSet infrastructure
