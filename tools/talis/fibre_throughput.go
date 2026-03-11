@@ -208,9 +208,9 @@ func fibreThroughputCmd() *cobra.Command {
 						}
 					}
 
-					totalBlocks++
 					totalBytes += pffBytes
 					if blockTimeDelta > 0 {
+						totalBlocks++
 						totalThroughput += pffThroughputMBs
 					}
 

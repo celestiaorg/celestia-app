@@ -24,6 +24,7 @@ import (
 
 func main() {
 	var (
+		chainID      string
 		grpcEndpoint string
 		keyringDir   string
 		keyName      string
@@ -33,6 +34,7 @@ func main() {
 		duration     time.Duration
 	)
 
+	flag.StringVar(&chainID, "chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.StringVar(&grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
 	flag.StringVar(&keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
 	flag.StringVar(&keyName, "key-name", "validator", "key name in keyring")
@@ -41,6 +43,7 @@ func main() {
 	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions (0 = no delay)")
 	flag.DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.Parse()
+	_ = chainID // accepted but unused
 
 	if err := run(grpcEndpoint, keyringDir, keyName, blobSize, concurrency, interval, duration); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -151,9 +154,7 @@ func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, in
 		case sem <- struct{}{}:
 		}
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			defer func() { <-sem }()
 
 			// Generate random namespace
@@ -201,7 +202,7 @@ func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, in
 			successes.Add(1)
 			totalLatNs.Add(lat.Nanoseconds())
 			fmt.Printf("height=%d tx=%s latency=%s\n", result.Height, result.TxHash, lat)
-		}()
+		})
 	}
 
 	wg.Wait()

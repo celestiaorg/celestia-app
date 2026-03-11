@@ -84,7 +84,7 @@ talis fibre-throughput
 
 This connects to the first validator's RPC endpoint and prints a line per block:
 
-```
+```text
 height=350 pff_txs=4 pfb_txs=0 pff_bytes=3MB pfb_bytes=0MB block_time=3.06s pff_throughput=1.02MB/s pfb_throughput=0.00MB/s
 ```
 
@@ -109,7 +109,7 @@ talis fibre-throughput --directory <experiment-dir> --with-traces
 
 This creates a timestamped JSONL file inside the traces directory:
 
-```
+```text
 traces/throughput/throughput_2026-02-18T20:59:35Z.jsonl
 ```
 

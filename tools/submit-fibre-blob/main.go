@@ -29,6 +29,7 @@ func main() {
 
 func run() error {
 	var (
+		chainID        = flag.String("chain-id", "", "Chain ID of the network (unused, accepted for compatibility)")
 		keyName        = flag.String("key-name", "validator", "Key name in keyring")
 		keyringBackend = flag.String("keyring-backend", "test", "Keyring backend")
 		home           = flag.String("home", "", "Home directory (default: $HOME/.celestia-app)")
@@ -36,6 +37,7 @@ func run() error {
 		timeout        = flag.Duration("timeout", 30*time.Second, "Timeout for operations")
 	)
 	flag.Parse()
+	_ = chainID // accepted but unused
 
 	// Set default home directory
 	if *home == "" {

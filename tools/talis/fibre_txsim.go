@@ -38,10 +38,7 @@ func fibreTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			// Select first N validators
-			n := instances
-			if n > len(cfg.Validators) {
-				n = len(cfg.Validators)
-			}
+			n := min(instances, len(cfg.Validators))
 			validators := cfg.Validators[:n]
 
 			// Build the remote command — fibre-txsim is already in /bin/ from the payload
