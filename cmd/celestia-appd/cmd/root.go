@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
 	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/cometbft/cometbft/cmd/cometbft/commands"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -123,7 +122,6 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
 		confixcmd.ConfigCommand(),
-		commands.CompactGoLevelDBCmd,
 		addrbookCommand(),
 		downloadGenesisCommand(),
 		addrConversionCmd(),
@@ -138,7 +136,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks); err != nil {
+	if err := addPreStartHooks(rootCommand, checkDBBackend, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
