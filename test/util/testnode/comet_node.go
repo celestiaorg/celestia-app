@@ -24,7 +24,7 @@ func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, s
 	logger := NewLogger(config)
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
 
-	db, err := dbm.NewDB("application", dbm.PebbleDBBackend, dbPath)
+	db, err := dbm.NewDB("application", dbm.BackendType(config.TmConfig.DBBackend), dbPath)
 	if err != nil {
 		return nil, nil, err
 	}
