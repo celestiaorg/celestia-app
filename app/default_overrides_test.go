@@ -94,6 +94,10 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, want, *got.Mempool)
 	})
 
+	t.Run("db backend override", func(t *testing.T) {
+		assert.Equal(t, "pebbledb", got.DBBackend)
+	})
+
 	t.Run("p2p overrides", func(t *testing.T) {
 		const mebibyte = 1048576
 		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)

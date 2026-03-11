@@ -172,14 +172,14 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	validatorKey := privval.LoadFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile())
 	validatorAddr := validatorKey.Key.Address
 
-	blockDB, err := dbm.NewDB("blockstore", dbm.GoLevelDBBackend, tmCfg.DBDir())
+	blockDB, err := dbm.NewDB("blockstore", dbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
 	if err != nil {
 		return fmt.Errorf("failed to create block database: %w", err)
 	}
 
 	blockStore := store.NewBlockStore(blockDB)
 
-	stateDB, err := dbm.NewDB("state", dbm.GoLevelDBBackend, tmCfg.DBDir())
+	stateDB, err := dbm.NewDB("state", dbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
 	if err != nil {
 		return fmt.Errorf("failed to create state database: %w", err)
 	}
@@ -188,7 +188,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		DiscardABCIResponses: true,
 	})
 
-	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
+	appDB, err := tmdbm.NewDB("application", tmdbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
 	if err != nil {
 		return fmt.Errorf("failed to create application database: %w", err)
 	}
