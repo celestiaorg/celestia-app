@@ -360,7 +360,7 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	// Check sufficient available balance
 	// TODO: This assumes 1 gas = 1 utia but the minimum gas price could be
 	// different.
-	requiredAmount := CalculatePaymentAmount(promise.BlobSize, params.GasPerBlobByte)
+	requiredAmount := calculatePaymentCoin(promise.BlobSize, params.GasPerBlobByte)
 
 	hasSufficientBalance := escrowAccount.AvailableBalance.IsGTE(requiredAmount)
 	if !hasSufficientBalance {

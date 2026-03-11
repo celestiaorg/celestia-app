@@ -1,4 +1,4 @@
-package keeper_test
+package keeper
 
 import (
 	"math"
@@ -6,18 +6,29 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCalculatePaymentAmount(t *testing.T) {
+func TestCalculatePaymentCoin(t *testing.T) {
 	tests := []struct {
 		name           string
 		blobSize       uint32
 		gasPerBlobByte uint32
 		want           sdk.Coin
 	}{
+		{
+			name:           "zero blob size",
+			blobSize:       0,
+			gasPerBlobByte: 8,
+			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(0)),
+		},
+		{
+			name:           "zero gas per blob byte",
+			blobSize:       1000,
+			gasPerBlobByte: 0,
+			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(0)),
+		},
 		{
 			name:           "normal case",
 			blobSize:       1000,
@@ -46,7 +57,7 @@ func TestCalculatePaymentAmount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := keeper.CalculatePaymentAmount(tt.blobSize, tt.gasPerBlobByte)
+			got := calculatePaymentCoin(tt.blobSize, tt.gasPerBlobByte)
 			assert.Equal(t, tt.want, got)
 		})
 	}
