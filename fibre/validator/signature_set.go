@@ -14,6 +14,9 @@ import (
 // Signatures are returned in validator set order by [Signatures],
 // with nil entries for validators that did not sign.
 type SignatureSet struct {
+	// requiredBytesSigned is the message that each validator's signature is
+	// verified against. A signature is only accepted if it is a valid Ed25519
+	// signature of these bytes by the validator's public key.
 	requiredBytesSigned    []byte
 	minRequiredVotingPower int64
 	validators             []*core.Validator
