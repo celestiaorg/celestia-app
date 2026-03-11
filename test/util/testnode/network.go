@@ -75,6 +75,7 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	// Build up cleanup incrementally so that if a later step fails, the
 	// returned cleanup function tears down all previously acquired resources.
 	cleanup = func() {
+		t.Log("tearing down testnode")
 		cancel()
 	}
 
@@ -82,8 +83,9 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	if err != nil {
 		return Context{}, "", "", cleanup, err
 	}
+	cleanupCancel := cleanup
 	cleanup = func() {
-		cancel()
+		cleanupCancel()
 		if err := stopNode(); err != nil {
 			t.Logf("error stopping node %v", err)
 		}
@@ -98,9 +100,9 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	if err != nil {
 		return Context{}, "", "", cleanup, err
 	}
-	prevCleanup := cleanup
+	cleanupNode := cleanup
 	cleanup = func() {
-		prevCleanup()
+		cleanupNode()
 		if err := cleanupGRPC(); err != nil {
 			t.Logf("error when cleaning up GRPC %v", err)
 		}
@@ -110,10 +112,9 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	if err != nil {
 		return Context{}, "", "", cleanup, err
 	}
-	prevCleanup2 := cleanup
+	cleanupGRPCServer := cleanup
 	cleanup = func() {
-		t.Log("tearing down testnode")
-		prevCleanup2()
+		cleanupGRPCServer()
 		if err := apiServer.Close(); err != nil {
 			t.Logf("error when closing API server %v", err)
 		}
