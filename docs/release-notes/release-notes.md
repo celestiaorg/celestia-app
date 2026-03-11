@@ -22,6 +22,10 @@ Non-compliant validators will have their rates **automatically adjusted** at the
 
 No manual action is required, but validators should be aware of this change.
 
+#### LevelDB Deprecation
+
+LevelDB (`goleveldb`) is deprecated starting in v7. Node operators should migrate to PebbleDB using the [`migrate-db` tool](../../tools/migrate-db/README.md). LevelDB support will be removed in v8.
+
 #### Horcrux Deprecation
 
 Horcrux is deprecated starting in v7. Future upgrades will require validator keys for fibre, which demands very low signing latency. Horcrux adds signing latency due to threshold signing and network round trips between cosigner nodes, which may be incompatible with upcoming latency requirements. Validators using horcrux should plan to migrate to a local signing setup.
