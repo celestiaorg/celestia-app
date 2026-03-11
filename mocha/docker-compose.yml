@@ -5,7 +5,7 @@ services:
   celestia-appd:
     container_name: celestia-appd
     build:
-      context: ../..
+      context: ..
       dockerfile: docker/multiplexer.Dockerfile
     entrypoint: ["/bin/bash", "/opt/mocha-entrypoint.sh"]
     volumes:

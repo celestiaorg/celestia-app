@@ -10,9 +10,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
-	"strings"
 	"syscall"
 	"time"
 )
@@ -59,12 +57,11 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 // telemetryDisableEnv returns environment variables that disable the
 // Prometheus telemetry sink in the child process. This prevents
 // "duplicate metrics collector registration attempted" errors.
+// The env var prefix must match the Viper env prefix used by the child
+// process (envPrefix = "CELESTIA_APP"), not the binary filename.
 func (a *Appd) telemetryDisableEnv() []string {
-	basename := path.Base(a.path)
-	replacer := strings.NewReplacer(".", "_", "-", "_")
-	prefix := strings.ToUpper(replacer.Replace(basename))
 	return []string{
-		prefix + "_TELEMETRY_PROMETHEUS_RETENTION_TIME=0",
+		envPrefix + "_TELEMETRY_PROMETHEUS_RETENTION_TIME=0",
 	}
 }
 
