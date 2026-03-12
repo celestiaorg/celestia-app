@@ -91,12 +91,10 @@ The core validation is wrapped as a `PromiseRule` (ADR 025) for the fibre server
 ```go
 func AuthoredNamespaceRule() PromiseRule {
     return func(ctx context.Context, promise *PaymentPromise) error {
-        for _, ns := range promise.Namespaces() {
-            if err := ValidateAuthoredNamespace(ns, promise.Signer()); err != nil {
-                return err
-            }
-        }
-        return nil
+        // promise.SignerKey is a *secp256k1.PubKey; Address() returns the
+        // 20-byte Cosmos SDK account address derived from it.
+        signer := promise.SignerKey.Address()
+        return ValidateAuthoredNamespace(promise.Namespace, signer)
     }
 }
 ```
