@@ -56,7 +56,10 @@ type PaymentPromise struct {
 
 // MarshalBinary encodes the [PaymentPromise] using protobuf.
 func (p *PaymentPromise) MarshalBinary() ([]byte, error) {
-	pbMsg := p.ToProto()
+	pbMsg, err := p.ToProto()
+	if err != nil {
+		return nil, err
+	}
 	return gogoproto.Marshal(pbMsg)
 }
 
@@ -102,7 +105,10 @@ func (p *PaymentPromise) FromProto(pbMsg *types.PaymentPromise) error {
 }
 
 // ToProto converts the [PaymentPromise] to its protobuf representation.
-func (p *PaymentPromise) ToProto() *types.PaymentPromise {
+func (p *PaymentPromise) ToProto() (*types.PaymentPromise, error) {
+	if p.SignerKey == nil {
+		return nil, errors.New("signer key must not be nil")
+	}
 	return &types.PaymentPromise{
 		ChainId:           p.ChainID,
 		Height:            int64(p.Height),
@@ -113,7 +119,7 @@ func (p *PaymentPromise) ToProto() *types.PaymentPromise {
 		CreationTimestamp: p.CreationTimestamp,
 		SignerPublicKey:   *p.SignerKey,
 		Signature:         p.Signature,
-	}
+	}, nil
 }
 
 // Validate performs stateless validation on the [PaymentPromise].
@@ -203,6 +209,9 @@ const (
 // SignBytes caches the result of the computation for subsequent calls,
 // so its not allowed to change the promise after signing.
 func (p *PaymentPromise) SignBytes() ([]byte, error) {
+	if p.SignerKey == nil {
+		return nil, errors.New("signer key must not be nil")
+	}
 	p.signBytesOnce.Do(func() {
 		// use MarshalBinary for timestamp
 		timestampBytes, err := p.CreationTimestamp.UTC().MarshalBinary() // this must be UTC

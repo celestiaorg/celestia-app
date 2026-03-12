@@ -136,7 +136,11 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	}
 
 	// write payment promise
-	ppData, err := gogoproto.Marshal(promise.ToProto())
+	promiseProto, err := promise.ToProto()
+	if err != nil {
+		return fmt.Errorf("converting payment promise to proto: %w", err)
+	}
+	ppData, err := gogoproto.Marshal(promiseProto)
 	if err != nil {
 		return fmt.Errorf("marshaling payment promise: %w", err)
 	}
