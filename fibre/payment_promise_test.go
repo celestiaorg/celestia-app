@@ -110,6 +110,61 @@ func TestPaymentPromise(t *testing.T) {
 		// Valid promise should pass validation
 		require.NoError(t, pp.Validate())
 
+		t.Run("NilSignerKey", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.SignerKey = nil
+			require.EqualError(t, invalidPP.Validate(), "signer key must be 33 bytes, got 0")
+		})
+
+		t.Run("WrongSizeSignerKey", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.SignerKey = &secp256k1.PubKey{Key: []byte{1, 2, 3}}
+			require.EqualError(t, invalidPP.Validate(), "signer key must be 33 bytes, got 3")
+		})
+
+		t.Run("EmptyChainID", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.ChainID = ""
+			require.EqualError(t, invalidPP.Validate(), "chain id must not be empty")
+		})
+
+		t.Run("ChainIDTooLong", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.ChainID = string(make([]byte, 21))
+			require.EqualError(t, invalidPP.Validate(), "chain id length 21 exceeds maximum 20")
+		})
+
+		t.Run("ZeroUploadSize", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.UploadSize = 0
+			require.EqualError(t, invalidPP.Validate(), "upload size must be positive")
+		})
+
+		t.Run("ZeroTimestamp", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.CreationTimestamp = time.Time{}
+			require.EqualError(t, invalidPP.Validate(), "creation timestamp must not be zero")
+		})
+
+		t.Run("WrongSignatureLength", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = make([]byte, 32)
+			require.EqualError(t, invalidPP.Validate(), "signature must be 64 bytes, got 32")
+		})
+
+		t.Run("ZeroHeight", func(t *testing.T) {
+			invalidPP := makePaymentPromise(t, privKey)
+			invalidPP.Signature = signature
+			invalidPP.Height = 0
+			require.EqualError(t, invalidPP.Validate(), "height must be positive, got 0")
+		})
+
 		t.Run("InvalidSignature", func(t *testing.T) {
 			invalidPP := makePaymentPromise(t, privKey)
 			invalidPP.Signature = make([]byte, 64) // Invalid signature

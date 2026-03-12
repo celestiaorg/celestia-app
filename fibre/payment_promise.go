@@ -120,7 +120,10 @@ func (p *PaymentPromise) ToProto() *types.PaymentPromise {
 // It verifies all field constraints and validates the [PaymentPromise.Signature] using [PaymentPromise.SignerKey].
 func (p *PaymentPromise) Validate() error {
 	// signer key must be valid secp256k1 public key (33 bytes)
-	if p.SignerKey == nil || len(p.SignerKey.Key) != secp256k1.PubKeySize {
+	if p.SignerKey == nil {
+		return fmt.Errorf("signer key must be %d bytes, got 0", secp256k1.PubKeySize)
+	}
+	if len(p.SignerKey.Key) != secp256k1.PubKeySize {
 		return fmt.Errorf("signer key must be %d bytes, got %d", secp256k1.PubKeySize, len(p.SignerKey.Key))
 	}
 
