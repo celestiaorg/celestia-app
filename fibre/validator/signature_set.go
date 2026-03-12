@@ -51,9 +51,16 @@ func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error)
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 
+	// if this validator already signed, treat as a no-op to avoid
+	// double-counting voting power.
+	addr := val.Address.String()
+	if _, ok := ss.signatures[addr]; ok {
+		return ss.votingPower >= ss.minRequiredVotingPower, nil
+	}
+
 	// add to collection
 	ss.votingPower += val.VotingPower
-	ss.signatures[val.Address.String()] = signature
+	ss.signatures[addr] = signature
 
 	// check if thresholds are met
 	return ss.votingPower >= ss.minRequiredVotingPower, nil
