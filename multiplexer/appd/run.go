@@ -54,9 +54,30 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 	return appd, nil
 }
 
+// telemetryDisableEnv returns environment variables that disable the
+// Prometheus telemetry sink in the child process. This prevents
+// "duplicate metrics collector registration attempted" errors.
+// The env var prefix must match the Viper env prefix used by the child
+// process (envPrefix = "CELESTIA_APP"), not the binary filename.
+func (a *Appd) telemetryDisableEnv() []string {
+	return []string{
+		envPrefix + "_TELEMETRY_PROMETHEUS_RETENTION_TIME=0",
+	}
+}
+
+// getEnv returns the environment variables for the child process. It
+// starts with the current process's full environment (os.Environ()) and
+// appends the telemetry disable variables. We must explicitly include
+// os.Environ() because exec.Cmd.Env defaults to nil (inherit parent env),
+// but once set to a non-nil slice it uses ONLY that slice.
+func (a *Appd) getEnv() []string {
+	return append(os.Environ(), a.telemetryDisableEnv()...)
+}
+
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
 	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
+	cmd.Env = a.getEnv()
 
 	// Set up I/O
 	cmd.Stdin = a.stdin
