@@ -94,10 +94,5 @@ type NotEnoughSignaturesError struct {
 }
 
 func (e *NotEnoughSignaturesError) Error() string {
-	switch {
-	case e.CollectedPower < e.RequiredPower:
-		return fmt.Sprintf("not enough voting power: collected %d, required %d", e.CollectedPower, e.RequiredPower)
-	default:
-		panic("unreachable")
-	}
+	return fmt.Sprintf("not enough voting power: collected %d, required %d", e.CollectedPower, e.RequiredPower)
 }
