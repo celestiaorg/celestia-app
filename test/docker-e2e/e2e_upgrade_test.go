@@ -66,7 +66,7 @@ const (
 	MaxExpectedTimePerBlockV8Ns = uint64(15 * time.Second)
 
 	// Block params for v8
-	MaxBytesV8 = 32 * 1048576 // 32 MiB
+	MaxBytesV8 = 32 * 1024 * 1024 // 32 MiB
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
