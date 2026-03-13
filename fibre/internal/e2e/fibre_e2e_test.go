@@ -145,6 +145,8 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	require.Equal(t, uint32(0), txResp.Code)
 	t.Logf("RegisterValidator tx included at height %d, hash: %s", txResp.Height, txResp.TxHash)
 
+	require.NoError(t, s.cctx.WaitForNextBlock())
+
 	// verify the host is now registered.
 	valAddrClient := valtypes.NewQueryClient(s.cctx.GRPCClient)
 
