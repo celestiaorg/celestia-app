@@ -207,6 +207,8 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 	require.Equal(t, uint32(0), txResp.Code)
 	t.Logf("First deposit tx at height %d", txResp.Height)
 
+	require.NoError(t, s.cctx.WaitForNextBlock())
+
 	// verify escrow balance matches deposit.
 	escrowResp, err = fibreQueryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
 		Signer: addr.String(),
@@ -225,6 +227,8 @@ func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), txResp.Code)
 	t.Logf("Second deposit tx at height %d", txResp.Height)
+
+	require.NoError(t, s.cctx.WaitForNextBlock())
 
 	// verify cumulative balance is 75 TIA.
 	escrowResp, err = fibreQueryClient.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{
