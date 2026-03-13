@@ -1,0 +1,285 @@
+# ADR 027: Single Sequencer BFT Ordering on Fibre
+
+## Status
+
+DRAFT
+
+## Changelog
+
+- 2026/03/07: Initial draft
+
+## Context
+
+Fibre already provides data availability: users post blobs and collect > 2/3 validator signatures as availability certificates. However, these signatures do not provide **ordering** — they attest that data is available, not that it occupies a specific position in a sequence.
+
+Rollups that need BFT ordering today must wait for Celestia finality (~ 2 * block time). The rollup waits for the blob to be included in a Celestia block, then constructs a namespace inclusion proof against the Celestia header, parses the share from that proof, and compares the commitment. This adds seconds of latency, couples ordering to Celestia's block time, and requires proving inclusion through the Celestia header — an external dependency that adds latency, complexity, and proof overhead beyond what Fibre itself provides.
+
+The key observation is that Fibre's existing validator signatures can be extended to cover ordering, not just availability. If validators enforce a **chaining rule** before signing — verifying that the previous rollup block has a quorum certificate and that the current block is the next sequential height — then collecting > 2/3 signatures becomes an ordering protocol. Each signature already covers the blob's commitment and namespace; the rule adds a link to the certified predecessor, turning an unordered set of availability attestations into a total order.
+
+## Protocol Summary
+
+This ADR extends Fibre's existing `PaymentPromise` signing flow into a chained BFT ordering protocol for a single sequencer. The key concepts:
+
+- **Lane.** A `(chain_id, namespace, signer_public_key)` triple that defines an independent total order. Each signer has their own sequence within a namespace — no registry or namespace authorization is needed.
+- **Sequence.** A monotonic position within a lane, starting at 1. Sequence 0 means non-ordered (similar to an existing PaymentPromise, but functions as a genesis block for the rollup).
+- **OrderedPaymentPromise.** A wrapper around `PaymentPromise` that adds a `sequence` number, the serialized parent promise, and the parent's quorum certificate. Uses v1 sign bytes (identical to v0 with the sequence appended).
+- **Quorum Certificate (QC).** A set of > 2/3 voting power in validator ed25519 signatures over an `OrderedPaymentPromise`. Carried forward as proof of the parent's certification.
+
+The protocol proceeds in four steps per sequence:
+
+1. **Propose.** The sequencer constructs an `OrderedPaymentPromise` at sequence `s` containing `QC_{s-1}` (or empty at genesis), signs it with v1 sign bytes, and uploads shards to validators.
+2. **Vote.** Each validator verifies the parent QC, checks for double-voting, and signs the promise if all checks pass.
+3. **Certify.** The sequencer collects > 2/3 voting power in signatures, forming `QC_s`. Block `B_s` is now **certified/locked**.
+4. **Finalize.** When the sequencer posts `B_{s+1}` and obtains `QC_{s+1}`, block `B_s` is **finalized**. The second quorum on the child provides two-phase BFT confirmation.
+
+Finality requires two QC rounds — one to lock, one to finalize — matching the minimal two-phase structure of standard BFT protocols. The rest of this document specifies each component in detail.
+
+## Specification
+
+### Model
+
+The Fibre validator set follows the standard weighted BFT model: `n = 3f + 1`, or equivalently, a quorum requires `> 2/3` of voting power. Liveness requires `> 2/3` of voting power to be online for any QC to form.
+
+There is no namespace authorization mechanism — any signer may start a new chain in any namespace. Lane isolation comes from the signer's public key being part of the lane key and the v1 sign bytes: different signers produce different sign bytes even at the same sequence in the same namespace. The chaining rule (same signer in parent and child) ensures each signer's chain is independent. Authored namespaces could further restrict who may write to a namespace, but this is orthogonal to the ordering protocol.
+
+The `(chain_id, namespace, signer_public_key)` triple defines a total order of posted blobs. The position in this order is the **sequence** `s`. Ordering starts at sequence 1; sequence 0 is reserved for non-ordered promises (the proto default for `uint64`).
+
+### Protocol
+
+**Step 1: Propose.** The sequencer constructs an `OrderedPaymentPromise` for sequence `s` with `parent_promise` set to the serialized parent `PaymentPromise` and `parent_signatures` set to the validator signatures from `QC_{s-1}` (or both empty if `s == 1`). It signs the promise with v1 sign bytes, encodes the rollup block as a Fibre blob, and uploads shards to validators via `UploadShard`.
+
+**Step 2: Vote.** Each validator runs the ordering `PromiseRule` ([ADR-025](adr-025-promise-rules.md)). If it passes (along with all existing Fibre verification: promise validation, shard assignment, proof verification), the validator signs the `OrderedPaymentPromise` via `SignOrderedPaymentPromiseValidator` and returns the signature.
+
+**Step 3: Certify.** The sequencer collects `> 2/3` voting power in validator signatures, forming `QC_s`. This is the first-phase certificate — `B_s` is now **certified/locked**.
+
+**Step 4: Finalize.** When the sequencer posts `B_{s+1}` with `QC_s` as its parent and obtains `QC_{s+1}`, then `B_s` is **finalized**. The second quorum on the child block provides the second phase of confirmation.
+
+### Safety Rules
+
+1. **No double vote** — A validator MUST NOT sign two different `Commitment` values for the same `(chain_id, namespace, signer_public_key, sequence)`. Signing the same `Commitment` is permitted (idempotent).
+2. **Chain extension** — A validator signs sequence `s` only if the proposal includes a valid `QC_{s-1}` (or `s == 1`).
+3. **Commit rule** — `B_s` is **certified/locked** when `QC_s` exists, and **finalized** when `QC_{s+1}` exists for a child of `B_s`. Two phases are needed because a single QC proves agreement but not uniqueness.
+
+### OrderedPaymentPromise
+
+A new Go wrapper type extends `PaymentPromise` with ordering fields and provides its own `SignBytes()` method that produces v1 sign bytes. The existing `PaymentPromise` and its v0 `SignBytes()` are unchanged.
+
+```go
+const orderedSignBytesPrefix = "fibre/pp:v1"
+
+// OrderedPaymentPromise wraps a PaymentPromise with ordering fields.
+// It provides its own SignBytes() and SignBytesValidator() that produce
+// v1 sign bytes including the sequence number, binding each validator
+// signature to a specific position in the ordering chain.
+type OrderedPaymentPromise struct {
+    *PaymentPromise
+
+    // Sequence is the monotonic ordering position. Starts at 1 (genesis).
+    Sequence uint64
+
+    // ParentPromise is the PaymentPromise from the previous sequence (s-1),
+    // deserialized from the parent_promise bytes on the wire.
+    // Nil for genesis (sequence == 1).
+    ParentPromise *PaymentPromise
+
+    // ParentSignatures are the validator ed25519 signatures over
+    // ParentPromise, forming QC_{s-1}. Nil for genesis.
+    // Positionally ordered: index i corresponds to validator i in the
+    // validator set at ParentPromise.Height. Non-signing validators
+    // have nil entries.
+    ParentSignatures [][]byte
+}
+
+// SignBytes returns v1 sign bytes: the same fields as v0 but with
+// a "fibre/pp:v1" prefix and the sequence number appended.
+//
+// Format: "fibre/pp:v1" || chainID || signerPubKey(33) || namespace(29) ||
+//         blobSize(4) || commitment(32) || blobVersion(4) || height(8) ||
+//         creationTimestamp(15) || sequence(8)
+func (o *OrderedPaymentPromise) SignBytes() ([]byte, error) {
+    // ... v1 computation ...
+}
+
+// SignBytesValidator returns the v1 sign bytes wrapped with CometBFT
+// domain separation using the v1 prefix.
+func (o *OrderedPaymentPromise) SignBytesValidator() ([]byte, error) {
+    signBytes, err := o.SignBytes()
+    if err != nil {
+        return nil, err
+    }
+    return core.RawBytesMessageSignBytes(o.ChainID, orderedSignBytesPrefix, signBytes)
+}
+
+// SignOrderedPaymentPromiseValidator signs the OrderedPaymentPromise
+// using the validator's private key with the v1 prefix for CometBFT
+// domain separation.
+func SignOrderedPaymentPromiseValidator(
+    promise *OrderedPaymentPromise,
+    privVal core.PrivValidator,
+) ([]byte, error) {
+    signBytes, err := promise.SignBytes()
+    if err != nil {
+        return nil, err
+    }
+    return privVal.SignRawBytes(
+        promise.ChainID, orderedSignBytesPrefix, signBytes,
+    )
+}
+```
+
+This design provides a clean type-level separation: code handling `*PaymentPromise` uses v0 sign bytes, code handling `*OrderedPaymentPromise` uses v1. The existing `PaymentPromise` is not modified.
+
+The sequencer client constructs an `OrderedPaymentPromise` when posting ordered blobs and signs with v1 sign bytes. The ordering `PromiseRule` constructs the wrapper on the server side to verify the sequencer's signature and to produce the correct validator sign bytes.
+
+**On the wire**, the ordering fields (`sequence`, `parent_promise`, `parent_signatures`) are carried as proto fields on the `PaymentPromise` message (see [Proto Extensions](#proto-extensions)). On the server side, `FromProto()` populates the `PaymentPromise` Go struct as today. The ordering rule then reads the ordering fields from the raw proto message and constructs the `OrderedPaymentPromise` wrapper for v1 sign bytes computation and verification.
+
+
+### Proto Extensions
+
+Three new optional fields are added to the `PaymentPromise` proto:
+
+```protobuf
+message PaymentPromise {
+  // ... existing fields 1-9 ...
+
+  // sequence is the monotonic ordering position for this lane.
+  // Zero means non-ordered (the proto default). Ordering starts at 1.
+  uint64 sequence = 10;
+
+  // parent_promise is the serialized PaymentPromise from sequence s-1.
+  // Present when sequence > 1. Empty for genesis (sequence == 1) and
+  // non-ordered (sequence == 0).
+  bytes parent_promise = 11;
+
+  // parent_signatures are the validator ed25519 signatures over
+  // parent_promise, forming QC_{s-1}.
+  //
+  // Encoding: positionally ordered by the validator set at the parent
+  // promise's height. Entry i corresponds to validator i in that set.
+  // Non-signing validators have empty bytes (length 0). Signing
+  // validators have exactly 64 bytes (ed25519 signature). The length
+  // of this list equals the validator set size at the parent's height.
+  //
+  // This matches the existing SignedPaymentPromise.ValidatorSignatures
+  // encoding used by the Fibre client.
+  //
+  // Present when sequence > 1. Empty for genesis and non-ordered.
+  repeated bytes parent_signatures = 12;
+}
+```
+
+This is backwards-compatible: old validators and clients ignore unknown fields. Non-ordered blobs leave all three fields at their zero values, behaving identically to today. However, all validators must understand and enforce the ordering rule before sequencers can rely on ordered promises — a coordinated upgrade is required.
+
+Including `parent_promise` (the full serialized parent) alongside `parent_signatures` makes the QC self-contained: any validator can verify the parent QC without needing to have seen or stored the parent promise previously. This is what enables validators to catch up after missing sequences.
+
+The v1 sign bytes include the `sequence` to prevent signature replay across sequences. All integer fields use big-endian encoding. `creationTimestamp` is encoded via `time.Time.MarshalBinary()` (15 bytes). Sequence 0 never appears in v1 sign bytes — non-ordered promises use v0.
+
+### Genesis
+
+Sequence `s = 1` is the genesis block. It is a special case:
+
+- `parent_promise` is empty (no previous sequence to certify)
+- `parent_signatures` is empty
+- Validators accept empty parent data only when `sequence == 1`
+
+The sequencer posts a blob with `sequence = 1` and empty parent fields. Validators sign it using v1 sign bytes if all other checks pass (no double vote). The resulting `QC_1` becomes the anchor for the chain — the signer who obtained `QC_1` is established as the lane's sequencer.
+
+### OrderedPromise Validity Rules
+
+On receiving a `PaymentPromise` with `sequence > 0`, the ordering `PromiseRule` ([ADR-025](adr-025-promise-rules.md)) constructs an `OrderedPaymentPromise` wrapper and verifies:
+
+1. **Sequencer signature** — Verify the sequencer's secp256k1 `signature` against the v1 `SignBytes()` of the `OrderedPaymentPromise`. *Ensures the sequencer authorized this specific ordered promise.*
+
+2. **Signer continuity** — At genesis (`sequence == 1`), any signer may start a new chain. For `sequence > 1`, verify that the `signer_public_key` in `parent_promise` matches the `signer_public_key` of the current proposal. *Ensures each signer's chain is independent — no namespace authorization registry is required.*
+
+3. **Genesis or valid parent QC** — If `sequence == 1`, `parent_promise` and `parent_signatures` must be empty. If `sequence > 1`, verify that `parent_signatures` contain `> 2/3` voting power in valid ed25519 signatures over the parent's v1 `SignBytesValidator()`, checked against the validator set at the parent's `height`. The parent QC is self-contained: validators that missed previous sequences can catch up without prior local state.
+
+4. **Correct sequence** — If `sequence > 1`, the parent promise's `sequence` must equal `s - 1`. *Enforces monotonic one-step extension.*
+
+5. **Existing Fibre checks** — Commitment correctness and data availability are already enforced by the Fibre shard verification pipeline and apply unchanged.
+
+6. **No double vote** — The validator has not already signed a different `Commitment` at the same `(chain_id, namespace, signer_public_key, sequence)`. Signing the **same** `Commitment` is permitted (idempotent) to support sequencer crash recovery. Stale proposals at sequences ≤ the lane watermark are implicitly rejected — see [Local Validator State](#local-validator-state).
+
+If all checks pass, the validator signs the `OrderedPaymentPromise` via `SignOrderedPaymentPromiseValidator` and returns the signature in the `UploadShardResponse`.
+
+### Local Validator State
+
+To enforce the no-double-vote and chain-extension rules, validators must durably track two pieces of state per ordered lane `(chain_id, namespace, signer_public_key)`:
+
+**1. Lane watermark** — the highest certified sequence the validator has adopted. This is the sequence from the most recently verified parent QC, not the highest sequence the validator has personally signed.
+
+- Initialized when the validator adopts `QC_1` (genesis)
+- Advanced when verifying a valid parent QC: set to `max(current_watermark, parent_sequence)`
+- Never decremented
+- Allows validators to catch up after missing sequences without replaying the full chain locally
+
+**2. Per-sequence signed commitment** — for each `(chain_id, namespace, signer_public_key, sequence)`, the `Commitment` the validator signed, if any.
+
+- Enforces the no-double-vote rule
+- Old entries can be pruned once the watermark advances past them, since the chain-extension rule will reject stale proposals for earlier sequences
+
+#### Durability
+
+This state is **safety-critical**: if a validator loses its double-vote record and re-signs a different commitment at the same sequence after a restart, it can contribute to a safety violation. The state must survive crashes.
+
+This state must be crash-safe (e.g., WAL or embedded KV store). The storage requirement is minimal: one watermark per active lane, plus one commitment hash per unpruned sequence.
+
+All validators must be responsible for their own state backups and restores.
+
+#### Pruning and Resource Pricing
+
+Pruning policy and resource pricing for per-lane validator state fall outside the scope of this document, as there are several viable options. The key invariant is that a validator MUST NOT prune signed-commitment records for any sequence where equivocation could still cause a safety violation.
+
+## Alternative Approaches
+
+### A. No ordering from fibre signatures
+
+Rollups continue using Celestia block finality for ordering. The sequencer posts blobs via Fibre for availability, but ordering comes from Celestia headers with namespace inclusion proofs. This is the status quo and is already functional. The cost is higher latency (~6s for Celestia finality) and more complex verification (inclusion proofs, share parsing).
+
+### B. Future extensions
+
+The following are not alternatives to this design but extensions that build on top of it:
+
+- **Multi-proposer ordering (fixed set)**: Multiple known proposers take turns or rotate leadership via a view-change protocol.
+- **Multi-proposer ordering (unknown proposers)**: Proposers are not known in advance. Further extends the multi-proposer model.
+- **Time-window signing restrictions**: Validators refuse to sign promises whose `CreationTimestamp` falls outside a configurable window from the validator's local clock. Limits the window for equivocation and stale proposals. Complementary to ordering, not a replacement.
+- **Single-shot finality via > 4/5 quorum**: A higher quorum threshold enables finalization in one round instead of two. Two > 4/5 quorums overlap by at least 3/5; since at most 1/5 can be Byzantine, the overlap contains at least 2/5 honest validators, sufficient to rule out conflicting locks. The protocol shape is identical; only the quorum size and confirmation rule change. Liveness requires > 4/5 online.
+
+## Decision
+
+TBD, however this proposal is suggesting:
+
+Implement a minimal single-proposer chained BFT ordering protocol for Fibre. The protocol:
+
+- Introduces an `OrderedPaymentPromise` wrapper type with v1 sign bytes that include the sequence number
+- Enforces ordering via a `PromiseRule` ([ADR-025](adr-025-promise-rules.md)), composable with other rules
+- Uses two-phase finalization with `> 2/3` voting power (lock at `QC_s`, finalize at `QC_{s+1}`)
+- Requires durable validator state (WAL or embedded KV store) for double-vote protection
+
+The existing `PaymentPromise` type and v0 sign bytes are unchanged. Non-ordered blobs continue to work identically.
+
+## Consequences
+
+### Positive
+
+- Full BFT finality for single-sequencer rollups with two-phase `> 2/3` confirmation.
+- Portable, self-contained proofs — no dependency on Celestia block headers or namespace inclusion proofs.
+- Composable `PromiseRule` ([ADR-025](adr-025-promise-rules.md)) — minimal changes to Fibre server/client.
+- Non-breaking: non-ordered blobs are unchanged.
+
+### Neutral
+- Adds opportunities for more protocol revenue, since ordering adds costs
+- Coordinated validator upgrade required for v1 sign bytes.
+
+### Negative
+
+- Validators must durably track per-lane double-vote state.
+- While resources pricing should cover costs, `parent_promise` increases message size (~211 bytes + 64 bytes per signing validator).
+
+## References
+
+- [ADR-025](adr-025-promise-rules.md) — Promise Rules for Fibre
+- `fibre/payment_promise.go` — `PaymentPromise` type, `SignBytes()`, `SignPaymentPromiseValidator()`
+- `fibre/blob_id.go` — `Commitment` type
+- `proto/celestia/fibre/v1/fibre.proto` — `PaymentPromise` proto definition
+- `proto/celestia/fibre/v1/service.proto` — `UploadShardRequest` / `UploadShardResponse`
