@@ -13,10 +13,12 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
+	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
@@ -49,6 +51,22 @@ const (
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
 	EvidenceMaxAgeV8Blocks = 485280
+
+	// CIP-048 consensus timeout values for v8
+	TimeoutProposeV8          = 4500 * time.Millisecond
+	DelayedPrecommitTimeoutV8 = 2790 * time.Millisecond
+	// TODO(@ninabarbakadze): TimeoutPrevote and TimeoutPrecommit should be reduced from 3000ms to 1500ms per CIP-048.
+	TimeoutPrevoteV8          = 3000 * time.Millisecond
+	TimeoutPrevoteDeltaV8     = 500 * time.Millisecond
+	TimeoutPrecommitV8        = 3000 * time.Millisecond
+	TimeoutPrecommitDeltaV8   = 500 * time.Millisecond
+	TimeoutCommitV8           = time.Millisecond
+
+	// CIP-048 IBC MaxExpectedTimePerBlock for v8 (in nanoseconds)
+	MaxExpectedTimePerBlockV8Ns = uint64(15 * time.Second)
+
+	// Block params for v8
+	MaxBytesV8 = 32 * 1048576 // 32 MiB
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -372,6 +390,99 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+
+	// CIP-048: Consensus timeout parameters
+	s.validateTimeoutInfo(ctx, node)
+	// CIP-048: Evidence params (MaxAgeNumBlocks doubled)
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV8Blocks, appVersion)
+	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 15s
+	s.validateMaxExpectedTimePerBlock(ctx, node)
+	// Block params: max_bytes = 32 MiB
+	s.validateBlockParams(ctx, node, MaxBytesV8, appVersion)
+	// Fibre module: active with default params
+	s.validateFibreParams(ctx, node)
+}
+
+// validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
+// parameters match the expected v8 values per CIP-048.
+func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode) {
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+
+	ti := abciInfo.Response.TimeoutInfo
+	s.Require().Equal(TimeoutProposeV8, ti.TimeoutPropose, "v8 TimeoutPropose mismatch")
+	s.Require().Equal(DelayedPrecommitTimeoutV8, ti.DelayedPrecommitTimeout, "v8 DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(TimeoutPrevoteV8, ti.TimeoutPrevote, "v8 TimeoutPrevote mismatch")
+	s.Require().Equal(TimeoutPrevoteDeltaV8, ti.TimeoutPrevoteDelta, "v8 TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(TimeoutPrecommitV8, ti.TimeoutPrecommit, "v8 TimeoutPrecommit mismatch")
+	s.Require().Equal(TimeoutPrecommitDeltaV8, ti.TimeoutPrecommitDelta, "v8 TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(TimeoutCommitV8, ti.TimeoutCommit, "v8 TimeoutCommit mismatch")
+}
+
+// validateMaxExpectedTimePerBlock queries the IBC connection params and
+// validates that MaxExpectedTimePerBlock was corrected to 15s per CIP-048.
+func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context, node tastoratypes.ChainNode) {
+	client, err := getIBCConnectionQueryClient(node)
+	s.Require().NoError(err)
+
+	resp, err := client.ConnectionParams(ctx, &ibcconnectiontypes.QueryConnectionParamsRequest{})
+	s.Require().NoError(err, "failed to query IBC connection params")
+
+	s.Require().Equal(MaxExpectedTimePerBlockV8Ns, resp.Params.MaxExpectedTimePerBlock,
+		"v8 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV8Ns, resp.Params.MaxExpectedTimePerBlock)
+}
+
+// validateBlockParams queries consensus params and validates max_bytes.
+func (s *CelestiaTestSuite) validateBlockParams(ctx context.Context, node tastoratypes.ChainNode, expectedMaxBytes int, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "consensus", "params", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query consensus params via CLI: stderr=%s", string(stderr))
+
+	var consensusParams struct {
+		Params struct {
+			Block struct {
+				MaxBytes string `json:"max_bytes"`
+			} `json:"block"`
+		} `json:"params"`
+	}
+	err = json.Unmarshal(stdout, &consensusParams)
+	s.Require().NoError(err, "failed to parse consensus params JSON response")
+
+	maxBytesStr := consensusParams.Params.Block.MaxBytes
+	s.Require().NotEmpty(maxBytesStr, "max_bytes not found in response")
+
+	actualMaxBytes, err := strconv.Atoi(maxBytesStr)
+	s.Require().NoError(err, "failed to parse max_bytes: %s", maxBytesStr)
+
+	s.Require().Equal(expectedMaxBytes, actualMaxBytes, "v%d block max_bytes mismatch: expected %d, got %d", appVersion, expectedMaxBytes, actualMaxBytes)
+}
+
+// validateFibreParams queries the fibre module params via gRPC and validates
+// that the module is active with the expected default parameters.
+func (s *CelestiaTestSuite) validateFibreParams(ctx context.Context, node tastoratypes.ChainNode) {
+	client, err := getFibreQueryClient(node)
+	s.Require().NoError(err)
+
+	resp, err := client.Params(ctx, &fibretypes.QueryParamsRequest{})
+	s.Require().NoError(err, "failed to query fibre params")
+
+	expected := fibretypes.DefaultParams()
+	s.Require().Equal(expected.GasPerBlobByte, resp.Params.GasPerBlobByte, "fibre GasPerBlobByte mismatch")
+	s.Require().Equal(expected.WithdrawalDelay, resp.Params.WithdrawalDelay, "fibre WithdrawalDelay mismatch")
+	s.Require().Equal(expected.PaymentPromiseTimeout, resp.Params.PaymentPromiseTimeout, "fibre PaymentPromiseTimeout mismatch")
+	s.Require().Equal(expected.PaymentPromiseRetentionWindow, resp.Params.PaymentPromiseRetentionWindow, "fibre PaymentPromiseRetentionWindow mismatch")
+	s.Require().Equal(expected.PaymentPromiseHeightWindow, resp.Params.PaymentPromiseHeightWindow, "fibre PaymentPromiseHeightWindow mismatch")
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
@@ -390,6 +501,22 @@ func getSignalQueryClient(node tastoratypes.ChainNode) (signaltypes.QueryClient,
 func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClient, error) {
 	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
 		return icahosttypes.NewQueryClient(dcNode.GrpcConn), nil
+	}
+	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+// getIBCConnectionQueryClient returns an ibcconnectiontypes.QueryClient for the provided node.
+func getIBCConnectionQueryClient(node tastoratypes.ChainNode) (ibcconnectiontypes.QueryClient, error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return ibcconnectiontypes.NewQueryClient(dcNode.GrpcConn), nil
+	}
+	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+// getFibreQueryClient returns a fibretypes.QueryClient for the provided node.
+func getFibreQueryClient(node tastoratypes.ChainNode) (fibretypes.QueryClient, error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return fibretypes.NewQueryClient(dcNode.GrpcConn), nil
 	}
 	return nil, fmt.Errorf("GRPC connection is nil")
 }
