@@ -213,7 +213,7 @@ func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.Upload
 		return nil, err
 	}
 
-	validatorSignBytes, err := pp.SignBytesValidator()
+	signBytes, err := pp.SignBytes()
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.Upload
 	}
 
 	return &types.UploadShardResponse{
-		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), validatorSignBytes),
+		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), signBytes),
 	}, nil
 }
 
