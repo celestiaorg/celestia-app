@@ -31,6 +31,15 @@ func TestMaxExpectedTimePerBlock(t *testing.T) {
 		MaxExpectedTimePerBlock, want, tolerance)
 }
 
+// TestSubtreeRootThreshold verifies that SubtreeRootThreshold has not changed
+// from 64. SubtreeRootThreshold is hard-coded in clients (e.g. Lumina) and
+// changing it is a breaking change that requires cross-team coordination. If
+// this test fails, you likely need to revert the change to SubtreeRootThreshold.
+// See https://github.com/celestiaorg/celestia-app/issues/6831
+func TestSubtreeRootThreshold(t *testing.T) {
+	require.Equal(t, 64, SubtreeRootThreshold)
+}
+
 func TestConsts(t *testing.T) {
 	t.Run("TestUpgradeHeightDelay should be 3", func(t *testing.T) {
 		require.Equal(t, int64(3), TestUpgradeHeightDelay)

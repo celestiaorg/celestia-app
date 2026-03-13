@@ -230,8 +230,5 @@ func TestValidatorSignPaymentPromise(t *testing.T) {
 	valSignature, err := fibre.SignPaymentPromiseValidator(pp, privVal)
 	require.NoError(t, err)
 	require.Len(t, valSignature, ed25519.SignatureSize)
-
-	validatorSignBytes, err := pp.SignBytesValidator()
-	require.NoError(t, err)
-	require.True(t, privVal.PrivKey.PubKey().VerifySignature(validatorSignBytes, valSignature))
+	require.True(t, privVal.PrivKey.PubKey().VerifySignature(signBytes, valSignature))
 }

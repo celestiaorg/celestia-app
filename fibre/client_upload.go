@@ -73,7 +73,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	shardMap := valSet.Assign(blob.ID().Commitment(), blob.Config().TotalRows(), blob.Config().OriginalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 	span.AddEvent("shards_assigned")
 
-	validatorSignBytes, err := promise.SignBytesValidator()
+	signBytes, err := promise.SignBytes()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to prepare validator sign bytes")
@@ -87,7 +87,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
 	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
-	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, validatorSignBytes)
+	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, signBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),

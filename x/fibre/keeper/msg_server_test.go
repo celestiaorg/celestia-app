@@ -734,7 +734,7 @@ func (suite *MsgServerTestSuite) generateValidatorSignatures(paymentPromise *typ
 	suite.NoError(err)
 
 	// Prepare validator sign bytes with domain separation (same as validation code)
-	validatorSignBytes, err := pp.SignBytesValidator()
+	signBytes, err := pp.SignBytes()
 	suite.NoError(err)
 
 	// Get validator key
@@ -743,7 +743,7 @@ func (suite *MsgServerTestSuite) generateValidatorSignatures(paymentPromise *typ
 		return [][]byte{}
 	}
 
-	signature, err := valPrivKey.Sign(validatorSignBytes)
+	signature, err := valPrivKey.Sign(signBytes)
 	suite.NoError(err)
 
 	return [][]byte{signature}
