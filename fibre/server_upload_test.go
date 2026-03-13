@@ -182,8 +182,7 @@ func makeTestRequest(
 		SignerKey:         pubKey.(*secp256k1.PubKey),
 	}
 
-	promisePb, err := promise.ToProto()
-	require.NoError(t, err)
+	promisePb := promise.ToProto()
 	signPromise(promisePb)
 
 	// get row assignment for server validator

@@ -69,16 +69,10 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	))
 
 	// broadcast PayForFibre transaction
-	promiseProto, err := signedPromise.ToProto()
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
-		return result, fmt.Errorf("converting payment promise to proto: %w", err)
-	}
 	signerAddr := txClient.DefaultAddress()
 	msg := &types.MsgPayForFibre{
 		Signer:              signerAddr.String(),
-		PaymentPromise:      *promiseProto,
+		PaymentPromise:      *signedPromise.ToProto(),
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 	}
 
