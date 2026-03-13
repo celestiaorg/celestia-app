@@ -188,6 +188,34 @@ func TestPaymentPromise(t *testing.T) {
 	})
 }
 
+func TestNilSignerKey(t *testing.T) {
+	pp := &fibre.PaymentPromise{
+		ChainID:           "test-chain-1",
+		Height:            12345,
+		Namespace:         testNamespace,
+		UploadSize:        1024,
+		CreationTimestamp: time.Now().UTC().Truncate(time.Second),
+	}
+
+	t.Run("ToProto", func(t *testing.T) {
+		_, err := pp.ToProto()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "signer key must not be nil")
+	})
+
+	t.Run("MarshalBinary", func(t *testing.T) {
+		_, err := pp.MarshalBinary()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "signer key must not be nil")
+	})
+
+	t.Run("SignBytes", func(t *testing.T) {
+		_, err := pp.SignBytes()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "signer key must not be nil")
+	})
+}
+
 func TestValidatorSignPaymentPromise(t *testing.T) {
 	signerPrivKey := secp256k1.GenPrivKey()
 	pp := makePaymentPromise(t, signerPrivKey)

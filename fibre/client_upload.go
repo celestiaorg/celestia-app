@@ -80,7 +80,13 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, fmt.Errorf("preparing validator sign bytes: %w", err)
 	}
 
-	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
+	promiseProto, err := promise.ToProto()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
+		return result, fmt.Errorf("converting payment promise to proto: %w", err)
+	}
+	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
 	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, signBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
