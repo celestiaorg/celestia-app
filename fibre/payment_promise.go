@@ -56,7 +56,10 @@ type PaymentPromise struct {
 
 // MarshalBinary encodes the [PaymentPromise] using protobuf.
 func (p *PaymentPromise) MarshalBinary() ([]byte, error) {
-	pbMsg := p.ToProto()
+	pbMsg, err := p.ToProto()
+	if err != nil {
+		return nil, err
+	}
 	return gogoproto.Marshal(pbMsg)
 }
 
@@ -102,7 +105,10 @@ func (p *PaymentPromise) FromProto(pbMsg *types.PaymentPromise) error {
 }
 
 // ToProto converts the [PaymentPromise] to its protobuf representation.
-func (p *PaymentPromise) ToProto() *types.PaymentPromise {
+func (p *PaymentPromise) ToProto() (*types.PaymentPromise, error) {
+	if p.SignerKey == nil {
+		return nil, errors.New("signer key must not be nil")
+	}
 	return &types.PaymentPromise{
 		ChainId:           p.ChainID,
 		Height:            int64(p.Height),
@@ -113,14 +119,17 @@ func (p *PaymentPromise) ToProto() *types.PaymentPromise {
 		CreationTimestamp: p.CreationTimestamp,
 		SignerPublicKey:   *p.SignerKey,
 		Signature:         p.Signature,
-	}
+	}, nil
 }
 
 // Validate performs stateless validation on the [PaymentPromise].
 // It verifies all field constraints and validates the [PaymentPromise.Signature] using [PaymentPromise.SignerKey].
 func (p *PaymentPromise) Validate() error {
 	// signer key must be valid secp256k1 public key (33 bytes)
-	if p.SignerKey == nil || len(p.SignerKey.Key) != secp256k1.PubKeySize {
+	if p.SignerKey == nil {
+		return fmt.Errorf("signer key must be %d bytes, got 0", secp256k1.PubKeySize)
+	}
+	if len(p.SignerKey.Key) != secp256k1.PubKeySize {
 		return fmt.Errorf("signer key must be %d bytes, got %d", secp256k1.PubKeySize, len(p.SignerKey.Key))
 	}
 
@@ -201,6 +210,9 @@ const (
 // strippedSignBytes caches the result of the computation for subsequent calls,
 // so it's not allowed to change the promise after signing.
 func (p *PaymentPromise) strippedSignBytes() ([]byte, error) {
+	if p.SignerKey == nil {
+		return nil, errors.New("signer key must not be nil")
+	}
 	p.signBytesOnce.Do(func() {
 		// use MarshalBinary for timestamp
 		timestampBytes, err := p.CreationTimestamp.UTC().MarshalBinary() // this must be UTC
