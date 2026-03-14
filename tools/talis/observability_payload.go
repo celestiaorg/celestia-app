@@ -13,6 +13,7 @@ const (
 	defaultMetricsPort        = 26660
 	appTelemetryPort          = 1317
 	latencyMonitorMetricsPort = 9464
+	fibreMetricsPort          = 9465
 	grafanaPasswordLength     = 16
 )
 
@@ -119,6 +120,22 @@ func stageObservabilityPayload(cfg Config, observabilitySrcDir, payloadDir strin
 	appTargetsPath := filepath.Join(targetsDir, "app_targets.json")
 	if err := os.WriteFile(appTargetsPath, appPayload, 0o644); err != nil {
 		return fmt.Errorf("failed to write app targets file: %w", err)
+	}
+
+	// Generate fibre server targets (validators only, port 9465)
+	fibreGroups, _, err := buildObservabilityTargetsForInstances(cfg.Validators, cfg, fibreMetricsPort, "public", "validator")
+	if err != nil {
+		return err
+	}
+
+	fibrePayload, err := marshalTargets(fibreGroups, true)
+	if err != nil {
+		return err
+	}
+
+	fibreTargetsPath := filepath.Join(targetsDir, "fibre_targets.json")
+	if err := os.WriteFile(fibreTargetsPath, fibrePayload, 0o644); err != nil {
+		return fmt.Errorf("failed to write fibre targets file: %w", err)
 	}
 
 	// Generate random Grafana password and write .env file
