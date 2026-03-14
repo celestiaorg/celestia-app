@@ -14,18 +14,19 @@ const SetupFibreSessionName = "setup-fibre"
 
 func setupFibreCmd() *cobra.Command {
 	var (
-		rootDir      string
-		SSHKeyPath   string
-		escrowAmount string
-		fibrePort    int
-		fees         string
-		workers      int
+		rootDir       string
+		SSHKeyPath    string
+		escrowAmount  string
+		fibrePort     int
+		fees          string
+		workers       int
+		fibreAccounts int
 	)
 
 	cmd := &cobra.Command{
 		Use:   "setup-fibre",
 		Short: "Register fibre host addresses and fund escrow accounts on remote validators",
-		Long:  "SSHes into each validator and runs two transactions: register the fibre host address and fund the escrow account.",
+		Long:  "SSHes into each validator and runs transactions: register the fibre host address and fund escrow accounts for the validator and all fibre worker accounts.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
@@ -46,19 +47,33 @@ func setupFibreCmd() *cobra.Command {
 			)
 
 			for _, val := range cfg.Validators {
-				script := fmt.Sprintf(
+				// Build script: register host + deposit escrow for validator + all fibre accounts
+				var sb strings.Builder
+
+				// 1. Register fibre host address
+				sb.WriteString(fmt.Sprintf(
 					"celestia-appd tx valaddr set-host dns:///%s:%d "+
 						"--from validator --keyring-backend=test --home .celestia-app "+
-						"--chain-id %s --fees %s --yes;"+
-						"sleep 20;"+
-						"celestia-appd tx fibre deposit-to-escrow %s "+
-						"--from validator --keyring-backend=test --home .celestia-app "+
-						"--chain-id %s --fees %s --yes",
+						"--chain-id %s --fees %s --yes\n",
 					val.PublicIP, fibrePort,
 					cfg.ChainID, fees,
-					escrowAmount,
-					cfg.ChainID, fees,
-				)
+				))
+				sb.WriteString("sleep 10\n")
+
+				// 2. Deposit escrow for each fibre worker account
+				for i := 0; i < fibreAccounts; i++ {
+					keyName := fmt.Sprintf("fibre-%d", i)
+					sb.WriteString(fmt.Sprintf(
+						"celestia-appd tx fibre deposit-to-escrow %s "+
+							"--from %s --keyring-backend=test --home .celestia-app "+
+							"--chain-id %s --fees %s --yes\n",
+						escrowAmount,
+						keyName,
+						cfg.ChainID, fees,
+					))
+				}
+
+				script := sb.String()
 
 				sem <- struct{}{}
 				wg.Add(1)
@@ -66,8 +81,8 @@ func setupFibreCmd() *cobra.Command {
 					defer wg.Done()
 					defer func() { <-sem }()
 
-					fmt.Printf("Running setup-fibre on %s (%s)\n", inst.Name, inst.PublicIP)
-					if err := runScriptInTMux([]Instance{inst}, resolvedSSHKeyPath, s, SetupFibreSessionName, time.Minute*5); err != nil {
+					fmt.Printf("Running setup-fibre on %s (%s) — registering host + %d escrow deposits\n", inst.Name, inst.PublicIP, fibreAccounts)
+					if err := runScriptInTMux([]Instance{inst}, resolvedSSHKeyPath, s, SetupFibreSessionName, time.Minute*30); err != nil {
 						mu.Lock()
 						errs = append(errs, fmt.Errorf("%s: %w", inst.Name, err))
 						mu.Unlock()
@@ -80,7 +95,7 @@ func setupFibreCmd() *cobra.Command {
 			if len(errs) > 0 {
 				return errors.Join(errs...)
 			}
-			fmt.Println("Waiting for fibre setup to complete...")
+			fmt.Printf("Waiting for fibre setup to complete (%d accounts per validator)...\n", fibreAccounts)
 			time.Sleep(40 * time.Second)
 			fmt.Println("Done!")
 			return nil
@@ -90,9 +105,10 @@ func setupFibreCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to the user's SSH key")
 	cmd.Flags().StringVar(&escrowAmount, "escrow-amount", "200000000000000utia", "amount to deposit into escrow")
-	cmd.Flags().IntVar(&fibrePort, "fibre-port", 9091, "fibre gRPC port on validators")
+	cmd.Flags().IntVar(&fibrePort, "fibre-port", 7980, "fibre gRPC port on validators")
 	cmd.Flags().StringVar(&fees, "fees", "5000utia", "transaction fees")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of validators to set up in parallel")
+	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 100, "number of fibre worker accounts to deposit escrow for")
 
 	return cmd
 }

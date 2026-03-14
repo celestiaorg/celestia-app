@@ -27,8 +27,11 @@ func generateCmd() *cobra.Command {
 		nodeBinaryPath                string
 		txsimBinaryPath               string
 		latencyMonitorBinaryPath      string
+		fibreBinaryPath               string
+		fibreTxsimBinaryPath          string
 		observabilityDirPath          string
 		useMainnetStakingDistribution bool
+		fibreAccounts                 int
 	)
 	cmd := &cobra.Command{
 		Use:   "genesis",
@@ -50,7 +53,7 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to remove old payload directory: %w", err)
 			}
 
-			err = createPayload(cfg.Validators, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution)
+			err = createPayload(cfg.Validators, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, fibreAccounts)
 			if err != nil {
 				log.Fatalf("Failed to create payload: %v", err)
 			}
@@ -102,6 +105,16 @@ func generateCmd() *cobra.Command {
 				if err := copyFile(latencyMonitorBinaryPath, filepath.Join(buildDest, "latency-monitor"), 0o755); err != nil {
 					log.Printf("failed to copy latency monitor binary: %v", err)
 				}
+
+				// Copy fibre server binary
+				if err := copyFile(fibreBinaryPath, filepath.Join(buildDest, "fibre"), 0o755); err != nil {
+					log.Printf("failed to copy fibre binary: %v", err)
+				}
+
+				// Copy fibre-txsim binary
+				if err := copyFile(fibreTxsimBinaryPath, filepath.Join(buildDest, "fibre-txsim"), 0o755); err != nil {
+					log.Printf("failed to copy fibre-txsim binary: %v", err)
+				}
 			}
 
 			if err := writeAWSEnv(filepath.Join(payloadDir, "vars.sh"), cfg); err != nil {
@@ -134,15 +147,18 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
 	cmd.Flags().StringVar(&latencyMonitorBinaryPath, "latency-monitor-binary", filepath.Join(gopath, "latency-monitor"), "latency monitor binary to include in the payload")
+	cmd.Flags().StringVar(&fibreBinaryPath, "fibre-binary", filepath.Join(gopath, "fibre"), "fibre server binary to include in the payload")
+	cmd.Flags().StringVar(&fibreTxsimBinaryPath, "fibre-txsim-binary", filepath.Join(gopath, "fibre-txsim"), "fibre-txsim binary to include in the payload")
 	cmd.Flags().StringVar(&observabilityDirPath, "observability-dir", "", "path to observability directory containing docker-compose, Prometheus config, and scripts (required if observability nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
+	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 100, "number of pre-funded fibre accounts to create per validator")
 
 	return cmd
 }
 
 // createPayload takes ips created by pulumi and the path to the payload directory
 // to create the payload required for the experiment.
-func createPayload(ips []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, mods ...genesis.Modifier) error {
+func createPayload(ips []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, fibreAccounts int, mods ...genesis.Modifier) error {
 	n, err := NewNetwork(chainID, squareSize, mods...)
 	if err != nil {
 		return err
@@ -159,6 +175,7 @@ func createPayload(ips []Instance, chainID, ppath string, squareSize int, useMai
 			ppath,
 			info.Region,
 			stake,
+			fibreAccounts,
 		)
 		if err != nil {
 			return err

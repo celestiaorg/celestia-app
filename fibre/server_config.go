@@ -55,6 +55,10 @@ type ServerConfig struct {
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
+	// Metrics holds Prometheus metrics for the server.
+	// If nil, NopServerMetrics() will be used.
+	Metrics *ServerMetrics `toml:"-"`
+
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`
@@ -89,6 +93,9 @@ func (cfg *ServerConfig) Validate() error {
 		return fmt.Errorf("server listen address is required")
 	}
 
+	if cfg.Metrics == nil {
+		cfg.Metrics = NopServerMetrics()
+	}
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")
 	}

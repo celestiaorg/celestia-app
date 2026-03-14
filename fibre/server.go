@@ -24,8 +24,9 @@ type Server struct {
 	grpc   *fibregrpc.Server
 	signer core.PrivValidator
 
-	log    *slog.Logger
-	tracer trace.Tracer
+	log     *slog.Logger
+	tracer  trace.Tracer
+	Metrics *ServerMetrics
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -44,10 +45,11 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	server := &Server{
-		Config: cfg,
-		state:  stateClient,
-		log:    cfg.Log,
-		tracer: cfg.Tracer,
+		Config:  cfg,
+		state:   stateClient,
+		log:     cfg.Log,
+		tracer:  cfg.Tracer,
+		Metrics: cfg.Metrics,
 	}
 
 	server.grpc, err = fibregrpc.NewServer(

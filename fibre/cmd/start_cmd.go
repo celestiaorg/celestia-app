@@ -3,8 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"net/http"
+	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v8/fibre"
+	"github.com/cometbft/cometbft/privval"
+	core "github.com/cometbft/cometbft/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
@@ -13,6 +20,9 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerListenAddress = "signer-listen-address"
+	flagMetricsAddress      = "metrics-address"
+	flagFileSigner          = "file-signer"
+	flagAppHome             = "app-home"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -57,6 +67,46 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 				return fmt.Errorf("get %q flag: %w", flagHome, err)
 			}
 
+			metricsAddr, err := cmd.Flags().GetString(flagMetricsAddress)
+			if err != nil {
+				return fmt.Errorf("get %q flag: %w", flagMetricsAddress, err)
+			}
+
+			useFileSigner, err := cmd.Flags().GetBool(flagFileSigner)
+			if err != nil {
+				return fmt.Errorf("get %q flag: %w", flagFileSigner, err)
+			}
+
+			if metricsAddr != "" {
+				reg := prometheus.NewRegistry()
+				cfg.Metrics = fibre.NewServerMetrics(reg)
+
+				mux := http.NewServeMux()
+				mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+				srv := &http.Server{Addr: metricsAddr, Handler: mux}
+				go func() {
+					slog.Info("metrics server started", "address", metricsAddr)
+					if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+						slog.Error("metrics server error", "error", err)
+					}
+				}()
+			}
+
+			// Use file-based signer from the celestia-app home directory
+			if useFileSigner {
+				appHome, err := cmd.Flags().GetString(flagAppHome)
+				if err != nil || appHome == "" {
+					appHome = filepath.Join("/root", ".celestia-app")
+				}
+				pvKeyFile := filepath.Join(appHome, "config", "priv_validator_key.json")
+				pvStateFile := filepath.Join(appHome, "data", "priv_validator_state.json")
+				slog.Info("using file-based signer", "key", pvKeyFile, "state", pvStateFile)
+				filePV := privval.LoadFilePV(pvKeyFile, pvStateFile)
+				cfg.SignerFn = func(_ string) (core.PrivValidator, error) {
+					return filePV, nil
+				}
+			}
+
 			cfg.Path = home
 			return start(cmd.Context(), cfg)
 		},
@@ -68,6 +118,9 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerListenAddress, flagSignerListenAddress, cfg.SignerListenAddress, "privval signer listen address")
+	cmd.Flags().String(flagMetricsAddress, "", "Prometheus metrics HTTP address (e.g. localhost:9465); disabled when empty")
+	cmd.Flags().Bool(flagFileSigner, false, "use file-based signer from celestia-app home instead of remote signer")
+	cmd.Flags().String(flagAppHome, "", "celestia-app home directory for file-based signer (default: /root/.celestia-app)")
 
 	return cmd
 }

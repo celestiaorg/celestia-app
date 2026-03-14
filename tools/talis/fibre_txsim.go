@@ -19,7 +19,7 @@ func fibreTxsimCmd() *cobra.Command {
 		blobSize    int
 		interval    time.Duration
 		duration    time.Duration
-		keyName     string
+		keyPrefix   string
 	)
 
 	cmd := &cobra.Command{
@@ -43,9 +43,9 @@ func fibreTxsimCmd() *cobra.Command {
 
 			// Build the remote command — fibre-txsim is already in /bin/ from the payload
 			remoteCmd := fmt.Sprintf(
-				"fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-name %s --blob-size %d --concurrency %d --interval %s --duration %s",
+				"fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s",
 				cfg.ChainID,
-				keyName,
+				keyPrefix,
 				blobSize,
 				concurrency,
 				interval,
@@ -82,7 +82,7 @@ func fibreTxsimCmd() *cobra.Command {
 	cmd.Flags().IntVar(&blobSize, "blob-size", 1000000, "size of each blob in bytes")
 	cmd.Flags().DurationVar(&interval, "interval", 0, "delay between blob submissions (0 = no delay)")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
-	cmd.Flags().StringVar(&keyName, "key-name", "validator", "key name in keyring")
+	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 
 	return cmd
 }

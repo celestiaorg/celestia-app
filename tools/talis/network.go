@@ -86,9 +86,9 @@ func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
 // AddValidator adds a validator to the network. The validator is identified by
 // its name which is assigned by pulumi as hardware is allocated. An additional
 // account and keyring are saved to the payload directory that can be used by
-// txsim.
+// txsim. Pre-funded fibre accounts are also created for each validator.
 // if the stake is set to 0, a default value is used.
-func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64) error {
+func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64, fibreAccounts int) error {
 	n.validators[name] = NodeInfo{
 		Name:   name,
 		IP:     ip,
@@ -148,6 +148,35 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 	})
 	if err != nil {
 		return err
+	}
+
+	for i := 0; i < fibreAccounts; i++ {
+		fibreName := fmt.Sprintf("fibre-%d", i)
+		fibreKey, _, err := kr.NewMnemonic(fibreName, keyring.English, "", "", hd.Secp256k1)
+		if err != nil {
+			return err
+		}
+
+		fibrePK, err := fibreKey.GetPubKey()
+		if err != nil {
+			return err
+		}
+
+		fibreAddr, err := fibreKey.GetAddress()
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("adding fibre account", fibreName, fibreAddr.String())
+
+		err = n.genesis.AddAccount(genesis.Account{
+			PubKey:  fibrePK,
+			Balance: 9999999999999999,
+			Name:    fibreName,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -22,11 +23,17 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
 
+	s.Metrics.UploadShardsInFlight.Inc()
+	defer s.Metrics.UploadShardsInFlight.Dec()
+	timer := prometheus.NewTimer(s.Metrics.UploadShardDuration)
+	defer timer.ObserveDuration()
+
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
 		s.log.WarnContext(ctx, "payment promise verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "payment promise verification failed")
+		s.Metrics.UploadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("payment promise verification failed: %v", err))
 	}
 
@@ -45,6 +52,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.WarnContext(ctx, "shard assignment verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "shard assignment verification failed")
+		s.Metrics.UploadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard assignment verification failed: %v", err))
 	}
 	span.AddEvent("assignment_verified")
@@ -54,6 +62,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.WarnContext(ctx, "shard verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "shard verification failed")
+		s.Metrics.UploadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard verification failed: %v", err))
 	}
 	span.AddEvent("shard_verified", trace.WithAttributes(
@@ -66,6 +75,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
+		s.Metrics.UploadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
 	}
 	span.AddEvent("shard_stored")
@@ -76,9 +86,14 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.ErrorContext(ctx, "failed to sign payment promise", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to sign payment promise")
+		s.Metrics.UploadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to sign payment promise: %v", err))
 	}
 	span.AddEvent("signature_generated")
+
+	s.Metrics.UploadShardTotal.WithLabelValues("success").Inc()
+	s.Metrics.UploadShardBytesTotal.Add(float64(promise.UploadSize))
+	s.Metrics.UploadShardRowsTotal.Add(float64(len(req.Shard.Rows)))
 
 	log.DebugContext(ctx, "successful upload",
 		"upload_size", promise.UploadSize,

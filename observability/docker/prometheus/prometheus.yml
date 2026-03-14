@@ -31,6 +31,17 @@ scrape_configs:
         target_label: instance
         action: replace
 
+  # Scrape fibre server metrics
+  - job_name: 'fibre-server'
+    file_sd_configs:
+      - files:
+          - /targets/fibre_targets.json
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [node_id]
+        target_label: instance
+        action: replace
+
   # Scrape app telemetry metrics on port 1317
   - job_name: 'app-telemetry'
     metrics_path: '/metrics'
