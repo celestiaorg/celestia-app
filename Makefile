@@ -392,6 +392,35 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins
 
+## build-rust-fibre-txsim: Build rust-fibre-txsim for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-rust-fibre-txsim: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-rust-fibre-txsim: CARGO := $(HOME)/.cargo/bin/cargo
+build-rust-fibre-txsim:
+	@if ! command -v $(CARGO) >/dev/null 2>&1; then \
+		echo "Rust is not installed. Installing..."; \
+		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
+		echo ""; \
+		echo "Rust installed. Continuing with cargo from $$HOME/.cargo/bin..."; \
+	fi
+	cd tools/rust-fibre-txsim && $(CARGO) xtask build-linux
+	@mkdir -p build
+	@if [ -f tools/rust-fibre-txsim/target/x86_64-unknown-linux-gnu/release/rust-fibre-txsim ]; then \
+		cp tools/rust-fibre-txsim/target/x86_64-unknown-linux-gnu/release/rust-fibre-txsim build/fibre-txsim; \
+	else \
+		cp tools/rust-fibre-txsim/target/release/rust-fibre-txsim build/fibre-txsim; \
+	fi
+.PHONY: build-rust-fibre-txsim
+
+## build-talis-bins-rust: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
+build-talis-bins-rust:
+	mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	$(MAKE) build-rust-fibre-txsim
+.PHONY: build-talis-bins-rust
+
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
 build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
 build-lumina-latency-monitor: CARGO := $(HOME)/.cargo/bin/cargo
