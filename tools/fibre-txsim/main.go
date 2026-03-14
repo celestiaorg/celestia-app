@@ -27,7 +27,7 @@ func main() {
 		chainID      string
 		grpcEndpoint string
 		keyringDir   string
-		keyName      string
+		keyPrefix    string
 		blobSize     int
 		concurrency  int
 		interval     time.Duration
@@ -37,21 +37,28 @@ func main() {
 	flag.StringVar(&chainID, "chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.StringVar(&grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
 	flag.StringVar(&keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
-	flag.StringVar(&keyName, "key-name", "validator", "key name in keyring")
+	flag.StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	flag.IntVar(&blobSize, "blob-size", 1000000, "size of each blob in bytes")
-	flag.IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions")
-	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions (0 = no delay)")
+	flag.IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
+	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.Parse()
 	_ = chainID // accepted but unused
 
-	if err := run(grpcEndpoint, keyringDir, keyName, blobSize, concurrency, interval, duration); err != nil {
+	if err := run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, interval, duration time.Duration) error {
+// worker holds a per-account fibre client and tx client pair.
+type worker struct {
+	fibreClient *fibre.Client
+	txClient    *user.TxClient
+	keyName     string
+}
+
+func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, interval, duration time.Duration) error {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	kr, err := keyring.New(app.Name, keyring.BackendTest, keyringDir, nil, encCfg.Codec)
@@ -59,44 +66,8 @@ func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, in
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
 
-	grpcConn, err := grpc.NewClient(
-		grpcEndpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithDefaultCallOptions(
-			grpc.MaxCallSendMsgSize(math.MaxInt32),
-			grpc.MaxCallRecvMsgSize(math.MaxInt32),
-		),
-	)
-	if err != nil {
-		return fmt.Errorf("failed to create gRPC connection: %w", err)
-	}
-	defer grpcConn.Close()
-
-	clientCfg := fibre.DefaultClientConfig()
-	clientCfg.StateAddress = grpcEndpoint
-	clientCfg.DefaultKeyName = keyName
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg, user.WithDefaultAccount(keyName))
-	if err != nil {
-		return fmt.Errorf("failed to set up tx client: %w", err)
-	}
-
-	fibreClient, err := fibre.NewClient(kr, clientCfg)
-	if err != nil {
-		return fmt.Errorf("failed to create fibre client: %w", err)
-	}
-	defer func() {
-		if err := fibreClient.Stop(ctx); err != nil {
-			fmt.Fprintf(os.Stderr, "stopping fibre client: %v\n", err)
-		}
-	}()
-
-	if err := fibreClient.Start(ctx); err != nil {
-		return fmt.Errorf("failed to start fibre client: %w", err)
-	}
 
 	// Handle signals
 	sigCh := make(chan os.Signal, 1)
@@ -113,6 +84,59 @@ func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, in
 		defer cancel()
 	}
 
+	// Create one worker per concurrent slot, each with its own account
+	workers := make([]worker, concurrency)
+	for i := 0; i < concurrency; i++ {
+		keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
+
+		grpcConn, err := grpc.NewClient(
+			grpcEndpoint,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithDefaultCallOptions(
+				grpc.MaxCallSendMsgSize(math.MaxInt32),
+				grpc.MaxCallRecvMsgSize(math.MaxInt32),
+			),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to create gRPC connection for worker %d: %w", i, err)
+		}
+		defer grpcConn.Close()
+
+		txClient, err := user.SetupTxClient(ctx, kr, grpcConn, encCfg, user.WithDefaultAccount(keyName))
+		if err != nil {
+			return fmt.Errorf("failed to set up tx client for worker %d (%s): %w", i, keyName, err)
+		}
+
+		clientCfg := fibre.DefaultClientConfig()
+		clientCfg.StateAddress = grpcEndpoint
+		clientCfg.DefaultKeyName = keyName
+
+		fibreClient, err := fibre.NewClient(kr, clientCfg)
+		if err != nil {
+			return fmt.Errorf("failed to create fibre client for worker %d (%s): %w", i, keyName, err)
+		}
+
+		if err := fibreClient.Start(ctx); err != nil {
+			return fmt.Errorf("failed to start fibre client for worker %d (%s): %w", i, keyName, err)
+		}
+
+		workers[i] = worker{
+			fibreClient: fibreClient,
+			txClient:    txClient,
+			keyName:     keyName,
+		}
+		fmt.Printf("Worker %d initialized with key %s\n", i, keyName)
+	}
+
+	// Ensure all fibre clients are stopped on exit
+	defer func() {
+		for _, w := range workers {
+			if err := w.fibreClient.Stop(ctx); err != nil {
+				fmt.Fprintf(os.Stderr, "stopping fibre client %s: %v\n", w.keyName, err)
+			}
+		}
+	}()
+
 	// Stats
 	var (
 		totalSent  atomic.Int64
@@ -122,87 +146,25 @@ func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, in
 	)
 	startTime := time.Now()
 
-	// Semaphore for bounded concurrency
-	sem := make(chan struct{}, concurrency)
+	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", concurrency)
+
+	// Launch each worker in its own goroutine
 	var wg sync.WaitGroup
-
-	fmt.Println("\nStarting fibre blob spam...")
-
-	// If interval is set, use a ticker to pace blob submissions.
-	// Otherwise, fire as fast as the semaphore allows.
-	var tick <-chan time.Time
-	if interval > 0 {
-		t := time.NewTicker(interval)
-		defer t.Stop()
-		tick = t.C
-	}
-
-	for ctx.Err() == nil {
-		// Wait for the interval tick (if configured)
-		if tick != nil {
-			select {
-			case <-ctx.Done():
-				continue
-			case <-tick:
-			}
-		}
-
-		// Acquire semaphore slot
-		select {
-		case <-ctx.Done():
-			continue
-		case sem <- struct{}{}:
-		}
-
-		wg.Go(func() {
-			defer func() { <-sem }()
-
-			// Generate random namespace
-			nsID := make([]byte, share.NamespaceVersionZeroIDSize)
-			if _, err := rand.Read(nsID); err != nil {
-				fmt.Printf("error generating namespace: %v\n", err)
-				failures.Add(1)
-				totalSent.Add(1)
-				return
-			}
-			id := make([]byte, 0, share.NamespaceIDSize)
-			id = append(id, share.NamespaceVersionZeroPrefix...)
-			id = append(id, nsID...)
-			ns, err := share.NewNamespace(share.NamespaceVersionZero, id)
-			if err != nil {
-				fmt.Printf("error creating namespace: %v\n", err)
-				failures.Add(1)
-				totalSent.Add(1)
-				return
-			}
-
-			// Generate random blob data
-			data := make([]byte, blobSize)
-			if _, err := rand.Read(data); err != nil {
-				fmt.Printf("error generating blob data: %v\n", err)
-				failures.Add(1)
-				totalSent.Add(1)
-				return
-			}
-
-			t := time.Now()
-			result, err := fibre.Put(ctx, fibreClient, txClient, ns, data)
-			lat := time.Since(t)
-
-			totalSent.Add(1)
-			if err != nil {
-				if ctx.Err() != nil {
-					return
+	for i, w := range workers {
+		wg.Add(1)
+		go func(idx int, w worker) {
+			defer wg.Done()
+			for ctx.Err() == nil {
+				submitBlob(ctx, w, blobSize, &totalSent, &successes, &failures, &totalLatNs)
+				if interval > 0 {
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(interval):
+					}
 				}
-				failures.Add(1)
-				fmt.Printf("error: %v (latency=%s)\n", err, lat)
-				return
 			}
-
-			successes.Add(1)
-			totalLatNs.Add(lat.Nanoseconds())
-			fmt.Printf("height=%d tx=%s latency=%s\n", result.Height, result.TxHash, lat)
-		})
+		}(i, w)
 	}
 
 	wg.Wait()
@@ -223,4 +185,52 @@ func run(grpcEndpoint, keyringDir, keyName string, blobSize, concurrency int, in
 	fmt.Printf("Avg latency (success): %s\n", avgLat)
 
 	return nil
+}
+
+func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successes, failures *atomic.Int64, totalLatNs *atomic.Int64) {
+	// Generate random namespace
+	nsID := make([]byte, share.NamespaceVersionZeroIDSize)
+	if _, err := rand.Read(nsID); err != nil {
+		fmt.Printf("[%s] error generating namespace: %v\n", w.keyName, err)
+		failures.Add(1)
+		totalSent.Add(1)
+		return
+	}
+	id := make([]byte, 0, share.NamespaceIDSize)
+	id = append(id, share.NamespaceVersionZeroPrefix...)
+	id = append(id, nsID...)
+	ns, err := share.NewNamespace(share.NamespaceVersionZero, id)
+	if err != nil {
+		fmt.Printf("[%s] error creating namespace: %v\n", w.keyName, err)
+		failures.Add(1)
+		totalSent.Add(1)
+		return
+	}
+
+	// Generate random blob data
+	data := make([]byte, blobSize)
+	if _, err := rand.Read(data); err != nil {
+		fmt.Printf("[%s] error generating blob data: %v\n", w.keyName, err)
+		failures.Add(1)
+		totalSent.Add(1)
+		return
+	}
+
+	t := time.Now()
+	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data)
+	lat := time.Since(t)
+
+	totalSent.Add(1)
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		failures.Add(1)
+		fmt.Printf("[%s] error: %v (latency=%s)\n", w.keyName, err, lat)
+		return
+	}
+
+	successes.Add(1)
+	totalLatNs.Add(lat.Nanoseconds())
+	fmt.Printf("[%s] height=%d tx=%s latency=%s\n", w.keyName, result.Height, result.TxHash, lat)
 }

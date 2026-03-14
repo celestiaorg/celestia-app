@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -19,12 +20,16 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
 	defer span.End()
 
+	timer := prometheus.NewTimer(s.Metrics.DownloadShardDuration)
+	defer timer.ObserveDuration()
+
 	// unmarshal and validate blob ID
 	var id BlobID
 	if err := id.UnmarshalBinary(req.BlobId); err != nil {
 		s.log.ErrorContext(ctx, "invalid blob ID", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid blob ID")
+		s.Metrics.DownloadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("invalid blob ID: %v", err))
 	}
 
@@ -33,6 +38,7 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		s.log.ErrorContext(ctx, "unsupported blob version", "version", id.Version(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unsupported blob version")
+		s.Metrics.DownloadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("unsupported blob version: %v", err))
 	}
 
@@ -42,11 +48,13 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.WarnContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")
+			s.Metrics.DownloadShardTotal.WithLabelValues("not_found").Inc()
 			return nil, status.Error(grpccodes.NotFound, fmt.Sprintf("no blob shard found for commitment %s", id.Commitment().String()))
 		}
 		s.log.ErrorContext(ctx, "failed to retrieve blob shard", "blob_commitment", id.Commitment().String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to retrieve blob shard")
+		s.Metrics.DownloadShardTotal.WithLabelValues("error").Inc()
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to retrieve blob shard: %v", err))
 	}
 
@@ -58,6 +66,8 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		attribute.Int("row_count", len(blobShard.Rows)),
 		attribute.Int("row_size", rowSize),
 	))
+
+	s.Metrics.DownloadShardTotal.WithLabelValues("success").Inc()
 
 	s.log.InfoContext(ctx, "download successful",
 		"blob_commitment", id.Commitment().String(),
