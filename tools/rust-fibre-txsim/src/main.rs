@@ -71,9 +71,11 @@ fn parse_duration(s: &str) -> Result<Duration, String> {
     humantime::parse_duration(s).map_err(|e| format!("invalid duration '{s}': {e}"))
 }
 
-/// Per-worker state: each worker has its own fibre client, gRPC client, and key.
+/// Per-worker state: each worker has its own signing key and gRPC client,
+/// but shares the FibreClient (connections, validator set) with all workers.
 struct Worker {
     fibre_client: Arc<FibreClient>,
+    signing_key: SigningKey,
     grpc_client: Arc<GrpcClient>,
     signer_address: String,
     key_name: String,
@@ -129,6 +131,16 @@ async fn main() -> anyhow::Result<()> {
         format!("http://{}", args.grpc_endpoint)
     };
 
+    // Create a single shared FibreClient. All workers reuse the same
+    // connections and validator set cache, avoiding connection exhaustion
+    // under high concurrency.
+    let mut config = FibreClientConfig::default();
+    config.chain_id = args.chain_id.clone();
+    let shared_fibre_client = Arc::new(
+        FibreClient::from_endpoint(&grpc_url, config)
+            .context("failed to create shared fibre client")?,
+    );
+
     // Create one worker per concurrent slot, each with its own account
     let mut workers = Vec::with_capacity(args.concurrency);
     for i in 0..args.concurrency {
@@ -142,18 +154,13 @@ async fn main() -> anyhow::Result<()> {
         let signing_key = SigningKey::from_bytes(local_key.private_key.as_slice().into())
             .context("invalid secp256k1 private key")?;
 
+        // Each worker needs its own GrpcClient for transaction signing/broadcasting
+        // (different private keys), but shares the FibreClient for uploads/downloads.
         let grpc_client = GrpcClient::builder()
             .url(&grpc_url)
             .private_key_hex(&private_key_hex)
             .build()
             .with_context(|| format!("failed to build gRPC client for worker {}", i))?;
-
-        let mut config = FibreClientConfig::default();
-        config.chain_id = args.chain_id.clone();
-
-        let fibre_client =
-            FibreClient::from_grpc_client(grpc_client.clone(), signing_key, config)
-                .with_context(|| format!("failed to create fibre client for worker {}", i))?;
 
         let signer_address = grpc_client
             .get_account_address()
@@ -163,7 +170,8 @@ async fn main() -> anyhow::Result<()> {
         println!("Worker {} initialized with key {}", i, key_name);
 
         workers.push(Worker {
-            fibre_client: Arc::new(fibre_client),
+            fibre_client: Arc::clone(&shared_fibre_client),
+            signing_key,
             grpc_client: Arc::new(grpc_client),
             signer_address,
             key_name,
@@ -339,7 +347,10 @@ async fn upload_blob(
     };
 
     let t = Instant::now();
-    let result = w.fibre_client.put(&ns, &data, &w.signer_address).await;
+    let result = w
+        .fibre_client
+        .put(&w.signing_key, &ns, &data, &w.signer_address)
+        .await;
 
     stats.total_sent.fetch_add(1, Ordering::Relaxed);
     match result {
