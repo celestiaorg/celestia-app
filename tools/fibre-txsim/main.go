@@ -51,7 +51,7 @@ func main() {
 	}
 }
 
-// worker holds a per-account fibre client and tx client pair.
+// worker holds a per-account tx client and key name, sharing one fibre client.
 type worker struct {
 	fibreClient *fibre.Client
 	txClient    *user.TxClient
@@ -84,6 +84,26 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 		defer cancel()
 	}
 
+	// Create a single shared fibre client
+	clientCfg := fibre.DefaultClientConfig()
+	clientCfg.StateAddress = grpcEndpoint
+	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", keyPrefix)
+
+	sharedFibreClient, err := fibre.NewClient(kr, clientCfg)
+	if err != nil {
+		return fmt.Errorf("failed to create shared fibre client: %w", err)
+	}
+
+	if err := sharedFibreClient.Start(ctx); err != nil {
+		return fmt.Errorf("failed to start shared fibre client: %w", err)
+	}
+
+	defer func() {
+		if err := sharedFibreClient.Stop(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "stopping shared fibre client: %v\n", err)
+		}
+	}()
+
 	// Create one worker per concurrent slot, each with its own account
 	workers := make([]worker, concurrency)
 	for i := 0; i < concurrency; i++ {
@@ -107,35 +127,13 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 			return fmt.Errorf("failed to set up tx client for worker %d (%s): %w", i, keyName, err)
 		}
 
-		clientCfg := fibre.DefaultClientConfig()
-		clientCfg.StateAddress = grpcEndpoint
-		clientCfg.DefaultKeyName = keyName
-
-		fibreClient, err := fibre.NewClient(kr, clientCfg)
-		if err != nil {
-			return fmt.Errorf("failed to create fibre client for worker %d (%s): %w", i, keyName, err)
-		}
-
-		if err := fibreClient.Start(ctx); err != nil {
-			return fmt.Errorf("failed to start fibre client for worker %d (%s): %w", i, keyName, err)
-		}
-
 		workers[i] = worker{
-			fibreClient: fibreClient,
+			fibreClient: sharedFibreClient,
 			txClient:    txClient,
 			keyName:     keyName,
 		}
 		fmt.Printf("Worker %d initialized with key %s\n", i, keyName)
 	}
-
-	// Ensure all fibre clients are stopped on exit
-	defer func() {
-		for _, w := range workers {
-			if err := w.fibreClient.Stop(ctx); err != nil {
-				fmt.Fprintf(os.Stderr, "stopping fibre client %s: %v\n", w.keyName, err)
-			}
-		}
-	}()
 
 	// Stats
 	var (
@@ -217,7 +215,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successe
 	}
 
 	t := time.Now()
-	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data)
+	result, err := fibre.PutWithKey(ctx, w.fibreClient, w.txClient, ns, data, w.keyName)
 	lat := time.Since(t)
 
 	totalSent.Add(1)
