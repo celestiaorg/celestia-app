@@ -536,7 +536,7 @@ func (client *TxClient) handleSequenceMismatch(sequenceErr error, txBuilder clie
 		return false, err
 	}
 	if !strings.Contains(sequenceErr.Error(), sdkerrors.ErrWrongSequence.Error()) {
-		return false, nil
+		return false, sequenceErr
 	}
 
 	parsedErr := extractSequenceError(sequenceErr.Error())

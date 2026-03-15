@@ -35,7 +35,14 @@ type PutResult struct {
 // TODO(@Wondertan): This does not belong here. Fibre protocol in it's core doesn't need to know about transactions.
 // Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
 // And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
-func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
+func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (PutResult, error) {
+	return PutWithKey(ctx, c, txClient, ns, data, c.Config.DefaultKeyName)
+}
+
+// PutWithKey is like [Put] but uses the specified key name for signing the payment promise
+// instead of the client's default key. This allows sharing a single [Client] across multiple
+// signers.
+func PutWithKey(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, keyName string) (result PutResult, err error) {
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Put",
 		trace.WithAttributes(
 			attribute.String("namespace", ns.String()),
@@ -58,7 +65,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
-	signedPromise, err := c.Upload(ctx, ns, blob)
+	signedPromise, err := c.UploadWithKey(ctx, ns, blob, keyName)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")
@@ -87,6 +94,10 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to broadcast PayForFibre transaction")
 		return result, fmt.Errorf("broadcasting PayForFibre transaction: %w", err)
+	}
+	if broadcastResp == nil {
+		span.SetStatus(codes.Error, "nil response from BroadcastTx")
+		return result, fmt.Errorf("broadcasting PayForFibre transaction: received nil response")
 	}
 	span.AddEvent("pff_broadcasted", trace.WithAttributes(
 		attribute.String("pff_hash", broadcastResp.TxHash),
