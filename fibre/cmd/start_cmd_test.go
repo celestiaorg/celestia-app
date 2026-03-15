@@ -136,7 +136,7 @@ type stubStateClient struct {
 
 func (s *stubStateClient) Start(context.Context) error { return nil }
 func (s *stubStateClient) Stop(context.Context) error  { return nil }
-func (s *stubStateClient) ChainID() string              { return s.chainID }
+func (s *stubStateClient) ChainID() string             { return s.chainID }
 func (s *stubStateClient) Head(context.Context) (validator.Set, error) {
 	return validator.Set{}, nil
 }
