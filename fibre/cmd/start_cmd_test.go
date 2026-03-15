@@ -8,9 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/fibre/state"
 	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -97,35 +94,41 @@ func newTestStartCmd(t *testing.T, home string) (*cobra.Command, *fibre.ServerCo
 	return cmd, got
 }
 
-// TestStartServerNilLog verifies that startServer does not panic when
-// cfg.Log is nil. NewServer validates the config and sets a default logger on
-// its own copy, but the caller's cfg.Log stays nil. The fix uses
-// server.Config.Log instead of cfg.Log.
-func TestStartServerNilLog(t *testing.T) {
-	privKey := ed25519.GenPrivKey()
+// TestStartCmdNilLog verifies that the start command does not panic when
+// cfg.Log is nil (the default). The command builds a ServerConfig with nil Log,
+// which NewServer.Validate populates on its own copy. The fix uses
+// server.Config.Log instead of cfg.Log inside startServer.
+func TestStartCmdNilLog(t *testing.T) {
+	home := t.TempDir()
+	mockPV := core.NewMockPV()
 
-	cfg := fibre.DefaultServerConfig()
-	cfg.Log = nil // explicitly nil — the scenario that used to panic
-	cfg.ServerListenAddress = "127.0.0.1:0"
-	cfg.StateClientFn = func() (state.Client, error) {
-		return &stubStateClient{chainID: "test"}, nil
-	}
-	cfg.SignerFn = func(string) (core.PrivValidator, error) {
-		return &stubPrivValidator{privKey: privKey}, nil
-	}
-	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
-		return fibre.NewMemoryStore(scfg), nil
-	}
+	cmd := newStartCmd(func(ctx context.Context, cfg fibre.ServerConfig) error {
+		// cfg.Log is nil here, exactly like production.
+		require.Nil(t, cfg.Log, "command must not set Log — Validate handles it")
 
-	// Use a pre-cancelled context so startServer runs through start → log →
+		cfg.ServerListenAddress = "127.0.0.1:0"
+		cfg.StateClientFn = func() (state.Client, error) {
+			return &stubStateClient{chainID: "test"}, nil
+		}
+		cfg.SignerFn = func(string) (core.PrivValidator, error) {
+			return &mockPV, nil
+		}
+		cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+			return fibre.NewMemoryStore(scfg), nil
+		}
+		return startServer(ctx, cfg)
+	})
+	cmd.Flags().String(flagHome, home, "")
+	cmd.SetOut(io.Discard)
+	cmd.SetErr(io.Discard)
+
+	// Pre-cancelled context so startServer runs through start → log →
 	// stop → log without blocking on signal.NotifyContext.
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
 	require.NotPanics(t, func() {
-		// An error is expected (e.g. from the cancelled context propagation),
-		// but a nil-pointer panic is the bug we are guarding against.
-		_ = startServer(ctx, cfg)
+		_ = cmd.ExecuteContext(ctx)
 	})
 }
 
@@ -148,20 +151,6 @@ func (s *stubStateClient) GetHost(context.Context, *core.Validator) (validator.H
 }
 func (s *stubStateClient) VerifyPromise(context.Context, *state.PaymentPromise) (state.VerifiedPromise, error) {
 	return state.VerifiedPromise{}, nil
-}
-
-// stubPrivValidator is a minimal core.PrivValidator for testing startServer.
-type stubPrivValidator struct {
-	privKey ed25519.PrivKey
-}
-
-func (s *stubPrivValidator) GetPubKey() (crypto.PubKey, error) {
-	return s.privKey.PubKey(), nil
-}
-func (s *stubPrivValidator) SignVote(string, *cmtproto.Vote) error         { return nil }
-func (s *stubPrivValidator) SignProposal(string, *cmtproto.Proposal) error { return nil }
-func (s *stubPrivValidator) SignRawBytes(string, string, []byte) ([]byte, error) {
-	return nil, nil
 }
 
 func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress string) {
