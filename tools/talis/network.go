@@ -150,6 +150,7 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 		return err
 	}
 
+	fmt.Printf("creating %d fibre accounts\n", fibreAccounts)
 	for i := 0; i < fibreAccounts; i++ {
 		fibreName := fmt.Sprintf("fibre-%d", i)
 		fibreKey, _, err := kr.NewMnemonic(fibreName, keyring.English, "", "", hd.Secp256k1)
@@ -161,13 +162,6 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 		if err != nil {
 			return err
 		}
-
-		fibreAddr, err := fibreKey.GetAddress()
-		if err != nil {
-			return err
-		}
-
-		fmt.Println("adding fibre account", fibreName, fibreAddr.String())
 
 		err = n.genesis.AddAccount(genesis.Account{
 			PubKey:  fibrePK,
