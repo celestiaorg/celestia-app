@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/v8
 go 1.25.8
 
 require (
-	cloud.google.com/go/compute v1.54.0
+	cloud.google.com/go/compute v1.57.0
 	cosmossdk.io/api v1.0.0
 	cosmossdk.io/client/v2 v2.0.0-beta.8
 	cosmossdk.io/collections v0.4.0
@@ -76,7 +76,7 @@ require (
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.40.0
 	google.golang.org/api v0.271.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20260128011058-8636f8732409
+	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171
 	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
