@@ -40,18 +40,31 @@ func (cfg StoreConfig) Validate() error {
 	return nil
 }
 
+// blobSaver abstracts how batched key-value entries are persisted.
+// Implementations control the commit strategy: immediate or coalesced.
+type blobSaver interface {
+	submit(ctx context.Context, entries []batchEntry) error
+	close()
+}
+
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
+//
+// Writes are dispatched through a [blobSaver]. The default implementation ([writeBatcher])
+// coalesces concurrent [Put] calls into a single batch commit, amortizing the commit cost.
 type Store struct {
-	cfg StoreConfig
-	ds  ds.Batching
+	cfg   StoreConfig
+	ds    ds.Batching
+	saver blobSaver
 }
 
 // NewMemoryStore creates a new [Store] with an in-memory datastore.
 func NewMemoryStore(cfg StoreConfig) *Store {
+	memDS := dssync.MutexWrap(ds.NewMapDatastore())
 	return &Store{
-		cfg: cfg,
-		ds:  dssync.MutexWrap(ds.NewMapDatastore()),
+		cfg:   cfg,
+		ds:    memDS,
+		saver: newWriteBatcher(memDS),
 	}
 }
 
@@ -80,8 +93,9 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 	}
 
 	return &Store{
-		cfg: cfg,
-		ds:  bds,
+		cfg:   cfg,
+		ds:    bds,
+		saver: newWriteBatcher(bds),
 	}, nil
 }
 
@@ -116,8 +130,9 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	}
 
 	return &Store{
-		cfg: cfg,
-		ds:  pds,
+		cfg:   cfg,
+		ds:    pds,
+		saver: newWriteBatcher(pds),
 	}, nil
 }
 
@@ -129,13 +144,10 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 // determining when the entry will be removed by [PruneBefore].
 //
 // Puts for the same commitments but different promises are allowed and are stored independently without deduplication.
+//
+// Serialization happens in the caller's goroutine, but the actual write is submitted to the
+// [writeBatcher] which coalesces concurrent writes into a single batch commit.
 func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
-	batch, err := s.ds.Batch(ctx)
-	if err != nil {
-		return fmt.Errorf("creating batch: %w", err)
-	}
-
-	// write payment promise
 	promiseProto, err := promise.ToProto()
 	if err != nil {
 		return fmt.Errorf("converting payment promise to proto: %w", err)
@@ -148,25 +160,17 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if err != nil {
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
-	if err := batch.Put(ctx, promiseKey(promiseHash), ppData); err != nil {
-		return fmt.Errorf("putting payment promise: %w", err)
-	}
 
-	// write shard
 	shardData, err := gogoproto.Marshal(shard)
 	if err != nil {
 		return fmt.Errorf("marshaling shard: %w", err)
 	}
-	if err := batch.Put(ctx, shardKey(promise.Commitment, promiseHash), shardData); err != nil {
-		return fmt.Errorf("putting shard: %w", err)
-	}
 
-	// write prune index
-	if err := batch.Put(ctx, pruneKey(pruneAt, promise.Commitment, promiseHash), []byte{}); err != nil {
-		return fmt.Errorf("putting prune index: %w", err)
-	}
-
-	return batch.Commit(ctx)
+	return s.saver.submit(ctx, []batchEntry{
+		{key: promiseKey(promiseHash), value: ppData},
+		{key: shardKey(promise.Commitment, promiseHash), value: shardData},
+		{key: pruneKey(pruneAt, promise.Commitment, promiseHash), value: []byte{}},
+	})
 }
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
@@ -290,9 +294,165 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, error) 
 	return pruned, nil
 }
 
-// Close closes the underlying datastore.
+// Close stops the blob saver and closes the underlying datastore.
 func (s *Store) Close() error {
+	s.saver.close()
 	return s.ds.Close()
+}
+
+// batchEntry is a single key-value pair to be written to the datastore.
+type batchEntry struct {
+	key   ds.Key
+	value []byte
+}
+
+// directWriter implements [blobSaver] by committing each submit call immediately
+// in its own batch. This is the simplest strategy with no write coalescing.
+type directWriter struct {
+	ds ds.Batching
+}
+
+func newDirectWriter(store ds.Batching) *directWriter {
+	return &directWriter{ds: store}
+}
+
+func (dw *directWriter) submit(ctx context.Context, entries []batchEntry) error {
+	batch, err := dw.ds.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("creating batch: %w", err)
+	}
+	for _, e := range entries {
+		if err := batch.Put(ctx, e.key, e.value); err != nil {
+			return fmt.Errorf("putting entry: %w", err)
+		}
+	}
+	return batch.Commit(ctx)
+}
+
+func (dw *directWriter) close() {}
+
+// writeBatcher implements [blobSaver] by coalescing multiple write operations into
+// a single batch commit, amortizing the commit cost across all writes in the batch.
+//
+// Under concurrent load (e.g. 4,650 simultaneous UploadShard RPCs), each Put would
+// otherwise create its own batch and Commit independently. The batcher collects
+// pending writes and commits them in a single batch, paying the commit cost once
+// for N writes instead of N times.
+
+type writeRequest struct {
+	entries []batchEntry
+	result  chan error
+}
+type writeBatcher struct {
+	ds         ds.Batching
+	requests   chan *writeRequest
+	done       chan struct{}
+	maxPending int
+}
+
+const (
+	defaultWriteBatcherQueueSize  = 4096
+	defaultWriteBatcherMaxPending = 512
+)
+
+func newWriteBatcher(store ds.Batching) *writeBatcher {
+	return newWriteBatcherWithOpts(
+		store,
+		defaultWriteBatcherQueueSize,
+		defaultWriteBatcherMaxPending,
+	)
+}
+
+func newWriteBatcherWithOpts(store ds.Batching, queueSize, maxPending int) *writeBatcher {
+	wb := &writeBatcher{
+		ds:         store,
+		requests:   make(chan *writeRequest, queueSize),
+		done:       make(chan struct{}),
+		maxPending: maxPending,
+	}
+	go wb.run()
+	return wb
+}
+
+func (wb *writeBatcher) run() {
+	defer close(wb.done)
+
+	for {
+		first, ok := <-wb.requests
+		if !ok {
+			return
+		}
+
+		pending := make([]*writeRequest, 1, wb.maxPending)
+		pending[0] = first
+		pending = wb.drain(pending)
+
+		err := wb.commitAll(pending)
+		for _, req := range pending {
+			req.result <- err
+		}
+	}
+}
+
+// drain collects all currently queued requests without waiting.
+func (wb *writeBatcher) drain(pending []*writeRequest) []*writeRequest {
+	for len(pending) < wb.maxPending {
+		select {
+		case req, ok := <-wb.requests:
+			if !ok {
+				return pending
+			}
+			pending = append(pending, req)
+		default:
+			return pending
+		}
+	}
+	return pending
+}
+
+func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
+	ctx := context.Background()
+	batch, err := wb.ds.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("creating batch: %w", err)
+	}
+
+	for _, req := range requests {
+		for _, entry := range req.entries {
+			if err := batch.Put(ctx, entry.key, entry.value); err != nil {
+				return fmt.Errorf("adding to batch: %w", err)
+			}
+		}
+	}
+
+	return batch.Commit(ctx)
+}
+
+// submit sends a write request to the batcher and blocks until the coalesced
+// batch containing this request has been committed.
+func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error {
+	req := &writeRequest{
+		entries: entries,
+		result:  make(chan error, 1),
+	}
+
+	select {
+	case wb.requests <- req:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+
+	select {
+	case err := <-req.result:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (wb *writeBatcher) close() {
+	close(wb.requests)
+	<-wb.done
 }
 
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
