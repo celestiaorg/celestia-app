@@ -3,6 +3,9 @@ package fibre
 import (
 	"context"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const pruneInterval = time.Minute
@@ -26,15 +29,21 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 
 func (s *Server) prune(ctx context.Context) {
 	start := time.Now()
-	pruned, err := s.store.PruneBefore(ctx, start)
-	elapsed := time.Since(start)
+	var pruneErr error
+	defer func() {
+		elapsed := time.Since(start)
+		s.metrics.pruneDuration.Record(ctx, elapsed.Seconds(), metric.WithAttributes(attribute.Bool("success", pruneErr == nil)))
+	}()
 
+	pruned, err := s.store.PruneBefore(ctx, start)
+	pruneErr = err
 	if err != nil {
-		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", elapsed.Milliseconds())
+		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
 		return
 	}
 
 	if pruned > 0 {
-		s.log.InfoContext(ctx, "pruned expired entries", "pruned", pruned, "elapsed (ms)", elapsed.Milliseconds())
+		s.metrics.pruneEntries.Add(ctx, int64(pruned))
+		s.log.InfoContext(ctx, "pruned expired entries", "pruned", pruned, "elapsed (ms)", time.Since(start).Milliseconds())
 	}
 }

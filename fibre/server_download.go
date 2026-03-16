@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -15,9 +17,21 @@ import (
 
 // DownloadShard handles the [types.FibreServer.DownloadShard] RPC call.
 // It retrieves [types.BlobShard] for the given blob ID.
-func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (*types.DownloadShardResponse, error) {
+func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (_ *types.DownloadShardResponse, err error) {
+	start := time.Now()
+	var shardSize int64
+	s.metrics.downloadShardInFlight.Add(ctx, 1)
+
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
 	defer span.End()
+	defer func() {
+		s.metrics.downloadShardInFlight.Add(ctx, -1)
+		attrs := []attribute.KeyValue{
+			attribute.Int64("shard_size", shardSize),
+			attribute.Bool("success", err == nil),
+		}
+		s.metrics.downloadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+	}()
 
 	// unmarshal and validate blob ID
 	var id BlobID
@@ -37,7 +51,9 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	}
 
 	// retrieve blob shard from storage using commitment
+	storeGetStart := time.Now()
 	blobShard, err := s.store.Get(ctx, id.Commitment())
+	s.metrics.storeGetDuration.Record(ctx, time.Since(storeGetStart).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil)))
 	if err != nil {
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.WarnContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
@@ -58,6 +74,10 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		attribute.Int("row_count", len(blobShard.Rows)),
 		attribute.Int("row_size", rowSize),
 	))
+
+	for _, row := range blobShard.Rows {
+		shardSize += int64(len(row.Data))
+	}
 
 	s.log.InfoContext(ctx, "download successful",
 		"blob_commitment", id.Commitment().String(),

@@ -11,6 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -36,6 +37,9 @@ type PutResult struct {
 // Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
 // And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
 func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
+	start := time.Now()
+	c.metrics.putInFlight.Add(ctx, 1)
+
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Put",
 		trace.WithAttributes(
 			attribute.String("namespace", ns.String()),
@@ -43,6 +47,10 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		),
 	)
 	defer span.End()
+	defer func() {
+		c.metrics.putInFlight.Add(ctx, -1)
+		c.metrics.putDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil)))
+	}()
 
 	// encoding section
 	blob, err := NewBlob(data, DefaultBlobConfigV0())

@@ -12,15 +12,28 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // UploadShard handles the [types.FibreServer.UploadShard] RPC call.
-func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest) (*types.UploadShardResponse, error) {
+func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest) (_ *types.UploadShardResponse, err error) {
+	start := time.Now()
+	var uploadSize int64
+	s.metrics.uploadShardInFlight.Add(ctx, 1)
+
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
+	defer func() {
+		s.metrics.uploadShardInFlight.Add(ctx, -1)
+		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
+		if uploadSize > 0 {
+			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
+		}
+		s.metrics.uploadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+	}()
 
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
@@ -30,6 +43,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("payment promise verification failed: %v", err))
 	}
 
+	uploadSize = int64(promise.UploadSize)
 	log := s.log.With("blob_commitment", promise.Commitment.String(), "promise_height", promise.Height)
 
 	span.AddEvent("promise_verified", trace.WithAttributes(
@@ -62,16 +76,21 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	))
 
 	// store payment promise and shard with RLC roots
+	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
+		s.metrics.storePutDuration.Record(ctx, time.Since(storePutStart).Seconds(), metric.WithAttributes(attribute.Bool("success", false)))
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
 	}
+	s.metrics.storePutDuration.Record(ctx, time.Since(storePutStart).Seconds(), metric.WithAttributes(attribute.Bool("success", true)))
 	span.AddEvent("shard_stored")
 
 	// sign the payment promise
+	signStart := time.Now()
 	signature, err := SignPaymentPromiseValidator(promise, s.signer)
+	s.metrics.signDuration.Record(ctx, time.Since(signStart).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil)))
 	if err != nil {
 		log.ErrorContext(ctx, "failed to sign payment promise", "error", err)
 		span.RecordError(err)
