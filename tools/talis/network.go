@@ -151,7 +151,7 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 	}
 
 	fmt.Printf("creating %d fibre accounts\n", fibreAccounts)
-	for i := 0; i < fibreAccounts; i++ {
+	for i := range fibreAccounts {
 		fibreName := fmt.Sprintf("fibre-%d", i)
 		fibreKey, _, err := kr.NewMnemonic(fibreName, keyring.English, "", "", hd.Secp256k1)
 		if err != nil {
