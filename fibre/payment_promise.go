@@ -46,17 +46,20 @@ type PaymentPromise struct {
 	Height uint64
 
 	// cached sign bytes and hash
-	signBytesOnce sync.Once
-	signBytes     []byte
-	signBytesErr  error
-	hashOnce      sync.Once
-	hash          [32]byte
-	hashErr       error
+	signBytesOnce   sync.Once
+	cachedSignBytes []byte
+	signBytesErr    error
+	hashOnce        sync.Once
+	hash            [32]byte
+	hashErr         error
 }
 
 // MarshalBinary encodes the [PaymentPromise] using protobuf.
 func (p *PaymentPromise) MarshalBinary() ([]byte, error) {
-	pbMsg := p.ToProto()
+	pbMsg, err := p.ToProto()
+	if err != nil {
+		return nil, err
+	}
 	return gogoproto.Marshal(pbMsg)
 }
 
@@ -102,7 +105,10 @@ func (p *PaymentPromise) FromProto(pbMsg *types.PaymentPromise) error {
 }
 
 // ToProto converts the [PaymentPromise] to its protobuf representation.
-func (p *PaymentPromise) ToProto() *types.PaymentPromise {
+func (p *PaymentPromise) ToProto() (*types.PaymentPromise, error) {
+	if p.SignerKey == nil {
+		return nil, errors.New("signer key must not be nil")
+	}
 	return &types.PaymentPromise{
 		ChainId:           p.ChainID,
 		Height:            int64(p.Height),
@@ -113,14 +119,17 @@ func (p *PaymentPromise) ToProto() *types.PaymentPromise {
 		CreationTimestamp: p.CreationTimestamp,
 		SignerPublicKey:   *p.SignerKey,
 		Signature:         p.Signature,
-	}
+	}, nil
 }
 
 // Validate performs stateless validation on the [PaymentPromise].
 // It verifies all field constraints and validates the [PaymentPromise.Signature] using [PaymentPromise.SignerKey].
 func (p *PaymentPromise) Validate() error {
 	// signer key must be valid secp256k1 public key (33 bytes)
-	if p.SignerKey == nil || len(p.SignerKey.Key) != secp256k1.PubKeySize {
+	if p.SignerKey == nil {
+		return fmt.Errorf("signer key must be %d bytes, got 0", secp256k1.PubKeySize)
+	}
+	if len(p.SignerKey.Key) != secp256k1.PubKeySize {
 		return fmt.Errorf("signer key must be %d bytes, got %d", secp256k1.PubKeySize, len(p.SignerKey.Key))
 	}
 
@@ -190,16 +199,20 @@ const (
 	signatureSize = 64
 )
 
-// SignBytes returns the bytes that should be signed for this [PaymentPromise].
-// Actual signing must be done by the caller.
-// The sign bytes are computed once and cached for subsequent calls.
-// Format: prefix || chainID || signer_bytes || namespace || blob_size_bytes ||
+// strippedSignBytes returns the payload-only bytes for this [PaymentPromise],
+// without any prefix or chainID. These bytes are suitable for wrapping with
+// domain separation (e.g., via [core.RawBytesMessageSignBytes]).
 //
-//	commitment || blob_version_bytes || height_bytes || creation_timestamp_bytes
+// Format: signer_bytes || namespace || blob_size_bytes || commitment ||
 //
-// SignBytes caches the result of the computation for subsequent calls,
-// so its not allowed to change the promise after signing.
-func (p *PaymentPromise) SignBytes() ([]byte, error) {
+//	blob_version_bytes || height_bytes || creation_timestamp_bytes
+//
+// strippedSignBytes caches the result of the computation for subsequent calls,
+// so it's not allowed to change the promise after signing.
+func (p *PaymentPromise) strippedSignBytes() ([]byte, error) {
+	if p.SignerKey == nil {
+		return nil, errors.New("signer key must not be nil")
+	}
 	p.signBytesOnce.Do(func() {
 		// use MarshalBinary for timestamp
 		timestampBytes, err := p.CreationTimestamp.UTC().MarshalBinary() // this must be UTC
@@ -208,14 +221,8 @@ func (p *PaymentPromise) SignBytes() ([]byte, error) {
 			return
 		}
 
-		// calculate total size including the prefix
-		totalSize := len(signBytesPrefix) + len(p.ChainID) + signBytesFixedSize
-		buf := make([]byte, 0, totalSize)
+		buf := make([]byte, 0, signBytesFixedSize)
 
-		// prepend domain separation prefix
-		buf = append(buf, []byte(signBytesPrefix)...)
-		// append chainID
-		buf = append(buf, []byte(p.ChainID)...)
 		// append signer_bytes (33 bytes - compressed public key)
 		buf = append(buf, p.SignerKey.Bytes()...)
 		// append namespace (29 bytes)
@@ -231,13 +238,25 @@ func (p *PaymentPromise) SignBytes() ([]byte, error) {
 		// append timestamp bytes
 		buf = append(buf, timestampBytes...)
 
-		p.signBytes = buf
+		p.cachedSignBytes = buf
 	})
 
 	if p.signBytesErr != nil {
 		return nil, p.signBytesErr
 	}
-	return p.signBytes, nil
+	return p.cachedSignBytes, nil
+}
+
+// SignBytes returns the canonical bytes that should be signed for this [PaymentPromise].
+// Both keyring (client) and validator paths sign these same bytes.
+// The result is the stripped payload wrapped with CometBFT domain separation
+// via [core.RawBytesMessageSignBytes].
+func (p *PaymentPromise) SignBytes() ([]byte, error) {
+	stripped, err := p.strippedSignBytes()
+	if err != nil {
+		return nil, err
+	}
+	return core.RawBytesMessageSignBytes(p.ChainID, signBytesPrefix, stripped)
 }
 
 // Hash returns the SHA256 hash of the [PaymentPromise] including the signature.
@@ -269,27 +288,14 @@ func (p *PaymentPromise) Hash() ([]byte, error) {
 	return p.hash[:], nil
 }
 
-// SignBytesValidator returns the [PaymentPromise] bytes for validators to sign.
-// This wraps the [PaymentPromise.SignBytes] with domain separation using the chain ID and signBytesPrefix.
-//
-// NOTE: This method encapsulates Comet's quirk which enforces a particular signing domain separation format.
-// This goes on top of native [PaymentPromise] domain separation.
-func (p *PaymentPromise) SignBytesValidator() ([]byte, error) {
-	signBytes, err := p.SignBytes()
-	if err != nil {
-		return nil, fmt.Errorf("getting sign bytes: %w", err)
-	}
-	return core.RawBytesMessageSignBytes(p.ChainID, signBytesPrefix, signBytes)
-}
-
 // SignPaymentPromiseValidator signs the [PaymentPromise] using validator's private key behind [core.PrivValidator].
 func SignPaymentPromiseValidator(promise *PaymentPromise, privVal core.PrivValidator) ([]byte, error) {
-	signBytes, err := promise.SignBytes()
+	stripped, err := promise.strippedSignBytes()
 	if err != nil {
-		return nil, fmt.Errorf("getting sign bytes: %w", err)
+		return nil, fmt.Errorf("getting stripped sign bytes: %w", err)
 	}
 
-	signature, err := privVal.SignRawBytes(promise.ChainID, signBytesPrefix, signBytes)
+	signature, err := privVal.SignRawBytes(promise.ChainID, signBytesPrefix, stripped)
 	if err != nil {
 		return nil, fmt.Errorf("signing payment promise: %w", err)
 	}

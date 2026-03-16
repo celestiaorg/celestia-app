@@ -12,5 +12,7 @@ const (
 	// SubtreeRootThreshold.
 	//
 	// The rationale for this value is described in more detail in ADR-013.
+	//
+	// WARNING: DO NOT MODIFY. See pkg/appconsts/app_consts.go for details.
 	SubtreeRootThreshold int = 64
 )
