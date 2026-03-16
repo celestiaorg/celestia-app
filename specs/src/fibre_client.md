@@ -165,7 +165,19 @@ type Validator struct {
 * `ValTrackerModeLight`: use embedded light client to track headers/valsets.
 * `ValTrackerModeRPC`: use json-RPC to fetch headers/valsets from remote Light or Bridge node.
 
-## 5) Flows
+## 5) Proof Types
+
+The rsema1d codec provides three proof types used across Fibre flows. Each has different verification guarantees and trade-offs:
+
+| Proof Type | Used In | Verifies RLC? | Works For | Size |
+|---|---|---|---|---|
+| `RowProof` + `VerificationContext` | Upload (server-side DA sampling) | Yes | Original + Parity | `rowSize + O(log(K+N) × 32)` + context |
+| `StandaloneProof` | Single original row read | Yes | Original only | `rowSize + O(log(K+N) × 32) + O(log(K) × 32)` |
+| `RowInclusionProof` | Get/download flow | **No** | Original + Parity | `rowSize + O(log(K+N) × 32) + 32` |
+
+> **Caveat**: `RowInclusionProof` only proves that a row is included in the commitment. It does not prove that the row data is correctly encoded via RLC. A dishonest server could serve a row that passes inclusion verification but contains incorrect data. Clients MUST verify RLC correctness after reconstructing the full blob from K rows. This is acceptable for the Get flow because reconstruction inherently validates data integrity — if any row contains incorrect data, the reconstructed blob will not match the commitment.
+
+## 6) Flows
 
 ### Put()
 
@@ -188,15 +200,15 @@ type Validator struct {
 1. Get Valset: `vals, _ := vt.CurrentSet(ctx)`.
    * This could be a different validator set to the the validator set that actually has the shares. It probably won't be problematic because the validator sets will likely have a high degree of overlap and the erasure coding ensures enough redundancy
 2. Send `GetRowsRequest{commitment}` to FSPs in parallel (≤ `read_workers`).
-3. Collect `GetRowsResponse{rows[], rlc_orig_coefs}` from each FSP in parallel; Where rlc_orig_coefs should match only returned rows and have inclusion proofs. Verify all merkle proofs against `commitment`.
+3. Collect `DownloadShardResponse{shard}` from each FSP in parallel. Each `BlobShard` contains `rows[]` and `rlc_root` (32 bytes). For each received row, construct a `RowInclusionProof` from the row data, its Merkle proof, and the `rlc_root`. Verify each `RowInclusionProof` against `commitment` (i.e., Merkle path to `rowRoot` + `commitment == SHA256(rowRoot || rlcRoot)`). Note: this does **not** verify RLC correctness — a malicious server could serve rows that pass inclusion verification but contain incorrect data. RLC correctness is verified after reconstruction in step 4.
 4. Decode data once amount of collected rows > `original_rows`; cancel remaining ongoing requests. recompute & verify **RLC**.
 5. Return `data` or error.
 
-## 6) Account Management API (client ↔ DFSP)
+## 7) Account Management API (client ↔ DFSP)
 
 The client exposes `Account()` which returns an `AccountClient` bound to the **Default FSP (DFSP)** and mapped 1:1 to the server's `FibreAccount` gRPC service. Protobuf request/response messages and on‑chain semantics are defined by the payments spec (`x/fibre`); the client must not diverge.
 
-### 6.1 Transport & Routing
+### 7.1 Transport & Routing
 
 * **Endpoint**: DFSP gRPC connection from client config. **Best‑effort** relay policy (no obligation for any given FSP to accept beyond availability).
 * **Fallback**: if DFSP is unavailable, client MAY connect to any other FSP from config (same API).
@@ -206,7 +218,7 @@ The client exposes `Account()` which returns an `AccountClient` bound to the **D
   * `QueryEscrowAccount` & `PendingWithdrawals` are read‑only.
   * `Deposit`/`Withdraw` are **not** idempotent by default; callers must ensure they don't replay the same request.
 
-### 6.2 Grpc Requests & Responses
+### 7.2 Grpc Requests & Responses
 
 Use the Protobuf messages from the payments spec:
 
@@ -217,11 +229,11 @@ Use the Protobuf messages from the payments spec:
 
 TODO: Consider to include optional proofs for escrow state queries so clients can verify DFSP responses (or specify an alternative proof format). If proofs are provided, define verification rules here.
 
-### 6.3 Errors
+### 7.3 Errors
 
 TODO: Map gRPC status codes to client errors
 
-## 7) Client Defaults & Metrics
+## 8) Client Defaults & Metrics
 
 * `send_workers = 20`, `read_workers = 20`.
 * Metrics: encode latency, chosen `row_size`, per‑FSP upload latency, signatures collected, quorum time, PFF submit/inclusion, balance cache age, insufficient‑proofs processed.

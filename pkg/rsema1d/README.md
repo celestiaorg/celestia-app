@@ -5,7 +5,7 @@ RSEMA1D (Reed-Solomon Evans-Mohnblatt-Angeris 1D) is a high-performance data ava
 ## Features
 
 - **Vertical Reed-Solomon Extension**: Efficient encoding using Leopard codec over GF(2^16)
-- **Dual Proof System**: Optimized for different verification contexts (DA sampling vs. single row reads)
+- **Triple Proof System**: Optimized for different verification contexts (DA sampling, single row reads, bulk download)
 - **Arbitrary Parameters**: Supports any K and N values (non-power-of-2) with automatic padding
 - **128-bit Security**: Uses GF(2^128) for RLC forgery resistance
 - **Parallel Processing**: Built-in support for concurrent encoding/verification
@@ -51,10 +51,11 @@ func main() {
 
 ### Proof Generation and Verification
 
-This implementation provides two verification modes with different trade-offs:
+This implementation provides three verification modes with different trade-offs:
 
 - **Standalone**: Self-contained proofs for original rows, no external dependencies
 - **Context-based**: Requires pre-downloaded RLC values but verifies both original and extended rows efficiently
+- **Inclusion-only**: Verifies row membership in commitment without RLC correctness check; works for both original and parity rows; smallest proof size; used by Fibre Get flow
 
 #### Standalone Verification (Single Row Read)
 
@@ -97,6 +98,26 @@ if err != nil {
     panic(err)
 }
 ```
+
+#### Inclusion-Only Verification (Get/Download Flow)
+
+Best for verifying rows during bulk download when RLC correctness will be checked after reconstruction:
+
+```go
+// Generate inclusion proof for any row (original or parity)
+proof, err := extended.GenerateRowInclusionProof(rowIndex)
+if err != nil {
+    panic(err)
+}
+
+// Verify inclusion (no RLC context needed, only 32-byte rlcRoot)
+err = rsema1d.VerifyRowInclusionProof(proof, commitment, config)
+if err != nil {
+    panic(err)
+}
+```
+
+> **Caveat**: Inclusion proofs only verify that a row is part of the committed data (Merkle path to `rowRoot` + `commitment == SHA256(rowRoot || rlcRoot)`). They do **not** verify RLC correctness — a malicious server could serve a row that passes inclusion verification but contains incorrect data. The caller MUST verify RLC correctness after reconstructing the full blob from K rows.
 
 ### Data Reconstruction
 
@@ -157,6 +178,7 @@ type Config struct {
 - **Original rows (standalone)**: `rowSize + O(log(K+N) × 32)` bytes
 - **Original rows (with context)**: `rowSize + O(log(K+N) × 32)` bytes
 - **Extended rows (with context)**: `rowSize + O(log(K+N) × 32)` bytes
+- **Inclusion-only (any row)**: `rowSize + O(log(K+N) × 32) + 32` bytes
 - **Extended rows (standalone)**: Not supported (requires RLC original values)
 
 ### Memory Requirements
@@ -187,6 +209,14 @@ Applications reading specific rows:
 
 - Use standalone proofs for original rows
 - No additional downloads required
+
+### 4. Bulk Download (Fibre Get)
+
+Clients downloading blob data from multiple FSPs:
+
+- Use inclusion-only proofs to verify each row as it arrives
+- Verify RLC correctness after reconstructing the blob from K rows
+- Smallest proof size (only 32-byte rlcRoot added per proof)
 
 ## Testing
 

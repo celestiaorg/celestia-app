@@ -46,7 +46,7 @@ message GetRowsRequest {
 
 message GetRowsResponse {
   repeated RowWithProof rows = 1;                         // ALL rows this FSP holds for the commitment
-  RlcOrig rlc_orig = 2;
+  bytes rlc_root = 2;                                     // 32-byte Merkle root of RLC tree (enables RowInclusionProof)
   optional uint64 ttl = 3;
   optional uint32 backoff_ms = 10;
 }
@@ -151,7 +151,7 @@ service PaymentProcessor {
 1. Validate request (non-empty commitment).
 2. Lookup **all rows this FSP holds** for `commitment` across all stored PPs.
 3. If none: `NOT_FOUND` (ErrCommitmentNotFound).
-4. Return `rows` + `rlc_orig` and `ttl`/`backoff_ms` hints.
+4. Return `rows` + `rlc_root` (32-byte Merkle root of the RLC tree) and `ttl`/`backoff_ms` hints. The `rlc_root` enables clients to construct `RowInclusionProof` for each row without needing the full RLC coefficients.
 
 ### 2.3 Validator `SignBytes`
 
