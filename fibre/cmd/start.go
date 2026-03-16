@@ -48,7 +48,7 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		return fmt.Errorf("starting server: %w", err)
 	}
 
-	cfg.Log.Info("server started",
+	server.Config.Log.Info("server started",
 		"listen", server.ListenAddress(),
 		"app_grpc", cfg.AppGRPCAddress,
 		"chain_id", server.ChainID(),
@@ -65,6 +65,6 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		return fmt.Errorf("stopping server: %w", err)
 	}
 
-	cfg.Log.Info("server stopped")
+	server.Config.Log.Info("server stopped")
 	return nil
 }
