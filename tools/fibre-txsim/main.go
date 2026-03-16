@@ -106,7 +106,7 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 
 	// Create one worker per concurrent slot, each with its own account
 	workers := make([]worker, concurrency)
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
 
 		grpcConn, err := grpc.NewClient(
