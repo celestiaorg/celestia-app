@@ -95,10 +95,6 @@ func PutWithKey(ctx context.Context, c *Client, txClient *user.TxClient, ns shar
 		span.SetStatus(codes.Error, "failed to broadcast PayForFibre transaction")
 		return result, fmt.Errorf("broadcasting PayForFibre transaction: %w", err)
 	}
-	if broadcastResp == nil {
-		span.SetStatus(codes.Error, "nil response from BroadcastTx")
-		return result, fmt.Errorf("broadcasting PayForFibre transaction: received nil response")
-	}
 	span.AddEvent("pff_broadcasted", trace.WithAttributes(
 		attribute.String("pff_hash", broadcastResp.TxHash),
 	))
