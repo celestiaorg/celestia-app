@@ -5,6 +5,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user/utils"
@@ -23,10 +24,11 @@ type BroadcastHandler func(ctx context.Context, req *sdktx.BroadcastTxRequest) (
 
 type TxStatusHandler func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error)
 
-// mockTxServer implements both gRPC ServiceServer and TxServer interfaces for mocking broadcast and tx status responses
+// mockTxServer implements gRPC ServiceServer, TxServer, and GasEstimatorServer interfaces for mocking
 type mockTxServer struct {
 	sdktx.UnimplementedServiceServer
 	tx.UnimplementedTxServer
+	gasestimation.UnimplementedGasEstimatorServer
 	txStatusResponses   map[string][]*tx.TxStatusResponse // txHash with sequence of responses
 	txStatusCallCounts  map[string]int                    // txHash with number of TxStatus calls made
 	broadcastCallCounts map[string]int                    // txHash with number of BroadcastTx calls made
@@ -42,6 +44,13 @@ func (m *mockTxServer) TxStatus(ctx context.Context, req *tx.TxStatusRequest) (*
 
 func (m *mockTxServer) BroadcastTx(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
 	return m.broadcastHandler(ctx, req)
+}
+
+func (m *mockTxServer) EstimateGasPriceAndUsage(_ context.Context, _ *gasestimation.EstimateGasPriceAndUsageRequest) (*gasestimation.EstimateGasPriceAndUsageResponse, error) {
+	return &gasestimation.EstimateGasPriceAndUsageResponse{
+		EstimatedGasPrice: 0.002,
+		EstimatedGasUsed:  70000,
+	}, nil
 }
 
 // defaultTxStatusHandler implements the original default behavior for TxStatus
@@ -119,8 +128,9 @@ func createMockServer(t *testing.T, txStatusResponses map[string][]*tx.TxStatusR
 	// Set up in-memory gRPC server
 	lis := bufconn.Listen(1024 * 1024)
 	s := grpc.NewServer()
-	sdktx.RegisterServiceServer(s, mockServer) // For BroadcastTx
-	tx.RegisterTxServer(s, mockServer)         // For TxStatus
+	sdktx.RegisterServiceServer(s, mockServer)              // For BroadcastTx
+	tx.RegisterTxServer(s, mockServer)                      // For TxStatus
+	gasestimation.RegisterGasEstimatorServer(s, mockServer) // For gas estimation
 
 	go func() {
 		if err := s.Serve(lis); err != nil {
