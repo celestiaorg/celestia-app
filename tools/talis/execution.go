@@ -101,22 +101,32 @@ func waitForTmuxSessions(instances []Instance, sshKeyPath, sessionName string, t
 	for len(remaining) > 0 && time.Now().Before(deadline) {
 		time.Sleep(poll)
 
+		// Check all remaining validators in parallel
+		type result struct {
+			name     string
+			finished bool
+		}
+		results := make(chan result, len(remaining))
 		for name, inst := range remaining {
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-			ssh := exec.CommandContext(ctx,
-				"ssh",
-				"-i", sshKeyPath,
-				"-o", "StrictHostKeyChecking=no",
-				"-o", "UserKnownHostsFile=/dev/null",
-				fmt.Sprintf("root@%s", inst.PublicIP),
-				fmt.Sprintf("tmux has-session -t %s 2>/dev/null", sessionName),
-			)
-			err := ssh.Run()
-			cancel()
-			if err != nil {
-				// Session no longer exists — script finished
-				log.Printf("%s session finished on %s (%s)\n", sessionName, name, inst.PublicIP)
-				delete(remaining, name)
+			go func(name string, inst Instance) {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				ssh := exec.CommandContext(ctx,
+					"ssh",
+					"-i", sshKeyPath,
+					"-o", "StrictHostKeyChecking=no",
+					"-o", "UserKnownHostsFile=/dev/null",
+					fmt.Sprintf("root@%s", inst.PublicIP),
+					fmt.Sprintf("tmux has-session -t %s 2>/dev/null", sessionName),
+				)
+				results <- result{name: name, finished: ssh.Run() != nil}
+			}(name, inst)
+		}
+		for range len(remaining) {
+			r := <-results
+			if r.finished {
+				log.Printf("%s session finished on %s (%s)\n", sessionName, r.name, remaining[r.name].PublicIP)
+				delete(remaining, r.name)
 			}
 		}
 
