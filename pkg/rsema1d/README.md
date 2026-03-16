@@ -161,7 +161,7 @@ type Config struct {
 - **Field Arithmetic** (`field/`): GF(2^16) and GF(2^128) operations
 - **Encoding** (`encoding/`): Leopard Reed-Solomon codec wrapper
 - **Merkle Trees** (`merkle/`): Binary trees with RFC 6962-compatible formatting
-- **Proof System**: Dual verification paths for different use cases
+- **Proof System**: Triple verification paths for different use cases
 - **Commitment**: SHA-256 based with Fiat-Shamir coefficient derivation
 
 ### Security Properties
@@ -175,7 +175,7 @@ type Config struct {
 
 ### Proof Sizes
 
-- **Original rows (standalone)**: `rowSize + O(log(K+N) × 32)` bytes
+- **Original rows (standalone)**: `rowSize + O(log(K+N) × 32) + O(log(K) × 32)` bytes
 - **Original rows (with context)**: `rowSize + O(log(K+N) × 32)` bytes
 - **Extended rows (with context)**: `rowSize + O(log(K+N) × 32)` bytes
 - **Inclusion-only (any row)**: `rowSize + O(log(K+N) × 32) + 32` bytes

@@ -203,7 +203,7 @@ SignBytes = SHA256(
 
     * Persists `(commitment, valset_height)` buckets with:
 
-        * Assigned rows + `rlc_orig`,
+        * Assigned rows + `rlc_root`,
     * TTL GC based on `retention_ttl` (24h).
     * **Badger layout (v1):**
 
@@ -257,7 +257,7 @@ SignBytes = SHA256(
   * `pp/unprocessed/b/<YYYYMMDDHHmm>/<promise_hash>` → TTL bucket index
 
 * **Commitment data**
-  * `d/<commitment>/<valset_height>` → rows blob, rlc\_orig
+  * `d/<commitment>/<valset_height>` → rows blob, rlc\_root
   * `b/<YYYYMMDDHHmm>/<commitment>/<valset_height>` → TTL bucket index
 
 **Note:** `promise_hash = SHA256( PaymentPromise (canonical bytes) )`.
