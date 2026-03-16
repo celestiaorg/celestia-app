@@ -12,6 +12,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/app"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	"github.com/celestiaorg/celestia-app/v8/test/util/random"
@@ -94,6 +95,7 @@ func setupTxClientWithMockGRPCServerAndSigner(t *testing.T, responseSequences ma
 	s := grpc.NewServer()
 	sdktx.RegisterServiceServer(s, mockServer)
 	tx.RegisterTxServer(s, mockServer)
+	gasestimation.RegisterGasEstimatorServer(s, mockServer)
 
 	go func() {
 		if err := s.Serve(lis); err != nil {
