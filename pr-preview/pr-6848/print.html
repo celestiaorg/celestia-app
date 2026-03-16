@@ -3916,7 +3916,7 @@ Inputs: <code>seed = commitment</code>, <code>n = 16384</code>, validators <code
 <li><code>base = n // k</code>, <code>r = n % k</code>; first <code>r</code> in chosen validator order get <code>base+1</code>, others <code>base</code>.</li>
 <li>Walk permuted shares handing contiguous blocks to validators in that order.</li>
 </ol>
-<h2 id="6-valtracker"><a class="header" href="#6-valtracker">6) ValTracker</a></h2>
+<h2 id="5-valtracker"><a class="header" href="#5-valtracker">5) ValTracker</a></h2>
 <h3 id="api"><a class="header" href="#api">API</a></h3>
 <pre><code class="language-go">type ValTracker interface {
   // CurrentSet returns the validator set and height at the latest known block.
@@ -3938,7 +3938,7 @@ type Validator struct {
 <li><code>ValTrackerModeLight</code>: use embedded light client to track headers/valsets.</li>
 <li><code>ValTrackerModeRPC</code>: use json-RPC to fetch headers/valsets from remote Light or Bridge node.</li>
 </ul>
-<h2 id="5-proof-types"><a class="header" href="#5-proof-types">5) Proof Types</a></h2>
+<h2 id="6-proof-types"><a class="header" href="#6-proof-types">6) Proof Types</a></h2>
 <p>The rsema1d codec provides three proof types used across Fibre flows. Each has different verification guarantees and trade-offs:</p>
 <div class="table-wrapper"><table><thead><tr><th>Proof Type</th><th>Used In</th><th>Verifies RLC?</th><th>Works For</th><th>Size</th></tr></thead><tbody>
 <tr><td><code>RowProof</code> + <code>VerificationContext</code></td><td>Upload (server-side DA sampling)</td><td>Yes</td><td>Original + Parity</td><td><code>rowSize + O(log(K+N) × 32)</code> + context</td></tr>
@@ -3949,7 +3949,7 @@ type Validator struct {
 <blockquote>
 <p><strong>Caveat</strong>: <code>RowInclusionProof</code> only proves that a row is included in the commitment. It does not prove that the row data is correctly encoded via RLC. A dishonest server could serve a row that passes inclusion verification but contains incorrect data. Clients MUST verify RLC correctness after reconstructing the full blob from K rows. This is acceptable for the Get flow because reconstruction inherently validates data integrity — if any row contains incorrect data, the reconstructed blob will not match the commitment.</p>
 </blockquote>
-<h2 id="6-flows"><a class="header" href="#6-flows">6) Flows</a></h2>
+<h2 id="7-flows"><a class="header" href="#7-flows">7) Flows</a></h2>
 <h3 id="put"><a class="header" href="#put">Put()</a></h3>
 <ol>
 <li>Validate: <code>0 &lt; len(data) ≤ 128 MiB</code>. Enforce <code>row_size ∈ {64B * 2^n | ≤ 32 KiB}</code>.</li>
@@ -3973,13 +3973,13 @@ type Validator struct {
 </ul>
 </li>
 <li>Send <code>GetRowsRequest{commitment}</code> to FSPs in parallel (≤ <code>read_workers</code>).</li>
-<li>Collect <code>DownloadShardResponse{shard}</code> from each FSP in parallel. Each <code>BlobShard</code> contains <code>rows[]</code> and <code>rlc_root</code> (32 bytes). For each received row, construct a <code>RowInclusionProof</code> from the row data, its Merkle proof, and the <code>rlc_root</code>. Verify each <code>RowInclusionProof</code> against <code>commitment</code> (i.e., Merkle path to <code>rowRoot</code> + <code>commitment == SHA256(rowRoot || rlcRoot)</code>). Note: this does <strong>not</strong> verify RLC correctness — a malicious server could serve rows that pass inclusion verification but contain incorrect data. RLC correctness is verified after reconstruction in step 4.</li>
+<li>Collect <code>GetRowsResponse{rows[], rlc_root}</code> from each FSP in parallel. For each received row, construct a <code>RowInclusionProof</code> from the row data, its Merkle proof, and the <code>rlc_root</code> (32 bytes). Verify each <code>RowInclusionProof</code> against <code>commitment</code> (i.e., Merkle path to <code>rowRoot</code> + <code>commitment == SHA256(rowRoot || rlcRoot)</code>). Note: this does <strong>not</strong> verify RLC correctness — a malicious server could serve rows that pass inclusion verification but contain incorrect data. RLC correctness is verified after reconstruction in step 4.</li>
 <li>Decode data once amount of collected rows &gt; <code>original_rows</code>; cancel remaining ongoing requests. recompute &amp; verify <strong>RLC</strong>.</li>
 <li>Return <code>data</code> or error.</li>
 </ol>
-<h2 id="7-account-management-api-client--dfsp"><a class="header" href="#7-account-management-api-client--dfsp">7) Account Management API (client ↔ DFSP)</a></h2>
+<h2 id="8-account-management-api-client--dfsp"><a class="header" href="#8-account-management-api-client--dfsp">8) Account Management API (client ↔ DFSP)</a></h2>
 <p>The client exposes <code>Account()</code> which returns an <code>AccountClient</code> bound to the <strong>Default FSP (DFSP)</strong> and mapped 1:1 to the server's <code>FibreAccount</code> gRPC service. Protobuf request/response messages and on‑chain semantics are defined by the payments spec (<code>x/fibre</code>); the client must not diverge.</p>
-<h3 id="71-transport--routing"><a class="header" href="#71-transport--routing">7.1 Transport &amp; Routing</a></h3>
+<h3 id="81-transport--routing"><a class="header" href="#81-transport--routing">8.1 Transport &amp; Routing</a></h3>
 <ul>
 <li>
 <p><strong>Endpoint</strong>: DFSP gRPC connection from client config. <strong>Best‑effort</strong> relay policy (no obligation for any given FSP to accept beyond availability).</p>
@@ -3998,7 +3998,7 @@ type Validator struct {
 </ul>
 </li>
 </ul>
-<h3 id="72-grpc-requests--responses"><a class="header" href="#72-grpc-requests--responses">7.2 Grpc Requests &amp; Responses</a></h3>
+<h3 id="82-grpc-requests--responses"><a class="header" href="#82-grpc-requests--responses">8.2 Grpc Requests &amp; Responses</a></h3>
 <p>Use the Protobuf messages from the payments spec:</p>
 <ul>
 <li><code>QueryEscrowAccountRequest</code> → <code>QueryEscrowAccountResponse</code></li>
@@ -4007,9 +4007,9 @@ type Validator struct {
 <li><code>PendingWithdrawalsRequest</code> → <code>PendingWithdrawalsResponse</code></li>
 </ul>
 <p>TODO: Consider to include optional proofs for escrow state queries so clients can verify DFSP responses (or specify an alternative proof format). If proofs are provided, define verification rules here.</p>
-<h3 id="73-errors"><a class="header" href="#73-errors">7.3 Errors</a></h3>
+<h3 id="83-errors"><a class="header" href="#83-errors">8.3 Errors</a></h3>
 <p>TODO: Map gRPC status codes to client errors</p>
-<h2 id="8-client-defaults--metrics"><a class="header" href="#8-client-defaults--metrics">8) Client Defaults &amp; Metrics</a></h2>
+<h2 id="9-client-defaults--metrics"><a class="header" href="#9-client-defaults--metrics">9) Client Defaults &amp; Metrics</a></h2>
 <ul>
 <li><code>send_workers = 20</code>, <code>read_workers = 20</code>.</li>
 <li>Metrics: encode latency, chosen <code>row_size</code>, per‑FSP upload latency, signatures collected, quorum time, PFF submit/inclusion, balance cache age, insufficient‑proofs processed.</li>
@@ -4236,7 +4236,7 @@ service Fibre {
 <li>
 <p>Persists <code>(commitment, valset_height)</code> buckets with:</p>
 <ul>
-<li>Assigned rows + <code>rlc_orig</code>,</li>
+<li>Assigned rows + <code>rlc_root</code>,</li>
 </ul>
 </li>
 <li>
@@ -4316,7 +4316,7 @@ service Fibre {
 <li>
 <p><strong>Commitment data</strong></p>
 <ul>
-<li><code>d/&lt;commitment&gt;/&lt;valset_height&gt;</code> → rows blob, rlc_orig</li>
+<li><code>d/&lt;commitment&gt;/&lt;valset_height&gt;</code> → rows blob, rlc_root</li>
 <li><code>b/&lt;YYYYMMDDHHmm&gt;/&lt;commitment&gt;/&lt;valset_height&gt;</code> → TTL bucket index</li>
 </ul>
 </li>

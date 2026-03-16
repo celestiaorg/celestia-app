@@ -359,7 +359,7 @@ service Fibre {
 <li>
 <p>Persists <code>(commitment, valset_height)</code> buckets with:</p>
 <ul>
-<li>Assigned rows + <code>rlc_orig</code>,</li>
+<li>Assigned rows + <code>rlc_root</code>,</li>
 </ul>
 </li>
 <li>
@@ -439,7 +439,7 @@ service Fibre {
 <li>
 <p><strong>Commitment data</strong></p>
 <ul>
-<li><code>d/&lt;commitment&gt;/&lt;valset_height&gt;</code> → rows blob, rlc_orig</li>
+<li><code>d/&lt;commitment&gt;/&lt;valset_height&gt;</code> → rows blob, rlc_root</li>
 <li><code>b/&lt;YYYYMMDDHHmm&gt;/&lt;commitment&gt;/&lt;valset_height&gt;</code> → TTL bucket index</li>
 </ul>
 </li>
