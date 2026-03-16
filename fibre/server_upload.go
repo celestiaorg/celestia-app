@@ -92,7 +92,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	span.AddEvent("signature_generated")
 
 	s.Metrics.UploadShardTotal.WithLabelValues("success").Inc()
-	s.Metrics.UploadShardBytesTotal.Add(float64(promise.UploadSize))
+	s.Metrics.UploadShardBytesTotal.Add(float64(len(req.Shard.Rows)) * float64(len(req.Shard.Rows[0].Data)))
 	s.Metrics.UploadShardRowsTotal.Add(float64(len(req.Shard.Rows)))
 
 	log.DebugContext(ctx, "successful upload",

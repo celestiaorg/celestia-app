@@ -95,8 +95,11 @@ func setupFibreCmd() *cobra.Command {
 			if len(errs) > 0 {
 				return errors.Join(errs...)
 			}
+
 			fmt.Printf("Waiting for fibre setup to complete (%d accounts per validator)...\n", fibreAccounts)
-			time.Sleep(40 * time.Second)
+			if err := waitForTmuxSessions(cfg.Validators, resolvedSSHKeyPath, SetupFibreSessionName, 10*time.Minute); err != nil {
+				return fmt.Errorf("waiting for setup-fibre sessions: %w", err)
+			}
 			fmt.Println("Done!")
 			return nil
 		},

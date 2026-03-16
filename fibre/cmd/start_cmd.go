@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/celestiaorg/celestia-app/v8/fibre"
@@ -100,6 +101,12 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 				}
 				pvKeyFile := filepath.Join(appHome, "config", "priv_validator_key.json")
 				pvStateFile := filepath.Join(appHome, "data", "priv_validator_state.json")
+				if _, err := os.Stat(pvKeyFile); err != nil {
+					return fmt.Errorf("validator key file not found: %w", err)
+				}
+				if _, err := os.Stat(pvStateFile); err != nil {
+					return fmt.Errorf("validator state file not found: %w", err)
+				}
 				slog.Info("using file-based signer", "key", pvKeyFile, "state", pvStateFile)
 				filePV := privval.LoadFilePV(pvKeyFile, pvStateFile)
 				cfg.SignerFn = func(_ string) (core.PrivValidator, error) {
