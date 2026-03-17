@@ -130,6 +130,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		"signatures_collected", len(sigs),
 	)
 
+	c.metrics.uploadBytes.Add(ctx, int64(blob.UploadSize()))
 	c.metrics.uploadSigsCollected.Record(ctx, int64(len(sigs)))
 
 	span.SetStatus(codes.Ok, "")

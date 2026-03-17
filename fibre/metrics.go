@@ -11,6 +11,7 @@ type clientMetrics struct {
 	// Upload
 	uploadInFlight      metric.Int64UpDownCounter
 	uploadDuration      metric.Float64Histogram
+	uploadBytes         metric.Int64Counter
 	uploadSigsCollected metric.Int64Histogram
 
 	// Per-validator upload
@@ -20,6 +21,7 @@ type clientMetrics struct {
 	// Download
 	downloadInFlight metric.Int64UpDownCounter
 	downloadDuration metric.Float64Histogram
+	downloadBytes    metric.Int64Counter
 
 	// Per-validator download
 	downloadFromDuration   metric.Float64Histogram
@@ -51,6 +53,14 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload duration histogram: %w", err)
+	}
+
+	cm.uploadBytes, err = m.Int64Counter("fibre.client.upload.bytes",
+		metric.WithDescription("Total bytes uploaded"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload bytes counter: %w", err)
 	}
 
 	cm.uploadSigsCollected, err = m.Int64Histogram("fibre.client.upload.signatures_collected",
@@ -97,6 +107,14 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 		return nil, fmt.Errorf("creating download duration histogram: %w", err)
 	}
 
+	cm.downloadBytes, err = m.Int64Counter("fibre.client.download.bytes",
+		metric.WithDescription("Total bytes downloaded"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating download bytes counter: %w", err)
+	}
+
 	// Per-validator download metrics
 	cm.downloadFromDuration, err = m.Float64Histogram("fibre.client.download_from.duration",
 		metric.WithDescription("Duration of per-validator DownloadShard operations in seconds"),
@@ -141,10 +159,12 @@ type serverMetrics struct {
 	// UploadShard RPC
 	uploadShardInFlight metric.Int64UpDownCounter
 	uploadShardDuration metric.Float64Histogram
+	uploadShardBytes    metric.Int64Counter
 
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
 	downloadShardDuration metric.Float64Histogram
+	downloadShardBytes    metric.Int64Counter
 
 	// Store operations
 	storePutDuration metric.Float64Histogram
@@ -181,6 +201,14 @@ func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating upload_shard duration histogram: %w", err)
 	}
 
+	sm.uploadShardBytes, err = m.Int64Counter("fibre.server.upload_shard.bytes",
+		metric.WithDescription("Total bytes received via UploadShard RPCs"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard bytes counter: %w", err)
+	}
+
 	// DownloadShard RPC metrics
 	sm.downloadShardInFlight, err = m.Int64UpDownCounter("fibre.server.download_shard.in_flight",
 		metric.WithDescription("Number of DownloadShard RPCs currently being handled"),
@@ -196,6 +224,14 @@ func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating download_shard duration histogram: %w", err)
+	}
+
+	sm.downloadShardBytes, err = m.Int64Counter("fibre.server.download_shard.bytes",
+		metric.WithDescription("Total bytes sent via DownloadShard RPCs"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating download_shard bytes counter: %w", err)
 	}
 
 	// Store operation metrics

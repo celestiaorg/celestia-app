@@ -89,6 +89,7 @@ func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error
 		return nil, fmt.Errorf("reconstructing data: %w", err)
 	}
 
+	c.metrics.downloadBytes.Add(ctx, int64(blob.DataSize()))
 	c.log.DebugContext(ctx, "blob download completed successfully",
 		"blob_commitment", id.Commitment(),
 		"upload_size", blob.UploadSize(),

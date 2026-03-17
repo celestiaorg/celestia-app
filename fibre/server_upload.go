@@ -99,6 +99,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	}
 	span.AddEvent("signature_generated")
 
+	s.metrics.uploadShardBytes.Add(ctx, uploadSize)
 	log.DebugContext(ctx, "successful upload",
 		"upload_size", promise.UploadSize,
 		"rows_count", len(req.Shard.Rows),

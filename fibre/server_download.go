@@ -79,6 +79,7 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		shardSize += int64(len(row.Data))
 	}
 
+	s.metrics.downloadShardBytes.Add(ctx, shardSize)
 	s.log.InfoContext(ctx, "download successful",
 		"blob_commitment", id.Commitment().String(),
 		"rows", len(blobShard.Rows),
