@@ -97,13 +97,15 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 }
 
 // Select returns validators to download shards from, shuffled by stake for load balancing.
-// Returns all validators and the minimum count needed for reconstruction (covering livenessThreshold stake).
-func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fraction) (validators []*core.Validator, minRequired int) {
+// Validators before the split point have non-overlapping row assignments;
+// validators after it may share rows due to wrap-around.
+// Both groups are shuffled by stake so higher-stake validators are tried first.
+func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fraction) []*core.Validator {
 	if len(s.Validators) == 0 {
-		return nil, 0
+		return nil
 	}
 
-	validators = make([]*core.Validator, len(s.Validators))
+	validators := make([]*core.Validator, len(s.Validators))
 	copy(validators, s.Validators)
 
 	// find split point where row assignments start overlapping
@@ -128,20 +130,7 @@ func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fractio
 	shuffleByStake(validators[:splitIdx], rng)
 	shuffleByStake(validators[splitIdx:], rng)
 
-	// count validators needed to cover livenessThreshold stake
-	livenessNum := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
-	livenessDen := int64(livenessThreshold.Denominator)
-	livenessStake := (livenessNum + livenessDen - 1) / livenessDen // ceil to ensure enough rows for reconstruction
-	coveredStake := int64(0)
-	for _, v := range validators[:splitIdx] {
-		minRequired++
-		coveredStake += v.VotingPower
-		if coveredStake >= livenessStake {
-			break
-		}
-	}
-
-	return validators, minRequired
+	return validators
 }
 
 // shuffleByStake shuffles validators in-place using stake-weighted random selection.

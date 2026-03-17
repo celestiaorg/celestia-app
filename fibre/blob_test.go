@@ -93,7 +93,7 @@ func TestBlob_Reconstruct(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, row := range rows {
-			err = reconstructBlob.SetRow(row)
+			_, err = reconstructBlob.SetRow(row)
 			require.NoError(t, err)
 		}
 

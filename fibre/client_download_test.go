@@ -29,6 +29,8 @@ func TestClientDownload(t *testing.T) {
 		{"FaultTolerance", testClientDownloadFaultTolerance},
 		{"ContextCancellation", testClientDownloadContextCancellation},
 		{"ClosedClient", testClientDownloadClosedClient},
+		{"LargeValidatorFailure", testClientDownloadLargeValidatorFailure},
+		{"DynamicConcurrency", testClientDownloadDynamicConcurrency},
 	}
 
 	for _, tt := range tests {
@@ -97,8 +99,9 @@ func testClientDownloadClosedClient(t *testing.T) {
 }
 
 func testClientDownloadExactTargetCount(t *testing.T) {
-	// test that we download from exactly downloadTarget validators (no more)
-	// with 10 equal-stake validators and livenessThreshold=1/3, downloadTarget = 4
+	// test that we download from exactly the minimum validators needed (no more)
+	// with 10 equal-stake validators and livenessThreshold=1/3,
+	// each validator gets ~1229 rows, so 4 validators provide ~4916 rows >= 4096 originalRows
 	const numValidators = 10
 
 	blob := makeTestBlobV0(t, 256*1024)
@@ -113,14 +116,15 @@ func testClientDownloadExactTargetCount(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
-	// Select returns minRequired = 4 for 10 equal-stake validators with livenessThreshold=1/3
-	// we should have exactly 4 successful downloads (no over-fetching in happy path)
-	require.Equal(t, int64(4), counter.Load(), "should download from exactly downloadTarget validators")
+	// With 10 equal-stake validators, 4 provide enough rows for reconstruction.
+	// The coordinator should launch exactly 4 (inflight rows >= originalRows) in the happy path.
+	require.Equal(t, int64(4), counter.Load(), "should download from exactly the minimum validators needed")
 }
 
 func testClientDownloadFaultTolerance(t *testing.T) {
 	// test failure tolerance boundaries with 10 validators
-	// Select uses livenessThreshold (1/3), so downloadTarget = 4 for 10 equal-stake validators
+	// Each validator gets ~1229 rows out of 4096 originalRows needed.
+	// 3 successes yield ~3687 rows (< 4096), 4 successes yield ~4916 rows (>= 4096).
 	const numValidators = 10
 	blob := makeTestBlobV0(t, 256*1024)
 
@@ -129,8 +133,8 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 		expectErr error
 	}{
 		{10, fibre.ErrNotFound},
-		{7, fibre.ErrNotEnoughShards}, // 3 successes, need 4
-		{6, nil},                      // 4 successes, exactly enough
+		{7, fibre.ErrNotEnoughShards}, // 3 successes, ~3687 unique rows < 4096
+		{6, nil},                      // 4 successes, ~4916 unique rows >= 4096
 		{5, nil},                      // 5 successes, more than enough
 		{4, nil},                      // 6 successes, more than enough
 	}
@@ -153,8 +157,51 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 	}
 }
 
-// makeTestDownloadClient creates a download client that serves the given blobs.
-// numFailures specifies how many validators should fail (0 for none).
+func testClientDownloadLargeValidatorFailure(t *testing.T) {
+	// Test that when a large validator fails, small validators compensate.
+	// Stakes: 1 large (1000) + 9 small (100 each). Total: 1900.
+	// Large validator gets min(ceil(4096 * 1000 * 3 / 1900), 4096) = 4096 rows.
+	// Small validators get ceil(4096 * 100 * 3 / 1900) = 647 rows each.
+	// Select orders large validator first. When it fails, coordinator dynamically
+	// launches small validators until enough unique rows are collected.
+	// 7 small validators provide ~4529 unique rows >= 4096 originalRows.
+	blob := makeTestBlobV0(t, 256*1024)
+
+	stakes := []int64{1000, 100, 100, 100, 100, 100, 100, 100, 100, 100}
+	client := makeTestDownloadClientWithStakes(t, stakes, func(cfg *fibre.ClientConfig) {
+		// Fail first validator contacted (the large one)
+		cfg.NewClientFn = failingClientFn(1, cfg.NewClientFn)
+	}, blob)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	downloaded, err := client.Download(t.Context(), blob.ID())
+	require.NoError(t, err)
+	require.Equal(t, blob.Data(), downloaded.Data())
+}
+
+func testClientDownloadDynamicConcurrency(t *testing.T) {
+	// Verify that when early validators fail, more are dynamically contacted.
+	// With 3 failures out of 10, the coordinator should contact at least 7
+	// validators (3 failing + 4 succeeding) to collect enough rows.
+	const numValidators = 10
+	blob := makeTestBlobV0(t, 256*1024)
+
+	var counter *atomic.Int64
+	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
+		cfg.NewClientFn = failingClientFn(3, cfg.NewClientFn)
+		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
+	}, blob)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	downloaded, err := client.Download(t.Context(), blob.ID())
+	require.NoError(t, err)
+	require.Equal(t, blob.Data(), downloaded.Data())
+
+	// With 3 failures, at least 4 successful downloads are needed
+	require.GreaterOrEqual(t, counter.Load(), int64(4), "should have enough successful downloads to compensate for failures")
+}
+
+// makeTestDownloadClient creates a download client with equal-stake validators that serves the given blobs.
 func makeTestDownloadClient(
 	t *testing.T,
 	numValidators int,
@@ -162,15 +209,39 @@ func makeTestDownloadClient(
 	blobs ...*fibre.Blob,
 ) *fibre.Client {
 	t.Helper()
-
 	validators, privKeys := makeTestValidators(t, numValidators)
+	return makeTestDownloadClientFromValidators(t, validators, privKeys, customCfg, blobs...)
+}
+
+// makeTestDownloadClientWithStakes creates a download client with custom-stake validators.
+func makeTestDownloadClientWithStakes(
+	t *testing.T,
+	stakes []int64,
+	customCfg func(*fibre.ClientConfig),
+	blobs ...*fibre.Blob,
+) *fibre.Client {
+	t.Helper()
+	validators, privKeys := makeTestValidatorsWithStakes(t, stakes)
+	return makeTestDownloadClientFromValidators(t, validators, privKeys, customCfg, blobs...)
+}
+
+// makeTestDownloadClientFromValidators creates a download client from the given validators.
+func makeTestDownloadClientFromValidators(
+	t *testing.T,
+	validators []*core.Validator,
+	privKeys []cmted25519.PrivKey,
+	customCfg func(*fibre.ClientConfig),
+	blobs ...*fibre.Blob,
+) *fibre.Client {
+	t.Helper()
+
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
 	cfg := fibre.DefaultClientConfig()
-	cfg.NewClientFn = makeDownloadMockClientFn(validators, privKeys, blobs...)
+	cfg.NewClientFn = makeDownloadMockClientFn(valSet, cfg, privKeys, blobs...)
 	if customCfg != nil {
 		customCfg(&cfg)
 	}
 
-	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
 	cfg.StateClientFn = func() (state.Client, error) {
 		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
 	}
@@ -180,27 +251,32 @@ func makeTestDownloadClient(
 	return client
 }
 
-// makeDownloadMockClientFn creates a mock client function for download tests.
+// makeDownloadMockClientFn creates a mock client function that uses valSet.Assign()
+// for realistic row distribution matching the production code.
 func makeDownloadMockClientFn(
-	validators []*core.Validator,
+	valSet validator.Set,
+	cfg fibre.ClientConfig,
 	privKeys []cmted25519.PrivKey,
 	blobs ...*fibre.Blob,
-) func(context.Context, *core.Validator) (grpc.Client, error) {
+) grpc.NewClientFn {
+	// Build address -> privKey map for lookup regardless of validator ordering
+	privKeyByAddr := make(map[string]cmted25519.PrivKey)
+	for _, pk := range privKeys {
+		privKeyByAddr[pk.PubKey().Address().String()] = pk
+	}
+
 	return func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
-		valIdx := -1
-		for i, v := range validators {
-			if v.Address.String() == val.Address.String() {
-				valIdx = i
-				break
-			}
+		pk, ok := privKeyByAddr[val.Address.String()]
+		if !ok {
+			return nil, fmt.Errorf("validator not found: %s", val.Address)
 		}
 
 		client := &downloadMockClient{
-			validator:     val,
-			valIdx:        valIdx,
-			numValidators: len(validators),
-			privKey:       privKeys[valIdx],
-			blobs:         blobs,
+			validator: val,
+			privKey:   pk,
+			blobs:     blobs,
+			valSet:    valSet,
+			clientCfg: cfg,
 		}
 		return client, nil
 	}
@@ -209,11 +285,11 @@ func makeDownloadMockClientFn(
 // mock infrastructure
 
 type downloadMockClient struct {
-	validator     *core.Validator
-	valIdx        int
-	numValidators int
-	privKey       cmted25519.PrivKey
-	blobs         []*fibre.Blob
+	validator *core.Validator
+	privKey   cmted25519.PrivKey
+	blobs     []*fibre.Blob
+	valSet    validator.Set
+	clientCfg fibre.ClientConfig
 }
 
 func (d *downloadMockClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
@@ -238,17 +314,23 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 		return &types.DownloadShardResponse{}, nil
 	}
 
-	// determine which rows this validator should return
-	blobCfg := fibre.DefaultBlobConfigV0()
-	totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
+	// Use Assign to determine which rows this validator should return
+	blobCfg := blob.Config()
+	shardMap := d.valSet.Assign(
+		id.Commitment(),
+		blobCfg.TotalRows(),
+		blobCfg.OriginalRows,
+		d.clientCfg.MinRowsPerValidator,
+		d.clientCfg.LivenessThreshold,
+	)
 
-	var rowIndices []int
-	for i := range totalRows {
-		if i%d.numValidators == d.valIdx {
-			rowIndices = append(rowIndices, i)
-		}
+	// Find our validator in the set (for ShardMap key matching)
+	val, ok := d.valSet.GetByAddress(d.validator.Address)
+	if !ok {
+		return &types.DownloadShardResponse{}, nil
 	}
 
+	rowIndices := shardMap[val]
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
 	var rlcRoot [32]byte
 	for _, idx := range rowIndices {

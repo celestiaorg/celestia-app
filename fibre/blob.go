@@ -202,8 +202,14 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 }
 
 // SetRow adds and verifies [*rsema1d.RowInclusionProof] to the blob.
+// Returns (true, nil) when the row is new, (false, nil) when the row was already set (duplicate).
 // It is safe to call this method concurrently only for disjoint indices.
-func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) error {
+func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) (bool, error) {
+	// Skip if row already set (duplicate from overlapping assignment)
+	if d.rows[row.Index] != nil {
+		return false, nil
+	}
+
 	config := &rsema1d.Config{
 		K:           d.cfg.OriginalRows,
 		N:           d.cfg.ParityRows,
@@ -212,11 +218,11 @@ func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) error {
 	}
 	err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config)
 	if err != nil {
-		return fmt.Errorf("verifying row %d: %w", row.Index, err)
+		return false, fmt.Errorf("verifying row %d: %w", row.Index, err)
 	}
 
 	d.rows[row.Index] = row.Row
-	return nil
+	return true, nil
 }
 
 // Reconstruct checks the accumulated rows and reconstructs the original data.
