@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
@@ -20,6 +21,9 @@ import (
 
 // ErrStoreNotFound is returned when no shard is found for a [Commitment] in the [Store].
 var ErrStoreNotFound = errors.New("no shard found in store")
+
+// ErrStoreClosed is returned when a write is attempted after the store has started closing.
+var ErrStoreClosed = errors.New("store closed")
 
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
@@ -348,9 +352,18 @@ type writeBatcher struct {
 	ds            ds.Batching
 	requests      chan *writeRequest
 	done          chan struct{}
+	submitters    submitGate
 	maxPending    int
 	minPending    int
 	flushInterval time.Duration
+}
+
+type submitGate struct {
+	drained   chan struct{}
+	closeOnce sync.Once
+	mu        sync.Mutex
+	active    int
+	closed    bool
 }
 
 const (
@@ -364,8 +377,8 @@ func newWriteBatcher(store ds.Batching) *writeBatcher {
 	return newWriteBatcherWithOpts(
 		store,
 		defaultWriteBatcherQueueSize,
-		defaultWriteBatcherMaxPending,
 		defaultWriteBatcherMinPending,
+		defaultWriteBatcherMaxPending,
 		defaultWriteBatcherFlushDelay,
 	)
 }
@@ -378,9 +391,12 @@ func newWriteBatcherWithOpts(
 	flushInterval time.Duration,
 ) *writeBatcher {
 	wb := &writeBatcher{
-		ds:            store,
-		requests:      make(chan *writeRequest, queueSize),
-		done:          make(chan struct{}),
+		ds:       store,
+		requests: make(chan *writeRequest, queueSize),
+		done:     make(chan struct{}),
+		submitters: submitGate{
+			drained: make(chan struct{}),
+		},
 		maxPending:    maxPending,
 		minPending:    minPending,
 		flushInterval: flushInterval,
@@ -489,23 +505,79 @@ func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error 
 		result:  make(chan error, 1),
 	}
 
+	if !wb.tryAcquireSubmitter() {
+		return ErrStoreClosed
+	}
+	defer wb.releaseSubmitter()
+
 	select {
 	case wb.requests <- req:
 	case <-ctx.Done():
 		return ctx.Err()
 	}
 
-	select {
-	case err := <-req.result:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	// Once a write is queued, return the actual commit result instead of a later
+	// caller cancellation. This avoids reporting a failed Put after the data has
+	// already been durably written by the batcher.
+	return <-req.result
 }
 
 func (wb *writeBatcher) close() {
-	close(wb.requests)
-	<-wb.done
+	wb.submitters.closeAndWait(func() {
+		close(wb.requests)
+		<-wb.done
+	})
+}
+
+func (wb *writeBatcher) tryAcquireSubmitter() bool {
+	return wb.submitters.acquire()
+}
+
+func (wb *writeBatcher) releaseSubmitter() {
+	wb.submitters.release()
+}
+
+func (g *submitGate) acquire() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.closed {
+		return false
+	}
+
+	g.active++
+	return true
+}
+
+func (g *submitGate) release() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	g.active--
+	if g.closed && g.active == 0 {
+		close(g.drained)
+	}
+}
+
+func (g *submitGate) closeAndWait(fn func()) {
+	g.closeOnce.Do(func() {
+		g.mu.Lock()
+		g.closed = true
+		hasActive := g.active != 0
+		g.mu.Unlock()
+
+		if hasActive {
+			<-g.drained
+		}
+
+		fn()
+	})
+}
+
+func (g *submitGate) isClosed() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.closed
 }
 
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
