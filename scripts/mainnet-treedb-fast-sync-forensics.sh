@@ -134,6 +134,10 @@ PPROF_HTTP_URL="http://${PPROF_LADDR}"
 # - MAX_REMOTE_HEIGHT=<n>: clamp the remote height used for completion/lag to <= n.
 FREEZE_REMOTE_HEIGHT_AT_START="${FREEZE_REMOTE_HEIGHT_AT_START:-0}"
 MAX_REMOTE_HEIGHT="${MAX_REMOTE_HEIGHT:-}"
+# In clamped-target mode (freeze/max remote), allow completion once local height
+# reaches the computed target even if status still reports catching_up=true.
+# This avoids processing extra tip blocks beyond the requested comparison target.
+ALLOW_CLAMPED_TARGET_EARLY_EXIT="${ALLOW_CLAMPED_TARGET_EARLY_EXIT:-1}"
 
 ERROR_PATTERNS='valuelog: corrupt record|state sync failed|state sync aborted|failed to restore snapshot|IAVL node import failed|IAVL commit failed|panic:|fatal error'
 
@@ -1550,7 +1554,9 @@ while true; do
 
   REMOTE_HEIGHT_ACTUAL="${REMOTE_HEIGHT}"
   REMOTE_HEIGHT_EFFECTIVE="${REMOTE_HEIGHT}"
+  TARGET_CLAMPED_MODE=0
   if [ "${FREEZE_REMOTE_HEIGHT_AT_START}" = "1" ]; then
+    TARGET_CLAMPED_MODE=1
     if [ -z "${REMOTE_HEIGHT_START}" ]; then
       REMOTE_HEIGHT_START="${REMOTE_HEIGHT_EFFECTIVE}"
       log_info "Freezing remote height for completion at ${REMOTE_HEIGHT_START} (FREEZE_REMOTE_HEIGHT_AT_START=1)."
@@ -1559,6 +1565,7 @@ while true; do
     fi
   fi
   if [ -n "${MAX_REMOTE_HEIGHT}" ] && is_non_negative_int "${MAX_REMOTE_HEIGHT}"; then
+    TARGET_CLAMPED_MODE=1
     if [ "${REMOTE_HEIGHT_EFFECTIVE}" -gt "${MAX_REMOTE_HEIGHT}" ]; then
       REMOTE_HEIGHT_EFFECTIVE="${MAX_REMOTE_HEIGHT}"
     fi
@@ -1700,9 +1707,16 @@ while true; do
     fail_and_exit "No sync progress for ${STALLED_FOR}s (treating as stuck)."
   fi
 
-  if [ "${CATCHING_UP}" = "false" ] && [ "${LOCAL_HEIGHT}" -ge "${REMOTE_TARGET}" ]; then
-    SYNC_COMPLETE=1
-    break
+  if [ "${LOCAL_HEIGHT}" -ge "${REMOTE_TARGET}" ]; then
+    if [ "${CATCHING_UP}" = "false" ]; then
+      SYNC_COMPLETE=1
+      break
+    fi
+    if [ "${TARGET_CLAMPED_MODE}" -eq 1 ] && [ "${ALLOW_CLAMPED_TARGET_EARLY_EXIT}" = "1" ]; then
+      log_info "Reached clamped remote target with catching_up=true; treating as sync complete (allow_clamped_target_early_exit=1)."
+      SYNC_COMPLETE=1
+      break
+    fi
   fi
   sleep "${POLL_INTERVAL_SECONDS}"
 done
