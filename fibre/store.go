@@ -343,16 +343,21 @@ type writeRequest struct {
 	entries []batchEntry
 	result  chan error
 }
+
 type writeBatcher struct {
-	ds         ds.Batching
-	requests   chan *writeRequest
-	done       chan struct{}
-	maxPending int
+	ds            ds.Batching
+	requests      chan *writeRequest
+	done          chan struct{}
+	maxPending    int
+	minPending    int
+	flushInterval time.Duration
 }
 
 const (
 	defaultWriteBatcherQueueSize  = 4096
 	defaultWriteBatcherMaxPending = 512
+	defaultWriteBatcherMinPending = 64
+	defaultWriteBatcherFlushDelay = 1 * time.Millisecond
 )
 
 func newWriteBatcher(store ds.Batching) *writeBatcher {
@@ -360,15 +365,25 @@ func newWriteBatcher(store ds.Batching) *writeBatcher {
 		store,
 		defaultWriteBatcherQueueSize,
 		defaultWriteBatcherMaxPending,
+		defaultWriteBatcherMinPending,
+		defaultWriteBatcherFlushDelay,
 	)
 }
 
-func newWriteBatcherWithOpts(store ds.Batching, queueSize, maxPending int) *writeBatcher {
+func newWriteBatcherWithOpts(
+	store ds.Batching,
+	queueSize int,
+	minPending int,
+	maxPending int,
+	flushInterval time.Duration,
+) *writeBatcher {
 	wb := &writeBatcher{
-		ds:         store,
-		requests:   make(chan *writeRequest, queueSize),
-		done:       make(chan struct{}),
-		maxPending: maxPending,
+		ds:            store,
+		requests:      make(chan *writeRequest, queueSize),
+		done:          make(chan struct{}),
+		maxPending:    maxPending,
+		minPending:    minPending,
+		flushInterval: flushInterval,
 	}
 	go wb.run()
 	return wb
@@ -385,7 +400,22 @@ func (wb *writeBatcher) run() {
 
 		pending := make([]*writeRequest, 1, wb.maxPending)
 		pending[0] = first
-		pending = wb.drain(pending)
+
+		// Immediate drain (no waiting)
+		pending = wb.drain(pending, nil)
+
+		// If batch is still small, coalesce briefly
+		if len(pending) < wb.minPending && len(pending) < wb.maxPending {
+			timer := time.NewTimer(wb.flushInterval)
+			pending = wb.drain(pending, timer)
+
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+		}
 
 		err := wb.commitAll(pending)
 		for _, req := range pending {
@@ -394,16 +424,33 @@ func (wb *writeBatcher) run() {
 	}
 }
 
-// drain collects all currently queued requests without waiting.
-func (wb *writeBatcher) drain(pending []*writeRequest) []*writeRequest {
+// drain collects requests until:
+// - maxPending reached
+// - no immediate items (if timer == nil)
+// - timer fires
+// - channel closed
+func (wb *writeBatcher) drain(pending []*writeRequest, timer *time.Timer) []*writeRequest {
 	for len(pending) < wb.maxPending {
+		if timer == nil {
+			select {
+			case req, ok := <-wb.requests:
+				if !ok {
+					return pending
+				}
+				pending = append(pending, req)
+			default:
+				return pending
+			}
+			continue
+		}
+
 		select {
 		case req, ok := <-wb.requests:
 			if !ok {
 				return pending
 			}
 			pending = append(pending, req)
-		default:
+		case <-timer.C:
 			return pending
 		}
 	}
@@ -412,6 +459,7 @@ func (wb *writeBatcher) drain(pending []*writeRequest) []*writeRequest {
 
 func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
 	ctx := context.Background()
+
 	batch, err := wb.ds.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
@@ -425,12 +473,17 @@ func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
 		}
 	}
 
-	return batch.Commit(ctx)
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("committing batch: %w", err)
+	}
+	return nil
 }
 
-// submit sends a write request to the batcher and blocks until the coalesced
-// batch containing this request has been committed.
 func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
 	req := &writeRequest{
 		entries: entries,
 		result:  make(chan error, 1),

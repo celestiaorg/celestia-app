@@ -8,10 +8,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
-	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	ds "github.com/ipfs/go-datastore"
-	pebble "github.com/ipfs/go-ds-pebble"
 )
 
 // BenchmarkStorePut compares batched vs direct writes across shard sizes and concurrency.
@@ -34,7 +32,7 @@ func BenchmarkStorePut(b *testing.B) {
 		new  func(ds.Batching) blobSaver
 	}{
 		{"batched", func(d ds.Batching) blobSaver {
-			return newWriteBatcherWithOpts(d, 4096, 512)
+			return newWriteBatcherWithOpts(d, 4096, 128, 512, 1*time.Millisecond)
 		}},
 		{"direct", func(d ds.Batching) blobSaver { return newDirectWriter(d) }},
 	}
@@ -45,58 +43,6 @@ func BenchmarkStorePut(b *testing.B) {
 		for _, saver := range savers {
 			b.Run(fmt.Sprintf("%s/%s", tc.name, saver.name), func(b *testing.B) {
 				benchStorePut(b, entries, newPebbleBenchStore, saver.new)
-			})
-		}
-	}
-}
-
-// BenchmarkStorePutTuning sweeps Pebble and writeBatcher parameters to find the
-// optimal configuration for concurrent store.Put workloads.
-//
-// Run with: go test -bench=BenchmarkStorePutTuning -benchtime=3x -run='^$' -timeout=600s
-func BenchmarkStorePutTuning(b *testing.B) {
-	entries := makePutEntries(b, 1000, 148, 2048)
-
-	type pebbleCfg struct {
-		name       string
-		disableWAL bool
-		memTable   uint64 // bytes
-		memStop    int
-		compConc   [2]int // lower, upper
-		l0Stop     int
-	}
-
-	type batcherCfg struct {
-		name       string
-		maxPending int
-	}
-
-	pebbleConfigs := []pebbleCfg{
-		{"default", false, 16 << 20, 2, [2]int{1, 1}, 12},
-		{"mem64M", false, 64 << 20, 2, [2]int{1, 1}, 12},
-		{"memStop4", false, 16 << 20, 4, [2]int{1, 1}, 12},
-		{"comp4", false, 16 << 20, 2, [2]int{1, 4}, 12},
-		{"l0Stop24", false, 16 << 20, 2, [2]int{1, 1}, 24},
-	}
-
-	batcherConfigs := []batcherCfg{
-		{"mp128", 128},
-		{"mp512", 512},
-	}
-
-	for _, pc := range pebbleConfigs {
-		for _, bc := range batcherConfigs {
-			name := fmt.Sprintf("pebble_%s/batcher_%s", pc.name, bc.name)
-			pc := pc
-			bc := bc
-			b.Run(name, func(b *testing.B) {
-				newStore := func(b *testing.B) *Store {
-					return newTunedPebbleStore(b, pc.disableWAL, pc.memTable, pc.memStop, pc.compConc, pc.l0Stop)
-				}
-				newSaver := func(d ds.Batching) blobSaver {
-					return newWriteBatcherWithOpts(d, 4096, bc.maxPending)
-				}
-				benchStorePut(b, entries, newStore, newSaver)
 			})
 		}
 	}
@@ -140,8 +86,6 @@ func benchStorePut(b *testing.B, entries []putEntry, newStore func(*testing.B) *
 	b.StopTimer()
 }
 
-// --- Store constructors ---
-
 func newPebbleBenchStore(b *testing.B) *Store {
 	b.Helper()
 	cfg := DefaultStoreConfig()
@@ -152,48 +96,6 @@ func newPebbleBenchStore(b *testing.B) *Store {
 	}
 	return s
 }
-
-func newTunedPebbleStore(b *testing.B, disableWAL bool, memTableSize uint64, memTableStop int, compConc [2]int, l0Stop int) *Store {
-	b.Helper()
-
-	opts := &pebbledb.Options{
-		DisableWAL:                  disableWAL,
-		MemTableSize:                memTableSize,
-		MemTableStopWritesThreshold: memTableStop,
-		L0CompactionThreshold:       4,
-		L0StopWritesThreshold:       l0Stop,
-		LBaseMaxBytes:               64 << 20,
-	}
-
-	lower, upper := compConc[0], compConc[1]
-	opts.CompactionConcurrencyRange = func() (int, int) { return lower, upper }
-
-	opts.Experimental.ValueSeparationPolicy = func() pebbledb.ValueSeparationPolicy {
-		return pebbledb.ValueSeparationPolicy{
-			Enabled:               true,
-			MinimumSize:           4096,
-			MaxBlobReferenceDepth: 4,
-			TargetGarbageRatio:    0.3,
-			RewriteMinimumAge:     0,
-		}
-	}
-
-	cfg := DefaultStoreConfig()
-	cfg.Path = b.TempDir()
-
-	pds, err := pebble.NewDatastore(cfg.Path, pebble.WithPebbleOpts(opts))
-	if err != nil {
-		b.Fatal(err)
-	}
-
-	return &Store{
-		cfg:   cfg,
-		ds:    pds,
-		saver: newDirectWriter(pds), // placeholder, benchStorePut swaps it
-	}
-}
-
-// --- Data generation ---
 
 func makePutEntries(b *testing.B, n, rowCount, rowSize int) []putEntry {
 	b.Helper()
