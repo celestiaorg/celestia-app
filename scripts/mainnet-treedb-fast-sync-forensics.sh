@@ -132,8 +132,10 @@ PPROF_HTTP_URL="http://${PPROF_LADDR}"
 # - FREEZE_REMOTE_HEIGHT_AT_START=1: stop when the node reaches the remote height
 #   observed at the start of monitoring (ignores subsequent remote growth).
 # - MAX_REMOTE_HEIGHT=<n>: clamp the remote height used for completion/lag to <= n.
+# - STOP_AT_LOCAL_HEIGHT=<n>: stop once local height reaches this explicit target.
 FREEZE_REMOTE_HEIGHT_AT_START="${FREEZE_REMOTE_HEIGHT_AT_START:-0}"
 MAX_REMOTE_HEIGHT="${MAX_REMOTE_HEIGHT:-}"
+STOP_AT_LOCAL_HEIGHT="${STOP_AT_LOCAL_HEIGHT:-}"
 # In clamped-target mode (freeze/max remote), allow completion once local height
 # reaches the computed target even if status still reports catching_up=true.
 # This avoids processing extra tip blocks beyond the requested comparison target.
@@ -879,6 +881,23 @@ elif [ "${MAX_SEEDS}" -gt 0 ]; then
   SEEDS="$(limit_peer_csv "${SEEDS}" "${MAX_SEEDS}")"
 fi
 
+if [ "${FREEZE_REMOTE_HEIGHT_AT_START}" != "0" ] && [ "${FREEZE_REMOTE_HEIGHT_AT_START}" != "1" ]; then
+  log_error "FREEZE_REMOTE_HEIGHT_AT_START must be 0 or 1 (got: ${FREEZE_REMOTE_HEIGHT_AT_START})."
+  exit 1
+fi
+if [ "${ALLOW_CLAMPED_TARGET_EARLY_EXIT}" != "0" ] && [ "${ALLOW_CLAMPED_TARGET_EARLY_EXIT}" != "1" ]; then
+  log_error "ALLOW_CLAMPED_TARGET_EARLY_EXIT must be 0 or 1 (got: ${ALLOW_CLAMPED_TARGET_EARLY_EXIT})."
+  exit 1
+fi
+if [ -n "${MAX_REMOTE_HEIGHT}" ] && ! is_non_negative_int "${MAX_REMOTE_HEIGHT}"; then
+  log_error "MAX_REMOTE_HEIGHT must be a non-negative integer when set (got: ${MAX_REMOTE_HEIGHT})."
+  exit 1
+fi
+if [ -n "${STOP_AT_LOCAL_HEIGHT}" ] && ! is_non_negative_int "${STOP_AT_LOCAL_HEIGHT}"; then
+  log_error "STOP_AT_LOCAL_HEIGHT must be a non-negative integer when set (got: ${STOP_AT_LOCAL_HEIGHT})."
+  exit 1
+fi
+
 log_info "Bootstrap peers: persistent=$(count_peer_csv "${PEERS}") seeds=$(count_peer_csv "${SEEDS}") use_net_info_peers=${USE_NET_INFO_PEERS} use_seeds=${USE_SEEDS}"
 
 export HOME_DIR SEEDS PEERS P2P_LADDR RPC_LADDR PPROF_LADDR DB_BACKEND
@@ -1101,10 +1120,14 @@ HEAP_CAPTURE_COUNT=0
   echo "home=${HOME_DIR}"
 	  echo "db_backend=${DB_BACKEND}"
 	  echo "app_db_backend=${APP_DB_BACKEND}"
-	  echo "treedb_force_checkpoint_on_write=${TREEDB_FORCE_CHECKPOINT_ON_WRITE:-0}"
-	  echo "treedb_required_outer_leaf_mode=${TREEDB_REQUIRED_OUTER_LEAF_MODE:-}"
-	  echo "treemap_bin=${TREEMAP_BIN:-auto}"
-	  echo "start_home_bytes=${START_HOME_BYTES}"
+  echo "treedb_force_checkpoint_on_write=${TREEDB_FORCE_CHECKPOINT_ON_WRITE:-0}"
+  echo "treedb_required_outer_leaf_mode=${TREEDB_REQUIRED_OUTER_LEAF_MODE:-}"
+  echo "treemap_bin=${TREEMAP_BIN:-auto}"
+  echo "freeze_remote_height_at_start=${FREEZE_REMOTE_HEIGHT_AT_START}"
+  echo "max_remote_height=${MAX_REMOTE_HEIGHT:-disabled}"
+  echo "allow_clamped_target_early_exit=${ALLOW_CLAMPED_TARGET_EARLY_EXIT}"
+  echo "stop_at_local_height=${STOP_AT_LOCAL_HEIGHT:-disabled}"
+  echo "start_home_bytes=${START_HOME_BYTES}"
   echo "start_data_bytes=${START_DATA_BYTES}"
   echo "start_app_bytes=${START_APP_BYTES}"
   echo "start_blockstore_bytes=${START_BLOCKSTORE_BYTES}"
@@ -1528,6 +1551,11 @@ while true; do
     PREV_LOCAL_HEIGHT="${LOCAL_HEIGHT}"
     START_LOCAL_HEIGHT="${LOCAL_HEIGHT}"
     PROGRESS_EPOCH="$(date +%s)"
+  fi
+  if [ -n "${STOP_AT_LOCAL_HEIGHT}" ] && [ "${LOCAL_HEIGHT}" -ge "${STOP_AT_LOCAL_HEIGHT}" ]; then
+    log_info "Reached explicit local-height stop target (stop_at_local_height=${STOP_AT_LOCAL_HEIGHT}, local=${LOCAL_HEIGHT}); treating as sync complete."
+    SYNC_COMPLETE=1
+    break
   fi
 
   REMOTE_STATUS="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/status" 2>/dev/null || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/status" 2>/dev/null || true)"
