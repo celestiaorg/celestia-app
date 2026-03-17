@@ -38,17 +38,52 @@ then
 fi
 
 CHAIN_ID="celestia"
-RPC1="https://celestia.rpc.kjnodes.com"
-RPC2="https://celestia-rpc.polkachu.com:443"
+RPC1="${RPC1:-https://celestia.rpc.kjnodes.com}"
+RPC2="${RPC2:-https://celestia-rpc.publicnode.com:443}"
 CURL_OPTS=(--max-time 10 --connect-timeout 5 --retry 3 --retry-delay 2)
+# Bootstrap artifacts (genesis/peers/seeds) can be large (genesis is ~80MiB).
+# Keep these tunable so we can fail fast to cached fallback on flaky networks.
+BOOTSTRAP_MAX_TIME_SECONDS="${BOOTSTRAP_MAX_TIME_SECONDS:-45}"
+BOOTSTRAP_CONNECT_TIMEOUT_SECONDS="${BOOTSTRAP_CONNECT_TIMEOUT_SECONDS:-5}"
+BOOTSTRAP_RETRY_COUNT="${BOOTSTRAP_RETRY_COUNT:-2}"
+BOOTSTRAP_RETRY_DELAY_SECONDS="${BOOTSTRAP_RETRY_DELAY_SECONDS:-1}"
+# Modes:
+# - prefer_fallback (default): use the most recent local cached artifact first.
+# - remote_first: try remote fetch first, then fallback on failure.
+BOOTSTRAP_FETCH_MODE="${BOOTSTRAP_FETCH_MODE:-prefer_fallback}"
+BOOTSTRAP_CURL_OPTS=(
+  --max-time "${BOOTSTRAP_MAX_TIME_SECONDS}"
+  --connect-timeout "${BOOTSTRAP_CONNECT_TIMEOUT_SECONDS}"
+  --retry "${BOOTSTRAP_RETRY_COUNT}"
+  --retry-delay "${BOOTSTRAP_RETRY_DELAY_SECONDS}"
+)
 LOCAL_CURL_OPTS=(--max-time 3 --connect-timeout 1)
-LOCAL_RPC="http://127.0.0.1:36657"
-P2P_LADDR="tcp://0.0.0.0:36656"
-RPC_LADDR="tcp://127.0.0.1:36657"
+# Networking can be overridden via either full listen/addrs or per-port env vars.
+# Defaults stay on the 36xxx range so this script can coexist with services on
+# the common 26xxx ports.
+P2P_PORT="${P2P_PORT:-36656}"
+RPC_PORT="${RPC_PORT:-36657}"
+P2P_BIND_HOST="${P2P_BIND_HOST:-0.0.0.0}"
+RPC_BIND_HOST="${RPC_BIND_HOST:-127.0.0.1}"
+LOCAL_RPC_HOST="${LOCAL_RPC_HOST:-127.0.0.1}"
+LOCAL_RPC="${LOCAL_RPC:-http://${LOCAL_RPC_HOST}:${RPC_PORT}}"
+P2P_LADDR="${P2P_LADDR:-tcp://${P2P_BIND_HOST}:${P2P_PORT}}"
+RPC_LADDR="${RPC_LADDR:-tcp://${RPC_BIND_HOST}:${RPC_PORT}}"
 PPROF_LADDR="localhost:6062"
 DB_BACKEND="${DB_BACKEND:-treedb}"
 APP_DB_BACKEND="${APP_DB_BACKEND:-${DB_BACKEND}}"
+TREEMAP_BIN="${TREEMAP_BIN:-}"
+# TreeDB no longer guarantees a stable "mode=" banner field. If you want to
+# enforce an exact mode value (only when the banner includes it), set this env
+# var explicitly. Leaving it empty only asserts that the TreeDB open banner
+# exists (and avoids false failures when mode is not logged).
+TREEDB_REQUIRED_OUTER_LEAF_MODE="${TREEDB_REQUIRED_OUTER_LEAF_MODE:-}"
 EXTERNAL_ADDRESS="${EXTERNAL_ADDRESS:-}"
+USE_NET_INFO_PEERS="${USE_NET_INFO_PEERS:-1}"
+# Prefer persistent peers over seeds for bootstrap. Keep seeds optional/fallback.
+MAX_PERSISTENT_PEERS="${MAX_PERSISTENT_PEERS:-120}"
+USE_SEEDS="${USE_SEEDS:-0}"
+MAX_SEEDS="${MAX_SEEDS:-20}"
 
 # TreeDB trace capture (opt-in via TREEDB_TRACE_PATH).
 TREEDB_TRACE_PATH="${TREEDB_TRACE_PATH:-}"
@@ -78,11 +113,35 @@ LOG_ERROR_SCAN_LINES="${LOG_ERROR_SCAN_LINES:-300}"
 NO_PROGRESS_HARD_FAIL_SECONDS="${NO_PROGRESS_HARD_FAIL_SECONDS:-3600}"
 ACTIVE_RESTORE_CPU_THRESHOLD="${ACTIVE_RESTORE_CPU_THRESHOLD:-85}"
 ACTIVE_RESTORE_GRACE_SECONDS="${ACTIVE_RESTORE_GRACE_SECONDS:-900}"
+ACTIVE_RESTORE_APP_GROWTH_BYTES="${ACTIVE_RESTORE_APP_GROWTH_BYTES:-16777216}"
+ACTIVE_RESTORE_APP_GROWTH_CHECK_SECONDS="${ACTIVE_RESTORE_APP_GROWTH_CHECK_SECONDS:-30}"
+KEEP_RECENT_RUNS="${KEEP_RECENT_RUNS:-8}"
 CAPTURE_PPROF_ON_STUCK="${CAPTURE_PPROF_ON_STUCK:-1}"
+# By default we only capture pprof artifacts (goroutines + short CPU profile)
+# when we decide a run is failing or when granting active-restore grace. Enable
+# this to collect the same artifacts for periodic warn-stuck reports too.
+CAPTURE_PPROF_ON_WARN_STUCK="${CAPTURE_PPROF_ON_WARN_STUCK:-0}"
+# Optional: proactively capture pprof artifacts (goroutines + short CPU profile)
+# when statesync reaches a specific chunk number (e.g. 67), even if we never
+# cross the stuck threshold.
+CAPTURE_PPROF_ON_STATESYNC_CHUNK="${CAPTURE_PPROF_ON_STATESYNC_CHUNK:-}"
 PPROF_SAMPLE_SECONDS="${PPROF_SAMPLE_SECONDS:-8}"
 PPROF_HTTP_URL="http://${PPROF_LADDR}"
 
+# Benchmarking/forensics knobs to stabilize A/B comparisons.
+# - FREEZE_REMOTE_HEIGHT_AT_START=1: stop when the node reaches the remote height
+#   observed at the start of monitoring (ignores subsequent remote growth).
+# - MAX_REMOTE_HEIGHT=<n>: clamp the remote height used for completion/lag to <= n.
+FREEZE_REMOTE_HEIGHT_AT_START="${FREEZE_REMOTE_HEIGHT_AT_START:-0}"
+MAX_REMOTE_HEIGHT="${MAX_REMOTE_HEIGHT:-}"
+
 ERROR_PATTERNS='valuelog: corrupt record|state sync failed|state sync aborted|failed to restore snapshot|IAVL node import failed|IAVL commit failed|panic:|fatal error'
+
+# Optional memory profiling (pprof heap) capture while RSS climbs.
+CAPTURE_HEAP_ON_MAX_RSS="${CAPTURE_HEAP_ON_MAX_RSS:-1}"
+# Capture heap once RSS climbs by at least this many KiB (default: 2 GiB).
+HEAP_CAPTURE_RSS_DELTA_KB="${HEAP_CAPTURE_RSS_DELTA_KB:-2097152}"
+HEAP_CAPTURE_MAX_FILES="${HEAP_CAPTURE_MAX_FILES:-16}"
 
 log_info() {
   echo "[$(date +%H:%M:%S)] INFO  $*"
@@ -465,6 +524,38 @@ append_treedb_trace_report() {
   fi
 }
 
+prune_old_run_homes() {
+  local keep_raw="${1:-0}"
+  local keep=0
+  if ! is_non_negative_int "${keep_raw}"; then
+    log_warn "KEEP_RECENT_RUNS must be a non-negative integer (got: ${keep_raw}); skipping prune."
+    return 0
+  fi
+  keep="${keep_raw}"
+  if [ "${keep}" -le 0 ]; then
+    return 0
+  fi
+
+  local run_homes=()
+  local removed=0
+  mapfile -t run_homes < <(ls -1dt "${HOME}"/.celestia-app-mainnet-* 2>/dev/null || true)
+  if [ "${#run_homes[@]}" -le "${keep}" ]; then
+    return 0
+  fi
+
+  for dir in "${run_homes[@]:${keep}}"; do
+    if [ -n "${dir}" ] && [ -d "${dir}" ]; then
+      rm -rf -- "${dir}" 2>/dev/null || true
+      removed=$((removed + 1))
+    fi
+  done
+  if [ "${removed}" -gt 0 ]; then
+    log_info "Pruned ${removed} old run homes (keep_recent_runs=${keep})."
+  fi
+}
+
+prune_old_run_homes "${KEEP_RECENT_RUNS}"
+
 mkdir -p "${LOG_DIR}"
 DIAG_DIR="${LOG_DIR}/diagnostics"
 mkdir -p "${DIAG_DIR}"
@@ -513,20 +604,36 @@ if ! is_positive_int "${MAX_REMOTE_RPC_FAILURES}"; then
 fi
 
 fallback_home=""
-for dir in "${HOME}"/.celestia-app-mainnet-*; do
+while IFS= read -r dir; do
   if [ -f "${dir}/config/genesis.json" ]; then
     fallback_home="${dir}"
     break
   fi
-done
+done < <(ls -dt "${HOME}"/.celestia-app-mainnet-* 2>/dev/null || true)
+
+copy_bootstrap_fallback() {
+  local fallback="$1"
+  local dest="$2"
+  if [ -n "${fallback}" ] && [ -f "${fallback}" ]; then
+    cp "${fallback}" "${dest}"
+    return 0
+  fi
+  return 1
+}
 
 fetch_or_copy() {
   local url="$1"
   local dest="$2"
   local fallback="$3"
-  if ! curl -fsSL "${CURL_OPTS[@]}" "${url}" -o "${dest}"; then
-    if [ -n "${fallback}" ] && [ -f "${fallback}" ]; then
-      cp "${fallback}" "${dest}"
+
+  if [ "${BOOTSTRAP_FETCH_MODE}" = "prefer_fallback" ] && copy_bootstrap_fallback "${fallback}" "${dest}"; then
+    log_info "Bootstrap: seeded $(basename "${dest}") from fallback ${fallback_home}."
+    return 0
+  fi
+
+  if ! curl -fsSL "${BOOTSTRAP_CURL_OPTS[@]}" "${url}" -o "${dest}"; then
+    if copy_bootstrap_fallback "${fallback}" "${dest}"; then
+      log_warn "Bootstrap: remote fetch failed for $(basename "${dest}"); using fallback ${fallback_home}."
       return 0
     fi
     return 1
@@ -600,17 +707,175 @@ print(",".join(out))
 PY
 }
 
+limit_peer_csv() {
+  local raw="${1:-}"
+  local max_peers="${2:-0}"
+  PEER_CSV_RAW="${raw}" PEER_CSV_MAX="${max_peers}" python3 - <<'PY'
+import os
+
+raw = os.environ.get("PEER_CSV_RAW", "")
+try:
+    max_peers = int(os.environ.get("PEER_CSV_MAX", "0"))
+except Exception:
+    max_peers = 0
+
+if max_peers <= 0:
+    print(raw)
+    raise SystemExit(0)
+
+out = []
+for token in (part.strip() for part in raw.split(",")):
+    if not token:
+        continue
+    out.append(token)
+    if len(out) >= max_peers:
+        break
+
+print(",".join(out))
+PY
+}
+
+merge_peer_csv() {
+  PEER_CSV_A="${1:-}" PEER_CSV_B="${2:-}" python3 - <<'PY'
+import os
+
+a = os.environ.get("PEER_CSV_A", "")
+b = os.environ.get("PEER_CSV_B", "")
+seen = set()
+out = []
+for raw in (a, b):
+    for token in (part.strip() for part in raw.split(",")):
+        if not token:
+            continue
+        if token in seen:
+            continue
+        seen.add(token)
+        out.append(token)
+print(",".join(out))
+PY
+}
+
+count_peer_csv() {
+  local raw="${1:-}"
+  PEER_CSV_RAW="${raw}" python3 - <<'PY'
+import os
+raw = os.environ.get("PEER_CSV_RAW", "")
+count = sum(1 for token in (part.strip() for part in raw.split(",")) if token)
+print(count)
+PY
+}
+
+extract_net_info_peers() {
+  local rpc_url="$1"
+  local json
+  local tmp_json
+  json="$(curl -fsSL "${CURL_OPTS[@]}" "${rpc_url}/net_info" 2>/dev/null || true)"
+  if [ -z "${json}" ]; then
+    echo ""
+    return 0
+  fi
+  tmp_json="$(mktemp)"
+  printf '%s' "${json}" > "${tmp_json}"
+  python3 - "${tmp_json}" <<'PY'
+import ipaddress
+import json
+import sys
+import re
+
+with open(sys.argv[1], "r", encoding="utf-8") as fh:
+    raw = fh.read()
+try:
+    data = json.loads(raw)
+except Exception:
+    print("")
+    raise SystemExit(0)
+
+peers = ((data.get("result") or {}).get("peers") or [])
+seen = set()
+out = []
+for peer in peers:
+    node = (peer.get("node_info") or {})
+    node_id = str(node.get("id") or "").strip()
+    remote_ip = str(peer.get("remote_ip") or "").strip()
+    listen_addr = str(node.get("listen_addr") or "").strip()
+    if not node_id or not remote_ip:
+        continue
+
+    # Use remote_ip for dialing and infer port from listen_addr.
+    port_match = re.search(r"([0-9]{2,5})$", listen_addr)
+    if not port_match:
+        continue
+    port = port_match.group(1)
+    try:
+        port_i = int(port)
+    except Exception:
+        continue
+    if port_i < 1 or port_i > 65535:
+        continue
+
+    host = remote_ip.strip("[]")
+    try:
+        ip = ipaddress.ip_address(host)
+        if (
+            ip.is_unspecified
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_private
+            or ip.is_reserved
+            or ip.is_multicast
+        ):
+            continue
+        host_norm = f"[{host}]" if ip.version == 6 else host
+    except Exception:
+        # If remote_ip isn't parseable as an IP, skip it for safety.
+        continue
+
+    token = f"{node_id}@{host_norm}:{port_i}"
+    if token in seen:
+        continue
+    seen.add(token)
+    out.append(token)
+
+print(",".join(out))
+PY
+  rm -f "${tmp_json}"
+}
+
 SEEDS="$(normalize_peer_csv "${SEEDS}")"
 PEERS="$(normalize_peer_csv "${PEERS}")"
 
-NET_INFO_JSON="$(curl -fsSL "${CURL_OPTS[@]}" "${RPC1}/net_info" 2>/dev/null || curl -fsSL "${CURL_OPTS[@]}" "${RPC2}/net_info" 2>/dev/null || true)"
-if [ -n "${NET_INFO_JSON}" ]; then
-  NET_INFO_PEERS="$(echo "${NET_INFO_JSON}" | jq -r '[(.result.peers // [])[] | .node_info.id + "@" + .remote_ip + ":" + (.node_info.listen_addr | split(":") | last)] | join(",")' 2>/dev/null || true)"
-  NET_INFO_PEERS="$(normalize_peer_csv "${NET_INFO_PEERS}")"
-  if [ -n "${NET_INFO_PEERS}" ]; then
-    PEERS="${NET_INFO_PEERS}"
-  fi
+if [ "${USE_NET_INFO_PEERS}" = "1" ]; then
+  NET_INFO_PEERS_1="$(extract_net_info_peers "${RPC1}")"
+  NET_INFO_PEERS_2="$(extract_net_info_peers "${RPC2}")"
+  NET_INFO_PEERS_1="$(normalize_peer_csv "${NET_INFO_PEERS_1}")"
+  NET_INFO_PEERS_2="$(normalize_peer_csv "${NET_INFO_PEERS_2}")"
+  PEERS="$(merge_peer_csv "${PEERS}" "${NET_INFO_PEERS_1}")"
+  PEERS="$(merge_peer_csv "${PEERS}" "${NET_INFO_PEERS_2}")"
 fi
+
+if ! is_non_negative_int "${MAX_PERSISTENT_PEERS}"; then
+  log_error "MAX_PERSISTENT_PEERS must be a non-negative integer (got: ${MAX_PERSISTENT_PEERS})."
+  exit 1
+fi
+if [ "${MAX_PERSISTENT_PEERS}" -gt 0 ]; then
+  PEERS="$(limit_peer_csv "${PEERS}" "${MAX_PERSISTENT_PEERS}")"
+fi
+
+if [ "${USE_SEEDS}" != "0" ] && [ "${USE_SEEDS}" != "1" ]; then
+  log_error "USE_SEEDS must be 0 or 1 (got: ${USE_SEEDS})."
+  exit 1
+fi
+if ! is_non_negative_int "${MAX_SEEDS}"; then
+  log_error "MAX_SEEDS must be a non-negative integer (got: ${MAX_SEEDS})."
+  exit 1
+fi
+if [ "${USE_SEEDS}" = "0" ]; then
+  SEEDS=""
+elif [ "${MAX_SEEDS}" -gt 0 ]; then
+  SEEDS="$(limit_peer_csv "${SEEDS}" "${MAX_SEEDS}")"
+fi
+
+log_info "Bootstrap peers: persistent=$(count_peer_csv "${PEERS}") seeds=$(count_peer_csv "${SEEDS}") use_net_info_peers=${USE_NET_INFO_PEERS} use_seeds=${USE_SEEDS}"
 
 export HOME_DIR SEEDS PEERS P2P_LADDR RPC_LADDR PPROF_LADDR DB_BACKEND
 python3 - <<'PY'
@@ -680,22 +945,26 @@ if count == 0:
 app_path.write_text(data)
 PY
 
-if ! LATEST="$(fetch_remote_latest_height)"; then
-  log_error "Failed to fetch latest block height from both remote RPCs."
-  exit 1
-fi
-if ! is_non_negative_int "${LATEST}"; then
-  log_error "Invalid latest block height from remote RPCs: '${LATEST}'."
-  exit 1
-fi
-if [ "${LATEST}" -le 2000 ]; then
-  log_error "Remote latest block height '${LATEST}' is too low to derive trust_height."
-  exit 1
-fi
-TRUST_HEIGHT=$((LATEST - 2000))
-if ! TRUST_HASH="$(fetch_trust_hash "${TRUST_HEIGHT}")"; then
-  log_error "Failed to fetch trust hash for height ${TRUST_HEIGHT} from both remote RPCs."
-  exit 1
+if [ -n "${TRUST_HEIGHT:-}" ] && [ -n "${TRUST_HASH:-}" ]; then
+  log_info "Using TRUST_HEIGHT/TRUST_HASH from environment: height=${TRUST_HEIGHT}"
+else
+  if ! LATEST="$(fetch_remote_latest_height)"; then
+    log_error "Failed to fetch latest block height from both remote RPCs."
+    exit 1
+  fi
+  if ! is_non_negative_int "${LATEST}"; then
+    log_error "Invalid latest block height from remote RPCs: '${LATEST}'."
+    exit 1
+  fi
+  if [ "${LATEST}" -le 2000 ]; then
+    log_error "Remote latest block height '${LATEST}' is too low to derive trust_height."
+    exit 1
+  fi
+  TRUST_HEIGHT=$((LATEST - 2000))
+  if ! TRUST_HASH="$(fetch_trust_hash "${TRUST_HEIGHT}")"; then
+    log_error "Failed to fetch trust hash for height ${TRUST_HEIGHT} from both remote RPCs."
+    exit 1
+  fi
 fi
 
 export HOME_DIR RPC1 RPC2 TRUST_HEIGHT TRUST_HASH
@@ -730,18 +999,18 @@ cfg_path = Path(os.environ["HOME_DIR"]) / "config" / "config.toml"
 data = cfg_path.read_text()
 
 replacements = [
-    (r"(?m)^max_open_connections\s*=.*$", "max_open_connections = 900", "max_open_connections"),
-    (r"(?m)^max_num_inbound_peers\s*=.*$", "max_num_inbound_peers = 100", "max_num_inbound_peers"),
-    (r"(?m)^max_num_outbound_peers\s*=.*$", "max_num_outbound_peers = 150", "max_num_outbound_peers"),
-    (r"(?m)^upnp\s*=.*$", "upnp = true", "upnp"),
-    (r"(?m)^handshake_timeout\s*=.*$", "handshake_timeout = \"20s\"", "handshake_timeout"),
-    (r"(?m)^dial_timeout\s*=.*$", "dial_timeout = \"3s\"", "dial_timeout"),
-    (r"(?m)^addr_book_strict\s*=.*$", "addr_book_strict = true", "addr_book_strict"),
-    (r"(?m)^allow_duplicate_ip\s*=.*$", "allow_duplicate_ip = false", "allow_duplicate_ip"),
+    (r"(?m)^max_open_connections\s*=.*$", "max_open_connections = 900", "max_open_connections", True),
+    (r"(?m)^max_num_inbound_peers\s*=.*$", "max_num_inbound_peers = 100", "max_num_inbound_peers", True),
+    (r"(?m)^max_num_outbound_peers\s*=.*$", "max_num_outbound_peers = 150", "max_num_outbound_peers", True),
+    (r"(?m)^upnp\s*=.*$", "upnp = true", "upnp", False),
+    (r"(?m)^handshake_timeout\s*=.*$", "handshake_timeout = \"20s\"", "handshake_timeout", True),
+    (r"(?m)^dial_timeout\s*=.*$", "dial_timeout = \"3s\"", "dial_timeout", True),
+    (r"(?m)^addr_book_strict\s*=.*$", "addr_book_strict = true", "addr_book_strict", True),
+    (r"(?m)^allow_duplicate_ip\s*=.*$", "allow_duplicate_ip = false", "allow_duplicate_ip", True),
 ]
-for pattern, value, name in replacements:
+for pattern, value, name, required in replacements:
     data, count = re.subn(pattern, value, data)
-    if count == 0:
+    if count == 0 and required:
         raise SystemExit(f"Failed to update config.toml ({name}).")
 
 external_address = os.environ.get("EXTERNAL_ADDRESS", "")
@@ -813,8 +1082,12 @@ START_HOME_BYTES="$(safe_du_bytes "${HOME_DIR}")"
 START_DATA_BYTES="$(safe_du_bytes "${HOME_DIR}/data")"
 START_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/application.db")"
 START_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore.db")"
+LAST_APP_BYTES="${START_APP_BYTES}"
+LAST_APP_GROWTH_EPOCH="${START_EPOCH}"
 MAX_RSS_KB=0
 MAX_HWM_KB=0
+LAST_HEAP_CAPTURE_RSS_KB=0
+HEAP_CAPTURE_COUNT=0
 {
   echo "start_utc=${START_TS}"
   echo "rpc1=${RPC1}"
@@ -822,9 +1095,12 @@ MAX_HWM_KB=0
   echo "trust_height=${TRUST_HEIGHT}"
   echo "trust_hash=${TRUST_HASH}"
   echo "home=${HOME_DIR}"
-  echo "db_backend=${DB_BACKEND}"
-  echo "app_db_backend=${APP_DB_BACKEND}"
-  echo "start_home_bytes=${START_HOME_BYTES}"
+	  echo "db_backend=${DB_BACKEND}"
+	  echo "app_db_backend=${APP_DB_BACKEND}"
+	  echo "treedb_force_checkpoint_on_write=${TREEDB_FORCE_CHECKPOINT_ON_WRITE:-0}"
+	  echo "treedb_required_outer_leaf_mode=${TREEDB_REQUIRED_OUTER_LEAF_MODE:-}"
+	  echo "treemap_bin=${TREEMAP_BIN:-auto}"
+	  echo "start_home_bytes=${START_HOME_BYTES}"
   echo "start_data_bytes=${START_DATA_BYTES}"
   echo "start_app_bytes=${START_APP_BYTES}"
   echo "start_blockstore_bytes=${START_BLOCKSTORE_BYTES}"
@@ -839,6 +1115,47 @@ MAX_HWM_KB=0
 } >> "${TIME_LOG}"
 
 NODE_PID=""
+
+capture_heap_profile() {
+  local reason="$1"
+  local rss_kb="${2:-}"
+  if [ "${CAPTURE_HEAP_ON_MAX_RSS}" != "1" ]; then
+    return 0
+  fi
+  if ! is_non_negative_int "${HEAP_CAPTURE_MAX_FILES}"; then
+    return 0
+  fi
+  if [ "${HEAP_CAPTURE_COUNT}" -ge "${HEAP_CAPTURE_MAX_FILES}" ]; then
+    return 0
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! command -v go >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! curl -fsS --max-time 5 "${PPROF_HTTP_URL}/debug/pprof/" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  local ts
+  ts="$(date +%Y%m%d%H%M%S)"
+  local heap_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.pprof"
+  local top_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.top.txt"
+  local smaps_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.smaps_rollup.txt"
+
+  curl -fsS --max-time 20 "${PPROF_HTTP_URL}/debug/pprof/heap" > "${heap_file}" 2>/dev/null || true
+  if [ -s "${heap_file}" ]; then
+    go tool pprof -top "${APPD_BIN}" "${heap_file}" > "${top_file}" 2>/dev/null || true
+    if [ -r "/proc/${NODE_PID}/smaps_rollup" ]; then
+      cat "/proc/${NODE_PID}/smaps_rollup" > "${smaps_file}" 2>/dev/null || true
+    fi
+    HEAP_CAPTURE_COUNT=$((HEAP_CAPTURE_COUNT + 1))
+  else
+    rm -f "${heap_file}" 2>/dev/null || true
+  fi
+}
+
 cleanup_node() {
   if [ -n "${NODE_PID:-}" ] && kill -0 "${NODE_PID}" >/dev/null 2>&1; then
     kill -INT "${NODE_PID}" >/dev/null 2>&1 || true
@@ -863,14 +1180,67 @@ fail_and_exit() {
   exit 1
 }
 
-has_recent_node_error() {
+assert_treedb_outer_leaf_mode() {
+  if [ "${APP_DB_BACKEND}" != "treedb" ]; then
+    return
+  fi
+  # TreeDB no longer logs a stable open banner by default. Only enforce this
+  # check when explicitly requested (legacy forensics knob).
+  if [ -z "${TREEDB_REQUIRED_OUTER_LEAF_MODE:-}" ]; then
+    return
+  fi
+  local banner
+  local mode
+  local tries=0
+  local max_tries=30
+  while true; do
+    tries=$((tries + 1))
+    banner="$(rg -n "treedb open banner" "${NODE_LOG}" 2>/dev/null \
+      | tail -n 1 \
+      || true)"
+    if [ -n "${banner}" ]; then
+      break
+    fi
+    if [ "${tries}" -ge "${max_tries}" ]; then
+      break
+    fi
+    sleep 1
+  done
+  if [ -z "${banner}" ]; then
+    fail_and_exit "TreeDB open banner check failed: could not find treedb open banner in ${NODE_LOG}"
+  fi
+  mode="$(echo "${banner}" | sed -nE 's/.*mode=([^ ]+).*/\\1/p' || true)"
+  if [ -z "${mode}" ]; then
+    fail_and_exit "TreeDB open banner mode check failed: required=${TREEDB_REQUIRED_OUTER_LEAF_MODE} actual=(missing mode= in banner)"
+  fi
+  if [ "${mode}" != "${TREEDB_REQUIRED_OUTER_LEAF_MODE}" ]; then
+    fail_and_exit "TreeDB open banner mode check failed: required=${TREEDB_REQUIRED_OUTER_LEAF_MODE} actual=${mode}"
+  fi
+  log_info "TreeDB open banner mode validated: ${mode} (required=${TREEDB_REQUIRED_OUTER_LEAF_MODE})"
+}
+
+LAST_ERROR_SCAN_LINE=0
+
+has_new_node_error() {
   if [ ! -f "${NODE_LOG}" ]; then
     return 1
   fi
+  local total_lines
+  total_lines="$(wc -l < "${NODE_LOG}" 2>/dev/null || echo 0)"
+  if ! is_non_negative_int "${total_lines}"; then
+    return 1
+  fi
+  if [ "${total_lines}" -le "${LAST_ERROR_SCAN_LINE}" ]; then
+    return 1
+  fi
+  local start_line=$((LAST_ERROR_SCAN_LINE + 1))
+  LAST_ERROR_SCAN_LINE="${total_lines}"
   if [ "${HAVE_RG}" -eq 1 ]; then
-    tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | rg -n -i -e "${ERROR_PATTERNS}" >/dev/null 2>&1
+    sed -n "${start_line},${total_lines}p" "${NODE_LOG}" 2>/dev/null \
+      | rg -n -i -e "${ERROR_PATTERNS}" >/dev/null 2>&1
   else
-    tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null | grep -E -i -n "${ERROR_PATTERNS}" >/dev/null 2>&1
+    sed -n "${start_line},${total_lines}p" "${NODE_LOG}" 2>/dev/null \
+      | grep -E -i -n "${ERROR_PATTERNS}" >/dev/null 2>&1
   fi
 }
 
@@ -978,9 +1348,10 @@ capture_stuck_diagnostics() {
   local cpu_top_file="${DIAG_DIR}/stuck-cpu-top-${stamp}.txt"
   local trace_report_file="${DIAG_DIR}/treedb-trace-${reason}-${stamp}.log"
   local stage_summary
+  local report_path_display="${report_file}"
   stage_summary="$(sync_stage_from_marker "${LAST_SYNC_MARKER}")"
 
-  {
+  if ! {
     echo "timestamp_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     echo "reason=${reason}"
     echo "stalled_for_seconds=${stalled_for}"
@@ -1019,40 +1390,48 @@ capture_stuck_diagnostics() {
     else
       echo "pidstat unavailable"
     fi
-  } > "${report_file}"
+  } > "${report_file}" 2>/dev/null; then
+    log_warn "Diagnostics report write failed (likely low disk space): ${report_file}"
+    report_path_display=""
+    report_file="/dev/null"
+  fi
 
   tail -n "${LOG_ERROR_SCAN_LINES}" "${NODE_LOG}" 2>/dev/null \
     | strip_ansi \
     | grep -E "Applied snapshot chunk to ABCI app|Fetching snapshot chunk|Snapshot accepted, restoring|Offering snapshot to ABCI app|Starting state sync|Discovered new snapshot|state sync|statesync|executed block|finalizing commit of block|committed state|Upgrading IAVL storage" \
-    | tail -n 120 > "${statesync_file}" || true
+    | tail -n 120 > "${statesync_file}" 2>/dev/null || true
 
   {
     echo
     echo "statesync_markers_file=${statesync_file}"
-  } >> "${report_file}"
+  } >> "${report_file}" 2>/dev/null || true
 
   if [ "${with_pprof}" = "1" ] && [ "${CAPTURE_PPROF_ON_STUCK}" = "1" ]; then
     if curl -fsS --max-time 5 "${PPROF_HTTP_URL}/debug/pprof/" >/dev/null 2>&1; then
       curl -fsS --max-time 10 "${PPROF_HTTP_URL}/debug/pprof/goroutine?debug=1" > "${goroutine_file}" 2>/dev/null || true
       if [ -s "${goroutine_file}" ]; then
-        echo "pprof_goroutine_file=${goroutine_file}" >> "${report_file}"
+        echo "pprof_goroutine_file=${goroutine_file}" >> "${report_file}" 2>/dev/null || true
       fi
       curl -fsS --max-time $((PPROF_SAMPLE_SECONDS + 8)) "${PPROF_HTTP_URL}/debug/pprof/profile?seconds=${PPROF_SAMPLE_SECONDS}" > "${cpu_profile_file}" 2>/dev/null || true
       if [ -s "${cpu_profile_file}" ] && command -v go >/dev/null 2>&1; then
         go tool pprof -top "${APPD_BIN}" "${cpu_profile_file}" > "${cpu_top_file}" 2>/dev/null || true
         if [ -s "${cpu_top_file}" ]; then
-          echo "pprof_cpu_profile_file=${cpu_profile_file}" >> "${report_file}"
-          echo "pprof_cpu_top_file=${cpu_top_file}" >> "${report_file}"
+          echo "pprof_cpu_profile_file=${cpu_profile_file}" >> "${report_file}" 2>/dev/null || true
+          echo "pprof_cpu_top_file=${cpu_top_file}" >> "${report_file}" 2>/dev/null || true
         fi
       fi
     else
-      echo "pprof_unavailable=true" >> "${report_file}"
+      echo "pprof_unavailable=true" >> "${report_file}" 2>/dev/null || true
     fi
   fi
 
   append_treedb_trace_report "${report_file}" "${reason}" "${trace_report_file}"
 
-  log_warn "Diagnostics captured: ${report_file}"
+  if [ -n "${report_path_display}" ]; then
+    log_warn "Diagnostics captured: ${report_path_display}"
+  else
+    log_warn "Diagnostics capture skipped (insufficient disk space)."
+  fi
 }
 
 is_active_restore() {
@@ -1066,6 +1445,7 @@ is_active_restore() {
   fi
   [[ "${marker}" == *"snapshot chunk"* ]] && return 0
   [[ "${marker}" == *"Snapshot accepted, restoring"* ]] && return 0
+  [[ "${marker}" == *"Discovered new snapshot"* ]] && return 0
   [[ "${marker}" == *"Upgrading IAVL storage"* ]] && return 0
   return 1
 }
@@ -1093,9 +1473,12 @@ until curl -fsSL "${LOCAL_CURL_OPTS[@]}" "${LOCAL_RPC}/status" >/dev/null 2>&1; 
   sleep 2
 done
 log_info "Local RPC is ready."
+assert_treedb_outer_leaf_mode
 
 LOCAL_HEIGHT=0
 REMOTE_HEIGHT=0
+REMOTE_HEIGHT_START=""
+REMOTE_HEIGHT_ACTUAL=""
 CATCHING_UP=true
 PREV_LOCAL_HEIGHT=-1
 START_LOCAL_HEIGHT=0
@@ -1106,6 +1489,7 @@ LOCAL_RPC_FAILURES=0
 REMOTE_RPC_FAILURES=0
 SYNC_COMPLETE=0
 ACTIVE_RESTORE_GRACE_USED=0
+STATESYNC_PPROF_CAPTURED=0
 
 log_info "Monitoring sync progress..."
 while true; do
@@ -1113,7 +1497,7 @@ while true; do
     fail_and_exit "Node process exited while syncing."
   fi
 
-  if has_recent_node_error; then
+  if has_new_node_error; then
     log_error "Detected fatal node error in recent logs:"
     print_recent_error_matches
     fail_and_exit "Sync aborted by node error."
@@ -1163,6 +1547,24 @@ while true; do
     continue
   fi
   REMOTE_RPC_FAILURES=0
+
+  REMOTE_HEIGHT_ACTUAL="${REMOTE_HEIGHT}"
+  REMOTE_HEIGHT_EFFECTIVE="${REMOTE_HEIGHT}"
+  if [ "${FREEZE_REMOTE_HEIGHT_AT_START}" = "1" ]; then
+    if [ -z "${REMOTE_HEIGHT_START}" ]; then
+      REMOTE_HEIGHT_START="${REMOTE_HEIGHT_EFFECTIVE}"
+      log_info "Freezing remote height for completion at ${REMOTE_HEIGHT_START} (FREEZE_REMOTE_HEIGHT_AT_START=1)."
+    elif [ "${REMOTE_HEIGHT_EFFECTIVE}" -gt "${REMOTE_HEIGHT_START}" ]; then
+      REMOTE_HEIGHT_EFFECTIVE="${REMOTE_HEIGHT_START}"
+    fi
+  fi
+  if [ -n "${MAX_REMOTE_HEIGHT}" ] && is_non_negative_int "${MAX_REMOTE_HEIGHT}"; then
+    if [ "${REMOTE_HEIGHT_EFFECTIVE}" -gt "${MAX_REMOTE_HEIGHT}" ]; then
+      REMOTE_HEIGHT_EFFECTIVE="${MAX_REMOTE_HEIGHT}"
+    fi
+  fi
+  REMOTE_HEIGHT="${REMOTE_HEIGHT_EFFECTIVE}"
+
   REMOTE_TARGET=$((REMOTE_HEIGHT - 2))
   if [ "${REMOTE_TARGET}" -lt 0 ]; then
     REMOTE_TARGET=0
@@ -1186,6 +1588,15 @@ while true; do
   fi
   if [ -n "${RSS_KB}" ] && [ "${RSS_KB}" -gt "${MAX_RSS_KB}" ]; then
     MAX_RSS_KB="${RSS_KB}"
+    if is_non_negative_int "${HEAP_CAPTURE_RSS_DELTA_KB}" && [ "${HEAP_CAPTURE_RSS_DELTA_KB}" -gt 0 ]; then
+      if [ -z "${LAST_HEAP_CAPTURE_RSS_KB}" ] || ! is_non_negative_int "${LAST_HEAP_CAPTURE_RSS_KB}"; then
+        LAST_HEAP_CAPTURE_RSS_KB=0
+      fi
+      if [ $((RSS_KB - LAST_HEAP_CAPTURE_RSS_KB)) -ge "${HEAP_CAPTURE_RSS_DELTA_KB}" ]; then
+        capture_heap_profile "max-rss" "${RSS_KB}"
+        LAST_HEAP_CAPTURE_RSS_KB="${RSS_KB}"
+      fi
+    fi
   fi
   if [ -n "${HWM_KB}" ] && [ "${HWM_KB}" -gt "${MAX_HWM_KB}" ]; then
     MAX_HWM_KB="${HWM_KB}"
@@ -1204,7 +1615,11 @@ while true; do
       ELAPSED=1
     fi
     RATE="$(awk "BEGIN { printf \"%.2f\", ${TOTAL_DELTA}/${ELAPSED} }")"
-    log_info "Progress: local=${LOCAL_HEIGHT} remote=${REMOTE_HEIGHT} lag=${LAG} catching_up=${CATCHING_UP} (+${DELTA}, avg=${RATE} blk/s, cpu=${NODE_CPU:-n/a}%, rss=${RSS_KB:-n/a}k)"
+    if [ -n "${REMOTE_HEIGHT_ACTUAL}" ] && [ "${REMOTE_HEIGHT_ACTUAL}" -ne "${REMOTE_HEIGHT}" ]; then
+      log_info "Progress: local=${LOCAL_HEIGHT} remote=${REMOTE_HEIGHT} (actual=${REMOTE_HEIGHT_ACTUAL}) lag=${LAG} catching_up=${CATCHING_UP} (+${DELTA}, avg=${RATE} blk/s, cpu=${NODE_CPU:-n/a}%, rss=${RSS_KB:-n/a}k)"
+    else
+      log_info "Progress: local=${LOCAL_HEIGHT} remote=${REMOTE_HEIGHT} lag=${LAG} catching_up=${CATCHING_UP} (+${DELTA}, avg=${RATE} blk/s, cpu=${NODE_CPU:-n/a}%, rss=${RSS_KB:-n/a}k)"
+    fi
     PREV_LOCAL_HEIGHT="${LOCAL_HEIGHT}"
     PROGRESS_EPOCH="${NOW_EPOCH}"
     LAST_STUCK_REPORT_EPOCH=0
@@ -1225,6 +1640,30 @@ while true; do
         SNAPSHOT_HEIGHT="${BASH_REMATCH[1]}"
       fi
       log_info "State-sync activity: snapshot_height=${SNAPSHOT_HEIGHT} chunk=${CHUNK_NUM}/${CHUNK_TOTAL} local=${LOCAL_HEIGHT}"
+
+      if [ "${STATESYNC_PPROF_CAPTURED}" -eq 0 ] \
+        && is_positive_int "${CAPTURE_PPROF_ON_STATESYNC_CHUNK:-}" \
+        && [ "${CHUNK_NUM}" -eq "${CAPTURE_PPROF_ON_STATESYNC_CHUNK}" ]; then
+        STATESYNC_PPROF_CAPTURED=1
+        capture_stuck_diagnostics "statesync-chunk-${CHUNK_NUM}" 0 "${LOCAL_HEIGHT}" "${REMOTE_HEIGHT}" "${LAG}" "${CATCHING_UP}" "${NODE_CPU:-}" "${RSS_KB:-}" 1
+      fi
+    fi
+  fi
+
+  if is_positive_int "${ACTIVE_RESTORE_APP_GROWTH_CHECK_SECONDS}" && is_non_negative_int "${ACTIVE_RESTORE_APP_GROWTH_BYTES}"; then
+    if [ $((NOW_EPOCH - LAST_APP_GROWTH_EPOCH)) -ge "${ACTIVE_RESTORE_APP_GROWTH_CHECK_SECONDS}" ]; then
+      CURRENT_APP_BYTES="$(safe_du_bytes "${HOME_DIR}/data/application.db")"
+      if is_non_negative_int "${CURRENT_APP_BYTES}" && is_non_negative_int "${LAST_APP_BYTES}"; then
+        APP_DELTA_BYTES=$((CURRENT_APP_BYTES - LAST_APP_BYTES))
+        if [ "${APP_DELTA_BYTES}" -ge "${ACTIVE_RESTORE_APP_GROWTH_BYTES}" ]; then
+          STAGE_SUMMARY="$(sync_stage_from_marker "${LAST_SYNC_MARKER}")"
+          log_info "Restore I/O progress: application.db +${APP_DELTA_BYTES}B/${ACTIVE_RESTORE_APP_GROWTH_CHECK_SECONDS}s (stage=${STAGE_SUMMARY}, local=${LOCAL_HEIGHT}, cpu=${NODE_CPU:-n/a}%, rss=${RSS_KB:-n/a}k)"
+          PROGRESS_EPOCH="${NOW_EPOCH}"
+          LAST_STUCK_REPORT_EPOCH=0
+        fi
+        LAST_APP_BYTES="${CURRENT_APP_BYTES}"
+      fi
+      LAST_APP_GROWTH_EPOCH="${NOW_EPOCH}"
     fi
   fi
 
@@ -1233,7 +1672,11 @@ while true; do
     if [ "${LAST_STUCK_REPORT_EPOCH}" -eq 0 ] || [ $((NOW_EPOCH - LAST_STUCK_REPORT_EPOCH)) -ge "${STUCK_REPORT_INTERVAL_SECONDS}" ]; then
       STAGE_SUMMARY="$(sync_stage_from_marker "${LAST_SYNC_MARKER}")"
       log_warn "Stuck: no sync progress for ${STALLED_FOR}s (local=${LOCAL_HEIGHT}, remote=${REMOTE_HEIGHT}, lag=${LAG}, catching_up=${CATCHING_UP}, stage=${STAGE_SUMMARY}, cpu=${NODE_CPU:-n/a}%, rss=${RSS_KB:-n/a}k)"
-      capture_stuck_diagnostics "warn-stuck" "${STALLED_FOR}" "${LOCAL_HEIGHT}" "${REMOTE_HEIGHT}" "${LAG}" "${CATCHING_UP}" "${NODE_CPU:-}" "${RSS_KB:-}" 0
+      with_pprof=0
+      if [ "${CAPTURE_PPROF_ON_WARN_STUCK}" = "1" ]; then
+        with_pprof=1
+      fi
+      capture_stuck_diagnostics "warn-stuck" "${STALLED_FOR}" "${LOCAL_HEIGHT}" "${REMOTE_HEIGHT}" "${LAG}" "${CATCHING_UP}" "${NODE_CPU:-}" "${RSS_KB:-}" "${with_pprof}"
       LAST_STUCK_REPORT_EPOCH="${NOW_EPOCH}"
     fi
   fi
@@ -1281,6 +1724,9 @@ END_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore.db")"
   echo "duration_seconds=${DURATION}"
   echo "final_local_height=${LOCAL_HEIGHT}"
   echo "final_remote_height=${REMOTE_HEIGHT}"
+  if [ -n "${REMOTE_HEIGHT_ACTUAL}" ]; then
+    echo "final_remote_height_actual=${REMOTE_HEIGHT_ACTUAL}"
+  fi
   echo "max_rss_kb=${MAX_RSS_KB}"
   echo "max_hwm_kb=${MAX_HWM_KB}"
   echo "end_home_bytes=${END_HOME_BYTES}"
