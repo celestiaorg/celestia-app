@@ -1753,6 +1753,15 @@ if [ "${SYNC_COMPLETE}" -ne 1 ]; then
   fail_and_exit "Sync monitor exited without success."
 fi
 
+# Ensure we always preserve at least one heap/smaps snapshot near the true
+# observed peak, even when intermediate delta-trigger captures missed the final
+# crest.
+if is_non_negative_int "${MAX_RSS_KB}" && is_non_negative_int "${LAST_HEAP_CAPTURE_RSS_KB}" \
+  && [ "${MAX_RSS_KB}" -gt 0 ] && [ "${MAX_RSS_KB}" -gt "${LAST_HEAP_CAPTURE_RSS_KB}" ]; then
+  capture_heap_profile "max-rss-final" "${MAX_RSS_KB}"
+  LAST_HEAP_CAPTURE_RSS_KB="${MAX_RSS_KB}"
+fi
+
 END_EPOCH="$(date +%s)"
 END_TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 DURATION=$((END_EPOCH-START_EPOCH))
@@ -1771,6 +1780,8 @@ END_BLOCKSTORE_BYTES="$(safe_du_bytes "${HOME_DIR}/data/blockstore.db")"
   fi
   echo "max_rss_kb=${MAX_RSS_KB}"
   echo "max_hwm_kb=${MAX_HWM_KB}"
+  echo "heap_capture_count=${HEAP_CAPTURE_COUNT}"
+  echo "last_heap_capture_rss_kb=${LAST_HEAP_CAPTURE_RSS_KB}"
   echo "end_home_bytes=${END_HOME_BYTES}"
   echo "end_data_bytes=${END_DATA_BYTES}"
   echo "end_app_bytes=${END_APP_BYTES}"
