@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	fibregrpc "github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v8/fibre/internal/sign"
 	"github.com/celestiaorg/celestia-app/v8/fibre/state"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	toml "github.com/pelletier/go-toml/v2"
@@ -30,9 +32,12 @@ type ServerConfig struct {
 	AppGRPCAddress string `toml:"app_grpc_address" comment:"AppGRPCAddress is the gRPC address of the core/app node."`
 	// ServerListenAddress is the TCP address where the server listens for requests.
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
-	// SignerListenAddress is the TCP address where the server listens for
-	// an external PrivVal signer (e.g., tmkms) to connect.
-	SignerListenAddress string `toml:"signer_listen_address" comment:"SignerListenAddress is the TCP address where the server listens for an external PrivVal signer (e.g. tmkms)."`
+	// SignerGRPCAddress is the gRPC address of the node's PrivValidatorAPI endpoint.
+	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the node's PrivValidatorAPI endpoint."`
+	// SignerPubKey is the hex-encoded ed25519 public key of this validator.
+	// Required when SignerGRPCAddress is set. The server uses it to identify
+	// itself in the validator set and verify row assignments during uploads.
+	SignerPubKey string `toml:"signer_pub_key" comment:"SignerPubKey is the hex-encoded ed25519 public key of this validator, used to identify itself in the validator set. Required when signer_grpc_address is set."`
 
 	StoreConfig `toml:"-"`
 
@@ -74,7 +79,6 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
 		AppGRPCAddress:      "127.0.0.1:9090",
 		ServerListenAddress: "0.0.0.0:7980",
-		SignerListenAddress: "tcp://127.0.0.1:26659",
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
@@ -113,11 +117,22 @@ func (cfg *ServerConfig) Validate() error {
 	}
 
 	if cfg.SignerFn == nil {
-		if cfg.SignerListenAddress == "" {
-			return fmt.Errorf("signer listen address is required for default signer")
+		if cfg.SignerGRPCAddress == "" {
+			return fmt.Errorf("signer_grpc_address is required")
 		}
-		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewRemote(cfg.SignerListenAddress, chainID, cfg.Log)
+		if cfg.SignerPubKey == "" {
+			return fmt.Errorf("signer_pub_key is required")
+		}
+		pubKeyBytes, err := hex.DecodeString(cfg.SignerPubKey)
+		if err != nil {
+			return fmt.Errorf("invalid signer_pub_key hex: %w", err)
+		}
+		if len(pubKeyBytes) != ed25519.PubKeySize {
+			return fmt.Errorf("signer_pub_key must be %d bytes, got %d", ed25519.PubKeySize, len(pubKeyBytes))
+		}
+		pubKey := ed25519.PubKey(pubKeyBytes)
+		cfg.SignerFn = func(string) (core.PrivValidator, error) {
+			return sign.NewGRPCClient(cfg.SignerGRPCAddress, pubKey, cfg.Log)
 		}
 	}
 	return nil

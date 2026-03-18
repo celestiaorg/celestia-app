@@ -357,6 +357,19 @@ test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
 
+## build-fibre: Build the fibre binary into the ./build directory.
+build-fibre:
+	@mkdir -p build/
+	@echo "--> Building build/fibre"
+	@go build -o build/fibre ./fibre/cmd
+.PHONY: build-fibre
+
+## install-fibre: Build and install the fibre binary into the $GOPATH/bin directory.
+install-fibre:
+	@echo "--> Installing fibre"
+	@go build -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
+.PHONY: install-fibre
+
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"

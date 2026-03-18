@@ -157,6 +157,51 @@ func (s *stubStateClient) VerifyPromise(context.Context, *state.PaymentPromise) 
 	return state.VerifiedPromise{}, nil
 }
 
+func TestStartCmdGRPCSignerFlags(t *testing.T) {
+	tests := []struct {
+		name            string
+		args            []string
+		wantGRPCAddress string
+		wantPubKey      string
+	}{
+		{
+			name:            "defaults: no gRPC signer flags",
+			wantGRPCAddress: "",
+			wantPubKey:      "",
+		},
+		{
+			name: "gRPC signer flags set",
+			args: []string{
+				"--" + flagSignerGRPCAddress, "127.0.0.1:26660",
+				"--" + flagSignerPubKey, "abcd1234",
+			},
+			wantGRPCAddress: "127.0.0.1:26660",
+			wantPubKey:      "abcd1234",
+		},
+		{
+			name: "gRPC signer flags override config file",
+			args: []string{
+				"--" + flagSignerGRPCAddress, "127.0.0.1:26661",
+				"--" + flagSignerPubKey, "ef567890",
+			},
+			wantGRPCAddress: "127.0.0.1:26661",
+			wantPubKey:      "ef567890",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			cmd, got := newTestStartCmd(t, home)
+			cmd.SetArgs(tc.args)
+			require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+			assert.Equal(t, tc.wantGRPCAddress, got.SignerGRPCAddress)
+			assert.Equal(t, tc.wantPubKey, got.SignerPubKey)
+		})
+	}
+}
+
 func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress string) {
 	t.Helper()
 
