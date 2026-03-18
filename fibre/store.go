@@ -349,7 +349,7 @@ func encodePut(plan *putPlan) (*encodedPut, error) {
 
 	shardData, err := marshalSized(plan.shard)
 	if err != nil {
-		marshalBufPool.Put(ppData)
+		marshalBufClasses.put(ppData)
 		return nil, fmt.Errorf("marshaling shard: %w", err)
 	}
 
@@ -366,10 +366,10 @@ func encodePut(plan *putPlan) (*encodedPut, error) {
 
 func (p *encodedPut) release() {
 	if len(p.ppData) > 0 {
-		marshalBufPool.Put(p.ppData)
+		marshalBufClasses.put(p.ppData)
 	}
 	if len(p.shardData) > 0 {
-		marshalBufPool.Put(p.shardData)
+		marshalBufClasses.put(p.shardData)
 	}
 	p.ppData = nil
 	p.shardData = nil
@@ -850,7 +850,17 @@ type sizedMarshaler interface {
 	MarshalToSizedBuffer([]byte) (int, error)
 }
 
-var marshalBufPool sync.Pool
+var marshalBufClasses = newMarshalBufClasses([]int{
+	1 << 10,
+	4 << 10,
+	16 << 10,
+	64 << 10,
+	256 << 10,
+	1 << 20,
+	4 << 20,
+	16 << 20,
+	32 << 20,
+})
 
 const (
 	timestampLayout   = "200601021504"
@@ -875,20 +885,61 @@ func marshalToSizedBuffer(dst []byte, m sizedMarshaler) error {
 
 func marshalSized(m sizedMarshaler) ([]byte, error) {
 	size := m.Size()
-	var buf []byte
-	if v := marshalBufPool.Get(); v != nil {
-		buf = v.([]byte)
-	}
-	if cap(buf) < size {
-		buf = make([]byte, size)
-	} else {
-		buf = buf[:size]
-	}
+	buf, pooled := marshalBufClasses.get(size)
 	n, err := m.MarshalToSizedBuffer(buf)
 	if err != nil {
+		if pooled {
+			marshalBufClasses.put(buf)
+		}
 		return nil, err
 	}
 	return buf[:n], nil
+}
+
+type marshalBufPools struct {
+	caps  []int
+	pools []sync.Pool
+}
+
+func newMarshalBufClasses(caps []int) marshalBufPools {
+	pools := make([]sync.Pool, len(caps))
+	for i, classCap := range caps {
+		classCap := classCap
+		pools[i] = sync.Pool{
+			New: func() any {
+				return make([]byte, classCap)
+			},
+		}
+	}
+	return marshalBufPools{
+		caps:  caps,
+		pools: pools,
+	}
+}
+
+func (m marshalBufPools) get(size int) ([]byte, bool) {
+	idx := m.classIndex(size)
+	if idx < 0 {
+		return make([]byte, size), false
+	}
+	return m.pools[idx].Get().([]byte)[:size], true
+}
+
+func (m marshalBufPools) put(buf []byte) {
+	idx := m.classIndex(cap(buf))
+	if idx < 0 || m.caps[idx] != cap(buf) {
+		return
+	}
+	m.pools[idx].Put(buf[:m.caps[idx]])
+}
+
+func (m marshalBufPools) classIndex(size int) int {
+	for i, classCap := range m.caps {
+		if size <= classCap {
+			return i
+		}
+	}
+	return -1
 }
 
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
