@@ -203,7 +203,7 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 
 // SetRow adds and verifies [*rsema1d.RowInclusionProof] to the blob.
 // Returns (true, nil) when the row is new, (false, nil) when the row was already set (duplicate).
-// It is safe to call this method concurrently only for disjoint indices.
+// It is not safe to call this method concurrently.
 func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) (bool, error) {
 	// Skip if row already set (duplicate from overlapping assignment)
 	if d.rows[row.Index] != nil {

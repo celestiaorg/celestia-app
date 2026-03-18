@@ -171,11 +171,21 @@ func TestSet_Select(t *testing.T) {
 		require.Len(t, validators, 2)
 	})
 
-	t.Run("set sizes with equal stakes", func(t *testing.T) {
-		for _, size := range []int{2, 5, 20, 100} {
+	t.Run("returns all validators", func(t *testing.T) {
+		for _, size := range []int{1, 2, 5, 20, 100} {
 			t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
-				validators := makeValidatorSet(size).Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				valSet := makeValidatorSet(size)
+				validators := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
 				require.Len(t, validators, size)
+
+				// verify all original validators are present
+				selected := make(map[string]bool)
+				for _, v := range validators {
+					selected[v.Address.String()] = true
+				}
+				for _, v := range valSet.Validators {
+					require.True(t, selected[v.Address.String()], "validator %s missing from Select output", v.Address)
+				}
 			})
 		}
 	})
@@ -193,8 +203,18 @@ func TestSet_Select(t *testing.T) {
 
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
-				validators := makeValidatorSetWithStakes(tc.stakes).Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				valSet := makeValidatorSetWithStakes(tc.stakes)
+				validators := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
 				require.Len(t, validators, len(tc.stakes))
+
+				// verify all original validators are present
+				selected := make(map[string]bool)
+				for _, v := range validators {
+					selected[v.Address.String()] = true
+				}
+				for _, v := range valSet.Validators {
+					require.True(t, selected[v.Address.String()], "validator %s missing from Select output", v.Address)
+				}
 			})
 		}
 	})

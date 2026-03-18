@@ -89,8 +89,8 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 	return blob, nil
 }
 
-// downloadFrom downloads a shard for a blob from a single validator and returns the proofs.
-// Proofs are not applied to the blob; the caller (coordinator) is responsible for that.
+// downloadFrom downloads a shard for a blob from a single validator and returns the rows.
+// Rows are not applied to the blob; the caller (coordinator) is responsible for that.
 func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
@@ -163,6 +163,9 @@ func (c *Client) downloadBlob(
 	valSet validator.Set,
 	id BlobID,
 ) (*Blob, error) {
+	ctx, span := c.tracer.Start(ctx, "fibre.Client.downloadBlob")
+	defer span.End()
+
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(errDownloaded)
 
@@ -243,12 +246,15 @@ loop:
 				continue
 			}
 
-			// Apply rows single-threaded (no concurrent SetRow)
 			var applied int
 			for _, row := range res.rows {
 				isNew, err := blob.SetRow(row)
 				if err != nil {
 					c.log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
+					span.AddEvent("invalid_row", trace.WithAttributes(
+						attribute.Int("row_index", row.Index),
+						attribute.String("error", err.Error()),
+					))
 					continue
 				}
 				if isNew {
@@ -256,6 +262,12 @@ loop:
 				}
 			}
 			uniqueRows += applied
+			span.AddEvent("rows_applied", trace.WithAttributes(
+				attribute.Int("applied", applied),
+				attribute.Int("unique_rows", uniqueRows),
+				attribute.Int("original_rows", originalRows),
+				attribute.String("validator", validators[res.valIdx].Address.String()),
+			))
 
 			if uniqueRows >= originalRows {
 				break loop

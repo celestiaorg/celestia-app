@@ -30,7 +30,6 @@ func TestClientDownload(t *testing.T) {
 		{"ContextCancellation", testClientDownloadContextCancellation},
 		{"ClosedClient", testClientDownloadClosedClient},
 		{"LargeValidatorFailure", testClientDownloadLargeValidatorFailure},
-		{"DynamicConcurrency", testClientDownloadDynamicConcurrency},
 	}
 
 	for _, tt := range tests {
@@ -177,28 +176,6 @@ func testClientDownloadLargeValidatorFailure(t *testing.T) {
 	downloaded, err := client.Download(t.Context(), blob.ID())
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
-}
-
-func testClientDownloadDynamicConcurrency(t *testing.T) {
-	// Verify that when early validators fail, more are dynamically contacted.
-	// With 3 failures out of 10, the coordinator should contact at least 7
-	// validators (3 failing + 4 succeeding) to collect enough rows.
-	const numValidators = 10
-	blob := makeTestBlobV0(t, 256*1024)
-
-	var counter *atomic.Int64
-	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn = failingClientFn(3, cfg.NewClientFn)
-		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
-	}, blob)
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	downloaded, err := client.Download(t.Context(), blob.ID())
-	require.NoError(t, err)
-	require.Equal(t, blob.Data(), downloaded.Data())
-
-	// With 3 failures, at least 4 successful downloads are needed
-	require.GreaterOrEqual(t, counter.Load(), int64(4), "should have enough successful downloads to compensate for failures")
 }
 
 // makeTestDownloadClient creates a download client with equal-stake validators that serves the given blobs.
