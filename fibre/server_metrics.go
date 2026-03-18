@@ -155,12 +155,15 @@ func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploa
 
 // observeDownloadShard records in-flight increment and returns a function that records
 // duration and decrements in-flight. Call the returned function in a defer.
-func (m *serverMetrics) observeDownloadShard(ctx context.Context) (done func(err error)) {
+func (m *serverMetrics) observeDownloadShard(ctx context.Context) (done func(shardSize int64, err error)) {
 	start := time.Now()
 	m.downloadShardInFlight.Add(ctx, 1)
-	return func(err error) {
+	return func(shardSize int64, err error) {
 		m.downloadShardInFlight.Add(ctx, -1)
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
+		if shardSize > 0 {
+			attrs = append(attrs, attribute.Int64("shard_size", shardSize))
+		}
 		m.downloadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
 	}
 }

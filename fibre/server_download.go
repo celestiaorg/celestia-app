@@ -19,7 +19,7 @@ import (
 func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (_ *types.DownloadShardResponse, err error) {
 	var shardSize int64
 	downloadShardDone := s.metrics.observeDownloadShard(ctx)
-	defer func() { downloadShardDone(err) }()
+	defer func() { downloadShardDone(shardSize, err) }()
 
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
 	defer span.End()
