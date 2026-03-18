@@ -352,6 +352,8 @@ type writeBatcher struct {
 	ds            ds.Batching
 	requests      chan *writeRequest
 	done          chan struct{}
+	ctx           context.Context
+	cancel        context.CancelFunc
 	submitters    submitGate
 	maxPending    int
 	minPending    int
@@ -390,10 +392,13 @@ func newWriteBatcherWithOpts(
 	maxPending int,
 	flushInterval time.Duration,
 ) *writeBatcher {
+	ctx, cancel := context.WithCancel(context.Background())
 	wb := &writeBatcher{
 		ds:       store,
 		requests: make(chan *writeRequest, queueSize),
 		done:     make(chan struct{}),
+		ctx:      ctx,
+		cancel:   cancel,
 		submitters: submitGate{
 			drained: make(chan struct{}),
 		},
@@ -474,22 +479,20 @@ func (wb *writeBatcher) drain(pending []*writeRequest, timer *time.Timer) []*wri
 }
 
 func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
-	ctx := context.Background()
-
-	batch, err := wb.ds.Batch(ctx)
+	batch, err := wb.ds.Batch(wb.ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
 	}
 
 	for _, req := range requests {
 		for _, entry := range req.entries {
-			if err := batch.Put(ctx, entry.key, entry.value); err != nil {
+			if err := batch.Put(wb.ctx, entry.key, entry.value); err != nil {
 				return fmt.Errorf("adding to batch: %w", err)
 			}
 		}
 	}
 
-	if err := batch.Commit(ctx); err != nil {
+	if err := batch.Commit(wb.ctx); err != nil {
 		return fmt.Errorf("committing batch: %w", err)
 	}
 	return nil
@@ -524,6 +527,7 @@ func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error 
 
 func (wb *writeBatcher) close() {
 	wb.submitters.closeAndWait(func() {
+		wb.cancel()
 		close(wb.requests)
 		<-wb.done
 	})

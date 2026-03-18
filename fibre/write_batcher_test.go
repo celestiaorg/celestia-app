@@ -2,6 +2,9 @@ package fibre
 
 import (
 	"context"
+	"fmt"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -82,6 +85,67 @@ func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("close did not return after the pending commit finished")
 	}
+}
+
+func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
+	const numSubmits = 100
+
+	store := newCountingBatching()
+	// Large queue, generous flush delay to encourage coalescing.
+	wb := newWriteBatcherWithOpts(store, numSubmits, 16, numSubmits, 1*time.Second)
+
+	var wg sync.WaitGroup
+	wg.Add(numSubmits)
+	for i := range numSubmits {
+		go func() {
+			defer wg.Done()
+			key := ds.NewKey(fmt.Sprintf("/coalesce/%d", i))
+			err := wb.submit(context.Background(), []batchEntry{{key: key, value: []byte("v")}})
+			require.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+	wb.close()
+
+	commits := int(store.commits.Load())
+	t.Logf("coalesced %d submits into %d commits", numSubmits, commits)
+	require.Less(t, commits, numSubmits, "expected fewer commits than submits due to coalescing")
+
+	// Verify all entries were written.
+	for i := range numSubmits {
+		key := ds.NewKey(fmt.Sprintf("/coalesce/%d", i))
+		_, err := store.Get(context.Background(), key)
+		require.NoError(t, err, "entry %d missing", i)
+	}
+}
+
+type countingBatching struct {
+	ds.Batching
+	commits atomic.Int64
+}
+
+func newCountingBatching() *countingBatching {
+	return &countingBatching{
+		Batching: dssync.MutexWrap(ds.NewMapDatastore()),
+	}
+}
+
+func (c *countingBatching) Batch(ctx context.Context) (ds.Batch, error) {
+	batch, err := c.Batching.Batch(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &countingBatch{Batch: batch, parent: c}, nil
+}
+
+type countingBatch struct {
+	ds.Batch
+	parent *countingBatching
+}
+
+func (b *countingBatch) Commit(ctx context.Context) error {
+	b.parent.commits.Add(1)
+	return b.Batch.Commit(ctx)
 }
 
 type blockingBatching struct {
