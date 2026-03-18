@@ -13,7 +13,6 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -43,21 +42,13 @@ func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error
 		return nil, ErrClientClosed
 	}
 
-	start := time.Now()
-	c.metrics.downloadInFlight.Add(ctx, 1)
+	downloadDone := c.metrics.observeDownload(ctx)
+	defer func() { downloadDone(blob, err) }()
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
 		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
 	defer span.End()
-	defer func() {
-		c.metrics.downloadInFlight.Add(ctx, -1)
-		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
-		if blob != nil {
-			attrs = append(attrs, attribute.Int("blob_size", blob.DataSize()))
-		}
-		c.metrics.downloadDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
-	}()
 
 	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
@@ -113,15 +104,15 @@ func (c *Client) downloadFrom(
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", blob.ID().Commitment())
 
 	downloadStart := time.Now()
-	valAddr := attribute.String("validator_address", val.Address.String())
+	valAddrStr := val.Address.String()
 
 	ctx, span := c.tracer.Start(ctx, "download_from",
-		trace.WithAttributes(valAddr),
+		trace.WithAttributes(attribute.String("validator_address", valAddrStr)),
 	)
 	defer span.End()
 
 	defer func() {
-		c.metrics.downloadFromDuration.Record(ctx, time.Since(downloadStart).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil), valAddr))
+		c.metrics.observeDownloadFrom(ctx, downloadStart, err == nil, valAddrStr)
 	}()
 
 	client, err := c.clientCache.GetClient(ctx, val)
@@ -139,7 +130,7 @@ func (c *Client) downloadFrom(
 
 	rpcStart := time.Now()
 	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: blob.ID()})
-	c.metrics.downloadFromRPCLatency.Record(ctx, time.Since(rpcStart).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil), valAddr))
+	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")

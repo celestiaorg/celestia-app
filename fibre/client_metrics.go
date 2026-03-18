@@ -1,8 +1,11 @@
 package fibre
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -149,4 +152,82 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 	}
 
 	return &cm, nil
+}
+
+// observeUpload records in-flight increment and returns a function that records
+// the upload duration and decrements in-flight. Call the returned function in a defer.
+func (m *clientMetrics) observeUpload(ctx context.Context, blobSize int) (done func(err error)) {
+	start := time.Now()
+	m.uploadInFlight.Add(ctx, 1)
+	return func(err error) {
+		m.uploadInFlight.Add(ctx, -1)
+		m.uploadDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(
+			attribute.Int("blob_size", blobSize),
+			attribute.Bool("success", err == nil),
+		))
+	}
+}
+
+// observeUploadComplete records byte counters and signature count after a successful upload.
+func (m *clientMetrics) observeUploadComplete(ctx context.Context, uploadSize, dataSize, networkBytes, sigsCollected int) {
+	m.uploadBytes.Add(ctx, int64(uploadSize))
+	m.uploadDataBytes.Add(ctx, int64(dataSize))
+	m.uploadNetworkBytes.Add(ctx, int64(networkBytes))
+	m.uploadSigsCollected.Record(ctx, int64(sigsCollected))
+}
+
+// observeUploadTo records per-validator upload duration.
+func (m *clientMetrics) observeUploadTo(ctx context.Context, start time.Time, success bool, blobSize int, valAddr string) {
+	m.uploadToDuration.Record(
+		ctx,
+		time.Since(start).Seconds(), metric.WithAttributes(
+			attribute.Bool("success", success),
+			attribute.Int("blob_size", blobSize),
+			attribute.String("validator_address", valAddr),
+		))
+}
+
+// observeUploadToRPC records per-validator RPC latency.
+func (m *clientMetrics) observeUploadToRPC(ctx context.Context, start time.Time, success bool, valAddr string) {
+	m.uploadToRPCLatency.Record(
+		ctx,
+		time.Since(start).Seconds(), metric.WithAttributes(
+			attribute.Bool("success", success),
+			attribute.String("validator_address", valAddr),
+		))
+}
+
+// observeDownload records in-flight increment and returns a function that records
+// the download duration and decrements in-flight.
+func (m *clientMetrics) observeDownload(ctx context.Context) (done func(blob *Blob, err error)) {
+	start := time.Now()
+	m.downloadInFlight.Add(ctx, 1)
+	return func(blob *Blob, err error) {
+		m.downloadInFlight.Add(ctx, -1)
+		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
+		if blob != nil {
+			attrs = append(attrs, attribute.Int("blob_size", blob.DataSize()))
+		}
+		m.downloadDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+	}
+}
+
+// observeDownloadFrom records per-validator download duration.
+func (m *clientMetrics) observeDownloadFrom(ctx context.Context, start time.Time, success bool, valAddr string) {
+	m.downloadFromDuration.Record(
+		ctx,
+		time.Since(start).Seconds(), metric.WithAttributes(
+			attribute.Bool("success", success),
+			attribute.String("validator_address", valAddr),
+		))
+}
+
+// observeDownloadFromRPC records per-validator download RPC latency.
+func (m *clientMetrics) observeDownloadFromRPC(ctx context.Context, start time.Time, success bool, valAddr string) {
+	m.downloadFromRPCLatency.Record(
+		ctx,
+		time.Since(start).Seconds(), metric.WithAttributes(
+			attribute.Bool("success", success),
+			attribute.String("validator_address", valAddr),
+		))
 }

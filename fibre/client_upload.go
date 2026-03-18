@@ -17,7 +17,6 @@ import (
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -34,9 +33,8 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, ErrClientClosed
 	}
 
-	blobSize := attribute.Int("blob_size", blob.UploadSize())
-	start := time.Now()
-	c.metrics.uploadInFlight.Add(ctx, 1)
+	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
+	defer func() { uploadDone(err) }()
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Upload",
 		trace.WithAttributes(
@@ -45,10 +43,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		),
 	)
 	defer span.End()
-	defer func() {
-		c.metrics.uploadInFlight.Add(ctx, -1)
-		c.metrics.uploadDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(blobSize, attribute.Bool("success", err == nil)))
-	}()
 
 	// 1) get validator set
 	valSet, err := c.state.Head(ctx)
@@ -130,14 +124,11 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		"signatures_collected", len(sigs),
 	)
 
-	c.metrics.uploadBytes.Add(ctx, int64(blob.UploadSize()))
-	c.metrics.uploadDataBytes.Add(ctx, int64(blob.DataSize()))
 	var totalShardRows int
 	for _, rows := range shardMap {
 		totalShardRows += len(rows)
 	}
-	c.metrics.uploadNetworkBytes.Add(ctx, int64(totalShardRows*blob.RowSize()))
-	c.metrics.uploadSigsCollected.Record(ctx, int64(len(sigs)))
+	c.metrics.observeUploadComplete(ctx, blob.UploadSize(), blob.DataSize(), totalShardRows*blob.RowSize(), len(sigs))
 
 	span.SetStatus(codes.Ok, "")
 	return SignedPaymentPromise{
@@ -219,21 +210,17 @@ func (c *Client) uploadTo(
 
 	uploadOk := false
 	uploadStart := time.Now()
-	valAddr := attribute.String("validator_address", val.Address.String())
+	valAddrStr := val.Address.String()
 
 	ctx, span := c.tracer.Start(ctx, "upload_to",
 		trace.WithAttributes(
-			valAddr,
+			attribute.String("validator_address", valAddrStr),
 			attribute.Int("rows_count", len(req.Shard.Rows)),
 		),
 	)
 	defer span.End()
 	defer func() {
-		c.metrics.uploadToDuration.Record(ctx, time.Since(uploadStart).Seconds(), metric.WithAttributes(
-			attribute.Bool("success", uploadOk),
-			attribute.Int("blob_size", blob.UploadSize()),
-			valAddr,
-		))
+		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
 	// get a new or cached client with active connection
@@ -263,7 +250,7 @@ func (c *Client) uploadTo(
 	// actually push the data to the validator
 	rpcStart := time.Now()
 	resp, err := client.UploadShard(ctx, req)
-	c.metrics.uploadToRPCLatency.Record(ctx, time.Since(rpcStart).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil), valAddr))
+	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)

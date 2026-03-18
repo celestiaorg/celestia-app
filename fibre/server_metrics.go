@@ -1,8 +1,11 @@
 package fibre
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 )
 
@@ -133,4 +136,49 @@ func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
 	}
 
 	return &sm, nil
+}
+
+// observeUploadShard records in-flight increment and returns a function that records
+// duration and decrements in-flight. Call the returned function in a defer.
+func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize int64, err error)) {
+	start := time.Now()
+	m.uploadShardInFlight.Add(ctx, 1)
+	return func(uploadSize int64, err error) {
+		m.uploadShardInFlight.Add(ctx, -1)
+		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
+		if uploadSize > 0 {
+			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
+		}
+		m.uploadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+	}
+}
+
+// observeDownloadShard records in-flight increment and returns a function that records
+// duration and decrements in-flight. Call the returned function in a defer.
+func (m *serverMetrics) observeDownloadShard(ctx context.Context) (done func(err error)) {
+	start := time.Now()
+	m.downloadShardInFlight.Add(ctx, 1)
+	return func(err error) {
+		m.downloadShardInFlight.Add(ctx, -1)
+		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
+		m.downloadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+	}
+}
+
+// observeStoreOp records store operation duration.
+func (m *serverMetrics) observeStoreOp(ctx context.Context, h metric.Float64Histogram, start time.Time, success bool) {
+	h.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", success)))
+}
+
+// observeSign records signing duration.
+func (m *serverMetrics) observeSign(ctx context.Context, start time.Time, success bool) {
+	m.signDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", success)))
+}
+
+// observePrune records prune cycle duration and entries pruned.
+func (m *serverMetrics) observePrune(ctx context.Context, start time.Time, pruned int, err error) {
+	m.pruneDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil)))
+	if pruned > 0 {
+		m.pruneEntries.Add(ctx, int64(pruned))
+	}
 }
