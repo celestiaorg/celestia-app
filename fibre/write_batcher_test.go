@@ -24,7 +24,14 @@ func TestNewWriteBatcherUsesDefaultThresholds(t *testing.T) {
 
 func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 	store := newBlockingBatching()
-	wb := newWriteBatcherWithOpts(store, 1, 1, 1, time.Hour)
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:        1,
+		minPending:       1,
+		maxPending:       1,
+		minBatchBytes:    1,
+		targetBatchBytes: 1,
+		flushInterval:    time.Hour,
+	})
 
 	key := ds.NewKey("/queued")
 	errCh := make(chan error, 1)
@@ -48,7 +55,14 @@ func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 
 func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 	store := newBlockingBatching()
-	wb := newWriteBatcherWithOpts(store, 1, 1, 1, time.Hour)
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:        1,
+		minPending:       1,
+		maxPending:       1,
+		minBatchBytes:    1,
+		targetBatchBytes: 1,
+		flushInterval:    time.Hour,
+	})
 
 	key := ds.NewKey("/inflight")
 	errCh := make(chan error, 1)
@@ -92,7 +106,14 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 
 	store := newCountingBatching()
 	// Large queue, generous flush delay to encourage coalescing.
-	wb := newWriteBatcherWithOpts(store, numSubmits, 16, numSubmits, 1*time.Second)
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:        numSubmits,
+		minPending:       16,
+		maxPending:       numSubmits,
+		minBatchBytes:    1 << 20,
+		targetBatchBytes: 4 << 20,
+		flushInterval:    1 * time.Second,
+	})
 
 	var wg sync.WaitGroup
 	wg.Add(numSubmits)
@@ -117,6 +138,36 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 		_, err := store.Get(context.Background(), key)
 		require.NoError(t, err, "entry %d missing", i)
 	}
+}
+
+func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T) {
+	store := newBlockingBatching()
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:        1,
+		minPending:       8,
+		maxPending:       8,
+		minBatchBytes:    1024,
+		targetBatchBytes: 1024,
+		flushInterval:    time.Hour,
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- wb.submit(context.Background(), []batchEntry{{
+			key:   ds.NewKey("/large"),
+			value: make([]byte, 2048),
+		}})
+	}()
+
+	select {
+	case <-store.commitStarted:
+	case <-time.After(time.Second):
+		t.Fatal("large request did not flush immediately")
+	}
+
+	close(store.releaseCommit)
+	require.NoError(t, <-errCh)
+	wb.close()
 }
 
 type countingBatching struct {

@@ -152,29 +152,12 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 // Serialization happens in the caller's goroutine, but the actual write is submitted to the
 // [writeBatcher] which coalesces concurrent writes into a single batch commit.
 func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
-	promiseProto, err := promise.ToProto()
+	entries, n, _, err := buildPutEntries(promise, shard, pruneAt)
 	if err != nil {
-		return fmt.Errorf("converting payment promise to proto: %w", err)
-	}
-	ppData, err := gogoproto.Marshal(promiseProto)
-	if err != nil {
-		return fmt.Errorf("marshaling payment promise: %w", err)
-	}
-	promiseHash, err := promise.Hash()
-	if err != nil {
-		return fmt.Errorf("getting promise hash: %w", err)
+		return err
 	}
 
-	shardData, err := gogoproto.Marshal(shard)
-	if err != nil {
-		return fmt.Errorf("marshaling shard: %w", err)
-	}
-
-	return s.saver.submit(ctx, []batchEntry{
-		{key: promiseKey(promiseHash), value: ppData},
-		{key: shardKey(promise.Commitment, promiseHash), value: shardData},
-		{key: pruneKey(pruneAt, promise.Commitment, promiseHash), value: []byte{}},
-	})
+	return s.saver.submit(ctx, entries[:n])
 }
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
@@ -187,7 +170,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 // Returns an error only if all entries fail to unmarshal or if no shards are found.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
 	results, err := s.ds.Query(ctx, query.Query{
-		Prefix: fmt.Sprintf("/shard/%s", commitment.String()),
+		Prefix: "/shard/" + commitment.String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("querying shards: %w", err)
@@ -310,6 +293,63 @@ type batchEntry struct {
 	value []byte
 }
 
+func batchEntrySize(entry batchEntry) int {
+	return len(entry.key.String()) + len(entry.value)
+}
+
+func buildPutEntries(
+	promise *PaymentPromise,
+	shard *types.BlobShard,
+	pruneAt time.Time,
+) ([3]batchEntry, int, int, error) {
+	var (
+		entries   [3]batchEntry
+		ppData    []byte
+		shardData []byte
+	)
+	release := true
+	defer func() {
+		if !release {
+			return
+		}
+		if len(ppData) > 0 {
+			marshalBufPool.Put(ppData)
+		}
+		if len(shardData) > 0 {
+			marshalBufPool.Put(shardData)
+		}
+	}()
+
+	promiseProto, err := promise.ToProto()
+	if err != nil {
+		return entries, 0, 0, fmt.Errorf("converting payment promise to proto: %w", err)
+	}
+	ppData, err = marshalSized(promiseProto)
+	if err != nil {
+		return entries, 0, 0, fmt.Errorf("marshaling payment promise: %w", err)
+	}
+	promiseHash, err := promise.Hash()
+	if err != nil {
+		return entries, 0, 0, fmt.Errorf("getting promise hash: %w", err)
+	}
+
+	shardData, err = marshalSized(shard)
+	if err != nil {
+		return entries, 0, 0, fmt.Errorf("marshaling shard: %w", err)
+	}
+
+	entries[0] = batchEntry{key: promiseKey(promiseHash), value: ppData}
+	entries[1] = batchEntry{key: shardKey(promise.Commitment, promiseHash), value: shardData}
+	entries[2] = batchEntry{key: pruneKey(pruneAt, promise.Commitment, promiseHash), value: []byte{}}
+
+	release = false
+	totalBytes := 0
+	for _, entry := range entries {
+		totalBytes += batchEntrySize(entry)
+	}
+	return entries, len(entries), totalBytes, nil
+}
+
 // directWriter implements [blobSaver] by committing each submit call immediately
 // in its own batch. This is the simplest strategy with no write coalescing.
 type directWriter struct {
@@ -344,20 +384,28 @@ func (dw *directWriter) close() {}
 // for N writes instead of N times.
 
 type writeRequest struct {
-	entries []batchEntry
+	entries [3]batchEntry
+	n       int
+	bytes   int
 	result  chan error
 }
 
+var writeRequestPool = sync.Pool{
+	New: func() any {
+		return &writeRequest{result: make(chan error, 1)}
+	},
+}
+
 type writeBatcher struct {
-	ds            ds.Batching
-	requests      chan *writeRequest
-	done          chan struct{}
-	ctx           context.Context
-	cancel        context.CancelFunc
-	submitters    submitGate
-	maxPending    int
-	minPending    int
-	flushInterval time.Duration
+	ds               ds.Batching
+	requests         chan *writeRequest
+	done             chan struct{}
+	submitters       submitGate
+	maxPending       int
+	minPending       int
+	minBatchBytes    int
+	targetBatchBytes int
+	flushInterval    time.Duration
 }
 
 type submitGate struct {
@@ -372,39 +420,66 @@ const (
 	defaultWriteBatcherQueueSize  = 4096
 	defaultWriteBatcherMaxPending = 512
 	defaultWriteBatcherMinPending = 64
+	defaultWriteBatcherMinBytes   = 64 << 20
+	defaultWriteBatcherTargetSize = 1 << 30
 	defaultWriteBatcherFlushDelay = 1 * time.Millisecond
 )
+
+type writeBatcherOptions struct {
+	queueSize        int
+	minPending       int
+	maxPending       int
+	minBatchBytes    int
+	targetBatchBytes int
+	flushInterval    time.Duration
+}
 
 func newWriteBatcher(store ds.Batching) *writeBatcher {
 	return newWriteBatcherWithOpts(
 		store,
-		defaultWriteBatcherQueueSize,
-		defaultWriteBatcherMinPending,
-		defaultWriteBatcherMaxPending,
-		defaultWriteBatcherFlushDelay,
+		writeBatcherOptions{
+			queueSize:        defaultWriteBatcherQueueSize,
+			minPending:       defaultWriteBatcherMinPending,
+			maxPending:       defaultWriteBatcherMaxPending,
+			minBatchBytes:    defaultWriteBatcherMinBytes,
+			targetBatchBytes: defaultWriteBatcherTargetSize,
+			flushInterval:    defaultWriteBatcherFlushDelay,
+		},
 	)
 }
 
-func newWriteBatcherWithOpts(
-	store ds.Batching,
-	queueSize int,
-	minPending int,
-	maxPending int,
-	flushInterval time.Duration,
-) *writeBatcher {
-	ctx, cancel := context.WithCancel(context.Background())
+func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *writeBatcher {
+	if opts.queueSize <= 0 {
+		opts.queueSize = defaultWriteBatcherQueueSize
+	}
+	if opts.minPending <= 0 {
+		opts.minPending = defaultWriteBatcherMinPending
+	}
+	if opts.maxPending < opts.minPending {
+		opts.maxPending = max(opts.minPending, defaultWriteBatcherMaxPending)
+	}
+	if opts.minBatchBytes <= 0 {
+		opts.minBatchBytes = defaultWriteBatcherMinBytes
+	}
+	if opts.targetBatchBytes < opts.minBatchBytes {
+		opts.targetBatchBytes = max(opts.minBatchBytes, defaultWriteBatcherTargetSize)
+	}
+	if opts.flushInterval <= 0 {
+		opts.flushInterval = defaultWriteBatcherFlushDelay
+	}
+
 	wb := &writeBatcher{
 		ds:       store,
-		requests: make(chan *writeRequest, queueSize),
+		requests: make(chan *writeRequest, opts.queueSize),
 		done:     make(chan struct{}),
-		ctx:      ctx,
-		cancel:   cancel,
 		submitters: submitGate{
 			drained: make(chan struct{}),
 		},
-		maxPending:    maxPending,
-		minPending:    minPending,
-		flushInterval: flushInterval,
+		maxPending:       opts.maxPending,
+		minPending:       opts.minPending,
+		minBatchBytes:    opts.minBatchBytes,
+		targetBatchBytes: opts.targetBatchBytes,
+		flushInterval:    opts.flushInterval,
 	}
 	go wb.run()
 	return wb
@@ -421,14 +496,16 @@ func (wb *writeBatcher) run() {
 
 		pending := make([]*writeRequest, 1, wb.maxPending)
 		pending[0] = first
+		pendingBytes := first.bytes
 
 		// Immediate drain (no waiting)
-		pending = wb.drain(pending, nil)
+		pending, pendingBytes = wb.drain(pending, pendingBytes, nil)
 
-		// If batch is still small, coalesce briefly
-		if len(pending) < wb.minPending && len(pending) < wb.maxPending {
-			timer := time.NewTimer(wb.flushInterval)
-			pending = wb.drain(pending, timer)
+		// If the batch is still light both in request count and total bytes,
+		// briefly wait for more work. Large requests flush immediately.
+		if wb.shouldWaitForMore(len(pending), pendingBytes) {
+			timer := time.NewTimer(wb.flushDelayFor(len(pending), pendingBytes))
+			pending, pendingBytes = wb.drain(pending, pendingBytes, timer)
 
 			if !timer.Stop() {
 				select {
@@ -440,27 +517,66 @@ func (wb *writeBatcher) run() {
 
 		err := wb.commitAll(pending)
 		for _, req := range pending {
+			for i := range req.n {
+				if v := req.entries[i].value; len(v) > 0 {
+					marshalBufPool.Put(v)
+				}
+			}
 			req.result <- err
 		}
 	}
 }
 
+func (wb *writeBatcher) shouldWaitForMore(pendingCount, pendingBytes int) bool {
+	return pendingCount < wb.minPendingFor(pendingCount, pendingBytes) &&
+		pendingBytes < wb.minBatchBytes &&
+		pendingBytes < wb.targetBatchBytes
+}
+
+func (wb *writeBatcher) minPendingFor(pendingCount, pendingBytes int) int {
+	if pendingCount == 0 {
+		return wb.minPending
+	}
+	avgRequestBytes := pendingBytes / pendingCount
+	if avgRequestBytes >= 4<<20 {
+		return min(wb.minPending, 64)
+	}
+	return wb.minPending
+}
+
+func (wb *writeBatcher) flushDelayFor(pendingCount, pendingBytes int) time.Duration {
+	if pendingCount == 0 {
+		return wb.flushInterval
+	}
+	avgRequestBytes := pendingBytes / pendingCount
+	if avgRequestBytes <= 2<<20 {
+		return 2 * wb.flushInterval
+	}
+	return wb.flushInterval
+}
+
 // drain collects requests until:
 // - maxPending reached
+// - targetBatchBytes reached
 // - no immediate items (if timer == nil)
 // - timer fires
 // - channel closed
-func (wb *writeBatcher) drain(pending []*writeRequest, timer *time.Timer) []*writeRequest {
+func (wb *writeBatcher) drain(
+	pending []*writeRequest,
+	pendingBytes int,
+	timer *time.Timer,
+) ([]*writeRequest, int) {
 	for len(pending) < wb.maxPending {
 		if timer == nil {
 			select {
 			case req, ok := <-wb.requests:
 				if !ok {
-					return pending
+					return pending, pendingBytes
 				}
 				pending = append(pending, req)
+				pendingBytes += req.bytes
 			default:
-				return pending
+				return pending, pendingBytes
 			}
 			continue
 		}
@@ -468,31 +584,32 @@ func (wb *writeBatcher) drain(pending []*writeRequest, timer *time.Timer) []*wri
 		select {
 		case req, ok := <-wb.requests:
 			if !ok {
-				return pending
+				return pending, pendingBytes
 			}
 			pending = append(pending, req)
+			pendingBytes += req.bytes
 		case <-timer.C:
-			return pending
+			return pending, pendingBytes
 		}
 	}
-	return pending
+	return pending, pendingBytes
 }
 
 func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
-	batch, err := wb.ds.Batch(wb.ctx)
+	batch, err := wb.ds.Batch(context.Background())
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
 	}
 
 	for _, req := range requests {
-		for _, entry := range req.entries {
-			if err := batch.Put(wb.ctx, entry.key, entry.value); err != nil {
+		for i := range req.n {
+			if err := batch.Put(context.Background(), req.entries[i].key, req.entries[i].value); err != nil {
 				return fmt.Errorf("adding to batch: %w", err)
 			}
 		}
 	}
 
-	if err := batch.Commit(wb.ctx); err != nil {
+	if err := batch.Commit(context.Background()); err != nil {
 		return fmt.Errorf("committing batch: %w", err)
 	}
 	return nil
@@ -503,12 +620,15 @@ func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error 
 		return nil
 	}
 
-	req := &writeRequest{
-		entries: entries,
-		result:  make(chan error, 1),
+	req := writeRequestPool.Get().(*writeRequest)
+	req.n = copy(req.entries[:], entries)
+	req.bytes = 0
+	for i := range req.n {
+		req.bytes += batchEntrySize(req.entries[i])
 	}
 
 	if !wb.tryAcquireSubmitter() {
+		writeRequestPool.Put(req)
 		return ErrStoreClosed
 	}
 	defer wb.releaseSubmitter()
@@ -516,21 +636,36 @@ func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error 
 	select {
 	case wb.requests <- req:
 	case <-ctx.Done():
+		req.reset()
+		writeRequestPool.Put(req)
 		return ctx.Err()
 	}
 
 	// Once a write is queued, return the actual commit result instead of a later
 	// caller cancellation. This avoids reporting a failed Put after the data has
 	// already been durably written by the batcher.
-	return <-req.result
+	err := <-req.result
+
+	// Clear references so pooled entries don't pin large buffers.
+	req.reset()
+	writeRequestPool.Put(req)
+
+	return err
 }
 
 func (wb *writeBatcher) close() {
 	wb.submitters.closeAndWait(func() {
-		wb.cancel()
 		close(wb.requests)
 		<-wb.done
 	})
+}
+
+func (req *writeRequest) reset() {
+	req.bytes = 0
+	for i := range req.n {
+		req.entries[i] = batchEntry{}
+	}
+	req.n = 0
 }
 
 func (wb *writeBatcher) tryAcquireSubmitter() bool {
@@ -584,6 +719,33 @@ func (g *submitGate) isClosed() bool {
 	return g.closed
 }
 
+// sizedMarshaler is implemented by gogoproto-generated types that support
+// pre-sized marshaling into a caller-provided buffer.
+type sizedMarshaler interface {
+	Size() int
+	MarshalToSizedBuffer([]byte) (int, error)
+}
+
+var marshalBufPool sync.Pool
+
+func marshalSized(m sizedMarshaler) ([]byte, error) {
+	size := m.Size()
+	var buf []byte
+	if v := marshalBufPool.Get(); v != nil {
+		buf = v.([]byte)
+	}
+	if cap(buf) < size {
+		buf = make([]byte, size)
+	} else {
+		buf = buf[:size]
+	}
+	n, err := m.MarshalToSizedBuffer(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
+}
+
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
 // This format is used for timestamp-based indexing in the datastore.
 func formatTimestamp(timestamp time.Time) string {
@@ -591,15 +753,15 @@ func formatTimestamp(timestamp time.Time) string {
 }
 
 func promiseKey(promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/pp/%s", hex.EncodeToString(promiseHash)))
+	return ds.RawKey("/pp/" + hex.EncodeToString(promiseHash))
 }
 
 func shardKey(commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash)))
+	return ds.RawKey("/shard/" + commitment.String() + "/" + hex.EncodeToString(promiseHash))
 }
 
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash)))
+	return ds.RawKey("/prune/" + formatTimestamp(pruneAt.UTC()) + "/" + commitment.String() + "/" + hex.EncodeToString(promiseHash))
 }
 
 // parsePruneKey extracts commitment and promise hash from a prune index key.

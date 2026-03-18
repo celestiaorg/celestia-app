@@ -48,7 +48,14 @@ func BenchmarkStorePut(b *testing.B) {
 		new  func(ds.Batching) blobSaver
 	}{
 		{"batched", func(d ds.Batching) blobSaver {
-			return newWriteBatcherWithOpts(d, 4096, 128, 512, 1*time.Millisecond)
+			return newWriteBatcherWithOpts(d, writeBatcherOptions{
+				queueSize:        4096,
+				minPending:       128,
+				maxPending:       512,
+				minBatchBytes:    64 << 20,
+				targetBatchBytes: 1 << 30,
+				flushInterval:    1 * time.Millisecond,
+			})
 		}},
 		{"direct", func(d ds.Batching) blobSaver { return newDirectWriter(d) }},
 	}
@@ -59,6 +66,99 @@ func BenchmarkStorePut(b *testing.B) {
 		for _, saver := range savers {
 			b.Run(fmt.Sprintf("%s/%s", tc.name, saver.name), func(b *testing.B) {
 				benchStorePut(b, entries, newPebbleBenchStore, saver.new)
+			})
+		}
+	}
+}
+
+// BenchmarkStorePutBatcherTuning compares a few plausible batcher presets on
+// representative medium and large shard cases.
+//
+// Run with: go test -bench=BenchmarkStorePutBatcherTuning -benchtime=1x -run='^$'
+func BenchmarkStorePutBatcherTuning(b *testing.B) {
+	cases := []struct {
+		name     string
+		n        int
+		rowCount int
+		rowSize  int
+	}{
+		{"block=16MiB/rows=256/n=1000", 1000, 256, 4096},
+		{"block=64MiB/rows=256/n=256", 256, 256, 16 * 1024},
+		{"block=128MiB/rows=512/n=64", 64, 512, 32 * 1024},
+	}
+
+	presets := []struct {
+		name string
+		opts writeBatcherOptions
+	}{
+		{
+			name: "pending=128/bytes=64MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:        4096,
+				minPending:       128,
+				maxPending:       512,
+				minBatchBytes:    64 << 20,
+				targetBatchBytes: 1 << 30,
+				flushInterval:    1 * time.Millisecond,
+			},
+		},
+		{
+			name: "pending=64/bytes=64MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:        4096,
+				minPending:       64,
+				maxPending:       512,
+				minBatchBytes:    64 << 20,
+				targetBatchBytes: 1 << 30,
+				flushInterval:    1 * time.Millisecond,
+			},
+		},
+		{
+			name: "pending=128/bytes=32MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:        4096,
+				minPending:       128,
+				maxPending:       512,
+				minBatchBytes:    32 << 20,
+				targetBatchBytes: 1 << 30,
+				flushInterval:    1 * time.Millisecond,
+			},
+		},
+		{
+			name: "pending=128/bytes=128MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:        4096,
+				minPending:       128,
+				maxPending:       512,
+				minBatchBytes:    128 << 20,
+				targetBatchBytes: 1 << 30,
+				flushInterval:    1 * time.Millisecond,
+			},
+		},
+		{
+			name: "pending=128/bytes=64MiB/flush=2ms",
+			opts: writeBatcherOptions{
+				queueSize:        4096,
+				minPending:       128,
+				maxPending:       512,
+				minBatchBytes:    64 << 20,
+				targetBatchBytes: 1 << 30,
+				flushInterval:    2 * time.Millisecond,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		entries := makePutEntries(b, tc.n, tc.rowCount, tc.rowSize)
+		for _, preset := range presets {
+			preset := preset
+			b.Run(fmt.Sprintf("%s/%s", tc.name, preset.name), func(b *testing.B) {
+				benchStorePut(
+					b,
+					entries,
+					newPebbleBenchStore,
+					func(d ds.Batching) blobSaver { return newWriteBatcherWithOpts(d, preset.opts) },
+				)
 			})
 		}
 	}
