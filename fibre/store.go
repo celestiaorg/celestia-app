@@ -2,6 +2,7 @@ package fibre
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -361,6 +362,12 @@ func newDirectWriter(store ds.Batching) *directWriter {
 }
 
 func (dw *directWriter) submit(ctx context.Context, entries []batchEntry) error {
+	defer releaseEntryBuffers(entries)
+
+	if pds, ok := dw.ds.(*pebble.Datastore); ok {
+		return commitPebbleEntries(pds, entries)
+	}
+
 	batch, err := dw.ds.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
@@ -596,6 +603,10 @@ func (wb *writeBatcher) drain(
 }
 
 func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
+	if pds, ok := wb.ds.(*pebble.Datastore); ok {
+		return commitPebbleRequests(pds, requests)
+	}
+
 	batch, err := wb.ds.Batch(context.Background())
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
@@ -613,6 +624,77 @@ func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
 		return fmt.Errorf("committing batch: %w", err)
 	}
 	return nil
+}
+
+func commitPebbleRequests(pds *pebble.Datastore, requests []*writeRequest) error {
+	size := pebbleBatchHeaderSize
+	for _, req := range requests {
+		for i := range req.n {
+			size += pebbleBatchEntrySize(req.entries[i])
+		}
+	}
+
+	batch := pds.DB.NewBatchWithSize(size)
+	defer batch.Close()
+
+	for _, req := range requests {
+		for i := range req.n {
+			if err := writePebbleBatchEntry(batch, req.entries[i]); err != nil {
+				return err
+			}
+		}
+	}
+
+	if err := batch.Commit(pebbledb.NoSync); err != nil {
+		return fmt.Errorf("committing pebble batch: %w", err)
+	}
+	return nil
+}
+
+func commitPebbleEntries(pds *pebble.Datastore, entries []batchEntry) error {
+	size := pebbleBatchHeaderSize
+	for _, entry := range entries {
+		size += pebbleBatchEntrySize(entry)
+	}
+
+	batch := pds.DB.NewBatchWithSize(size)
+	defer batch.Close()
+
+	for _, entry := range entries {
+		if err := writePebbleBatchEntry(batch, entry); err != nil {
+			return err
+		}
+	}
+
+	if err := batch.Commit(pebbledb.NoSync); err != nil {
+		return fmt.Errorf("committing pebble batch: %w", err)
+	}
+	return nil
+}
+
+const pebbleBatchHeaderSize = 12
+
+func pebbleBatchEntrySize(entry batchEntry) int {
+	return 1 + 2*binary.MaxVarintLen32 + len(entry.key.String()) + len(entry.value)
+}
+
+func writePebbleBatchEntry(batch *pebbledb.Batch, entry batchEntry) error {
+	key := entry.key.String()
+	op := batch.SetDeferred(len(key), len(entry.value))
+	copy(op.Key, key)
+	copy(op.Value, entry.value)
+	if err := op.Finish(); err != nil {
+		return fmt.Errorf("finishing pebble batch op: %w", err)
+	}
+	return nil
+}
+
+func releaseEntryBuffers(entries []batchEntry) {
+	for _, entry := range entries {
+		if len(entry.value) > 0 {
+			marshalBufPool.Put(entry.value)
+		}
+	}
 }
 
 func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error {
