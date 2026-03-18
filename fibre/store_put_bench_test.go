@@ -31,15 +31,15 @@ func BenchmarkStorePut(b *testing.B) {
 		{"block=4MiB/rows=148/n=4000", 4000, 148, 1024},
 		{"block=4MiB/rows=256/n=3000", 3000, 256, 1024},
 		{"block=4MiB/rows=512/n=2000", 2000, 512, 1024},
-		{"block=16MiB/rows=148/n=1500", 1500, 148, 4096},
-		{"block=16MiB/rows=256/n=1000", 1000, 256, 4096},
-		{"block=16MiB/rows=512/n=500", 500, 512, 4096},
-		{"block=64MiB/rows=148/n=384", 384, 148, 16 * 1024},
-		{"block=64MiB/rows=256/n=256", 256, 256, 16 * 1024},
-		{"block=64MiB/rows=512/n=128", 128, 512, 16 * 1024},
-		{"block=128MiB/rows=148/n=192", 192, 148, 32 * 1024},
-		{"block=128MiB/rows=256/n=128", 128, 256, 32 * 1024},
-		{"block=128MiB/rows=512/n=64", 64, 512, 32 * 1024},
+		{"block=16MiB/rows=148/n=1500", 2000, 148, 4096},
+		{"block=16MiB/rows=256/n=1000", 2000, 256, 4096},
+		{"block=16MiB/rows=512/n=500", 2000, 512, 4096},
+		{"block=64MiB/rows=148/n=384", 2000, 148, 16 * 1024},
+		{"block=64MiB/rows=256/n=256", 2000, 256, 16 * 1024},
+		{"block=64MiB/rows=512/n=128", 2000, 512, 16 * 1024},
+		{"block=128MiB/rows=148/n=192", 2000, 148, 32 * 1024},
+		{"block=128MiB/rows=256/n=128", 2000, 256, 32 * 1024},
+		{"block=128MiB/rows=512/n=64", 2000, 512, 32 * 1024},
 	}
 
 	for _, tc := range cases {
@@ -119,15 +119,15 @@ func makePutEntries(b *testing.B, n, rowCount, rowSize int) []putEntry {
 
 		entries[i] = putEntry{
 			promise: &fibre.PaymentPromise{
-				ChainID:          "bench-chain",
-				Height:           uint64(i + 1),
-				Namespace:        ns,
-				UploadSize:       uint32(rowCount * rowSize),
-				BlobVersion:      0,
-				Commitment:       commitment,
+				ChainID:           "bench-chain",
+				Height:            uint64(i + 1),
+				Namespace:         ns,
+				UploadSize:        uint32(rowCount * rowSize),
+				BlobVersion:       0,
+				Commitment:        commitment,
 				CreationTimestamp: baseTime.Add(time.Duration(i) * time.Minute),
-				SignerKey:        signerKey,
-				Signature:        make([]byte, 64),
+				SignerKey:         signerKey,
+				Signature:         make([]byte, 64),
 			},
 			shard: &types.BlobShard{
 				Rows: rows,
