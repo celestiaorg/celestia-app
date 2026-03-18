@@ -89,11 +89,13 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 	return blob, nil
 }
 
-// downloadFrom downloads a shard for a blob from a single validator and returns the rows.
-// Rows are not applied to the blob; the caller (coordinator) is responsible for that.
+// downloadFrom downloads a shard for a blob from a single validator, verifies the rows,
+// and returns only valid ones. Rows are not applied to the blob; the caller (coordinator)
+// is responsible for that.
 func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
+	blob *Blob,
 	id BlobID,
 ) ([]*rsema1d.RowInclusionProof, error) {
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", id.Commitment())
@@ -143,9 +145,23 @@ func (c *Client) downloadFrom(
 		attribute.Int("row_size", rowSize),
 	))
 
-	log.DebugContext(ctx, "got rows", "rows_total", len(rows), "row_size", rowSize)
+	// Verify rows concurrently in the fetch goroutine to avoid blocking the coordinator
+	verified := make([]*rsema1d.RowInclusionProof, 0, len(rows))
+	for _, row := range rows {
+		if err := blob.VerifyRow(row); err != nil {
+			log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
+			span.AddEvent("invalid_row", trace.WithAttributes(
+				attribute.Int("row_index", row.Index),
+				attribute.String("error", err.Error()),
+			))
+			continue
+		}
+		verified = append(verified, row)
+	}
+
+	log.DebugContext(ctx, "got rows", "rows_total", len(rows), "verified", len(verified), "row_size", rowSize)
 	span.SetStatus(codes.Ok, "")
-	return rows, nil
+	return verified, nil
 }
 
 // downloadResult holds the result of a single validator shard download.
@@ -230,7 +246,7 @@ loop:
 					c.closeWg.Done()
 				}()
 
-				rows, err := c.downloadFrom(ctx, val, id)
+				rows, err := c.downloadFrom(ctx, val, blob, id)
 				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
 			}()
 
@@ -246,18 +262,10 @@ loop:
 				continue
 			}
 
+			// Rows are already verified in downloadFrom; just assign to blob
 			var applied int
 			for _, row := range res.rows {
-				isNew, err := blob.SetRow(row)
-				if err != nil {
-					c.log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
-					span.AddEvent("invalid_row", trace.WithAttributes(
-						attribute.Int("row_index", row.Index),
-						attribute.String("error", err.Error()),
-					))
-					continue
-				}
-				if isNew {
+				if blob.SetRow(row) {
 					applied++
 				}
 			}
