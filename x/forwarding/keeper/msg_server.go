@@ -97,7 +97,9 @@ func (m msgServer) processTokens(
 		result := m.forwardSingleToken(cacheCtx, forwardAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
 		if result.Success {
 			writeCache()
+			ctx.EventManager().EmitEvents(cacheCtx.EventManager().Events())
 		}
+
 		results = append(results, result)
 
 		EmitTokenForwardedEvent(ctx, msg.ForwardAddr, result)
