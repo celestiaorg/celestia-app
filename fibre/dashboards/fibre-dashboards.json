@@ -201,6 +201,22 @@
         { "expr": "sum(rate(fibre_server_download_shard_bytes_total[$__rate_interval]))", "legendFormat": "Server DownloadShard" }
       ]
     },
+    {
+      "title": "Total Upload Throughput (Data vs Network)",
+      "type": "timeseries",
+      "id": 9,
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
+        "overrides": []
+      },
+      "targets": [
+        { "expr": "sum(rate(fibre_client_upload_data_bytes_total[$__rate_interval]))", "legendFormat": "Data (without coding overhead)" },
+        { "expr": "sum(rate(fibre_client_upload_network_bytes_total[$__rate_interval]))", "legendFormat": "Network (with coding overhead)" },
+        { "expr": "sum(rate(fibre_client_upload_bytes_total[$__rate_interval]))", "legendFormat": "Upload (original rows, with padding)" }
+      ]
+    },
 
     {
       "collapsed": true,

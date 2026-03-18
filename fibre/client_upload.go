@@ -131,6 +131,12 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	)
 
 	c.metrics.uploadBytes.Add(ctx, int64(blob.UploadSize()))
+	c.metrics.uploadDataBytes.Add(ctx, int64(blob.DataSize()))
+	var totalShardRows int
+	for _, rows := range shardMap {
+		totalShardRows += len(rows)
+	}
+	c.metrics.uploadNetworkBytes.Add(ctx, int64(totalShardRows*blob.RowSize()))
 	c.metrics.uploadSigsCollected.Record(ctx, int64(len(sigs)))
 
 	span.SetStatus(codes.Ok, "")

@@ -12,6 +12,8 @@ type clientMetrics struct {
 	uploadInFlight      metric.Int64UpDownCounter
 	uploadDuration      metric.Float64Histogram
 	uploadBytes         metric.Int64Counter
+	uploadDataBytes     metric.Int64Counter
+	uploadNetworkBytes  metric.Int64Counter
 	uploadSigsCollected metric.Int64Histogram
 
 	// Per-validator upload
@@ -56,11 +58,27 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 	}
 
 	cm.uploadBytes, err = m.Int64Counter("fibre.client.upload.bytes",
-		metric.WithDescription("Total bytes uploaded"),
+		metric.WithDescription("Total bytes uploaded (original rows with padding, without parity)"),
 		metric.WithUnit("By"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload bytes counter: %w", err)
+	}
+
+	cm.uploadDataBytes, err = m.Int64Counter("fibre.client.upload.data_bytes",
+		metric.WithDescription("Total original data bytes uploaded (without padding or coding overhead)"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload data bytes counter: %w", err)
+	}
+
+	cm.uploadNetworkBytes, err = m.Int64Counter("fibre.client.upload.network_bytes",
+		metric.WithDescription("Total bytes pushed to all validators (includes parity and shard duplication)"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload network bytes counter: %w", err)
 	}
 
 	cm.uploadSigsCollected, err = m.Int64Histogram("fibre.client.upload.signatures_collected",
