@@ -682,7 +682,7 @@ For applications that need to retrieve all K original rows (e.g., rollups downlo
 
    ```text
    rowOrigTree = BuildPaddedRowTree(rowOrig, K)
-   rowRoot = rowOrigTree.root()
+   rowOrigRoot = rowOrigTree.root()
    ```
 
 2. **Verify Row Original Subtree is Part of Full Tree**
