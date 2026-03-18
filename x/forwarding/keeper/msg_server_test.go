@@ -443,7 +443,7 @@ func TestForward_UnsupportedDenomPrefixPoisoning(t *testing.T) {
 	// Step 1: Attacker deposits 20 distinct unsupported denoms.
 	// Using "ibc/..." prefixed denoms which sort before "utia" alphabetically.
 	poisonCoins := sdk.NewCoins()
-	for i := 0; i < types.MaxTokensPerForward; i++ {
+	for i := range types.MaxTokensPerForward {
 		denom := fmt.Sprintf("ibc/%040d", i) // e.g. "ibc/0000000000000000000000000000000000000000"
 		poisonCoins = poisonCoins.Add(sdk.NewCoin(denom, math.NewInt(1)))
 	}
