@@ -823,7 +823,7 @@ ComputeRootFromLeftSubtreeProof(leftSubtreeRoot, siblingRoots):
 
     for siblingRoot in siblingRoots:
         // Left subtree is always on the left, sibling on the right
-        currentRoot = SHA256(currentRoot || siblingRoot)
+        currentRoot = SHA256(0x01 || currentRoot || siblingRoot)
 
     return currentRoot
 ```
