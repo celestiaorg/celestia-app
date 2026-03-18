@@ -427,6 +427,20 @@ func TestForward_UnsupportedDenomPrefixPoisoning(t *testing.T) {
 	s.warpKeeper.TransferMessageId = messageId
 	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins() // zero fee for simplicity
 
+	// Simulate warp consuming the transferred token from forwardAddr
+	s.warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		// Warp consumes the utia balance from the forwarding address
+		bal := s.bankKeeper.Balances[senderAddr.String()]
+		remaining := sdk.NewCoins()
+		for _, c := range bal {
+			if c.Denom != appconsts.BondDenom {
+				remaining = remaining.Add(c)
+			}
+		}
+		s.bankKeeper.Balances[senderAddr.String()] = remaining
+	}
+
 	// Step 1: Attacker deposits 20 distinct unsupported denoms.
 	// Using "ibc/..." prefixed denoms which sort before "utia" alphabetically.
 	poisonCoins := sdk.NewCoins()
@@ -459,37 +473,32 @@ func TestForward_UnsupportedDenomPrefixPoisoning(t *testing.T) {
 		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
 	)
 
-	// Attempt 1: All 20 processed tokens are unsupported -> ErrAllTokensFailed
+	// After fix: unsupported denoms are filtered out before truncation,
+	// so utia is forwarded successfully despite 20+ poison denoms.
 	resp, err := s.msgServer.Forward(s.ctx, msg)
-	require.Error(t, err)
-	require.Nil(t, resp)
-	require.ErrorIs(t, err, types.ErrAllTokensFailed)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Len(t, resp.Results, 1, "only utia should be processed")
+	require.True(t, resp.Results[0].Success)
+	require.Equal(t, appconsts.BondDenom, resp.Results[0].Denom)
 
-	// Victim's utia is still at the forwarding address, untouched
-	require.Equal(t, victimDeposit.Amount,
-		s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount,
-		"victim's utia should remain stuck at forwarding address")
-
-	// Attempt 2: Retry produces the exact same result — the poison prefix is stable
-	resp2, err2 := s.msgServer.Forward(s.ctx, msg)
-	require.Error(t, err2)
-	require.Nil(t, resp2)
-	require.ErrorIs(t, err2, types.ErrAllTokensFailed)
-
-	// utia is STILL stuck — this is the permanent deadlock
-	require.Equal(t, victimDeposit.Amount,
-		s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount,
-		"victim's utia should STILL be stuck after retry — permanent deadlock confirmed")
+	// Victim's utia has been forwarded (no longer at the forwarding address)
+	require.True(t, s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).IsZero(),
+		"victim's utia should have been forwarded successfully")
 }
 
 func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
 	s := newTestIGPSetup(t)
 
-	// Two failing tokens:
-	// 1) ufoo fails token lookup
+	// Two failing supported tokens:
+	// 1) hyperlane/999 fails route check (no enrolled router)
 	// 2) utia fails due insufficient max_igp_fee
+	hypToken := createTestHypToken(999, "hyperlane/999", warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
+	s.warpKeeper.Tokens = append(s.warpKeeper.Tokens, hypToken)
+	// No enrolled router for hyperlane/999 -> will fail route check
+
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
-		sdk.NewCoin("ufoo", math.NewInt(25)),
+		sdk.NewCoin("hyperlane/999", math.NewInt(25)),
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
 	)
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
@@ -510,6 +519,6 @@ func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
 
 	errText := err.Error()
 	require.Contains(t, errText, "all 2 tokens failed to forward")
-	require.Contains(t, errText, "ufoo:25 (token lookup failed: unsupported token denom)")
+	require.Contains(t, errText, "hyperlane/999:25")
 	require.Contains(t, errText, "utia:1000 (IGP fee provided is less than required")
 }
