@@ -37,9 +37,9 @@ func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 	key := promiseKey([]byte("queued"))
 	errCh := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
-	plan := makeWriteBatcherTestPlan("queued", len("value"))
+	put := makeWriteBatcherTestPut(t, "queued", len("value"))
 	go func() {
-		errCh <- wb.submit(ctx, plan)
+		errCh <- wb.submit(ctx, put)
 	}()
 
 	<-store.commitStarted
@@ -67,9 +67,9 @@ func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 	})
 
 	errCh := make(chan error, 1)
-	inflightPlan := makeWriteBatcherTestPlan("inflight", len("value"))
+	inflightPut := makeWriteBatcherTestPut(t, "inflight", len("value"))
 	go func() {
-		errCh <- wb.submit(context.Background(), inflightPlan)
+		errCh <- wb.submit(context.Background(), inflightPut)
 	}()
 
 	<-store.commitStarted
@@ -90,7 +90,7 @@ func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 		return wb.submitters.isClosed()
 	}, time.Second, 10*time.Millisecond)
 
-	require.ErrorIs(t, wb.submit(context.Background(), makeWriteBatcherTestPlan("after-close", len("value"))), ErrStoreClosed)
+	require.ErrorIs(t, wb.submit(context.Background(), makeWriteBatcherTestPut(t, "after-close", len("value"))), ErrStoreClosed)
 
 	close(store.releaseCommit)
 
@@ -122,7 +122,7 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 	for i := range numSubmits {
 		go func() {
 			defer wg.Done()
-			err := wb.submit(context.Background(), makeWriteBatcherTestPlan(fmt.Sprintf("coalesce-%d", i), 1))
+			err := wb.submit(context.Background(), makeWriteBatcherTestPut(t, fmt.Sprintf("coalesce-%d", i), 1))
 			require.NoError(t, err)
 		}()
 	}
@@ -154,7 +154,7 @@ func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- wb.submit(context.Background(), makeWriteBatcherTestPlan("large", 2048))
+		errCh <- wb.submit(context.Background(), makeWriteBatcherTestPut(t, "large", 2048))
 	}()
 
 	select {
@@ -168,10 +168,12 @@ func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T
 	wb.close()
 }
 
-func makeWriteBatcherTestPlan(id string, shardBytes int) *putPlan {
+func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *encodedPut {
+	t.Helper()
+
 	var commitment Commitment
 	copy(commitment[:], []byte(id))
-	return &putPlan{
+	plan := &putPlan{
 		promiseProto: &types.PaymentPromise{
 			ChainId:    "test-chain",
 			Height:     1,
@@ -191,6 +193,9 @@ func makeWriteBatcherTestPlan(id string, shardBytes int) *putPlan {
 		ppSize:    (&types.PaymentPromise{ChainId: "test-chain", Height: 1, Commitment: commitment[:], BlobSize: uint32(shardBytes)}).Size(),
 		shardSize: (&types.BlobShard{Rows: []*types.BlobRow{{Index: 0, Data: make([]byte, shardBytes)}}, Rlc: &types.BlobShard_Root{Root: make([]byte, 32)}}).Size(),
 	}
+	put, err := encodePut(plan)
+	require.NoError(t, err)
+	return put
 }
 
 type countingBatching struct {

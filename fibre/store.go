@@ -48,7 +48,7 @@ func (cfg StoreConfig) Validate() error {
 // putter abstracts how prepared write plans are persisted.
 // Implementations control the commit strategy: immediate or coalesced.
 type putter interface {
-	submit(ctx context.Context, plan *putPlan) error
+	submit(ctx context.Context, put *encodedPut) error
 	close()
 }
 
@@ -145,7 +145,11 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if err != nil {
 		return err
 	}
-	return s.putter.submit(ctx, plan)
+	put, err := encodePut(plan)
+	if err != nil {
+		return err
+	}
+	return s.putter.submit(ctx, put)
 }
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
@@ -284,7 +288,7 @@ func newStore(cfg StoreConfig, store ds.Batching) *Store {
 }
 
 type planCommitter interface {
-	commit(ctx context.Context, plans []*putPlan) error
+	commit(ctx context.Context, puts []*encodedPut) error
 }
 
 type genericPlanCommitter struct {
@@ -303,6 +307,15 @@ type putPlan struct {
 	pruneAt      time.Time
 	ppSize       int
 	shardSize    int
+}
+
+type encodedPut struct {
+	promiseKey string
+	shardKey   string
+	pruneKey   string
+	ppData     []byte
+	shardData  []byte
+	bytes      int
 }
 
 func preparePut(promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) (*putPlan, error) {
@@ -331,38 +344,62 @@ func (p *putPlan) batchBytes() int {
 		pruneKeyLen(p.promiseHash)
 }
 
-func (p *putPlan) applyGeneric(ctx context.Context, batch ds.Batch) error {
-	ppData, err := gogoproto.Marshal(p.promiseProto)
+func encodePut(plan *putPlan) (*encodedPut, error) {
+	ppData, err := marshalSized(plan.promiseProto)
 	if err != nil {
-		return fmt.Errorf("marshaling payment promise: %w", err)
+		return nil, fmt.Errorf("marshaling payment promise: %w", err)
 	}
-	if err := batch.Put(ctx, promiseKey(p.promiseHash), ppData); err != nil {
+
+	shardData, err := marshalSized(plan.shard)
+	if err != nil {
+		marshalBufPool.Put(ppData)
+		return nil, fmt.Errorf("marshaling shard: %w", err)
+	}
+
+	put := &encodedPut{
+		promiseKey: promiseKeyString(plan.promiseHash),
+		shardKey:   shardKeyString(plan.commitment, plan.promiseHash),
+		pruneKey:   pruneKeyString(plan.pruneAt, plan.commitment, plan.promiseHash),
+		ppData:     ppData,
+		shardData:  shardData,
+	}
+	put.bytes = len(put.promiseKey) + len(put.ppData) + len(put.shardKey) + len(put.shardData) + len(put.pruneKey)
+	return put, nil
+}
+
+func (p *encodedPut) release() {
+	if len(p.ppData) > 0 {
+		marshalBufPool.Put(p.ppData)
+	}
+	if len(p.shardData) > 0 {
+		marshalBufPool.Put(p.shardData)
+	}
+	p.ppData = nil
+	p.shardData = nil
+}
+
+func (p *encodedPut) applyGeneric(ctx context.Context, batch ds.Batch) error {
+	if err := batch.Put(ctx, ds.RawKey(p.promiseKey), p.ppData); err != nil {
 		return fmt.Errorf("putting payment promise: %w", err)
 	}
-
-	shardData, err := gogoproto.Marshal(p.shard)
-	if err != nil {
-		return fmt.Errorf("marshaling shard: %w", err)
-	}
-	if err := batch.Put(ctx, shardKey(p.commitment, p.promiseHash), shardData); err != nil {
+	if err := batch.Put(ctx, ds.RawKey(p.shardKey), p.shardData); err != nil {
 		return fmt.Errorf("putting shard: %w", err)
 	}
-
-	if err := batch.Put(ctx, pruneKey(p.pruneAt, p.commitment, p.promiseHash), nil); err != nil {
+	if err := batch.Put(ctx, ds.RawKey(p.pruneKey), nil); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)
 	}
 	return nil
 }
 
-func (p *putPlan) applyPebble(batch *pebbledb.Batch) error {
-	if err := writePebblePaymentPromise(batch, p); err != nil {
-		return err
+func (p *encodedPut) applyPebble(batch *pebbledb.Batch) error {
+	if err := writePebbleEntry(batch, p.promiseKey, p.ppData); err != nil {
+		return fmt.Errorf("writing payment promise: %w", err)
 	}
-	if err := writePebbleShard(batch, p); err != nil {
-		return err
+	if err := writePebbleEntry(batch, p.shardKey, p.shardData); err != nil {
+		return fmt.Errorf("writing shard: %w", err)
 	}
-	if err := writePebblePruneIndex(batch, p); err != nil {
-		return err
+	if err := writePebbleEntry(batch, p.pruneKey, nil); err != nil {
+		return fmt.Errorf("writing prune index: %w", err)
 	}
 	return nil
 }
@@ -374,13 +411,23 @@ func defaultPlanCommitter(store ds.Batching) planCommitter {
 	return genericPlanCommitter{store: store}
 }
 
-func (c genericPlanCommitter) commit(ctx context.Context, plans []*putPlan) error {
+func releaseEncodedPuts(puts []*encodedPut) {
+	for _, put := range puts {
+		if put != nil {
+			put.release()
+		}
+	}
+}
+
+func (c genericPlanCommitter) commit(ctx context.Context, puts []*encodedPut) error {
+	defer releaseEncodedPuts(puts)
+
 	batch, err := c.store.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
 	}
-	for _, plan := range plans {
-		if err := plan.applyGeneric(ctx, batch); err != nil {
+	for _, put := range puts {
+		if err := put.applyGeneric(ctx, batch); err != nil {
 			return err
 		}
 	}
@@ -390,12 +437,14 @@ func (c genericPlanCommitter) commit(ctx context.Context, plans []*putPlan) erro
 	return nil
 }
 
-func (c pebblePlanCommitter) commit(_ context.Context, plans []*putPlan) error {
-	batch := c.store.DB.NewBatchWithSize(pebblePlansBatchSize(plans))
+func (c pebblePlanCommitter) commit(_ context.Context, puts []*encodedPut) error {
+	defer releaseEncodedPuts(puts)
+
+	batch := c.store.DB.NewBatchWithSize(pebbleEncodedPutsBatchSize(puts))
 	defer batch.Close()
 
-	for _, plan := range plans {
-		if err := plan.applyPebble(batch); err != nil {
+	for _, put := range puts {
+		if err := put.applyPebble(batch); err != nil {
 			return err
 		}
 	}
@@ -416,8 +465,8 @@ func newDirectPutter(store ds.Batching) *directPutter {
 	return &directPutter{committer: defaultPlanCommitter(store)}
 }
 
-func (dw *directPutter) submit(ctx context.Context, plan *putPlan) error {
-	return dw.committer.commit(ctx, []*putPlan{plan})
+func (dw *directPutter) submit(ctx context.Context, put *encodedPut) error {
+	return dw.committer.commit(ctx, []*encodedPut{put})
 }
 
 func (dw *directPutter) close() {}
@@ -426,7 +475,7 @@ func (dw *directPutter) close() {}
 // not introduce a second write architecture: it queues [putPlan]s and flushes
 // them through the same backend-specific committers used by direct writes.
 type writeRequest struct {
-	plan   *putPlan
+	put    *encodedPut
 	bytes  int
 	result chan error
 }
@@ -632,23 +681,24 @@ func (wb *writeBatcher) drain(
 }
 
 func (wb *writeBatcher) commitAll(ctx context.Context, requests []*writeRequest) error {
-	plans := make([]*putPlan, len(requests))
+	puts := make([]*encodedPut, len(requests))
 	for i, req := range requests {
-		plans[i] = req.plan
+		puts[i] = req.put
 	}
-	return wb.committer.commit(ctx, plans)
+	return wb.committer.commit(ctx, puts)
 }
 
-func (wb *writeBatcher) submit(ctx context.Context, plan *putPlan) error {
-	if plan == nil {
+func (wb *writeBatcher) submit(ctx context.Context, put *encodedPut) error {
+	if put == nil {
 		return nil
 	}
 
 	req := writeRequestPool.Get().(*writeRequest)
-	req.plan = plan
-	req.bytes = plan.batchBytes()
+	req.put = put
+	req.bytes = put.bytes
 
 	if !wb.tryAcquireSubmitter() {
+		put.release()
 		req.reset()
 		writeRequestPool.Put(req)
 		return ErrStoreClosed
@@ -658,6 +708,7 @@ func (wb *writeBatcher) submit(ctx context.Context, plan *putPlan) error {
 	select {
 	case wb.requests <- req:
 	case <-ctx.Done():
+		put.release()
 		req.reset()
 		writeRequestPool.Put(req)
 		return ctx.Err()
@@ -682,7 +733,7 @@ func (wb *writeBatcher) close() {
 }
 
 func (req *writeRequest) reset() {
-	req.plan = nil
+	req.put = nil
 	req.bytes = 0
 }
 
@@ -742,6 +793,8 @@ type sizedMarshaler interface {
 	MarshalToSizedBuffer([]byte) (int, error)
 }
 
+var marshalBufPool sync.Pool
+
 const (
 	timestampLayout   = "200601021504"
 	timestampLen      = len(timestampLayout)
@@ -763,24 +816,42 @@ func marshalToSizedBuffer(dst []byte, m sizedMarshaler) error {
 	return nil
 }
 
+func marshalSized(m sizedMarshaler) ([]byte, error) {
+	size := m.Size()
+	var buf []byte
+	if v := marshalBufPool.Get(); v != nil {
+		buf = v.([]byte)
+	}
+	if cap(buf) < size {
+		buf = make([]byte, size)
+	} else {
+		buf = buf[:size]
+	}
+	n, err := m.MarshalToSizedBuffer(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
+}
+
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
 // This format is used for timestamp-based indexing in the datastore.
 func formatTimestamp(timestamp time.Time) string {
 	return timestamp.Format(timestampLayout)
 }
 
-func pebblePlansBatchSize(plans []*putPlan) int {
+func pebbleEncodedPutsBatchSize(puts []*encodedPut) int {
 	size := pebbleBatchHeader
-	for _, plan := range plans {
-		size += pebblePutBatchSize(plan)
+	for _, put := range puts {
+		size += pebbleEncodedPutBatchSize(put)
 	}
 	return size
 }
 
-func pebblePutBatchSize(plan *putPlan) int {
-	return pebbleBatchEntrySize(promiseKeyLen(plan.promiseHash), plan.ppSize) +
-		pebbleBatchEntrySize(shardKeyLen(plan.promiseHash), plan.shardSize) +
-		pebbleBatchEntrySize(pruneKeyLen(plan.promiseHash), 0)
+func pebbleEncodedPutBatchSize(put *encodedPut) int {
+	return pebbleBatchEntrySize(len(put.promiseKey), len(put.ppData)) +
+		pebbleBatchEntrySize(len(put.shardKey), len(put.shardData)) +
+		pebbleBatchEntrySize(len(put.pruneKey), 0)
 }
 
 func pebbleBatchEntrySize(keyLen, valueLen int) int {
@@ -799,75 +870,38 @@ func pruneKeyLen(promiseHash []byte) int {
 	return len(pruneKeyPrefix) + timestampLen + 1 + commitmentHexLen + 1 + hex.EncodedLen(len(promiseHash))
 }
 
-func writePebblePaymentPromise(batch *pebbledb.Batch, plan *putPlan) error {
-	op := batch.SetDeferred(promiseKeyLen(plan.promiseHash), plan.ppSize)
-	encodePromiseKey(op.Key, plan.promiseHash)
-	if err := marshalToSizedBuffer(op.Value, plan.promiseProto); err != nil {
-		return fmt.Errorf("marshaling payment promise: %w", err)
-	}
+func promiseKeyString(promiseHash []byte) string {
+	return promiseKeyPrefix + hex.EncodeToString(promiseHash)
+}
+
+func shardKeyString(commitment Commitment, promiseHash []byte) string {
+	return shardKeyPrefix + commitment.String() + "/" + hex.EncodeToString(promiseHash)
+}
+
+func pruneKeyString(pruneAt time.Time, commitment Commitment, promiseHash []byte) string {
+	return pruneKeyPrefix + formatTimestamp(pruneAt.UTC()) + "/" + commitment.String() + "/" + hex.EncodeToString(promiseHash)
+}
+
+func writePebbleEntry(batch *pebbledb.Batch, key string, value []byte) error {
+	op := batch.SetDeferred(len(key), len(value))
+	copy(op.Key, key)
+	copy(op.Value, value)
 	if err := op.Finish(); err != nil {
-		return fmt.Errorf("finishing payment promise batch op: %w", err)
+		return fmt.Errorf("finishing pebble batch op: %w", err)
 	}
 	return nil
-}
-
-func writePebbleShard(batch *pebbledb.Batch, plan *putPlan) error {
-	op := batch.SetDeferred(shardKeyLen(plan.promiseHash), plan.shardSize)
-	encodeShardKey(op.Key, plan.commitment, plan.promiseHash)
-	if err := marshalToSizedBuffer(op.Value, plan.shard); err != nil {
-		return fmt.Errorf("marshaling shard: %w", err)
-	}
-	if err := op.Finish(); err != nil {
-		return fmt.Errorf("finishing shard batch op: %w", err)
-	}
-	return nil
-}
-
-func writePebblePruneIndex(batch *pebbledb.Batch, plan *putPlan) error {
-	op := batch.SetDeferred(pruneKeyLen(plan.promiseHash), 0)
-	encodePruneKey(op.Key, plan.pruneAt, plan.commitment, plan.promiseHash)
-	if err := op.Finish(); err != nil {
-		return fmt.Errorf("finishing prune index batch op: %w", err)
-	}
-	return nil
-}
-
-func encodePromiseKey(dst []byte, promiseHash []byte) {
-	pos := copy(dst, promiseKeyPrefix)
-	hex.Encode(dst[pos:], promiseHash)
-}
-
-func encodeShardKey(dst []byte, commitment Commitment, promiseHash []byte) {
-	pos := copy(dst, shardKeyPrefix)
-	hex.Encode(dst[pos:pos+commitmentHexLen], commitment[:])
-	pos += commitmentHexLen
-	dst[pos] = '/'
-	pos++
-	hex.Encode(dst[pos:], promiseHash)
-}
-
-func encodePruneKey(dst []byte, pruneAt time.Time, commitment Commitment, promiseHash []byte) {
-	pos := copy(dst, pruneKeyPrefix)
-	pos = len(pruneAt.UTC().AppendFormat(dst[:pos], timestampLayout))
-	dst[pos] = '/'
-	pos++
-	hex.Encode(dst[pos:pos+commitmentHexLen], commitment[:])
-	pos += commitmentHexLen
-	dst[pos] = '/'
-	pos++
-	hex.Encode(dst[pos:], promiseHash)
 }
 
 func promiseKey(promiseHash []byte) ds.Key {
-	return ds.RawKey("/pp/" + hex.EncodeToString(promiseHash))
+	return ds.RawKey(promiseKeyString(promiseHash))
 }
 
 func shardKey(commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.RawKey("/shard/" + commitment.String() + "/" + hex.EncodeToString(promiseHash))
+	return ds.RawKey(shardKeyString(commitment, promiseHash))
 }
 
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.RawKey("/prune/" + formatTimestamp(pruneAt.UTC()) + "/" + commitment.String() + "/" + hex.EncodeToString(promiseHash))
+	return ds.RawKey(pruneKeyString(pruneAt, commitment, promiseHash))
 }
 
 // parsePruneKey extracts commitment and promise hash from a prune index key.
