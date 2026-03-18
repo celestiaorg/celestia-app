@@ -195,10 +195,10 @@
         "overrides": []
       },
       "targets": [
-        { "expr": "sum(rate(fibre_client_upload_bytes_By_total[$__rate_interval]))", "legendFormat": "Client Upload" },
-        { "expr": "sum(rate(fibre_client_download_bytes_By_total[$__rate_interval]))", "legendFormat": "Client Download" },
-        { "expr": "sum(rate(fibre_server_upload_shard_bytes_By_total[$__rate_interval]))", "legendFormat": "Server UploadShard" },
-        { "expr": "sum(rate(fibre_server_download_shard_bytes_By_total[$__rate_interval]))", "legendFormat": "Server DownloadShard" }
+        { "expr": "sum(rate(fibre_client_upload_bytes_total[$__rate_interval]))", "legendFormat": "Client Upload" },
+        { "expr": "sum(rate(fibre_client_download_bytes_total[$__rate_interval]))", "legendFormat": "Client Download" },
+        { "expr": "sum(rate(fibre_server_upload_shard_bytes_total[$__rate_interval]))", "legendFormat": "Server UploadShard" },
+        { "expr": "sum(rate(fibre_server_download_shard_bytes_total[$__rate_interval]))", "legendFormat": "Server DownloadShard" }
       ]
     },
 
@@ -289,7 +289,7 @@
           },
           "targets": [
             {
-              "expr": "sum(rate(fibre_client_upload_bytes_By_total[$__rate_interval]))",
+              "expr": "sum(rate(fibre_client_upload_bytes_total[$__rate_interval]))",
               "legendFormat": "Throughput"
             }
           ]
@@ -477,7 +477,7 @@
           },
           "targets": [
             {
-              "expr": "sum(rate(fibre_client_download_bytes_By_total[$__rate_interval]))",
+              "expr": "sum(rate(fibre_client_download_bytes_total[$__rate_interval]))",
               "legendFormat": "Throughput"
             }
           ]
@@ -769,11 +769,11 @@
           },
           "targets": [
             {
-              "expr": "sum(rate(fibre_server_upload_shard_bytes_By_total[$__rate_interval]))",
+              "expr": "sum(rate(fibre_server_upload_shard_bytes_total[$__rate_interval]))",
               "legendFormat": "UploadShard"
             },
             {
-              "expr": "sum(rate(fibre_server_download_shard_bytes_By_total[$__rate_interval]))",
+              "expr": "sum(rate(fibre_server_download_shard_bytes_total[$__rate_interval]))",
               "legendFormat": "DownloadShard"
             }
           ]
