@@ -181,7 +181,7 @@ func (m *serverMetrics) observeSign(ctx context.Context, start time.Time, succes
 // observePrune records prune cycle duration and entries pruned.
 func (m *serverMetrics) observePrune(ctx context.Context, start time.Time, pruned int, err error) {
 	m.pruneDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil)))
-	if pruned > 0 {
+	if pruned > 0 && err == nil {
 		m.pruneEntries.Add(ctx, int64(pruned))
 	}
 }

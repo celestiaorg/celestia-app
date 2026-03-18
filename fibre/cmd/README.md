@@ -118,7 +118,9 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 |---|---|---|---|
 | `fibre.client.upload.in_flight` | UpDownCounter | — | Concurrent uploads |
 | `fibre.client.upload.duration` | Histogram (s) | `success`, `blob_size` | Upload latency |
-| `fibre.client.upload.bytes` | Counter (By) | — | Total bytes uploaded |
+| `fibre.client.upload.bytes` | Counter (By) | — | Total bytes uploaded (original rows with padding) |
+| `fibre.client.upload.data_bytes` | Counter (By) | — | Total original data bytes (without padding or coding overhead) |
+| `fibre.client.upload.network_bytes` | Counter (By) | — | Total bytes pushed to all validators (includes shard duplication) |
 | `fibre.client.upload.signatures_collected` | Histogram | — | Signatures per upload |
 | `fibre.client.upload_to.duration` | Histogram (s) | `success`, `blob_size`, `validator_address` | Per-validator upload duration |
 | `fibre.client.upload_to.rpc_latency` | Histogram (s) | `success`, `validator_address` | Per-validator RPC network latency |
@@ -127,8 +129,6 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.client.download.bytes` | Counter (By) | — | Total bytes downloaded |
 | `fibre.client.download_from.duration` | Histogram (s) | `success`, `validator_address` | Per-validator download duration |
 | `fibre.client.download_from.rpc_latency` | Histogram (s) | `success`, `validator_address` | Per-validator RPC network latency |
-| `fibre.client.put.in_flight` | UpDownCounter | — | Concurrent Put operations |
-| `fibre.client.put.duration` | Histogram (s) | `success` | End-to-end Put latency (upload + tx) |
 
 #### Server metrics
 

@@ -19,12 +19,12 @@ import (
 
 // UploadShard handles the [types.FibreServer.UploadShard] RPC call.
 func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest) (_ *types.UploadShardResponse, err error) {
+	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
+	defer span.End()
+
 	var uploadSize int64
 	uploadShardDone := s.metrics.observeUploadShard(ctx)
 	defer func() { uploadShardDone(uploadSize, err) }()
-
-	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
-	defer span.End()
 
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
@@ -90,9 +90,11 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	}
 	span.AddEvent("signature_generated")
 
-	s.metrics.uploadShardBytes.Add(ctx, uploadSize)
+	shardBytes := int64(len(req.Shard.Rows)) * int64(len(req.Shard.Rows[0].Data))
+	s.metrics.uploadShardBytes.Add(ctx, shardBytes)
 	log.DebugContext(ctx, "successful upload",
 		"upload_size", promise.UploadSize,
+		"shard_bytes", shardBytes,
 		"rows_count", len(req.Shard.Rows),
 		"row_size", len(req.Shard.Rows[0].Data),
 	)

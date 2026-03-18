@@ -33,9 +33,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		return result, ErrClientClosed
 	}
 
-	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
-	defer func() { uploadDone(err) }()
-
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Upload",
 		trace.WithAttributes(
 			attribute.String("namespace", ns.String()),
@@ -43,6 +40,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		),
 	)
 	defer span.End()
+
+	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
+	defer func() { uploadDone(err) }()
 
 	// 1) get validator set
 	valSet, err := c.state.Head(ctx)

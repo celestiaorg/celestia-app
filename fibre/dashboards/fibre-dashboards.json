@@ -197,7 +197,7 @@
       "type": "timeseries",
       "id": 9,
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
       "fieldConfig": {
         "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
         "overrides": []
@@ -305,7 +305,7 @@
           "title": "Signatures Collected Distribution",
           "type": "timeseries",
           "id": 13,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "fieldConfig": {
             "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
@@ -493,7 +493,7 @@
           "title": "Download Latency by Blob Size",
           "type": "timeseries",
           "id": 23,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
           "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },

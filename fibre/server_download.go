@@ -17,12 +17,12 @@ import (
 // DownloadShard handles the [types.FibreServer.DownloadShard] RPC call.
 // It retrieves [types.BlobShard] for the given blob ID.
 func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (_ *types.DownloadShardResponse, err error) {
+	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
+	defer span.End()
+
 	var shardSize int64
 	downloadShardDone := s.metrics.observeDownloadShard(ctx)
 	defer func() { downloadShardDone(shardSize, err) }()
-
-	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
-	defer span.End()
 
 	// unmarshal and validate blob ID
 	var id BlobID

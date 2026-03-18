@@ -42,13 +42,13 @@ func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error
 		return nil, ErrClientClosed
 	}
 
-	downloadDone := c.metrics.observeDownload(ctx)
-	defer func() { downloadDone(blob, err) }()
-
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
 		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
 	defer span.End()
+
+	downloadDone := c.metrics.observeDownload(ctx)
+	defer func() { downloadDone(blob, err) }()
 
 	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
@@ -112,7 +112,8 @@ func (c *Client) downloadFrom(
 	defer span.End()
 
 	defer func() {
-		c.metrics.observeDownloadFrom(ctx, downloadStart, err == nil, valAddrStr)
+		success := err == nil || context.Cause(ctx) == errDownloaded
+		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
 	}()
 
 	client, err := c.clientCache.GetClient(ctx, val)
@@ -130,7 +131,7 @@ func (c *Client) downloadFrom(
 
 	rpcStart := time.Now()
 	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: blob.ID()})
-	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil, valAddrStr)
+	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")
