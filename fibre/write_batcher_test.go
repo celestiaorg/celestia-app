@@ -168,12 +168,12 @@ func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T
 	wb.close()
 }
 
-func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *encodedPut {
+func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *putPlan {
 	t.Helper()
 
 	var commitment Commitment
 	copy(commitment[:], []byte(id))
-	plan := &putPlan{
+	return &putPlan{
 		promiseProto: &types.PaymentPromise{
 			ChainId:    "test-chain",
 			Height:     1,
@@ -193,9 +193,6 @@ func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *encodedPu
 		ppSize:    (&types.PaymentPromise{ChainId: "test-chain", Height: 1, Commitment: commitment[:], BlobSize: uint32(shardBytes)}).Size(),
 		shardSize: (&types.BlobShard{Rows: []*types.BlobRow{{Index: 0, Data: make([]byte, shardBytes)}}, Rlc: &types.BlobShard_Root{Root: make([]byte, 32)}}).Size(),
 	}
-	put, err := encodePut(plan)
-	require.NoError(t, err)
-	return put
 }
 
 type countingBatching struct {

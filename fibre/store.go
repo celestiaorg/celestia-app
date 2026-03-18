@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -48,7 +49,7 @@ func (cfg StoreConfig) Validate() error {
 // putter abstracts how prepared write plans are persisted.
 // Implementations control the commit strategy: immediate or coalesced.
 type putter interface {
-	submit(ctx context.Context, put *encodedPut) error
+	submit(ctx context.Context, plan *putPlan) error
 	close()
 }
 
@@ -145,11 +146,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if err != nil {
 		return err
 	}
-	put, err := encodePut(plan)
-	if err != nil {
-		return err
-	}
-	return s.putter.submit(ctx, put)
+	return s.putter.submit(ctx, plan)
 }
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
@@ -465,16 +462,22 @@ func newDirectPutter(store ds.Batching) *directPutter {
 	return &directPutter{committer: defaultPlanCommitter(store)}
 }
 
-func (dw *directPutter) submit(ctx context.Context, put *encodedPut) error {
+func (dw *directPutter) submit(ctx context.Context, plan *putPlan) error {
+	put, err := encodePut(plan)
+	if err != nil {
+		return err
+	}
 	return dw.committer.commit(ctx, []*encodedPut{put})
 }
 
 func (dw *directPutter) close() {}
 
-// writeBatcher coalesces multiple prepared puts into a single commit. It does
-// not introduce a second write architecture: it queues [putPlan]s and flushes
-// them through the same backend-specific committers used by direct writes.
+// writeBatcher runs a three-stage pipeline:
+// 1. callers submit logical put plans,
+// 2. encoder workers marshal plans into pooled byte buffers in parallel,
+// 3. a single commit loop coalesces encoded puts into shared datastore batches.
 type writeRequest struct {
+	plan   *putPlan
 	put    *encodedPut
 	bytes  int
 	result chan error
@@ -491,6 +494,7 @@ type writeBatcher struct {
 	requests         chan *writeRequest
 	done             chan struct{}
 	submitters       submitGate
+	encoderWorkers   int
 	maxPending       int
 	minPending       int
 	minBatchBytes    int
@@ -516,6 +520,7 @@ const (
 )
 
 type writeBatcherOptions struct {
+	encoderWorkers   int
 	queueSize        int
 	minPending       int
 	maxPending       int
@@ -542,6 +547,9 @@ func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *write
 	if opts.queueSize <= 0 {
 		opts.queueSize = defaultWriteBatcherQueueSize
 	}
+	if opts.encoderWorkers <= 0 {
+		opts.encoderWorkers = runtime.GOMAXPROCS(0)
+	}
 	if opts.minPending <= 0 {
 		opts.minPending = defaultWriteBatcherMinPending
 	}
@@ -565,6 +573,7 @@ func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *write
 		submitters: submitGate{
 			drained: make(chan struct{}),
 		},
+		encoderWorkers:   opts.encoderWorkers,
 		maxPending:       opts.maxPending,
 		minPending:       opts.minPending,
 		minBatchBytes:    opts.minBatchBytes,
@@ -586,7 +595,7 @@ func (wb *writeBatcher) run() {
 
 		pending := make([]*writeRequest, 1, wb.maxPending)
 		pending[0] = first
-		pendingBytes := first.bytes
+		pendingBytes := first.plan.batchBytes()
 
 		// Immediate drain (no waiting)
 		pending, pendingBytes = wb.drain(pending, pendingBytes, nil)
@@ -659,7 +668,7 @@ func (wb *writeBatcher) drain(
 					return pending, pendingBytes
 				}
 				pending = append(pending, req)
-				pendingBytes += req.bytes
+				pendingBytes += req.plan.batchBytes()
 			default:
 				return pending, pendingBytes
 			}
@@ -672,7 +681,7 @@ func (wb *writeBatcher) drain(
 				return pending, pendingBytes
 			}
 			pending = append(pending, req)
-			pendingBytes += req.bytes
+			pendingBytes += req.plan.batchBytes()
 		case <-timer.C:
 			return pending, pendingBytes
 		}
@@ -681,24 +690,73 @@ func (wb *writeBatcher) drain(
 }
 
 func (wb *writeBatcher) commitAll(ctx context.Context, requests []*writeRequest) error {
-	puts := make([]*encodedPut, len(requests))
-	for i, req := range requests {
-		puts[i] = req.put
+	puts, err := wb.encodeAll(requests)
+	if err != nil {
+		return err
 	}
 	return wb.committer.commit(ctx, puts)
 }
 
-func (wb *writeBatcher) submit(ctx context.Context, put *encodedPut) error {
-	if put == nil {
+func (wb *writeBatcher) encodeAll(requests []*writeRequest) ([]*encodedPut, error) {
+	if len(requests) == 0 {
+		return nil, nil
+	}
+	if len(requests) == 1 || wb.encoderWorkers <= 1 {
+		put, err := encodePut(requests[0].plan)
+		requests[0].plan = nil
+		if err != nil {
+			return nil, err
+		}
+		return []*encodedPut{put}, nil
+	}
+
+	puts := make([]*encodedPut, len(requests))
+	jobs := make(chan int, len(requests))
+	var (
+		wg       sync.WaitGroup
+		errOnce  sync.Once
+		firstErr error
+	)
+
+	workers := min(wb.encoderWorkers, len(requests))
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				put, err := encodePut(requests[idx].plan)
+				requests[idx].plan = nil
+				if err != nil {
+					errOnce.Do(func() { firstErr = err })
+					continue
+				}
+				puts[idx] = put
+			}
+		}()
+	}
+
+	for i := range requests {
+		jobs <- i
+	}
+	close(jobs)
+	wg.Wait()
+
+	if firstErr != nil {
+		releaseEncodedPuts(puts)
+		return nil, firstErr
+	}
+	return puts, nil
+}
+
+func (wb *writeBatcher) submit(ctx context.Context, plan *putPlan) error {
+	if plan == nil {
 		return nil
 	}
 
 	req := writeRequestPool.Get().(*writeRequest)
-	req.put = put
-	req.bytes = put.bytes
+	req.plan = plan
 
 	if !wb.tryAcquireSubmitter() {
-		put.release()
 		req.reset()
 		writeRequestPool.Put(req)
 		return ErrStoreClosed
@@ -708,7 +766,6 @@ func (wb *writeBatcher) submit(ctx context.Context, put *encodedPut) error {
 	select {
 	case wb.requests <- req:
 	case <-ctx.Done():
-		put.release()
 		req.reset()
 		writeRequestPool.Put(req)
 		return ctx.Err()
@@ -733,7 +790,7 @@ func (wb *writeBatcher) close() {
 }
 
 func (req *writeRequest) reset() {
-	req.put = nil
+	req.plan = nil
 	req.bytes = 0
 }
 
