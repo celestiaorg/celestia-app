@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
@@ -33,11 +34,12 @@ func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 		flushInterval:    time.Hour,
 	})
 
-	key := ds.NewKey("/queued")
+	key := promiseKey([]byte("queued"))
 	errCh := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
+	plan := makeWriteBatcherTestPlan("queued", len("value"))
 	go func() {
-		errCh <- wb.submit(ctx, []batchEntry{{key: key, value: []byte("value")}})
+		errCh <- wb.submit(ctx, plan)
 	}()
 
 	<-store.commitStarted
@@ -48,7 +50,7 @@ func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 
 	value, err := store.Get(context.Background(), key)
 	require.NoError(t, err)
-	require.Equal(t, []byte("value"), value)
+	require.NotEmpty(t, value)
 
 	wb.close()
 }
@@ -64,10 +66,10 @@ func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 		flushInterval:    time.Hour,
 	})
 
-	key := ds.NewKey("/inflight")
 	errCh := make(chan error, 1)
+	inflightPlan := makeWriteBatcherTestPlan("inflight", len("value"))
 	go func() {
-		errCh <- wb.submit(context.Background(), []batchEntry{{key: key, value: []byte("value")}})
+		errCh <- wb.submit(context.Background(), inflightPlan)
 	}()
 
 	<-store.commitStarted
@@ -88,7 +90,7 @@ func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 		return wb.submitters.isClosed()
 	}, time.Second, 10*time.Millisecond)
 
-	require.ErrorIs(t, wb.submit(context.Background(), []batchEntry{{key: ds.NewKey("/after-close"), value: []byte("value")}}), ErrStoreClosed)
+	require.ErrorIs(t, wb.submit(context.Background(), makeWriteBatcherTestPlan("after-close", len("value"))), ErrStoreClosed)
 
 	close(store.releaseCommit)
 
@@ -120,8 +122,7 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 	for i := range numSubmits {
 		go func() {
 			defer wg.Done()
-			key := ds.NewKey(fmt.Sprintf("/coalesce/%d", i))
-			err := wb.submit(context.Background(), []batchEntry{{key: key, value: []byte("v")}})
+			err := wb.submit(context.Background(), makeWriteBatcherTestPlan(fmt.Sprintf("coalesce-%d", i), 1))
 			require.NoError(t, err)
 		}()
 	}
@@ -134,7 +135,7 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 
 	// Verify all entries were written.
 	for i := range numSubmits {
-		key := ds.NewKey(fmt.Sprintf("/coalesce/%d", i))
+		key := promiseKey([]byte(fmt.Sprintf("coalesce-%d", i)))
 		_, err := store.Get(context.Background(), key)
 		require.NoError(t, err, "entry %d missing", i)
 	}
@@ -153,10 +154,7 @@ func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- wb.submit(context.Background(), []batchEntry{{
-			key:   ds.NewKey("/large"),
-			value: make([]byte, 2048),
-		}})
+		errCh <- wb.submit(context.Background(), makeWriteBatcherTestPlan("large", 2048))
 	}()
 
 	select {
@@ -168,6 +166,31 @@ func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T
 	close(store.releaseCommit)
 	require.NoError(t, <-errCh)
 	wb.close()
+}
+
+func makeWriteBatcherTestPlan(id string, shardBytes int) *putPlan {
+	var commitment Commitment
+	copy(commitment[:], []byte(id))
+	return &putPlan{
+		promiseProto: &types.PaymentPromise{
+			ChainId:    "test-chain",
+			Height:     1,
+			Commitment: commitment[:],
+			BlobSize:   uint32(shardBytes),
+		},
+		promiseHash: []byte(id),
+		commitment:  commitment,
+		shard: &types.BlobShard{
+			Rows: []*types.BlobRow{{
+				Index: 0,
+				Data:  make([]byte, shardBytes),
+			}},
+			Rlc: &types.BlobShard_Root{Root: make([]byte, 32)},
+		},
+		pruneAt:   time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		ppSize:    (&types.PaymentPromise{ChainId: "test-chain", Height: 1, Commitment: commitment[:], BlobSize: uint32(shardBytes)}).Size(),
+		shardSize: (&types.BlobShard{Rows: []*types.BlobRow{{Index: 0, Data: make([]byte, shardBytes)}}, Rlc: &types.BlobShard_Root{Root: make([]byte, 32)}}).Size(),
+	}
 }
 
 type countingBatching struct {

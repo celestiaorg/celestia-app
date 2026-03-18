@@ -45,9 +45,9 @@ func BenchmarkStorePut(b *testing.B) {
 
 	savers := []struct {
 		name string
-		new  func(ds.Batching) blobSaver
+		new  func(ds.Batching) putter
 	}{
-		{"batched", func(d ds.Batching) blobSaver {
+		{"batched", func(d ds.Batching) putter {
 			return newWriteBatcherWithOpts(d, writeBatcherOptions{
 				queueSize:        4096,
 				minPending:       128,
@@ -57,7 +57,7 @@ func BenchmarkStorePut(b *testing.B) {
 				flushInterval:    1 * time.Millisecond,
 			})
 		}},
-		{"direct", func(d ds.Batching) blobSaver { return newDirectWriter(d) }},
+		{"direct", func(d ds.Batching) putter { return newDirectPutter(d) }},
 	}
 
 	for _, tc := range cases {
@@ -157,7 +157,7 @@ func BenchmarkStorePutBatcherTuning(b *testing.B) {
 					b,
 					entries,
 					newPebbleBenchStore,
-					func(d ds.Batching) blobSaver { return newWriteBatcherWithOpts(d, preset.opts) },
+					func(d ds.Batching) putter { return newWriteBatcherWithOpts(d, preset.opts) },
 				)
 			})
 		}
@@ -170,14 +170,14 @@ type putEntry struct {
 	pruneAt time.Time
 }
 
-func benchStorePut(b *testing.B, entries []putEntry, newStore func(*testing.B) *Store, newSaver func(ds.Batching) blobSaver) {
+func benchStorePut(b *testing.B, entries []putEntry, newStore func(*testing.B) *Store, newPutter func(ds.Batching) putter) {
 	b.ReportAllocs()
 
 	for b.Loop() {
 		b.StopTimer()
 		store := newStore(b)
-		store.saver.close()
-		store.saver = newSaver(store.ds)
+		store.putter.close()
+		store.putter = newPutter(store.ds)
 		b.StartTimer()
 
 		errCh := make(chan error, len(entries))

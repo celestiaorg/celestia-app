@@ -45,32 +45,28 @@ func (cfg StoreConfig) Validate() error {
 	return nil
 }
 
-// blobSaver abstracts how batched key-value entries are persisted.
+// putter abstracts how prepared write plans are persisted.
 // Implementations control the commit strategy: immediate or coalesced.
-type blobSaver interface {
-	submit(ctx context.Context, entries []batchEntry) error
+type putter interface {
+	submit(ctx context.Context, plan *putPlan) error
 	close()
 }
 
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
 //
-// Writes are dispatched through a [blobSaver]. The default implementation ([writeBatcher])
-// coalesces concurrent [Put] calls into a single batch commit, amortizing the commit cost.
+// Writes are dispatched through a [putter]. The default implementation ([writeBatcher])
+// coalesces concurrent [Put] calls into a single commit, amortizing the commit cost.
 type Store struct {
-	cfg   StoreConfig
-	ds    ds.Batching
-	saver blobSaver
+	cfg    StoreConfig
+	ds     ds.Batching
+	putter putter
 }
 
 // NewMemoryStore creates a new [Store] with an in-memory datastore.
 func NewMemoryStore(cfg StoreConfig) *Store {
 	memDS := dssync.MutexWrap(ds.NewMapDatastore())
-	return &Store{
-		cfg:   cfg,
-		ds:    memDS,
-		saver: newWriteBatcher(memDS),
-	}
+	return newStore(cfg, memDS)
 }
 
 // NewBadgerStore creates a new [Store] with a badger4 datastore at the given path.
@@ -97,11 +93,7 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 		return nil, fmt.Errorf("creating badger datastore: %w", err)
 	}
 
-	return &Store{
-		cfg:   cfg,
-		ds:    bds,
-		saver: newWriteBatcher(bds),
-	}, nil
+	return newStore(cfg, bds), nil
 }
 
 // NewPebbleStore creates a new [Store] with a pebble datastore at the given path.
@@ -134,11 +126,7 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 		return nil, fmt.Errorf("creating pebble datastore: %w", err)
 	}
 
-	return &Store{
-		cfg:   cfg,
-		ds:    pds,
-		saver: newWriteBatcher(pds),
-	}, nil
+	return newStore(cfg, pds), nil
 }
 
 // Put stores given [PaymentPromise] and [types.BlobShard].
@@ -150,15 +138,14 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 //
 // Puts for the same commitments but different promises are allowed and are stored independently without deduplication.
 //
-// Serialization happens in the caller's goroutine, but the actual write is submitted to the
-// [writeBatcher] which coalesces concurrent writes into a single batch commit.
+// Write preparation happens in the caller's goroutine. Execution is delegated to the configured
+// [putter], which may commit immediately or coalesce multiple prepared puts.
 func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
-	entries, n, _, err := buildPutEntries(promise, shard, pruneAt)
+	plan, err := preparePut(promise, shard, pruneAt)
 	if err != nil {
 		return err
 	}
-
-	return s.saver.submit(ctx, entries[:n])
+	return s.putter.submit(ctx, plan)
 }
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
@@ -282,119 +269,166 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, error) 
 	return pruned, nil
 }
 
-// Close stops the blob saver and closes the underlying datastore.
+// Close stops the putter and closes the underlying datastore.
 func (s *Store) Close() error {
-	s.saver.close()
+	s.putter.close()
 	return s.ds.Close()
 }
 
-// batchEntry is a single key-value pair to be written to the datastore.
-type batchEntry struct {
-	key   ds.Key
-	value []byte
+func newStore(cfg StoreConfig, store ds.Batching) *Store {
+	return &Store{
+		cfg:    cfg,
+		ds:     store,
+		putter: newWriteBatcher(store),
+	}
 }
 
-func batchEntrySize(entry batchEntry) int {
-	return len(entry.key.String()) + len(entry.value)
+type planCommitter interface {
+	commit(ctx context.Context, plans []*putPlan) error
 }
 
-func buildPutEntries(
-	promise *PaymentPromise,
-	shard *types.BlobShard,
-	pruneAt time.Time,
-) ([3]batchEntry, int, int, error) {
-	var (
-		entries   [3]batchEntry
-		ppData    []byte
-		shardData []byte
-	)
-	release := true
-	defer func() {
-		if !release {
-			return
-		}
-		if len(ppData) > 0 {
-			marshalBufPool.Put(ppData)
-		}
-		if len(shardData) > 0 {
-			marshalBufPool.Put(shardData)
-		}
-	}()
+type genericPlanCommitter struct {
+	store ds.Batching
+}
 
+type pebblePlanCommitter struct {
+	store *pebble.Datastore
+}
+
+type putPlan struct {
+	promiseProto *types.PaymentPromise
+	promiseHash  []byte
+	commitment   Commitment
+	shard        *types.BlobShard
+	pruneAt      time.Time
+	ppSize       int
+	shardSize    int
+}
+
+func preparePut(promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) (*putPlan, error) {
 	promiseProto, err := promise.ToProto()
 	if err != nil {
-		return entries, 0, 0, fmt.Errorf("converting payment promise to proto: %w", err)
-	}
-	ppData, err = marshalSized(promiseProto)
-	if err != nil {
-		return entries, 0, 0, fmt.Errorf("marshaling payment promise: %w", err)
+		return nil, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
 	promiseHash, err := promise.Hash()
 	if err != nil {
-		return entries, 0, 0, fmt.Errorf("getting promise hash: %w", err)
+		return nil, fmt.Errorf("getting promise hash: %w", err)
 	}
+	return &putPlan{
+		promiseProto: promiseProto,
+		promiseHash:  promiseHash,
+		commitment:   promise.Commitment,
+		shard:        shard,
+		pruneAt:      pruneAt,
+		ppSize:       promiseProto.Size(),
+		shardSize:    shard.Size(),
+	}, nil
+}
 
-	shardData, err = marshalSized(shard)
+func (p *putPlan) batchBytes() int {
+	return promiseKeyLen(p.promiseHash) + p.ppSize +
+		shardKeyLen(p.promiseHash) + p.shardSize +
+		pruneKeyLen(p.promiseHash)
+}
+
+func (p *putPlan) applyGeneric(ctx context.Context, batch ds.Batch) error {
+	ppData, err := gogoproto.Marshal(p.promiseProto)
 	if err != nil {
-		return entries, 0, 0, fmt.Errorf("marshaling shard: %w", err)
+		return fmt.Errorf("marshaling payment promise: %w", err)
+	}
+	if err := batch.Put(ctx, promiseKey(p.promiseHash), ppData); err != nil {
+		return fmt.Errorf("putting payment promise: %w", err)
 	}
 
-	entries[0] = batchEntry{key: promiseKey(promiseHash), value: ppData}
-	entries[1] = batchEntry{key: shardKey(promise.Commitment, promiseHash), value: shardData}
-	entries[2] = batchEntry{key: pruneKey(pruneAt, promise.Commitment, promiseHash), value: []byte{}}
-
-	release = false
-	totalBytes := 0
-	for _, entry := range entries {
-		totalBytes += batchEntrySize(entry)
+	shardData, err := gogoproto.Marshal(p.shard)
+	if err != nil {
+		return fmt.Errorf("marshaling shard: %w", err)
 	}
-	return entries, len(entries), totalBytes, nil
-}
-
-// directWriter implements [blobSaver] by committing each submit call immediately
-// in its own batch. This is the simplest strategy with no write coalescing.
-type directWriter struct {
-	ds ds.Batching
-}
-
-func newDirectWriter(store ds.Batching) *directWriter {
-	return &directWriter{ds: store}
-}
-
-func (dw *directWriter) submit(ctx context.Context, entries []batchEntry) error {
-	defer releaseEntryBuffers(entries)
-
-	if pds, ok := dw.ds.(*pebble.Datastore); ok {
-		return commitPebbleEntries(pds, entries)
+	if err := batch.Put(ctx, shardKey(p.commitment, p.promiseHash), shardData); err != nil {
+		return fmt.Errorf("putting shard: %w", err)
 	}
 
-	batch, err := dw.ds.Batch(ctx)
+	if err := batch.Put(ctx, pruneKey(p.pruneAt, p.commitment, p.promiseHash), nil); err != nil {
+		return fmt.Errorf("putting prune index: %w", err)
+	}
+	return nil
+}
+
+func (p *putPlan) applyPebble(batch *pebbledb.Batch) error {
+	if err := writePebblePaymentPromise(batch, p); err != nil {
+		return err
+	}
+	if err := writePebbleShard(batch, p); err != nil {
+		return err
+	}
+	if err := writePebblePruneIndex(batch, p); err != nil {
+		return err
+	}
+	return nil
+}
+
+func defaultPlanCommitter(store ds.Batching) planCommitter {
+	if pds, ok := store.(*pebble.Datastore); ok {
+		return pebblePlanCommitter{store: pds}
+	}
+	return genericPlanCommitter{store: store}
+}
+
+func (c genericPlanCommitter) commit(ctx context.Context, plans []*putPlan) error {
+	batch, err := c.store.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
 	}
-	for _, e := range entries {
-		if err := batch.Put(ctx, e.key, e.value); err != nil {
-			return fmt.Errorf("putting entry: %w", err)
+	for _, plan := range plans {
+		if err := plan.applyGeneric(ctx, batch); err != nil {
+			return err
 		}
 	}
-	return batch.Commit(ctx)
+	if err := batch.Commit(ctx); err != nil {
+		return fmt.Errorf("committing batch: %w", err)
+	}
+	return nil
 }
 
-func (dw *directWriter) close() {}
+func (c pebblePlanCommitter) commit(_ context.Context, plans []*putPlan) error {
+	batch := c.store.DB.NewBatchWithSize(pebblePlansBatchSize(plans))
+	defer batch.Close()
 
-// writeBatcher implements [blobSaver] by coalescing multiple write operations into
-// a single batch commit, amortizing the commit cost across all writes in the batch.
-//
-// Under concurrent load (e.g. 4,650 simultaneous UploadShard RPCs), each Put would
-// otherwise create its own batch and Commit independently. The batcher collects
-// pending writes and commits them in a single batch, paying the commit cost once
-// for N writes instead of N times.
+	for _, plan := range plans {
+		if err := plan.applyPebble(batch); err != nil {
+			return err
+		}
+	}
 
+	if err := batch.Commit(pebbledb.NoSync); err != nil {
+		return fmt.Errorf("committing pebble batch: %w", err)
+	}
+	return nil
+}
+
+// directPutter commits each prepared write immediately. It exists as a baseline
+// and shares the same commit path as the batcher.
+type directPutter struct {
+	committer planCommitter
+}
+
+func newDirectPutter(store ds.Batching) *directPutter {
+	return &directPutter{committer: defaultPlanCommitter(store)}
+}
+
+func (dw *directPutter) submit(ctx context.Context, plan *putPlan) error {
+	return dw.committer.commit(ctx, []*putPlan{plan})
+}
+
+func (dw *directPutter) close() {}
+
+// writeBatcher coalesces multiple prepared puts into a single commit. It does
+// not introduce a second write architecture: it queues [putPlan]s and flushes
+// them through the same backend-specific committers used by direct writes.
 type writeRequest struct {
-	entries [3]batchEntry
-	n       int
-	bytes   int
-	result  chan error
+	plan   *putPlan
+	bytes  int
+	result chan error
 }
 
 var writeRequestPool = sync.Pool{
@@ -404,7 +438,7 @@ var writeRequestPool = sync.Pool{
 }
 
 type writeBatcher struct {
-	ds               ds.Batching
+	committer        planCommitter
 	requests         chan *writeRequest
 	done             chan struct{}
 	submitters       submitGate
@@ -476,9 +510,9 @@ func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *write
 	}
 
 	wb := &writeBatcher{
-		ds:       store,
-		requests: make(chan *writeRequest, opts.queueSize),
-		done:     make(chan struct{}),
+		committer: defaultPlanCommitter(store),
+		requests:  make(chan *writeRequest, opts.queueSize),
+		done:      make(chan struct{}),
 		submitters: submitGate{
 			drained: make(chan struct{}),
 		},
@@ -522,13 +556,8 @@ func (wb *writeBatcher) run() {
 			}
 		}
 
-		err := wb.commitAll(pending)
+		err := wb.commitAll(context.Background(), pending)
 		for _, req := range pending {
-			for i := range req.n {
-				if v := req.entries[i].value; len(v) > 0 {
-					marshalBufPool.Put(v)
-				}
-			}
 			req.result <- err
 		}
 	}
@@ -602,114 +631,25 @@ func (wb *writeBatcher) drain(
 	return pending, pendingBytes
 }
 
-func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
-	if pds, ok := wb.ds.(*pebble.Datastore); ok {
-		return commitPebbleRequests(pds, requests)
+func (wb *writeBatcher) commitAll(ctx context.Context, requests []*writeRequest) error {
+	plans := make([]*putPlan, len(requests))
+	for i, req := range requests {
+		plans[i] = req.plan
 	}
-
-	batch, err := wb.ds.Batch(context.Background())
-	if err != nil {
-		return fmt.Errorf("creating batch: %w", err)
-	}
-
-	for _, req := range requests {
-		for i := range req.n {
-			if err := batch.Put(context.Background(), req.entries[i].key, req.entries[i].value); err != nil {
-				return fmt.Errorf("adding to batch: %w", err)
-			}
-		}
-	}
-
-	if err := batch.Commit(context.Background()); err != nil {
-		return fmt.Errorf("committing batch: %w", err)
-	}
-	return nil
+	return wb.committer.commit(ctx, plans)
 }
 
-func commitPebbleRequests(pds *pebble.Datastore, requests []*writeRequest) error {
-	size := pebbleBatchHeaderSize
-	for _, req := range requests {
-		for i := range req.n {
-			size += pebbleBatchEntrySize(req.entries[i])
-		}
-	}
-
-	batch := pds.DB.NewBatchWithSize(size)
-	defer batch.Close()
-
-	for _, req := range requests {
-		for i := range req.n {
-			if err := writePebbleBatchEntry(batch, req.entries[i]); err != nil {
-				return err
-			}
-		}
-	}
-
-	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return fmt.Errorf("committing pebble batch: %w", err)
-	}
-	return nil
-}
-
-func commitPebbleEntries(pds *pebble.Datastore, entries []batchEntry) error {
-	size := pebbleBatchHeaderSize
-	for _, entry := range entries {
-		size += pebbleBatchEntrySize(entry)
-	}
-
-	batch := pds.DB.NewBatchWithSize(size)
-	defer batch.Close()
-
-	for _, entry := range entries {
-		if err := writePebbleBatchEntry(batch, entry); err != nil {
-			return err
-		}
-	}
-
-	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return fmt.Errorf("committing pebble batch: %w", err)
-	}
-	return nil
-}
-
-const pebbleBatchHeaderSize = 12
-
-func pebbleBatchEntrySize(entry batchEntry) int {
-	return 1 + 2*binary.MaxVarintLen32 + len(entry.key.String()) + len(entry.value)
-}
-
-func writePebbleBatchEntry(batch *pebbledb.Batch, entry batchEntry) error {
-	key := entry.key.String()
-	op := batch.SetDeferred(len(key), len(entry.value))
-	copy(op.Key, key)
-	copy(op.Value, entry.value)
-	if err := op.Finish(); err != nil {
-		return fmt.Errorf("finishing pebble batch op: %w", err)
-	}
-	return nil
-}
-
-func releaseEntryBuffers(entries []batchEntry) {
-	for _, entry := range entries {
-		if len(entry.value) > 0 {
-			marshalBufPool.Put(entry.value)
-		}
-	}
-}
-
-func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error {
-	if len(entries) == 0 {
+func (wb *writeBatcher) submit(ctx context.Context, plan *putPlan) error {
+	if plan == nil {
 		return nil
 	}
 
 	req := writeRequestPool.Get().(*writeRequest)
-	req.n = copy(req.entries[:], entries)
-	req.bytes = 0
-	for i := range req.n {
-		req.bytes += batchEntrySize(req.entries[i])
-	}
+	req.plan = plan
+	req.bytes = plan.batchBytes()
 
 	if !wb.tryAcquireSubmitter() {
+		req.reset()
 		writeRequestPool.Put(req)
 		return ErrStoreClosed
 	}
@@ -728,7 +668,6 @@ func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error 
 	// already been durably written by the batcher.
 	err := <-req.result
 
-	// Clear references so pooled entries don't pin large buffers.
 	req.reset()
 	writeRequestPool.Put(req)
 
@@ -743,11 +682,8 @@ func (wb *writeBatcher) close() {
 }
 
 func (req *writeRequest) reset() {
+	req.plan = nil
 	req.bytes = 0
-	for i := range req.n {
-		req.entries[i] = batchEntry{}
-	}
-	req.n = 0
 }
 
 func (wb *writeBatcher) tryAcquireSubmitter() bool {
@@ -801,37 +737,125 @@ func (g *submitGate) isClosed() bool {
 	return g.closed
 }
 
-// sizedMarshaler is implemented by gogoproto-generated types that support
-// pre-sized marshaling into a caller-provided buffer.
 type sizedMarshaler interface {
 	Size() int
 	MarshalToSizedBuffer([]byte) (int, error)
 }
 
-var marshalBufPool sync.Pool
+const (
+	timestampLayout   = "200601021504"
+	timestampLen      = len(timestampLayout)
+	promiseKeyPrefix  = "/pp/"
+	shardKeyPrefix    = "/shard/"
+	pruneKeyPrefix    = "/prune/"
+	commitmentHexLen  = CommitmentSize * 2
+	pebbleBatchHeader = 12
+)
 
-func marshalSized(m sizedMarshaler) ([]byte, error) {
-	size := m.Size()
-	var buf []byte
-	if v := marshalBufPool.Get(); v != nil {
-		buf = v.([]byte)
-	}
-	if cap(buf) < size {
-		buf = make([]byte, size)
-	} else {
-		buf = buf[:size]
-	}
-	n, err := m.MarshalToSizedBuffer(buf)
+func marshalToSizedBuffer(dst []byte, m sizedMarshaler) error {
+	n, err := m.MarshalToSizedBuffer(dst)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return buf[:n], nil
+	if n != len(dst) {
+		return fmt.Errorf("marshal size mismatch: wrote %d bytes into %d-byte buffer", n, len(dst))
+	}
+	return nil
 }
 
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
 // This format is used for timestamp-based indexing in the datastore.
 func formatTimestamp(timestamp time.Time) string {
-	return timestamp.Format("200601021504")
+	return timestamp.Format(timestampLayout)
+}
+
+func pebblePlansBatchSize(plans []*putPlan) int {
+	size := pebbleBatchHeader
+	for _, plan := range plans {
+		size += pebblePutBatchSize(plan)
+	}
+	return size
+}
+
+func pebblePutBatchSize(plan *putPlan) int {
+	return pebbleBatchEntrySize(promiseKeyLen(plan.promiseHash), plan.ppSize) +
+		pebbleBatchEntrySize(shardKeyLen(plan.promiseHash), plan.shardSize) +
+		pebbleBatchEntrySize(pruneKeyLen(plan.promiseHash), 0)
+}
+
+func pebbleBatchEntrySize(keyLen, valueLen int) int {
+	return 1 + 2*binary.MaxVarintLen32 + keyLen + valueLen
+}
+
+func promiseKeyLen(promiseHash []byte) int {
+	return len(promiseKeyPrefix) + hex.EncodedLen(len(promiseHash))
+}
+
+func shardKeyLen(promiseHash []byte) int {
+	return len(shardKeyPrefix) + commitmentHexLen + 1 + hex.EncodedLen(len(promiseHash))
+}
+
+func pruneKeyLen(promiseHash []byte) int {
+	return len(pruneKeyPrefix) + timestampLen + 1 + commitmentHexLen + 1 + hex.EncodedLen(len(promiseHash))
+}
+
+func writePebblePaymentPromise(batch *pebbledb.Batch, plan *putPlan) error {
+	op := batch.SetDeferred(promiseKeyLen(plan.promiseHash), plan.ppSize)
+	encodePromiseKey(op.Key, plan.promiseHash)
+	if err := marshalToSizedBuffer(op.Value, plan.promiseProto); err != nil {
+		return fmt.Errorf("marshaling payment promise: %w", err)
+	}
+	if err := op.Finish(); err != nil {
+		return fmt.Errorf("finishing payment promise batch op: %w", err)
+	}
+	return nil
+}
+
+func writePebbleShard(batch *pebbledb.Batch, plan *putPlan) error {
+	op := batch.SetDeferred(shardKeyLen(plan.promiseHash), plan.shardSize)
+	encodeShardKey(op.Key, plan.commitment, plan.promiseHash)
+	if err := marshalToSizedBuffer(op.Value, plan.shard); err != nil {
+		return fmt.Errorf("marshaling shard: %w", err)
+	}
+	if err := op.Finish(); err != nil {
+		return fmt.Errorf("finishing shard batch op: %w", err)
+	}
+	return nil
+}
+
+func writePebblePruneIndex(batch *pebbledb.Batch, plan *putPlan) error {
+	op := batch.SetDeferred(pruneKeyLen(plan.promiseHash), 0)
+	encodePruneKey(op.Key, plan.pruneAt, plan.commitment, plan.promiseHash)
+	if err := op.Finish(); err != nil {
+		return fmt.Errorf("finishing prune index batch op: %w", err)
+	}
+	return nil
+}
+
+func encodePromiseKey(dst []byte, promiseHash []byte) {
+	pos := copy(dst, promiseKeyPrefix)
+	hex.Encode(dst[pos:], promiseHash)
+}
+
+func encodeShardKey(dst []byte, commitment Commitment, promiseHash []byte) {
+	pos := copy(dst, shardKeyPrefix)
+	hex.Encode(dst[pos:pos+commitmentHexLen], commitment[:])
+	pos += commitmentHexLen
+	dst[pos] = '/'
+	pos++
+	hex.Encode(dst[pos:], promiseHash)
+}
+
+func encodePruneKey(dst []byte, pruneAt time.Time, commitment Commitment, promiseHash []byte) {
+	pos := copy(dst, pruneKeyPrefix)
+	pos = len(pruneAt.UTC().AppendFormat(dst[:pos], timestampLayout))
+	dst[pos] = '/'
+	pos++
+	hex.Encode(dst[pos:pos+commitmentHexLen], commitment[:])
+	pos += commitmentHexLen
+	dst[pos] = '/'
+	pos++
+	hex.Encode(dst[pos:], promiseHash)
 }
 
 func promiseKey(promiseHash []byte) ds.Key {
