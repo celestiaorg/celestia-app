@@ -414,11 +414,10 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 		"signer should have received refund of excess IGP fee")
 }
 
-// TestForward_UnsupportedDenomPrefixPoisoning proves that an attacker can permanently
-// block forwarding of supported tokens by filling a forwarding address with 20+
-// unsupported denoms that sort alphabetically before the supported denom (utia).
-// Since GetAllBalances returns coins sorted by denom and the module only processes
-// the first MaxTokensPerForward (20), the supported token is never reached.
+// TestForward_UnsupportedDenomPrefixPoisoning is a regression test for the prefix
+// poisoning attack where an attacker fills a forwarding address with 20+ unsupported
+// denoms that sort alphabetically before "utia". The fix filters unsupported denoms
+// before truncating to MaxTokensPerForward, so supported tokens are always reached.
 func TestForward_UnsupportedDenomPrefixPoisoning(t *testing.T) {
 	s := newTestIGPSetup(t)
 
