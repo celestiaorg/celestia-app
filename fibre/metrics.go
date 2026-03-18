@@ -29,9 +29,6 @@ type clientMetrics struct {
 	downloadFromDuration   metric.Float64Histogram
 	downloadFromRPCLatency metric.Float64Histogram
 
-	// Put (upload + tx submission)
-	putInFlight metric.Int64UpDownCounter
-	putDuration metric.Float64Histogram
 }
 
 func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
@@ -150,23 +147,6 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating download_from rpc_latency histogram: %w", err)
-	}
-
-	// Put metrics
-	cm.putInFlight, err = m.Int64UpDownCounter("fibre.client.put.in_flight",
-		metric.WithDescription("Number of Put operations currently in progress"),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating put in_flight counter: %w", err)
-	}
-
-	cm.putDuration, err = m.Float64Histogram("fibre.client.put.duration",
-		metric.WithDescription("Duration of Put operations in seconds"),
-		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.1, 0.5, 1, 2.5, 5, 10, 30, 60),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("creating put duration histogram: %w", err)
 	}
 
 	return &cm, nil

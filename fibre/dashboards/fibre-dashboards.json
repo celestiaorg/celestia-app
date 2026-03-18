@@ -134,10 +134,6 @@
         {
           "expr": "sum(rate(fibre_client_download_duration_seconds_count{success=\"true\"}[$__rate_interval])) / sum(rate(fibre_client_download_duration_seconds_count[$__rate_interval]))",
           "legendFormat": "Download"
-        },
-        {
-          "expr": "sum(rate(fibre_client_put_duration_seconds_count{success=\"true\"}[$__rate_interval])) / sum(rate(fibre_client_put_duration_seconds_count[$__rate_interval]))",
-          "legendFormat": "Put"
         }
       ]
     },
@@ -159,10 +155,6 @@
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_download_duration_seconds_bucket[$__rate_interval])))",
           "legendFormat": "Download p99"
-        },
-        {
-          "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_put_duration_seconds_bucket[$__rate_interval])))",
-          "legendFormat": "Put p99"
         }
       ]
     },
@@ -179,7 +171,6 @@
       "targets": [
         { "expr": "sum(fibre_client_upload_in_flight)", "legendFormat": "Client Uploads" },
         { "expr": "sum(fibre_client_download_in_flight)", "legendFormat": "Client Downloads" },
-        { "expr": "sum(fibre_client_put_in_flight)", "legendFormat": "Client Puts" },
         { "expr": "sum(fibre_server_upload_shard_in_flight)", "legendFormat": "Server UploadShard" },
         { "expr": "sum(fibre_server_download_shard_in_flight)", "legendFormat": "Server DownloadShard" }
       ]
@@ -576,79 +567,6 @@
     {
       "collapsed": true,
       "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
-      "id": 400,
-      "title": "Client Put (End-to-End)",
-      "type": "row",
-      "panels": [
-        {
-          "title": "Put Success Rate",
-          "type": "timeseries",
-          "id": 30,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 24 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_put_duration_seconds_count{success=\"true\"}[$__rate_interval])) / sum(rate(fibre_client_put_duration_seconds_count[$__rate_interval]))",
-              "legendFormat": "Success Rate"
-            }
-          ]
-        },
-        {
-          "title": "Put Latency Percentiles",
-          "type": "timeseries",
-          "id": 31,
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 24 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_put_duration_seconds_bucket[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_put_duration_seconds_bucket[$__rate_interval])))",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_put_duration_seconds_bucket[$__rate_interval])))",
-              "legendFormat": "p99"
-            }
-          ]
-        },
-        {
-          "title": "Put vs Upload Latency (TX Overhead)",
-          "type": "timeseries",
-          "id": 32,
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 24 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_put_duration_seconds_bucket[$__rate_interval])))",
-              "legendFormat": "Put p95 (upload + tx)"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket[$__rate_interval])))",
-              "legendFormat": "Upload p95 (upload only)"
-            }
-          ]
-        }
-      ]
-    },
-
-    {
-      "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
       "id": 500,
       "title": "Server",
       "type": "row",
