@@ -181,14 +181,17 @@ func (m msgServer) forwardSingleToken(
 		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned, IGP fee sent to fee collector): "+err.Error())
 	}
 
-	// Warp succeeded - refund any excess IGP fee to the relayer
-	// Excess = (balance before + quoted fee) - balance after warp
-	// The warp transfer consumes the actual IGP cost from forwardAddr
+	// Warp succeeded - refund any excess IGP fee to the relayer.
 	if quotedFee.IsPositive() {
 		igpBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
-		// Expected: igpBalanceBefore (original) + quotedFee (sent) - actualIgpUsed = igpBalanceAfter
-		// So excess = igpBalanceAfter - igpBalanceBefore (what remains beyond the original)
 		excess := igpBalanceAfter.Amount.Sub(igpBalanceBefore.Amount)
+		if balance.Denom == quotedFee.Denom {
+			// For same-denom forwards, the forwarded amount is also debited from
+			// forwardAddr during warp transfer, so it must be added back when
+			// calculating the unused portion of the quoted fee.
+			excess = excess.Add(balance.Amount)
+		}
+
 		if excess.IsPositive() {
 			excessCoin := sdk.NewCoin(quotedFee.Denom, excess)
 			if refundErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, signerAddr, sdk.NewCoins(excessCoin)); refundErr != nil {
