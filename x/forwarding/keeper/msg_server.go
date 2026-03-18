@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
@@ -150,7 +151,7 @@ func (m msgServer) forwardSingleToken(
 
 	// Capture IGP fee denom balance at forwardAddr before sending IGP fee
 	// This allows us to track how much IGP fee was added and handle refunds
-	igpBalanceBefore := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+	feeDenomBalance := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
 
 	// Send IGP fee from relayer (signer) directly to forwardAddr
 	// If this fails, no state has changed - safe to return failure
@@ -183,14 +184,8 @@ func (m msgServer) forwardSingleToken(
 
 	// Warp succeeded - refund any excess IGP fee to the relayer.
 	if quotedFee.IsPositive() {
-		igpBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
-		excess := igpBalanceAfter.Amount.Sub(igpBalanceBefore.Amount)
-		if balance.Denom == quotedFee.Denom {
-			// For same-denom forwards, the forwarded amount is also debited from
-			// forwardAddr during warp transfer, so it must be added back when
-			// calculating the unused portion of the quoted fee.
-			excess = excess.Add(balance.Amount)
-		}
+		feeDenomBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+		excess := calculateExcessIGPFee(feeDenomBalance, feeDenomBalanceAfter, quotedFee, balance)
 
 		if excess.IsPositive() {
 			excessCoin := sdk.NewCoin(quotedFee.Denom, excess)
@@ -205,6 +200,15 @@ func (m msgServer) forwardSingleToken(
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
+}
+
+func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) math.Int {
+	igpUsed := before.Amount.Add(quotedFee.Amount).Sub(after.Amount)
+	if forwardedBalance.Denom == quotedFee.Denom {
+		igpUsed = igpUsed.Sub(forwardedBalance.Amount)
+	}
+
+	return quotedFee.Amount.Sub(igpUsed)
 }
 
 // isSupportedDenom returns true if the denom can be forwarded via warp routes.
