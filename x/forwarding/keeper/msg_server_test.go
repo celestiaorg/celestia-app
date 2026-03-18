@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -411,6 +412,74 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 	// Final signer balance = 200 - 100 + 20 = 120
 	require.Equal(t, math.NewInt(120), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount,
 		"signer should have received refund of excess IGP fee")
+}
+
+// TestForward_UnsupportedDenomPrefixPoisoning proves that an attacker can permanently
+// block forwarding of supported tokens by filling a forwarding address with 20+
+// unsupported denoms that sort alphabetically before the supported denom (utia).
+// Since GetAllBalances returns coins sorted by denom and the module only processes
+// the first MaxTokensPerForward (20), the supported token is never reached.
+func TestForward_UnsupportedDenomPrefixPoisoning(t *testing.T) {
+	s := newTestIGPSetup(t)
+
+	// Warp succeeds for supported tokens
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	s.warpKeeper.TransferMessageId = messageId
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins() // zero fee for simplicity
+
+	// Step 1: Attacker deposits 20 distinct unsupported denoms.
+	// Using "ibc/..." prefixed denoms which sort before "utia" alphabetically.
+	poisonCoins := sdk.NewCoins()
+	for i := 0; i < types.MaxTokensPerForward; i++ {
+		denom := fmt.Sprintf("ibc/%040d", i) // e.g. "ibc/0000000000000000000000000000000000000000"
+		poisonCoins = poisonCoins.Add(sdk.NewCoin(denom, math.NewInt(1)))
+	}
+
+	// Step 2: Victim deposits supported utia to the same forwarding address.
+	victimDeposit := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1_000_000))
+	allBalances := poisonCoins.Add(victimDeposit)
+
+	// Verify precondition: utia sorts after all ibc/ denoms
+	for i, coin := range allBalances {
+		if coin.Denom == appconsts.BondDenom {
+			require.Greater(t, i, types.MaxTokensPerForward-1,
+				"utia must be beyond the first 20 positions for the attack to work")
+			break
+		}
+	}
+
+	s.bankKeeper.Balances[s.forwardAddr.String()] = allBalances
+	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	// Attempt 1: All 20 processed tokens are unsupported -> ErrAllTokensFailed
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, types.ErrAllTokensFailed)
+
+	// Victim's utia is still at the forwarding address, untouched
+	require.Equal(t, victimDeposit.Amount,
+		s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount,
+		"victim's utia should remain stuck at forwarding address")
+
+	// Attempt 2: Retry produces the exact same result — the poison prefix is stable
+	resp2, err2 := s.msgServer.Forward(s.ctx, msg)
+	require.Error(t, err2)
+	require.Nil(t, resp2)
+	require.ErrorIs(t, err2, types.ErrAllTokensFailed)
+
+	// utia is STILL stuck — this is the permanent deadlock
+	require.Equal(t, victimDeposit.Amount,
+		s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount,
+		"victim's utia should STILL be stuck after retry — permanent deadlock confirmed")
 }
 
 func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
