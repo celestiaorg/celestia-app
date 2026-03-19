@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
@@ -32,7 +33,7 @@ var (
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
+func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
@@ -44,6 +45,9 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
 	defer span.End()
+
+	downloadDone := c.metrics.observeDownload(ctx)
+	defer func() { downloadDone(blob, err) }()
 
 	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
@@ -61,7 +65,7 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 		attribute.Int64("validator_set_height", int64(valSet.Height)),
 	))
 
-	blob, err := c.downloadBlob(ctx, valSet, id)
+	blob, err = c.downloadBlob(ctx, valSet, id)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to download")
@@ -75,6 +79,7 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 		return nil, fmt.Errorf("reconstructing data: %w", err)
 	}
 
+	c.metrics.downloadBytes.Add(ctx, int64(blob.DataSize()))
 	c.log.DebugContext(ctx, "blob download completed successfully",
 		"blob_commitment", id.Commitment(),
 		"upload_size", blob.UploadSize(),
@@ -97,13 +102,21 @@ func (c *Client) downloadFrom(
 	val *core.Validator,
 	blob *Blob,
 	id BlobID,
-) ([]*rsema1d.RowInclusionProof, error) {
+) (rows []*rsema1d.RowInclusionProof, err error) {
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", id.Commitment())
 
+	downloadStart := time.Now()
+	valAddrStr := val.Address.String()
+
 	ctx, span := c.tracer.Start(ctx, "download_from",
-		trace.WithAttributes(attribute.String("validator_address", val.Address.String())),
+		trace.WithAttributes(attribute.String("validator_address", valAddrStr)),
 	)
 	defer span.End()
+
+	defer func() {
+		success := err == nil || context.Cause(ctx) == errDownloaded
+		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
+	}()
 
 	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
@@ -118,7 +131,9 @@ func (c *Client) downloadFrom(
 	}
 	span.AddEvent("client_acquired")
 
+	rpcStart := time.Now()
 	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: id})
+	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")
@@ -129,13 +144,16 @@ func (c *Client) downloadFrom(
 		span.SetStatus(codes.Error, "failed to download shard")
 		return nil, err
 	}
-	rows, err := parseShard(resp.GetShard())
-	if err != nil {
-		log.WarnContext(ctx, "failed to parse shard", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to parse shard")
-		return nil, err
+	shard := resp.GetShard()
+	if shard == nil || len(shard.GetRows()) == 0 {
+		log.WarnContext(ctx, "empty shard response")
+		return nil, nil
 	}
+	if len(shard.GetRoot()) != 32 {
+		log.WarnContext(ctx, "invalid RLC root length", "length", len(shard.GetRoot()))
+		return nil, nil
+	}
+	rows = parseShard(shard)
 	var rowSize int
 	if len(rows) > 0 && len(rows[0].Row) > 0 {
 		rowSize = len(rows[0].Row)
@@ -299,25 +317,13 @@ loop:
 // errDownloaded signals that context was cancelled because download completed successfully.
 var errDownloaded = errors.New("downloaded")
 
-// parseShard extracts and validates rows from the BlobShard response, constructing RowInclusionProofs.
-// Returns the row inclusion proofs with RLC root already set.
-func parseShard(shard *types.BlobShard) ([]*rsema1d.RowInclusionProof, error) {
-	if shard == nil {
-		return nil, fmt.Errorf("shard response is nil")
-	}
-
-	rowsArray := shard.GetRows()
-	if len(rowsArray) == 0 {
-		return nil, fmt.Errorf("no rows in shard")
-	}
-
-	if len(shard.GetRoot()) != 32 {
-		return nil, fmt.Errorf("invalid RLC root length: expected 32 bytes, got %d", len(shard.GetRoot()))
-	}
-
+// parseShard converts a validated BlobShard into RowInclusionProofs.
+// The caller must ensure shard is non-nil, has rows, and has a valid 32-byte RLC root.
+func parseShard(shard *types.BlobShard) []*rsema1d.RowInclusionProof {
 	var rlcRoot [32]byte
 	copy(rlcRoot[:], shard.GetRoot())
 
+	rowsArray := shard.GetRows()
 	proofs := make([]*rsema1d.RowInclusionProof, 0, len(rowsArray))
 	for _, row := range rowsArray {
 		if row == nil {
@@ -333,5 +339,5 @@ func parseShard(shard *types.BlobShard) ([]*rsema1d.RowInclusionProof, error) {
 		})
 	}
 
-	return proofs, nil
+	return proofs
 }

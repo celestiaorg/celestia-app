@@ -31,6 +31,11 @@ scrape_configs:
         target_label: instance
         action: replace
 
+  # Scrape fibre metrics from OTel Collector (fibre pushes via OTLP)
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+
   # Scrape app telemetry metrics on port 1317
   - job_name: 'app-telemetry'
     metrics_path: '/metrics'

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -61,14 +61,12 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		balances = balances[:types.MaxTokensPerForward]
 	}
 
-	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-
 	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid signer address: %w", err)
 	}
 
-	results := m.processTokens(ctx, forwardAddr, feeCollectorAddr, signerAddr, balances, msg, destRecipient)
+	results := m.processTokens(ctx, forwardAddr, signerAddr, balances, msg, destRecipient)
 
 	// If all tokens failed, return error (partial failure is OK, total failure is not)
 	allFailed := true
@@ -88,7 +86,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 
 func (m msgServer) processTokens(
 	ctx sdk.Context,
-	forwardAddr, feeCollectorAddr, signerAddr sdk.AccAddress,
+	forwardAddr, signerAddr sdk.AccAddress,
 	balances sdk.Coins,
 	msg *types.MsgForward,
 	destRecipient util.HexAddress,
@@ -96,7 +94,12 @@ func (m msgServer) processTokens(
 	results := make([]types.ForwardingResult, 0, len(balances))
 
 	for _, balance := range balances {
-		result := m.forwardSingleToken(ctx, forwardAddr, feeCollectorAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
+		cacheCtx, writeCache := ctx.CacheContext()
+		result := m.forwardSingleToken(cacheCtx, forwardAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
+		if result.Success {
+			writeCache()
+		}
+
 		results = append(results, result)
 
 		EmitTokenForwardedEvent(ctx, msg.ForwardAddr, result)
@@ -107,7 +110,7 @@ func (m msgServer) processTokens(
 
 func (m msgServer) forwardSingleToken(
 	ctx sdk.Context,
-	forwardAddr, feeCollectorAddr, signerAddr sdk.AccAddress,
+	forwardAddr, signerAddr sdk.AccAddress,
 	balance sdk.Coin,
 	destDomain uint32,
 	destRecipient util.HexAddress,
@@ -150,7 +153,7 @@ func (m msgServer) forwardSingleToken(
 
 	// Capture IGP fee denom balance at forwardAddr before sending IGP fee
 	// This allows us to track how much IGP fee was added and handle refunds
-	igpBalanceBefore := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+	feeDenomBalance := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
 
 	// Send IGP fee from relayer (signer) directly to forwardAddr
 	// If this fails, no state has changed - safe to return failure
@@ -161,34 +164,18 @@ func (m msgServer) forwardSingleToken(
 		}
 	}
 
-	// Execute warp transfer with forwardAddr as sender
-	// Warp has atomic semantics: on failure, tokens remain at forwardAddr
+	// Execute warp transfer with forwardAddr as sender. The caller wraps this
+	// attempt in a CacheContext so failures discard all token-level state changes.
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
-		// Warp failed - tokens remain at forwardAddr (warp is atomic)
-		// Send IGP fee to fee collector so it becomes protocol revenue (distributed to stakers)
-		// This incentivizes relayers to check route availability before submitting
-		if quotedFee.IsPositive() {
-			if consumeErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, feeCollectorAddr, sdk.NewCoins(quotedFee)); consumeErr != nil {
-				ctx.Logger().Error("failed to send IGP fee to fee collector after warp failure",
-					"denom", balance.Denom,
-					"igp_fee", quotedFee.String(),
-					"warp_error", err.Error(),
-					"send_error", consumeErr.Error(),
-				)
-			}
-		}
-		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned, IGP fee sent to fee collector): "+err.Error())
+		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed: "+err.Error())
 	}
 
-	// Warp succeeded - refund any excess IGP fee to the relayer
-	// Excess = (balance before + quoted fee) - balance after warp
-	// The warp transfer consumes the actual IGP cost from forwardAddr
+	// Warp succeeded - refund any excess IGP fee to the relayer.
 	if quotedFee.IsPositive() {
-		igpBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
-		// Expected: igpBalanceBefore (original) + quotedFee (sent) - actualIgpUsed = igpBalanceAfter
-		// So excess = igpBalanceAfter - igpBalanceBefore (what remains beyond the original)
-		excess := igpBalanceAfter.Amount.Sub(igpBalanceBefore.Amount)
+		feeDenomBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+		excess := calculateExcessIGPFee(feeDenomBalance, feeDenomBalanceAfter, quotedFee, balance)
+
 		if excess.IsPositive() {
 			excessCoin := sdk.NewCoin(quotedFee.Denom, excess)
 			if refundErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, signerAddr, sdk.NewCoins(excessCoin)); refundErr != nil {
@@ -202,6 +189,15 @@ func (m msgServer) forwardSingleToken(
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
+}
+
+func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) math.Int {
+	igpUsed := before.Amount.Add(quotedFee.Amount).Sub(after.Amount)
+	if forwardedBalance.Denom == quotedFee.Denom {
+		igpUsed = igpUsed.Sub(forwardedBalance.Amount)
+	}
+
+	return quotedFee.Amount.Sub(igpUsed)
 }
 
 // isSupportedDenom returns true if the denom can be forwarded via warp routes.
