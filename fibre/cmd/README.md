@@ -68,7 +68,7 @@ Fibre signs payment promises by connecting to the consensus node's PrivValidator
 priv_validator_grpc_laddr = "tcp://127.0.0.1:26658"
 ```
 
-2. Start fibre:
+1. Start fibre:
 
 ```sh
 fibre start \
