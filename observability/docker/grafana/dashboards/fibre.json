@@ -1,14 +1,6 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS",
-      "label": "Prometheus",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
+  "title": "Fibre Network",
+  "uid": "fibre-network",
   "annotations": { "list": [] },
   "editable": true,
   "fiscalYearStartMonth": 0,
@@ -27,7 +19,7 @@
       "type": "stat",
       "id": 1,
       "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit", "min": 0, "max": 1,
@@ -52,7 +44,7 @@
       "type": "stat",
       "id": 2,
       "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit", "min": 0, "max": 1,
@@ -77,7 +69,7 @@
       "type": "stat",
       "id": 3,
       "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -99,7 +91,7 @@
       "type": "stat",
       "id": 4,
       "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -121,7 +113,7 @@
       "type": "timeseries",
       "id": 5,
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
         "overrides": []
@@ -142,7 +134,7 @@
       "type": "timeseries",
       "id": 6,
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
         "overrides": []
@@ -163,7 +155,7 @@
       "type": "timeseries",
       "id": 7,
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
         "overrides": []
@@ -180,7 +172,7 @@
       "type": "timeseries",
       "id": 8,
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
         "overrides": []
@@ -197,7 +189,7 @@
       "type": "timeseries",
       "id": 9,
       "gridPos": { "h": 8, "w": 24, "x": 0, "y": 29 },
-      "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": {
         "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
         "overrides": []
@@ -211,7 +203,7 @@
 
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
       "id": 200,
       "title": "Client Upload",
       "type": "row",
@@ -221,7 +213,7 @@
           "type": "timeseries",
           "id": 10,
           "gridPos": { "h": 8, "w": 8, "x": 0, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -238,7 +230,7 @@
           "type": "timeseries",
           "id": 11,
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -263,7 +255,7 @@
           "type": "timeseries",
           "id": 12,
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
             "overrides": [
@@ -289,7 +281,7 @@
           "type": "timeseries",
           "id": 18,
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -306,7 +298,7 @@
           "type": "timeseries",
           "id": 13,
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -327,7 +319,7 @@
           "type": "timeseries",
           "id": 14,
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -344,7 +336,7 @@
           "type": "timeseries",
           "id": 15,
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -365,7 +357,7 @@
           "type": "timeseries",
           "id": 16,
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -382,7 +374,7 @@
           "type": "timeseries",
           "id": 17,
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 46 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -399,7 +391,7 @@
 
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 22 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
       "id": 300,
       "title": "Client Download",
       "type": "row",
@@ -409,7 +401,7 @@
           "type": "timeseries",
           "id": 20,
           "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -426,7 +418,7 @@
           "type": "timeseries",
           "id": 21,
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -451,7 +443,7 @@
           "type": "timeseries",
           "id": 22,
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
             "overrides": [
@@ -477,7 +469,7 @@
           "type": "timeseries",
           "id": 27,
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -494,7 +486,7 @@
           "type": "timeseries",
           "id": 23,
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -511,7 +503,7 @@
           "type": "timeseries",
           "id": 24,
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -532,7 +524,7 @@
           "type": "timeseries",
           "id": 25,
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -549,7 +541,7 @@
           "type": "timeseries",
           "id": 26,
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -566,7 +558,7 @@
 
     {
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 23 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
       "id": 500,
       "title": "Server",
       "type": "row",
@@ -576,7 +568,7 @@
           "type": "timeseries",
           "id": 40,
           "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -593,7 +585,7 @@
           "type": "timeseries",
           "id": 41,
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -618,7 +610,7 @@
           "type": "timeseries",
           "id": 42,
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -633,7 +625,7 @@
           "type": "timeseries",
           "id": 43,
           "gridPos": { "h": 8, "w": 8, "x": 0, "y": 33 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -650,7 +642,7 @@
           "type": "timeseries",
           "id": 44,
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 33 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -675,7 +667,7 @@
           "type": "timeseries",
           "id": 45,
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 33 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -696,7 +688,7 @@
           "type": "timeseries",
           "id": 49,
           "gridPos": { "h": 8, "w": 8, "x": 0, "y": 41 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -717,7 +709,7 @@
           "type": "timeseries",
           "id": 46,
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 41 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -738,7 +730,7 @@
           "type": "timeseries",
           "id": 47,
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 41 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
             "overrides": []
@@ -763,7 +755,7 @@
           "type": "timeseries",
           "id": 48,
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
-          "datasource": { "type": "prometheus", "uid": "${DS_PROMETHEUS}" },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
           "fieldConfig": {
             "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
             "overrides": [
@@ -797,7 +789,5 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Fibre Overview",
-  "uid": "fibre-overview",
   "version": 2
 }
