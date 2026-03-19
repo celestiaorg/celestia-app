@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
@@ -145,7 +146,7 @@ func (m msgServer) forwardSingleToken(
 
 	// Capture IGP fee denom balance at forwardAddr before sending IGP fee
 	// This allows us to track how much IGP fee was added and handle refunds
-	igpBalanceBefore := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+	feeDenomBalance := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
 
 	// Send IGP fee from relayer (signer) directly to forwardAddr
 	// If this fails, no state has changed - safe to return failure
@@ -163,14 +164,11 @@ func (m msgServer) forwardSingleToken(
 		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed: "+err.Error())
 	}
 
-	// Warp succeeded - refund any excess IGP fee to the relayer
-	// Excess = (balance before + quoted fee) - balance after warp
-	// The warp transfer consumes the actual IGP cost from forwardAddr
+	// Warp succeeded - refund any excess IGP fee to the relayer.
 	if quotedFee.IsPositive() {
-		igpBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
-		// Expected: igpBalanceBefore (original) + quotedFee (sent) - actualIgpUsed = igpBalanceAfter
-		// So excess = igpBalanceAfter - igpBalanceBefore (what remains beyond the original)
-		excess := igpBalanceAfter.Amount.Sub(igpBalanceBefore.Amount)
+		feeDenomBalanceAfter := m.k.bankKeeper.GetBalance(ctx, forwardAddr, quotedFee.Denom)
+		excess := calculateExcessIGPFee(feeDenomBalance, feeDenomBalanceAfter, quotedFee, balance)
+
 		if excess.IsPositive() {
 			excessCoin := sdk.NewCoin(quotedFee.Denom, excess)
 			if refundErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, signerAddr, sdk.NewCoins(excessCoin)); refundErr != nil {
@@ -184,6 +182,15 @@ func (m msgServer) forwardSingleToken(
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
+}
+
+func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) math.Int {
+	igpUsed := before.Amount.Add(quotedFee.Amount).Sub(after.Amount)
+	if forwardedBalance.Denom == quotedFee.Denom {
+		igpUsed = igpUsed.Sub(forwardedBalance.Amount)
+	}
+
+	return quotedFee.Amount.Sub(igpUsed)
 }
 
 func allTokensFailedError(results []types.ForwardingResult) error {
