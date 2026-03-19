@@ -172,6 +172,8 @@ type payloadBatcherShard struct {
 	flushInterval time.Duration
 	pendingBuf    []*writeRequest
 	payloadBuf    []*putPayload
+	reqPool       chan *writeRequest
+	timer         *time.Timer
 }
 
 type submitGate struct {
@@ -254,7 +256,10 @@ func newPayloadBatcherShard(committer payloadCommitter, opts writeBatcherOptions
 		flushInterval: opts.flushInterval,
 		pendingBuf:    make([]*writeRequest, opts.maxPending),
 		payloadBuf:    make([]*putPayload, opts.maxPending),
+		reqPool:       make(chan *writeRequest, opts.maxPending),
+		timer:         time.NewTimer(time.Hour),
 	}
+	shard.stopTimer()
 	go shard.run()
 	return shard
 }
@@ -264,28 +269,23 @@ func (wb *writeBatcher) submit(ctx context.Context, payload *putPayload) error {
 		return nil
 	}
 
-	req := writeRequestPool.Get().(*writeRequest)
-	req.payload = payload
-
 	if !wb.submitters.acquire() {
-		req.reset()
-		writeRequestPool.Put(req)
 		return ErrStoreClosed
 	}
 	defer wb.submitters.release()
 
 	shard := wb.shards[wb.shardIndex(payload)]
+	req := shard.getRequest()
+	req.payload = payload
 	select {
 	case shard.requests <- req:
 	case <-ctx.Done():
-		req.reset()
-		writeRequestPool.Put(req)
+		shard.putRequest(req)
 		return ctx.Err()
 	}
 
 	err := <-req.result
-	req.reset()
-	writeRequestPool.Put(req)
+	shard.putRequest(req)
 	return err
 }
 
@@ -316,6 +316,7 @@ func (wb *writeBatcher) shardIndex(payload *putPayload) int {
 }
 
 func (shard *payloadBatcherShard) run() {
+	defer shard.stopTimer()
 	defer close(shard.done)
 
 	for {
@@ -331,14 +332,9 @@ func (shard *payloadBatcherShard) run() {
 		pending, pendingBytes = shard.drain(pending, pendingBytes, nil)
 
 		if shard.shouldWaitForMore(pendingBytes) {
-			timer := time.NewTimer(shard.flushDelayFor(len(pending), pendingBytes))
-			pending, pendingBytes = shard.drain(pending, pendingBytes, timer)
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
+			timerC := shard.startTimer(shard.flushDelayFor(len(pending), pendingBytes))
+			pending, pendingBytes = shard.drain(pending, pendingBytes, timerC)
+			shard.stopTimer()
 		}
 
 		err := shard.commitAll(context.Background(), pending)
@@ -360,10 +356,10 @@ func (shard *payloadBatcherShard) flushDelayFor(pendingCount, pendingBytes int) 
 func (shard *payloadBatcherShard) drain(
 	pending []*writeRequest,
 	pendingBytes int,
-	timer *time.Timer,
+	timerC <-chan time.Time,
 ) ([]*writeRequest, int) {
 	for len(pending) < shard.maxPending {
-		if timer == nil {
+		if timerC == nil {
 			select {
 			case req, ok := <-shard.requests:
 				if !ok {
@@ -384,7 +380,7 @@ func (shard *payloadBatcherShard) drain(
 			}
 			pending = append(pending, req)
 			pendingBytes += req.payload.batchBytes()
-		case <-timer.C:
+		case <-timerC:
 			return pending, pendingBytes
 		}
 	}
@@ -400,6 +396,41 @@ func (shard *payloadBatcherShard) commitAll(ctx context.Context, requests []*wri
 	err := shard.committer.commitPayloads(ctx, payloads)
 	clear(payloads)
 	return err
+}
+
+func (shard *payloadBatcherShard) getRequest() *writeRequest {
+	select {
+	case req := <-shard.reqPool:
+		return req
+	default:
+		return writeRequestPool.Get().(*writeRequest)
+	}
+}
+
+func (shard *payloadBatcherShard) putRequest(req *writeRequest) {
+	req.reset()
+	select {
+	case shard.reqPool <- req:
+	default:
+		writeRequestPool.Put(req)
+	}
+}
+
+func (shard *payloadBatcherShard) startTimer(d time.Duration) <-chan time.Time {
+	shard.timer.Reset(d)
+	return shard.timer.C
+}
+
+func (shard *payloadBatcherShard) stopTimer() {
+	if shard.timer == nil {
+		return
+	}
+	if !shard.timer.Stop() {
+		select {
+		case <-shard.timer.C:
+		default:
+		}
+	}
 }
 
 func (g *submitGate) acquire() bool {
