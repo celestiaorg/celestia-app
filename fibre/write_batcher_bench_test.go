@@ -48,13 +48,12 @@ func BenchmarkStorePut(b *testing.B) {
 		new  func(ds.Batching) putter
 	}{
 		{"batched", func(d ds.Batching) putter {
-			return newWriteBatcherWithOpts(d, writeBatcherOptions{
-				queueSize:        4096,
-				minPending:       128,
-				maxPending:       512,
-				minBatchBytes:    64 << 20,
-				targetBatchBytes: 1 << 30,
-				flushInterval:    1 * time.Millisecond,
+			return newPartitionedWriteBatcherWithOpts(d, 8, writeBatcherOptions{
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 8 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
 			})
 		}},
 		{"direct", func(d ds.Batching) putter { return newDirectPutter(d) }},
@@ -92,58 +91,53 @@ func BenchmarkStorePutBatcherTuning(b *testing.B) {
 		opts writeBatcherOptions
 	}{
 		{
-			name: "pending=128/bytes=64MiB/flush=1ms",
+			name: "bytes=64MiB/flush=1ms",
 			opts: writeBatcherOptions{
-				queueSize:        4096,
-				minPending:       128,
-				maxPending:       512,
-				minBatchBytes:    64 << 20,
-				targetBatchBytes: 1 << 30,
-				flushInterval:    1 * time.Millisecond,
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 64 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
 			},
 		},
 		{
-			name: "pending=64/bytes=64MiB/flush=1ms",
+			name: "max=512/bytes=64MiB/flush=1ms",
 			opts: writeBatcherOptions{
-				queueSize:        4096,
-				minPending:       64,
-				maxPending:       512,
-				minBatchBytes:    64 << 20,
-				targetBatchBytes: 1 << 30,
-				flushInterval:    1 * time.Millisecond,
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 64 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
 			},
 		},
 		{
-			name: "pending=128/bytes=32MiB/flush=1ms",
+			name: "bytes=32MiB/flush=1ms",
 			opts: writeBatcherOptions{
-				queueSize:        4096,
-				minPending:       128,
-				maxPending:       512,
-				minBatchBytes:    32 << 20,
-				targetBatchBytes: 1 << 30,
-				flushInterval:    1 * time.Millisecond,
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 32 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
 			},
 		},
 		{
-			name: "pending=128/bytes=128MiB/flush=1ms",
+			name: "bytes=128MiB/flush=1ms",
 			opts: writeBatcherOptions{
-				queueSize:        4096,
-				minPending:       128,
-				maxPending:       512,
-				minBatchBytes:    128 << 20,
-				targetBatchBytes: 1 << 30,
-				flushInterval:    1 * time.Millisecond,
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 128 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
 			},
 		},
 		{
-			name: "pending=128/bytes=64MiB/flush=2ms",
+			name: "bytes=64MiB/flush=2ms",
 			opts: writeBatcherOptions{
-				queueSize:        4096,
-				minPending:       128,
-				maxPending:       512,
-				minBatchBytes:    64 << 20,
-				targetBatchBytes: 1 << 30,
-				flushInterval:    2 * time.Millisecond,
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 64 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 2 * time.Millisecond,
 			},
 		},
 	}
@@ -159,6 +153,73 @@ func BenchmarkStorePutBatcherTuning(b *testing.B) {
 					newPebbleBenchStore,
 					func(d ds.Batching) putter { return newWriteBatcherWithOpts(d, preset.opts) },
 				)
+			})
+		}
+	}
+}
+
+// BenchmarkStorePutPartitionedBatcherExperiment compares the current single
+// batcher against a sharded-committer experiment that can marshal directly into
+// each committer's Pebble batch.
+func BenchmarkStorePutPartitionedBatcherExperiment(b *testing.B) {
+	cases := []struct {
+		name     string
+		n        int
+		rowCount int
+		rowSize  int
+	}{
+		{"block=16MiB/rows=256/n=1000", 1000, 256, 4096},
+		{"block=64MiB/rows=256/n=256", 256, 256, 16 * 1024},
+		{"block=128MiB/rows=512/n=64", 64, 512, 32 * 1024},
+	}
+
+	variants := []struct {
+		name string
+		new  func(ds.Batching) putter
+	}{
+		{
+			name: "single",
+			new: func(d ds.Batching) putter {
+				return newWriteBatcherWithOpts(d, writeBatcherOptions{
+					queueSize:     4096,
+					maxPending:    512,
+					minBatchBytes: 64 << 20,
+					maxBatchBytes: 1 << 30,
+					flushInterval: 1 * time.Millisecond,
+				})
+			},
+		},
+		{
+			name: "partitioned=2",
+			new: func(d ds.Batching) putter {
+				return newPartitionedWriteBatcherWithOpts(d, 2, writeBatcherOptions{
+					queueSize:     4096,
+					maxPending:    512,
+					minBatchBytes: 64 << 20,
+					maxBatchBytes: 1 << 30,
+					flushInterval: 1 * time.Millisecond,
+				})
+			},
+		},
+		{
+			name: "partitioned=4",
+			new: func(d ds.Batching) putter {
+				return newPartitionedWriteBatcherWithOpts(d, 4, writeBatcherOptions{
+					queueSize:     4096,
+					maxPending:    512,
+					minBatchBytes: 64 << 20,
+					maxBatchBytes: 1 << 30,
+					flushInterval: 1 * time.Millisecond,
+				})
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		entries := makePutEntries(b, tc.n, tc.rowCount, tc.rowSize)
+		for _, variant := range variants {
+			b.Run(fmt.Sprintf("%s/%s", tc.name, variant.name), func(b *testing.B) {
+				benchStorePut(b, entries, newPebbleBenchStore, variant.new)
 			})
 		}
 	}

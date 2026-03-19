@@ -19,19 +19,17 @@ func TestNewWriteBatcherUsesDefaultThresholds(t *testing.T) {
 	wb := newWriteBatcher(store)
 	t.Cleanup(wb.close)
 
-	require.Equal(t, defaultWriteBatcherMinPending, wb.minPending)
 	require.Equal(t, defaultWriteBatcherMaxPending, wb.maxPending)
 }
 
 func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 	store := newBlockingBatching()
 	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
-		queueSize:        1,
-		minPending:       1,
-		maxPending:       1,
-		minBatchBytes:    1,
-		targetBatchBytes: 1,
-		flushInterval:    time.Hour,
+		queueSize:     1,
+		maxPending:    1,
+		minBatchBytes: 1,
+		maxBatchBytes: 1,
+		flushInterval: time.Hour,
 	})
 
 	key := promiseKey([]byte("queued"))
@@ -58,12 +56,11 @@ func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 	store := newBlockingBatching()
 	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
-		queueSize:        1,
-		minPending:       1,
-		maxPending:       1,
-		minBatchBytes:    1,
-		targetBatchBytes: 1,
-		flushInterval:    time.Hour,
+		queueSize:     1,
+		maxPending:    1,
+		minBatchBytes: 1,
+		maxBatchBytes: 1,
+		flushInterval: time.Hour,
 	})
 
 	errCh := make(chan error, 1)
@@ -109,12 +106,11 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 	store := newCountingBatching()
 	// Large queue, generous flush delay to encourage coalescing.
 	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
-		queueSize:        numSubmits,
-		minPending:       16,
-		maxPending:       numSubmits,
-		minBatchBytes:    1 << 20,
-		targetBatchBytes: 4 << 20,
-		flushInterval:    1 * time.Second,
+		queueSize:     numSubmits,
+		maxPending:    numSubmits,
+		minBatchBytes: 1 << 20,
+		maxBatchBytes: 4 << 20,
+		flushInterval: 1 * time.Second,
 	})
 
 	var wg sync.WaitGroup
@@ -141,15 +137,14 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 	}
 }
 
-func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T) {
+func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinBatchBytes(t *testing.T) {
 	store := newBlockingBatching()
 	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
-		queueSize:        1,
-		minPending:       8,
-		maxPending:       8,
-		minBatchBytes:    1024,
-		targetBatchBytes: 1024,
-		flushInterval:    time.Hour,
+		queueSize:     1,
+		maxPending:    8,
+		minBatchBytes: 1024,
+		maxBatchBytes: 1024,
+		flushInterval: time.Hour,
 	})
 
 	errCh := make(chan error, 1)
