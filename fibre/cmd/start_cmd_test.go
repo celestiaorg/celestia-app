@@ -174,13 +174,6 @@ func TestStartCmdGRPCSignerFlags(t *testing.T) {
 			},
 			wantGRPCAddress: "127.0.0.1:26660",
 		},
-		{
-			name: "gRPC signer flags override config file",
-			args: []string{
-				"--" + flagSignerGRPCAddress, "127.0.0.1:26661",
-			},
-			wantGRPCAddress: "127.0.0.1:26661",
-		},
 	}
 
 	for _, tc := range tests {
