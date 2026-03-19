@@ -23,6 +23,7 @@ type putter interface {
 
 type payloadCommitter interface {
 	commitPayloads(ctx context.Context, payloads []*putPayload) error
+	close()
 }
 
 type genericPayloadCommitter struct {
@@ -30,7 +31,9 @@ type genericPayloadCommitter struct {
 }
 
 type pebblePayloadCommitter struct {
-	store *pebble.Datastore
+	store      *pebble.Datastore
+	batch      *pebbledb.Batch
+	reuseBatch bool
 }
 
 type putPayload struct {
@@ -102,10 +105,14 @@ func (c genericPayloadCommitter) commitPayloads(ctx context.Context, payloads []
 	return nil
 }
 
-func (c pebblePayloadCommitter) commitPayloads(_ context.Context, payloads []*putPayload) error {
-	batch := c.store.DB.NewBatchWithSize(pebblePayloadsBatchSize(payloads))
-	defer batch.Close()
+func (c genericPayloadCommitter) close() {}
 
+func (c *pebblePayloadCommitter) commitPayloads(_ context.Context, payloads []*putPayload) error {
+	batchSize := pebblePayloadsBatchSize(payloads)
+	batch := c.batchForSize(batchSize)
+	if !c.reuseBatch {
+		defer batch.Close()
+	}
 	for _, payload := range payloads {
 		if err := payload.applyPebble(batch); err != nil {
 			return err
@@ -118,9 +125,35 @@ func (c pebblePayloadCommitter) commitPayloads(_ context.Context, payloads []*pu
 	return nil
 }
 
-func defaultPayloadCommitter(store ds.Batching) payloadCommitter {
+func (c *pebblePayloadCommitter) batchForSize(size int) *pebbledb.Batch {
+	if !c.reuseBatch {
+		return c.store.DB.NewBatchWithSize(size)
+	}
+	if c.batch == nil {
+		c.batch = c.store.DB.NewBatchWithSize(size)
+		return c.batch
+	}
+	c.batch.Reset()
+	return c.batch
+}
+
+func (c *pebblePayloadCommitter) close() {
+	if c.batch != nil {
+		_ = c.batch.Close()
+		c.batch = nil
+	}
+}
+
+func newDirectPayloadCommitter(store ds.Batching) payloadCommitter {
 	if pds, ok := store.(*pebble.Datastore); ok {
-		return pebblePayloadCommitter{store: pds}
+		return &pebblePayloadCommitter{store: pds}
+	}
+	return genericPayloadCommitter{store: store}
+}
+
+func newBatchPayloadCommitter(store ds.Batching) payloadCommitter {
+	if pds, ok := store.(*pebble.Datastore); ok {
+		return &pebblePayloadCommitter{store: pds, reuseBatch: true}
 	}
 	return genericPayloadCommitter{store: store}
 }
@@ -132,7 +165,7 @@ type directPutter struct {
 }
 
 func newDirectPutter(store ds.Batching) *directPutter {
-	return &directPutter{committer: defaultPayloadCommitter(store)}
+	return &directPutter{committer: newDirectPayloadCommitter(store)}
 }
 
 func (dw *directPutter) submit(ctx context.Context, payload *putPayload) error {
@@ -238,7 +271,7 @@ func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *write
 	}
 	queuePerShard := max(1, opts.queueSize/opts.shardCount)
 	for i := 0; i < opts.shardCount; i++ {
-		wb.shards[i] = newPayloadBatcherShard(defaultPayloadCommitter(store), opts, queuePerShard)
+		wb.shards[i] = newPayloadBatcherShard(newBatchPayloadCommitter(store), opts, queuePerShard)
 	}
 	return wb
 }
@@ -316,6 +349,7 @@ func (wb *writeBatcher) shardIndex(payload *putPayload) int {
 }
 
 func (shard *payloadBatcherShard) run() {
+	defer shard.committer.close()
 	defer close(shard.done)
 
 	for {
