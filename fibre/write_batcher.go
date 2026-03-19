@@ -272,12 +272,13 @@ func (wb *writeBatcher) submit(ctx context.Context, payload *putPayload) error {
 		writeRequestPool.Put(req)
 		return ErrStoreClosed
 	}
-	defer wb.submitters.release()
 
 	shard := wb.shards[wb.shardIndex(payload)]
 	select {
 	case shard.requests <- req:
+		wb.submitters.release()
 	case <-ctx.Done():
+		wb.submitters.release()
 		req.reset()
 		writeRequestPool.Put(req)
 		return ctx.Err()
@@ -332,7 +333,7 @@ func (shard *payloadBatcherShard) run() {
 
 		if shard.shouldWaitForMore(pendingBytes) {
 			timer := time.NewTimer(shard.flushDelayFor(len(pending), pendingBytes))
-			pending, pendingBytes = shard.drain(pending, pendingBytes, timer)
+			pending, _ = shard.drain(pending, pendingBytes, timer)
 			if !timer.Stop() {
 				select {
 				case <-timer.C:
