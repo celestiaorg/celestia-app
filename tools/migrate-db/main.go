@@ -42,6 +42,12 @@ var allDatabases = []string{
 	"evidence",
 }
 
+// optionalDatabases lists databases that may legitimately be absent (e.g. tx_index
+// on nodes with indexing disabled). Only these are allowed to have statusNotFound.
+var optionalDatabases = map[string]bool{
+	"tx_index": true,
+}
+
 // MigrationState tracks overall migration progress across restarts.
 type MigrationState struct {
 	StartedAt        time.Time          `json:"started_at"`
@@ -250,7 +256,7 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, state)
 	}
 
-	printNextSteps(dataDir, pebbleDataDir, opts.backup)
+	printNextSteps(dataDir, pebbleDataDir, opts.backup, state)
 	return nil
 }
 
@@ -899,7 +905,10 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, tracker *stateTrack
 	// Verify all databases completed migration.
 	for _, dbName := range allDatabases {
 		ds := tracker.getDBState(dbName)
-		if ds.Status == statusMigrated || ds.Status == statusSourceDeleted || ds.Status == statusNotFound {
+		if ds.Status == statusMigrated || ds.Status == statusSourceDeleted {
+			continue
+		}
+		if ds.Status == statusNotFound && optionalDatabases[dbName] {
 			continue
 		}
 		return fmt.Errorf("database %q has status %q, expected %q or %q — cannot auto-swap", dbName, ds.Status, statusMigrated, statusSourceDeleted)
@@ -982,21 +991,37 @@ func readConfigBackend(homeDir string) (string, error) {
 	return cfg.DBBackend, nil
 }
 
-// updateConfigBackend updates the db_backend value in config.toml.
+// updateConfigBackend surgically replaces the db_backend line in config.toml,
+// preserving all other content, comments, and formatting.
 func updateConfigBackend(homeDir, backend string) error {
-	cfg, err := loadCometConfig(homeDir)
+	configPath := filepath.Join(homeDir, "config", "config.toml")
+	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
 	}
-	cfg.DBBackend = backend
-	cmtcfg.WriteConfigFile(filepath.Join(homeDir, "config", "config.toml"), cfg)
-	return nil
+	lines := strings.Split(string(data), "\n")
+	found := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "db_backend") && strings.Contains(trimmed, "=") {
+			lines[i] = fmt.Sprintf(`db_backend = "%s"`, backend)
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("db_backend setting not found in %s", configPath)
+	}
+	return os.WriteFile(configPath, []byte(strings.Join(lines, "\n")), 0o644)
 }
 
 // printNextSteps prints post-migration instructions to stdout.
-func printNextSteps(dataDir, pebbleDataDir string, backup bool) {
+func printNextSteps(dataDir, pebbleDataDir string, backup bool, tracker *stateTracker) {
 	var rmCommands, mvCommands strings.Builder
 	for _, dbName := range allDatabases {
+		if tracker.getDBState(dbName).Status == statusNotFound {
+			continue
+		}
 		if backup {
 			_, _ = fmt.Fprintf(&rmCommands, "   rm -rf %s/%s.db\n", dataDir, dbName)
 		}
