@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
@@ -13,7 +12,6 @@ import (
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	ds "github.com/ipfs/go-datastore"
 	pebble "github.com/ipfs/go-ds-pebble"
-	"golang.org/x/sync/errgroup"
 )
 
 // putter abstracts how prepared write payloads are persisted.
@@ -23,25 +21,12 @@ type putter interface {
 	close()
 }
 
-type planCommitter interface {
-	commit(ctx context.Context, puts []*encodedPut) error
-}
-
 type payloadCommitter interface {
 	commitPayloads(ctx context.Context, payloads []*putPayload) error
 }
 
-type genericPlanCommitter struct {
-	store ds.Batching
-}
-
-type pebblePlanCommitter struct {
-	store *pebble.Datastore
-}
-
 type genericPayloadCommitter struct {
-	store            ds.Batching
-	syncPoolProvider *syncPoolProvider
+	store ds.Batching
 }
 
 type pebblePayloadCommitter struct {
@@ -56,19 +41,6 @@ type putPayload struct {
 	pruneAt      time.Time
 	ppSize       int
 	shardSize    int
-}
-
-type encodedPut struct {
-	promiseKey   string
-	shardKey     string
-	pruneKey     string
-	ppData       []byte
-	shardData    []byte
-	ppPool       *sync.Pool
-	shardPool    *sync.Pool
-	ppPoolCap    int
-	shardPoolCap int
-	bytes        int
 }
 
 func preparePut(promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) (*putPayload, error) {
@@ -97,145 +69,37 @@ func (p *putPayload) batchBytes() int {
 		pruneKeyLen(p.promiseHash)
 }
 
-func (p *putPayload) encode(syncPoolProvider *syncPoolProvider) (*encodedPut, error) {
-	ppPool, ppPoolCap := syncPoolProvider.poolForSize(p.ppSize)
-	ppData, err := marshalSized(p.promiseProto, ppPool, ppPoolCap)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling payment promise: %w", err)
-	}
-
-	shardPool, shardPoolCap := syncPoolProvider.poolForSize(p.shardSize)
-	shardData, err := marshalSized(p.shard, shardPool, shardPoolCap)
-	if err != nil {
-		putMarshalBuf(ppPool, ppPoolCap, ppData)
-		return nil, fmt.Errorf("marshaling shard: %w", err)
-	}
-
-	put := &encodedPut{
-		promiseKey:   promiseKeyString(p.promiseHash),
-		shardKey:     shardKeyString(p.commitment, p.promiseHash),
-		pruneKey:     pruneKeyString(p.pruneAt, p.commitment, p.promiseHash),
-		ppData:       ppData,
-		shardData:    shardData,
-		ppPool:       ppPool,
-		shardPool:    shardPool,
-		ppPoolCap:    ppPoolCap,
-		shardPoolCap: shardPoolCap,
-	}
-	put.bytes = len(put.promiseKey) + len(put.ppData) + len(put.shardKey) + len(put.shardData) + len(put.pruneKey)
-	return put, nil
-}
-
-func (p *encodedPut) release() {
-	if len(p.ppData) > 0 {
-		putMarshalBuf(p.ppPool, p.ppPoolCap, p.ppData)
-	}
-	if len(p.shardData) > 0 {
-		putMarshalBuf(p.shardPool, p.shardPoolCap, p.shardData)
-	}
-	p.ppData = nil
-	p.shardData = nil
-	p.ppPool = nil
-	p.shardPool = nil
-	p.ppPoolCap = 0
-	p.shardPoolCap = 0
-}
-
-func (p *encodedPut) applyGeneric(ctx context.Context, batch ds.Batch) error {
-	if err := batch.Put(ctx, ds.RawKey(p.promiseKey), p.ppData); err != nil {
-		return fmt.Errorf("putting payment promise: %w", err)
-	}
-	if err := batch.Put(ctx, ds.RawKey(p.shardKey), p.shardData); err != nil {
-		return fmt.Errorf("putting shard: %w", err)
-	}
-	if err := batch.Put(ctx, ds.RawKey(p.pruneKey), nil); err != nil {
-		return fmt.Errorf("putting prune index: %w", err)
-	}
-	return nil
-}
-
-func (p *encodedPut) applyPebble(batch *pebbledb.Batch) error {
-	if err := writePebbleEntry(batch, p.promiseKey, p.ppData); err != nil {
-		return fmt.Errorf("writing payment promise: %w", err)
-	}
-	if err := writePebbleEntry(batch, p.shardKey, p.shardData); err != nil {
-		return fmt.Errorf("writing shard: %w", err)
-	}
-	if err := writePebbleEntry(batch, p.pruneKey, nil); err != nil {
-		return fmt.Errorf("writing prune index: %w", err)
-	}
-	return nil
-}
-
-func defaultPlanCommitter(store ds.Batching) planCommitter {
-	if pds, ok := store.(*pebble.Datastore); ok {
-		return pebblePlanCommitter{store: pds}
-	}
-	return genericPlanCommitter{store: store}
-}
-
-func defaultPayloadCommitter(store ds.Batching, syncPoolProvider *syncPoolProvider) payloadCommitter {
-	if pds, ok := store.(*pebble.Datastore); ok {
-		return pebblePayloadCommitter{store: pds}
-	}
-	return genericPayloadCommitter{store: store, syncPoolProvider: syncPoolProvider}
-}
-
-func releaseEncodedPuts(puts []*encodedPut) {
-	for _, put := range puts {
-		if put != nil {
-			put.release()
-		}
-	}
-}
-
-func (c genericPlanCommitter) commit(ctx context.Context, puts []*encodedPut) error {
-	defer releaseEncodedPuts(puts)
-
+func (c genericPayloadCommitter) commitPayloads(ctx context.Context, payloads []*putPayload) error {
 	batch, err := c.store.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
 	}
-	for _, put := range puts {
-		if err := put.applyGeneric(ctx, batch); err != nil {
-			return err
+
+	for _, payload := range payloads {
+		ppData, err := marshalAllocated(payload.promiseProto)
+		if err != nil {
+			return fmt.Errorf("marshaling payment promise: %w", err)
+		}
+		if err := batch.Put(ctx, promiseKey(payload.promiseHash), ppData); err != nil {
+			return fmt.Errorf("putting payment promise: %w", err)
+		}
+
+		shardData, err := marshalAllocated(payload.shard)
+		if err != nil {
+			return fmt.Errorf("marshaling shard: %w", err)
+		}
+		if err := batch.Put(ctx, shardKey(payload.commitment, payload.promiseHash), shardData); err != nil {
+			return fmt.Errorf("putting shard: %w", err)
+		}
+		if err := batch.Put(ctx, pruneKey(payload.pruneAt, payload.commitment, payload.promiseHash), nil); err != nil {
+			return fmt.Errorf("putting prune index: %w", err)
 		}
 	}
+
 	if err := batch.Commit(ctx); err != nil {
 		return fmt.Errorf("committing batch: %w", err)
 	}
 	return nil
-}
-
-func (c pebblePlanCommitter) commit(_ context.Context, puts []*encodedPut) error {
-	defer releaseEncodedPuts(puts)
-
-	batch := c.store.DB.NewBatchWithSize(pebbleEncodedPutsBatchSize(puts))
-	defer batch.Close()
-
-	for _, put := range puts {
-		if err := put.applyPebble(batch); err != nil {
-			return err
-		}
-	}
-
-	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return fmt.Errorf("committing pebble batch: %w", err)
-	}
-	return nil
-}
-
-func (c genericPayloadCommitter) commitPayloads(ctx context.Context, payloads []*putPayload) error {
-	puts := make([]*encodedPut, len(payloads))
-	for i, payload := range payloads {
-		put, err := payload.encode(c.syncPoolProvider)
-		if err != nil {
-			releaseEncodedPuts(puts)
-			return err
-		}
-		puts[i] = put
-	}
-	return genericPlanCommitter{store: c.store}.commit(ctx, puts)
 }
 
 func (c pebblePayloadCommitter) commitPayloads(_ context.Context, payloads []*putPayload) error {
@@ -254,71 +118,52 @@ func (c pebblePayloadCommitter) commitPayloads(_ context.Context, payloads []*pu
 	return nil
 }
 
+func defaultPayloadCommitter(store ds.Batching) payloadCommitter {
+	if pds, ok := store.(*pebble.Datastore); ok {
+		return pebblePayloadCommitter{store: pds}
+	}
+	return genericPayloadCommitter{store: store}
+}
+
 // directPutter commits each prepared write immediately. It exists as a baseline
-// and shares the same commit path as the batcher.
+// for benchmarks and shares the same backend-specific commit path as the batcher.
 type directPutter struct {
-	committer        planCommitter
-	syncPoolProvider *syncPoolProvider
+	committer payloadCommitter
 }
 
 func newDirectPutter(store ds.Batching) *directPutter {
-	return &directPutter{
-		committer:        defaultPlanCommitter(store),
-		syncPoolProvider: newSyncPoolProvider(defaultSyncPoolClasses),
-	}
+	return &directPutter{committer: defaultPayloadCommitter(store)}
 }
 
 func (dw *directPutter) submit(ctx context.Context, payload *putPayload) error {
-	put, err := payload.encode(dw.syncPoolProvider)
-	if err != nil {
-		return err
-	}
-	return dw.committer.commit(ctx, []*encodedPut{put})
+	return dw.committer.commitPayloads(ctx, []*putPayload{payload})
 }
 
 func (dw *directPutter) close() {}
 
-// writeBatcher runs a three-stage pipeline:
-// 1. callers submit logical put plans,
-// 2. encoder workers marshal plans into pooled byte buffers in parallel,
-// 3. a single commit loop coalesces encoded puts into shared datastore batches.
 type writeRequest struct {
 	payload *putPayload
 	result  chan error
 }
 
-var writeRequestPool = sync.Pool{
-	New: func() any {
-		return &writeRequest{result: make(chan error, 1)}
-	},
-}
-
 type writeBatcher struct {
-	committer        planCommitter
-	syncPoolProvider *syncPoolProvider
-	requests         chan *writeRequest
-	done             chan struct{}
-	submitters       submitGate
-	encoderWorkers   int
-	maxPending       int
-	minBatchBytes    int
-	targetBatchBytes int
-	flushInterval    time.Duration
-}
-
-type partitionedWriteBatcher struct {
-	shards     []*payloadBatcherShard
-	submitters submitGate
+	shards        []*payloadBatcherShard
+	submitters    submitGate
+	shardCount    int
+	maxPending    int
+	minBatchBytes int
+	maxBatchBytes int
+	flushInterval time.Duration
 }
 
 type payloadBatcherShard struct {
-	committer        payloadCommitter
-	requests         chan *writeRequest
-	done             chan struct{}
-	maxPending       int
-	minBatchBytes    int
-	targetBatchBytes int
-	flushInterval    time.Duration
+	committer     payloadCommitter
+	requests      chan *writeRequest
+	done          chan struct{}
+	maxPending    int
+	minBatchBytes int
+	maxBatchBytes int
+	flushInterval time.Duration
 }
 
 type submitGate struct {
@@ -330,79 +175,34 @@ type submitGate struct {
 }
 
 const (
+	defaultWriteBatcherShardCount = 4
 	defaultWriteBatcherQueueSize  = 4096
 	defaultWriteBatcherMaxPending = 512
 	defaultWriteBatcherMinBytes   = 64 << 20
-	defaultWriteBatcherTargetSize = 1 << 30
+	defaultWriteBatcherMaxBytes   = 1 << 30
 	defaultWriteBatcherFlushDelay = 1 * time.Millisecond
 	pebbleBatchHeader             = 12
 )
 
 type writeBatcherOptions struct {
-	encoderWorkers int
-	queueSize      int
-	maxPending     int
-	minBatchBytes  int
-	maxBatchBytes  int
-	flushInterval  time.Duration
+	shardCount    int
+	queueSize     int
+	maxPending    int
+	minBatchBytes int
+	maxBatchBytes int
+	flushInterval time.Duration
 }
 
 func newWriteBatcher(store ds.Batching) *writeBatcher {
-	return newWriteBatcherWithOpts(
-		store,
-		writeBatcherOptions{
-			queueSize:     defaultWriteBatcherQueueSize,
-			maxPending:    defaultWriteBatcherMaxPending,
-			minBatchBytes: defaultWriteBatcherMinBytes,
-			maxBatchBytes: defaultWriteBatcherTargetSize,
-			flushInterval: defaultWriteBatcherFlushDelay,
-		},
-	)
-}
-
-func newPartitionedWriteBatcherWithOpts(store ds.Batching, shardCount int, opts writeBatcherOptions) putter {
-	if shardCount <= 1 {
-		return newWriteBatcherWithOpts(store, opts)
-	}
-	if opts.queueSize <= 0 {
-		opts.queueSize = defaultWriteBatcherQueueSize
-	}
-	if opts.maxPending <= 0 {
-		opts.maxPending = defaultWriteBatcherMaxPending
-	}
-	if opts.minBatchBytes <= 0 {
-		opts.minBatchBytes = defaultWriteBatcherMinBytes
-	}
-	if opts.maxBatchBytes < opts.minBatchBytes {
-		opts.maxBatchBytes = max(opts.minBatchBytes, defaultWriteBatcherTargetSize)
-	}
-	if opts.flushInterval <= 0 {
-		opts.flushInterval = defaultWriteBatcherFlushDelay
-	}
-
-	pw := &partitionedWriteBatcher{
-		shards: make([]*payloadBatcherShard, shardCount),
-		submitters: submitGate{
-			drained: make(chan struct{}),
-		},
-	}
-	for i := 0; i < shardCount; i++ {
-		provider := newSyncPoolProvider(defaultSyncPoolClasses)
-		pw.shards[i] = newPayloadBatcherShard(
-			defaultPayloadCommitter(store, provider),
-			opts,
-			max(1, opts.queueSize/shardCount),
-		)
-	}
-	return pw
+	return newWriteBatcherWithOpts(store, writeBatcherOptions{})
 }
 
 func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *writeBatcher {
+	if opts.shardCount <= 0 {
+		opts.shardCount = defaultWriteBatcherShardCount
+	}
 	if opts.queueSize <= 0 {
 		opts.queueSize = defaultWriteBatcherQueueSize
-	}
-	if opts.encoderWorkers <= 0 {
-		opts.encoderWorkers = runtime.GOMAXPROCS(0)
 	}
 	if opts.maxPending <= 0 {
 		opts.maxPending = defaultWriteBatcherMaxPending
@@ -411,170 +211,42 @@ func newWriteBatcherWithOpts(store ds.Batching, opts writeBatcherOptions) *write
 		opts.minBatchBytes = defaultWriteBatcherMinBytes
 	}
 	if opts.maxBatchBytes < opts.minBatchBytes {
-		opts.maxBatchBytes = max(opts.minBatchBytes, defaultWriteBatcherTargetSize)
+		opts.maxBatchBytes = max(opts.minBatchBytes, defaultWriteBatcherMaxBytes)
 	}
 	if opts.flushInterval <= 0 {
 		opts.flushInterval = defaultWriteBatcherFlushDelay
 	}
 
 	wb := &writeBatcher{
-		committer:        defaultPlanCommitter(store),
-		syncPoolProvider: newSyncPoolProvider(defaultSyncPoolClasses),
-		requests:         make(chan *writeRequest, opts.queueSize),
-		done:             make(chan struct{}),
+		shards: make([]*payloadBatcherShard, opts.shardCount),
 		submitters: submitGate{
 			drained: make(chan struct{}),
 		},
-		encoderWorkers:   opts.encoderWorkers,
-		maxPending:       opts.maxPending,
-		minBatchBytes:    opts.minBatchBytes,
-		targetBatchBytes: opts.maxBatchBytes,
-		flushInterval:    opts.flushInterval,
+		shardCount:    opts.shardCount,
+		maxPending:    opts.maxPending,
+		minBatchBytes: opts.minBatchBytes,
+		maxBatchBytes: opts.maxBatchBytes,
+		flushInterval: opts.flushInterval,
 	}
-	go wb.run()
+	queuePerShard := max(1, opts.queueSize/opts.shardCount)
+	for i := 0; i < opts.shardCount; i++ {
+		wb.shards[i] = newPayloadBatcherShard(defaultPayloadCommitter(store), opts, queuePerShard)
+	}
 	return wb
 }
 
-func (wb *writeBatcher) run() {
-	defer close(wb.done)
-
-	for {
-		first, ok := <-wb.requests
-		if !ok {
-			return
-		}
-
-		pending := make([]*writeRequest, 1, wb.maxPending)
-		pending[0] = first
-		pendingBytes := first.payload.batchBytes()
-
-		pending, pendingBytes = wb.drain(pending, pendingBytes, nil)
-
-		if wb.shouldWaitForMore(len(pending), pendingBytes) {
-			timer := time.NewTimer(wb.flushDelayFor(len(pending), pendingBytes))
-			pending, pendingBytes = wb.drain(pending, pendingBytes, timer)
-
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-		}
-
-		err := wb.commitAll(context.Background(), pending)
-		for _, req := range pending {
-			req.result <- err
-		}
+func newPayloadBatcherShard(committer payloadCommitter, opts writeBatcherOptions, queueSize int) *payloadBatcherShard {
+	shard := &payloadBatcherShard{
+		committer:     committer,
+		requests:      make(chan *writeRequest, queueSize),
+		done:          make(chan struct{}),
+		maxPending:    opts.maxPending,
+		minBatchBytes: opts.minBatchBytes,
+		maxBatchBytes: opts.maxBatchBytes,
+		flushInterval: opts.flushInterval,
 	}
-}
-
-func (wb *writeBatcher) shouldWaitForMore(pendingCount, pendingBytes int) bool {
-	return pendingBytes < wb.minBatchBytes &&
-		pendingBytes < wb.targetBatchBytes
-}
-
-func (wb *writeBatcher) flushDelayFor(pendingCount, pendingBytes int) time.Duration {
-	if pendingCount == 0 {
-		return wb.flushInterval
-	}
-	avgRequestBytes := pendingBytes / pendingCount
-	if avgRequestBytes <= 2<<20 {
-		return 2 * wb.flushInterval
-	}
-	return wb.flushInterval
-}
-
-func (wb *writeBatcher) drain(
-	pending []*writeRequest,
-	pendingBytes int,
-	timer *time.Timer,
-) ([]*writeRequest, int) {
-	for len(pending) < wb.maxPending {
-		if timer == nil {
-			select {
-			case req, ok := <-wb.requests:
-				if !ok {
-					return pending, pendingBytes
-				}
-				pending = append(pending, req)
-				pendingBytes += req.payload.batchBytes()
-			default:
-				return pending, pendingBytes
-			}
-			continue
-		}
-
-		select {
-		case req, ok := <-wb.requests:
-			if !ok {
-				return pending, pendingBytes
-			}
-			pending = append(pending, req)
-			pendingBytes += req.payload.batchBytes()
-		case <-timer.C:
-			return pending, pendingBytes
-		}
-	}
-	return pending, pendingBytes
-}
-
-func (wb *writeBatcher) commitAll(ctx context.Context, requests []*writeRequest) error {
-	puts, err := wb.encodeAll(requests)
-	if err != nil {
-		return err
-	}
-	return wb.committer.commit(ctx, puts)
-}
-
-func (wb *writeBatcher) encodeAll(requests []*writeRequest) ([]*encodedPut, error) {
-	if len(requests) == 0 {
-		return nil, nil
-	}
-	if len(requests) == 1 || wb.encoderWorkers <= 1 {
-		put, err := requests[0].payload.encode(wb.syncPoolProvider)
-		requests[0].payload = nil
-		if err != nil {
-			return nil, err
-		}
-		return []*encodedPut{put}, nil
-	}
-
-	puts := make([]*encodedPut, len(requests))
-	jobs := make(chan int, len(requests))
-	g, ctx := errgroup.WithContext(context.Background())
-
-	workers := min(wb.encoderWorkers, len(requests))
-	for i := 0; i < workers; i++ {
-		g.Go(func() error {
-			for idx := range jobs {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				default:
-				}
-
-				put, err := requests[idx].payload.encode(wb.syncPoolProvider)
-				requests[idx].payload = nil
-				if err != nil {
-					return err
-				}
-				puts[idx] = put
-			}
-			return nil
-		})
-	}
-
-	for i := range requests {
-		jobs <- i
-	}
-	close(jobs)
-
-	if err := g.Wait(); err != nil {
-		releaseEncodedPuts(puts)
-		return nil, err
-	}
-	return puts, nil
+	go shard.run()
+	return shard
 }
 
 func (wb *writeBatcher) submit(ctx context.Context, payload *putPayload) error {
@@ -582,107 +254,46 @@ func (wb *writeBatcher) submit(ctx context.Context, payload *putPayload) error {
 		return nil
 	}
 
-	req := writeRequestPool.Get().(*writeRequest)
-	req.payload = payload
+	req := &writeRequest{
+		payload: payload,
+		result:  make(chan error, 1),
+	}
 
-	if !wb.tryAcquireSubmitter() {
-		req.reset()
-		writeRequestPool.Put(req)
+	if !wb.submitters.acquire() {
 		return ErrStoreClosed
 	}
-	defer wb.releaseSubmitter()
+	defer wb.submitters.release()
 
+	shard := wb.shards[wb.shardIndex(payload)]
 	select {
-	case wb.requests <- req:
+	case shard.requests <- req:
 	case <-ctx.Done():
-		req.reset()
-		writeRequestPool.Put(req)
 		return ctx.Err()
 	}
 
-	err := <-req.result
-
-	req.reset()
-	writeRequestPool.Put(req)
-
-	return err
+	return <-req.result
 }
 
 func (wb *writeBatcher) close() {
 	wb.submitters.closeAndWait(func() {
-		close(wb.requests)
-		<-wb.done
-	})
-}
-
-func (req *writeRequest) reset() {
-	req.payload = nil
-}
-
-func newPayloadBatcherShard(committer payloadCommitter, opts writeBatcherOptions, queueSize int) *payloadBatcherShard {
-	shard := &payloadBatcherShard{
-		committer:        committer,
-		requests:         make(chan *writeRequest, queueSize),
-		done:             make(chan struct{}),
-		maxPending:       opts.maxPending,
-		minBatchBytes:    opts.minBatchBytes,
-		targetBatchBytes: opts.maxBatchBytes,
-		flushInterval:    opts.flushInterval,
-	}
-	go shard.run()
-	return shard
-}
-
-func (pw *partitionedWriteBatcher) submit(ctx context.Context, payload *putPayload) error {
-	if payload == nil {
-		return nil
-	}
-
-	req := writeRequestPool.Get().(*writeRequest)
-	req.payload = payload
-
-	if !pw.submitters.acquire() {
-		req.reset()
-		writeRequestPool.Put(req)
-		return ErrStoreClosed
-	}
-	defer pw.submitters.release()
-
-	shard := pw.shards[pw.shardIndex(payload)]
-	select {
-	case shard.requests <- req:
-	case <-ctx.Done():
-		req.reset()
-		writeRequestPool.Put(req)
-		return ctx.Err()
-	}
-
-	err := <-req.result
-	req.reset()
-	writeRequestPool.Put(req)
-	return err
-}
-
-func (pw *partitionedWriteBatcher) close() {
-	pw.submitters.closeAndWait(func() {
-		for _, shard := range pw.shards {
+		for _, shard := range wb.shards {
 			close(shard.requests)
 		}
-		for _, shard := range pw.shards {
+		for _, shard := range wb.shards {
 			<-shard.done
 		}
 	})
 }
 
-func (pw *partitionedWriteBatcher) shardIndex(payload *putPayload) int {
-	if len(pw.shards) == 1 || len(payload.promiseHash) == 0 {
+func (wb *writeBatcher) shardIndex(payload *putPayload) int {
+	if wb.shardCount <= 1 || len(payload.promiseHash) == 0 {
 		return 0
 	}
 	var sum uint32
 	for _, b := range payload.promiseHash {
 		sum = sum*16777619 ^ uint32(b)
 	}
-	return int(sum % uint32(len(pw.shards)))
+	return int(sum % uint32(wb.shardCount))
 }
 
 func (shard *payloadBatcherShard) run() {
@@ -700,7 +311,7 @@ func (shard *payloadBatcherShard) run() {
 
 		pending, pendingBytes = shard.drain(pending, pendingBytes, nil)
 
-		if shard.shouldWaitForMore(len(pending), pendingBytes) {
+		if shard.shouldWaitForMore(pendingBytes) {
 			timer := time.NewTimer(shard.flushDelayFor(len(pending), pendingBytes))
 			pending, pendingBytes = shard.drain(pending, pendingBytes, timer)
 			if !timer.Stop() {
@@ -718,19 +329,11 @@ func (shard *payloadBatcherShard) run() {
 	}
 }
 
-func (shard *payloadBatcherShard) shouldWaitForMore(pendingCount, pendingBytes int) bool {
-	return pendingBytes < shard.minBatchBytes &&
-		pendingBytes < shard.targetBatchBytes
+func (shard *payloadBatcherShard) shouldWaitForMore(pendingBytes int) bool {
+	return pendingBytes < shard.minBatchBytes
 }
 
 func (shard *payloadBatcherShard) flushDelayFor(pendingCount, pendingBytes int) time.Duration {
-	if pendingCount == 0 {
-		return shard.flushInterval
-	}
-	avgRequestBytes := pendingBytes / pendingCount
-	if avgRequestBytes <= 2<<20 {
-		return 2 * shard.flushInterval
-	}
 	return shard.flushInterval
 }
 
@@ -777,14 +380,6 @@ func (shard *payloadBatcherShard) commitAll(ctx context.Context, requests []*wri
 	return shard.committer.commitPayloads(ctx, payloads)
 }
 
-func (wb *writeBatcher) tryAcquireSubmitter() bool {
-	return wb.submitters.acquire()
-}
-
-func (wb *writeBatcher) releaseSubmitter() {
-	wb.submitters.release()
-}
-
 func (g *submitGate) acquire() bool {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -792,7 +387,6 @@ func (g *submitGate) acquire() bool {
 	if g.closed {
 		return false
 	}
-
 	g.active++
 	return true
 }
@@ -833,18 +427,6 @@ type sizedMarshaler interface {
 	MarshalToSizedBuffer([]byte) (int, error)
 }
 
-var defaultSyncPoolClasses = []int{
-	1 << 10,
-	4 << 10,
-	16 << 10,
-	64 << 10,
-	256 << 10,
-	1 << 20,
-	4 << 20,
-	16 << 20,
-	32 << 20,
-}
-
 func marshalToSizedBuffer(dst []byte, m sizedMarshaler) error {
 	n, err := m.MarshalToSizedBuffer(dst)
 	if err != nil {
@@ -856,73 +438,12 @@ func marshalToSizedBuffer(dst []byte, m sizedMarshaler) error {
 	return nil
 }
 
-func marshalSized(m sizedMarshaler, pool *sync.Pool, poolCap int) ([]byte, error) {
-	size := m.Size()
-	var buf []byte
-	if pool == nil {
-		buf = make([]byte, size)
-	} else {
-		buf = pool.Get().([]byte)[:size]
-	}
-	n, err := m.MarshalToSizedBuffer(buf)
-	if err != nil {
-		putMarshalBuf(pool, poolCap, buf)
+func marshalAllocated(m sizedMarshaler) ([]byte, error) {
+	buf := make([]byte, m.Size())
+	if err := marshalToSizedBuffer(buf, m); err != nil {
 		return nil, err
 	}
-	return buf[:n], nil
-}
-
-type syncPoolProvider struct {
-	caps  []int
-	pools []sync.Pool
-}
-
-func newSyncPoolProvider(caps []int) *syncPoolProvider {
-	pools := make([]sync.Pool, len(caps))
-	for i, classCap := range caps {
-		classCap := classCap
-		pools[i] = sync.Pool{
-			New: func() any {
-				return make([]byte, classCap)
-			},
-		}
-	}
-	return &syncPoolProvider{
-		caps:  caps,
-		pools: pools,
-	}
-}
-
-func (p *syncPoolProvider) poolForSize(size int) (*sync.Pool, int) {
-	idx := p.classIndex(size)
-	if idx < 0 {
-		return nil, size
-	}
-	return &p.pools[idx], p.caps[idx]
-}
-
-func putMarshalBuf(pool *sync.Pool, poolCap int, buf []byte) {
-	if pool == nil || poolCap == 0 || cap(buf) != poolCap {
-		return
-	}
-	pool.Put(buf[:poolCap])
-}
-
-func (p *syncPoolProvider) classIndex(size int) int {
-	for i, classCap := range p.caps {
-		if size <= classCap {
-			return i
-		}
-	}
-	return -1
-}
-
-func pebbleEncodedPutsBatchSize(puts []*encodedPut) int {
-	size := pebbleBatchHeader
-	for _, put := range puts {
-		size += pebbleEncodedPutBatchSize(put)
-	}
-	return size
+	return buf, nil
 }
 
 func pebblePayloadsBatchSize(payloads []*putPayload) int {
@@ -931,12 +452,6 @@ func pebblePayloadsBatchSize(payloads []*putPayload) int {
 		size += pebblePayloadBatchSize(payload)
 	}
 	return size
-}
-
-func pebbleEncodedPutBatchSize(put *encodedPut) int {
-	return pebbleBatchEntrySize(len(put.promiseKey), len(put.ppData)) +
-		pebbleBatchEntrySize(len(put.shardKey), len(put.shardData)) +
-		pebbleBatchEntrySize(len(put.pruneKey), 0)
 }
 
 func pebblePayloadBatchSize(payload *putPayload) int {
@@ -971,16 +486,6 @@ func shardKeyString(commitment Commitment, promiseHash []byte) string {
 
 func pruneKeyString(pruneAt time.Time, commitment Commitment, promiseHash []byte) string {
 	return pruneKeyPrefix + formatTimestamp(pruneAt.UTC()) + "/" + commitment.String() + "/" + hex.EncodeToString(promiseHash)
-}
-
-func writePebbleEntry(batch *pebbledb.Batch, key string, value []byte) error {
-	op := batch.SetDeferred(len(key), len(value))
-	copy(op.Key, key)
-	copy(op.Value, value)
-	if err := op.Finish(); err != nil {
-		return fmt.Errorf("finishing pebble batch op: %w", err)
-	}
-	return nil
 }
 
 func (p *putPayload) applyPebble(batch *pebbledb.Batch) error {

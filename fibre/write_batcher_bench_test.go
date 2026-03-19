@@ -48,7 +48,8 @@ func BenchmarkStorePut(b *testing.B) {
 		new  func(ds.Batching) putter
 	}{
 		{"batched", func(d ds.Batching) putter {
-			return newPartitionedWriteBatcherWithOpts(d, 8, writeBatcherOptions{
+			return newWriteBatcherWithOpts(d, writeBatcherOptions{
+				shardCount:    4,
 				queueSize:     4096,
 				maxPending:    512,
 				minBatchBytes: 8 << 20,
@@ -153,73 +154,6 @@ func BenchmarkStorePutBatcherTuning(b *testing.B) {
 					newPebbleBenchStore,
 					func(d ds.Batching) putter { return newWriteBatcherWithOpts(d, preset.opts) },
 				)
-			})
-		}
-	}
-}
-
-// BenchmarkStorePutPartitionedBatcherExperiment compares the current single
-// batcher against a sharded-committer experiment that can marshal directly into
-// each committer's Pebble batch.
-func BenchmarkStorePutPartitionedBatcherExperiment(b *testing.B) {
-	cases := []struct {
-		name     string
-		n        int
-		rowCount int
-		rowSize  int
-	}{
-		{"block=16MiB/rows=256/n=1000", 1000, 256, 4096},
-		{"block=64MiB/rows=256/n=256", 256, 256, 16 * 1024},
-		{"block=128MiB/rows=512/n=64", 64, 512, 32 * 1024},
-	}
-
-	variants := []struct {
-		name string
-		new  func(ds.Batching) putter
-	}{
-		{
-			name: "single",
-			new: func(d ds.Batching) putter {
-				return newWriteBatcherWithOpts(d, writeBatcherOptions{
-					queueSize:     4096,
-					maxPending:    512,
-					minBatchBytes: 64 << 20,
-					maxBatchBytes: 1 << 30,
-					flushInterval: 1 * time.Millisecond,
-				})
-			},
-		},
-		{
-			name: "partitioned=2",
-			new: func(d ds.Batching) putter {
-				return newPartitionedWriteBatcherWithOpts(d, 2, writeBatcherOptions{
-					queueSize:     4096,
-					maxPending:    512,
-					minBatchBytes: 64 << 20,
-					maxBatchBytes: 1 << 30,
-					flushInterval: 1 * time.Millisecond,
-				})
-			},
-		},
-		{
-			name: "partitioned=4",
-			new: func(d ds.Batching) putter {
-				return newPartitionedWriteBatcherWithOpts(d, 4, writeBatcherOptions{
-					queueSize:     4096,
-					maxPending:    512,
-					minBatchBytes: 64 << 20,
-					maxBatchBytes: 1 << 30,
-					flushInterval: 1 * time.Millisecond,
-				})
-			},
-		},
-	}
-
-	for _, tc := range cases {
-		entries := makePutEntries(b, tc.n, tc.rowCount, tc.rowSize)
-		for _, variant := range variants {
-			b.Run(fmt.Sprintf("%s/%s", tc.name, variant.name), func(b *testing.B) {
-				benchStorePut(b, entries, newPebbleBenchStore, variant.new)
 			})
 		}
 	}
