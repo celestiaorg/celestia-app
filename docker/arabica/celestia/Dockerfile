@@ -1,6 +1,6 @@
 # Build celestia-appd from source (standalone, from the main branch).
 
-FROM docker.io/golang:1.25-bookworm AS builder
+FROM docker.io/golang:1.26.1-bookworm AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
