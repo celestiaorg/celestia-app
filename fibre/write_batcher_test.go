@@ -168,12 +168,12 @@ func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinPending(t *testing.T
 	wb.close()
 }
 
-func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *putPlan {
+func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *putPayload {
 	t.Helper()
 
 	var commitment Commitment
 	copy(commitment[:], []byte(id))
-	return &putPlan{
+	return &putPayload{
 		promiseProto: &types.PaymentPromise{
 			ChainId:    "test-chain",
 			Height:     1,
