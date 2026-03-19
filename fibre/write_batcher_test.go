@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/require"
@@ -18,19 +19,25 @@ func TestNewWriteBatcherUsesDefaultThresholds(t *testing.T) {
 	wb := newWriteBatcher(store)
 	t.Cleanup(wb.close)
 
-	require.Equal(t, defaultWriteBatcherMinPending, wb.minPending)
 	require.Equal(t, defaultWriteBatcherMaxPending, wb.maxPending)
 }
 
 func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 	store := newBlockingBatching()
-	wb := newWriteBatcherWithOpts(store, 1, 1, 1, time.Hour)
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:     1,
+		maxPending:    1,
+		minBatchBytes: 1,
+		maxBatchBytes: 1,
+		flushInterval: time.Hour,
+	})
 
-	key := ds.NewKey("/queued")
+	key := promiseKey([]byte("queued"))
 	errCh := make(chan error, 1)
 	ctx, cancel := context.WithCancel(context.Background())
+	put := makeWriteBatcherTestPut(t, "queued", len("value"))
 	go func() {
-		errCh <- wb.submit(ctx, []batchEntry{{key: key, value: []byte("value")}})
+		errCh <- wb.submit(ctx, put)
 	}()
 
 	<-store.commitStarted
@@ -41,19 +48,25 @@ func TestWriteBatcherSubmitReturnsCommitResultAfterEnqueue(t *testing.T) {
 
 	value, err := store.Get(context.Background(), key)
 	require.NoError(t, err)
-	require.Equal(t, []byte("value"), value)
+	require.NotEmpty(t, value)
 
 	wb.close()
 }
 
 func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 	store := newBlockingBatching()
-	wb := newWriteBatcherWithOpts(store, 1, 1, 1, time.Hour)
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:     1,
+		maxPending:    1,
+		minBatchBytes: 1,
+		maxBatchBytes: 1,
+		flushInterval: time.Hour,
+	})
 
-	key := ds.NewKey("/inflight")
 	errCh := make(chan error, 1)
+	inflightPut := makeWriteBatcherTestPut(t, "inflight", len("value"))
 	go func() {
-		errCh <- wb.submit(context.Background(), []batchEntry{{key: key, value: []byte("value")}})
+		errCh <- wb.submit(context.Background(), inflightPut)
 	}()
 
 	<-store.commitStarted
@@ -74,7 +87,7 @@ func TestWriteBatcherCloseWaitsForPendingAndRejectsNewWrites(t *testing.T) {
 		return wb.submitters.isClosed()
 	}, time.Second, 10*time.Millisecond)
 
-	require.ErrorIs(t, wb.submit(context.Background(), []batchEntry{{key: ds.NewKey("/after-close"), value: []byte("value")}}), ErrStoreClosed)
+	require.ErrorIs(t, wb.submit(context.Background(), makeWriteBatcherTestPut(t, "after-close", len("value"))), ErrStoreClosed)
 
 	close(store.releaseCommit)
 
@@ -92,15 +105,20 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 
 	store := newCountingBatching()
 	// Large queue, generous flush delay to encourage coalescing.
-	wb := newWriteBatcherWithOpts(store, numSubmits, 16, numSubmits, 1*time.Second)
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:     numSubmits,
+		maxPending:    numSubmits,
+		minBatchBytes: 1 << 20,
+		maxBatchBytes: 4 << 20,
+		flushInterval: 1 * time.Second,
+	})
 
 	var wg sync.WaitGroup
 	wg.Add(numSubmits)
 	for i := range numSubmits {
 		go func() {
 			defer wg.Done()
-			key := ds.NewKey(fmt.Sprintf("/coalesce/%d", i))
-			err := wb.submit(context.Background(), []batchEntry{{key: key, value: []byte("v")}})
+			err := wb.submit(context.Background(), makeWriteBatcherTestPut(t, fmt.Sprintf("coalesce-%d", i), 1))
 			require.NoError(t, err)
 		}()
 	}
@@ -113,9 +131,62 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 
 	// Verify all entries were written.
 	for i := range numSubmits {
-		key := ds.NewKey(fmt.Sprintf("/coalesce/%d", i))
+		key := promiseKey([]byte(fmt.Sprintf("coalesce-%d", i)))
 		_, err := store.Get(context.Background(), key)
 		require.NoError(t, err, "entry %d missing", i)
+	}
+}
+
+func TestWriteBatcherFlushesLargeRequestWithoutWaitingForMinBatchBytes(t *testing.T) {
+	store := newBlockingBatching()
+	wb := newWriteBatcherWithOpts(store, writeBatcherOptions{
+		queueSize:     1,
+		maxPending:    8,
+		minBatchBytes: 1024,
+		maxBatchBytes: 1024,
+		flushInterval: time.Hour,
+	})
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- wb.submit(context.Background(), makeWriteBatcherTestPut(t, "large", 2048))
+	}()
+
+	select {
+	case <-store.commitStarted:
+	case <-time.After(time.Second):
+		t.Fatal("large request did not flush immediately")
+	}
+
+	close(store.releaseCommit)
+	require.NoError(t, <-errCh)
+	wb.close()
+}
+
+func makeWriteBatcherTestPut(t *testing.T, id string, shardBytes int) *putPayload {
+	t.Helper()
+
+	var commitment Commitment
+	copy(commitment[:], []byte(id))
+	return &putPayload{
+		promiseProto: &types.PaymentPromise{
+			ChainId:    "test-chain",
+			Height:     1,
+			Commitment: commitment[:],
+			BlobSize:   uint32(shardBytes),
+		},
+		promiseHash: []byte(id),
+		commitment:  commitment,
+		shard: &types.BlobShard{
+			Rows: []*types.BlobRow{{
+				Index: 0,
+				Data:  make([]byte, shardBytes),
+			}},
+			Rlc: &types.BlobShard_Root{Root: make([]byte, 32)},
+		},
+		pruneAt:   time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+		ppSize:    (&types.PaymentPromise{ChainId: "test-chain", Height: 1, Commitment: commitment[:], BlobSize: uint32(shardBytes)}).Size(),
+		shardSize: (&types.BlobShard{Rows: []*types.BlobRow{{Index: 0, Data: make([]byte, shardBytes)}}, Rlc: &types.BlobShard_Root{Root: make([]byte, 32)}}).Size(),
 	}
 }
 

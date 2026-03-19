@@ -32,25 +32,32 @@ func BenchmarkStorePut(b *testing.B) {
 		{"block=4MiB/rows=148/n=4000", 4000, 148, 1024},
 		{"block=4MiB/rows=256/n=3000", 3000, 256, 1024},
 		{"block=4MiB/rows=512/n=2000", 2000, 512, 1024},
-		{"block=16MiB/rows=148/n=1500", 1500, 148, 4096},
-		{"block=16MiB/rows=256/n=1000", 1000, 256, 4096},
-		{"block=16MiB/rows=512/n=500", 500, 512, 4096},
-		{"block=64MiB/rows=148/n=384", 384, 148, 16 * 1024},
-		{"block=64MiB/rows=256/n=256", 256, 256, 16 * 1024},
-		{"block=64MiB/rows=512/n=128", 128, 512, 16 * 1024},
-		{"block=128MiB/rows=148/n=192", 192, 148, 32 * 1024},
-		{"block=128MiB/rows=256/n=128", 128, 256, 32 * 1024},
-		{"block=128MiB/rows=512/n=64", 64, 512, 32 * 1024},
+		{"block=16MiB/rows=148/n=1500", 2000, 148, 4096},
+		{"block=16MiB/rows=256/n=1000", 2000, 256, 4096},
+		{"block=16MiB/rows=512/n=500", 2000, 512, 4096},
+		{"block=64MiB/rows=148/n=384", 2000, 148, 16 * 1024},
+		{"block=64MiB/rows=256/n=256", 2000, 256, 16 * 1024},
+		{"block=64MiB/rows=512/n=128", 2000, 512, 16 * 1024},
+		{"block=128MiB/rows=148/n=192", 2000, 148, 32 * 1024},
+		{"block=128MiB/rows=256/n=128", 2000, 256, 32 * 1024},
+		{"block=128MiB/rows=512/n=64", 2000, 512, 32 * 1024},
 	}
 
 	savers := []struct {
 		name string
-		new  func(ds.Batching) blobSaver
+		new  func(ds.Batching) putter
 	}{
-		{"batched", func(d ds.Batching) blobSaver {
-			return newWriteBatcherWithOpts(d, 4096, 128, 512, 1*time.Millisecond)
+		{"batched", func(d ds.Batching) putter {
+			return newWriteBatcherWithOpts(d, writeBatcherOptions{
+				shardCount:    4,
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 8 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
+			})
 		}},
-		{"direct", func(d ds.Batching) blobSaver { return newDirectWriter(d) }},
+		{"direct", func(d ds.Batching) putter { return newDirectPutter(d) }},
 	}
 
 	for _, tc := range cases {
@@ -64,20 +71,108 @@ func BenchmarkStorePut(b *testing.B) {
 	}
 }
 
+// BenchmarkStorePutBatcherTuning compares a few plausible batcher presets on
+// representative medium and large shard cases.
+//
+// Run with: go test -bench=BenchmarkStorePutBatcherTuning -benchtime=1x -run='^$'
+func BenchmarkStorePutBatcherTuning(b *testing.B) {
+	cases := []struct {
+		name     string
+		n        int
+		rowCount int
+		rowSize  int
+	}{
+		{"block=16MiB/rows=256/n=1000", 1000, 256, 4096},
+		{"block=64MiB/rows=256/n=256", 256, 256, 16 * 1024},
+		{"block=128MiB/rows=512/n=64", 64, 512, 32 * 1024},
+	}
+
+	presets := []struct {
+		name string
+		opts writeBatcherOptions
+	}{
+		{
+			name: "bytes=64MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 64 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
+			},
+		},
+		{
+			name: "max=512/bytes=64MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 64 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
+			},
+		},
+		{
+			name: "bytes=32MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 32 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
+			},
+		},
+		{
+			name: "bytes=128MiB/flush=1ms",
+			opts: writeBatcherOptions{
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 128 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 1 * time.Millisecond,
+			},
+		},
+		{
+			name: "bytes=64MiB/flush=2ms",
+			opts: writeBatcherOptions{
+				queueSize:     4096,
+				maxPending:    512,
+				minBatchBytes: 64 << 20,
+				maxBatchBytes: 1 << 30,
+				flushInterval: 2 * time.Millisecond,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		entries := makePutEntries(b, tc.n, tc.rowCount, tc.rowSize)
+		for _, preset := range presets {
+			preset := preset
+			b.Run(fmt.Sprintf("%s/%s", tc.name, preset.name), func(b *testing.B) {
+				benchStorePut(
+					b,
+					entries,
+					newPebbleBenchStore,
+					func(d ds.Batching) putter { return newWriteBatcherWithOpts(d, preset.opts) },
+				)
+			})
+		}
+	}
+}
+
 type putEntry struct {
 	promise *PaymentPromise
 	shard   *types.BlobShard
 	pruneAt time.Time
 }
 
-func benchStorePut(b *testing.B, entries []putEntry, newStore func(*testing.B) *Store, newSaver func(ds.Batching) blobSaver) {
+func benchStorePut(b *testing.B, entries []putEntry, newStore func(*testing.B) *Store, newPutter func(ds.Batching) putter) {
 	b.ReportAllocs()
 
 	for b.Loop() {
 		b.StopTimer()
 		store := newStore(b)
-		store.saver.close()
-		store.saver = newSaver(store.ds)
+		store.putter.close()
+		store.putter = newPutter(store.ds)
 		b.StartTimer()
 
 		errCh := make(chan error, len(entries))

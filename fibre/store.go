@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
@@ -44,32 +43,21 @@ func (cfg StoreConfig) Validate() error {
 	return nil
 }
 
-// blobSaver abstracts how batched key-value entries are persisted.
-// Implementations control the commit strategy: immediate or coalesced.
-type blobSaver interface {
-	submit(ctx context.Context, entries []batchEntry) error
-	close()
-}
-
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
 //
-// Writes are dispatched through a [blobSaver]. The default implementation ([writeBatcher])
-// coalesces concurrent [Put] calls into a single batch commit, amortizing the commit cost.
+// Writes are dispatched through a [putter]. The default implementation ([writeBatcher])
+// coalesces concurrent [Put] calls into a single commit, amortizing the commit cost.
 type Store struct {
-	cfg   StoreConfig
-	ds    ds.Batching
-	saver blobSaver
+	cfg    StoreConfig
+	ds     ds.Batching
+	putter putter
 }
 
 // NewMemoryStore creates a new [Store] with an in-memory datastore.
 func NewMemoryStore(cfg StoreConfig) *Store {
 	memDS := dssync.MutexWrap(ds.NewMapDatastore())
-	return &Store{
-		cfg:   cfg,
-		ds:    memDS,
-		saver: newWriteBatcher(memDS),
-	}
+	return newStore(cfg, memDS)
 }
 
 // NewBadgerStore creates a new [Store] with a badger4 datastore at the given path.
@@ -96,11 +84,7 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 		return nil, fmt.Errorf("creating badger datastore: %w", err)
 	}
 
-	return &Store{
-		cfg:   cfg,
-		ds:    bds,
-		saver: newWriteBatcher(bds),
-	}, nil
+	return newStore(cfg, bds), nil
 }
 
 // NewPebbleStore creates a new [Store] with a pebble datastore at the given path.
@@ -133,11 +117,7 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 		return nil, fmt.Errorf("creating pebble datastore: %w", err)
 	}
 
-	return &Store{
-		cfg:   cfg,
-		ds:    pds,
-		saver: newWriteBatcher(pds),
-	}, nil
+	return newStore(cfg, pds), nil
 }
 
 // Put stores given [PaymentPromise] and [types.BlobShard].
@@ -149,32 +129,14 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 //
 // Puts for the same commitments but different promises are allowed and are stored independently without deduplication.
 //
-// Serialization happens in the caller's goroutine, but the actual write is submitted to the
-// [writeBatcher] which coalesces concurrent writes into a single batch commit.
+// Write preparation happens in the caller's goroutine. Execution is delegated to the configured
+// [putter], which may commit immediately or coalesce multiple prepared puts.
 func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
-	promiseProto, err := promise.ToProto()
+	payload, err := preparePut(promise, shard, pruneAt)
 	if err != nil {
-		return fmt.Errorf("converting payment promise to proto: %w", err)
+		return err
 	}
-	ppData, err := gogoproto.Marshal(promiseProto)
-	if err != nil {
-		return fmt.Errorf("marshaling payment promise: %w", err)
-	}
-	promiseHash, err := promise.Hash()
-	if err != nil {
-		return fmt.Errorf("getting promise hash: %w", err)
-	}
-
-	shardData, err := gogoproto.Marshal(shard)
-	if err != nil {
-		return fmt.Errorf("marshaling shard: %w", err)
-	}
-
-	return s.saver.submit(ctx, []batchEntry{
-		{key: promiseKey(promiseHash), value: ppData},
-		{key: shardKey(promise.Commitment, promiseHash), value: shardData},
-		{key: pruneKey(pruneAt, promise.Commitment, promiseHash), value: []byte{}},
-	})
+	return s.putter.submit(ctx, payload)
 }
 
 // Get retrieves [types.BlobShard] for the given [Commitment].
@@ -187,7 +149,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 // Returns an error only if all entries fail to unmarshal or if no shards are found.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
 	results, err := s.ds.Query(ctx, query.Query{
-		Prefix: fmt.Sprintf("/shard/%s", commitment.String()),
+		Prefix: "/shard/" + commitment.String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("querying shards: %w", err)
@@ -298,308 +260,33 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, error) 
 	return pruned, nil
 }
 
-// Close stops the blob saver and closes the underlying datastore.
+// Close stops the putter and closes the underlying datastore.
 func (s *Store) Close() error {
-	s.saver.close()
+	s.putter.close()
 	return s.ds.Close()
 }
 
-// batchEntry is a single key-value pair to be written to the datastore.
-type batchEntry struct {
-	key   ds.Key
-	value []byte
-}
-
-// directWriter implements [blobSaver] by committing each submit call immediately
-// in its own batch. This is the simplest strategy with no write coalescing.
-type directWriter struct {
-	ds ds.Batching
-}
-
-func newDirectWriter(store ds.Batching) *directWriter {
-	return &directWriter{ds: store}
-}
-
-func (dw *directWriter) submit(ctx context.Context, entries []batchEntry) error {
-	batch, err := dw.ds.Batch(ctx)
-	if err != nil {
-		return fmt.Errorf("creating batch: %w", err)
+func newStore(cfg StoreConfig, store ds.Batching) *Store {
+	return &Store{
+		cfg:    cfg,
+		ds:     store,
+		putter: newWriteBatcher(store),
 	}
-	for _, e := range entries {
-		if err := batch.Put(ctx, e.key, e.value); err != nil {
-			return fmt.Errorf("putting entry: %w", err)
-		}
-	}
-	return batch.Commit(ctx)
-}
-
-func (dw *directWriter) close() {}
-
-// writeBatcher implements [blobSaver] by coalescing multiple write operations into
-// a single batch commit, amortizing the commit cost across all writes in the batch.
-//
-// Under concurrent load (e.g. 4,650 simultaneous UploadShard RPCs), each Put would
-// otherwise create its own batch and Commit independently. The batcher collects
-// pending writes and commits them in a single batch, paying the commit cost once
-// for N writes instead of N times.
-
-type writeRequest struct {
-	entries []batchEntry
-	result  chan error
-}
-
-type writeBatcher struct {
-	ds            ds.Batching
-	requests      chan *writeRequest
-	done          chan struct{}
-	ctx           context.Context
-	cancel        context.CancelFunc
-	submitters    submitGate
-	maxPending    int
-	minPending    int
-	flushInterval time.Duration
-}
-
-type submitGate struct {
-	drained   chan struct{}
-	closeOnce sync.Once
-	mu        sync.Mutex
-	active    int
-	closed    bool
 }
 
 const (
-	defaultWriteBatcherQueueSize  = 4096
-	defaultWriteBatcherMaxPending = 512
-	defaultWriteBatcherMinPending = 64
-	defaultWriteBatcherFlushDelay = 1 * time.Millisecond
+	timestampLayout  = "200601021504"
+	timestampLen     = len(timestampLayout)
+	promiseKeyPrefix = "/pp/"
+	shardKeyPrefix   = "/shard/"
+	pruneKeyPrefix   = "/prune/"
+	commitmentHexLen = CommitmentSize * 2
 )
-
-func newWriteBatcher(store ds.Batching) *writeBatcher {
-	return newWriteBatcherWithOpts(
-		store,
-		defaultWriteBatcherQueueSize,
-		defaultWriteBatcherMinPending,
-		defaultWriteBatcherMaxPending,
-		defaultWriteBatcherFlushDelay,
-	)
-}
-
-func newWriteBatcherWithOpts(
-	store ds.Batching,
-	queueSize int,
-	minPending int,
-	maxPending int,
-	flushInterval time.Duration,
-) *writeBatcher {
-	ctx, cancel := context.WithCancel(context.Background())
-	wb := &writeBatcher{
-		ds:       store,
-		requests: make(chan *writeRequest, queueSize),
-		done:     make(chan struct{}),
-		ctx:      ctx,
-		cancel:   cancel,
-		submitters: submitGate{
-			drained: make(chan struct{}),
-		},
-		maxPending:    maxPending,
-		minPending:    minPending,
-		flushInterval: flushInterval,
-	}
-	go wb.run()
-	return wb
-}
-
-func (wb *writeBatcher) run() {
-	defer close(wb.done)
-
-	for {
-		first, ok := <-wb.requests
-		if !ok {
-			return
-		}
-
-		pending := make([]*writeRequest, 1, wb.maxPending)
-		pending[0] = first
-
-		// Immediate drain (no waiting)
-		pending = wb.drain(pending, nil)
-
-		// If batch is still small, coalesce briefly
-		if len(pending) < wb.minPending && len(pending) < wb.maxPending {
-			timer := time.NewTimer(wb.flushInterval)
-			pending = wb.drain(pending, timer)
-
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
-		}
-
-		err := wb.commitAll(pending)
-		for _, req := range pending {
-			req.result <- err
-		}
-	}
-}
-
-// drain collects requests until:
-// - maxPending reached
-// - no immediate items (if timer == nil)
-// - timer fires
-// - channel closed
-func (wb *writeBatcher) drain(pending []*writeRequest, timer *time.Timer) []*writeRequest {
-	for len(pending) < wb.maxPending {
-		if timer == nil {
-			select {
-			case req, ok := <-wb.requests:
-				if !ok {
-					return pending
-				}
-				pending = append(pending, req)
-			default:
-				return pending
-			}
-			continue
-		}
-
-		select {
-		case req, ok := <-wb.requests:
-			if !ok {
-				return pending
-			}
-			pending = append(pending, req)
-		case <-timer.C:
-			return pending
-		}
-	}
-	return pending
-}
-
-func (wb *writeBatcher) commitAll(requests []*writeRequest) error {
-	batch, err := wb.ds.Batch(wb.ctx)
-	if err != nil {
-		return fmt.Errorf("creating batch: %w", err)
-	}
-
-	for _, req := range requests {
-		for _, entry := range req.entries {
-			if err := batch.Put(wb.ctx, entry.key, entry.value); err != nil {
-				return fmt.Errorf("adding to batch: %w", err)
-			}
-		}
-	}
-
-	if err := batch.Commit(wb.ctx); err != nil {
-		return fmt.Errorf("committing batch: %w", err)
-	}
-	return nil
-}
-
-func (wb *writeBatcher) submit(ctx context.Context, entries []batchEntry) error {
-	if len(entries) == 0 {
-		return nil
-	}
-
-	req := &writeRequest{
-		entries: entries,
-		result:  make(chan error, 1),
-	}
-
-	if !wb.tryAcquireSubmitter() {
-		return ErrStoreClosed
-	}
-	defer wb.releaseSubmitter()
-
-	select {
-	case wb.requests <- req:
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	// Once a write is queued, return the actual commit result instead of a later
-	// caller cancellation. This avoids reporting a failed Put after the data has
-	// already been durably written by the batcher.
-	return <-req.result
-}
-
-func (wb *writeBatcher) close() {
-	wb.submitters.closeAndWait(func() {
-		wb.cancel()
-		close(wb.requests)
-		<-wb.done
-	})
-}
-
-func (wb *writeBatcher) tryAcquireSubmitter() bool {
-	return wb.submitters.acquire()
-}
-
-func (wb *writeBatcher) releaseSubmitter() {
-	wb.submitters.release()
-}
-
-func (g *submitGate) acquire() bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	if g.closed {
-		return false
-	}
-
-	g.active++
-	return true
-}
-
-func (g *submitGate) release() {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	g.active--
-	if g.closed && g.active == 0 {
-		close(g.drained)
-	}
-}
-
-func (g *submitGate) closeAndWait(fn func()) {
-	g.closeOnce.Do(func() {
-		g.mu.Lock()
-		g.closed = true
-		hasActive := g.active != 0
-		g.mu.Unlock()
-
-		if hasActive {
-			<-g.drained
-		}
-
-		fn()
-	})
-}
-
-func (g *submitGate) isClosed() bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	return g.closed
-}
 
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
 // This format is used for timestamp-based indexing in the datastore.
 func formatTimestamp(timestamp time.Time) string {
-	return timestamp.Format("200601021504")
-}
-
-func promiseKey(promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/pp/%s", hex.EncodeToString(promiseHash)))
-}
-
-func shardKey(commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash)))
-}
-
-func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash)))
+	return timestamp.Format(timestampLayout)
 }
 
 // parsePruneKey extracts commitment and promise hash from a prune index key.
