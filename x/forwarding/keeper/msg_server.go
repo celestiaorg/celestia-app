@@ -195,8 +195,6 @@ func (m msgServer) forwardSingleToken(
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
 }
 
-<<<<<<< HEAD
-=======
 func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) math.Int {
 	igpUsed := before.Amount.Add(quotedFee.Amount).Sub(after.Amount)
 	if forwardedBalance.Denom == quotedFee.Denom {
@@ -221,8 +219,6 @@ func filterSupportedDenoms(coins sdk.Coins) sdk.Coins {
 	}
 	return supported
 }
-
->>>>>>> 42dadd48 (fix!: calculate igp quoted fee refunds correctly (#6880))
 func allTokensFailedError(results []types.ForwardingResult) error {
 	failed := make([]string, 0, len(results))
 	for _, result := range results {
