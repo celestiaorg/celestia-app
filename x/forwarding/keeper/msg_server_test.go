@@ -9,17 +9,10 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-=======
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
->>>>>>> 237b9ddf (fix!: x/forwarding atomic state token sends (#6881))
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
