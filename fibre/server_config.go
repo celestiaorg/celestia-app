@@ -14,6 +14,7 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	toml "github.com/pelletier/go-toml/v2"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -60,6 +61,9 @@ type ServerConfig struct {
 	// Tracer is the OpenTelemetry tracer for distributed tracing.
 	// If nil, otel.Tracer("fibre-server") will be used.
 	Tracer trace.Tracer `toml:"-"`
+	// Meter is the OpenTelemetry meter for recording metrics.
+	// If nil, otel.Meter("fibre-server") will be used.
+	Meter metric.Meter `toml:"-"`
 }
 
 // DefaultServerConfig returns a [ServerConfig] with default values.
@@ -92,6 +96,9 @@ func (cfg *ServerConfig) Validate() error {
 	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-server")
+	}
+	if cfg.Meter == nil {
+		cfg.Meter = otel.Meter("fibre-server")
 	}
 
 	if cfg.StoreFn == nil {
