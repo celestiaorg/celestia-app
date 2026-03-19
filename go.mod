@@ -3,7 +3,7 @@ module github.com/celestiaorg/celestia-app/v8
 go 1.26.1
 
 require (
-	cloud.google.com/go/compute v1.54.0
+	cloud.google.com/go/compute v1.57.0
 	cosmossdk.io/api v1.0.0
 	cosmossdk.io/client/v2 v2.0.0-beta.8
 	cosmossdk.io/collections v0.4.0
@@ -68,16 +68,19 @@ require (
 	github.com/tendermint/tendermint v0.0.0-00010101000000-000000000000
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0
 	go.opentelemetry.io/otel v1.42.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.42.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.39.0
+	go.opentelemetry.io/otel/metric v1.42.0
 	go.opentelemetry.io/otel/sdk v1.42.0
+	go.opentelemetry.io/otel/sdk/metric v1.42.0
 	go.opentelemetry.io/otel/trace v1.42.0
 	golang.org/x/crypto v0.49.0
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/term v0.41.0
 	google.golang.org/api v0.271.0
-	google.golang.org/genproto/googleapis/api v0.0.0-20260128011058-8636f8732409
-	google.golang.org/grpc v1.79.2
+	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -274,7 +277,7 @@ require (
 	github.com/gostaticanalysis/nilerr v0.1.2 // indirect
 	github.com/grafana/pyroscope-go/godeltaprof v0.1.9 // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.3 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.28.0 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/gtank/merlin v0.1.1 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect

@@ -3,9 +3,9 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
-	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -13,9 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -181,7 +180,7 @@ func (m *MockHyperlaneKeeper) QuoteDispatch(
 
 // Test helpers
 func createTestContext() sdk.Context {
-	return sdk.NewContext(nil, cmtproto.Header{}, false, log.NewNopLogger()).WithGasMeter(storetypes.NewInfiniteGasMeter())
+	return testutil.DefaultContext(storetypes.NewKVStoreKey("testkv"), storetypes.NewTransientStoreKey("testtransient"))
 }
 
 // deriveTestForwardAddress derives a forwarding address from the given destDomain and destRecipient
@@ -331,45 +330,6 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 	}
 }
 
-// TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure tests that IGP fee goes to fee collector when warp fails
-func TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure(t *testing.T) {
-	s := newTestIGPSetup(t)
-
-	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-
-	// Setup balances
-	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
-	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
-	s.bankKeeper.Balances[feeCollectorAddr.String()] = sdk.NewCoins() // Start with zero
-	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
-
-	// Warp transfer will FAIL
-	s.warpKeeper.TransferErr = errors.New("warp transfer failed: insufficient liquidity")
-
-	msg := types.NewMsgForward(
-		s.signer.String(),
-		s.forwardAddr.String(),
-		s.destDomain,
-		s.destRecipient,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-
-	require.Error(t, err)
-	require.Nil(t, resp)
-	require.ErrorIs(t, err, types.ErrAllTokensFailed)
-	require.ErrorContains(t, err, "warp transfer failed")
-
-	// Verify: tokens remain at forwardAddr (warp atomic semantics)
-	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was deducted from signer (100 consumed)
-	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was sent to fee collector (becomes protocol revenue)
-	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, feeCollectorAddr, appconsts.BondDenom).Amount,
-		"IGP fee should be sent to fee collector on warp failure")
-}
-
 // TestForwardSingleToken_IGPFeeRefundOnSuccess tests that excess IGP fee is refunded to signer
 func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 	s := newTestIGPSetup(t)
@@ -383,12 +343,14 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
 	s.warpKeeper.TransferMessageId = messageId
 
-	// Simulate warp consuming only 80 utia (less than quoted 100)
+	// Simulate a same-denom warp transfer consuming the forwarded 1000 utia plus
+	// only 80 utia of the quoted IGP fee.
+	forwardedAmount := math.NewInt(1000)
 	actualIgpConsumed := math.NewInt(80)
 	s.warpKeeper.OnTransfer = func(sender string, maxFee sdk.Coin) {
 		senderAddr, _ := sdk.AccAddressFromBech32(sender)
 		currentBal := s.bankKeeper.Balances[senderAddr.String()]
-		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, actualIgpConsumed))
+		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, forwardedAmount.Add(actualIgpConsumed)))
 		s.bankKeeper.Balances[senderAddr.String()] = currentBal.Sub(consumed...)
 	}
 
@@ -413,14 +375,90 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 		"signer should have received refund of excess IGP fee")
 }
 
+// TestForward_UnsupportedDenomPrefixPoisoning is a regression test for the prefix
+// poisoning attack where an attacker fills a forwarding address with 20+ unsupported
+// denoms that sort alphabetically before "utia". The fix filters unsupported denoms
+// before truncating to MaxTokensPerForward, so supported tokens are always reached.
+func TestForward_UnsupportedDenomPrefixPoisoning(t *testing.T) {
+	s := newTestIGPSetup(t)
+
+	// Warp succeeds for supported tokens
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	s.warpKeeper.TransferMessageId = messageId
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins() // zero fee for simplicity
+
+	// Simulate warp consuming the transferred token from forwardAddr
+	s.warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		// Warp consumes the utia balance from the forwarding address
+		bal := s.bankKeeper.Balances[senderAddr.String()]
+		remaining := sdk.NewCoins()
+		for _, c := range bal {
+			if c.Denom != appconsts.BondDenom {
+				remaining = remaining.Add(c)
+			}
+		}
+		s.bankKeeper.Balances[senderAddr.String()] = remaining
+	}
+
+	// Step 1: Attacker deposits 20 distinct unsupported denoms.
+	// Using "ibc/..." prefixed denoms which sort before "utia" alphabetically.
+	poisonCoins := sdk.NewCoins()
+	for i := range types.MaxTokensPerForward {
+		denom := fmt.Sprintf("ibc/%040d", i) // e.g. "ibc/0000000000000000000000000000000000000000"
+		poisonCoins = poisonCoins.Add(sdk.NewCoin(denom, math.NewInt(1)))
+	}
+
+	// Step 2: Victim deposits supported utia to the same forwarding address.
+	victimDeposit := sdk.NewCoin(appconsts.BondDenom, math.NewInt(1_000_000))
+	allBalances := poisonCoins.Add(victimDeposit)
+
+	// Verify precondition: utia sorts after all ibc/ denoms
+	for i, coin := range allBalances {
+		if coin.Denom == appconsts.BondDenom {
+			require.Greater(t, i, types.MaxTokensPerForward-1,
+				"utia must be beyond the first 20 positions for the attack to work")
+			break
+		}
+	}
+
+	s.bankKeeper.Balances[s.forwardAddr.String()] = allBalances
+	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	// After fix: unsupported denoms are filtered out before truncation,
+	// so utia is forwarded successfully despite 20+ poison denoms.
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Len(t, resp.Results, 1, "only utia should be processed")
+	require.True(t, resp.Results[0].Success)
+	require.Equal(t, appconsts.BondDenom, resp.Results[0].Denom)
+
+	// Victim's utia has been forwarded (no longer at the forwarding address)
+	require.True(t, s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).IsZero(),
+		"victim's utia should have been forwarded successfully")
+}
+
 func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
 	s := newTestIGPSetup(t)
 
-	// Two failing tokens:
-	// 1) ufoo fails token lookup
+	// Two failing supported tokens:
+	// 1) hyperlane/999 fails route check (no enrolled router)
 	// 2) utia fails due insufficient max_igp_fee
+	hypToken := createTestHypToken(999, "hyperlane/999", warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
+	s.warpKeeper.Tokens = append(s.warpKeeper.Tokens, hypToken)
+	// No enrolled router for hyperlane/999 -> will fail route check
+
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
-		sdk.NewCoin("ufoo", math.NewInt(25)),
+		sdk.NewCoin("hyperlane/999", math.NewInt(25)),
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
 	)
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
@@ -441,6 +479,6 @@ func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
 
 	errText := err.Error()
 	require.Contains(t, errText, "all 2 tokens failed to forward")
-	require.Contains(t, errText, "ufoo:25 (token lookup failed: unsupported token denom)")
+	require.Contains(t, errText, "hyperlane/999:25")
 	require.Contains(t, errText, "utia:1000 (IGP fee provided is less than required")
 }

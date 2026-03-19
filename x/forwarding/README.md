@@ -138,7 +138,7 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 
 **Per-token fees:** Each token forwarded requires a separate IGP fee. The `max_igp_fee` is the maximum fee the relayer will pay *per token*. If forwarding 3 tokens, the relayer may pay up to 3x the max fee (but only the actual quoted fee for each).
 
-**Fee on failure:** If warp transfer fails after IGP fee is collected, the fee is sent to the `fee_collector` module account (protocol revenue distributed to stakers). This incentivizes relayers to verify route availability before submitting. Failed tokens are returned to the forwarding address.
+**Fee on failure:** If a token's warp transfer fails, that token attempt is discarded and its state changes are not committed. The tokens remain at `forwardAddr`, and the relayer is not charged the IGP fee for the failed token attempt.
 
 ## Queries
 
@@ -199,7 +199,7 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 
 - **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient)`. Funds can only be forwarded to the committed destination.
 - **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination.
-- **No fund loss**: Failed tokens stay at `forwardAddr` or are automatically returned there.
+- **No fund loss**: Failed token attempts do not commit state changes, so tokens remain at `forwardAddr`.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
 - **Blocked module account**: The forwarding module account is blocked and cannot receive funds via direct `bank send` or `MsgSend`. This prevents accidental fund loss from users sending to the module account instead of a forwarding address.
 

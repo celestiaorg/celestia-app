@@ -18,9 +18,13 @@ import (
 )
 
 // UploadShard handles the [types.FibreServer.UploadShard] RPC call.
-func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest) (*types.UploadShardResponse, error) {
+func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest) (_ *types.UploadShardResponse, err error) {
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
+
+	var uploadSize int64
+	uploadShardDone := s.metrics.observeUploadShard(ctx)
+	defer func() { uploadShardDone(uploadSize, err) }()
 
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
@@ -30,6 +34,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("payment promise verification failed: %v", err))
 	}
 
+	uploadSize = int64(promise.UploadSize)
 	log := s.log.With("blob_commitment", promise.Commitment.String(), "promise_height", promise.Height)
 
 	span.AddEvent("promise_verified", trace.WithAttributes(
@@ -62,16 +67,21 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	))
 
 	// store payment promise and shard with RLC roots
+	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
+		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
 	}
+	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
 	span.AddEvent("shard_stored")
 
 	// sign the payment promise
+	signStart := time.Now()
 	signature, err := SignPaymentPromiseValidator(promise, s.signer)
+	s.metrics.observeSign(ctx, signStart, err == nil)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to sign payment promise", "error", err)
 		span.RecordError(err)
@@ -80,8 +90,11 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	}
 	span.AddEvent("signature_generated")
 
+	shardBytes := int64(len(req.Shard.Rows)) * int64(len(req.Shard.Rows[0].Data))
+	s.metrics.uploadShardBytes.Add(ctx, shardBytes)
 	log.DebugContext(ctx, "successful upload",
 		"upload_size", promise.UploadSize,
+		"shard_bytes", shardBytes,
 		"rows_count", len(req.Shard.Rows),
 		"row_size", len(req.Shard.Rows[0].Data),
 	)
