@@ -490,14 +490,15 @@ func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
 	s := newTestIGPSetup(t)
 
 	// Two failing supported tokens:
-	// 1) hyperlane/999 fails route check (no enrolled router)
+	// 1) hyperlane token with valid ID but no enrolled router -> fails route check
 	// 2) utia fails due insufficient max_igp_fee
-	hypToken := createTestHypToken(999, "hyperlane/999", warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
+	hypDenom := "hyperlane/0x" + padHex(2)
+	hypToken := createTestHypToken(2, hypDenom, warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
 	s.warpKeeper.Tokens = append(s.warpKeeper.Tokens, hypToken)
-	// No enrolled router for hyperlane/999 -> will fail route check
+	// No enrolled router for this token -> will fail route check
 
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
-		sdk.NewCoin("hyperlane/999", math.NewInt(25)),
+		sdk.NewCoin(hypDenom, math.NewInt(25)),
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
 	)
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
@@ -518,6 +519,6 @@ func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
 
 	errText := err.Error()
 	require.Contains(t, errText, "all 2 tokens failed to forward")
-	require.Contains(t, errText, "hyperlane/999:25")
+	require.Contains(t, errText, hypDenom+":25 (no warp route")
 	require.Contains(t, errText, "utia:1000 (IGP fee provided is less than required")
 }
