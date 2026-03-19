@@ -9,7 +9,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -54,14 +53,12 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		balances = balances[:types.MaxTokensPerForward]
 	}
 
-	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-
 	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid signer address: %w", err)
 	}
 
-	results := m.processTokens(ctx, forwardAddr, feeCollectorAddr, signerAddr, balances, msg, destRecipient)
+	results := m.processTokens(ctx, forwardAddr, signerAddr, balances, msg, destRecipient)
 
 	// If all tokens failed, return error (partial failure is OK, total failure is not)
 	allFailed := true
@@ -81,7 +78,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 
 func (m msgServer) processTokens(
 	ctx sdk.Context,
-	forwardAddr, feeCollectorAddr, signerAddr sdk.AccAddress,
+	forwardAddr, signerAddr sdk.AccAddress,
 	balances sdk.Coins,
 	msg *types.MsgForward,
 	destRecipient util.HexAddress,
@@ -89,7 +86,12 @@ func (m msgServer) processTokens(
 	results := make([]types.ForwardingResult, 0, len(balances))
 
 	for _, balance := range balances {
-		result := m.forwardSingleToken(ctx, forwardAddr, feeCollectorAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
+		cacheCtx, writeCache := ctx.CacheContext()
+		result := m.forwardSingleToken(cacheCtx, forwardAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
+		if result.Success {
+			writeCache()
+		}
+
 		results = append(results, result)
 
 		EmitTokenForwardedEvent(ctx, msg.ForwardAddr, result)
@@ -100,7 +102,7 @@ func (m msgServer) processTokens(
 
 func (m msgServer) forwardSingleToken(
 	ctx sdk.Context,
-	forwardAddr, feeCollectorAddr, signerAddr sdk.AccAddress,
+	forwardAddr, signerAddr sdk.AccAddress,
 	balance sdk.Coin,
 	destDomain uint32,
 	destRecipient util.HexAddress,
@@ -154,24 +156,11 @@ func (m msgServer) forwardSingleToken(
 		}
 	}
 
-	// Execute warp transfer with forwardAddr as sender
-	// Warp has atomic semantics: on failure, tokens remain at forwardAddr
+	// Execute warp transfer with forwardAddr as sender. The caller wraps this
+	// attempt in a CacheContext so failures discard all token-level state changes.
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
-		// Warp failed - tokens remain at forwardAddr (warp is atomic)
-		// Send IGP fee to fee collector so it becomes protocol revenue (distributed to stakers)
-		// This incentivizes relayers to check route availability before submitting
-		if quotedFee.IsPositive() {
-			if consumeErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, feeCollectorAddr, sdk.NewCoins(quotedFee)); consumeErr != nil {
-				ctx.Logger().Error("failed to send IGP fee to fee collector after warp failure",
-					"denom", balance.Denom,
-					"igp_fee", quotedFee.String(),
-					"warp_error", err.Error(),
-					"send_error", consumeErr.Error(),
-				)
-			}
-		}
-		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed (tokens returned, IGP fee sent to fee collector): "+err.Error())
+		return types.NewFailureResult(balance.Denom, balance.Amount, "warp transfer failed: "+err.Error())
 	}
 
 	// Warp succeeded - refund any excess IGP fee to the relayer
