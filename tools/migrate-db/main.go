@@ -589,6 +589,7 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 	}
 	err := srcIter.Close()
 	if err != nil {
+		_ = batch.Close()
 		return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
 	}
 
@@ -678,10 +679,12 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			lastKey := make([]byte, len(key))
 			copy(lastKey, key)
 			if err := srcIter.Close(); err != nil {
+				_ = batch.Close()
 				return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
 			}
 
 			if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
+				_ = batch.Close()
 				return 0, 0, fmt.Errorf("failed to delete source keys: %w", err)
 			}
 			deleteKeys = deleteKeys[:0]
@@ -691,6 +694,7 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			var err error
 			srcIter, err = sourceDB.Iterator(lastKey, nil)
 			if err != nil {
+				_ = batch.Close()
 				return 0, 0, fmt.Errorf("failed to reopen source iterator: %w", err)
 			}
 			// Skip lastKey if it still exists (might have been deleted above)
@@ -709,6 +713,7 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 		return 0, 0, fmt.Errorf("iterator error: %w", err)
 	}
 	if err := srcIter.Close(); err != nil {
+		_ = batch.Close()
 		return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
 	}
 
