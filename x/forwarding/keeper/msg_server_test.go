@@ -10,17 +10,10 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v7/x/forwarding/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-=======
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
->>>>>>> 237b9ddf (fix!: x/forwarding atomic state token sends (#6881))
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
@@ -350,12 +343,14 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
 	s.warpKeeper.TransferMessageId = messageId
 
-	// Simulate warp consuming only 80 utia (less than quoted 100)
+	// Simulate a same-denom warp transfer consuming the forwarded 1000 utia plus
+	// only 80 utia of the quoted IGP fee.
+	forwardedAmount := math.NewInt(1000)
 	actualIgpConsumed := math.NewInt(80)
 	s.warpKeeper.OnTransfer = func(sender string, maxFee sdk.Coin) {
 		senderAddr, _ := sdk.AccAddressFromBech32(sender)
 		currentBal := s.bankKeeper.Balances[senderAddr.String()]
-		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, actualIgpConsumed))
+		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, forwardedAmount.Add(actualIgpConsumed)))
 		s.bankKeeper.Balances[senderAddr.String()] = currentBal.Sub(consumed...)
 	}
 
