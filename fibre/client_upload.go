@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
@@ -39,6 +40,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		),
 	)
 	defer span.End()
+
+	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
+	defer func() { uploadDone(err) }()
 
 	// 1) get validator set
 	valSet, err := c.state.Head(ctx)
@@ -120,6 +124,12 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		"signatures_collected", len(sigs),
 	)
 
+	var totalShardRows int
+	for _, rows := range shardMap {
+		totalShardRows += len(rows)
+	}
+	c.metrics.observeUploadComplete(ctx, blob.UploadSize(), blob.DataSize(), totalShardRows*blob.RowSize(), len(sigs))
+
 	span.SetStatus(codes.Ok, "")
 	return SignedPaymentPromise{
 		PaymentPromise:      promise,
@@ -198,13 +208,20 @@ func (c *Client) uploadTo(
 		"rows_count", len(req.Shard.Rows),
 	)
 
+	uploadOk := false
+	uploadStart := time.Now()
+	valAddrStr := val.Address.String()
+
 	ctx, span := c.tracer.Start(ctx, "upload_to",
 		trace.WithAttributes(
-			attribute.String("validator_address", val.Address.String()),
+			attribute.String("validator_address", valAddrStr),
 			attribute.Int("rows_count", len(req.Shard.Rows)),
 		),
 	)
 	defer span.End()
+	defer func() {
+		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
+	}()
 
 	// get a new or cached client with active connection
 	client, err := c.clientCache.GetClient(ctx, val)
@@ -231,7 +248,9 @@ func (c *Client) uploadTo(
 	span.AddEvent("proofs_generated")
 
 	// actually push the data to the validator
+	rpcStart := time.Now()
 	resp, err := client.UploadShard(ctx, req)
+	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
@@ -258,6 +277,7 @@ func (c *Client) uploadTo(
 		return false
 	}
 
+	uploadOk = true
 	log.DebugContext(ctx, "successfully uploaded to validator")
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")

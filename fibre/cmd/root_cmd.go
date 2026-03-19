@@ -27,9 +27,10 @@ func defaultHomePath() string {
 
 func newRootCmd() *cobra.Command {
 	var (
-		traceShutdown func(context.Context)
-		pprofStop     func()
-		pyroStop      func()
+		traceShutdown   func(context.Context)
+		metricsShutdown func(context.Context)
+		pprofStop       func()
+		pyroStop        func()
 	)
 
 	rootCmd := &cobra.Command{
@@ -45,6 +46,12 @@ func newRootCmd() *cobra.Command {
 				return err
 			}
 			traceShutdown = shutdown
+
+			mShutdown, err := setupMetrics(cmd.Context(), cmd)
+			if err != nil {
+				return err
+			}
+			metricsShutdown = mShutdown
 
 			stop, err := setupPProfServer(cmd)
 			if err != nil {
@@ -64,6 +71,7 @@ func newRootCmd() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			traceShutdown(ctx)
+			metricsShutdown(ctx)
 			pprofStop()
 			pyroStop()
 			return nil
