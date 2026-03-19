@@ -170,6 +170,8 @@ type payloadBatcherShard struct {
 	minBatchBytes int
 	maxBatchBytes int
 	flushInterval time.Duration
+	pendingBuf    []*writeRequest
+	payloadBuf    []*putPayload
 }
 
 type submitGate struct {
@@ -250,6 +252,8 @@ func newPayloadBatcherShard(committer payloadCommitter, opts writeBatcherOptions
 		minBatchBytes: opts.minBatchBytes,
 		maxBatchBytes: opts.maxBatchBytes,
 		flushInterval: opts.flushInterval,
+		pendingBuf:    make([]*writeRequest, opts.maxPending),
+		payloadBuf:    make([]*putPayload, opts.maxPending),
 	}
 	go shard.run()
 	return shard
@@ -320,7 +324,7 @@ func (shard *payloadBatcherShard) run() {
 			return
 		}
 
-		pending := make([]*writeRequest, 1, shard.maxPending)
+		pending := shard.pendingBuf[:1]
 		pending[0] = first
 		pendingBytes := first.payload.batchBytes()
 
@@ -341,6 +345,7 @@ func (shard *payloadBatcherShard) run() {
 		for _, req := range pending {
 			req.result <- err
 		}
+		clear(pending)
 	}
 }
 
@@ -387,12 +392,14 @@ func (shard *payloadBatcherShard) drain(
 }
 
 func (shard *payloadBatcherShard) commitAll(ctx context.Context, requests []*writeRequest) error {
-	payloads := make([]*putPayload, len(requests))
+	payloads := shard.payloadBuf[:len(requests)]
 	for i, req := range requests {
 		payloads[i] = req.payload
 		req.payload = nil
 	}
-	return shard.committer.commitPayloads(ctx, payloads)
+	err := shard.committer.commitPayloads(ctx, payloads)
+	clear(payloads)
+	return err
 }
 
 func (g *submitGate) acquire() bool {
