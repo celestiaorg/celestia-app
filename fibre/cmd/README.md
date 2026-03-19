@@ -35,8 +35,7 @@ Override config values with flags (flags take precedence over config file):
 fibre start \
   --app-grpc-address 127.0.0.1:9090 \
   --server-listen-address 0.0.0.0:7980 \
-  --signer-grpc-address 127.0.0.1:26658 \
-  --signer-pub-key <hex-encoded-ed25519-pubkey>
+  --signer-grpc-address 127.0.0.1:26658
 ```
 
 ### Version
@@ -58,7 +57,7 @@ Fibre signs payment promises by connecting to the consensus node's PrivValidator
 ### How it works
 
 1. Fibre connects to the node's PrivValidatorAPI at `--signer-grpc-address`
-2. The operator provides `--signer-pub-key` (hex-encoded ed25519) so fibre can identify itself in the validator set
+2. Fibre fetches the validator's public key via `GetPubKey` RPC to identify itself in the validator set
 3. Payment promises are signed via `SignRawBytes` RPC calls for the server's lifetime
 
 ### Setup
@@ -69,18 +68,11 @@ Fibre signs payment promises by connecting to the consensus node's PrivValidator
 priv_validator_grpc_laddr = "tcp://127.0.0.1:26658"
 ```
 
-2. Get your validator's hex-encoded ed25519 public key from `priv_validator_key.json`:
-
-```sh
-jq -r '.pub_key.value' ~/.celestia-app/config/priv_validator_key.json | base64 -d | xxd -p -c 64
-```
-
-3. Start fibre:
+2. Start fibre:
 
 ```sh
 fibre start \
-  --signer-grpc-address 127.0.0.1:26658 \
-  --signer-pub-key <hex-from-step-2>
+  --signer-grpc-address 127.0.0.1:26658
 ```
 
 ## Observability

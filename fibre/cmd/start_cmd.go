@@ -13,7 +13,6 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerGRPCAddress   = "signer-grpc-address"
-	flagSignerPubKey        = "signer-pub-key"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -68,8 +67,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	// then restores any user-set flags so precedence is: flag > config file > default.
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
-	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "gRPC address of node's PrivValidatorAPI endpoint (alternative to signer listen address)")
-	cmd.Flags().StringVar(&cfg.SignerPubKey, flagSignerPubKey, cfg.SignerPubKey, "hex-encoded ed25519 public key (required with --signer-grpc-address)")
+	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "gRPC address of node's PrivValidatorAPI endpoint")
 
 	return cmd
 }

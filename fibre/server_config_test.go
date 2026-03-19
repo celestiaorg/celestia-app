@@ -1,12 +1,10 @@
 package fibre
 
 import (
-	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
 
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -58,7 +56,6 @@ func TestServerConfigLoadCustomFile(t *testing.T) {
 	content := `server_listen_address = "127.0.0.1:8123"
 app_grpc_address = "127.0.0.1:10090"
 signer_grpc_address = "127.0.0.1:26658"
-signer_pub_key = "` + hex.EncodeToString(ed25519.GenPrivKey().PubKey().Bytes()) + `"
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o644))
 
@@ -77,58 +74,13 @@ signer_pub_key = "` + hex.EncodeToString(ed25519.GenPrivKey().PubKey().Bytes()) 
 }
 
 func TestServerConfigValidateGRPCSigner(t *testing.T) {
-	validPubKey := hex.EncodeToString(ed25519.GenPrivKey().PubKey().Bytes())
+	cfg := DefaultServerConfig()
+	cfg.Path = t.TempDir()
+	cfg.SignerGRPCAddress = "127.0.0.1:26660"
 
-	tests := []struct {
-		name      string
-		grpcAddr  string
-		pubKey    string
-		wantErr   string
-		expectNil bool // if true, expect no error
-	}{
-		{
-			name:      "valid gRPC signer config",
-			grpcAddr:  "127.0.0.1:26660",
-			pubKey:    validPubKey,
-			expectNil: true,
-		},
-		{
-			name:     "gRPC address without pub key",
-			grpcAddr: "127.0.0.1:26660",
-			pubKey:   "",
-			wantErr:  "signer_pub_key is required",
-		},
-		{
-			name:     "gRPC address with invalid hex pub key",
-			grpcAddr: "127.0.0.1:26660",
-			pubKey:   "not-valid-hex",
-			wantErr:  "invalid signer_pub_key hex",
-		},
-		{
-			name:     "gRPC address with wrong length pub key",
-			grpcAddr: "127.0.0.1:26660",
-			pubKey:   hex.EncodeToString([]byte("tooshort")),
-			wantErr:  "must be 32 bytes",
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			cfg := DefaultServerConfig()
-			cfg.Path = t.TempDir()
-			cfg.SignerGRPCAddress = tc.grpcAddr
-			cfg.SignerPubKey = tc.pubKey
-
-			err := cfg.Validate()
-			if tc.expectNil {
-				require.NoError(t, err)
-				assert.NotNil(t, cfg.SignerFn)
-			} else {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tc.wantErr)
-			}
-		})
-	}
+	err := cfg.Validate()
+	require.NoError(t, err)
+	assert.NotNil(t, cfg.SignerFn)
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {
