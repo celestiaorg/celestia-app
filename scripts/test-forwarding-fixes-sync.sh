@@ -136,11 +136,11 @@ echo "Step 6: Applying speed optimizations..."
 # Disable tx indexing (unnecessary for sync testing)
 sed -i.bak 's/^indexer *=.*/indexer = "null"/' "$CELESTIA_APP_HOME/config/config.toml"
 
-# Set log level to error to reduce I/O
-sed -i 's/^log_level *=.*/log_level = "error"/' "$CELESTIA_APP_HOME/config/config.toml"
+# Set log level to info so we can see state sync and block sync progress
+sed -i 's/^log_level *=.*/log_level = "info"/' "$CELESTIA_APP_HOME/config/config.toml"
 
-# Prune aggressively (we only care about reaching tip, not retaining state)
-sed -i.bak 's/^pruning *=.*/pruning = "everything"/' "$CELESTIA_APP_HOME/config/app.toml"
+# Use default pruning (aggressive pruning conflicts with state sync snapshots)
+sed -i.bak 's/^pruning *=.*/pruning = "default"/' "$CELESTIA_APP_HOME/config/app.toml"
 
 # Disable state sync verification for speed
 sed -i 's/^verify_data *=.*/verify_data = false/' "$CELESTIA_APP_HOME/config/config.toml"
