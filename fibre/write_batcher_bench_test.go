@@ -38,7 +38,7 @@ func BenchmarkStorePut(b *testing.B) {
 		{"block=64MiB/rows=148/n=1000", 1000, 148, 16 * 1024},
 		{"block=64MiB/rows=256/n=1000", 1000, 256, 16 * 1024},
 		{"block=64MiB/rows=512/n=1000", 1000, 512, 16 * 1024},
-		{"block=128MiB/rows=148/n=1000", 1000, 148, 32 * 1024},
+		{"block=128MiB/rows=148/n=1000", 500, 148, 32 * 1024},
 	}
 
 	savers := []struct {
