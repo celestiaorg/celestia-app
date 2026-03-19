@@ -204,21 +204,6 @@ func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) 
 	return quotedFee.Amount.Sub(igpUsed)
 }
 
-// isSupportedDenom returns true if the denom can be forwarded via warp routes.
-func isSupportedDenom(denom string) bool {
-	return denom == appconsts.BondDenom || strings.HasPrefix(denom, "hyperlane/")
-}
-
-// filterSupportedDenoms returns only coins with denoms that are forwardable.
-func filterSupportedDenoms(coins sdk.Coins) sdk.Coins {
-	supported := make(sdk.Coins, 0, len(coins))
-	for _, c := range coins {
-		if isSupportedDenom(c.Denom) {
-			supported = append(supported, c)
-		}
-	}
-	return supported
-}
 func allTokensFailedError(results []types.ForwardingResult) error {
 	failed := make([]string, 0, len(results))
 	for _, result := range results {
