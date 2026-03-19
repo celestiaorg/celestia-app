@@ -49,6 +49,13 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, types.ErrNoBalance
 	}
 
+	// Filter to only supported denoms before truncating to prevent
+	// unsupported denoms from consuming slots (prefix poisoning attack).
+	balances = filterSupportedDenoms(balances)
+	if balances.IsZero() {
+		return nil, types.ErrNoBalance
+	}
+
 	// Process up to MaxTokensPerForward tokens. User can call Forward again for remaining.
 	if len(balances) > types.MaxTokensPerForward {
 		balances = balances[:types.MaxTokensPerForward]
@@ -195,6 +202,22 @@ func (m msgServer) forwardSingleToken(
 	}
 
 	return types.NewSuccessResult(balance.Denom, balance.Amount, messageId.String())
+}
+
+// isSupportedDenom returns true if the denom can be forwarded via warp routes.
+func isSupportedDenom(denom string) bool {
+	return denom == appconsts.BondDenom || strings.HasPrefix(denom, "hyperlane/")
+}
+
+// filterSupportedDenoms returns only coins with denoms that are forwardable.
+func filterSupportedDenoms(coins sdk.Coins) sdk.Coins {
+	supported := make(sdk.Coins, 0, len(coins))
+	for _, c := range coins {
+		if isSupportedDenom(c.Denom) {
+			supported = append(supported, c)
+		}
+	}
+	return supported
 }
 
 func allTokensFailedError(results []types.ForwardingResult) error {
