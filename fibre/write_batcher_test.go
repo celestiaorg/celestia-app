@@ -131,7 +131,7 @@ func TestWriteBatcherCoalescesConcurrentSubmits(t *testing.T) {
 
 	// Verify all entries were written.
 	for i := range numSubmits {
-		key := promiseKey([]byte(fmt.Sprintf("coalesce-%d", i)))
+		key := promiseKey(fmt.Appendf(nil, "coalesce-%d", i))
 		_, err := store.Get(context.Background(), key)
 		require.NoError(t, err, "entry %d missing", i)
 	}

@@ -19,6 +19,30 @@ import (
 // blocks to keep each case in roughly the same raw-data budget.
 //
 // Run with: go test -bench=BenchmarkStorePut -benchtime=3x -run='^$' -timeout=300s
+// goos: linux
+// goarch: amd64
+// pkg: github.com/celestiaorg/celestia-app/v8/fibre
+// cpu: Intel(R) Xeon(R) Platinum 8358 CPU @ 2.60GHz
+// BenchmarkStorePut/block=1MiB/rows=148/n=4000/batched-16         6     174728631 ns/op   329721865 B/op    45494 allocs/op
+// BenchmarkStorePut/block=1MiB/rows=148/n=4000/direct-16          6     197369592 ns/op    69217642 B/op    44928 allocs/op
+// BenchmarkStorePut/block=1MiB/rows=256/n=4000/batched-16         4     279857906 ns/op   567433176 B/op    49576 allocs/op
+// BenchmarkStorePut/block=1MiB/rows=256/n=4000/direct-16          3     491148407 ns/op   217367277 B/op    57645 allocs/op
+// BenchmarkStorePut/block=1MiB/rows=512/n=4000/batched-16         2     507556995 ns/op  1164617760 B/op    65666 allocs/op
+// BenchmarkStorePut/block=1MiB/rows=512/n=4000/direct-16          1    1414427620 ns/op  1144028000 B/op    93561 allocs/op
+// BenchmarkStorePut/block=4MiB/rows=148/n=4000/batched-16         4     330885234 ns/op   792867618 B/op    50491 allocs/op
+// BenchmarkStorePut/block=4MiB/rows=148/n=4000/direct-16          2    1003452128 ns/op   437380408 B/op    73480 allocs/op
+// BenchmarkStorePut/block=4MiB/rows=256/n=4000/batched-16         2     606158532 ns/op  1408833788 B/op    67554 allocs/op
+// BenchmarkStorePut/block=4MiB/rows=256/n=4000/direct-16          1    2185980690 ns/op  1410671952 B/op   109681 allocs/op
+// BenchmarkStorePut/block=4MiB/rows=512/n=4000/batched-16         1    1125925976 ns/op  3012490704 B/op   102445 allocs/op
+// BenchmarkStorePut/block=4MiB/rows=512/n=4000/direct-16          1    5146199655 ns/op  2857120320 B/op   177483 allocs/op
+// BenchmarkStorePut/block=16MiB/rows=148/n=1000/batched-16        2     589569382 ns/op  1427095288 B/op    36837 allocs/op
+// BenchmarkStorePut/block=16MiB/rows=148/n=1000/direct-16         1    2458518810 ns/op  1418953592 B/op    81165 allocs/op
+// BenchmarkStorePut/block=16MiB/rows=256/n=1000/batched-16        1    1406333372 ns/op  2614284688 B/op    62757 allocs/op
+// BenchmarkStorePut/block=16MiB/rows=256/n=1000/direct-16         1    6865581787 ns/op  2545240968 B/op   171847 allocs/op
+// BenchmarkStorePut/block=16MiB/rows=512/n=1000/batched-16        1    1300101694 ns/op  2546529648 B/op   136279 allocs/op
+// BenchmarkStorePut/block=16MiB/rows=512/n=1000/direct-16         1    4079247781 ns/op  2774614024 B/op   204635 allocs/op
+// BenchmarkStorePut/block=64MiB/rows=148/n=1000/batched-16        1    1563472769 ns/op  2900473640 B/op   155645 allocs/op
+// BenchmarkStorePut/block=64MiB/rows=148/n=1000/direct-16         1    4707789880 ns/op  3152937472 B/op   217698 allocs/op
 func BenchmarkStorePut(b *testing.B) {
 	cases := []struct {
 		name     string
@@ -37,8 +61,6 @@ func BenchmarkStorePut(b *testing.B) {
 		{"block=16MiB/rows=512/n=1000", 1000, 512, 4096},
 		{"block=64MiB/rows=148/n=1000", 1000, 148, 16 * 1024},
 		{"block=64MiB/rows=256/n=1000", 1000, 256, 16 * 1024},
-		{"block=64MiB/rows=512/n=1000", 1000, 512, 16 * 1024},
-		{"block=128MiB/rows=148/n=1000", 500, 148, 32 * 1024},
 	}
 
 	savers := []struct {
@@ -144,7 +166,6 @@ func BenchmarkStorePutBatcherTuning(b *testing.B) {
 	for _, tc := range cases {
 		entries := makePutEntries(b, tc.n, tc.rowCount, tc.rowSize)
 		for _, preset := range presets {
-			preset := preset
 			b.Run(fmt.Sprintf("%s/%s", tc.name, preset.name), func(b *testing.B) {
 				benchStorePut(
 					b,
