@@ -46,6 +46,7 @@ This will:
 | `--verify`             | `false`           | Run sample verification after migration                |
 | `--db <name>`          | all               | Migrate only a specific database                       |
 | `--manual-swap`        | `false`           | Skip auto-swap; print manual instructions instead      |
+| `--skip-compact`       | `false`           | Skip post-migration PebbleDB compaction (not recommended)|
 
 ### Examples
 
@@ -186,9 +187,18 @@ db_backend = "pebbledb"
 | `data_pebble/` manually deleted | Fresh start — no state to resume from.                             |
 | Crash while lock held           | Kernel automatically releases file lock — no stale lock possible.  |
 
+## Compaction
+
+The tool performs compaction at two levels to keep disk usage efficient:
+
+- **Source LevelDB**: After each `--delete-chunk` of keys is deleted, the tool compacts the deleted key range. Without this, LevelDB tombstones would not reclaim disk space until a background compaction eventually runs.
+- **Target PebbleDB**: After all keys are copied, a full compaction is run on the destination PebbleDB. Bulk batch writes create many overlapping SST files; compaction merges them and can significantly reduce the final database size.
+
+Use `--skip-compact` to skip the post-migration PebbleDB compaction (e.g., if you plan to compact later or want faster migration at the cost of a larger destination).
+
 ## Disk Space Requirements
 
-- **Default mode**: ~1x + 1GB overhead (source keys deleted incrementally every ~1GB)
+- **Default mode**: ~1x + 1GB overhead (source keys deleted incrementally every ~1GB, compacted after each chunk)
 - **`--backup` mode**: ~2x your data size (source + destination side-by-side)
 
 ```bash
