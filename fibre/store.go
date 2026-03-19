@@ -21,6 +21,9 @@ import (
 // ErrStoreNotFound is returned when no shard is found for a [Commitment] in the [Store].
 var ErrStoreNotFound = errors.New("no shard found in store")
 
+// emptyVal is reused for prune index entries to avoid per-call allocation.
+var emptyVal = []byte{}
+
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
 	// Path is the path to the store directory.
@@ -43,8 +46,9 @@ func (cfg StoreConfig) Validate() error {
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
 type Store struct {
-	cfg StoreConfig
-	ds  ds.Batching
+	cfg      StoreConfig
+	ds       ds.Batching
+	pebbleDB *pebbledb.DB // non-nil when backed by pebble, enables zero-alloc writes
 }
 
 // NewMemoryStore creates a new [Store] with an in-memory datastore.
@@ -91,7 +95,7 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	opts := &pebbledb.Options{}
 
 	// MemTable settings - moderate size for bulk writes
-	opts.MemTableSize = 16 << 20 // 16 MiB memtable (default 4 MiB)
+	opts.MemTableSize = 64 << 20 // 64 MiB memtable (default 4 MiB)
 
 	// L0 compaction settings - reduce write stalls
 	opts.L0CompactionThreshold = 4  // Start compaction at 4 L0 files (default 4)
@@ -116,8 +120,9 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	}
 
 	return &Store{
-		cfg: cfg,
-		ds:  pds,
+		cfg:      cfg,
+		ds:       pds,
+		pebbleDB: pds.DB,
 	}, nil
 }
 
@@ -130,39 +135,69 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 //
 // Puts for the same commitments but different promises are allowed and are stored independently without deduplication.
 func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
-	batch, err := s.ds.Batch(ctx)
-	if err != nil {
-		return fmt.Errorf("creating batch: %w", err)
-	}
-
-	// write payment promise
 	promiseProto, err := promise.ToProto()
 	if err != nil {
 		return fmt.Errorf("converting payment promise to proto: %w", err)
-	}
-	ppData, err := gogoproto.Marshal(promiseProto)
-	if err != nil {
-		return fmt.Errorf("marshaling payment promise: %w", err)
 	}
 	promiseHash, err := promise.Hash()
 	if err != nil {
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
-	if err := batch.Put(ctx, promiseKey(promiseHash), ppData); err != nil {
+
+	if s.pebbleDB != nil {
+		return s.putPebble(promiseHash, promise.Commitment, pruneAt, promiseProto, shard)
+	}
+	return s.putGeneric(ctx, promiseHash, promise.Commitment, pruneAt, promiseProto, shard)
+}
+
+// putPebble writes directly to the pebble batch using SetDeferred for zero-alloc key/value encoding.
+func (s *Store) putPebble(promiseHash []byte, commitment Commitment, pruneAt time.Time, promiseProto sizedMarshaler, shard sizedMarshaler) error {
+	p := putPayload{
+		promiseHash:  promiseHash,
+		commitment:   commitment,
+		pruneAt:      pruneAt,
+		promiseProto: promiseProto,
+		ppSize:       promiseProto.Size(),
+		shard:        shard,
+		shardSize:    shard.Size(),
+	}
+
+	batch := s.pebbleDB.NewBatchWithSize(pebblePayloadBatchSize(&p) + pebbleBatchHeader)
+	defer batch.Close()
+
+	if err := p.applyPebble(batch); err != nil {
+		return err
+	}
+	return batch.Commit(pebbledb.NoSync)
+}
+
+// putGeneric writes through the go-datastore Batching interface (used by memory/badger backends).
+func (s *Store) putGeneric(ctx context.Context, promiseHash []byte, commitment Commitment, pruneAt time.Time, promiseProto sizedMarshaler, shard sizedMarshaler) error {
+	batch, err := s.ds.Batch(ctx)
+	if err != nil {
+		return fmt.Errorf("creating batch: %w", err)
+	}
+
+	ppData, err := gogoproto.Marshal(promiseProto.(gogoproto.Message))
+	if err != nil {
+		return fmt.Errorf("marshaling payment promise: %w", err)
+	}
+	hashHex := hex.EncodeToString(promiseHash)
+	commitHex := commitment.String()
+
+	if err := batch.Put(ctx, ds.RawKey("/pp/"+hashHex), ppData); err != nil {
 		return fmt.Errorf("putting payment promise: %w", err)
 	}
 
-	// write shard
-	shardData, err := gogoproto.Marshal(shard)
+	shardData, err := gogoproto.Marshal(shard.(gogoproto.Message))
 	if err != nil {
 		return fmt.Errorf("marshaling shard: %w", err)
 	}
-	if err := batch.Put(ctx, shardKey(promise.Commitment, promiseHash), shardData); err != nil {
+	if err := batch.Put(ctx, ds.RawKey("/shard/"+commitHex+"/"+hashHex), shardData); err != nil {
 		return fmt.Errorf("putting shard: %w", err)
 	}
 
-	// write prune index
-	if err := batch.Put(ctx, pruneKey(pruneAt, promise.Commitment, promiseHash), []byte{}); err != nil {
+	if err := batch.Put(ctx, ds.RawKey("/prune/"+formatTimestamp(pruneAt.UTC())+"/"+commitHex+"/"+hashHex), emptyVal); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)
 	}
 
@@ -179,7 +214,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 // Returns an error only if all entries fail to unmarshal or if no shards are found.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
 	results, err := s.ds.Query(ctx, query.Query{
-		Prefix: fmt.Sprintf("/shard/%s", commitment.String()),
+		Prefix: "/shard/" + commitment.String(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("querying shards: %w", err)
@@ -298,19 +333,19 @@ func (s *Store) Close() error {
 // formatTimestamp formats a timestamp with minute precision (YYYYMMDDHHmm).
 // This format is used for timestamp-based indexing in the datastore.
 func formatTimestamp(timestamp time.Time) string {
-	return timestamp.Format("200601021504")
+	return timestamp.Format(timestampLayout)
 }
 
 func promiseKey(promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/pp/%s", hex.EncodeToString(promiseHash)))
+	return ds.RawKey("/pp/" + hex.EncodeToString(promiseHash))
 }
 
 func shardKey(commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash)))
+	return ds.RawKey("/shard/" + commitment.String() + "/" + hex.EncodeToString(promiseHash))
 }
 
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) ds.Key {
-	return ds.NewKey(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash)))
+	return ds.RawKey("/prune/" + formatTimestamp(pruneAt.UTC()) + "/" + commitment.String() + "/" + hex.EncodeToString(promiseHash))
 }
 
 // parsePruneKey extracts commitment and promise hash from a prune index key.
