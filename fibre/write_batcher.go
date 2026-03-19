@@ -146,6 +146,12 @@ type writeRequest struct {
 	result  chan error
 }
 
+var writeRequestPool = sync.Pool{
+	New: func() any {
+		return &writeRequest{result: make(chan error, 1)}
+	},
+}
+
 type writeBatcher struct {
 	shards        []*payloadBatcherShard
 	submitters    submitGate
@@ -254,12 +260,12 @@ func (wb *writeBatcher) submit(ctx context.Context, payload *putPayload) error {
 		return nil
 	}
 
-	req := &writeRequest{
-		payload: payload,
-		result:  make(chan error, 1),
-	}
+	req := writeRequestPool.Get().(*writeRequest)
+	req.payload = payload
 
 	if !wb.submitters.acquire() {
+		req.reset()
+		writeRequestPool.Put(req)
 		return ErrStoreClosed
 	}
 	defer wb.submitters.release()
@@ -268,10 +274,15 @@ func (wb *writeBatcher) submit(ctx context.Context, payload *putPayload) error {
 	select {
 	case shard.requests <- req:
 	case <-ctx.Done():
+		req.reset()
+		writeRequestPool.Put(req)
 		return ctx.Err()
 	}
 
-	return <-req.result
+	err := <-req.result
+	req.reset()
+	writeRequestPool.Put(req)
+	return err
 }
 
 func (wb *writeBatcher) close() {
@@ -283,6 +294,10 @@ func (wb *writeBatcher) close() {
 			<-shard.done
 		}
 	})
+}
+
+func (req *writeRequest) reset() {
+	req.payload = nil
 }
 
 func (wb *writeBatcher) shardIndex(payload *putPayload) int {
