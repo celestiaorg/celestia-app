@@ -18,7 +18,7 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerListenAddress = "signer-listen-address"
-	flagFileSigner = "file-signer"
+	flagFileSigner          = "file-signer"
 	flagAppHome             = "app-home"
 )
 

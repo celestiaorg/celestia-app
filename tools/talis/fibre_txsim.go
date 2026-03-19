@@ -41,9 +41,10 @@ func fibreTxsimCmd() *cobra.Command {
 			n := min(instances, len(cfg.Validators))
 			validators := cfg.Validators[:n]
 
-			// Build the remote command — fibre-txsim is already in /bin/ from the payload
+			// Build the remote command — binaries are copied to /bin/ by validator_init.sh
+			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := fmt.Sprintf(
-				"fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s",
+				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s",
 				cfg.ChainID,
 				keyPrefix,
 				blobSize,
@@ -51,6 +52,11 @@ func fibreTxsimCmd() *cobra.Command {
 				interval,
 				duration,
 			)
+
+			// Auto-enable metrics when observability nodes are configured
+			if len(cfg.Observability) > 0 {
+				remoteCmd += fmt.Sprintf(" --otel-endpoint http://%s:4318", cfg.Observability[0].PublicIP)
+			}
 
 			fmt.Printf("Starting fibre-txsim sessions on %d validator(s)...\n", len(validators))
 

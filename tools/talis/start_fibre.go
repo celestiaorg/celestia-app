@@ -40,13 +40,14 @@ func startFibreCmd() *cobra.Command {
 			validators := cfg.Validators[:instances]
 
 			// Build the remote command
-			remoteCmd := "fibre start --home .celestia-fibre --app-grpc-address localhost:9091 --file-signer --app-home .celestia-app"
+			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
+			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091 --file-signer --app-home .celestia-app"
 			// Auto-enable metrics when observability nodes are configured
 			if metricsAddress == "" && len(cfg.Observability) > 0 {
-				metricsAddress = ":9465"
+				metricsAddress = fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)
 			}
 			if metricsAddress != "" {
-				remoteCmd += fmt.Sprintf(" --metrics-address %s", metricsAddress)
+				remoteCmd += fmt.Sprintf(" --otel-endpoint %s", metricsAddress)
 			}
 
 			fmt.Printf("Starting fibre sessions on %d validator(s)...\n", len(validators))
@@ -75,7 +76,7 @@ func startFibreCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "number of validators to start fibre on (default all)")
-	cmd.Flags().StringVar(&metricsAddress, "metrics-address", "", "metrics address to pass to fibre (empty = no metrics)")
+	cmd.Flags().StringVar(&metricsAddress, "otel-endpoint", "", "OTLP HTTP endpoint for metrics/traces (e.g. http://host:4318; empty = disabled)")
 
 	return cmd
 }

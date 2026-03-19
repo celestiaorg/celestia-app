@@ -382,14 +382,15 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build celestia-appd, txsim, latency-monitor, fibre, and fibre-txsim binaries for talis VMs (ubuntu 22.04 LTS)
+## build-talis-bins: Build celestia-appd, txsim, latency-monitor, fibre, fibre-txsim, and talis binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
-	mkdir -p build
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+	mkdir -p talis-setup/build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o talis-setup/build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o talis-setup/build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o talis-setup/build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o talis-setup/build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o talis-setup/build/fibre-txsim ./tools/fibre-txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o talis-setup/build/talis ./tools/talis
 .PHONY: build-talis-bins
 
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)

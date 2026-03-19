@@ -18,11 +18,25 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
+	if err := mainE(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func mainE() error {
 	var (
 		chainID      string
 		grpcEndpoint string
@@ -32,6 +46,7 @@ func main() {
 		concurrency  int
 		interval     time.Duration
 		duration     time.Duration
+		otelEndpoint string
 	)
 
 	flag.StringVar(&chainID, "chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
@@ -42,13 +57,26 @@ func main() {
 	flag.IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
 	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
+	flag.StringVar(&otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.Parse()
 	_ = chainID // accepted but unused
 
-	if err := run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	if otelEndpoint != "" {
+		metricsShutdown, err := setupOTelMetrics(context.Background(), otelEndpoint)
+		if err != nil {
+			return fmt.Errorf("setup OTel metrics: %w", err)
+		}
+		defer metricsShutdown(context.Background())
+
+		traceShutdown, err := setupOTelTracing(context.Background(), otelEndpoint)
+		if err != nil {
+			return fmt.Errorf("setup OTel tracing: %w", err)
+		}
+		defer traceShutdown(context.Background())
+		fmt.Printf("metrics and tracing enabled endpoint=%s\n", otelEndpoint)
 	}
+
+	return run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration)
 }
 
 // worker holds a per-account tx client and key name, sharing one fibre client.
@@ -183,6 +211,62 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	fmt.Printf("Avg latency (success): %s\n", avgLat)
 
 	return nil
+}
+
+func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Context), error) {
+	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint))
+	if err != nil {
+		return nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
+	}
+
+	hostname, _ := os.Hostname()
+	res, err := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceName("fibre-txsim"),
+		semconv.ServiceInstanceID(hostname),
+	))
+	if err != nil {
+		return nil, fmt.Errorf("creating OTel resource: %w", err)
+	}
+
+	mp := sdkmetric.NewMeterProvider(
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)),
+		sdkmetric.WithResource(res),
+	)
+	otel.SetMeterProvider(mp)
+
+	return func(ctx context.Context) {
+		if err := mp.Shutdown(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "shutting down meter provider: %v\n", err)
+		}
+	}, nil
+}
+
+func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Context), error) {
+	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
+	if err != nil {
+		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
+	}
+
+	hostname, _ := os.Hostname()
+	res, err := resource.New(ctx, resource.WithAttributes(
+		semconv.ServiceName("fibre-txsim"),
+		semconv.ServiceInstanceID(hostname),
+	))
+	if err != nil {
+		return nil, fmt.Errorf("creating OTel resource: %w", err)
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(res),
+	)
+	otel.SetTracerProvider(tp)
+
+	return func(ctx context.Context) {
+		if err := tp.Shutdown(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "shutting down tracer provider: %v\n", err)
+		}
+	}, nil
 }
 
 func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successes, failures *atomic.Int64, totalLatNs *atomic.Int64) {
