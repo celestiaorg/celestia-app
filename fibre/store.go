@@ -151,7 +151,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 }
 
 // putPebble writes directly to the pebble batch using SetDeferred for zero-alloc key/value encoding.
-func (s *Store) putPebble(promiseHash []byte, commitment Commitment, pruneAt time.Time, promiseProto sizedMarshaler, shard sizedMarshaler) error {
+func (s *Store) putPebble(promiseHash []byte, commitment Commitment, pruneAt time.Time, promiseProto *types.PaymentPromise, shard *types.BlobShard) error {
 	p := putPayload{
 		promiseHash:  promiseHash,
 		commitment:   commitment,
@@ -172,13 +172,13 @@ func (s *Store) putPebble(promiseHash []byte, commitment Commitment, pruneAt tim
 }
 
 // putGeneric writes through the go-datastore Batching interface (used by memory/badger backends).
-func (s *Store) putGeneric(ctx context.Context, promiseHash []byte, commitment Commitment, pruneAt time.Time, promiseProto sizedMarshaler, shard sizedMarshaler) error {
+func (s *Store) putGeneric(ctx context.Context, promiseHash []byte, commitment Commitment, pruneAt time.Time, promiseProto *types.PaymentPromise, shard *types.BlobShard) error {
 	batch, err := s.ds.Batch(ctx)
 	if err != nil {
 		return fmt.Errorf("creating batch: %w", err)
 	}
 
-	ppData, err := gogoproto.Marshal(promiseProto.(gogoproto.Message))
+	ppData, err := gogoproto.Marshal(promiseProto)
 	if err != nil {
 		return fmt.Errorf("marshaling payment promise: %w", err)
 	}
@@ -189,7 +189,7 @@ func (s *Store) putGeneric(ctx context.Context, promiseHash []byte, commitment C
 		return fmt.Errorf("putting payment promise: %w", err)
 	}
 
-	shardData, err := gogoproto.Marshal(shard.(gogoproto.Message))
+	shardData, err := gogoproto.Marshal(shard)
 	if err != nil {
 		return fmt.Errorf("marshaling shard: %w", err)
 	}

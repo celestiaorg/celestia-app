@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 )
 
@@ -31,14 +32,15 @@ const (
 
 // putPayload holds pre-computed sizes and references needed to write
 // a single payment promise + shard + prune-index entry into a pebble batch
-// without intermediate allocations.
+// without intermediate allocations. Concrete types are used instead of
+// interfaces to enable devirtualization of Size/MarshalToSizedBuffer calls.
 type putPayload struct {
 	promiseHash  []byte
 	commitment   Commitment
 	pruneAt      time.Time
-	promiseProto sizedMarshaler
+	promiseProto *types.PaymentPromise
 	ppSize       int
-	shard        sizedMarshaler
+	shard        *types.BlobShard
 	shardSize    int
 }
 
