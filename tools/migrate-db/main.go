@@ -247,7 +247,7 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 			fmt.Println("Run again without --db to migrate all databases, or use --manual-swap.")
 			return nil
 		}
-		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, opts.backup, state)
+		return performAutoSwap(opts.homeDir, dataDir, pebbleDataDir, state)
 	}
 
 	printNextSteps(dataDir, pebbleDataDir, opts.backup)
@@ -895,7 +895,7 @@ func saveState(state *MigrationState, destDir string) error {
 
 // performAutoSwap moves PebbleDB files into data/ and updates config.toml.
 // Callers must ensure all databases have been migrated before calling this.
-func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracker *stateTracker) error {
+func performAutoSwap(homeDir, dataDir, pebbleDataDir string, tracker *stateTracker) error {
 	// Verify all databases completed migration.
 	for _, dbName := range allDatabases {
 		ds := tracker.getDBState(dbName)
