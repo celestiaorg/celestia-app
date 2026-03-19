@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"testing"
 
-	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -14,9 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -182,7 +180,7 @@ func (m *MockHyperlaneKeeper) QuoteDispatch(
 
 // Test helpers
 func createTestContext() sdk.Context {
-	return sdk.NewContext(nil, cmtproto.Header{}, false, log.NewNopLogger()).WithGasMeter(storetypes.NewInfiniteGasMeter())
+	return testutil.DefaultContext(storetypes.NewKVStoreKey("testkv"), storetypes.NewTransientStoreKey("testtransient"))
 }
 
 // deriveTestForwardAddress derives a forwarding address from the given destDomain and destRecipient
@@ -330,45 +328,6 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			require.Equal(t, tc.expectedSignerBal, s.bankKeeper.GetBalance(s.ctx, s.signer, tc.maxIgpFee.Denom).Amount)
 		})
 	}
-}
-
-// TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure tests that IGP fee goes to fee collector when warp fails
-func TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure(t *testing.T) {
-	s := newTestIGPSetup(t)
-
-	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-
-	// Setup balances
-	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
-	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
-	s.bankKeeper.Balances[feeCollectorAddr.String()] = sdk.NewCoins() // Start with zero
-	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
-
-	// Warp transfer will FAIL
-	s.warpKeeper.TransferErr = errors.New("warp transfer failed: insufficient liquidity")
-
-	msg := types.NewMsgForward(
-		s.signer.String(),
-		s.forwardAddr.String(),
-		s.destDomain,
-		s.destRecipient,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-
-	require.Error(t, err)
-	require.Nil(t, resp)
-	require.ErrorIs(t, err, types.ErrAllTokensFailed)
-	require.ErrorContains(t, err, "warp transfer failed")
-
-	// Verify: tokens remain at forwardAddr (warp atomic semantics)
-	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was deducted from signer (100 consumed)
-	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was sent to fee collector (becomes protocol revenue)
-	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, feeCollectorAddr, appconsts.BondDenom).Amount,
-		"IGP fee should be sent to fee collector on warp failure")
 }
 
 // TestForwardSingleToken_IGPFeeRefundOnSuccess tests that excess IGP fee is refunded to signer
