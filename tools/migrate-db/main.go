@@ -15,8 +15,10 @@ import (
 	"syscall"
 	"time"
 
+	cmtcfg "github.com/cometbft/cometbft/config"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/gofrs/flock"
+	"github.com/spf13/viper"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -77,6 +79,7 @@ const (
 	statusInProgress    dbStatus = "in_progress"
 	statusMigrated      dbStatus = "migrated"
 	statusSourceDeleted dbStatus = "source_deleted"
+	statusNotFound      dbStatus = "not_found"
 )
 
 // DBState tracks the migration status of a single database.
@@ -166,6 +169,15 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 		return fmt.Errorf("data directory does not exist: %s", dataDir)
 	}
 
+	backend, err := readConfigBackend(opts.homeDir)
+	if err != nil {
+		return fmt.Errorf("failed to read config.toml: %w", err)
+	}
+	if backend == "pebbledb" {
+		fmt.Printf("config.toml already has db_backend = \"pebbledb\", no migration needed.\n")
+		return nil
+	}
+
 	databases := allDatabases
 	if opts.dbFilter != "" {
 		if !slices.Contains(allDatabases, opts.dbFilter) {
@@ -180,8 +192,11 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 		for _, dbName := range databases {
 			levelDBPath := filepath.Join(dataDir, dbName+".db")
 			if _, err := os.Stat(levelDBPath); os.IsNotExist(err) {
-				fmt.Printf("[%s] Warning: LevelDB not found, would skip\n", dbName)
+				fmt.Printf("[%s] LevelDB not found, would skip\n", dbName)
 				continue
+			}
+			if isPebbleDB(levelDBPath) {
+				return fmt.Errorf("[%s] source database is already PebbleDB but config.toml says %q — resolve this inconsistency before migrating", dbName, backend)
 			}
 			fmt.Printf("[%s] Would migrate %s -> %s/%s.db\n", dbName, levelDBPath, pebbleDataDir, dbName)
 		}
@@ -302,7 +317,7 @@ func loadOrInitState(pebbleDataDir string, opts migrateOpts) (*stateTracker, err
 func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTracker, opts migrateOpts) error {
 	ds := tracker.getDBState(dbName)
 
-	if ds.Status == statusSourceDeleted {
+	if ds.Status == statusSourceDeleted || ds.Status == statusNotFound {
 		fmt.Printf("[%s] Already complete (status=%s), skipping\n", dbName, ds.Status)
 		return nil
 	}
@@ -335,8 +350,13 @@ func migrateOneDB(ctx context.Context, dbName, dataDir string, tracker *stateTra
 			ds.CompletedAt = time.Now()
 			return tracker.updateDBState(dbName, ds)
 		}
-		fmt.Printf("[%s] Warning: LevelDB not found, skipping\n", dbName)
-		return nil
+		fmt.Printf("[%s] LevelDB not found, skipping\n", dbName)
+		ds.Status = statusNotFound
+		return tracker.updateDBState(dbName, ds)
+	}
+
+	if isPebbleDB(levelDBPath) {
+		return fmt.Errorf("[%s] source database is already PebbleDB but config.toml does not reflect this — resolve this inconsistency before migrating", dbName)
 	}
 
 	ds.Status = statusInProgress
@@ -877,14 +897,9 @@ func saveState(state *MigrationState, destDir string) error {
 // Callers must ensure all databases have been migrated before calling this.
 func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracker *stateTracker) error {
 	// Verify all databases completed migration.
-	// tx_index may not exist on nodes without indexing enabled — skip it if source is missing.
 	for _, dbName := range allDatabases {
 		ds := tracker.getDBState(dbName)
-		if ds.Status == statusMigrated || ds.Status == statusSourceDeleted {
-			continue
-		}
-		if dbName == "tx_index" && ds.Status == statusPending {
-			fmt.Printf("  Skipping %s (source not found)\n", dbName)
+		if ds.Status == statusMigrated || ds.Status == statusSourceDeleted || ds.Status == statusNotFound {
 			continue
 		}
 		return fmt.Errorf("database %q has status %q, expected %q or %q — cannot auto-swap", dbName, ds.Status, statusMigrated, statusSourceDeleted)
@@ -893,6 +908,13 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracke
 	fmt.Println("\nPerforming auto-swap...")
 
 	for _, dbName := range allDatabases {
+		status := tracker.getDBState(dbName).Status
+		// Nothing to swap for databases not found on disk.
+		if status == statusNotFound {
+			fmt.Printf("  [%s] Skipping (status=%s)\n", dbName, status)
+			continue
+		}
+
 		srcPath := filepath.Join(pebbleDataDir, dbName+".db")
 		dstPath := filepath.Join(dataDir, dbName+".db")
 
@@ -915,12 +937,12 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracke
 	}
 
 	// Update config.toml
-	configPath := filepath.Join(homeDir, "config", "config.toml")
-	if err := updateConfigBackend(configPath, "pebbledb"); err != nil {
+	if err := updateConfigBackend(homeDir, "pebbledb"); err != nil {
+		configPath := filepath.Join(homeDir, "config", "config.toml")
 		fmt.Printf("  Warning: could not update config.toml: %v\n", err)
 		fmt.Printf("  Please manually set db_backend = \"pebbledb\" in %s\n", configPath)
 	} else {
-		fmt.Printf("  Updated %s: db_backend = \"pebbledb\"\n", configPath)
+		fmt.Printf("  Updated %s: db_backend = \"pebbledb\"\n", filepath.Join(homeDir, "config", "config.toml"))
 	}
 
 	// Clean up
@@ -932,26 +954,43 @@ func performAutoSwap(homeDir, dataDir, pebbleDataDir string, backup bool, tracke
 	return nil
 }
 
-// updateConfigBackend rewrites the db_backend line in config.toml.
-func updateConfigBackend(configPath, backend string) error {
-	data, err := os.ReadFile(configPath)
+// loadCometConfig loads the CometBFT configuration from config.toml.
+func loadCometConfig(homeDir string) (*cmtcfg.Config, error) {
+	cfg := cmtcfg.DefaultConfig()
+	cfg.SetRoot(homeDir)
+
+	configPath := filepath.Join(homeDir, "config", "config.toml")
+	v := viper.New()
+	v.SetConfigFile(configPath)
+	v.SetConfigType("toml")
+
+	if err := v.ReadInConfig(); err != nil {
+		return nil, fmt.Errorf("failed to read config file %s: %w", configPath, err)
+	}
+	if err := v.Unmarshal(cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+	return cfg, nil
+}
+
+// readConfigBackend reads the db_backend value from config.toml.
+func readConfigBackend(homeDir string) (string, error) {
+	cfg, err := loadCometConfig(homeDir)
+	if err != nil {
+		return "", err
+	}
+	return cfg.DBBackend, nil
+}
+
+// updateConfigBackend updates the db_backend value in config.toml.
+func updateConfigBackend(homeDir, backend string) error {
+	cfg, err := loadCometConfig(homeDir)
 	if err != nil {
 		return err
 	}
-	lines := strings.Split(string(data), "\n")
-	found := false
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "db_backend") && strings.Contains(trimmed, "=") {
-			lines[i] = fmt.Sprintf(`db_backend = "%s"`, backend)
-			found = true
-			break
-		}
-	}
-	if !found {
-		return fmt.Errorf("db_backend setting not found in config.toml")
-	}
-	return os.WriteFile(configPath, []byte(strings.Join(lines, "\n")), 0o644)
+	cfg.DBBackend = backend
+	cmtcfg.WriteConfigFile(filepath.Join(homeDir, "config", "config.toml"), cfg)
+	return nil
 }
 
 // printNextSteps prints post-migration instructions to stdout.
@@ -988,6 +1027,13 @@ Next Steps:
 
 ============================================================
 `, pebbleDataDir)
+}
+
+// isPebbleDB checks whether a database directory is a PebbleDB by looking for
+// OPTIONS-* files, which are created by PebbleDB but not by LevelDB.
+func isPebbleDB(dbPath string) bool {
+	matches, err := filepath.Glob(filepath.Join(dbPath, "OPTIONS-*"))
+	return err == nil && len(matches) > 0
 }
 
 // humanBytes formats a byte count as a human-readable string (e.g. "1.50 GB").
