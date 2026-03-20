@@ -93,7 +93,7 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	opts := &pebbledb.Options{}
 
 	// MemTable settings - moderate size for bulk writes
-	opts.MemTableSize = 16 << 20 // 16 MiB memtable (default 4 MiB)
+	opts.MemTableSize = 64 << 20 // 16 MiB memtable (default 4 MiB)
 
 	// L0 compaction settings - reduce write stalls
 	opts.L0CompactionThreshold = 4  // Start compaction at 4 L0 files (default 4)
