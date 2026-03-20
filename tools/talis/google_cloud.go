@@ -24,6 +24,16 @@ const (
 )
 
 var (
+	protoTCP     = "tcp"
+	protoUDP     = "udp"
+	protoICMP    = "icmp"
+	dirIngress   = computepb.Firewall_INGRESS.String()
+	boolTrue     = true
+	externalNAT  = "External NAT"
+	natType      = computepb.AccessConfig_ONE_TO_ONE_NAT.String()
+	sshKeysLabel = "ssh-keys"
+	diskSizeGB   = int64(GCDefaultDiskSizeGB)
+
 	GCRegions = []string{
 		"us-central1", "us-east1", "us-east4", "asia-southeast1", "europe-west1", "asia-east1",
 	}
@@ -275,18 +285,18 @@ func ensureGCFirewallRule(ctx context.Context, project string, opts []option.Cli
 		Name: &firewallName,
 		Allowed: []*computepb.Allowed{
 			{
-				IPProtocol: ptr("tcp"),
+				IPProtocol: &protoTCP,
 				Ports:      []string{"0-65535"},
 			},
 			{
-				IPProtocol: ptr("udp"),
+				IPProtocol: &protoUDP,
 				Ports:      []string{"0-65535"},
 			},
 			{
-				IPProtocol: ptr("icmp"),
+				IPProtocol: &protoICMP,
 			},
 		},
-		Direction:    ptr(computepb.Firewall_INGRESS.String()),
+		Direction:    &dirIngress,
 		SourceRanges: []string{"0.0.0.0/0"},
 		TargetTags:   []string{"talis-allow-all"},
 	}
@@ -417,11 +427,11 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 			},
 			Disks: []*computepb.AttachedDisk{
 				{
-					Boot:       ptr(true),
-					AutoDelete: ptr(true),
+					Boot:       &boolTrue,
+					AutoDelete: &boolTrue,
 					InitializeParams: &computepb.AttachedDiskInitializeParams{
 						SourceImage: &sourceImage,
-						DiskSizeGb:  ptr(int64(GCDefaultDiskSizeGB)),
+						DiskSizeGb:  &diskSizeGB,
 					},
 				},
 			},
@@ -429,8 +439,8 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 				{
 					AccessConfigs: []*computepb.AccessConfig{
 						{
-							Name: ptr("External NAT"),
-							Type: ptr(computepb.AccessConfig_ONE_TO_ONE_NAT.String()),
+							Name: &externalNAT,
+							Type: &natType,
 						},
 					},
 				},
@@ -438,7 +448,7 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 			Metadata: &computepb.Metadata{
 				Items: []*computepb.Items{
 					{
-						Key:   ptr("ssh-keys"),
+						Key:   &sshKeysLabel,
 						Value: &sshKeyMetadata,
 					},
 				},
@@ -762,8 +772,4 @@ func destroyGCInstancesInternal(ctx context.Context, project string, insts []Ins
 	}
 
 	return removed, nil
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }
