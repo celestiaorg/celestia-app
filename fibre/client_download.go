@@ -144,16 +144,10 @@ func (c *Client) downloadFrom(
 		span.SetStatus(codes.Error, "failed to download shard")
 		return nil, err
 	}
-	shard := resp.GetShard()
-	if shard == nil || len(shard.GetRows()) == 0 {
-		log.WarnContext(ctx, "empty shard response")
-		return nil, nil
+	rows, err = parseShard(resp.GetShard())
+	if err != nil {
+		return nil, err
 	}
-	if len(shard.GetRoot()) != 32 {
-		log.WarnContext(ctx, "invalid RLC root length", "length", len(shard.GetRoot()))
-		return nil, nil
-	}
-	rows = parseShard(shard)
 	var rowSize int
 	if len(rows) > 0 && len(rows[0].Row) > 0 {
 		rowSize = len(rows[0].Row)
@@ -317,13 +311,24 @@ loop:
 // errDownloaded signals that context was cancelled because download completed successfully.
 var errDownloaded = errors.New("downloaded")
 
-// parseShard converts a validated BlobShard into RowInclusionProofs.
-// The caller must ensure shard is non-nil, has rows, and has a valid 32-byte RLC root.
-func parseShard(shard *types.BlobShard) []*rsema1d.RowInclusionProof {
+// parseShard extracts rows from the BlobShard response, constructing RowInclusionProofs.
+func parseShard(shard *types.BlobShard) ([]*rsema1d.RowInclusionProof, error) {
+	if shard == nil {
+		return nil, fmt.Errorf("shard response is nil")
+	}
+
+	rowsArray := shard.GetRows()
+	if len(rowsArray) == 0 {
+		return nil, fmt.Errorf("no rows in shard")
+	}
+
+	if len(shard.GetRoot()) != 32 {
+		return nil, fmt.Errorf("invalid RLC root length: expected 32 bytes, got %d", len(shard.GetRoot()))
+	}
+
 	var rlcRoot [32]byte
 	copy(rlcRoot[:], shard.GetRoot())
 
-	rowsArray := shard.GetRows()
 	proofs := make([]*rsema1d.RowInclusionProof, 0, len(rowsArray))
 	for _, row := range rowsArray {
 		if row == nil {
@@ -339,5 +344,5 @@ func parseShard(shard *types.BlobShard) []*rsema1d.RowInclusionProof {
 		})
 	}
 
-	return proofs
+	return proofs, nil
 }
