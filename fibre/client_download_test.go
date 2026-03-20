@@ -161,15 +161,24 @@ func testClientDownloadLargeValidatorFailure(t *testing.T) {
 	// Stakes: 1 large (1000) + 9 small (100 each). Total: 1900.
 	// Large validator gets min(ceil(4096 * 1000 * 3 / 1900), 4096) = 4096 rows.
 	// Small validators get ceil(4096 * 100 * 3 / 1900) = 647 rows each.
-	// Select orders large validator first. When it fails, coordinator dynamically
-	// launches small validators until enough unique rows are collected.
+	// When the large validator fails, the coordinator dynamically launches
+	// small validators until enough unique rows are collected.
 	// 7 small validators provide ~4529 unique rows >= 4096 originalRows.
 	blob := makeTestBlobV0(t, 256*1024)
 
-	stakes := []int64{1000, 100, 100, 100, 100, 100, 100, 100, 100, 100}
+	const largeStake int64 = 1000
+	stakes := []int64{largeStake, 100, 100, 100, 100, 100, 100, 100, 100, 100}
 	client := makeTestDownloadClientWithStakes(t, stakes, func(cfg *fibre.ClientConfig) {
-		// Fail first validator contacted (the large one)
-		cfg.NewClientFn = failingClientFn(1, cfg.NewClientFn)
+		// Fail the large validator by stake, not by call order.
+		// Select uses non-deterministic shuffle, so the large validator
+		// may not be contacted first.
+		inner := cfg.NewClientFn
+		cfg.NewClientFn = func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
+			if val.VotingPower >= largeStake {
+				return failingClient{}, nil
+			}
+			return inner(ctx, val)
+		}
 	}, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
