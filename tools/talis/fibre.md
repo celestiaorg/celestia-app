@@ -56,9 +56,9 @@ talis start-fibre
 | `--directory`       | `.`                 | Experiment root directory                                     |
 | `--ssh-key-path`    | *(from env/config)* | Path to SSH private key                                       |
 | `--instances`       | `0` (all)           | Number of validators to start fibre on                        |
-| `--metrics-address` | *(auto)*            | Metrics address for Prometheus (auto-enabled with observability) |
+| `--otel-endpoint`   | *(auto)*            | OTLP HTTP endpoint for metrics/traces (auto-enabled with observability) |
 
-The fibre server uses `--file-signer` to read the validator's `priv_validator_key.json` directly. Metrics are auto-enabled on `:9465` when observability nodes are configured.
+The fibre server uses `--file-signer` to read the validator's `priv_validator_key.json` directly. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
 
 Each validator runs the fibre server inside a tmux session called `fibre`. To stop:
 

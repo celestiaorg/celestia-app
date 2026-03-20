@@ -127,7 +127,11 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	}
 
 	defer func() {
-		if err := sharedFibreClient.Stop(ctx); err != nil {
+		// Use a fresh context so Stop can wait for in-flight operations to complete
+		// even after the parent ctx has been cancelled by signal/timeout.
+		stopCtx, stopCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer stopCancel()
+		if err := sharedFibreClient.Stop(stopCtx); err != nil {
 			fmt.Fprintf(os.Stderr, "stopping shared fibre client: %v\n", err)
 		}
 	}()
