@@ -68,7 +68,7 @@ tar -xzf /root/$ARCHIVE_NAME -C /root/
 
 source ./vars.sh
 
-sudo snap install go --channel=1.23/stable --classic
+sudo snap install go --channel=1.26/stable --classic
 
 echo 'export GOPATH="$HOME/go"' >> ~/.profile
 echo 'export GOBIN="$GOPATH/bin"' >> ~/.profile

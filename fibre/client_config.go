@@ -9,6 +9,7 @@ import (
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -47,6 +48,9 @@ type ClientConfig struct {
 	// Tracer is the OpenTelemetry tracer for distributed tracing.
 	// If nil, [trace.Default] will be used.
 	Tracer trace.Tracer
+	// Meter is the OpenTelemetry meter for recording metrics.
+	// If nil, otel.Meter("fibre-client") will be used.
+	Meter metric.Meter
 	// Clock is the clock for time-related operations.
 	// If nil, [clock.New] will be used.
 	Clock clock.Clock
@@ -89,6 +93,9 @@ func (cfg *ClientConfig) Validate() error {
 	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-client")
+	}
+	if cfg.Meter == nil {
+		cfg.Meter = otel.Meter("fibre-client")
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()

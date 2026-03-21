@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
@@ -33,7 +34,7 @@ var (
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
+func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
@@ -45,6 +46,9 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
 	defer span.End()
+
+	downloadDone := c.metrics.observeDownload(ctx)
+	defer func() { downloadDone(blob, err) }()
 
 	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
@@ -62,7 +66,7 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 		attribute.Int64("validator_set_height", int64(valSet.Height)),
 	))
 
-	blob, err := c.downloadBlob(ctx, valSet, id)
+	blob, err = c.downloadBlob(ctx, valSet, id)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to download")
@@ -76,6 +80,7 @@ func (c *Client) Download(ctx context.Context, id BlobID) (*Blob, error) {
 		return nil, fmt.Errorf("reconstructing data: %w", err)
 	}
 
+	c.metrics.downloadBytes.Add(ctx, int64(blob.DataSize()))
 	c.log.DebugContext(ctx, "blob download completed successfully",
 		"blob_commitment", id.Commitment(),
 		"upload_size", blob.UploadSize(),
@@ -95,13 +100,21 @@ func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
 	blob *Blob,
-) error {
+) (err error) {
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", blob.ID().Commitment())
 
+	downloadStart := time.Now()
+	valAddrStr := val.Address.String()
+
 	ctx, span := c.tracer.Start(ctx, "download_from",
-		trace.WithAttributes(attribute.String("validator_address", val.Address.String())),
+		trace.WithAttributes(attribute.String("validator_address", valAddrStr)),
 	)
 	defer span.End()
+
+	defer func() {
+		success := err == nil || context.Cause(ctx) == errDownloaded
+		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
+	}()
 
 	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
@@ -116,7 +129,9 @@ func (c *Client) downloadFrom(
 	}
 	span.AddEvent("client_acquired")
 
+	rpcStart := time.Now()
 	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: blob.ID()})
+	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")
