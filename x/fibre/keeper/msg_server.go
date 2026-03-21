@@ -168,19 +168,10 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	// Calculate payment amount based on blob size and gas per byte
 	paymentAmount := ms.calculatePaymentAmount(ctx, msg.PaymentPromise.BlobSize)
 
-	// Check if sufficient balance
-	if escrowAccount.Balance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+	// Deduct payment from escrow account (may reduce pending withdrawals if needed)
+	if err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount); err != nil {
+		return nil, err
 	}
-	// Check if sufficient available balance
-	if escrowAccount.AvailableBalance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient available balance: have %s, need %s", escrowAccount.AvailableBalance, paymentAmount)
-	}
-
-	// Deduct payment from escrow account
-	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
-	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(paymentAmount)
-	ms.SetEscrowAccount(ctx, escrowAccount)
 
 	// Record processed payment
 	processedPayment := types.ProcessedPayment{
@@ -243,19 +234,10 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", escrowSigner)
 	}
 
-	// Check if sufficient balance (defensive check to prevent panic on Sub)
-	if escrowAccount.Balance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+	// Deduct payment from escrow account (may reduce pending withdrawals if needed)
+	if err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount); err != nil {
+		return nil, err
 	}
-	// Check if sufficient available balance (should already be validated, but double-check)
-	if escrowAccount.AvailableBalance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient available balance: have %s, need %s", escrowAccount.AvailableBalance, paymentAmount)
-	}
-
-	// Deduct payment from escrow account (both balance and available_balance)
-	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
-	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(paymentAmount)
-	ms.SetEscrowAccount(ctx, escrowAccount)
 
 	// Record processed payment (timeout)
 	processedPayment := types.ProcessedPayment{
@@ -297,6 +279,33 @@ func (ms msgServer) UpdateFibreParams(goCtx context.Context, msg *types.MsgUpdat
 	}
 
 	return &types.MsgUpdateFibreParamsResponse{}, nil
+}
+
+// deductPaymentFromEscrow deducts the payment amount from an escrow account.
+// If AvailableBalance is not enough but Balance covers the payment, it reduces pending
+// withdrawals (FIFO) by the shortfall amount.
+func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *types.EscrowAccount, paymentAmount sdk.Coin) error {
+	if escrowAccount.Balance.IsLT(paymentAmount) {
+		return errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+	}
+
+	// availableDeduction = min(AvailableBalance, paymentAmount)
+	availableDeduction := paymentAmount
+	if escrowAccount.AvailableBalance.IsLT(paymentAmount) {
+		availableDeduction = escrowAccount.AvailableBalance
+	}
+
+	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
+	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(availableDeduction)
+	ms.SetEscrowAccount(ctx, *escrowAccount)
+
+	// reduce the balance from the withdrawals
+	shortfall := paymentAmount.Sub(availableDeduction)
+	if shortfall.IsPositive() {
+		ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall)
+	}
+
+	return nil
 }
 
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size and gas parameters

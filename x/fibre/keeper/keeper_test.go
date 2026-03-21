@@ -460,7 +460,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		suite.Error(err)
 		suite.Contains(err.Error(), "insufficient balance in escrow account")
 		suite.Contains(err.Error(), fmt.Sprintf("required: %v", requiredAmount))
-		suite.Contains(err.Error(), fmt.Sprintf("available: %v", insufficientBalance))
+		suite.Contains(err.Error(), fmt.Sprintf("balance: %v", insufficientBalance))
 	})
 }
 
