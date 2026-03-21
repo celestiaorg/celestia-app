@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
@@ -397,8 +398,8 @@ func (k Keeper) ValidatePaymentPromiseStatefulForTimeout(ctx sdk.Context, promis
 // ReduceWithdrawalsForPayment reduces pending withdrawal amounts for a signer by the given shortfall.
 // It iterates withdrawals in order (oldest first) and either partially reduces a withdrawal's
 // amount or fully consumes (deletes) it.
-// Precondition: expects the escrow.Balance >= remaining.
-func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) {
+// Precondition: expects the escrow.Balance >= remaining. Otherwise, returns an error.
+func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) error {
 	store := ctx.KVStore(k.storeKey)
 	prefix := types.WithdrawalsBySignerPrefix(signer)
 	iterator := storetypes.KVStorePrefixIterator(store, prefix)
@@ -414,6 +415,13 @@ func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, rema
 		} else {
 			withdrawal.Amount = withdrawal.Amount.Sub(remaining)
 			k.SetWithdrawal(ctx, withdrawal)
+			remaining = sdk.NewCoin(remaining.Denom, math.ZeroInt())
 		}
 	}
+
+	if remaining.IsPositive() {
+		return fmt.Errorf("pending withdrawals for signer %s do not cover the shortfall of %s", signer, remaining)
+	}
+
+	return nil
 }
