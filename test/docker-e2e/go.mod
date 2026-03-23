@@ -202,12 +202,12 @@ require (
 	github.com/klauspost/reedsolomon v1.13.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.11.2 // indirect
+	github.com/lib/pq v1.12.0 // indirect
 	github.com/linxGnu/grocksdb v1.9.8 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/minio/highwayhash v1.0.3 // indirect
+	github.com/minio/highwayhash v1.0.4 // indirect
 	github.com/minio/minlz v1.0.1-0.20250507153514-87eb42fe8882 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
@@ -235,7 +235,7 @@ require (
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
-	github.com/sasha-s/go-deadlock v0.3.7 // indirect
+	github.com/sasha-s/go-deadlock v0.3.9 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
@@ -299,7 +299,7 @@ replace (
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/celestiaorg/celestia-app/v8 => ../..
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.0
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.1
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.3
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
