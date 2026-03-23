@@ -44,12 +44,12 @@ type MsgForward struct {
 	DestDomain uint32 `protobuf:"varint,3,opt,name=dest_domain,json=destDomain,proto3" json:"dest_domain,omitempty"`
 	// dest_recipient is the recipient on destination chain (32 bytes, hex-encoded, 0x prefix optional).
 	DestRecipient string `protobuf:"bytes,4,opt,name=dest_recipient,json=destRecipient,proto3" json:"dest_recipient,omitempty"`
+	// token_id is the Hyperlane token identifier this forwarding request is bound to.
+	TokenId string `protobuf:"bytes,5,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
 	// max_igp_fee is the maximum Hyperlane IGP fee the relayer will pay for this forwarding.
 	// The actual fee charged is the lesser of max_igp_fee and the quoted fee.
 	// Required: relayer must provide sufficient fee for the transfer.
-	MaxIgpFee types.Coin `protobuf:"bytes,5,opt,name=max_igp_fee,json=maxIgpFee,proto3" json:"max_igp_fee"`
-	// token_id is the Hyperlane token identifier this forwarding request is bound to.
-	TokenId string `protobuf:"bytes,6,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
+	MaxIgpFee types.Coin `protobuf:"bytes,6,opt,name=max_igp_fee,json=maxIgpFee,proto3" json:"max_igp_fee"`
 }
 
 func (m *MsgForward) Reset()         { *m = MsgForward{} }
@@ -113,13 +113,6 @@ func (m *MsgForward) GetDestRecipient() string {
 	return ""
 }
 
-func (m *MsgForward) GetMaxIgpFee() types.Coin {
-	if m != nil {
-		return m.MaxIgpFee
-	}
-	return types.Coin{}
-}
-
 func (m *MsgForward) GetTokenId() string {
 	if m != nil {
 		return m.TokenId
@@ -127,10 +120,21 @@ func (m *MsgForward) GetTokenId() string {
 	return ""
 }
 
+func (m *MsgForward) GetMaxIgpFee() types.Coin {
+	if m != nil {
+		return m.MaxIgpFee
+	}
+	return types.Coin{}
+}
+
 // MsgForwardResponse is the response for MsgForward.
 type MsgForwardResponse struct {
-	// results contains the per-token forwarding results.
-	Results []ForwardingResult `protobuf:"bytes,1,rep,name=results,proto3" json:"results"`
+	// denom is the token denomination.
+	Denom string `protobuf:"bytes,1,opt,name=denom,proto3" json:"denom,omitempty"`
+	// amount is the amount forwarded.
+	Amount cosmossdk_io_math.Int `protobuf:"bytes,2,opt,name=amount,proto3,customtype=cosmossdk.io/math.Int" json:"amount"`
+	// message_id is the Hyperlane message ID.
+	MessageId string `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 }
 
 func (m *MsgForwardResponse) Reset()         { *m = MsgForwardResponse{} }
@@ -166,84 +170,16 @@ func (m *MsgForwardResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgForwardResponse proto.InternalMessageInfo
 
-func (m *MsgForwardResponse) GetResults() []ForwardingResult {
-	if m != nil {
-		return m.Results
-	}
-	return nil
-}
-
-// ForwardingResult contains the result for a single token forward.
-type ForwardingResult struct {
-	// denom is the token denomination.
-	Denom string `protobuf:"bytes,1,opt,name=denom,proto3" json:"denom,omitempty"`
-	// amount is the amount forwarded.
-	Amount cosmossdk_io_math.Int `protobuf:"bytes,2,opt,name=amount,proto3,customtype=cosmossdk.io/math.Int" json:"amount"`
-	// message_id is the Hyperlane message ID (empty if failed).
-	MessageId string `protobuf:"bytes,3,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	// success indicates whether the forward succeeded.
-	Success bool `protobuf:"varint,4,opt,name=success,proto3" json:"success,omitempty"`
-	// error contains the error message if failed (empty if success).
-	Error string `protobuf:"bytes,5,opt,name=error,proto3" json:"error,omitempty"`
-}
-
-func (m *ForwardingResult) Reset()         { *m = ForwardingResult{} }
-func (m *ForwardingResult) String() string { return proto.CompactTextString(m) }
-func (*ForwardingResult) ProtoMessage()    {}
-func (*ForwardingResult) Descriptor() ([]byte, []int) {
-	return fileDescriptor_3cfda3a3251c777e, []int{2}
-}
-func (m *ForwardingResult) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *ForwardingResult) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_ForwardingResult.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *ForwardingResult) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ForwardingResult.Merge(m, src)
-}
-func (m *ForwardingResult) XXX_Size() int {
-	return m.Size()
-}
-func (m *ForwardingResult) XXX_DiscardUnknown() {
-	xxx_messageInfo_ForwardingResult.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ForwardingResult proto.InternalMessageInfo
-
-func (m *ForwardingResult) GetDenom() string {
+func (m *MsgForwardResponse) GetDenom() string {
 	if m != nil {
 		return m.Denom
 	}
 	return ""
 }
 
-func (m *ForwardingResult) GetMessageId() string {
+func (m *MsgForwardResponse) GetMessageId() string {
 	if m != nil {
 		return m.MessageId
-	}
-	return ""
-}
-
-func (m *ForwardingResult) GetSuccess() bool {
-	if m != nil {
-		return m.Success
-	}
-	return false
-}
-
-func (m *ForwardingResult) GetError() string {
-	if m != nil {
-		return m.Error
 	}
 	return ""
 }
@@ -251,49 +187,44 @@ func (m *ForwardingResult) GetError() string {
 func init() {
 	proto.RegisterType((*MsgForward)(nil), "celestia.forwarding.v1.MsgForward")
 	proto.RegisterType((*MsgForwardResponse)(nil), "celestia.forwarding.v1.MsgForwardResponse")
-	proto.RegisterType((*ForwardingResult)(nil), "celestia.forwarding.v1.ForwardingResult")
 }
 
 func init() { proto.RegisterFile("celestia/forwarding/v1/tx.proto", fileDescriptor_3cfda3a3251c777e) }
 
 var fileDescriptor_3cfda3a3251c777e = []byte{
-	// 568 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x53, 0x41, 0x6f, 0xd3, 0x30,
-	0x18, 0x6d, 0xd6, 0xb5, 0x5d, 0x1d, 0x86, 0x90, 0x55, 0x20, 0xad, 0x44, 0x5a, 0x55, 0x42, 0xaa,
-	0x8a, 0x9a, 0xd0, 0x22, 0x71, 0x80, 0x03, 0xa2, 0x43, 0x15, 0x3d, 0x4c, 0x42, 0xe1, 0x04, 0x07,
-	0x22, 0x37, 0xf6, 0x3c, 0x6b, 0x8b, 0x1d, 0xd9, 0x6e, 0x29, 0x37, 0xc4, 0x2f, 0xe0, 0x87, 0x70,
-	0xd8, 0x61, 0x47, 0x7e, 0xc0, 0x8e, 0xd3, 0x4e, 0x88, 0xc3, 0x84, 0xda, 0xc3, 0xfe, 0x06, 0x4a,
-	0xe2, 0xac, 0x08, 0x81, 0x76, 0xcb, 0xf7, 0xbe, 0xf7, 0x9e, 0xbf, 0xef, 0x39, 0x06, 0xed, 0x88,
-	0x1c, 0x13, 0xa5, 0x19, 0xf2, 0x0f, 0x84, 0xfc, 0x88, 0x24, 0x66, 0x9c, 0xfa, 0x8b, 0xa1, 0xaf,
-	0x97, 0x5e, 0x22, 0x85, 0x16, 0xf0, 0x5e, 0x41, 0xf0, 0x36, 0x04, 0x6f, 0x31, 0x6c, 0x35, 0xa8,
-	0xa0, 0x22, 0xa3, 0xf8, 0xe9, 0x57, 0xce, 0x6e, 0xdd, 0x8f, 0x84, 0x8a, 0x85, 0xf2, 0x63, 0x95,
-	0xb9, 0xc4, 0x8a, 0x9a, 0x46, 0x33, 0x6f, 0x84, 0xb9, 0x22, 0x2f, 0x4c, 0xcb, 0x35, 0x9a, 0x19,
-	0x52, 0xc4, 0x5f, 0x0c, 0x67, 0x44, 0xa3, 0xa1, 0x1f, 0x09, 0xc6, 0xf3, 0x7e, 0xf7, 0xdb, 0x16,
-	0x00, 0xfb, 0x8a, 0x4e, 0xf2, 0xe3, 0xe1, 0x63, 0x50, 0x55, 0x8c, 0x72, 0x22, 0x1d, 0xab, 0x63,
-	0xf5, 0xea, 0x63, 0xe7, 0xe2, 0x74, 0xd0, 0x30, 0x86, 0x2f, 0x31, 0x96, 0x44, 0xa9, 0xb7, 0x5a,
-	0x32, 0x4e, 0x03, 0xc3, 0x83, 0xcf, 0xc1, 0x2d, 0x33, 0x7b, 0x88, 0x30, 0x96, 0xce, 0xd6, 0x0d,
-	0x3a, 0xdb, 0xb0, 0x53, 0x14, 0xb6, 0x81, 0x8d, 0x89, 0xd2, 0x21, 0x16, 0x31, 0x62, 0xdc, 0x29,
-	0x77, 0xac, 0xde, 0x6e, 0x00, 0x52, 0xe8, 0x55, 0x86, 0xc0, 0x87, 0xe0, 0x76, 0x46, 0x90, 0x24,
-	0x62, 0x09, 0x23, 0x5c, 0x3b, 0xdb, 0xa9, 0x7f, 0xb0, 0x9b, 0xa2, 0x41, 0x01, 0xc2, 0x17, 0xc0,
-	0x8e, 0xd1, 0x32, 0x64, 0x34, 0x09, 0x0f, 0x08, 0x71, 0x2a, 0x1d, 0xab, 0x67, 0x8f, 0x9a, 0x9e,
-	0x19, 0x20, 0xdd, 0xdd, 0x33, 0xbb, 0x7b, 0x7b, 0x82, 0xf1, 0xf1, 0xf6, 0xd9, 0x65, 0xbb, 0x14,
-	0xd4, 0x63, 0xb4, 0x9c, 0xd2, 0x64, 0x42, 0x08, 0x6c, 0x82, 0x1d, 0x2d, 0x8e, 0x08, 0x0f, 0x19,
-	0x76, 0xaa, 0xd9, 0x09, 0xb5, 0xac, 0x9e, 0xe2, 0x67, 0xf6, 0x97, 0xab, 0x93, 0xbe, 0xd9, 0xb6,
-	0xfb, 0x01, 0xc0, 0x4d, 0x5a, 0x01, 0x51, 0x89, 0xe0, 0x8a, 0xc0, 0xd7, 0xa0, 0x26, 0x89, 0x9a,
-	0x1f, 0x6b, 0xe5, 0x58, 0x9d, 0x72, 0xcf, 0x1e, 0xf5, 0xbc, 0x7f, 0x5f, 0xac, 0x37, 0xb9, 0xae,
-	0x82, 0x4c, 0x60, 0x26, 0x29, 0xe4, 0xdd, 0xef, 0x16, 0xb8, 0xf3, 0x37, 0x07, 0x36, 0x40, 0x05,
-	0x13, 0x2e, 0xe2, 0xfc, 0x4e, 0x82, 0xbc, 0x80, 0x7b, 0xa0, 0x8a, 0x62, 0x31, 0xe7, 0xda, 0x44,
-	0xfe, 0x28, 0x75, 0xfa, 0x79, 0xd9, 0xbe, 0x9b, 0x6f, 0xad, 0xf0, 0x91, 0xc7, 0x84, 0x1f, 0x23,
-	0x7d, 0xe8, 0x4d, 0xb9, 0xbe, 0x38, 0x1d, 0x00, 0x13, 0xc7, 0x94, 0xeb, 0xc0, 0x48, 0xe1, 0x03,
-	0x00, 0x62, 0xa2, 0x14, 0xa2, 0x24, 0xdd, 0xbc, 0x9c, 0xf9, 0xd7, 0x0d, 0x32, 0xc5, 0xd0, 0x01,
-	0x35, 0x35, 0x8f, 0x22, 0xa2, 0x54, 0x96, 0xfb, 0x4e, 0x50, 0x94, 0xe9, 0x4c, 0x44, 0x4a, 0x21,
-	0xb3, 0xac, 0xeb, 0x41, 0x5e, 0x8c, 0x28, 0x28, 0xef, 0x2b, 0x0a, 0xdf, 0x81, 0x5a, 0xf1, 0x43,
-	0x75, 0xff, 0x97, 0xc4, 0x26, 0xc6, 0x56, 0xff, 0x66, 0x4e, 0x11, 0x75, 0xab, 0xf2, 0xf9, 0xea,
-	0xa4, 0x6f, 0x8d, 0xdf, 0x9c, 0xad, 0x5c, 0xeb, 0x7c, 0xe5, 0x5a, 0xbf, 0x56, 0xae, 0xf5, 0x75,
-	0xed, 0x96, 0xce, 0xd7, 0x6e, 0xe9, 0xc7, 0xda, 0x2d, 0xbd, 0x7f, 0x4a, 0x99, 0x3e, 0x9c, 0xcf,
-	0xbc, 0x48, 0xc4, 0x7e, 0x61, 0x2b, 0x24, 0xbd, 0xfe, 0x1e, 0xa0, 0x24, 0xf1, 0x97, 0x7f, 0x3e,
-	0x48, 0xfd, 0x29, 0x21, 0x6a, 0x56, 0xcd, 0xde, 0xc3, 0x93, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff,
-	0x9e, 0xc9, 0x57, 0xab, 0xb4, 0x03, 0x00, 0x00,
+	// 509 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x53, 0x41, 0x6b, 0x13, 0x41,
+	0x14, 0xce, 0x36, 0x4d, 0x6a, 0x26, 0xd6, 0xc3, 0x10, 0x75, 0x13, 0x70, 0x13, 0x02, 0x42, 0x88,
+	0x64, 0xd6, 0x54, 0xf0, 0xa0, 0x07, 0x31, 0x95, 0x42, 0x0e, 0x05, 0x59, 0x4f, 0x7a, 0x59, 0x26,
+	0x99, 0xd7, 0xe9, 0x50, 0x67, 0x66, 0xd9, 0x99, 0xc6, 0x78, 0x13, 0x7f, 0x80, 0xf8, 0x43, 0x3c,
+	0xf4, 0xd0, 0x1f, 0xd1, 0x63, 0xe9, 0x49, 0x3c, 0x14, 0x49, 0x0e, 0xfd, 0x1b, 0xb2, 0xbb, 0xb3,
+	0xc6, 0x83, 0xd0, 0xdb, 0xbc, 0xef, 0x7d, 0xef, 0x9b, 0xef, 0x7d, 0x3b, 0x8b, 0xba, 0x73, 0xf8,
+	0x08, 0xc6, 0x0a, 0x1a, 0x1e, 0xe9, 0xf4, 0x13, 0x4d, 0x99, 0x50, 0x3c, 0x5c, 0x8c, 0x43, 0xbb,
+	0x24, 0x49, 0xaa, 0xad, 0xc6, 0x0f, 0x4a, 0x02, 0xd9, 0x10, 0xc8, 0x62, 0xdc, 0x09, 0xe6, 0xda,
+	0x48, 0x6d, 0xc2, 0x19, 0x35, 0x10, 0x2e, 0xc6, 0x33, 0xb0, 0x74, 0x1c, 0xce, 0xb5, 0x50, 0xc5,
+	0x5c, 0xe7, 0xa1, 0xeb, 0x4b, 0x93, 0xeb, 0x49, 0xc3, 0x5d, 0xa3, 0x5d, 0x34, 0xe2, 0xbc, 0x0a,
+	0x8b, 0xc2, 0xb5, 0x5a, 0x5c, 0x73, 0x5d, 0xe0, 0xd9, 0xa9, 0x40, 0xfb, 0x3f, 0xb6, 0x10, 0x3a,
+	0x34, 0xfc, 0xa0, 0xb8, 0x1e, 0x3f, 0x45, 0x75, 0x23, 0xb8, 0x82, 0xd4, 0xf7, 0x7a, 0xde, 0xa0,
+	0x31, 0xf1, 0xaf, 0xce, 0x47, 0x2d, 0x27, 0xf3, 0x9a, 0xb1, 0x14, 0x8c, 0x79, 0x67, 0x53, 0xa1,
+	0x78, 0xe4, 0x78, 0xf8, 0x25, 0xba, 0xeb, 0xbc, 0xc7, 0x94, 0xb1, 0xd4, 0xdf, 0xba, 0x65, 0xae,
+	0xe9, 0xd8, 0x19, 0x8a, 0xbb, 0xa8, 0xc9, 0xc0, 0xd8, 0x98, 0x69, 0x49, 0x85, 0xf2, 0xab, 0x3d,
+	0x6f, 0xb0, 0x1b, 0xa1, 0x0c, 0x7a, 0x93, 0x23, 0xf8, 0x31, 0xba, 0x97, 0x13, 0x52, 0x98, 0x8b,
+	0x44, 0x80, 0xb2, 0xfe, 0x76, 0xa6, 0x1f, 0xed, 0x66, 0x68, 0x54, 0x82, 0xb8, 0x8d, 0xee, 0x58,
+	0x7d, 0x02, 0x2a, 0x16, 0xcc, 0xaf, 0xe5, 0x84, 0x9d, 0xbc, 0x9e, 0x32, 0xfc, 0x0a, 0x35, 0x25,
+	0x5d, 0xc6, 0x82, 0x27, 0xf1, 0x11, 0x80, 0x5f, 0xef, 0x79, 0x83, 0xe6, 0x5e, 0x9b, 0x38, 0x6f,
+	0x59, 0xc0, 0xc4, 0x05, 0x4c, 0xf6, 0xb5, 0x50, 0x93, 0xed, 0x8b, 0xeb, 0x6e, 0x25, 0x6a, 0x48,
+	0xba, 0x9c, 0xf2, 0xe4, 0x00, 0xe0, 0x45, 0xf3, 0xeb, 0xcd, 0xd9, 0xd0, 0x6d, 0xdb, 0xff, 0xe6,
+	0x21, 0xbc, 0x89, 0x2b, 0x02, 0x93, 0x68, 0x65, 0x00, 0xb7, 0x50, 0x8d, 0x81, 0xd2, 0xb2, 0x48,
+	0x2d, 0x2a, 0x0a, 0xbc, 0x8f, 0xea, 0x54, 0xea, 0x53, 0x65, 0x5d, 0x28, 0x4f, 0x32, 0xe9, 0x5f,
+	0xd7, 0xdd, 0xfb, 0xc5, 0xe5, 0x86, 0x9d, 0x10, 0xa1, 0x43, 0x49, 0xed, 0x31, 0x99, 0x2a, 0x7b,
+	0x75, 0x3e, 0x42, 0xce, 0xd5, 0x54, 0xd9, 0xc8, 0x8d, 0xe2, 0x47, 0x08, 0x49, 0x30, 0x86, 0x72,
+	0xc8, 0x96, 0xab, 0xe6, 0xfa, 0x0d, 0x87, 0x4c, 0xd9, 0x1e, 0x47, 0xd5, 0x43, 0xc3, 0xf1, 0x7b,
+	0xb4, 0x53, 0x7e, 0xc2, 0x3e, 0xf9, 0xff, 0xa3, 0x22, 0x1b, 0xdf, 0x9d, 0xe1, 0xed, 0x9c, 0x72,
+	0xb7, 0x4e, 0xed, 0xcb, 0xcd, 0xd9, 0xd0, 0x9b, 0xbc, 0xbd, 0x58, 0x05, 0xde, 0xe5, 0x2a, 0xf0,
+	0x7e, 0xaf, 0x02, 0xef, 0xfb, 0x3a, 0xa8, 0x5c, 0xae, 0x83, 0xca, 0xcf, 0x75, 0x50, 0xf9, 0xf0,
+	0x9c, 0x0b, 0x7b, 0x7c, 0x3a, 0x23, 0x73, 0x2d, 0xc3, 0x52, 0x56, 0xa7, 0xfc, 0xef, 0x79, 0x44,
+	0x93, 0x24, 0x5c, 0xfe, 0xfb, 0x0b, 0xd8, 0xcf, 0x09, 0x98, 0x59, 0x3d, 0x7f, 0x81, 0xcf, 0xfe,
+	0x04, 0x00, 0x00, 0xff, 0xff, 0xa1, 0x5f, 0xfe, 0x96, 0x26, 0x03, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -308,8 +239,8 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type MsgClient interface {
-	// Forward forwards all tokens at a derived forwarding address
-	// to their committed destination via Hyperlane warp transfer.
+	// Forward forwards the token bound to a derived forwarding address
+	// to its committed destination via Hyperlane warp transfer.
 	Forward(ctx context.Context, in *MsgForward, opts ...grpc.CallOption) (*MsgForwardResponse, error)
 }
 
@@ -332,8 +263,8 @@ func (c *msgClient) Forward(ctx context.Context, in *MsgForward, opts ...grpc.Ca
 
 // MsgServer is the server API for Msg service.
 type MsgServer interface {
-	// Forward forwards all tokens at a derived forwarding address
-	// to their committed destination via Hyperlane warp transfer.
+	// Forward forwards the token bound to a derived forwarding address
+	// to its committed destination via Hyperlane warp transfer.
 	Forward(context.Context, *MsgForward) (*MsgForwardResponse, error)
 }
 
@@ -401,13 +332,6 @@ func (m *MsgForward) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.TokenId) > 0 {
-		i -= len(m.TokenId)
-		copy(dAtA[i:], m.TokenId)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.TokenId)))
-		i--
-		dAtA[i] = 0x32
-	}
 	{
 		size, err := m.MaxIgpFee.MarshalToSizedBuffer(dAtA[:i])
 		if err != nil {
@@ -417,7 +341,14 @@ func (m *MsgForward) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintTx(dAtA, i, uint64(size))
 	}
 	i--
-	dAtA[i] = 0x2a
+	dAtA[i] = 0x32
+	if len(m.TokenId) > 0 {
+		i -= len(m.TokenId)
+		copy(dAtA[i:], m.TokenId)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.TokenId)))
+		i--
+		dAtA[i] = 0x2a
+	}
 	if len(m.DestRecipient) > 0 {
 		i -= len(m.DestRecipient)
 		copy(dAtA[i:], m.DestRecipient)
@@ -467,60 +398,6 @@ func (m *MsgForwardResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Results) > 0 {
-		for iNdEx := len(m.Results) - 1; iNdEx >= 0; iNdEx-- {
-			{
-				size, err := m.Results[iNdEx].MarshalToSizedBuffer(dAtA[:i])
-				if err != nil {
-					return 0, err
-				}
-				i -= size
-				i = encodeVarintTx(dAtA, i, uint64(size))
-			}
-			i--
-			dAtA[i] = 0xa
-		}
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *ForwardingResult) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *ForwardingResult) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *ForwardingResult) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if len(m.Error) > 0 {
-		i -= len(m.Error)
-		copy(dAtA[i:], m.Error)
-		i = encodeVarintTx(dAtA, i, uint64(len(m.Error)))
-		i--
-		dAtA[i] = 0x2a
-	}
-	if m.Success {
-		i--
-		if m.Success {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x20
-	}
 	if len(m.MessageId) > 0 {
 		i -= len(m.MessageId)
 		copy(dAtA[i:], m.MessageId)
@@ -580,31 +457,16 @@ func (m *MsgForward) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
-	l = m.MaxIgpFee.Size()
-	n += 1 + l + sovTx(uint64(l))
 	l = len(m.TokenId)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
+	l = m.MaxIgpFee.Size()
+	n += 1 + l + sovTx(uint64(l))
 	return n
 }
 
 func (m *MsgForwardResponse) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	if len(m.Results) > 0 {
-		for _, e := range m.Results {
-			l = e.Size()
-			n += 1 + l + sovTx(uint64(l))
-		}
-	}
-	return n
-}
-
-func (m *ForwardingResult) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -617,13 +479,6 @@ func (m *ForwardingResult) Size() (n int) {
 	l = m.Amount.Size()
 	n += 1 + l + sovTx(uint64(l))
 	l = len(m.MessageId)
-	if l > 0 {
-		n += 1 + l + sovTx(uint64(l))
-	}
-	if m.Success {
-		n += 2
-	}
-	l = len(m.Error)
 	if l > 0 {
 		n += 1 + l + sovTx(uint64(l))
 	}
@@ -782,6 +637,38 @@ func (m *MsgForward) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TokenId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TokenId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MaxIgpFee", wireType)
 			}
 			var msglen int
@@ -812,38 +699,6 @@ func (m *MsgForward) Unmarshal(dAtA []byte) error {
 			if err := m.MaxIgpFee.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
-			iNdEx = postIndex
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TokenId", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.TokenId = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
@@ -893,90 +748,6 @@ func (m *MsgForwardResponse) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: MsgForwardResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Results", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Results = append(m.Results, ForwardingResult{})
-			if err := m.Results[len(m.Results)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipTx(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthTx
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *ForwardingResult) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowTx
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: ForwardingResult: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: ForwardingResult: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
@@ -1076,58 +847,6 @@ func (m *ForwardingResult) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.MessageId = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Success", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.Success = bool(v != 0)
-		case 5:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowTx
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthTx
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthTx
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Error = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex

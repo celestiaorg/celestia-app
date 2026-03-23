@@ -370,8 +370,9 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Len(t, resp.Results, 1)
-	require.True(t, resp.Results[0].Success)
+	require.Equal(t, appconsts.BondDenom, resp.Denom)
+	require.Equal(t, math.NewInt(1000), resp.Amount)
+	require.Equal(t, messageId.String(), resp.MessageId)
 
 	// Verify: signer paid 100, got 20 refund, net cost = 80
 	// Final signer balance = 200 - 100 + 20 = 120
@@ -407,9 +408,9 @@ func TestForward_LeavesUnrelatedBalancesUntouched(t *testing.T) {
 	resp, err := s.msgServer.Forward(s.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Len(t, resp.Results, 1)
-	require.True(t, resp.Results[0].Success)
-	require.Equal(t, appconsts.BondDenom, resp.Results[0].Denom)
+	require.Equal(t, appconsts.BondDenom, resp.Denom)
+	require.Equal(t, math.NewInt(1_000_000), resp.Amount)
+	require.Equal(t, messageId.String(), resp.MessageId)
 	require.True(t, s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).IsZero())
 	require.Equal(t, math.NewInt(42), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, "ibc/unrelated").Amount)
 }
@@ -505,9 +506,9 @@ func TestForward_SyntheticToken(t *testing.T) {
 	resp, err := msgServer.Forward(ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Len(t, resp.Results, 1)
-	require.True(t, resp.Results[0].Success)
-	require.Equal(t, synthDenom, resp.Results[0].Denom)
+	require.Equal(t, synthDenom, resp.Denom)
+	require.Equal(t, math.NewInt(75), resp.Amount)
+	require.Equal(t, messageId.String(), resp.MessageId)
 	require.True(t, bankKeeper.GetBalance(ctx, forwardAddr, synthDenom).IsZero())
 	require.Equal(t, math.NewInt(11), bankKeeper.GetBalance(ctx, forwardAddr, appconsts.BondDenom).Amount)
 }

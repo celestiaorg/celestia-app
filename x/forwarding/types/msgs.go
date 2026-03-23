@@ -2,7 +2,6 @@ package types
 
 import (
 	"cosmossdk.io/errors"
-	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -55,26 +54,4 @@ func (msg *MsgForward) ValidateBasic() error {
 	}
 
 	return nil
-}
-
-// NewSuccessResult creates a ForwardingResult indicating successful token forwarding.
-func NewSuccessResult(denom string, amount math.Int, messageId string) ForwardingResult {
-	return ForwardingResult{
-		Denom:     denom,
-		Amount:    amount,
-		MessageId: messageId,
-		Success:   true,
-		Error:     "",
-	}
-}
-
-// NewFailureResult creates a ForwardingResult indicating failed token forwarding.
-func NewFailureResult(denom string, amount math.Int, errMsg string) ForwardingResult {
-	return ForwardingResult{
-		Denom:     denom,
-		Amount:    amount,
-		MessageId: "",
-		Success:   false,
-		Error:     errMsg,
-	}
 }

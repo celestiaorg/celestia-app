@@ -1,10 +1,10 @@
 syntax = "proto3";
 package celestia.forwarding.v1;
 
-import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
-import "cosmos/base/v1beta1/coin.proto";
+import "gogoproto/gogo.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 
@@ -12,8 +12,8 @@ option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 service Msg {
   option (cosmos.msg.v1.service) = true;
 
-  // Forward forwards all tokens at a derived forwarding address
-  // to their committed destination via Hyperlane warp transfer.
+  // Forward forwards the token bound to a derived forwarding address
+  // to its committed destination via Hyperlane warp transfer.
   rpc Forward(MsgForward) returns (MsgForwardResponse);
 }
 
@@ -35,39 +35,27 @@ message MsgForward {
   // dest_recipient is the recipient on destination chain (32 bytes, hex-encoded, 0x prefix optional).
   string dest_recipient = 4;
 
+  // token_id is the Hyperlane token identifier this forwarding request is bound to.
+  string token_id = 5;
+
   // max_igp_fee is the maximum Hyperlane IGP fee the relayer will pay for this forwarding.
   // The actual fee charged is the lesser of max_igp_fee and the quoted fee.
   // Required: relayer must provide sufficient fee for the transfer.
-  cosmos.base.v1beta1.Coin max_igp_fee = 5 [(gogoproto.nullable) = false];
-
-  // token_id is the Hyperlane token identifier this forwarding request is bound to.
-  string token_id = 6;
+  cosmos.base.v1beta1.Coin max_igp_fee = 6 [(gogoproto.nullable) = false];
 }
 
 // MsgForwardResponse is the response for MsgForward.
 message MsgForwardResponse {
-  // results contains the per-token forwarding results.
-  repeated ForwardingResult results = 1 [(gogoproto.nullable) = false];
-}
-
-// ForwardingResult contains the result for a single token forward.
-message ForwardingResult {
   // denom is the token denomination.
   string denom = 1;
 
   // amount is the amount forwarded.
   string amount = 2 [
-    (cosmos_proto.scalar)  = "cosmos.Int",
+    (cosmos_proto.scalar) = "cosmos.Int",
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
-    (gogoproto.nullable)   = false
+    (gogoproto.nullable) = false
   ];
 
-  // message_id is the Hyperlane message ID (empty if failed).
+  // message_id is the Hyperlane message ID.
   string message_id = 3;
-
-  // success indicates whether the forward succeeded.
-  bool success = 4;
-
-  // error contains the error message if failed (empty if success).
-  string error = 5;
 }

@@ -34,34 +34,6 @@ func TestNewMsgForward(t *testing.T) {
 	assert.Equal(t, maxIgpFee, msg.MaxIgpFee)
 }
 
-func TestNewSuccessResult(t *testing.T) {
-	denom := "utia"
-	amount := math.NewInt(1000000)
-	messageId := "0xabcdef1234567890"
-
-	result := types.NewSuccessResult(denom, amount, messageId)
-
-	assert.Equal(t, denom, result.Denom)
-	assert.Equal(t, amount, result.Amount)
-	assert.Equal(t, messageId, result.MessageId)
-	assert.True(t, result.Success)
-	assert.Empty(t, result.Error)
-}
-
-func TestNewFailureResult(t *testing.T) {
-	denom := "utia"
-	amount := math.NewInt(500000)
-	errMsg := "no warp route to destination domain"
-
-	result := types.NewFailureResult(denom, amount, errMsg)
-
-	assert.Equal(t, denom, result.Denom)
-	assert.Equal(t, amount, result.Amount)
-	assert.Empty(t, result.MessageId)
-	assert.False(t, result.Success)
-	assert.Equal(t, errMsg, result.Error)
-}
-
 func TestMsgForwardValidateBasic(t *testing.T) {
 	validSignerBytes := []byte("testsigner__________")      // 20 bytes
 	validForwardAddrBytes := []byte("forwardaddr_________") // 20 bytes

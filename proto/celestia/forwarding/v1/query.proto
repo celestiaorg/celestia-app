@@ -2,9 +2,9 @@ syntax = "proto3";
 package celestia.forwarding.v1;
 
 import "cosmos/base/v1beta1/coin.proto";
+import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
-import "cosmos_proto/cosmos.proto";
 
 option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 
@@ -12,13 +12,13 @@ option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 service Query {
   // DeriveForwardingAddress derives the forwarding address for given parameters.
   rpc DeriveForwardingAddress(QueryDeriveForwardingAddressRequest) returns (QueryDeriveForwardingAddressResponse) {
-    option (google.api.http).get = "/celestia/forwarding/v1/derive_address/{dest_domain}/{dest_recipient}/{token_id}";
+    option (google.api.http).get = "/celestia/forwarding/v1/derive_address/{token_id}/{dest_domain}/{dest_recipient}";
   }
 
   // QuoteForwardingFee returns the estimated Hyperlane IGP fee for forwarding to a destination.
   // Relayers should query this before submitting MsgForward to determine the required max_igp_fee.
   rpc QuoteForwardingFee(QueryQuoteForwardingFeeRequest) returns (QueryQuoteForwardingFeeResponse) {
-    option (google.api.http).get = "/celestia/forwarding/v1/quote_fee/{dest_domain}/{token_id}";
+    option (google.api.http).get = "/celestia/forwarding/v1/quote_fee/{token_id}/{dest_domain}";
   }
 }
 

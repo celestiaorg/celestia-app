@@ -62,20 +62,14 @@ message MsgForward {
   string forward_addr = 2;  // The derived forwarding address
   uint32 dest_domain = 3;   // Destination chain domain ID
   string dest_recipient = 4; // Recipient on destination (32 bytes, hex)
-  Coin max_igp_fee = 5;     // Max IGP fee relayer will pay
-  string token_id = 6;      // Hyperlane token identifier bound to this address
+  string token_id = 5;      // Hyperlane token identifier bound to this address
+  Coin max_igp_fee = 6;     // Max IGP fee relayer will pay
 }
 
 message MsgForwardResponse {
-  repeated ForwardingResult results = 1;  // Per-token results
-}
-
-message ForwardingResult {
   string denom = 1;
   string amount = 2;
-  string message_id = 3;  // Hyperlane message ID (empty if failed)
-  bool success = 4;
-  string error = 5;
+  string message_id = 3;  // Hyperlane message ID
 }
 ```
 
@@ -100,21 +94,10 @@ message ForwardingResult {
 | Attribute    | Description                            |
 |--------------|----------------------------------------|
 | forward_addr | The forwarding address                 |
+| token_id     | Hyperlane token identifier             |
 | denom        | Token denomination                     |
 | amount       | Amount forwarded                       |
-| message_id   | Hyperlane message ID (empty if failed) |
-| success      | Whether forwarding succeeded           |
-| error        | Error message if failed                |
-
-### EventForwardingComplete
-
-| Attribute        | Description                  |
-|------------------|------------------------------|
-| forward_addr     | The forwarding address       |
-| dest_domain      | Destination chain domain     |
-| dest_recipient   | Recipient on destination     |
-| tokens_forwarded | Count of successful forwards |
-| tokens_failed    | Count of failed forwards     |
+| message_id   | Hyperlane message ID                   |
 
 ## Fee Handling
 
