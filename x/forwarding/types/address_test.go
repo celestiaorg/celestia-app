@@ -200,6 +200,28 @@ func TestDeriveForwardingAddressReturnsErrorOnInvalidLength(t *testing.T) {
 	}
 }
 
+func TestDeriveForwardingAddressReturnsErrorOnInvalidTokenIDLength(t *testing.T) {
+	destRecipient := make([]byte, types.RecipientLength)
+
+	testCases := []struct {
+		name    string
+		tokenID []byte
+	}{
+		{"empty", []byte{}},
+		{"too_short_31_bytes", make([]byte, types.TokenIDLength-1)},
+		{"too_long_33_bytes", make([]byte, types.TokenIDLength+1)},
+		{"way_too_short", []byte{0x01, 0x02}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := types.DeriveForwardingAddress(1, destRecipient, tc.tokenID)
+			require.Error(t, err, "should return error for tokenID length %d", len(tc.tokenID))
+			require.ErrorContains(t, err, "invalid token_id length")
+		})
+	}
+}
+
 func tokenIDBytes(t *testing.T, id uint64) []byte {
 	t.Helper()
 	return hexToBytes(t, fmt.Sprintf("%064x", id))

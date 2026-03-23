@@ -19,9 +19,9 @@ message EventTokenForwarded {
 
   // amount is the amount forwarded.
   string amount = 4 [
-    (cosmos_proto.scalar) = "cosmos.Int",
+    (cosmos_proto.scalar)  = "cosmos.Int",
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
-    (gogoproto.nullable) = false
+    (gogoproto.nullable)   = false
   ];
 
   // message_id is the Hyperlane message ID.

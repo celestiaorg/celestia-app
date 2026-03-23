@@ -15,6 +15,8 @@ const (
 	// RecipientLength is 32 bytes - the Hyperlane standard for cross-chain recipient addresses.
 	// EVM 20-byte addresses must be left-padded with 12 zero bytes to meet this requirement.
 	RecipientLength = 32
+	// TokenIDLength is 32 bytes - the Hyperlane token identifier length.
+	TokenIDLength = 32
 	// DomainEncodingSize is the byte size for ABI-encoding domain IDs (uint256).
 	DomainEncodingSize = 32
 	// DomainOffset is where uint32 is placed in the 32-byte buffer (right-aligned).
@@ -37,6 +39,10 @@ const (
 func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID []byte) ([]byte, error) {
 	if len(destRecipient) != RecipientLength {
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidRecipient, RecipientLength, len(destRecipient))
+	}
+
+	if len(tokenID) != TokenIDLength {
+		return nil, fmt.Errorf("invalid token_id length: expected %d bytes, got %d", TokenIDLength, len(tokenID))
 	}
 
 	// Step 1: Encode destDomain as 32-byte big-endian (right-aligned, ABI uint256 encoding)
