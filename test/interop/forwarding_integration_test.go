@@ -1,7 +1,6 @@
 package interop
 
 import (
-	"fmt"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -81,7 +80,34 @@ func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 	s.Require().NoError(err)
 }
 
-func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomTIA() {
+func (s *ForwardingIntegrationTestSuite) deriveForwardAddress(destDomain uint32, destRecipient []byte, tokenID util.HexAddress) sdk.AccAddress {
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(destDomain, destRecipient, tokenID.Bytes())
+	s.Require().NoError(err)
+	return sdk.AccAddress(forwardAddr)
+}
+
+func (s *ForwardingIntegrationTestSuite) bankDenomForToken(chain *ibctesting.TestChain, tokenID util.HexAddress) string {
+	app := s.GetCelestiaApp(chain)
+	token, err := app.WarpKeeper.HypTokens.Get(chain.GetContext(), tokenID.GetInternalId())
+	s.Require().NoError(err)
+
+	denom, err := app.ForwardingKeeper.BankDenomForToken(token)
+	s.Require().NoError(err)
+	return denom
+}
+
+func (s *ForwardingIntegrationTestSuite) newForwardMsg(forwardAddr sdk.AccAddress, destDomain uint32, destRecipient []byte, tokenID util.HexAddress) *forwardingtypes.MsgForward {
+	return forwardingtypes.NewMsgForward(
+		s.celestia.SenderAccount.GetAddress().String(),
+		forwardAddr.String(),
+		destDomain,
+		RecipientToHex(destRecipient).String(),
+		tokenID.String(),
+		sdk.NewCoin("utia", math.NewInt(0)),
+	)
+}
+
+func (s *ForwardingIntegrationTestSuite) TestBankDenomForTokenTIA() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
@@ -98,15 +124,16 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomTIA() {
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
 	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, tiaSynTokenID.String())
 
-	// Test FindHypTokenByDenom for "utia" with destDomain
-	hypToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, "utia", TestChainADomainID)
+	hypToken, err := celestiaApp.WarpKeeper.HypTokens.Get(ctx, collatTokenID.GetInternalId())
 	s.Require().NoError(err)
 
+	denom, err := celestiaApp.ForwardingKeeper.BankDenomForToken(hypToken)
+	s.Require().NoError(err)
 	s.Equal(warptypes.HYP_TOKEN_TYPE_COLLATERAL, hypToken.TokenType)
-	s.Equal(params.BondDenom, hypToken.OriginDenom)
+	s.Equal(params.BondDenom, denom)
 }
 
-func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomSynthetic() {
+func (s *ForwardingIntegrationTestSuite) TestBankDenomForTokenSynthetic() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
 
@@ -121,22 +148,14 @@ func (s *ForwardingIntegrationTestSuite) TestFindHypTokenByDenomSynthetic() {
 	// Create a synthetic token on celestia (representing a token from chainA)
 	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
-	// Get the synthetic token to find its denom
 	hypToken, err := celestiaApp.WarpKeeper.HypTokens.Get(ctx, synTokenID.GetInternalId())
 	s.Require().NoError(err)
 
-	syntheticDenom := hypToken.OriginDenom
-	s.T().Logf("Synthetic denom: %s", syntheticDenom)
-
-	// Enroll router so the synthetic has a route to TestChainADomainID
-	s.EnrollRemoteRouter(s.celestia, synTokenID, TestChainADomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
-
-	// Test FindHypTokenByDenom for synthetic denom
-	foundToken, err := celestiaApp.ForwardingKeeper.FindHypTokenByDenom(ctx, syntheticDenom, TestChainADomainID)
+	denom, err := celestiaApp.ForwardingKeeper.BankDenomForToken(hypToken)
 	s.Require().NoError(err)
 
-	s.Equal(warptypes.HYP_TOKEN_TYPE_SYNTHETIC, foundToken.TokenType)
-	s.Equal(syntheticDenom, foundToken.OriginDenom)
+	s.Equal(warptypes.HYP_TOKEN_TYPE_SYNTHETIC, hypToken.TokenType)
+	s.Equal("hyperlane/"+synTokenID.String(), denom)
 }
 
 func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
@@ -170,42 +189,6 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	s.False(hasNonExistent, "should NOT have router for non-existent domain")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestHasAnyRouteToDestination() {
-	celestiaApp := s.GetCelestiaApp(s.celestia)
-	ctx := s.celestia.GetContext()
-
-	// Test 1: No routes exist yet
-	hasRoute, err := celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestChainADomainID)
-	s.Require().NoError(err)
-	s.False(hasRoute, "should return false when no routes exist")
-
-	// Setup infrastructure
-	ismID := s.SetupNoopISM(s.celestia)
-	mailboxID := s.SetupMailBox(s.celestia, ismID, TestCelestiaDomainID)
-	collatTokenID := s.CreateCollateralToken(s.celestia, ismID, mailboxID, params.BondDenom)
-
-	// Test 2: Token exists but no route enrolled
-	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestChainADomainID)
-	s.Require().NoError(err)
-	s.False(hasRoute, "should return false when token exists but no route enrolled")
-
-	// Enroll route for collateral token
-	ismIDChainA := s.SetupNoopISM(s.chainA)
-	s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
-	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID.String())
-
-	// Test 3: Collateral token has route - returns true
-	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestChainADomainID)
-	s.Require().NoError(err)
-	s.True(hasRoute, "should return true when collateral token has route")
-
-	// Test 4: Non-existent domain - returns false
-	hasRoute, err = celestiaApp.ForwardingKeeper.HasAnyRouteToDestination(ctx, TestUnknownDomainID)
-	s.Require().NoError(err)
-	s.False(hasRoute, "should return false for non-existent domain")
-}
-
 func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 	ctx := s.celestia.GetContext()
@@ -226,8 +209,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {
 
 	// Create destination recipient and derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(TestChainADomainID, destRecipient, collatTokenID)
 
 	// Fund the forwarding address
 	fundAmount := math.NewInt(1000)
@@ -238,13 +220,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {
 	s.Equal(fundAmount.Int64(), forwardBalance.Amount.Int64())
 
 	// Create and execute MsgForward
-	msg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		TestChainADomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	msg := s.newForwardMsg(forwardAddr, TestChainADomainID, destRecipient, collatTokenID)
 
 	res, err := s.celestia.SendMsgs(msg)
 	s.Require().NoError(err)
@@ -270,7 +246,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {
 			hypDenom, err := chainAApp.WarpKeeper.HypTokens.Get(s.chainA.GetContext(), synTokenID.GetInternalId())
 			s.Require().NoError(err)
 
-			destBalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), hypDenom.OriginDenom)
+			destBalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), "hyperlane/"+hypDenom.Id.String())
 			s.Equal(fundAmount.Int64(), destBalance.Amount.Int64())
 		}
 	}
@@ -285,7 +261,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardAddressMismatch() {
 		randomAddr.String(),
 		1337,
 		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
+		"0x726f757465725f61707000000000000000000000000000010000000000000000",
+		sdk.NewCoin("utia", math.NewInt(0)),
 	)
 
 	_, err := s.celestia.SendMsgs(msg)
@@ -294,24 +271,26 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardAddressMismatch() {
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForwardNoBalance() {
+	ismIDCelestia := s.SetupNoopISM(s.celestia)
+	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
+	collatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
+
+	ismIDChainA := s.SetupNoopISM(s.chainA)
+	s.SetupMailBox(s.chainA, ismIDChainA, 1337)
+	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, 1337, tiaSynTokenID.String())
+
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(1337, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(1337, destRecipient, collatTokenID)
 
-	msg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		1337,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	msg := s.newForwardMsg(forwardAddr, 1337, destRecipient, collatTokenID)
 
-	_, err = s.celestia.SendMsgs(msg)
+	_, err := s.celestia.SendMsgs(msg)
 	s.Require().Error(err)
 	s.Contains(err.Error(), "no balance")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForwardMultiToken() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardLeavesUnrelatedTokenUntouched() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
 	// Set up hyperlane infrastructure on Celestia
@@ -334,10 +313,9 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardMultiToken() {
 	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, TestCelestiaDomainID, celestiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, TestChainADomainID, chainACollatTokenID.String())
 
-	// Create destination recipient and derive forwarding address
+	// Create destination recipient and derive forwarding address bound to TIA.
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(TestChainADomainID, destRecipient, tiaCollatTokenID)
 
 	// Fund forward address with TIA
 	tiaAmount := math.NewInt(1000)
@@ -353,41 +331,30 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardMultiToken() {
 		Amount:            math.NewInt(500),
 	})
 
-	// Get synthetic token denom
-	synToken, err := celestiaApp.WarpKeeper.HypTokens.Get(s.celestia.GetContext(), celestiaSynTokenID.GetInternalId())
-	s.Require().NoError(err)
-	syntheticDenom := synToken.OriginDenom
+	syntheticDenom := s.bankDenomForToken(s.celestia, celestiaSynTokenID)
 
-	// Verify forward address has both tokens
+	// Verify forward address has both tokens, but is only bound to TIA.
 	tiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	synBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, syntheticDenom)
 	s.Equal(tiaAmount.Int64(), tiaBalance.Amount.Int64())
 	s.Equal(int64(500), synBalance.Amount.Int64())
 
-	// Execute forwarding
-	msg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		TestChainADomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	msg := s.newForwardMsg(forwardAddr, TestChainADomainID, destRecipient, tiaCollatTokenID)
 
 	res, err := s.celestia.SendMsgs(msg)
 	s.Require().NoError(err)
 	s.Require().NotNil(res)
 
-	// Verify forward address is now empty for BOTH tokens
+	// Verify only the bound TIA balance is consumed.
 	newTiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	newSynBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, syntheticDenom)
 	s.True(newTiaBalance.Amount.IsZero(), "TIA balance should be zero after forwarding")
-	s.True(newSynBalance.Amount.IsZero(), "SYNTHETIC balance should be zero after forwarding")
+	s.Equal(int64(500), newSynBalance.Amount.Int64(), "unrelated synthetic balance should remain at forwardAddr")
 
-	// Verify 2 dispatch events (one per token)
-	s.Equal(2, CountDispatchEvents(res.Events), "should have 2 dispatch events for 2 tokens")
+	s.Equal(1, CountDispatchEvents(res.Events), "should have 1 dispatch event for the bound token")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureUnsupportedToken() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardIgnoresUnsupportedUnrelatedBalance() {
 	celestiaApp := s.GetCelestiaApp(s.celestia)
 
 	// Set up hyperlane infrastructure
@@ -404,10 +371,9 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureUnsupported
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
 	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
 
-	// Create destination and derive forwarding address
+	// Create destination and derive forwarding address bound to TIA.
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(TestChainADomainID, destRecipient, tiaCollatTokenID)
 
 	// Fund with TIA (supported) and an unsupported IBC denom
 	tiaAmount := math.NewInt(1000)
@@ -417,17 +383,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureUnsupported
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, tiaAmount))
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(unsupportedDenom, unsupportedAmount))
 
-	// Execute forwarding - tx should SUCCEED (partial failure, not full failure)
-	msg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		TestChainADomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	msg := s.newForwardMsg(forwardAddr, TestChainADomainID, destRecipient, tiaCollatTokenID)
 
 	res, err := s.celestia.SendMsgs(msg)
-	s.Require().NoError(err, "transaction should succeed even with partial failure")
+	s.Require().NoError(err, "transaction should succeed and ignore unrelated unsupported balances")
 	s.Require().NotNil(res)
 
 	// Verify: TIA should be drained, unsupported should remain
@@ -438,7 +397,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureUnsupported
 	s.Equal(unsupportedAmount.Int64(), newUnsupportedBalance.Amount.Int64(), "unsupported token should remain at forwardAddr")
 }
 
-func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureNoRoute() {
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardNoRouteForBoundToken() {
 	// OtherDomainID is distinct from TestChainADomainID and TestChainBDomainID
 	const OtherDomainID uint32 = 9999
 
@@ -465,36 +424,21 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardPartialFailureNoRoute() {
 	// Enroll test token route to OTHER domain only (NOT chainA)
 	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
 
-	// Derive forwarding address FOR TestChainADomainID
+	// Derive forwarding address for TestChainADomainID, but bind it to the token with no route.
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(TestChainADomainID, destRecipient, testCollatTokenID)
 
-	// Fund with both tokens
-	tiaAmount := math.NewInt(1000)
 	testAmount := math.NewInt(500)
-	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, tiaAmount))
 	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(testDenom, testAmount))
 
-	// Execute forwarding
-	msg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		TestChainADomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	msg := s.newForwardMsg(forwardAddr, TestChainADomainID, destRecipient, testCollatTokenID)
 
-	res, err := s.celestia.SendMsgs(msg)
-	s.Require().NoError(err, "transaction should succeed with partial failure")
-	s.Require().NotNil(res)
+	_, err := s.celestia.SendMsgs(msg)
+	s.Require().Error(err, "transaction should fail when the bound token has no route")
+	s.Contains(err.Error(), "no warp route to destination domain")
 
-	// Verify: TIA forwarded, test token remains (no route to TestChainADomainID)
-	newTiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
 	newTestBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, testDenom)
-
-	s.True(newTiaBalance.Amount.IsZero(), "TIA should be forwarded (has route to chainA)")
-	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "test token should remain (no route to chainA)")
+	s.Equal(testAmount.Int64(), newTestBalance.Amount.Int64(), "bound token should remain when forwarding fails")
 }
 
 func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ESourceCollateralToken() {
@@ -525,10 +469,9 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ESourceCollateralTo
 	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainBDomainID, chainBSynTokenID.String())
 	s.EnrollRemoteRouter(s.chainB, chainBSynTokenID, CelestiaDomainID, celestiaSynTokenID.String())
 
-	// Compute forward address on Celestia
+	// Compute forward address on Celestia bound to the synthetic token held there.
 	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(ChainBDomainID, destRecipient, celestiaSynTokenID)
 
 	// Warp transfer from ChainA to forwardAddr on Celestia
 	forwardAddrBytes := MakeRecipient32(forwardAddr)
@@ -541,21 +484,13 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ESourceCollateralTo
 	})
 
 	// Verify synthetic tokens arrived at forwardAddr
-	synToken, err := celestiaApp.WarpKeeper.HypTokens.Get(s.celestia.GetContext(), celestiaSynTokenID.GetInternalId())
-	s.Require().NoError(err)
-	syntheticDenom := synToken.OriginDenom
+	syntheticDenom := s.bankDenomForToken(s.celestia, celestiaSynTokenID)
 
 	forwardBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, syntheticDenom)
 	s.Equal(int64(1000), forwardBalance.Amount.Int64(), "synthetic tokens should arrive at forwardAddr")
 
 	// Execute forwarding on Celestia
-	forwardMsg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		ChainBDomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	forwardMsg := s.newForwardMsg(forwardAddr, ChainBDomainID, destRecipient, celestiaSynTokenID)
 
 	res, err := s.celestia.SendMsgs(forwardMsg)
 	s.Require().NoError(err)
@@ -581,7 +516,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ESourceCollateralTo
 	chainBSynToken, err := chainBApp.WarpKeeper.HypTokens.Get(s.chainB.GetContext(), chainBSynTokenID.GetInternalId())
 	s.Require().NoError(err)
 
-	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), chainBSynToken.OriginDenom)
+	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), "hyperlane/"+chainBSynToken.Id.String())
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "tokens should arrive at final destination on chainB")
 }
 
@@ -627,13 +562,12 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ETIASyntheticOnSour
 	chainAApp := s.GetSimapp(s.chainA)
 	chainATIAToken, err := chainAApp.WarpKeeper.HypTokens.Get(s.chainA.GetContext(), chainATIASynTokenID.GetInternalId())
 	s.Require().NoError(err)
-	chainATIABalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), chainATIAToken.OriginDenom)
+	chainATIABalance := chainAApp.BankKeeper.GetBalance(s.chainA.GetContext(), s.chainA.SenderAccount.GetAddress(), "hyperlane/"+chainATIAToken.Id.String())
 	s.Equal(int64(2000), chainATIABalance.Amount.Int64())
 
-	// Compute forward address on Celestia for ChainB
+	// Compute forward address on Celestia for ChainB, bound to native TIA that will be released there.
 	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(ChainBDomainID, destRecipient, tiaCollatTokenID)
 
 	// Warp TIA synthetic back to forwardAddr on Celestia (releases collateral)
 	forwardAddrBytes := MakeRecipient32(forwardAddr)
@@ -650,13 +584,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ETIASyntheticOnSour
 	s.Equal(int64(1000), forwardBalance.Amount.Int64(), "native utia should arrive at forwardAddr")
 
 	// Execute forwarding on Celestia
-	forwardMsg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		ChainBDomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	forwardMsg := s.newForwardMsg(forwardAddr, ChainBDomainID, destRecipient, tiaCollatTokenID)
 
 	res, err := s.celestia.SendMsgs(forwardMsg)
 	s.Require().NoError(err)
@@ -680,7 +608,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ETIASyntheticOnSour
 	chainBTIAToken, err := chainBApp.WarpKeeper.HypTokens.Get(s.chainB.GetContext(), chainBTIASynTokenID.GetInternalId())
 	s.Require().NoError(err)
 
-	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), chainBTIAToken.OriginDenom)
+	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), "hyperlane/"+chainBTIAToken.Id.String())
 	s.Equal(int64(1000), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
 }
 
@@ -705,10 +633,9 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ECEXWithdrawal() {
 	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID.String())
 	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
 
-	// Compute forward address on Celestia
+	// Compute forward address on Celestia bound to native TIA.
 	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(ChainBDomainID, destRecipient)
-	s.Require().NoError(err)
+	forwardAddr := s.deriveForwardAddress(ChainBDomainID, destRecipient, tiaCollatTokenID)
 
 	// Simulate CEX withdrawal by directly funding the forward address
 	cexWithdrawalAmount := math.NewInt(5000)
@@ -719,13 +646,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ECEXWithdrawal() {
 	s.Equal(cexWithdrawalAmount.Int64(), forwardBalance.Amount.Int64())
 
 	// Execute forwarding on Celestia
-	forwardMsg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		ChainBDomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
+	forwardMsg := s.newForwardMsg(forwardAddr, ChainBDomainID, destRecipient, tiaCollatTokenID)
 
 	res, err := s.celestia.SendMsgs(forwardMsg)
 	s.Require().NoError(err)
@@ -751,77 +672,6 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ECEXWithdrawal() {
 	chainBTIAToken, err := chainBApp.WarpKeeper.HypTokens.Get(s.chainB.GetContext(), chainBTIASynTokenID.GetInternalId())
 	s.Require().NoError(err)
 
-	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), chainBTIAToken.OriginDenom)
+	finalBalance := chainBApp.BankKeeper.GetBalance(s.chainB.GetContext(), s.chainB.SenderAccount.GetAddress(), "hyperlane/"+chainBTIAToken.Id.String())
 	s.Equal(cexWithdrawalAmount.Int64(), finalBalance.Amount.Int64(), "synthetic TIA should arrive at final destination")
-}
-
-func (s *ForwardingIntegrationTestSuite) TestMsgForwardTooManyTokens() {
-	celestiaApp := s.GetCelestiaApp(s.celestia)
-	ctx := s.celestia.GetContext()
-
-	// Setup hyperlane infrastructure
-	ismIDCelestia := s.SetupNoopISM(s.celestia)
-	mailboxIDCelestia := s.SetupMailBox(s.celestia, ismIDCelestia, TestCelestiaDomainID)
-	tiaCollatTokenID := s.CreateCollateralToken(s.celestia, ismIDCelestia, mailboxIDCelestia, params.BondDenom)
-
-	ismIDChainA := s.SetupNoopISM(s.chainA)
-	_ = s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
-	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
-
-	// Enroll routers for TIA
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
-
-	// Derive forwarding address
-	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(TestChainADomainID, destRecipient)
-	s.Require().NoError(err)
-
-	// Fund with utia (has route) - will be first in sort order since "utia" < "ztoken"
-	tiaAmount := math.NewInt(1000)
-	s.fundAddress(s.celestia, forwardAddr, sdk.NewCoin(params.BondDenom, tiaAmount))
-
-	// Create 20 ztoken denoms (sort after utia) = 21 total tokens
-	// Using "ztoken" because it sorts AFTER "utia" alphabetically,
-	// ensuring utia is included in the first 20 processed tokens
-	for i := range forwardingtypes.MaxTokensPerForward {
-		denom := fmt.Sprintf("ztoken%02d", i)
-		coin := sdk.NewCoin(denom, math.NewInt(100))
-		err := celestiaApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, sdk.NewCoins(coin))
-		s.Require().NoError(err)
-		err = celestiaApp.BankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, forwardAddr, sdk.NewCoins(coin))
-		s.Require().NoError(err)
-	}
-
-	// Verify we have 21 different tokens (1 utia + 20 ztokens)
-	balances := celestiaApp.BankKeeper.GetAllBalances(ctx, forwardAddr)
-	s.Equal(forwardingtypes.MaxTokensPerForward+1, len(balances), "should have 21 different tokens")
-
-	// Forward - processes first 20: utia + ztoken00..ztoken18
-	// utia succeeds (has route), ztokens fail (no routes)
-	forwardMsg := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(),
-		sdk.AccAddress(forwardAddr).String(),
-		TestChainADomainID,
-		RecipientToHex(destRecipient).String(),
-		sdk.NewCoin("utia", math.NewInt(0)), // IGP fee (0 for noop ISM)
-	)
-
-	res, err := s.celestia.SendMsgs(forwardMsg)
-	s.Require().NoError(err, "partial success - utia forwards, ztokens fail")
-	s.Require().NotNil(res)
-
-	// Verify dispatch event (utia forwarded)
-	s.Equal(1, CountDispatchEvents(res.Events), "utia should dispatch")
-
-	// Verify utia was forwarded (balance = 0)
-	newTiaBalance := celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), forwardAddr, params.BondDenom)
-	s.True(newTiaBalance.Amount.IsZero(), "utia should be forwarded")
-
-	// Verify ztokens remain:
-	// - 19 ztokens processed but failed (no routes)
-	// - 1 ztoken (ztoken19) not processed due to truncation
-	// Total: 20 ztokens remain
-	remainingBalances := celestiaApp.BankKeeper.GetAllBalances(s.celestia.GetContext(), forwardAddr)
-	s.Equal(20, len(remainingBalances), "20 ztokens should remain (no utia)")
 }
