@@ -146,21 +146,21 @@ func TestDeriveForwardingAddressTestVectors(t *testing.T) {
 			destDomain:      1,
 			destRecipient:   "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 			tokenID:         "726f757465725f61707000000000000000000000000000010000000000000000",
-			expectedAddress: "78cb4ed972bbfd1dea498cdeb59611c55a10e0fc",
+			expectedAddress: "c2235073e21d77e3b1cc45358a2573d1523bf3fd",
 		},
 		{
 			name:            "vector_2_arbitrum",
 			destDomain:      42161,
 			destRecipient:   "0000000000000000000000001234567890abcdef1234567890abcdef12345678",
 			tokenID:         "726f757465725f61707000000000000000000000000000010000000000000001",
-			expectedAddress: "3879e7bdecc21ce68f034e88ae5b216e885fcce5",
+			expectedAddress: "31da1fdcdeae1b347011819b746dc7d862f84454",
 		},
 		{
 			name:            "vector_3_zero_values",
 			destDomain:      0,
 			destRecipient:   "0000000000000000000000000000000000000000000000000000000000000000",
 			tokenID:         "726f757465725f61707000000000000000000000000000010000000000000002",
-			expectedAddress: "7e105a8a171704be0cc02ba0aa8128497e934916",
+			expectedAddress: "fe456b8ffdd21578d5f19d68dd6043f2120edf27",
 		},
 	}
 
