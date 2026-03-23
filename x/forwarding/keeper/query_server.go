@@ -38,16 +38,15 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 		return nil, status.Errorf(codes.InvalidArgument, "invalid token_id hex %q: %v", req.TokenId, err)
 	}
 
-	token, err := q.k.getTokenById(ctx, req.TokenId)
+	token, err := q.k.warpKeeper.GetHypToken(ctx, tokenID.GetInternalId())
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "failed to resolve token: %v", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "token %s not found: %v", req.TokenId, err)
 	}
 
 	hasRoute, err := q.k.HasEnrolledRouter(ctx, token.Id, req.DestDomain)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to check route: %v", err)
 	}
-
 	if !hasRoute {
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
 	}
@@ -69,13 +68,14 @@ func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuo
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
-	if _, err := util.DecodeHexAddress(req.TokenId); err != nil {
+	tokenID, err := util.DecodeHexAddress(req.TokenId)
+	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid token_id hex %q: %v", req.TokenId, err)
 	}
 
-	token, err := q.k.getTokenById(ctx, req.TokenId)
+	token, err := q.k.warpKeeper.GetHypToken(ctx, tokenID.GetInternalId())
 	if err != nil {
-		return nil, status.Errorf(codes.FailedPrecondition, "failed to resolve token: %v", err)
+		return nil, status.Errorf(codes.FailedPrecondition, "token %s not found: %v", req.TokenId, err)
 	}
 
 	hasRoute, err := q.k.HasEnrolledRouter(ctx, token.Id, req.DestDomain)

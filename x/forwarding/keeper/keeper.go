@@ -43,18 +43,6 @@ func NewKeeper(
 	}
 }
 
-func (k Keeper) getTokenById(ctx context.Context, tokenIdHex string) (warptypes.HypToken, error) {
-	tokenId, err := util.DecodeHexAddress(tokenIdHex)
-	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("%w: invalid token ID %q", types.ErrUnsupportedToken, tokenIdHex)
-	}
-	token, err := k.warpKeeper.GetHypToken(ctx, tokenId.GetInternalId())
-	if err != nil {
-		return warptypes.HypToken{}, fmt.Errorf("token %s not found: %w", tokenIdHex, err)
-	}
-	return token, nil
-}
-
 func (k Keeper) HasEnrolledRouter(ctx context.Context, tokenId util.HexAddress, destDomain uint32) (bool, error) {
 	return k.warpKeeper.HasEnrolledRouter(ctx, tokenId.GetInternalId(), destDomain)
 }
@@ -64,6 +52,7 @@ func (k Keeper) GetEnrolledRouter(ctx context.Context, tokenId util.HexAddress, 
 	return k.warpKeeper.GetEnrolledRouter(ctx, tokenId.GetInternalId(), destDomain)
 }
 
+// BankDenomForToken returns the bank denom used to represent the given Hyperlane token on Celestia.
 func (k Keeper) BankDenomForToken(token warptypes.HypToken) (string, error) {
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_COLLATERAL:

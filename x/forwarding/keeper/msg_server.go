@@ -54,9 +54,9 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("invalid signer address: %w", err)
 	}
 
-	hypToken, err := m.k.getTokenById(ctx, msg.TokenId)
+	hypToken, err := m.k.warpKeeper.GetHypToken(ctx, tokenID.GetInternalId())
 	if err != nil {
-		return nil, fmt.Errorf("token lookup failed: %w", err)
+		return nil, fmt.Errorf("token %s not found: %w", msg.TokenId, err)
 	}
 
 	denom, err := m.k.BankDenomForToken(hypToken)
