@@ -31,17 +31,17 @@ func GetTxCmd() *cobra.Command {
 // CmdForward returns a CLI command for submitting a MsgForward transaction.
 func CmdForward() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "forward [forward-addr] [dest-domain] [dest-recipient] --max-igp-fee [fee]",
+		Use:   "forward [forward-addr] [dest-domain] [dest-recipient] [token-id] --max-igp-fee [fee]",
 		Short: "Forward tokens at a forwarding address to their committed destination",
-		Long: `Forward all tokens at a derived forwarding address to the committed destination via Hyperlane warp transfer.
+		Long: `Forward the token bound to a derived forwarding address to its committed destination via Hyperlane warp transfer.
 
 The relayer (signer) pays both Celestia gas and Hyperlane IGP fees. Use 'query forwarding quote-fee'
 to estimate the required IGP fee before submitting.
 
 Example:
-  celestia-appd tx forwarding forward celestia1abc... 42161 0x000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f00000 \
+  celestia-appd tx forwarding forward celestia1abc... 42161 0x000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f00000 0x1234... \
     --max-igp-fee 1000utia --from relayer`,
-		Args: cobra.ExactArgs(3),
+		Args: cobra.ExactArgs(4),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
@@ -51,6 +51,7 @@ Example:
 			forwardAddr := args[0]
 			destDomainStr := args[1]
 			destRecipient := args[2]
+			tokenID := args[3]
 
 			// Sanitize: ensure 0x prefix for consistency
 			if !strings.HasPrefix(strings.ToLower(destRecipient), "0x") {
@@ -77,6 +78,7 @@ Example:
 				forwardAddr,
 				uint32(destDomain),
 				destRecipient,
+				tokenID,
 				maxIgpFee,
 			)
 

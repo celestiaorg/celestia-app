@@ -39,6 +39,9 @@ message MsgForward {
   // The actual fee charged is the lesser of max_igp_fee and the quoted fee.
   // Required: relayer must provide sufficient fee for the transfer.
   cosmos.base.v1beta1.Coin max_igp_fee = 5 [(gogoproto.nullable) = false];
+
+  // token_id is the Hyperlane token identifier this forwarding request is bound to.
+  string token_id = 6;
 }
 
 // MsgForwardResponse is the response for MsgForward.

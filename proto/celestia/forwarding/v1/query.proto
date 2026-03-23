@@ -12,13 +12,13 @@ option go_package = "github.com/celestiaorg/celestia-app/x/forwarding/types";
 service Query {
   // DeriveForwardingAddress derives the forwarding address for given parameters.
   rpc DeriveForwardingAddress(QueryDeriveForwardingAddressRequest) returns (QueryDeriveForwardingAddressResponse) {
-    option (google.api.http).get = "/celestia/forwarding/v1/derive_address/{dest_domain}/{dest_recipient}";
+    option (google.api.http).get = "/celestia/forwarding/v1/derive_address/{dest_domain}/{dest_recipient}/{token_id}";
   }
 
   // QuoteForwardingFee returns the estimated Hyperlane IGP fee for forwarding to a destination.
   // Relayers should query this before submitting MsgForward to determine the required max_igp_fee.
   rpc QuoteForwardingFee(QueryQuoteForwardingFeeRequest) returns (QueryQuoteForwardingFeeResponse) {
-    option (google.api.http).get = "/celestia/forwarding/v1/quote_fee/{dest_domain}";
+    option (google.api.http).get = "/celestia/forwarding/v1/quote_fee/{dest_domain}/{token_id}";
   }
 }
 
@@ -29,6 +29,9 @@ message QueryDeriveForwardingAddressRequest {
 
   // dest_recipient is the recipient on destination chain (32 bytes, hex-encoded, 0x prefix optional).
   string dest_recipient = 2;
+
+  // token_id is the Hyperlane token identifier to bind this forwarding address to.
+  string token_id = 3;
 }
 
 // QueryDeriveForwardingAddressResponse is the response for DeriveForwardingAddress.
@@ -41,6 +44,9 @@ message QueryDeriveForwardingAddressResponse {
 message QueryQuoteForwardingFeeRequest {
   // dest_domain is the destination chain domain ID.
   uint32 dest_domain = 1;
+
+  // token_id is the Hyperlane token identifier to quote fees for.
+  string token_id = 2;
 }
 
 // QueryQuoteForwardingFeeResponse is the response for QuoteForwardingFee.

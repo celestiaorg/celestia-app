@@ -16,13 +16,14 @@ var (
 
 // NewMsgForward creates a new MsgForward message for triggering token forwarding
 // from a derived forwarding address to its committed destination via Hyperlane.
-func NewMsgForward(signer, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) *MsgForward {
+func NewMsgForward(signer, forwardAddr string, destDomain uint32, destRecipient, tokenID string, maxIgpFee sdk.Coin) *MsgForward {
 	return &MsgForward{
 		Signer:        signer,
 		ForwardAddr:   forwardAddr,
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
 		MaxIgpFee:     maxIgpFee,
+		TokenId:       tokenID,
 	}
 }
 
@@ -42,6 +43,10 @@ func (msg *MsgForward) ValidateBasic() error {
 
 	if len(destRecipient.Bytes()) != RecipientLength {
 		return errors.Wrapf(ErrInvalidRecipient, "dest_recipient must be %d bytes, got %d", RecipientLength, len(destRecipient.Bytes()))
+	}
+
+	if _, err := util.DecodeHexAddress(msg.TokenId); err != nil {
+		return errors.Wrap(err, "invalid token_id hex format")
 	}
 
 	// Validate max_igp_fee: must be valid and non-negative

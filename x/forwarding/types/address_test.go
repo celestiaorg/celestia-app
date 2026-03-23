@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
@@ -17,39 +18,44 @@ func TestDeriveForwardingAddress(t *testing.T) {
 		name          string
 		destDomain    uint32
 		destRecipient []byte
+		tokenID       []byte
 	}{
 		{
 			name:          "zero domain and recipient",
 			destDomain:    0,
 			destRecipient: make([]byte, 32),
+			tokenID:       tokenIDBytes(t, 1),
 		},
 		{
 			name:          "typical ethereum domain",
 			destDomain:    1,
 			destRecipient: hexToBytes(t, "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"),
+			tokenID:       tokenIDBytes(t, 2),
 		},
 		{
 			name:          "arbitrum domain",
 			destDomain:    42161,
 			destRecipient: hexToBytes(t, "0000000000000000000000001234567890abcdef1234567890abcdef12345678"),
+			tokenID:       tokenIDBytes(t, 3),
 		},
 		{
 			name:          "max uint32 domain",
 			destDomain:    ^uint32(0), // 4294967295
 			destRecipient: bytes.Repeat([]byte{0xff}, 32),
+			tokenID:       tokenIDBytes(t, 4),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			addr, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient)
+			addr, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient, tc.tokenID)
 			require.NoError(t, err)
 
 			// Verify address is CosmosAddressLen bytes
 			require.Len(t, addr, types.CosmosAddressLen, "derived address should be CosmosAddressLen bytes")
 
 			// Verify determinism - same inputs produce same output
-			addr2, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient)
+			addr2, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient, tc.tokenID)
 			require.NoError(t, err)
 			require.Equal(t, addr, addr2, "derivation should be deterministic")
 		})
@@ -59,22 +65,30 @@ func TestDeriveForwardingAddress(t *testing.T) {
 // TestDeriveForwardingAddressUniqueness verifies that different inputs produce different addresses
 func TestDeriveForwardingAddressUniqueness(t *testing.T) {
 	baseRecipient := hexToBytes(t, "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	token1 := tokenIDBytes(t, 1)
+	token2 := tokenIDBytes(t, 2)
 
 	// Different domains should produce different addresses
-	addr1, err := types.DeriveForwardingAddress(1, baseRecipient)
+	addr1, err := types.DeriveForwardingAddress(1, baseRecipient, token1)
 	require.NoError(t, err)
-	addr2, err := types.DeriveForwardingAddress(2, baseRecipient)
+	addr2, err := types.DeriveForwardingAddress(2, baseRecipient, token1)
 	require.NoError(t, err)
 	require.NotEqual(t, addr1, addr2, "different domains should produce different addresses")
 
 	// Different recipients should produce different addresses
 	recipient1 := hexToBytes(t, "0000000000000000000000001111111111111111111111111111111111111111")
 	recipient2 := hexToBytes(t, "0000000000000000000000002222222222222222222222222222222222222222")
-	addr3, err := types.DeriveForwardingAddress(1, recipient1)
+	addr3, err := types.DeriveForwardingAddress(1, recipient1, token1)
 	require.NoError(t, err)
-	addr4, err := types.DeriveForwardingAddress(1, recipient2)
+	addr4, err := types.DeriveForwardingAddress(1, recipient2, token1)
 	require.NoError(t, err)
 	require.NotEqual(t, addr3, addr4, "different recipients should produce different addresses")
+
+	addr5, err := types.DeriveForwardingAddress(1, baseRecipient, token1)
+	require.NoError(t, err)
+	addr6, err := types.DeriveForwardingAddress(1, baseRecipient, token2)
+	require.NoError(t, err)
+	require.NotEqual(t, addr5, addr6, "different token IDs should produce different addresses")
 }
 
 // TestDeriveForwardingAddressIntermediates verifies the intermediate values in derivation.
@@ -85,13 +99,15 @@ func TestDeriveForwardingAddressUniqueness(t *testing.T) {
 func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	destDomain := uint32(1)
 	destRecipient := hexToBytes(t, "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef")
+	tokenID := tokenIDBytes(t, 1)
 
 	// Step 1: Compute call digest preimage
 	destDomainBytes := make([]byte, types.DomainEncodingSize)
 	binary.BigEndian.PutUint32(destDomainBytes[types.DomainOffset:], destDomain)
-	callDigestPreimage := make([]byte, types.DomainEncodingSize+types.RecipientLength)
+	callDigestPreimage := make([]byte, types.DomainEncodingSize+types.RecipientLength+len(tokenID))
 	copy(callDigestPreimage, destDomainBytes)
 	copy(callDigestPreimage[types.DomainEncodingSize:], destRecipient)
+	copy(callDigestPreimage[types.DomainEncodingSize+types.RecipientLength:], tokenID)
 
 	// Step 2: Compute call digest (sha256)
 	callDigestArr := sha256.Sum256(callDigestPreimage)
@@ -110,7 +126,7 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	derivedAddr := address.Module(types.ModuleName, salt)[:types.CosmosAddressLen]
 
 	// Verify this matches the function output
-	addr, err := types.DeriveForwardingAddress(destDomain, destRecipient)
+	addr, err := types.DeriveForwardingAddress(destDomain, destRecipient, tokenID)
 	require.NoError(t, err)
 	require.Equal(t, derivedAddr, addr, "manual derivation should match function output")
 }
@@ -122,32 +138,37 @@ func TestDeriveForwardingAddressTestVectors(t *testing.T) {
 		name            string
 		destDomain      uint32
 		destRecipient   string // hex encoded, 32 bytes
+		tokenID         string // hex encoded, 32 bytes
 		expectedAddress string // hex encoded, 20 bytes
 	}{
 		{
 			name:            "vector_1_ethereum_mainnet",
 			destDomain:      1,
 			destRecipient:   "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-			expectedAddress: "a5552e3961868e720b55166437869f581ec058c8",
+			tokenID:         "726f757465725f61707000000000000000000000000000010000000000000000",
+			expectedAddress: "78cb4ed972bbfd1dea498cdeb59611c55a10e0fc",
 		},
 		{
 			name:            "vector_2_arbitrum",
 			destDomain:      42161,
 			destRecipient:   "0000000000000000000000001234567890abcdef1234567890abcdef12345678",
-			expectedAddress: "d1643f5d081f9e2a389dca3bc2dfdccfc0dace1b",
+			tokenID:         "726f757465725f61707000000000000000000000000000010000000000000001",
+			expectedAddress: "3879e7bdecc21ce68f034e88ae5b216e885fcce5",
 		},
 		{
 			name:            "vector_3_zero_values",
 			destDomain:      0,
 			destRecipient:   "0000000000000000000000000000000000000000000000000000000000000000",
-			expectedAddress: "bf71c5b5b1ba95ab45af03088442b46bdc48e029",
+			tokenID:         "726f757465725f61707000000000000000000000000000010000000000000002",
+			expectedAddress: "7e105a8a171704be0cc02ba0aa8128497e934916",
 		},
 	}
 
 	for _, tc := range testVectors {
 		t.Run(tc.name, func(t *testing.T) {
 			recipient := hexToBytes(t, tc.destRecipient)
-			addr, err := types.DeriveForwardingAddress(tc.destDomain, recipient)
+			tokenID := hexToBytes(t, tc.tokenID)
+			addr, err := types.DeriveForwardingAddress(tc.destDomain, recipient, tokenID)
 			require.NoError(t, err)
 
 			actualHex := hex.EncodeToString(addr)
@@ -172,11 +193,16 @@ func TestDeriveForwardingAddressReturnsErrorOnInvalidLength(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := types.DeriveForwardingAddress(1, tc.destRecipient)
+			_, err := types.DeriveForwardingAddress(1, tc.destRecipient, tokenIDBytes(t, 1))
 			require.Error(t, err, "should return error for recipient length %d", len(tc.destRecipient))
 			require.ErrorIs(t, err, types.ErrInvalidRecipient)
 		})
 	}
+}
+
+func tokenIDBytes(t *testing.T, id uint64) []byte {
+	t.Helper()
+	return hexToBytes(t, fmt.Sprintf("%064x", id))
 }
 
 func hexToBytes(t *testing.T, s string) []byte {

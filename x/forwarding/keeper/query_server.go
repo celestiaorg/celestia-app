@@ -32,21 +32,27 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid dest_recipient hex %q: %v", req.DestRecipient, err)
 	}
-	// Length validation is done in DeriveForwardingAddress
 
-	// Check if any warp route exists to the destination domain.
-	// This prevents users from getting addresses for non-existent routes,
-	// which would lead to stuck funds until a route is created.
-	hasRoute, err := q.k.HasAnyRouteToDestination(ctx, req.DestDomain)
+	tokenID, err := util.DecodeHexAddress(req.TokenId)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to check routes: %v", err)
-	}
-	if !hasRoute {
-		return nil, status.Errorf(codes.FailedPrecondition, "no warp route to domain %d", req.DestDomain)
+		return nil, status.Errorf(codes.InvalidArgument, "invalid token_id hex %q: %v", req.TokenId, err)
 	}
 
-	// Derive the forwarding address
-	forwardAddr, err := types.DeriveForwardingAddress(req.DestDomain, destRecipient.Bytes())
+	token, err := q.k.getTokenById(ctx, req.TokenId)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "failed to resolve token: %v", err)
+	}
+
+	hasRoute, err := q.k.HasEnrolledRouter(ctx, token.Id, req.DestDomain)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to check route: %v", err)
+	}
+
+	if !hasRoute {
+		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
+	}
+
+	forwardAddr, err := types.DeriveForwardingAddress(req.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to derive address: %v", err)
 	}
@@ -56,14 +62,31 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 	}, nil
 }
 
-// QuoteForwardingFee returns the estimated IGP fee for forwarding TIA to a destination domain.
+// QuoteForwardingFee returns the estimated IGP fee for forwarding a specific token to a destination domain.
 // Relayers should query this before submitting MsgForward to determine the required max_igp_fee.
 func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuoteForwardingFeeRequest) (*types.QueryQuoteForwardingFeeResponse, error) {
 	if req == nil {
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
-	fee, err := q.k.QuoteIgpFee(ctx, req.DestDomain)
+	if _, err := util.DecodeHexAddress(req.TokenId); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid token_id hex %q: %v", req.TokenId, err)
+	}
+
+	token, err := q.k.getTokenById(ctx, req.TokenId)
+	if err != nil {
+		return nil, status.Errorf(codes.FailedPrecondition, "failed to resolve token: %v", err)
+	}
+
+	hasRoute, err := q.k.HasEnrolledRouter(ctx, token.Id, req.DestDomain)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to check route: %v", err)
+	}
+	if !hasRoute {
+		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
+	}
+
+	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "failed to quote IGP fee: %v", err)
 	}

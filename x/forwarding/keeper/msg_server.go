@@ -7,7 +7,7 @@ import (
 
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -22,7 +22,7 @@ func NewMsgServerImpl(keeper Keeper) types.MsgServer {
 	return &msgServer{k: keeper}
 }
 
-// Forward forwards up to 20 tokens at forwardAddr to the committed destination.
+// Forward forwards the token bound to forwardAddr to the committed destination.
 func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types.MsgForwardResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -36,7 +36,12 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("invalid dest_recipient hex: %w", err)
 	}
 
-	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes())
+	tokenID, err := util.DecodeHexAddress(msg.TokenId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token_id hex: %w", err)
+	}
+
+	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive forwarding address: %w", err)
 	}
@@ -44,92 +49,55 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("%w: provided=%s derived=%s", types.ErrAddressMismatch, forwardAddr.String(), sdk.AccAddress(expectedAddr).String())
 	}
 
-	balances := m.k.bankKeeper.GetAllBalances(ctx, forwardAddr)
-	if balances.IsZero() {
-		return nil, types.ErrNoBalance
-	}
-
-	// Filter to only supported denoms before truncating to prevent
-	// unsupported denoms from consuming slots (prefix poisoning attack).
-	balances = filterSupportedDenoms(balances)
-	if balances.IsZero() {
-		return nil, types.ErrNoBalance
-	}
-
-	// Process up to MaxTokensPerForward tokens. User can call Forward again for remaining.
-	if len(balances) > types.MaxTokensPerForward {
-		balances = balances[:types.MaxTokensPerForward]
-	}
-
 	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid signer address: %w", err)
 	}
 
-	results := m.processTokens(ctx, forwardAddr, signerAddr, balances, msg, destRecipient)
-
-	// If all tokens failed, return error (partial failure is OK, total failure is not)
-	allFailed := true
-	for _, r := range results {
-		if r.Success {
-			allFailed = false
-			break
-		}
-	}
-	if allFailed && len(results) > 0 {
-		return nil, allTokensFailedError(results)
+	hypToken, err := m.k.getTokenById(ctx, msg.TokenId)
+	if err != nil {
+		return nil, fmt.Errorf("token lookup failed: %w", err)
 	}
 
+	denom, err := m.k.BankDenomForToken(hypToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve token denom: %w", err)
+	}
+
+	balance := m.k.bankKeeper.GetBalance(ctx, forwardAddr, denom)
+	if !balance.IsPositive() {
+		return nil, types.ErrNoBalance
+	}
+
+	cacheCtx, writeCache := ctx.CacheContext()
+	result := m.forwardSingleToken(cacheCtx, forwardAddr, signerAddr, hypToken, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
+	if result.Success {
+		writeCache()
+	} else {
+		return nil, allTokensFailedError([]types.ForwardingResult{result})
+	}
+
+	results := []types.ForwardingResult{result}
+	EmitTokenForwardedEvent(ctx, msg.ForwardAddr, result)
 	EmitForwardingCompleteEvent(ctx, msg.ForwardAddr, msg.DestDomain, msg.DestRecipient, results)
 	return &types.MsgForwardResponse{Results: results}, nil
-}
-
-func (m msgServer) processTokens(
-	ctx sdk.Context,
-	forwardAddr, signerAddr sdk.AccAddress,
-	balances sdk.Coins,
-	msg *types.MsgForward,
-	destRecipient util.HexAddress,
-) []types.ForwardingResult {
-	results := make([]types.ForwardingResult, 0, len(balances))
-
-	for _, balance := range balances {
-		cacheCtx, writeCache := ctx.CacheContext()
-		result := m.forwardSingleToken(cacheCtx, forwardAddr, signerAddr, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
-		if result.Success {
-			writeCache()
-		}
-
-		results = append(results, result)
-
-		EmitTokenForwardedEvent(ctx, msg.ForwardAddr, result)
-	}
-
-	return results
 }
 
 func (m msgServer) forwardSingleToken(
 	ctx sdk.Context,
 	forwardAddr, signerAddr sdk.AccAddress,
+	hypToken warptypes.HypToken,
 	balance sdk.Coin,
 	destDomain uint32,
 	destRecipient util.HexAddress,
 	maxIgpFee sdk.Coin,
 ) types.ForwardingResult {
-	hypToken, err := m.k.FindHypTokenByDenom(ctx, balance.Denom, destDomain)
+	hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
 	if err != nil {
-		return types.NewFailureResult(balance.Denom, balance.Amount, fmt.Sprintf("token lookup failed: %s", err.Error()))
+		return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())
 	}
-
-	// For synthetic tokens, verify route exists (TIA route check is done in FindHypTokenByDenom)
-	if balance.Denom != appconsts.BondDenom {
-		hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
-		if err != nil {
-			return types.NewFailureResult(balance.Denom, balance.Amount, "error checking warp route: "+err.Error())
-		}
-		if !hasRoute {
-			return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrNoWarpRoute.Error())
-		}
+	if !hasRoute {
+		return types.NewFailureResult(balance.Denom, balance.Amount, types.ErrNoWarpRoute.Error())
 	}
 
 	// Quote IGP fee for this token transfer
@@ -198,22 +166,6 @@ func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) 
 	}
 
 	return quotedFee.Amount.Sub(igpUsed)
-}
-
-// isSupportedDenom returns true if the denom can be forwarded via warp routes.
-func isSupportedDenom(denom string) bool {
-	return denom == appconsts.BondDenom || strings.HasPrefix(denom, "hyperlane/")
-}
-
-// filterSupportedDenoms returns only coins with denoms that are forwardable.
-func filterSupportedDenoms(coins sdk.Coins) sdk.Coins {
-	supported := make(sdk.Coins, 0, len(coins))
-	for _, c := range coins {
-		if isSupportedDenom(c.Denom) {
-			supported = append(supported, c)
-		}
-	}
-	return supported
 }
 
 func allTokensFailedError(results []types.ForwardingResult) error {
