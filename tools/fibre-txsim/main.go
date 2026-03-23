@@ -29,54 +29,35 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func main() {
-	if err := mainE(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+type config struct {
+	grpcEndpoint string
+	keyringDir   string
+	keyPrefix    string
+	blobSize     int
+	concurrency  int
+	interval     time.Duration
+	duration     time.Duration
+	otelEndpoint string
 }
 
-func mainE() error {
-	var (
-		chainID      string
-		grpcEndpoint string
-		keyringDir   string
-		keyPrefix    string
-		blobSize     int
-		concurrency  int
-		interval     time.Duration
-		duration     time.Duration
-		otelEndpoint string
-	)
-
-	flag.StringVar(&chainID, "chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
-	flag.StringVar(&grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
-	flag.StringVar(&keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
-	flag.StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
-	flag.IntVar(&blobSize, "blob-size", 1000000, "size of each blob in bytes")
-	flag.IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
-	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
-	flag.DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
-	flag.StringVar(&otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
+func main() {
+	var cfg config
+	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
+	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
+	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
+	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
+	flag.IntVar(&cfg.concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
+	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
+	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
+	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
+	chainID := flag.String("chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.Parse()
 	_ = chainID // accepted but unused
 
-	if otelEndpoint != "" {
-		metricsShutdown, err := setupOTelMetrics(context.Background(), otelEndpoint)
-		if err != nil {
-			return fmt.Errorf("setup OTel metrics: %w", err)
-		}
-		defer metricsShutdown(context.Background())
-
-		traceShutdown, err := setupOTelTracing(context.Background(), otelEndpoint)
-		if err != nil {
-			return fmt.Errorf("setup OTel tracing: %w", err)
-		}
-		defer traceShutdown(context.Background())
-		fmt.Printf("metrics and tracing enabled endpoint=%s\n", otelEndpoint)
+	if err := run(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
-
-	return run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration)
 }
 
 // worker holds a per-account tx client and key name, sharing one fibre client.
@@ -86,10 +67,25 @@ type worker struct {
 	keyName     string
 }
 
-func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, interval, duration time.Duration) error {
+func run(cfg config) error {
+	if cfg.otelEndpoint != "" {
+		metricsShutdown, err := setupOTelMetrics(context.Background(), cfg.otelEndpoint)
+		if err != nil {
+			return fmt.Errorf("setup OTel metrics: %w", err)
+		}
+		defer metricsShutdown(context.Background())
+
+		traceShutdown, err := setupOTelTracing(context.Background(), cfg.otelEndpoint)
+		if err != nil {
+			return fmt.Errorf("setup OTel tracing: %w", err)
+		}
+		defer traceShutdown(context.Background())
+		fmt.Printf("metrics and tracing enabled endpoint=%s\n", cfg.otelEndpoint)
+	}
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	kr, err := keyring.New(app.Name, keyring.BackendTest, keyringDir, nil, encCfg.Codec)
+	kr, err := keyring.New(app.Name, keyring.BackendTest, cfg.keyringDir, nil, encCfg.Codec)
 	if err != nil {
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
@@ -107,15 +103,15 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	}()
 
 	// Apply duration limit if set
-	if duration > 0 {
-		ctx, cancel = context.WithTimeout(ctx, duration)
+	if cfg.duration > 0 {
+		ctx, cancel = context.WithTimeout(ctx, cfg.duration)
 		defer cancel()
 	}
 
 	// Create a single shared fibre client
 	clientCfg := fibre.DefaultClientConfig()
-	clientCfg.StateAddress = grpcEndpoint
-	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", keyPrefix)
+	clientCfg.StateAddress = cfg.grpcEndpoint
+	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
 
 	sharedFibreClient, err := fibre.NewClient(kr, clientCfg)
 	if err != nil {
@@ -137,12 +133,12 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	}()
 
 	// Create one worker per concurrent slot, each with its own account
-	workers := make([]worker, concurrency)
-	for i := range concurrency {
-		keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
+	workers := make([]worker, cfg.concurrency)
+	for i := range cfg.concurrency {
+		keyName := fmt.Sprintf("%s-%d", cfg.keyPrefix, i)
 
 		grpcConn, err := grpc.NewClient(
-			grpcEndpoint,
+			cfg.grpcEndpoint,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultCallOptions(
 				grpc.MaxCallSendMsgSize(math.MaxInt32),
@@ -176,7 +172,7 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	)
 	startTime := time.Now()
 
-	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", concurrency)
+	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", cfg.concurrency)
 
 	// Launch each worker in its own goroutine
 	var wg sync.WaitGroup
@@ -185,12 +181,12 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 		go func(idx int, w worker) {
 			defer wg.Done()
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, blobSize, &totalSent, &successes, &failures, &totalLatNs)
-				if interval > 0 {
+				submitBlob(ctx, w, cfg.blobSize, &totalSent, &successes, &failures, &totalLatNs)
+				if cfg.interval > 0 {
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(interval):
+					case <-time.After(cfg.interval):
 					}
 				}
 			}
