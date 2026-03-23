@@ -31,7 +31,7 @@ Forwarding addresses are deterministically derived:
 
 ```text
 callDigest   = sha256(destDomain_32bytes || destRecipient || tokenId)
-salt         = sha256(version_byte || callDigest)       // version_byte = 0x02
+salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
 forwardAddr  = address.Module("forwarding", salt)[:20]
 ```
 

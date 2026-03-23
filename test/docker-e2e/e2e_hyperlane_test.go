@@ -247,7 +247,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
-	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
+	forwardAddress := s.QueryForwardingAddress(ctx, chain, config.TokenID.String(), destDomain, destRecipient)
 
 	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, destDomain, destRecipient)
 
@@ -606,7 +606,7 @@ func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *Evol
 	}, time.Minute, 5*time.Second, "unexpected erc20 balance, expected: ", expected)
 }
 
-func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, domain uint32, recipient string) string {
+func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient string) string {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -619,6 +619,7 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 	defer grpcConn.Close()
 
 	req := forwardingtypes.QueryDeriveForwardingAddressRequest{
+		TokenId:       tokenId,
 		DestDomain:    domain,
 		DestRecipient: recipient,
 	}
@@ -630,7 +631,7 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 	return resp.Address
 }
 
-func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosmos.Chain, destDomain uint32) sdk.Coin {
+func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosmos.Chain, tokenId string, destDomain uint32) sdk.Coin {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -643,6 +644,7 @@ func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosm
 	defer grpcConn.Close()
 
 	req := &forwardingtypes.QueryQuoteForwardingFeeRequest{
+		TokenId:    tokenId,
 		DestDomain: destDomain,
 	}
 
