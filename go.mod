@@ -33,7 +33,7 @@ require (
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.2
+	github.com/consensys/gnark-crypto v0.20.1
 	github.com/cosmos/btcutil v1.0.5
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
@@ -155,7 +155,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
-	github.com/bits-and-blooms/bitset v1.24.0 // indirect
+	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bkielbasa/cyclop v1.2.3 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/blizzy78/varnamelen v0.8.0 // indirect
