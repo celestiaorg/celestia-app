@@ -11,7 +11,7 @@ import (
 const (
 	// ForwardVersion is the version of the forwarding address derivation algorithm.
 	// Incrementing this allows address scheme upgrades without collision.
-	ForwardVersion = uint8(2)
+	ForwardVersion = uint8(1)
 	// RecipientLength is 32 bytes - the Hyperlane standard for cross-chain recipient addresses.
 	// EVM 20-byte addresses must be left-padded with 12 zero bytes to meet this requirement.
 	RecipientLength = 32

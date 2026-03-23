@@ -122,9 +122,9 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 ### DeriveForwardingAddress
 
 ```bash
-celestia-appd query forwarding derive-address 42161 \
-  0x000000000000000000000000<recipient-address> \
-  0x<token-id>
+celestia-appd query forwarding derive-address 0x<token-id> \
+  42161 \
+  0x000000000000000000000000<recipient-address>
 ```
 
 ### QuoteForwardingFee
@@ -132,28 +132,30 @@ celestia-appd query forwarding derive-address 42161 \
 Returns the estimated IGP fee for forwarding the specified token to a destination domain.
 
 ```bash
-celestia-appd query forwarding quote-fee 42161 0x<token-id>
+celestia-appd query forwarding quote-fee 0x<token-id> 42161
 ```
 
 ## CLI Usage
 
 ```bash
 # Query derived address
-celestia-appd query forwarding derive-address 42161 \
-  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
-  0x726f757465725f61707000000000000000000000000000010000000000000000
+celestia-appd query forwarding derive-address 0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161 \
+  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
 
 # Query IGP fee estimate
-celestia-appd query forwarding quote-fee 42161 \
-  0x726f757465725f61707000000000000000000000000000010000000000000000
+celestia-appd query forwarding quote-fee \
+  0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161
 
 # Check balance at forward address
 celestia-appd query bank balances <forward-addr>
 
 # Execute forwarding
-celestia-appd tx forwarding forward <forward-addr> 42161 \
-  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+celestia-appd tx forwarding forward <forward-addr> \
   0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161 \
+  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
   --max-igp-fee 1000utia --from relayer
 ```
 

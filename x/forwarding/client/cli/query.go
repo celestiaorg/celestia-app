@@ -32,12 +32,12 @@ func GetQueryCmd() *cobra.Command {
 // CmdDeriveAddress returns a CLI command for querying a derived forwarding address.
 func CmdDeriveAddress() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "derive-address [dest-domain] [dest-recipient] [token-id]",
+		Use:   "derive-address [token-id] [dest-domain] [dest-recipient]",
 		Short: "Derive the forwarding address for given destination parameters",
 		Long: `Derive the deterministic forwarding address for a given destination domain and recipient.
 
 Example:
-  celestia-appd query forwarding derive-address 42161 0x000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f00000 0x1234...`,
+  celestia-appd query forwarding derive-address 0x1234... 42161 0x000000000000000000000000742d35cc6634c0532925a3b844bc9e7595f00000`,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -45,9 +45,9 @@ Example:
 				return err
 			}
 
-			destDomainStr := args[0]
-			destRecipient := args[1]
-			tokenID := args[2]
+			tokenID := args[0]
+			destDomainStr := args[1]
+			destRecipient := args[2]
 
 			// Sanitize: ensure 0x prefix for consistency
 			if !strings.HasPrefix(strings.ToLower(destRecipient), "0x") {
@@ -81,13 +81,13 @@ Example:
 // CmdQuoteFee returns a CLI command for querying the IGP fee for forwarding.
 func CmdQuoteFee() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "quote-fee [dest-domain] [token-id]",
+		Use:   "quote-fee [token-id] [dest-domain]",
 		Short: "Query the estimated IGP fee for forwarding a token to a destination domain",
 		Long: `Query the estimated Hyperlane IGP fee required for forwarding a token to a destination domain.
 Relayers should use this to determine the max_igp_fee to provide in MsgForward.
 
 Example:
-  celestia-appd query forwarding quote-fee 42161 0x1234...`,
+  celestia-appd query forwarding quote-fee 0x1234... 42161`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
@@ -95,8 +95,8 @@ Example:
 				return err
 			}
 
-			destDomainStr := args[0]
-			tokenID := args[1]
+			tokenID := args[0]
+			destDomainStr := args[1]
 			destDomain, err := strconv.ParseUint(destDomainStr, 10, 32)
 			if err != nil {
 				return fmt.Errorf("invalid dest_domain: %w", err)
