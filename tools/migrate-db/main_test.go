@@ -233,6 +233,56 @@ func TestCopyAndDeleteKeys_NoKeyLoss(t *testing.T) {
 	_ = destDB.Close()
 }
 
+func TestCompactPebbleDB(t *testing.T) {
+	dir := t.TempDir()
+	pdb, err := db.NewDB("compact_test", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	// Write enough data to create multiple SST files.
+	for i := range 500 {
+		key := fmt.Appendf(nil, "key-%06d", i)
+		val := make([]byte, 512)
+		_, _ = rand.Read(val)
+		require.NoError(t, pdb.Set(key, val))
+	}
+
+	require.NoError(t, compactPebbleDB("compact_test", pdb))
+	// Verify data is still intact after compaction.
+	assert.Equal(t, int64(500), countKeys(t, pdb))
+	require.NoError(t, pdb.Close())
+}
+
+func TestSourceCompactionAfterDelete(t *testing.T) {
+	dir := t.TempDir()
+	numKeys := 300
+	srcDB, err := db.NewDB("src", db.GoLevelDBBackend, dir)
+	require.NoError(t, err)
+	for i := range numKeys {
+		key := fmt.Appendf(nil, "key-%06d", i)
+		val := make([]byte, 256)
+		_, _ = rand.Read(val)
+		require.NoError(t, srcDB.Set(key, val))
+	}
+
+	srcIter, err := srcDB.Iterator(nil, nil)
+	require.NoError(t, err)
+	destDB, err := db.NewDB("dst", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	// Small chunk to trigger compaction multiple times.
+	smallChunk := int64(10 * 1024)
+	totalKeys, _, err := copyAndDeleteKeys(context.Background(), "test", srcDB, destDB, srcIter, 1024*1024, 0, smallChunk, time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, int64(numKeys), totalKeys)
+	assert.Equal(t, int64(numKeys), countKeys(t, destDB))
+
+	// Source should have no keys left (all deleted).
+	assert.Equal(t, int64(0), countKeys(t, srcDB))
+
+	_ = srcDB.Close()
+	_ = destDB.Close()
+}
+
 func TestIsPebbleDB(t *testing.T) {
 	dir := t.TempDir()
 

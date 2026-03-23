@@ -333,7 +333,7 @@ Install Deps:
 
 ```sh
 # Install Go
-snap install go --channel=1.24/stable --classic
+snap install go --channel=1.26/stable --classic
 
 # Install Docker
 apt install docker.io -y
