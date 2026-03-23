@@ -255,6 +255,40 @@ func TestValidateBlobTx(t *testing.T) {
 			},
 			expectedErr: nil,
 		},
+		{
+			name: "invalid transaction, v1 blob with declared share version 0",
+			getTx: func() *tx.BlobTx {
+				blob, err := share.NewV1Blob(share.RandomBlobNamespace(), make([]byte, 470), addr)
+				require.NoError(t, err)
+
+				msg, err := types.NewMsgPayForBlobs(addr.String(), appconsts.Version, blob)
+				require.NoError(t, err)
+				// Mutate the declared share version to 0.
+				msg.ShareVersions[0] = uint32(share.ShareVersionZero)
+
+				rawTx, _, err := signer.CreateTx([]sdk.Msg{msg})
+				require.NoError(t, err)
+				return &tx.BlobTx{Tx: rawTx, Blobs: []*share.Blob{blob}}
+			},
+			expectedErr: types.ErrShareVersionMismatch,
+		},
+		{
+			name: "invalid transaction, v0 blob with declared share version 1",
+			getTx: func() *tx.BlobTx {
+				blob, err := share.NewV0Blob(share.RandomBlobNamespace(), make([]byte, 470))
+				require.NoError(t, err)
+
+				msg, err := types.NewMsgPayForBlobs(addr.String(), appconsts.Version, blob)
+				require.NoError(t, err)
+				// Mutate the declared share version to 1.
+				msg.ShareVersions[0] = uint32(share.ShareVersionOne)
+
+				rawTx, _, err := signer.CreateTx([]sdk.Msg{msg})
+				require.NoError(t, err)
+				return &tx.BlobTx{Tx: rawTx, Blobs: []*share.Blob{blob}}
+			},
+			expectedErr: types.ErrShareVersionMismatch,
+		},
 	}
 
 	for _, tt := range tests {
