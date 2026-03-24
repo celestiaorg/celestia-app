@@ -42,6 +42,9 @@ import (
 )
 
 var (
+	// ForwardingRelayerImage is the docker container image for the forwarding relayer service.
+	ForwardingRelayerImage = container.NewImage("ghcr.io/celestiaorg/forwarding-relayer", "v0.2.0", "1000:1000")
+
 	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
 	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
 	// See https://github.com/hyperlane-xyz/hyperlane-monorepo/issues/7598.
@@ -73,6 +76,7 @@ type ForwardingRequest struct {
 	ForwardAddr   string `json:"forward_addr"`
 	DestDomain    uint32 `json:"dest_domain"`
 	DestRecipient string `json:"dest_recipient"`
+	TokenId       string `json:"token_id"`
 }
 
 func (s *HyperlaneTestSuite) SetupSuite() {
@@ -172,8 +176,6 @@ func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfer() {
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
-	s.T().Skip("TODO: Enable test when forwarding relayer has been updated to support new MsgForward")
-
 	t := s.T()
 	if testing.Short() {
 		t.Skip("skipping hyperlane forwarding test in short mode")
@@ -249,7 +251,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	forwardAddress := s.QueryForwardingAddress(ctx, chain, config.TokenID.String(), destDomain, destRecipient)
 
-	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, destDomain, destRecipient)
+	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, config.TokenID.String(), destDomain, destRecipient)
 
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
 	s.Require().NoError(err)
@@ -330,7 +332,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	return backend
 }
 
-func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, destDomain uint32, destRecipient string) {
+func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient string) {
 	s.T().Helper()
 
 	networkInfo, err := forwardingService.GetNetworkInfo(ctx)
@@ -342,6 +344,7 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardi
 		ForwardAddr:   forwardAddr,
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
+		TokenId:       tokenId,
 	}
 
 	reqBz, err := json.Marshal(forwardReq)

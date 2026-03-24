@@ -35,13 +35,8 @@ func (msg *MsgForward) ValidateBasic() error {
 		return errors.Wrap(err, "invalid forward address")
 	}
 
-	destRecipient, err := util.DecodeHexAddress(msg.DestRecipient)
-	if err != nil {
+	if _, err := util.DecodeHexAddress(msg.DestRecipient); err != nil {
 		return errors.Wrap(err, "invalid dest_recipient hex format")
-	}
-
-	if len(destRecipient.Bytes()) != RecipientLength {
-		return errors.Wrapf(ErrInvalidRecipient, "dest_recipient must be %d bytes, got %d", RecipientLength, len(destRecipient.Bytes()))
 	}
 
 	if _, err := util.DecodeHexAddress(msg.TokenId); err != nil {
