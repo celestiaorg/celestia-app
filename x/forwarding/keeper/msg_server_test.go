@@ -31,10 +31,6 @@ func NewMockBankKeeper() *MockBankKeeper {
 	}
 }
 
-func (m *MockBankKeeper) GetAllBalances(_ context.Context, addr sdk.AccAddress) sdk.Coins {
-	return m.Balances[addr.String()]
-}
-
 func (m *MockBankKeeper) GetBalance(_ context.Context, addr sdk.AccAddress, denom string) sdk.Coin {
 	for _, c := range m.Balances[addr.String()] {
 		if c.Denom == denom {
@@ -132,10 +128,6 @@ func (m *MockWarpKeeper) GetHypToken(_ context.Context, id uint64) (warptypes.Hy
 		}
 	}
 	return warptypes.HypToken{}, errors.New("token not found")
-}
-
-func (m *MockWarpKeeper) GetAllHypTokens(_ context.Context) ([]warptypes.HypToken, error) {
-	return m.Tokens, nil
 }
 
 func (m *MockWarpKeeper) HasEnrolledRouter(_ context.Context, tokenId uint64, domain uint32) (bool, error) {

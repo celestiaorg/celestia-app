@@ -86,7 +86,7 @@ Example:
 		},
 	}
 
-	cmd.Flags().String("max-igp-fee", "1000000utia", "Maximum IGP fee to pay per token (default: 1000000utia)")
+	cmd.Flags().String("max-igp-fee", "1000000utia", "Maximum IGP fee to pay for the bound token (default: 1000000utia)")
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd
