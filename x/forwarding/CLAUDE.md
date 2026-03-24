@@ -17,11 +17,13 @@ Agent context for `celestia-app/x/forwarding/`.
 
 ```mermaid
 flowchart TD
-    A["(destDomain, destRecipient)"] --> B["destDomain → 32-byte big-endian"]
-    B --> C["sha256(domainBytes || recipient || tokenId) = callDigest"]
-    C --> D["sha256(0x01 || callDigest) = salt"]
-    D --> E["address.Module('forwarding', salt)[:20]"]
-    E --> F["forwardAddr (bech32)"]
+    A["(destDomain, destRecipient, tokenId)"] --> B["destDomain → 32-byte big-endian"]
+    A --> C["tokenId → 32-byte Hyperlane token identifier"]
+    B --> D["sha256(domainBytes || recipient || tokenId) = callDigest"]
+    C --> D
+    D --> E["sha256(0x01 || callDigest) = salt"]
+    E --> F["address.Module('forwarding', salt)[:20]"]
+    F --> G["forwardAddr (bech32)"]
 ```
 
 ## Token Lifecycle

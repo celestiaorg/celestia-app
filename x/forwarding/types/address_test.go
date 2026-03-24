@@ -217,7 +217,7 @@ func TestDeriveForwardingAddressReturnsErrorOnInvalidTokenIDLength(t *testing.T)
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := types.DeriveForwardingAddress(1, destRecipient, tc.tokenID)
 			require.Error(t, err, "should return error for tokenID length %d", len(tc.tokenID))
-			require.ErrorContains(t, err, "invalid token_id length")
+			require.ErrorIs(t, err, types.ErrInvalidTokenID)
 		})
 	}
 }

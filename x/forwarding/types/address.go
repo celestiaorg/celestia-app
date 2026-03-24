@@ -42,7 +42,7 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID []byte) (
 	}
 
 	if len(tokenID) != TokenIDLength {
-		return nil, fmt.Errorf("invalid token_id length: expected %d bytes, got %d", TokenIDLength, len(tokenID))
+		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidTokenID, TokenIDLength, len(tokenID))
 	}
 
 	// Step 1: Encode destDomain as 32-byte big-endian (right-aligned, ABI uint256 encoding)

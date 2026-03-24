@@ -323,7 +323,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 
 			require.Error(t, err)
 			require.Nil(t, resp)
-			require.ErrorIs(t, err, types.ErrAllTokensFailed)
+			require.ErrorIs(t, err, types.ErrForwardFailed)
 			require.ErrorContains(t, err, tc.expectedErrPart)
 
 			// Verify no balance changes (validation failed before transfers)

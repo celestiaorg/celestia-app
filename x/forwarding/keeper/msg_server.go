@@ -70,7 +70,7 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 
 	messageID, err := m.forwardToken(ctx, forwardAddr, signerAddr, hypToken, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %s:%s (%s)", types.ErrAllTokensFailed, balance.Denom, balance.Amount.String(), err)
+		return nil, fmt.Errorf("%w: %s:%s (%s)", types.ErrForwardFailed, balance.Denom, balance.Amount.String(), err)
 	}
 
 	EmitTokenForwardedEvent(ctx, msg.ForwardAddr, msg.TokenId, balance.Denom, messageID.String(), balance.Amount)
@@ -128,8 +128,8 @@ func (m msgServer) forwardToken(
 		}
 	}
 
-	// Execute warp transfer with forwardAddr as sender. The caller wraps this
-	// attempt in a CacheContext so failures discard all token-level state changes.
+	// Execute warp transfer with forwardAddr as sender. If this returns an error,
+	// Forward propagates it and the enclosing tx rollback discards these state changes.
 	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
 	if err != nil {
 		return util.HexAddress{}, fmt.Errorf("warp transfer failed: %w", err)
