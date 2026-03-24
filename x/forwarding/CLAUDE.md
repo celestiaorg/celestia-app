@@ -44,7 +44,7 @@ stateDiagram-v2
 - [ ] destRecipient validated as 32 bytes
 - [ ] Pre-checks happen BEFORE SendCoins
 - [ ] Failed warp transfers return tokens to forwardAddr
-- [ ] Partial success handled (some tokens fail, others succeed)
+- [ ] MsgForward is atomic: a bound token either fully forwards or the tx fails
 
 ## Build & Test
 

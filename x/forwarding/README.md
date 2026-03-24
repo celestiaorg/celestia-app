@@ -114,6 +114,7 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 4. IGP fee sent directly from relayer to `forwardAddr`
 5. Warp executes from `forwardAddr` (which pays the IGP fee)
 6. Any excess IGP fee is refunded from `forwardAddr` back to relayer
+7. If the excess refund cannot be paid, the tx fails and rolls back so no fee remains stranded at `forwardAddr`
 
 **Fee on failure:** If the warp transfer fails, the token remains at `forwardAddr`, and the relayer is not charged the IGP fee for the failed attempt.
 
@@ -172,12 +173,12 @@ celestia-appd tx forwarding forward <forward-addr> \
 |------|-----------------------|------------------------------------------------|
 | 2    | ErrAddressMismatch    | Derived address doesn't match provided address |
 | 3    | ErrNoBalance          | No balance at forwarding address               |
-| 4    | ErrBelowMinimum       | Balance below minimum threshold                |
-| 5    | ErrUnsupportedToken   | Token denom not supported for forwarding       |
-| 6    | ErrTooManyTokens      | Too many tokens at forwarding address          |
-| 7    | ErrInvalidRecipient   | Invalid recipient length                       |
-| 8    | ErrNoWarpRoute        | No warp route to destination domain            |
-| 9    | ErrInsufficientIgpFee | IGP fee provided is less than required         |
+| 4    | ErrUnsupportedToken   | Token denom not supported for forwarding       |
+| 5    | ErrInvalidRecipient   | Invalid recipient length                       |
+| 6    | ErrNoWarpRoute        | No warp route to destination domain            |
+| 7    | ErrInsufficientIgpFee | IGP fee provided is less than required         |
+| 8    | ErrForwardFailed      | Token forward failed                           |
+| 9    | ErrInvalidTokenID     | Invalid token identifier                       |
 
 ## Security
 

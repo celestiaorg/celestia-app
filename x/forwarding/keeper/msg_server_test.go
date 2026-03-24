@@ -380,6 +380,63 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 		"signer should have received refund of excess IGP fee")
 }
 
+func TestForwardSingleToken_IGPFeeRefundFailureReturnsError(t *testing.T) {
+	s := newTestIGPSetup(t)
+
+	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
+	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
+
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	s.warpKeeper.TransferMessageId = messageId
+
+	forwardedAmount := math.NewInt(1000)
+	actualIgpConsumed := math.NewInt(80)
+	s.warpKeeper.OnTransfer = func(sender string, maxFee sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		currentBal := s.bankKeeper.Balances[senderAddr.String()]
+		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, forwardedAmount.Add(actualIgpConsumed)))
+		s.bankKeeper.Balances[senderAddr.String()] = currentBal.Sub(consumed...)
+	}
+
+	originalSendCoinsFn := s.bankKeeper.SendCoinsFn
+	s.bankKeeper.SendCoinsFn = func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error {
+		if from.Equals(s.forwardAddr) && to.Equals(s.signer) {
+			return errors.New("refund send failed")
+		}
+		if originalSendCoinsFn != nil {
+			return originalSendCoinsFn(ctx, from, to, amt)
+		}
+
+		fromBal := s.bankKeeper.Balances[from.String()]
+		toBal := s.bankKeeper.Balances[to.String()]
+
+		newFromBal, hasNeg := fromBal.SafeSub(amt...)
+		if hasNeg {
+			return errors.New("insufficient funds")
+		}
+
+		s.bankKeeper.Balances[from.String()] = newFromBal
+		s.bankKeeper.Balances[to.String()] = toBal.Add(amt...)
+		return nil
+	}
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		s.tokenID,
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
+	)
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, types.ErrForwardFailed)
+	require.ErrorContains(t, err, "failed to refund excess IGP fee to relayer")
+}
+
 func TestForward_LeavesUnrelatedBalancesUntouched(t *testing.T) {
 	s := newTestIGPSetup(t)
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(

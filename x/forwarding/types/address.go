@@ -35,7 +35,8 @@ const (
 //  2. salt = sha256(ForwardVersion || callDigest)
 //  3. address = address.Module("forwarding", salt)[:CosmosAddressLen]
 //
-// Returns an error if destRecipient is not exactly RecipientLength (32) bytes.
+// Returns ErrInvalidRecipient if destRecipient is not exactly RecipientLength (32) bytes,
+// and ErrInvalidTokenID if tokenID is not exactly TokenIDLength (32) bytes.
 func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID []byte) ([]byte, error) {
 	if len(destRecipient) != RecipientLength {
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidRecipient, RecipientLength, len(destRecipient))

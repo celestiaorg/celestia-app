@@ -142,12 +142,8 @@ func (m msgServer) forwardToken(
 
 		if excess.IsPositive() {
 			excessCoin := sdk.NewCoin(quotedFee.Denom, excess)
-			if refundErr := m.k.bankKeeper.SendCoins(ctx, forwardAddr, signerAddr, sdk.NewCoins(excessCoin)); refundErr != nil {
-				ctx.Logger().Error("failed to refund excess IGP fee to relayer",
-					"denom", balance.Denom,
-					"excess", excessCoin.String(),
-					"refund_error", refundErr.Error(),
-				)
+			if err := m.k.bankKeeper.SendCoins(ctx, forwardAddr, signerAddr, sdk.NewCoins(excessCoin)); err != nil {
+				return util.HexAddress{}, fmt.Errorf("failed to refund excess IGP fee to relayer: %w", err)
 			}
 		}
 	}
