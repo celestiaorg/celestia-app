@@ -148,6 +148,9 @@ CAPTURE_HEAP_ON_MAX_RSS="${CAPTURE_HEAP_ON_MAX_RSS:-1}"
 # Capture heap once RSS climbs by at least this many KiB (default: 2 GiB).
 HEAP_CAPTURE_RSS_DELTA_KB="${HEAP_CAPTURE_RSS_DELTA_KB:-2097152}"
 HEAP_CAPTURE_MAX_FILES="${HEAP_CAPTURE_MAX_FILES:-16}"
+CAPTURE_FULL_SMAPS_ON_MAX_RSS="${CAPTURE_FULL_SMAPS_ON_MAX_RSS:-1}"
+CAPTURE_DEBUG_VARS_ON_MAX_RSS="${CAPTURE_DEBUG_VARS_ON_MAX_RSS:-1}"
+SMAPS_TOP_MAPPINGS_LIMIT="${SMAPS_TOP_MAPPINGS_LIMIT:-40}"
 
 log_info() {
   echo "[$(date +%H:%M:%S)] INFO  $*"
@@ -1169,13 +1172,89 @@ capture_heap_profile() {
   ts="$(date +%Y%m%d%H%M%S)"
   local heap_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.pprof"
   local top_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.top.txt"
-  local smaps_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.smaps_rollup.txt"
+  local smaps_rollup_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.smaps_rollup.txt"
+  local smaps_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.smaps.txt"
+  local smaps_top_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.smaps_top.txt"
+  local debug_vars_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.debug_vars.json"
+  local treedb_vars_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.treedb_vars.json"
+  local treedb_app_vars_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.treedb_application_vars.json"
+  local treedb_app_summary_file="${DIAG_DIR}/pprof-heap-${reason}-${rss_kb}k-${ts}.treedb_application_summary.txt"
 
   curl -fsS --max-time 20 "${PPROF_HTTP_URL}/debug/pprof/heap" > "${heap_file}" 2>/dev/null || true
   if [ -s "${heap_file}" ]; then
     go tool pprof -top "${APPD_BIN}" "${heap_file}" > "${top_file}" 2>/dev/null || true
     if [ -r "/proc/${NODE_PID}/smaps_rollup" ]; then
-      cat "/proc/${NODE_PID}/smaps_rollup" > "${smaps_file}" 2>/dev/null || true
+      cat "/proc/${NODE_PID}/smaps_rollup" > "${smaps_rollup_file}" 2>/dev/null || true
+    fi
+    if [ "${CAPTURE_FULL_SMAPS_ON_MAX_RSS}" = "1" ] && [ -r "/proc/${NODE_PID}/smaps" ]; then
+      cat "/proc/${NODE_PID}/smaps" > "${smaps_file}" 2>/dev/null || true
+      if [ -s "${smaps_file}" ]; then
+        python3 - "${smaps_file}" "${smaps_top_file}" "${SMAPS_TOP_MAPPINGS_LIMIT}" <<'PY'
+import collections
+import re
+import sys
+
+smaps_path = sys.argv[1]
+out_path = sys.argv[2]
+try:
+    limit = int(sys.argv[3])
+except Exception:
+    limit = 40
+if limit < 1:
+    limit = 1
+
+header_re = re.compile(r"^[0-9a-f]+-[0-9a-f]+\s")
+rss_re = re.compile(r"^Rss:\s+(\d+)\s+kB$")
+
+by_path = collections.Counter()
+current = None
+
+with open(smaps_path, "r", encoding="utf-8", errors="replace") as fh:
+    for raw in fh:
+        line = raw.rstrip("\n")
+        if header_re.match(line):
+            parts = line.split(None, 5)
+            current = parts[5] if len(parts) >= 6 else "[anonymous]"
+            continue
+        m = rss_re.match(line)
+        if m and current is not None:
+            by_path[current] += int(m.group(1))
+
+with open(out_path, "w", encoding="utf-8") as out:
+    total = sum(by_path.values())
+    out.write(f"total_rss_kb={total}\n")
+    for path, rss_kb in by_path.most_common(limit):
+        out.write(f"{rss_kb}\t{path}\n")
+PY
+      fi
+    fi
+    if [ "${CAPTURE_DEBUG_VARS_ON_MAX_RSS}" = "1" ]; then
+      curl -fsS --max-time 5 "${PPROF_HTTP_URL}/debug/vars" > "${debug_vars_file}" 2>/dev/null || true
+      if [ -s "${debug_vars_file}" ]; then
+        jq '.treedb // {}' "${debug_vars_file}" > "${treedb_vars_file}" 2>/dev/null || true
+        jq '
+          (.treedb.instances // {})
+          | to_entries
+          | map(select(.key | endswith("/data/application.db/maindb/wal")))
+          | if length > 0 then .[0].value else {} end
+        ' "${debug_vars_file}" > "${treedb_app_vars_file}" 2>/dev/null || true
+        if [ -s "${treedb_app_vars_file}" ]; then
+          jq -r '
+            [
+              "treedb.expvar.wal_dir",
+              "treedb.process.memory.rss_bytes",
+              "treedb.process.memory.heap_inuse_bytes",
+              "treedb.vlog.mmap_active_bytes",
+              "treedb.vlog.mmap_current_bytes",
+              "treedb.vlog.mmap_sealed_bytes",
+              "treedb.vlog.mmap_dead_bytes",
+              "treedb.vlog.mmap_dead_mappings",
+              "treedb.vlog.mmap_remaps"
+            ][] as $k
+            | "\($k)=\(.[ $k ] // "")"
+          ' "${treedb_app_vars_file}" > "${treedb_app_summary_file}" 2>/dev/null || true
+        fi
+      fi
     fi
     HEAP_CAPTURE_COUNT=$((HEAP_CAPTURE_COUNT + 1))
   else
