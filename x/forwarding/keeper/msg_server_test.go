@@ -273,7 +273,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			maxIgpFee:         sdk.NewCoin(appconsts.BondDenom, math.NewInt(50)), // 50 < 100
 			signerBalance:     sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200))),
 			expectedSignerBal: math.NewInt(200),
-			expectedErrPart:   appconsts.BondDenom + ":1000",
+			expectedErrPart:   types.ErrInsufficientIgpFee.Error(),
 		},
 		{
 			name:              "denom mismatch",

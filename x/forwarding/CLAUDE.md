@@ -19,6 +19,7 @@ Agent context for `celestia-app/x/forwarding/`.
 flowchart TD
     A["(destDomain, destRecipient, tokenId)"] --> B["destDomain → 32-byte big-endian"]
     A --> C["tokenId → 32-byte Hyperlane token identifier"]
+    A -->|destRecipient as 32-byte recipient| D["sha256(domainBytes || recipient || tokenId) = callDigest"]
     B --> D["sha256(domainBytes || recipient || tokenId) = callDigest"]
     C --> D
     D --> E["sha256(0x01 || callDigest) = salt"]
