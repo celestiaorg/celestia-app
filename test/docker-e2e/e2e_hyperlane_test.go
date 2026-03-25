@@ -17,7 +17,6 @@ import (
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	v7 "github.com/celestiaorg/celestia-app/v8/pkg/appconsts/v7"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -182,12 +181,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	}
 
 	ctx := context.Background()
-
-	// Use app version 7 because the Lumina forwarding relayer doesn't support v8 yet.
-	// TODO: revert to s.celestiaCfg after Lumina adds support for app version 8.
-	// See https://github.com/celestiaorg/celestia-app/issues/6650
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(s.celestiaCfg.Tag)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(v7.Version)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
@@ -278,7 +272,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			Port: "8080",
 		},
@@ -315,7 +309,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
 			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),
