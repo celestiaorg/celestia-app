@@ -112,7 +112,11 @@ func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfer() {
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+		// Pin the hyperlane-init image by digest to avoid breaking changes in the :latest tag.
+		// The Hyperlane CLI v28+ removed the --config flag for `warp deploy` which tastora v0.15.0 still uses.
+		// TODO: revert to hyperlane.DefaultDeployerImage() after upgrading tastora.
+		// Note: a tastora upgrade will also need to account for https://github.com/celestiaorg/tastora/pull/184
+		HyperlaneImage: container.Image{Repository: "ghcr.io/celestiaorg/hyperlane-init@sha256", Version: "04d570e31e8e459a8e7aa90d81bfe28df513201b98d027e37bed1bc861a2bbb1", UIDGID: "1000:1000"},
 	}
 
 	hypChainProvider := []hyperlane.ChainConfigProvider{reth, chain}
@@ -198,7 +202,8 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+		// Pin the hyperlane-init image by digest. See comment in TestHyperlaneTokenTransfer.
+		HyperlaneImage: container.Image{Repository: "ghcr.io/celestiaorg/hyperlane-init@sha256", Version: "04d570e31e8e459a8e7aa90d81bfe28df513201b98d027e37bed1bc861a2bbb1", UIDGID: "1000:1000"},
 	}
 
 	hypChainProvider := []hyperlane.ChainConfigProvider{reth0, reth1, chain}
