@@ -77,6 +77,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
 		AppGRPCAddress:      "127.0.0.1:9090",
 		ServerListenAddress: "0.0.0.0:7980",
+		SignerGRPCAddress:   "127.0.0.1:26659",
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
