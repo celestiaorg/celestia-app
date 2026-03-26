@@ -11,6 +11,7 @@ KEY_NAME="validator"
 KEYRING_BACKEND="test"
 FEES="5000utia"
 APP_GRPC_ADDR="localhost:9090"
+SIGNER_GRPC_ADDR="127.0.0.1:26658"
 FIBRE_HOST="localhost:7980"
 
 VERSION=$(celestia-appd version 2>&1)
@@ -98,6 +99,12 @@ createGenesis() {
 
     # Persist ABCI responses
     sed -i.bak 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
+
+    # Enable privval gRPC endpoint for fibre signing
+    sed -i.bak "s#^priv_validator_grpc_laddr = .*#priv_validator_grpc_laddr = \"${SIGNER_GRPC_ADDR}\"#g" "${APP_HOME}"/config/config.toml
+
+    # Enable Cosmos SDK gRPC server in app.toml
+    sed -i.bak '/^\[grpc\]/{n;s#enable = false#enable = true#;}' "${APP_HOME}"/config/app.toml
 }
 
 deleteHome() {
@@ -127,6 +134,18 @@ registerFibreProviderInfo() {
   celestia-appd query valaddr providers --home "${APP_HOME}" --output json
 }
 
+depositToEscrow() {
+  sleep 3
+  echo "Depositing funds to fibre escrow account..."
+  celestia-appd tx fibre deposit-to-escrow 1000000000utia \
+      --from "${KEY_NAME}" \
+      --keyring-backend="${KEYRING_BACKEND}" \
+      --home "${APP_HOME}" \
+      --chain-id "${CHAIN_ID}" \
+      --fees "${FEES}" \
+      --yes
+}
+
 startCelestiaApp() {
   echo "Starting celestia-app in background..."
   celestia-appd start \
@@ -144,7 +163,8 @@ startFibre() {
   echo "Starting fibre in background..."
   fibre start \
     --home "${FIBRE_HOME}" \
-    --app-grpc-address "${APP_GRPC_ADDR}" &
+    --app-grpc-address "${APP_GRPC_ADDR}" \
+    --signer-grpc-address "${SIGNER_GRPC_ADDR}" &
 
   FIBRE_PID=$!
   echo "fibre started with PID: ${FIBRE_PID}"
@@ -155,6 +175,7 @@ createGenesis
 startCelestiaApp
 startFibre
 registerFibreProviderInfo
+depositToEscrow
 
 # Keep script running and wait for celestia-appd process.
 # This allows logs to continue streaming and CTRL+C will trigger cleanup
