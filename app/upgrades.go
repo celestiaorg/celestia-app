@@ -80,19 +80,26 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			err := app.SetMinCommissionRate(sdkCtx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
-				return nil, err
+			// Check the app version before the upgrade to determine which
+			// migrations need to run. Mainnet is upgrading from v6 and needs
+			// these migrations. Mocha is upgrading from v7 where they were
+			// already applied.
+			previousVersion := sdkCtx.BlockHeader().Version.App
+			if previousVersion < 7 {
+				sdkCtx.Logger().Info("upgrading from v6, running v7 migrations", "previous_version", previousVersion)
+
+				if err := app.SetMinCommissionRate(sdkCtx); err != nil {
+					sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
+					return nil, err
+				}
+
+				if err := app.UpdateValidatorCommissionRates(sdkCtx); err != nil {
+					sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
+					return nil, err
+				}
 			}
 
-			err = app.UpdateValidatorCommissionRates(sdkCtx)
-			if err != nil {
-				sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
-				return nil, err
-			}
-
-			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
+			sdkCtx.Logger().Info("finished upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
