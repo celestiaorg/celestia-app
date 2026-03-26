@@ -20,7 +20,7 @@ import (
 )
 
 func TestUpgrades(t *testing.T) {
-	t.Run("app.New() should register a v7 upgrade handler", func(t *testing.T) {
+	t.Run("app.New() should register a v8 upgrade handler", func(t *testing.T) {
 		logger := log.NewNopLogger()
 		db := tmdb.NewMemDB()
 		traceStore := &NoopWriter{}
@@ -29,8 +29,8 @@ func TestUpgrades(t *testing.T) {
 
 		testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
 
-		require.False(t, testApp.UpgradeKeeper.HasHandler("v6"))
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v7"))
+		require.False(t, testApp.UpgradeKeeper.HasHandler("v7"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
 	})
 }
 
@@ -39,7 +39,7 @@ func TestApplyUpgrade(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
 		consensusParams.Version.App = 5
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v7"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
 
 		ctx := testApp.NewContext(false)
 		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.10")
@@ -55,7 +55,7 @@ func TestApplyUpgrade(t *testing.T) {
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
-			Name:   "v7",
+			Name:   "v8",
 			Time:   time.Now(),
 			Height: 1,
 			Info:   "info",
@@ -72,7 +72,7 @@ func TestApplyUpgrade(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
 		consensusParams.Version.App = 5
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v7"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
 
 		ctx := testApp.NewContext(false)
 		validators, err := testApp.StakingKeeper.GetAllValidators(ctx)
@@ -85,7 +85,7 @@ func TestApplyUpgrade(t *testing.T) {
 
 		// Apply the upgrade.
 		plan := upgradetypes.Plan{
-			Name:   "v7",
+			Name:   "v8",
 			Time:   time.Now(),
 			Height: 1,
 			Info:   "info",
