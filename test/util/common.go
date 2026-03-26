@@ -1,7 +1,7 @@
 package util
 
 import (
-	"github.com/celestiaorg/celestia-app/v7/x/blob"
+	"github.com/celestiaorg/celestia-app/v8/x/blob"
 	"github.com/cosmos/cosmos-sdk/codec"
 	ccodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"

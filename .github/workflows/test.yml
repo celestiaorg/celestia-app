@@ -25,14 +25,14 @@ jobs:
           # sentinel value to run all other tests.
           - package: "unit"
           # split the heaviest ones
-          - package: "github.com/celestiaorg/celestia-app/v7/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v8/app/test"
             pattern: "TestIntegration.*"
-          - package: "github.com/celestiaorg/celestia-app/v7/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v8/app/test"
             pattern: "TestBigBlob.*|TestStandardSDK.*"
-          - package: "github.com/celestiaorg/celestia-app/v7/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v8/app/test"
             pattern: "TestSquareSize.*|TestPriority.*"
-          - package: "github.com/celestiaorg/celestia-app/v7/test/txsim"
-          - package: "github.com/celestiaorg/celestia-app/v7/pkg/user"
+          - package: "github.com/celestiaorg/celestia-app/v8/test/txsim"
+          - package: "github.com/celestiaorg/celestia-app/v8/pkg/user"
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 

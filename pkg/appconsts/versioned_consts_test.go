@@ -3,7 +3,7 @@ package appconsts_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/stretchr/testify/require"
 )
 

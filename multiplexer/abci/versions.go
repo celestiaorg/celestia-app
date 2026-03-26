@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v7/multiplexer/appd"
+	"github.com/celestiaorg/celestia-app/v8/multiplexer/appd"
 )
 
 // NewVersions returns a list of versions sorted by app version.
