@@ -165,7 +165,6 @@ func (c *Client) downloadFrom(
 		attribute.Int("row_size", rowSize),
 	))
 
-	// Verify rows concurrently in the fetch goroutine to avoid blocking the coordinator
 	verified := make([]*rsema1d.RowInclusionProof, 0, len(rows))
 	for _, row := range rows {
 		if err := blob.VerifyRow(row); err != nil {
