@@ -288,7 +288,8 @@ func TestSelect_NoOverlapBeforeSplitIdx(t *testing.T) {
 }
 
 // TestSelect_AssignRelationship verifies that walking validators in Select order
-// accumulates enough unique rows from Assign for reconstruction.
+// accumulates enough unique rows from Assign for reconstruction using a strict
+// prefix, not all validators. This ensures Select ordering is efficient.
 func TestSelect_AssignRelationship(t *testing.T) {
 	cases := []struct {
 		name   string
@@ -311,9 +312,12 @@ func TestSelect_AssignRelationship(t *testing.T) {
 			shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
 			selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
 
-			// Walk Select order, accumulating unique rows until we have enough
+			// Walk Select order, accumulating unique rows until we have enough.
+			// Track how many validators were needed — must be a strict prefix.
 			unique := make(map[int]struct{})
+			validatorsUsed := 0
 			for _, sv := range selected {
+				validatorsUsed++
 				for _, row := range shardMap[sv.Validator] {
 					unique[row] = struct{}{}
 				}
@@ -323,6 +327,12 @@ func TestSelect_AssignRelationship(t *testing.T) {
 			}
 
 			require.GreaterOrEqual(t, len(unique), testOriginalRows)
+			// A strict prefix must suffice — if all validators were needed,
+			// Select ordering provides no benefit over random order.
+			if len(tc.stakes) > 1 {
+				require.Less(t, validatorsUsed, len(selected),
+					"Select should reach reconstruction threshold with a prefix, not all validators")
+			}
 		})
 	}
 }

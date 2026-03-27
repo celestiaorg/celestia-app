@@ -212,6 +212,8 @@ func (c *Client) downloadBlob(
 
 	blob, err := NewEmptyBlob(id)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create empty blob")
 		return nil, fmt.Errorf("creating empty blob: %w", err)
 	}
 
@@ -298,16 +300,21 @@ loop:
 			}
 
 		case <-ctx.Done():
+			span.RecordError(ctx.Err())
+			span.SetStatus(codes.Error, "context cancelled")
 			return nil, ctx.Err()
 		}
 	}
 
 	switch {
 	case uniqueRows == 0:
+		span.SetStatus(codes.Error, "no shards retrieved")
 		return nil, ErrNotFound
 	case uniqueRows < originalRows:
+		span.SetStatus(codes.Error, "not enough shards")
 		return nil, ErrNotEnoughShards
 	default:
+		span.SetStatus(codes.Ok, "")
 		return blob, nil
 	}
 }

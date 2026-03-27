@@ -32,6 +32,7 @@ func TestClientDownload(t *testing.T) {
 		{"LargeValidatorFailure", testClientDownloadLargeValidatorFailure},
 		{"IncorrectRowDistribution", testClientDownloadIncorrectRowDistribution},
 		{"WithHeight", testClientDownloadWithHeight},
+		{"CustomMinRowsPerValidator", testClientDownloadCustomMinRows},
 	}
 
 	for _, tt := range tests {
@@ -240,7 +241,7 @@ func testClientDownloadIncorrectRowDistribution(t *testing.T) {
 	require.NotEqual(t, serverByAddr, clientByAddr, "test requires different per-validator row assignments")
 
 	// Mock servers use the server-side validator set for row assignment
-	cfg.NewClientFn = makeDownloadMockClientFn(serverValSet, cfg, privKeys, blob)
+	cfg.NewClientFn = makeDownloadMockClientFn(serverValSet, &cfg, privKeys, blob)
 	// Client uses the reshuffled-stakes validator set for row estimation
 	cfg.StateClientFn = func() (state.Client, error) {
 		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: clientValSet}}, nil
@@ -266,7 +267,7 @@ func testClientDownloadWithHeight(t *testing.T) {
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 42}
 	cfg := fibre.DefaultClientConfig()
-	cfg.NewClientFn = makeDownloadMockClientFn(valSet, cfg, privKeys, blob)
+	cfg.NewClientFn = makeDownloadMockClientFn(valSet, &cfg, privKeys, blob)
 
 	getter := &heightTrackingSetGetter{set: valSet}
 	cfg.StateClientFn = func() (state.Client, error) {
@@ -308,6 +309,32 @@ func (g *heightTrackingSetGetter) GetByHeight(ctx context.Context, height uint64
 	return g.set, nil
 }
 
+func testClientDownloadCustomMinRows(t *testing.T) {
+	// Verify that customCfg modifications to MinRowsPerValidator propagate
+	// to the mock via the pointer. Setting MinRowsPerValidator to originalRows
+	// means every validator gets all rows, so a single validator suffices.
+	// With default MinRowsPerValidator (~148), 10 equal-stake validators need 4
+	// to reconstruct. If the pointer didn't work, the mock would use default
+	// MinRowsPerValidator and the counter assertion would fail.
+	const numValidators = 10
+	blob := makeTestBlobV0(t, 256*1024)
+
+	var counter *atomic.Int64
+	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
+		cfg.MinRowsPerValidator = blob.Config().OriginalRows
+		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
+	}, blob)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	downloaded, err := client.Download(t.Context(), blob.ID(), nil)
+	require.NoError(t, err)
+	require.Equal(t, blob.Data(), downloaded.Data())
+
+	// Every validator has originalRows rows, so 1 validator is enough.
+	require.Equal(t, int64(1), counter.Load(),
+		"with MinRowsPerValidator=originalRows, a single validator should suffice")
+}
+
 // makeTestDownloadClient creates a download client with equal-stake validators that serves the given blobs.
 func makeTestDownloadClient(
 	t *testing.T,
@@ -344,7 +371,7 @@ func makeTestDownloadClientFromValidators(
 
 	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
 	cfg := fibre.DefaultClientConfig()
-	cfg.NewClientFn = makeDownloadMockClientFn(valSet, cfg, privKeys, blobs...)
+	cfg.NewClientFn = makeDownloadMockClientFn(valSet, &cfg, privKeys, blobs...)
 	if customCfg != nil {
 		customCfg(&cfg)
 	}
@@ -362,7 +389,7 @@ func makeTestDownloadClientFromValidators(
 // for realistic row distribution matching the production code.
 func makeDownloadMockClientFn(
 	valSet validator.Set,
-	cfg fibre.ClientConfig,
+	cfg *fibre.ClientConfig,
 	privKeys []cmted25519.PrivKey,
 	blobs ...*fibre.Blob,
 ) grpc.NewClientFn {
@@ -396,7 +423,7 @@ type downloadMockClient struct {
 	privKey   cmted25519.PrivKey
 	blobs     []*fibre.Blob
 	valSet    validator.Set
-	clientCfg fibre.ClientConfig
+	clientCfg *fibre.ClientConfig
 }
 
 func (d *downloadMockClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
