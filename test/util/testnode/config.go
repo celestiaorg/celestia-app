@@ -172,6 +172,7 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	tmCfg.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
 
 	tmCfg.TxIndex.Indexer = "kv"
 
