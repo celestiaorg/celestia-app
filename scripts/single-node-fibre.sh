@@ -159,7 +159,7 @@ startFibre() {
   echo "Starting fibre in background..."
   fibre start \
     --home "${FIBRE_HOME}" \
-    --app-grpc-address "${APP_GRPC_ADDR}" 
+    --app-grpc-address "${APP_GRPC_ADDR}" &
 
   FIBRE_PID=$!
   echo "fibre started with PID: ${FIBRE_PID}"
