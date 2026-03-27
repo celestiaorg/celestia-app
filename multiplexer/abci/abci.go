@@ -15,10 +15,14 @@ const (
 )
 
 func (v ABCIClientVersion) String() string {
-	return []string{
-		"ABCIClientVersion1",
-		"ABCIClientVersion2",
-	}[v]
+	switch v {
+	case ABCIClientVersion1:
+		return "ABCIClientVersion1"
+	case ABCIClientVersion2:
+		return "ABCIClientVersion2"
+	default:
+		return fmt.Sprintf("ABCIClientVersion(%d)", v)
+	}
 }
 
 var _ abci.Application = (*Multiplexer)(nil)
