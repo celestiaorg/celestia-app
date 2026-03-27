@@ -8,8 +8,8 @@ import (
 
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
-	"github.com/celestiaorg/celestia-app/v7/app"
-	"github.com/celestiaorg/celestia-app/v7/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"

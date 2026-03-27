@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v7/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
 )
 
 // NewNetwork starts a single validator celestia-app network using the provided

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/app/encoding"
-	"github.com/celestiaorg/celestia-app/v7/app/params"
+	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	"github.com/celestiaorg/celestia-app/v8/app/params"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cosmos/cosmos-sdk/client/tx"

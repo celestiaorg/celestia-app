@@ -11,13 +11,14 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v7/app"
+	"github.com/celestiaorg/celestia-app/v8/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v7/pkg/user"
-	signaltypes "github.com/celestiaorg/celestia-app/v7/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -29,6 +30,7 @@ const (
 	AppVersionV5 uint64 = 5
 	AppVersionV6 uint64 = 6
 	AppVersionV7 uint64 = 7
+	AppVersionV8 uint64 = 8
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -83,6 +85,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 		{
 			baseAppVersion:   6,
 			targetAppVersion: 7,
+		},
+		{
+			baseAppVersion:   7,
+			targetAppVersion: 8,
 		},
 	}
 
@@ -202,6 +208,38 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
 	s.ValidatePostUpgrade(ctx, chain, cfg)
+}
+
+// TestUpgradeV6ToV8 performs a coordinated chain upgrade from app version v6 to v8.
+func (s *CelestiaTestSuite) TestUpgradeV6ToV8() {
+	if testing.Short() {
+		s.T().Skip("skipping latest upgrade test in short mode")
+	}
+
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
+
+	fromVersion := appconsts.Version - 2
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(fromVersion)
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	s.ValidateAppVersion(ctx, chain, cfg, fromVersion)
+	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
+	s.ValidatePostUpgrade(ctx, chain, cfg)
+	s.validateZKISMQuery(ctx, chain.GetNodes()[0])
 }
 
 // UpgradeChain executes the upgrade to the target app version.
@@ -344,6 +382,16 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 	s.Require().True(resp.VotingPower >= resp.ThresholdPower, "voting power (%d) does not meet threshold (%d)", resp.VotingPower, resp.ThresholdPower)
 }
 
+func (s *CelestiaTestSuite) ValidateAppVersion(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) {
+	node := chain.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+}
+
 func (s *CelestiaTestSuite) ValidatePreUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
 	appVersion := appconsts.Version - 1
 
@@ -386,6 +434,22 @@ func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClien
 		return icahosttypes.NewQueryClient(dcNode.GrpcConn), nil
 	}
 	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+func getZKISMQueryClient(node tastoratypes.ChainNode) (zkismtypes.QueryClient, error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return zkismtypes.NewQueryClient(dcNode.GrpcConn), nil
+	}
+	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+func (s *CelestiaTestSuite) validateZKISMQuery(ctx context.Context, node tastoratypes.ChainNode) {
+	client, err := getZKISMQueryClient(node)
+	s.Require().NoError(err)
+
+	resp, err := client.Isms(ctx, &zkismtypes.QueryIsmsRequest{})
+	s.Require().NoError(err, "failed to query zkism modules after upgrade")
+	s.Require().NotNil(resp, "zkism query response should not be nil")
 }
 
 // validateParameters validates that all parameters match expected values for the given app version

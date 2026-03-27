@@ -8,10 +8,10 @@ import (
 	sdkmath "cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v7/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v7/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v7/x/minfee/types"
-	zkismtypes "github.com/celestiaorg/celestia-app/v7/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -80,19 +80,20 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			err := app.SetMinCommissionRate(sdkCtx)
-			if err != nil {
+			// These commission updates are idempotent: the params are set to a
+			// fixed target value and validator commission fields are only raised
+			// when they are below the required post-upgrade minimums.
+			if err := app.SetMinCommissionRate(sdkCtx); err != nil {
 				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
 				return nil, err
 			}
 
-			err = app.UpdateValidatorCommissionRates(sdkCtx)
-			if err != nil {
+			if err := app.UpdateValidatorCommissionRates(sdkCtx); err != nil {
 				sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
 				return nil, err
 			}
 
-			sdkCtx.Logger().Info("finished to upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
+			sdkCtx.Logger().Info("finished upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
 
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
@@ -104,14 +105,22 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{
-				zkismtypes.StoreKey,
-			},
+		storeUpgrades := storetypes.StoreUpgrades{}
+		// v7 already created the zkism store, so only mark it as added when the
+		// latest committed state does not already include that substore.
+		hasStore, err := HasPersistedStore(app.CommitMultiStore(), zkismtypes.StoreKey)
+		if err != nil {
+			panic(err)
 		}
 
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		if !hasStore {
+			storeUpgrades.Added = append(storeUpgrades.Added, zkismtypes.StoreKey)
+		}
+
+		if len(storeUpgrades.Added) > 0 || len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 {
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		}
 	}
 }
 
@@ -183,4 +192,36 @@ func getMax(a, b sdkmath.LegacyDec) sdkmath.LegacyDec {
 		return a
 	}
 	return b
+}
+
+func HasPersistedStore(cms storetypes.CommitMultiStore, storeName string) (bool, error) {
+	lastVersion := cms.LastCommitID().Version
+	if lastVersion == 0 {
+		return false, nil
+	}
+
+	// GetCommitInfo exists on the concrete root store implementation, not on the exported interface.
+	// This local named interface provides a convenience type for interface assertion without exposing
+	// the underlying rootmulti.Store directly.
+	type commitInfoProvider interface {
+		GetCommitInfo(int64) (*storetypes.CommitInfo, error)
+	}
+
+	cip, ok := cms.(commitInfoProvider)
+	if !ok {
+		return false, fmt.Errorf("commit multistore does not expose GetCommitInfo")
+	}
+
+	commitInfo, err := cip.GetCommitInfo(lastVersion)
+	if err != nil {
+		return false, err
+	}
+
+	for _, storeInfo := range commitInfo.StoreInfos {
+		if storeInfo.Name == storeName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

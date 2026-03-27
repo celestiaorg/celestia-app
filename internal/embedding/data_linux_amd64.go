@@ -16,4 +16,7 @@ var (
 
 	//go:embed celestia-app_linux_v6_amd64.tar.gz
 	v6binaryCompressed []byte
+
+	//go:embed celestia-app_linux_v7_amd64.tar.gz
+	v7binaryCompressed []byte
 )
