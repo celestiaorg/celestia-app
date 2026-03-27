@@ -44,6 +44,17 @@ func request_Query_DeriveForwardingAddress_0(ctx context.Context, marshaler runt
 		_   = err
 	)
 
+	val, ok = pathParams["token_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "token_id")
+	}
+
+	protoReq.TokenId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "token_id", err)
+	}
+
 	val, ok = pathParams["dest_domain"]
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "dest_domain")
@@ -81,6 +92,17 @@ func local_request_Query_DeriveForwardingAddress_0(ctx context.Context, marshale
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["token_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "token_id")
+	}
+
+	protoReq.TokenId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "token_id", err)
+	}
 
 	val, ok = pathParams["dest_domain"]
 	if !ok {
@@ -120,6 +142,17 @@ func request_Query_QuoteForwardingFee_0(ctx context.Context, marshaler runtime.M
 		_   = err
 	)
 
+	val, ok = pathParams["token_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "token_id")
+	}
+
+	protoReq.TokenId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "token_id", err)
+	}
+
 	val, ok = pathParams["dest_domain"]
 	if !ok {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "dest_domain")
@@ -146,6 +179,17 @@ func local_request_Query_QuoteForwardingFee_0(ctx context.Context, marshaler run
 		err error
 		_   = err
 	)
+
+	val, ok = pathParams["token_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "token_id")
+	}
+
+	protoReq.TokenId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "token_id", err)
+	}
 
 	val, ok = pathParams["dest_domain"]
 	if !ok {
@@ -300,9 +344,9 @@ func RegisterQueryHandlerClient(ctx context.Context, mux *runtime.ServeMux, clie
 }
 
 var (
-	pattern_Query_DeriveForwardingAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"celestia", "forwarding", "v1", "derive_address", "dest_domain", "dest_recipient"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_DeriveForwardingAddress_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5, 1, 0, 4, 1, 5, 6}, []string{"celestia", "forwarding", "v1", "derive_address", "token_id", "dest_domain", "dest_recipient"}, "", runtime.AssumeColonVerbOpt(false)))
 
-	pattern_Query_QuoteForwardingFee_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"celestia", "forwarding", "v1", "quote_fee", "dest_domain"}, "", runtime.AssumeColonVerbOpt(false)))
+	pattern_Query_QuoteForwardingFee_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 2, 3, 1, 0, 4, 1, 5, 4, 1, 0, 4, 1, 5, 5}, []string{"celestia", "forwarding", "v1", "quote_fee", "token_id", "dest_domain"}, "", runtime.AssumeColonVerbOpt(false)))
 )
 
 var (
