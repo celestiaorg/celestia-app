@@ -107,6 +107,7 @@ type migrateOpts struct {
 	verify        bool
 	dbFilter      string
 	manualSwap    bool
+	skipCompact   bool
 }
 
 func main() {
@@ -121,6 +122,7 @@ func main() {
 	flag.BoolVar(&opts.verify, "verify", false, "Run sample verification after migration")
 	flag.StringVar(&opts.dbFilter, "db", "", "Migrate only a specific database (e.g. --db blockstore)")
 	flag.BoolVar(&opts.manualSwap, "manual-swap", false, "Skip auto-swap; print manual instructions instead")
+	flag.BoolVar(&opts.skipCompact, "skip-compact", false, "Skip post-migration compaction (not recommended)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: migrate-db [options]
@@ -453,11 +455,33 @@ func migrateSingleDB(ctx context.Context, dbName, sourceDir, destDir string, del
 		return 0, 0, err
 	}
 
+	if !opts.skipCompact {
+		if err := compactPebbleDB(dbName, destDB); err != nil {
+			return 0, 0, err
+		}
+	}
+
 	elapsed := time.Since(startTime)
 	fmt.Printf("[%s] Migration complete: %d keys copied, %s, elapsed %s\n",
 		dbName, totalKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
 
 	return totalKeys, totalBytes, nil
+}
+
+// compactPebbleDB runs a full compaction on the destination PebbleDB to reduce disk bloat
+// from bulk batch writes that create many overlapping SST files.
+func compactPebbleDB(dbName string, destDB db.DB) error {
+	pdb, ok := destDB.(*db.PebbleDB)
+	if !ok {
+		return fmt.Errorf("[%s] destination is not PebbleDB, cannot compact", dbName)
+	}
+	fmt.Printf("[%s] Compacting PebbleDB (this may take a while)...\n", dbName)
+	start := time.Now()
+	if err := pdb.DB().Compact(nil, []byte{0xff, 0xff, 0xff, 0xff}, true); err != nil {
+		return fmt.Errorf("[%s] compaction failed: %w", dbName, err)
+	}
+	fmt.Printf("[%s] Compaction complete, elapsed %s\n", dbName, time.Since(start).Round(time.Second))
+	return nil
 }
 
 // findResumePoint returns the last key in destDB, or nil if the DB is empty.
@@ -712,6 +736,13 @@ func copyAndDeleteKeys(ctx context.Context, dbName string, sourceDB, destDB db.D
 			if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
 				_ = batch.Close()
 				return 0, 0, fmt.Errorf("failed to delete source keys: %w", err)
+			}
+			// Compact the deleted range so LevelDB actually reclaims disk space.
+			if ldb, ok := sourceDB.(*db.GoLevelDB); ok {
+				if err := ldb.ForceCompact(deleteKeys[0], deleteKeys[len(deleteKeys)-1]); err != nil {
+					_ = batch.Close()
+					return 0, 0, fmt.Errorf("[%s] source compaction failed: %w", dbName, err)
+				}
 			}
 			deleteKeys = deleteKeys[:0]
 			bytesSinceDelete = 0
