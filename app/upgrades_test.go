@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/test/util"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
+	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -311,15 +312,15 @@ func TestHasPersistedStore(t *testing.T) {
 	t.Run("returns true when store exists in latest commit info", func(t *testing.T) {
 		db := dbm.NewMemDB()
 		cms := rootmulti.NewStore(db, log.NewNopLogger(), storemetrics.NewNoOpMetrics())
-		cms.MountStoreWithDB(storetypes.NewKVStoreKey("zkism"), storetypes.StoreTypeIAVL, nil)
+		cms.MountStoreWithDB(storetypes.NewKVStoreKey(zkismtypes.StoreKey), storetypes.StoreTypeIAVL, nil)
 
 		require.NoError(t, cms.LoadLatestVersion())
 		_ = cms.Commit()
 
 		reloaded := rootmulti.NewStore(db, log.NewNopLogger(), storemetrics.NewNoOpMetrics())
-		reloaded.MountStoreWithDB(storetypes.NewKVStoreKey("zkism"), storetypes.StoreTypeIAVL, nil)
+		reloaded.MountStoreWithDB(storetypes.NewKVStoreKey(zkismtypes.StoreKey), storetypes.StoreTypeIAVL, nil)
 
-		hasStore, err := app.HasPersistedStore(reloaded, "zkism")
+		hasStore, err := app.HasPersistedStore(reloaded, zkismtypes.StoreKey)
 		require.NoError(t, err)
 		require.True(t, hasStore)
 	})

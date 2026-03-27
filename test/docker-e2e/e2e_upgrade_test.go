@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -238,6 +239,7 @@ func (s *CelestiaTestSuite) TestUpgradeV6ToV8() {
 	s.ValidateAppVersion(ctx, chain, cfg, fromVersion)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
 	s.ValidatePostUpgrade(ctx, chain, cfg)
+	s.validateZKISMQuery(ctx, chain.GetNodes()[0])
 }
 
 // UpgradeChain executes the upgrade to the target app version.
@@ -432,6 +434,22 @@ func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClien
 		return icahosttypes.NewQueryClient(dcNode.GrpcConn), nil
 	}
 	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+func getZKISMQueryClient(node tastoratypes.ChainNode) (zkismtypes.QueryClient, error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return zkismtypes.NewQueryClient(dcNode.GrpcConn), nil
+	}
+	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+func (s *CelestiaTestSuite) validateZKISMQuery(ctx context.Context, node tastoratypes.ChainNode) {
+	client, err := getZKISMQueryClient(node)
+	s.Require().NoError(err)
+
+	resp, err := client.Isms(ctx, &zkismtypes.QueryIsmsRequest{})
+	s.Require().NoError(err, "failed to query zkism modules after upgrade")
+	s.Require().NotNil(resp, "zkism query response should not be nil")
 }
 
 // validateParameters validates that all parameters match expected values for the given app version
