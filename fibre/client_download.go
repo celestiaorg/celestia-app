@@ -219,11 +219,9 @@ func (c *Client) downloadBlob(
 	originalRows := blobCfg.OriginalRows
 
 	// Get validators in priority order (shuffled by stake for load balancing)
-	validators := valSet.Select(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
-
-	// Build expected rows per validator (used to estimate inflight row coverage)
-	expectedRows := valSet.RowsPerValidator(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
-	resultCh := make(chan downloadResult, len(validators))
+	// Each SelectedValidator includes ExpectedRows for inflight estimation.
+	selected := valSet.Select(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
+	resultCh := make(chan downloadResult, len(selected))
 
 	var (
 		uniqueRows   int
@@ -235,7 +233,7 @@ func (c *Client) downloadBlob(
 loop:
 	for {
 		// Determine if we need more validators to cover originalRows
-		needMore := uniqueRows+inflightRows < originalRows && nextVal < len(validators)
+		needMore := uniqueRows+inflightRows < originalRows && nextVal < len(selected)
 
 		// Use nil-channel trick: only select on semaphore when we need more validators
 		var semCh chan struct{}
@@ -252,9 +250,9 @@ loop:
 		case semCh <- struct{}{}:
 			// Acquired semaphore slot, launch fetch goroutine
 			valIdx := nextVal
-			val := validators[valIdx]
+			sv := selected[valIdx]
 			nextVal++
-			inflightRows += expectedRows[valIdx]
+			inflightRows += sv.ExpectedRows
 			active++
 
 			c.closeWg.Add(1)
@@ -264,17 +262,17 @@ loop:
 					c.closeWg.Done()
 				}()
 
-				rows, err := c.downloadFrom(ctx, val, blob, id)
+				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id)
 				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
 			}()
 
 		case res := <-resultCh:
 			active--
-			inflightRows -= expectedRows[res.valIdx]
+			inflightRows -= selected[res.valIdx].ExpectedRows
 
 			if res.err != nil {
 				c.log.WarnContext(ctx, "shard fetch failed",
-					"validator", validators[res.valIdx].Address,
+					"validator", selected[res.valIdx].Address,
 					"error", res.err,
 				)
 				continue
@@ -292,7 +290,7 @@ loop:
 				attribute.Int("applied", applied),
 				attribute.Int("unique_rows", uniqueRows),
 				attribute.Int("original_rows", originalRows),
-				attribute.String("validator", validators[res.valIdx].Address.String()),
+				attribute.String("validator", selected[res.valIdx].Address.String()),
 			))
 
 			if uniqueRows >= originalRows {

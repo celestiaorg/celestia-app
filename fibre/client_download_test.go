@@ -222,7 +222,7 @@ func testClientDownloadIncorrectRowDistribution(t *testing.T) {
 	clientValSet := validator.Set{ValidatorSet: core.NewValidatorSet(reshuffledValidators), Height: 100}
 
 	// Verify precondition: the two sets produce different per-validator row assignments.
-	// NewValidatorSet sorts by voting power, so positional RowsPerValidator is the same,
+	// NewValidatorSet sorts by voting power, so positional row counts are the same,
 	// but different addresses hold different stakes, so Assign maps rows differently.
 	blobCfg := blob.Config()
 	cfg := fibre.DefaultClientConfig()
