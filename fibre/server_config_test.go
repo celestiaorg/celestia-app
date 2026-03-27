@@ -55,6 +55,7 @@ func TestServerConfigLoadCustomFile(t *testing.T) {
 
 	content := `server_listen_address = "127.0.0.1:8123"
 app_grpc_address = "127.0.0.1:10090"
+signer_grpc_address = "127.0.0.1:26658"
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o644))
 
@@ -70,4 +71,14 @@ app_grpc_address = "127.0.0.1:10090"
 	assert.NotNil(t, cfg.StoreFn)
 	assert.NotNil(t, cfg.SignerFn)
 	assert.NotNil(t, cfg.StateClientFn)
+}
+
+func TestServerConfigValidateGRPCSigner(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.Path = t.TempDir()
+	cfg.SignerGRPCAddress = "127.0.0.1:26660"
+
+	err := cfg.Validate()
+	require.NoError(t, err)
+	assert.NotNil(t, cfg.SignerFn)
 }
