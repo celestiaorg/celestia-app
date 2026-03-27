@@ -200,14 +200,19 @@ func HasPersistedStore(cms storetypes.CommitMultiStore, storeName string) (bool,
 		return false, nil
 	}
 
-	commitInfoProvider, ok := cms.(interface {
+	// GetCommitInfo exists on the concrete root store implementation, not on the exported interface.
+	// This local named interface provides a convenience type for interface assertion without exposing
+	// the underlying rootmulti.Store directly.
+	type commitInfoProvider interface {
 		GetCommitInfo(int64) (*storetypes.CommitInfo, error)
-	})
+	}
+
+	cip, ok := cms.(commitInfoProvider)
 	if !ok {
 		return false, fmt.Errorf("commit multistore does not expose GetCommitInfo")
 	}
 
-	commitInfo, err := commitInfoProvider.GetCommitInfo(lastVersion)
+	commitInfo, err := cip.GetCommitInfo(lastVersion)
 	if err != nil {
 		return false, err
 	}
