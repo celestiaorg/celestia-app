@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -371,20 +372,6 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 		"signer should have received refund of excess IGP fee")
 }
 
-<<<<<<< HEAD
-func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
-	s := newTestIGPSetup(t)
-
-	// Two failing tokens:
-	// 1) ufoo fails token lookup
-	// 2) utia fails due insufficient max_igp_fee
-	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
-		sdk.NewCoin("ufoo", math.NewInt(25)),
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
-	)
-	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
-	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(150)))
-=======
 func TestForwardSingleToken_IGPFeeRefundFailureReturnsError(t *testing.T) {
 	s := newTestIGPSetup(t)
 
@@ -425,7 +412,6 @@ func TestForwardSingleToken_IGPFeeRefundFailureReturnsError(t *testing.T) {
 		s.bankKeeper.Balances[to.String()] = toBal.Add(amt...)
 		return nil
 	}
->>>>>>> 1c377084 (fix(x/forwarding)!: bind token identity to forwarding address derivation (#6906))
 
 	msg := types.NewMsgForward(
 		s.signer.String(),
@@ -439,14 +425,6 @@ func TestForwardSingleToken_IGPFeeRefundFailureReturnsError(t *testing.T) {
 	resp, err := s.msgServer.Forward(s.ctx, msg)
 	require.Error(t, err)
 	require.Nil(t, resp)
-<<<<<<< HEAD
-	require.ErrorIs(t, err, types.ErrAllTokensFailed)
-
-	errText := err.Error()
-	require.Contains(t, errText, "all 2 tokens failed to forward")
-	require.Contains(t, errText, "ufoo:25 (token lookup failed: unsupported token denom)")
-	require.Contains(t, errText, "utia:1000 (IGP fee provided is less than required")
-=======
 	require.ErrorIs(t, err, types.ErrForwardFailed)
 	require.ErrorContains(t, err, "failed to refund excess IGP fee to relayer")
 }
@@ -582,5 +560,4 @@ func TestForward_SyntheticToken(t *testing.T) {
 	require.Equal(t, messageId.String(), resp.MessageId)
 	require.True(t, bankKeeper.GetBalance(ctx, forwardAddr, synthDenom).IsZero())
 	require.Equal(t, math.NewInt(11), bankKeeper.GetBalance(ctx, forwardAddr, appconsts.BondDenom).Amount)
->>>>>>> 1c377084 (fix(x/forwarding)!: bind token identity to forwarding address derivation (#6906))
 }

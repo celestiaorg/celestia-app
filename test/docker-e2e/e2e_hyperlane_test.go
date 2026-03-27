@@ -185,13 +185,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	}
 
 	ctx := context.Background()
-<<<<<<< HEAD
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
-=======
-	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(s.celestiaCfg.Tag)
-
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
->>>>>>> 1c377084 (fix(x/forwarding)!: bind token identity to forwarding address derivation (#6906))
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {

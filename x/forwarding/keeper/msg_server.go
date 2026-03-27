@@ -48,19 +48,6 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("%w: provided=%s derived=%s", types.ErrAddressMismatch, forwardAddr.String(), sdk.AccAddress(expectedAddr).String())
 	}
 
-<<<<<<< HEAD
-	balances := m.k.bankKeeper.GetAllBalances(ctx, forwardAddr)
-	if balances.IsZero() {
-		return nil, types.ErrNoBalance
-	}
-
-	// Process up to MaxTokensPerForward tokens. User can call Forward again for remaining.
-	if len(balances) > types.MaxTokensPerForward {
-		balances = balances[:types.MaxTokensPerForward]
-	}
-
-=======
->>>>>>> 1c377084 (fix(x/forwarding)!: bind token identity to forwarding address derivation (#6906))
 	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
 	if err != nil {
 		return nil, fmt.Errorf("invalid signer address: %w", err)
@@ -172,20 +159,3 @@ func calculateExcessIGPFee(before, after, quotedFee, forwardedBalance sdk.Coin) 
 
 	return quotedFee.Amount.Sub(igpUsed)
 }
-<<<<<<< HEAD
-
-func allTokensFailedError(results []types.ForwardingResult) error {
-	failed := make([]string, 0, len(results))
-	for _, result := range results {
-		failed = append(failed, fmt.Sprintf("%s:%s (%s)", result.Denom, result.Amount.String(), result.GetError()))
-	}
-
-	return fmt.Errorf(
-		"%w: all %d tokens failed to forward: %s",
-		types.ErrAllTokensFailed,
-		len(results),
-		strings.Join(failed, "; "),
-	)
-}
-=======
->>>>>>> 1c377084 (fix(x/forwarding)!: bind token identity to forwarding address derivation (#6906))
