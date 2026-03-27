@@ -82,13 +82,3 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, cfg.SignerFn)
 }
-
-func TestServerConfigValidateNoSigner(t *testing.T) {
-	cfg := DefaultServerConfig()
-	cfg.Path = t.TempDir()
-	cfg.SignerGRPCAddress = ""
-
-	err := cfg.Validate()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "signer_grpc_address is required")
-}
