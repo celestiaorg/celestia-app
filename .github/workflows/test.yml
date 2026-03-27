@@ -164,6 +164,7 @@ jobs:
           - testcase: TestStateSyncWithAppUpgrade
           - testcase: TestMinorVersionCompatibility
           - testcase: TestUpgradeLatest
+          - testcase: TestUpgradeV6ToV8
           - testcase: TestPFMMultiHop
             entrypoint: TestPFMTestSuite
           - testcase: TestHyperlaneTokenTransfer
