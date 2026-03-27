@@ -194,7 +194,7 @@ func TestClientServerUploadDownload(t *testing.T) {
 					id := allBlobIDs[slotIdx]
 					originalData := allData[slotIdx]
 
-					blob, err := client.Download(ctx, id)
+					blob, err := client.Download(ctx, id, nil)
 					if err != nil {
 						return fmt.Errorf("downloading blob %s: %w", id.String(), err)
 					}

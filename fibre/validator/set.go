@@ -28,6 +28,17 @@ func (s Set) GetByAddress(address crypto.Address) (*core.Validator, bool) {
 	return nil, false
 }
 
+func (s Set) RowsPerValidator(originalRows, minRows int, livenessThreshold cmtmath.Fraction) (rowsPerValidator []int) {
+	rowsPerValidator = make([]int, len(s.Validators))
+	for i, v := range s.Validators {
+		num := int64(originalRows) * v.VotingPower * int64(livenessThreshold.Denominator)
+		den := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
+		rows := int((num + den - 1) / den) // ceil division
+		rowsPerValidator[i] = min(max(rows, minRows), originalRows)
+	}
+	return rowsPerValidator
+}
+
 // ShardMap maps validators to the row indices they are assigned.
 type ShardMap map[*core.Validator][]int
 
@@ -56,13 +67,7 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 	// rows = ceil(originalRows * stake% / livenessThreshold)
 	//      = ceil(originalRows * votingPower * denominator / (totalVotingPower * numerator))
 	// Capped at originalRows since that's all needed for reconstruction.
-	rowsPerValidator := make([]int, len(s.Validators))
-	for i, v := range s.Validators {
-		num := int64(originalRows) * v.VotingPower * int64(livenessThreshold.Denominator)
-		den := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
-		rows := int((num + den - 1) / den) // ceil division
-		rowsPerValidator[i] = min(max(rows, minRows), originalRows)
-	}
+	rowsPerValidator := s.RowsPerValidator(originalRows, minRows, livenessThreshold)
 
 	var seed [32]byte
 	copy(seed[:], commitment[:])

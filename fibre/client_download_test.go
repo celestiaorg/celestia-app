@@ -30,6 +30,8 @@ func TestClientDownload(t *testing.T) {
 		{"ContextCancellation", testClientDownloadContextCancellation},
 		{"ClosedClient", testClientDownloadClosedClient},
 		{"LargeValidatorFailure", testClientDownloadLargeValidatorFailure},
+		{"IncorrectRowDistribution", testClientDownloadIncorrectRowDistribution},
+		{"WithHeight", testClientDownloadWithHeight},
 	}
 
 	for _, tt := range tests {
@@ -42,7 +44,7 @@ func testClientDownloadSuccess(t *testing.T) {
 	client := makeTestDownloadClient(t, 10, nil, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), blob.ID())
+	downloaded, err := client.Download(t.Context(), blob.ID(), nil)
 	require.NoError(t, err)
 	require.NotNil(t, downloaded)
 	require.Equal(t, blob.Data(), downloaded.Data())
@@ -65,7 +67,7 @@ func testClientDownloadConcurrent(t *testing.T) {
 		go func(blob *fibre.Blob) {
 			defer wg.Done()
 
-			downloaded, err := client.Download(t.Context(), blob.ID())
+			downloaded, err := client.Download(t.Context(), blob.ID(), nil)
 			require.NoError(t, err)
 			require.Equal(t, blob.Data(), downloaded.Data())
 		}(blob)
@@ -81,7 +83,7 @@ func testClientDownloadContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := client.Download(ctx, blob.ID())
+	_, err := client.Download(ctx, blob.ID(), nil)
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -93,7 +95,7 @@ func testClientDownloadClosedClient(t *testing.T) {
 	require.NoError(t, client.Stop(t.Context()))
 	require.NoError(t, client.Stop(t.Context())) // idempotent
 
-	_, err := client.Download(t.Context(), blob.ID())
+	_, err := client.Download(t.Context(), blob.ID(), nil)
 	require.ErrorIs(t, err, fibre.ErrClientClosed)
 }
 
@@ -111,7 +113,7 @@ func testClientDownloadExactTargetCount(t *testing.T) {
 	}, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), blob.ID())
+	downloaded, err := client.Download(t.Context(), blob.ID(), nil)
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -145,7 +147,7 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 			}, blob)
 			t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-			downloaded, err := client.Download(t.Context(), blob.ID())
+			downloaded, err := client.Download(t.Context(), blob.ID(), nil)
 			if tc.expectErr != nil {
 				require.ErrorIs(t, err, tc.expectErr)
 			} else {
@@ -182,9 +184,128 @@ func testClientDownloadLargeValidatorFailure(t *testing.T) {
 	}, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), blob.ID())
+	downloaded, err := client.Download(t.Context(), blob.ID(), nil)
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
+}
+
+func testClientDownloadIncorrectRowDistribution(t *testing.T) {
+	// Test that download succeeds when the server-side row distribution doesn't
+	// match the client's view. Validators have distinct stakes (100, 200, ..., 1000).
+	// The server distributes rows using the original stakes, while the client sees
+	// the same validators with reshuffled stakes, producing a different per-validator
+	// row assignment. The coordinator should adapt dynamically.
+	const numValidators = 10
+	blob := makeTestBlobV0(t, 256*1024)
+
+	// Create validators with distinct increasing stakes: 100, 200, ..., 1000
+	stakes := make([]int64, numValidators)
+	for i := range numValidators {
+		stakes[i] = int64((i + 1) * 100)
+	}
+	validators, privKeys := makeTestValidatorsWithStakes(t, stakes)
+
+	// Server-side validator set uses the original stakes
+	serverValSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
+
+	// Client-side: same validators but with reshuffled stakes.
+	// Reverse the stake assignment so each validator has a different stake
+	// than what the server used (e.g. validator with stake 100 now has 1000).
+	reshuffledValidators := make([]*core.Validator, numValidators)
+	for i, v := range validators {
+		reshuffledValidators[i] = &core.Validator{
+			Address:     v.Address,
+			PubKey:      v.PubKey,
+			VotingPower: stakes[numValidators-1-i],
+		}
+	}
+	clientValSet := validator.Set{ValidatorSet: core.NewValidatorSet(reshuffledValidators), Height: 100}
+
+	// Verify precondition: the two sets produce different per-validator row assignments.
+	// NewValidatorSet sorts by voting power, so positional RowsPerValidator is the same,
+	// but different addresses hold different stakes, so Assign maps rows differently.
+	blobCfg := blob.Config()
+	cfg := fibre.DefaultClientConfig()
+	serverAssign := serverValSet.Assign(blob.ID().Commitment(), blobCfg.TotalRows(), blobCfg.OriginalRows, cfg.MinRowsPerValidator, cfg.LivenessThreshold)
+	clientAssign := clientValSet.Assign(blob.ID().Commitment(), blobCfg.TotalRows(), blobCfg.OriginalRows, cfg.MinRowsPerValidator, cfg.LivenessThreshold)
+	// Build per-address row count maps and verify they differ
+	serverByAddr := make(map[string]int)
+	for v, rows := range serverAssign {
+		serverByAddr[v.Address.String()] = len(rows)
+	}
+	clientByAddr := make(map[string]int)
+	for v, rows := range clientAssign {
+		clientByAddr[v.Address.String()] = len(rows)
+	}
+	require.NotEqual(t, serverByAddr, clientByAddr, "test requires different per-validator row assignments")
+
+	// Mock servers use the server-side validator set for row assignment
+	cfg.NewClientFn = makeDownloadMockClientFn(serverValSet, cfg, privKeys, blob)
+	// Client uses the reshuffled-stakes validator set for row estimation
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: clientValSet}}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	// Despite the mismatched row distribution, download should succeed
+	// and return the correct data.
+	downloaded, err := client.Download(t.Context(), blob.ID(), nil)
+	require.NoError(t, err)
+	require.Equal(t, blob.Data(), downloaded.Data())
+}
+
+func testClientDownloadWithHeight(t *testing.T) {
+	// Test that passing a specific height to Download uses GetByHeight
+	// instead of Head, and the download succeeds with the correct data.
+	blob := makeTestBlobV0(t, 256*1024)
+	validators, privKeys := makeTestValidators(t, 10)
+
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 42}
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = makeDownloadMockClientFn(valSet, cfg, privKeys, blob)
+
+	getter := &heightTrackingSetGetter{set: valSet}
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: getter}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	height := uint64(42)
+	downloaded, err := client.Download(t.Context(), blob.ID(), &height)
+	require.NoError(t, err)
+	require.Equal(t, blob.Data(), downloaded.Data())
+
+	// Verify GetByHeight was called with the correct height, not Head.
+	require.Equal(t, int64(1), getter.getByHeightCalls.Load(), "expected GetByHeight to be called once")
+	require.Equal(t, int64(0), getter.headCalls.Load(), "expected Head to not be called")
+	require.Equal(t, uint64(42), getter.lastHeight.Load(), "expected GetByHeight to be called with height 42")
+}
+
+// heightTrackingSetGetter tracks which methods are called and with what arguments.
+type heightTrackingSetGetter struct {
+	set              validator.Set
+	headCalls        atomic.Int64
+	getByHeightCalls atomic.Int64
+	lastHeight       atomic.Uint64
+}
+
+func (g *heightTrackingSetGetter) Head(ctx context.Context) (validator.Set, error) {
+	g.headCalls.Add(1)
+	return g.set, nil
+}
+
+func (g *heightTrackingSetGetter) GetByHeight(ctx context.Context, height uint64) (validator.Set, error) {
+	g.getByHeightCalls.Add(1)
+	g.lastHeight.Store(height)
+	return g.set, nil
 }
 
 // makeTestDownloadClient creates a download client with equal-stake validators that serves the given blobs.

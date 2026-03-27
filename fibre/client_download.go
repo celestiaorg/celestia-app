@@ -22,7 +22,7 @@ var (
 	ErrNotEnoughShards = errors.New("not enough shards to reconstruct blob")
 )
 
-// Download retrieves and reconstructs [Blob] by [Commitment] from the [Server]s.
+// Download retrieves and reconstructs [Blob] by [Commitment] and additionally height from the [Server]s.
 //
 // The algorithm selects validators shuffled by stake weight for load balancing
 // and requests them for shards. It tracks unique rows collected and dynamically
@@ -33,7 +33,7 @@ var (
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error) {
+func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
@@ -51,10 +51,15 @@ func (c *Client) Download(ctx context.Context, id BlobID) (blob *Blob, err error
 
 	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
-	// get validator set
-	// TODO(@Wondertan): If we don't want to pass height here, we should at least ensure we handle the case
-	// where the most recent validator set is different from the one the data was posted at somehow.
-	valSet, err := c.state.Head(ctx)
+	// most of the times we probably should have the height, so we get the exact height
+	// but if we don't the current head validator set will mostly have the same stakes
+	// and if not this still won't affect correctness, just the amount of nodes we contact
+	var valSet validator.Set
+	if height != nil {
+		valSet, err = c.state.GetByHeight(ctx, *height)
+	} else {
+		valSet, err = c.state.Head(ctx)
+	}
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get validator set")
@@ -146,6 +151,9 @@ func (c *Client) downloadFrom(
 	}
 	rows, err = parseShard(resp.GetShard())
 	if err != nil {
+		log.WarnContext(ctx, "failed to parse shard", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to parse shard")
 		return nil, err
 	}
 	var rowSize int
@@ -169,6 +177,12 @@ func (c *Client) downloadFrom(
 			continue
 		}
 		verified = append(verified, row)
+	}
+
+	if len(verified) == 0 {
+		log.WarnContext(ctx, "no valid rows from validator", "rows_total", len(rows), "row_size", rowSize)
+		span.SetStatus(codes.Error, "no valid rows")
+		return nil, fmt.Errorf("no valid rows from validator %s", val.Address)
 	}
 
 	log.DebugContext(ctx, "got rows", "rows_total", len(rows), "verified", len(verified), "row_size", rowSize)
@@ -205,18 +219,11 @@ func (c *Client) downloadBlob(
 	blobCfg := blob.Config()
 	originalRows := blobCfg.OriginalRows
 
-	// Compute shard map for deterministic row assignment
-	shardMap := valSet.Assign(id.Commitment(), blobCfg.TotalRows(), originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
-
 	// Get validators in priority order (shuffled by stake for load balancing)
 	validators := valSet.Select(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 
 	// Build expected rows per validator (used to estimate inflight row coverage)
-	expectedRows := make([]int, len(validators))
-	for i, val := range validators {
-		expectedRows[i] = len(shardMap[val])
-	}
-
+	expectedRows := valSet.RowsPerValidator(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 	resultCh := make(chan downloadResult, len(validators))
 
 	var (
