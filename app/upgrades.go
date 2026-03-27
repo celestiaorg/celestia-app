@@ -80,23 +80,17 @@ func (app App) RegisterUpgradeHandlers() {
 			start := time.Now()
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName, "start", start)
 
-			// Check the app version before the upgrade to determine which
-			// migrations need to run. Mainnet is upgrading from v6 and needs
-			// these migrations. Mocha is upgrading from v7 where they were
-			// already applied.
-			previousVersion := sdkCtx.BlockHeader().Version.App
-			if previousVersion < 7 {
-				sdkCtx.Logger().Info("upgrading from v6, running v7 migrations", "previous_version", previousVersion)
+			// These commission updates are idempotent: the params are set to a
+			// fixed target value and validator commission fields are only raised
+			// when they are below the required post-upgrade minimums.
+			if err := app.SetMinCommissionRate(sdkCtx); err != nil {
+				sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
+				return nil, err
+			}
 
-				if err := app.SetMinCommissionRate(sdkCtx); err != nil {
-					sdkCtx.Logger().Error("failed to set min commission rate", "error", err)
-					return nil, err
-				}
-
-				if err := app.UpdateValidatorCommissionRates(sdkCtx); err != nil {
-					sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
-					return nil, err
-				}
+			if err := app.UpdateValidatorCommissionRates(sdkCtx); err != nil {
+				sdkCtx.Logger().Error("failed to update validator commission rates", "error", err)
+				return nil, err
 			}
 
 			sdkCtx.Logger().Info("finished upgrade", "upgrade-name", upgradeName, "duration-sec", time.Since(start).Seconds())
@@ -111,14 +105,22 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{
-				zkismtypes.StoreKey,
-			},
+		storeUpgrades := storetypes.StoreUpgrades{}
+		// v7 already created the zkism store, so only mark it as added when the
+		// latest committed state does not already include that substore.
+		hasStore, err := HasPersistedStore(app.CommitMultiStore(), zkismtypes.StoreKey)
+		if err != nil {
+			panic(err)
 		}
 
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		if !hasStore {
+			storeUpgrades.Added = append(storeUpgrades.Added, zkismtypes.StoreKey)
+		}
+
+		if len(storeUpgrades.Added) > 0 || len(storeUpgrades.Renamed) > 0 || len(storeUpgrades.Deleted) > 0 {
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		}
 	}
 }
 
@@ -190,4 +192,31 @@ func getMax(a, b sdkmath.LegacyDec) sdkmath.LegacyDec {
 		return a
 	}
 	return b
+}
+
+func HasPersistedStore(cms storetypes.CommitMultiStore, storeName string) (bool, error) {
+	lastVersion := cms.LastCommitID().Version
+	if lastVersion == 0 {
+		return false, nil
+	}
+
+	commitInfoProvider, ok := cms.(interface {
+		GetCommitInfo(int64) (*storetypes.CommitInfo, error)
+	})
+	if !ok {
+		return false, fmt.Errorf("commit multistore does not expose GetCommitInfo")
+	}
+
+	commitInfo, err := commitInfoProvider.GetCommitInfo(lastVersion)
+	if err != nil {
+		return false, err
+	}
+
+	for _, storeInfo := range commitInfo.StoreInfos {
+		if storeInfo.Name == storeName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

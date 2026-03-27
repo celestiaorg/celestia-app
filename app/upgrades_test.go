@@ -6,12 +6,15 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	storemetrics "cosmossdk.io/store/metrics"
+	"cosmossdk.io/store/rootmulti"
+	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v8/app"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/test/util"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	tmdb "github.com/cosmos/cosmos-db"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
@@ -22,7 +25,7 @@ import (
 func TestUpgrades(t *testing.T) {
 	t.Run("app.New() should register a v8 upgrade handler", func(t *testing.T) {
 		logger := log.NewNopLogger()
-		db := tmdb.NewMemDB()
+		db := dbm.NewMemDB()
 		traceStore := &NoopWriter{}
 		timeoutCommit := time.Second
 		appOptions := NoopAppOptions{}
@@ -291,5 +294,33 @@ func TestMaxCommissionRate(t *testing.T) {
 		_, err = msgServer.EditValidator(ctx, msg)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "commission rate cannot be greater than the max commission rate")
+	})
+}
+
+func TestHasPersistedStore(t *testing.T) {
+	t.Run("returns false when there is no committed state", func(t *testing.T) {
+		db := dbm.NewMemDB()
+		cms := rootmulti.NewStore(db, log.NewNopLogger(), storemetrics.NewNoOpMetrics())
+		cms.MountStoreWithDB(storetypes.NewKVStoreKey("test"), storetypes.StoreTypeIAVL, nil)
+
+		hasStore, err := app.HasPersistedStore(cms, "test")
+		require.NoError(t, err)
+		require.False(t, hasStore)
+	})
+
+	t.Run("returns true when store exists in latest commit info", func(t *testing.T) {
+		db := dbm.NewMemDB()
+		cms := rootmulti.NewStore(db, log.NewNopLogger(), storemetrics.NewNoOpMetrics())
+		cms.MountStoreWithDB(storetypes.NewKVStoreKey("zkism"), storetypes.StoreTypeIAVL, nil)
+
+		require.NoError(t, cms.LoadLatestVersion())
+		_ = cms.Commit()
+
+		reloaded := rootmulti.NewStore(db, log.NewNopLogger(), storemetrics.NewNoOpMetrics())
+		reloaded.MountStoreWithDB(storetypes.NewKVStoreKey("zkism"), storetypes.StoreTypeIAVL, nil)
+
+		hasStore, err := app.HasPersistedStore(reloaded, "zkism")
+		require.NoError(t, err)
+		require.True(t, hasStore)
 	})
 }

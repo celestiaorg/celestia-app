@@ -57,7 +57,7 @@ func RunLoadTest(cfg Config) error {
 	}
 
 	var (
-		txCounter            int64
+		txCounter            atomic.Int64
 		successfulBroadcasts atomic.Int64
 		successfulConfirms   atomic.Int64
 		failedConfirms       atomic.Int64
@@ -82,7 +82,7 @@ func RunLoadTest(cfg Config) error {
 					return fmt.Errorf("TxClient appears halted: no successful submission recently")
 				}
 
-				id := atomic.AddInt64(&txCounter, 1)
+				id := txCounter.Add(1)
 
 				// Separate goroutine for broadcasting and confirming txs
 				g.Go(func() error {

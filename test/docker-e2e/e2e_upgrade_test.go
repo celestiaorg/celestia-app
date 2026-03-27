@@ -209,6 +209,37 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	s.ValidatePostUpgrade(ctx, chain, cfg)
 }
 
+// TestUpgradeV6ToV8 performs a coordinated chain upgrade from app version v6 to v8.
+func (s *CelestiaTestSuite) TestUpgradeV6ToV8() {
+	if testing.Short() {
+		s.T().Skip("skipping latest upgrade test in short mode")
+	}
+
+	tag, err := dockerchain.GetCelestiaTagStrict()
+	s.Require().NoError(err)
+
+	fromVersion := appconsts.Version - 2
+	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(tag)
+	cfg.Genesis = cfg.Genesis.WithAppVersion(fromVersion)
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	s.ValidateAppVersion(ctx, chain, cfg, fromVersion)
+	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
+	s.ValidatePostUpgrade(ctx, chain, cfg)
+}
+
 // UpgradeChain executes the upgrade to the target app version.
 func (s *CelestiaTestSuite) UpgradeChain(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) (upgradeHeight int64) {
 	t := s.T()
@@ -347,6 +378,16 @@ func (s *CelestiaTestSuite) validateSignalTally(ctx context.Context, node tastor
 
 	// Verify that voting power meets or exceeds threshold
 	s.Require().True(resp.VotingPower >= resp.ThresholdPower, "voting power (%d) does not meet threshold (%d)", resp.VotingPower, resp.ThresholdPower)
+}
+
+func (s *CelestiaTestSuite) ValidateAppVersion(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config, appVersion uint64) {
+	node := chain.GetNodes()[0]
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
 }
 
 func (s *CelestiaTestSuite) ValidatePreUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
