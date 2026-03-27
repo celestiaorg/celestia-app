@@ -31,7 +31,7 @@ type ServerConfig struct {
 	AppGRPCAddress string `toml:"app_grpc_address" comment:"AppGRPCAddress is the gRPC address of the core/app node."`
 	// ServerListenAddress is the TCP address where the server listens for requests.
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
-	// SignerGRPCAddress is the gRPC address of the node's PrivValidatorAPI endpoint.
+	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
 
 	StoreConfig `toml:"-"`
