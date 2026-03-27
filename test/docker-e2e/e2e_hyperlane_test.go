@@ -17,7 +17,6 @@ import (
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	v7 "github.com/celestiaorg/celestia-app/v8/pkg/appconsts/v7"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
@@ -42,6 +41,9 @@ import (
 )
 
 var (
+	// ForwardingRelayerImage is the docker container image for the forwarding relayer service.
+	ForwardingRelayerImage = container.NewImage("ghcr.io/celestiaorg/forwarding-relayer", "v0.2.0", "1000:1000")
+
 	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
 	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
 	// See https://github.com/hyperlane-xyz/hyperlane-monorepo/issues/7598.
@@ -73,6 +75,7 @@ type ForwardingRequest struct {
 	ForwardAddr   string `json:"forward_addr"`
 	DestDomain    uint32 `json:"dest_domain"`
 	DestRecipient string `json:"dest_recipient"`
+	TokenId       string `json:"token_id"`
 }
 
 func (s *HyperlaneTestSuite) SetupSuite() {
@@ -178,12 +181,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	}
 
 	ctx := context.Background()
-
-	// Use app version 7 because the Lumina forwarding relayer doesn't support v8 yet.
-	// TODO: revert to s.celestiaCfg after Lumina adds support for app version 8.
-	// See https://github.com/celestiaorg/celestia-app/issues/6650
 	cfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(s.celestiaCfg.Tag)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(v7.Version)
 
 	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
 	s.Require().NoError(err)
@@ -245,9 +243,9 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
-	forwardAddress := s.QueryForwardingAddress(ctx, chain, destDomain, destRecipient)
+	forwardAddress := s.QueryForwardingAddress(ctx, chain, config.TokenID.String(), destDomain, destRecipient)
 
-	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, destDomain, destRecipient)
+	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, config.TokenID.String(), destDomain, destRecipient)
 
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
 	s.Require().NoError(err)
@@ -274,7 +272,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			Port: "8080",
 		},
@@ -311,7 +309,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           hyperlane.DefaultForwardRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
 			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),
@@ -328,7 +326,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	return backend
 }
 
-func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, destDomain uint32, destRecipient string) {
+func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient string) {
 	s.T().Helper()
 
 	networkInfo, err := forwardingService.GetNetworkInfo(ctx)
@@ -340,6 +338,7 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardi
 		ForwardAddr:   forwardAddr,
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
+		TokenId:       tokenId,
 	}
 
 	reqBz, err := json.Marshal(forwardReq)
@@ -604,7 +603,7 @@ func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *Evol
 	}, time.Minute, 5*time.Second, "unexpected erc20 balance, expected: ", expected)
 }
 
-func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, domain uint32, recipient string) string {
+func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient string) string {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -617,6 +616,7 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 	defer grpcConn.Close()
 
 	req := forwardingtypes.QueryDeriveForwardingAddressRequest{
+		TokenId:       tokenId,
 		DestDomain:    domain,
 		DestRecipient: recipient,
 	}
@@ -628,7 +628,7 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 	return resp.Address
 }
 
-func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosmos.Chain, destDomain uint32) sdk.Coin {
+func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosmos.Chain, tokenId string, destDomain uint32) sdk.Coin {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -641,6 +641,7 @@ func (s *HyperlaneTestSuite) QueryForwardingFee(ctx context.Context, chain *cosm
 	defer grpcConn.Close()
 
 	req := &forwardingtypes.QueryQuoteForwardingFeeRequest{
+		TokenId:    tokenId,
 		DestDomain: destDomain,
 	}
 
@@ -687,7 +688,7 @@ func (s *HyperlaneTestSuite) QueryERC20Balance(ctx context.Context, chain *Evolv
 	return balance
 }
 
-func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos.Chain, forwardAddr string, destDomain uint32, destRecipient string, maxIgpFee sdk.Coin) {
+func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos.Chain, forwardAddr string, destDomain uint32, destRecipient string, tokenId string, maxIgpFee sdk.Coin) {
 	s.T().Helper()
 
 	broadcaster := cosmos.NewBroadcaster(chain)
@@ -698,6 +699,7 @@ func (s *HyperlaneTestSuite) SendForwardingTx(ctx context.Context, chain *cosmos
 		forwardAddr,
 		destDomain,
 		destRecipient,
+		tokenId,
 		maxIgpFee,
 	)
 

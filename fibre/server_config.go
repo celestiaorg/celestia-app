@@ -31,9 +31,8 @@ type ServerConfig struct {
 	AppGRPCAddress string `toml:"app_grpc_address" comment:"AppGRPCAddress is the gRPC address of the core/app node."`
 	// ServerListenAddress is the TCP address where the server listens for requests.
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
-	// SignerListenAddress is the TCP address where the server listens for
-	// an external PrivVal signer (e.g., tmkms) to connect.
-	SignerListenAddress string `toml:"signer_listen_address" comment:"SignerListenAddress is the TCP address where the server listens for an external PrivVal signer (e.g. tmkms)."`
+	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
+	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
 
 	StoreConfig `toml:"-"`
 
@@ -78,7 +77,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
 		AppGRPCAddress:      "127.0.0.1:9090",
 		ServerListenAddress: "0.0.0.0:7980",
-		SignerListenAddress: "tcp://127.0.0.1:26659",
+		SignerGRPCAddress:   "127.0.0.1:26659",
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
@@ -120,11 +119,8 @@ func (cfg *ServerConfig) Validate() error {
 	}
 
 	if cfg.SignerFn == nil {
-		if cfg.SignerListenAddress == "" {
-			return fmt.Errorf("signer listen address is required for default signer")
-		}
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewRemote(cfg.SignerListenAddress, chainID, cfg.Log)
+			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
 		}
 	}
 	return nil

@@ -34,8 +34,7 @@ Override config values with flags (flags take precedence over config file):
 ```sh
 fibre start \
   --app-grpc-address 127.0.0.1:9090 \
-  --server-listen-address 0.0.0.0:7980 \
-  --signer-listen-address tcp://127.0.0.1:26659
+  --server-listen-address 0.0.0.0:7980
 ```
 
 ### Version
@@ -50,30 +49,25 @@ The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fib
 
 Config precedence: **flag > config file > default**.
 
-## Remote Signer
+## Signing
 
-Fibre uses a remote PrivVal signer (e.g. [tmkms](https://github.com/iqlusioninc/tmkms)) to sign payment promises. The signer **dials into** the fibre server's listener address.
+Fibre signs payment promises by connecting to the consensus node's PrivValidatorAPI gRPC endpoint. The node handles its own key management (local key, tmkms, etc.) — fibre just delegates signing to it.
 
 ### How it works
 
-1. Fibre opens a TCP listener on `--signer-listen-address` (default `tcp://127.0.0.1:26659`)
-2. An external signer (tmkms) dials into this address
-3. Fibre fetches and caches the public key from the signer on startup
-4. Payment promises are signed through this connection for the server's lifetime
+1. Fibre connects to the node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26659`)
+2. Fibre fetches the validator's public key via `GetPubKey` RPC to identify itself in the validator set
+3. Payment promises are signed via `SignRawBytes` RPC calls for the server's lifetime
 
-### Setup with tmkms
+### Setup
 
-Configure tmkms to connect to the fibre server's signer address. In your tmkms `tmkms.toml`:
+The privval gRPC endpoint is enabled by default when running `celestia-appd init` on `127.0.0.1:26659`.
+
+To verify or override, check `config.toml`:
 
 ```toml
-[[validator]]
-addr = "tcp://127.0.0.1:26659"  # must match fibre's --signer-listen-address
-chain_id = "celestia"
+priv_validator_grpc_laddr = "127.0.0.1:26659"
 ```
-
-### Note on startup order
-
-Fibre blocks during startup until the remote signer connects. Make sure tmkms is running and reachable before or shortly after starting fibre, otherwise startup will hang.
 
 ## Observability
 
