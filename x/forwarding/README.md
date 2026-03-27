@@ -15,7 +15,7 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 
 ## Flow
 
-1. Frontend computes `forwardAddr = derive(destDomain, destRecipient)`
+1. Frontend selects a trusted Hyperlane `tokenId` off-chain and computes `forwardAddr = derive(destDomain, destRecipient, tokenId)`
 2. User sends tokens to forwardAddr via warp transfer or CEX withdrawal
 3. Relayer detects deposit and submits `MsgForward`
 4. Module verifies derivation and executes warp transfer to destination
@@ -30,12 +30,12 @@ For relayer implementation details and operational guides, see the [forwarding-r
 Forwarding addresses are deterministically derived:
 
 ```text
-callDigest   = sha256(destDomain_32bytes || destRecipient)
+callDigest   = sha256(destDomain_32bytes || destRecipient || tokenId)
 salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
 forwardAddr  = address.Module("forwarding", salt)[:20]
 ```
 
-One address handles all tokens for a given `(destDomain, destRecipient)` pair.
+Each address handles exactly one token for a given `(destDomain, destRecipient, tokenId)` tuple.
 
 ## State
 
@@ -47,13 +47,13 @@ message Params {
 }
 ```
 
-Note: TIA collateral token is discovered at runtime by iterating warp tokens with `OriginDenom="utia"` and checking for routes to the destination domain.
+Route selection is explicit and off-chain. The forwarding module does not infer a canonical token from the global warp registry.
 
 ## Messages
 
 ### MsgForward
 
-Forwards up to 20 tokens at a forwarding address to the committed destination.
+Forwards the single token bound to a forwarding address to the committed destination.
 The relayer (signer) pays both Celestia gas and Hyperlane IGP fees.
 
 ```protobuf
@@ -62,33 +62,23 @@ message MsgForward {
   string forward_addr = 2;  // The derived forwarding address
   uint32 dest_domain = 3;   // Destination chain domain ID
   string dest_recipient = 4; // Recipient on destination (32 bytes, hex)
-  Coin max_igp_fee = 5;     // Max IGP fee relayer will pay per token
+  string token_id = 5;      // Hyperlane token identifier bound to this address
+  Coin max_igp_fee = 6;     // Max IGP fee relayer will pay
 }
 
 message MsgForwardResponse {
-  repeated ForwardingResult results = 1;  // Per-token results
-}
-
-message ForwardingResult {
   string denom = 1;
   string amount = 2;
-  string message_id = 3;  // Hyperlane message ID (empty if failed)
-  bool success = 4;
-  string error = 5;
+  string message_id = 3;  // Hyperlane message ID
 }
 ```
 
-## Multi-Token Forwarding
+## Trust Model
 
-- Gets ALL balances at `forwardAddr` and processes each independently
-- Partial failures allowed: one token failing doesn't block others
-- Failed tokens stay at `forwardAddr` for retry
-
-### Token Limits
-
-- `MaxTokensPerForward = 20` - Maximum token denominations processed per call
-- If an address has >20 denoms, first call forwards the first 20 (ordered by denom), subsequent calls handle the rest
-- This limit prevents unbounded gas consumption in a single transaction
+- The caller supplies `token_id` when deriving the address, quoting fees, and executing `MsgForward`.
+- The chain verifies consistency with that explicit token choice.
+- Frontends, wallets, or relayers are the source of trust for which token route should be used.
+- The forwarding module never scans the permissionless warp registry to discover a token at execution time.
 
 ## Supported Token Types
 
@@ -104,21 +94,10 @@ message ForwardingResult {
 | Attribute    | Description                            |
 |--------------|----------------------------------------|
 | forward_addr | The forwarding address                 |
+| token_id     | Hyperlane token identifier             |
 | denom        | Token denomination                     |
 | amount       | Amount forwarded                       |
-| message_id   | Hyperlane message ID (empty if failed) |
-| success      | Whether forwarding succeeded           |
-| error        | Error message if failed                |
-
-### EventForwardingComplete
-
-| Attribute        | Description                  |
-|------------------|------------------------------|
-| forward_addr     | The forwarding address       |
-| dest_domain      | Destination chain domain     |
-| dest_recipient   | Recipient on destination     |
-| tokens_forwarded | Count of successful forwards |
-| tokens_failed    | Count of failed forwards     |
+| message_id   | Hyperlane message ID                   |
 
 ## Fee Handling
 
@@ -135,43 +114,48 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 4. IGP fee sent directly from relayer to `forwardAddr`
 5. Warp executes from `forwardAddr` (which pays the IGP fee)
 6. Any excess IGP fee is refunded from `forwardAddr` back to relayer
+7. If the excess refund cannot be paid, the tx fails and rolls back so no fee remains stranded at `forwardAddr`
 
-**Per-token fees:** Each token forwarded requires a separate IGP fee. The `max_igp_fee` is the maximum fee the relayer will pay *per token*. If forwarding 3 tokens, the relayer may pay up to 3x the max fee (but only the actual quoted fee for each).
-
-**Fee on failure:** If a token's warp transfer fails, that token attempt is discarded and its state changes are not committed. The tokens remain at `forwardAddr`, and the relayer is not charged the IGP fee for the failed token attempt.
+**Fee on failure:** If the warp transfer fails, the token remains at `forwardAddr`, and the relayer is not charged the IGP fee for the failed attempt.
 
 ## Queries
 
 ### DeriveForwardingAddress
 
 ```bash
-celestia-appd query forwarding derive-address 42161 \
+celestia-appd query forwarding derive-address 0x<token-id> \
+  42161 \
   0x000000000000000000000000<recipient-address>
 ```
 
 ### QuoteForwardingFee
 
-Returns the estimated IGP fee for forwarding TIA to a destination domain.
+Returns the estimated IGP fee for forwarding the specified token to a destination domain.
 
 ```bash
-celestia-appd query forwarding quote-fee 42161
+celestia-appd query forwarding quote-fee 0x<token-id> 42161
 ```
 
 ## CLI Usage
 
 ```bash
 # Query derived address
-celestia-appd query forwarding derive-address 42161 \
+celestia-appd query forwarding derive-address 0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161 \
   0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
 
 # Query IGP fee estimate
-celestia-appd query forwarding quote-fee 42161
+celestia-appd query forwarding quote-fee \
+  0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161
 
 # Check balance at forward address
 celestia-appd query bank balances <forward-addr>
 
-# Execute forwarding (forwards ALL tokens at address)
-celestia-appd tx forwarding forward <forward-addr> 42161 \
+# Execute forwarding
+celestia-appd tx forwarding forward <forward-addr> \
+  0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161 \
   0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
   --max-igp-fee 1000utia --from relayer
 ```
@@ -180,7 +164,8 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 
 - `dest-domain`: uint32 domain ID (e.g., `1` for Ethereum mainnet, `42161` for Arbitrum)
 - `dest-recipient`: 32-byte hex-encoded address with `0x` prefix. For EVM chains, use the 20-byte address left-padded with 12 zero bytes (e.g., `0x000000000000000000000000<20-byte-eth-address>`)
-- `max-igp-fee`: Maximum IGP fee to pay per token (e.g., `1000utia`)
+- `token-id`: 32-byte Hyperlane token identifier in hex form
+- `max-igp-fee`: Maximum IGP fee to pay for the bound token (e.g., `1000utia`)
 
 ## Error Codes
 
@@ -188,18 +173,19 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 |------|-----------------------|------------------------------------------------|
 | 2    | ErrAddressMismatch    | Derived address doesn't match provided address |
 | 3    | ErrNoBalance          | No balance at forwarding address               |
-| 4    | ErrBelowMinimum       | Balance below minimum threshold                |
-| 5    | ErrUnsupportedToken   | Token denom not supported for forwarding       |
-| 6    | ErrTooManyTokens      | Too many tokens at forwarding address          |
-| 7    | ErrInvalidRecipient   | Invalid recipient length                       |
-| 8    | ErrNoWarpRoute        | No warp route to destination domain            |
-| 9    | ErrInsufficientIgpFee | IGP fee provided is less than required         |
+| 4    | ErrUnsupportedToken   | Token denom not supported for forwarding       |
+| 5    | ErrInvalidRecipient   | Invalid recipient length                       |
+| 6    | ErrNoWarpRoute        | No warp route to destination domain            |
+| 7    | ErrInsufficientIgpFee | IGP fee provided is less than required         |
+| 8    | ErrForwardFailed      | Token forward failed                           |
+| 9    | ErrInvalidTokenID     | Invalid token identifier                       |
 
 ## Security
 
-- **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient)`. Funds can only be forwarded to the committed destination.
+- **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient, tokenId)`. Funds can only be forwarded using the committed token route and destination.
 - **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination.
-- **No fund loss**: Failed token attempts do not commit state changes, so tokens remain at `forwardAddr`.
+- **Off-chain route trust**: Frontends and relayers choose the token route; the chain enforces consistency but does not decide which token is canonical.
+- **No fund loss**: Failed forwarding attempts do not commit state changes, so the bound token remains at `forwardAddr`.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
 - **Blocked module account**: The forwarding module account is blocked and cannot receive funds via direct `bank send` or `MsgSend`. This prevents accidental fund loss from users sending to the module account instead of a forwarding address.
 
@@ -222,8 +208,8 @@ The current design fails gracefully: if someone sends to a forwarding address wi
 
 For cross-platform compatibility (Go, TypeScript, Rust):
 
-| destDomain | destRecipient                                                        | Expected Address                                  |
-|------------|----------------------------------------------------------------------|---------------------------------------------------|
-| 1          | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `celestia1gev9segv9333lpy27thrtwdjwhu9lgcjpkpz2x` |
-| 42161      | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `celestia1uvqe9n0eclkd55dj9g9m30nf77px6jq2nfqmyw` |
-| 0          | `0x0000000000000000000000000000000000000000000000000000000000000000` | `celestia1w0c30l5s7q46nhnz7k7j82j6kdsgz4w4m25jjg` |
+| destDomain | destRecipient                                                        | tokenId                                                                | Expected Address                                  |
+|------------|----------------------------------------------------------------------|------------------------------------------------------------------------|---------------------------------------------------|
+| 1          | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `0x726f757465725f61707000000000000000000000000000010000000000000000` | `celestia1cg34qulzr4m78vwvg56c5ftn69frhulamgy8qe` |
+| 42161      | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `0x726f757465725f61707000000000000000000000000000010000000000000001` | `celestia1x8dplhx74cdnguq3sxdhgmw8mp30s3z57qnade` |
+| 0          | `0x0000000000000000000000000000000000000000000000000000000000000000` | `0x726f757465725f61707000000000000000000000000000010000000000000002` | `celestia1lezkhrla6g2h3403n45d6czr7gfqahe8hhj8p8` |
