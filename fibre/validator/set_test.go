@@ -190,6 +190,32 @@ func TestSet_Select(t *testing.T) {
 		}
 	})
 
+	t.Run("expected rows match after shuffle", func(t *testing.T) {
+		// Select shuffles validators by stake, but ExpectedRows must stay paired
+		// with the correct validator. Verify by comparing against the pre-shuffle
+		// per-address row counts from Assign.
+		stakes := []int64{50, 30, 15, 10, 7, 5, 3, 2, 1, 1}
+		valSet := makeValidatorSetWithStakes(stakes)
+
+		totalRows := testOriginalRows * 4
+		shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
+
+		// Build ground-truth: address -> assigned row count from Assign
+		expectedByAddr := make(map[string]int)
+		for v, rows := range shardMap {
+			expectedByAddr[v.Address.String()] = len(rows)
+		}
+
+		// Run Select multiple times since shuffle is non-deterministic
+		for range 10 {
+			selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+			for _, sv := range selected {
+				require.Equal(t, expectedByAddr[sv.Address.String()], sv.ExpectedRows,
+					"ExpectedRows mismatch for validator %s after shuffle", sv.Address)
+			}
+		}
+	})
+
 	t.Run("stake distributions", func(t *testing.T) {
 		cases := []struct {
 			name   string
