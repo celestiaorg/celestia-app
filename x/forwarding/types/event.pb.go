@@ -29,16 +29,14 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 type EventTokenForwarded struct {
 	// forward_addr is the forwarding address.
 	ForwardAddr string `protobuf:"bytes,1,opt,name=forward_addr,json=forwardAddr,proto3" json:"forward_addr,omitempty"`
+	// token_id is the Hyperlane token identifier.
+	TokenId string `protobuf:"bytes,2,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
 	// denom is the token denomination.
-	Denom string `protobuf:"bytes,2,opt,name=denom,proto3" json:"denom,omitempty"`
+	Denom string `protobuf:"bytes,3,opt,name=denom,proto3" json:"denom,omitempty"`
 	// amount is the amount forwarded.
-	Amount cosmossdk_io_math.Int `protobuf:"bytes,3,opt,name=amount,proto3,customtype=cosmossdk.io/math.Int" json:"amount"`
+	Amount cosmossdk_io_math.Int `protobuf:"bytes,4,opt,name=amount,proto3,customtype=cosmossdk.io/math.Int" json:"amount"`
 	// message_id is the Hyperlane message ID.
-	MessageId string `protobuf:"bytes,4,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
-	// success indicates whether the forward succeeded.
-	Success bool `protobuf:"varint,5,opt,name=success,proto3" json:"success,omitempty"`
-	// error contains the error message when success=false.
-	Error string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
+	MessageId string `protobuf:"bytes,5,opt,name=message_id,json=messageId,proto3" json:"message_id,omitempty"`
 }
 
 func (m *EventTokenForwarded) Reset()         { *m = EventTokenForwarded{} }
@@ -81,6 +79,13 @@ func (m *EventTokenForwarded) GetForwardAddr() string {
 	return ""
 }
 
+func (m *EventTokenForwarded) GetTokenId() string {
+	if m != nil {
+		return m.TokenId
+	}
+	return ""
+}
+
 func (m *EventTokenForwarded) GetDenom() string {
 	if m != nil {
 		return m.Denom
@@ -95,105 +100,8 @@ func (m *EventTokenForwarded) GetMessageId() string {
 	return ""
 }
 
-func (m *EventTokenForwarded) GetSuccess() bool {
-	if m != nil {
-		return m.Success
-	}
-	return false
-}
-
-func (m *EventTokenForwarded) GetError() string {
-	if m != nil {
-		return m.Error
-	}
-	return ""
-}
-
-// EventForwardingComplete is emitted when all tokens at an address are processed.
-type EventForwardingComplete struct {
-	// forward_addr is the forwarding address.
-	ForwardAddr string `protobuf:"bytes,1,opt,name=forward_addr,json=forwardAddr,proto3" json:"forward_addr,omitempty"`
-	// dest_domain is the destination chain domain ID.
-	DestDomain uint32 `protobuf:"varint,2,opt,name=dest_domain,json=destDomain,proto3" json:"dest_domain,omitempty"`
-	// dest_recipient is the recipient on destination chain.
-	DestRecipient string `protobuf:"bytes,3,opt,name=dest_recipient,json=destRecipient,proto3" json:"dest_recipient,omitempty"`
-	// tokens_forwarded is the count of successfully forwarded tokens.
-	TokensForwarded uint32 `protobuf:"varint,4,opt,name=tokens_forwarded,json=tokensForwarded,proto3" json:"tokens_forwarded,omitempty"`
-	// tokens_failed is the count of tokens that failed to forward.
-	TokensFailed uint32 `protobuf:"varint,5,opt,name=tokens_failed,json=tokensFailed,proto3" json:"tokens_failed,omitempty"`
-}
-
-func (m *EventForwardingComplete) Reset()         { *m = EventForwardingComplete{} }
-func (m *EventForwardingComplete) String() string { return proto.CompactTextString(m) }
-func (*EventForwardingComplete) ProtoMessage()    {}
-func (*EventForwardingComplete) Descriptor() ([]byte, []int) {
-	return fileDescriptor_e4f0fd40fbc662e4, []int{1}
-}
-func (m *EventForwardingComplete) XXX_Unmarshal(b []byte) error {
-	return m.Unmarshal(b)
-}
-func (m *EventForwardingComplete) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	if deterministic {
-		return xxx_messageInfo_EventForwardingComplete.Marshal(b, m, deterministic)
-	} else {
-		b = b[:cap(b)]
-		n, err := m.MarshalToSizedBuffer(b)
-		if err != nil {
-			return nil, err
-		}
-		return b[:n], nil
-	}
-}
-func (m *EventForwardingComplete) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_EventForwardingComplete.Merge(m, src)
-}
-func (m *EventForwardingComplete) XXX_Size() int {
-	return m.Size()
-}
-func (m *EventForwardingComplete) XXX_DiscardUnknown() {
-	xxx_messageInfo_EventForwardingComplete.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_EventForwardingComplete proto.InternalMessageInfo
-
-func (m *EventForwardingComplete) GetForwardAddr() string {
-	if m != nil {
-		return m.ForwardAddr
-	}
-	return ""
-}
-
-func (m *EventForwardingComplete) GetDestDomain() uint32 {
-	if m != nil {
-		return m.DestDomain
-	}
-	return 0
-}
-
-func (m *EventForwardingComplete) GetDestRecipient() string {
-	if m != nil {
-		return m.DestRecipient
-	}
-	return ""
-}
-
-func (m *EventForwardingComplete) GetTokensForwarded() uint32 {
-	if m != nil {
-		return m.TokensForwarded
-	}
-	return 0
-}
-
-func (m *EventForwardingComplete) GetTokensFailed() uint32 {
-	if m != nil {
-		return m.TokensFailed
-	}
-	return 0
-}
-
 func init() {
 	proto.RegisterType((*EventTokenForwarded)(nil), "celestia.forwarding.v1.EventTokenForwarded")
-	proto.RegisterType((*EventForwardingComplete)(nil), "celestia.forwarding.v1.EventForwardingComplete")
 }
 
 func init() {
@@ -201,35 +109,28 @@ func init() {
 }
 
 var fileDescriptor_e4f0fd40fbc662e4 = []byte{
-	// 438 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x52, 0xc1, 0x6e, 0xd4, 0x30,
-	0x10, 0x4d, 0x80, 0x2e, 0xd4, 0x6d, 0x00, 0x85, 0x05, 0x42, 0x25, 0xb2, 0xd5, 0x22, 0xa4, 0x22,
-	0xb4, 0x89, 0x2a, 0x24, 0x2e, 0x9c, 0x68, 0xa1, 0xd2, 0xde, 0x90, 0xe1, 0xc4, 0x25, 0x72, 0xe3,
-	0x69, 0x6a, 0x75, 0xed, 0x89, 0x6c, 0xef, 0x02, 0x7f, 0xc1, 0xc7, 0xf4, 0x23, 0x7a, 0xac, 0x7a,
-	0x42, 0x1c, 0x2a, 0xb4, 0x7b, 0xe7, 0x0b, 0x38, 0x20, 0xdb, 0x49, 0xcb, 0x9d, 0x9b, 0xdf, 0xf3,
-	0x9b, 0x67, 0xcf, 0x9b, 0x21, 0xe3, 0x1a, 0x66, 0x60, 0xac, 0x60, 0xe5, 0x11, 0xea, 0x2f, 0x4c,
-	0x73, 0xa1, 0x9a, 0x72, 0xb1, 0x5b, 0xc2, 0x02, 0x94, 0x2d, 0x5a, 0x8d, 0x16, 0xd3, 0x47, 0xbd,
-	0xa6, 0xb8, 0xd6, 0x14, 0x8b, 0xdd, 0xad, 0x61, 0x83, 0x0d, 0x7a, 0x49, 0xe9, 0x4e, 0x41, 0xbd,
-	0xf5, 0xa4, 0x46, 0x23, 0xd1, 0x54, 0xe1, 0x22, 0x80, 0x70, 0x35, 0xfe, 0x13, 0x93, 0x07, 0xef,
-	0x9d, 0xf1, 0x27, 0x3c, 0x01, 0x75, 0x10, 0xcc, 0x80, 0xa7, 0x6f, 0xc8, 0x66, 0xe7, 0x5c, 0x31,
-	0xce, 0x75, 0x16, 0x6f, 0xc7, 0x3b, 0xeb, 0x7b, 0xd9, 0xc5, 0xe9, 0x64, 0xd8, 0xd5, 0xbf, 0xe5,
-	0x5c, 0x83, 0x31, 0x1f, 0xad, 0x16, 0xaa, 0xa1, 0x1b, 0x9d, 0xda, 0xb1, 0xe9, 0x90, 0xac, 0x71,
-	0x50, 0x28, 0xb3, 0x1b, 0xae, 0x8a, 0x06, 0x90, 0xee, 0x93, 0x01, 0x93, 0x38, 0x57, 0x36, 0xbb,
-	0xe9, 0xcd, 0x5e, 0x9e, 0x5d, 0x8e, 0xa2, 0x9f, 0x97, 0xa3, 0x87, 0xc1, 0xd0, 0xf0, 0x93, 0x42,
-	0x60, 0x29, 0x99, 0x3d, 0x2e, 0xa6, 0xca, 0x5e, 0x9c, 0x4e, 0x48, 0xf7, 0xd2, 0x54, 0x59, 0xda,
-	0x95, 0xa6, 0x4f, 0x09, 0x91, 0x60, 0x0c, 0x6b, 0xa0, 0x12, 0x3c, 0xbb, 0xe5, 0xfd, 0xd7, 0x3b,
-	0x66, 0xca, 0xd3, 0x8c, 0xdc, 0x36, 0xf3, 0xba, 0x06, 0x63, 0xb2, 0xb5, 0xed, 0x78, 0xe7, 0x0e,
-	0xed, 0xa1, 0xfb, 0x13, 0x68, 0x8d, 0x3a, 0x1b, 0x84, 0x3f, 0x79, 0x30, 0xfe, 0x1d, 0x93, 0xc7,
-	0xbe, 0xfd, 0x83, 0xab, 0x18, 0xf7, 0x51, 0xb6, 0x33, 0xb0, 0xf0, 0x7f, 0x11, 0x8c, 0xc8, 0x06,
-	0x07, 0x63, 0x2b, 0x8e, 0x92, 0x09, 0xe5, 0x83, 0x48, 0x28, 0x71, 0xd4, 0x3b, 0xcf, 0xa4, 0xcf,
-	0xc9, 0x5d, 0x2f, 0xd0, 0x50, 0x8b, 0x56, 0x40, 0x9f, 0x0a, 0x4d, 0x1c, 0x4b, 0x7b, 0x32, 0x7d,
-	0x41, 0xee, 0x5b, 0x37, 0x19, 0x53, 0x1d, 0xf5, 0xb3, 0xf1, 0x5d, 0x27, 0xf4, 0x5e, 0xe0, 0xaf,
-	0x47, 0xf6, 0x8c, 0x24, 0xbd, 0x94, 0x89, 0x19, 0x70, 0x9f, 0x40, 0x42, 0x37, 0x3b, 0x9d, 0xe7,
-	0xf6, 0x3e, 0x9c, 0x2d, 0xf3, 0xf8, 0x7c, 0x99, 0xc7, 0xbf, 0x96, 0x79, 0xfc, 0x7d, 0x95, 0x47,
-	0xe7, 0xab, 0x3c, 0xfa, 0xb1, 0xca, 0xa3, 0xcf, 0xaf, 0x1b, 0x61, 0x8f, 0xe7, 0x87, 0x45, 0x8d,
-	0xb2, 0xec, 0xb7, 0x0b, 0x75, 0x73, 0x75, 0x9e, 0xb0, 0xb6, 0x2d, 0xbf, 0xfe, 0xbb, 0x93, 0xf6,
-	0x5b, 0x0b, 0xe6, 0x70, 0xe0, 0x17, 0xe9, 0xd5, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0xf6, 0x8f,
-	0xad, 0xf6, 0xb7, 0x02, 0x00, 0x00,
+	// 329 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4c, 0x91, 0xc1, 0x4e, 0x32, 0x31,
+	0x14, 0x85, 0x67, 0xfe, 0x5f, 0x50, 0xaa, 0xab, 0x11, 0xcd, 0x40, 0xe2, 0x60, 0x58, 0x99, 0x18,
+	0xa6, 0x21, 0x26, 0x6e, 0x5c, 0x89, 0xd1, 0x64, 0x76, 0x06, 0x5d, 0xb9, 0x21, 0x85, 0xd6, 0x32,
+	0xc1, 0xe9, 0x9d, 0xb4, 0x05, 0xf5, 0x2d, 0x7c, 0x18, 0x1e, 0x82, 0x25, 0x61, 0x65, 0x5c, 0x10,
+	0x03, 0x0b, 0x5f, 0xc3, 0x4c, 0x5b, 0xd4, 0xdd, 0xbd, 0x27, 0xe7, 0x7c, 0xa7, 0xb9, 0x45, 0xcd,
+	0x01, 0x7b, 0x62, 0x4a, 0xa7, 0x04, 0x3f, 0x82, 0x7c, 0x26, 0x92, 0xa6, 0x82, 0xe3, 0x49, 0x1b,
+	0xb3, 0x09, 0x13, 0x3a, 0xce, 0x25, 0x68, 0x08, 0x0e, 0x37, 0x9e, 0xf8, 0xd7, 0x13, 0x4f, 0xda,
+	0xf5, 0xda, 0x00, 0x54, 0x06, 0xaa, 0x67, 0x5c, 0xd8, 0x2e, 0x36, 0x52, 0xaf, 0x72, 0xe0, 0x60,
+	0xf5, 0x62, 0xb2, 0x6a, 0xf3, 0xcb, 0x47, 0xfb, 0xd7, 0x05, 0xf8, 0x1e, 0x46, 0x4c, 0xdc, 0x58,
+	0x18, 0xa3, 0xc1, 0x05, 0xda, 0x73, 0xe4, 0x1e, 0xa1, 0x54, 0x86, 0xfe, 0xb1, 0x7f, 0x52, 0xe9,
+	0x84, 0x8b, 0x69, 0xab, 0xea, 0xa8, 0x97, 0x94, 0x4a, 0xa6, 0xd4, 0x9d, 0x96, 0xa9, 0xe0, 0xdd,
+	0x5d, 0xe7, 0x2e, 0xd4, 0xa0, 0x86, 0x76, 0x74, 0x81, 0xeb, 0xa5, 0x34, 0xfc, 0x57, 0x04, 0xbb,
+	0xdb, 0x66, 0x4f, 0x68, 0x50, 0x45, 0x25, 0xca, 0x04, 0x64, 0xe1, 0x7f, 0xa3, 0xdb, 0x25, 0xb8,
+	0x42, 0x65, 0x92, 0xc1, 0x58, 0xe8, 0x70, 0xcb, 0xf4, 0x9c, 0xce, 0x96, 0x0d, 0xef, 0x63, 0xd9,
+	0x38, 0xb0, 0x5d, 0x8a, 0x8e, 0xe2, 0x14, 0x70, 0x46, 0xf4, 0x30, 0x4e, 0x84, 0x5e, 0x4c, 0x5b,
+	0xc8, 0x3d, 0x22, 0x11, 0xba, 0xeb, 0xa2, 0xc1, 0x11, 0x42, 0x19, 0x53, 0x8a, 0x70, 0x56, 0xf4,
+	0x96, 0x0c, 0xbf, 0xe2, 0x94, 0x84, 0x76, 0x6e, 0x67, 0xab, 0xc8, 0x9f, 0xaf, 0x22, 0xff, 0x73,
+	0x15, 0xf9, 0x6f, 0xeb, 0xc8, 0x9b, 0xaf, 0x23, 0xef, 0x7d, 0x1d, 0x79, 0x0f, 0xe7, 0x3c, 0xd5,
+	0xc3, 0x71, 0x3f, 0x1e, 0x40, 0x86, 0x37, 0x77, 0x05, 0xc9, 0x7f, 0xe6, 0x16, 0xc9, 0x73, 0xfc,
+	0xf2, 0xf7, 0x37, 0xf4, 0x6b, 0xce, 0x54, 0xbf, 0x6c, 0x4e, 0x78, 0xf6, 0x1d, 0x00, 0x00, 0xff,
+	0xff, 0x04, 0x5e, 0x27, 0x6d, 0xb1, 0x01, 0x00, 0x00,
 }
 
 func (m *EventTokenForwarded) Marshal() (dAtA []byte, err error) {
@@ -252,29 +153,12 @@ func (m *EventTokenForwarded) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
-	if len(m.Error) > 0 {
-		i -= len(m.Error)
-		copy(dAtA[i:], m.Error)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.Error)))
-		i--
-		dAtA[i] = 0x32
-	}
-	if m.Success {
-		i--
-		if m.Success {
-			dAtA[i] = 1
-		} else {
-			dAtA[i] = 0
-		}
-		i--
-		dAtA[i] = 0x28
-	}
 	if len(m.MessageId) > 0 {
 		i -= len(m.MessageId)
 		copy(dAtA[i:], m.MessageId)
 		i = encodeVarintEvent(dAtA, i, uint64(len(m.MessageId)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x2a
 	}
 	{
 		size := m.Amount.Size()
@@ -285,65 +169,20 @@ func (m *EventTokenForwarded) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 		i = encodeVarintEvent(dAtA, i, uint64(size))
 	}
 	i--
-	dAtA[i] = 0x1a
+	dAtA[i] = 0x22
 	if len(m.Denom) > 0 {
 		i -= len(m.Denom)
 		copy(dAtA[i:], m.Denom)
 		i = encodeVarintEvent(dAtA, i, uint64(len(m.Denom)))
 		i--
-		dAtA[i] = 0x12
-	}
-	if len(m.ForwardAddr) > 0 {
-		i -= len(m.ForwardAddr)
-		copy(dAtA[i:], m.ForwardAddr)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.ForwardAddr)))
-		i--
-		dAtA[i] = 0xa
-	}
-	return len(dAtA) - i, nil
-}
-
-func (m *EventForwardingComplete) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalToSizedBuffer(dAtA[:size])
-	if err != nil {
-		return nil, err
-	}
-	return dAtA[:n], nil
-}
-
-func (m *EventForwardingComplete) MarshalTo(dAtA []byte) (int, error) {
-	size := m.Size()
-	return m.MarshalToSizedBuffer(dAtA[:size])
-}
-
-func (m *EventForwardingComplete) MarshalToSizedBuffer(dAtA []byte) (int, error) {
-	i := len(dAtA)
-	_ = i
-	var l int
-	_ = l
-	if m.TokensFailed != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.TokensFailed))
-		i--
-		dAtA[i] = 0x28
-	}
-	if m.TokensForwarded != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.TokensForwarded))
-		i--
-		dAtA[i] = 0x20
-	}
-	if len(m.DestRecipient) > 0 {
-		i -= len(m.DestRecipient)
-		copy(dAtA[i:], m.DestRecipient)
-		i = encodeVarintEvent(dAtA, i, uint64(len(m.DestRecipient)))
-		i--
 		dAtA[i] = 0x1a
 	}
-	if m.DestDomain != 0 {
-		i = encodeVarintEvent(dAtA, i, uint64(m.DestDomain))
+	if len(m.TokenId) > 0 {
+		i -= len(m.TokenId)
+		copy(dAtA[i:], m.TokenId)
+		i = encodeVarintEvent(dAtA, i, uint64(len(m.TokenId)))
 		i--
-		dAtA[i] = 0x10
+		dAtA[i] = 0x12
 	}
 	if len(m.ForwardAddr) > 0 {
 		i -= len(m.ForwardAddr)
@@ -376,6 +215,10 @@ func (m *EventTokenForwarded) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovEvent(uint64(l))
 	}
+	l = len(m.TokenId)
+	if l > 0 {
+		n += 1 + l + sovEvent(uint64(l))
+	}
 	l = len(m.Denom)
 	if l > 0 {
 		n += 1 + l + sovEvent(uint64(l))
@@ -385,39 +228,6 @@ func (m *EventTokenForwarded) Size() (n int) {
 	l = len(m.MessageId)
 	if l > 0 {
 		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.Success {
-		n += 2
-	}
-	l = len(m.Error)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	return n
-}
-
-func (m *EventForwardingComplete) Size() (n int) {
-	if m == nil {
-		return 0
-	}
-	var l int
-	_ = l
-	l = len(m.ForwardAddr)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.DestDomain != 0 {
-		n += 1 + sovEvent(uint64(m.DestDomain))
-	}
-	l = len(m.DestRecipient)
-	if l > 0 {
-		n += 1 + l + sovEvent(uint64(l))
-	}
-	if m.TokensForwarded != 0 {
-		n += 1 + sovEvent(uint64(m.TokensForwarded))
-	}
-	if m.TokensFailed != 0 {
-		n += 1 + sovEvent(uint64(m.TokensFailed))
 	}
 	return n
 }
@@ -491,6 +301,38 @@ func (m *EventTokenForwarded) Unmarshal(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TokenId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowEvent
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthEvent
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthEvent
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TokenId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Denom", wireType)
 			}
 			var stringLen uint64
@@ -521,7 +363,7 @@ func (m *EventTokenForwarded) Unmarshal(dAtA []byte) error {
 			}
 			m.Denom = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 3:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Amount", wireType)
 			}
@@ -555,7 +397,7 @@ func (m *EventTokenForwarded) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
-		case 4:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field MessageId", wireType)
 			}
@@ -587,229 +429,6 @@ func (m *EventTokenForwarded) Unmarshal(dAtA []byte) error {
 			}
 			m.MessageId = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Success", wireType)
-			}
-			var v int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				v |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			m.Success = bool(v != 0)
-		case 6:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Error", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.Error = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipEvent(dAtA[iNdEx:])
-			if err != nil {
-				return err
-			}
-			if (skippy < 0) || (iNdEx+skippy) < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if (iNdEx + skippy) > l {
-				return io.ErrUnexpectedEOF
-			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *EventForwardingComplete) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowEvent
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= uint64(b&0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: EventForwardingComplete: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: EventForwardingComplete: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
-		case 1:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ForwardAddr", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ForwardAddr = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DestDomain", wireType)
-			}
-			m.DestDomain = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.DestDomain |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field DestRecipient", wireType)
-			}
-			var stringLen uint64
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
-				return ErrInvalidLengthEvent
-			}
-			postIndex := iNdEx + intStringLen
-			if postIndex < 0 {
-				return ErrInvalidLengthEvent
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.DestRecipient = string(dAtA[iNdEx:postIndex])
-			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TokensForwarded", wireType)
-			}
-			m.TokensForwarded = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.TokensForwarded |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 5:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field TokensFailed", wireType)
-			}
-			m.TokensFailed = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return ErrIntOverflowEvent
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.TokensFailed |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipEvent(dAtA[iNdEx:])

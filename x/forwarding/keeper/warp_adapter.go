@@ -60,25 +60,6 @@ func (a *WarpKeeperAdapter) GetHypToken(ctx context.Context, id uint64) (warptyp
 	return a.keeper.HypTokens.Get(ctx, id)
 }
 
-func (a *WarpKeeperAdapter) GetAllHypTokens(ctx context.Context) ([]warptypes.HypToken, error) {
-	iter, err := a.keeper.HypTokens.Iterate(ctx, nil)
-	if err != nil {
-		return nil, err
-	}
-	defer iter.Close()
-
-	var tokens []warptypes.HypToken
-	for ; iter.Valid(); iter.Next() {
-		token, err := iter.Value()
-		if err != nil {
-			// Skip tokens that fail to decode, matching original behavior
-			continue
-		}
-		tokens = append(tokens, token)
-	}
-	return tokens, nil
-}
-
 func (a *WarpKeeperAdapter) HasEnrolledRouter(ctx context.Context, tokenId uint64, domain uint32) (bool, error) {
 	return a.keeper.EnrolledRouters.Has(ctx, collections.Join(tokenId, domain))
 }
