@@ -34,8 +34,7 @@ Override config values with flags (flags take precedence over config file):
 ```sh
 fibre start \
   --app-grpc-address 127.0.0.1:9090 \
-  --server-listen-address 0.0.0.0:7980 \
-  --signer-grpc-address 127.0.0.1:26658
+  --server-listen-address 0.0.0.0:7980
 ```
 
 ### Version
@@ -62,17 +61,10 @@ Fibre signs payment promises by connecting to the consensus node's PrivValidator
 
 ### Setup
 
-1. Enable the privval gRPC endpoint on your node. In `config.toml`:
+1. The privval gRPC endpoint is enabled by default on your node. In `config.toml`:
 
 ```toml
-priv_validator_grpc_laddr = "tcp://127.0.0.1:26658"
-```
-
-1. Start fibre:
-
-```sh
-fibre start \
-  --signer-grpc-address 127.0.0.1:26658
+priv_validator_grpc_laddr = "127.0.0.1:26659"
 ```
 
 ## Observability

@@ -33,17 +33,154 @@ func TestUpgrades(t *testing.T) {
 	})
 }
 
-func TestSetMaxExpectedTimePerBlock(t *testing.T) {
-	consensusParams := app.DefaultConsensusParams()
-	testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-	ctx := testApp.NewContext(false)
+func TestApplyUpgrade(t *testing.T) {
+	t.Run("v6 to v8 upgrade should set the min commission rate to 20%", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		consensusParams.Version.App = 6
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
 
-	err := testApp.SetMaxExpectedTimePerBlock(ctx)
-	require.NoError(t, err)
+		ctx := testApp.NewContext(false)
+		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.10")
+		require.NoError(t, err)
+		err = testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
+			MinCommissionRate: oldMinCommissionRate,
+		})
+		require.NoError(t, err)
 
-	got := testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx)
-	want := uint64((15 * time.Second).Nanoseconds())
-	assert.Equal(t, want, got.MaxExpectedTimePerBlock)
+		plan := upgradetypes.Plan{
+			Name:   "v8",
+			Time:   time.Now(),
+			Height: 1,
+			Info:   "info",
+		}
+		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		ctx = testApp.NewContext(false)
+		got, err := testApp.StakingKeeper.GetParams(ctx)
+		require.NoError(t, err)
+		require.Equal(t, appconsts.MinCommissionRate, got.MinCommissionRate)
+	})
+	t.Run("v7 to v8 upgrade should skip commission rate migration", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		consensusParams.Version.App = 7
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
+
+		ctx := testApp.NewContext(false).WithBlockHeader(tmproto.Header{Version: tmversion.Consensus{App: 7}})
+		oldMinCommissionRate, err := math.LegacyNewDecFromStr("0.10")
+		require.NoError(t, err)
+		err = testApp.StakingKeeper.SetParams(ctx, stakingtypes.Params{
+			MinCommissionRate: oldMinCommissionRate,
+		})
+		require.NoError(t, err)
+
+		plan := upgradetypes.Plan{
+			Name:   "v8",
+			Time:   time.Now(),
+			Height: 1,
+			Info:   "info",
+		}
+		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		// Commission rate should remain 10% — v7 already applied this migration.
+		ctx = testApp.NewContext(false)
+		got, err := testApp.StakingKeeper.GetParams(ctx)
+		require.NoError(t, err)
+		require.Equal(t, oldMinCommissionRate, got.MinCommissionRate)
+	})
+}
+
+func TestUpdateValidatorCommissionRates(t *testing.T) {
+	testCases := []struct {
+		name           string
+		initialRate    string
+		initialMaxRate string
+		wantRate       string
+		wantMaxRate    string
+		shouldUpdate   bool
+	}{
+		{
+			name:           "should increase rate to 20%",
+			initialRate:    "0.10",
+			initialMaxRate: "0.60",
+			wantRate:       "0.20",
+			wantMaxRate:    "0.60",
+			shouldUpdate:   true,
+		},
+		{
+			name:           "should increase max rate to 60%",
+			initialRate:    "0.20",
+			initialMaxRate: "0.30",
+			wantRate:       "0.20",
+			wantMaxRate:    "0.60",
+			shouldUpdate:   true,
+		},
+		{
+			name:           "should increase both",
+			initialRate:    "0.05",
+			initialMaxRate: "0.08",
+			wantRate:       "0.20",
+			wantMaxRate:    "0.60",
+			shouldUpdate:   true,
+		},
+		{
+			name:           "should increase both if both at 0",
+			initialRate:    "0.00",
+			initialMaxRate: "0.00",
+			wantRate:       "0.20",
+			wantMaxRate:    "0.60",
+			shouldUpdate:   true,
+		},
+		{
+			name:           "should not update if both are already at 20% and 60%",
+			initialRate:    "0.20",
+			initialMaxRate: "0.60",
+			wantRate:       "0.20",
+			wantMaxRate:    "0.60",
+			shouldUpdate:   false,
+		},
+		{
+			name:           "should not update if both are above 20% and 60%",
+			initialRate:    "0.25",
+			initialMaxRate: "0.80",
+			wantRate:       "0.25",
+			wantMaxRate:    "0.80",
+			shouldUpdate:   false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			consensusParams := app.DefaultConsensusParams()
+			testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+
+			ctx := testApp.NewContext(false).WithBlockTime(util.GenesisTime.Add(time.Hour * 25))
+
+			validator := createValidatorWithCommission(t, testApp, ctx, tc.initialRate, tc.initialMaxRate)
+
+			valAddr, err := sdk.ValAddressFromBech32(validator.GetOperator())
+			require.NoError(t, err)
+			validatorBefore, err := testApp.StakingKeeper.GetValidator(ctx, valAddr)
+			require.NoError(t, err)
+
+			assertCommissionRates(t, validatorBefore, tc.initialRate, tc.initialMaxRate)
+
+			err = testApp.UpdateValidatorCommissionRates(ctx)
+			require.NoError(t, err)
+
+			validatorAfter, err := testApp.StakingKeeper.GetValidator(ctx, valAddr)
+			require.NoError(t, err)
+
+			assertCommissionRates(t, validatorAfter, tc.wantRate, tc.wantMaxRate)
+
+			if tc.shouldUpdate {
+				require.Equal(t, ctx.BlockTime(), validatorAfter.Commission.UpdateTime, "UpdateTime should be set to current block time")
+			}
+		})
+	}
 }
 
 // createValidatorWithCommission creates a validator with specific commission
