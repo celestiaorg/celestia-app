@@ -32,6 +32,7 @@ func TestClientDownload(t *testing.T) {
 		{"LargeValidatorFailure", testClientDownloadLargeValidatorFailure},
 		{"IncorrectRowDistribution", testClientDownloadIncorrectRowDistribution},
 		{"WithHeight", testClientDownloadWithHeight},
+		{"WithZeroHeight", testClientDownloadWithZeroHeight},
 		{"CustomMinRowsPerValidator", testClientDownloadCustomMinRows},
 	}
 
@@ -288,6 +289,36 @@ func testClientDownloadWithHeight(t *testing.T) {
 	require.Equal(t, int64(1), getter.getByHeightCalls.Load(), "expected GetByHeight to be called once")
 	require.Equal(t, int64(0), getter.headCalls.Load(), "expected Head to not be called")
 	require.Equal(t, uint64(42), getter.lastHeight.Load(), "expected GetByHeight to be called with height 42")
+}
+
+func testClientDownloadWithZeroHeight(t *testing.T) {
+	// Test that passing a pointer-to-zero height falls through to Head()
+	// instead of calling GetByHeight(0), which would be rejected by the gRPC layer.
+	blob := makeTestBlobV0(t, 256*1024)
+	validators, privKeys := makeTestValidators(t, 10)
+
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 42}
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = makeDownloadMockClientFn(valSet, &cfg, privKeys, blob)
+
+	getter := &heightTrackingSetGetter{set: valSet}
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: getter}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	height := uint64(0)
+	downloaded, err := client.Download(t.Context(), blob.ID(), &height)
+	require.NoError(t, err)
+	require.Equal(t, blob.Data(), downloaded.Data())
+
+	// Verify Head was called, not GetByHeight.
+	require.Equal(t, int64(1), getter.headCalls.Load(), "expected Head to be called once")
+	require.Equal(t, int64(0), getter.getByHeightCalls.Load(), "expected GetByHeight to not be called")
 }
 
 // heightTrackingSetGetter tracks which methods are called and with what arguments.

@@ -55,7 +55,7 @@ func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob 
 	// but if we don't the current head validator set will mostly have the same stakes
 	// and if not this still won't affect correctness, just the amount of nodes we contact
 	var valSet validator.Set
-	if height != nil {
+	if height != nil && *height > 0 {
 		valSet, err = c.state.GetByHeight(ctx, *height)
 	} else {
 		valSet, err = c.state.Head(ctx)
