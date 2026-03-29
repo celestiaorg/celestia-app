@@ -18,6 +18,7 @@ This is a double-spend window at the validator level. A signer with 100 utia ava
 ## Prerequisites
 
 - [celestiaorg/celestia-app#6898](https://github.com/celestiaorg/celestia-app/pull/6898). This ADR assumes #6898 is merged. That PR allows payments to reduce pending withdrawals when `AvailableBalance` is insufficient. Withdrawals take 24 hours to execute. If a user initiates a withdrawal and then continues sending payment promises, the payments are deducted from the pending withdrawal amounts (oldest first). The user should avoid sending payment promises after initiating a withdrawal, but if they do, the withdrawal amount is reduced rather than the payment failing.
+
 ## Decision
 
 Two options are presented. Both add a validator-local sidecar cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged.
@@ -64,7 +65,7 @@ The local cache does not prevent this because each validator only tracks its own
 
 Two consensus-level changes bound the damage:
 
-1. **Minimum validator signature on timeout submissions.** `MsgPaymentPromiseTimeout` must require at least one validator signature on the payment promise. This proves the promise was accepted by a specific validator. Without this, a client could fabricate promises that no validator ever saw. Combined with the local cache (which prevents a single validator from over-committing), the maximum number of unsettled promises is bounded by the validator set size — one per validator.
+1. (Optional) **Minimum validator signature on timeout submissions.** `MsgPaymentPromiseTimeout` must require at least one validator signature on the payment promise. This proves the promise was accepted by a specific validator. Without this, a client could fabricate promises that no validator ever saw. Combined with the local cache (which prevents a single validator from over-committing), the maximum number of unsettled promises is bounded by the validator set size — one per validator.
 
 2. **Minimum escrow balance.** Define a minimum escrow balance required to transact: `max_blob_size × gas_per_blob_byte × validator_set_size`. This is the cost of the most expensive blob multiplied by the validator set size — covering the worst case where the client sends a unique maximum-cost promise to every validator. The bond guarantees that even in this scenario, the escrow has sufficient funds to settle all promises. Validators always get paid.
 
@@ -108,7 +109,21 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 
 **Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). As a follow-up, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
 
-**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. **This is what Option B aims to fix**. A simpler mitigation within Option A would be inter-validator gossip: when a validator accepts a payment promise, it broadcasts the promise hash, signer, and amount to all other validators via a dedicated gRPC endpoint, signed with the validator's key for authentication. Each validator updates its local cache with the received reservation. The tradeoff is O(n²) communication overhead — in the honest path, each promise triggers n-1 notifications across the validator set, on top of the normal fibre upload.
+**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. **This is what Option B aims to fix**. Within Option A, this can be mitigated with cross-validator gossip — see below.
+
+#### Mitigating with Cross-Validator Gossip (Listen)
+
+The selective-validator attack succeeds because each validator's cache is isolated — no validator knows what promises other validators have accepted. The [Listen](https://github.com/celestiaorg/celestia-app/issues/6806) method provides a way to close this gap without protocol changes.
+
+When a validator accepts a payment promise and signs it, it broadcasts a notification to all other validators containing the promise hash, signer, and amount, signed with the validator's own key. Receiving validators verify the signature and deduct the amount from the signer's cached budget — the same operation as a local reservation, but triggered by a peer notification instead of a client request.
+
+This works because:
+
+- **Visibility.** If a client sends promise A to validator 1 and promise B to validator 2, both validators learn about each other's promise via the broadcast. Their caches reflect the combined budget impact.
+- **Authentication.** Notifications are signed with the validator's key, preventing spoofed budget drains from external parties.
+- **No protocol changes.** The broadcast is between validators at the fibre server layer. The PaymentPromise format, on-chain execution, and consensus rules are unchanged.
+
+The tradeoff is additional communication overhead — each accepted promise triggers n-1 notifications across the validator set, on top of the normal fibre upload.
 
 #### Related Improvements
 
@@ -187,7 +202,3 @@ No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain non
 - Protocol-breaking change — new nonce field in PaymentPromise sign bytes and protobuf definitions, on-chain nonce tracking in escrow account state.
 - Requires ordered on-chain settlement, preventing parallel settlement of independent promises from the same signer.
 - Adds client-side complexity for tracking and catching up validators with missing nonces.
-
-## References
-
-- [celestiaorg/celestia-app#6914](https://github.com/celestiaorg/celestia-app/issues/6914): PFF signature to include sequence
