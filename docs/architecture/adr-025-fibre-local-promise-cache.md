@@ -71,6 +71,12 @@ If a signer has no new operations for longer than `PaymentPromiseTimeout + 1h` (
 
 On startup, the cache is loaded from DB. Entries older than the eviction threshold (`PaymentPromiseTimeout + 1h`) are deleted immediately — these signers are inactive, and their pending promises have either settled or expired. Remaining entries are kept as-is; if stale, they are reconciled on that signer's next validation. No chain history rescan is performed.
 
+#### Cache DB Failure
+
+The cache shares the same DB as the application state. If the cache DB is corrupted, the application DB is also corrupted, and the validator will not start. There is no separate failure mode for the cache alone.
+
+If the DB is reset (e.g., restoring from a snapshot without cache data), the cache starts empty. Double-spend protection is lost until the cache is rebuilt through incoming validations and sweeps.
+
 #### Concurrency
 
 Validation is guarded per-signer with a mutex so two concurrent promises for the same signer cannot both consume the same remaining budget. Reservations are idempotent by `promise_hash`.
