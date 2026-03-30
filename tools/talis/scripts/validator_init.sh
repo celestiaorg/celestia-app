@@ -68,14 +68,6 @@ tar -xzf /root/$ARCHIVE_NAME -C /root/
 
 source ./vars.sh
 
-cd $HOME
-
-cp payload/build/celestia-appd /bin/celestia-appd
-cp payload/build/txsim /bin/txsim
-cp payload/build/latency-monitor /bin/latency-monitor
-cp payload/build/fibre /bin/fibre
-cp payload/build/fibre-txsim /bin/fibre-txsim
-
 sudo snap install go --channel=1.26/stable --classic
 
 echo 'export GOPATH="$HOME/go"' >> ~/.profile
@@ -90,6 +82,14 @@ hostname=$(hostname)
 
 # Parse the first part of the hostname
 parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
+
+cd $HOME
+
+cp payload/build/celestia-appd /bin/celestia-appd
+cp payload/build/txsim /bin/txsim
+cp payload/build/latency-monitor /bin/latency-monitor
+cp payload/build/fibre /bin/fibre
+cp payload/build/fibre-txsim /bin/fibre-txsim
 
 rm -rf .celestia-app/
 

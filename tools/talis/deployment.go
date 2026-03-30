@@ -120,7 +120,7 @@ func deployCmd() *cobra.Command {
 
 			log.Printf("Sending payload to validators...")
 			if directUpload {
-				if err := deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, workers); err != nil {
+				if err := deployPayloadDirect(cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/hvalidator_init.sh", 7*time.Minute, workers); err != nil {
 					if !ignoreFailed {
 						return err
 					}

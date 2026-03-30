@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"flag"
@@ -29,6 +30,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const downloadDelay = 10 * time.Second
+
 func main() {
 	if err := mainE(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -47,6 +50,7 @@ func mainE() error {
 		interval     time.Duration
 		duration     time.Duration
 		otelEndpoint string
+		download     bool
 	)
 
 	flag.StringVar(&chainID, "chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
@@ -58,6 +62,7 @@ func mainE() error {
 	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
+	flag.BoolVar(&download, "download", false, "enable download verification after each successful upload")
 	flag.Parse()
 	_ = chainID // accepted but unused
 
@@ -76,7 +81,7 @@ func mainE() error {
 		fmt.Printf("metrics and tracing enabled endpoint=%s\n", otelEndpoint)
 	}
 
-	return run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration)
+	return run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration, download)
 }
 
 // worker holds a per-account tx client and key name, sharing one fibre client.
@@ -86,7 +91,28 @@ type worker struct {
 	keyName     string
 }
 
-func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, interval, duration time.Duration) error {
+// downloadRequest is sent from upload workers to download workers after a successful upload.
+type downloadRequest struct {
+	blobID       fibre.BlobID
+	originalData []byte
+	fibreClient  *fibre.Client
+	keyName      string
+}
+
+// stats tracks shared counters across all workers.
+type stats struct {
+	totalSent  atomic.Int64
+	successes  atomic.Int64
+	failures   atomic.Int64
+	totalLatNs atomic.Int64
+
+	dlSuccesses  atomic.Int64
+	dlFailures   atomic.Int64
+	dlTotalLatNs atomic.Int64
+	dlVerified   atomic.Int64
+}
+
+func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, interval, duration time.Duration, download bool) error {
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 	kr, err := keyring.New(app.Name, keyring.BackendTest, keyringDir, nil, encCfg.Codec)
@@ -167,25 +193,38 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 		fmt.Printf("Worker %d initialized with key %s\n", i, keyName)
 	}
 
-	// Stats
-	var (
-		totalSent  atomic.Int64
-		successes  atomic.Int64
-		failures   atomic.Int64
-		totalLatNs atomic.Int64
-	)
+	st := &stats{}
 	startTime := time.Now()
 
 	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", concurrency)
 
-	// Launch each worker in its own goroutine
+	// Download channel: upload workers send requests, download workers process them.
+	// Buffer size = concurrency*4 so uploads aren't blocked waiting for downloads.
+	var dlCh chan downloadRequest
+	if download {
+		dlCh = make(chan downloadRequest, concurrency*4)
+	}
+
 	var wg sync.WaitGroup
+
+	// Spawn download workers (same count as upload workers)
+	if download {
+		for range concurrency {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				downloadWorkerLoop(ctx, dlCh, st)
+			}()
+		}
+	}
+
+	// Launch upload workers
 	for i, w := range workers {
 		wg.Add(1)
 		go func(idx int, w worker) {
 			defer wg.Done()
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, blobSize, &totalSent, &successes, &failures, &totalLatNs)
+				submitBlob(ctx, w, blobSize, st, dlCh)
 				if interval > 0 {
 					select {
 					case <-ctx.Done():
@@ -197,22 +236,52 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 		}(i, w)
 	}
 
+	// Wait for all upload workers to finish, then close the download channel
+	// so download workers can drain and exit.
+	go func() {
+		<-ctx.Done()
+		// Give upload workers a moment to finish any in-flight sends
+		time.Sleep(time.Second)
+		if dlCh != nil {
+			close(dlCh)
+		}
+	}()
+
 	wg.Wait()
 
 	elapsed := time.Since(startTime)
-	s := successes.Load()
-	f := failures.Load()
+	s := st.successes.Load()
+	f := st.failures.Load()
 	var avgLat time.Duration
 	if s > 0 {
-		avgLat = time.Duration(totalLatNs.Load() / s)
+		avgLat = time.Duration(st.totalLatNs.Load() / s)
 	}
 
 	fmt.Printf("\n--- Summary ---\n")
 	fmt.Printf("Duration:   %s\n", elapsed.Truncate(time.Second))
-	fmt.Printf("Total sent: %d\n", totalSent.Load())
-	fmt.Printf("Successes:  %d\n", s)
-	fmt.Printf("Failures:   %d\n", f)
-	fmt.Printf("Avg latency (success): %s\n", avgLat)
+	fmt.Println()
+	fmt.Println("Uploads:")
+	fmt.Printf("  Total sent: %d\n", st.totalSent.Load())
+	fmt.Printf("  Successes:  %d\n", s)
+	fmt.Printf("  Failures:   %d\n", f)
+	fmt.Printf("  Avg latency (success): %s\n", avgLat)
+
+	if download {
+		ds := st.dlSuccesses.Load()
+		df := st.dlFailures.Load()
+		dv := st.dlVerified.Load()
+		var avgDlLat time.Duration
+		if ds > 0 {
+			avgDlLat = time.Duration(st.dlTotalLatNs.Load() / ds)
+		}
+
+		fmt.Println()
+		fmt.Println("Downloads:")
+		fmt.Printf("  Successes:  %d\n", ds)
+		fmt.Printf("  Failures:   %d\n", df)
+		fmt.Printf("  Verified:   %d\n", dv)
+		fmt.Printf("  Avg latency (success): %s\n", avgDlLat)
+	}
 
 	return nil
 }
@@ -273,13 +342,13 @@ func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Contex
 	}, nil
 }
 
-func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successes, failures *atomic.Int64, totalLatNs *atomic.Int64) {
+func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh chan<- downloadRequest) {
 	// Generate random namespace
 	nsID := make([]byte, share.NamespaceVersionZeroIDSize)
 	if _, err := rand.Read(nsID); err != nil {
 		fmt.Printf("[%s] error generating namespace: %v\n", w.keyName, err)
-		failures.Add(1)
-		totalSent.Add(1)
+		st.failures.Add(1)
+		st.totalSent.Add(1)
 		return
 	}
 	id := make([]byte, 0, share.NamespaceIDSize)
@@ -288,8 +357,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successe
 	ns, err := share.NewNamespace(share.NamespaceVersionZero, id)
 	if err != nil {
 		fmt.Printf("[%s] error creating namespace: %v\n", w.keyName, err)
-		failures.Add(1)
-		totalSent.Add(1)
+		st.failures.Add(1)
+		st.totalSent.Add(1)
 		return
 	}
 
@@ -297,8 +366,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successe
 	data := make([]byte, blobSize)
 	if _, err := rand.Read(data); err != nil {
 		fmt.Printf("[%s] error generating blob data: %v\n", w.keyName, err)
-		failures.Add(1)
-		totalSent.Add(1)
+		st.failures.Add(1)
+		st.totalSent.Add(1)
 		return
 	}
 
@@ -306,17 +375,72 @@ func submitBlob(ctx context.Context, w worker, blobSize int, totalSent, successe
 	result, err := fibre.PutWithKey(ctx, w.fibreClient, w.txClient, ns, data, w.keyName)
 	lat := time.Since(t)
 
-	totalSent.Add(1)
+	st.totalSent.Add(1)
 	if err != nil {
 		if ctx.Err() != nil {
 			return
 		}
-		failures.Add(1)
-		fmt.Printf("[%s] error: %v (latency=%s)\n", w.keyName, err, lat)
+		st.failures.Add(1)
+		fmt.Printf("[%s] upload error: %v (latency=%s)\n", w.keyName, err, lat)
 		return
 	}
 
-	successes.Add(1)
-	totalLatNs.Add(lat.Nanoseconds())
-	fmt.Printf("[%s] height=%d tx=%s latency=%s\n", w.keyName, result.Height, result.TxHash, lat)
+	st.successes.Add(1)
+	st.totalLatNs.Add(lat.Nanoseconds())
+	fmt.Printf("[%s] upload: height=%d tx=%s latency=%s\n", w.keyName, result.Height, result.TxHash, lat)
+
+	// Send download request (non-blocking) to download workers
+	if dlCh != nil {
+		select {
+		case dlCh <- downloadRequest{
+			blobID:       result.BlobID,
+			originalData: data,
+			fibreClient:  w.fibreClient,
+			keyName:      w.keyName,
+		}:
+		default:
+			// Channel full, skip this download to avoid blocking uploads
+		}
+	}
+}
+
+func downloadWorkerLoop(ctx context.Context, dlCh <-chan downloadRequest, st *stats) {
+	for req := range dlCh {
+		downloadBlob(ctx, &req, st)
+	}
+}
+
+func downloadBlob(ctx context.Context, req *downloadRequest, st *stats) {
+	// Wait before downloading to allow the blob to propagate
+	select {
+	case <-time.After(downloadDelay):
+	case <-ctx.Done():
+		// Context cancelled during delay, still attempt download to drain
+	}
+
+	fmt.Printf("[%s] download starting after %s delay: blob_id=%s\n",
+		req.keyName, downloadDelay, req.blobID)
+
+	t := time.Now()
+	// Use a separate context for download so we can still download after the main ctx is cancelled
+	dlCtx, dlCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer dlCancel()
+
+	blob, err := req.fibreClient.Download(dlCtx, req.blobID)
+	if err != nil {
+		st.dlFailures.Add(1)
+		fmt.Printf("[%s] download error: blob_id=%s %v (latency=%s)\n",
+			req.keyName, req.blobID, err, time.Since(t))
+		return
+	}
+
+	lat := time.Since(t)
+	verified := bytes.Equal(blob.Data(), req.originalData)
+	st.dlSuccesses.Add(1)
+	st.dlTotalLatNs.Add(lat.Nanoseconds())
+	if verified {
+		st.dlVerified.Add(1)
+	}
+	fmt.Printf("[%s] download: blob_id=%s latency=%s verified=%t\n",
+		req.keyName, req.blobID, lat, verified)
 }

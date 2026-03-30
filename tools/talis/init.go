@@ -197,13 +197,15 @@ func initDirs(rootDir string) error {
 }
 
 // CopyTalisScripts copies the talis scripts directory into destDir.
-// It checks multiple possible locations for the scripts.
-func CopyTalisScripts(destDir string, srcRoot string) error {
-	const scriptsSubpath = "celestia-app/tools/talis/scripts"
-
+// If repoRoot points directly to the celestia-app repo root (containing tools/talis/scripts),
+// it uses that. Otherwise it falls back to guessing common directory layouts or cloning the repo.
+func CopyTalisScripts(destDir string, repoRoot string) error {
 	candidates := []string{
-		filepath.Join(srcRoot, scriptsSubpath),
-		filepath.Join(srcRoot, "src", scriptsSubpath),
+		// Direct repo root (e.g. --repo-root /path/to/celestia-app)
+		filepath.Join(repoRoot, "tools", "talis", "scripts"),
+		// Legacy: srcRoot is a parent dir containing celestia-app/
+		filepath.Join(repoRoot, "celestia-app", "tools", "talis", "scripts"),
+		filepath.Join(repoRoot, "src", "celestia-app", "tools", "talis", "scripts"),
 	}
 
 	var src string
