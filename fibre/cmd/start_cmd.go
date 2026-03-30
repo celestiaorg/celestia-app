@@ -100,9 +100,9 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	// then restores any user-set flags so precedence is: flag > config file > default.
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
-	cmd.Flags().StringVar(&cfg.SignerListenAddress, flagSignerListenAddress, cfg.SignerListenAddress, "privval signer listen address")
+	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerListenAddress, cfg.SignerGRPCAddress, "privval signer listen address")
 	cmd.Flags().Bool(flagFileSigner, false, "use file-based signer from celestia-app home instead of remote signer")
 	cmd.Flags().String(flagAppHome, "", "celestia-app home directory for file-based signer (default: /root/.celestia-app)")
-
+	
 	return cmd
 }

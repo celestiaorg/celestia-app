@@ -15,6 +15,8 @@ const (
 	// RecipientLength is 32 bytes - the Hyperlane standard for cross-chain recipient addresses.
 	// EVM 20-byte addresses must be left-padded with 12 zero bytes to meet this requirement.
 	RecipientLength = 32
+	// TokenIDLength is 32 bytes - the Hyperlane token identifier length.
+	TokenIDLength = 32
 	// DomainEncodingSize is the byte size for ABI-encoding domain IDs (uint256).
 	DomainEncodingSize = 32
 	// DomainOffset is where uint32 is placed in the 32-byte buffer (right-aligned).
@@ -26,27 +28,33 @@ const (
 )
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
-// One address handles all tokens for a given (destDomain, destRecipient) pair.
+// Each address is bound to a single token for a given (destDomain, destRecipient, tokenID) tuple.
 //
 // Algorithm:
-//  1. callDigest = sha256(destDomain_32bytes || destRecipient)
+//  1. callDigest = sha256(destDomain_32bytes || destRecipient || tokenID)
 //  2. salt = sha256(ForwardVersion || callDigest)
 //  3. address = address.Module("forwarding", salt)[:CosmosAddressLen]
 //
-// Returns an error if destRecipient is not exactly RecipientLength (32) bytes.
-func DeriveForwardingAddress(destDomain uint32, destRecipient []byte) ([]byte, error) {
+// Returns ErrInvalidRecipient if destRecipient is not exactly RecipientLength (32) bytes,
+// and ErrInvalidTokenID if tokenID is not exactly TokenIDLength (32) bytes.
+func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID []byte) ([]byte, error) {
 	if len(destRecipient) != RecipientLength {
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidRecipient, RecipientLength, len(destRecipient))
+	}
+
+	if len(tokenID) != TokenIDLength {
+		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidTokenID, TokenIDLength, len(tokenID))
 	}
 
 	// Step 1: Encode destDomain as 32-byte big-endian (right-aligned, ABI uint256 encoding)
 	destDomainBytes := make([]byte, DomainEncodingSize)
 	binary.BigEndian.PutUint32(destDomainBytes[DomainOffset:], destDomain)
 
-	// Step 2: callDigest = sha256(destDomain || destRecipient)
+	// Step 2: callDigest = sha256(destDomain || destRecipient || tokenID)
 	h := sha256.New()
 	h.Write(destDomainBytes)
 	h.Write(destRecipient)
+	h.Write(tokenID)
 	callDigest := h.Sum(nil)
 
 	// Step 3: salt = sha256(ForwardVersion || callDigest)
