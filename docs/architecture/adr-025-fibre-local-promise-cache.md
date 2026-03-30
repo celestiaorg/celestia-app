@@ -131,12 +131,12 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 
 The selective-validator attack succeeds because each validator's cache is isolated — no validator knows what promises other validators have accepted. The [Listen](https://github.com/celestiaorg/celestia-app/issues/6806) method provides a way to close this gap without protocol changes.
 
-When a validator accepts a payment promise and signs it, it broadcasts a notification to all other validators containing the promise hash, signer, and amount, signed with the validator's own key. Receiving validators verify the signature and deduct the amount from the signer's cached budget — the same operation as a local reservation, but triggered by a peer notification instead of a client request.
+When a validator accepts a payment promise and signs it, it broadcasts a notification to all other validators. The notification contains the payment promise, its sign bytes, and the signer's signature — enough for receiving validators to verify the signer's signature themselves. Receiving validators verify the signature, then deduct the amount from the signer's cached budget — the same operation as a local reservation, but triggered by a peer notification instead of a client request.
 
 This works because:
 
 - **Visibility.** If a client sends promise A to validator 1 and promise B to validator 2, both validators learn about each other's promise via the broadcast. Their caches reflect the combined budget impact.
-- **Authentication.** Notifications are signed with the validator's key, preventing spoofed budget drains from external parties.
+- **Authentication.** Notifications include the validator's signature over the payment promise. Receiving validators verify this signature against the active validator set. External parties cannot spoof notifications.
 - **No protocol changes.** The broadcast is between validators at the fibre server layer. The PaymentPromise format, on-chain execution, and consensus rules are unchanged.
 
 The tradeoff is additional communication overhead — each accepted promise triggers n-1 notifications across the validator set, on top of the normal fibre upload. Also, we would need to define an extra gRPC method in the querier to update the cache with the latest hashes signed by the other fibre servers.
