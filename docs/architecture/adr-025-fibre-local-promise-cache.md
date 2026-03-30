@@ -21,10 +21,11 @@ This is a double-spend window at the validator level. A signer with 100 utia ava
 
 ## Decision
 
-Two options are presented. Both add a validator-local sidecar cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged.
+Three options are presented. Options A and B add a validator-local sidecar cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged. Option C takes a different approach by reducing the double-spend window through parameter changes alone.
 
 - **Option A** is protocol non-breaking. It uses periodic sweeps against chain state to reconcile the cache.
 - **Option B** is protocol breaking. It adds a per-signer nonce to payment promises, allowing the cache to enforce ordering and avoid sweeps.
+- **Option C** requires no code changes. It reduces `PaymentPromiseTimeout` to 5–10 minutes so the timeout agent settles promises faster, shrinking the double-spend window.
 
 ## Detailed Design
 
@@ -199,6 +200,24 @@ No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain non
 
 **Client catch-up logic.** Clients must track which validators have seen which nonces and send missing promises when switching or adding validators. This adds complexity to the client implementation.
 
+### Option C: Reduced Expiration Window (No Code Changes)
+
+Instead of adding a cache, reduce the `PaymentPromiseTimeout` parameter from the current default (1 hour) to 5–10 minutes. The timeout agent submits expired promises shortly after expiration. With a shorter window, promises settle on-chain faster, and the period during which a double-spend can occur is reduced proportionally.
+
+No new code, no cache, no protocol changes. This is a governance parameter update.
+
+#### Why This Helps
+
+The double-spend window exists between query-time validation and on-chain settlement. A shorter `PaymentPromiseTimeout` means:
+
+- Promises expire sooner, so the timeout agent submits them sooner.
+- The on-chain `IsPaymentPromiseProcessed` check catches duplicates sooner.
+- A signer's `AvailableBalance` reflects settled promises sooner, so subsequent validations against chain state are more accurate.
+
+#### Tradeoffs
+
+**Does not eliminate double spending.** The double-spend window is reduced but not closed. Within the 5–10 minute window, concurrent promises to different validators can still pass validation. The minimum escrow bond still covers the worst case. Coupled with rate limiting on the number of promises a signer can submit per time window, the double-spend surface can be further reduced.
+
 ## Consequences
 
 ### Option A
@@ -228,3 +247,15 @@ No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain non
 - Protocol-breaking change — new nonce field in PaymentPromise sign bytes and protobuf definitions, on-chain nonce tracking in escrow account state.
 - Requires ordered on-chain settlement, preventing parallel settlement of independent promises from the same signer.
 - Adds client-side complexity for tracking and catching up validators with missing nonces.
+
+### Option C
+
+**Positive:**
+
+- No code changes — governance parameter update only.
+- Reduces the double-spend window from 1 hour to 5–10 minutes.
+
+**Negative:**
+
+- Does not eliminate double spending — only reduces the window.
+- Tighter timing may push more promises to the timeout path.
