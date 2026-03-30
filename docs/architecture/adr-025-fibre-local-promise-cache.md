@@ -184,22 +184,26 @@ No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain non
 ### Option A
 
 **Positive:**
+
 - Closes the double-spend window at the validator level.
 - No protocol changes — PaymentPromise format, client signing flow, and on-chain execution paths are unchanged.
 - Preserves reservations across validator restarts without chain rescan.
 
 **Negative:**
+
 - Per-signer mutex serializes concurrent validations for the same signer. This is intended behavior to prevent oversubscription.
 - Sweeps issue additional read requests against chain state (escrow balance, `IsPaymentPromiseProcessed` per pending promise) which increases query-path load on the state store.
 
 ### Option B
 
 **Positive:**
+
 - Closes the double-spend window at the validator level.
 - Cheaper budget recovery: single on-chain nonce read vs. per-promise `IsPaymentPromiseProcessed` calls.
 - Preserves reservations across validator restarts without chain rescan.
 
 **Negative:**
+
 - Per-signer mutex serializes concurrent validations for the same signer. This is intended behavior to prevent oversubscription.
 - Protocol-breaking change — new nonce field in PaymentPromise sign bytes and protobuf definitions, on-chain nonce tracking in escrow account state.
 - Requires ordered on-chain settlement, preventing parallel settlement of independent promises from the same signer.
