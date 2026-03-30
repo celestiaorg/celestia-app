@@ -204,9 +204,7 @@ func (c *Client) downloadBlob(
 	valSet validator.Set,
 	id BlobID,
 ) (*Blob, error) {
-	ctx, span := c.tracer.Start(ctx, "fibre.Client.downloadBlob")
-	defer span.End()
-
+	span := trace.SpanFromContext(ctx)
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(errDownloaded)
 
