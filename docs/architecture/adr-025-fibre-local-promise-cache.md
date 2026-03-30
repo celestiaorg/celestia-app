@@ -133,6 +133,14 @@ This works because:
 
 The tradeoff is additional communication overhead — each accepted promise triggers n-1 notifications across the validator set, on top of the normal fibre upload. Also, we would need to define an extra gRPC method in the querier to update the cache with the latest hashes signed by the other fibre servers.
 
+**Consistency model.** The Listen mechanism provides eventual consistency. A validator's cache reflects the union of its own reservations plus whatever notifications it has received. There is no global lock or ordering guarantee — two validators may briefly have different budget views for the same signer. This is acceptable because the cache is an optimistic local filter, not a consensus mechanism. The chain remains the source of truth and rejects any promise that exceeds the actual on-chain balance at settlement time.
+
+**Offline validators.** If a validator is offline, it misses notifications. When it comes back, its cache is stale — it only knows about its own reservations. The next sweep reconciles with chain state, picking up any promises that settled while it was offline. Between restart and the first sweep, the validator may over-accept promises for a signer whose budget was consumed by other validators. The sweep interval (1 hour or on insufficient balance) bounds this window.
+
+**Out-of-order notifications.** Notifications are idempotent by `promise_hash` — the same reservation is applied at most once regardless of arrival order. There is no sequencing requirement. A notification for promise B arriving before promise A is harmless; both simply decrement the signer's budget independently.
+
+**Conflicting budget views.** Two validators may temporarily disagree on a signer's remaining budget. This is resolved by sweeps: when a validator sweeps, it reads the actual `AvailableBalance` from chain state and recomputes the budget from scratch, converging to the same view as every other validator that sweeps. Between sweeps, over-reservation is possible but bounded by the minimum escrow bond.
+
 #### Related Improvements
 
 - Sweeps read directly from app state, which can block gRPC requests during cache re-seeding. Implementing read-only state snapshots for gRPC queries ([celestiaorg/cosmos-sdk#728](https://github.com/celestiaorg/cosmos-sdk/issues/728)) would avoid contention between sweep reads and consensus writes.
