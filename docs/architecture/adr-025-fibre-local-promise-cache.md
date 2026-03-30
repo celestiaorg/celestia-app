@@ -77,18 +77,6 @@ Validation is guarded per-signer with a mutex so two concurrent promises for the
 
 The cache reservation happens in the app query path (`ValidatePaymentPromise`), but shard verification, storage, and validator signing happen afterward in the fibre server. The app has no callback if a later step fails. This means orphaned reservations can occur from operational issues such as the fibre server crashing after validation but before signing completes. These orphaned entries are cleaned up automatically: reconciliation drops promises that are already processed or expired, and cache eviction removes the entire signer entry after `PaymentPromiseTimeout + 1h`.
 
-#### Timeout Agent and Minimum Escrow Bond
-
-The timeout endpoint (`MsgPaymentPromiseTimeout`) allows any party to submit an expired payment promise for on-chain settlement. This enables a selective-validator attack: a client signs a different promise for each validator, sends each promise to a single validator, and intentionally never collects the 2/3+ signatures needed for the normal `MsgPayForFibre` path. Each validator independently accepts the promise (passing its own local cache check), stores the blob, and signs it. When the promises expire, timeout agents submit all of them. Settlements succeed until the escrow account is exhausted. Validators whose promises fail to settle due to insufficient escrow balance stored and served data for free for the duration between receiving the blob from the client and the timeout agent submitting the promise on-chain.
-
-The local cache does not prevent this because each validator only tracks its own reservations.
-
-Two consensus-level changes bound the damage:
-
-1. **Minimum escrow balance.** Define a minimum escrow balance required to transact: `max_blob_size × gas_per_blob_byte × validator_set_size`. This is the cost of the most expensive blob multiplied by the validator set size — covering the worst case where the client sends a unique maximum-cost promise to every validator. The bond guarantees that even in this scenario, the escrow has sufficient funds to settle all promises. Validators always get paid.
-
-2. (Optional) **Minimum validator signature on timeout submissions.** Require at least one validator signature on `MsgPaymentPromiseTimeout`. Without this, a client can drain their escrow by submitting unsigned promises directly on-chain — bypassing the fibre server entirely. Requiring a signature ensures the only ways to reduce an escrow balance are through served promises or withdrawals.
-
 ### Option A: Sweep-Based Cache (Protocol Non-Breaking)
 
 #### Validation on the Query Path
@@ -128,6 +116,22 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 **Cache poisoning via exposed gRPC endpoint.** The cache is updated through the `ValidatePaymentPromise` gRPC query. If the endpoint is exposed, a malicious user could submit crafted promises to drain any signer's cached budget to zero, forcing more frequent sweeps and state reads. Requiring stateless validation (signature verification) before updating the cache mitigates this — the attacker would need access to the signer's private key to produce a valid promise. However, this does not prevent a frontrunning attack where a malicious user who intercepts a legitimately signed promise submits it directly to the validator's gRPC endpoint before the real client's fibre upload reaches the server.
 
 **Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). As a follow-up, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
+
+**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. This can be fixed by either Option B (nonce-based ordering) or by combining Option A with cross-validator Listen — see below.
+
+#### Mitigating with Cross-Validator Listen
+
+The selective-validator attack succeeds because each validator's cache is isolated — no validator knows what promises other validators have accepted. The [Listen](https://github.com/celestiaorg/celestia-app/issues/6806) method provides a way to close this gap without protocol changes.
+
+When a validator accepts a payment promise and signs it, it broadcasts a notification to all other validators containing the promise hash, signer, and amount, signed with the validator's own key. Receiving validators verify the signature and deduct the amount from the signer's cached budget — the same operation as a local reservation, but triggered by a peer notification instead of a client request.
+
+This works because:
+
+- **Visibility.** If a client sends promise A to validator 1 and promise B to validator 2, both validators learn about each other's promise via the broadcast. Their caches reflect the combined budget impact.
+- **Authentication.** Notifications are signed with the validator's key, preventing spoofed budget drains from external parties.
+- **No protocol changes.** The broadcast is between validators at the fibre server layer. The PaymentPromise format, on-chain execution, and consensus rules are unchanged.
+
+The tradeoff is additional communication overhead — each accepted promise triggers n-1 notifications across the validator set, on top of the normal fibre upload. Also, we would need to define an extra gRPC method in the querier to update the cache with the latest hashes signed by the other fibre servers.
 
 #### Related Improvements
 
