@@ -148,7 +148,7 @@ The tradeoff is additional communication overhead — each accepted promise trig
 
 **Out-of-order notifications.** Notifications are idempotent by `promise_hash` — the same reservation is applied at most once regardless of arrival order. There is no sequencing requirement. A notification for promise B arriving before promise A is harmless; both simply decrement the signer's budget independently.
 
-**Conflicting budget views.** Two validators may temporarily disagree on a signer's remaining budget. This is resolved by sweeps: when a validator sweeps, it reads the actual `AvailableBalance` from chain state and recomputes the budget from scratch, converging to the same view as every other validator that sweeps. Between sweeps, over-reservation is possible but bounded by the minimum escrow bond.
+**Conflicting budget views.** Two validators may temporarily disagree on a signer's remaining budget. This is resolved by sweeps: when a validator sweeps, it reads the actual `AvailableBalance` from chain state and recomputes the budget from scratch, converging to the same view as every other validator that sweeps. Between sweeps, over-reservation is possible.
 
 #### Related Improvements
 
@@ -216,7 +216,7 @@ The double-spend window exists between query-time validation and on-chain settle
 
 #### Tradeoffs
 
-**Does not eliminate double spending.** The double-spend window is reduced but not closed. Within the 5–10 minute window, concurrent promises to different validators can still pass validation. The minimum escrow bond still covers the worst case. Coupled with rate limiting on the number of promises a signer can submit per time window, the double-spend surface can be further reduced.
+**Does not eliminate double spending.** The double-spend window is reduced but not closed. Within the 5–10 minute window, concurrent promises to different validators can still pass validation. Coupled with rate limiting on the number of promises a signer can submit per time window, the double-spend surface can be further reduced.
 
 ## Consequences
 
