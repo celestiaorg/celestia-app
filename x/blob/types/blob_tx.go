@@ -126,5 +126,12 @@ func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx)
 		}
 	}
 
+	// check that the share versions in the blobTx match the share versions in the msgPFB
+	for i, blob := range bTx.Blobs {
+		if msgPFB.ShareVersions[i] != uint32(blob.ShareVersion()) {
+			return nil, ErrShareVersionMismatch.Wrapf("blob %d has share version %d but MsgPayForBlobs declares %d", i, blob.ShareVersion(), msgPFB.ShareVersions[i])
+		}
+	}
+
 	return msgPFB, nil
 }

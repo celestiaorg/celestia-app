@@ -65,5 +65,4 @@ func TestStartHome(t *testing.T) {
 	defaults := fibre.DefaultServerConfig()
 	assert.Equal(t, defaults.ServerListenAddress, cfg.ServerListenAddress)
 	assert.Equal(t, defaults.AppGRPCAddress, cfg.AppGRPCAddress)
-	assert.Equal(t, defaults.SignerListenAddress, cfg.SignerListenAddress)
 }

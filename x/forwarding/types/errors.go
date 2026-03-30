@@ -12,5 +12,6 @@ var (
 	ErrInvalidRecipient   = errors.Register(ModuleName, 5, "invalid recipient length")
 	ErrNoWarpRoute        = errors.Register(ModuleName, 6, "no warp route to destination domain")
 	ErrInsufficientIgpFee = errors.Register(ModuleName, 7, "IGP fee provided is less than required")
-	ErrAllTokensFailed    = errors.Register(ModuleName, 8, "all tokens failed to forward")
+	ErrForwardFailed      = errors.Register(ModuleName, 8, "token forward failed")
+	ErrInvalidTokenID     = errors.Register(ModuleName, 9, "invalid token identifier")
 )

@@ -264,6 +264,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	// likely Unconfirmed txs for a full mempool and a few extra bytes.
 	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
+	// Used to initialise privval gRPC in core
+	cfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
 
 	cfg.Mempool.TTLNumBlocks = 36
 	cfg.Mempool.TTLDuration = 0 * time.Second
