@@ -129,22 +129,6 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 
 **Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). As a follow-up, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
 
-**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. This can be fixed by either Option B (nonce-based ordering) or by combining Option A with cross-validator Listen — see below.
-
-#### Mitigating with Cross-Validator Listen
-
-The selective-validator attack succeeds because each validator's cache is isolated — no validator knows what promises other validators have accepted. The [Listen](https://github.com/celestiaorg/celestia-app/issues/6806) method provides a way to close this gap without protocol changes.
-
-When a validator accepts a payment promise and signs it, it broadcasts a notification to all other validators containing the promise hash, signer, and amount, signed with the validator's own key. Receiving validators verify the signature and deduct the amount from the signer's cached budget — the same operation as a local reservation, but triggered by a peer notification instead of a client request.
-
-This works because:
-
-- **Visibility.** If a client sends promise A to validator 1 and promise B to validator 2, both validators learn about each other's promise via the broadcast. Their caches reflect the combined budget impact.
-- **Authentication.** Notifications are signed with the validator's key, preventing spoofed budget drains from external parties.
-- **No protocol changes.** The broadcast is between validators at the fibre server layer. The PaymentPromise format, on-chain execution, and consensus rules are unchanged.
-
-The tradeoff is additional communication overhead — each accepted promise triggers n-1 notifications across the validator set, on top of the normal fibre upload. Also, we would need to define an extra gRPC method in the querier to update the cache with the latest hashes signed by the other fibre servers.
-
 #### Related Improvements
 
 - Sweeps read directly from app state, which can block gRPC requests during cache re-seeding. Implementing read-only state snapshots for gRPC queries ([celestiaorg/cosmos-sdk#728](https://github.com/celestiaorg/cosmos-sdk/issues/728)) would avoid contention between sweep reads and consensus writes.
@@ -203,7 +187,6 @@ No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain non
 - Closes the double-spend window at the validator level.
 - No protocol changes — PaymentPromise format, client signing flow, and on-chain execution paths are unchanged.
 - Preserves reservations across validator restarts without chain rescan.
-- Prevents the selective-validator attack via the Listen option.
 
 **Negative:**
 - Per-signer mutex serializes concurrent validations for the same signer. This is intended behavior to prevent oversubscription.
@@ -213,7 +196,6 @@ No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain non
 
 **Positive:**
 - Closes the double-spend window at the validator level.
-- Prevents the selective-validator attack by enforcing nonce ordering — validators reject promises with gaps.
 - Cheaper budget recovery: single on-chain nonce read vs. per-promise `IsPaymentPromiseProcessed` calls.
 - Preserves reservations across validator restarts without chain rescan.
 
