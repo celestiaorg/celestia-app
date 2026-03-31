@@ -21,43 +21,17 @@ func TestNewMsgForward(t *testing.T) {
 	forwardAddr := "celestia1fl48vsnmsdzcv85q5d2q4z5ajdha8yu3h6cprl"
 	destDomain := uint32(42161)
 	destRecipient := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	tokenID := "0x726f757465725f61707000000000000000000000000000010000000000000000"
 	maxIgpFee := sdk.NewCoin("utia", math.NewInt(1000))
 
-	msg := types.NewMsgForward(signer, forwardAddr, destDomain, destRecipient, maxIgpFee)
+	msg := types.NewMsgForward(signer, forwardAddr, destDomain, destRecipient, tokenID, maxIgpFee)
 
 	assert.Equal(t, signer, msg.Signer)
 	assert.Equal(t, forwardAddr, msg.ForwardAddr)
 	assert.Equal(t, destDomain, msg.DestDomain)
 	assert.Equal(t, destRecipient, msg.DestRecipient)
+	assert.Equal(t, tokenID, msg.TokenId)
 	assert.Equal(t, maxIgpFee, msg.MaxIgpFee)
-}
-
-func TestNewSuccessResult(t *testing.T) {
-	denom := "utia"
-	amount := math.NewInt(1000000)
-	messageId := "0xabcdef1234567890"
-
-	result := types.NewSuccessResult(denom, amount, messageId)
-
-	assert.Equal(t, denom, result.Denom)
-	assert.Equal(t, amount, result.Amount)
-	assert.Equal(t, messageId, result.MessageId)
-	assert.True(t, result.Success)
-	assert.Empty(t, result.Error)
-}
-
-func TestNewFailureResult(t *testing.T) {
-	denom := "utia"
-	amount := math.NewInt(500000)
-	errMsg := "no warp route to destination domain"
-
-	result := types.NewFailureResult(denom, amount, errMsg)
-
-	assert.Equal(t, denom, result.Denom)
-	assert.Equal(t, amount, result.Amount)
-	assert.Empty(t, result.MessageId)
-	assert.False(t, result.Success)
-	assert.Equal(t, errMsg, result.Error)
 }
 
 func TestMsgForwardValidateBasic(t *testing.T) {
@@ -69,6 +43,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 	validDestRecipient := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
 	// util.DecodeHexAddress accepts addresses with or without 0x prefix
 	validDestRecipientNoPrefix := "000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	validTokenID := "0x726f757465725f61707000000000000000000000000000010000000000000000"
 	validMaxIgpFee := sdk.NewCoin("utia", math.NewInt(1000))
 
 	testCases := []struct {
@@ -84,6 +59,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
@@ -95,6 +71,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    0,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
@@ -106,6 +83,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    ^uint32(0),
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
@@ -117,6 +95,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipientNoPrefix,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false, // util.DecodeHexAddress accepts without 0x prefix
@@ -128,6 +107,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     sdk.NewCoin("utia", math.ZeroInt()),
 			},
 			expectError: false,
@@ -139,6 +119,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -151,6 +132,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -163,6 +145,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   "",
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -175,6 +158,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   "not-a-valid-address",
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -187,6 +171,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "",
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -199,6 +184,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "0xdeadbeef",
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -211,6 +197,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "0x" + strings.Repeat("ab", 33), // 33 bytes, should be 32
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -223,6 +210,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -235,6 +223,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   "   ",
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -247,6 +236,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: "0x" + strings.Repeat("zz", 32),
+				TokenId:       validTokenID,
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: true,
@@ -259,6 +249,7 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     sdk.Coin{Denom: "utia", Amount: math.NewInt(-1)},
 			},
 			expectError: true,
@@ -271,10 +262,37 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				ForwardAddr:   validForwardAddr,
 				DestDomain:    1,
 				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
 				MaxIgpFee:     sdk.Coin{Denom: "", Amount: math.NewInt(1000)},
 			},
 			expectError: true,
 			errorMsg:    "invalid max_igp_fee",
+		},
+		{
+			name: "empty token id",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				TokenId:       "",
+				MaxIgpFee:     validMaxIgpFee,
+			},
+			expectError: true,
+			errorMsg:    "invalid token_id hex format",
+		},
+		{
+			name: "invalid token id",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				TokenId:       "0xdeadbeef",
+				MaxIgpFee:     validMaxIgpFee,
+			},
+			expectError: true,
+			errorMsg:    "invalid token_id hex format",
 		},
 	}
 
