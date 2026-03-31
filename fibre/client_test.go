@@ -58,15 +58,24 @@ func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
 
 func makeTestValidators(t *testing.T, n int) ([]*core.Validator, []cmted25519.PrivKey) {
 	t.Helper()
-	validators := make([]*core.Validator, n)
-	privKeys := make([]cmted25519.PrivKey, n)
+	stakes := make([]int64, n)
 	for i := range n {
+		stakes[i] = 100
+	}
+	return makeTestValidatorsWithStakes(t, stakes)
+}
+
+func makeTestValidatorsWithStakes(t *testing.T, stakes []int64) ([]*core.Validator, []cmted25519.PrivKey) {
+	t.Helper()
+	validators := make([]*core.Validator, len(stakes))
+	privKeys := make([]cmted25519.PrivKey, len(stakes))
+	for i, stake := range stakes {
 		privKey := cmted25519.GenPrivKey()
 		privKeys[i] = privKey
 		validators[i] = &core.Validator{
 			Address:     privKey.PubKey().Address(),
 			PubKey:      privKey.PubKey(),
-			VotingPower: 100,
+			VotingPower: stake,
 		}
 	}
 	return validators, privKeys
