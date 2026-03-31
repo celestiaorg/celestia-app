@@ -41,7 +41,7 @@ func startFibreCmd() *cobra.Command {
 
 			// Build the remote command
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
-			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091 --file-signer --app-home .celestia-app"
+			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091"
 			// Auto-enable metrics when observability nodes are configured
 			if metricsAddress == "" && len(cfg.Observability) > 0 {
 				metricsAddress = fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)

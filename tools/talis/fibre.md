@@ -58,7 +58,7 @@ talis start-fibre
 | `--instances`       | `0` (all)           | Number of validators to start fibre on                        |
 | `--otel-endpoint`   | *(auto)*            | OTLP HTTP endpoint for metrics/traces (auto-enabled with observability) |
 
-The fibre server uses `--file-signer` to read the validator's `priv_validator_key.json` directly. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
+The fibre server delegates signing to the colocated validator node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26659`). Override with `--signer-grpc-address` if needed. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
 
 Each validator runs the fibre server inside a tmux session called `fibre`. To stop:
 
