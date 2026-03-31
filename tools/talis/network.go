@@ -124,56 +124,37 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 		return err
 	}
 
-	key, _, err := kr.NewMnemonic("txsim", keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
-		return err
-	}
-
-	pk, err := key.GetPubKey()
-	if err != nil {
-		return err
-	}
-
-	addr, err := key.GetAddress()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("adding txsim account", addr.String())
-
-	err = n.genesis.AddAccount(genesis.Account{
-		PubKey:  pk,
-		Balance: 9999999999999999,
-		Name:    "txsim",
-	})
-	if err != nil {
+	if err := addFundedAccount(kr, n.genesis, "txsim"); err != nil {
 		return err
 	}
 
 	fmt.Printf("creating %d fibre accounts\n", fibreAccounts)
 	for i := range fibreAccounts {
-		fibreName := fmt.Sprintf("fibre-%d", i)
-		fibreKey, _, err := kr.NewMnemonic(fibreName, keyring.English, "", "", hd.Secp256k1)
-		if err != nil {
-			return err
-		}
-
-		fibrePK, err := fibreKey.GetPubKey()
-		if err != nil {
-			return err
-		}
-
-		err = n.genesis.AddAccount(genesis.Account{
-			PubKey:  fibrePK,
-			Balance: 9999999999999999,
-			Name:    fibreName,
-		})
-		if err != nil {
+		if err := addFundedAccount(kr, n.genesis, fmt.Sprintf("fibre-%d", i)); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// addFundedAccount creates a new key in the local keyring and registers it as a
+// funded account in genesis. The key lives in the validator's keyring so the
+// binary (txsim, fibre-txsim) can sign transactions at runtime.
+func addFundedAccount(kr keyring.Keyring, g *genesis.Genesis, name string) error {
+	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
+	pk, err := key.GetPubKey()
+	if err != nil {
+		return err
+	}
+	return g.AddAccount(genesis.Account{
+		PubKey:  pk,
+		Balance: 9999999999999999,
+		Name:    name,
+	})
 }
 
 func (n *Network) Peers() []string {
