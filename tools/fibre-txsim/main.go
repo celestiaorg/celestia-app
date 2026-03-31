@@ -201,22 +201,21 @@ func run(cfg config) error {
 		dlCh = make(chan downloadRequest, downloadWorkers*4)
 	}
 
-	var wg sync.WaitGroup
+	var uploadWg sync.WaitGroup
+	var dlWg sync.WaitGroup
 
 	// Spawn download workers
 	if cfg.download {
 		for range downloadWorkers {
-			wg.Go(func() {
+			dlWg.Go(func() {
 				downloadWorkerLoop(ctx, dlCh, st)
 			})
 		}
 	}
 
 	// Launch upload workers
-	for i, w := range workers {
-		wg.Add(1)
-		go func(idx int, w worker) {
-			defer wg.Done()
+	for _, w := range workers {
+		uploadWg.Go(func() {
 			for ctx.Err() == nil {
 				submitBlob(ctx, w, cfg.blobSize, st, dlCh)
 				if cfg.interval > 0 {
@@ -227,21 +226,20 @@ func run(cfg config) error {
 					}
 				}
 			}
-		}(i, w)
+		})
 	}
 
-	// Wait for context cancellation, then close the download channel
-	// so download workers can drain and exit.
-	go func() {
-		<-ctx.Done()
-		// Give upload workers a moment to finish any in-flight sends
-		time.Sleep(time.Second)
-		if dlCh != nil {
+	// Close the download channel only after all upload workers have finished,
+	// guaranteeing no goroutine will send to a closed channel.
+	if cfg.download {
+		go func() {
+			uploadWg.Wait()
 			close(dlCh)
-		}
-	}()
+		}()
+	}
 
-	wg.Wait()
+	uploadWg.Wait()
+	dlWg.Wait()
 
 	elapsed := time.Since(startTime)
 	s := st.successes.Load()
