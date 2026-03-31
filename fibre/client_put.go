@@ -65,7 +65,7 @@ func PutWithKey(ctx context.Context, c *Client, txClient *user.TxClient, ns shar
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
-	signedPromise, err := c.UploadWithKey(ctx, ns, blob, keyName)
+	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(keyName))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")
