@@ -1,6 +1,6 @@
-# Parameters v6
+# Parameters v8
 
-The parameters below represent the parameters for app version 6.
+The parameters below represent the parameters for app version 8.
 
 Note that not all of these parameters are changeable via governance. This list
 also includes parameter that require a hardfork to change due to being manually
@@ -15,8 +15,8 @@ Parameters that are governance modifiables can be modified via a
 | SquareSizeUpperBound | 512             | Hardcoded maximum square size which limits the number of shares per row or column for the original data square (not yet extended).                                                                                                                                | False                     |
 | SubtreeRootThreshold | 64              | See [ADR-013](https://github.com/celestiaorg/celestia-app/blob/main/docs/architecture/adr-013-non-interactive-default-rules-for-zero-padding.md) for more details.                                                                                                | False                     |
 | MaxTxSize            | 8 MiB           | Maximum size of a transaction in bytes.                                                                                                                                                                                                                           | False                     |
-| TimeoutPropose       | 8500 ms         | Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#propose-step-heighthroundr) for more details.     | False                     |
-| TimeoutCommit        | 1 ms            | Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.34.x-celestia/spec/consensus/consensus.md#precommit-step-heighthroundr) for more details. | False                     |
+| TimeoutPropose       | 8500 ms         | Specifies the time that validators wait during the proposal phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.39.25/spec/consensus/consensus.md#propose-step-heighthroundr) for more details.     | False                     |
+| TimeoutCommit        | 1 ms            | Specifies the duration that validators wait during the Commit phase of the consensus process. See CometBFT [specs](https://github.com/celestiaorg/celestia-core/blob/v0.39.25/spec/consensus/consensus.md#precommit-step-heighthroundr) for more details. | False                     |
 | UpgradeHeightDelay   | 100800 blocks   | Height based delay after a successful `MsgTryUpgrade` has been submitted.                                                                                                                                                                                         | False                     |
 | MaxBlockSizeBytes    | 130857600 bytes | Hardcoded value in CometBFT for the protobuf encoded block.                                                                                                                                                                                                       | False                     |
 
@@ -39,7 +39,7 @@ Parameters that are governance modifiables can be modified via a
 | consensus.evidence.MaxAgeNumBlocks            | 242,640                                     | The maximum number of blocks before evidence is considered invalid. This value will stop CometBFT from pruning block data.          | True                      |
 | consensus.evidence.MaxBytes                   | 1 MiB                                       | Maximum size in bytes used by evidence in a given block.                                                                            | True                      |
 | consensus.validator.PubKeyTypes               | Ed25519                                     | The type of public key used by validators.                                                                                          | False                     |
-| consensus.Version.AppVersion                  | 6                                           | Determines protocol rules used for a given height. Incremented by the application upon an upgrade.                                  | True                      |
+| consensus.Version.AppVersion                  | 8                                           | Determines protocol rules used for a given height. Incremented by the application upon an upgrade.                                  | True                      |
 | distribution.BaseProposerReward               | 0                                           | Reward in the mint denomination for proposing a block.                                                                              | True                      |
 | distribution.BonusProposerReward              | 0                                           | Extra reward in the mint denomination for proposers based on the voting power included in the commit.                               | True                      |
 | distribution.CommunityTax                     | 0.02 (2%)                                   | Percentage of the inflation sent to the community pool.                                                                             | True                      |
@@ -74,10 +74,10 @@ Parameters that are governance modifiables can be modified via a
 | staking.HistoricalEntries                     | 10000                                       | Number of historical entries to persist in store.                                                                                   | True                      |
 | staking.MaxEntries                            | 7                                           | Maximum number of entries in the redelegation queue.                                                                                | True                      |
 | staking.MaxValidators                         | 100                                         | Maximum number of validators.                                                                                                       | True                      |
-| staking.MinCommissionRate                     | 0.10 (10%)                                  | Minimum commission rate used by all validators.                                                                                     | True                      |
-| staking.MaxCommissionRate                     | 0.25 (25%)                                  | Maximum commission rate that validators can set when creating or updating their commission.                                         | False                     |
-| staking.UnbondingTime                         | 1814400 (21 days)                           | Duration of time for unbonding in seconds.                                                                                          | False                     |
+| staking.MinCommissionRate                     | 0.20 (20%)                                  | Minimum commission rate used by all validators.                                                                                     | True                      |
+| staking.MaxCommissionRate                     | 0.60 (60%)                                  | Maximum commission rate that validators can set when creating or updating their commission.                                         | False                     |
+| staking.UnbondingTime                         | 1213200 (337 hours)                         | Duration of time for unbonding in seconds.                                                                                          | False                     |
 
 Note: none of the mint module parameters are governance modifiable because they have been converted into hardcoded constants. See the x/mint README.md for more details.
 
-[icaAllowMessages]: https://github.com/celestiaorg/celestia-app/blob/e5d5ac6732c55150ea3573e17bec162fe836e0c6/app/ica_host.go
+[icaAllowMessages]: https://github.com/celestiaorg/celestia-app/blob/2854ee0132ba4d1011f83ca1dd82e722c2536bee/app/ica_host.go

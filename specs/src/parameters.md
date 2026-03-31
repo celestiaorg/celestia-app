@@ -9,3 +9,4 @@ The parameters in the application depend on the app version:
 - [Parameters v5](./parameters_v5.md)
 - [Parameters v6](./parameters_v6.md)
 - [Parameters v7](./parameters_v7.md)
+- [Parameters v8](./parameters_v8.md)

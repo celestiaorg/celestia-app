@@ -5,3 +5,4 @@ The following pages contain the types used by celestia-app. The target audience 
 - [Types v5](types_v5.md)
 - [Types v6](types_v6.md)
 - [Types v7](types_v7.md)
+- [Types v8](types_v8.md)

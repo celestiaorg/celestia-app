@@ -1,15 +1,19 @@
-# Types v6
+# Types v8
 
 ## Msgs
 
-The following is an exhaustive list of supported Cosmos SDK Msgs for app version 6.
+The following is an exhaustive list of supported Cosmos SDK Msgs for app version 8.
 
 ```ascii
 /celestia.blob.v1.MsgPayForBlobs
 /celestia.blob.v1.MsgUpdateBlobParams
+/celestia.forwarding.v1.MsgForward
 /celestia.minfee.v1.MsgUpdateMinfeeParams
 /celestia.signal.v1.MsgSignalVersion
 /celestia.signal.v1.MsgTryUpgrade
+/celestia.zkism.v1.MsgCreateInterchainSecurityModule
+/celestia.zkism.v1.MsgSubmitMessages
+/celestia.zkism.v1.MsgUpdateInterchainSecurityModule
 /cosmos.auth.v1beta1.MsgUpdateParams
 /cosmos.authz.v1beta1.MsgExec
 /cosmos.authz.v1beta1.MsgGrant
@@ -125,12 +129,17 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 
 ## Events
 
-The following is an exhaustive list of supported events for app version 6.
+The following is an exhaustive list of supported events for app version 8.
 
 ```ascii
 celestia.blob.v1.EventPayForBlobs
 celestia.blob.v1.EventUpdateBlobParams
+celestia.forwarding.v1.EventForwardingComplete
+celestia.forwarding.v1.EventTokenForwarded
 celestia.minfee.v1.EventUpdateMinfeeParams
+celestia.zkism.v1.EventCreateInterchainSecurityModule
+celestia.zkism.v1.EventSubmitMessages
+celestia.zkism.v1.EventUpdateInterchainSecurityModule
 cosmos.authz.v1beta1.EventGrant
 cosmos.authz.v1beta1.EventPruneExpiredGrants
 cosmos.authz.v1beta1.EventRevoke
