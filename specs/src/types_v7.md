@@ -86,7 +86,6 @@ The following is an exhaustive list of supported Cosmos SDK Msgs for app version
 /hyperlane.warp.v1.MsgEnrollRemoteRouter
 /hyperlane.warp.v1.MsgRemoteTransfer
 /hyperlane.warp.v1.MsgSetToken
-/hyperlane.warp.v1.MsgSetTokenResponse
 /hyperlane.warp.v1.MsgUnrollRemoteRouter
 /ibc.applications.interchain_accounts.controller.v1.MsgRegisterInterchainAccount
 /ibc.applications.interchain_accounts.controller.v1.MsgSendTx
