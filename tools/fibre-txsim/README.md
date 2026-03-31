@@ -2,6 +2,8 @@
 
 A load-generation tool that submits blobs to a Celestia network through the Fibre protocol. It connects to a validator's gRPC endpoint, creates random blobs, and sends them via `MsgPayForFibre` as fast as possible (or at a configured interval).
 
+Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts when running with `--concurrency > 1`.
+
 This binary is built for Linux and deployed to validator nodes by `make build-talis-bins`. It is started remotely via the `talis fibre-txsim` command.
 
 ## Build
@@ -18,10 +20,9 @@ go build -o fibre-txsim ./tools/fibre-txsim/
 
 ```sh
 fibre-txsim \
-  --chain-id <chain-id> \
   --grpc-endpoint localhost:9091 \
   --keyring-dir .celestia-app \
-  --key-name validator \
+  --key-prefix fibre \
   --blob-size 1000000 \
   --concurrency 4 \
   --interval 0s
@@ -31,23 +32,24 @@ fibre-txsim \
 
 | Flag              | Default          | Description                                                                 |
 |-------------------|------------------|-----------------------------------------------------------------------------|
-| `--chain-id`      | *(required)*     | Chain ID of the network                                                     |
+| `--chain-id`      | *(optional)*     | Chain ID of the network (accepted for compatibility, unused)                |
 | `--grpc-endpoint` | `localhost:9091` | gRPC endpoint of the validator                                              |
 | `--keyring-dir`   | `.celestia-app`  | Path to the keyring directory                                               |
-| `--key-name`      | `validator`      | Key name in the keyring                                                     |
+| `--key-prefix`    | `fibre`          | Key name prefix (keys are named `<prefix>-0`, `<prefix>-1`, ...)           |
 | `--blob-size`     | `1000000`        | Size of each blob in bytes                                                  |
-| `--concurrency`   | `1`              | Number of concurrent blob submissions                                       |
-| `--interval`      | `0`              | Delay between blob submissions (`0` = no delay, submit as fast as possible) |
+| `--concurrency`   | `1`              | Number of concurrent workers (each gets its own account)                    |
+| `--interval`      | `0`              | Delay between blob submissions per worker (`0` = no delay)                  |
 | `--duration`      | `0`              | How long to run (`0` = until killed with Ctrl+C)                            |
 
 ## How it works
 
-1. Connects to a validator via gRPC and initializes a Fibre client.
-2. Spawns up to `--concurrency` goroutines that each:
-   - Generate a random namespace and random blob data of `--blob-size` bytes.
-   - Call `fibreClient.Put()` to submit the blob through the Fibre protocol.
-   - Log the resulting block height, tx hash, and submission latency.
-3. On shutdown (Ctrl+C or `--duration` elapsed), prints a summary with total sent, successes, failures, and average latency.
+1. Connects to a validator via gRPC and initializes a shared Fibre client.
+2. Creates one worker per `--concurrency` slot, each with its own signing key (`fibre-0`, `fibre-1`, ...) and `TxClient`.
+3. Each worker independently:
+   - Generates a random namespace and random blob data of `--blob-size` bytes.
+   - Calls `fibre.PutWithKey()` to submit the blob through the Fibre protocol using its own key.
+   - Logs the resulting block height, tx hash, and submission latency.
+4. On shutdown (Ctrl+C or `--duration` elapsed), prints a summary with total sent, successes, failures, and average latency.
 
 ## Typical deployment
 

@@ -157,44 +157,62 @@ func TestShardMap_Verify(t *testing.T) {
 
 func TestSet_Select(t *testing.T) {
 	t.Run("empty set", func(t *testing.T) {
-		valSet := makeValidatorSet(0)
-		validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
-		require.Nil(t, validators)
-		require.Zero(t, minRequired)
+		selected := makeValidatorSet(0).Select(testOriginalRows, testMinRows, testLivenessThreshold)
+		require.Nil(t, selected)
 	})
 
 	t.Run("single validator", func(t *testing.T) {
-		valSet := makeValidatorSet(1)
-		validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
-		require.Len(t, validators, 1)
-		require.Equal(t, 1, minRequired)
+		selected := makeValidatorSet(1).Select(testOriginalRows, testMinRows, testLivenessThreshold)
+		require.Len(t, selected, 1)
 	})
 
 	t.Run("two validators", func(t *testing.T) {
-		valSet := makeValidatorSet(2)
-		validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
-		require.Len(t, validators, 2)
-		// Each has 50% stake, only need 1 to cover livenessThreshold (33%)
-		require.Equal(t, 1, minRequired)
+		selected := makeValidatorSet(2).Select(testOriginalRows, testMinRows, testLivenessThreshold)
+		require.Len(t, selected, 2)
 	})
 
-	t.Run("set sizes with equal stakes", func(t *testing.T) {
-		for _, size := range []int{2, 5, 20, 100} {
+	t.Run("returns all validators", func(t *testing.T) {
+		for _, size := range []int{1, 2, 5, 20, 100} {
 			t.Run(fmt.Sprintf("%d", size), func(t *testing.T) {
 				valSet := makeValidatorSet(size)
-				validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				require.Len(t, selected, size)
 
-				require.Len(t, validators, size)
-				require.Greater(t, minRequired, 0)
-				require.LessOrEqual(t, minRequired, size)
-
-				var covered int64
-				for _, v := range validators[:minRequired] {
-					covered += v.VotingPower
+				// verify all original validators are present
+				selectedAddrs := make(map[string]bool)
+				for _, sv := range selected {
+					selectedAddrs[sv.Address.String()] = true
 				}
-				threshold := valSet.TotalVotingPower() / 3
-				require.GreaterOrEqual(t, covered, threshold)
+				for _, v := range valSet.Validators {
+					require.True(t, selectedAddrs[v.Address.String()], "validator %s missing from Select output", v.Address)
+				}
 			})
+		}
+	})
+
+	t.Run("expected rows match after shuffle", func(t *testing.T) {
+		// Select shuffles validators by stake, but ExpectedRows must stay paired
+		// with the correct validator. Verify by comparing against the pre-shuffle
+		// per-address row counts from Assign.
+		stakes := []int64{50, 30, 15, 10, 7, 5, 3, 2, 1, 1}
+		valSet := makeValidatorSetWithStakes(stakes)
+
+		totalRows := testOriginalRows * 4
+		shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
+
+		// Build ground-truth: address -> assigned row count from Assign
+		expectedByAddr := make(map[string]int)
+		for v, rows := range shardMap {
+			expectedByAddr[v.Address.String()] = len(rows)
+		}
+
+		// Run Select multiple times since shuffle is non-deterministic
+		for range 10 {
+			selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+			for _, sv := range selected {
+				require.Equal(t, expectedByAddr[sv.Address.String()], sv.ExpectedRows,
+					"ExpectedRows mismatch for validator %s after shuffle", sv.Address)
+			}
 		}
 	})
 
@@ -212,59 +230,20 @@ func TestSet_Select(t *testing.T) {
 		for _, tc := range cases {
 			t.Run(tc.name, func(t *testing.T) {
 				valSet := makeValidatorSetWithStakes(tc.stakes)
-				validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				require.Len(t, selected, len(tc.stakes))
 
-				require.Len(t, validators, len(tc.stakes))
-				require.Greater(t, minRequired, 0)
-
-				var covered int64
-				for _, v := range validators[:minRequired] {
-					covered += v.VotingPower
+				// verify all original validators are present
+				selectedAddrs := make(map[string]bool)
+				for _, sv := range selected {
+					selectedAddrs[sv.Address.String()] = true
 				}
-				threshold := valSet.TotalVotingPower() / 3
-				require.GreaterOrEqual(t, covered, threshold)
+				for _, v := range valSet.Validators {
+					require.True(t, selectedAddrs[v.Address.String()], "validator %s missing from Select output", v.Address)
+				}
 			})
 		}
 	})
-}
-
-// TestSelect_AssignRelationship verifies that first minRequired validators from Select yield enough unique rows for reconstruction
-func TestSelect_AssignRelationship(t *testing.T) {
-	cases := []struct {
-		name   string
-		stakes []int64
-	}{
-		{"single_validator", []int64{100}},
-		{"two_validators", []int64{50, 50}},
-		{"equal_20", makeStakes(20, 5)},
-		{"power_law", []int64{40, 20, 15, 10, 7, 5, 3}},
-		{"one_dominant", []int64{50, 10, 10, 10, 10, 10}},
-		{"long_tail", append([]int64{30, 20, 10}, makeStakes(40, 1)...)},
-		// 4 equal-stake validators: total=4, floor(4/3)=1, ceil(4/3)=2.
-		// Any single validator covers floor threshold (stake 1 >= 1) so minRequired=1,
-		// but gets only ceil(4096*1*3/4)=3072 rows < 4096. Deterministic failure
-		// without ceiling division on livenessStake.
-		{"liveness_ceil", makeStakes(4, 1)},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			valSet := makeValidatorSetWithStakes(tc.stakes)
-			totalRows := testOriginalRows * 4
-
-			shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
-			validators, minRequired := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
-
-			unique := make(map[int]struct{})
-			for _, v := range validators[:minRequired] {
-				for _, row := range shardMap[v] {
-					unique[row] = struct{}{}
-				}
-			}
-
-			require.GreaterOrEqual(t, len(unique), testOriginalRows)
-		})
-	}
 }
 
 // TestSelect_NoOverlapBeforeSplitIdx verifies that when ShardMap has duplicates, Select returns validators ordered such that
@@ -292,12 +271,12 @@ func TestSelect_NoOverlapBeforeSplitIdx(t *testing.T) {
 	}
 	require.True(t, hasDuplicates(), "test requires duplicate rows")
 
-	validators, _ := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+	selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
 
 	// verify no overlaps until we have enough unique rows for reconstruction
 	seen := make(map[int]bool)
-	for _, val := range validators {
-		for _, row := range shardMap[val] {
+	for _, sv := range selected {
+		for _, row := range shardMap[sv.Validator] {
 			if seen[row] {
 				require.GreaterOrEqual(t, len(seen), testOriginalRows, "overlap before reconstruction threshold")
 				return
@@ -306,6 +285,56 @@ func TestSelect_NoOverlapBeforeSplitIdx(t *testing.T) {
 		}
 	}
 	require.GreaterOrEqual(t, len(seen), testOriginalRows)
+}
+
+// TestSelect_AssignRelationship verifies that walking validators in Select order
+// accumulates enough unique rows from Assign for reconstruction using a strict
+// prefix, not all validators. This ensures Select ordering is efficient.
+func TestSelect_AssignRelationship(t *testing.T) {
+	cases := []struct {
+		name   string
+		stakes []int64
+	}{
+		{"single_validator", []int64{100}},
+		{"two_validators", []int64{50, 50}},
+		{"equal_20", makeStakes(20, 5)},
+		{"power_law", []int64{40, 20, 15, 10, 7, 5, 3}},
+		{"one_dominant", []int64{50, 10, 10, 10, 10, 10}},
+		{"long_tail", append([]int64{30, 20, 10}, makeStakes(40, 1)...)},
+		{"liveness_ceil", makeStakes(4, 1)},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			valSet := makeValidatorSetWithStakes(tc.stakes)
+			totalRows := testOriginalRows * 4
+
+			shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
+			selected := valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+
+			// Walk Select order, accumulating unique rows until we have enough.
+			// Track how many validators were needed — must be a strict prefix.
+			unique := make(map[int]struct{})
+			validatorsUsed := 0
+			for _, sv := range selected {
+				validatorsUsed++
+				for _, row := range shardMap[sv.Validator] {
+					unique[row] = struct{}{}
+				}
+				if len(unique) >= testOriginalRows {
+					break
+				}
+			}
+
+			require.GreaterOrEqual(t, len(unique), testOriginalRows)
+			// A strict prefix must suffice — if all validators were needed,
+			// Select ordering provides no benefit over random order.
+			if len(tc.stakes) > 1 {
+				require.Less(t, validatorsUsed, len(selected),
+					"Select should reach reconstruction threshold with a prefix, not all validators")
+			}
+		})
+	}
 }
 
 func makeValidatorSet(n int) validator.Set {
