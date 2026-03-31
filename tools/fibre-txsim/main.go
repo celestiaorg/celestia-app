@@ -418,7 +418,7 @@ func downloadBlob(ctx context.Context, req *downloadRequest, st *stats) {
 	dlCtx, dlCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer dlCancel()
 
-	blob, err := req.fibreClient.Download(dlCtx, req.blobID, fibre.DownloadOptions{})
+	blob, err := req.fibreClient.Download(dlCtx, req.blobID)
 	if err != nil {
 		st.dlFailures.Add(1)
 		fmt.Printf("[%s] download error: blob_id=%s %v (latency=%s)\n",

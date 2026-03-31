@@ -22,12 +22,20 @@ var (
 	ErrNotEnoughShards = errors.New("not enough shards to reconstruct blob")
 )
 
-// DownloadOptions contains optional parameters for downloading a blob.
-type DownloadOptions struct {
-	// Height is the block height at which the blob was included.
-	// When non-zero, the validator set at that height is used for download;
-	// otherwise, the current head validator set is used.
-	Height uint64
+// DownloadOption configures the behavior of [Client.Download].
+type DownloadOption func(*downloadOptions)
+
+type downloadOptions struct {
+	height uint64
+}
+
+// WithHeight sets the block height at which the blob was included.
+// When provided, the validator set at that height is used for download;
+// otherwise, the current head validator set is used.
+func WithHeight(height uint64) DownloadOption {
+	return func(o *downloadOptions) {
+		o.height = height
+	}
 }
 
 // Download retrieves and reconstructs a [Blob] by [BlobID] from the [Server]s.
@@ -41,12 +49,17 @@ type DownloadOptions struct {
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, id BlobID, opts DownloadOptions) (blob *Blob, err error) {
+func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
 	if c.closed.Load() {
 		return nil, ErrClientClosed
+	}
+
+	var opt downloadOptions
+	for _, o := range opts {
+		o(&opt)
 	}
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
@@ -63,8 +76,8 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts DownloadOptions) 
 	// but if we don't the current head validator set will mostly have the same stakes
 	// and if not this still won't affect correctness, just the amount of nodes we contact
 	var valSet validator.Set
-	if opts.Height > 0 {
-		valSet, err = c.state.GetByHeight(ctx, opts.Height)
+	if opt.height > 0 {
+		valSet, err = c.state.GetByHeight(ctx, opt.height)
 	} else {
 		valSet, err = c.state.Head(ctx)
 	}
