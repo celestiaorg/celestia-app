@@ -22,6 +22,16 @@ var (
 	ErrNotEnoughShards = errors.New("not enough shards to reconstruct blob")
 )
 
+// DownloadParams contains the parameters for downloading a blob.
+type DownloadParams struct {
+	// ID uniquely identifies the blob to download.
+	ID BlobID
+	// Height is the block height at which the blob was included.
+	// When non-zero, the validator set at that height is used for download;
+	// otherwise, the current head validator set is used.
+	Height uint64
+}
+
 // Download retrieves and reconstructs [Blob] by [Commitment] and additionally height from the [Server]s.
 //
 // The algorithm selects validators shuffled by stake weight for load balancing
@@ -33,7 +43,7 @@ var (
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob *Blob, err error) {
+func (c *Client) Download(ctx context.Context, params DownloadParams) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
@@ -41,6 +51,7 @@ func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob 
 		return nil, ErrClientClosed
 	}
 
+	id := params.ID
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
 		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
@@ -55,8 +66,8 @@ func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob 
 	// but if we don't the current head validator set will mostly have the same stakes
 	// and if not this still won't affect correctness, just the amount of nodes we contact
 	var valSet validator.Set
-	if height != nil && *height > 0 {
-		valSet, err = c.state.GetByHeight(ctx, *height)
+	if params.Height > 0 {
+		valSet, err = c.state.GetByHeight(ctx, params.Height)
 	} else {
 		valSet, err = c.state.Head(ctx)
 	}
