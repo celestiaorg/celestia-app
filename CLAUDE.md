@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build multiplexer version (includes embedded v3-v6 binaries) into ./build/
 make build
 
-# Build standalone v7-only version
+# Build standalone v8-only version
 make build-standalone
 
 # Install multiplexer version to $GOPATH/bin
@@ -130,7 +130,7 @@ celestia-app is a Cosmos SDK-based blockchain application that implements Celest
 
 ```text
 ┌─────────────────────────────────────┐
-│      celestia-app (v7)              │
+│      celestia-app (v8)              │
 │  Cosmos SDK Application             │
 │  - State machine                    │
 │  - Transaction handling             │
@@ -256,7 +256,7 @@ Every transaction passes through 19 decorator steps in `/app/ante/`:
 
 **Standalone** (`make build-standalone`):
 
-- Only v7 native application
+- Only v8 native application
 - No embedded binaries
 - Lighter deployment
 - Cannot sync from genesis through multiple versions
