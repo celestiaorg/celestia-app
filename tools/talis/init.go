@@ -150,7 +150,7 @@ func initCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
-	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory from which to copy scripts")
+	cmd.Flags().StringVarP(&srcRoot, "src-root", "r", homeDir, "directory which is a repo root or home directory for celestia app")
 	cmd.Flags().StringVarP(&chainID, "chainID", "c", "", "Chain ID (required)")
 	_ = cmd.MarkFlagRequired("chainID")
 	cmd.Flags().StringVarP(&experiment, "experiment", "e", "test", "the name of the experiment (required)")
@@ -197,15 +197,16 @@ func initDirs(rootDir string) error {
 }
 
 // CopyTalisScripts copies the talis scripts directory into destDir.
-// If repoRoot points directly to the celestia-app repo root (containing tools/talis/scripts),
-// it uses that. Otherwise it falls back to guessing common directory layouts or cloning the repo.
-func CopyTalisScripts(destDir string, repoRoot string) error {
+// It checks multiple possible locations for the scripts.
+func CopyTalisScripts(destDir string, root string) error {
 	candidates := []string{
-		// Direct repo root (e.g. --repo-root /path/to/celestia-app)
-		filepath.Join(repoRoot, "tools", "talis", "scripts"),
-		// Legacy: srcRoot is a parent dir containing celestia-app/
-		filepath.Join(repoRoot, "celestia-app", "tools", "talis", "scripts"),
-		filepath.Join(repoRoot, "src", "celestia-app", "tools", "talis", "scripts"),
+		// here root can have different meanings
+		// repo root:
+		filepath.Join(root, "tools", "talis", "scripts"),
+		// root of all repos:
+		filepath.Join(root, "celestia-app", "tools", "talis", "scripts"),
+		// legacy root with src:
+		filepath.Join(root, "src", "celestia-app", "tools", "talis", "scripts"),
 	}
 
 	var src string

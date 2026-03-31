@@ -119,7 +119,20 @@ func waitForTmuxSessions(instances []Instance, sshKeyPath, sessionName string, t
 					fmt.Sprintf("root@%s", inst.PublicIP),
 					fmt.Sprintf("tmux has-session -t %s 2>/dev/null", sessionName),
 				)
-				results <- result{name: name, finished: ssh.Run() != nil}
+				err := ssh.Run()
+				switch {
+				case err == nil:
+					// tmux has-session exited 0 → session still running.
+					results <- result{name: name, finished: false}
+				case errors.As(err, new(*exec.ExitError)):
+					// Remote command ran but returned non-zero → session gone.
+					results <- result{name: name, finished: true}
+				default:
+					// SSH connection error (network blip, refused, etc.) →
+					// cannot determine session state; treat as still running.
+					log.Printf("warning: SSH probe failed for %s (%s): %v", name, inst.PublicIP, err)
+					results <- result{name: name, finished: false}
+				}
 			}(name, inst)
 		}
 		for range len(remaining) {

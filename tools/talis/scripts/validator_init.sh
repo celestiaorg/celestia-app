@@ -83,13 +83,13 @@ hostname=$(hostname)
 # Parse the first part of the hostname
 parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
 
-cd $HOME
-
 cp payload/build/celestia-appd /bin/celestia-appd
 cp payload/build/txsim /bin/txsim
 cp payload/build/latency-monitor /bin/latency-monitor
 cp payload/build/fibre /bin/fibre
 cp payload/build/fibre-txsim /bin/fibre-txsim
+
+cd $HOME
 
 rm -rf .celestia-app/
 

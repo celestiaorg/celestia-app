@@ -22,7 +22,23 @@ var (
 	ErrNotEnoughShards = errors.New("not enough shards to reconstruct blob")
 )
 
-// Download retrieves and reconstructs [Blob] by [Commitment] and additionally height from the [Server]s.
+// DownloadOption configures the behavior of [Client.Download].
+type DownloadOption func(*downloadOptions)
+
+type downloadOptions struct {
+	height uint64
+}
+
+// WithHeight sets the block height at which the blob was included.
+// When provided, the validator set at that height is used for download;
+// otherwise, the current head validator set is used.
+func WithHeight(height uint64) DownloadOption {
+	return func(o *downloadOptions) {
+		o.height = height
+	}
+}
+
+// Download retrieves and reconstructs a [Blob] by [BlobID] from the [Server]s.
 //
 // The algorithm selects validators shuffled by stake weight for load balancing
 // and requests them for shards. It tracks unique rows collected and dynamically
@@ -33,12 +49,17 @@ var (
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob *Blob, err error) {
+func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
 	if c.closed.Load() {
 		return nil, ErrClientClosed
+	}
+
+	var opt downloadOptions
+	for _, o := range opts {
+		o(&opt)
 	}
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
@@ -55,8 +76,8 @@ func (c *Client) Download(ctx context.Context, id BlobID, height *uint64) (blob 
 	// but if we don't the current head validator set will mostly have the same stakes
 	// and if not this still won't affect correctness, just the amount of nodes we contact
 	var valSet validator.Set
-	if height != nil && *height > 0 {
-		valSet, err = c.state.GetByHeight(ctx, *height)
+	if opt.height > 0 {
+		valSet, err = c.state.GetByHeight(ctx, opt.height)
 	} else {
 		valSet, err = c.state.Head(ctx)
 	}
@@ -210,8 +231,6 @@ func (c *Client) downloadBlob(
 
 	blob, err := NewEmptyBlob(id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to create empty blob")
 		return nil, fmt.Errorf("creating empty blob: %w", err)
 	}
 
@@ -298,21 +317,16 @@ loop:
 			}
 
 		case <-ctx.Done():
-			span.RecordError(ctx.Err())
-			span.SetStatus(codes.Error, "context cancelled")
 			return nil, ctx.Err()
 		}
 	}
 
 	switch {
 	case uniqueRows == 0:
-		span.SetStatus(codes.Error, "no shards retrieved")
 		return nil, ErrNotFound
 	case uniqueRows < originalRows:
-		span.SetStatus(codes.Error, "not enough shards")
 		return nil, ErrNotEnoughShards
 	default:
-		span.SetStatus(codes.Ok, "")
 		return blob, nil
 	}
 }

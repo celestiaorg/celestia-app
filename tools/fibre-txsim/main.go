@@ -32,56 +32,37 @@ import (
 
 const downloadDelay = 10 * time.Second
 
-func main() {
-	if err := mainE(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
-	}
+type config struct {
+	grpcEndpoint string
+	keyringDir   string
+	keyPrefix    string
+	blobSize     int
+	concurrency  int
+	interval     time.Duration
+	duration     time.Duration
+	otelEndpoint string
+	download     bool
 }
 
-func mainE() error {
-	var (
-		chainID      string
-		grpcEndpoint string
-		keyringDir   string
-		keyPrefix    string
-		blobSize     int
-		concurrency  int
-		interval     time.Duration
-		duration     time.Duration
-		otelEndpoint string
-		download     bool
-	)
-
-	flag.StringVar(&chainID, "chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
-	flag.StringVar(&grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
-	flag.StringVar(&keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
-	flag.StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
-	flag.IntVar(&blobSize, "blob-size", 1000000, "size of each blob in bytes")
-	flag.IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
-	flag.DurationVar(&interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
-	flag.DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
-	flag.StringVar(&otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
-	flag.BoolVar(&download, "download", false, "enable download verification after each successful upload")
+func main() {
+	var cfg config
+	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
+	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
+	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
+	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
+	flag.IntVar(&cfg.concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
+	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
+	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
+	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
+	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
+	chainID := flag.String("chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.Parse()
 	_ = chainID // accepted but unused
 
-	if otelEndpoint != "" {
-		metricsShutdown, err := setupOTelMetrics(context.Background(), otelEndpoint)
-		if err != nil {
-			return fmt.Errorf("setup OTel metrics: %w", err)
-		}
-		defer metricsShutdown(context.Background())
-
-		traceShutdown, err := setupOTelTracing(context.Background(), otelEndpoint)
-		if err != nil {
-			return fmt.Errorf("setup OTel tracing: %w", err)
-		}
-		defer traceShutdown(context.Background())
-		fmt.Printf("metrics and tracing enabled endpoint=%s\n", otelEndpoint)
+	if err := run(cfg); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
-
-	return run(grpcEndpoint, keyringDir, keyPrefix, blobSize, concurrency, interval, duration, download)
 }
 
 // worker holds a per-account tx client and key name, sharing one fibre client.
@@ -112,10 +93,25 @@ type stats struct {
 	dlVerified   atomic.Int64
 }
 
-func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, interval, duration time.Duration, download bool) error {
+func run(cfg config) error {
+	if cfg.otelEndpoint != "" {
+		metricsShutdown, err := setupOTelMetrics(context.Background(), cfg.otelEndpoint)
+		if err != nil {
+			return fmt.Errorf("setup OTel metrics: %w", err)
+		}
+		defer metricsShutdown(context.Background())
+
+		traceShutdown, err := setupOTelTracing(context.Background(), cfg.otelEndpoint)
+		if err != nil {
+			return fmt.Errorf("setup OTel tracing: %w", err)
+		}
+		defer traceShutdown(context.Background())
+		fmt.Printf("metrics and tracing enabled endpoint=%s\n", cfg.otelEndpoint)
+	}
+
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	kr, err := keyring.New(app.Name, keyring.BackendTest, keyringDir, nil, encCfg.Codec)
+	kr, err := keyring.New(app.Name, keyring.BackendTest, cfg.keyringDir, nil, encCfg.Codec)
 	if err != nil {
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
@@ -133,15 +129,15 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	}()
 
 	// Apply duration limit if set
-	if duration > 0 {
-		ctx, cancel = context.WithTimeout(ctx, duration)
+	if cfg.duration > 0 {
+		ctx, cancel = context.WithTimeout(ctx, cfg.duration)
 		defer cancel()
 	}
 
 	// Create a single shared fibre client
 	clientCfg := fibre.DefaultClientConfig()
-	clientCfg.StateAddress = grpcEndpoint
-	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", keyPrefix)
+	clientCfg.StateAddress = cfg.grpcEndpoint
+	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
 
 	sharedFibreClient, err := fibre.NewClient(kr, clientCfg)
 	if err != nil {
@@ -163,12 +159,12 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	}()
 
 	// Create one worker per concurrent slot, each with its own account
-	workers := make([]worker, concurrency)
-	for i := range concurrency {
-		keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
+	workers := make([]worker, cfg.concurrency)
+	for i := range cfg.concurrency {
+		keyName := fmt.Sprintf("%s-%d", cfg.keyPrefix, i)
 
 		grpcConn, err := grpc.NewClient(
-			grpcEndpoint,
+			cfg.grpcEndpoint,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 			grpc.WithDefaultCallOptions(
 				grpc.MaxCallSendMsgSize(math.MaxInt32),
@@ -196,58 +192,54 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	st := &stats{}
 	startTime := time.Now()
 
-	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", concurrency)
+	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", cfg.concurrency)
 
 	// Download channel: upload workers send requests, download workers process them.
-	// Buffer size = concurrency*4 so uploads aren't blocked waiting for downloads.
+	const downloadWorkers = 4
 	var dlCh chan downloadRequest
-	if download {
-		dlCh = make(chan downloadRequest, concurrency*4)
+	if cfg.download {
+		dlCh = make(chan downloadRequest, downloadWorkers*4)
 	}
 
-	var wg sync.WaitGroup
+	var uploadWg sync.WaitGroup
+	var dlWg sync.WaitGroup
 
-	// Spawn download workers (same count as upload workers)
-	if download {
-		for range concurrency {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
+	// Spawn download workers
+	if cfg.download {
+		for range downloadWorkers {
+			dlWg.Go(func() {
 				downloadWorkerLoop(ctx, dlCh, st)
-			}()
+			})
 		}
 	}
 
 	// Launch upload workers
-	for i, w := range workers {
-		wg.Add(1)
-		go func(idx int, w worker) {
-			defer wg.Done()
+	for _, w := range workers {
+		uploadWg.Go(func() {
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, blobSize, st, dlCh)
-				if interval > 0 {
+				submitBlob(ctx, w, cfg.blobSize, st, dlCh)
+				if cfg.interval > 0 {
 					select {
 					case <-ctx.Done():
 						return
-					case <-time.After(interval):
+					case <-time.After(cfg.interval):
 					}
 				}
 			}
-		}(i, w)
+		})
 	}
 
-	// Wait for all upload workers to finish, then close the download channel
-	// so download workers can drain and exit.
-	go func() {
-		<-ctx.Done()
-		// Give upload workers a moment to finish any in-flight sends
-		time.Sleep(time.Second)
-		if dlCh != nil {
+	// Close the download channel only after all upload workers have finished,
+	// guaranteeing no goroutine will send to a closed channel.
+	if cfg.download {
+		go func() {
+			uploadWg.Wait()
 			close(dlCh)
-		}
-	}()
+		}()
+	}
 
-	wg.Wait()
+	uploadWg.Wait()
+	dlWg.Wait()
 
 	elapsed := time.Since(startTime)
 	s := st.successes.Load()
@@ -266,7 +258,7 @@ func run(grpcEndpoint, keyringDir, keyPrefix string, blobSize, concurrency int, 
 	fmt.Printf("  Failures:   %d\n", f)
 	fmt.Printf("  Avg latency (success): %s\n", avgLat)
 
-	if download {
+	if cfg.download {
 		ds := st.dlSuccesses.Load()
 		df := st.dlFailures.Load()
 		dv := st.dlVerified.Load()
@@ -372,7 +364,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh cha
 	}
 
 	t := time.Now()
-	result, err := fibre.PutWithKey(ctx, w.fibreClient, w.txClient, ns, data, w.keyName)
+	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data)
 	lat := time.Since(t)
 
 	st.totalSent.Add(1)
@@ -426,7 +418,7 @@ func downloadBlob(ctx context.Context, req *downloadRequest, st *stats) {
 	dlCtx, dlCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer dlCancel()
 
-	blob, err := req.fibreClient.Download(dlCtx, req.blobID, nil)
+	blob, err := req.fibreClient.Download(dlCtx, req.blobID)
 	if err != nil {
 		st.dlFailures.Add(1)
 		fmt.Printf("[%s] download error: blob_id=%s %v (latency=%s)\n",
