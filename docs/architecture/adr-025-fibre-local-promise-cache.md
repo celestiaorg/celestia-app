@@ -22,7 +22,7 @@ This is a double-spend window at the validator level. A signer with 100 utia ava
 
 ## Decision
 
-Two options are presented. Option A adds a validator-local sidecar cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged. Option B takes a different approach by reducing the double-spend window through parameter changes alone.
+Two options are presented. Option A adds a validator-local cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged. Option B takes a different approach by reducing the double-spend window through parameter changes alone.
 
 - **Option A** is protocol non-breaking. It uses periodic sweeps against chain state to reconcile the cache.
 - **Option B** requires no code changes. It reduces `PaymentPromiseTimeout` to 5–10 minutes so the timeout agent settles promises faster, shrinking the double-spend window.
