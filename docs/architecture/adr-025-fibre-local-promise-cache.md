@@ -29,9 +29,7 @@ Two options are presented. Option A adds a validator-local cache that tracks per
 
 ## Detailed Design
 
-### Shared Design
-
-The following sections apply to Option A.
+### Option A: Sweep-Based Cache
 
 #### Cache Location and Storage
 
@@ -82,10 +80,6 @@ If the DB is reset (e.g., restoring from a snapshot without cache data), the cac
 
 Validation is guarded per-signer with a mutex so two concurrent promises for the same signer cannot both consume the same remaining budget. Reservations are idempotent by `promise_hash`.
 
-The cache reservation happens in the app query path (`ValidatePaymentPromise`), but shard verification, storage, and validator signing happen afterward in the fibre server. The app has no callback if a later step fails. This means orphaned reservations can occur from operational issues such as the fibre server crashing after validation but before signing completes. These orphaned entries are cleaned up automatically: reconciliation drops promises that are already processed or expired, and cache eviction removes the entire signer entry after `PaymentPromiseTimeout + 1h`.
-
-### Option A: Sweep-Based Cache (Protocol Non-Breaking)
-
 #### Validation on the Query Path
 
 `ValidatePaymentPromise` calls, in order:
@@ -116,19 +110,29 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 
 `GasPerBlobByte` can change via governance. During a sweep, pending promise amounts are recomputed using the current params, so a parameter update is reflected within the next sweep cycle.
 
+#### Minimum Escrow Balance
+
+A minimum escrow balance should be introduced to safeguard against the selective-validator attack.
+
+**The attack.** A client signs a different promise for each validator, sending each to a single validator. Each validator independently accepts the promise (passing its own local cache check), stores the blob, and signs it. The client intentionally never collects the 2/3+ signatures needed for the normal `MsgPayForFibre` path. When the promises expire, timeout agents submit all of them. Settlements succeed until the escrow is exhausted. Validators whose promises fail on-chain served data for free for at most ~2 hours (PaymentPromiseTimeout + timeout agent submission time) before dropping it.
+
+**Why the minimum balance mitigates this.** A single PFF payment covers a week of data serving by the entire validator set. Even if the attacker sends a unique blob to every validator, one settled payment already covers all of them for a week. The attacker pays for a week of full-set serving and gets at most ~2 hours of free serving from validators whose promises don't settle.
+
+The minimum escrow balance ensures this property holds. Set to `max_blob_size × gas_per_blob_byte × validator_set_size`, it guarantees that even after the attacker's regular promises have been processed, the escrow retains enough funds to settle the last round of promises sent to all validators as part of the attack. Without this minimum, the attacker could exhaust the escrow before the attack promises are submitted, leaving validators unpaid.
+
+#### Rate-Limiting Sweeps
+
+A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance. Each submission fails the budget check, triggering a sweep-and-retry. Since the balance is still zero after the sweep, the promise is rejected — but the sweep already happened, reading chain state unnecessarily.
+
+Repeated submissions for the same signer amplify this into a DoS on the state store. The cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts. This bounds the state read overhead regardless of how many promises the attacker submits.
+
 #### Tradeoffs
 
 **Single-process cache.** The cache is local to a single process. In sentry setups with multiple validator nodes, or deployments with multiple fibre servers, each instance maintains its own cache. A client can submit different promises to different instances of the same validator, bypassing the per-instance budget. A standalone shared cache would solve this but is out of scope for this iteration.
 
 **Cache poisoning via exposed gRPC endpoint.** The cache is updated through the `ValidatePaymentPromise` gRPC query. If the endpoint is exposed, a malicious user could submit crafted promises to drain any signer's cached budget to zero, forcing more frequent sweeps and state reads. Requiring stateless validation (signature verification) before updating the cache mitigates this — the attacker would need access to the signer's private key to produce a valid promise.
 
-**Frontrunning.** A malicious user who intercepts a legitimately signed promise could submit it directly to the validator's gRPC endpoint before the real client's fibre upload reaches the server. However, when the client subsequently submits the same promise to the fibre server, the server can still accept and start serving the data. The cache is idempotent by `promise_hash` — the same promise is not double-counted in the budget.
-
-**Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). So, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
-
-**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches. However, this is not profitable. A single PFF payment covers a week of serving by the entire validator set. Even if the attacker sends a unique blob to every validator, one settled payment already covers all of them. Promises that fail on-chain are served for at most ~2 hours before validators drop them. The attacker pays for a week of full-set serving and gets at most ~2 hours of free serving from validators whose promises don't settle.
-
-This property is provided by the minimum escrow balance. The minimum balance (`max_blob_size × gas_per_blob_byte × validator_set_size`) guarantees that even after the attacker's regular promises have been processed, the escrow retains enough funds to settle the last round of promises sent to all validators as part of the attack. Without this minimum, the attacker could exhaust the escrow before the attack promises are submitted, leaving validators unpaid.
+**Frontrunning.** A malicious user who intercepts a legitimately signed promise could submit it directly to the validator's gRPC endpoint before the real client's fibre upload reaches the server. However when the client subsequently submits the same promise to the fibre server, the server can still accept and start serving the data. The cache is idempotent by `promise_hash` — the same promise is not double-counted in the budget.
 
 #### Related Improvements
 
@@ -137,8 +141,6 @@ This property is provided by the minimum escrow balance. The minimum balance (`m
 ### Option B: Reduced Expiration Window (No Code Changes)
 
 Instead of adding a cache, reduce the `PaymentPromiseTimeout` parameter from the current default (1 hour) to 5–10 minutes. The timeout agent submits expired promises shortly after expiration. With a shorter window, promises settle on-chain faster, and the period during which a double-spend can occur is reduced proportionally.
-
-No new code, no cache, no protocol changes. This is a governance parameter update.
 
 #### Why This Helps
 
