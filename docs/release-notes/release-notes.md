@@ -2,6 +2,22 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v8.0.0
+
+### Node Operators (v8.0.0)
+
+Node operators MUST upgrade their binary to this version prior to the v8 activation height.
+
+#### Upgrade Handler
+
+The upgrade handler re-applies the commission rate migrations from v7 (min 20%, max 60%) to ensure validators that upgraded directly from v6 are compliant. These migrations are idempotent — validators already compliant from v7 are unaffected.
+
+### State Machine Changes (v8.0.0)
+
+#### Forwarding Address Derivation (Breaking)
+
+v8 binds the token identity to forwarding address derivation in `x/forwarding` ([#6906](https://github.com/celestiaorg/celestia-app/pull/6906)). Each unique denomination now gets its own forwarding address. This prevents exhaustive scanning of permissionless warp tokens and eliminates account poisoning through IBC denoms. Existing forwarding addresses derived without the token identifier will no longer be valid.
+
 ## v7.0.0
 
 ### Node Operators (v7.0.0)

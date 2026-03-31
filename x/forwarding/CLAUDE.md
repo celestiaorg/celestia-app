@@ -10,15 +10,15 @@ Agent context for `celestia-app/x/forwarding/`.
 ## Key Concepts
 
 - **Purpose**: Single-signature cross-chain transfers via Hyperlane warp routes
-- **Core invariant**: `derive(destDomain, destRecipient) == forwardAddr` - this IS the authorization
+- **Core invariant**: `derive(destDomain, destRecipient, tokenId) == forwardAddr` - this IS the authorization
 - **Permissionless**: Anyone can trigger forwarding with correct params
 
 ## Address Derivation
 
 ```mermaid
 flowchart TD
-    A["(destDomain, destRecipient)"] --> B["destDomain → 32-byte big-endian"]
-    B --> C["sha256(domainBytes || recipient) = callDigest"]
+    A["(destDomain, destRecipient, tokenId)"] --> B["destDomain → 32-byte big-endian"]
+    B --> C["sha256(domainBytes || recipient || tokenId) = callDigest"]
     C --> D["sha256(0x01 || callDigest) = salt"]
     D --> E["address.Module('forwarding', salt)[:20]"]
     E --> F["forwardAddr (bech32)"]
