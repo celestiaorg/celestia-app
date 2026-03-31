@@ -33,13 +33,12 @@ Two options are presented. Option A adds a validator-local cache that tracks per
 
 #### Cache Location and Storage
 
-A new component `local_promise_cache.go` in `x/fibre/keeper/` backed by the node's underlying DB under a dedicated prefixed namespace, outside IAVL. It is injected into the Fibre keeper at app wiring time as a non-consensus dependency. If nil (tests, non-validator nodes), the keeper falls back to current behavior.
+A new component `local_promise_cache.go` in `x/fibre/keeper/`. The cache lives entirely in memory. It is injected into the Fibre keeper at app wiring time as a non-consensus dependency. If nil (tests, non-validator nodes), the keeper falls back to current behavior.
 
-Two record types are persisted:
+Two record types are maintained:
 
 **SignerBudget** — One entry per signer. Tracks the budget state for a single escrow account.
 
-- Key: `signer_budget/{signer}`
 - Fields:
   - `last_known_balance` — The `AvailableBalance` read from chain state during the last sweep. The budget is computed relative to this value.
   - `available_budget` — Remaining budget for new promises: `last_known_balance - sum(pending promise amounts)`. Decremented on each reservation, reset on sweep.
@@ -48,19 +47,13 @@ Two record types are persisted:
 
 **PendingPromise** — One entry per accepted promise. Tracks a reservation that has not yet settled on-chain.
 
-- Key: `pending_promise/{promise_hash}`
 - Fields:
   - `signer` — The escrow account signer address.
   - `amount` — The reserved payment amount.
   - `created_at` — When the reservation was made.
   - `expires_at` — When the promise expires (used for eviction).
 
-**Signer-to-promises index** — A secondary index to look up all pending promises for a signer without scanning all entries.
-
-- Key: `signer_promises/{signer}/{promise_hash}` → empty value
-- Used during sweeps to list a signer's unresolved promises.
-
-Updates to `SignerBudget`, `PendingPromise`, and the index within a single reservation are written as an atomic DB batch.
+Internally, the cache maintains a map from signer to `SignerBudget`, a map from `promise_hash` to `PendingPromise`, and a signer-to-promises index for sweep enumeration.
 
 #### Cache Eviction
 
@@ -68,13 +61,7 @@ If a signer has no new operations for longer than `PaymentPromiseTimeout + 1h` (
 
 #### Restart Behavior
 
-On startup, the cache is loaded from DB. Entries older than the eviction threshold (`PaymentPromiseTimeout + 1h`) are deleted immediately — these signers are inactive, and their pending promises have either settled or expired. Remaining entries are kept as-is; if stale, they are reconciled on that signer's next validation. No chain history rescan is performed.
-
-#### Cache DB Failure
-
-The cache shares the same DB as the application state. If the cache DB is corrupted, the application DB is also corrupted, and the validator will not start. There is no separate failure mode for the cache alone.
-
-If the DB is reset (e.g., restoring from a snapshot without cache data), the cache starts empty. Double-spend protection is lost until the cache is rebuilt through incoming validations and sweeps.
+On restart, the cache starts empty. Signer budgets are populated on demand as new promises arrive — the first validation for a signer triggers a sweep against chain state to initialize its budget. Double-spend protection is temporarily lost for the period between restart and the first sweep for each signer. The minimum escrow bond bounds the damage during this window.
 
 #### Concurrency
 
@@ -104,7 +91,7 @@ A sweep is scoped to a single signer and rebuilds budget from fresh chain state:
 3. Drop any pending promise that is already processed on-chain (via `IsPaymentPromiseProcessed`) or is no longer chargeable (outside the withdrawal-delay window).
 4. Recompute: `remaining_budget = max(0, AvailableBalance - sum(kept promise amounts))`.
 5. Reset `last_sweep_at = now`, `ops_since_sweep = 0`.
-6. Persist compacted state and delete dropped promise records.
+6. Update in-memory state and remove dropped promise records.
 
 Withdrawals do not need special handling. Withdrawals are not immediate — they have a 24-hour delay between request and execution. During this delay, the withdrawn amount is already subtracted from `AvailableBalance` on-chain. Since sweeps read the current `AvailableBalance`, any pending or processed withdrawal is always reflected before it takes effect. An hourly sweep cadence is well within the 24-hour withdrawal window.
 
@@ -137,6 +124,7 @@ Repeated submissions for the same signer amplify this into a DoS on the state st
 #### Related Improvements
 
 - Sweeps read directly from app state, which can block gRPC requests during cache re-seeding. Implementing read-only state snapshots for gRPC queries ([celestiaorg/cosmos-sdk#728](https://github.com/celestiaorg/cosmos-sdk/issues/728)) would avoid contention between sweep reads and consensus writes.
+- **Persisting the cache to disk.** The cache ideally could be backed by a prefixed namespace in the node's DB (outside IAVL) instead of living purely in memory. This would preserve reservations across restarts, eliminating the temporary loss of double-spend protection after restart. It would also allow atomic batch writes for consistency and survive process crashes without re-sweeping all active signers.
 
 ### Option B: Reduced Expiration Window (No Code Changes)
 
@@ -162,7 +150,6 @@ The double-spend window exists between query-time validation and on-chain settle
 
 - Closes the double-spend window at the validator level.
 - No protocol changes — PaymentPromise format, client signing flow, and on-chain execution paths are unchanged.
-- Preserves reservations across validator restarts without chain rescan.
 
 **Negative:**
 
