@@ -41,8 +41,10 @@ const (
 	MinCommissionRateV5 = "0.05" // 5%
 	MinCommissionRateV6 = "0.10" // 10%
 	MinCommissionRateV7 = "0.20" // 20%
+	MinCommissionRateV8 = "0.20" // 20%
 
 	MaxCommissionRateV7 = "0.60" // 60%
+	MaxCommissionRateV8 = "0.60" // 60%
 
 	EvidenceMaxAgeV5Hours = 504
 	EvidenceMaxAgeV6Hours = 337
@@ -208,6 +210,7 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
 	s.ValidatePostUpgrade(ctx, chain, cfg)
+	s.validateZKISMQuery(ctx, chain.GetNodes()[0])
 }
 
 // TestUpgradeV6ToV8 performs a coordinated chain upgrade from app version v6 to v8.
@@ -239,7 +242,6 @@ func (s *CelestiaTestSuite) TestUpgradeV6ToV8() {
 	s.ValidateAppVersion(ctx, chain, cfg, fromVersion)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
 	s.ValidatePostUpgrade(ctx, chain, cfg)
-	s.validateZKISMQuery(ctx, chain.GetNodes()[0])
 }
 
 // UpgradeChain executes the upgrade to the target app version.
@@ -405,15 +407,8 @@ func (s *CelestiaTestSuite) ValidatePreUpgrade(ctx context.Context, chain tastor
 }
 
 func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tastoratypes.Chain, cfg *dockerchain.Config) {
-	appVersion := appconsts.Version
-
 	node := chain.GetNodes()[0]
-	rpcClient, err := node.GetRPCClient()
-	s.Require().NoError(err, "failed to get RPC client")
-
-	abciInfo, err := rpcClient.ABCIInfo(ctx)
-	s.Require().NoError(err, "failed to fetch ABCI info")
-	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+	s.validateParameters(ctx, node, appconsts.Version)
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
@@ -452,9 +447,7 @@ func (s *CelestiaTestSuite) validateZKISMQuery(ctx context.Context, node tastora
 	s.Require().NotNil(resp, "zkism query response should not be nil")
 }
 
-// validateParameters validates that all parameters match expected values for the given app version
-// TODO: Refactor or remove entirely. Currently this method deals with app version 5->6, only.
-// This method is currently unused.
+// validateParameters validates that all parameters match expected values for the given app version.
 func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastoratypes.ChainNode, appVersion uint64) {
 	// Verify we're running the correct app version
 	rpcClient, err := node.GetRPCClient()
@@ -486,6 +479,13 @@ func (s *CelestiaTestSuite) validateParameters(ctx context.Context, node tastora
 	if appVersion == AppVersionV7 {
 		s.validateMinCommissionRate(ctx, node, MinCommissionRateV7, AppVersionV7)
 		s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV7, AppVersionV7)
+		return
+	}
+
+	if appVersion == AppVersionV8 {
+		s.validateMinCommissionRate(ctx, node, MinCommissionRateV8, AppVersionV8)
+		s.validateMaxCommissionRate(ctx, node, MaxCommissionRateV8, AppVersionV8)
+		s.validateZKISMQuery(ctx, node)
 		return
 	}
 
