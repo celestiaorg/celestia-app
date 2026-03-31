@@ -364,7 +364,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh cha
 	}
 
 	t := time.Now()
-	result, err := fibre.PutWithKey(ctx, w.fibreClient, w.txClient, ns, data, w.keyName)
+	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data, fibre.WithKeyName(w.keyName))
 	lat := time.Since(t)
 
 	st.totalSent.Add(1)
@@ -418,7 +418,7 @@ func downloadBlob(ctx context.Context, req *downloadRequest, st *stats) {
 	dlCtx, dlCancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer dlCancel()
 
-	blob, err := req.fibreClient.Download(dlCtx, req.blobID, nil)
+	blob, err := req.fibreClient.Download(dlCtx, req.blobID)
 	if err != nil {
 		st.dlFailures.Add(1)
 		fmt.Printf("[%s] download error: blob_id=%s %v (latency=%s)\n",
