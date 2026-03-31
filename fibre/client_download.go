@@ -32,7 +32,7 @@ type DownloadParams struct {
 	Height uint64
 }
 
-// Download retrieves and reconstructs [Blob] by [Commitment] and additionally height from the [Server]s.
+// Download retrieves and reconstructs a [Blob] from the [Server]s using the provided [DownloadParams].
 //
 // The algorithm selects validators shuffled by stake weight for load balancing
 // and requests them for shards. It tracks unique rows collected and dynamically
