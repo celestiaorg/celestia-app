@@ -20,22 +20,37 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// UploadOption configures the behavior of [Client.Upload].
+type UploadOption func(*uploadOptions)
+
+type uploadOptions struct {
+	keyName string
+}
+
+// WithKeyName sets the key name used for signing the payment promise.
+// When not provided, the default key name from [ClientConfig] is used.
+func WithKeyName(keyName string) UploadOption {
+	return func(o *uploadOptions) {
+		o.keyName = keyName
+	}
+}
+
 // Upload uploads the given [Blob] to the Fibre network.
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
 // May keep uploading data in background after returning successfully.
 // Returns [ErrClientClosed] if the client has been closed.
-func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (SignedPaymentPromise, error) {
-	return c.UploadWithKey(ctx, ns, blob, c.Config.DefaultKeyName)
-}
-
-// UploadWithKey is like [Upload] but uses the specified key name for signing instead of the default.
-func (c *Client) UploadWithKey(ctx context.Context, ns share.Namespace, blob *Blob, keyName string) (result SignedPaymentPromise, err error) {
+func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
 		return result, errors.New("fibre client is not started")
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
+	}
+
+	opt := uploadOptions{keyName: c.Config.DefaultKeyName}
+	for _, o := range opts {
+		o(&opt)
 	}
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Upload",
@@ -62,7 +77,7 @@ func (c *Client) UploadWithKey(ctx context.Context, ns share.Namespace, blob *Bl
 	))
 
 	// 2) prepare payment promise
-	promise, err := c.signedPromise(ns, blob, valSet.Height, keyName)
+	promise, err := c.signedPromise(ns, blob, valSet.Height, opt.keyName)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create signed promise")
