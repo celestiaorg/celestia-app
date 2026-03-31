@@ -10,18 +10,21 @@ Agent context for `celestia-app/x/forwarding/`.
 ## Key Concepts
 
 - **Purpose**: Single-signature cross-chain transfers via Hyperlane warp routes
-- **Core invariant**: `derive(destDomain, destRecipient) == forwardAddr` - this IS the authorization
+- **Core invariant**: `derive(destDomain, destRecipient, tokenId) == forwardAddr` - this IS the authorization
 - **Permissionless**: Anyone can trigger forwarding with correct params
 
 ## Address Derivation
 
 ```mermaid
 flowchart TD
-    A["(destDomain, destRecipient)"] --> B["destDomain → 32-byte big-endian"]
-    B --> C["sha256(domainBytes || recipient) = callDigest"]
-    C --> D["sha256(0x01 || callDigest) = salt"]
-    D --> E["address.Module('forwarding', salt)[:20]"]
-    E --> F["forwardAddr (bech32)"]
+    A["(destDomain, destRecipient, tokenId)"] --> B["destDomain → 32-byte big-endian"]
+    A --> C["tokenId → 32-byte Hyperlane token identifier"]
+    A -->|destRecipient as 32-byte recipient| D["sha256(domainBytes || recipient || tokenId) = callDigest"]
+    B --> D["sha256(domainBytes || recipient || tokenId) = callDigest"]
+    C --> D
+    D --> E["sha256(0x01 || callDigest) = salt"]
+    E --> F["address.Module('forwarding', salt)[:20]"]
+    F --> G["forwardAddr (bech32)"]
 ```
 
 ## Token Lifecycle
@@ -42,7 +45,7 @@ stateDiagram-v2
 - [ ] destRecipient validated as 32 bytes
 - [ ] Pre-checks happen BEFORE SendCoins
 - [ ] Failed warp transfers return tokens to forwardAddr
-- [ ] Partial success handled (some tokens fail, others succeed)
+- [ ] MsgForward is atomic: a bound token either fully forwards or the tx fails
 
 ## Build & Test
 
