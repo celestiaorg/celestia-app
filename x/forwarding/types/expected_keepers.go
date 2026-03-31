@@ -17,7 +17,6 @@ type HyperlaneKeeper interface {
 
 // BankKeeper defines the expected bank keeper interface
 type BankKeeper interface {
-	GetAllBalances(ctx context.Context, addr sdk.AccAddress) sdk.Coins
 	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
 	SendCoins(ctx context.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) error
 }
@@ -56,9 +55,6 @@ type WarpKeeper interface {
 
 	// GetHypToken retrieves a HypToken by its internal ID
 	GetHypToken(ctx context.Context, id uint64) (warptypes.HypToken, error)
-
-	// GetAllHypTokens returns all registered HypTokens
-	GetAllHypTokens(ctx context.Context) ([]warptypes.HypToken, error)
 
 	// HasEnrolledRouter checks if a token has an enrolled router for a destination domain
 	HasEnrolledRouter(ctx context.Context, tokenId uint64, domain uint32) (bool, error)
