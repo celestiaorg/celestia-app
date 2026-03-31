@@ -86,3 +86,74 @@ func runScriptInTMux(
 	}
 	return nil
 }
+
+// waitForTmuxSessions polls all instances until the named tmux session no longer
+// exists on any of them (i.e. the script finished), or until the timeout expires.
+func waitForTmuxSessions(instances []Instance, sshKeyPath, sessionName string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	poll := 10 * time.Second
+
+	remaining := make(map[string]Instance, len(instances))
+	for _, inst := range instances {
+		remaining[inst.Name] = inst
+	}
+
+	for len(remaining) > 0 && time.Now().Before(deadline) {
+		time.Sleep(poll)
+
+		// Check all remaining validators in parallel
+		type result struct {
+			name     string
+			finished bool
+		}
+		results := make(chan result, len(remaining))
+		for name, inst := range remaining {
+			go func(name string, inst Instance) {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				defer cancel()
+				ssh := exec.CommandContext(ctx,
+					"ssh",
+					"-i", sshKeyPath,
+					"-o", "StrictHostKeyChecking=no",
+					"-o", "UserKnownHostsFile=/dev/null",
+					fmt.Sprintf("root@%s", inst.PublicIP),
+					fmt.Sprintf("tmux has-session -t %s 2>/dev/null", sessionName),
+				)
+				err := ssh.Run()
+				switch {
+				case err == nil:
+					// tmux has-session exited 0 → session still running.
+					results <- result{name: name, finished: false}
+				case errors.As(err, new(*exec.ExitError)):
+					// Remote command ran but returned non-zero → session gone.
+					results <- result{name: name, finished: true}
+				default:
+					// SSH connection error (network blip, refused, etc.) →
+					// cannot determine session state; treat as still running.
+					log.Printf("warning: SSH probe failed for %s (%s): %v", name, inst.PublicIP, err)
+					results <- result{name: name, finished: false}
+				}
+			}(name, inst)
+		}
+		for range len(remaining) {
+			r := <-results
+			if r.finished {
+				log.Printf("%s session finished on %s (%s)\n", sessionName, r.name, remaining[r.name].PublicIP)
+				delete(remaining, r.name)
+			}
+		}
+
+		if len(remaining) > 0 {
+			fmt.Printf("  still waiting on %d validator(s)...\n", len(remaining))
+		}
+	}
+
+	if len(remaining) > 0 {
+		names := make([]string, 0, len(remaining))
+		for name := range remaining {
+			names = append(names, name)
+		}
+		return fmt.Errorf("timeout waiting for %s sessions on: %s", sessionName, strings.Join(names, ", "))
+	}
+	return nil
+}

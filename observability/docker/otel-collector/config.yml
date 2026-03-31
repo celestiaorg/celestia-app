@@ -7,7 +7,7 @@ receivers:
         endpoint: 0.0.0.0:4317
 
 exporters:
-  # Expose metrics on /metrics for Prometheus to scrape (with exemplars)
+  # Expose metrics on /metrics for Prometheus to scrape (with exemplars via OpenMetrics)
   prometheus:
     endpoint: 0.0.0.0:8889
     enable_open_metrics: true

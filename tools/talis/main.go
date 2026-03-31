@@ -33,6 +33,7 @@ func main() {
 		killTmuxSessionCmd(),
 		resetCmd(),
 		setupFibreCmd(),
+		startFibreCmd(),
 		fibreTxsimCmd(),
 		fibreThroughputCmd(),
 		resourceMonitorCmd(),

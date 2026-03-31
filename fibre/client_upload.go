@@ -25,7 +25,12 @@ import (
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
 // May keep uploading data in background after returning successfully.
 // Returns [ErrClientClosed] if the client has been closed.
-func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (result SignedPaymentPromise, err error) {
+func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (SignedPaymentPromise, error) {
+	return c.UploadWithKey(ctx, ns, blob, c.Config.DefaultKeyName)
+}
+
+// UploadWithKey is like [Upload] but uses the specified key name for signing instead of the default.
+func (c *Client) UploadWithKey(ctx context.Context, ns share.Namespace, blob *Blob, keyName string) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
 		return result, errors.New("fibre client is not started")
 	}
@@ -57,7 +62,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	))
 
 	// 2) prepare payment promise
-	promise, err := c.signedPromise(ns, blob, valSet.Height)
+	promise, err := c.signedPromise(ns, blob, valSet.Height, keyName)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create signed promise")
@@ -137,9 +142,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	}, nil
 }
 
-// signerKey retrieves the secp256k1 public key from the keyring.
-func (c *Client) signerKey() (*secp256k1.PubKey, error) {
-	key, err := c.keyring.Key(c.Config.DefaultKeyName)
+// signerKey retrieves the secp256k1 public key from the keyring for the given key name.
+func (c *Client) signerKey(keyName string) (*secp256k1.PubKey, error) {
+	key, err := c.keyring.Key(keyName)
 	if err != nil {
 		return nil, fmt.Errorf("getting key from keyring: %w", err)
 	}
@@ -157,9 +162,9 @@ func (c *Client) signerKey() (*secp256k1.PubKey, error) {
 	return cosmosPubKey, nil
 }
 
-// signedPromise creates and signs a [PaymentPromise].
-func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*PaymentPromise, error) {
-	signerKey, err := c.signerKey()
+// signedPromise creates and signs a [PaymentPromise] using the given key name.
+func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64, keyName string) (*PaymentPromise, error) {
+	signerKey, err := c.signerKey(keyName)
 	if err != nil {
 		return nil, err
 	}
@@ -180,8 +185,8 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 		return nil, fmt.Errorf("getting sign bytes: %w", err)
 	}
 
-	// sign using the default key and direct mode
-	signature, _, err := c.keyring.Sign(c.Config.DefaultKeyName, signBytes, txsigning.SignMode_SIGN_MODE_DIRECT)
+	// sign using the specified key and direct mode
+	signature, _, err := c.keyring.Sign(keyName, signBytes, txsigning.SignMode_SIGN_MODE_DIRECT)
 	if err != nil {
 		return nil, fmt.Errorf("signing payment promise: %w", err)
 	}

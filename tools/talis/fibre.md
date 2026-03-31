@@ -4,11 +4,12 @@ This guide covers running Fibre throughput experiments. For general talis setup 
 
 ## Overview
 
-A fibre experiment has three phases:
+A fibre experiment has four phases:
 
 1. **Setup** — Register fibre host addresses and fund escrow accounts on each validator.
-2. **Load generation** — Start `fibre-txsim` on one or more validators to submit blobs via the Fibre protocol.
-3. **Monitoring** — Run `fibre-throughput` to observe per-block throughput in real time and optionally write structured traces to a JSONL file.
+2. **Start fibre server** — Start the fibre server on each validator.
+3. **Load generation** — Start `fibre-txsim` on one or more validators to submit blobs via the Fibre protocol.
+4. **Monitoring** — Run `fibre-throughput` to observe per-block throughput in real time and optionally write structured traces to a JSONL file.
 
 ## Prerequisites
 
@@ -24,24 +25,48 @@ talis deploy --direct-payload-upload --workers 20
 
 ## 1. Fibre setup
 
-Register each validator's fibre host address and deposit tokens into the escrow account:
+Register each validator's fibre host address and deposit tokens into escrow for all fibre worker accounts:
 
 ```sh
 talis setup-fibre
 ```
 
-| Flag              | Default               | Description                                |
-|-------------------|-----------------------|--------------------------------------------|
-| `--directory`     | `.`                   | Experiment root directory                  |
-| `--ssh-key-path`  | *(from env/config)*   | Path to SSH private key                    |
-| `--escrow-amount` | `200000000000000utia` | Amount to deposit into escrow              |
-| `--fibre-port`    | `9091`                | Fibre gRPC port on validators              |
-| `--fees`          | `5000utia`            | Transaction fees                           |
-| `--workers`       | `10`                  | Number of validators to set up in parallel |
+| Flag               | Default               | Description                                          |
+|--------------------|-----------------------|------------------------------------------------------|
+| `--directory`      | `.`                   | Experiment root directory                            |
+| `--ssh-key-path`   | *(from env/config)*   | Path to SSH private key                              |
+| `--escrow-amount`  | `200000000000000utia` | Amount to deposit into escrow per account            |
+| `--fibre-port`     | `7980`                | Fibre gRPC port on validators                        |
+| `--fees`           | `5000utia`            | Transaction fees                                     |
+| `--workers`        | `10`                  | Number of validators to set up in parallel           |
+| `--fibre-accounts` | `100`                 | Number of fibre worker accounts to deposit escrow for|
 
-This SSHes into every validator and runs the `set-host` and `deposit-to-escrow` transactions. It waits ~40 seconds for the transactions to finalize before returning.
+This SSHes into every validator and runs the `set-host` and `deposit-to-escrow` transactions (one per fibre account). It polls tmux sessions to wait for all transactions to complete before returning.
 
-## 2. Start fibre-txsim
+## 2. Start fibre server
+
+Start the fibre server on validators:
+
+```sh
+talis start-fibre
+```
+
+| Flag                | Default             | Description                                                   |
+|---------------------|---------------------|---------------------------------------------------------------|
+| `--directory`       | `.`                 | Experiment root directory                                     |
+| `--ssh-key-path`    | *(from env/config)* | Path to SSH private key                                       |
+| `--instances`       | `0` (all)           | Number of validators to start fibre on                        |
+| `--otel-endpoint`   | *(auto)*            | OTLP HTTP endpoint for metrics/traces (auto-enabled with observability) |
+
+The fibre server delegates signing to the colocated validator node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26659`). Override with `--signer-grpc-address` if needed. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
+
+Each validator runs the fibre server inside a tmux session called `fibre`. To stop:
+
+```sh
+talis kill-session --session fibre
+```
+
+## 3. Start fibre-txsim
 
 Start blob submission on one or more validators:
 
@@ -51,16 +76,18 @@ talis fibre-txsim --instances 4 \
   --blob-size 1000000
 ```
 
-| Flag             | Default             | Description                                  |
-|------------------|---------------------|----------------------------------------------|
-| `--directory`    | `.`                 | Experiment root directory                    |
-| `--ssh-key-path` | *(from env/config)* | Path to SSH private key                      |
-| `--instances`    | `1`                 | Number of validators to start fibre-txsim on |
-| `--concurrency`  | `1`                 | Concurrent blob submissions per instance     |
-| `--blob-size`    | `1000000`           | Size of each blob in bytes                   |
-| `--interval`     | `0`                 | Delay between submissions (`0` = no delay)   |
-| `--duration`     | `0`                 | How long to run (`0` = until killed)         |
-| `--key-name`     | `validator`         | Key name in keyring                          |
+| Flag             | Default             | Description                                                              |
+|------------------|---------------------|--------------------------------------------------------------------------|
+| `--directory`    | `.`                 | Experiment root directory                                                |
+| `--ssh-key-path` | *(from env/config)* | Path to SSH private key                                                  |
+| `--instances`    | `1`                 | Number of validators to start fibre-txsim on                             |
+| `--concurrency`  | `1`                 | Concurrent blob submissions per instance (each gets its own account)     |
+| `--blob-size`    | `1000000`           | Size of each blob in bytes                                               |
+| `--interval`     | `0`                 | Delay between submissions per worker (`0` = no delay)                    |
+| `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
+| `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
+
+Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts.
 
 Each instance runs inside a tmux session called `fibre-txsim` on the remote validator. To stop all instances:
 
@@ -74,7 +101,7 @@ To view logs on a specific validator:
 ssh root@<ip> 'cat /root/talis-fibre-txsim.log'
 ```
 
-## 3. Monitor throughput
+## 4. Monitor throughput
 
 Run `fibre-throughput` from your local machine to poll blocks and print per-block stats:
 
@@ -155,13 +182,14 @@ To analyze blocks from a past experiment, use `--start-height`:
 talis fibre-throughput --directory <experiment-dir> --with-traces --start-height 100
 ```
 
-## 4. Teardown
+## 5. Teardown
 
 When the experiment is complete:
 
 ```sh
-# Stop fibre-txsim on all validators
+# Stop fibre-txsim and fibre server on all validators
 talis kill-session --session fibre-txsim
+talis kill-session --session fibre
 
 # Tear down cloud instances
 talis down --workers 20
