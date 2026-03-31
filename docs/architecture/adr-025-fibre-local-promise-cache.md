@@ -4,6 +4,7 @@
 
 - 2026-03-27: Initial draft
 - 2026-03-29: Add nonce-based option (Option B)
+- 2026-03-31: Remove Option B, rename Option C to Option B
 
 ## Status
 
@@ -21,17 +22,16 @@ This is a double-spend window at the validator level. A signer with 100 utia ava
 
 ## Decision
 
-Three options are presented. Options A and B add a validator-local sidecar cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged. Option C takes a different approach by reducing the double-spend window through parameter changes alone.
+Two options are presented. Option A adds a validator-local sidecar cache that tracks per-signer budget and pending promise reservations. The cache is used only by the `ValidatePaymentPromise` query path. Consensus execution in `msg_server.go` remains unchanged. Option B takes a different approach by reducing the double-spend window through parameter changes alone.
 
 - **Option A** is protocol non-breaking. It uses periodic sweeps against chain state to reconcile the cache.
-- **Option B** is protocol breaking. It adds a per-signer nonce to payment promises, allowing the cache to enforce ordering and avoid sweeps.
-- **Option C** requires no code changes. It reduces `PaymentPromiseTimeout` to 5–10 minutes so the timeout agent settles promises faster, shrinking the double-spend window.
+- **Option B** requires no code changes. It reduces `PaymentPromiseTimeout` to 5–10 minutes so the timeout agent settles promises faster, shrinking the double-spend window.
 
 ## Detailed Design
 
 ### Shared Design
 
-The following sections apply to both options.
+The following sections apply to Option A.
 
 #### Cache Location and Storage
 
@@ -126,7 +126,7 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 
 **Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). As a follow-up, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
 
-**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. This can be fixed by either Option B (nonce-based ordering) or by combining Option A with cross-validator Listen — see below.
+**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. This can be mitigated by combining Option A with cross-validator Listen — see below.
 
 #### Mitigating with Cross-Validator Listen
 
@@ -154,53 +154,7 @@ The tradeoff is additional communication overhead — each accepted promise trig
 
 - Sweeps read directly from app state, which can block gRPC requests during cache re-seeding. Implementing read-only state snapshots for gRPC queries ([celestiaorg/cosmos-sdk#728](https://github.com/celestiaorg/cosmos-sdk/issues/728)) would avoid contention between sweep reads and consensus writes.
 
-### Option B: Nonce-Based Cache (Protocol Breaking)
-
-#### Protocol Changes
-
-This option modifies the PaymentPromise format and on-chain escrow state:
-
-- **PaymentPromise nonce field.** Each payment promise includes a per-signer incrementing nonce. The nonce is part of the signed bytes.
-- **On-chain nonce tracking.** The escrow account stores the last settled nonce. Nonces must be processed sequentially on-chain — a promise with nonce N is only valid if nonce N-1 has been settled.
-
-#### Validation on the Query Path
-
-`ValidatePaymentPromise` calls, in order:
-
-1. Chain-only stateful checks (same as Option A).
-2. Local cache nonce and budget check.
-
-The local nonce and budget check:
-
-1. Compute `promise_hash`. If a PendingPromise with that hash already exists, return success idempotently without decrementing budget again.
-2. Load the signer's cache. If none exists, read on-chain last settled nonce and `AvailableBalance` to initialize.
-3. If `promise.nonce != last_known_nonce + 1`, reject. The response includes `last_known_nonce` so the client knows which promises are missing.
-4. **Client catch-up:** to submit nonce N, the client must first send all missing promises (nonces between `last_known_nonce + 1` and N-1) to this validator. The validator tracks them for budget accounting.
-5. If `required_amount <= remaining_budget`, reserve: decrement `remaining_budget`, store PendingPromise with nonce, advance `last_known_nonce`.
-
-#### Budget Recovery
-
-On insufficient balance, the cache reconciles with chain state:
-
-1. Read the on-chain last settled nonce and current `AvailableBalance`.
-2. Free all local promises with nonce <= last settled nonce.
-3. Recompute: `remaining_budget = max(0, AvailableBalance - sum(unsettled promise amounts))`.
-
-No per-promise `IsPaymentPromiseProcessed` calls are needed — the on-chain nonce is sufficient to determine which promises have settled.
-
-`GasPerBlobByte` governance changes are picked up during budget recovery since `AvailableBalance` is re-read from chain state.
-
-#### Tradeoffs
-
-**Single-process cache.** Same as Option A.
-
-**Cache poisoning via frontrunning.** Same as Option A.
-
-**Ordered submission.** Nonces must be sequential on-chain. This constrains the order in which payment promises can be settled and prevents parallel settlement of independent promises from the same signer.
-
-**Client catch-up logic.** Clients must track which validators have seen which nonces and send missing promises when switching or adding validators. This adds complexity to the client implementation.
-
-### Option C: Reduced Expiration Window (No Code Changes)
+### Option B: Reduced Expiration Window (No Code Changes)
 
 Instead of adding a cache, reduce the `PaymentPromiseTimeout` parameter from the current default (1 hour) to 5–10 minutes. The timeout agent submits expired promises shortly after expiration. With a shorter window, promises settle on-chain faster, and the period during which a double-spend can occur is reduced proportionally.
 
@@ -237,23 +191,7 @@ The double-spend window exists between query-time validation and on-chain settle
 
 **Positive:**
 
-- Closes the double-spend window at the validator level.
-- Cheaper budget recovery: single on-chain nonce read vs. per-promise `IsPaymentPromiseProcessed` calls.
-- Preserves reservations across validator restarts without chain rescan.
-
-**Negative:**
-
-- Per-signer mutex serializes concurrent validations for the same signer. This is intended behavior to prevent oversubscription.
-- Protocol-breaking change — new nonce field in PaymentPromise sign bytes and protobuf definitions, on-chain nonce tracking in escrow account state.
-- Requires ordered on-chain settlement, preventing parallel settlement of independent promises from the same signer.
-- Adds client-side complexity for tracking and catching up validators with missing nonces.
-
-### Option C
-
-**Positive:**
-
 - No code changes — governance parameter update only.
-- Reduces the double-spend window from 1 hour to 5–10 minutes.
 
 **Negative:**
 
