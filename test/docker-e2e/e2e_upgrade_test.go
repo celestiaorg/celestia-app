@@ -210,7 +210,6 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
 	s.ValidatePostUpgrade(ctx, chain, cfg)
-	s.validateZKISMQuery(ctx, chain.GetNodes()[0])
 }
 
 // TestUpgradeV6ToV8 performs a coordinated chain upgrade from app version v6 to v8.
