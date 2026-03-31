@@ -15,7 +15,7 @@ The `x/forwarding` module enables single-signature cross-chain transfers through
 
 ## Flow
 
-1. Frontend computes `forwardAddr = derive(destDomain, destRecipient, tokenId)`
+1. Frontend computes `forwardAddr = derive(destDomain, destRecipient)`
 2. User sends tokens to forwardAddr via warp transfer or CEX withdrawal
 3. Relayer detects deposit and submits `MsgForward`
 4. Module verifies derivation and executes warp transfer to destination
@@ -30,12 +30,12 @@ For relayer implementation details and operational guides, see the [forwarding-r
 Forwarding addresses are deterministically derived:
 
 ```text
-callDigest   = sha256(destDomain_32bytes || destRecipient || tokenId)
+callDigest   = sha256(destDomain_32bytes || destRecipient)
 salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
 forwardAddr  = address.Module("forwarding", salt)[:20]
 ```
 
-Each address handles exactly one token for a given `(destDomain, destRecipient, tokenId)` tuple. The `tokenId` is the Hyperlane warp token identifier (hex-encoded). For native TIA, a well-known collateral token ID is used.
+One address handles all tokens for a given `(destDomain, destRecipient)` pair.
 
 ## State
 
@@ -63,7 +63,6 @@ message MsgForward {
   uint32 dest_domain = 3;   // Destination chain domain ID
   string dest_recipient = 4; // Recipient on destination (32 bytes, hex)
   Coin max_igp_fee = 5;     // Max IGP fee relayer will pay per token
-  string token_id = 6;      // Hyperlane warp token identifier (hex)
 }
 
 message MsgForwardResponse {
@@ -147,8 +146,7 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 
 ```bash
 celestia-appd query forwarding derive-address 42161 \
-  0x000000000000000000000000<recipient-address> \
-  <token-id>
+  0x000000000000000000000000<recipient-address>
 ```
 
 ### QuoteForwardingFee
@@ -164,8 +162,7 @@ celestia-appd query forwarding quote-fee 42161
 ```bash
 # Query derived address
 celestia-appd query forwarding derive-address 42161 \
-  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
-  <token-id>
+  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef
 
 # Query IGP fee estimate
 celestia-appd query forwarding quote-fee 42161
@@ -173,17 +170,16 @@ celestia-appd query forwarding quote-fee 42161
 # Check balance at forward address
 celestia-appd query bank balances <forward-addr>
 
-# Execute forwarding
+# Execute forwarding (forwards ALL tokens at address)
 celestia-appd tx forwarding forward <forward-addr> 42161 \
   0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
-  <token-id> --max-igp-fee 1000utia --from relayer
+  --max-igp-fee 1000utia --from relayer
 ```
 
 **Parameter Formats:**
 
 - `dest-domain`: uint32 domain ID (e.g., `1` for Ethereum mainnet, `42161` for Arbitrum)
 - `dest-recipient`: 32-byte hex-encoded address with `0x` prefix. For EVM chains, use the 20-byte address left-padded with 12 zero bytes (e.g., `0x000000000000000000000000<20-byte-eth-address>`)
-- `token-id`: Hyperlane warp token identifier (hex-encoded)
 - `max-igp-fee`: Maximum IGP fee to pay per token (e.g., `1000utia`)
 
 ## Error Codes
@@ -201,7 +197,7 @@ celestia-appd tx forwarding forward <forward-addr> 42161 \
 
 ## Security
 
-- **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient, tokenId)`. Funds can only be forwarded to the committed destination with the committed token.
+- **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient)`. Funds can only be forwarded to the committed destination.
 - **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination.
 - **No fund loss**: Failed token attempts do not commit state changes, so tokens remain at `forwardAddr`.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).
@@ -224,10 +220,10 @@ The current design fails gracefully: if someone sends to a forwarding address wi
 
 ## Test Vectors
 
-> **Note**: Test vectors need to be regenerated to include `tokenId` in the derivation ([#6906](https://github.com/celestiaorg/celestia-app/pull/6906)).
-
 For cross-platform compatibility (Go, TypeScript, Rust):
 
-| destDomain | destRecipient                                                        | tokenId | Expected Address |
-|------------|----------------------------------------------------------------------|---------|------------------|
-| TODO       | TODO                                                                 | TODO    | TODO             |
+| destDomain | destRecipient                                                        | Expected Address                                  |
+|------------|----------------------------------------------------------------------|---------------------------------------------------|
+| 1          | `0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef` | `celestia1gev9segv9333lpy27thrtwdjwhu9lgcjpkpz2x` |
+| 42161      | `0x0000000000000000000000001234567890abcdef1234567890abcdef12345678` | `celestia1uvqe9n0eclkd55dj9g9m30nf77px6jq2nfqmyw` |
+| 0          | `0x0000000000000000000000000000000000000000000000000000000000000000` | `celestia1w0c30l5s7q46nhnz7k7j82j6kdsgz4w4m25jjg` |

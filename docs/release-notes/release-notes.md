@@ -16,7 +16,7 @@ The upgrade handler re-applies the commission rate migrations from v7 (min 20%, 
 
 #### Forwarding Address Derivation (Breaking)
 
-v8 binds the token identity to forwarding address derivation in `x/forwarding` ([#6906](https://github.com/celestiaorg/celestia-app/pull/6906)). Each unique denomination now gets its own forwarding address. This prevents exhaustive scanning of permissionless warp tokens and eliminates account poisoning through IBC denoms. Existing forwarding addresses derived without the token identifier will no longer be valid.
+v8 binds the token identity to forwarding address derivation in `x/forwarding` ([#6906](https://github.com/celestiaorg/celestia-app/pull/6906)). Frontends and relayers explicitly select a token route off-chain; the module enforces consistency but never scans the permissionless warp registry. Each unique `(destDomain, destRecipient, tokenId)` tuple now derives its own forwarding address. Any assets sent to a forwarding address with a mismatched denomination are irrecoverable by design. Existing forwarding addresses derived without the token identifier will no longer be valid.
 
 ## v7.0.0
 
