@@ -122,33 +122,13 @@ Withdrawals do not need special handling. Withdrawals are not immediate — they
 
 **Cache poisoning via exposed gRPC endpoint.** The cache is updated through the `ValidatePaymentPromise` gRPC query. If the endpoint is exposed, a malicious user could submit crafted promises to drain any signer's cached budget to zero, forcing more frequent sweeps and state reads. Requiring stateless validation (signature verification) before updating the cache mitigates this — the attacker would need access to the signer's private key to produce a valid promise.
 
-**Frontrunning.** A malicious user who intercepts a legitimately signed promise could submit it directly to the validator's gRPC endpoint before the real client's fibre upload reaches the server. However when the client subsequently submits the same promise to the fibre server, the server can still accept and start serving the data. The cache is idempotent by `promise_hash` — the same promise is not double-counted in the budget.
+**Frontrunning.** A malicious user who intercepts a legitimately signed promise could submit it directly to the validator's gRPC endpoint before the real client's fibre upload reaches the server. However, when the client subsequently submits the same promise to the fibre server, the server can still accept and start serving the data. The cache is idempotent by `promise_hash` — the same promise is not double-counted in the budget.
 
-**Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). As a follow-up, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
+**Sweep amplification from zero-balance accounts.** A malicious user could repeatedly submit promises from escrow accounts with zero or insufficient balance, forcing the cache to sweep on every request (since budget check fails and triggers a sweep-and-retry). So, the cache should rate-limit sweeps for signers that fail with zero or insufficient balance — only re-sweeping at most once per block for such accounts.
 
-**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches and enabling double spending — especially since the timeout agent can submit any promise with a single validator signature. The cache has no cross-validator visibility. This can be mitigated by combining Option A with cross-validator Listen — see below.
+**Selective-validator attack.** Clients can send different promises to different validators, skewing per-validator caches. However, this is not profitable. A single PFF payment covers a week of serving by the entire validator set. Even if the attacker sends a unique blob to every validator, one settled payment already covers all of them. Promises that fail on-chain are served for at most ~2 hours before validators drop them. The attacker pays for a week of full-set serving and gets at most ~2 hours of free serving from validators whose promises don't settle.
 
-#### Mitigating with Cross-Validator Listen
-
-The selective-validator attack succeeds because each validator's cache is isolated — no validator knows what promises other validators have accepted. The [Listen](https://github.com/celestiaorg/celestia-app/issues/6806) method provides a way to close this gap without protocol changes.
-
-When a validator accepts a payment promise and signs it, it broadcasts a notification to all other validators. The notification contains the payment promise, its sign bytes, and the signer's signature — enough for receiving validators to verify the signer's signature themselves. Receiving validators verify the signature, then deduct the amount from the signer's cached budget — the same operation as a local reservation, but triggered by a peer notification instead of a client request.
-
-This works because:
-
-- **Visibility.** If a client sends promise A to validator 1 and promise B to validator 2, both validators learn about each other's promise via the broadcast. Their caches reflect the combined budget impact.
-- **Authentication.** Notifications include the validator's signature over the payment promise. Receiving validators verify this signature against the active validator set. External parties cannot spoof notifications.
-- **No protocol changes.** The broadcast is between validators at the fibre server layer. The PaymentPromise format, on-chain execution, and consensus rules are unchanged.
-
-The tradeoff is additional communication overhead — each accepted promise triggers n-1 notifications across the validator set, on top of the normal fibre upload. Also, we would need to define an extra gRPC method in the querier to update the cache with the latest hashes signed by the other fibre servers.
-
-**Consistency model.** The Listen mechanism provides eventual consistency. A validator's cache reflects the union of its own reservations plus whatever notifications it has received. There is no global lock or ordering guarantee — two validators may briefly have different budget views for the same signer. This is acceptable because the cache is an optimistic local filter, not a consensus mechanism. The chain remains the source of truth and rejects any promise that exceeds the actual on-chain balance at settlement time.
-
-**Offline validators.** If a validator is offline, it misses notifications. When it comes back, its cache is stale — it only knows about its own reservations. The next sweep reconciles with chain state, picking up any promises that settled while it was offline. Between restart and the first sweep, the validator may over-accept promises for a signer whose budget was consumed by other validators. The sweep interval (1 hour or on insufficient balance) bounds this window.
-
-**Out-of-order notifications.** Notifications are idempotent by `promise_hash` — the same reservation is applied at most once regardless of arrival order. There is no sequencing requirement. A notification for promise B arriving before promise A is harmless; both simply decrement the signer's budget independently.
-
-**Conflicting budget views.** Two validators may temporarily disagree on a signer's remaining budget. This is resolved by sweeps: when a validator sweeps, it reads the actual `AvailableBalance` from chain state and recomputes the budget from scratch, converging to the same view as every other validator that sweeps. Between sweeps, over-reservation is possible.
+This property is provided by the minimum escrow balance. The minimum balance (`max_blob_size × gas_per_blob_byte × validator_set_size`) guarantees that even after the attacker's regular promises have been processed, the escrow retains enough funds to settle the last round of promises sent to all validators as part of the attack. Without this minimum, the attacker could exhaust the escrow before the attack promises are submitted, leaving validators unpaid.
 
 #### Related Improvements
 
