@@ -88,10 +88,10 @@ A sweep is scoped to a single signer and rebuilds budget from fresh chain state:
 
 1. Read current escrow `AvailableBalance` from chain state.
 2. Load all locally pending promises for the signer.
-3. Drop any pending promise that is already processed on-chain (via `IsPaymentPromiseProcessed`) or is no longer chargeable (outside the withdrawal-delay window).
+3. Drop any pending promise that is already processed on-chain (via `IsPaymentPromiseProcessed`).
 4. Recompute: `remaining_budget = max(0, AvailableBalance - sum(kept promise amounts))`.
 5. Reset `last_sweep_at = now`, `ops_since_sweep = 0`.
-6. Update in-memory state and remove dropped promise records.
+6. Update the in-memory state and remove dropped promise records.
 
 Withdrawals do not need special handling. Withdrawals are not immediate — they have a 24-hour delay between request and execution. During this delay, the withdrawn amount is already subtracted from `AvailableBalance` on-chain. Since sweeps read the current `AvailableBalance`, any pending or processed withdrawal is always reflected before it takes effect. An hourly sweep cadence is well within the 24-hour withdrawal window.
 
@@ -115,7 +115,7 @@ Repeated submissions for the same signer amplify this into a DoS on the state st
 
 #### Tradeoffs
 
-**Single-process cache.** The cache is local to a single process. In sentry setups with multiple validator nodes, or deployments with multiple fibre servers, each instance maintains its own cache. A client can submit different promises to different instances of the same validator, bypassing the per-instance budget. A standalone shared cache would solve this but is out of scope for this iteration.
+**Single-process cache.** The cache is local to a single process. In sentry setups with multiple validator nodes, each instance maintains its own cache. A client can submit different promises to different instances of the same validator, bypassing the per-instance budget. A standalone shared cache would solve this but is out of scope for this iteration.
 
 **Cache poisoning via exposed gRPC endpoint.** The cache is updated through the `ValidatePaymentPromise` gRPC query. If the endpoint is exposed, a malicious user could submit crafted promises to drain any signer's cached budget to zero, forcing more frequent sweeps and state reads. Requiring stateless validation (signature verification) before updating the cache mitigates this — the attacker would need access to the signer's private key to produce a valid promise.
 
