@@ -121,6 +121,8 @@ func stageObservabilityPayload(cfg Config, observabilitySrcDir, payloadDir strin
 		return fmt.Errorf("failed to write app targets file: %w", err)
 	}
 
+	// Fibre metrics are pushed via OTel Collector (OTLP), not scraped directly.
+
 	// Generate random Grafana password and write .env file
 	grafanaPassword, err := generateGrafanaPassword()
 	if err != nil {

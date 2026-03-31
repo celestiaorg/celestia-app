@@ -34,7 +34,8 @@ Override config values with flags (flags take precedence over config file):
 ```sh
 fibre start \
   --app-grpc-address 127.0.0.1:9090 \
-  --server-listen-address 0.0.0.0:7980
+  --server-listen-address 0.0.0.0:7980 \
+  --signer-grpc-address 127.0.0.1:26659
 ```
 
 ### Version
