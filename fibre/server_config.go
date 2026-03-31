@@ -119,6 +119,9 @@ func (cfg *ServerConfig) Validate() error {
 	}
 
 	if cfg.SignerFn == nil {
+		if cfg.SignerGRPCAddress == "" {
+			return fmt.Errorf("signer_grpc_address is required")
+		}
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
 			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
 		}
