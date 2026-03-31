@@ -364,7 +364,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh cha
 	}
 
 	t := time.Now()
-	result, err := fibre.PutWithKey(ctx, w.fibreClient, w.txClient, ns, data, w.keyName)
+	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data, fibre.WithKeyName(w.keyName))
 	lat := time.Since(t)
 
 	st.totalSent.Add(1)
