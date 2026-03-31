@@ -22,17 +22,15 @@ var (
 	ErrNotEnoughShards = errors.New("not enough shards to reconstruct blob")
 )
 
-// DownloadParams contains the parameters for downloading a blob.
-type DownloadParams struct {
-	// ID uniquely identifies the blob to download.
-	ID BlobID
+// DownloadOptions contains optional parameters for downloading a blob.
+type DownloadOptions struct {
 	// Height is the block height at which the blob was included.
 	// When non-zero, the validator set at that height is used for download;
 	// otherwise, the current head validator set is used.
 	Height uint64
 }
 
-// Download retrieves and reconstructs a [Blob] from the [Server]s using the provided [DownloadParams].
+// Download retrieves and reconstructs a [Blob] by [BlobID] from the [Server]s.
 //
 // The algorithm selects validators shuffled by stake weight for load balancing
 // and requests them for shards. It tracks unique rows collected and dynamically
@@ -43,7 +41,7 @@ type DownloadParams struct {
 //   - [ErrNotFound]: no shard was retrieved for the blob
 //   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
 //   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
-func (c *Client) Download(ctx context.Context, params DownloadParams) (blob *Blob, err error) {
+func (c *Client) Download(ctx context.Context, id BlobID, opts DownloadOptions) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
@@ -51,7 +49,6 @@ func (c *Client) Download(ctx context.Context, params DownloadParams) (blob *Blo
 		return nil, ErrClientClosed
 	}
 
-	id := params.ID
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Download",
 		trace.WithAttributes(attribute.String("blob_commitment", id.Commitment().String())),
 	)
@@ -66,8 +63,8 @@ func (c *Client) Download(ctx context.Context, params DownloadParams) (blob *Blo
 	// but if we don't the current head validator set will mostly have the same stakes
 	// and if not this still won't affect correctness, just the amount of nodes we contact
 	var valSet validator.Set
-	if params.Height > 0 {
-		valSet, err = c.state.GetByHeight(ctx, params.Height)
+	if opts.Height > 0 {
+		valSet, err = c.state.GetByHeight(ctx, opts.Height)
 	} else {
 		valSet, err = c.state.Head(ctx)
 	}

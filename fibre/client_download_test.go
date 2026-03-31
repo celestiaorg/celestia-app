@@ -46,7 +46,7 @@ func testClientDownloadSuccess(t *testing.T) {
 	client := makeTestDownloadClient(t, 10, nil, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.NoError(t, err)
 	require.NotNil(t, downloaded)
 	require.Equal(t, blob.Data(), downloaded.Data())
@@ -69,7 +69,7 @@ func testClientDownloadConcurrent(t *testing.T) {
 		go func(blob *fibre.Blob) {
 			defer wg.Done()
 
-			downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+			downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 			require.NoError(t, err)
 			require.Equal(t, blob.Data(), downloaded.Data())
 		}(blob)
@@ -85,7 +85,7 @@ func testClientDownloadContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := client.Download(ctx, fibre.DownloadParams{ID: blob.ID()})
+	_, err := client.Download(ctx, blob.ID(), fibre.DownloadOptions{})
 	require.ErrorIs(t, err, context.Canceled)
 }
 
@@ -97,7 +97,7 @@ func testClientDownloadClosedClient(t *testing.T) {
 	require.NoError(t, client.Stop(t.Context()))
 	require.NoError(t, client.Stop(t.Context())) // idempotent
 
-	_, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+	_, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.ErrorIs(t, err, fibre.ErrClientClosed)
 }
 
@@ -115,7 +115,7 @@ func testClientDownloadExactTargetCount(t *testing.T) {
 	}, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -149,7 +149,7 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 			}, blob)
 			t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-			downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+			downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 			if tc.expectErr != nil {
 				require.ErrorIs(t, err, tc.expectErr)
 			} else {
@@ -186,7 +186,7 @@ func testClientDownloadLargeValidatorFailure(t *testing.T) {
 	}, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 }
@@ -255,7 +255,7 @@ func testClientDownloadIncorrectRowDistribution(t *testing.T) {
 
 	// Despite the mismatched row distribution, download should succeed
 	// and return the correct data.
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 }
@@ -280,7 +280,7 @@ func testClientDownloadWithHeight(t *testing.T) {
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID(), Height: 42})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{Height: 42})
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -291,7 +291,7 @@ func testClientDownloadWithHeight(t *testing.T) {
 }
 
 func testClientDownloadWithZeroHeight(t *testing.T) {
-	// Test that passing a pointer-to-zero height falls through to Head()
+	// Test that zero height (the default) falls through to Head()
 	// instead of calling GetByHeight(0), which would be rejected by the gRPC layer.
 	blob := makeTestBlobV0(t, 256*1024)
 	validators, privKeys := makeTestValidators(t, 10)
@@ -310,7 +310,7 @@ func testClientDownloadWithZeroHeight(t *testing.T) {
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID(), Height: 0})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -355,7 +355,7 @@ func testClientDownloadCustomMinRows(t *testing.T) {
 	}, blob)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
-	downloaded, err := client.Download(t.Context(), fibre.DownloadParams{ID: blob.ID()})
+	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.DownloadOptions{})
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
