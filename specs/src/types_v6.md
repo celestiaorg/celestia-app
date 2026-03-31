@@ -135,13 +135,6 @@ celestia.minfee.v1.EventUpdateMinfeeParams
 cosmos.authz.v1beta1.EventGrant
 cosmos.authz.v1beta1.EventPruneExpiredGrants
 cosmos.authz.v1beta1.EventRevoke
-cosmos.base.abci.v1beta1.StringEvent
-cosmos.distribution.v1beta1.ValidatorSlashEvent
-cosmos.distribution.v1beta1.ValidatorSlashEventRecord
-cosmos.distribution.v1beta1.ValidatorSlashEvents
-cosmos.tx.v1beta1.GetTxsEventRequest
-cosmos.tx.v1beta1.GetTxsEventResponse
-envoy.config.core.v3.EventServiceConfig
 hyperlane.core.interchain_security.v1.EventAnnounceStorageLocation
 hyperlane.core.interchain_security.v1.EventCreateMerkleRootMultisigIsm
 hyperlane.core.interchain_security.v1.EventCreateMessageIdMultisigIsm
