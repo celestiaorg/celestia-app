@@ -201,22 +201,31 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 	return d.extendedData.GenerateRowInclusionProof(index)
 }
 
-// SetRow adds and verifies [*rsema1d.RowInclusionProof] to the blob.
-// It is safe to call this method concurrently only for disjoint indices.
-func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) error {
+// VerifyRow verifies a [*rsema1d.RowInclusionProof] against the blob's commitment.
+// Safe to call concurrently — performs only pure computation with no shared state mutation.
+func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
 	config := &rsema1d.Config{
 		K:           d.cfg.OriginalRows,
 		N:           d.cfg.ParityRows,
 		RowSize:     len(row.Row),
 		WorkerCount: d.cfg.CodingWorkers,
 	}
-	err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config)
-	if err != nil {
+	if err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config); err != nil {
 		return fmt.Errorf("verifying row %d: %w", row.Index, err)
 	}
-
-	d.rows[row.Index] = row.Row
 	return nil
+}
+
+// SetRow assigns a verified [*rsema1d.RowInclusionProof] to the blob.
+// Returns true when the row is new, false when the row was already set (duplicate).
+// The row must be verified with [VerifyRow] before calling this method.
+// It is not safe to call this method concurrently.
+func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) bool {
+	if d.rows[row.Index] != nil {
+		return false
+	}
+	d.rows[row.Index] = row.Row
+	return true
 }
 
 // Reconstruct checks the accumulated rows and reconstructs the original data.

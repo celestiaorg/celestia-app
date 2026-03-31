@@ -41,7 +41,7 @@ func BenchmarkSet_Select(b *testing.B) {
 		b.Run(fmt.Sprintf("%d_validators", n), func(b *testing.B) {
 			valSet := makeBenchValidatorSet(n)
 			for b.Loop() {
-				_, _ = valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
+				valSet.Select(testOriginalRows, testMinRows, testLivenessThreshold)
 			}
 		})
 	}
