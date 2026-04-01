@@ -27,13 +27,15 @@ Two options are presented. Option A adds a validator-local cache that tracks per
 - **Option A** is protocol non-breaking. It uses periodic sweeps against chain state to reconcile the cache.
 - **Option B** requires no code changes. It reduces `PaymentPromiseTimeout` to 5–10 minutes so the timeout agent settles promises faster, shrinking the double-spend window.
 
+Decision: TBD
+
 ## Detailed Design
 
 ### Option A: Sweep-Based Cache
 
 #### Cache Location and Storage
 
-A new component `local_promise_cache.go` in `x/fibre/keeper/`. The cache lives entirely in memory. It is injected into the Fibre keeper at app wiring time as a non-consensus dependency. If nil (tests, non-validator nodes), the keeper falls back to current behavior.
+A new component `local_promise_cache.go` in `x/fibre/keeper/`. The cache lives entirely in memory. It is injected into the Fibre keeper at app wiring time as a non-consensus dependency. If nil, the keeper falls back to current behavior.
 
 Two record types are maintained:
 
@@ -50,8 +52,6 @@ Two record types are maintained:
 - Fields:
   - `signer` — The escrow account signer address.
   - `amount` — The reserved payment amount.
-  - `created_at` — When the reservation was made.
-  - `expires_at` — When the promise expires (used for eviction).
 
 Internally, the cache maintains a map from signer to `SignerBudget`, a map from `promise_hash` to `PendingPromise`, and a signer-to-promises index for sweep enumeration.
 
