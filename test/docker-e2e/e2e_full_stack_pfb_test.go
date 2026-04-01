@@ -27,7 +27,7 @@ const (
 	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
 	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
 	// we can bump it as required.
-	celestiaNodeVersion    = "v0.29.0-beta.1"
+	celestiaNodeVersion    = "v0.30.0-rc0"
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
 )
 
