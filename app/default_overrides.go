@@ -305,5 +305,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.MinGasPrices = ""
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
+	cfg.MinRetainBlocks = appconsts.MinRetainBlocks
 	return cfg
 }
