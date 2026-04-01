@@ -358,7 +358,7 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 		return time.Time{}, fmt.Errorf("escrow account not found for signer %v", signerAddrStr)
 	}
 
-	// Check sufficient available balance
+	// Check sufficient balance (includes funds locked in pending withdrawals)
 	// TODO: This assumes 1 gas = 1 utia but the minimum gas price could be
 	// different.
 	requiredAmount := calculatePaymentCoin(promise.BlobSize, params.GasPerBlobByte)
