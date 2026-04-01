@@ -57,7 +57,9 @@ Internally, the cache maintains a map from signer to `SignerBudget`, a map from 
 
 #### Cache Eviction
 
-If a signer has no new operations for longer than `PaymentPromiseTimeout + 1h` (i.e., all pending promises have either settled or expired and the timeout agent has had time to submit them), delete the signer's entire cache entry (SignerBudget and all PendingPromise records). This keeps the cache bounded to active signers only. The check is performed during reconciliation: if after dropping resolved/expired promises no pending promises remain and `now - last_reconcile_at` exceeds the eviction threshold, the signer is evicted. On the next validation for that signer, the cache is rebuilt from the chain state.
+If a signer has no new operations for longer than `PaymentPromiseTimeout + 1h` (i.e., all pending promises have either settled or expired and the timeout agent has had time to submit them), delete the signer's entire cache entry (SignerBudget and all PendingPromise records). This keeps the cache bounded to active signers only.
+
+A background goroutine runs periodically and scans all signer entries, evicting any that exceed the threshold. This ensures idle signers are cleaned up even if they never receive another promise. On the next validation for an evicted signer, the cache is rebuilt from chain state.
 
 #### Restart Behavior
 
