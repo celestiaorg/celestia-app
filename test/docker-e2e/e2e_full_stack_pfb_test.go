@@ -29,7 +29,11 @@ const (
 	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
 	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
 	// we can bump it as required.
+<<<<<<< HEAD
 	celestiaNodeVersion    = "v0.29.1-mocha"
+=======
+	celestiaNodeVersion    = "v0.30.0-rc0"
+>>>>>>> 839edc65 (fix: header version check in TestE2EFullStackPFB by bumping node version (#6951))
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
 )
 
