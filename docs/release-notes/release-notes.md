@@ -12,6 +12,10 @@ Node operators MUST upgrade their binary to this version prior to the v8 activat
 
 The upgrade handler re-applies the commission rate migrations from v7 (min 20%, max 60%) to ensure validators that upgraded directly from v6 are compliant. These migrations are idempotent — validators already compliant from v7 are unaffected.
 
+#### Node Shutdown on Consensus Panic
+
+v8 changes the behavior when a consensus panic occurs. Previously, a consensus panic only stopped the consensus reactor while the rest of the node (RPC, mempool, p2p) continued running. This gave node operators the false impression that their node was still functional. Starting in v8, a consensus panic triggers a **full node shutdown** ([celestia-core#2222](https://github.com/celestiaorg/celestia-core/issues/2222)). Node operators using process managers (e.g., systemd) should ensure their restart policies account for this change.
+
 ### State Machine Changes (v8.0.0)
 
 #### Forwarding Address Derivation (Breaking)
