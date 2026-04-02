@@ -79,7 +79,7 @@ func (app App) RegisterUpgradeHandlers() {
 			if err := app.SetBlockMaxBytes(ctx, int64(appconsts.DefaultUpperBoundMaxBytes)); err != nil {
 				return nil, fmt.Errorf("failed to set block max bytes: %w", err)
 			}
-			
+
 			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
 				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
 				return nil, err

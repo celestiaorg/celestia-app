@@ -23,11 +23,11 @@ const (
 	TxSizeCostPerByte     uint64 = 10
 	GasPerBlobByte        uint32 = 8
 	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose               = time.Millisecond * 4500
+	TimeoutPropose               = time.Millisecond * 3000
 	TimeoutProposeDelta          = time.Millisecond * 500
-	TimeoutPrevote               = time.Millisecond * 1500
+	TimeoutPrevote               = time.Millisecond * 2000
 	TimeoutPrevoteDelta          = time.Millisecond * 500
-	TimeoutPrecommit             = time.Millisecond * 1500
+	TimeoutPrecommit             = time.Millisecond * 3000
 	TimeoutPrecommitDelta        = time.Millisecond * 500
 	TimeoutCommit                = time.Millisecond
 	// DelayedPrecommitTimeout is the primary determinant of expected block

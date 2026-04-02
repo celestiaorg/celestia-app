@@ -76,14 +76,18 @@ func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Conte
 func TestApplyUpgradeSetBlockMaxBytes(t *testing.T) {
 	t.Run("apply upgrade should set Block.MaxBytes to 32 MiB", func(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()
-		oldMaxBytes := int64(128 * 1024 * 1024) // 128 MiB
-		consensusParams.Block.MaxBytes = oldMaxBytes
 		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
 
 		ctx := testApp.NewContext(false)
 
+		// Manually set MaxBytes to 128 MiB via the params store because
+		// InitialiseTestAppWithGenesis overrides MaxBytes to DefaultUpperBoundMaxBytes.
+		oldMaxBytes := int64(128 * 1024 * 1024) // 128 MiB
 		params, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		params.Block.MaxBytes = oldMaxBytes
+		err = testApp.ConsensusKeeper.ParamsStore.Set(ctx, params)
 		require.NoError(t, err)
 
 		// Verify the initial value is 128 MiB.
