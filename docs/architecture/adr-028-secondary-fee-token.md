@@ -8,23 +8,22 @@ Draft
 
 Celestia accepts fees only in `utia`, enforced in `app/ante/fee.go`. The rest of the fee path (`DeductFeeDecorator`, `x/bank`, fee collector, `x/distribution`) already operates on `sdk.Coins`.
 
-This ADR proposes the smallest change that admits one hardcoded secondary fee denom, shipped in a chain upgrade the same way `BondDenom` is defined today.
+This ADR proposes the smallest change that admits one hardcoded secondary fee denom. Like `BondDenom`, the secondary denom is a compile-time constant; it is shipped in a chain upgrade.
 
 ## Decision
 
-Accept a fee paid entirely in either `utia` or one hardcoded secondary denom. The denom is a compile-time constant in `appconsts`, selected by social consensus and shipped in an upgrade. Governance controls minimum gas prices in `x/minfee`; this ADR adds a `secondary_min_gas_price` field.
+Accept fees in `utia`, one hardcoded secondary denom, or both. The denom is a compile-time constant in `appconsts`, selected by social consensus and shipped in an upgrade. Governance controls minimum gas prices in `x/minfee`; this ADR adds a `secondary_min_gas_price` field.
 
-Each denom has its own minimum gas price and is validated independently. Mempool priority is local policy: nodes normalize actual gas price against their effective local minimum for that denom. Users choose the fee denom; validators receive fees in that denom.
+Each denom has its own minimum gas price and is validated independently. Mempool priority is local policy: nodes normalize actual gas price against their effective local minimum for that denom. Users choose the fee denom(s); validators receive fees in those denoms.
 
-Out of scope: new modules, new ante decorators, a generalized fee-token whitelist, governance-controlled denom selection, oracles, token conversion, and mixed-denom fees.
+Out of scope: new modules, new ante decorators, a generalized fee-token whitelist, governance-controlled denom selection, oracles, and token conversion.
 
 ### Core Invariants
 
-1. A transaction fee must contain exactly one coin.
-2. The fee denom must be `utia` or the hardcoded secondary denom.
-3. A configured secondary denom must have a positive minimum gas price in `x/minfee` params.
-4. Each denom is validated against its own minimum gas price.
-5. Mempool priority = actual gas price / effective local minimum gas price for that denom.
+1. Every coin in the fee must be an accepted denom (`utia` or the hardcoded secondary denom).
+2. A configured secondary denom must have a positive minimum gas price in `x/minfee` params.
+3. Each coin is validated against its own denom's minimum gas price.
+4. Mempool priority = max normalized gas price across all fee coins.
 
 ## Current Fee Path
 
@@ -114,46 +113,47 @@ No store migration required.
 
 ## Fee Validation
 
-`ValidateTxFee` resolves the fee coin denom to its minimum gas price:
+`ValidateTxFee` resolves each fee coin's denom to its minimum gas price:
 
 ```go
-func resolveMinGasPrice(fee sdk.Coins, params minfeetypes.Params) (sdk.Coin, math.LegacyDec, error) {
-    if len(fee) != 1 {
-        return sdk.Coin{}, math.LegacyDec{}, ErrInvalidFeeShape
+func resolveMinGasPrices(fee sdk.Coins, params minfeetypes.Params) (map[string]math.LegacyDec, error) {
+    if len(fee) == 0 {
+        return nil, ErrEmptyFee
     }
 
-    coin := fee[0]
-
-    switch coin.Denom {
-    case appconsts.BondDenom:
-        return coin, params.NetworkMinGasPrice, nil
-
-    case appconsts.SecondaryFeeDenom:
-        if appconsts.SecondaryFeeDenom == "" || !params.SecondaryMinGasPrice.IsPositive() {
-            return sdk.Coin{}, math.LegacyDec{}, ErrSecondaryFeeDisabled
+    result := make(map[string]math.LegacyDec, len(fee))
+    for _, coin := range fee {
+        switch coin.Denom {
+        case appconsts.BondDenom:
+            result[coin.Denom] = params.NetworkMinGasPrice
+        case appconsts.SecondaryFeeDenom:
+            if appconsts.SecondaryFeeDenom == "" || !params.SecondaryMinGasPrice.IsPositive() {
+                return nil, ErrSecondaryFeeDisabled
+            }
+            result[coin.Denom] = params.SecondaryMinGasPrice
+        default:
+            return nil, ErrUnacceptedFeeDenom
         }
-        return coin, params.SecondaryMinGasPrice, nil
-
-    default:
-        return sdk.Coin{}, math.LegacyDec{}, ErrUnacceptedFeeDenom
     }
+    return result, nil
 }
 ```
 
-After resolution:
+After resolution, for each fee coin:
 
-1. Compute `actualGasPrice = fee.Amount / gas`.
+1. Compute `actualGasPrice = coin.Amount / gas`.
 2. In `CheckTx`, enforce the local validator threshold for that denom.
 3. In `CheckTx` and `DeliverTx`, enforce the network minimum for that denom.
-4. In `CheckTx`, compute priority (see [Priority](#priority)).
-5. Return the original `sdk.Coins` so the SDK deducts the chosen denom.
+4. In `CheckTx`, compute priority as the max normalized gas price across all fee coins (see [Priority](#priority)).
+5. Return the original `sdk.Coins` so the SDK deducts the submitted denoms.
 
 ### Priority
 
-Priority uses **normalized gas price** (`actual / effective local minimum`) so operators can favor one denom over the other without changing admission rules. The effective local minimum is the node's `min-gas-prices` for that denom if above the network minimum, otherwise the network minimum from `x/minfee`.
+Priority uses **normalized gas price** (`actual / effective local minimum`) so operators can favor one denom over the other without changing admission rules. The effective local minimum is the node's `min-gas-prices` for that denom if above the network minimum, otherwise the network minimum from `x/minfee`. When fees contain multiple coins, the transaction's priority is the maximum normalized gas price across all coins.
 
 ```go
-// normalizedGasPrice = fee.Amount / (gas * effectiveLocalMinGasPrice)
+// For each fee coin, compute:
+// normalizedGasPrice = coin.Amount / (gas * effectiveLocalMinGasPrice)
 
 normalizedDec := math.LegacyNewDecFromInt(coin.Amount).
     Quo(effectiveLocalMinGasPrice.MulInt64(int64(gas)))
@@ -166,6 +166,7 @@ if !priorityInt.IsInt64() {
 } else {
     priority = priorityInt.Int64()
 }
+// Take the max priority across all fee coins.
 ```
 
 Paying exactly the effective local minimum yields priority `1.0`; paying 2x yields `2.0`. Example: with `min-gas-prices = "0.002utia,0.004token"`, a tx at 0.004 utia/gas gets priority `2.0` while 0.004 token/gas gets `1.0` — that node favors `utia`.
@@ -189,7 +190,7 @@ No changes. The SDK deducts the submitted coin into the fee collector, and `x/di
 
 ### Wallet / Tx Builder
 
-Clients query `x/minfee`, let users choose a denom, and build a single fee coin. Gas estimation is unchanged.
+Clients query `x/minfee`, let users choose a denom (or both), and build the fee coins. Gas estimation is unchanged.
 
 ### Validator / Operator
 
