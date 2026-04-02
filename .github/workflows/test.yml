@@ -59,15 +59,31 @@ jobs:
             make test PACKAGES="${{ matrix.package }}"
           fi
 
+  test-fibre:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run fibre-tagged tests
+        run: make test-fibre-module
+
   test:
     runs-on: ubuntu-latest
-    needs: go-test
+    needs: [go-test, test-fibre]
     if: always()
     steps:
       - name: Check test results
         run: |
           if [ "${{ needs.go-test.result }}" != "success" ]; then
-            echo "One or more test jobs failed"
+            echo "One or more go-test jobs failed"
+            exit 1
+          fi
+          if [ "${{ needs.test-fibre.result }}" != "success" ]; then
+            echo "Fibre module test job failed"
             exit 1
           fi
           echo "All tests passed"

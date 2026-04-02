@@ -136,11 +136,11 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
-			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
 		}
+		moduleNames = append(moduleNames, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
@@ -166,11 +166,11 @@ func TestBlockedAddresses(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
-			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
 		}
+		moduleNames = append(moduleNames, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
