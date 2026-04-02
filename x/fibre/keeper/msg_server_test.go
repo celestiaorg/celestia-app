@@ -653,7 +653,71 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	})
 }
 
+// TestPayForFibreWithPendingWithdrawals tests that PayForFibre reduces pending withdrawals
+// when AvailableBalance is insufficient but Balance covers the payment (issue #6842).
+func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
+	params := suite.keeper.GetParams(suite.ctx)
+
+	// Setup: Create validator set for signature validation
+	suite.setupValidatorSet()
+
+	suite.T().Run("payment succeeds when full withdrawal exists", func(t *testing.T) {
+		signerPubKey, privKey, signer := suite.newSigner()
+		paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+		gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+
+		// Create escrow account with deposit
+		escrowAccount := types.EscrowAccount{
+			Signer:           signer,
+			Balance:          depositAmount,
+			AvailableBalance: sdk.NewInt64Coin(appconsts.BondDenom, 0), // All locked in withdrawal
+		}
+		suite.keeper.SetEscrowAccount(suite.ctx, escrowAccount)
+
+		// Create a pending withdrawal for the full deposit amount
+		withdrawal := types.Withdrawal{
+			Signer:             signer,
+			Amount:             depositAmount,
+			RequestedTimestamp: suite.ctx.BlockTime(),
+			AvailableTimestamp: suite.ctx.BlockTime().Add(params.WithdrawalDelay),
+		}
+		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
+
+		msg := &types.MsgPayForFibre{
+			Signer:              signer,
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: suite.generateValidatorSignatures(&paymentPromise),
+		}
+
+		resp, err := suite.msgServer.PayForFibre(suite.ctx, msg)
+		suite.NoError(err)
+		suite.NotNil(resp)
+
+		// Verify balance was deducted
+		updatedAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+		suite.True(found)
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		expectedBalance := depositAmount.Sub(paymentAmount)
+		suite.Equal(expectedBalance, updatedAccount.Balance)
+		suite.Equal(sdk.NewInt64Coin(appconsts.BondDenom, 0), updatedAccount.AvailableBalance)
+
+		// Verify withdrawal was reduced
+		updatedWithdrawal, found := suite.keeper.GetWithdrawal(suite.ctx, signer, suite.ctx.BlockTime())
+		suite.True(found)
+		expectedWithdrawalAmount := depositAmount.Sub(paymentAmount)
+		suite.Equal(expectedWithdrawalAmount, updatedWithdrawal.Amount)
+	})
+}
+
 // Helper functions
+
+// newSigner generates a fresh key pair and returns the public key, private key, and bech32 address.
+func (suite *MsgServerTestSuite) newSigner() (secp256k1.PubKey, *secp256k1.PrivKey, string) {
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	return *pubKey.(*secp256k1.PubKey), privKey, sdk.AccAddress(pubKey.Address()).String()
+}
 
 func (suite *MsgServerTestSuite) createPaymentPromise(signerPubKey secp256k1.PubKey, privKey *secp256k1.PrivKey) types.PaymentPromise {
 	return suite.createPaymentPromiseWithTime(signerPubKey, privKey, suite.ctx.BlockTime())

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v8/fibre"
 	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
@@ -357,14 +358,14 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 		return time.Time{}, fmt.Errorf("escrow account not found for signer %v", signerAddrStr)
 	}
 
-	// Check sufficient available balance
+	// Check sufficient balance (includes funds locked in pending withdrawals)
 	// TODO: This assumes 1 gas = 1 utia but the minimum gas price could be
 	// different.
 	requiredAmount := calculatePaymentCoin(promise.BlobSize, params.GasPerBlobByte)
 
-	hasSufficientBalance := escrowAccount.AvailableBalance.IsGTE(requiredAmount)
+	hasSufficientBalance := escrowAccount.Balance.IsGTE(requiredAmount)
 	if !hasSufficientBalance {
-		return time.Time{}, fmt.Errorf("insufficient balance in escrow account. required: %v, available: %v", requiredAmount, escrowAccount.AvailableBalance)
+		return time.Time{}, fmt.Errorf("insufficient balance in escrow account. required: %v, balance: %v", requiredAmount, escrowAccount.Balance)
 	}
 
 	return expirationTime, nil
@@ -392,4 +393,35 @@ func (k Keeper) ValidatePaymentPromiseStateful(ctx sdk.Context, promise *types.P
 func (k Keeper) ValidatePaymentPromiseStatefulForTimeout(ctx sdk.Context, promise *types.PaymentPromise) (time.Time, error) {
 	isTimeout := true
 	return k.validatePaymentPromiseStatefulInternal(ctx, promise, isTimeout)
+}
+
+// ReduceWithdrawalsForPayment reduces pending withdrawal amounts for a signer by the given shortfall.
+// It iterates withdrawals in order (oldest first) and either partially reduces a withdrawal's
+// amount or fully consumes (deletes) it.
+// Precondition: expects the escrow.Balance >= remaining. Otherwise, returns an error.
+func (k Keeper) ReduceWithdrawalsForPayment(ctx sdk.Context, signer string, remaining sdk.Coin) error {
+	store := ctx.KVStore(k.storeKey)
+	prefix := types.WithdrawalsBySignerPrefix(signer)
+	iterator := storetypes.KVStorePrefixIterator(store, prefix)
+	defer iterator.Close()
+
+	for ; iterator.Valid() && remaining.IsPositive(); iterator.Next() {
+		var withdrawal types.Withdrawal
+		k.cdc.MustUnmarshal(iterator.Value(), &withdrawal)
+
+		if remaining.IsGTE(withdrawal.Amount) {
+			remaining = remaining.Sub(withdrawal.Amount)
+			k.DeleteWithdrawal(ctx, withdrawal)
+		} else {
+			withdrawal.Amount = withdrawal.Amount.Sub(remaining)
+			k.SetWithdrawal(ctx, withdrawal)
+			remaining = sdk.NewCoin(remaining.Denom, math.ZeroInt())
+		}
+	}
+
+	if remaining.IsPositive() {
+		return fmt.Errorf("pending withdrawals for signer %s do not cover the shortfall of %s", signer, remaining)
+	}
+
+	return nil
 }
