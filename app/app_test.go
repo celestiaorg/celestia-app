@@ -127,7 +127,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 		testApp := getTestApp()
 		got := testApp.ModuleAccountAddrs()
 
-		moduleNames := []string{
+		moduleNames := append([]string{ //nolint:prealloc
 			"fee_collector",
 			"distribution",
 			"gov",
@@ -139,8 +139,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}
-		moduleNames = append(moduleNames, app.FibreModuleAccountNames()...)
+		}, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
@@ -158,7 +157,7 @@ func TestBlockedAddresses(t *testing.T) {
 		assert.NotContains(t, got, govAddress)
 	})
 	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
-		moduleNames := []string{
+		moduleNames := append([]string{ //nolint:prealloc
 			"fee_collector",
 			"distribution",
 			"mint",
@@ -169,8 +168,7 @@ func TestBlockedAddresses(t *testing.T) {
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}
-		moduleNames = append(moduleNames, app.FibreModuleAccountNames()...)
+		}, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)

@@ -104,7 +104,7 @@ func (app *App) setModuleOrder() {
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	beginBlockers := []string{
+	beginBlockers := []string{ //nolint:prealloc
 		capabilitytypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
@@ -130,7 +130,7 @@ func (app *App) setModuleOrder() {
 		upgradetypes.ModuleName,
 	)
 
-	endBlockers := []string{
+	endBlockers := []string{ //nolint:prealloc
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
 		capabilitytypes.ModuleName,
@@ -163,7 +163,7 @@ func (app *App) setModuleOrder() {
 	// can do so safely.
 	// NOTE: The minfee module must occur before genutil so DeliverTx can
 	// successfully pass the fee checking logic
-	initGenesis := []string{
+	initGenesis := []string{ //nolint:prealloc
 		capabilitytypes.ModuleName,
 		consensustypes.ModuleName,
 		authtypes.ModuleName,
@@ -198,7 +198,7 @@ func (app *App) setModuleOrder() {
 }
 
 func allStoreKeys() []string {
-	keys := []string{
+	keys := []string{ //nolint:prealloc
 		authtypes.StoreKey,
 		authzkeeper.StoreKey,
 		banktypes.StoreKey,

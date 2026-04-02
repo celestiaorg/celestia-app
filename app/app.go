@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"os"
 	"sync"
@@ -148,9 +149,7 @@ var maccPerms = func() map[string][]string {
 		warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
 		forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
 	}
-	for k, v := range fibreMaccPerms() {
-		perms[k] = v
-	}
+	maps.Copy(perms, fibreMaccPerms())
 	return perms
 }()
 
@@ -199,7 +198,7 @@ type App struct {
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
-	fibreKeepers        // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
+	fibreKeepers        //nolint:unused // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes

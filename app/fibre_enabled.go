@@ -16,12 +16,10 @@ import (
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
-	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 // fibreKeepers holds the keepers for the fibre and valaddr modules.
@@ -180,24 +178,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	return fibreTxs
 }
 
-// separateFibreTxs examines decoded SDK transactions and separates
-// pay-for-fibre transactions from normal ones.
-func separateFibreTxs(txConfig client.TxConfig, sdkTx sdk.Tx, rawTx []byte) (isPayForFibre bool) {
-	count := countFibreMsgs(sdkTx)
-	if count == 1 && len(sdkTx.GetMsgs()) == 1 {
-		return true
-	}
-	// count > 0 but invalid (multiple MsgPayForFibre or mixed with other messages)
-	// is handled by the caller skipping invalid txs.
-	return false
-}
-
 // FibreModuleAccountNames returns the module account names for fibre modules.
 func FibreModuleAccountNames() []string {
 	return []string{fibretypes.ModuleName}
-}
-
-// fibreGovModuleAddr returns the gov module address string used by fibre.
-func fibreGovModuleAddr() string {
-	return authtypes.NewModuleAddress("gov").String()
 }

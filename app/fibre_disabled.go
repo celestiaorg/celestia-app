@@ -11,7 +11,7 @@ import (
 )
 
 // fibreKeepers is empty when the fibre build tag is not set.
-type fibreKeepers struct{}
+type fibreKeepers struct{} //nolint:unused
 
 func fibreEncodingRegisters() []module.AppModuleBasic {
 	return nil
