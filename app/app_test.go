@@ -119,7 +119,9 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
-			"celestia1zsknr6k4flpn3rhxe0acsathfsjurkk66hdwzj": true,
+		}
+		for _, name := range app.FibreModuleAccountNames() {
+			want[authtypes.NewModuleAddress(name).String()] = true
 		}
 		assert.Equal(t, want, got)
 	})
