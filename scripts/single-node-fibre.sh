@@ -98,6 +98,9 @@ createGenesis() {
 
     # Persist ABCI responses
     sed -i.bak 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
+
+    # Enable Cosmos SDK gRPC server in app.toml
+    sed -i.bak '/^\[grpc\]/{n;s#enable = false#enable = true#;}' "${APP_HOME}"/config/app.toml
 }
 
 deleteHome() {
@@ -125,6 +128,18 @@ registerFibreProviderInfo() {
   sleep 3
   echo "Querying Fibre provider info..."
   celestia-appd query valaddr providers --home "${APP_HOME}" --output json
+}
+
+depositToEscrow() {
+  sleep 3
+  echo "Depositing funds to fibre escrow account..."
+  celestia-appd tx fibre deposit-to-escrow 1000000000utia \
+      --from "${KEY_NAME}" \
+      --keyring-backend="${KEYRING_BACKEND}" \
+      --home "${APP_HOME}" \
+      --chain-id "${CHAIN_ID}" \
+      --fees "${FEES}" \
+      --yes
 }
 
 startCelestiaApp() {
@@ -155,6 +170,7 @@ createGenesis
 startCelestiaApp
 startFibre
 registerFibreProviderInfo
+depositToEscrow
 
 # Keep script running and wait for celestia-appd process.
 # This allows logs to continue streaming and CTRL+C will trigger cleanup

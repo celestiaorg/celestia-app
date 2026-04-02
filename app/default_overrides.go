@@ -257,13 +257,14 @@ func EvidenceParams() *tmproto.EvidenceParams {
 
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
-	cfg.DBBackend = "pebbledb"
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	// this value should be the same as the largest possible response. In this case, that's
 	// likely Unconfirmed txs for a full mempool and a few extra bytes.
 	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
+	// Used to initialise privval gRPC in core
+	cfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
 
 	cfg.Mempool.TTLNumBlocks = 36
 	cfg.Mempool.TTLDuration = 0 * time.Second
@@ -303,5 +304,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.MinGasPrices = ""
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
+	cfg.MinRetainBlocks = appconsts.MinRetainBlocks
 	return cfg
 }

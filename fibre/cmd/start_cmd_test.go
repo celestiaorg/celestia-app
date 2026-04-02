@@ -20,50 +20,60 @@ func TestStartCmdConfigPrecedence(t *testing.T) {
 		name                    string
 		fileServerListenAddress string
 		fileAppGRPCAddress      string
+		fileSignerGRPCAddress   string
 		args                    []string
 		wantServerListenAddress string
 		wantAppGRPCAddress      string
+		wantSignerGRPCAddress   string
 	}{
 		{
 			name:                    "defaults when no file and no flags",
 			wantServerListenAddress: defaults.ServerListenAddress,
 			wantAppGRPCAddress:      defaults.AppGRPCAddress,
+			wantSignerGRPCAddress:   defaults.SignerGRPCAddress,
 		},
 		{
 			name:                    "file overrides defaults",
 			fileServerListenAddress: "127.0.0.1:8111",
 			fileAppGRPCAddress:      "127.0.0.1:9111",
+			fileSignerGRPCAddress:   "127.0.0.1:26660",
 			wantServerListenAddress: "127.0.0.1:8111",
 			wantAppGRPCAddress:      "127.0.0.1:9111",
+			wantSignerGRPCAddress:   "127.0.0.1:26660",
 		},
 		{
 			name:                    "flags override file",
 			fileServerListenAddress: "127.0.0.1:8111",
 			fileAppGRPCAddress:      "127.0.0.1:9111",
+			fileSignerGRPCAddress:   "127.0.0.1:26660",
 			args: []string{
 				"--" + flagServerListenAddress, "127.0.0.1:8222",
 				"--" + flagAppGRPCAddress, "127.0.0.1:9222",
+				"--" + flagSignerGRPCAddress, "127.0.0.1:26661",
 			},
 			wantServerListenAddress: "127.0.0.1:8222",
 			wantAppGRPCAddress:      "127.0.0.1:9222",
+			wantSignerGRPCAddress:   "127.0.0.1:26661",
 		},
 		{
 			name:                    "partial flag override keeps file value for unset flag",
 			fileServerListenAddress: "127.0.0.1:8111",
 			fileAppGRPCAddress:      "127.0.0.1:9111",
+			fileSignerGRPCAddress:   "127.0.0.1:26660",
 			args: []string{
 				"--" + flagServerListenAddress, "127.0.0.1:8333",
 			},
 			wantServerListenAddress: "127.0.0.1:8333",
 			wantAppGRPCAddress:      "127.0.0.1:9111",
+			wantSignerGRPCAddress:   "127.0.0.1:26660",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			home := t.TempDir()
-			if tc.fileServerListenAddress != "" || tc.fileAppGRPCAddress != "" {
-				writeConfig(t, home, tc.fileServerListenAddress, tc.fileAppGRPCAddress)
+			if tc.fileServerListenAddress != "" || tc.fileAppGRPCAddress != "" || tc.fileSignerGRPCAddress != "" {
+				writeConfig(t, home, tc.fileServerListenAddress, tc.fileAppGRPCAddress, tc.fileSignerGRPCAddress)
 			}
 
 			cmd, got := newTestStartCmd(t, home)
@@ -72,6 +82,7 @@ func TestStartCmdConfigPrecedence(t *testing.T) {
 
 			assert.Equal(t, tc.wantServerListenAddress, got.ServerListenAddress)
 			assert.Equal(t, tc.wantAppGRPCAddress, got.AppGRPCAddress)
+			assert.Equal(t, tc.wantSignerGRPCAddress, got.SignerGRPCAddress)
 			assert.Equal(t, home, got.Path)
 		})
 	}
@@ -157,11 +168,41 @@ func (s *stubStateClient) VerifyPromise(context.Context, *state.PaymentPromise) 
 	return state.VerifiedPromise{}, nil
 }
 
-func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress string) {
+func TestStartCmdGRPCSignerFlags(t *testing.T) {
+	tests := []struct {
+		name            string
+		args            []string
+		wantGRPCAddress string
+	}{
+		{
+			name:            "default: gRPC signer flag is set",
+			wantGRPCAddress: "127.0.0.1:26659",
+		},
+		{
+			name:            "flag overrides default",
+			args:            []string{"--" + flagSignerGRPCAddress, "127.0.0.1:9999"},
+			wantGRPCAddress: "127.0.0.1:9999",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			home := t.TempDir()
+			cmd, got := newTestStartCmd(t, home)
+			cmd.SetArgs(tc.args)
+			require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+			assert.Equal(t, tc.wantGRPCAddress, got.SignerGRPCAddress)
+		})
+	}
+}
+
+func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress, signerGRPCAddress string) {
 	t.Helper()
 
 	cfg := fibre.DefaultServerConfig()
 	cfg.ServerListenAddress = serverListenAddress
 	cfg.AppGRPCAddress = appGRPCAddress
+	cfg.SignerGRPCAddress = signerGRPCAddress
 	require.NoError(t, cfg.Save(fibre.DefaultConfigPath(home)))
 }

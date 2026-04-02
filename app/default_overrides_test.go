@@ -56,7 +56,7 @@ func TestDefaultAppConfig(t *testing.T) {
 	assert.Equal(t, "", cfg.MinGasPrices)
 
 	assert.Equal(t, appconsts.DefaultUpperBoundMaxBytes*2, cfg.GRPC.MaxRecvMsgSize)
-	assert.Equal(t, uint64(0), cfg.MinRetainBlocks)
+	assert.Equal(t, appconsts.MinRetainBlocks, cfg.MinRetainBlocks)
 }
 
 func TestDefaultConsensusConfig(t *testing.T) {
@@ -92,10 +92,6 @@ func TestDefaultConsensusConfig(t *testing.T) {
 			MaxGossipDelay: time.Second * 20,
 		}
 		assert.Equal(t, want, *got.Mempool)
-	})
-
-	t.Run("db backend override", func(t *testing.T) {
-		assert.Equal(t, "pebbledb", got.DBBackend)
 	})
 
 	t.Run("p2p overrides", func(t *testing.T) {

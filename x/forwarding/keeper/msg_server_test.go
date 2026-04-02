@@ -3,9 +3,9 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
-	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -13,9 +13,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,10 +29,6 @@ func NewMockBankKeeper() *MockBankKeeper {
 	return &MockBankKeeper{
 		Balances: make(map[string]sdk.Coins),
 	}
-}
-
-func (m *MockBankKeeper) GetAllBalances(_ context.Context, addr sdk.AccAddress) sdk.Coins {
-	return m.Balances[addr.String()]
 }
 
 func (m *MockBankKeeper) GetBalance(_ context.Context, addr sdk.AccAddress, denom string) sdk.Coin {
@@ -135,10 +130,6 @@ func (m *MockWarpKeeper) GetHypToken(_ context.Context, id uint64) (warptypes.Hy
 	return warptypes.HypToken{}, errors.New("token not found")
 }
 
-func (m *MockWarpKeeper) GetAllHypTokens(_ context.Context) ([]warptypes.HypToken, error) {
-	return m.Tokens, nil
-}
-
 func (m *MockWarpKeeper) HasEnrolledRouter(_ context.Context, tokenId uint64, domain uint32) (bool, error) {
 	if routes, ok := m.EnrolledRouters[tokenId]; ok {
 		_, hasRoute := routes[domain]
@@ -181,16 +172,20 @@ func (m *MockHyperlaneKeeper) QuoteDispatch(
 
 // Test helpers
 func createTestContext() sdk.Context {
-	return sdk.NewContext(nil, cmtproto.Header{}, false, log.NewNopLogger()).WithGasMeter(storetypes.NewInfiniteGasMeter())
+	return testutil.DefaultContext(storetypes.NewKVStoreKey("testkv"), storetypes.NewTransientStoreKey("testtransient"))
 }
 
-// deriveTestForwardAddress derives a forwarding address from the given destDomain and destRecipient
-func deriveTestForwardAddress(destDomain uint32, destRecipientHex string) (sdk.AccAddress, error) {
+// deriveTestForwardAddress derives a forwarding address from the given destDomain, destRecipient, and token.
+func deriveTestForwardAddress(destDomain uint32, destRecipientHex, tokenID string) (sdk.AccAddress, error) {
 	destRecipient, err := util.DecodeHexAddress(destRecipientHex)
 	if err != nil {
 		return nil, err
 	}
-	addrBytes, err := types.DeriveForwardingAddress(destDomain, destRecipient.Bytes())
+	token, err := util.DecodeHexAddress(tokenID)
+	if err != nil {
+		return nil, err
+	}
+	addrBytes, err := types.DeriveForwardingAddress(destDomain, destRecipient.Bytes(), token.Bytes())
 	if err != nil {
 		return nil, err
 	}
@@ -207,12 +202,7 @@ func createTestHypToken(id uint64, denom string, tokenType warptypes.HypTokenTyp
 }
 
 func padHex(id uint64) string {
-	hex := "0000000000000000000000000000000000000000000000000000000000000000"
-	idStr := "1"
-	if id > 0 {
-		idStr = string(rune('0' + id))
-	}
-	return hex[:len(hex)-len(idStr)] + idStr
+	return fmt.Sprintf("%064x", id)
 }
 
 // testIGPSetup holds common test fixtures for IGP fee tests
@@ -220,6 +210,8 @@ type testIGPSetup struct {
 	ctx             sdk.Context
 	destDomain      uint32
 	destRecipient   string
+	tokenID         string
+	token           warptypes.HypToken
 	forwardAddr     sdk.AccAddress
 	signer          sdk.AccAddress
 	bankKeeper      *MockBankKeeper
@@ -234,9 +226,6 @@ func newTestIGPSetup(t *testing.T) *testIGPSetup {
 	destDomain := uint32(42161)
 	destRecipient := "0x00000000000000000000000000000000000000000000000000000000deadbeef"
 
-	forwardAddr, err := deriveTestForwardAddress(destDomain, destRecipient)
-	require.NoError(t, err)
-
 	signer := sdk.AccAddress([]byte("signer______________"))
 	bankKeeper := NewMockBankKeeper()
 	warpKeeper := NewMockWarpKeeper()
@@ -244,6 +233,8 @@ func newTestIGPSetup(t *testing.T) *testIGPSetup {
 
 	// Setup TIA collateral token with route
 	tiaToken := createTestHypToken(1, appconsts.BondDenom, warptypes.HYP_TOKEN_TYPE_COLLATERAL)
+	forwardAddr, err := deriveTestForwardAddress(destDomain, destRecipient, tiaToken.Id.String())
+	require.NoError(t, err)
 	warpKeeper.Tokens = append(warpKeeper.Tokens, tiaToken)
 	warpKeeper.EnrolledRouters[1] = map[uint32]warptypes.RemoteRouter{
 		destDomain: {Gas: math.NewInt(200000)},
@@ -255,6 +246,8 @@ func newTestIGPSetup(t *testing.T) *testIGPSetup {
 		ctx:             ctx,
 		destDomain:      destDomain,
 		destRecipient:   destRecipient,
+		tokenID:         tiaToken.Id.String(),
+		token:           tiaToken,
 		forwardAddr:     forwardAddr,
 		signer:          signer,
 		bankKeeper:      bankKeeper,
@@ -280,7 +273,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			maxIgpFee:         sdk.NewCoin(appconsts.BondDenom, math.NewInt(50)), // 50 < 100
 			signerBalance:     sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200))),
 			expectedSignerBal: math.NewInt(200),
-			expectedErrPart:   appconsts.BondDenom + ":1000",
+			expectedErrPart:   types.ErrInsufficientIgpFee.Error(),
 		},
 		{
 			name:              "denom mismatch",
@@ -314,6 +307,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 				s.forwardAddr.String(),
 				s.destDomain,
 				s.destRecipient,
+				s.tokenID,
 				tc.maxIgpFee,
 			)
 
@@ -321,7 +315,7 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 
 			require.Error(t, err)
 			require.Nil(t, resp)
-			require.ErrorIs(t, err, types.ErrAllTokensFailed)
+			require.ErrorIs(t, err, types.ErrForwardFailed)
 			require.ErrorContains(t, err, tc.expectedErrPart)
 
 			// Verify no balance changes (validation failed before transfers)
@@ -329,45 +323,6 @@ func TestForwardSingleToken_IGPFeeValidation(t *testing.T) {
 			require.Equal(t, tc.expectedSignerBal, s.bankKeeper.GetBalance(s.ctx, s.signer, tc.maxIgpFee.Denom).Amount)
 		})
 	}
-}
-
-// TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure tests that IGP fee goes to fee collector when warp fails
-func TestForwardSingleToken_IGPFeeSentToFeeCollectorOnWarpFailure(t *testing.T) {
-	s := newTestIGPSetup(t)
-
-	feeCollectorAddr := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
-
-	// Setup balances
-	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
-	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
-	s.bankKeeper.Balances[feeCollectorAddr.String()] = sdk.NewCoins() // Start with zero
-	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
-
-	// Warp transfer will FAIL
-	s.warpKeeper.TransferErr = errors.New("warp transfer failed: insufficient liquidity")
-
-	msg := types.NewMsgForward(
-		s.signer.String(),
-		s.forwardAddr.String(),
-		s.destDomain,
-		s.destRecipient,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-
-	require.Error(t, err)
-	require.Nil(t, resp)
-	require.ErrorIs(t, err, types.ErrAllTokensFailed)
-	require.ErrorContains(t, err, "warp transfer failed")
-
-	// Verify: tokens remain at forwardAddr (warp atomic semantics)
-	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was deducted from signer (100 consumed)
-	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	// Verify: IGP fee was sent to fee collector (becomes protocol revenue)
-	require.Equal(t, math.NewInt(100), s.bankKeeper.GetBalance(s.ctx, feeCollectorAddr, appconsts.BondDenom).Amount,
-		"IGP fee should be sent to fee collector on warp failure")
 }
 
 // TestForwardSingleToken_IGPFeeRefundOnSuccess tests that excess IGP fee is refunded to signer
@@ -383,12 +338,14 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
 	s.warpKeeper.TransferMessageId = messageId
 
-	// Simulate warp consuming only 80 utia (less than quoted 100)
+	// Simulate a same-denom warp transfer consuming the forwarded 1000 utia plus
+	// only 80 utia of the quoted IGP fee.
+	forwardedAmount := math.NewInt(1000)
 	actualIgpConsumed := math.NewInt(80)
 	s.warpKeeper.OnTransfer = func(sender string, maxFee sdk.Coin) {
 		senderAddr, _ := sdk.AccAddressFromBech32(sender)
 		currentBal := s.bankKeeper.Balances[senderAddr.String()]
-		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, actualIgpConsumed))
+		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, forwardedAmount.Add(actualIgpConsumed)))
 		s.bankKeeper.Balances[senderAddr.String()] = currentBal.Sub(consumed...)
 	}
 
@@ -397,6 +354,7 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 		s.forwardAddr.String(),
 		s.destDomain,
 		s.destRecipient,
+		s.tokenID,
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
 	)
 
@@ -404,8 +362,9 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Len(t, resp.Results, 1)
-	require.True(t, resp.Results[0].Success)
+	require.Equal(t, appconsts.BondDenom, resp.Denom)
+	require.Equal(t, math.NewInt(1000), resp.Amount)
+	require.Equal(t, messageId.String(), resp.MessageId)
 
 	// Verify: signer paid 100, got 20 refund, net cost = 80
 	// Final signer balance = 200 - 100 + 20 = 120
@@ -413,34 +372,192 @@ func TestForwardSingleToken_IGPFeeRefundOnSuccess(t *testing.T) {
 		"signer should have received refund of excess IGP fee")
 }
 
-func TestForward_AllTokensFailedErrorIncludesPerTokenFailures(t *testing.T) {
+func TestForwardSingleToken_IGPFeeRefundFailureReturnsError(t *testing.T) {
 	s := newTestIGPSetup(t)
 
-	// Two failing tokens:
-	// 1) ufoo fails token lookup
-	// 2) utia fails due insufficient max_igp_fee
-	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
-		sdk.NewCoin("ufoo", math.NewInt(25)),
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)),
-	)
+	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
-	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(150)))
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
+
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	s.warpKeeper.TransferMessageId = messageId
+
+	forwardedAmount := math.NewInt(1000)
+	actualIgpConsumed := math.NewInt(80)
+	s.warpKeeper.OnTransfer = func(sender string, maxFee sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		currentBal := s.bankKeeper.Balances[senderAddr.String()]
+		consumed := sdk.NewCoins(sdk.NewCoin(maxFee.Denom, forwardedAmount.Add(actualIgpConsumed)))
+		s.bankKeeper.Balances[senderAddr.String()] = currentBal.Sub(consumed...)
+	}
+
+	originalSendCoinsFn := s.bankKeeper.SendCoinsFn
+	s.bankKeeper.SendCoinsFn = func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error {
+		if from.Equals(s.forwardAddr) && to.Equals(s.signer) {
+			return errors.New("refund send failed")
+		}
+		if originalSendCoinsFn != nil {
+			return originalSendCoinsFn(ctx, from, to, amt)
+		}
+
+		fromBal := s.bankKeeper.Balances[from.String()]
+		toBal := s.bankKeeper.Balances[to.String()]
+
+		newFromBal, hasNeg := fromBal.SafeSub(amt...)
+		if hasNeg {
+			return errors.New("insufficient funds")
+		}
+
+		s.bankKeeper.Balances[from.String()] = newFromBal
+		s.bankKeeper.Balances[to.String()] = toBal.Add(amt...)
+		return nil
+	}
 
 	msg := types.NewMsgForward(
 		s.signer.String(),
 		s.forwardAddr.String(),
 		s.destDomain,
 		s.destRecipient,
+		s.tokenID,
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
 	)
 
 	resp, err := s.msgServer.Forward(s.ctx, msg)
 	require.Error(t, err)
 	require.Nil(t, resp)
-	require.ErrorIs(t, err, types.ErrAllTokensFailed)
+	require.ErrorIs(t, err, types.ErrForwardFailed)
+	require.ErrorContains(t, err, "failed to refund excess IGP fee to relayer")
+}
 
-	errText := err.Error()
-	require.Contains(t, errText, "all 2 tokens failed to forward")
-	require.Contains(t, errText, "ufoo:25 (token lookup failed: unsupported token denom)")
-	require.Contains(t, errText, "utia:1000 (IGP fee provided is less than required")
+func TestForward_LeavesUnrelatedBalancesUntouched(t *testing.T) {
+	s := newTestIGPSetup(t)
+	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(1_000_000)),
+		sdk.NewCoin("ibc/unrelated", math.NewInt(42)),
+	)
+	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)))
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins()
+
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	s.warpKeeper.TransferMessageId = messageId
+	s.warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		s.bankKeeper.Balances[senderAddr.String()] = sdk.NewCoins(sdk.NewCoin("ibc/unrelated", math.NewInt(42)))
+	}
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		s.tokenID,
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, appconsts.BondDenom, resp.Denom)
+	require.Equal(t, math.NewInt(1_000_000), resp.Amount)
+	require.Equal(t, messageId.String(), resp.MessageId)
+	require.True(t, s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).IsZero())
+	require.Equal(t, math.NewInt(42), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, "ibc/unrelated").Amount)
+}
+
+func TestForward_NoBalanceForBoundToken(t *testing.T) {
+	s := newTestIGPSetup(t)
+	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin("ibc/unrelated", math.NewInt(25)))
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		s.tokenID,
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.ErrorIs(t, err, types.ErrNoBalance)
+	require.Nil(t, resp)
+	require.Equal(t, math.NewInt(25), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, "ibc/unrelated").Amount)
+}
+
+func TestForward_AddressMismatchWhenTokenIDChanges(t *testing.T) {
+	s := newTestIGPSetup(t)
+
+	otherToken := createTestHypToken(2, appconsts.BondDenom, warptypes.HYP_TOKEN_TYPE_COLLATERAL)
+	s.warpKeeper.Tokens = append(s.warpKeeper.Tokens, otherToken)
+	s.warpKeeper.EnrolledRouters[2] = map[uint32]warptypes.RemoteRouter{
+		s.destDomain: {Gas: math.NewInt(200000)},
+	}
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		otherToken.Id.String(),
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.Error(t, err)
+	require.Nil(t, resp)
+	require.ErrorIs(t, err, types.ErrAddressMismatch)
+}
+
+func TestForward_SyntheticToken(t *testing.T) {
+	ctx := createTestContext()
+	destDomain := uint32(999)
+	destRecipient := "0x00000000000000000000000000000000000000000000000000000000cafebabe"
+	signer := sdk.AccAddress([]byte("signer______________"))
+	bankKeeper := NewMockBankKeeper()
+	warpKeeper := NewMockWarpKeeper()
+	hyperlaneKeeper := NewMockHyperlaneKeeper()
+
+	synthToken := createTestHypToken(2, "uusdc", warptypes.HYP_TOKEN_TYPE_SYNTHETIC)
+	forwardAddr, err := deriveTestForwardAddress(destDomain, destRecipient, synthToken.Id.String())
+	require.NoError(t, err)
+
+	warpKeeper.Tokens = append(warpKeeper.Tokens, synthToken)
+	warpKeeper.EnrolledRouters[2] = map[uint32]warptypes.RemoteRouter{
+		destDomain: {Gas: math.NewInt(250000)},
+	}
+	hyperlaneKeeper.QuotedFee = sdk.NewCoins()
+
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	warpKeeper.TransferMessageId = messageId
+	synthDenom := "hyperlane/" + synthToken.Id.String()
+	warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		senderBalances := bankKeeper.Balances[senderAddr.String()]
+		bankKeeper.Balances[senderAddr.String()] = senderBalances.Sub(sdk.NewCoin(synthDenom, math.NewInt(75)))
+	}
+
+	bankKeeper.Balances[forwardAddr.String()] = sdk.NewCoins(
+		sdk.NewCoin(synthDenom, math.NewInt(75)),
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(11)),
+	)
+
+	k := keeper.NewKeeper(bankKeeper, warpKeeper, hyperlaneKeeper)
+	msgServer := keeper.NewMsgServerImpl(k)
+
+	msg := types.NewMsgForward(
+		signer.String(),
+		forwardAddr.String(),
+		destDomain,
+		destRecipient,
+		synthToken.Id.String(),
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	resp, err := msgServer.Forward(ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Equal(t, synthDenom, resp.Denom)
+	require.Equal(t, math.NewInt(75), resp.Amount)
+	require.Equal(t, messageId.String(), resp.MessageId)
+	require.True(t, bankKeeper.GetBalance(ctx, forwardAddr, synthDenom).IsZero())
+	require.Equal(t, math.NewInt(11), bankKeeper.GetBalance(ctx, forwardAddr, appconsts.BondDenom).Amount)
 }

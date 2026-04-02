@@ -58,7 +58,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
-	signedPromise, err := c.Upload(ctx, ns, blob)
+	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(txClient.DefaultAccountName()))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")
