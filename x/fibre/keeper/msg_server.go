@@ -295,11 +295,14 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 		availableDeduction = escrowAccount.AvailableBalance
 	}
 
+	// Deduct the full payment from the total balance (guaranteed sufficient by the check above).
 	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
+	// Only deduct what AvailableBalance can cover; the rest is locked in pending withdrawals.
 	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(availableDeduction)
 	ms.SetEscrowAccount(ctx, *escrowAccount)
 
-	// reduce the balance from the withdrawals
+	// If AvailableBalance couldn't cover the full payment, cancel/reduce pending withdrawals (FIFO)
+	// by the shortfall amount so that Balance and AvailableBalance stay consistent.
 	shortfall := paymentAmount.Sub(availableDeduction)
 	if shortfall.IsPositive() {
 		if err := ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall); err != nil {
