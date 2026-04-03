@@ -82,7 +82,7 @@ func TestApplyUpgradeSetBlockMaxBytes(t *testing.T) {
 		ctx := testApp.NewContext(false)
 
 		// Manually set MaxBytes to 128 MiB via the params store because
-		// InitialiseTestAppWithGenesis overrides MaxBytes to DefaultUpperBoundMaxBytes.
+		// InitialiseTestAppWithGenesis overrides MaxBytes to BlockMaxBytes.
 		oldMaxBytes := int64(128 * 1024 * 1024) // 128 MiB
 		params, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestApplyUpgradeSetBlockMaxBytes(t *testing.T) {
 		// Verify Block.MaxBytes was updated to 32 MiB.
 		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
 		require.NoError(t, err)
-		require.Equal(t, int64(appconsts.DefaultUpperBoundMaxBytes), params.Block.MaxBytes)
+		require.Equal(t, int64(appconsts.BlockMaxBytes), params.Block.MaxBytes)
 	})
 }
 

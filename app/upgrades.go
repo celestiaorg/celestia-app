@@ -75,8 +75,7 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
 
-			// Update Block.MaxBytes to DefaultUpperBoundMaxBytes (32 MiB).
-			if err := app.SetBlockMaxBytes(ctx, int64(appconsts.DefaultUpperBoundMaxBytes)); err != nil {
+			if err := app.SetBlockMaxBytes(ctx, int64(appconsts.BlockMaxBytes)); err != nil {
 				return nil, fmt.Errorf("failed to set block max bytes: %w", err)
 			}
 

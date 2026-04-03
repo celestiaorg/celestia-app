@@ -67,6 +67,9 @@ const (
 	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
 	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
 
+	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
+	// Set via the v8 upgrade handler.
+	BlockMaxBytes = 32 * mebibyte
 )
 
 // MinCommissionRate is 20%.
