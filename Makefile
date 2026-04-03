@@ -63,7 +63,6 @@ build-standalone: mod
 
 ## build-fibre: Build the celestia-appd binary with fibre module enabled.
 build-fibre: mod
-	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with fibre enabled"
 	@go build $(BUILD_FLAGS_FIBRE) -o build/celestia-appd ./cmd/celestia-appd
