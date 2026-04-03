@@ -48,10 +48,6 @@ func (app *App) fibreAppModules(_ encoding.Config) []module.AppModule {
 	return nil
 }
 
-func classifyFibreTx(_ sdk.Tx) bool {
-	return false
-}
-
 func countFibreMsgs(_ sdk.Tx) int {
 	return 0
 }

@@ -92,9 +92,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// Handle non-blob transactions. This includes MsgPayForFibre txs which are
-		// plain SDK txs (not wrapped in BlobTx). squarev4.Construct will detect
-		// MsgPayForFibre and synthesize system blobs when building the square.
+		// Handle non-blob transactions. When fibre build tag is enabled, this also
+		// validates MsgPayForFibre txs (plain SDK txs, not wrapped in BlobTx).
 		if !isBlobTx {
 			msgs := sdkTx.GetMsgs()
 

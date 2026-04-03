@@ -219,15 +219,13 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 			continue
 		}
 
-		if classifyFibreTx(sdkTx) {
+		pffCount := countFibreMsgs(sdkTx)
+		if pffCount == 1 && len(sdkTx.GetMsgs()) == 1 {
 			payForFibreTxs = append(payForFibreTxs, rawTx)
 			continue
 		}
-
-		// When fibre is enabled, drop invalid txs with multiple MsgPayForFibre
-		// or MsgPayForFibre mixed with other messages.
-		pffCount := countFibreMsgs(sdkTx)
 		if pffCount > 0 {
+			// Drop invalid txs: multiple MsgPayForFibre or mixed with other messages.
 			continue
 		}
 

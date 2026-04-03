@@ -86,18 +86,6 @@ func (app *App) fibreAppModules(encodingConfig encoding.Config) []module.AppModu
 	}
 }
 
-// classifyFibreTx checks if the decoded SDK transaction contains exactly one
-// MsgPayForFibre and no other messages. Returns true if it is a valid
-// pay-for-fibre transaction.
-func classifyFibreTx(sdkTx sdk.Tx) bool {
-	msgs := sdkTx.GetMsgs()
-	if len(msgs) != 1 {
-		return false
-	}
-	_, ok := msgs[0].(*fibretypes.MsgPayForFibre)
-	return ok
-}
-
 // countFibreMsgs returns the number of MsgPayForFibre messages in a transaction.
 func countFibreMsgs(sdkTx sdk.Tx) int {
 	count := 0

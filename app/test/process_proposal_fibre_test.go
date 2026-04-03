@@ -4,7 +4,6 @@ package app_test
 
 import (
 	"bytes"
-	"crypto/rand"
 	"testing"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
 	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -32,63 +30,27 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 		t.Skip("skipping process proposal capping PayForFibre messages test in short mode.")
 	}
 
-	numberOfAccounts := 2000
+	numPFFs := appconsts.MaxPayForFibreMessages + 1
+	numberOfAccounts := numPFFs
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
 	signers := make([]*user.Signer, 0, numberOfAccounts)
-	accs := make([]sdk.AccountI, 0, numberOfAccounts)
 	for index, account := range accounts {
 		addr := testfactory.GetAddress(kr, account)
-		addrs = append(addrs, addr)
-		acc := testutil.DirectQueryAccount(testApp, addrs[index])
-		accs = append(accs, acc)
+		acc := testutil.DirectQueryAccount(testApp, addr)
 		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 		require.NoError(t, err)
 		signers = append(signers, signer)
-	}
-
-	accountIndex := 0
-
-	// Generate MaxSDKMessages+1 MsgSend txs (used by reject/accept message-cap test).
-	numMsgSends := appconsts.MaxSDKMessages + 1
-	msgSendTxs := make([][]byte, 0, numMsgSends)
-	for range numMsgSends {
-		msg := banktypes.NewMsgSend(
-			addrs[accountIndex],
-			testnode.RandomAddress().(sdk.AccAddress),
-			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
-		)
-		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
-		require.NoError(t, err)
-		msgSendTxs = append(msgSendTxs, rawTx)
-		accountIndex++
-	}
-
-	// Generate MaxPFBMessages+1 PFB blob txs.
-	numPFBs := appconsts.MaxPFBMessages + 1
-	pfbTxs := make([][]byte, 0, numPFBs)
-	randomBytes := make([]byte, 2000)
-	_, err := rand.Read(randomBytes)
-	require.NoError(t, err)
-	for range numPFBs {
-		blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
-		require.NoError(t, err)
-		blobTx, _, err := signers[accountIndex].CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
-		require.NoError(t, err)
-		pfbTxs = append(pfbTxs, blobTx)
-		accountIndex++
+		_ = index
 	}
 
 	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
-	numPFFs := appconsts.MaxPayForFibreMessages + 1
 	pffTxs := make([][]byte, 0, numPFFs)
-	for range numPFFs {
-		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[accountIndex], accounts[accountIndex]))
-		accountIndex++
+	for i := range numPFFs {
+		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i]))
 	}
 
 	type testCase struct {
@@ -96,9 +58,6 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 		txs            [][]byte
 		expectedResult abci.ResponseProcessProposal_ProposalStatus
 	}
-
-	_ = msgSendTxs
-	_ = pfbTxs
 
 	testCases := []testCase{
 		{
