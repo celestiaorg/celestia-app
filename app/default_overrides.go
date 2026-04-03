@@ -285,6 +285,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.P2P.SendRate = 100 * mebibyte
 	cfg.P2P.RecvRate = 100 * mebibyte
 
+	cfg.DBBackend = appconsts.DefaultDBBackend
+
 	return cfg
 }
 
