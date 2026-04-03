@@ -350,7 +350,7 @@ test-docker-e2e-upgrade-all:
 test-fibre-module:
 	@echo "--> Running fibre-tagged tests"
 	@go test -tags fibre -timeout 30m ./app/ ./pkg/da/
-	@go test -tags fibre -timeout 30m -run "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreProviderTxAndQuery" ./app/test/
+	@go test -tags fibre -timeout 30m -run "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestStandardSDKIntegrationTestSuite/TestFibreProviderTxAndQuery" ./app/test/
 .PHONY: test-fibre-module
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
