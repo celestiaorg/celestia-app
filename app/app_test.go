@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
@@ -21,12 +22,11 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestNew(t *testing.T) {
 	logger := log.NewNopLogger()
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -63,7 +63,7 @@ func TestNew(t *testing.T) {
 
 func TestInitChain(t *testing.T) {
 	logger := log.NewNopLogger()
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	traceStore := &NoopWriter{}
 	invCheckPeriod := uint(1)
 	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -217,7 +217,7 @@ func TestEndBlock(t *testing.T) {
 }
 
 func createTestApp(t *testing.T) *app.App {
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	upgradeHeight := int64(3)
 	timeoutCommit := time.Second
@@ -226,7 +226,7 @@ func createTestApp(t *testing.T) *app.App {
 		err := os.RemoveAll(snapshotDir)
 		require.NoError(t, err)
 	})
-	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, snapshotDir)
+	snapshotDB, err := dbcompat.NewDB("metadata", dbcompat.GoLevelDBBackend, snapshotDir)
 	t.Cleanup(func() {
 		err := snapshotDB.Close()
 		require.NoError(t, err)
@@ -243,7 +243,7 @@ func createTestApp(t *testing.T) *app.App {
 }
 
 func createTestAppWithInitChain(t *testing.T, upgradeHeight int64) *app.App {
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	config := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	timeoutCommit := time.Second
 	snapshotDir := filepath.Join(t.TempDir(), "data", "snapshots")
@@ -251,7 +251,7 @@ func createTestAppWithInitChain(t *testing.T, upgradeHeight int64) *app.App {
 		err := os.RemoveAll(snapshotDir)
 		require.NoError(t, err)
 	})
-	snapshotDB, err := tmdb.NewDB("metadata", tmdb.GoLevelDBBackend, snapshotDir)
+	snapshotDB, err := dbcompat.NewDB("metadata", dbcompat.GoLevelDBBackend, snapshotDir)
 	t.Cleanup(func() {
 		err := snapshotDB.Close()
 		require.NoError(t, err)

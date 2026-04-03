@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -20,16 +21,14 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	ibctesting "github.com/cosmos/ibc-go/v6/testing"
+	"github.com/cosmos/ibc-go/v6/testing/mock"
+	"github.com/cosmos/ibc-go/v6/testing/simapp"
 	"github.com/stretchr/testify/require"
 	abci "github.com/tendermint/tendermint/abci/types"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
-
-	"github.com/cosmos/ibc-go/v6/testing/mock"
-	"github.com/cosmos/ibc-go/v6/testing/simapp"
 )
 
 // NewTestChainWithValSet initializes a new TestChain instance with the given validator set
@@ -143,7 +142,7 @@ func NewTestChain(t *testing.T, coord *ibctesting.Coordinator, chainID string) *
 // of one consensus engine unit (10^6) in the default token of the simapp from first genesis
 // account. A Nop logger is set in SimApp.
 func SetupWithGenesisValSet(t testing.TB, valSet *tmtypes.ValidatorSet, genAccs []authtypes.GenesisAccount, chainID string, powerReduction math.Int, balances ...banktypes.Balance) ibctesting.TestingApp {
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 	encCdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	genesisState := app.NewDefaultGenesisState(encCdc.Codec)
 	app := app.New(log.NewNopLogger(), db, nil, 5, encCdc, 0, 0, simapp.EmptyAppOptions{})

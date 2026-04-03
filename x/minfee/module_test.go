@@ -3,6 +3,7 @@ package minfee_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -12,7 +13,6 @@ import (
 	paramkeeper "github.com/cosmos/cosmos-sdk/x/params/keeper"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	"github.com/stretchr/testify/require"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestNewModuleInitializesKeyTable(t *testing.T) {
@@ -20,7 +20,7 @@ func TestNewModuleInitializesKeyTable(t *testing.T) {
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
 	// Create the state store
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db)
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)

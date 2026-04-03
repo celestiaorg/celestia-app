@@ -3,12 +3,12 @@ package mint_test
 import (
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/stretchr/testify/require"
 	abcitypes "github.com/tendermint/tendermint/abci/types"
 	tmjson "github.com/tendermint/tendermint/libs/json"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 
 	"github.com/celestiaorg/celestia-app/v3/x/mint/types"
 	"github.com/cosmos/cosmos-sdk/simapp"
@@ -16,7 +16,7 @@ import (
 )
 
 func TestItCreatesModuleAccountOnInitBlock(t *testing.T) {
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 	encCdc := simapp.MakeTestEncodingConfig()
 	app := simapp.NewSimApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, simapp.DefaultNodeHome, 5, encCdc, simapp.EmptyAppOptions{})
 

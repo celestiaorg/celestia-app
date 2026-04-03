@@ -10,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -20,7 +21,6 @@ import (
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
 	"github.com/tendermint/tendermint/rpc/client/local"
-	tmdbm "github.com/tendermint/tm-db"
 
 	"github.com/stretchr/testify/require"
 )
@@ -54,7 +54,7 @@ func TestRun(t *testing.T) {
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.SetRoot(cfg.ExistingDir)
 
-	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
+	appDB, err := dbcompat.NewDB("application", dbcompat.GoLevelDBBackend, tmCfg.DBDir())
 	require.NoError(t, err)
 
 	encCfg := encoding.MakeConfig(app.ModuleBasics)

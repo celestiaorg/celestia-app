@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app/ante"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
 	"github.com/celestiaorg/celestia-app/v3/x/minfee"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -22,7 +23,6 @@ import (
 	"github.com/stretchr/testify/require"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	version "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestValidateTxFee(t *testing.T) {
@@ -164,7 +164,7 @@ func setUp(t *testing.T) (paramkeeper.Keeper, storetypes.CommitMultiStore) {
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
 	// Create the state store
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db)
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)

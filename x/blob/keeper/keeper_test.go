@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	testutil "github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/keeper"
 	"github.com/celestiaorg/celestia-app/v3/x/blob/types"
@@ -22,7 +23,6 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 // TestPayForBlobs verifies the attributes on the emitted event.
@@ -76,7 +76,7 @@ func CreateKeeper(t *testing.T, version uint64) (*keeper.Keeper, store.CommitMul
 	storeKey := sdk.NewKVStoreKey(paramtypes.StoreKey)
 	tStoreKey := storetypes.NewTransientStoreKey(paramtypes.TStoreKey)
 
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db)
 	stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 	stateStore.MountStoreWithDB(tStoreKey, storetypes.StoreTypeTransient, nil)

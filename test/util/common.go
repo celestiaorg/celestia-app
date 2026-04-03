@@ -9,6 +9,7 @@ import (
 
 	cosmosmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v3/app"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/x/blobstream/keeper"
 	blobstreamtypes "github.com/celestiaorg/celestia-app/v3/x/blobstream/types"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -44,7 +45,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	dbm "github.com/tendermint/tm-db"
 )
 
 var (
@@ -191,7 +191,7 @@ func CreateTestEnvWithoutBlobstreamKeysInit(t *testing.T) TestInput {
 	keySlashing := sdk.NewKVStoreKey(slashingtypes.StoreKey)
 
 	// Initialize memory database and mount stores on it
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 	ms := store.NewCommitMultiStore(db)
 	ms.MountStoreWithDB(keyBlobstream, storetypes.StoreTypeIAVL, db)
 	ms.MountStoreWithDB(keyAuth, storetypes.StoreTypeIAVL, db)

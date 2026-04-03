@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v3/test/util/testnode"
@@ -36,7 +37,6 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -98,7 +98,7 @@ func NewTestApp() *app.App {
 	// EmptyAppOptions is a stub implementing AppOptions
 	emptyOpts := EmptyAppOptions{}
 	// var anteOpt = func(bapp *baseapp.BaseApp) { bapp.SetAnteHandler(nil) }
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -465,7 +465,7 @@ func NewDefaultGenesisState(cdc codec.JSONCodec) app.GenesisState {
 func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeight int64) (*app.App, keyring.Keyring) {
 	t.Helper()
 
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 	chainID := "test_chain"
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeight, 0, EmptyAppOptions{})

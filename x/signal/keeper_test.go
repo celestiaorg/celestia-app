@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	"github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -26,7 +27,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 func TestGetVotingPowerThreshold(t *testing.T) {
@@ -536,7 +536,7 @@ func TestTallyAfterTryUpgrade(t *testing.T) {
 
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	signalStore := sdk.NewKVStoreKey(types.StoreKey)
-	db := tmdb.NewMemDB()
+	db := dbcompat.NewMemDB()
 	stateStore := store.NewCommitMultiStore(db)
 	stateStore.MountStoreWithDB(signalStore, storetypes.StoreTypeIAVL, nil)
 	require.NoError(t, stateStore.LoadLatestVersion())

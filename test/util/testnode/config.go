@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	srvconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -184,7 +185,7 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		app := app.New(
 			log.NewNopLogger(),
-			tmdb.NewMemDB(),
+			dbcompat.NewMemDB(),
 			nil, // trace store
 			0,   // invCheckPerid
 			encodingConfig,
@@ -207,7 +208,7 @@ func CustomAppCreator(minGasPrice string) srvtypes.AppCreator {
 		encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 		app := app.New(
 			log.NewNopLogger(),
-			tmdb.NewMemDB(),
+			dbcompat.NewMemDB(),
 			nil, // trace store
 			0,   // invCheckPerid
 			encodingConfig,

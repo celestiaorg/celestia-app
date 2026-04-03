@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v3/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -709,7 +710,7 @@ If you need to bypass this check use the --force-no-bbr flag.
 
 func openDB(rootDir string, backendType dbm.BackendType) (dbm.DB, error) {
 	dataDir := filepath.Join(rootDir, "data")
-	return dbm.NewDB("application", backendType, dataDir)
+	return dbcompat.NewDB("application", backendType, dataDir)
 }
 
 func openTraceWriter(traceWriterFile string) (w io.Writer, err error) {

@@ -11,6 +11,7 @@ import (
 	v1 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v1"
 	v2 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v2"
 	v3 "github.com/celestiaorg/celestia-app/v3/pkg/appconsts/v3"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/pkg/user"
 	"github.com/celestiaorg/celestia-app/v3/test/util"
 	"github.com/celestiaorg/celestia-app/v3/test/util/genesis"
@@ -30,7 +31,6 @@ import (
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmversion "github.com/tendermint/tendermint/proto/tendermint/version"
-	dbm "github.com/tendermint/tm-db"
 )
 
 func TestAppUpgradeV3(t *testing.T) {
@@ -252,7 +252,7 @@ func TestBlobstreamRemovedInV2(t *testing.T) {
 func SetupTestAppWithUpgradeHeight(t *testing.T, upgradeHeightV2 int64) (*app.App, *genesis.Genesis) {
 	t.Helper()
 
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	testApp := app.New(log.NewNopLogger(), db, nil, 0, encCfg, upgradeHeightV2, 0, util.EmptyAppOptions{})
 	genesis := genesis.NewDefaultGenesis().

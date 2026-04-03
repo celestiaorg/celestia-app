@@ -3,13 +3,13 @@ package testnode
 import (
 	"path/filepath"
 
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
 	"github.com/tendermint/tendermint/privval"
 	"github.com/tendermint/tendermint/proxy"
-	tmdb "github.com/tendermint/tm-db"
 )
 
 // NewCometNode creates a ready to use comet node that operates a single
@@ -18,7 +18,7 @@ import (
 func NewCometNode(baseDir string, config *UniversalTestingConfig) (*node.Node, servertypes.Application, error) {
 	logger := NewLogger(config)
 	dbPath := filepath.Join(config.TmConfig.RootDir, "data")
-	db, err := tmdb.NewGoLevelDB("application", dbPath)
+	db, err := dbcompat.NewGoLevelDB("application", dbPath)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptocodec "github.com/cosmos/cosmos-sdk/crypto/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -23,7 +24,6 @@ import (
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
 	tmprotoversion "github.com/tendermint/tendermint/proto/tendermint/version"
 	tmtypes "github.com/tendermint/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 )
 
 // NewTestChain initializes a new test chain with a default of 4 validators.
@@ -219,7 +219,7 @@ func SetupWithGenesisValSetAndConsensusParams(t *testing.T, consensusParams *abc
 }
 
 func SetupTestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
-	db := dbm.NewMemDB()
+	db := dbcompat.NewMemDB()
 	encCdc := simapp.MakeTestEncodingConfig()
 	app := NewSimApp(log.NewNopLogger(), db, nil, true, map[int64]bool{}, simapp.DefaultNodeHome, 5, encCdc, simapp.EmptyAppOptions{})
 	return app, simapp.NewDefaultGenesisState(encCdc.Marshaler)

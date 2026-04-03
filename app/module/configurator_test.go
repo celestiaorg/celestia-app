@@ -6,6 +6,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v3/app"
 	"github.com/celestiaorg/celestia-app/v3/app/encoding"
 	"github.com/celestiaorg/celestia-app/v3/app/module"
+	"github.com/celestiaorg/celestia-app/v3/pkg/dbcompat"
 	"github.com/celestiaorg/celestia-app/v3/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v3/x/signal/types"
 	"github.com/cosmos/cosmos-sdk/store"
@@ -17,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/tendermint/tendermint/libs/log"
 	tmproto "github.com/tendermint/tendermint/proto/tendermint/types"
-	dbm "github.com/tendermint/tm-db"
 )
 
 func TestConfigurator(t *testing.T) {
@@ -32,7 +32,7 @@ func TestConfigurator(t *testing.T) {
 		configurator := module.NewConfigurator(config.Codec, mockServer, mockServer)
 		storeKey := sdk.NewKVStoreKey(signaltypes.StoreKey)
 
-		db := dbm.NewMemDB()
+		db := dbcompat.NewMemDB()
 		stateStore := store.NewCommitMultiStore(db)
 		stateStore.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
 		require.NoError(t, stateStore.LoadLatestVersion())
