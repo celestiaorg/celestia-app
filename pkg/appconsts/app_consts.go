@@ -75,6 +75,8 @@ const (
 	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
 	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
 
+	// DefaultDBBackend is the default database backend for CometBFT.
+	DefaultDBBackend = "goleveldb"
 )
 
 // MinCommissionRate is 20%.
