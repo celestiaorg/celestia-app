@@ -98,6 +98,10 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
 		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
 	})
+
+	t.Run("db backend", func(t *testing.T) {
+		assert.Equal(t, "goleveldb", got.DBBackend)
+	})
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
