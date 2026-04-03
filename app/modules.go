@@ -195,6 +195,7 @@ func (app *App) setModuleOrder() {
 	}
 	initGenesis = append(initGenesis, fibreInitGenesisModules()...)
 	app.ModuleManager.SetOrderInitGenesis(initGenesis...)
+	app.ModuleManager.SetOrderExportGenesis(initGenesis...)
 }
 
 func allStoreKeys() []string {
