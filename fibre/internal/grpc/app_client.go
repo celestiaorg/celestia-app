@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	valtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	grpclib "google.golang.org/grpc"

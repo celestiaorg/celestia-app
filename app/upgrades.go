@@ -6,12 +6,9 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -74,14 +71,6 @@ func (app App) RegisterUpgradeHandlers() {
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgradeName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			sdkCtx := sdk.UnwrapSDKContext(ctx)
-			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
-
-			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
-				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
-				return nil, err
-			}
-
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
@@ -92,26 +81,7 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{
-				fibretypes.StoreKey,
-				valaddrtypes.StoreKey,
-			},
-		}
-
 		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storetypes.StoreUpgrades{}))
 	}
-}
-
-// SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
-// parameter to appconsts.MaxExpectedTimePerBlock. This corrects the previous
-// value of 75 seconds which was based on an outdated 15 second block time.
-func (app App) SetMaxExpectedTimePerBlock(ctx sdk.Context) error {
-	params := ibcconnectiontypes.Params{
-		MaxExpectedTimePerBlock: uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds()),
-	}
-	ctx.Logger().Info(fmt.Sprintf("Setting IBC connection MaxExpectedTimePerBlock to %v", appconsts.MaxExpectedTimePerBlock))
-	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, params)
-	return nil
 }

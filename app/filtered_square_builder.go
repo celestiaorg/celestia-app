@@ -1,8 +1,8 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"

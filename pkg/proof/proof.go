@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/da"
-	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/da"
+	"github.com/celestiaorg/celestia-app/v9/pkg/wrapper"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"

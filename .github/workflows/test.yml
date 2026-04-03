@@ -28,17 +28,17 @@ jobs:
           # sentinel value to run all other tests.
           - package: "unit"
           # split the heaviest ones
-          - package: "github.com/celestiaorg/celestia-app/v8/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v9/app/test"
             pattern: "TestIntegration.*"
-          - package: "github.com/celestiaorg/celestia-app/v8/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v9/app/test"
             pattern: "TestBigBlob.*|TestStandardSDK.*"
-          - package: "github.com/celestiaorg/celestia-app/v8/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v9/app/test"
             pattern: "TestSquareSize.*|TestPriority.*"
-          - package: "github.com/celestiaorg/celestia-app/v8/test/txsim"
-          - package: "github.com/celestiaorg/celestia-app/v8/pkg/user"
-          - package: "github.com/celestiaorg/celestia-app/v8/test/ledger"
-          - package: "github.com/celestiaorg/celestia-app/v8/fibre"
-          - package: "github.com/celestiaorg/celestia-app/v8/tools/chainbuilder"
+          - package: "github.com/celestiaorg/celestia-app/v9/test/txsim"
+          - package: "github.com/celestiaorg/celestia-app/v9/pkg/user"
+          - package: "github.com/celestiaorg/celestia-app/v9/test/ledger"
+          - package: "github.com/celestiaorg/celestia-app/v9/fibre"
+          - package: "github.com/celestiaorg/celestia-app/v9/tools/chainbuilder"
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
@@ -50,7 +50,7 @@ jobs:
         run: |
           if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
-            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v8/fibre$' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v9/fibre$' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
           elif [ -n "${{ matrix.pattern }}" ]; then
             # run specific test patterns
             go test -timeout 30m -run "${{ matrix.pattern }}" ${{ matrix.package }}

@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/spf13/cobra"
 )

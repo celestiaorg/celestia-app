@@ -7,8 +7,8 @@ import (
 	"io"
 	"log/slog"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"

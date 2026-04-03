@@ -6,20 +6,19 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/test/util"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/test/util"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestUpgrades(t *testing.T) {
-	t.Run("app.New() should register a v8 upgrade handler", func(t *testing.T) {
+	t.Run("app.New() should register a v9 upgrade handler", func(t *testing.T) {
 		logger := log.NewNopLogger()
 		db := tmdb.NewMemDB()
 		traceStore := &NoopWriter{}
@@ -28,22 +27,9 @@ func TestUpgrades(t *testing.T) {
 
 		testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
 
-		require.False(t, testApp.UpgradeKeeper.HasHandler("v7"))
-		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
+		require.False(t, testApp.UpgradeKeeper.HasHandler("v8"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
 	})
-}
-
-func TestSetMaxExpectedTimePerBlock(t *testing.T) {
-	consensusParams := app.DefaultConsensusParams()
-	testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
-	ctx := testApp.NewContext(false)
-
-	err := testApp.SetMaxExpectedTimePerBlock(ctx)
-	require.NoError(t, err)
-
-	got := testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx)
-	want := uint64((15 * time.Second).Nanoseconds())
-	assert.Equal(t, want, got.MaxExpectedTimePerBlock)
 }
 
 // createValidatorWithCommission creates a validator with specific commission

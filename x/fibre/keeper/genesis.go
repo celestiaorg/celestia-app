@@ -2,7 +2,7 @@ package keeper
 
 import (
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
