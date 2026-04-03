@@ -346,10 +346,11 @@ test-docker-e2e-upgrade-all:
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade-all
 
-## test-fibre-module: Run tests for packages with fibre build tag.
+## test-fibre-module: Run fibre-tagged unit and integration tests.
 test-fibre-module:
 	@echo "--> Running fibre-tagged tests"
-	@go test -tags fibre -timeout 30m ./app/... ./pkg/da/...
+	@go test -tags fibre -timeout 30m ./app/ ./pkg/da/
+	@go test -tags fibre -timeout 30m -run "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreProviderTxAndQuery" ./app/test/
 .PHONY: test-fibre-module
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
