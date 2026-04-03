@@ -187,7 +187,7 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //
-// When the fibre build tag is not set, classifyFibreTx always returns false, so
+// When the fibre build tag is not set, countMsgPayForFibre always returns 0, so
 // the payForFibreTxs slice is always empty.
 func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
