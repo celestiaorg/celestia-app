@@ -23,7 +23,6 @@ V2_UPGRADE_HEIGHT ?= 0
 BUILD_TAGS_STANDALONE := ledger
 BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
 BUILD_TAGS_FIBRE := ledger,fibre
-BUILD_TAGS_FIBRE_MULTIPLEXER := ledger,multiplexer,fibre
 
 LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v8/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
@@ -32,9 +31,7 @@ LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version
 BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
 BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 LDFLAGS_FIBRE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_FIBRE)
-LDFLAGS_FIBRE_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_FIBRE_MULTIPLEXER)
 BUILD_FLAGS_FIBRE := -tags=$(BUILD_TAGS_FIBRE) -ldflags '$(LDFLAGS_FIBRE)'
-BUILD_FLAGS_FIBRE_MULTIPLEXER := -tags=$(BUILD_TAGS_FIBRE_MULTIPLEXER) -ldflags '$(LDFLAGS_FIBRE_MULTIPLEXER)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
