@@ -117,7 +117,7 @@ func TestCountMsgPayForFibre(t *testing.T) {
 			sdkTx, err := txConfig.TxDecoder()(tc.txBytes())
 			require.NoError(t, err)
 
-			count := countFibreMsgs(sdkTx)
+			count := countMsgPayForFibre(sdkTx)
 			require.Equal(t, tc.wantCount, count)
 		})
 	}
@@ -223,7 +223,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 				if decErr != nil {
 					continue
 				}
-				if countFibreMsgs(sdkTx) > 0 {
+				if countMsgPayForFibre(sdkTx) > 0 {
 					pffCount++
 				}
 			}

@@ -86,8 +86,8 @@ func (app *App) fibreAppModules(encodingConfig encoding.Config) []module.AppModu
 	}
 }
 
-// countFibreMsgs returns the number of MsgPayForFibre messages in a transaction.
-func countFibreMsgs(sdkTx sdk.Tx) int {
+// countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
+func countMsgPayForFibre(sdkTx sdk.Tx) int {
 	count := 0
 	for _, msg := range sdkTx.GetMsgs() {
 		if _, ok := msg.(*fibretypes.MsgPayForFibre); ok {

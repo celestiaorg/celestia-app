@@ -105,7 +105,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 
 			// When fibre build tag is enabled, validate MsgPayForFibre constraints.
-			pffCount := countFibreMsgs(sdkTx)
+			pffCount := countMsgPayForFibre(sdkTx)
 			if pffCount > 1 || (pffCount == 1 && len(msgs) != 1) {
 				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))
 				return reject(), nil

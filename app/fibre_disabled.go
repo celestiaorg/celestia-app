@@ -48,7 +48,7 @@ func (app *App) fibreAppModules(_ encoding.Config) []module.AppModule {
 	return nil
 }
 
-func countFibreMsgs(_ sdk.Tx) int {
+func countMsgPayForFibre(_ sdk.Tx) int {
 	return 0
 }
 

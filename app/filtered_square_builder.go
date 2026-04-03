@@ -219,7 +219,9 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 			continue
 		}
 
-		pffCount := countFibreMsgs(sdkTx)
+		// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
+		// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
+		pffCount := countMsgPayForFibre(sdkTx)
 		if pffCount == 1 && len(sdkTx.GetMsgs()) == 1 {
 			payForFibreTxs = append(payForFibreTxs, rawTx)
 			continue
