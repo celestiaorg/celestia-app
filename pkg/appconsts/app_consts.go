@@ -31,9 +31,9 @@ const (
 	TxSizeCostPerByte     uint64 = 10
 	GasPerBlobByte        uint32 = 8
 	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose               = time.Millisecond * 4500
+	TimeoutPropose               = time.Millisecond * 3000
 	TimeoutProposeDelta          = time.Millisecond * 500
-	TimeoutPrevote               = time.Millisecond * 3000
+	TimeoutPrevote               = time.Millisecond * 2000
 	TimeoutPrevoteDelta          = time.Millisecond * 500
 	TimeoutPrecommit             = time.Millisecond * 3000
 	TimeoutPrecommitDelta        = time.Millisecond * 500
@@ -75,6 +75,9 @@ const (
 	// Modified from 3 weeks to 14 days + 1 hour in CIP-037.
 	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
 
+	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
+	// Set via the v8 upgrade handler.
+	BlockMaxBytes = 32 * mebibyte
 	// DefaultDBBackend is the default database backend for CometBFT.
 	DefaultDBBackend = "goleveldb"
 )
