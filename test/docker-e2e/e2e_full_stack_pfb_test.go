@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	v7 "github.com/celestiaorg/celestia-app/v8/pkg/appconsts/v7"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/x/blob/types"
@@ -48,11 +47,7 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 
 	ctx := context.TODO()
 
-	// Use app version 7 because celestia-node v0.29.1-mocha doesn't support v8 yet.
-	// TODO: revert to appconsts.Version after celestia-node adds support for app version 8.
-	// See https://github.com/celestiaorg/celestia-app/issues/6659
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
-	cfg.Genesis = cfg.Genesis.WithAppVersion(v7.Version)
 	celestia, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).WithChainID(appconsts.TestChainID).Build(ctx)
 	s.Require().NoError(err, "failed to build celestia chain")
 
