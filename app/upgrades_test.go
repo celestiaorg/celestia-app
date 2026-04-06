@@ -57,6 +57,44 @@ func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Conte
 	return validator
 }
 
+func TestApplyUpgradeSetBlockMaxBytes(t *testing.T) {
+	t.Run("apply upgrade should set Block.MaxBytes to 32 MiB", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v8"))
+
+		ctx := testApp.NewContext(false)
+
+		// Manually set MaxBytes to 128 MiB via the params store because
+		// InitialiseTestAppWithGenesis overrides MaxBytes to BlockMaxBytes.
+		oldMaxBytes := int64(128 * 1024 * 1024) // 128 MiB
+		params, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		params.Block.MaxBytes = oldMaxBytes
+		err = testApp.ConsensusKeeper.ParamsStore.Set(ctx, params)
+		require.NoError(t, err)
+
+		// Verify the initial value is 128 MiB.
+		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, oldMaxBytes, params.Block.MaxBytes)
+
+		// Apple the upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v8",
+			Height: 1,
+			Info:   "test",
+		}
+		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		// Verify Block.MaxBytes was updated to 32 MiB.
+		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, int64(appconsts.BlockMaxBytes), params.Block.MaxBytes)
+	})
+}
+
 func TestMaxCommissionRate(t *testing.T) {
 	t.Run("editing validator commission to 55% should succeed", func(t *testing.T) {
 		consensusParams := app.DefaultConsensusParams()

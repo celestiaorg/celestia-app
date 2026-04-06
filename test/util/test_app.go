@@ -139,7 +139,7 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 	}
 
 	// init chain will set the validator set and initialize the genesis accounts
-	cparams.Block.MaxBytes = int64(appconsts.DefaultUpperBoundMaxBytes)
+	cparams.Block.MaxBytes = int64(appconsts.BlockMaxBytes)
 	_, err = testApp.InitChain(
 		&abci.RequestInitChain{
 			Time:            GenesisTime,
