@@ -11,7 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 // TestSigningContextGetSignersConcurrent verifies that calling GetSigners on
@@ -40,8 +40,8 @@ func TestSigningContextGetSignersConcurrent(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			signers, _, err := cdc.GetMsgV1Signers(msg)
-			require.NoError(t, err)
-			require.Len(t, signers, 1)
+			assert.NoError(t, err)
+			assert.Len(t, signers, 1)
 		}()
 	}
 	wg.Wait()
