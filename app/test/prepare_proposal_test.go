@@ -16,8 +16,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3/share"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
@@ -379,7 +379,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
-	numberOfMsgSends := appconsts.MaxNonPFBMessages + 500
+	numberOfMsgSends := appconsts.MaxSDKMessages + 500
 	msgSendTxs := make([][]byte, 0, numberOfMsgSends)
 	for range numberOfMsgSends {
 		msg := banktypes.NewMsgSend(
@@ -410,8 +410,8 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 		},
 		{
 			name:                 "capping only msg send transactions",
-			inputTransactions:    msgSendTxs[:appconsts.MaxNonPFBMessages+50],
-			expectedTransactions: msgSendTxs[:appconsts.MaxNonPFBMessages],
+			inputTransactions:    msgSendTxs[:appconsts.MaxSDKMessages+50],
+			expectedTransactions: msgSendTxs[:appconsts.MaxSDKMessages],
 		},
 		{
 			name: "capping msg send after pfb transactions",
@@ -422,8 +422,8 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 				return input
 			}(),
 			expectedTransactions: func() [][]byte {
-				expected := make([][]byte, 0, appconsts.MaxNonPFBMessages+100)
-				expected = append(expected, msgSendTxs[:appconsts.MaxNonPFBMessages]...)
+				expected := make([][]byte, 0, appconsts.MaxSDKMessages+100)
+				expected = append(expected, msgSendTxs[:appconsts.MaxSDKMessages]...)
 				expected = append(expected, pfbTxs[:100]...)
 				return expected
 			}(),

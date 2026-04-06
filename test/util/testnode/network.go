@@ -30,10 +30,10 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 	for attempt := range maxRetries {
 		result, rpc, grpc, cleanup, err := tryStartNetwork(t, config)
 		if err != nil {
+			if cleanup != nil {
+				cleanup()
+			}
 			if isPortBindingError(err) {
-				if cleanup != nil {
-					cleanup()
-				}
 				time.Sleep(time.Second)
 				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
@@ -68,14 +68,27 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
 
 	cctx = NewContext(ctx, config.Genesis.Keyring(), config.TmConfig, config.Genesis.ChainID, config.AppConfig.API.Address)
 	cctx.tmNode = tmNode
 
+	// Build up cleanup incrementally so that if a later step fails, the
+	// returned cleanup function tears down all previously acquired resources.
+	cleanup = func() {
+		t.Log("tearing down testnode")
+		cancel()
+	}
+
 	cctx, stopNode, err := StartNode(tmNode, cctx)
 	if err != nil {
 		return Context{}, "", "", cleanup, err
+	}
+	cleanupCancel := cleanup
+	cleanup = func() {
+		cleanupCancel()
+		if err := stopNode(); err != nil {
+			t.Logf("error stopping node %v", err)
+		}
 	}
 
 	coreEnv, err := tmNode.ConfigureRPC()
@@ -87,30 +100,22 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	if err != nil {
 		return Context{}, "", "", cleanup, err
 	}
+	cleanupNode := cleanup
+	cleanup = func() {
+		cleanupNode()
+		if err := cleanupGRPC(); err != nil {
+			t.Logf("error when cleaning up GRPC %v", err)
+		}
+	}
 
 	apiServer, err := StartAPIServer(app, *config.AppConfig, cctx, grpcServer)
 	if err != nil {
 		return Context{}, "", "", cleanup, err
 	}
-
+	cleanupGRPCServer := cleanup
 	cleanup = func() {
-		t.Log("tearing down testnode")
-		err := stopNode()
-		if err != nil {
-			// the test has already completed so log the error instead of
-			// failing the test.
-			t.Logf("error stopping node %v", err)
-		}
-		err = cleanupGRPC()
-		if err != nil {
-			// the test has already completed so just log the error instead of
-			// failing the test.
-			t.Logf("error when cleaning up GRPC %v", err)
-		}
-		err = apiServer.Close()
-		if err != nil {
-			// the test has already completed so just log the error instead of
-			// failing the test.
+		cleanupGRPCServer()
+		if err := apiServer.Close(); err != nil {
 			t.Logf("error when closing API server %v", err)
 		}
 	}

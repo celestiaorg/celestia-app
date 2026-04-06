@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"encoding/hex"
 	"math/rand"
 	"sort"
 	"sync"
@@ -18,7 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -27,8 +26,6 @@ import (
 )
 
 func TestPriorityTestSuite(t *testing.T) {
-	t.Skip("TODO: skipping test until prioritisation available in core")
-
 	if testing.Short() {
 		t.Skip("skipping app/test/priority_test in short mode.")
 	}
@@ -78,11 +75,11 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	require.NoError(t, err)
 	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	wg := &sync.WaitGroup{}
-	r := random.New()
 	for _, accName := range s.accountNames {
 		wg.Go(func() {
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
+			r := random.New()
 			blobs := blobfactory.ManyBlobs(r, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
 			resp, err := s.txClient.BroadcastPayForBlobWithAccount(
 				s.cctx.GoContext(),
@@ -106,10 +103,8 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	// note: use rpc types because they contain the tx index
 	heightMap := make(map[int64][]*rpctypes.ResultTx)
 	for hash := range hashes {
-		// use the core rpc type because it contains the tx index
-		hash, err := hex.DecodeString(hash)
-		require.NoError(t, err)
-		coreRes, err := s.cctx.Client.Tx(s.cctx.GoContext(), hash, false)
+		// use WaitForTx to poll until the tx is indexed
+		coreRes, err := s.cctx.WaitForTx(hash, 10)
 		require.NoError(t, err)
 		heightMap[coreRes.Height] = append(heightMap[coreRes.Height], coreRes)
 	}
@@ -140,7 +135,7 @@ func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx {
 
 func isSortedByFee(t *testing.T, ecfg encoding.Config, responses []*rpctypes.ResultTx) bool {
 	for i := 0; i < len(responses)-1; i++ {
-		if getGasPrice(t, ecfg, responses[i]) <= getGasPrice(t, ecfg, responses[i+1]) {
+		if getGasPrice(t, ecfg, responses[i]) < getGasPrice(t, ecfg, responses[i+1]) {
 			return false
 		}
 	}

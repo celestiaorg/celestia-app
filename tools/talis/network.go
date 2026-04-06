@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmtos "github.com/cometbft/cometbft/libs/os"
@@ -86,9 +86,9 @@ func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
 // AddValidator adds a validator to the network. The validator is identified by
 // its name which is assigned by pulumi as hardware is allocated. An additional
 // account and keyring are saved to the payload directory that can be used by
-// txsim.
+// txsim. Pre-funded fibre accounts are also created for each validator.
 // if the stake is set to 0, a default value is used.
-func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64) error {
+func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64, fibreAccounts int) error {
 	n.validators[name] = NodeInfo{
 		Name:   name,
 		IP:     ip,
@@ -124,33 +124,37 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 		return err
 	}
 
-	key, _, err := kr.NewMnemonic("txsim", keyring.English, "", "", hd.Secp256k1)
-	if err != nil {
+	if err := addFundedAccount(kr, n.genesis, "txsim"); err != nil {
 		return err
 	}
 
+	fmt.Printf("creating %d fibre accounts\n", fibreAccounts)
+	for i := range fibreAccounts {
+		if err := addFundedAccount(kr, n.genesis, fmt.Sprintf("fibre-%d", i)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// addFundedAccount creates a new key in the local keyring and registers it as a
+// funded account in genesis. The key lives in the validator's keyring so the
+// binary (txsim, fibre-txsim) can sign transactions at runtime.
+func addFundedAccount(kr keyring.Keyring, g *genesis.Genesis, name string) error {
+	key, _, err := kr.NewMnemonic(name, keyring.English, "", "", hd.Secp256k1)
+	if err != nil {
+		return err
+	}
 	pk, err := key.GetPubKey()
 	if err != nil {
 		return err
 	}
-
-	addr, err := key.GetAddress()
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("adding txsim account", addr.String())
-
-	err = n.genesis.AddAccount(genesis.Account{
+	return g.AddAccount(genesis.Account{
 		PubKey:  pk,
 		Balance: 9999999999999999,
-		Name:    "txsim",
+		Name:    name,
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (n *Network) Peers() []string {

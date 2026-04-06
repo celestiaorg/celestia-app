@@ -2,7 +2,11 @@ package da
 
 import (
 	"bytes"
+	"encoding/base64"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"testing"
@@ -10,9 +14,15 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	appconstsv5 "github.com/celestiaorg/celestia-app/v8/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
-	sh "github.com/celestiaorg/go-square/v3/share"
+	squarev4 "github.com/celestiaorg/go-square/v4"
+	sh "github.com/celestiaorg/go-square/v4/share"
+	gotx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/celestiaorg/rsmt2d"
+	"github.com/cosmos/btcutil/bech32"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -86,13 +96,13 @@ func TestMinDataAvailabilityHeaderBackwardsCompatibility(t *testing.T) {
 		extendSharesWithPool,
 		ExtendShares,
 	} {
-		dahv3 := MinDataAvailabilityHeader()
+		dahv4 := MinDataAvailabilityHeader()
 		shareV2 := sharev2.ToBytes(sharev2.TailPaddingShares(appconsts.MinShareCount))
 		eds, err := extendShares(shareV2)
 		require.NoError(t, err)
 		dahV2, err := NewDataAvailabilityHeader(eds)
 		require.NoError(t, err)
-		require.Equal(t, dahv3.hash, dahV2.hash)
+		require.Equal(t, dahv4.hash, dahV2.hash)
 	}
 }
 
@@ -336,7 +346,7 @@ func TestSquareSize(t *testing.T) {
 
 func TestConstructEDS_Versions(t *testing.T) {
 	minAppVersion := uint64(0)
-	maxAppVersion := appconsts.Version + 1 // even future versions won't error and assume compatibility with v3
+	maxAppVersion := appconsts.Version + 1 // even future versions won't error and assume compatibility with v4
 	for appVersion := minAppVersion; appVersion <= maxAppVersion; appVersion++ {
 		t.Run(fmt.Sprintf("app version %d", appVersion), func(t *testing.T) {
 			for _, constructEDS := range []constructFunc{
@@ -434,6 +444,137 @@ func sortByteArrays(arr [][]byte) {
 	sort.Slice(arr, func(i, j int) bool {
 		return bytes.Compare(arr[i], arr[j]) < 0
 	})
+}
+
+// TestConstructEDS_RealBlocks verifies that ConstructEDS produces a data
+// availability header whose hash matches the on-chain data hash for real
+// blocks from Celestia mainnet and Mocha testnet. This ensures that the
+// go-square version used for each app version is correct and consensus-compatible.
+func TestConstructEDS_RealBlocks(t *testing.T) {
+	files := []string{
+		"testdata/mainnet_block_10126899.json", // app version 6, Celestia mainnet
+		"testdata/mocha_block_10383867.json",   // app version 7, Mocha testnet
+	}
+
+	for _, file := range files {
+		data, err := os.ReadFile(file)
+		require.NoError(t, err)
+
+		var block struct {
+			Height     int64    `json:"height"`
+			AppVersion uint64   `json:"app_version"`
+			DataHash   string   `json:"data_hash"`
+			SquareSize int      `json:"square_size"`
+			Txs        []string `json:"txs"`
+		}
+		require.NoError(t, json.Unmarshal(data, &block))
+
+		// Decode base64 txs.
+		txs := make([][]byte, len(block.Txs))
+		for i, b64 := range block.Txs {
+			txs[i], err = base64.StdEncoding.DecodeString(b64)
+			require.NoError(t, err)
+		}
+
+		// Decode expected data hash.
+		expectedHash, err := hex.DecodeString(block.DataHash)
+		require.NoError(t, err)
+
+		t.Run(fmt.Sprintf("height_%d_v%d", block.Height, block.AppVersion), func(t *testing.T) {
+			for _, construct := range []constructFunc{
+				constructEDSWithPool,
+				ConstructEDS,
+			} {
+				eds, err := construct(txs, block.AppVersion, block.SquareSize)
+				require.NoError(t, err)
+				require.NotNil(t, eds)
+
+				dah, err := NewDataAvailabilityHeader(eds)
+				require.NoError(t, err)
+				require.Equal(t, expectedHash, dah.Hash(),
+					"data hash mismatch for block %d (app version %d)", block.Height, block.AppVersion)
+			}
+		})
+	}
+}
+
+func TestConstructEDS_WithFibreTx(t *testing.T) {
+	fibreTx := buildMsgPayForFibreTxBytes(t)
+
+	type testCase struct {
+		name string
+		txs  [][]byte
+	}
+
+	testCases := []testCase{
+		{
+			name: "fibre tx only",
+			txs:  [][]byte{fibreTx},
+		},
+		{
+			name: "normal tx and fibre tx",
+			// squarev4.Construct requires ordering: normal txs, then blob txs, then fibre txs
+			txs: [][]byte{bytes.Repeat([]byte{0x01}, 200), fibreTx},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Verify that the data square contains PayForFibre namespace shares.
+			square, err := squarev4.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			require.NoError(t, err)
+			pffRange := sh.GetShareRangeForNamespace(square, sh.PayForFibreNamespace)
+			require.False(t, pffRange.IsEmpty(), "expected PayForFibreNamespace shares in square")
+
+			t.Run("without pool", func(t *testing.T) {
+				eds, err := ConstructEDS(tc.txs, appconsts.Version, -1)
+				require.NoError(t, err)
+				require.NotNil(t, eds)
+			})
+
+			t.Run("with pool", func(t *testing.T) {
+				eds, err := constructEDSWithPool(tc.txs, appconsts.Version, -1)
+				require.NoError(t, err)
+				require.NotNil(t, eds)
+			})
+		})
+	}
+}
+
+// buildMsgPayForFibreTxBytes constructs Cosmos SDK Tx proto bytes containing a
+// single MsgPayForFibre message. This replicates the pattern from
+// go-square/v4/internal/test.BuildMsgPayForFibreTxBytes which is not importable.
+func buildMsgPayForFibreTxBytes(t *testing.T) []byte {
+	t.Helper()
+	ns := sh.MustNewV0Namespace(bytes.Repeat([]byte{1}, sh.NamespaceVersionZeroIDSize))
+	signerRaw := bytes.Repeat([]byte{0xAA}, sh.SignerSize)
+	signer, err := bech32.EncodeFromBase256("celestia", signerRaw)
+	require.NoError(t, err)
+	commitment := bytes.Repeat([]byte{0xFF}, sh.FibreCommitmentSize)
+
+	msg := &fibretypes.MsgPayForFibre{
+		Signer: signer,
+		PaymentPromise: fibretypes.PaymentPromise{
+			Namespace:   ns.Bytes(),
+			BlobVersion: fibretypes.BlobVersionZero,
+			Commitment:  commitment,
+		},
+	}
+
+	anyMsg, err := codectypes.NewAnyWithValue(msg)
+	require.NoError(t, err)
+	// Verify the cosmos-sdk derived TypeURL matches the constant that
+	// TryParseFibreTx checks when parsing fibre transactions.
+	require.Equal(t, gotx.MsgPayForFibreTypeURL, anyMsg.TypeUrl,
+		"cosmos-sdk TypeURL must match the constant that TryParseFibreTx checks")
+
+	body := &cosmostx.TxBody{
+		Messages: []*codectypes.Any{anyMsg},
+	}
+	tx := &cosmostx.Tx{Body: body}
+	txBytes, err := tx.Marshal()
+	require.NoError(t, err)
+	return txBytes
 }
 
 // maxDataAvailabilityHeader returns a DataAvailabilityHeader with the maximum square

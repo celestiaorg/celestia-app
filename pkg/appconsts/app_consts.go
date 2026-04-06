@@ -19,6 +19,14 @@ const (
 	// SubtreeRootThreshold.
 	//
 	// The rationale for this value is described in more detail in ADR-013.
+	//
+	// WARNING: DO NOT MODIFY this value without cross-team coordination.
+	// SubtreeRootThreshold is hard-coded in clients (e.g. Lumina). Changing this
+	// value is a breaking change for those clients. Client upgrades are difficult
+	// to coordinate because they are deployed across many environments. At a
+	// minimum, changing SubtreeRootThreshold requires a new client release and
+	// deployment before the change takes effect on the network.
+	// See: https://github.com/celestiaorg/celestia-app/issues/6831
 	SubtreeRootThreshold  int    = 64
 	TxSizeCostPerByte     uint64 = 10
 	GasPerBlobByte        uint32 = 8
@@ -70,6 +78,8 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v8 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
+	// DefaultDBBackend is the default database backend for CometBFT.
+	DefaultDBBackend = "goleveldb"
 )
 
 // MinCommissionRate is 20%.

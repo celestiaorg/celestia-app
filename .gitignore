@@ -33,6 +33,7 @@ config.json
 memory-bank/*
 .clinerules
 tools/talis/talis
+talis-setup/
 .gocache
 .cache
 .gomodcache

@@ -20,7 +20,7 @@ import (
 	"os"
 	"strings"
 
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 )
 
 type blockResponse struct {

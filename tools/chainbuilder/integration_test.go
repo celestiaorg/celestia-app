@@ -57,8 +57,9 @@ func TestRun(t *testing.T) {
 	tmCfg := testnode.DefaultTendermintConfig()
 	tmCfg.SetRoot(cfg.ExistingDir)
 
-	appDB, err := tmdbm.NewDB("application", tmdbm.GoLevelDBBackend, tmCfg.DBDir())
+	appDB, err := tmdbm.NewDB("application", tmdbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = appDB.Close() })
 
 	app := app.New(
 		log.NewNopLogger(),

@@ -1,0 +1,27 @@
+name: test-coverage
+
+# Run on push to main to track coverage trends after merging. Coverage is not a
+# merge gate so it does not need to run on PRs or in the merge queue.
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Generate coverage.txt
+        run: make test-coverage
+
+      - name: Upload coverage.txt
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 #v6.0.0
+        with:
+          files: ./coverage.txt

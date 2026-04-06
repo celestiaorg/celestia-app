@@ -5,9 +5,9 @@ import (
 	"runtime"
 	"slices"
 
-	"github.com/celestiaorg/go-square/v3/inclusion"
-	"github.com/celestiaorg/go-square/v3/share"
-	"github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4/inclusion"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -123,6 +123,13 @@ func ValidateBlobTxSkipCommitment(txcfg client.TxEncodingConfig, bTx *tx.BlobTx)
 
 		if !bytes.Equal(bTx.Blobs[i].Namespace().Bytes(), msgPFBNamespace.Bytes()) {
 			return nil, ErrNamespaceMismatch.Wrapf("%v %v", bTx.Blobs[i].Namespace().Bytes(), msgPFB.Namespaces[i])
+		}
+	}
+
+	// check that the share versions in the blobTx match the share versions in the msgPFB
+	for i, blob := range bTx.Blobs {
+		if msgPFB.ShareVersions[i] != uint32(blob.ShareVersion()) {
+			return nil, ErrShareVersionMismatch.Wrapf("blob %d has share version %d but MsgPayForBlobs declares %d", i, blob.ShareVersion(), msgPFB.ShareVersions[i])
 		}
 	}
 

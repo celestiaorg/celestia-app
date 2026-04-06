@@ -12,7 +12,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v8/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	squarev4 "github.com/celestiaorg/go-square/v4"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -53,34 +55,35 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	blockHeader := ctx.BlockHeader()
 
 	var (
-		nonPFBMessageCount int
-		pfbMessageCount    int
+		sdkMessageCount int
+		pfbMessageCount int
+		pffMessageCount int
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
-		tx := rawTx
+		sdkTxBytes := rawTx
 
 		// all txs must be less than or equal to the max tx size limit
-		currentTxSize := len(tx)
+		currentTxSize := len(rawTx)
 		if currentTxSize > appconsts.MaxTxSize {
 			logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with tx %d", idx), errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes", currentTxSize, appconsts.MaxTxSize))
 			return reject(), nil
 		}
 
+		// BlobTx is the most common special type; check it first.
 		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
 				return reject(), nil
 			}
-			tx = blobTx.Tx
+			sdkTxBytes = blobTx.Tx
 		}
-		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(tx)
 
-		// Set the tx bytes in the context for app version v3 and greater
-		ctx = ctx.WithTxBytes(tx)
+		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
+		ctx = ctx.WithTxBytes(sdkTxBytes)
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
@@ -88,7 +91,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// handle non-blob transactions first
+		// Handle non-blob transactions. This includes MsgPayForFibre txs which are
+		// plain SDK txs (not wrapped in BlobTx). squarev4.Construct will detect
+		// MsgPayForFibre and synthesize system blobs when building the square.
 		if !isBlobTx {
 			msgs := sdkTx.GetMsgs()
 
@@ -99,10 +104,27 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			nonPFBMessageCount += len(msgs)
-			if nonPFBMessageCount > appconsts.MaxNonPFBMessages {
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max non-PFB message count of %d", appconsts.MaxNonPFBMessages))
+			// A PayForFibre tx must contain exactly one message: the MsgPayForFibre.
+			// This is consistent with BlobTx which requires exactly one MsgPayForBlobs.
+			pffCount := countMsgPayForFibre(sdkTx)
+			if pffCount > 1 || (pffCount == 1 && len(msgs) != 1) {
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))
 				return reject(), nil
+			}
+
+			// Count MsgPayForFibre messages separately from SDK messages.
+			if pffCount == 1 {
+				pffMessageCount++
+				if pffMessageCount > appconsts.MaxPayForFibreMessages {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", appconsts.MaxPayForFibreMessages))
+					return reject(), nil
+				}
+			} else {
+				sdkMessageCount += len(msgs)
+				if sdkMessageCount > appconsts.MaxSDKMessages {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
+					return reject(), nil
+				}
 			}
 
 			// we need to increment the sequence for every transaction so that
@@ -146,7 +168,14 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	eds, err := da.ConstructEDSWithTreePool(req.Txs, appconsts.Version, app.MaxEffectiveSquareSize(ctx), app.TreePool())
+	// Use squarev4.Construct which natively handles BlobTx and FibreTx.
+	dataSquare, err := squarev4.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
+		return reject(), nil
+	}
+
+	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
 		return reject(), nil

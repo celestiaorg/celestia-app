@@ -1,0 +1,7 @@
+syntax = "proto3";
+package celestia.valaddr.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/valaddr/types";
+
+// GenesisState defines the valaddr module's genesis state.
+message GenesisState {}

@@ -14,6 +14,8 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v8/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v8/x/fibre"
+	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v8/x/minfee"
@@ -21,6 +23,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v8/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v8/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v8/x/valaddr"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v8/x/zkism"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -89,10 +93,12 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	zkism.AppModule{},
 	// celestia
 	blob.AppModule{},
+	fibre.AppModule{},
 	forwarding.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
+	valaddr.AppModule{},
 }
 
 func (app *App) setModuleOrder() {
@@ -115,9 +121,11 @@ func (app *App) setModuleOrder() {
 		authz.ModuleName,
 		signaltypes.ModuleName,
 		minfeetypes.ModuleName,
+		fibretypes.ModuleName,
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		zkismtypes.ModuleName,
+		valaddrtypes.ModuleName,
 	)
 
 	app.ModuleManager.SetOrderPreBlockers(
@@ -144,8 +152,10 @@ func (app *App) setModuleOrder() {
 		vestingtypes.ModuleName,
 		signaltypes.ModuleName,
 		minfeetypes.ModuleName,
+		fibretypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
+		valaddrtypes.ModuleName,
 	)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -184,6 +194,8 @@ func (app *App) setModuleOrder() {
 		warptypes.ModuleName,
 		zkismtypes.ModuleName,
 		forwardingtypes.ModuleName,
+		fibretypes.ModuleName,
+		valaddrtypes.ModuleName,
 	)
 }
 
@@ -214,5 +226,7 @@ func allStoreKeys() []string {
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
 		zkismtypes.StoreKey,       // added in v7
+		valaddrtypes.StoreKey,     // added in v8
+		fibretypes.StoreKey,       // added in v8
 	}
 }

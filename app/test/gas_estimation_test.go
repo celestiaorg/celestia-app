@@ -18,7 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -20,8 +20,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	"github.com/celestiaorg/go-square/v3/share"
-	blobtx "github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4/share"
+	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -536,7 +536,7 @@ func (client *TxClient) handleSequenceMismatch(sequenceErr error, txBuilder clie
 		return false, err
 	}
 	if !strings.Contains(sequenceErr.Error(), sdkerrors.ErrWrongSequence.Error()) {
-		return false, nil
+		return false, sequenceErr
 	}
 
 	parsedErr := extractSequenceError(sequenceErr.Error())

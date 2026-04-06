@@ -119,6 +119,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
+			"celestia1zsknr6k4flpn3rhxe0acsathfsjurkk66hdwzj": true,
 		}
 		assert.Equal(t, want, got)
 	})
@@ -135,6 +136,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
+			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
@@ -164,6 +166,7 @@ func TestBlockedAddresses(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
+			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",

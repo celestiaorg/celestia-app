@@ -3,7 +3,6 @@ package user_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"net"
 	"strings"
@@ -523,6 +522,49 @@ func TestWithEstimatorService(t *testing.T) {
 	assert.Equal(t, uint64(70000), used)
 }
 
+// TestBroadcastTx_NonSequenceGasEstimationError verifies that when gas estimation
+// fails with a non-sequence error (e.g. network error), BroadcastTx returns the
+// error instead of silently swallowing it. Before the fix, handleSequenceMismatch
+// returned (false, nil) for non-sequence errors, causing BroadcastTx to return
+// (nil, nil), which led to nil pointer dereferences in callers accessing the
+// response's TxHash.
+func TestBroadcastTx_NonSequenceGasEstimationError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode.")
+	}
+
+	// Create a gas estimator that always returns a non-sequence error
+	// (simulating a network failure during gas estimation).
+	failingEstimator := setupEstimatorServiceWithErr(t, errors.New("connection refused"))
+
+	// Create a mock TxClient that uses the failing gas estimator.
+	// The broadcast handler doesn't matter since we'll never reach the
+	// broadcast step — gas estimation fails first.
+	handlers := []BroadcastHandler{nil}
+	mockTxClient, conns := setupTxClientWithMockServers(t, handlers, nil,
+		user.WithEstimatorService(failingEstimator.conn),
+	)
+	defer conns[0].Close()
+
+	msg := bank.NewMsgSend(
+		mockTxClient.DefaultAddress(),
+		mockTxClient.DefaultAddress(),
+		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Call BroadcastTx WITHOUT setting gas limit — this forces gas estimation,
+	// which will fail with "connection refused" (a non-sequence error).
+	// Before the fix: returned (nil, nil) causing nil dereference panics.
+	// After the fix: returns (nil, error) with the original error.
+	resp, err := mockTxClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	require.Error(t, err, "BroadcastTx must return an error when gas estimation fails with a non-sequence error")
+	require.Nil(t, resp)
+	require.Contains(t, err.Error(), "connection refused")
+}
+
 func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
 	addr := suite.txClient.DefaultAddress()
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -624,12 +666,17 @@ type mockEstimatorServer struct {
 	srv  *grpc.Server
 	conn *grpc.ClientConn
 	addr string
+	// estimateErr, if set, causes EstimateGasPriceAndUsage to return this error.
+	estimateErr error
 }
 
 func (m *mockEstimatorServer) EstimateGasPriceAndUsage(
-	context.Context,
-	*gasestimation.EstimateGasPriceAndUsageRequest,
+	_ context.Context,
+	_ *gasestimation.EstimateGasPriceAndUsageRequest,
 ) (*gasestimation.EstimateGasPriceAndUsageResponse, error) {
+	if m.estimateErr != nil {
+		return nil, m.estimateErr
+	}
 	return &gasestimation.EstimateGasPriceAndUsageResponse{
 		EstimatedGasPrice: 0.02,
 		EstimatedGasUsed:  70000,
@@ -641,20 +688,22 @@ func (m *mockEstimatorServer) stop() {
 }
 
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
+	return setupEstimatorServiceWithErr(t, nil)
+}
+
+func setupEstimatorServiceWithErr(t *testing.T, estimateErr error) *mockEstimatorServer {
 	t.Helper()
 
-	freePort, err := testnode.GetFreePort()
+	lis, err := net.Listen("tcp", ":0")
 	require.NoError(t, err)
-	addr := fmt.Sprintf(":%d", freePort)
-	net, err := net.Listen("tcp", addr)
-	require.NoError(t, err)
+	addr := lis.Addr().String()
 
 	grpcServer := grpc.NewServer()
-	mes := &mockEstimatorServer{srv: grpcServer, addr: addr}
+	mes := &mockEstimatorServer{srv: grpcServer, addr: addr, estimateErr: estimateErr}
 	gasestimation.RegisterGasEstimatorServer(grpcServer, mes)
 
 	go func() {
-		err := grpcServer.Serve(net)
+		err := grpcServer.Serve(lis)
 		if err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			panic(err)
 		}

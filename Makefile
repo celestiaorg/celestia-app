@@ -16,7 +16,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v8
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.25.7
+GOLANG_CROSS_VERSION  ?= v1.26.1
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -337,7 +337,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestTxClientTestSuite|TestEvictions|TestEstimateGasUsed|TestPrepareProposalCappingNumberOfMessages|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestBigBlobSuite|TestTxsimDefaultKeypath|TestGasEstimatorE2E|TestMintIntegrationTestSuite|TestSubmitPayForBlobWithEstimatorService|TestSendToSelfWithLargeFee|TestV2SubmitMethods|TestCLITestSuite"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestTxClientTestSuite|TestEvictions|TestEstimateGasUsed|TestPrepareProposalCappingNumberOfMessages|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestBigBlobSuite|TestTxsimDefaultKeypath|TestGasEstimatorE2E|TestMintIntegrationTestSuite|TestSubmitPayForBlobWithEstimatorService|TestSendToSelfWithLargeFee|TestV2SubmitMethods|TestCLITestSuite|TestClientServerUploadDownload|TestFibreE2ETestSuite"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -356,6 +356,19 @@ test-coverage:
 test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
+
+## build-fibre: Build the fibre binary into the ./build directory.
+build-fibre:
+	@mkdir -p build/
+	@echo "--> Building build/fibre"
+	@go build -o build/fibre ./fibre/cmd
+.PHONY: build-fibre
+
+## install-fibre: Build and install the fibre binary into the $GOPATH/bin directory.
+install-fibre:
+	@echo "--> Installing fibre"
+	@go build -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
+.PHONY: install-fibre
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
@@ -382,12 +395,14 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build celestia-appd, txsim, and Go latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
+## build-talis-bins: Build celestia-appd, txsim, latency-monitor, fibre, fibre-txsim, and talis binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins
 
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)

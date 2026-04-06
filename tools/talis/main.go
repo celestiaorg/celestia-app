@@ -32,6 +32,12 @@ func main() {
 		uploadDataCmd(),
 		killTmuxSessionCmd(),
 		resetCmd(),
+		setupFibreCmd(),
+		startFibreCmd(),
+		fibreTxsimCmd(),
+		fibreThroughputCmd(),
+		resourceMonitorCmd(),
+		downloadResourcesCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

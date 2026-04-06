@@ -14,7 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/go-square/v3/share"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"golang.org/x/sync/errgroup"
@@ -57,7 +57,7 @@ func RunLoadTest(cfg Config) error {
 	}
 
 	var (
-		txCounter            int64
+		txCounter            atomic.Int64
 		successfulBroadcasts atomic.Int64
 		successfulConfirms   atomic.Int64
 		failedConfirms       atomic.Int64
@@ -82,7 +82,7 @@ func RunLoadTest(cfg Config) error {
 					return fmt.Errorf("TxClient appears halted: no successful submission recently")
 				}
 
-				id := atomic.AddInt64(&txCounter, 1)
+				id := txCounter.Add(1)
 
 				// Separate goroutine for broadcasting and confirming txs
 				g.Go(func() error {

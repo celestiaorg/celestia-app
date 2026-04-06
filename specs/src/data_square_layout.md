@@ -33,7 +33,7 @@ Padding is addressed in the [padding section](#padding). Namespace C contains tw
 
 ### Ordering
 
-The order of blobs in a namespace is dictated by the priority of the PFBs that paid for the blob. A PFB with greater priority will have all blobs in that namespace strictly before a PFB with less priority. Priority is determined by the `gas-price` of the transaction (`fee`/`gas`).
+The order of blobs in a namespace is determined by the order that transactions are provided to `PrepareProposal`, which is the order they are reaped from the mempool. The CAT mempool groups transactions by signer and orders these groups by a gas-weighted average priority (where priority is derived from the `gas-price` = `fee`/`gas`). Within a signer's group, transactions are ordered by sequence number. As a result, blobs from a higher-priority signer group generally appear before blobs from a lower-priority group within the same namespace. However, this is not strict per-transaction priority ordering: if a single signer has transactions with varying gas prices, the averaging can cause a high-priority transaction to appear after a lower-priority transaction from a different signer (see [celestia-core CAT mempool](https://github.com/celestiaorg/celestia-core/blob/main/mempool/cat/pool.go) for details).
 
 ## Blob Share Commitment Rules
 

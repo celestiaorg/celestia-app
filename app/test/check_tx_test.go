@@ -17,8 +17,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3/share"
-	"github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -304,6 +304,41 @@ func TestCheckTx(t *testing.T) {
 
 			require.Equal(t, sigs[0].PubKey.Address().Bytes(), resp.Address)
 			require.Equal(t, sigs[0].Sequence, resp.Sequence)
+		})
+	}
+}
+
+// TestCheckTx_UnknownRequestType verifies that an unknown CheckTxType returns
+// an error response instead of panicking.
+func TestCheckTx_UnknownRequestType(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	namespace1, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, "a"))
+	signer := createSigner(t, kr, "a", encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+
+	// Create a valid blob transaction.
+	blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+		signer,
+		[]share.Namespace{namespace1},
+		[]int{100},
+	)[0]
+
+	unknownCheckTxTypes := []abci.CheckTxType{2, 99, -1}
+	for _, unknownType := range unknownCheckTxTypes {
+		t.Run(unknownType.String(), func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				resp, err := testApp.CheckTx(&abci.RequestCheckTx{
+					Type: unknownType,
+					Tx:   blobTxBytes,
+				})
+				require.Error(t, err)
+				assert.NotEqual(t, abci.CodeTypeOK, resp.Code)
+				assert.Contains(t, resp.Log, "unknown RequestCheckTx type")
+			})
 		})
 	}
 }

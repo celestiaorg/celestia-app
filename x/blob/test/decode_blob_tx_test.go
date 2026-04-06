@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v8/app"
 	"github.com/celestiaorg/celestia-app/v8/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/go-square/v3/tx"
+	"github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cometbft/cometbft/proto/tendermint/blocksync"
 	"github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
