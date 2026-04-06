@@ -23,8 +23,7 @@ ARG CELESTIA_VERSION_V4="v4.1.0"
 ARG CELESTIA_VERSION_V5="v5.0.12"
 ARG CELESTIA_VERSION_V6="v6.4.4"
 ARG CELESTIA_VERSION_V7="v7.0.2-mocha"
-# TODO(rach-id): change this to the correct version once it's deployed to mainnet
-ARG CELESTIA_VERSION_V8="v8.0.0"
+ARG CELESTIA_VERSION_V8="v8.0.1-mocha"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
