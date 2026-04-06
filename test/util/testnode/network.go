@@ -20,7 +20,7 @@ import (
 // addresses. Configured genesis options will be applied after all accounts have
 // been initialized.
 func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr string) {
-	return NewNetworkWithRetry(t, config, 3)
+	return NewNetworkWithRetry(t, config, 5)
 }
 
 // NewNetworkWithRetry creates a testnode network with port retry logic
@@ -34,7 +34,8 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 				cleanup()
 			}
 			if isPortBindingError(err) {
-				time.Sleep(time.Second)
+				t.Logf("port binding error on attempt %d/%d, retrying after %ds: %v", attempt+1, maxRetries, attempt+1, err)
+				time.Sleep(time.Duration(attempt+1) * time.Second)
 				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
