@@ -77,6 +77,10 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
 
+			if err := app.SetBlockMaxBytes(ctx, int64(appconsts.BlockMaxBytes)); err != nil {
+				return nil, fmt.Errorf("failed to set block max bytes: %w", err)
+			}
+
 			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
 				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
 				return nil, err
@@ -102,6 +106,24 @@ func (app App) RegisterUpgradeHandlers() {
 		// configure store loader that checks if version == upgradeHeight and applies store upgrades
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
+}
+
+// SetBlockMaxBytes updates the consensus parameter Block.MaxBytes.
+func (app App) SetBlockMaxBytes(ctx context.Context, maxBytes int64) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get consensus params", "err", err)
+		return err
+	}
+	params.Block.MaxBytes = maxBytes
+	sdkCtx.Logger().Info("setting block max bytes", "maxBytes", maxBytes)
+	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, params); err != nil {
+		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
+		return err
+	}
+	return nil
 }
 
 // SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
