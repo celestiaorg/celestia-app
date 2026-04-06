@@ -6,7 +6,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util"
 	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
 	tmdb "github.com/cosmos/cosmos-db"
