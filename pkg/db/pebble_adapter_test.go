@@ -5,12 +5,7 @@ import (
 
 	cdb "github.com/cometbft/cometbft-db"
 	"github.com/stretchr/testify/require"
-	tmdb "github.com/tendermint/tm-db"
 )
-
-func TestPebbleDBWrapperSatisfiesTMDB(t *testing.T) {
-	var _ tmdb.DB = (*PebbleDBWrapper)(nil)
-}
 
 func TestIteratorCopiesKeyAndValue(t *testing.T) {
 	dir := t.TempDir()
