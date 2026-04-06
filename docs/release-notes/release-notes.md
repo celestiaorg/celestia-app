@@ -8,6 +8,12 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Node operators MUST upgrade their binary to this version prior to the v8 activation height.
 
+#### Prerequisites
+
+##### Minimum OS Version
+
+The v8 multiplexer embeds a v7 binary that was compiled against glibc >= 2.38, which means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error. If you encounter this, upgrade your host OS before proceeding with the v8 upgrade.
+
 #### Upgrade Handler
 
 The upgrade handler re-applies the commission rate migrations from v7 (min 20%, max 60%) to ensure validators that upgraded directly from v6 are compliant. These migrations are idempotent — validators already compliant from v7 are unaffected.
