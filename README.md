@@ -83,6 +83,8 @@ See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app
 
 ### Prerequisites
 
+If you are using the multiplexer binary (default `make build`), the embedded v7 binary requires glibc >= 2.38. This means **Ubuntu 24.04 or later** (or an equivalent distribution).
+
 If you are on Linux, enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
 ```shell
