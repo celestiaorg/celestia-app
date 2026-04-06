@@ -1,6 +1,8 @@
 package db
 
 import (
+	"slices"
+
 	cdb "github.com/cometbft/cometbft-db"
 	tmdb "github.com/tendermint/tm-db"
 )
@@ -32,65 +34,27 @@ type PebbleDBWrapper struct {
 
 var _ tmdb.DB = (*PebbleDBWrapper)(nil)
 
-func (w *PebbleDBWrapper) Get(key []byte) ([]byte, error) {
-	return w.Get(key)
-}
-
-func (w *PebbleDBWrapper) Has(key []byte) (bool, error) {
-	return w.Has(key)
-}
-
-func (w *PebbleDBWrapper) Set(key, value []byte) error {
-	return w.Set(key, value)
-}
-
-func (w *PebbleDBWrapper) SetSync(key, value []byte) error {
-	return w.SetSync(key, value)
-}
-
-func (w *PebbleDBWrapper) Delete(key []byte) error {
-	return w.Delete(key)
-}
-
-func (w *PebbleDBWrapper) DeleteSync(key []byte) error {
-	return w.DeleteSync(key)
-}
-
-func (w *PebbleDBWrapper) Close() error {
-	return w.Close()
-}
-
+// NewBatch wraps the inner batch to return a tm-db Batch.
 func (w *PebbleDBWrapper) NewBatch() tmdb.Batch {
-	return &batchWrapper{w.NewBatch()}
+	return &batchWrapper{w.DB.NewBatch()}
 }
 
+// Iterator wraps the inner iterator to copy Key/Value on each call.
 func (w *PebbleDBWrapper) Iterator(start, end []byte) (tmdb.Iterator, error) {
-	itr, err := w.Iterator(start, end)
+	itr, err := w.DB.Iterator(start, end)
 	if err != nil {
 		return nil, err
 	}
 	return &iteratorWrapper{itr}, nil
 }
 
+// ReverseIterator wraps the inner iterator to copy Key/Value on each call.
 func (w *PebbleDBWrapper) ReverseIterator(start, end []byte) (tmdb.Iterator, error) {
-	itr, err := w.ReverseIterator(start, end)
+	itr, err := w.DB.ReverseIterator(start, end)
 	if err != nil {
 		return nil, err
 	}
 	return &iteratorWrapper{itr}, nil
-}
-
-func (w *PebbleDBWrapper) Print() error {
-	return w.Print()
-}
-
-func (w *PebbleDBWrapper) Stats() map[string]string {
-	return w.Stats()
-}
-
-// Compact triggers manual compaction on the underlying database.
-func (w *PebbleDBWrapper) Compact(start, end []byte) error {
-	return w.Compact(start, end)
 }
 
 // batchWrapper adapts a cometbft-db Batch to the tm-db Batch interface.
@@ -99,26 +63,6 @@ type batchWrapper struct {
 }
 
 var _ tmdb.Batch = (*batchWrapper)(nil)
-
-func (b *batchWrapper) Set(key, value []byte) error {
-	return b.Set(key, value)
-}
-
-func (b *batchWrapper) Delete(key []byte) error {
-	return b.Delete(key)
-}
-
-func (b *batchWrapper) Write() error {
-	return b.Write()
-}
-
-func (b *batchWrapper) WriteSync() error {
-	return b.WriteSync()
-}
-
-func (b *batchWrapper) Close() error {
-	return b.Close()
-}
 
 // iteratorWrapper adapts a cometbft-db Iterator to the tm-db Iterator
 // interface. Key() and Value() copy the returned slices because PebbleDB
@@ -131,40 +75,14 @@ type iteratorWrapper struct {
 var _ tmdb.Iterator = (*iteratorWrapper)(nil)
 
 func (i *iteratorWrapper) Domain() (start []byte, end []byte) {
-	s, e := i.Domain()
-	return cp(s), cp(e)
-}
-
-func (i *iteratorWrapper) Valid() bool {
-	return i.Valid()
-}
-
-func (i *iteratorWrapper) Next() {
-	i.Next()
+	s, e := i.Iterator.Domain()
+	return slices.Clone(s), slices.Clone(e)
 }
 
 func (i *iteratorWrapper) Key() []byte {
-	return cp(i.Key())
+	return slices.Clone(i.Iterator.Key())
 }
 
 func (i *iteratorWrapper) Value() []byte {
-	return cp(i.Value())
-}
-
-func (i *iteratorWrapper) Error() error {
-	return i.Error()
-}
-
-func (i *iteratorWrapper) Close() error {
-	return i.Close()
-}
-
-// cp returns a copy of a byte slice. Returns nil for nil input.
-func cp(bz []byte) []byte {
-	if bz == nil {
-		return nil
-	}
-	out := make([]byte, len(bz))
-	copy(out, bz)
-	return out
+	return slices.Clone(i.Iterator.Value())
 }
