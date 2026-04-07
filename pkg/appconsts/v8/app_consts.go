@@ -8,7 +8,7 @@ const (
 	// WARNING: DO NOT MODIFY. See pkg/appconsts/app_consts.go for details.
 	SubtreeRootThreshold int = 64
 	// TimeoutPropose is the duration a proposer has to propose a block.
-	TimeoutPropose = time.Millisecond * 4500
+	TimeoutPropose = time.Millisecond * 8500
 	// TimeoutProposeDelta is the increase in timeout propose per round.
 	TimeoutProposeDelta = time.Millisecond * 500
 	// TimeoutPrevote is the duration a node waits for a prevote.
@@ -23,5 +23,5 @@ const (
 	TimeoutCommit = time.Millisecond
 	// DelayedPrecommitTimeout is the time after a delayed precommit before
 	// the node proceeds.
-	DelayedPrecommitTimeout = time.Millisecond * 2790
+	DelayedPrecommitTimeout = time.Millisecond * 5850
 )
