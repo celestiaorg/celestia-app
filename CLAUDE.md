@@ -76,3 +76,7 @@ All branches use forked cosmos-sdk and celestia-core:
 1. **Multi-module repo**: Copy `go.work.example` to `go.work` and run `go work sync`
 2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `feat!:` for breaking changes)
 3. **Validate inputs** in message handlers; be cautious with arithmetic overflow and gas consumption
+
+## Security PRs
+
+- For PRs that resolve Hacken bug bounty reports, do not include details about the bug in the PR description. Instead, link to a Linear issue that contains more details on the bug and the link to the Hacken bug bounty report.
