@@ -78,8 +78,6 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v8 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
-	// DefaultDBBackend is the default database backend for CometBFT.
-	DefaultDBBackend = "goleveldb"
 )
 
 // MinCommissionRate is 20%.
