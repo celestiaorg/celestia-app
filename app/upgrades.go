@@ -8,9 +8,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -96,15 +94,14 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{
-				fibretypes.StoreKey,
-				valaddrtypes.StoreKey,
-			},
+		added := fibreUpgradeStoreKeys()
+		if len(added) > 0 {
+			storeUpgrades := storetypes.StoreUpgrades{
+				Added: added,
+			}
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 		}
-
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
 }
 

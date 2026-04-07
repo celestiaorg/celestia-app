@@ -22,6 +22,7 @@ V2_UPGRADE_HEIGHT ?= 0
 
 BUILD_TAGS_STANDALONE := ledger
 BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
+BUILD_TAGS_FIBRE := ledger,fibre
 
 LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v8/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
@@ -29,6 +30,8 @@ LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version
 
 BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
 BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
+LDFLAGS_FIBRE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_FIBRE)
+BUILD_FLAGS_FIBRE := -tags=$(BUILD_TAGS_FIBRE) -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
@@ -55,6 +58,13 @@ build-standalone: mod
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-standalone
 
+## build-fibre: Build the celestia-appd binary with fibre module enabled.
+build-fibre: mod
+	@mkdir -p build/
+	@echo "--> Building build/celestia-appd with fibre enabled"
+	@go build $(BUILD_FLAGS_FIBRE) -o build/celestia-appd ./cmd/celestia-appd
+.PHONY: build-fibre
+
 DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
@@ -75,6 +85,12 @@ install-standalone:
 	@echo "--> Installing celestia-appd"
 	@go install $(BUILD_FLAGS_STANDALONE) ./cmd/celestia-appd
 .PHONY: install-standalone
+
+## install-fibre: Build and install celestia-appd with fibre module enabled into the $GOPATH/bin directory.
+install-fibre:
+	@echo "--> Installing celestia-appd with fibre support"
+	@go install $(BUILD_FLAGS_FIBRE) ./cmd/celestia-appd
+.PHONY: install-fibre
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
@@ -326,6 +342,13 @@ test-docker-e2e-upgrade-all:
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade-all
 
+## test-fibre-module: Run fibre-tagged unit and integration tests.
+test-fibre-module:
+	@echo "--> Running fibre-tagged tests"
+	@go test -tags fibre -timeout 30m ./app/ ./pkg/da/
+	@go test -tags fibre -timeout 30m -run "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestStandardSDKIntegrationTestSuite/TestFibreProviderTxAndQuery" ./app/test/
+.PHONY: test-fibre-module
+
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries
 	@echo "--> Running multiplexer tests"
@@ -357,18 +380,18 @@ test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
 
-## build-fibre: Build the fibre binary into the ./build directory.
-build-fibre:
+## build-fibre-server: Build the fibre server binary into the ./build directory.
+build-fibre-server:
 	@mkdir -p build/
 	@echo "--> Building build/fibre"
 	@go build -o build/fibre ./fibre/cmd
-.PHONY: build-fibre
+.PHONY: build-fibre-server
 
-## install-fibre: Build and install the fibre binary into the $GOPATH/bin directory.
-install-fibre:
-	@echo "--> Installing fibre"
+## install-fibre-server: Build and install the fibre server binary into the $GOPATH/bin directory.
+install-fibre-server:
+	@echo "--> Installing fibre server"
 	@go build -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
-.PHONY: install-fibre
+.PHONY: install-fibre-server
 
 ## txsim-install: Install the tx simulator.
 txsim-install:
@@ -404,6 +427,16 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins
+
+## build-talis-bins-fibre: Same as build-talis-bins but with the fibre module enabled in celestia-appd.
+build-talis-bins-fibre:
+	mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+.PHONY: build-talis-bins-fibre
 
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
 build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)

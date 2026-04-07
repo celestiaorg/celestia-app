@@ -119,7 +119,9 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
-			"celestia1zsknr6k4flpn3rhxe0acsathfsjurkk66hdwzj": true,
+		}
+		for _, name := range app.FibreModuleAccountNames() {
+			want[authtypes.NewModuleAddress(name).String()] = true
 		}
 		assert.Equal(t, want, got)
 	})
@@ -127,7 +129,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 		testApp := getTestApp()
 		got := testApp.ModuleAccountAddrs()
 
-		moduleNames := []string{
+		moduleNames := append([]string{ //nolint:prealloc
 			"fee_collector",
 			"distribution",
 			"gov",
@@ -136,11 +138,10 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
-			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}
+		}, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
@@ -158,7 +159,7 @@ func TestBlockedAddresses(t *testing.T) {
 		assert.NotContains(t, got, govAddress)
 	})
 	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
-		moduleNames := []string{
+		moduleNames := append([]string{ //nolint:prealloc
 			"fee_collector",
 			"distribution",
 			"mint",
@@ -166,11 +167,10 @@ func TestBlockedAddresses(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
-			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}
+		}, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)

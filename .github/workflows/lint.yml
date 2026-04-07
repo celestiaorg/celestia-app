@@ -22,6 +22,8 @@ jobs:
             go.sum
       - run: go tool golangci-lint run --timeout 10m
         if: env.GIT_DIFF
+      - run: go tool golangci-lint run --timeout 10m --build-tags fibre
+        if: env.GIT_DIFF
 
   hadolint:
     runs-on: ubuntu-latest

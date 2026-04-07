@@ -14,8 +14,6 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v8/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v8/x/forwarding"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v8/x/minfee"
@@ -23,8 +21,6 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v8/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v8/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v8/x/valaddr"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v8/x/zkism"
 	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -93,12 +89,14 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	zkism.AppModule{},
 	// celestia
 	blob.AppModule{},
-	fibre.AppModule{},
 	forwarding.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
-	valaddr.AppModule{},
+}
+
+func init() {
+	ModuleEncodingRegisters = append(ModuleEncodingRegisters, fibreEncodingRegisters()...)
 }
 
 func (app *App) setModuleOrder() {
@@ -106,7 +104,7 @@ func (app *App) setModuleOrder() {
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	app.ModuleManager.SetOrderBeginBlockers(
+	beginBlockers := []string{ //nolint:prealloc
 		capabilitytypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
@@ -121,18 +119,18 @@ func (app *App) setModuleOrder() {
 		authz.ModuleName,
 		signaltypes.ModuleName,
 		minfeetypes.ModuleName,
-		fibretypes.ModuleName,
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		zkismtypes.ModuleName,
-		valaddrtypes.ModuleName,
-	)
+	}
+	beginBlockers = append(beginBlockers, fibreBeginBlockers()...)
+	app.ModuleManager.SetOrderBeginBlockers(beginBlockers...)
 
 	app.ModuleManager.SetOrderPreBlockers(
 		upgradetypes.ModuleName,
 	)
 
-	app.ModuleManager.SetOrderEndBlockers(
+	endBlockers := []string{ //nolint:prealloc
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
 		capabilitytypes.ModuleName,
@@ -152,11 +150,11 @@ func (app *App) setModuleOrder() {
 		vestingtypes.ModuleName,
 		signaltypes.ModuleName,
 		minfeetypes.ModuleName,
-		fibretypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
-		valaddrtypes.ModuleName,
-	)
+	}
+	endBlockers = append(endBlockers, fibreEndBlockers()...)
+	app.ModuleManager.SetOrderEndBlockers(endBlockers...)
 
 	// NOTE: The genutils module must occur after staking so that pools are
 	// properly initialized with tokens from genesis accounts.
@@ -165,7 +163,7 @@ func (app *App) setModuleOrder() {
 	// can do so safely.
 	// NOTE: The minfee module must occur before genutil so DeliverTx can
 	// successfully pass the fee checking logic
-	app.ModuleManager.SetOrderInitGenesis(
+	initGenesis := []string{ //nolint:prealloc
 		capabilitytypes.ModuleName,
 		consensustypes.ModuleName,
 		authtypes.ModuleName,
@@ -194,13 +192,14 @@ func (app *App) setModuleOrder() {
 		warptypes.ModuleName,
 		zkismtypes.ModuleName,
 		forwardingtypes.ModuleName,
-		fibretypes.ModuleName,
-		valaddrtypes.ModuleName,
-	)
+	}
+	initGenesis = append(initGenesis, fibreInitGenesisModules()...)
+	app.ModuleManager.SetOrderInitGenesis(initGenesis...)
+	app.ModuleManager.SetOrderExportGenesis(initGenesis...)
 }
 
 func allStoreKeys() []string {
-	return []string{
+	keys := []string{ //nolint:prealloc
 		authtypes.StoreKey,
 		authzkeeper.StoreKey,
 		banktypes.StoreKey,
@@ -226,7 +225,7 @@ func allStoreKeys() []string {
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
 		zkismtypes.StoreKey,       // added in v7
-		valaddrtypes.StoreKey,     // added in v8
-		fibretypes.StoreKey,       // added in v8
 	}
+	keys = append(keys, fibreStoreKeys()...)
+	return keys
 }

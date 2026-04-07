@@ -13,3 +13,13 @@ jobs:
           go-version-file: "go.mod"
       - name: build
         run: make build
+  build-fibre:
+    name: build-fibre
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+      - name: build with fibre
+        run: make build-fibre
