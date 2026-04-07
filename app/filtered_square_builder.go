@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
@@ -150,62 +149,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		m++
 	}
 
-	// Process pay-for-fibre transactions: synthesize system blob, validate, append to builder.
-	// Plain SDK tx bytes are returned unchanged so that the tx hash is stable: the hash the
-	// client used to submit the tx is the same hash committed in the block, allowing ConfirmTx
-	// to work.
-	var pffMessageCount int
-	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
-	for _, rawTx := range payForFibreTxs {
-		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
-		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so fibreTx is always non-nil.
-		fibreTx, err := tx.TryParseFibreTx(rawTx)
-		if err != nil {
-			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
-
-		sdkTx, err := dec(rawTx)
-		if err != nil {
-			logger.Error("decoding pay-for-fibre transaction", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
-
-		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPayForFibreMessages {
-			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-			continue
-		}
-
-		ctx = ctx.WithTxBytes(rawTx)
-
-		ok, err := fsb.builder.AppendFibreTx(fibreTx)
-		if err != nil {
-			logger.Error("appending pay-for-fibre transaction to builder", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
-			continue
-		}
-		if !ok {
-			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-			continue
-		}
-
-		ctx, err = fsb.handler(ctx, sdkTx, false)
-		if err != nil {
-			logger.Error(
-				"filtering already checked pay-for-fibre transaction",
-				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
-				"error", err,
-				"msgs", msgTypes(sdkTx),
-			)
-			telemetry.IncrCounter(1, "prepare_proposal", "invalid_pay_for_fibre_txs")
-			if revertErr := fsb.builder.RevertLastPayForFibreTx(); revertErr != nil {
-				logger.Error("reverting last pay-for-fibre transaction", "error", revertErr)
-			}
-			continue
-		}
-
-		pffMessageCount += len(sdkTx.GetMsgs())
-		fibreTxs = append(fibreTxs, rawTx)
-	}
+	// Process pay-for-fibre transactions (no-op when fibre build tag is disabled).
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
@@ -241,6 +186,9 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 //   - transactions that fail SDK decoding
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
+//
+// When the fibre build tag is not set, countMsgPayForFibre always returns 0, so
+// the payForFibreTxs slice is always empty.
 func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
@@ -271,30 +219,19 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 			continue
 		}
 
+		// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
+		// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
 		pffCount := countMsgPayForFibre(sdkTx)
 		if pffCount == 1 && len(sdkTx.GetMsgs()) == 1 {
-			// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
-			// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
 			payForFibreTxs = append(payForFibreTxs, rawTx)
 			continue
 		}
 		if pffCount > 0 {
-			// Skip invalid txs: multiple MsgPayForFibre or MsgPayForFibre mixed with other messages.
+			// Drop invalid txs: multiple MsgPayForFibre or mixed with other messages.
 			continue
 		}
 
 		normalTxs = append(normalTxs, rawTx)
 	}
 	return normalTxs, blobTxs, payForFibreTxs
-}
-
-// countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
-func countMsgPayForFibre(sdkTx sdk.Tx) int {
-	count := 0
-	for _, msg := range sdkTx.GetMsgs() {
-		if _, ok := msg.(*fibretypes.MsgPayForFibre); ok {
-			count++
-		}
-	}
-	return count
 }

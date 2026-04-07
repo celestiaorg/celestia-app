@@ -37,7 +37,8 @@ jobs:
           - package: "github.com/celestiaorg/celestia-app/v9/test/txsim"
           - package: "github.com/celestiaorg/celestia-app/v9/pkg/user"
           - package: "github.com/celestiaorg/celestia-app/v9/test/ledger"
-          - package: "github.com/celestiaorg/celestia-app/v9/fibre"
+          - package: "github.com/celestiaorg/celestia-app/v9/fibre/..."
+            tags: "fibre"
           - package: "github.com/celestiaorg/celestia-app/v9/tools/chainbuilder"
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
@@ -50,24 +51,43 @@ jobs:
         run: |
           if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
-            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v9/fibre$' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v9/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
           elif [ -n "${{ matrix.pattern }}" ]; then
             # run specific test patterns
             go test -timeout 30m -run "${{ matrix.pattern }}" ${{ matrix.package }}
+          elif [ -n "${{ matrix.tags }}" ]; then
+            # run with build tags
+            go test -tags "${{ matrix.tags }}" -timeout 30m ${{ matrix.package }}
           else
             # run specific package
             make test PACKAGES="${{ matrix.package }}"
           fi
 
+  test-fibre:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run fibre-tagged tests
+        run: make test-fibre-module
+
   test:
     runs-on: ubuntu-latest
-    needs: go-test
+    needs: [go-test, test-fibre]
     if: always()
     steps:
       - name: Check test results
         run: |
           if [ "${{ needs.go-test.result }}" != "success" ]; then
-            echo "One or more test jobs failed"
+            echo "One or more go-test jobs failed"
+            exit 1
+          fi
+          if [ "${{ needs.test-fibre.result }}" != "success" ]; then
+            echo "Fibre module test job failed"
             exit 1
           fi
           echo "All tests passed"

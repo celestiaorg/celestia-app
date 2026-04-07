@@ -58,6 +58,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
+		maxPFF          = maxPayForFibreMessages()
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -91,9 +92,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// Handle non-blob transactions. This includes MsgPayForFibre txs which are
-		// plain SDK txs (not wrapped in BlobTx). squarev4.Construct will detect
-		// MsgPayForFibre and synthesize system blobs when building the square.
+		// Handle non-blob transactions. When fibre build tag is enabled, this also
+		// validates MsgPayForFibre txs (plain SDK txs, not wrapped in BlobTx).
 		if !isBlobTx {
 			msgs := sdkTx.GetMsgs()
 
@@ -104,19 +104,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// A PayForFibre tx must contain exactly one message: the MsgPayForFibre.
-			// This is consistent with BlobTx which requires exactly one MsgPayForBlobs.
+			// When fibre build tag is enabled, validate MsgPayForFibre constraints.
 			pffCount := countMsgPayForFibre(sdkTx)
 			if pffCount > 1 || (pffCount == 1 && len(msgs) != 1) {
 				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))
 				return reject(), nil
 			}
 
-			// Count MsgPayForFibre messages separately from SDK messages.
 			if pffCount == 1 {
 				pffMessageCount++
-				if pffMessageCount > appconsts.MaxPayForFibreMessages {
-					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", appconsts.MaxPayForFibreMessages))
+				if maxPFF > 0 && pffMessageCount > maxPFF {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 					return reject(), nil
 				}
 			} else {
@@ -168,7 +166,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	// Use squarev4.Construct which natively handles BlobTx and FibreTx.
+	// Use squarev4.Construct which natively handles BlobTx (and FibreTx when enabled).
 	dataSquare, err := squarev4.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)

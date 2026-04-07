@@ -1,3 +1,5 @@
+//go:build fibre
+
 package e2e_test
 
 import (
