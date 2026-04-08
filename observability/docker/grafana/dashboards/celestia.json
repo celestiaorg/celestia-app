@@ -2023,7 +2023,7 @@
         "type": "prometheus",
         "uid": "prometheus"
       },
-      "description": "Tx success rate excluding insufficient-funds failures. Formula: (expired + evicted + successful) / (failed + expired + evicted + successful). Target: ≥99.9% under non-congested conditions.",
+      "description": "Tx success rate. Formula: (expired + evicted + successful) / (failed + expired + evicted + successful). Target: ≥99.9% under non-congested conditions.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2110,7 +2110,7 @@
           "refId": "A"
         }
       ],
-      "title": "Tx Success Rate by Node (excl. insufficient funds)",
+      "title": "Tx Success Rate by Node",
       "type": "timeseries"
     }
   ],
