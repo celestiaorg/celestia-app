@@ -15,14 +15,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func init() {
-	// The ibc-go testing framework hardcodes PartSetHeader.Total to 10_000 in
-	// CreateTMClientHeader. Raise MaxBlockPartsCount so the header passes
-	// ValidateBasic after the celestia-core security fix.
-	// TODO: remove after celestiaorg/ibc-go updates testing/chain.go to use MaxBlockPartsCount.
-	cmttypes.MaxBlockPartsCount = 10_000
-}
-
 // SetupTestingApp returns a simapp instance that has PFM wired up
 func SetupTestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
 	db := dbm.NewMemDB()
@@ -33,6 +25,12 @@ func SetupTestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
 func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 	*ibctesting.TestChain, *ibctesting.TestChain,
 ) {
+	// The ibc-go testing framework hardcodes PartSetHeader.Total to 10_000 in
+	// CreateTMClientHeader. Raise MaxBlockPartsCount so the header passes
+	// ValidateBasic after the celestia-core security fix.
+	// TODO: remove after celestiaorg/ibc-go updates testing/chain.go to use MaxBlockPartsCount.
+	cmttypes.MaxBlockPartsCount = 10_000
+
 	chains := make(map[string]*ibctesting.TestChain)
 	coordinator := &ibctesting.Coordinator{
 		T:           t,
