@@ -24,7 +24,7 @@ in the interface registry.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Create a temporary app instance to access the encoding config
 			opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
-			tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, opts)
+			tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, opts)
 			encConfig := tempApp.GetEncodingConfig()
 			registry := encConfig.InterfaceRegistry
 

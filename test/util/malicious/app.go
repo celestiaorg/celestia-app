@@ -53,7 +53,7 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
-	goodApp := app.New(logger, db, traceStore, 0, appOpts, baseAppOptions...)
+	goodApp := app.New(logger, db, traceStore, 0, 0, appOpts, baseAppOptions...)
 	badApp := &App{App: goodApp}
 
 	// set the malicious prepare proposal handler if it is set in the app options

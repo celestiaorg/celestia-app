@@ -183,19 +183,22 @@ func DefaultAppCreator(opts ...AppCreationOptions) srvtypes.AppCreator {
 		baseAppOptions := server.DefaultBaseappOptions(appOptions)
 		baseAppOptions = append(baseAppOptions, baseapp.SetMinGasPrices(fmt.Sprintf("%v%v", appconsts.DefaultMinGasPrice, appconsts.BondDenom)))
 
-		// Check for the new --block-time flag first, then fall back to deprecated --timeout-commit
-		var blockTime time.Duration
-		if blockTimeFromFlag := appOptions.Get(DelayedPrecommitTimeout); blockTimeFromFlag != nil {
-			blockTime = blockTimeFromFlag.(time.Duration)
-		} else if timeoutCommitFromFlag := appOptions.Get(TimeoutCommitFlag); timeoutCommitFromFlag != nil {
-			blockTime = timeoutCommitFromFlag.(time.Duration)
+		var delayedPrecommitTimeout time.Duration
+		if v := appOptions.Get(DelayedPrecommitTimeout); v != nil {
+			delayedPrecommitTimeout = v.(time.Duration)
+		}
+
+		var timeoutCommit time.Duration
+		if v := appOptions.Get(TimeoutCommitFlag); v != nil {
+			timeoutCommit = v.(time.Duration)
 		}
 
 		app := app.New(
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
-			blockTime,
+			delayedPrecommitTimeout,
+			timeoutCommit,
 			simtestutil.EmptyAppOptions{},
 			baseAppOptions...,
 		)
@@ -216,6 +219,7 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 			log.NewNopLogger(),
 			dbm.NewMemDB(),
 			nil, // trace store
+			0,   // delayed precommit timeout
 			0,   // timeout commit
 			simtestutil.EmptyAppOptions{},
 			appOptions...,

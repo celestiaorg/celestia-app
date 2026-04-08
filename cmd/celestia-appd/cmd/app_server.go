@@ -13,12 +13,14 @@ import (
 )
 
 func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions servertypes.AppOptions) servertypes.Application {
-	// Check for the new --delayed-precommit-timeout flag first, then fall back to deprecated --timeout-commit
 	var delayedPrecommitTimeout time.Duration
-	if delayedPrecommitTimeoutFromFlag := appOptions.Get(DelayedPrecommitTimeoutFlag); delayedPrecommitTimeoutFromFlag != nil {
-		delayedPrecommitTimeout = cast.ToDuration(delayedPrecommitTimeoutFromFlag)
-	} else if timeoutCommitFromFlag := appOptions.Get(TimeoutCommitFlag); timeoutCommitFromFlag != nil {
-		delayedPrecommitTimeout = cast.ToDuration(timeoutCommitFromFlag)
+	if v := appOptions.Get(DelayedPrecommitTimeoutFlag); v != nil {
+		delayedPrecommitTimeout = cast.ToDuration(v)
+	}
+
+	var timeoutCommit time.Duration
+	if v := appOptions.Get(TimeoutCommitFlag); v != nil {
+		timeoutCommit = cast.ToDuration(v)
 	}
 
 	return app.New(
@@ -26,6 +28,7 @@ func NewAppServer(logger log.Logger, db dbm.DB, traceStore io.Writer, appOptions
 		db,
 		traceStore,
 		delayedPrecommitTimeout,
+		timeoutCommit,
 		appOptions,
 		server.DefaultBaseappOptions(appOptions)...,
 	)

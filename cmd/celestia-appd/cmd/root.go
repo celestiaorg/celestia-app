@@ -32,9 +32,7 @@ const (
 	// application upgrade.
 	UpgradeHeightFlag = "v2-upgrade-height"
 
-	// TimeoutCommit is a flag that can be used to override the timeout_commit.
-	//
-	// Deprecated: Use DelayedPrecommitTimeoutFlag instead.
+	// TimeoutCommitFlag is a flag that can be used to override the timeout_commit.
 	TimeoutCommitFlag = "timeout-commit"
 
 	// DelayedPrecommitTimeoutFlag is a flag that can be used to override the DelayedPrecommitTimeout.
@@ -46,7 +44,7 @@ func NewRootCmd() *cobra.Command {
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
 	opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
-	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, opts)
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, opts)
 	encodingConfig := tempApp.GetEncodingConfig()
 
 	initClientContext := client.Context{}.
@@ -149,10 +147,6 @@ func addStartFlags(startCmd *cobra.Command) {
 	}
 
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
-	if err := startCmd.Flags().MarkDeprecated(TimeoutCommitFlag, "Use --delayed-precommit-timeout instead."); err != nil {
-		panic(err)
-	}
-
 	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")

@@ -25,10 +25,10 @@ func TestUpgrades(t *testing.T) {
 		logger := log.NewNopLogger()
 		db := tmdb.NewMemDB()
 		traceStore := &NoopWriter{}
-		timeoutCommit := time.Second
+		delayedPrecommitTimeout := time.Second
 		appOptions := NoopAppOptions{}
 
-		testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
+		testApp := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v8"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))

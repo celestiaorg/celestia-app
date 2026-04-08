@@ -41,7 +41,7 @@ func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 	// modify ibctesting package to return celestia as the next app when calling ibctesting.NewTestChain
 	ibctesting.DefaultTestingAppInit = func() (ibctesting.TestingApp, map[string]json.RawMessage) {
 		db := dbm.NewMemDB()
-		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, simtestutil.EmptyAppOptions{})
+		celestiaApp := app.New(log.NewNopLogger(), db, nil, 0, 0, simtestutil.EmptyAppOptions{})
 		return celestiaApp, celestiaApp.DefaultGenesis()
 	}
 
