@@ -128,7 +128,7 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 		return err
 	}
 
-	fmt.Printf("creating %d fibre accounts\n", fibreAccounts)
+	fmt.Printf("creating %d fibre accounts for validator %s\n", fibreAccounts, name)
 	for i := range fibreAccounts {
 		if err := addFundedAccount(kr, n.genesis, fmt.Sprintf("fibre-%d", i)); err != nil {
 			return err
