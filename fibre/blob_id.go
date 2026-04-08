@@ -3,6 +3,7 @@ package fibre
 import (
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
@@ -15,9 +16,36 @@ const CommitmentSize = 32
 // TODO: merge with rsema1d.Commitment once that package stabilizes.
 type Commitment rsema1d.Commitment
 
+// MarshalJSON encodes the commitment as a hex string.
+func (c Commitment) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(c[:]))
+}
+
+// UnmarshalJSON decodes a hex string into a commitment.
+func (c *Commitment) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return fmt.Errorf("invalid commitment hex: %w", err)
+	}
+	if len(b) != CommitmentSize {
+		return fmt.Errorf("invalid commitment length: got %d, want %d", len(b), CommitmentSize)
+	}
+	copy(c[:], b)
+	return nil
+}
+
 // String returns the hex-encoded string representation.
 func (c Commitment) String() string {
 	return hex.EncodeToString(c[:])
+}
+
+// MarshalBinary encodes the commitment as bytes.
+func (c Commitment) MarshalBinary() ([]byte, error) {
+	return c[:], nil
 }
 
 // UnmarshalBinary decodes a Commitment from bytes.
