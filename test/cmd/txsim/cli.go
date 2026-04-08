@@ -47,6 +47,8 @@ var (
 	gasLimit                                          uint64
 	gasPrice                                          float64
 	namespaces                                        []string
+	fireAndForget                                     bool
+	fireAndForgetDelay                                time.Duration
 )
 
 func main() {
@@ -204,6 +206,10 @@ account that can act as the master account. The command runs until all sequences
 				opts.WithGasPrice(gasPrice)
 			}
 
+			if fireAndForget {
+				opts.WithFireAndForget(fireAndForgetDelay)
+			}
+
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 			err = txsim.Run(
 				cmd.Context(),
@@ -247,6 +253,8 @@ func flags() *flag.FlagSet {
 	flags.Uint64Var(&gasLimit, "gas-limit", 0, "custom gas limit to use for transactions (0 = auto-estimate)")
 	flags.Float64Var(&gasPrice, "gas-price", 0, "custom gas price to use for transactions (0 = use default)")
 	flags.StringArrayVar(&namespaces, "namespace", []string{}, "define namespace to use for blob submission -- MUST BE PROVIDED IN HEX FORMAT. Can define multiple namespaces for submission just by passing --namespace several times. Provided namespaces will be used at random.")
+	flags.BoolVar(&fireAndForget, "fire-and-forget", false, "enable fire-and-forget mode (broadcast txs without waiting for inclusion)")
+	flags.DurationVar(&fireAndForgetDelay, "fire-and-forget-delay", 500*time.Millisecond, "delay between submissions in fire-and-forget mode")
 	return flags
 }
 
