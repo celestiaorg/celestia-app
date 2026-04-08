@@ -864,8 +864,6 @@ github.com/catenacyber/perfsprint v0.10.1 h1:u7Riei30bk46XsG8nknMhKLXG9BcXz3+3tl
 github.com/catenacyber/perfsprint v0.10.1/go.mod h1:DJTGsi/Zufpuus6XPGJyKOTMELe347o6akPvWG9Zcsc=
 github.com/ccojocar/zxcvbn-go v1.0.4 h1:FWnCIRMXPj43ukfX000kvBZvV6raSxakYr1nzyNrUcc=
 github.com/ccojocar/zxcvbn-go v1.0.4/go.mod h1:3GxGX+rHmueTUMvm5ium7irpyjmm7ikxYFOSJB21Das=
-github.com/celestiaorg/celestia-app/v8 v8.0.1-mocha h1:gTHjzVdupXCiWdg+eTuzkWLQdAP2gGShmoAGJ4LZmbU=
-github.com/celestiaorg/celestia-app/v8 v8.0.1-mocha/go.mod h1:yM6RNp1sVVGmNdNeH42A9pbUnQ+BUkF/JRpugfTeBIw=
 github.com/celestiaorg/celestia-core v0.40.2 h1:+8D3anWx0mn0Wyp/Hahml/1ZiyDc5yGbIR/k4iFtqms=
 github.com/celestiaorg/celestia-core v0.40.2/go.mod h1:ZCrmRE1UQzgZfho4Og6tAHtH1KY6s8Jpri5+EKobV5c=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35 h1:FREwqZwPvYsodr1AqqEIyW+VsBnwTzJNtC6NFdZX8rs=

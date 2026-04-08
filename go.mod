@@ -24,7 +24,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.3
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
-	github.com/celestiaorg/celestia-app/v8 v8.0.1-mocha
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
