@@ -12,7 +12,4 @@ const (
 
 	// MaxSDKMessages is the maximum number of SDK messages, aside from PFBs, that a block can contain.
 	MaxSDKMessages = 600
-
-	// MaxPayForFibreMessages is the maximum number of PayForFibre messages that a block can contain.
-	MaxPayForFibreMessages = 200
 )

@@ -1,7 +1,7 @@
 package keeper
 
 import (
-	"github.com/celestiaorg/celestia-app/v8/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v9/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

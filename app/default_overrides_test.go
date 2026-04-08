@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -98,10 +98,6 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		const mebibyte = 1048576
 		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
 		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
-	})
-
-	t.Run("db backend", func(t *testing.T) {
-		assert.Equal(t, "goleveldb", got.DBBackend)
 	})
 }
 

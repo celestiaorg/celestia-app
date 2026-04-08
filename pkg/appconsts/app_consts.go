@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version is the current application version.
-	Version uint64 = 8
+	Version uint64 = 9
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -78,8 +78,6 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v8 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
-	// DefaultDBBackend is the default database backend for CometBFT.
-	DefaultDBBackend = "goleveldb"
 )
 
 // MinCommissionRate is 20%.

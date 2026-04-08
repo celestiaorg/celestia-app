@@ -5,8 +5,8 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v8/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v9/x/minfee/keeper"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerror "github.com/cosmos/cosmos-sdk/types/errors"

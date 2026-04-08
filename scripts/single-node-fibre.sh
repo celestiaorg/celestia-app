@@ -51,7 +51,7 @@ echo ""
 
 if ! command -v fibre >/dev/null 2>&1; then
   echo "Error: fibre binary not found in PATH"
-  echo "Please build/install it first (make build-fibre or make install-fibre)"
+  echo "Please build/install it first (make build-fibre-server or make install-fibre-server)"
   exit 1
 fi
 
