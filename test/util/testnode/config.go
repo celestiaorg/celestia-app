@@ -23,9 +23,7 @@ const (
 	kibibyte                    = 1024 // bytes
 	DefaultValidatorAccountName = "validator"
 	DefaultInitialBalance       = genesis.DefaultInitialBalance
-	// TimeoutCommit is a flag that can be used to override the timeout_commit.
-	//
-	// Deprecated: Use DelayedPrecommitTimeout instead.
+	// TimeoutCommitFlag is a flag that can be used to override the timeout_commit.
 	TimeoutCommitFlag = "timeout-commit"
 	// DelayedPrecommitTimeout is a flag that can be used to override the DelayedPrecommitTimeout.
 	DelayedPrecommitTimeout = "delayed-precommit-timeout"
@@ -88,8 +86,6 @@ func (c *Config) WithSuppressLogs(sl bool) *Config {
 
 // WithTimeoutCommit sets the timeout commit in the cometBFT config and returns
 // the Config. For backward compatibility, it also sets the app's block time.
-//
-// Deprecated: Use WithDelayedPrecommitTimeout instead.
 func (c *Config) WithTimeoutCommit(d time.Duration) *Config {
 	c.TmConfig.Consensus.TimeoutCommit = d
 	// For backward compatibility, also set the app option so existing tests continue to work
@@ -156,7 +152,8 @@ func DefaultConfig() *Config {
 		WithAppConfig(DefaultAppConfig()).
 		WithAppOptions(DefaultAppOptions()).
 		WithSuppressLogs(true).
-		WithDelayedPrecommitTimeout(200 * time.Millisecond)
+		WithDelayedPrecommitTimeout(200 * time.Millisecond).
+		WithTimeoutCommit(time.Millisecond)
 }
 
 func DefaultConsensusParams() *tmproto.ConsensusParams {
