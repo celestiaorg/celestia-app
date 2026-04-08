@@ -37,11 +37,11 @@ const (
 	TimeoutPrevoteDelta          = time.Millisecond * 500
 	TimeoutPrecommit             = time.Millisecond * 3000
 	TimeoutPrecommitDelta        = time.Millisecond * 500
-	TimeoutCommit                = time.Millisecond
+	TimeoutCommit                = time.Millisecond * 500
 	// DelayedPrecommitTimeout is the primary determinant of expected block
 	// time. If this value changes, MaxExpectedTimePerBlock should also be
 	// updated. See TestMaxExpectedTimePerBlock.
-	DelayedPrecommitTimeout = time.Millisecond * 2790
+	DelayedPrecommitTimeout = time.Millisecond * 2100
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
 	// 3-5x the expected block time. The expected block time is primarily
 	// determined by DelayedPrecommitTimeout (~3 seconds), so this value is
