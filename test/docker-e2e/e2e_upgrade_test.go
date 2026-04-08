@@ -11,15 +11,15 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v9/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -32,6 +32,7 @@ const (
 	AppVersionV6 uint64 = 6
 	AppVersionV7 uint64 = 7
 	AppVersionV8 uint64 = 8
+	AppVersionV9 uint64 = 9
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -107,6 +108,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 		{
 			baseAppVersion:   7,
 			targetAppVersion: 8,
+		},
+		{
+			baseAppVersion:   8,
+			targetAppVersion: 9,
 		},
 	}
 

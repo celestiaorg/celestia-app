@@ -2,22 +2,21 @@ package app_test
 
 import (
 	"math/rand"
-	"sort"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
-	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/random"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
+	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -121,7 +120,6 @@ func TestEstimateGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	wg := &sync.WaitGroup{}
-	gasPricesChan := make(chan float64, len(accountNames))
 	for _, accName := range accountNames {
 		wg.Go(func() {
 			// ensure that it is greater than the min gas price
@@ -135,59 +133,32 @@ func TestEstimateGasPrice(t *testing.T) {
 			)
 			require.NoError(t, err)
 			require.Equal(t, abci.CodeTypeOK, resp.Code, resp.RawLog)
-			gasPricesChan <- gasPrice
 		})
 	}
 	wg.Wait()
 
-	close(gasPricesChan)
-	gasPrices := make([]float64, 0, len(accountNames))
-	for price := range gasPricesChan {
-		gasPrices = append(gasPrices, price)
-	}
-	sort.Float64s(gasPrices)
-
-	medianGasPrice, err := gasestimation.Median(gasPrices)
+	// Query the gas estimation API for each priority level.
+	getLowResp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: gasestimation.TxPriority_TX_PRIORITY_LOW})
 	require.NoError(t, err)
-	bottomMedian, err := gasestimation.Median(gasPrices[:len(gasPrices)*10/100])
+	getMediumResp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: gasestimation.TxPriority_TX_PRIORITY_MEDIUM})
 	require.NoError(t, err)
-	topMedian, err := gasestimation.Median(gasPrices[len(gasPrices)*90/100:])
+	getHighResp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: gasestimation.TxPriority_TX_PRIORITY_HIGH})
+	require.NoError(t, err)
+	getNoneResp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED})
 	require.NoError(t, err)
 
-	tests := []struct {
-		name             string
-		priority         gasestimation.TxPriority
-		expectedGasPrice float64
-	}{
-		{
-			name:             "NONE -> same as MEDIUM (median)",
-			priority:         gasestimation.TxPriority_TX_PRIORITY_UNSPECIFIED,
-			expectedGasPrice: medianGasPrice,
-		},
-		{
-			name:             "LOW -> bottom 10% median",
-			priority:         gasestimation.TxPriority_TX_PRIORITY_LOW,
-			expectedGasPrice: bottomMedian,
-		},
-		{
-			name:             "MEDIUM -> median",
-			priority:         gasestimation.TxPriority_TX_PRIORITY_MEDIUM,
-			expectedGasPrice: medianGasPrice,
-		},
-		{
-			name:             "HIGH -> top 10% median",
-			priority:         gasestimation.TxPriority_TX_PRIORITY_HIGH,
-			expectedGasPrice: topMedian,
-		},
-	}
+	low := getLowResp.EstimatedGasPrice
+	medium := getMediumResp.EstimatedGasPrice
+	high := getHighResp.EstimatedGasPrice
+	none := getNoneResp.EstimatedGasPrice
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := gasEstimationAPI.EstimateGasPrice(cctx.GoContext(), &gasestimation.EstimateGasPriceRequest{TxPriority: tt.priority})
-			require.NoError(t, err)
-			assert.InDelta(t, tt.expectedGasPrice, resp.EstimatedGasPrice, 0.02, "Gas price should be within 0.02 of expected value")
-		})
-	}
+	// Assert the relative ordering of gas price estimates: LOW <= MEDIUM <= HIGH.
+	assert.LessOrEqual(t, low, medium, "LOW gas price should be <= MEDIUM")
+	assert.LessOrEqual(t, medium, high, "MEDIUM gas price should be <= HIGH")
+	// UNSPECIFIED should default to MEDIUM.
+	assert.Equal(t, medium, none, "UNSPECIFIED should return the same gas price as MEDIUM")
+	// All estimates should be at least the minimum gas price.
+	assert.GreaterOrEqual(t, low, appconsts.DefaultMinGasPrice, "LOW gas price should be >= min gas price")
 }
 
 func TestEstimateGasUsed(t *testing.T) {

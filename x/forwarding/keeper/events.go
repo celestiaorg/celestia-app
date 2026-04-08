@@ -2,7 +2,7 @@ package keeper
 
 import (
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

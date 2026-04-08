@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
 // dataSize represents a test data size with its human-readable name

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	gogoproto "github.com/cosmos/gogoproto/proto"
 	ds "github.com/ipfs/go-datastore"

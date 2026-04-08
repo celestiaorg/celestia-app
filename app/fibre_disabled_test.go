@@ -5,7 +5,7 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	"github.com/stretchr/testify/assert"
 )
 

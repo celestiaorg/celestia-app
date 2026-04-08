@@ -4,8 +4,8 @@ import (
 	"context"
 	"io"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	grpclib "google.golang.org/grpc"

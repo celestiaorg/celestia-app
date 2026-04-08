@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"google.golang.org/grpc"
 )
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
 // Encode extends data vertically and creates commitment.

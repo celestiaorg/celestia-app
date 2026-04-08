@@ -6,10 +6,9 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -72,18 +71,6 @@ func (app App) RegisterUpgradeHandlers() {
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgradeName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			sdkCtx := sdk.UnwrapSDKContext(ctx)
-			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
-
-			if err := app.SetBlockMaxBytes(ctx, int64(appconsts.BlockMaxBytes)); err != nil {
-				return nil, fmt.Errorf("failed to set block max bytes: %w", err)
-			}
-
-			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
-				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
-				return nil, err
-			}
-
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
@@ -103,34 +90,4 @@ func (app App) RegisterUpgradeHandlers() {
 			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 		}
 	}
-}
-
-// SetBlockMaxBytes updates the consensus parameter Block.MaxBytes.
-func (app App) SetBlockMaxBytes(ctx context.Context, maxBytes int64) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get consensus params", "err", err)
-		return err
-	}
-	params.Block.MaxBytes = maxBytes
-	sdkCtx.Logger().Info("setting block max bytes", "maxBytes", maxBytes)
-	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, params); err != nil {
-		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
-		return err
-	}
-	return nil
-}
-
-// SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
-// parameter to appconsts.MaxExpectedTimePerBlock. This corrects the previous
-// value of 75 seconds which was based on an outdated 15 second block time.
-func (app App) SetMaxExpectedTimePerBlock(ctx sdk.Context) error {
-	params := ibcconnectiontypes.Params{
-		MaxExpectedTimePerBlock: uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds()),
-	}
-	ctx.Logger().Info(fmt.Sprintf("Setting IBC connection MaxExpectedTimePerBlock to %v", appconsts.MaxExpectedTimePerBlock))
-	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, params)
-	return nil
 }

@@ -5,9 +5,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"

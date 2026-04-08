@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
 // CommitmentSize is the size of a Commitment in bytes.
