@@ -5,7 +5,7 @@ package app
 import (
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 )

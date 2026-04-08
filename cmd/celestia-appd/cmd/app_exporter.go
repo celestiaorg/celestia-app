@@ -4,7 +4,7 @@ import (
 	"io"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	dbm "github.com/cosmos/cosmos-db"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 )

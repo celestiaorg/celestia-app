@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/types/address"
 	"github.com/stretchr/testify/require"
 )

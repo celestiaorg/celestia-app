@@ -6,8 +6,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	sh "github.com/celestiaorg/go-square/v4/share"
 	gotx "github.com/celestiaorg/go-square/v4/tx"

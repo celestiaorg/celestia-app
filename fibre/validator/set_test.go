@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"

@@ -7,7 +7,7 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	cmttypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
