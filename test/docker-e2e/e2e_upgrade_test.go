@@ -54,15 +54,6 @@ const (
 	EvidenceMaxAgeV8Blocks = 242640
 	EvidenceMaxAgeV9Blocks = 559940
 
-	// CIP-048 consensus timeout values for v9
-	TimeoutProposeV9          = 3000 * time.Millisecond
-	DelayedPrecommitTimeoutV9 = 2100 * time.Millisecond
-	TimeoutPrevoteV9          = 2000 * time.Millisecond
-	TimeoutPrevoteDeltaV9     = 500 * time.Millisecond
-	TimeoutPrecommitV9        = 3000 * time.Millisecond
-	TimeoutPrecommitDeltaV9   = 500 * time.Millisecond
-	TimeoutCommitV9           = 500 * time.Millisecond
-
 	// CIP-048 IBC MaxExpectedTimePerBlock for v9 (in nanoseconds)
 	MaxExpectedTimePerBlockV9Ns = uint64(13 * time.Second)
 
@@ -418,13 +409,13 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
 	ti := abciInfo.Response.TimeoutInfo
-	s.Require().Equal(TimeoutProposeV9, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
-	s.Require().Equal(DelayedPrecommitTimeoutV9, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
-	s.Require().Equal(TimeoutPrevoteV9, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
-	s.Require().Equal(TimeoutPrevoteDeltaV9, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
-	s.Require().Equal(TimeoutPrecommitV9, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
-	s.Require().Equal(TimeoutPrecommitDeltaV9, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
-	s.Require().Equal(TimeoutCommitV9, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
+	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
+	s.Require().Equal(appconsts.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
+	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
+	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(appconsts.TimeoutCommit, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and
