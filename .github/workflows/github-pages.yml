@@ -35,12 +35,14 @@ jobs:
         run: mdbook build specs
 
       # --- Build Swagger docs ---
-      - uses: actions/setup-go@v5
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           go-version-file: go.mod
 
-      - uses: bufbuild/buf-setup-action@v1
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1.50.0
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
       - name: Install protoc-gen-openapiv2
