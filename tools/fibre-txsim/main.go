@@ -294,7 +294,7 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 	}
 
 	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp, sdkmetric.WithInterval(10*time.Second))),
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(mp)
