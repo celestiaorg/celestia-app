@@ -21,6 +21,7 @@ func fibreTxsimCmd() *cobra.Command {
 		duration          time.Duration
 		keyPrefix         string
 		download          bool
+		uploadOnly        bool
 		pyroscopeEndpoint string
 	)
 
@@ -46,7 +47,7 @@ func fibreTxsimCmd() *cobra.Command {
 			// Build the remote command — binaries are copied to /bin/ by validator_init.sh
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := fmt.Sprintf(
-				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t",
+				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t",
 				cfg.ChainID,
 				keyPrefix,
 				blobSize,
@@ -54,6 +55,7 @@ func fibreTxsimCmd() *cobra.Command {
 				interval,
 				duration,
 				download,
+				uploadOnly,
 			)
 
 			// Auto-wire observability endpoints when observability nodes are configured
@@ -99,6 +101,7 @@ func fibreTxsimCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	cmd.Flags().BoolVar(&download, "download", false, "enable download verification after each successful upload (downloads blob back and compares with original data)")
+	cmd.Flags().BoolVar(&uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
 
 	return cmd
