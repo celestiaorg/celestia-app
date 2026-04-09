@@ -247,7 +247,12 @@ proto-update-deps:
 	@echo "Updating Protobuf dependencies"
 	@cd proto && buf dep update
 
-.PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
+## proto-swagger-gen: Generate Swagger/OpenAPI spec from proto files.
+proto-swagger-gen:
+	@echo "Generating Swagger/OpenAPI specs..."
+	@bash scripts/proto-swagger-gen.sh
+
+.PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps proto-swagger-gen
 
 ## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
 build-docker-standalone:
