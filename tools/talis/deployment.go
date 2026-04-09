@@ -104,6 +104,7 @@ func deployCmd() *cobra.Command {
 			tarPath := filepath.Join(rootDir, "payload.tar.gz")
 			log.Printf("Compressing payload to %s\n", tarPath)
 			tarCmd := exec.Command("tar", "-czf", tarPath, "-C", rootDir, "payload")
+			tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1") // suppress macOS ._* resource-fork files
 			if output, err := tarCmd.CombinedOutput(); err != nil {
 				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
 			}
@@ -163,6 +164,7 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 	observabilityTarPath := filepath.Join(rootDir, "observability-payload.tar.gz")
 	log.Printf("Compressing observability payload to %s\n", observabilityTarPath)
 	tarCmd := exec.Command("tar", "-czf", observabilityTarPath, "-C", filepath.Join(rootDir, "payload"), "observability")
+	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1") // suppress macOS ._* resource-fork files
 	if output, err := tarCmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to compress observability payload: %w, output: %s", err, string(output))
 	}
