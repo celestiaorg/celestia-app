@@ -113,8 +113,7 @@ func initCmd() *cobra.Command {
 				}
 				enablePrometheus = true
 
-				// Override observability node droplet size if explicitly set
-				if observabilitySlug != "" && len(cfg.Observability) > 0 {
+				if len(cfg.Observability) > 0 {
 					cfg.Observability[0].Slug = observabilitySlug
 				}
 			}
@@ -166,7 +165,7 @@ func initCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&withObservability, "with-observability", false, "add a observability node and enable Prometheus on validators")
 	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "provider for observability node when --with-observability is set (digitalocean, googlecloud)")
 	cmd.Flags().StringVar(&observabilityRegion, "observability-region", "random", "region for the observability node — set to match your validator region to reduce scrape latency")
-	cmd.Flags().StringVar(&observabilitySlug, "observability-slug", "", "droplet size for the observability node (default: "+DODefaultObservabilitySlug+"); set to match validator slug for consistent hardware")
+	cmd.Flags().StringVar(&observabilitySlug, "observability-slug", DODefaultObservabilitySlug, "droplet size for the observability node")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")
