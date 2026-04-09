@@ -35,13 +35,13 @@ const (
 
 func initCmd() *cobra.Command {
 	var (
-		rootDir           string
-		srcRoot           string
-		chainID           string
-		experiment        string
-		SSHPubKeyPath     string
-		SSHKeyName        string
-		tables            []string
+		rootDir             string
+		srcRoot             string
+		chainID             string
+		experiment          string
+		SSHPubKeyPath       string
+		SSHKeyName          string
+		tables              []string
 		withObservability   bool
 		provider            string
 		observabilityRegion string
