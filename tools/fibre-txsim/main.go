@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/grafana/pyroscope-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -33,16 +34,19 @@ import (
 const downloadDelay = 10 * time.Second
 
 type config struct {
-	grpcEndpoint string
-	keyringDir   string
-	keyPrefix    string
-	blobSize     int
-	concurrency  int
-	interval     time.Duration
-	duration     time.Duration
-	otelEndpoint string
-	download     bool
-	uploadOnly   bool
+	grpcEndpoint      string
+	keyringDir        string
+	keyPrefix         string
+	blobSize          int
+	concurrency       int
+	interval          time.Duration
+	duration          time.Duration
+	otelEndpoint      string
+	download          bool
+	uploadOnly        bool
+	pyroscopeEndpoint string
+	pyroscopeUser     string
+	pyroscopePass     string
 }
 
 func main() {
@@ -57,6 +61,9 @@ func main() {
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
 	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
+	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
+	flag.StringVar(&cfg.pyroscopeUser, "pyroscope-basic-auth-user", "", "Pyroscope basic auth username")
+	flag.StringVar(&cfg.pyroscopePass, "pyroscope-basic-auth-password", "", "Pyroscope basic auth password")
 	chainID := flag.String("chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.Parse()
 	_ = chainID // accepted but unused
@@ -96,6 +103,15 @@ type stats struct {
 }
 
 func run(cfg config) error {
+	if cfg.pyroscopeEndpoint != "" {
+		stopPyroscope, err := setupPyroscope(cfg.pyroscopeEndpoint, cfg.pyroscopeUser, cfg.pyroscopePass)
+		if err != nil {
+			return fmt.Errorf("setup Pyroscope: %w", err)
+		}
+		defer stopPyroscope()
+		fmt.Printf("profiling enabled endpoint=%s\n", cfg.pyroscopeEndpoint)
+	}
+
 	if cfg.otelEndpoint != "" {
 		metricsShutdown, err := setupOTelMetrics(context.Background(), cfg.otelEndpoint)
 		if err != nil {
@@ -332,6 +348,25 @@ func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Contex
 	return func(ctx context.Context) {
 		if err := tp.Shutdown(ctx); err != nil {
 			fmt.Fprintf(os.Stderr, "shutting down tracer provider: %v\n", err)
+		}
+	}, nil
+}
+
+func setupPyroscope(endpoint, user, pass string) (func(), error) {
+	hostname, _ := os.Hostname()
+	profiler, err := pyroscope.Start(pyroscope.Config{
+		ApplicationName:   "fibre-txsim",
+		ServerAddress:     endpoint,
+		BasicAuthUser:     user,
+		BasicAuthPassword: pass,
+		Tags:              map[string]string{"hostname": hostname},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("starting Pyroscope profiler: %w", err)
+	}
+	return func() {
+		if err := profiler.Stop(); err != nil {
+			fmt.Fprintf(os.Stderr, "stopping Pyroscope profiler: %v\n", err)
 		}
 	}, nil
 }
