@@ -79,6 +79,13 @@ createGenesis() {
     # Persist ABCI responses
     sed -i'.bak' 's#discard_abci_responses = true#discard_abci_responses = false#g' "${APP_HOME}"/config/config.toml
 
+    # Enable Prometheus metrics
+    sed -i'.bak' 's#prometheus = false#prometheus = true#g' "${APP_HOME}"/config/config.toml
+
+    # Enable Cosmos SDK telemetry (prometheus-retention-time enables the Prometheus sink)
+    sed -i'.bak' '/\[telemetry\]/,/^\[/ s#enabled = false#enabled = true#' "${APP_HOME}"/config/app.toml
+    sed -i'.bak' 's#prometheus-retention-time = 0#prometheus-retention-time = 60#' "${APP_HOME}"/config/app.toml
+
     # Override  the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
@@ -101,8 +108,7 @@ startCelestiaApp() {
     --api.enable \
     --grpc.enable \
     --grpc-web.enable \
-    --force-no-bbr \
-    --delayed-precommit-timeout 1s
+    --force-no-bbr
 }
 
 # Function to perform upgrade to a specific version

@@ -38,7 +38,7 @@ BUILD_FLAGS_FIBRE := -tags=$(BUILD_TAGS_FIBRE) -ldflags '$(LDFLAGS_FIBRE)'
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 # dockerchain/config.go
-CELESTIA_V3_VERSION := v3.11.0
+CELESTIA_V3_VERSION := v3.12.0
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
 CELESTIA_V6_VERSION := v6.4.4
