@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"

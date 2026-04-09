@@ -7,7 +7,8 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	cmttypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	ibctesting "github.com/cosmos/ibc-go/v8/testing"
@@ -24,6 +25,12 @@ func SetupTestingApp() (ibctesting.TestingApp, map[string]json.RawMessage) {
 func SetupTest(t *testing.T) (*ibctesting.Coordinator, *ibctesting.TestChain,
 	*ibctesting.TestChain, *ibctesting.TestChain,
 ) {
+	// The ibc-go testing framework hardcodes PartSetHeader.Total to 10_000 in
+	// CreateTMClientHeader. Raise MaxBlockPartsCount so the header passes
+	// ValidateBasic after the celestia-core security fix.
+	// TODO: remove after celestiaorg/ibc-go updates testing/chain.go to use MaxBlockPartsCount.
+	cmttypes.MaxBlockPartsCount = 10_000
+
 	chains := make(map[string]*ibctesting.TestChain)
 	coordinator := &ibctesting.Coordinator{
 		T:           t,

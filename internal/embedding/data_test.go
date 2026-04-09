@@ -9,10 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCelestiaAppV7(t *testing.T) {
-	realData := v7binaryCompressed
+func TestCelestiaAppV8(t *testing.T) {
+	realData := v8binaryCompressed
 	defer func() {
-		v7binaryCompressed = realData
+		v8binaryCompressed = realData
 	}()
 
 	testCases := []struct {
@@ -24,14 +24,14 @@ func TestCelestiaAppV7(t *testing.T) {
 		{
 			name: "valid binary data",
 			modifyFn: func() {
-				v7binaryCompressed = realData
+				v8binaryCompressed = realData
 			},
-			expectedVersion: v7Version,
+			expectedVersion: v8Version,
 		},
 		{
 			name: "nil binaryCompressed",
 			modifyFn: func() {
-				v7binaryCompressed = nil
+				v8binaryCompressed = nil
 			},
 			expectedError: fmt.Errorf("no binary data available for platform %s", platform()),
 		},
@@ -40,7 +40,7 @@ func TestCelestiaAppV7(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.modifyFn()
-			version, binary, err := CelestiaAppV7()
+			version, binary, err := CelestiaAppV8()
 
 			if tc.expectedError != nil {
 				assert.Error(t, err)
