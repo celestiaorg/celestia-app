@@ -18,7 +18,11 @@ ARG UPGRADE_HEIGHT_DELAY
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # NOTE: This version must be updated at the same time as the version in the
 # Makefile.
+<<<<<<< HEAD
 ARG CELESTIA_VERSION_V3="v3.10.6"
+=======
+ARG CELESTIA_VERSION_V3="v3.12.0"
+>>>>>>> 23adf3f5 (chore: bump v3 multiplexer binary to v3.12.0 (#7034))
 ARG CELESTIA_VERSION_V4="v4.1.0"
 ARG CELESTIA_VERSION_V5="v5.0.12"
 ARG CELESTIA_VERSION_V6="v6.4.4"

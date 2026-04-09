@@ -10,7 +10,11 @@ import (
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
 const (
+<<<<<<< HEAD
 	v3Version = "v3.10.6"
+=======
+	v3Version = "v3.12.0"
+>>>>>>> 23adf3f5 (chore: bump v3 multiplexer binary to v3.12.0 (#7034))
 	v4Version = "v4.1.0"
 	v5Version = "v5.0.12"
 	v6Version = "v6.4.4"
