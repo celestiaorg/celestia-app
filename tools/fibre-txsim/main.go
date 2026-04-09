@@ -42,6 +42,7 @@ type config struct {
 	duration     time.Duration
 	otelEndpoint string
 	download     bool
+	uploadOnly   bool
 }
 
 func main() {
@@ -55,6 +56,7 @@ func main() {
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
+	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
 	chainID := flag.String("chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.Parse()
 	_ = chainID // accepted but unused
@@ -217,7 +219,7 @@ func run(cfg config) error {
 	for _, w := range workers {
 		uploadWg.Go(func() {
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, cfg.blobSize, st, dlCh)
+				submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, dlCh)
 				if cfg.interval > 0 {
 					select {
 					case <-ctx.Done():
@@ -334,7 +336,7 @@ func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Contex
 	}, nil
 }
 
-func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh chan<- downloadRequest) {
+func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, dlCh chan<- downloadRequest) {
 	// Generate random namespace
 	nsID := make([]byte, share.NamespaceVersionZeroIDSize)
 	if _, err := rand.Read(nsID); err != nil {
@@ -363,11 +365,35 @@ func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh cha
 		return
 	}
 
+	st.totalSent.Add(1)
 	t := time.Now()
+
+	if uploadOnly {
+		blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+		if err != nil {
+			st.failures.Add(1)
+			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
+			return
+		}
+		_, err = w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
+		lat := time.Since(t)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			st.failures.Add(1)
+			fmt.Printf("[%s] upload error: %v (latency=%s)\n", w.keyName, err, lat)
+			return
+		}
+		st.successes.Add(1)
+		st.totalLatNs.Add(lat.Nanoseconds())
+		fmt.Printf("[%s] upload-only: latency=%s\n", w.keyName, lat)
+		return
+	}
+
 	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data)
 	lat := time.Since(t)
 
-	st.totalSent.Add(1)
 	if err != nil {
 		if ctx.Err() != nil {
 			return
