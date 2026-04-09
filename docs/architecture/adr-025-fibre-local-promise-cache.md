@@ -63,7 +63,7 @@ A background goroutine runs periodically and scans all signer entries, evicting 
 
 #### Restart Behavior
 
-On restart, the cache starts empty. Signer budgets are populated on demand as new promises arrive — the first validation for a signer triggers a sweep against chain state to initialize its budget. Double-spend protection is temporarily lost for the period between restart and the first sweep for each signer. The minimum escrow bond bounds the damage during this window.
+On restart, the cache starts empty. Signer budgets are populated on demand as new promises arrive — the first validation for a signer triggers a sweep against chain state to initialize its budget. Double-spend protection is temporarily lost for the period between restart and the first sweep for each signer.
 
 #### Concurrency
 
@@ -98,16 +98,6 @@ A sweep is scoped to a single signer and rebuilds budget from fresh chain state:
 Withdrawals do not need special handling. Withdrawals are not immediate — they have a 24-hour delay between request and execution. During this delay, the withdrawn amount is already subtracted from `AvailableBalance` on-chain. Since sweeps read the current `AvailableBalance`, any pending or processed withdrawal is always reflected before it takes effect. An hourly sweep cadence is well within the 24-hour withdrawal window.
 
 `GasPerBlobByte` can change via governance. During a sweep, pending promise amounts are recomputed using the current params, so a parameter update is reflected within the next sweep cycle.
-
-#### Minimum Escrow Balance
-
-A minimum escrow balance should be introduced to safeguard against the selective-validator attack.
-
-**The attack.** A client signs a different promise for each validator, sending each to a single validator. Each validator independently accepts the promise (passing its own local cache check), stores the blob, and signs it. The client intentionally never collects the 2/3+ signatures needed for the normal `MsgPayForFibre` path. When the promises expire, timeout agents submit all of them. Settlements succeed until the escrow is exhausted. Validators whose promises fail on-chain served data for free for at most ~2 hours (PaymentPromiseTimeout + timeout agent submission time) before dropping it.
-
-**Why the minimum balance mitigates this.** A single PFF payment covers a week of data serving by the entire validator set. Even if the attacker sends a unique blob to every validator, one settled payment already covers all of them for a week. The attacker pays for a week of full-set serving and gets at most ~2 hours of free serving from validators whose promises don't settle.
-
-The minimum escrow balance ensures this property holds. Set to `max_blob_size × gas_per_blob_byte × validator_set_size`, it guarantees that even after the attacker's regular promises have been processed, the escrow retains enough funds to settle the last round of promises sent to all validators as part of the attack. Without this minimum, the attacker could exhaust the escrow before the attack promises are submitted, leaving validators unpaid.
 
 #### Rate-Limiting Sweeps
 
