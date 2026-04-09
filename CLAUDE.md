@@ -9,8 +9,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 When editing Go code, always run `make build` after changes to catch compilation errors immediately.
 
 ```bash
-make build              # Build multiplexer version (embeds v3-v6 binaries) into ./build/
-make build-standalone   # Build v7-only version (no embedded binaries)
+make build              # Build multiplexer version (embeds v3-v8 binaries) into ./build/
+make build-standalone   # Build v9-only version (no embedded binaries)
 make build-fibre        # Build with fibre+valaddr modules enabled (build tag: ledger,fibre)
 make install-fibre      # Install with fibre+valaddr modules enabled
 make mod                # Update all go.mod files
@@ -53,14 +53,14 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 - **`/app`** - Application core: state machine, ABCI handlers (`prepare_proposal.go`, `process_proposal.go`), ante decorators (`ante/`)
 - **`/x`** - Custom modules: `blob` (MsgPayForBlobs), `signal` (upgrades), `minfee` (gas price governance), `mint` (inflation)
 - **`/pkg`** - Reusable packages: `appconsts`, `da`, `wrapper` (NMT), `user` (tx APIs), `inclusion`, `proof`
-- **`/multiplexer`** - Multi-version upgrade system embedding v3-v6 binaries
+- **`/multiplexer`** - Multi-version upgrade system embedding v3-v8 binaries
 - **`/cmd/celestia-appd`** - Binary entry point
 - **`/test/util`** - Test utilities: `testnode`, `blobfactory`, `testfactory`
 
 ### Multiplexer vs Standalone vs Fibre
 
-- **`make build`** (default): Multiplexer build embeds v3-v6 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
-- **`make build-standalone`**: v7-only, lighter. Build tag: `ledger`
+- **`make build`** (default): Multiplexer build embeds v3-v8 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
+- **`make build-standalone`**: v9-only, lighter. Build tag: `ledger`
 - **`make build-fibre`**: Standalone with fibre+valaddr modules enabled. Build tag: `ledger,fibre`. By default, the fibre and valaddr modules are **not** compiled into the binary. The module code lives under `x/fibre/` and `x/valaddr/` and is gated behind `//go:build fibre` files in `app/`.
 
 ### Dependency Forks

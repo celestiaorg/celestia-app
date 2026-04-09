@@ -197,6 +197,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 		log.NewNopLogger(),
 		appDB,
 		nil,
+		0, // delayed precommit timeout
 		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetChainID(cfg.ChainID),

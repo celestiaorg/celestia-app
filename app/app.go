@@ -212,6 +212,7 @@ type App struct {
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
+	timeoutCommit           time.Duration
 	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
@@ -220,12 +221,14 @@ type App struct {
 
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp. Setting
-// delayedPrecommitTimeout to 0 will result in using the default value.
+// delayedPrecommitTimeout or timeoutCommit to 0 will result in using the
+// default value from appconsts.
 func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
 	delayedPrecommitTimeout time.Duration,
+	timeoutCommit time.Duration,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -246,6 +249,10 @@ func New(
 		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
 	}
 
+	if timeoutCommit == 0 {
+		timeoutCommit = appconsts.TimeoutCommit
+	}
+
 	app := &App{
 		BaseApp:                 baseApp,
 		keys:                    keys,
@@ -253,6 +260,7 @@ func New(
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
+		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
 	}
 
@@ -892,7 +900,7 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 	return abci.TimeoutInfo{
 		TimeoutPropose:          appconsts.TimeoutPropose,
 		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
-		TimeoutCommit:           appconsts.TimeoutCommit,
+		TimeoutCommit:           app.timeoutCommit,
 		TimeoutPrevote:          appconsts.TimeoutPrevote,
 		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
 		TimeoutPrecommit:        appconsts.TimeoutPrecommit,

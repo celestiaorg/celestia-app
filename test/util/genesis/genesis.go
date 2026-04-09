@@ -243,7 +243,7 @@ func (g *Genesis) Export() (*coretypes.GenesisDoc, error) {
 		return nil, err
 	}
 
-	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+	tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, simtestutil.EmptyAppOptions{})
 	return Document(
 		tempApp.DefaultGenesis(),
 		g.ecfg,
@@ -276,7 +276,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			g.GenesisTime,
 		)
 	case 4, 5, 6, 7, 8, 9:
-		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, simtestutil.EmptyAppOptions{})
+		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, simtestutil.EmptyAppOptions{})
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),
 			g.ecfg,

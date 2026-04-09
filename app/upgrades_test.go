@@ -6,7 +6,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util"
 	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -14,6 +16,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,13 +25,64 @@ func TestUpgrades(t *testing.T) {
 		logger := log.NewNopLogger()
 		db := tmdb.NewMemDB()
 		traceStore := &NoopWriter{}
-		timeoutCommit := time.Second
+		delayedPrecommitTimeout := time.Second
 		appOptions := NoopAppOptions{}
 
-		testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
+		testApp := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v8"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+	})
+}
+
+func TestSetMaxExpectedTimePerBlock(t *testing.T) {
+	consensusParams := app.DefaultConsensusParams()
+	testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+	ctx := testApp.NewContext(false)
+
+	err := testApp.SetMaxExpectedTimePerBlock(ctx)
+	require.NoError(t, err)
+
+	got := testApp.IBCKeeper.ConnectionKeeper.GetParams(ctx)
+	want := uint64((13 * time.Second).Nanoseconds())
+	assert.Equal(t, want, got.MaxExpectedTimePerBlock)
+}
+
+func TestApplyUpgradeSetBlockMaxBytes(t *testing.T) {
+	t.Run("apply upgrade should set Block.MaxBytes to 32 MiB", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+
+		ctx := testApp.NewContext(false)
+
+		// Manually set MaxBytes to 128 MiB via the params store because
+		// NewTestAppWithGenesisSet overrides MaxBytes to BlockMaxBytes.
+		oldMaxBytes := int64(128 * 1024 * 1024) // 128 MiB
+		params, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		params.Block.MaxBytes = oldMaxBytes
+		err = testApp.ConsensusKeeper.ParamsStore.Set(ctx, params)
+		require.NoError(t, err)
+
+		// Verify the initial value is 128 MiB.
+		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, oldMaxBytes, params.Block.MaxBytes)
+
+		// Apply the upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v9",
+			Height: 1,
+			Info:   "test",
+		}
+		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		// Verify Block.MaxBytes was updated to 32 MiB.
+		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, int64(appconsts.BlockMaxBytes), params.Block.MaxBytes)
 	})
 }
 
