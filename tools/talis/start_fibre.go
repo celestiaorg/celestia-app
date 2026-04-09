@@ -12,10 +12,11 @@ const StartFibreSessionName = "fibre"
 
 func startFibreCmd() *cobra.Command {
 	var (
-		rootDir        string
-		SSHKeyPath     string
-		instances      int
-		metricsAddress string
+		rootDir           string
+		SSHKeyPath        string
+		instances         int
+		metricsAddress    string
+		pyroscopeEndpoint string
 	)
 
 	cmd := &cobra.Command{
@@ -49,6 +50,13 @@ func startFibreCmd() *cobra.Command {
 			if metricsAddress != "" {
 				remoteCmd += fmt.Sprintf(" --otel-endpoint %s", metricsAddress)
 			}
+			// Auto-wire Pyroscope endpoint when observability nodes are configured
+			if pyroscopeEndpoint == "" && len(cfg.Observability) > 0 {
+				pyroscopeEndpoint = fmt.Sprintf("http://%s:4040", cfg.Observability[0].PublicIP)
+			}
+			if pyroscopeEndpoint != "" {
+				remoteCmd += fmt.Sprintf(" --pyroscope-endpoint %s", pyroscopeEndpoint)
+			}
 
 			fmt.Printf("Starting fibre sessions on %d validator(s)...\n", len(validators))
 
@@ -77,6 +85,7 @@ func startFibreCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "number of validators to start fibre on (default all)")
 	cmd.Flags().StringVar(&metricsAddress, "otel-endpoint", "", "OTLP HTTP endpoint for metrics/traces (e.g. http://host:4318; empty = disabled)")
+	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
 
 	return cmd
 }
