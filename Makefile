@@ -212,6 +212,7 @@ GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
 
 ## proto-all: Format, lint and generate Protobuf files
 proto-all: proto-deps proto-format proto-lint proto-gen
+.PHONY: proto-all
 
 ## proto-deps: Install Protobuf local dependencies
 proto-deps:
@@ -224,30 +225,40 @@ proto-deps:
 	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
+.PHONY: proto-deps
 
 ## proto-gen: Generate Protobuf files.
 proto-gen:
 	@echo "Generating Protobuf files"
 	@sh ./scripts/protocgen.sh
+.PHONY: proto-gen
 
 ## proto-format: Format Protobuf files.
 proto-format:
 	@find ./ -name "*.proto" -exec clang-format -i {} \;
+.PHONY: proto-format
 
 ## proto-lint: Lint Protobuf files.
 proto-lint:
 	@buf lint --error-format=json
+.PHONY: proto-lint
 
 ## proto-check-breaking: Check if Protobuf file contains breaking changes.
 proto-check-breaking:
 	@buf breaking --against $(HTTPS_GIT)#branch=main
+.PHONY: proto-check-breaking
 
 ## proto-update-deps: Update Protobuf dependencies.
 proto-update-deps:
 	@echo "Updating Protobuf dependencies"
 	@cd proto && buf dep update
+.PHONY: proto-update-deps
 
-.PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
+## proto-swagger-gen: Generate Swagger/OpenAPI spec from proto files.
+proto-swagger-gen:
+	@echo "Generating Swagger/OpenAPI specs..."
+	@bash scripts/proto-swagger-gen.sh
+.PHONY: proto-swagger-gen
 
 ## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
 build-docker-standalone:
