@@ -1,5 +1,5 @@
 version: v1
-name: buf.build/celestiaorg/celestia-app
+name: buf.build/celestia/celestia-app
 deps:
   - buf.build/cosmos/cosmos-sdk:aa25660f4ff746388669ce36b3778442
   - buf.build/cosmos/cosmos-proto:1935555c206d4afb9e94615dfd0fad31
