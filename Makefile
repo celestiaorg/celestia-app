@@ -35,11 +35,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 # dockerchain/config.go
-<<<<<<< HEAD
-CELESTIA_V3_VERSION := v3.10.6
-=======
 CELESTIA_V3_VERSION := v3.12.0
->>>>>>> 23adf3f5 (chore: bump v3 multiplexer binary to v3.12.0 (#7034))
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
 CELESTIA_V6_VERSION := v6.4.4
