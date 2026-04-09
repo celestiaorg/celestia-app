@@ -1,0 +1,7 @@
+version: v1
+plugins:
+  - name: openapiv2
+    out: ../tmp-swagger-gen
+    opt:
+      - logtostderr=true
+      - simple_operation_ids=true

@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - specs/**
+      - proto/**
+      - docs/swagger/index.html
   pull_request:
     paths:
       - specs/**
@@ -23,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
 
+      # --- Build mdBook specs ---
       - name: Setup mdBook
         uses: peaceiris/actions-mdbook@ee69d230fe19748b7abf22df32acaa93833fad08 #v2.0.0
         with:
@@ -31,14 +34,46 @@ jobs:
       - name: Build book
         run: mdbook build specs
 
+      # --- Build Swagger docs ---
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        with:
+          go-version-file: go.mod
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1.50.0
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install protoc-gen-openapiv2
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: make proto-deps
+
+      - name: Generate Swagger spec
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: make proto-swagger-gen
+
+      # --- Combine into single publish directory ---
+      - name: Prepare publish directory
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p _site/swagger
+          # Copy mdBook output to site root
+          cp -r specs/book/* _site/
+          # Copy Swagger UI and generated spec to site/swagger/
+          cp docs/swagger/index.html _site/swagger/
+          cp docs/swagger/swagger.json _site/swagger/
+
+      # --- Deploy ---
       - name: Deploy main
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e #v4.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./specs/book
-          # keep_files is to prevent PR preview files from being overwritten.
-          # If we need to overwrite such files, trigger this workflow manually.
+          publish_dir: ./_site
+          # keep_files preserves PR preview directories on gh-pages
           keep_files: ${{ github.event_name != 'workflow_dispatch' }}
 
       - name: Deploy PR preview
