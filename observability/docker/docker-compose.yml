@@ -53,6 +53,7 @@ services:
       - prometheus
       - loki
       - tempo
+      - pyroscope
 
   loki:
     image: grafana/loki:3.1.1
@@ -65,8 +66,17 @@ services:
       - '-config.file=/etc/loki/loki-config.yml'
     restart: unless-stopped
 
+  pyroscope:
+    image: grafana/pyroscope:1.12.0
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope-data:/data
+    restart: unless-stopped
+
 volumes:
   prometheus-data:
   grafana-data:
   loki-data:
   tempo-data:
+  pyroscope-data:
