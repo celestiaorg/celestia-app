@@ -227,7 +227,7 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 		return err
 	}
 
-	_, err = startTelemetry(config)
+	metrics, err := startTelemetry(config)
 	if err != nil {
 		return err
 	}
@@ -241,11 +241,6 @@ func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator s
 		if a, ok := app.(srvrtypes.ApplicationQueryService); ok {
 			a.RegisterNodeService(clientCtx)
 		}
-	}
-
-	metrics, err := startTelemetry(config)
-	if err != nil {
-		return err
 	}
 
 	var (
