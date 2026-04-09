@@ -5,9 +5,9 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -99,10 +99,6 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
 		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
 	})
-
-	t.Run("db backend", func(t *testing.T) {
-		assert.Equal(t, "goleveldb", got.DBBackend)
-	})
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
@@ -125,7 +121,7 @@ func Test_ibcDefaultGenesis(t *testing.T) {
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
 	assert.Equal(t, []string{"06-solomachine", "07-tendermint"}, got.ClientGenesis.Params.AllowedClients)
-	assert.Equal(t, uint64((15 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
+	assert.Equal(t, uint64((13 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
 }
 
 func TestEvidenceParams(t *testing.T) {

@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/test/util"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/test/util"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -25,10 +25,10 @@ func TestNew(t *testing.T) {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	timeoutCommit := time.Second
+	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
 
-	got := app.New(logger, db, traceStore, timeoutCommit, appOptions)
+	got := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions)
 
 	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ICAHostKeeper)
@@ -56,9 +56,9 @@ func TestInitChain(t *testing.T) {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	timeoutCommit := time.Second
+	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
-	testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
+	testApp := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
 	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestInitChain(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			application := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
+			application := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 			if tc.wantPanic {
 				_, err := application.InitChain(&tc.request)
 				assert.Error(t, err)
@@ -119,7 +119,9 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1tygms3xhhs3yv487phx3dw4a95jn7t7ls3yw4w": true,
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
-			"celestia1zsknr6k4flpn3rhxe0acsathfsjurkk66hdwzj": true,
+		}
+		for _, name := range app.FibreModuleAccountNames() {
+			want[authtypes.NewModuleAddress(name).String()] = true
 		}
 		assert.Equal(t, want, got)
 	})
@@ -127,7 +129,7 @@ func TestModuleAccountAddrs(t *testing.T) {
 		testApp := getTestApp()
 		got := testApp.ModuleAccountAddrs()
 
-		moduleNames := []string{
+		moduleNames := append([]string{ //nolint:prealloc
 			"fee_collector",
 			"distribution",
 			"gov",
@@ -136,11 +138,10 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
-			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}
+		}, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
@@ -158,7 +159,7 @@ func TestBlockedAddresses(t *testing.T) {
 		assert.NotContains(t, got, govAddress)
 	})
 	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
-		moduleNames := []string{
+		moduleNames := append([]string{ //nolint:prealloc
 			"fee_collector",
 			"distribution",
 			"mint",
@@ -166,11 +167,10 @@ func TestBlockedAddresses(t *testing.T) {
 			"not_bonded_tokens_pool",
 			"transfer",
 			"interchainaccounts",
-			"fibre",
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}
+		}, app.FibreModuleAccountNames()...)
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
@@ -205,7 +205,7 @@ func getTestApp() *app.App {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	timeoutCommit := time.Second
+	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
-	return app.New(logger, db, traceStore, timeoutCommit, appOptions)
+	return app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions)
 }

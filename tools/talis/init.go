@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/joho/godotenv"
@@ -35,15 +35,17 @@ const (
 
 func initCmd() *cobra.Command {
 	var (
-		rootDir           string
-		srcRoot           string
-		chainID           string
-		experiment        string
-		SSHPubKeyPath     string
-		SSHKeyName        string
-		tables            []string
-		withObservability bool
-		provider          string
+		rootDir             string
+		srcRoot             string
+		chainID             string
+		experiment          string
+		SSHPubKeyPath       string
+		SSHKeyName          string
+		tables              []string
+		withObservability   bool
+		provider            string
+		observabilityRegion string
+		observabilitySlug   string
 	)
 
 	cmd := &cobra.Command{
@@ -100,16 +102,20 @@ func initCmd() *cobra.Command {
 			if withObservability {
 				switch provider {
 				case "digitalocean":
-					cfg = cfg.WithDigitalOceanObservability("random").
+					cfg = cfg.WithDigitalOceanObservability(observabilityRegion).
 						WithDigitalOceanToken(os.Getenv(EnvVarDigitalOceanToken))
 				case "googlecloud":
-					cfg = cfg.WithGoogleCloudObservability("random").
+					cfg = cfg.WithGoogleCloudObservability(observabilityRegion).
 						WithGoogleCloudProject(os.Getenv(EnvVarGoogleCloudProject)).
 						WithGoogleCloudKeyJSONPath(os.Getenv(EnvVarGoogleCloudKeyJSONPath))
 				default:
 					return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
 				}
 				enablePrometheus = true
+
+				if observabilitySlug != "" && len(cfg.Observability) > 0 {
+					cfg.Observability[0].Slug = observabilitySlug
+				}
 			}
 
 			if err := cfg.Save(rootDir); err != nil {
@@ -158,6 +164,8 @@ func initCmd() *cobra.Command {
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
 	cmd.Flags().BoolVar(&withObservability, "with-observability", false, "add a observability node and enable Prometheus on validators")
 	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "provider for observability node when --with-observability is set (digitalocean, googlecloud)")
+	cmd.Flags().StringVar(&observabilityRegion, "observability-region", "random", "region for the observability node — set to match your validator region to reduce scrape latency")
+	cmd.Flags().StringVar(&observabilitySlug, "observability-slug", "", "instance size for the observability node (default: provider's default — "+DODefaultObservabilitySlug+" for DigitalOcean, "+GCDefaultObservabilityMachineType+" for Google Cloud)")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")

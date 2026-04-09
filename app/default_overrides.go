@@ -8,10 +8,10 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v8/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v9/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -282,8 +282,6 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 	cfg.P2P.SendRate = 100 * mebibyte
 	cfg.P2P.RecvRate = 100 * mebibyte
-
-	cfg.DBBackend = appconsts.DefaultDBBackend
 
 	return cfg
 }

@@ -5,7 +5,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/internal/sign"
+	"github.com/celestiaorg/celestia-app/v9/fibre/internal/sign"
 	"github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/privval"
 	privvalproto "github.com/cometbft/cometbft/proto/tendermint/privval"

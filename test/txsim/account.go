@@ -11,10 +11,10 @@ import (
 	"time"
 
 	"cosmossdk.io/x/feegrant"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	txclientv2 "github.com/celestiaorg/celestia-app/v8/pkg/user/v2"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	txclientv2 "github.com/celestiaorg/celestia-app/v9/pkg/user/v2"
 	"github.com/celestiaorg/go-square/v4/share"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
@@ -29,14 +29,16 @@ import (
 )
 
 type AccountManager struct {
-	keys        keyring.Keyring
-	conn        *grpc.ClientConn
-	pending     []*account
-	encCfg      encoding.Config
-	pollTime    time.Duration
-	useFeegrant bool
-	gasLimit    uint64
-	gasPrice    float64
+	keys               keyring.Keyring
+	conn               *grpc.ClientConn
+	pending            []*account
+	encCfg             encoding.Config
+	pollTime           time.Duration
+	useFeegrant        bool
+	fireAndForget      bool
+	fireAndForgetDelay time.Duration
+	gasLimit           uint64
+	gasPrice           float64
 
 	// to protect from concurrent writes to the map
 	mtx          sync.Mutex
@@ -56,6 +58,8 @@ func NewAccountManager(
 	conn *grpc.ClientConn,
 	pollTime time.Duration,
 	useFeegrant bool,
+	fireAndForget bool,
+	fireAndForgetDelay time.Duration,
 ) (*AccountManager, error) {
 	records, err := keys.List()
 	if err != nil {
@@ -67,14 +71,16 @@ func NewAccountManager(
 	}
 
 	am := &AccountManager{
-		keys:         keys,
-		encCfg:       encCfg,
-		pending:      make([]*account, 0),
-		conn:         conn,
-		pollTime:     pollTime,
-		useFeegrant:  useFeegrant,
-		addressMap:   make(map[string]string),
-		accountIndex: len(records),
+		keys:               keys,
+		encCfg:             encCfg,
+		pending:            make([]*account, 0),
+		conn:               conn,
+		pollTime:           pollTime,
+		useFeegrant:        useFeegrant,
+		fireAndForget:      fireAndForget,
+		fireAndForgetDelay: fireAndForgetDelay,
+		addressMap:         make(map[string]string),
+		accountIndex:       len(records),
 	}
 
 	if masterAccName == "" {
@@ -278,6 +284,10 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 		opts = append(opts, user.SetFeeGranter(am.txClient.DefaultAddress()))
 	}
 
+	if am.fireAndForget {
+		return am.submitFireAndForget(ctx, address, op, opts)
+	}
+
 	var (
 		res *types.TxResponse
 		err error
@@ -326,6 +336,54 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 			Str("address", address.String()).
 			Str("msgs", msgsToString(op.Msgs)).
 			Msg("tx committed")
+	}
+
+	return nil
+}
+
+// submitFireAndForget broadcasts a transaction without waiting for it to be
+// included in a block, then sleeps for the configured delay before returning.
+func (am *AccountManager) submitFireAndForget(ctx context.Context, address types.AccAddress, op Operation, opts []user.TxOption) error {
+	if len(op.Blobs) > 0 {
+		accName, ok := am.addressMap[address.String()]
+		if !ok {
+			return fmt.Errorf("account not found for address %s", address.String())
+		}
+		resp, err := am.txClient.BroadcastPayForBlobWithAccount(ctx, accName, op.Blobs, opts...)
+		if err != nil {
+			log.Err(err).
+				Str("address", address.String()).
+				Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
+				Int64("total byte size of blobs", getSize(op.Blobs)).
+				Msg("broadcast failed")
+			return err
+		}
+		log.Info().
+			Str("tx_hash", resp.TxHash).
+			Str("address", address.String()).
+			Str("blobs count", fmt.Sprintf("%d", len(op.Blobs))).
+			Int64("total byte size of blobs", getSize(op.Blobs)).
+			Msg("tx broadcasted (fire-and-forget)")
+	} else {
+		resp, err := am.txClient.BroadcastTx(ctx, op.Msgs, opts...)
+		if err != nil {
+			log.Err(err).
+				Str("address", address.String()).
+				Str("msgs", msgsToString(op.Msgs)).
+				Msg("broadcast failed")
+			return err
+		}
+		log.Info().
+			Str("tx_hash", resp.TxHash).
+			Str("address", address.String()).
+			Str("msgs", msgsToString(op.Msgs)).
+			Msg("tx broadcasted (fire-and-forget)")
+	}
+
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(am.fireAndForgetDelay):
 	}
 
 	return nil

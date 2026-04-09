@@ -7,9 +7,9 @@ import (
 
 	"cosmossdk.io/math"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/x/forwarding/keeper"
+	"github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"

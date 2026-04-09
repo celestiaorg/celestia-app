@@ -50,6 +50,10 @@ func downloadCmd() *cobra.Command {
 			switch table {
 			case "logs":
 				remotePaths = append(remotePaths, "/root/logs")
+			case "latency-monitor":
+				remotePaths = append(remotePaths, "/root/talis-latency-monitor.log")
+			case "txsim":
+				remotePaths = append(remotePaths, "/root/talis-txsim.log")
 			case "*", "":
 				path := filepath.Join(baseTracesRemotePath, "*")
 				remotePaths = append(remotePaths, path)
@@ -144,6 +148,10 @@ func compressAndDownload(table, localPath, user, host, sshKeyPath string) error 
 	switch table {
 	case "logs":
 		compressCmd = fmt.Sprintf("tar -cf - -C /root logs | xz -6 -T0 > %s", remoteArchive)
+	case "latency-monitor":
+		compressCmd = fmt.Sprintf("tar -cf - -C /root talis-latency-monitor.log | xz -6 -T0 > %s", remoteArchive)
+	case "txsim":
+		compressCmd = fmt.Sprintf("tar -cf - -C /root talis-txsim.log | xz -6 -T0 > %s", remoteArchive)
 	case "*", "":
 		compressCmd = fmt.Sprintf("tar -cf - -C %s . | xz -6 -T0 > %s", baseTracesRemotePath, remoteArchive)
 	default:

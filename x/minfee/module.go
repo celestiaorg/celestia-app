@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v8/x/minfee/keeper"
-	"github.com/celestiaorg/celestia-app/v8/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v9/x/minfee/keeper"
+	"github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"

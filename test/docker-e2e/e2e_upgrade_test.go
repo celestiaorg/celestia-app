@@ -11,15 +11,15 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	signaltypes "github.com/celestiaorg/celestia-app/v9/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -32,6 +32,7 @@ const (
 	AppVersionV6 uint64 = 6
 	AppVersionV7 uint64 = 7
 	AppVersionV8 uint64 = 8
+	AppVersionV9 uint64 = 9
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -50,23 +51,14 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
-	EvidenceMaxAgeV8Blocks = 485280
+	EvidenceMaxAgeV8Blocks = 242640
+	EvidenceMaxAgeV9Blocks = 559940
 
-	// CIP-048 consensus timeout values for v8
-	TimeoutProposeV8          = 4500 * time.Millisecond
-	DelayedPrecommitTimeoutV8 = 2790 * time.Millisecond
-	// TODO(@ninabarbakadze): TimeoutPrevote and TimeoutPrecommit should be reduced from 3000ms to 1500ms per CIP-048.
-	TimeoutPrevoteV8          = 3000 * time.Millisecond
-	TimeoutPrevoteDeltaV8     = 500 * time.Millisecond
-	TimeoutPrecommitV8        = 3000 * time.Millisecond
-	TimeoutPrecommitDeltaV8   = 500 * time.Millisecond
-	TimeoutCommitV8           = time.Millisecond
+	// CIP-048 IBC MaxExpectedTimePerBlock for v9 (in nanoseconds)
+	MaxExpectedTimePerBlockV9Ns = uint64(13 * time.Second)
 
-	// CIP-048 IBC MaxExpectedTimePerBlock for v8 (in nanoseconds)
-	MaxExpectedTimePerBlockV8Ns = uint64(15 * time.Second)
-
-	// Block params for v8
-	MaxBytesV8 = 32 * 1024 * 1024 // 32 MiB
+	// Block params for v9
+	MaxBytesV9 = 32 * 1024 * 1024 // 32 MiB
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -107,6 +99,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 		{
 			baseAppVersion:   7,
 			targetAppVersion: 8,
+		},
+		{
+			baseAppVersion:   8,
+			targetAppVersion: 9,
 		},
 	}
 
@@ -393,18 +389,18 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 
 	// CIP-048: Consensus timeout parameters
 	s.validateTimeoutInfo(ctx, node)
-	// CIP-048: Evidence params (MaxAgeNumBlocks doubled)
-	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV8Blocks, appVersion)
-	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 15s
+	// CIP-048: Evidence params (MaxAgeNumBlocks scaled for 2.6s blocks)
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV9Blocks, appVersion)
+	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 13s
 	s.validateMaxExpectedTimePerBlock(ctx, node)
 	// Block params: max_bytes = 32 MiB
-	s.validateBlockParams(ctx, node, MaxBytesV8, appVersion)
+	s.validateBlockParams(ctx, node, MaxBytesV9, appVersion)
 	// Fibre module: active with default params
 	s.validateFibreParams(ctx, node)
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
-// parameters match the expected v8 values per CIP-048.
+// parameters match the expected v9 values per CIP-048.
 func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode) {
 	rpcClient, err := node.GetRPCClient()
 	s.Require().NoError(err, "failed to get RPC client")
@@ -413,17 +409,17 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
 	ti := abciInfo.Response.TimeoutInfo
-	s.Require().Equal(TimeoutProposeV8, ti.TimeoutPropose, "v8 TimeoutPropose mismatch")
-	s.Require().Equal(DelayedPrecommitTimeoutV8, ti.DelayedPrecommitTimeout, "v8 DelayedPrecommitTimeout mismatch")
-	s.Require().Equal(TimeoutPrevoteV8, ti.TimeoutPrevote, "v8 TimeoutPrevote mismatch")
-	s.Require().Equal(TimeoutPrevoteDeltaV8, ti.TimeoutPrevoteDelta, "v8 TimeoutPrevoteDelta mismatch")
-	s.Require().Equal(TimeoutPrecommitV8, ti.TimeoutPrecommit, "v8 TimeoutPrecommit mismatch")
-	s.Require().Equal(TimeoutPrecommitDeltaV8, ti.TimeoutPrecommitDelta, "v8 TimeoutPrecommitDelta mismatch")
-	s.Require().Equal(TimeoutCommitV8, ti.TimeoutCommit, "v8 TimeoutCommit mismatch")
+	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
+	s.Require().Equal(appconsts.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
+	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
+	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(appconsts.TimeoutCommit, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and
-// validates that MaxExpectedTimePerBlock was corrected to 15s per CIP-048.
+// validates that MaxExpectedTimePerBlock was corrected to 13s per CIP-048.
 func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context, node tastoratypes.ChainNode) {
 	client, err := getIBCConnectionQueryClient(node)
 	s.Require().NoError(err)
@@ -431,8 +427,8 @@ func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context,
 	resp, err := client.ConnectionParams(ctx, &ibcconnectiontypes.QueryConnectionParamsRequest{})
 	s.Require().NoError(err, "failed to query IBC connection params")
 
-	s.Require().Equal(MaxExpectedTimePerBlockV8Ns, resp.Params.MaxExpectedTimePerBlock,
-		"v8 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV8Ns, resp.Params.MaxExpectedTimePerBlock)
+	s.Require().Equal(MaxExpectedTimePerBlockV9Ns, resp.Params.MaxExpectedTimePerBlock,
+		"v9 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV9Ns, resp.Params.MaxExpectedTimePerBlock)
 }
 
 // validateBlockParams queries consensus params and validates max_bytes.

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"math/bits"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
 // CreateVerificationContext initializes context with RLC original values

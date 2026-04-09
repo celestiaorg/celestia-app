@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 )
 
 // PaymentPromise is an alias for the protobuf PaymentPromise type.

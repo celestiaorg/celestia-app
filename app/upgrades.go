@@ -6,11 +6,9 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -96,15 +94,14 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		storeUpgrades := storetypes.StoreUpgrades{
-			Added: []string{
-				fibretypes.StoreKey,
-				valaddrtypes.StoreKey,
-			},
+		added := fibreUpgradeStoreKeys()
+		if len(added) > 0 {
+			storeUpgrades := storetypes.StoreUpgrades{
+				Added: added,
+			}
+			// configure store loader that checks if version == upgradeHeight and applies store upgrades
+			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 		}
-
-		// configure store loader that checks if version == upgradeHeight and applies store upgrades
-		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
 }
 
@@ -127,8 +124,7 @@ func (app App) SetBlockMaxBytes(ctx context.Context, maxBytes int64) error {
 }
 
 // SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
-// parameter to appconsts.MaxExpectedTimePerBlock. This corrects the previous
-// value of 75 seconds which was based on an outdated 15 second block time.
+// parameter to appconsts.MaxExpectedTimePerBlock.
 func (app App) SetMaxExpectedTimePerBlock(ctx sdk.Context) error {
 	params := ibcconnectiontypes.Params{
 		MaxExpectedTimePerBlock: uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds()),

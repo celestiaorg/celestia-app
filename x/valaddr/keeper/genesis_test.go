@@ -5,10 +5,10 @@ package keeper_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	testutil "github.com/celestiaorg/celestia-app/v8/test/util"
-	"github.com/celestiaorg/celestia-app/v8/x/valaddr"
-	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
+	"github.com/celestiaorg/celestia-app/v9/x/valaddr"
+	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	"github.com/stretchr/testify/require"
 )
 
