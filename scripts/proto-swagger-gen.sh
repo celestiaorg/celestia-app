@@ -34,6 +34,12 @@ buf generate buf.build/cosmos/cosmos-sdk \
 cd ..
 
 # Merge all generated swagger files into one
+swagger_files=$(find "$SWAGGER_TMP" -name '*.swagger.json' | sort)
+if [ -z "$swagger_files" ]; then
+  echo "ERROR: No swagger files were generated" >&2
+  exit 1
+fi
+
 jq -s 'reduce .[] as $item (
   {
     "swagger": "2.0",
@@ -49,7 +55,7 @@ jq -s 'reduce .[] as $item (
   };
   .paths += ($item.paths // {}) |
   .definitions += ($item.definitions // {})
-)' $(find "$SWAGGER_TMP" -name '*.swagger.json' | sort) > "$OUTPUT"
+)' $swagger_files > "$OUTPUT"
 
 rm -rf "$SWAGGER_TMP"
 

@@ -44,6 +44,8 @@ jobs:
       - name: Setup buf
         uses: bufbuild/buf-setup-action@v1.50.0
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install protoc-gen-openapiv2
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
