@@ -121,7 +121,7 @@ func Test_ibcDefaultGenesis(t *testing.T) {
 	enc.Codec.MustUnmarshalJSON(raw, &got)
 
 	assert.Equal(t, []string{"06-solomachine", "07-tendermint"}, got.ClientGenesis.Params.AllowedClients)
-	assert.Equal(t, uint64((15 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
+	assert.Equal(t, uint64((13 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
 }
 
 func TestEvidenceParams(t *testing.T) {

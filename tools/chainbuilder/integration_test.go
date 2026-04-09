@@ -65,6 +65,7 @@ func TestRun(t *testing.T) {
 		log.NewNopLogger(),
 		appDB,
 		nil,
+		0, // delayed precommit timeout
 		0, // timeout commit
 		util.EmptyAppOptions{},
 		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),

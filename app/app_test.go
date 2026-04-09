@@ -25,10 +25,10 @@ func TestNew(t *testing.T) {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	timeoutCommit := time.Second
+	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
 
-	got := app.New(logger, db, traceStore, timeoutCommit, appOptions)
+	got := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions)
 
 	t.Run("initializes ICAHostKeeper", func(t *testing.T) {
 		assert.NotNil(t, got.ICAHostKeeper)
@@ -56,9 +56,9 @@ func TestInitChain(t *testing.T) {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	timeoutCommit := time.Second
+	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
-	testApp := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
+	testApp := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 	genesisState, _, _ := util.GenesisStateWithSingleValidator(testApp, "account")
 	appStateBytes, err := json.MarshalIndent(genesisState, "", " ")
 	require.NoError(t, err)
@@ -90,7 +90,7 @@ func TestInitChain(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			application := app.New(logger, db, traceStore, timeoutCommit, appOptions, baseapp.SetChainID(testfactory.ChainID))
+			application := app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions, baseapp.SetChainID(testfactory.ChainID))
 			if tc.wantPanic {
 				_, err := application.InitChain(&tc.request)
 				assert.Error(t, err)
@@ -205,7 +205,7 @@ func getTestApp() *app.App {
 	logger := log.NewNopLogger()
 	db := tmdb.NewMemDB()
 	traceStore := &NoopWriter{}
-	timeoutCommit := time.Second
+	delayedPrecommitTimeout := time.Second
 	appOptions := NoopAppOptions{}
-	return app.New(logger, db, traceStore, timeoutCommit, appOptions)
+	return app.New(logger, db, traceStore, delayedPrecommitTimeout, 0, appOptions)
 }
