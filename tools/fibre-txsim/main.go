@@ -19,6 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/grafana/pyroscope-go"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -33,15 +34,19 @@ import (
 const downloadDelay = 10 * time.Second
 
 type config struct {
-	grpcEndpoint string
-	keyringDir   string
-	keyPrefix    string
-	blobSize     int
-	concurrency  int
-	interval     time.Duration
-	duration     time.Duration
-	otelEndpoint string
-	download     bool
+	grpcEndpoint      string
+	keyringDir        string
+	keyPrefix         string
+	blobSize          int
+	concurrency       int
+	interval          time.Duration
+	duration          time.Duration
+	otelEndpoint      string
+	download          bool
+	uploadOnly        bool
+	pyroscopeEndpoint string
+	pyroscopeUser     string
+	pyroscopePass     string
 }
 
 func main() {
@@ -55,6 +60,10 @@ func main() {
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
+	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
+	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
+	flag.StringVar(&cfg.pyroscopeUser, "pyroscope-basic-auth-user", "", "Pyroscope basic auth username")
+	flag.StringVar(&cfg.pyroscopePass, "pyroscope-basic-auth-password", "", "Pyroscope basic auth password")
 	chainID := flag.String("chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.Parse()
 	_ = chainID // accepted but unused
@@ -94,6 +103,15 @@ type stats struct {
 }
 
 func run(cfg config) error {
+	if cfg.pyroscopeEndpoint != "" {
+		stopPyroscope, err := setupPyroscope(cfg.pyroscopeEndpoint, cfg.pyroscopeUser, cfg.pyroscopePass)
+		if err != nil {
+			return fmt.Errorf("setup Pyroscope: %w", err)
+		}
+		defer stopPyroscope()
+		fmt.Printf("profiling enabled endpoint=%s\n", cfg.pyroscopeEndpoint)
+	}
+
 	if cfg.otelEndpoint != "" {
 		metricsShutdown, err := setupOTelMetrics(context.Background(), cfg.otelEndpoint)
 		if err != nil {
@@ -217,7 +235,7 @@ func run(cfg config) error {
 	for _, w := range workers {
 		uploadWg.Go(func() {
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, cfg.blobSize, st, dlCh)
+				submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, dlCh)
 				if cfg.interval > 0 {
 					select {
 					case <-ctx.Done():
@@ -294,7 +312,7 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 	}
 
 	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp)),
+		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(exp, sdkmetric.WithInterval(10*time.Second))),
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(mp)
@@ -334,7 +352,26 @@ func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Contex
 	}, nil
 }
 
-func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh chan<- downloadRequest) {
+func setupPyroscope(endpoint, user, pass string) (func(), error) {
+	hostname, _ := os.Hostname()
+	profiler, err := pyroscope.Start(pyroscope.Config{
+		ApplicationName:   "fibre-txsim",
+		ServerAddress:     endpoint,
+		BasicAuthUser:     user,
+		BasicAuthPassword: pass,
+		Tags:              map[string]string{"hostname": hostname},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("starting Pyroscope profiler: %w", err)
+	}
+	return func() {
+		if err := profiler.Stop(); err != nil {
+			fmt.Fprintf(os.Stderr, "stopping Pyroscope profiler: %v\n", err)
+		}
+	}, nil
+}
+
+func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, dlCh chan<- downloadRequest) {
 	// Generate random namespace
 	nsID := make([]byte, share.NamespaceVersionZeroIDSize)
 	if _, err := rand.Read(nsID); err != nil {
@@ -363,11 +400,35 @@ func submitBlob(ctx context.Context, w worker, blobSize int, st *stats, dlCh cha
 		return
 	}
 
+	st.totalSent.Add(1)
 	t := time.Now()
+
+	if uploadOnly {
+		blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+		if err != nil {
+			st.failures.Add(1)
+			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
+			return
+		}
+		_, err = w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
+		lat := time.Since(t)
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			st.failures.Add(1)
+			fmt.Printf("[%s] upload error: %v (latency=%s)\n", w.keyName, err, lat)
+			return
+		}
+		st.successes.Add(1)
+		st.totalLatNs.Add(lat.Nanoseconds())
+		fmt.Printf("[%s] upload-only: latency=%s\n", w.keyName, lat)
+		return
+	}
+
 	result, err := fibre.Put(ctx, w.fibreClient, w.txClient, ns, data)
 	lat := time.Since(t)
 
-	st.totalSent.Add(1)
 	if err != nil {
 		if ctx.Err() != nil {
 			return

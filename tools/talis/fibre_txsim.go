@@ -12,15 +12,16 @@ const FibreTxSimSessionName = "fibre-txsim"
 
 func fibreTxsimCmd() *cobra.Command {
 	var (
-		rootDir     string
-		SSHKeyPath  string
-		instances   int
-		concurrency int
-		blobSize    int
-		interval    time.Duration
-		duration    time.Duration
-		keyPrefix   string
-		download    bool
+		rootDir           string
+		SSHKeyPath        string
+		instances         int
+		concurrency       int
+		blobSize          int
+		interval          time.Duration
+		duration          time.Duration
+		keyPrefix         string
+		download          bool
+		pyroscopeEndpoint string
 	)
 
 	cmd := &cobra.Command{
@@ -55,9 +56,15 @@ func fibreTxsimCmd() *cobra.Command {
 				download,
 			)
 
-			// Auto-enable metrics when observability nodes are configured
+			// Auto-wire observability endpoints when observability nodes are configured
 			if len(cfg.Observability) > 0 {
 				remoteCmd += fmt.Sprintf(" --otel-endpoint http://%s:4318", cfg.Observability[0].PublicIP)
+				if pyroscopeEndpoint == "" {
+					remoteCmd += fmt.Sprintf(" --pyroscope-endpoint http://%s:4040", cfg.Observability[0].PublicIP)
+				}
+			}
+			if pyroscopeEndpoint != "" {
+				remoteCmd += fmt.Sprintf(" --pyroscope-endpoint %s", pyroscopeEndpoint)
 			}
 
 			fmt.Printf("Starting fibre-txsim sessions on %d validator(s)...\n", len(validators))
@@ -92,6 +99,7 @@ func fibreTxsimCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	cmd.Flags().BoolVar(&download, "download", false, "enable download verification after each successful upload (downloads blob back and compares with original data)")
+	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
 
 	return cmd
 }
