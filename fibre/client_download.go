@@ -209,9 +209,6 @@ func (c *Client) downloadFrom(
 		attribute.Int("row_size", rowSize),
 	))
 
-	// Set up or wait for the RLC verification context.
-	// The first goroutine to arrive with valid coefficients wins the CAS and builds
-	// the context; all others block until it's ready.
 	if verifyRLC {
 		if len(result.rlcCoeffs) == 0 || rowSize <= 0 || len(result.proofs) == 0 {
 			return nil, fmt.Errorf("incorrect rlc coeffs")
