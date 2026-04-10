@@ -298,7 +298,7 @@ func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobSh
 
 	return &types.BlobShard{
 		Rows: rows,
-		Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+		Root: make([]byte, 32),
 	}
 }
 

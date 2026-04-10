@@ -66,6 +66,11 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		attribute.Int("row_size", rowSize),
 	))
 
+	// strip coefficients unless client explicitly requests them (saves ~64KB bandwidth)
+	if !req.WithRlc {
+		blobShard.Coefficients = nil
+	}
+
 	for _, row := range blobShard.Rows {
 		shardSize += int64(len(row.Data))
 	}

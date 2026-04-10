@@ -127,7 +127,7 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 
 	shard := &types.BlobShard{
 		Rows: rows,
-		Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+		Root: make([]byte, 32),
 	}
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))

@@ -120,7 +120,7 @@ func makeBenchShard(blob *fibre.Blob) *types.BlobShard {
 			{Index: 0, Data: row0.Row, Proof: row0.RowProof.RowProof},
 			{Index: 1, Data: row1.Row, Proof: row1.RowProof.RowProof},
 		},
-		Rlc: &types.BlobShard_Root{Root: make([]byte, 32)},
+		Root: make([]byte, 32),
 	}
 }
 
@@ -266,7 +266,7 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 			promise: makeTestPaymentPromise(uint64(v), blob.ID()),
 			shard: &types.BlobShard{
 				Rows: rows,
-				Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+				Root: make([]byte, 32),
 			},
 			pruneAt: baseTime.Add(time.Duration(v) * time.Minute),
 		}
@@ -372,7 +372,7 @@ func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams
 			promise: makeTestPaymentPromise(uint64(v), blob.ID()),
 			shard: &types.BlobShard{
 				Rows: rows,
-				Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+				Root: make([]byte, 32),
 			},
 			pruneAt: baseTime.Add(time.Duration(v) * time.Minute),
 		}
@@ -594,7 +594,7 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 		promise := makeTestPaymentPromise(uint64(v), blobID)
 		shard := &types.BlobShard{
 			Rows: rows,
-			Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+			Root: make([]byte, 32),
 		}
 		err := store.Put(b.Context(), promise, shard, baseTime.Add(time.Duration(v)*time.Minute))
 		require.NoError(b, err)
@@ -682,7 +682,7 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 		promise := makeTestPaymentPromise(uint64(v), blobID)
 		shard := &types.BlobShard{
 			Rows: rows,
-			Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+			Root: make([]byte, 32),
 		}
 		err := store.Put(b.Context(), promise, shard, baseTime.Add(time.Duration(v)*time.Minute))
 		require.NoError(b, err)
@@ -836,7 +836,7 @@ func benchmarkStoreWriteRowsWithBackend(b *testing.B, params fibre.ProtocolParam
 			promise: makeTestPaymentPromise(uint64(v), blob.ID()),
 			shard: &types.BlobShard{
 				Rows: rows,
-				Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+				Root: make([]byte, 32),
 			},
 			pruneAt: baseTime.Add(time.Duration(v) * time.Minute),
 		}
@@ -912,7 +912,7 @@ func benchmarkStoreReadRowsWithBackend(b *testing.B, params fibre.ProtocolParams
 		promise := makeTestPaymentPromise(uint64(v), blobID)
 		shard := &types.BlobShard{
 			Rows: rows,
-			Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+			Root: make([]byte, 32),
 		}
 		err := store.Put(b.Context(), promise, shard, baseTime.Add(time.Duration(v)*time.Minute))
 		require.NoError(b, err)

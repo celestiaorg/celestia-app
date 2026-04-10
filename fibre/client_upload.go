@@ -387,8 +387,8 @@ func makeUploadRequests(
 		req := &types.UploadShardRequest{
 			Promise: pbPromise,
 			Shard: &types.BlobShard{
-				Rows: rows,
-				Rlc:  &types.BlobShard_Coefficients{Coefficients: rlcCoeffsBytes},
+				Rows:         rows,
+				Coefficients: rlcCoeffsBytes,
 			},
 		}
 		requests[val] = req

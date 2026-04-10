@@ -91,7 +91,7 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 		attribute.Int64("validator_set_height", int64(valSet.Height)),
 	))
 
-	blob, err = c.downloadBlob(ctx, valSet, id)
+	blob, err = c.downloadBlob(ctx, valSet, id, false)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to download")
@@ -100,9 +100,30 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 
 	err = blob.Reconstruct()
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to reconstruct")
-		return nil, fmt.Errorf("reconstructing data: %w", err)
+		if !errors.Is(err, ErrBlobCommitmentMismatch) {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to reconstruct")
+			return nil, fmt.Errorf("reconstructing data: %w", err)
+		}
+
+		// Commitment mismatch — retry with RLC verification to identify bad rows
+		c.log.WarnContext(ctx, "reconstruction failed with commitment mismatch, retrying with RLC verification",
+			"blob_commitment", id.Commitment(),
+		)
+		span.AddEvent("retry_with_rlc")
+
+		blob, err = c.downloadBlob(ctx, valSet, id, true)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to download with RLC")
+			return nil, err
+		}
+
+		if err = blob.Reconstruct(WithSkipCommitmentCheck()); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to reconstruct after RLC retry")
+			return nil, fmt.Errorf("reconstructing data after RLC retry: %w", err)
+		}
 	}
 
 	c.metrics.downloadBytes.Add(ctx, int64(blob.DataSize()))
@@ -122,12 +143,14 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 
 // downloadFrom downloads a shard for a blob from a single validator, verifies the rows,
 // and returns only valid ones. Rows are not applied to the blob; the caller (coordinator)
-// is responsible for that.
+// is responsible for that. When withRLC is true, requests RLC coefficients from the server
+// and uses them for stronger row verification.
 func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
 	blob *Blob,
 	id BlobID,
+	verifyRLC bool,
 ) (rows []*rsema1d.RowInclusionProof, err error) {
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", id.Commitment())
 
@@ -158,7 +181,7 @@ func (c *Client) downloadFrom(
 	span.AddEvent("client_acquired")
 
 	rpcStart := time.Now()
-	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: id})
+	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: id, WithRlc: verifyRLC})
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
@@ -170,7 +193,7 @@ func (c *Client) downloadFrom(
 		span.SetStatus(codes.Error, "failed to download shard")
 		return nil, err
 	}
-	rows, err = parseShard(resp.GetShard())
+	result, err := parseShard(resp.GetShard())
 	if err != nil {
 		log.WarnContext(ctx, "failed to parse shard", "error", err)
 		span.RecordError(err)
@@ -178,16 +201,33 @@ func (c *Client) downloadFrom(
 		return nil, err
 	}
 	var rowSize int
-	if len(rows) > 0 && len(rows[0].Row) > 0 {
-		rowSize = len(rows[0].Row)
+	if len(result.proofs) > 0 && len(result.proofs[0].Row) > 0 {
+		rowSize = len(result.proofs[0].Row)
 	}
 	span.AddEvent("rows_received", trace.WithAttributes(
-		attribute.Int("row_count", len(rows)),
+		attribute.Int("row_count", len(result.proofs)),
 		attribute.Int("row_size", rowSize),
 	))
 
-	verified := make([]*rsema1d.RowInclusionProof, 0, len(rows))
-	for _, row := range rows {
+	// Set up or wait for the RLC verification context.
+	// The first goroutine to arrive with valid coefficients wins the CAS and builds
+	// the context; all others block until it's ready.
+	if verifyRLC {
+		if len(result.rlcCoeffs) == 0 || rowSize <= 0 || len(result.proofs) == 0 {
+			return nil, fmt.Errorf("incorrect rlc coeffs")
+		}
+		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, blob.Config().OriginalRows)
+		if parseErr != nil {
+			log.WarnContext(ctx, "failed to parse RLC coefficients, falling back to inclusion-only verification", "error", parseErr)
+			return nil, fmt.Errorf("failed to parse RLC coefficients: %w", parseErr)
+		} else if setErr := blob.SetOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {
+			log.WarnContext(ctx, "RLC verification context rejected, falling back to inclusion-only verification", "error", setErr)
+			return nil, fmt.Errorf("failed to set RLC coefficients: %w", setErr)
+		}
+	}
+
+	verified := make([]*rsema1d.RowInclusionProof, 0, len(result.proofs))
+	for _, row := range result.proofs {
 		if err := blob.VerifyRow(row); err != nil {
 			log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
 			span.AddEvent("invalid_row", trace.WithAttributes(
@@ -200,12 +240,12 @@ func (c *Client) downloadFrom(
 	}
 
 	if len(verified) == 0 {
-		log.WarnContext(ctx, "no valid rows from validator", "rows_total", len(rows), "row_size", rowSize)
+		log.WarnContext(ctx, "no valid rows from validator", "rows_total", len(result.proofs), "row_size", rowSize)
 		span.SetStatus(codes.Error, "no valid rows")
 		return nil, fmt.Errorf("no valid rows from validator %s", val.Address)
 	}
 
-	log.DebugContext(ctx, "got rows", "rows_total", len(rows), "verified", len(verified), "row_size", rowSize)
+	log.DebugContext(ctx, "got rows", "rows_total", len(result.proofs), "verified", len(verified), "row_size", rowSize)
 	span.SetStatus(codes.Ok, "")
 	return verified, nil
 }
@@ -220,10 +260,12 @@ type downloadResult struct {
 // downloadBlob downloads shards from validators concurrently and populates the blob.
 // It tracks unique rows collected and dynamically launches more validators as needed,
 // applying rows single-threaded in the coordinator goroutine.
+// When withRLC is true, requests RLC coefficients for stronger per-row verification.
 func (c *Client) downloadBlob(
 	ctx context.Context,
 	valSet validator.Set,
 	id BlobID,
+	verifyRLC bool,
 ) (*Blob, error) {
 	span := trace.SpanFromContext(ctx)
 	ctx, cancel := context.WithCancelCause(ctx)
@@ -281,7 +323,7 @@ loop:
 					c.closeWg.Done()
 				}()
 
-				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id)
+				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, verifyRLC)
 				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
 			}()
 
@@ -334,8 +376,15 @@ loop:
 // errDownloaded signals that context was cancelled because download completed successfully.
 var errDownloaded = errors.New("downloaded")
 
+// shardResult holds parsed shard data including row proofs and optional RLC coefficients.
+type shardResult struct {
+	proofs    []*rsema1d.RowInclusionProof
+	rlcCoeffs []byte // non-nil when coefficients are present (with_rlc download)
+}
+
 // parseShard extracts rows from the BlobShard response, constructing RowInclusionProofs.
-func parseShard(shard *types.BlobShard) ([]*rsema1d.RowInclusionProof, error) {
+// Also passes through RLC coefficients if present in the shard.
+func parseShard(shard *types.BlobShard) (*shardResult, error) {
 	if shard == nil {
 		return nil, fmt.Errorf("shard response is nil")
 	}
@@ -367,5 +416,8 @@ func parseShard(shard *types.BlobShard) ([]*rsema1d.RowInclusionProof, error) {
 		})
 	}
 
-	return proofs, nil
+	return &shardResult{
+		proofs:    proofs,
+		rlcCoeffs: shard.GetCoefficients(),
+	}, nil
 }
