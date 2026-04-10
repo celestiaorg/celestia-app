@@ -2,8 +2,6 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
-<<<<<<< HEAD
-=======
 ## v8.0.0
 
 ### Node Operators (v8.0.0)
@@ -30,7 +28,6 @@ v8 changes the behavior when a consensus panic occurs. Previously, a consensus p
 
 v8 binds the token identity to forwarding address derivation in `x/forwarding` ([#6906](https://github.com/celestiaorg/celestia-app/pull/6906)). Frontends and relayers select the token route off-chain and the module verifies it matches the derived address. Each unique `(destDomain, destRecipient, tokenId)` tuple now derives its own forwarding address. Any assets sent to a forwarding address with a mismatched denomination are irrecoverable by design. Existing forwarding addresses derived without the token identifier will no longer be valid.
 
->>>>>>> 2ea6012d (docs: add required ubuntu OS version notice (#6981))
 ## v7.0.0
 
 ### Node Operators (v7.0.0)
