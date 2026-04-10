@@ -31,6 +31,42 @@ jobs:
       - name: Build book
         run: mdbook build specs
 
+<<<<<<< HEAD
+=======
+      # --- Build Swagger docs ---
+      - name: Setup Go
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        with:
+          go-version-file: go.mod
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 #v1.50.0
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install protoc-gen-openapiv2
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: make proto-deps
+
+      - name: Generate Swagger spec
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: make proto-swagger-gen
+
+      # --- Combine into single publish directory ---
+      - name: Prepare publish directory
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p _site/swagger
+          # Copy mdBook output to site root
+          cp -r specs/book/* _site/
+          # Copy Swagger UI and generated spec to site/swagger/
+          cp docs/swagger/index.html _site/swagger/
+          cp docs/swagger/swagger.json _site/swagger/
+
+      # --- Deploy ---
+>>>>>>> 9ebd1af6 (fix: pin bufbuild/buf-setup-action to commit hash (#7032))
       - name: Deploy main
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e #v4.0.0
