@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
@@ -46,6 +47,35 @@ func TestServerDownloadShard(t *testing.T) {
 			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "invalid blob ID")
+			},
+		},
+		{
+			name:      "WithRlc_ReturnsCoefficients",
+			storeBlob: true,
+			requestModifier: func(req *types.DownloadShardRequest, _ fibre.BlobID) {
+				req.WithRlc = true
+			},
+			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, resp.Shard)
+				require.NotEmpty(t, resp.Shard.Rows)
+				require.NotEmpty(t, resp.Shard.Coefficients,
+					"coefficients should be present when WithRlc is true")
+				require.NotEmpty(t, resp.Shard.Root,
+					"RLC root should be present")
+			},
+		},
+		{
+			name:      "WithoutRlc_StripsCoefficients",
+			storeBlob: true,
+			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
+				require.NoError(t, err)
+				require.NotNil(t, resp.Shard)
+				require.NotEmpty(t, resp.Shard.Rows)
+				require.Empty(t, resp.Shard.Coefficients,
+					"coefficients should be stripped when WithRlc is false")
+				require.NotEmpty(t, resp.Shard.Root,
+					"RLC root should always be present")
 			},
 		},
 		{
@@ -125,9 +155,18 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 		}
 	}
 
+	// flatten RLC coefficients for storage
+	rlcCoeffs := blob.RLCCoeffs()
+	coeffBytes := make([]byte, len(rlcCoeffs)*16)
+	for i, c := range rlcCoeffs {
+		b := field.ToBytes128(c)
+		copy(coeffBytes[i*16:(i+1)*16], b[:])
+	}
+
 	shard := &types.BlobShard{
-		Rows: rows,
-		Root: make([]byte, 32),
+		Rows:         rows,
+		Root:         make([]byte, 32),
+		Coefficients: coeffBytes,
 	}
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))
