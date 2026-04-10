@@ -11,7 +11,4 @@ const (
 
 	// MaxSDKMessages arbitrary high numbers for running benchmarks.
 	MaxSDKMessages = 999999999999
-
-	// MaxPayForFibreMessages arbitrary high numbers for running benchmarks.
-	MaxPayForFibreMessages = 999999999999
 )

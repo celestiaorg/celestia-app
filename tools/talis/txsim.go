@@ -15,14 +15,16 @@ const (
 // startTxsimCmd creates a cobra command for starting txsim on remote instances.
 func startTxsimCmd() *cobra.Command {
 	var (
-		instances   int
-		seqCount    int
-		blobsPerPFB int
-		startSize   int
-		endSize     int
-		rootDir     string
-		cfgPath     string
-		SSHKeyPath  string
+		instances          int
+		seqCount           int
+		blobsPerPFB        int
+		startSize          int
+		endSize            int
+		rootDir            string
+		cfgPath            string
+		SSHKeyPath         string
+		fireAndForget      bool
+		fireAndForgetDelay time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -42,12 +44,16 @@ func startTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			txsimScript := fmt.Sprintf(
-				"txsim .celestia-app/ --blob %d --blob-amounts %d --blob-sizes %d-%d --grpc-endpoint localhost:9091 --feegrant > txsim.log",
+				"txsim .celestia-app/ --blob %d --blob-amounts %d --blob-sizes %d-%d --grpc-endpoint localhost:9091 --feegrant",
 				seqCount,
 				blobsPerPFB,
 				startSize,
 				endSize,
 			)
+			if fireAndForget {
+				txsimScript += fmt.Sprintf(" --fire-and-forget --fire-and-forget-delay %s", fireAndForgetDelay.String())
+			}
+			txsimScript += " > txsim.log"
 
 			// only spin up txsim on the number of instances that were specified.
 			insts := []Instance{}
@@ -73,6 +79,8 @@ func startTxsimCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&blobsPerPFB, "blobs-per-pfb", "b", 1, "the number of blobs in each PFB")
 	cmd.Flags().IntVarP(&startSize, "min-blob-size", "m", 1000000, "the min number of bytes in each blob")
 	cmd.Flags().IntVarP(&endSize, "max-blob-size", "x", 1900000, "the max number of bytes in each blob")
+	cmd.Flags().BoolVar(&fireAndForget, "fire-and-forget", false, "enable fire-and-forget mode (broadcast txs without waiting for inclusion)")
+	cmd.Flags().DurationVar(&fireAndForgetDelay, "fire-and-forget-delay", 500*time.Millisecond, "delay between submissions in fire-and-forget mode")
 	_ = cmd.MarkFlagRequired("sequences")
 	_ = cmd.MarkFlagRequired("instances")
 	return cmd

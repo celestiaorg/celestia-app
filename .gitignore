@@ -37,5 +37,10 @@ talis-setup/
 .gocache
 .cache
 .gomodcache
-# Claude Code 
+# Claude Code
 .claude/
+# Swagger UI page (override **/*.html)
+!docs/swagger/index.html
+# Swagger generation artifacts
+tmp-swagger-gen/
+docs/swagger/swagger.json

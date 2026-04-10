@@ -5,7 +5,7 @@ Standalone binary for the Fibre data availability server.
 ## Build
 
 ```sh
-make build-fibre
+make build-fibre-server
 ```
 
 The binary is output to `build/fibre`.

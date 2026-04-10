@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -128,7 +128,7 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 		return err
 	}
 
-	fmt.Printf("creating %d fibre accounts\n", fibreAccounts)
+	fmt.Printf("creating %d fibre accounts for validator %s\n", fibreAccounts, name)
 	for i := range fibreAccounts {
 		if err := addFundedAccount(kr, n.genesis, fmt.Sprintf("fibre-%d", i)); err != nil {
 			return err

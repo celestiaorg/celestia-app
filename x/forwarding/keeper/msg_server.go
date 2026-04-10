@@ -7,7 +7,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

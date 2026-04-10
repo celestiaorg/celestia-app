@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 	"github.com/stretchr/testify/assert"
 )
 

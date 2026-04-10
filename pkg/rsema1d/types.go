@@ -3,8 +3,8 @@ package rsema1d
 import (
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
 // chunkSize is the fixed Leopard chunk size in bytes

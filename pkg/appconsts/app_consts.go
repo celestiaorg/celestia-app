@@ -8,7 +8,7 @@ import (
 
 const (
 	// Version is the current application version.
-	Version uint64 = 8
+	Version uint64 = 9
 	// SquareSizeUpperBound imposes an upper bound on the max effective square size.
 	SquareSizeUpperBound int = 512
 	// SubtreeRootThreshold works as a target upper bound for the number of subtree
@@ -37,33 +37,33 @@ const (
 	TimeoutPrevoteDelta          = time.Millisecond * 500
 	TimeoutPrecommit             = time.Millisecond * 3000
 	TimeoutPrecommitDelta        = time.Millisecond * 500
-	TimeoutCommit                = time.Millisecond
+	TimeoutCommit                = time.Millisecond * 500
 	// DelayedPrecommitTimeout is the primary determinant of expected block
 	// time. If this value changes, MaxExpectedTimePerBlock should also be
 	// updated. See TestMaxExpectedTimePerBlock.
-	DelayedPrecommitTimeout = time.Millisecond * 2790
+	DelayedPrecommitTimeout = time.Millisecond * 2100
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
 	// 3-5x the expected block time. The expected block time is primarily
-	// determined by DelayedPrecommitTimeout (~3 seconds), so this value is
-	// 15 seconds (5x). If the timeout constants change, this value must be
+	// determined by DelayedPrecommitTimeout + TimeoutCommit (~2.6 seconds), so this value is
+	// 13 seconds (~5x). If the timeout constants change, this value must be
 	// updated.
-	MaxExpectedTimePerBlock = 15 * time.Second
+	MaxExpectedTimePerBlock = 13 * time.Second
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
 	TestUpgradeHeightDelay = int64(3)
 	// ArabicaUpgradeHeightDelay is the number of blocks that Arabica waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 3 seconds, this is 1 day.
-	ArabicaUpgradeHeightDelay = int64(28_800)
+	// interval of ~2.6 seconds, this is 1 day.
+	ArabicaUpgradeHeightDelay = int64(33_231)
 	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 3 seconds, this is 2 days.
-	MochaUpgradeHeightDelay = int64(57_600)
+	// interval of ~2.6 seconds, this is 2 days.
+	MochaUpgradeHeightDelay = int64(66_462)
 	// MainnetUpgradeHeightDelay is the number of blocks that Mainnet waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
-	// interval of 3 seconds, this is 7 days.
-	MainnetUpgradeHeightDelay = int64(201_600)
+	// interval of ~2.6 seconds, this is 7 days.
+	MainnetUpgradeHeightDelay = int64(232_616)
 	// Deprecated: Use MainnetUpgradeHeightDelay instead.
 	UpgradeHeightDelay = MainnetUpgradeHeightDelay
 	// MempoolSize determines the default max mempool size.
@@ -76,10 +76,8 @@ const (
 	UnbondingTime = 337 * time.Hour // (14 days + 1 hour)
 
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
-	// Set via the v8 upgrade handler.
+	// Set via the v9 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
-	// DefaultDBBackend is the default database backend for CometBFT.
-	DefaultDBBackend = "goleveldb"
 )
 
 // MinCommissionRate is 20%.

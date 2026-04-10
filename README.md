@@ -83,6 +83,9 @@ See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app
 
 ### Prerequisites
 
+> [!CAUTION]
+> If you are using the multiplexer binary (default `make build`), the embedded binaries require glibc >= 2.38. This means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error.
+
 If you are on Linux, enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
 ```shell
@@ -201,8 +204,17 @@ make build
 # Build and install the celestia-appd binary into the $GOPATH/bin directory.
 make install
 
+# Build celestia-appd with the fibre module enabled.
+make build-fibre
+
+# Install celestia-appd with the fibre module enabled.
+make install-fibre
+
 # Run tests.
 make test
+
+# Run fibre-tagged tests.
+make test-fibre-module
 
 # Format code with linters (this assumes golangci-lint and markdownlint are installed).
 make lint-fix

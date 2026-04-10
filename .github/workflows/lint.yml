@@ -6,7 +6,7 @@ jobs:
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
@@ -21,6 +21,24 @@ jobs:
             go.mod
             go.sum
       - run: go tool golangci-lint run --timeout 10m
+        if: env.GIT_DIFF
+
+  golangci-lint-fibre:
+    name: golangci-lint-fibre
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
+        with:
+          go-version-file: "go.mod"
+      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+        with:
+          PATTERNS: |
+            **/**.go
+            go.mod
+            go.sum
+      - run: go tool golangci-lint run --timeout 10m --build-tags fibre
         if: env.GIT_DIFF
 
   hadolint:

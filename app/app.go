@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"io"
+	"maps"
 	"math"
 	"os"
 	"sync"
@@ -30,36 +31,30 @@ import (
 	"github.com/bcp-innovations/hyperlane-cosmos/x/warp"
 	warpkeeper "github.com/bcp-innovations/hyperlane-cosmos/x/warp/keeper"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v8/app/ante"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
-	celestiatx "github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/proof"
-	"github.com/celestiaorg/celestia-app/v8/pkg/wrapper"
-	"github.com/celestiaorg/celestia-app/v8/x/blob"
-	blobkeeper "github.com/celestiaorg/celestia-app/v8/x/blob/keeper"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v8/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v8/x/fibre/types"
-	"github.com/celestiaorg/celestia-app/v8/x/forwarding"
-	forwardingkeeper "github.com/celestiaorg/celestia-app/v8/x/forwarding/keeper"
-	forwardingtypes "github.com/celestiaorg/celestia-app/v8/x/forwarding/types"
-	"github.com/celestiaorg/celestia-app/v8/x/minfee"
-	minfeekeeper "github.com/celestiaorg/celestia-app/v8/x/minfee/keeper"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
-	"github.com/celestiaorg/celestia-app/v8/x/mint"
-	mintkeeper "github.com/celestiaorg/celestia-app/v8/x/mint/keeper"
-	minttypes "github.com/celestiaorg/celestia-app/v8/x/mint/types"
-	"github.com/celestiaorg/celestia-app/v8/x/signal"
-	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
-	"github.com/celestiaorg/celestia-app/v8/x/valaddr"
-	valaddrkeeper "github.com/celestiaorg/celestia-app/v8/x/valaddr/keeper"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
-	"github.com/celestiaorg/celestia-app/v8/x/zkism"
-	zkismkeeper "github.com/celestiaorg/celestia-app/v8/x/zkism/keeper"
-	zkismtypes "github.com/celestiaorg/celestia-app/v8/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v9/app/ante"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
+	celestiatx "github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v9/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v9/x/blob"
+	blobkeeper "github.com/celestiaorg/celestia-app/v9/x/blob/keeper"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/x/forwarding"
+	forwardingkeeper "github.com/celestiaorg/celestia-app/v9/x/forwarding/keeper"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v9/x/minfee"
+	minfeekeeper "github.com/celestiaorg/celestia-app/v9/x/minfee/keeper"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v9/x/mint"
+	mintkeeper "github.com/celestiaorg/celestia-app/v9/x/mint/keeper"
+	minttypes "github.com/celestiaorg/celestia-app/v9/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v9/x/signal"
+	signaltypes "github.com/celestiaorg/celestia-app/v9/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v9/x/zkism"
+	zkismkeeper "github.com/celestiaorg/celestia-app/v9/x/zkism/keeper"
+	zkismtypes "github.com/celestiaorg/celestia-app/v9/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmjson "github.com/cometbft/cometbft/libs/json"
@@ -140,20 +135,23 @@ import (
 
 // maccPerms is short for module account permissions. It is a map from module
 // account name to a list of permissions for that module account.
-var maccPerms = map[string][]string{
-	authtypes.FeeCollectorName:     nil,
-	distrtypes.ModuleName:          nil,
-	govtypes.ModuleName:            {authtypes.Burner},
-	minttypes.ModuleName:           {authtypes.Minter},
-	stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
-	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-	icatypes.ModuleName:            nil,
-	fibretypes.ModuleName:          nil,
-	hyperlanetypes.ModuleName:      nil,
-	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
-	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
-}
+var maccPerms = func() map[string][]string {
+	perms := map[string][]string{
+		authtypes.FeeCollectorName:     nil,
+		distrtypes.ModuleName:          nil,
+		govtypes.ModuleName:            {authtypes.Burner},
+		minttypes.ModuleName:           {authtypes.Minter},
+		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
+		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
+		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+		icatypes.ModuleName:            nil,
+		hyperlanetypes.ModuleName:      nil,
+		warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+		forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
+	}
+	maps.Copy(perms, fibreMaccPerms())
+	return perms
+}()
 
 var (
 	_ servertypes.Application = (*App)(nil)
@@ -195,13 +193,12 @@ type App struct {
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	BlobKeeper          blobkeeper.Keeper
-	FibreKeeper         *fibrekeeper.Keeper
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
-	ValAddrKeeper       valaddrkeeper.Keeper
+	fibreKeepers        //nolint:unused // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -215,6 +212,7 @@ type App struct {
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
+	timeoutCommit           time.Duration
 	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
@@ -223,12 +221,14 @@ type App struct {
 
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp. Setting
-// delayedPrecommitTimeout to 0 will result in using the default value.
+// delayedPrecommitTimeout or timeoutCommit to 0 will result in using the
+// default value from appconsts.
 func New(
 	logger log.Logger,
 	db dbm.DB,
 	traceStore io.Writer,
 	delayedPrecommitTimeout time.Duration,
+	timeoutCommit time.Duration,
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
@@ -249,6 +249,10 @@ func New(
 		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
 	}
 
+	if timeoutCommit == 0 {
+		timeoutCommit = appconsts.TimeoutCommit
+	}
+
 	app := &App{
 		BaseApp:                 baseApp,
 		keys:                    keys,
@@ -256,6 +260,7 @@ func New(
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
+		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
 	}
 
@@ -436,20 +441,7 @@ func New(
 		&app.HyperlaneKeeper,
 	)
 
-	app.ValAddrKeeper = valaddrkeeper.NewKeeper(
-		encodingConfig.Codec,
-		runtime.NewKVStoreService(keys[valaddrtypes.StoreKey]),
-		logger,
-		app.StakingKeeper,
-	)
-
-	app.FibreKeeper = fibrekeeper.NewKeeper(
-		encodingConfig.Codec,
-		keys[fibretypes.StoreKey],
-		app.BankKeeper,
-		app.StakingKeeper,
-		govModuleAddr,
-	)
+	app.initFibreKeepers(encodingConfig, keys, logger, govModuleAddr)
 
 	/****  Module Options ****/
 
@@ -486,9 +478,10 @@ func New(
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
 		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
 		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
-		valaddr.NewAppModule(encodingConfig.Codec, app.ValAddrKeeper),
-		fibre.NewAppModule(encodingConfig.Codec, *app.FibreKeeper),
 	)
+	for _, m := range app.fibreAppModules(encodingConfig) {
+		app.ModuleManager.Modules[m.Name()] = m
+	}
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as genesis verification.
@@ -907,7 +900,7 @@ func (app *App) TimeoutInfo() abci.TimeoutInfo {
 	return abci.TimeoutInfo{
 		TimeoutPropose:          appconsts.TimeoutPropose,
 		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
-		TimeoutCommit:           appconsts.TimeoutCommit,
+		TimeoutCommit:           app.timeoutCommit,
 		TimeoutPrevote:          appconsts.TimeoutPrevote,
 		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
 		TimeoutPrecommit:        appconsts.TimeoutPrecommit,

@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
 )
 
 // initServerConfig creates the home directory and writes a default config file
