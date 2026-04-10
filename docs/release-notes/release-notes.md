@@ -12,7 +12,8 @@ Node operators MUST upgrade their binary to this version prior to the v8 activat
 
 ##### Minimum OS Version
 
-The v8 multiplexer embeds a v7 binary that was compiled against glibc >= 2.38, which means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error. If you encounter this, upgrade your host OS before proceeding with the v8 upgrade.
+> [!CAUTION]
+> The v8 multiplexer embeds a v7 binary that was compiled against glibc >= 2.38, which means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error. If you encounter this, upgrade your host OS before proceeding with the v8 upgrade.
 
 #### Upgrade Handler
 
