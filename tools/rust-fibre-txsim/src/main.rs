@@ -1,16 +1,22 @@
 mod keyring;
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::Context;
-use celestia_fibre::{BlobID, FibreClient, FibreClientConfig};
-use celestia_grpc::{GrpcClient, TxConfig};
+use celestia_fibre::{Blob, BlobConfig, BlobID, DownloadOptions, FibreClient, FibreClientConfig};
+use celestia_grpc::{
+    AccountSigner, GrpcClient, MultiAccountTxService, MultiAccountTxServiceConfig, TxConfig, TxInfo,
+};
+use celestia_proto::celestia::fibre::v1::MsgPayForFibre;
+use celestia_types::state::AccAddress;
 use clap::Parser;
 use k256::ecdsa::SigningKey;
 use rand::Rng;
-use tokio::sync::mpsc;
+use tokio::task::JoinSet;
 
 use keyring::{Backend, FileKeyring};
 
@@ -71,25 +77,53 @@ fn parse_duration(s: &str) -> Result<Duration, String> {
     humantime::parse_duration(s).map_err(|e| format!("invalid duration '{s}': {e}"))
 }
 
-/// Per-worker state: each worker has its own signing key and gRPC client,
-/// but shares the FibreClient (connections, validator set) with all workers.
-struct Worker {
+/// Per-account state shared across pipeline stages.
+struct AccountInfo {
     fibre_client: Arc<FibreClient>,
     signing_key: SigningKey,
-    grpc_client: Arc<GrpcClient>,
-    signer_address: String,
+    signer_address: AccAddress,
+    signer_address_str: String,
     key_name: String,
 }
 
-/// A download request sent from an upload worker to a download worker.
-struct DownloadRequest {
-    blob_id: BlobID,
+/// Output of the upload stage, fed into the submit stage.
+struct UploadPayload {
+    msg: MsgPayForFibre,
+    start_time: Instant,
+    blob_id: Option<BlobID>,
+    original_data: Vec<u8>,
+}
+
+/// Output of the submit stage, fed into the confirm stage.
+struct SubmitOutput {
+    key_name: String,
+    start_time: Instant,
+    blob_id: Option<BlobID>,
     original_data: Vec<u8>,
     fibre_client: Arc<FibreClient>,
-    key_name: String,
+    confirm: Pin<Box<dyn Future<Output = anyhow::Result<TxInfo>> + Send>>,
 }
 
-/// Shared stats across all workers.
+/// Output of the confirm stage.
+struct ConfirmOutput {
+    key_name: String,
+    start_time: Instant,
+    blob_id: Option<BlobID>,
+    original_data: Vec<u8>,
+    fibre_client: Arc<FibreClient>,
+    result: anyhow::Result<TxInfo>,
+}
+
+/// Output of the download stage.
+struct DownloadOutput {
+    key_name: String,
+    blob_id: BlobID,
+    latency: Duration,
+    success: bool,
+    verified: bool,
+}
+
+/// Shared stats across all pipeline stages.
 struct Stats {
     total_sent: AtomicU64,
     successes: AtomicU64,
@@ -109,9 +143,7 @@ async fn main() -> anyhow::Result<()> {
         .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
         .from_env_lossy();
 
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     println!(
         "celestia-fibre version: {} (commit: {})",
@@ -141,8 +173,9 @@ async fn main() -> anyhow::Result<()> {
             .context("failed to create shared fibre client")?,
     );
 
-    // Create one worker per concurrent slot, each with its own account
-    let mut workers = Vec::with_capacity(args.concurrency);
+    // Create signers and account info for each concurrent slot
+    let mut signers = Vec::with_capacity(args.concurrency);
+    let mut accounts: Vec<Arc<AccountInfo>> = Vec::with_capacity(args.concurrency);
     for i in 0..args.concurrency {
         let key_name = format!("{}-{}", args.key_prefix, i);
 
@@ -154,29 +187,37 @@ async fn main() -> anyhow::Result<()> {
         let signing_key = SigningKey::from_bytes(local_key.private_key.as_slice().into())
             .context("invalid secp256k1 private key")?;
 
-        // Each worker needs its own GrpcClient for transaction signing/broadcasting
-        // (different private keys), but shares the FibreClient for uploads/downloads.
-        let grpc_client = GrpcClient::builder()
-            .url(&grpc_url)
-            .private_key_hex(&private_key_hex)
-            .build()
-            .with_context(|| format!("failed to build gRPC client for worker {}", i))?;
+        let signer = AccountSigner::from_private_key_hex(&private_key_hex)
+            .with_context(|| format!("failed to create signer for worker {}", i))?;
+        let address = signer.address();
 
-        let signer_address = grpc_client
-            .get_account_address()
-            .context("no signer address on grpc client")?
-            .to_string();
+        println!(
+            "Worker {} initialized with key {} ({})",
+            i, key_name, address
+        );
 
-        println!("Worker {} initialized with key {}", i, key_name);
-
-        workers.push(Worker {
+        let address_str = address.to_string();
+        signers.push(signer);
+        accounts.push(Arc::new(AccountInfo {
             fibre_client: Arc::clone(&shared_fibre_client),
             signing_key,
-            grpc_client: Arc::new(grpc_client),
-            signer_address,
+            signer_address: address,
+            signer_address_str: address_str,
             key_name,
-        });
+        }));
     }
+
+    // Create a single shared GrpcClient and MultiAccountTxService.
+    // One slot per account with independent sequence tracking;
+    // all accounts share the same gRPC connection pool.
+    let client = GrpcClient::builder()
+        .url(&grpc_url)
+        .build()
+        .context("failed to build gRPC client")?;
+    let nodes = vec![(Arc::from("node-0"), client)];
+    let tx_service = MultiAccountTxService::new(MultiAccountTxServiceConfig::new(nodes, signers))
+        .await
+        .context("failed to create tx service")?;
 
     let stats = Arc::new(Stats {
         total_sent: AtomicU64::new(0),
@@ -214,7 +255,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     println!(
-        "\nStarting fibre blob spam with {} workers...",
+        "\nStarting fibre blob spam with {} workers (pipeline mode)...",
         args.concurrency
     );
 
@@ -222,47 +263,101 @@ async fn main() -> anyhow::Result<()> {
     let interval = args.interval;
     let download = args.download;
 
-    // Download channel: upload workers send requests, download workers process them
-    // Use concurrency as buffer size so uploads aren't blocked waiting for downloads
-    let (dl_tx, dl_rx) = if download {
-        let (tx, rx) = mpsc::channel::<DownloadRequest>(args.concurrency * 4);
-        (Some(tx), Some(rx))
-    } else {
-        (None, None)
-    };
+    let mut upload_tasks: JoinSet<(Arc<AccountInfo>, anyhow::Result<UploadPayload>)> =
+        JoinSet::new();
+    let mut submit_tasks: JoinSet<anyhow::Result<SubmitOutput>> = JoinSet::new();
+    let mut confirm_tasks: JoinSet<ConfirmOutput> = JoinSet::new();
+    let mut download_tasks: JoinSet<DownloadOutput> = JoinSet::new();
 
-    let mut tasks = tokio::task::JoinSet::new();
+    // Seed one upload per account (no delay for initial)
+    for account in &accounts {
+        upload_tasks.spawn(do_upload(
+            account.clone(),
+            blob_size,
+            download,
+            Duration::ZERO,
+        ));
+    }
 
-    // Spawn download workers (same count as upload workers)
-    if let Some(dl_rx) = dl_rx {
-        let dl_rx = Arc::new(tokio::sync::Mutex::new(dl_rx));
-        for _ in 0..args.concurrency {
-            let dl_rx = Arc::clone(&dl_rx);
-            let stats = Arc::clone(&stats);
-            let cancel = cancel.clone();
-
-            tasks.spawn(async move {
-                download_worker_loop(dl_rx, &stats, cancel).await;
-            });
+    loop {
+        tokio::select! {
+            Some(result) = upload_tasks.join_next(), if !upload_tasks.is_empty() => {
+                let (account, result) = result.expect("upload task panicked");
+                stats.total_sent.fetch_add(1, Ordering::Relaxed);
+                match result {
+                    Ok(payload) => {
+                        submit_tasks.spawn(do_submit(
+                            tx_service.clone(),
+                            account.clone(),
+                            payload,
+                        ));
+                    }
+                    Err(e) => {
+                        stats.failures.fetch_add(1, Ordering::Relaxed);
+                        eprintln!("[{}] upload error: {e}", account.key_name);
+                    }
+                }
+                // Always respawn upload for this account (delay is inside do_upload)
+                upload_tasks.spawn(do_upload(account, blob_size, download, interval));
+            }
+            Some(result) = submit_tasks.join_next(), if !submit_tasks.is_empty() => {
+                match result.expect("submit task panicked") {
+                    Ok(submit_out) => {
+                        confirm_tasks.spawn(do_confirm(submit_out));
+                    }
+                    Err(e) => {
+                        stats.failures.fetch_add(1, Ordering::Relaxed);
+                        eprintln!("submit error: {e}");
+                    }
+                }
+            }
+            Some(result) = confirm_tasks.join_next(), if !confirm_tasks.is_empty() => {
+                let out = result.expect("confirm task panicked");
+                match out.result {
+                    Ok(tx_info) => {
+                        let lat = out.start_time.elapsed();
+                        stats.successes.fetch_add(1, Ordering::Relaxed);
+                        stats
+                            .total_lat_ns
+                            .fetch_add(lat.as_nanos() as i64, Ordering::Relaxed);
+                        println!(
+                            "[{}] confirmed: height={} tx={} latency={:?}",
+                            out.key_name, tx_info.height, tx_info.hash, lat
+                        );
+                        if download {
+                            if let Some(blob_id) = out.blob_id {
+                                download_tasks.spawn(do_download(
+                                    out.fibre_client,
+                                    blob_id,
+                                    out.original_data,
+                                    out.key_name,
+                                ));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        stats.failures.fetch_add(1, Ordering::Relaxed);
+                        eprintln!("[{}] confirm error: {e}", out.key_name);
+                    }
+                }
+            }
+            Some(result) = download_tasks.join_next(), if !download_tasks.is_empty() => {
+                let out = result.expect("download task panicked");
+                if out.success {
+                    stats.dl_successes.fetch_add(1, Ordering::Relaxed);
+                    stats
+                        .dl_total_lat_ns
+                        .fetch_add(out.latency.as_nanos() as i64, Ordering::Relaxed);
+                    if out.verified {
+                        stats.dl_verified.fetch_add(1, Ordering::Relaxed);
+                    }
+                } else {
+                    stats.dl_failures.fetch_add(1, Ordering::Relaxed);
+                }
+            }
+            _ = cancel.cancelled() => break,
         }
     }
-
-    // Spawn upload workers
-    for w in workers {
-        let stats = Arc::clone(&stats);
-        let cancel = cancel.clone();
-        let dl_tx = dl_tx.clone();
-
-        tasks.spawn(async move {
-            upload_worker_loop(w, blob_size, interval, dl_tx, stats, cancel).await;
-        });
-    }
-
-    // Drop our copy of the sender so download workers can detect when uploads are done
-    drop(dl_tx);
-
-    // Wait for all workers to finish
-    while tasks.join_next().await.is_some() {}
 
     let elapsed = start_time.elapsed();
     let s = stats.successes.load(Ordering::Relaxed);
@@ -277,10 +372,7 @@ async fn main() -> anyhow::Result<()> {
     println!("Duration:   {:.0?}", elapsed);
     println!();
     println!("Uploads:");
-    println!(
-        "  Total sent: {}",
-        stats.total_sent.load(Ordering::Relaxed)
-    );
+    println!("  Total sent: {}", stats.total_sent.load(Ordering::Relaxed));
     println!("  Successes:  {}", s);
     println!("  Failures:   {}", f);
     println!("  Avg latency (success): {:?}", avg_lat);
@@ -306,175 +398,141 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn upload_worker_loop(
-    w: Worker,
+/// Upload stage: generate random blob data, call `put()` to upload to fibre nodes.
+/// Sleeps for `delay` first (0 for initial seed, `interval` for subsequent uploads).
+/// Always returns the account Arc so the main loop can respawn.
+async fn do_upload(
+    account: Arc<AccountInfo>,
     blob_size: usize,
-    interval: Duration,
-    dl_tx: Option<mpsc::Sender<DownloadRequest>>,
-    stats: Arc<Stats>,
-    cancel: tokio_util::sync::CancellationToken,
-) {
-    loop {
-        if cancel.is_cancelled() {
-            return;
-        }
-
-        upload_blob(&w, blob_size, dl_tx.as_ref(), &stats, &cancel).await;
-
-        if interval > Duration::ZERO {
-            tokio::select! {
-                _ = tokio::time::sleep(interval) => {}
-                _ = cancel.cancelled() => return,
-            }
-        }
+    download: bool,
+    delay: Duration,
+) -> (Arc<AccountInfo>, anyhow::Result<UploadPayload>) {
+    if delay > Duration::ZERO {
+        tokio::time::sleep(delay).await;
     }
-}
 
-async fn upload_blob(
-    w: &Worker,
-    blob_size: usize,
-    dl_tx: Option<&mpsc::Sender<DownloadRequest>>,
-    stats: &Stats,
-    cancel: &tokio_util::sync::CancellationToken,
-) {
-    let (ns, data) = {
-        let mut rng = rand::thread_rng();
-        let mut ns = vec![0u8; 29];
-        rng.fill(&mut ns[19..29]);
-        let mut data = vec![0u8; blob_size];
-        rng.fill(&mut data[..]);
-        (ns, data)
-    };
-
-    let t = Instant::now();
-    let result = w
-        .fibre_client
-        .put(&w.signing_key, &ns, &data, &w.signer_address)
-        .await;
-
-    stats.total_sent.fetch_add(1, Ordering::Relaxed);
-    match result {
-        Ok(prepared) => {
-            if cancel.is_cancelled() {
-                return;
-            }
-            let blob_id = prepared.blob_id;
-            match w
-                .grpc_client
-                .broadcast_message(prepared.msg, TxConfig::default())
-                .await
-            {
-                Ok(submitted_tx) => match submitted_tx.confirm().await {
-                    Ok(tx_info) => {
-                        let lat = t.elapsed();
-                        stats.successes.fetch_add(1, Ordering::Relaxed);
-                        stats
-                            .total_lat_ns
-                            .fetch_add(lat.as_nanos() as i64, Ordering::Relaxed);
-                        println!(
-                            "[{}] upload: height={} tx={} latency={:?}",
-                            w.key_name, tx_info.height, tx_info.hash, lat
-                        );
-                        // Send download request to download workers (non-blocking)
-                        if let Some(dl_tx) = dl_tx {
-                            let _ = dl_tx.try_send(DownloadRequest {
-                                blob_id,
-                                original_data: data,
-                                fibre_client: Arc::clone(&w.fibre_client),
-                                key_name: w.key_name.clone(),
-                            });
-                        }
-                    }
-                    Err(e) => {
-                        if cancel.is_cancelled() {
-                            return;
-                        }
-                        let lat = t.elapsed();
-                        stats.failures.fetch_add(1, Ordering::Relaxed);
-                        println!(
-                            "[{}] confirm error: {} (latency={:?})",
-                            w.key_name, e, lat
-                        );
-                    }
-                },
-                Err(e) => {
-                    if cancel.is_cancelled() {
-                        return;
-                    }
-                    let lat = t.elapsed();
-                    stats.failures.fetch_add(1, Ordering::Relaxed);
-                    println!(
-                        "[{}] broadcast error: {} (latency={:?})",
-                        w.key_name, e, lat
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            if cancel.is_cancelled() {
-                return;
-            }
-            let lat = t.elapsed();
-            stats.failures.fetch_add(1, Ordering::Relaxed);
-            println!("[{}] upload error: {} (latency={:?})", w.key_name, e, lat);
-        }
-    }
-}
-
-async fn download_worker_loop(
-    dl_rx: Arc<tokio::sync::Mutex<mpsc::Receiver<DownloadRequest>>>,
-    stats: &Stats,
-    cancel: tokio_util::sync::CancellationToken,
-) {
-    loop {
-        let req = {
-            let mut rx = dl_rx.lock().await;
-            tokio::select! {
-                req = rx.recv() => req,
-                _ = cancel.cancelled() => {
-                    // Drain remaining requests before exiting
-                    while let Ok(req) = rx.try_recv() {
-                        download_blob(&req, stats).await;
-                    }
-                    return;
-                }
-            }
+    let result = async {
+        let (ns, data) = {
+            let mut rng = rand::thread_rng();
+            let mut ns = vec![0u8; 29];
+            rng.fill(&mut ns[19..29]);
+            let mut data = vec![0u8; blob_size];
+            rng.fill(&mut data[..]);
+            (ns, data)
         };
 
-        match req {
-            Some(req) => download_blob(&req, stats).await,
-            None => return, // Channel closed, all upload workers done
-        }
+        let blob_id = if download {
+            BlobConfig::for_version(0)
+                .ok()
+                .and_then(|cfg| Blob::new(&data, cfg).ok())
+                .map(|blob| blob.id().clone())
+        } else {
+            None
+        };
+
+        let start_time = Instant::now();
+        // TODO: rename this, this is not really a put in the sense of go version, it is just a wrapper
+        //  around upload that creates a MsgPayForFibre
+        let msg = account
+            .fibre_client
+            .put(
+                &account.signing_key,
+                &ns,
+                &data,
+                &account.signer_address_str,
+            )
+            .await?;
+
+        Ok(UploadPayload {
+            msg,
+            start_time,
+            blob_id,
+            original_data: data,
+        })
+    }
+    .await;
+
+    (account, result)
+}
+
+/// Submit stage: send the tx message via the MultiAccountTxService.
+/// Captures the confirm future in a boxed future for the next stage.
+async fn do_submit(
+    tx_service: MultiAccountTxService,
+    account: Arc<AccountInfo>,
+    payload: UploadPayload,
+) -> anyhow::Result<SubmitOutput> {
+    let handle = tx_service
+        .submit_message(&account.signer_address, payload.msg, TxConfig::default())
+        .await
+        .with_context(|| format!("[{}] submit failed", account.key_name))?;
+
+    let confirm: Pin<Box<dyn Future<Output = anyhow::Result<TxInfo>> + Send>> =
+        Box::pin(async move { handle.confirm().await.map_err(|e| anyhow::anyhow!("{e}")) });
+
+    Ok(SubmitOutput {
+        key_name: account.key_name.clone(),
+        start_time: payload.start_time,
+        blob_id: payload.blob_id,
+        original_data: payload.original_data,
+        fibre_client: Arc::clone(&account.fibre_client),
+        confirm,
+    })
+}
+
+/// Confirm stage: await the boxed confirm future from the submit stage.
+async fn do_confirm(submit_out: SubmitOutput) -> ConfirmOutput {
+    let result = submit_out.confirm.await;
+    ConfirmOutput {
+        key_name: submit_out.key_name,
+        start_time: submit_out.start_time,
+        blob_id: submit_out.blob_id,
+        original_data: submit_out.original_data,
+        fibre_client: submit_out.fibre_client,
+        result,
     }
 }
 
-async fn download_blob(req: &DownloadRequest, stats: &Stats) {
+/// Download stage: download the blob and verify its contents.
+async fn do_download(
+    fibre_client: Arc<FibreClient>,
+    blob_id: BlobID,
+    original_data: Vec<u8>,
+    key_name: String,
+) -> DownloadOutput {
     let t = Instant::now();
-    match req.fibre_client.download(&req.blob_id).await {
+    match fibre_client
+        .download(&blob_id, DownloadOptions::default())
+        .await
+    {
         Ok(blob) => {
-            let lat = t.elapsed();
-            let verified = blob.data() == Some(req.original_data.as_slice());
-            stats.dl_successes.fetch_add(1, Ordering::Relaxed);
-            stats
-                .dl_total_lat_ns
-                .fetch_add(lat.as_nanos() as i64, Ordering::Relaxed);
-            if verified {
-                stats.dl_verified.fetch_add(1, Ordering::Relaxed);
-            }
+            let latency = t.elapsed();
+            let verified = blob.data() == Some(original_data.as_slice());
             println!(
                 "[{}] download: blob_id={} latency={:?} verified={}",
-                req.key_name, req.blob_id, lat, verified
+                key_name, blob_id, latency, verified
             );
+            DownloadOutput {
+                key_name,
+                blob_id,
+                latency,
+                success: true,
+                verified,
+            }
         }
         Err(e) => {
-            stats.dl_failures.fetch_add(1, Ordering::Relaxed);
+            let latency = t.elapsed();
             println!(
                 "[{}] download error: blob_id={} {} (latency={:?})",
-                req.key_name,
-                req.blob_id,
-                e,
-                t.elapsed()
+                key_name, blob_id, e, latency
             );
+            DownloadOutput {
+                key_name,
+                blob_id,
+                latency,
+                success: false,
+                verified: false,
+            }
         }
     }
 }
