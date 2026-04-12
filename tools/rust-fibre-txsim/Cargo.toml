@@ -8,8 +8,10 @@ edition = "2021"
 
 [dependencies]
 # Fibre client
-celestia-fibre = { git = "https://github.com/celestiaorg/lumina", branch = "mcrakhman/fibre" }
-celestia-grpc = { git = "https://github.com/celestiaorg/lumina", branch = "mcrakhman/fibre", features = ["tls-ring"] }
+celestia-fibre = { git = "https://github.com/celestiaorg/lumina", branch = "mcrakhman/tx-fibre" }
+celestia-grpc = { git = "https://github.com/celestiaorg/lumina", branch = "mcrakhman/tx-fibre", features = ["tls-ring"] }
+celestia-proto = { git = "https://github.com/celestiaorg/lumina", branch = "mcrakhman/tx-fibre" }
+celestia-types = { git = "https://github.com/celestiaorg/lumina", branch = "mcrakhman/tx-fibre" }
 
 # Crypto (for signing key conversion from keyring)
 k256 = { version = "0.13", features = ["ecdsa"] }
