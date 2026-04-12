@@ -156,6 +156,7 @@ type Config struct {
 	GoogleCloudProject     string   `json:"google_cloud_project"`
 	GoogleCloudKeyJSONPath string   `json:"google_cloud_key_json_path"`
 	S3Config               S3Config `json:"s3_config"`
+	CompletedSteps         []string `json:"completed_steps,omitempty"`
 }
 
 func NewConfig(experiment, chainID string) Config {
@@ -244,7 +245,7 @@ func (cfg Config) Save(root string) error {
 	// Create the config file path
 	configFilePath := filepath.Join(root, "config.json")
 
-	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_SYNC, 0o755)
+	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0o755)
 	if err != nil {
 		return err
 	}
@@ -271,6 +272,23 @@ func LoadConfig(rootDir string) (Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// MarkStepCompleted appends the step to CompletedSteps if not already present.
+func (cfg *Config) MarkStepCompleted(step string) {
+	if !cfg.IsStepCompleted(step) {
+		cfg.CompletedSteps = append(cfg.CompletedSteps, step)
+	}
+}
+
+// IsStepCompleted returns true if the step is already in CompletedSteps.
+func (cfg Config) IsStepCompleted(step string) bool {
+	for _, s := range cfg.CompletedSteps {
+		if s == step {
+			return true
+		}
+	}
+	return false
 }
 
 func TalisChainID(chainID string) string {

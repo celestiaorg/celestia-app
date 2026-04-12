@@ -38,6 +38,7 @@ func main() {
 		fibreThroughputCmd(),
 		resourceMonitorCmd(),
 		downloadResourcesCmd(),
+		startCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

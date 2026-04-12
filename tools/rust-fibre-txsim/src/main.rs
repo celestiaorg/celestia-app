@@ -66,6 +66,18 @@ struct Args {
     /// Enable download verification after each successful upload
     #[arg(long, default_value_t = false)]
     download: bool,
+
+    /// Skip PFF transaction — only upload shards to validators without on-chain confirmation (no-op, kept for CLI compatibility)
+    #[arg(long, default_value_t = false)]
+    upload_only: bool,
+
+    /// OpenTelemetry collector endpoint (no-op, kept for CLI compatibility)
+    #[arg(long, default_value = None)]
+    otel_endpoint: Option<String>,
+
+    /// Pyroscope endpoint for continuous profiling (no-op, kept for CLI compatibility)
+    #[arg(long, default_value = None)]
+    pyroscope_endpoint: Option<String>,
 }
 
 /// Parse a duration string, handling bare "0" which humantime doesn't accept.

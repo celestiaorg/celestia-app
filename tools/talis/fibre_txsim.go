@@ -47,16 +47,20 @@ func fibreTxsimCmd() *cobra.Command {
 			// Build the remote command — binaries are copied to /bin/ by validator_init.sh
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := fmt.Sprintf(
-				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t",
+				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s",
 				cfg.ChainID,
 				keyPrefix,
 				blobSize,
 				concurrency,
 				interval,
 				duration,
-				download,
-				uploadOnly,
 			)
+			if download {
+				remoteCmd += " --download"
+			}
+			if uploadOnly {
+				remoteCmd += " --upload-only"
+			}
 
 			// Auto-wire observability endpoints when observability nodes are configured
 			if len(cfg.Observability) > 0 {
