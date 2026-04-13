@@ -90,6 +90,11 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	opts := &pebbledb.Options{}
 
+	// Enable value separation format so that large values (shard data) are
+	// written to separate .blob files instead of being inlined in SSTables.
+	// Without this, the ValueSeparationPolicy below has no effect.
+	opts.FormatMajorVersion = pebbledb.FormatValueSeparation
+
 	// MemTable settings - moderate size for bulk writes
 	opts.MemTableSize = 16 << 20 // 16 MiB memtable (default 4 MiB)
 
