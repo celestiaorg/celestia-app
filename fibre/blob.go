@@ -104,10 +104,10 @@ type Blob struct {
 	rows [][]byte
 
 	// fields for RLC-based row verification (set via SetOrWaitVerificationContext)
-	verificationCtx   *rsema1d.VerificationContext
-	veificationCtxSet atomic.Bool // true once verificationCtx is ready
-	ctxErr            error       // error from the Once winner (if any)
-	rlcOnce           sync.Once   // ensures expensive extension runs exactly once
+	verificationCtx    *rsema1d.VerificationContext
+	verificationCtxSet atomic.Bool // true once verificationCtx is ready
+	ctxErr             error       // error from the Once winner (if any)
+	rlcOnce            sync.Once   // ensures expensive extension runs exactly once
 }
 
 // NewBlob creates a new [Blob] instance by encoding the data.
@@ -252,7 +252,7 @@ func (d *Blob) SetOrWaitVerificationContext(
 	sampleProof *rsema1d.RowProof,
 ) error {
 	// Fast path: context already set.
-	if d.veificationCtxSet.Load() {
+	if d.verificationCtxSet.Load() {
 		return nil
 	}
 
@@ -281,10 +281,10 @@ func (d *Blob) SetOrWaitVerificationContext(
 			return
 		}
 		d.verificationCtx = verCtx
-		d.veificationCtxSet.Store(true)
+		d.verificationCtxSet.Store(true)
 	})
 
-	if d.veificationCtxSet.Load() {
+	if d.verificationCtxSet.Load() {
 		return nil
 	}
 	return d.ctxErr
@@ -347,7 +347,7 @@ func WithSkipCommitmentCheck() ReconstructOption {
 // This is required when the blob commitment changes after recovery.
 func (d *Blob) clearVerificationContext() {
 	d.verificationCtx = nil
-	d.veificationCtxSet = atomic.Bool{}
+	d.verificationCtxSet = atomic.Bool{}
 	d.ctxErr = nil
 	d.rlcOnce = sync.Once{}
 }

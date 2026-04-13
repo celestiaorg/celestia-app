@@ -211,14 +211,15 @@ func (c *Client) downloadFrom(
 
 	if verifyRLC {
 		if len(result.rlcCoeffs) == 0 || rowSize <= 0 || len(result.proofs) == 0 {
-			return nil, fmt.Errorf("incorrect rlc coeffs")
+			return nil, fmt.Errorf("RLC verification requested but response is incomplete: coeffs=%d rowSize=%d proofs=%d",
+				len(result.rlcCoeffs), rowSize, len(result.proofs))
 		}
 		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, blob.Config().OriginalRows)
 		if parseErr != nil {
-			log.WarnContext(ctx, "failed to parse RLC coefficients, falling back to inclusion-only verification", "error", parseErr)
+			log.WarnContext(ctx, "failed to parse RLC coefficients, skipping validator", "error", parseErr)
 			return nil, fmt.Errorf("failed to parse RLC coefficients: %w", parseErr)
 		} else if setErr := blob.SetOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {
-			log.WarnContext(ctx, "RLC verification context rejected, falling back to inclusion-only verification", "error", setErr)
+			log.WarnContext(ctx, "RLC verification context rejected, skipping validator", "error", setErr)
 			return nil, fmt.Errorf("failed to set RLC coefficients: %w", setErr)
 		}
 	}
