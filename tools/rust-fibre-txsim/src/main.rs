@@ -343,6 +343,7 @@ async fn main() -> anyhow::Result<()> {
                                     blob_id,
                                     out.original_data,
                                     out.key_name,
+                                    Duration::from_secs(10),
                                 ));
                             }
                         }
@@ -505,13 +506,17 @@ async fn do_confirm(submit_out: SubmitOutput) -> ConfirmOutput {
     }
 }
 
-/// Download stage: download the blob and verify its contents.
+/// Download stage: wait for `delay`, then download the blob and verify its contents.
 async fn do_download(
     fibre_client: Arc<FibreClient>,
     blob_id: BlobID,
     original_data: Vec<u8>,
     key_name: String,
+    delay: Duration,
 ) -> DownloadOutput {
+    if delay > Duration::ZERO {
+        tokio::time::sleep(delay).await;
+    }
     let t = Instant::now();
     match fibre_client
         .download(&blob_id, DownloadOptions::default())
