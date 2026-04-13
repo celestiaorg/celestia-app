@@ -3,6 +3,7 @@ package fibre_test
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -11,6 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -34,6 +37,7 @@ func TestClientDownload(t *testing.T) {
 		{"WithHeight", testClientDownloadWithHeight},
 		{"WithZeroHeight", testClientDownloadWithZeroHeight},
 		{"CustomMinRowsPerValidator", testClientDownloadCustomMinRows},
+		{"TamperedBlobRLCRetry", testClientDownloadTamperedBlobRLCRetry},
 	}
 
 	for _, tt := range tests {
@@ -511,14 +515,221 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 		}
 	}
 
-	return &types.DownloadShardResponse{
-		Shard: &types.BlobShard{
-			Rlc:  &types.BlobShard_Root{Root: rlcRoot[:]},
-			Rows: rows,
-		},
-	}, nil
+	shard := &types.BlobShard{
+		Root: rlcRoot[:],
+		Rows: rows,
+	}
+
+	if req.WithRlc {
+		rlcCoeffs := blob.RLCCoeffs()
+		coeffBytes := make([]byte, len(rlcCoeffs)*16)
+		for i, c := range rlcCoeffs {
+			b := field.ToBytes128(c)
+			copy(coeffBytes[i*16:(i+1)*16], b[:])
+		}
+		shard.Coefficients = coeffBytes
+	}
+
+	return &types.DownloadShardResponse{Shard: shard}, nil
 }
 
 func (d *downloadMockClient) Close() error {
 	return nil
+}
+
+// tamperedMockClient serves rows from a IncorrectEncoding instead of a real blob.
+// This allows testing that RLC verification detects tampered parity rows.
+type tamperedMockClient struct {
+	validator         *core.Validator
+	incorrectEncoding *rsema1d.IncorrectEncoding
+	blobCfg           fibre.BlobConfig
+	valSet            validator.Set
+	clientCfg         *fibre.ClientConfig
+}
+
+func (d *tamperedMockClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
+	return &types.UploadShardResponse{}, nil
+}
+
+func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
+	var id fibre.BlobID
+	if err := id.UnmarshalBinary(req.BlobId); err != nil {
+		return nil, err
+	}
+
+	if id.Commitment() != d.incorrectEncoding.Commitment {
+		return &types.DownloadShardResponse{}, nil
+	}
+
+	shardMap := d.valSet.Assign(
+		id.Commitment(),
+		d.blobCfg.TotalRows(),
+		d.blobCfg.OriginalRows,
+		d.clientCfg.MinRowsPerValidator,
+		d.clientCfg.LivenessThreshold,
+	)
+
+	val, ok := d.valSet.GetByAddress(d.validator.Address)
+	if !ok {
+		return &types.DownloadShardResponse{}, nil
+	}
+
+	rowIndices := shardMap[val]
+	rows := make([]*types.BlobRow, 0, len(rowIndices))
+	var rlcRoot [32]byte
+	for _, idx := range rowIndices {
+		proof, err := d.incorrectEncoding.ExtendedData.GenerateRowInclusionProof(idx)
+		if err != nil {
+			continue
+		}
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(proof.Index),
+			Data:  proof.Row,
+			Proof: proof.RowProof.RowProof,
+		})
+		if len(rows) == 1 {
+			rlcRoot = proof.RLCRoot
+		}
+	}
+
+	shard := &types.BlobShard{
+		Root: rlcRoot[:],
+		Rows: rows,
+	}
+
+	if req.WithRlc {
+		coeffBytes := make([]byte, len(d.incorrectEncoding.RLCOrig)*16)
+		for i, c := range d.incorrectEncoding.RLCOrig {
+			b := field.ToBytes128(c)
+			copy(coeffBytes[i*16:(i+1)*16], b[:])
+		}
+		shard.Coefficients = coeffBytes
+	}
+
+	return &types.DownloadShardResponse{Shard: shard}, nil
+}
+
+func (d *tamperedMockClient) Close() error {
+	return nil
+}
+
+// makeTamperedDownloadMockClientFn creates a mock client factory that serves rows from a IncorrectEncoding.
+func makeTamperedDownloadMockClientFn(
+	valSet validator.Set,
+	cfg *fibre.ClientConfig,
+	privKeys []cmted25519.PrivKey,
+	incorrectEncoding *rsema1d.IncorrectEncoding,
+	blobCfg fibre.BlobConfig,
+) grpc.NewClientFn {
+	privKeyByAddr := make(map[string]cmted25519.PrivKey)
+	for _, pk := range privKeys {
+		privKeyByAddr[pk.PubKey().Address().String()] = pk
+	}
+
+	return func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
+		if _, ok := privKeyByAddr[val.Address.String()]; !ok {
+			return nil, fmt.Errorf("validator not found: %s", val.Address)
+		}
+		return &tamperedMockClient{
+			validator:         val,
+			incorrectEncoding: incorrectEncoding,
+			blobCfg:           blobCfg,
+			valSet:            valSet,
+			clientCfg:         cfg,
+		}, nil
+	}
+}
+
+// makeTamperedBlob creates a IncorrectEncoding from a real blob by modifying the specified parity row indices.
+func makeTamperedBlob(t *testing.T, blob *fibre.Blob, modIndices []int) *rsema1d.IncorrectEncoding {
+	t.Helper()
+	blobCfg := blob.Config()
+
+	// Extract original rows from the blob
+	rows := make([][]byte, blobCfg.OriginalRows)
+	for i := range blobCfg.OriginalRows {
+		proof, err := blob.Row(i)
+		require.NoError(t, err)
+		rows[i] = make([]byte, len(proof.Row))
+		copy(rows[i], proof.Row)
+	}
+
+	config := &rsema1d.Config{
+		K:           blobCfg.OriginalRows,
+		N:           blobCfg.ParityRows,
+		RowSize:     len(rows[0]),
+		WorkerCount: blobCfg.CodingWorkers,
+	}
+
+	rng := rand.New(rand.NewSource(42))
+	incorrectEncoding, err := rsema1d.GenerateIncorrectEncoding(rows, config, modIndices, rng)
+	require.NoError(t, err)
+	return incorrectEncoding
+}
+
+func testClientDownloadTamperedBlobRLCRetry(t *testing.T) {
+	// Test recovery from an incorrect encoding:
+	// A malicious uploader tampers with both original and parity rows, then
+	// recomputes the commitment. The first Reconstruct fails with
+	// ErrBlobCommitmentMismatch, triggering an RLC-verified retry.
+	// The retry filters out all tampered rows, reconstructs from the
+	// remaining correct rows, and uses WithSkipCommitmentCheck to accept
+	// the real commitment instead of the incorrect on-chain one.
+	const numValidators = 10
+
+	blob := makeTestBlobV0(t, 256*1024)
+	blobCfg := blob.Config()
+
+	// In our case each 1/3 stake should have at least the number of originalRows
+	// so in this test we download from all the vals that will have in total at least originalRows * 3
+	// therefore we can have max originalRows * 2 as tampered and still recover, because we check all vals
+	totalRows := blobCfg.OriginalRows + blobCfg.ParityRows
+	numTampered := blobCfg.OriginalRows * 2
+	perm := rand.Perm(totalRows)
+	modIndices := make([]int, numTampered)
+	copy(modIndices, perm[:numTampered])
+	incorrect := makeTamperedBlob(t, blob, modIndices)
+
+	// Create a BlobID with the incorrect commitment (as it would appear on-chain)
+	chainID := fibre.NewBlobID(blobCfg.BlobVersion, incorrect.Commitment)
+
+	validators, privKeys := makeTestValidators(t, numValidators)
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = makeTamperedDownloadMockClientFn(valSet, &cfg, privKeys, incorrect, blobCfg)
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	downloaded, err := client.Download(t.Context(), chainID)
+	require.NoError(t, err)
+	require.NotNil(t, downloaded)
+
+	// The recovered data must match the original blob's data
+	require.Equal(t, blob.Data(), downloaded.Data())
+
+	// The recovered data is what matters — the on-chain commitment (incorrectID) was
+	// signed by validators over tampered rows, so the blob's ID after
+	// reconstruction won't match it. We only care that the data is correct.
+	require.NotEqual(t, chainID.Commitment(), downloaded.ID().Commitment(),
+		"reconstructed commitment should differ from the incorrect on-chain commitment")
+
+	// OriginalID preserves the on-chain (incorrect) commitment so callers can
+	// reference the canonical identity even after reconstruction overwrites ID.
+	require.True(t, downloaded.Recovered(), "blob should be marked as recovered after commitment rewrite")
+	require.Equal(t, chainID.Commitment(), downloaded.OriginalID().Commitment(),
+		"OriginalID should preserve the on-chain incorrect commitment")
+
+	// The recovered blob should remain usable for row verification against its
+	// reconstructed commitment after the stale RLC context is cleared.
+	for i := range downloaded.Config().TotalRows() {
+		row, err := downloaded.Row(i)
+		require.NoError(t, err)
+		require.NoError(t, downloaded.VerifyRow(row))
+	}
 }

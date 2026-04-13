@@ -23,9 +23,9 @@ func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 	return merkle.NewTreeWithWorkers(paddedRows, config.WorkerCount)
 }
 
-// buildPaddedRLCTree creates a padded Merkle tree from RLC original values
+// BuildPaddedRLCTree creates a padded Merkle tree from RLC original values
 // Only stores K values padded to kPadded (not totalPadded like row tree)
-func buildPaddedRLCTree(rlcOrig []field.GF128, config *Config) *merkle.Tree {
+func BuildPaddedRLCTree(rlcOrig []field.GF128, config *Config) *merkle.Tree {
 	zeroRLC := make([]byte, 16) // Zero GF128 value
 	paddedRLCLeaves := make([][]byte, config.kPadded)
 

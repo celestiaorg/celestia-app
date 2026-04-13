@@ -218,8 +218,8 @@ func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *Pay
 		}
 	}
 
-	// set RLC root and clear coefficients
-	shard.Rlc = &types.BlobShard_Root{Root: rlcRoot[:]}
+	// set RLC root, keep coefficients as-is for storage
+	shard.Root = rlcRoot[:]
 	return nil
 }
 
