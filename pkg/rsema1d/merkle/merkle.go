@@ -125,9 +125,9 @@ func hashLeaf(data []byte, dst *[32]byte) {
 
 // hashPair hashes two nodes with the inner prefix, writing result directly to dst
 func hashPair(left, right *[32]byte, dst *[32]byte) {
-	h := sha256.New()
-	h.Write(innerPrefix)
-	h.Write(left[:])
-	h.Write(right[:])
-	h.Sum(dst[:0])
+	var buf [65]byte // 1 byte prefix + 32 left + 32 right
+	buf[0] = innerPrefix[0]
+	copy(buf[1:33], left[:])
+	copy(buf[33:65], right[:])
+	*dst = sha256.Sum256(buf[:])
 }

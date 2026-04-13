@@ -30,11 +30,10 @@ func computeRLC(row []byte, coeffs []field.GF128) field.GF128 {
 
 	for c := range numChunks {
 		chunk := row[c*chunkSize : (c+1)*chunkSize]
-		symbols := extractSymbols(chunk)
-		for j, sym := range symbols {
-			// result += symbol * coefficient
-			symbolIndex := c*32 + j // Overall symbol index in the row
-			product := field.Mul128(sym, coeffs[symbolIndex])
+		coeffBase := c * 32
+		for j := range 32 {
+			sym := field.GF16(chunk[32+j])<<8 | field.GF16(chunk[j])
+			product := field.Mul128(sym, coeffs[coeffBase+j])
 			result = field.Add128(result, product)
 		}
 	}
