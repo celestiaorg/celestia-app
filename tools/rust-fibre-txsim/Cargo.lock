@@ -339,7 +339,7 @@ dependencies = [
 [[package]]
 name = "celestia-fibre"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "async-trait",
  "bech32",
@@ -367,7 +367,7 @@ dependencies = [
 [[package]]
 name = "celestia-grpc"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "arc-swap",
  "async-trait",
@@ -404,7 +404,7 @@ dependencies = [
 [[package]]
 name = "celestia-grpc-macros"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -414,7 +414,7 @@ dependencies = [
 [[package]]
 name = "celestia-proto"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "bytes",
  "prost",
@@ -431,7 +431,7 @@ dependencies = [
 [[package]]
 name = "celestia-types"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "base64 0.22.1",
  "bech32",
@@ -1499,7 +1499,7 @@ dependencies = [
 [[package]]
 name = "lumina-utils"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "futures",
  "gloo-timers",
@@ -2068,7 +2068,7 @@ dependencies = [
 [[package]]
 name = "rsema1d"
 version = "1.0.0"
-source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#4b839395fac498e1ab77169d2ce297e04de8437a"
+source = "git+https://github.com/celestiaorg/lumina?branch=mcrakhman%2Ftx-fibre#3d1e75aef1155d134b80334c6f7783c8a986fcf8"
 dependencies = [
  "hex",
  "rayon",
