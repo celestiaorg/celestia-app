@@ -32,6 +32,7 @@ type scenarioRunner struct {
 	fibreTxsimInstances int
 	fibreTxsimConcur    int
 	fibreAccounts       int
+	download            bool
 
 	// set by the scenario constructor
 	defaultSteps []string
@@ -116,6 +117,7 @@ If no steps are given, all steps except "down" run in order.`,
 	cmd.Flags().IntVar(&s.fibreTxsimInstances, "fibre-txsim-instances", 2, "number of validators to run fibre-txsim on")
 	cmd.Flags().IntVar(&s.fibreTxsimConcur, "fibre-txsim-concurrency", 4, "fibre-txsim concurrency per instance")
 	cmd.Flags().IntVar(&s.fibreAccounts, "fibre-accounts", 100, "pre-funded fibre accounts per validator")
+	cmd.Flags().BoolVar(&s.download, "download", false, "enable download verification in fibre-txsim")
 
 	return cmd
 }
@@ -328,6 +330,9 @@ func (s *scenarioRunner) stepTxsim(ctx context.Context) error {
 	}
 	if s.sshKeyPath != "" {
 		args = append(args, "-k", s.sshKeyPath)
+	}
+	if s.download {
+		args = append(args, "--download")
 	}
 	return s.execStep(ctx, fibreTxsimCmd(), args)
 }
