@@ -123,8 +123,6 @@ func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string)
 // CreateDroplets launches all droplets in parallel, waits for their IPs, and
 // returns the filled-out []Instance slice.
 func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, key godo.Key, workers int) ([]Instance, error) {
-	total := len(insts)
-
 	type result struct {
 		inst         Instance
 		err          error
@@ -143,6 +141,7 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 		}
 	}
 
+	total := len(insts)
 	results := make(chan result, total)
 	workerChan := make(chan struct{}, workers)
 	var wg sync.WaitGroup
