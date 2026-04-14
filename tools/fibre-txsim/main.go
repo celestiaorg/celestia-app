@@ -93,9 +93,10 @@ type downloadRequest struct {
 
 // confirmRequest is sent from upload workers to confirmation workers after broadcasting a PFF tx.
 type confirmRequest struct {
-	txHash  string
-	keyName string
-	startT  time.Time
+	txClient *user.TxClient
+	txHash   string
+	keyName  string
+	startT   time.Time
 }
 
 // stats tracks shared counters across all workers.
@@ -121,6 +122,10 @@ type stats struct {
 }
 
 func run(cfg config) error {
+	if cfg.concurrency <= 0 {
+		return fmt.Errorf("--concurrency must be >= 1, got %d", cfg.concurrency)
+	}
+
 	if cfg.pyroscopeEndpoint != "" {
 		stopPyroscope, err := setupPyroscope(cfg.pyroscopeEndpoint, cfg.pyroscopeUser, cfg.pyroscopePass)
 		if err != nil {
@@ -257,19 +262,12 @@ func run(cfg config) error {
 		}
 	}
 
-	// Spawn confirmation workers
+	// Spawn confirmation workers. Each confirmRequest carries its own txClient
+	// so any worker can process any request without cross-client issues.
 	if confirmCh != nil {
-		for _, w := range workers {
-			for range confirmWorkers / len(workers) {
-				confirmWg.Go(func() {
-					confirmWorkerLoop(ctx, w.txClient, confirmCh, st)
-				})
-			}
-		}
-		// Ensure at least confirmWorkers goroutines total
-		for extra := (confirmWorkers / len(workers)) * len(workers); extra < confirmWorkers; extra++ {
+		for range confirmWorkers {
 			confirmWg.Go(func() {
-				confirmWorkerLoop(ctx, workers[0].txClient, confirmCh, st)
+				confirmWorkerLoop(ctx, confirmCh, st)
 			})
 		}
 	}
@@ -544,9 +542,10 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	if confirmCh != nil {
 		select {
 		case confirmCh <- confirmRequest{
-			txHash:  broadcastResp.TxHash,
-			keyName: w.keyName,
-			startT:  t,
+			txClient: w.txClient,
+			txHash:   broadcastResp.TxHash,
+			keyName:  w.keyName,
+			startT:   t,
 		}:
 		default:
 			// Channel full, skip confirmation tracking to avoid blocking uploads.
@@ -568,10 +567,10 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	}
 }
 
-func confirmWorkerLoop(ctx context.Context, txClient *user.TxClient, ch <-chan confirmRequest, st *stats) {
+func confirmWorkerLoop(ctx context.Context, ch <-chan confirmRequest, st *stats) {
 	for req := range ch {
 		confirmCtx, confirmCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		resp, err := txClient.ConfirmTx(confirmCtx, req.txHash)
+		resp, err := req.txClient.ConfirmTx(confirmCtx, req.txHash)
 		confirmCancel()
 		if err != nil {
 			st.confirmFailures.Add(1)
