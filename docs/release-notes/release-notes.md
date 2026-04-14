@@ -8,6 +8,13 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Node operators MUST upgrade their binary to this version prior to the v7 activation height.
 
+#### Prerequisites
+
+##### Minimum OS Version
+
+> [!CAUTION]
+> The multiplexer embeds binaries that were compiled against glibc >= 2.38, which means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error. If you encounter this, upgrade your host OS before proceeding with the upgrade.
+
 #### Validator Commission Rate Changes
 
 v7 enforces new commission rate bounds:
