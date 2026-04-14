@@ -285,7 +285,7 @@ func shardKey(commitment Commitment, promiseHash []byte) []byte {
 }
 
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) []byte {
-	return []byte(fmt.Sprintf("/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash)))
+	return fmt.Appendf(nil, "/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash))
 }
 
 // prefixUpperBound returns the upper bound for a prefix scan.
