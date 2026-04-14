@@ -42,7 +42,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Setup buf
-        uses: bufbuild/buf-setup-action@v1.50.0
+        uses: bufbuild/buf-setup-action@a47c93e0b1648d5651a065437926377d060baa99 #v1.50.0
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
