@@ -80,6 +80,7 @@ func resetCmd() *cobra.Command {
 			// Clean up encoder instances.
 			if len(cfg.Encoders) > 0 {
 				encoderCleanup := `
+					tmux kill-session -t app 2>/dev/null || true
 					tmux kill-session -t fibre-txsim 2>/dev/null || true
 					tmux kill-session -t setup-fibre 2>/dev/null || true
 					rm -rf .celestia-app encoder-payload encoder-payload.tar.gz /bin/celestia* /bin/fibre-txsim
