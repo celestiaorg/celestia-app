@@ -664,7 +664,7 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 }
 
 func hasGCExperimentLabel(label, experimentID, chainID string) bool {
-	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") {
+	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") && !strings.HasPrefix(label, "encoder_") {
 		return false
 	}
 	experimentIDLabel := strings.ReplaceAll(experimentID, "-", "_")

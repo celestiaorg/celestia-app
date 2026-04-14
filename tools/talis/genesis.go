@@ -53,6 +53,9 @@ func generateCmd() *cobra.Command {
 			if err := os.RemoveAll(payloadDir); err != nil {
 				return fmt.Errorf("failed to remove old payload directory: %w", err)
 			}
+			if err := os.RemoveAll(filepath.Join(rootDir, "encoder-payload")); err != nil {
+				return fmt.Errorf("failed to remove old encoder-payload directory: %w", err)
+			}
 
 			err = createPayload(cfg.Validators, cfg.Encoders, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, fibreAccounts, encoderFibreAccounts)
 			if err != nil {
