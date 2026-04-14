@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/digitalocean/godo"
@@ -222,6 +225,26 @@ func getPublicIP(d *godo.Droplet) string {
 	return ""
 }
 
+// newTOFUHostKeyCallback returns an SSH HostKeyCallback that implements
+// Trust-On-First-Use semantics: it accepts the host key on first connection
+// and rejects if the key changes on subsequent connections to the same host.
+func newTOFUHostKeyCallback() ssh.HostKeyCallback {
+	var mu sync.Mutex
+	knownKeys := make(map[string]ssh.PublicKey)
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		mu.Lock()
+		defer mu.Unlock()
+		if known, ok := knownKeys[hostname]; ok {
+			if !bytes.Equal(known.Marshal(), key.Marshal()) {
+				return fmt.Errorf("host key changed for %s", hostname)
+			}
+			return nil
+		}
+		knownKeys[hostname] = key
+		return nil
+	}
+}
+
 // waitForSSH polls the host until SSH is available or timeout is reached.
 func waitForSSH(host, keyPath string, timeout time.Duration) (*ssh.Client, error) {
 	key, err := os.ReadFile(keyPath)
@@ -237,7 +260,7 @@ func waitForSSH(host, keyPath string, timeout time.Duration) (*ssh.Client, error
 	config := &ssh.ClientConfig{
 		User:            "root",
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		HostKeyCallback: newTOFUHostKeyCallback(),
 		Timeout:         5 * time.Second,
 	}
 
