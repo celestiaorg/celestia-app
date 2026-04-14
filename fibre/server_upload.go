@@ -178,7 +178,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 
 // verifyShard verifies [types.BlobShard]'s rows and proofs using [rsema1d.VerificationContext].
 // Essentially checks correctness of the entire [Blob]'s data by only sampling subset of data rows.
-// Sets the RLC root on the shard and clears the coefficients after verification.
+// Sets the RLC root on the shard and keeps coefficients as-is for later usage during verification.
 func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {

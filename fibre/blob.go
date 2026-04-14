@@ -296,7 +296,7 @@ func (d *Blob) SetOrWaitVerificationContext(
 // lightweight inclusion-only verification.
 // Safe to call concurrently — performs only pure computation with no shared state mutation.
 func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
-	if d.verificationCtx != nil {
+	if d.verificationCtxSet.Load() {
 		if err := rsema1d.VerifyRowWithContext(&row.RowProof, d.id.Commitment(), d.verificationCtx); err != nil {
 			return fmt.Errorf("verifying row %d: %w", row.Index, err)
 		}
