@@ -90,11 +90,6 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	opts := &pebbledb.Options{}
 
-	// Enable value separation format so that large values (shard data) are
-	// written to separate .blob files instead of being inlined in SSTables.
-	// Without this, the ValueSeparationPolicy below has no effect.
-	opts.FormatMajorVersion = pebbledb.FormatValueSeparation
-
 	// MemTable settings - moderate size for bulk writes
 	opts.MemTableSize = 16 << 20 // 16 MiB memtable (default 4 MiB)
 
@@ -103,8 +98,14 @@ func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	opts.L0StopWritesThreshold = 12 // Stall writes at 12 L0 files (default 12)
 	opts.LBaseMaxBytes = 64 << 20   // 64 MiB base level (default 64 MiB)
 
-	// Value separation for large values (our rows are up to 32KB)
-	// Only enable for values > 4KB to avoid overhead on smaller values
+	// Value separation for large values (our rows are up to 32KB).
+	// Only enable for values > 4KB to avoid overhead on smaller values.
+	//
+	// NOTE: FormatValueSeparation permanently upgrades the on-disk Pebble
+	// database format. Once a node starts with this binary, the database
+	// cannot be opened by an older binary that uses a lower format version.
+	// Rolling back requires deleting the database directory and resyncing.
+	opts.FormatMajorVersion = pebbledb.FormatValueSeparation
 	opts.Experimental.ValueSeparationPolicy = func() pebbledb.ValueSeparationPolicy {
 		return pebbledb.ValueSeparationPolicy{
 			Enabled:               true,
