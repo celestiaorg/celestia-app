@@ -18,8 +18,8 @@ func BenchmarkVerifyBreakdown(b *testing.B) {
 		rowSize int
 		k, n    int
 	}{
-		{"1MB/k=1024", 1024, 1024, 1024},   // 1 MB blob: 1024 rows of 1024 bytes
-		{"8MB/k=1024", 8192, 1024, 1024},    // 8 MB blob: 1024 rows of 8192 bytes
+		{"1MB/k=1024", 1024, 1024, 1024},     // 1 MB blob: 1024 rows of 1024 bytes
+		{"8MB/k=1024", 8192, 1024, 1024},     // 8 MB blob: 1024 rows of 8192 bytes
 		{"128MB/k=1024", 131072, 1024, 3072}, // 128 MB blob: 1024 rows of 128KB
 	} {
 		config := &Config{
@@ -30,7 +30,7 @@ func BenchmarkVerifyBreakdown(b *testing.B) {
 
 		// Generate a random row
 		row := make([]byte, tc.rowSize)
-		rand.Read(row)
+		_, _ = rand.Read(row)
 
 		// Generate a fake merkle proof (correct depth)
 		kPadded := nextPowerOfTwo(tc.k)
@@ -42,7 +42,7 @@ func BenchmarkVerifyBreakdown(b *testing.B) {
 		proof := make([][]byte, depth)
 		for i := range proof {
 			proof[i] = make([]byte, 32)
-			rand.Read(proof[i])
+			_, _ = rand.Read(proof[i])
 		}
 
 		// Pre-compute row root (from hashing the row as leaf + proof traversal)
@@ -53,7 +53,7 @@ func BenchmarkVerifyBreakdown(b *testing.B) {
 
 		b.Run(tc.name+"/ComputeRootFromProof", func(b *testing.B) {
 			for b.Loop() {
-				merkle.ComputeRootFromProof(row, 0, proof)
+				_, _ = merkle.ComputeRootFromProof(row, 0, proof)
 			}
 		})
 
