@@ -116,7 +116,7 @@ func setupFibreCmd() *cobra.Command {
 					nAccounts := encoderFibreAccounts
 
 					var sb strings.Builder
-					for i := 0; i < nAccounts; i++ {
+					for i := range nAccounts {
 						keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
 						sb.WriteString(fmt.Sprintf(
 							"celestia-appd tx fibre deposit-to-escrow %s "+
