@@ -39,8 +39,23 @@ func WithKeyName(keyName string) UploadOption {
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
 // May keep uploading data in background after returning successfully.
+//
+// Upload takes ownership of the blob and releases its pooled storage when all
+// background uploads complete. The blob must not be reused after calling Upload;
+// create a new one with [NewBlob] for each upload.
+//
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
+	if !blob.consume() {
+		return result, ErrBlobConsumed
+	}
+	defer func() {
+		// immediate release for errors
+		if err != nil {
+			blob.release()
+		}
+	}()
+
 	if !c.started.Load() {
 		return result, errors.New("fibre client is not started")
 	}
@@ -110,7 +125,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
 		return result, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
-	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
+	requests := makeUploadRequests(shardMap, promiseProto, blob.RLC())
 	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, signBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
@@ -340,6 +355,8 @@ func (c *Client) uploadShards(
 				// increment responses and mark as completed if so
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
+					// release buffers on the blob
+					blob.release()
 				}
 
 				// unblock Close
