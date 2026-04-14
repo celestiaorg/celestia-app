@@ -60,7 +60,8 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	}
 
 	builder := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg)
-	builder = builder.WithAdditionalStartArgs(startArgs...)
+	builder = builder.WithAdditionalStartArgs(startArgs...).
+		WithBlockWaitTimeout(syncToTipTimeout)
 	mochaChain, err := builder.
 		WithNodes(cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
