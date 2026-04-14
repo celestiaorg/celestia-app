@@ -130,7 +130,7 @@ func deployCmd() *cobra.Command {
 				if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
 					return err
 				}
-				return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, workers)
+				return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
 				if !ignoreFailed {
@@ -141,7 +141,7 @@ func deployCmd() *cobra.Command {
 			if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
 				return err
 			}
-			return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, workers)
+			return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 		},
 	}
 
@@ -192,8 +192,8 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 }
 
 // deployEncodersIfConfigured creates a lightweight encoder-payload tar and deploys
-// it to all configured encoder instances via S3.
-func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, workers int) error {
+// it to all configured encoder instances.
+func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
 	if len(cfg.Encoders) == 0 {
 		return nil
 	}
@@ -212,8 +212,14 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 	}
 	log.Printf("Sending encoder payload to %d encoder(s)...\n", len(cfg.Encoders))
 
-	if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
-		return fmt.Errorf("encoder deployment: %w", err)
+	if directUpload {
+		if err := deployPayloadDirect(cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, workers); err != nil {
+			return fmt.Errorf("encoder deployment: %w", err)
+		}
+	} else {
+		if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+			return fmt.Errorf("encoder deployment: %w", err)
+		}
 	}
 
 	log.Printf("Encoder deployment complete\n")
