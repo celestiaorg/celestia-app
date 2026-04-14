@@ -31,7 +31,7 @@ func addCmd() *cobra.Command {
 
 			switch nodeType {
 			case "validator":
-				for i := 0; i < count; i++ {
+				for range count {
 					switch provider {
 					case "digitalocean":
 						cfg = cfg.WithDigitalOceanValidator(region)
@@ -42,7 +42,7 @@ func addCmd() *cobra.Command {
 					}
 				}
 			case "encoder":
-				for i := 0; i < count; i++ {
+				for range count {
 					switch provider {
 					case "digitalocean":
 						cfg = cfg.WithDigitalOceanEncoder(region)

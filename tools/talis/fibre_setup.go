@@ -62,7 +62,7 @@ func setupFibreCmd() *cobra.Command {
 				sb.WriteString("sleep 10\n")
 
 				// 2. Deposit escrow for each fibre worker account
-				for i := 0; i < fibreAccounts; i++ {
+				for i := range fibreAccounts {
 					keyName := fmt.Sprintf("fibre-%d", i)
 					sb.WriteString(fmt.Sprintf(
 						"celestia-appd tx fibre deposit-to-escrow %s "+
