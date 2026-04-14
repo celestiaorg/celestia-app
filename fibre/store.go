@@ -55,12 +55,6 @@ func NewMemoryStore(cfg StoreConfig) *Store {
 	}
 }
 
-// NewBadgerStore creates a new [Store] backed by Pebble.
-// Retained for test compatibility; delegates to [NewPebbleStore].
-func NewBadgerStore(cfg StoreConfig) (*Store, error) {
-	return NewPebbleStore(cfg)
-}
-
 // NewPebbleStore creates a new [Store] with a Pebble database at the given path.
 // Tuned for FIBRE's use case: large values (32KB rows), bulk writes/reads.
 func NewPebbleStore(cfg StoreConfig) (*Store, error) {
@@ -152,7 +146,7 @@ func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.Blo
 // If unmarshaling fails for some entries, it continues trying others.
 // Returns an error only if all entries fail to unmarshal or if no shards are found.
 func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard, error) {
-	prefix := []byte(fmt.Sprintf("/shard/%s/", commitment.String()))
+	prefix := fmt.Appendf(nil, "/shard/%s/", commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
 		UpperBound: prefixUpperBound(prefix),
@@ -180,6 +174,9 @@ func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard,
 		return shard, nil
 	}
 
+	if err := iter.Error(); err != nil {
+		return nil, fmt.Errorf("iterating shards: %w", err)
+	}
 	if rerr != nil {
 		return nil, rerr
 	}
@@ -259,6 +256,9 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, error) {
 		pruned++
 	}
 
+	if err := iter.Error(); err != nil {
+		return pruned, fmt.Errorf("iterating prune index: %w", err)
+	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		return pruned, fmt.Errorf("committing batch: %w", err)
 	}
@@ -277,11 +277,11 @@ func formatTimestamp(timestamp time.Time) string {
 }
 
 func promiseKey(promiseHash []byte) []byte {
-	return []byte(fmt.Sprintf("/pp/%s", hex.EncodeToString(promiseHash)))
+	return fmt.Appendf(nil, "/pp/%s", hex.EncodeToString(promiseHash))
 }
 
 func shardKey(commitment Commitment, promiseHash []byte) []byte {
-	return []byte(fmt.Sprintf("/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash)))
+	return fmt.Appendf(nil, "/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash))
 }
 
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) []byte {
