@@ -225,24 +225,44 @@ func getPublicIP(d *godo.Droplet) string {
 	return ""
 }
 
-// newTOFUHostKeyCallback returns an SSH HostKeyCallback that implements
-// Trust-On-First-Use semantics: it accepts the host key on first connection
-// and rejects if the key changes on subsequent connections to the same host.
-func newTOFUHostKeyCallback() ssh.HostKeyCallback {
-	var mu sync.Mutex
-	knownKeys := make(map[string]ssh.PublicKey)
-	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-		mu.Lock()
-		defer mu.Unlock()
-		if known, ok := knownKeys[hostname]; ok {
+// tofuHostKeyStore implements Trust-On-First-Use host key verification.
+// Before Confirm is called, it accepts any key (overwriting previous entries)
+// so that SSH retry loops tolerate host key changes during cloud-init.
+// After Confirm, it rejects key changes (standard TOFU pinning).
+type tofuHostKeyStore struct {
+	mu        sync.Mutex
+	knownKeys map[string]ssh.PublicKey
+	confirmed bool
+}
+
+func newTOFUHostKeyStore() *tofuHostKeyStore {
+	return &tofuHostKeyStore{
+		knownKeys: make(map[string]ssh.PublicKey),
+	}
+}
+
+// callback is the ssh.HostKeyCallback used by ssh.ClientConfig.
+func (s *tofuHostKeyStore) callback(hostname string, remote net.Addr, key ssh.PublicKey) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.confirmed {
+		if known, ok := s.knownKeys[hostname]; ok {
 			if !bytes.Equal(known.Marshal(), key.Marshal()) {
 				return fmt.Errorf("host key changed for %s", hostname)
 			}
 			return nil
 		}
-		knownKeys[hostname] = key
-		return nil
 	}
+	s.knownKeys[hostname] = key
+	return nil
+}
+
+// Confirm pins the currently stored host keys. After calling Confirm, the
+// callback rejects any key that differs from what was stored.
+func (s *tofuHostKeyStore) Confirm() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.confirmed = true
 }
 
 // waitForSSH polls the host until SSH is available or timeout is reached.
@@ -257,10 +277,11 @@ func waitForSSH(host, keyPath string, timeout time.Duration) (*ssh.Client, error
 		return nil, err
 	}
 
+	tofu := newTOFUHostKeyStore()
 	config := &ssh.ClientConfig{
 		User:            "root",
 		Auth:            []ssh.AuthMethod{ssh.PublicKeys(signer)},
-		HostKeyCallback: newTOFUHostKeyCallback(),
+		HostKeyCallback: tofu.callback,
 		Timeout:         5 * time.Second,
 	}
 
@@ -270,6 +291,7 @@ func waitForSSH(host, keyPath string, timeout time.Duration) (*ssh.Client, error
 		if err == nil {
 			if session, err := client.NewSession(); err == nil {
 				session.Close()
+				tofu.Confirm()
 				return client, nil
 			}
 			client.Close()

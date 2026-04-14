@@ -9,7 +9,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func TestNewTOFUHostKeyCallback(t *testing.T) {
+func TestTOFUHostKeyStore(t *testing.T) {
 	// Generate two different key pairs
 	pub1, _, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -28,30 +28,53 @@ func TestNewTOFUHostKeyCallback(t *testing.T) {
 		t.Fatalf("creating SSH public key 2: %v", err)
 	}
 
-	callback := newTOFUHostKeyCallback()
 	addr := &net.TCPAddr{IP: net.ParseIP("1.2.3.4"), Port: 22}
 
-	// First connection to a host should be accepted
-	err = callback("host1:22", addr, sshPub1)
-	if err != nil {
-		t.Fatalf("first connection should be accepted: %v", err)
-	}
+	t.Run("before confirm, accepts key changes", func(t *testing.T) {
+		store := newTOFUHostKeyStore()
 
-	// Subsequent connection with the same key should be accepted
-	err = callback("host1:22", addr, sshPub1)
-	if err != nil {
-		t.Fatalf("same key should be accepted: %v", err)
-	}
+		// First key should be accepted
+		if err := store.callback("host1:22", addr, sshPub1); err != nil {
+			t.Fatalf("first key should be accepted: %v", err)
+		}
 
-	// Connection with a different key to the same host should be rejected
-	err = callback("host1:22", addr, sshPub2)
-	if err == nil {
-		t.Fatal("different key to same host should be rejected")
-	}
+		// Different key to same host should be accepted before confirm
+		if err := store.callback("host1:22", addr, sshPub2); err != nil {
+			t.Fatalf("different key should be accepted before confirm: %v", err)
+		}
+	})
 
-	// Different host with a different key should be accepted
-	err = callback("host2:22", addr, sshPub2)
-	if err != nil {
-		t.Fatalf("different host should be accepted: %v", err)
-	}
+	t.Run("after confirm, rejects key changes", func(t *testing.T) {
+		store := newTOFUHostKeyStore()
+
+		// Store key and confirm
+		if err := store.callback("host1:22", addr, sshPub1); err != nil {
+			t.Fatalf("first key should be accepted: %v", err)
+		}
+		store.Confirm()
+
+		// Same key should still be accepted
+		if err := store.callback("host1:22", addr, sshPub1); err != nil {
+			t.Fatalf("same key should be accepted after confirm: %v", err)
+		}
+
+		// Different key should be rejected
+		if err := store.callback("host1:22", addr, sshPub2); err == nil {
+			t.Fatal("different key should be rejected after confirm")
+		}
+	})
+
+	t.Run("after confirm, new hosts still accepted", func(t *testing.T) {
+		store := newTOFUHostKeyStore()
+
+		if err := store.callback("host1:22", addr, sshPub1); err != nil {
+			t.Fatalf("first key should be accepted: %v", err)
+		}
+		store.Confirm()
+
+		// New host should still be accepted (TOFU)
+		if err := store.callback("host2:22", addr, sshPub2); err != nil {
+			t.Fatalf("new host should be accepted after confirm: %v", err)
+		}
+	})
 }
