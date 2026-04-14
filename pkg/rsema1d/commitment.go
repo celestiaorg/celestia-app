@@ -8,9 +8,9 @@ import (
 )
 
 // deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal)
-func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
+func deriveCoefficients(rowRoot [32]byte, rowSize int) []field.GF128 {
 	seed := sha256.Sum256(rowRoot[:])
-	numSymbols := config.RowSize / 2 // Each GF16 symbol is 2 bytes
+	numSymbols := rowSize / 2 // Each GF16 symbol is 2 bytes
 	coeffs := make([]field.GF128, numSymbols)
 
 	var input [32 + 4]byte

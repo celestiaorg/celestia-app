@@ -574,7 +574,7 @@ func BenchmarkDeriveCoefficients(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				deriveCoefficients(rowRoot, config)
+				deriveCoefficients(rowRoot, config.RowSize)
 			}
 		})
 	}
