@@ -28,9 +28,9 @@ type scenarioRunner struct {
 	repoRoot     string
 
 	// scenario-specific (unused fields are simply ignored)
-	squareSize          int
-	fibreTxsimInstances int
-	fibreTxsimConcur    int
+	squareSize       int
+	encoders         int
+	fibreTxsimConcur int
 	fibreAccounts       int
 	download            bool
 
@@ -114,7 +114,7 @@ If no steps are given, all steps except "down" run in order.`,
 
 	// fibre-load specific flags
 	cmd.Flags().IntVar(&s.squareSize, "square-size", 512, "ODS square size")
-	cmd.Flags().IntVar(&s.fibreTxsimInstances, "fibre-txsim-instances", 2, "number of validators to run fibre-txsim on")
+	cmd.Flags().IntVar(&s.encoders, "encoders", 2, "number of dedicated encoder instances")
 	cmd.Flags().IntVar(&s.fibreTxsimConcur, "fibre-txsim-concurrency", 4, "fibre-txsim concurrency per instance")
 	cmd.Flags().IntVar(&s.fibreAccounts, "fibre-accounts", 100, "pre-funded fibre accounts per validator")
 	cmd.Flags().BoolVar(&s.download, "download", false, "enable download verification in fibre-txsim")
@@ -231,13 +231,25 @@ func (s *scenarioRunner) stepInit(ctx context.Context) error {
 }
 
 func (s *scenarioRunner) stepAdd(ctx context.Context) error {
-	return s.execStep(ctx, addCmd(), []string{
+	if err := s.execStep(ctx, addCmd(), []string{
 		"-d", s.directory,
 		"-t", "validator",
 		"-c", fmt.Sprintf("%d", s.validators),
 		"-r", s.region,
 		"-p", s.provider,
-	})
+	}); err != nil {
+		return err
+	}
+	if s.encoders > 0 {
+		return s.execStep(ctx, addCmd(), []string{
+			"-d", s.directory,
+			"-t", "encoder",
+			"-c", fmt.Sprintf("%d", s.encoders),
+			"-r", s.region,
+			"-p", s.provider,
+		})
+	}
+	return nil
 }
 
 func (s *scenarioRunner) stepBuild(_ context.Context) error {
@@ -286,6 +298,7 @@ func (s *scenarioRunner) stepGenesis(ctx context.Context) error {
 		"-b", s.buildDir(),
 		"--observability-dir", filepath.Join(s.repoRoot, "observability"),
 		"--fibre-accounts", fmt.Sprintf("%d", s.fibreAccounts),
+		"--encoder-fibre-accounts", fmt.Sprintf("%d", s.fibreAccounts),
 	})
 }
 
@@ -304,6 +317,7 @@ func (s *scenarioRunner) stepSetupFibre(ctx context.Context) error {
 	args := []string{
 		"-d", s.directory,
 		"--fibre-accounts", fmt.Sprintf("%d", s.fibreAccounts),
+		"--encoder-fibre-accounts", fmt.Sprintf("%d", s.fibreAccounts),
 		"-w", fmt.Sprintf("%d", s.workers),
 	}
 	if s.sshKeyPath != "" {
@@ -323,9 +337,18 @@ func (s *scenarioRunner) stepStartFibre(ctx context.Context) error {
 }
 
 func (s *scenarioRunner) stepTxsim(ctx context.Context) error {
+	cfg, err := LoadConfig(s.directory)
+	if err != nil {
+		return fmt.Errorf("loading config: %w", err)
+	}
+	if len(cfg.Encoders) == 0 {
+		return fmt.Errorf("no encoder instances found in config; use --encoders to add them")
+	}
+
 	args := []string{
 		"-d", s.directory,
-		"--instances", fmt.Sprintf("%d", s.fibreTxsimInstances),
+		"--on-encoders",
+		"--instances", fmt.Sprintf("%d", len(cfg.Encoders)),
 		"--concurrency", fmt.Sprintf("%d", s.fibreTxsimConcur),
 	}
 	if s.sshKeyPath != "" {
