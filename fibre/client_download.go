@@ -148,8 +148,8 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
-	id BlobID,
 	blob *Blob,
+	id BlobID,
 	rlcVerifier *rlcVerifier,
 ) (rows []*rsema1d.RowInclusionProof, err error) {
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", id.Commitment())
@@ -331,7 +331,7 @@ loop:
 					c.closeWg.Done()
 				}()
 
-				rows, err := c.downloadFrom(ctx, sv.Validator, id, blob, rlcVerifier)
+				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, rlcVerifier)
 				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
 			}()
 
