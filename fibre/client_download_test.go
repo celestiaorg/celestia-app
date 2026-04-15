@@ -54,6 +54,14 @@ func testClientDownloadSuccess(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, downloaded)
 	require.Equal(t, blob.Data(), downloaded.Data())
+	require.False(t, downloaded.Recovered())
+	require.Equal(t, downloaded.ID().Commitment(), downloaded.OriginalID().Commitment())
+
+	for i := range downloaded.Config().TotalRows() {
+		row, err := downloaded.Row(i)
+		require.NoError(t, err)
+		require.NoError(t, downloaded.VerifyRow(row))
+	}
 }
 
 func testClientDownloadConcurrent(t *testing.T) {

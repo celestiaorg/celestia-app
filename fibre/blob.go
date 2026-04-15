@@ -244,11 +244,11 @@ func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
 	return nil
 }
 
-// rowVerifier coordinates row verification across concurrent download goroutines.
+// rlcVerifier coordinates RLC-based row verification across concurrent download goroutines.
 // It holds the RLC verification state and an immutable copy of the commitment,
 // independently from the Blob. This prevents data races between straggler download
 // goroutines and the caller's Reconstruct which may mutate the Blob.
-type rowVerifier struct {
+type rlcVerifier struct {
 	commitment Commitment
 	cfg        BlobConfig
 
@@ -258,8 +258,8 @@ type rowVerifier struct {
 	rlcOnce            sync.Once
 }
 
-func newRowVerifier(commitment Commitment, cfg BlobConfig) *rowVerifier {
-	return &rowVerifier{
+func newRLCVerifier(commitment Commitment, cfg BlobConfig) *rlcVerifier {
+	return &rlcVerifier{
 		commitment: commitment,
 		cfg:        cfg,
 	}
@@ -276,7 +276,7 @@ func newRowVerifier(commitment Commitment, cfg BlobConfig) *rowVerifier {
 //     Only one goroutine performs this; others block in Once.Do until it completes.
 //
 // Returns an error if the RLC coefficients are inconsistent with the commitment.
-func (v *rowVerifier) setOrWaitVerificationContext(
+func (v *rlcVerifier) setOrWaitVerificationContext(
 	rlcOrig []field.GF128,
 	rowSize int,
 	sampleProof *rsema1d.RowProof,
@@ -317,24 +317,11 @@ func (v *rowVerifier) setOrWaitVerificationContext(
 	return v.ctxErr
 }
 
-// verifyRow verifies a [*rsema1d.RowInclusionProof] against the commitment.
-// If a verification context is set, uses the stronger RLC-based verification.
-// Otherwise falls back to lightweight inclusion-only verification.
+// verifyRow verifies a [*rsema1d.RowInclusionProof] against the commitment
+// using the prepared RLC verification context.
 // Safe to call concurrently.
-func (v *rowVerifier) verifyRow(row *rsema1d.RowInclusionProof) error {
-	if v.verificationCtxSet.Load() {
-		if err := rsema1d.VerifyRowWithContext(&row.RowProof, v.commitment, v.verificationCtx); err != nil {
-			return fmt.Errorf("verifying row %d: %w", row.Index, err)
-		}
-		return nil
-	}
-	config := &rsema1d.Config{
-		K:           v.cfg.OriginalRows,
-		N:           v.cfg.ParityRows,
-		RowSize:     len(row.Row),
-		WorkerCount: v.cfg.CodingWorkers,
-	}
-	if err := rsema1d.VerifyRowInclusionProof(row, v.commitment, config); err != nil {
+func (v *rlcVerifier) verifyRow(row *rsema1d.RowInclusionProof) error {
+	if err := rsema1d.VerifyRowWithContext(&row.RowProof, v.commitment, v.verificationCtx); err != nil {
 		return fmt.Errorf("verifying row %d: %w", row.Index, err)
 	}
 	return nil
