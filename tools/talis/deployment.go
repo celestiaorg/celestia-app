@@ -127,7 +127,10 @@ func deployCmd() *cobra.Command {
 					}
 					log.Printf("continuing despite validator deployment errors: %v", err)
 				}
-				return deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
+				if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
+					return err
+				}
+				return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
 				if !ignoreFailed {
@@ -135,7 +138,10 @@ func deployCmd() *cobra.Command {
 				}
 				log.Printf("continuing despite validator deployment errors: %v", err)
 			}
-			return deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
+			if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
+				return err
+			}
+			return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 		},
 	}
 
@@ -185,30 +191,49 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 	return nil
 }
 
-// printGrafanaInfo prints the Grafana URL and credentials after successful observability deployment.
-func printGrafanaInfo(node Instance, rootDir string) {
-	password := readGrafanaPassword(rootDir)
-
-	fmt.Println()
-	fmt.Println("Grafana available at:")
-	fmt.Printf("  http://%s:3000  (credentials: admin/%s)\n", node.PublicIP, password)
-	fmt.Println()
-}
-
-// readGrafanaPassword reads the Grafana password from the .env file in the payload directory.
-func readGrafanaPassword(rootDir string) string {
-	envPath := filepath.Join(rootDir, "payload", "observability", "docker", ".env")
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		return "admin" // fallback to default
+// deployEncodersIfConfigured creates a lightweight encoder-payload tar and deploys
+// it to all configured encoder instances.
+func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
+	if len(cfg.Encoders) == 0 {
+		return nil
 	}
-	// Parse GRAFANA_PASSWORD=<password> from .env
-	for line := range strings.SplitSeq(string(data), "\n") {
-		if password, found := strings.CutPrefix(line, "GRAFANA_PASSWORD="); found {
-			return password
+
+	encoderPayloadDir := filepath.Join(rootDir, "encoder-payload")
+	if _, err := os.Stat(encoderPayloadDir); os.IsNotExist(err) {
+		return fmt.Errorf("encoder-payload directory not found — run 'talis genesis' first")
+	}
+
+	encoderTarPath := filepath.Join(rootDir, "encoder-payload.tar.gz")
+	log.Printf("Compressing encoder payload to %s\n", encoderTarPath)
+	tarCmd := exec.Command("tar", "-czf", encoderTarPath, "-C", rootDir, "encoder-payload")
+	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
+	if output, err := tarCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to compress encoder payload: %w, output: %s", err, string(output))
+	}
+	log.Printf("Sending encoder payload to %d encoder(s)...\n", len(cfg.Encoders))
+
+	if directUpload {
+		if err := deployPayloadDirect(cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, workers); err != nil {
+			return fmt.Errorf("encoder deployment: %w", err)
+		}
+	} else {
+		if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+			return fmt.Errorf("encoder deployment: %w", err)
 		}
 	}
-	return "admin" // fallback to default
+
+	log.Printf("Encoder deployment complete\n")
+	return nil
+}
+
+// printGrafanaInfo prints the Grafana URL and a pointer to where credentials can be found.
+func printGrafanaInfo(node Instance, rootDir string) {
+	envPath := filepath.Join(rootDir, "payload", "observability", "docker", ".env")
+	fmt.Println()
+	fmt.Println("Grafana available at:")
+	fmt.Printf("  http://%s:3000\n", node.PublicIP)
+	fmt.Printf("  Credentials: admin / <password in %s>\n", envPath)
+	fmt.Println()
 }
 
 // deployPayloadDirect copies a local archive to each remote host, unpacks it,

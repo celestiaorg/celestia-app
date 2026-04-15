@@ -32,6 +32,7 @@ func generateCmd() *cobra.Command {
 		observabilityDirPath          string
 		useMainnetStakingDistribution bool
 		fibreAccounts                 int
+		encoderFibreAccounts          int
 	)
 	cmd := &cobra.Command{
 		Use:   "genesis",
@@ -52,8 +53,11 @@ func generateCmd() *cobra.Command {
 			if err := os.RemoveAll(payloadDir); err != nil {
 				return fmt.Errorf("failed to remove old payload directory: %w", err)
 			}
+			if err := os.RemoveAll(filepath.Join(rootDir, "encoder-payload")); err != nil {
+				return fmt.Errorf("failed to remove old encoder-payload directory: %w", err)
+			}
 
-			err = createPayload(cfg.Validators, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, fibreAccounts)
+			err = createPayload(cfg.Validators, cfg.Encoders, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, fibreAccounts, encoderFibreAccounts)
 			if err != nil {
 				log.Fatalf("Failed to create payload: %v", err)
 			}
@@ -125,6 +129,14 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to stage observability payload: %w", err)
 			}
 
+			// Stage encoder payload: copy binaries, genesis, and vars to the
+			// encoder-payload directory so deploy can create a lightweight tar.
+			if len(cfg.Encoders) > 0 {
+				if err := stageEncoderPayload(rootDir, payloadDir, appBinaryPath, fibreTxsimBinaryPath, buildDirPath); err != nil {
+					return fmt.Errorf("failed to stage encoder payload: %w", err)
+				}
+			}
+
 			return cfg.Save(rootDir)
 		},
 	}
@@ -152,13 +164,14 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&observabilityDirPath, "observability-dir", "", "path to observability directory containing docker-compose, Prometheus config, and scripts (required if observability nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
 	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 100, "number of pre-funded fibre accounts to create per validator")
+	cmd.Flags().IntVar(&encoderFibreAccounts, "encoder-fibre-accounts", 100, "number of pre-funded fibre accounts to create per encoder instance")
 
 	return cmd
 }
 
 // createPayload takes ips created by pulumi and the path to the payload directory
 // to create the payload required for the experiment.
-func createPayload(ips []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, fibreAccounts int, mods ...genesis.Modifier) error {
+func createPayload(ips, encoders []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, fibreAccounts, encoderFibreAccounts int, mods ...genesis.Modifier) error {
 	n, err := NewNetwork(chainID, squareSize, mods...)
 	if err != nil {
 		return err
@@ -179,6 +192,21 @@ func createPayload(ips []Instance, chainID, ppath string, squareSize int, useMai
 		)
 		if err != nil {
 			return err
+		}
+	}
+
+	// Create encoder-payload directory and keyrings for each encoder.
+	// Encoder keyrings are stored in <ppath>/../encoder-payload/<encoder-name>/
+	// so that a separate, lighter tar can be built during deploy.
+	encoderPayloadDir := filepath.Join(filepath.Dir(ppath), "encoder-payload")
+	if len(encoders) > 0 {
+		if err := os.MkdirAll(encoderPayloadDir, 0o755); err != nil {
+			return fmt.Errorf("failed to create encoder-payload dir: %w", err)
+		}
+	}
+	for _, enc := range encoders {
+		if err := n.AddEncoder(enc.Name, encoderPayloadDir, encoderFibreAccounts); err != nil {
+			return fmt.Errorf("failed to add encoder %s: %w", enc.Name, err)
 		}
 	}
 
@@ -225,6 +253,88 @@ func getMainnetStake(index int) int64 {
 		return int64(mainnetVotingPowers[len(mainnetVotingPowers)-1])
 	}
 	return int64(mainnetVotingPowers[index])
+}
+
+// stageEncoderPayload copies the binaries (celestia-appd, fibre-txsim), genesis,
+// vars.sh, and an encoder_init.sh script into the encoder-payload directory so
+// that the deploy step can create a lightweight tar for encoder instances.
+func stageEncoderPayload(rootDir, payloadDir, appBinaryPath, fibreTxsimBinaryPath, buildDirPath string) error {
+	encPayload := filepath.Join(rootDir, "encoder-payload")
+
+	// Build directory with only the two binaries an encoder needs
+	encBuild := filepath.Join(encPayload, "build")
+	if err := os.MkdirAll(encBuild, 0o755); err != nil {
+		return err
+	}
+
+	if buildDirPath != "" {
+		for _, name := range []string{"celestia-appd", "fibre-txsim"} {
+			src := filepath.Join(buildDirPath, name)
+			if err := copyFile(src, filepath.Join(encBuild, name), 0o755); err != nil {
+				return fmt.Errorf("copy %s from build dir: %w", name, err)
+			}
+		}
+	} else {
+		if err := copyFile(appBinaryPath, filepath.Join(encBuild, "celestia-appd"), 0o755); err != nil {
+			return fmt.Errorf("copy celestia-appd: %w", err)
+		}
+		if err := copyFile(fibreTxsimBinaryPath, filepath.Join(encBuild, "fibre-txsim"), 0o755); err != nil {
+			return fmt.Errorf("copy fibre-txsim: %w", err)
+		}
+	}
+
+	// Copy genesis and vars.sh
+	if err := copyFile(filepath.Join(payloadDir, "genesis.json"), filepath.Join(encPayload, "genesis.json"), 0o644); err != nil {
+		return fmt.Errorf("copy genesis.json: %w", err)
+	}
+	if err := copyFile(filepath.Join(payloadDir, "vars.sh"), filepath.Join(encPayload, "vars.sh"), 0o755); err != nil {
+		return fmt.Errorf("copy vars.sh: %w", err)
+	}
+
+	// Write the encoder init script
+	return writeEncoderInitScript(filepath.Join(encPayload, "encoder_init.sh"))
+}
+
+// writeEncoderInitScript creates a minimal init script for encoder instances.
+// Encoders only need the fibre-txsim binary, celestia-appd (for escrow deposits),
+// a keyring, and genesis.
+func writeEncoderInitScript(path string) error {
+	script := `#!/bin/bash
+set -euo pipefail
+
+CELES_HOME="$HOME/.celestia-app"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+apt-get install curl jq chrony --yes -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+
+systemctl enable chrony
+systemctl start chrony
+
+# TCP BBR
+modprobe tcp_bbr || true
+sysctl -w net.core.default_qdisc=fq
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+
+# Install binaries
+cp encoder-payload/build/celestia-appd /bin/celestia-appd
+cp encoder-payload/build/fibre-txsim /bin/fibre-txsim
+
+source encoder-payload/vars.sh
+
+# Determine this encoder's directory from hostname (e.g. "encoder-0")
+hostname=$(hostname)
+parsed_hostname=$(echo "$hostname" | awk -F'-' '{print $1 "-" $2}')
+
+# Set up celestia-app home with keyring + genesis
+rm -rf "$CELES_HOME"
+mkdir -p "$CELES_HOME/config"
+cp encoder-payload/genesis.json "$CELES_HOME/config/genesis.json"
+cp -r "encoder-payload/$parsed_hostname/keyring-test" "$CELES_HOME/"
+
+echo "Encoder $parsed_hostname initialized"
+`
+	return os.WriteFile(path, []byte(script), 0o755)
 }
 
 func writeAWSEnv(varsPath string, cfg Config) error {
