@@ -562,8 +562,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		signerAddrStr := signerAddr.String()
 
 		// Create escrow account with insufficient balance
-		params := suite.keeper.GetParams(suite.ctx)
-		gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 		requiredAmount := sdk.NewInt64Coin("utia", int64(gasRequired))
 		insufficientBalance := sdk.NewInt64Coin("utia", int64(gasRequired)-1) // Less than required
 
@@ -728,8 +727,7 @@ func (suite *KeeperTestSuite) createEscrowAccount(paymentPromise types.PaymentPr
 	signerAddrStr := signerAddr.String()
 	extraBalance := int64(1000)
 
-	params := suite.keeper.GetParams(suite.ctx)
-	gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 	availableBalance := sdk.NewInt64Coin("utia", int64(gasRequired)+extraBalance)
 
 	escrowAccount := types.EscrowAccount{
