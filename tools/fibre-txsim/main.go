@@ -178,9 +178,8 @@ func run(cfg config) error {
 		defer cancel()
 	}
 
-	// Create a single shared fibre client.
-	// The txsim targets networks with a constant validator set, so we wrap the
-	// state client to cache the validator set and avoid redundant gRPC calls.
+	// Create a single shared fibre client with a cached validator set to avoid
+	// redundant gRPC round-trips on every upload/download.
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
@@ -189,7 +188,7 @@ func run(cfg config) error {
 	if err := clientCfg.Validate(); err != nil {
 		return fmt.Errorf("invalid fibre client config: %w", err)
 	}
-	clientCfg.StateClientFn = state.WithConstantValset(clientCfg.StateClientFn)
+	clientCfg.StateClientFn = state.WithCachedValset(clientCfg.StateClientFn, 30*time.Second)
 
 	sharedFibreClient, err := fibre.NewClient(kr, clientCfg)
 	if err != nil {
