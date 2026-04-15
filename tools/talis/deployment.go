@@ -127,7 +127,10 @@ func deployCmd() *cobra.Command {
 					}
 					log.Printf("continuing despite validator deployment errors: %v", err)
 				}
-				return deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
+				if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
+					return err
+				}
+				return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
 				if !ignoreFailed {
@@ -135,7 +138,10 @@ func deployCmd() *cobra.Command {
 				}
 				log.Printf("continuing despite validator deployment errors: %v", err)
 			}
-			return deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload)
+			if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
+				return err
+			}
+			return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 		},
 	}
 
@@ -182,6 +188,41 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 	}
 
 	printGrafanaInfo(observabilityNode, rootDir)
+	return nil
+}
+
+// deployEncodersIfConfigured creates a lightweight encoder-payload tar and deploys
+// it to all configured encoder instances.
+func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
+	if len(cfg.Encoders) == 0 {
+		return nil
+	}
+
+	encoderPayloadDir := filepath.Join(rootDir, "encoder-payload")
+	if _, err := os.Stat(encoderPayloadDir); os.IsNotExist(err) {
+		return fmt.Errorf("encoder-payload directory not found — run 'talis genesis' first")
+	}
+
+	encoderTarPath := filepath.Join(rootDir, "encoder-payload.tar.gz")
+	log.Printf("Compressing encoder payload to %s\n", encoderTarPath)
+	tarCmd := exec.Command("tar", "-czf", encoderTarPath, "-C", rootDir, "encoder-payload")
+	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
+	if output, err := tarCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to compress encoder payload: %w, output: %s", err, string(output))
+	}
+	log.Printf("Sending encoder payload to %d encoder(s)...\n", len(cfg.Encoders))
+
+	if directUpload {
+		if err := deployPayloadDirect(cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, workers); err != nil {
+			return fmt.Errorf("encoder deployment: %w", err)
+		}
+	} else {
+		if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+			return fmt.Errorf("encoder deployment: %w", err)
+		}
+	}
+
+	log.Printf("Encoder deployment complete\n")
 	return nil
 }
 

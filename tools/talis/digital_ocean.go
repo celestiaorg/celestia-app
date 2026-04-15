@@ -16,6 +16,7 @@ import (
 
 const (
 	DODefaultValidatorSlug     = "c2-16vcpu-32gb"
+	DODefaultEncoderSlug       = "c2-8vcpu-16gb"
 	DODefaultObservabilitySlug = "s-2vcpu-4gb"
 	DODefaultImage             = "ubuntu-22-04-x64"
 	RandomRegion               = "random"
@@ -46,6 +47,17 @@ func NewDigitalOceanValidator(region string) Instance {
 	i := NewBaseInstance(Validator)
 	i.Provider = DigitalOcean
 	i.Slug = DODefaultValidatorSlug
+	i.Region = region
+	return i
+}
+
+func NewDigitalOceanEncoder(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomDORegion()
+	}
+	i := NewBaseInstance(Encoder)
+	i.Provider = DigitalOcean
+	i.Slug = DODefaultEncoderSlug
 	i.Region = region
 	return i
 }
@@ -111,8 +123,6 @@ func GetDOSSHKeyMeta(ctx context.Context, client *godo.Client, publicKey string)
 // CreateDroplets launches all droplets in parallel, waits for their IPs, and
 // returns the filled-out []Instance slice.
 func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, key godo.Key, workers int) ([]Instance, error) {
-	total := len(insts)
-
 	type result struct {
 		inst         Instance
 		err          error
@@ -131,6 +141,7 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 		}
 	}
 
+	total := len(insts)
 	results := make(chan result, total)
 	workerChan := make(chan struct{}, workers)
 	var wg sync.WaitGroup
@@ -473,7 +484,7 @@ func checkForRunningDOExperiments(ctx context.Context, client *godo.Client, expe
 
 func hasExperimentTag(tags []string, experimentID, chainID string) bool {
 	for _, tag := range tags {
-		if (strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-")) &&
+		if (strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "encoder-")) &&
 			strings.Contains(tag, experimentID) && strings.Contains(tag, chainID) {
 			return true
 		}
