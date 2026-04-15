@@ -91,8 +91,8 @@ func TestSortAndExtractGasPrice(t *testing.T) {
 	require.Greater(t, len(gasPrices), 0)
 
 	// Verify gas prices are sorted ascending.
-	for i := 1; i < len(gasPrices); i++ {
-		assert.GreaterOrEqual(t, gasPrices[i], gasPrices[i-1])
+	for i, gp := range gasPrices[1:] {
+		assert.GreaterOrEqual(t, gp, gasPrices[i]) // i is offset by 1 due to [1:] slice
 	}
 
 	// Verify total size of included txs does not exceed maxBytes.
