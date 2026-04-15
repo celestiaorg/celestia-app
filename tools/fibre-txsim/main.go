@@ -594,8 +594,10 @@ func confirmWorkerLoop(ctx context.Context, ch <-chan confirmRequest, st *stats)
 
 // pollTxStatus polls TxStatus directly via gRPC without touching the TxClient's
 // signer or tx tracker. Returns the height on commit, or an error on rejection/timeout.
-func pollTxStatus(ctx context.Context, conn *grpc.ClientConn, txHash string, timeout time.Duration) (int64, error) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+func pollTxStatus(_ context.Context, conn *grpc.ClientConn, txHash string, timeout time.Duration) (int64, error) {
+	// Use Background so in-flight confirmations can drain after the main context
+	// is cancelled on shutdown, matching the download path's behavior.
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	txClient := tx.NewTxClient(conn)
