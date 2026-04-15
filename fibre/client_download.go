@@ -150,7 +150,7 @@ func (c *Client) downloadFrom(
 	val *core.Validator,
 	blob *Blob,
 	id BlobID,
-	verifyRLC bool,
+	rlcVerifier *rlcVerifier,
 ) (rows []*rsema1d.RowInclusionProof, err error) {
 	log := c.log.With("validator", val.Address.String(), "blob_commitment", id.Commitment())
 
@@ -181,7 +181,7 @@ func (c *Client) downloadFrom(
 	span.AddEvent("client_acquired")
 
 	rpcStart := time.Now()
-	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: id, WithRlc: verifyRLC})
+	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: id, WithRlc: rlcVerifier != nil})
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
@@ -209,16 +209,16 @@ func (c *Client) downloadFrom(
 		attribute.Int("row_size", rowSize),
 	))
 
-	if verifyRLC {
+	if rlcVerifier != nil {
 		if len(result.rlcCoeffs) == 0 || rowSize <= 0 || len(result.proofs) == 0 {
 			return nil, fmt.Errorf("RLC verification requested but response is incomplete: coeffs=%d rowSize=%d proofs=%d",
 				len(result.rlcCoeffs), rowSize, len(result.proofs))
 		}
-		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, blob.Config().OriginalRows)
+		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, rlcVerifier.cfg.OriginalRows)
 		if parseErr != nil {
 			log.WarnContext(ctx, "failed to parse RLC coefficients, skipping validator", "error", parseErr)
 			return nil, fmt.Errorf("failed to parse RLC coefficients: %w", parseErr)
-		} else if setErr := blob.SetOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {
+		} else if setErr := rlcVerifier.setOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {
 			log.WarnContext(ctx, "RLC verification context rejected, skipping validator", "error", setErr)
 			return nil, fmt.Errorf("failed to set RLC coefficients: %w", setErr)
 		}
@@ -226,11 +226,17 @@ func (c *Client) downloadFrom(
 
 	verified := make([]*rsema1d.RowInclusionProof, 0, len(result.proofs))
 	for _, row := range result.proofs {
-		if err := blob.VerifyRow(row); err != nil {
-			log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
+		var verifyErr error
+		if rlcVerifier != nil {
+			verifyErr = rlcVerifier.verifyRow(row)
+		} else {
+			verifyErr = blob.VerifyRow(row)
+		}
+		if verifyErr != nil {
+			log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", verifyErr)
 			span.AddEvent("invalid_row", trace.WithAttributes(
 				attribute.Int("row_index", row.Index),
-				attribute.String("error", err.Error()),
+				attribute.String("error", verifyErr.Error()),
 			))
 			continue
 		}
@@ -276,6 +282,10 @@ func (c *Client) downloadBlob(
 
 	blobCfg := blob.Config()
 	originalRows := blobCfg.OriginalRows
+	var rlcVerifier *rlcVerifier
+	if verifyRLC {
+		rlcVerifier = newRLCVerifier(id.Commitment(), blobCfg)
+	}
 
 	// Get validators in priority order (shuffled by stake for load balancing)
 	// Each SelectedValidator includes ExpectedRows for inflight estimation.
@@ -321,7 +331,7 @@ loop:
 					c.closeWg.Done()
 				}()
 
-				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, verifyRLC)
+				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, rlcVerifier)
 				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
 			}()
 

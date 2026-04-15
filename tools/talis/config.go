@@ -21,6 +21,8 @@ const (
 	Light NodeType = "light"
 	// Observability represents a observability monitoring node for Prometheus/Grafana.
 	Observability NodeType = "observability"
+	// Encoder represents a dedicated fibre-txsim encoder node.
+	Encoder NodeType = "encoder"
 )
 
 var (
@@ -28,6 +30,7 @@ var (
 	nodeCount          = atomic.Uint32{}
 	lightCount         = atomic.Uint32{}
 	observabilityCount = atomic.Uint32{}
+	encoderCount       = atomic.Uint32{}
 )
 
 // NodeName returns the name of the node based on its type and index. The
@@ -44,6 +47,8 @@ func NodeName(nodeType NodeType) string {
 		index = int(lightCount.Add(1)) - 1
 	case Observability:
 		index = int(observabilityCount.Add(1)) - 1
+	case Encoder:
+		index = int(encoderCount.Add(1)) - 1
 	default:
 		panic(fmt.Sprintf("unknown node type: %s", nodeType))
 	}
@@ -120,7 +125,7 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 
 func GetExperimentTag(tags []string) string {
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "observability-") {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "observability-") || strings.HasPrefix(tag, "encoder-") {
 			return tag
 		}
 	}
@@ -133,6 +138,7 @@ type Config struct {
 	Bridges       []Instance `json:"bridges,omitempty"`
 	Lights        []Instance `json:"lights,omitempty"`
 	Observability []Instance `json:"observability,omitempty"`
+	Encoders      []Instance `json:"encoders,omitempty"`
 
 	// ChainID is the chain ID of the network. This is used to identify the
 	// network and is also used as the chain ID of the network. It is
@@ -165,6 +171,7 @@ func NewConfig(experiment, chainID string) Config {
 		Bridges:       []Instance{},
 		Lights:        []Instance{},
 		Observability: []Instance{},
+		Encoders:      []Instance{},
 		Experiment:    experiment,
 		ChainID:       TalisChainID(chainID),
 		S3Config: S3Config{
@@ -228,6 +235,18 @@ func (cfg Config) WithGoogleCloudValidator(region string) Config {
 func (cfg Config) WithGoogleCloudObservability(region string) Config {
 	i := NewGoogleCloudObservability(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Observability = append(cfg.Observability, i)
+	return cfg
+}
+
+func (cfg Config) WithDigitalOceanEncoder(region string) Config {
+	i := NewDigitalOceanEncoder(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Encoders = append(cfg.Encoders, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudEncoder(region string) Config {
+	i := NewGoogleCloudEncoder(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Encoders = append(cfg.Encoders, i)
 	return cfg
 }
 
@@ -321,6 +340,13 @@ func (cfg Config) UpdateInstance(name, publicIP, privateIP string) (Config, erro
 		if cfg.Observability[i].Name == name {
 			cfg.Observability[i].PublicIP = publicIP
 			cfg.Observability[i].PrivateIP = privateIP
+			return cfg, nil
+		}
+	}
+	for i := range cfg.Encoders {
+		if cfg.Encoders[i].Name == name {
+			cfg.Encoders[i].PublicIP = publicIP
+			cfg.Encoders[i].PrivateIP = privateIP
 			return cfg, nil
 		}
 	}

@@ -265,8 +265,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
 
 	// Calculate required balance
-	params := suite.keeper.GetParams(suite.ctx)
-	gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
 
 	// Setup: Create escrow account with sufficient balance
@@ -403,7 +402,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	paymentPromise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
 
 	// Calculate required balance
-	gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
 
 	// Setup: Create escrow account with sufficient balance
@@ -664,7 +663,7 @@ func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
 	suite.T().Run("payment succeeds when full withdrawal exists", func(t *testing.T) {
 		signerPubKey, privKey, signer := suite.newSigner()
 		paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
-		gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
 
 		// Create escrow account with deposit

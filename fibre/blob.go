@@ -314,6 +314,89 @@ func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
 	return nil
 }
 
+// rlcVerifier coordinates RLC-based row verification across concurrent download goroutines.
+// It holds the RLC verification state and an immutable copy of the commitment,
+// independently from the Blob. This prevents data races between straggler download
+// goroutines and the caller's Reconstruct which may mutate the Blob.
+type rlcVerifier struct {
+	commitment Commitment
+	cfg        BlobConfig
+
+	verificationCtx    *rsema1d.VerificationContext
+	verificationCtxSet atomic.Bool
+	ctxErr             error
+	rlcOnce            sync.Once
+}
+
+func newRLCVerifier(commitment Commitment, cfg BlobConfig) *rlcVerifier {
+	return &rlcVerifier{
+		commitment: commitment,
+		cfg:        cfg,
+	}
+}
+
+// setOrWaitVerificationContext validates the RLC coefficients and sets the verification
+// context for stronger per-row verification.
+//
+// Flow:
+//  1. Fast path: if context is already set, return immediately.
+//  2. Cheap validation: build the RLC Merkle tree (no extension) and check that
+//     SHA256(rowRoot || rlcOrigRoot) matches the blob's commitment.
+//  3. Expensive work (sync.Once): extend the RLC values and create the verification context.
+//     Only one goroutine performs this; others block in Once.Do until it completes.
+//
+// Returns an error if the RLC coefficients are inconsistent with the commitment.
+func (v *rlcVerifier) setOrWaitVerificationContext(
+	rlcOrig []field.GF128,
+	rowSize int,
+	sampleProof *rsema1d.RowProof,
+) error {
+	if v.verificationCtxSet.Load() {
+		return nil
+	}
+
+	config := &rsema1d.Config{
+		K:           v.cfg.OriginalRows,
+		N:           v.cfg.ParityRows,
+		RowSize:     rowSize,
+		WorkerCount: v.cfg.CodingWorkers,
+	}
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+	rlcOrigRoot := rsema1d.BuildPaddedRLCTree(rlcOrig, config).Root()
+	// TODO: it is possible to reuse rowRoot from previous calculations before we started verifyRLC
+	//  but we don't need this to be super optimised due to this case being rare
+	if err := rsema1d.ValidateRLCRoot(rlcOrigRoot, rsema1d.Commitment(v.commitment), sampleProof, config); err != nil {
+		return fmt.Errorf("validating RLC root against commitment: %w", err)
+	}
+
+	v.rlcOnce.Do(func() {
+		verCtx, _, err := rsema1d.CreateVerificationContext(rlcOrig, config)
+		if err != nil {
+			v.ctxErr = fmt.Errorf("creating verification context: %w", err)
+			return
+		}
+		v.verificationCtx = verCtx
+		v.verificationCtxSet.Store(true)
+	})
+
+	if v.verificationCtxSet.Load() {
+		return nil
+	}
+	return v.ctxErr
+}
+
+// verifyRow verifies a [*rsema1d.RowInclusionProof] against the commitment
+// using the prepared RLC verification context.
+// Safe to call concurrently.
+func (v *rlcVerifier) verifyRow(row *rsema1d.RowInclusionProof) error {
+	if err := rsema1d.VerifyRowWithContext(&row.RowProof, v.commitment, v.verificationCtx); err != nil {
+		return fmt.Errorf("verifying row %d: %w", row.Index, err)
+	}
+	return nil
+}
+
 // SetRow assigns a verified [*rsema1d.RowInclusionProof] to the blob.
 // Returns true when the row is new, false when the row was already set (duplicate).
 // The row must be verified with [VerifyRow] before calling this method.
@@ -341,15 +424,6 @@ func WithSkipCommitmentCheck() ReconstructOption {
 	return func(o *reconstructOptions) {
 		o.skipCommitmentCheck = true
 	}
-}
-
-// clearVerificationContext drops any prepared RLC verification state.
-// This is required when the blob commitment changes after recovery.
-func (d *Blob) clearVerificationContext() {
-	d.verificationCtx = nil
-	d.verificationCtxSet = atomic.Bool{}
-	d.ctxErr = nil
-	d.rlcOnce = sync.Once{}
 }
 
 // Reconstruct checks the accumulated rows and reconstructs the original data.
@@ -408,7 +482,6 @@ func (d *Blob) Reconstruct(opts ...ReconstructOption) error {
 	if opt.skipCommitmentCheck {
 		d.originalID = d.id
 		d.id = NewBlobID(d.cfg.BlobVersion, Commitment(reconstructedCommitment))
-		d.clearVerificationContext()
 	}
 	return nil
 }

@@ -169,7 +169,7 @@ func TestIncorrectEncodingGenerator(t *testing.T) {
 			// Verify the RLC commutation property directly for all rows:
 			// For unmodified rows, RLC(row, coeffs) == extendedRLC[i]
 			// For modified rows, RLC(row, coeffs) != extendedRLC[i]
-			coeffs := deriveCoefficients(fake.ExtendedData.rowRoot, config)
+			coeffs := deriveCoefficients(fake.ExtendedData.rowRoot, config.RowSize)
 			rlcExtended, err := encoding.ExtendRLCResults(fake.RLCOrig, config.N)
 			if err != nil {
 				t.Fatalf("ExtendRLCResults() error: %v", err)
