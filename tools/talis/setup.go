@@ -30,9 +30,10 @@ type scenarioRunner struct {
 	// scenario-specific (unused fields are simply ignored)
 	squareSize       int
 	encoders         int
+	blobSize         int
 	fibreTxsimConcur int
-	fibreAccounts       int
-	download            bool
+	fibreAccounts    int
+	download         bool
 
 	// set by the scenario constructor
 	defaultSteps []string
@@ -115,6 +116,7 @@ If no steps are given, all steps except "down" run in order.`,
 	// fibre-load specific flags
 	cmd.Flags().IntVar(&s.squareSize, "square-size", 512, "ODS square size")
 	cmd.Flags().IntVar(&s.encoders, "encoders", 2, "number of dedicated encoder instances")
+	cmd.Flags().IntVar(&s.blobSize, "blob-size", 1000000, "size of each blob in bytes")
 	cmd.Flags().IntVar(&s.fibreTxsimConcur, "fibre-txsim-concurrency", 4, "fibre-txsim concurrency per instance")
 	cmd.Flags().IntVar(&s.fibreAccounts, "fibre-accounts", 100, "pre-funded fibre accounts per validator")
 	cmd.Flags().BoolVar(&s.download, "download", false, "enable download verification in fibre-txsim")
@@ -349,6 +351,7 @@ func (s *scenarioRunner) stepTxsim(ctx context.Context) error {
 		"-d", s.directory,
 		"--on-encoders",
 		"--instances", fmt.Sprintf("%d", len(cfg.Encoders)),
+		"--blob-size", fmt.Sprintf("%d", s.blobSize),
 		"--concurrency", fmt.Sprintf("%d", s.fibreTxsimConcur),
 	}
 	if s.sshKeyPath != "" {
