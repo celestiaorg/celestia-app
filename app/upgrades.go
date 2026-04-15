@@ -83,6 +83,10 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, fmt.Errorf("failed to set evidence max age num blocks: %w", err)
 			}
 
+			if err := app.SetGovMaxSquareSize(sdkCtx, appconsts.DefaultGovMaxSquareSize); err != nil {
+				return nil, fmt.Errorf("failed to set gov max square size: %w", err)
+			}
+
 			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
 				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
 				return nil, err
@@ -142,6 +146,15 @@ func (app App) SetEvidenceMaxAgeNumBlocks(ctx context.Context, maxAgeNumBlocks i
 		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
 		return err
 	}
+	return nil
+}
+
+// SetGovMaxSquareSize updates the blob module's GovMaxSquareSize parameter.
+func (app App) SetGovMaxSquareSize(ctx sdk.Context, govMaxSquareSize uint64) error {
+	params := app.BlobKeeper.GetParams(ctx)
+	params.GovMaxSquareSize = govMaxSquareSize
+	ctx.Logger().Info("setting blob gov max square size", "govMaxSquareSize", govMaxSquareSize)
+	app.BlobKeeper.SetParams(ctx, params)
 	return nil
 }
 
