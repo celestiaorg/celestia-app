@@ -40,18 +40,18 @@ func TestSortAndExtractGasPrice(t *testing.T) {
 
 	txGas := uint64(100000)
 	txs := make([]coretypes.Tx, 0, len(accounts)*2)
-	txGasToSizeMap := make(map[float64]int)
+	// Use a seeded random to make the test deterministic.
+	rng := rand.New(rand.NewSource(42))
 	for i, acc := range accounts {
 		signer, err := user.NewSigner(kr, enc, testutil.ChainID, user.NewAccount(acc, infos[i].AccountNum, infos[i].Sequence))
 		require.NoError(t, err)
-		bTxFee := rand.Uint64() % 10000
+		bTxFee := rng.Uint64() % 10000
 		bTx, _, err := signer.CreatePayForBlobs(acc, blobs[i],
 			user.SetFee(bTxFee),
 			user.SetGasLimit(txGas))
 		require.NoError(t, err)
-		bTxGasPrice := float64(bTxFee) / float64(txGas)
 
-		sTxFee := rand.Uint64() % 10000
+		sTxFee := rng.Uint64() % 10000
 		sendTx := testutil.SendTxWithManualSequence(
 			t,
 			enc,
@@ -65,13 +65,25 @@ func TestSortAndExtractGasPrice(t *testing.T) {
 			user.SetFee(sTxFee),
 			user.SetGasLimit(txGas),
 		)
-		sTxGasPrice := float64(sTxFee) / float64(txGas)
 
 		txs = append(txs, sendTx)
 		txs = append(txs, bTx)
+	}
 
-		txGasToSizeMap[bTxGasPrice] = len(bTx)
-		txGasToSizeMap[sTxGasPrice] = len(sendTx)
+	// Build a gas price → size map from all txs using the same decoding
+	// as SortAndExtractGasPrices. Use a slice instead of a map to handle
+	// duplicate gas prices correctly.
+	type txInfo struct {
+		gasPrice float64
+		size     int
+	}
+	allTxInfos := make([]txInfo, 0, len(txs))
+	for _, rawTx := range txs {
+		sdkTx, err := testApp.GetTxConfig().TxDecoder()(rawTx)
+		require.NoError(t, err)
+		feeTx := sdkTx.(sdk.FeeTx)
+		gp := float64(feeTx.GetFee().AmountOf(appconsts.BondDenom).Uint64()) / float64(feeTx.GetGas())
+		allTxInfos = append(allTxInfos, txInfo{gasPrice: gp, size: len(rawTx)})
 	}
 
 	maxBytes := 3000
@@ -79,13 +91,25 @@ func TestSortAndExtractGasPrice(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(gasPrices), 0)
 
-	currentGasPrice := gasPrices[0]
-	currentSize := txGasToSizeMap[currentGasPrice]
-	for _, gasPrice := range gasPrices[1:] {
-		assert.GreaterOrEqual(t, gasPrice, currentGasPrice)
-		currentSize += txGasToSizeMap[gasPrice]
+	// Verify gas prices are sorted ascending.
+	for i, gp := range gasPrices[1:] {
+		assert.GreaterOrEqual(t, gp, gasPrices[i]) // i is offset by 1 due to [1:] slice
 	}
-	assert.LessOrEqual(t, currentSize, maxBytes)
+
+	// Verify total size of included txs does not exceed maxBytes.
+	// Match returned gas prices back to tx sizes (accounting for duplicates).
+	used := make([]bool, len(allTxInfos))
+	totalSize := 0
+	for _, gp := range gasPrices {
+		for j, info := range allTxInfos {
+			if !used[j] && info.gasPrice == gp {
+				totalSize += info.size
+				used[j] = true
+				break
+			}
+		}
+	}
+	assert.LessOrEqual(t, totalSize, maxBytes)
 }
 
 func TestEstimateGasPrice(t *testing.T) {
