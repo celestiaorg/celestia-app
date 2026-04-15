@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/stretchr/testify/require"
 )
 
 // testCase represents a common test configuration
@@ -672,6 +673,106 @@ func TestEncodeParity(t *testing.T) {
 					t.Errorf("VerifyRowWithContext(%d) error: %v", index, err)
 				}
 			}
+		})
+	}
+}
+
+func TestValidateRLCRoot(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config := makeTestConfig(tc)
+			data := makeTestData(tc.k, tc.rowSize)
+
+			extData, commitment, _, err := Encode(data, config)
+			require.NoError(t, err)
+
+			rlcOrigRoot := extData.rlcOrigRoot
+
+			// Valid: original row proof
+			t.Run("valid_original_row", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				require.NoError(t, ValidateRLCRoot(rlcOrigRoot, commitment, proof, config))
+			})
+
+			// Valid: parity row proof
+			t.Run("valid_parity_row", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(tc.k)
+				require.NoError(t, err)
+				require.NoError(t, ValidateRLCRoot(rlcOrigRoot, commitment, proof, config))
+			})
+
+			// Valid: last row
+			t.Run("valid_last_row", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(tc.k + tc.n - 1)
+				require.NoError(t, err)
+				require.NoError(t, ValidateRLCRoot(rlcOrigRoot, commitment, proof, config))
+			})
+
+			// Wrong RLC root
+			t.Run("wrong_rlc_root", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				badRoot := rlcOrigRoot
+				badRoot[0] ^= 0xFF
+				require.Error(t, ValidateRLCRoot(badRoot, commitment, proof, config))
+			})
+
+			// Wrong commitment
+			t.Run("wrong_commitment", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				badCommitment := commitment
+				badCommitment[0] ^= 0xFF
+				require.Error(t, ValidateRLCRoot(rlcOrigRoot, badCommitment, proof, config))
+			})
+
+			// Corrupted row data in proof
+			t.Run("corrupted_row_data", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				bad := *proof
+				bad.Row = make([]byte, len(proof.Row))
+				copy(bad.Row, proof.Row)
+				bad.Row[0] ^= 0xFF
+				require.Error(t, ValidateRLCRoot(rlcOrigRoot, commitment, &bad, config))
+			})
+
+			// Corrupted Merkle proof
+			t.Run("corrupted_merkle_proof", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				bad := *proof
+				bad.RowProof = copyAndCorruptProofSlice(proof.RowProof)
+				require.Error(t, ValidateRLCRoot(rlcOrigRoot, commitment, &bad, config))
+			})
+
+			// Wrong index (proof data doesn't match claimed index)
+			t.Run("wrong_index", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				bad := *proof
+				bad.Index = 1
+				require.Error(t, ValidateRLCRoot(rlcOrigRoot, commitment, &bad, config))
+			})
+
+			// Out of bounds index
+			t.Run("index_out_of_bounds", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				bad := *proof
+				bad.Index = tc.k + tc.n
+				require.Error(t, ValidateRLCRoot(rlcOrigRoot, commitment, &bad, config))
+			})
+
+			// Negative index
+			t.Run("negative_index", func(t *testing.T) {
+				proof, err := extData.GenerateRowProof(0)
+				require.NoError(t, err)
+				bad := *proof
+				bad.Index = -1
+				require.Error(t, ValidateRLCRoot(rlcOrigRoot, commitment, &bad, config))
+			})
 		})
 	}
 }

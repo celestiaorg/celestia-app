@@ -13,16 +13,13 @@ message BlobRow {
 }
 
 // BlobShard represents a subset of rows of a Fibre blob.
-// With two ways of proving data correctness:
-// 1. Using RLC coefficients when there is not enough rows to reconstruct the data blob. (Upload case)
-// 2. Using a Merkle root of RLC tree, when there is sufficient rows to reconstruct the data blob. (Download case)
+// Contains row data along with RLC proof data:
+// - coefficients: flattened RLC coefficients (K × 16 bytes), stored during upload
+// - root: RLC Merkle root (32 bytes), computed during upload verification
 message BlobShard {
   repeated BlobRow rows = 1;
-  // rlc contains the random linear combination proof data.
-  oneof rlc {
-    bytes coefficients = 2; // flattened rlc coefficients, 16 bytes per original row
-    bytes root = 3; // const len == 32 when present
-  }
+  bytes coefficients = 2; // flattened rlc coefficients, 16 bytes per original row
+  bytes root = 3;         // const len == 32 when present
 }
 
 // UploadShardRequest is the request message for the UploadShard RPC method.
@@ -39,6 +36,7 @@ message UploadShardResponse {
 // DownloadShardRequest is the request message for the DownloadShard RPC method.
 message DownloadShardRequest {
   bytes blob_id = 1; // const len == 33 (version + commitment)
+  bool with_rlc = 2; // when true, include RLC coefficients in response
 }
 
 // DownloadShardResponse is the response message for the DownloadShard RPC method.

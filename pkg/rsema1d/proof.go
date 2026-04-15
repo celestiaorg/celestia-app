@@ -24,7 +24,7 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 	}
 
 	// Build padded RLC Merkle tree
-	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 
 	// Extend RLC results to get all K+N values
@@ -164,6 +164,35 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 		return errors.New("commitment verification failed")
 	}
 
+	return nil
+}
+
+// ValidateRLCRoot verifies that an RLC root is consistent with a commitment
+// by using a row inclusion proof to derive the row root.
+// This is used to validate RLC coefficients before setting up a verification context.
+func ValidateRLCRoot(rlcRoot [32]byte, commitment Commitment, proof *RowProof, config *Config) error {
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
+	if proof.Index < 0 || proof.Index >= config.K+config.N {
+		return fmt.Errorf("index %d out of range [0, %d)", proof.Index, config.K+config.N)
+	}
+
+	treeIndex := mapIndexToTreePosition(proof.Index, config)
+	rowRoot, err := merkle.ComputeRootFromProof(proof.Row, treeIndex, proof.RowProof)
+	if err != nil {
+		return fmt.Errorf("computing row root: %w", err)
+	}
+
+	h := sha256.New()
+	h.Write(rowRoot[:])
+	h.Write(rlcRoot[:])
+	computed := h.Sum(nil)
+
+	if commitment != [32]byte(computed) {
+		return errors.New("RLC root not consistent with commitment")
+	}
 	return nil
 }
 
