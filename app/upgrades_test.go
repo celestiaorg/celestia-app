@@ -152,7 +152,7 @@ func TestApplyUpgradeSetGovMaxSquareSize(t *testing.T) {
 		require.NoError(t, err)
 
 		// Verify GovMaxSquareSize was updated to 256.
-		require.Equal(t, uint64(appconsts.DefaultGovMaxSquareSize), testApp.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
+		require.Equal(t, appconsts.MaxSquareSize, testApp.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
 	})
 }
 

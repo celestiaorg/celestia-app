@@ -83,7 +83,7 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, fmt.Errorf("failed to set evidence max age num blocks: %w", err)
 			}
 
-			if err := app.SetGovMaxSquareSize(sdkCtx, appconsts.DefaultGovMaxSquareSize); err != nil {
+			if err := app.SetGovMaxSquareSize(sdkCtx, appconsts.MaxSquareSize); err != nil {
 				return nil, fmt.Errorf("failed to set gov max square size: %w", err)
 			}
 

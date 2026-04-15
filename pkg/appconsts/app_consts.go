@@ -78,6 +78,10 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v9 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
+
+	// MaxSquareSize is the governance-modifiable max square size. Set via the
+	// v9 upgrade handler to handle 32 MiB blocks.
+	MaxSquareSize uint64 = 256
 )
 
 // MinCommissionRate is 20%.
