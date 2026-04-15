@@ -22,6 +22,17 @@ type ExtendedData struct {
 	rowTree     *merkle.Tree  // Cached row Merkle tree
 	rlcOrigTree *merkle.Tree  // Cached RLC Merkle tree
 	rlcOrigRoot [32]byte      // Cached RLC root
+	commitment  Commitment    // SHA256(rowRoot || rlcOrigRoot)
+}
+
+// Commitment returns the cryptographic commitment for this extended data.
+func (ed *ExtendedData) Commitment() Commitment {
+	return ed.commitment
+}
+
+// RLC returns the computed random linear combination values for the original rows.
+func (ed *ExtendedData) RLC() []field.GF128 {
+	return ed.rlcOrig
 }
 
 // VerificationContext holds precomputed RLC data for efficient batch verification
