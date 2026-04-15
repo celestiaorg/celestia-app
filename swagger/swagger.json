@@ -5924,7 +5924,7 @@
           "title": "const len == 32 when present"
         }
       },
-      "title": "BlobShard represents a subset of rows of a Fibre blob.\nWith two ways of proving data correctness:\n1. Using RLC coefficients when there is not enough rows to reconstruct the data blob. (Upload case)\n2. Using a Merkle root of RLC tree, when there is sufficient rows to reconstruct the data blob. (Download case)"
+      "title": "BlobShard represents a subset of rows of a Fibre blob.\nContains row data along with RLC proof data:\n- coefficients: flattened RLC coefficients (K × 16 bytes), stored during upload\n- root: RLC Merkle root (32 bytes), computed during upload verification"
     },
     "v1DownloadShardResponse": {
       "type": "object",
