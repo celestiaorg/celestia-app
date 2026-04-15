@@ -275,7 +275,7 @@ func makeTestStore(t *testing.T) *fibre.Store {
 	t.Helper()
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := fibre.NewBadgerStore(cfg)
+	store, err := fibre.NewPebbleStore(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 	return store
