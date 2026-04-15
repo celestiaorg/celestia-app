@@ -18,6 +18,7 @@ import (
 
 const (
 	GCDefaultValidatorMachineType     = "c3d-highcpu-16"
+	GCDefaultEncoderMachineType       = "c3d-highcpu-8"
 	GCDefaultObservabilityMachineType = "e2-medium"
 	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
 	GCDefaultDiskSizeGB               = 400
@@ -73,7 +74,8 @@ func NewGCClient(cfg Config) (*GCClient, error) {
 
 func (c *GCClient) Up(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -112,7 +114,8 @@ func (c *GCClient) Up(ctx context.Context, workers int) error {
 
 func (c *GCClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -218,6 +221,17 @@ func NewGoogleCloudValidator(region string) Instance {
 	i := NewBaseInstance(Validator)
 	i.Provider = GoogleCloud
 	i.Slug = GCDefaultValidatorMachineType
+	i.Region = region
+	return i
+}
+
+func NewGoogleCloudEncoder(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomGCRegion()
+	}
+	i := NewBaseInstance(Encoder)
+	i.Provider = GoogleCloud
+	i.Slug = GCDefaultEncoderMachineType
 	i.Region = region
 	return i
 }
@@ -650,7 +664,7 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 }
 
 func hasGCExperimentLabel(label, experimentID, chainID string) bool {
-	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") {
+	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") && !strings.HasPrefix(label, "encoder_") {
 		return false
 	}
 	experimentIDLabel := strings.ReplaceAll(experimentID, "-", "_")
