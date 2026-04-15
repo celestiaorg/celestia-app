@@ -79,6 +79,10 @@ func (app App) RegisterUpgradeHandlers() {
 				return nil, fmt.Errorf("failed to set block max bytes: %w", err)
 			}
 
+			if err := app.SetEvidenceMaxAgeNumBlocks(ctx, appconsts.MaxAgeNumBlocks); err != nil {
+				return nil, fmt.Errorf("failed to set evidence max age num blocks: %w", err)
+			}
+
 			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
 				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
 				return nil, err
@@ -116,6 +120,24 @@ func (app App) SetBlockMaxBytes(ctx context.Context, maxBytes int64) error {
 	}
 	params.Block.MaxBytes = maxBytes
 	sdkCtx.Logger().Info("setting block max bytes", "maxBytes", maxBytes)
+	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, params); err != nil {
+		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
+		return err
+	}
+	return nil
+}
+
+// SetEvidenceMaxAgeNumBlocks updates the consensus parameter Evidence.MaxAgeNumBlocks.
+func (app App) SetEvidenceMaxAgeNumBlocks(ctx context.Context, maxAgeNumBlocks int64) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+
+	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		sdkCtx.Logger().Error("failed to get consensus params", "err", err)
+		return err
+	}
+	params.Evidence.MaxAgeNumBlocks = maxAgeNumBlocks
+	sdkCtx.Logger().Info("setting evidence max age num blocks", "maxAgeNumBlocks", maxAgeNumBlocks)
 	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, params); err != nil {
 		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
 		return err
