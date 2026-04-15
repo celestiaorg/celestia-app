@@ -15,6 +15,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/app"
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v9/fibre"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
@@ -80,6 +81,7 @@ func main() {
 type worker struct {
 	fibreClient *fibre.Client
 	txClient    *user.TxClient
+	grpcConn    *grpc.ClientConn
 	keyName     string
 }
 
@@ -93,7 +95,7 @@ type downloadRequest struct {
 
 // confirmRequest is sent from upload workers to confirmation workers after broadcasting a PFF tx.
 type confirmRequest struct {
-	txClient *user.TxClient
+	grpcConn *grpc.ClientConn
 	txHash   string
 	keyName  string
 	startT   time.Time
@@ -225,6 +227,7 @@ func run(cfg config) error {
 		workers[i] = worker{
 			fibreClient: sharedFibreClient,
 			txClient:    txClient,
+			grpcConn:    grpcConn,
 			keyName:     keyName,
 		}
 		fmt.Printf("Worker %d initialized with key %s\n", i, keyName)
@@ -262,8 +265,9 @@ func run(cfg config) error {
 		}
 	}
 
-	// Spawn confirmation workers. Each confirmRequest carries its own txClient
-	// so any worker can process any request without cross-client issues.
+	// Spawn confirmation workers. Each confirmRequest carries its own gRPC
+	// connection and polls TxStatus directly, avoiding TxClient.ConfirmTx which
+	// has a data race when called concurrently with BroadcastTx.
 	if confirmCh != nil {
 		for range confirmWorkers {
 			confirmWg.Go(func() {
@@ -542,7 +546,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	if confirmCh != nil {
 		select {
 		case confirmCh <- confirmRequest{
-			txClient: w.txClient,
+			grpcConn: w.grpcConn,
 			txHash:   broadcastResp.TxHash,
 			keyName:  w.keyName,
 			startT:   t,
@@ -567,11 +571,14 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	}
 }
 
+// confirmWorkerLoop polls TxStatus for each broadcast tx without using TxClient.ConfirmTx.
+// This avoids a data race: ConfirmTx modifies the signer's sequence on rejection/eviction
+// without holding the client mutex, which races with concurrent BroadcastTx calls from
+// the upload workers. Since fibre-txsim doesn't need sequence recovery or tx resubmission,
+// a simple status poll is sufficient.
 func confirmWorkerLoop(ctx context.Context, ch <-chan confirmRequest, st *stats) {
 	for req := range ch {
-		confirmCtx, confirmCancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		resp, err := req.txClient.ConfirmTx(confirmCtx, req.txHash)
-		confirmCancel()
+		height, err := pollTxStatus(ctx, req.grpcConn, req.txHash, 2*time.Minute)
 		if err != nil {
 			st.confirmFailures.Add(1)
 			fmt.Printf("[%s] confirm error: tx=%s %v\n", req.keyName, req.txHash, err)
@@ -581,8 +588,54 @@ func confirmWorkerLoop(ctx context.Context, ch <-chan confirmRequest, st *stats)
 		st.confirmSuccesses.Add(1)
 		st.confirmLatNs.Add(lat.Nanoseconds())
 		fmt.Printf("[%s] confirmed: tx=%s height=%d total_latency=%s\n",
-			req.keyName, req.txHash, resp.Height, lat)
-		_ = ctx // available for future use
+			req.keyName, req.txHash, height, lat)
+	}
+}
+
+// pollTxStatus polls TxStatus directly via gRPC without touching the TxClient's
+// signer or tx tracker. Returns the height on commit, or an error on rejection/timeout.
+func pollTxStatus(ctx context.Context, conn *grpc.ClientConn, txHash string, timeout time.Duration) (int64, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	txClient := tx.NewTxClient(conn)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	for {
+		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: txHash})
+		if err != nil {
+			if ctx.Err() != nil {
+				return 0, ctx.Err()
+			}
+			// Transient gRPC error, keep polling
+			select {
+			case <-ctx.Done():
+				return 0, ctx.Err()
+			case <-ticker.C:
+				continue
+			}
+		}
+
+		switch resp.Status {
+		case "COMMITTED":
+			if resp.ExecutionCode != 0 {
+				return 0, fmt.Errorf("tx %s execution error (code %d): %s", txHash, resp.ExecutionCode, resp.Error)
+			}
+			return resp.Height, nil
+		case "REJECTED":
+			return 0, fmt.Errorf("tx %s rejected: %s", txHash, resp.Error)
+		case "EVICTED":
+			return 0, fmt.Errorf("tx %s evicted", txHash)
+		default:
+			// PENDING or UNKNOWN, keep polling
+		}
+
+		select {
+		case <-ctx.Done():
+			return 0, ctx.Err()
+		case <-ticker.C:
+		}
 	}
 }
 
