@@ -44,6 +44,12 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
+	// TODO: re-enable once a celestia-node release supports celestia-app/v9.
+	// celestia-node v0.30.0-rc0 (and all currently released versions) depend on
+	// celestia-app/v8 and reject v9 block headers, so the light node fails to
+	// sync and this test cannot pass. Tracked in
+	// https://github.com/celestiaorg/celestia-app/issues/7043.
+	t.Skip("skipping until celestia-node supports app v9 (see #7043)")
 
 	ctx := context.TODO()
 
