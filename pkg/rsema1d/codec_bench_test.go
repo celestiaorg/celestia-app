@@ -206,6 +206,37 @@ func BenchmarkEncode(b *testing.B) {
 	}
 }
 
+// BenchmarkComputeRLCOrig isolates the RLC computation over original rows.
+func BenchmarkComputeRLCOrig(b *testing.B) {
+	configs := generateBenchmarkConfigs(true)
+
+	for _, cfg := range configs {
+		b.Run(configName(cfg), func(b *testing.B) {
+			codecConfig := &Config{
+				K:           cfg.k,
+				N:           cfg.n,
+				RowSize:     cfg.rowSize,
+				WorkerCount: cfg.workerCount,
+			}
+
+			rowRoot := [32]byte{1, 2, 3, 4}
+			coeffs := deriveCoefficients(rowRoot, cfg.rowSize)
+
+			setup := func() any {
+				return generateTestData(cfg.k, cfg.rowSize)
+			}
+
+			benchFunc := func(state any) error {
+				rows := state.([][]byte)
+				_ = computeRLCOrig(rows, coeffs, codecConfig)
+				return nil
+			}
+
+			runBenchmark(b, cfg, setup, benchFunc, true)
+		})
+	}
+}
+
 // BenchmarkReconstruct benchmarks the Reconstruct function
 func BenchmarkReconstruct(b *testing.B) {
 	// Reconstruct doesn't support worker parallelism directly
@@ -574,7 +605,7 @@ func BenchmarkDeriveCoefficients(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				deriveCoefficients(rowRoot, config)
+				deriveCoefficients(rowRoot, config.RowSize)
 			}
 		})
 	}
