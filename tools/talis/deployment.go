@@ -185,30 +185,14 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 	return nil
 }
 
-// printGrafanaInfo prints the Grafana URL and credentials after successful observability deployment.
+// printGrafanaInfo prints the Grafana URL and a pointer to where credentials can be found.
 func printGrafanaInfo(node Instance, rootDir string) {
-	password := readGrafanaPassword(rootDir)
-
+	envPath := filepath.Join(rootDir, "payload", "observability", "docker", ".env")
 	fmt.Println()
 	fmt.Println("Grafana available at:")
-	fmt.Printf("  http://%s:3000  (credentials: admin/%s)\n", node.PublicIP, password)
+	fmt.Printf("  http://%s:3000\n", node.PublicIP)
+	fmt.Printf("  Credentials: admin / <password in %s>\n", envPath)
 	fmt.Println()
-}
-
-// readGrafanaPassword reads the Grafana password from the .env file in the payload directory.
-func readGrafanaPassword(rootDir string) string {
-	envPath := filepath.Join(rootDir, "payload", "observability", "docker", ".env")
-	data, err := os.ReadFile(envPath)
-	if err != nil {
-		return "admin" // fallback to default
-	}
-	// Parse GRAFANA_PASSWORD=<password> from .env
-	for line := range strings.SplitSeq(string(data), "\n") {
-		if password, found := strings.CutPrefix(line, "GRAFANA_PASSWORD="); found {
-			return password
-		}
-	}
-	return "admin" // fallback to default
 }
 
 // deployPayloadDirect copies a local archive to each remote host, unpacks it,
