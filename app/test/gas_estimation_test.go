@@ -76,7 +76,7 @@ func TestSortAndExtractGasPrice(t *testing.T) {
 		gasPrice float64
 		size     int
 	}
-	var allTxInfos []txInfo
+	allTxInfos := make([]txInfo, 0, len(txs))
 	for _, rawTx := range txs {
 		sdkTx, err := testApp.GetTxConfig().TxDecoder()(rawTx)
 		require.NoError(t, err)
