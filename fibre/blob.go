@@ -102,12 +102,6 @@ type Blob struct {
 
 	// fields for reconstruction
 	rows [][]byte
-
-	// fields for RLC-based row verification (set via SetOrWaitVerificationContext)
-	verificationCtx    *rsema1d.VerificationContext
-	verificationCtxSet atomic.Bool // true once verificationCtx is ready
-	ctxErr             error       // error from the Once winner (if any)
-	rlcOnce            sync.Once   // ensures expensive extension runs exactly once
 }
 
 // NewBlob creates a new [Blob] instance by encoding the data.
@@ -235,7 +229,43 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 	return d.extendedData.GenerateRowInclusionProof(index)
 }
 
-// SetOrWaitVerificationContext validates the RLC coefficients and sets the verification
+// VerifyRow verifies a [*rsema1d.RowInclusionProof] against the blob's commitment.
+// Safe to call concurrently — performs only pure computation with no shared state mutation.
+func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
+	config := &rsema1d.Config{
+		K:           d.cfg.OriginalRows,
+		N:           d.cfg.ParityRows,
+		RowSize:     len(row.Row),
+		WorkerCount: d.cfg.CodingWorkers,
+	}
+	if err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config); err != nil {
+		return fmt.Errorf("verifying row %d: %w", row.Index, err)
+	}
+	return nil
+}
+
+// rowVerifier coordinates row verification across concurrent download goroutines.
+// It holds the RLC verification state and an immutable copy of the commitment,
+// independently from the Blob. This prevents data races between straggler download
+// goroutines and the caller's Reconstruct which may mutate the Blob.
+type rowVerifier struct {
+	commitment Commitment
+	cfg        BlobConfig
+
+	verificationCtx    *rsema1d.VerificationContext
+	verificationCtxSet atomic.Bool
+	ctxErr             error
+	rlcOnce            sync.Once
+}
+
+func newRowVerifier(commitment Commitment, cfg BlobConfig) *rowVerifier {
+	return &rowVerifier{
+		commitment: commitment,
+		cfg:        cfg,
+	}
+}
+
+// setOrWaitVerificationContext validates the RLC coefficients and sets the verification
 // context for stronger per-row verification.
 //
 // Flow:
@@ -246,22 +276,20 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 //     Only one goroutine performs this; others block in Once.Do until it completes.
 //
 // Returns an error if the RLC coefficients are inconsistent with the commitment.
-func (d *Blob) SetOrWaitVerificationContext(
+func (v *rowVerifier) setOrWaitVerificationContext(
 	rlcOrig []field.GF128,
 	rowSize int,
 	sampleProof *rsema1d.RowProof,
 ) error {
-	// Fast path: context already set.
-	if d.verificationCtxSet.Load() {
+	if v.verificationCtxSet.Load() {
 		return nil
 	}
 
-	// build RLC tree (no extension) and validate root against commitment.
 	config := &rsema1d.Config{
-		K:           d.cfg.OriginalRows,
-		N:           d.cfg.ParityRows,
+		K:           v.cfg.OriginalRows,
+		N:           v.cfg.ParityRows,
 		RowSize:     rowSize,
-		WorkerCount: d.cfg.CodingWorkers,
+		WorkerCount: v.cfg.CodingWorkers,
 	}
 	if err := config.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
@@ -269,46 +297,44 @@ func (d *Blob) SetOrWaitVerificationContext(
 	rlcOrigRoot := rsema1d.BuildPaddedRLCTree(rlcOrig, config).Root()
 	// TODO: it is possible to reuse rowRoot from previous calculations before we started verifyRLC
 	//  but we don't need this to be super optimised due to this case being rare
-	if err := rsema1d.ValidateRLCRoot(rlcOrigRoot, rsema1d.Commitment(d.id.Commitment()), sampleProof, config); err != nil {
+	if err := rsema1d.ValidateRLCRoot(rlcOrigRoot, rsema1d.Commitment(v.commitment), sampleProof, config); err != nil {
 		return fmt.Errorf("validating RLC root against commitment: %w", err)
 	}
 
-	// Expensive work: extend RLC values and create verification context (exactly once).
-	d.rlcOnce.Do(func() {
+	v.rlcOnce.Do(func() {
 		verCtx, _, err := rsema1d.CreateVerificationContext(rlcOrig, config)
 		if err != nil {
-			d.ctxErr = fmt.Errorf("creating verification context: %w", err)
+			v.ctxErr = fmt.Errorf("creating verification context: %w", err)
 			return
 		}
-		d.verificationCtx = verCtx
-		d.verificationCtxSet.Store(true)
+		v.verificationCtx = verCtx
+		v.verificationCtxSet.Store(true)
 	})
 
-	if d.verificationCtxSet.Load() {
+	if v.verificationCtxSet.Load() {
 		return nil
 	}
-	return d.ctxErr
+	return v.ctxErr
 }
 
-// VerifyRow verifies a [*rsema1d.RowInclusionProof] against the blob's commitment.
-// If a verification context is set (via [SetVerificationContext]), uses the stronger
-// RLC-based verification that checks each row's RLC value. Otherwise falls back to
-// lightweight inclusion-only verification.
-// Safe to call concurrently — performs only pure computation with no shared state mutation.
-func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
-	if d.verificationCtxSet.Load() {
-		if err := rsema1d.VerifyRowWithContext(&row.RowProof, d.id.Commitment(), d.verificationCtx); err != nil {
+// verifyRow verifies a [*rsema1d.RowInclusionProof] against the commitment.
+// If a verification context is set, uses the stronger RLC-based verification.
+// Otherwise falls back to lightweight inclusion-only verification.
+// Safe to call concurrently.
+func (v *rowVerifier) verifyRow(row *rsema1d.RowInclusionProof) error {
+	if v.verificationCtxSet.Load() {
+		if err := rsema1d.VerifyRowWithContext(&row.RowProof, v.commitment, v.verificationCtx); err != nil {
 			return fmt.Errorf("verifying row %d: %w", row.Index, err)
 		}
 		return nil
 	}
 	config := &rsema1d.Config{
-		K:           d.cfg.OriginalRows,
-		N:           d.cfg.ParityRows,
+		K:           v.cfg.OriginalRows,
+		N:           v.cfg.ParityRows,
 		RowSize:     len(row.Row),
-		WorkerCount: d.cfg.CodingWorkers,
+		WorkerCount: v.cfg.CodingWorkers,
 	}
-	if err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config); err != nil {
+	if err := rsema1d.VerifyRowInclusionProof(row, v.commitment, config); err != nil {
 		return fmt.Errorf("verifying row %d: %w", row.Index, err)
 	}
 	return nil
@@ -341,15 +367,6 @@ func WithSkipCommitmentCheck() ReconstructOption {
 	return func(o *reconstructOptions) {
 		o.skipCommitmentCheck = true
 	}
-}
-
-// clearVerificationContext drops any prepared RLC verification state.
-// This is required when the blob commitment changes after recovery.
-func (d *Blob) clearVerificationContext() {
-	d.verificationCtx = nil
-	d.verificationCtxSet = atomic.Bool{}
-	d.ctxErr = nil
-	d.rlcOnce = sync.Once{}
 }
 
 // Reconstruct checks the accumulated rows and reconstructs the original data.
@@ -408,7 +425,6 @@ func (d *Blob) Reconstruct(opts ...ReconstructOption) error {
 	if opt.skipCommitmentCheck {
 		d.originalID = d.id
 		d.id = NewBlobID(d.cfg.BlobVersion, Commitment(reconstructedCommitment))
-		d.clearVerificationContext()
 	}
 	return nil
 }

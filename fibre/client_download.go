@@ -148,7 +148,7 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 func (c *Client) downloadFrom(
 	ctx context.Context,
 	val *core.Validator,
-	blob *Blob,
+	verifier *rowVerifier,
 	id BlobID,
 	verifyRLC bool,
 ) (rows []*rsema1d.RowInclusionProof, err error) {
@@ -214,11 +214,11 @@ func (c *Client) downloadFrom(
 			return nil, fmt.Errorf("RLC verification requested but response is incomplete: coeffs=%d rowSize=%d proofs=%d",
 				len(result.rlcCoeffs), rowSize, len(result.proofs))
 		}
-		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, blob.Config().OriginalRows)
+		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, verifier.cfg.OriginalRows)
 		if parseErr != nil {
 			log.WarnContext(ctx, "failed to parse RLC coefficients, skipping validator", "error", parseErr)
 			return nil, fmt.Errorf("failed to parse RLC coefficients: %w", parseErr)
-		} else if setErr := blob.SetOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {
+		} else if setErr := verifier.setOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {
 			log.WarnContext(ctx, "RLC verification context rejected, skipping validator", "error", setErr)
 			return nil, fmt.Errorf("failed to set RLC coefficients: %w", setErr)
 		}
@@ -226,7 +226,7 @@ func (c *Client) downloadFrom(
 
 	verified := make([]*rsema1d.RowInclusionProof, 0, len(result.proofs))
 	for _, row := range result.proofs {
-		if err := blob.VerifyRow(row); err != nil {
+		if err := verifier.verifyRow(row); err != nil {
 			log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
 			span.AddEvent("invalid_row", trace.WithAttributes(
 				attribute.Int("row_index", row.Index),
@@ -276,6 +276,9 @@ func (c *Client) downloadBlob(
 
 	blobCfg := blob.Config()
 	originalRows := blobCfg.OriginalRows
+	// rowVerifier is owned by the download goroutines and lives independently
+	// of the blob, so straggler goroutines never race with Reconstruct.
+	verifier := newRowVerifier(id.Commitment(), blobCfg)
 
 	// Get validators in priority order (shuffled by stake for load balancing)
 	// Each SelectedValidator includes ExpectedRows for inflight estimation.
@@ -321,7 +324,7 @@ loop:
 					c.closeWg.Done()
 				}()
 
-				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, verifyRLC)
+				rows, err := c.downloadFrom(ctx, sv.Validator, verifier, id, verifyRLC)
 				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
 			}()
 
