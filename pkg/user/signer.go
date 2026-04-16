@@ -348,6 +348,26 @@ func (s *Signer) createSignature(builder client.TxBuilder, account *Account, seq
 	return signature, nil
 }
 
+// TxBuilder creates a TxBuilder from messages and options.
+// This is exported for use by the v3 async pipeline.
+func (s *Signer) TxBuilder(msgs []sdktypes.Msg, opts ...TxOption) (client.TxBuilder, error) {
+	return s.txBuilder(msgs, opts...)
+}
+
+// SignTransaction signs a transaction using the account derived from the builder's signers.
+// Returns the account name, sequence, and any error.
+// This is exported for use by the v3 async pipeline.
+func (s *Signer) SignTransaction(builder client.TxBuilder) (string, uint64, error) {
+	return s.signTransaction(builder)
+}
+
+// GetAccount returns the account with the given name, or nil and false if not found.
+// This is exported for use by the v3 async pipeline.
+func (s *Signer) GetAccount(name string) (*Account, bool) {
+	acc, exists := s.accounts[name]
+	return acc, exists
+}
+
 // txBuilder returns the default sdk Tx builder using the celestia-app encoding config
 func (s *Signer) txBuilder(msgs []sdktypes.Msg, opts ...TxOption) (client.TxBuilder, error) {
 	builder := s.enc.NewTxBuilder()
