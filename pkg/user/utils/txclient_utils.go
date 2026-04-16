@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,7 +16,13 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// indexerWaitTimeout bounds how long GetTxWithRetry waits for the tx indexer
+// to index a committed tx before giving up.
+const indexerWaitTimeout = 10 * time.Second
 
 func SetupTxClient(
 	t *testing.T,
@@ -53,6 +60,36 @@ func SetupTxClientWithDefaultParams(t *testing.T, opts ...user.Option) (encoding
 	return SetupTxClient(t, 0, 128, 8388608, opts...) // no ttl and 8MiB block size
 }
 
+// GetTxWithRetry polls ServiceClient.GetTx until the tx is indexed or
+// indexerWaitTimeout elapses. The CometBFT TxStatus RPC (used by
+// TxClient.ConfirmTx) and the Cosmos SDK tx indexer (used by
+// ServiceClient.GetTx) are updated asynchronously after a block is
+// committed, so GetTx can return NotFound for a tx that ConfirmTx has just
+// reported as committed. Tests should prefer this helper whenever they need
+// to look up a tx by hash immediately after submitting it.
+func GetTxWithRetry(ctx context.Context, serviceClient sdktx.ServiceClient, txHash string) (*sdktx.GetTxResponse, error) {
+	ctx, cancel := context.WithTimeout(ctx, indexerWaitTimeout)
+	defer cancel()
+
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		resp, err := serviceClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
+		if err == nil {
+			return resp, nil
+		}
+		if status.Code(err) != codes.NotFound {
+			return nil, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("waiting for tx %s to be indexed: %w", txHash, ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
 func VerifyTxResponse(
 	t *testing.T,
 	ctx context.Context,
@@ -77,7 +114,7 @@ func VerifyTxResponse(
 		require.FailNowf(t, "unexpected type", "unsupported confirmTxResp type: %T", confirmTxResp)
 	}
 
-	getTxResp, err := serviceClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: expTxHash})
+	getTxResp, err := GetTxWithRetry(ctx, serviceClient, expTxHash)
 	require.NoError(t, err)
 
 	txResp := getTxResp.TxResponse
