@@ -12,9 +12,9 @@ import (
 // for parity rows: original rows are a hybrid view over the input
 // data (zero-copy where possible), parity rows come from pooled storage.
 //
-// Two pooling strategies are used. When rowSize == MaxRowSize, entire parity
-// batches are pooled (bounded by MaxRowPoolCap). For smaller rows, parity is
-// packed into fixed-size chunks via sync.Pool.
+// Two pooling strategies are implemented. The dedicated whole-batch path for
+// rowSize == MaxRowSize remains available below, but is temporarily disabled;
+// all row sizes currently use the packed sync.Pool path.
 //
 // RowAssembler is safe for concurrent use.
 type RowAssembler struct {
@@ -126,9 +126,13 @@ func (a *RowAssembler) Assemble(data []byte, rowSize, firstRowDataOffset int) (r
 	m := a.metaPool.Get().(*meta)
 	rows = m.rows[:a.codec.K+a.codec.N]
 
-	if rowSize == a.cfg.MaxRowSize {
-		return a.assembleMax(m, rows, data, rowSize, firstRowDataOffset)
-	}
+	// Temporarily keep the dedicated max-row path disabled and route every row
+	// size through the general packed path until the memory trade-off is better
+	// understood.
+	//
+	// if rowSize == a.cfg.MaxRowSize {
+	// 	return a.assembleMax(m, rows, data, rowSize, firstRowDataOffset)
+	// }
 
 	// packed path: parity rows + head/tail carved from pooled chunks.
 	head, tail := a.packParity(rows[a.codec.K:], m.chunks, rowSize)
