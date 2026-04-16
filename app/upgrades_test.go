@@ -125,6 +125,37 @@ func TestApplyUpgradeSetEvidenceMaxAgeNumBlocks(t *testing.T) {
 	})
 }
 
+func TestApplyUpgradeSetGovMaxSquareSize(t *testing.T) {
+	t.Run("apply upgrade should set blob GovMaxSquareSize to 256", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+
+		ctx := testApp.NewContext(false)
+
+		// Manually set GovMaxSquareSize to the Mocha value - 512.
+		oldGovMaxSquareSize := uint64(512)
+		params := testApp.BlobKeeper.GetParams(ctx)
+		params.GovMaxSquareSize = oldGovMaxSquareSize
+		testApp.BlobKeeper.SetParams(ctx, params)
+
+		// Verify the initial value is 512.
+		require.Equal(t, oldGovMaxSquareSize, testApp.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
+
+		// Apply the upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v9",
+			Height: 1,
+			Info:   "test",
+		}
+		err := testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		// Verify GovMaxSquareSize was updated to 256.
+		require.Equal(t, appconsts.MaxSquareSize, testApp.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
+	})
+}
+
 // createValidatorWithCommission creates a validator with specific commission
 // rates for testing
 func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate string, maxRate string) stakingtypes.Validator {

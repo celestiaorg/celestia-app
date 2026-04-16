@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
@@ -39,7 +40,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	rowRoot := rowTree.Root()
 
 	// 4. Derive RLC coefficients
-	coeffs := deriveCoefficients(rowRoot, config)
+	coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 	// 5. Compute RLC results for original rows
 	rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -97,7 +98,7 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 	rowRoot := rowTree.Root()
 
 	// 3. Derive RLC coefficients
-	coeffs := deriveCoefficients(rowRoot, config)
+	coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 	// 4. Compute RLC results for original rows (first K rows)
 	originalRows := extended[:config.K]
@@ -132,17 +133,35 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 func computeRLCOrig(rows [][]byte, coeffs []field.GF128, config *Config) []field.GF128 {
 	results := make([]field.GF128, len(rows))
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, config.WorkerCount)
+	workers := min(config.WorkerCount, len(rows))
+	if workers <= 1 {
+		for i, row := range rows {
+			results[i] = computeRLC(row, coeffs)
+		}
+		return results
+	}
 
-	for i, row := range rows {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(idx int, r []byte) {
+	var wg sync.WaitGroup
+	// use more chunks than workers so workers can pick up more work if a
+	// previous chunk runs slower, without falling back to per-row scheduling.
+	chunkCount := min(len(rows), workers*4)
+	chunkSize := (len(rows) + chunkCount - 1) / chunkCount
+	var next atomic.Int64
+	wg.Add(workers)
+	for range workers {
+		go func() {
 			defer wg.Done()
-			defer func() { <-sem }()
-			results[idx] = computeRLC(r, coeffs)
-		}(i, row)
+			for {
+				start := int(next.Add(int64(chunkSize)) - int64(chunkSize))
+				if start >= len(rows) {
+					return
+				}
+				end := min(start+chunkSize, len(rows))
+				for i, row := range rows[start:end] {
+					results[start+i] = computeRLC(row, coeffs)
+				}
+			}
+		}()
 	}
 	wg.Wait()
 

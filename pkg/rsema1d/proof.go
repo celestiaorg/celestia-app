@@ -52,8 +52,8 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 		return fmt.Errorf("index %d out of range [0, %d)", proof.Index, context.config.K+context.config.N)
 	}
 
-	// The row size must match the config
-	if len(proof.Row) != context.config.RowSize {
+	// When RowSize is specified, validate it matches
+	if context.config.RowSize > 0 && len(proof.Row) != context.config.RowSize {
 		return fmt.Errorf("row size mismatch: expected %d, got %d", context.config.RowSize, len(proof.Row))
 	}
 
@@ -74,8 +74,11 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 
 	// 2. Derive coefficients once and compute RLC for the row
 	context.coeffsOnce.Do(func() {
-		context.coeffs = deriveCoefficients(rowRoot, context.config)
+		context.coeffs = deriveCoefficients(rowRoot, len(proof.Row))
 	})
+	if len(context.coeffs) != len(proof.Row)/2 {
+		return fmt.Errorf("row size mismatch: cached coefficients for %d bytes, got %d", len(context.coeffs)*2, len(proof.Row))
+	}
 	computedRLC := computeRLC(proof.Row, context.coeffs)
 
 	// 3. Verify RLC matches the extended value at this index
@@ -118,8 +121,8 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 		return errors.New("standalone verification only supports original rows")
 	}
 
-	// The row size must match the config
-	if len(proof.Row) != config.RowSize {
+	// When RowSize is specified, validate it matches
+	if config.RowSize > 0 && len(proof.Row) != config.RowSize {
 		return fmt.Errorf("row size mismatch: expected %d, got %d", config.RowSize, len(proof.Row))
 	}
 
@@ -144,7 +147,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	}
 
 	// 2. Compute RLC for the row
-	coeffs := deriveCoefficients(rowRoot, config)
+	coeffs := deriveCoefficients(rowRoot, len(proof.Row))
 	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Compute RLC root from proof
