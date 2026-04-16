@@ -77,6 +77,31 @@ func resetCmd() *cobra.Command {
 			}
 			wg.Wait()
 
+			// Clean up encoder instances.
+			if len(cfg.Encoders) > 0 {
+				encoderCleanup := `
+					tmux kill-session -t app 2>/dev/null || true
+					tmux kill-session -t fibre-txsim 2>/dev/null || true
+					tmux kill-session -t setup-fibre 2>/dev/null || true
+					rm -rf .celestia-app encoder-payload encoder-payload.tar.gz /bin/celestia* /bin/fibre-txsim
+				`
+				var encWG sync.WaitGroup
+				encWorkerChan := make(chan struct{}, workers)
+				for _, enc := range cfg.Encoders {
+					encWG.Add(1)
+					go func(e Instance) {
+						defer encWG.Done()
+						encWorkerChan <- struct{}{}
+						defer func() { <-encWorkerChan }()
+						fmt.Printf("Resetting encoder %s...\n", e.Name)
+						if err := runScriptInTMux([]Instance{e}, resolvedKey, encoderCleanup, "cleanup", time.Minute*5); err != nil {
+							fmt.Printf("Warning: error while cleaning up %s: %v\n", e.Name, err)
+						}
+					}(enc)
+				}
+				encWG.Wait()
+			}
+
 			// Clean up observability stack (Grafana/Prometheus/Loki) if configured.
 			if len(cfg.Observability) > 0 {
 				observabilityCleanup := `

@@ -86,6 +86,76 @@ func TestApplyUpgradeSetBlockMaxBytes(t *testing.T) {
 	})
 }
 
+func TestApplyUpgradeSetEvidenceMaxAgeNumBlocks(t *testing.T) {
+	t.Run("apply upgrade should set Evidence.MaxAgeNumBlocks to 559940", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+
+		ctx := testApp.NewContext(false)
+
+		// Manually set MaxAgeNumBlocks to the pre-v9 mainnet value (242,640)
+		// because NewTestAppWithGenesisSet uses DefaultConsensusParams which
+		// already has the v9 value.
+		oldMaxAgeNumBlocks := int64(242_640)
+		params, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		params.Evidence.MaxAgeNumBlocks = oldMaxAgeNumBlocks
+		err = testApp.ConsensusKeeper.ParamsStore.Set(ctx, params)
+		require.NoError(t, err)
+
+		// Verify the initial value is 242,640.
+		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, oldMaxAgeNumBlocks, params.Evidence.MaxAgeNumBlocks)
+
+		// Apply the upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v9",
+			Height: 1,
+			Info:   "test",
+		}
+		err = testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		// Verify Evidence.MaxAgeNumBlocks was updated to 559,940.
+		params, err = testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+		require.NoError(t, err)
+		require.Equal(t, int64(appconsts.MaxAgeNumBlocks), params.Evidence.MaxAgeNumBlocks)
+	})
+}
+
+func TestApplyUpgradeSetGovMaxSquareSize(t *testing.T) {
+	t.Run("apply upgrade should set blob GovMaxSquareSize to 256", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+
+		ctx := testApp.NewContext(false)
+
+		// Manually set GovMaxSquareSize to the Mocha value - 512.
+		oldGovMaxSquareSize := uint64(512)
+		params := testApp.BlobKeeper.GetParams(ctx)
+		params.GovMaxSquareSize = oldGovMaxSquareSize
+		testApp.BlobKeeper.SetParams(ctx, params)
+
+		// Verify the initial value is 512.
+		require.Equal(t, oldGovMaxSquareSize, testApp.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
+
+		// Apply the upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v9",
+			Height: 1,
+			Info:   "test",
+		}
+		err := testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		// Verify GovMaxSquareSize was updated to 256.
+		require.Equal(t, appconsts.MaxSquareSize, testApp.BlobKeeper.GetParams(ctx).GovMaxSquareSize)
+	})
+}
+
 // createValidatorWithCommission creates a validator with specific commission
 // rates for testing
 func createValidatorWithCommission(t *testing.T, testApp *app.App, ctx sdk.Context, rate string, maxRate string) stakingtypes.Validator {

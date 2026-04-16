@@ -138,6 +138,29 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 	return nil
 }
 
+// AddEncoder creates a keyring for a dedicated encoder instance with uniquely
+// prefixed fibre accounts (enc0-0, enc0-1, ...) so that multiple encoders can
+// each fund their own escrow without blocking one another.
+func (n *Network) AddEncoder(name, payLoadRoot string, fibreAccounts int) error {
+	kr, err := keyring.New(app.Name, keyring.BackendTest,
+		filepath.Join(payLoadRoot, name), nil, n.ecfg.Codec)
+	if err != nil {
+		return err
+	}
+
+	index := extractIndexFromName(name)
+	keyPrefix := fmt.Sprintf("enc%d", index)
+
+	fmt.Printf("creating %d fibre accounts for encoder %s (prefix=%s)\n", fibreAccounts, name, keyPrefix)
+	for i := range fibreAccounts {
+		if err := addFundedAccount(kr, n.genesis, fmt.Sprintf("%s-%d", keyPrefix, i)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // addFundedAccount creates a new key in the local keyring and registers it as a
 // funded account in genesis. The key lives in the validator's keyring so the
 // binary (txsim, fibre-txsim) can sign transactions at runtime.

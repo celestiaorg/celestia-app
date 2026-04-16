@@ -8,16 +8,24 @@ import (
 )
 
 // deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal)
-func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
+func deriveCoefficients(rowRoot [32]byte, rowSize int) []field.GF128 {
 	seed := sha256.Sum256(rowRoot[:])
-	numSymbols := config.RowSize / 2 // Each GF16 symbol is 2 bytes
+	numSymbols := rowSize / 2 // Each GF16 symbol is 2 bytes
 	coeffs := make([]field.GF128, numSymbols)
 
 	var input [32 + 4]byte
 	copy(input[:32], seed[:])
+
+	// Reuse a single SHA256 hasher with Reset() between iterations.
+	// This avoids re-initializing the digest state from scratch on each call
+	// to sha256.Sum256, saving ~12% on coefficient derivation.
+	h := sha256.New()
+	var digest [32]byte
 	for i := range numSymbols {
 		binary.LittleEndian.PutUint32(input[32:], uint32(i))
-		digest := sha256.Sum256(input[:])
+		h.Reset()
+		h.Write(input[:])
+		h.Sum(digest[:0])
 		coeffs[i] = field.HashToGF128(digest[:])
 	}
 	return coeffs

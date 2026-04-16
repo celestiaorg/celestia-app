@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -24,7 +25,8 @@ import (
 type UploadOption func(*uploadOptions)
 
 type uploadOptions struct {
-	keyName string
+	keyName  string
+	awaitAll bool
 }
 
 // WithKeyName sets the key name used for signing the payment promise.
@@ -32,6 +34,14 @@ type uploadOptions struct {
 func WithKeyName(keyName string) UploadOption {
 	return func(o *uploadOptions) {
 		o.keyName = keyName
+	}
+}
+
+// WithAwaitAllSignatures makes [Client.Upload] wait for all validators to respond
+// instead of returning as soon as the safety threshold (2/3) of signatures is collected.
+func WithAwaitAllSignatures() UploadOption {
+	return func(o *uploadOptions) {
+		o.awaitAll = true
 	}
 }
 
@@ -111,7 +121,11 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		return result, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
 	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
-	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, signBytes)
+	threshold := c.Config.SafetyThreshold
+	if opt.awaitAll {
+		threshold = cmtmath.Fraction{Numerator: 1, Denominator: 1}
+	}
+	sigSet := valSet.NewSignatureSet(threshold, signBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
@@ -387,8 +401,8 @@ func makeUploadRequests(
 		req := &types.UploadShardRequest{
 			Promise: pbPromise,
 			Shard: &types.BlobShard{
-				Rows: rows,
-				Rlc:  &types.BlobShard_Coefficients{Coefficients: rlcCoeffsBytes},
+				Rows:         rows,
+				Coefficients: rlcCoeffsBytes,
 			},
 		}
 		requests[val] = req

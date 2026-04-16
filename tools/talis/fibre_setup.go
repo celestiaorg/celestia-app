@@ -14,13 +14,14 @@ const SetupFibreSessionName = "setup-fibre"
 
 func setupFibreCmd() *cobra.Command {
 	var (
-		rootDir       string
-		SSHKeyPath    string
-		escrowAmount  string
-		fibrePort     int
-		fees          string
-		workers       int
-		fibreAccounts int
+		rootDir              string
+		SSHKeyPath           string
+		escrowAmount         string
+		fibrePort            int
+		fees                 string
+		workers              int
+		fibreAccounts        int
+		encoderFibreAccounts int
 	)
 
 	cmd := &cobra.Command{
@@ -61,7 +62,7 @@ func setupFibreCmd() *cobra.Command {
 				sb.WriteString("sleep 10\n")
 
 				// 2. Deposit escrow for each fibre worker account
-				for i := 0; i < fibreAccounts; i++ {
+				for i := range fibreAccounts {
 					keyName := fmt.Sprintf("fibre-%d", i)
 					sb.WriteString(fmt.Sprintf(
 						"celestia-appd tx fibre deposit-to-escrow %s "+
@@ -100,7 +101,47 @@ func setupFibreCmd() *cobra.Command {
 			if err := waitForTmuxSessions(cfg.Validators, resolvedSSHKeyPath, SetupFibreSessionName, 10*time.Minute); err != nil {
 				return fmt.Errorf("waiting for setup-fibre sessions: %w", err)
 			}
-			fmt.Println("Done!")
+			fmt.Println("Validator setup done!")
+
+			// Deposit escrow for encoder accounts.
+			// Each encoder runs deposit-to-escrow from its own machine using its
+			// own keyring, broadcasting via the first validator's RPC endpoint.
+			if len(cfg.Encoders) > 0 && len(cfg.Validators) > 0 {
+				rpcNode := fmt.Sprintf("tcp://%s:26657", cfg.Validators[0].PublicIP)
+				fmt.Printf("Setting up escrow for %d encoder(s) via %s...\n", len(cfg.Encoders), rpcNode)
+
+				for _, enc := range cfg.Encoders {
+					encIndex := extractIndexFromName(enc.Name)
+					keyPrefix := fmt.Sprintf("enc%d", encIndex)
+					nAccounts := encoderFibreAccounts
+
+					var sb strings.Builder
+					for i := range nAccounts {
+						keyName := fmt.Sprintf("%s-%d", keyPrefix, i)
+						sb.WriteString(fmt.Sprintf(
+							"celestia-appd tx fibre deposit-to-escrow %s "+
+								"--from %s --keyring-backend=test --home .celestia-app "+
+								"--chain-id %s --fees %s --node %s --yes\n",
+							escrowAmount,
+							keyName,
+							cfg.ChainID, fees, rpcNode,
+						))
+					}
+
+					script := sb.String()
+					fmt.Printf("Running escrow deposits on encoder %s (%s) — %d accounts\n", enc.Name, enc.PublicIP, nAccounts)
+					if err := runScriptInTMux([]Instance{enc}, resolvedSSHKeyPath, script, SetupFibreSessionName, 30*time.Minute); err != nil {
+						return fmt.Errorf("encoder %s escrow setup: %w", enc.Name, err)
+					}
+				}
+
+				fmt.Printf("Waiting for encoder escrow deposits to complete...\n")
+				if err := waitForTmuxSessions(cfg.Encoders, resolvedSSHKeyPath, SetupFibreSessionName, 15*time.Minute); err != nil {
+					return fmt.Errorf("waiting for encoder setup-fibre sessions: %w", err)
+				}
+				fmt.Println("Encoder escrow setup done!")
+			}
+
 			return nil
 		},
 	}
@@ -112,6 +153,7 @@ func setupFibreCmd() *cobra.Command {
 	cmd.Flags().StringVar(&fees, "fees", "5000utia", "transaction fees")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of validators to set up in parallel")
 	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 100, "number of fibre worker accounts to deposit escrow for")
+	cmd.Flags().IntVar(&encoderFibreAccounts, "encoder-fibre-accounts", 100, "number of fibre worker accounts per encoder instance")
 
 	return cmd
 }

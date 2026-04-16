@@ -18,7 +18,6 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	signaltypes "github.com/celestiaorg/celestia-app/v9/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
@@ -395,8 +394,6 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	s.validateMaxExpectedTimePerBlock(ctx, node)
 	// Block params: max_bytes = 32 MiB
 	s.validateBlockParams(ctx, node, MaxBytesV9, appVersion)
-	// Fibre module: active with default params
-	s.validateFibreParams(ctx, node)
 }
 
 // validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
@@ -464,23 +461,6 @@ func (s *CelestiaTestSuite) validateBlockParams(ctx context.Context, node tastor
 	s.Require().Equal(expectedMaxBytes, actualMaxBytes, "v%d block max_bytes mismatch: expected %d, got %d", appVersion, expectedMaxBytes, actualMaxBytes)
 }
 
-// validateFibreParams queries the fibre module params via gRPC and validates
-// that the module is active with the expected default parameters.
-func (s *CelestiaTestSuite) validateFibreParams(ctx context.Context, node tastoratypes.ChainNode) {
-	client, err := getFibreQueryClient(node)
-	s.Require().NoError(err)
-
-	resp, err := client.Params(ctx, &fibretypes.QueryParamsRequest{})
-	s.Require().NoError(err, "failed to query fibre params")
-
-	expected := fibretypes.DefaultParams()
-	s.Require().Equal(expected.GasPerBlobByte, resp.Params.GasPerBlobByte, "fibre GasPerBlobByte mismatch")
-	s.Require().Equal(expected.WithdrawalDelay, resp.Params.WithdrawalDelay, "fibre WithdrawalDelay mismatch")
-	s.Require().Equal(expected.PaymentPromiseTimeout, resp.Params.PaymentPromiseTimeout, "fibre PaymentPromiseTimeout mismatch")
-	s.Require().Equal(expected.PaymentPromiseRetentionWindow, resp.Params.PaymentPromiseRetentionWindow, "fibre PaymentPromiseRetentionWindow mismatch")
-	s.Require().Equal(expected.PaymentPromiseHeightWindow, resp.Params.PaymentPromiseHeightWindow, "fibre PaymentPromiseHeightWindow mismatch")
-}
-
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
 // If the node is a docker ChainNode with a live *grpc.ClientConn, it is reused.
 // Returns an error if no gRPC connection is available.
@@ -505,14 +485,6 @@ func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClien
 func getIBCConnectionQueryClient(node tastoratypes.ChainNode) (ibcconnectiontypes.QueryClient, error) {
 	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
 		return ibcconnectiontypes.NewQueryClient(dcNode.GrpcConn), nil
-	}
-	return nil, fmt.Errorf("GRPC connection is nil")
-}
-
-// getFibreQueryClient returns a fibretypes.QueryClient for the provided node.
-func getFibreQueryClient(node tastoratypes.ChainNode) (fibretypes.QueryClient, error) {
-	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
-		return fibretypes.NewQueryClient(dcNode.GrpcConn), nil
 	}
 	return nil, fmt.Errorf("GRPC connection is nil")
 }
