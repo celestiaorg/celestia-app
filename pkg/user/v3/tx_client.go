@@ -79,12 +79,14 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 
 	requestCh := make(chan *TxRequest, c.queueSize)
 	c.requestCh = requestCh
-	nodes := buildNodes(v1.Conns())
+
+	// Use the primary connection for both submission and confirmation.
+	conn := v1.Conns()[0]
 
 	w := &worker{
 		v1Client:    v1,
+		conn:        conn,
 		buffer:      NewTxBuffer(acc.Sequence()),
-		nodes:       nodes,
 		requestCh:   requestCh,
 		pollTime:    v1.PollTime(),
 		accountName: accountName,
@@ -160,13 +162,4 @@ func (c *TxClientV3) enqueue(ctx context.Context, req *TxRequest) error {
 	default:
 		return errors.New("tx queue is full")
 	}
-}
-
-// buildNodes creates NodeConnection entries from gRPC connections.
-func buildNodes(conns []*grpc.ClientConn) []*NodeConnection {
-	nodes := make([]*NodeConnection, len(conns))
-	for i, conn := range conns {
-		nodes[i] = NewNodeConnection(i, conn)
-	}
-	return nodes
 }
