@@ -275,15 +275,15 @@ func ensureGCFirewallRule(ctx context.Context, project string, opts []option.Cli
 		Name: &firewallName,
 		Allowed: []*computepb.Allowed{
 			{
-				IPProtocol: ptr("tcp"),
+				IPProtocol: ptr("tcp"), //nolint:modernize
 				Ports:      []string{"0-65535"},
 			},
 			{
-				IPProtocol: ptr("udp"),
+				IPProtocol: ptr("udp"), //nolint:modernize
 				Ports:      []string{"0-65535"},
 			},
 			{
-				IPProtocol: ptr("icmp"),
+				IPProtocol: ptr("icmp"), //nolint:modernize
 			},
 		},
 		Direction:    ptr(computepb.Firewall_INGRESS.String()),
@@ -764,6 +764,7 @@ func destroyGCInstancesInternal(ctx context.Context, project string, insts []Ins
 	return removed, nil
 }
 
+//nolint:modernize // generic helper for creating pointers to literals in GCP API calls
 func ptr[T any](v T) *T {
 	return &v
 }
