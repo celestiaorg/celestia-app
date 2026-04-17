@@ -798,7 +798,11 @@ func (app *App) RegisterTxService(clientCtx client.Context) {
 }
 
 func (app *App) getGovMaxSquareBytes() (uint64, error) {
-	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	// Pass height 0 so CreateQueryContext reads the latest committed height under
+	// checkStateMu.RLock. Calling app.LastBlockHeight() here would race with
+	// concurrent block commits because BaseApp.LastBlockHeight reads
+	// rootmulti.Store.lastCommitInfo without taking the lock.
+	ctx, err := app.CreateQueryContext(0, false)
 	if err != nil {
 		return 0, err
 	}
@@ -813,7 +817,11 @@ func (app *App) getMinGasPrice() (float64, error) {
 	if err != nil {
 		localMinGasPrice = appconsts.DefaultMinGasPrice
 	}
-	ctx, err := app.CreateQueryContext(app.LastBlockHeight(), false)
+	// Pass height 0 so CreateQueryContext reads the latest committed height under
+	// checkStateMu.RLock. Calling app.LastBlockHeight() here would race with
+	// concurrent block commits because BaseApp.LastBlockHeight reads
+	// rootmulti.Store.lastCommitInfo without taking the lock.
+	ctx, err := app.CreateQueryContext(0, false)
 	if err != nil {
 		return localMinGasPrice, err
 	}
