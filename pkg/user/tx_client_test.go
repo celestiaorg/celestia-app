@@ -65,7 +65,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	t.Run("submit blob without provided fee and gas limit", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
 		require.NoError(t, err)
-		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(subCtx, suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.Greater(t, getTxResp.TxResponse.GasWanted, int64(0))
@@ -76,7 +76,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		gas := user.SetGasLimit(1e6)
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs, fee, gas)
 		require.NoError(t, err)
-		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(subCtx, suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.EqualValues(t, getTxResp.TxResponse.GasWanted, 1e6)
@@ -98,7 +98,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.NotEmpty(t, accountName, "could not find a non-default account")
 		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, accountName, blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
-		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(subCtx, suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.EqualValues(t, getTxResp.TxResponse.GasWanted, 1e6)
@@ -146,7 +146,7 @@ func TestSubmitPayForBlobWithEstimatorService(t *testing.T) {
 	require.Equal(t, abci.CodeTypeOK, resp.Code)
 
 	serviceClient := sdktx.NewServiceClient(ctx.GRPCClient)
-	getTxResp, err := serviceClient.GetTx(ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	getTxResp, err := utils.GetTxWithRetry(ctx.GoContext(), serviceClient, resp.TxHash)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(70000), getTxResp.TxResponse.GasWanted)
@@ -178,7 +178,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.Greater(t, getTxResp.TxResponse.GasWanted, int64(0))
 	})
@@ -191,7 +191,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(gasLimit), getTxResp.TxResponse.GasWanted)
 	})
@@ -206,7 +206,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(gasLimit), getTxResp.TxResponse.GasWanted)
 	})
@@ -334,7 +334,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Equal(t, resp.TxHash, err.(*user.ExecutionError).TxHash)
 
 		// Compare it to the getTx response
-		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, getTxErr := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, getTxErr)
 		// This is a workaround because they are different types
 		require.Contains(t, err.(*user.ExecutionError).ErrorLog, getTxResp.TxResponse.RawLog)
@@ -609,7 +609,7 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
 	require.Equal(t, int64(fee), amountDeducted)
 
-	res, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	res, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 	require.NoError(t, err)
 
 	// verify that the amount deducted does not depend on the actual gas used.
