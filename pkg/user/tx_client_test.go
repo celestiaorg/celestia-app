@@ -603,6 +603,14 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 	require.NoError(t, err)
 
 	require.EqualValues(t, abci.CodeTypeOK, resp.Code)
+
+	// SubmitTx returns as soon as CometBFT reports the tx committed, but the
+	// app's multistore Commit() that makes the post-tx state visible over gRPC
+	// may still be in flight. Wait for the app to reach resp.Height so the
+	// balance query below reflects the tx.
+	_, err = suite.ctx.WaitForHeight(resp.Height)
+	require.NoError(t, err)
+
 	balanceAfter := suite.queryCurrentBalance(t)
 
 	// verify that the amount deducted depends on the fee set in the tx.
