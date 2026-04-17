@@ -112,8 +112,8 @@ type slashingModule struct {
 // DefaultGenesis returns custom x/slashing module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := slashingtypes.DefaultGenesisState()
-	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
-	genesis.Params.SignedBlocksWindow = 5000
+	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(1, 3) // 0.1%
+	genesis.Params.SignedBlocksWindow = 10_000
 	genesis.Params.DowntimeJailDuration = time.Minute * 1
 	genesis.Params.SlashFractionDoubleSign = math.LegacyNewDecWithPrec(2, 2) // 2%
 	genesis.Params.SlashFractionDowntime = math.LegacyZeroDec()              // 0%
