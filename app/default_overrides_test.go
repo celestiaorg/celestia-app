@@ -117,19 +117,6 @@ func Test_icaDefaultGenesis(t *testing.T) {
 	assert.False(t, got.ControllerGenesisState.Params.ControllerEnabled)
 }
 
-<<<<<<< HEAD
-=======
-func Test_ibcDefaultGenesis(t *testing.T) {
-	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
-	im := ibcModule{}
-	raw := im.DefaultGenesis(enc.Codec)
-	got := ibctypes.GenesisState{}
-	enc.Codec.MustUnmarshalJSON(raw, &got)
-
-	assert.Equal(t, []string{"06-solomachine", "07-tendermint"}, got.ClientGenesis.Params.AllowedClients)
-	assert.Equal(t, uint64((13 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
-}
-
 func Test_slashingDefaultGenesis(t *testing.T) {
 	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
 	sm := slashingModule{}
@@ -144,7 +131,6 @@ func Test_slashingDefaultGenesis(t *testing.T) {
 	assert.Equal(t, math.LegacyZeroDec(), got.Params.SlashFractionDowntime)
 }
 
->>>>>>> b8e7b1c0 (fix: update default slashing params to match mainnet governance (#7090))
 func TestEvidenceParams(t *testing.T) {
 	got := EvidenceParams()
 	mebibyte := int64(1048576)
