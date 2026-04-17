@@ -19,6 +19,13 @@ linters:
       - common-false-positives
       - legacy
       - std-error-handling
+    rules:
+      # tools/talis uses a generic ptr() helper to turn string/bool/int literals
+      # into pointers for GCP API calls. The modernize/newexpr check flags these,
+      # but new() doesn't accept values in Go, so the helper is the idiomatic fix.
+      - path: tools/talis/google_cloud\.go
+        linters:
+          - modernize
   settings:
     nakedret:
       # Ban the use of naked returns as they decrease code readability
