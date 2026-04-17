@@ -29,6 +29,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(2)
 	config := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, config)
+	require.NoError(t, cctx.WaitForNextBlock())
 
 	txClient, err := testnode.NewTxClientFromContext(cctx)
 	require.NoError(t, err)
