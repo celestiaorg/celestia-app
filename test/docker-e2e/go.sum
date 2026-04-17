@@ -794,17 +794,10 @@ github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 h1:CJdIpo8n
 github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4/go.mod h1:fzuHnhzj1pUygGz+1ZkB3uQbEUL4htqCGJ4Qs2LwMZA=
 github.com/celestiaorg/nmt v0.24.2 h1:LlpJSPOd6/Lw1Ig6HUhZuqiINHLka/ZSRTBzlNJpchg=
 github.com/celestiaorg/nmt v0.24.2/go.mod h1:vgLBpWBi8F5KLxTdXSwb7AU4NhiIQ1AQRGa+PzdcLEA=
-<<<<<<< HEAD
-github.com/celestiaorg/rsmt2d v0.15.1 h1:NF4D0LX501oDjw00RoJrTUrMHrO+Kv0LewL0FKQU7hg=
-github.com/celestiaorg/rsmt2d v0.15.1/go.mod h1:WKkpXoD1foHn4qgFx6GNoz36Wm0fbCh29ze4rA7ZwCs=
-github.com/celestiaorg/tastora v0.17.0 h1:pqhAkR9lmaAG5OXI0cs2Al2LraAtXyT3Ku34tqamEvE=
-github.com/celestiaorg/tastora v0.17.0/go.mod h1:C867PBm6Ne6e/1JlmsRqcLeJ6RHAuMoMRCvwJzV/q8g=
-=======
 github.com/celestiaorg/rsmt2d v0.15.2 h1:wHqNqaBboSX5e8Czm4FnBnys4RPp5gSNm4CAcsXAyTU=
 github.com/celestiaorg/rsmt2d v0.15.2/go.mod h1:1NyWG9hj7veHbLmpQUKg+77teLuVgq0kpv3FS9nEtL4=
-github.com/celestiaorg/tastora v0.18.0 h1:BxZM2dqbfVuvT9ouVr6YlXFR6/lv24oCF8HUJLHduZc=
-github.com/celestiaorg/tastora v0.18.0/go.mod h1:C867PBm6Ne6e/1JlmsRqcLeJ6RHAuMoMRCvwJzV/q8g=
->>>>>>> fae3c87c (chore(deps): bump github.com/celestiaorg/rsmt2d from 0.15.1 to 0.15.2 (#7097))
+github.com/celestiaorg/tastora v0.17.0 h1:pqhAkR9lmaAG5OXI0cs2Al2LraAtXyT3Ku34tqamEvE=
+github.com/celestiaorg/tastora v0.17.0/go.mod h1:C867PBm6Ne6e/1JlmsRqcLeJ6RHAuMoMRCvwJzV/q8g=
 github.com/cenkalti/backoff v2.2.1+incompatible h1:tNowT99t7UNflLxfYYSlKYsBpXdEet03Pg2g16Swow4=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
 github.com/cenkalti/backoff/v4 v4.1.1/go.mod h1:scbssz8iZGpm3xbr14ovlUdkxfGXNInqkPWOWmG2CLw=
@@ -1368,8 +1361,8 @@ github.com/klauspost/compress v1.18.4/go.mod h1:R0h/fSBs8DE4ENlcrlib3PsXS61voFxh
 github.com/klauspost/cpuid/v2 v2.0.9/go.mod h1:FInQzS24/EEf25PyTYn52gqo7WaD8xa0213Md/qVLRg=
 github.com/klauspost/cpuid/v2 v2.3.0 h1:S4CRMLnYUhGeDFDqkGriYKdfoFlDnMtqTiI/sFzhA9Y=
 github.com/klauspost/cpuid/v2 v2.3.0/go.mod h1:hqwkgyIinND0mEev00jJYCxPNVRVXFQeu1XKlok6oO0=
-github.com/klauspost/reedsolomon v1.13.2 h1:9qtQy2tKEVpVB8Pfq87ZljHZb60/LbeTQ1OxV8EGzdE=
-github.com/klauspost/reedsolomon v1.13.2/go.mod h1:ggJT9lc71Vu+cSOPBlxGvBN6TfAS77qB4fp8vJ05NSA=
+github.com/klauspost/reedsolomon v1.13.3 h1:01GwnO2xoCSaM0ShP4qwl+FsHg3csFShC6Tu/RS1ji0=
+github.com/klauspost/reedsolomon v1.13.3/go.mod h1:yjqqjgMTQkBUHSG97/rm4zipffCNbCiZcB3kTqr++sQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/konsorten/go-windows-terminal-sequences v1.0.3/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
 github.com/kr/fs v0.1.0/go.mod h1:FFnZGqtBN9Gxj7eW1uZ42v5BccTP0vu6NEaFoC2HwRg=

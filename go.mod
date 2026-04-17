@@ -27,14 +27,8 @@ require (
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/nmt v0.24.2
-<<<<<<< HEAD
-	github.com/celestiaorg/rsmt2d v0.15.1
-	github.com/cometbft/cometbft v0.38.17
-=======
 	github.com/celestiaorg/rsmt2d v0.15.2
-	github.com/cockroachdb/pebble/v2 v2.1.4
-	github.com/cometbft/cometbft v1.0.1
->>>>>>> fae3c87c (chore(deps): bump github.com/celestiaorg/rsmt2d from 0.15.1 to 0.15.2 (#7097))
+	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/consensys/gnark v0.14.0
 	github.com/consensys/gnark-crypto v0.19.2
@@ -297,7 +291,7 @@ require (
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/klauspost/reedsolomon v1.13.2 // indirect
+	github.com/klauspost/reedsolomon v1.13.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kulti/thelper v0.7.1 // indirect
