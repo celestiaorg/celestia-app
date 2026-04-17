@@ -66,6 +66,7 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	s.accounts = testfactory.GenerateAccounts(35)
 	s.cfg = testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
+	require.NoError(t, s.cctx.WaitForNextBlock())
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 }
 
