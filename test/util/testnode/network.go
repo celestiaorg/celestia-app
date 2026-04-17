@@ -31,15 +31,11 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 		result, rpc, grpc, cleanup, err := tryStartNetwork(t, config)
 		if err != nil {
 			if isPortBindingError(err) {
-<<<<<<< HEAD
 				if cleanup != nil {
 					cleanup()
 				}
-				time.Sleep(time.Second)
-=======
 				t.Logf("port binding error on attempt %d/%d, retrying after %ds: %v", attempt+1, maxRetries, attempt+1, err)
 				time.Sleep(time.Duration(attempt+1) * time.Second)
->>>>>>> 837c8e86 (fix: increase testnode network retries and add backoff (#6968))
 				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 				config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
