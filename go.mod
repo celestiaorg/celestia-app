@@ -26,8 +26,8 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/nmt v0.24.2
-	github.com/celestiaorg/rsmt2d v0.15.1
+	github.com/celestiaorg/nmt v0.24.3
+	github.com/celestiaorg/rsmt2d v0.15.2
 	github.com/cometbft/cometbft v0.38.17
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/consensys/gnark v0.14.0
@@ -169,7 +169,7 @@ require (
 	github.com/containerd/continuity v0.4.2 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	github.com/cosmos/iavl v1.2.6 // indirect
+	github.com/cosmos/iavl v1.2.8 // indirect
 	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.15.0 // indirect
 	github.com/creachadair/atomicfile v0.3.1 // indirect
@@ -291,7 +291,7 @@ require (
 	github.com/kkHAIKE/contextcheck v1.1.6 // indirect
 	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-	github.com/klauspost/reedsolomon v1.13.2 // indirect
+	github.com/klauspost/reedsolomon v1.13.3 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kulti/thelper v0.7.1 // indirect
@@ -438,6 +438,11 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
 	// f48fea92e627 commit coincides with the v0.51.8 cosmos-sdk release
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.1.1-0.20251116153902-f48fea92e627
+	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
+	// from celestiaorg/cosmos-sdk#705, which closes a data race between
+	// BaseApp.LastBlockHeight and concurrent Commits. Upstream store/v1.1.2
+	// does not have this fix.
+	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.1
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.39.27
