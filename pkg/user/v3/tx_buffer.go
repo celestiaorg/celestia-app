@@ -2,17 +2,15 @@ package v3
 
 import (
 	"fmt"
-	"time"
 )
 
 // txEntry represents a signed transaction in the ordered buffer.
 type txEntry struct {
-	sequence      uint64
-	txHash        string
-	txBytes       []byte
-	request       *TxRequest
-	submittedTo   map[int]bool // node IDs that accepted this tx
-	firstSubmitAt time.Time
+	sequence  uint64
+	txHash    string
+	txBytes   []byte
+	request   *TxRequest
+	submitted bool // true if sent to the node
 }
 
 // TxBuffer maintains an ordered sequence buffer for the async pipeline.
@@ -186,19 +184,37 @@ func (b *TxBuffer) RollbackTo(seq uint64) []txEntry {
 	return removed
 }
 
-// SubmittedHashes returns tx hashes of all signed entries that have been
-// submitted to at least one node (for polling).
-func (b *TxBuffer) SubmittedHashes(limit int) []string {
-	var hashes []string
-	for _, entry := range b.signed {
-		if len(entry.submittedTo) > 0 {
-			hashes = append(hashes, entry.txHash)
-			if len(hashes) >= limit {
-				break
-			}
+// Next returns the first signed entry that has not been submitted.
+// Returns nil if all signed entries have been submitted or buffer is empty.
+func (b *TxBuffer) Next() *txEntry {
+	for i := range b.signed {
+		if !b.signed[i].submitted {
+			return &b.signed[i]
 		}
 	}
-	return hashes
+	return nil
+}
+
+// Reset marks all entries with sequence >= seq as not submitted.
+// This is used when a sequence mismatch returns a lower expected sequence.
+func (b *TxBuffer) Reset(seq uint64) {
+	for i := range b.signed {
+		if b.signed[i].sequence >= seq {
+			b.signed[i].submitted = false
+		}
+	}
+}
+
+// LastSubmittedSeq returns the highest sequence that has been submitted.
+// Returns 0 if nothing has been submitted.
+func (b *TxBuffer) LastSubmittedSeq() uint64 {
+	var last uint64
+	for i := range b.signed {
+		if b.signed[i].submitted && b.signed[i].sequence > last {
+			last = b.signed[i].sequence
+		}
+	}
+	return last
 }
 
 // LastConfirmed returns the last confirmed sequence number.
