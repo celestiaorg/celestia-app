@@ -725,7 +725,11 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 
 func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 	var wg sync.WaitGroup
-	errCh := make(chan error, 2)
+	// One slot per potential provider goroutine (DO + GCP + AWS). Sized
+	// to match max writers so a three-way all-fail doesn't deadlock on
+	// errCh<- (wg.Wait() below blocks on the goroutine, which blocks on
+	// the channel send if capacity < writers).
+	errCh := make(chan error, 3)
 
 	if cfg.DigitalOceanToken != "" {
 		wg.Go(func() {
