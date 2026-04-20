@@ -28,10 +28,12 @@ type syncResult struct {
 	finalHeight       int
 }
 
-var syncResultRe = regexp.MustCompile(`(?m)^State sync duration:\s+(\d+)s$`)
-var blockSyncRe = regexp.MustCompile(`(?m)^Block sync duration:\s+(\d+)s$`)
-var totalDurationRe = regexp.MustCompile(`(?m)^Total sync duration:\s+(\d+)s$`)
-var finalHeightRe = regexp.MustCompile(`(?m)^Final height:\s+(\d+)$`)
+var (
+	syncResultRe    = regexp.MustCompile(`(?m)^State sync duration:\s+(\d+)s\r?$`)
+	blockSyncRe     = regexp.MustCompile(`(?m)^Block sync duration:\s+(\d+)s\r?$`)
+	totalDurationRe = regexp.MustCompile(`(?m)^Total sync duration:\s+(\d+)s\r?$`)
+	finalHeightRe   = regexp.MustCompile(`(?m)^Final height:\s+(\d+)\r?$`)
+)
 
 func parseSyncResult(output string) (syncResult, error) {
 	extract := func(re *regexp.Regexp) (int, error) {
@@ -67,10 +69,14 @@ func printSummary(results []syncResult) {
 	totals := make([]float64, n)
 	blocks := make([]float64, n)
 	states := make([]float64, n)
+	bps := make([]float64, n)
 	for i, r := range results {
 		totals[i] = float64(r.totalDuration)
 		blocks[i] = float64(r.blockSyncDuration)
 		states[i] = float64(r.stateSyncDuration)
+		if r.blockSyncDuration > 0 {
+			bps[i] = float64(r.finalHeight) / float64(r.blockSyncDuration)
+		}
 	}
 
 	fmt.Printf("\n=========================================\n")
@@ -80,7 +86,7 @@ func printSummary(results []syncResult) {
 	fmt.Printf("%-26s %8.1fs %8.1fs %8.1fs %8.1fs\n", "State sync duration:", avg(states), minVal(states), maxVal(states), percentile(states, 99))
 	fmt.Printf("%-26s %8.1fs %8.1fs %8.1fs %8.1fs\n", "Block sync duration:", avg(blocks), minVal(blocks), maxVal(blocks), percentile(blocks, 99))
 	fmt.Printf("%-26s %8.1fs %8.1fs %8.1fs %8.1fs\n", "Total sync duration:", avg(totals), minVal(totals), maxVal(totals), percentile(totals, 99))
-	fmt.Printf("Final height:              %d\n", results[n-1].finalHeight)
+	fmt.Printf("%-26s %8.2f %8.2f %8.2f %8.2f\n", "Blocks/sec:", avg(bps), minVal(bps), maxVal(bps), percentile(bps, 99))
 	fmt.Printf("=========================================\n")
 }
 
