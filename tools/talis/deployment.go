@@ -535,17 +535,28 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 	filename := filepath.Base(localPath)
 	uploader := manager.NewUploader(client)
 
-	result, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	if _, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &cfg.BucketName,
 		Key:    &filename,
-		ACL:    "public-read",
 		Body:   file,
-	})
-	if err != nil {
+	}); err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	return result.Location, nil
+	// Return a presigned GET URL valid for an hour so remote hosts can curl
+	// the object without the bucket/object needing public-read ACLs. Works
+	// for real AWS S3 (where public access is blocked by default) and for
+	// S3-compatible providers like DigitalOcean Spaces.
+	presign := s3.NewPresignClient(client)
+	req, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: &cfg.BucketName,
+		Key:    &filename,
+	}, s3.WithPresignExpires(time.Hour))
+	if err != nil {
+		return "", fmt.Errorf("failed to presign GET: %w", err)
+	}
+
+	return req.URL, nil
 }
 
 func downCmd() *cobra.Command {
