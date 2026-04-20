@@ -40,6 +40,9 @@ func NewClient(cfg Config) (Client, error) {
 	if cfg.GoogleCloudProject != "" {
 		return NewGCClient(cfg)
 	}
+	if cfg.AWSRegion != "" {
+		return NewAWSClient(cfg)
+	}
 	return nil, errors.New("no cloud provider credentials found")
 }
 

@@ -14,6 +14,7 @@ func addCmd() *cobra.Command {
 		nodeType string
 		provider string
 		region   string
+		slug     string
 	)
 	cmd := &cobra.Command{
 		Use:     "add",
@@ -31,27 +32,35 @@ func addCmd() *cobra.Command {
 
 			switch nodeType {
 			case "validator":
+				start := len(cfg.Validators)
 				for range count {
 					switch provider {
 					case "digitalocean":
 						cfg = cfg.WithDigitalOceanValidator(region)
 					case "googlecloud":
 						cfg = cfg.WithGoogleCloudValidator(region)
+					case "aws":
+						cfg = cfg.WithAWSValidator(region)
 					default:
-						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud, aws)", provider)
 					}
 				}
+				applySlug(cfg.Validators, start, slug)
 			case "encoder":
+				start := len(cfg.Encoders)
 				for range count {
 					switch provider {
 					case "digitalocean":
 						cfg = cfg.WithDigitalOceanEncoder(region)
 					case "googlecloud":
 						cfg = cfg.WithGoogleCloudEncoder(region)
+					case "aws":
+						cfg = cfg.WithAWSEncoder(region)
 					default:
-						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud, aws)", provider)
 					}
 				}
+				applySlug(cfg.Encoders, start, slug)
 			case "bridge":
 				log.Println("bridges are not yet supported")
 				return nil
@@ -71,8 +80,21 @@ func addCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("count")
 	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, encoder, bridge, light)")
 	_ = cmd.MarkFlagRequired("type")
-	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Provider for the node (digitalocean, googlecloud)")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Provider for the node (digitalocean, googlecloud, aws)")
 	cmd.Flags().StringVarP(&region, "region", "r", "random", "the region to deploy the instance in (random if blank)")
+	cmd.Flags().StringVar(&slug, "slug", "", "provider-specific instance type override (e.g. c6in.4xlarge). Empty = provider default for the node type.")
 
 	return cmd
+}
+
+// applySlug overrides the Slug field on the just-added instances in the
+// slice. It only touches entries at index [start, len(instances)) so a
+// second `add` with a different `--slug` does not re-stamp earlier ones.
+func applySlug(instances []Instance, start int, slug string) {
+	if slug == "" {
+		return
+	}
+	for i := start; i < len(instances); i++ {
+		instances[i].Slug = slug
+	}
 }
