@@ -446,7 +446,8 @@ func runSSHStreaming(ctx context.Context, ip, sshKeyPath, command string) (strin
 	)
 	ssh.Stdout = io.MultiWriter(os.Stdout, &buf)
 	ssh.Stderr = os.Stderr
-	return buf.String(), ssh.Run()
+	err := ssh.Run()
+	return buf.String(), err
 }
 
 // buildSyncScript generates the shell script that runs on the remote instance to
