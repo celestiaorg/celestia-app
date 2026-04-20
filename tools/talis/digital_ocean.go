@@ -163,7 +163,7 @@ func CreateDroplets(ctx context.Context, client *godo.Client, insts []Instance, 
 				Region: v.Region,
 				Size:   v.Slug,
 				Image: godo.DropletCreateImage{
-					Slug: "ubuntu-22-04-x64",
+					Slug: DODefaultImage,
 				},
 				SSHKeys: []godo.DropletCreateSSHKey{{ID: key.ID, Fingerprint: key.Fingerprint}},
 				Tags:    v.Tags,
