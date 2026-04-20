@@ -29,6 +29,7 @@ func upCmd() *cobra.Command {
 	var DOAPIToken string
 	var GCProject string
 	var GCKeyJSONPath string
+	var AWSRegion string
 	var workers int
 
 	cmd := &cobra.Command{
@@ -52,6 +53,7 @@ func upCmd() *cobra.Command {
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
+			cfg.AWSRegion = resolveValue(AWSRegion, EnvVarAWSRegion, cfg.AWSRegion)
 
 			if err := checkForRunningExperiments(cmd.Context(), cfg); err != nil {
 				return err
@@ -81,6 +83,7 @@ func upCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&AWSRegion, "aws-region", "", "AWS default region for EC2 (defaults to config or AWS_DEFAULT_REGION)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
@@ -556,6 +559,7 @@ func downCmd() *cobra.Command {
 	var DOAPIToken string
 	var GCProject string
 	var GCKeyJSONPath string
+	var AWSRegion string
 	var workers int
 	var all bool
 
@@ -574,6 +578,7 @@ func downCmd() *cobra.Command {
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
+			cfg.AWSRegion = resolveValue(AWSRegion, EnvVarAWSRegion, cfg.AWSRegion)
 
 			if all {
 				return destroyAllInstances(cmd.Context(), cfg, workers)
@@ -606,6 +611,7 @@ func downCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&AWSRegion, "aws-region", "", "AWS default region for EC2 (defaults to config or AWS_DEFAULT_REGION)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 	cmd.Flags().BoolVar(&all, "all", false, "destroy all talis instances across all providers and all experiments")
 
@@ -632,6 +638,7 @@ func listCmd() *cobra.Command {
 	var DOAPIToken string
 	var GCProject string
 	var GCKeyJSONPath string
+	var AWSRegion string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -648,6 +655,7 @@ func listCmd() *cobra.Command {
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
+			cfg.AWSRegion = resolveValue(AWSRegion, EnvVarAWSRegion, cfg.AWSRegion)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -663,6 +671,7 @@ func listCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&AWSRegion, "aws-region", "", "AWS default region for EC2 (defaults to config or AWS_DEFAULT_REGION)")
 
 	return cmd
 }
@@ -694,6 +703,16 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 				hasRunningExperiments = true
 				log.Printf("⚠️  Found experiment '%s' with chainID '%s' already running in Google Cloud", cfg.Experiment, cfg.ChainID)
 			}
+		}
+	}
+
+	if cfg.AWSRegion != "" {
+		running, err := checkForRunningAWSExperiments(ctx, true, cfg.Experiment, cfg.ChainID)
+		if err != nil {
+			log.Printf("⚠️  Warning: failed to check AWS for running experiments: %v", err)
+		} else if running {
+			hasRunningExperiments = true
+			log.Printf("⚠️  Found experiment '%s' with chainID '%s' already running in AWS", cfg.Experiment, cfg.ChainID)
 		}
 	}
 
@@ -733,10 +752,19 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 		})
 	}
 
+	if cfg.AWSRegion != "" || os.Getenv(EnvVarAWSAccessKeyID) != "" {
+		wg.Go(func() {
+			log.Println("Destroying all AWS instances...")
+			if _, err := destroyAllTalisAWSInstances(ctx, workers); err != nil {
+				errCh <- fmt.Errorf("AWS: %w", err)
+			}
+		})
+	}
+
 	wg.Wait()
 	close(errCh)
 
-	errs := make([]error, 0, 2)
+	errs := make([]error, 0, 3)
 	for err := range errCh {
 		errs = append(errs, err)
 	}
