@@ -138,7 +138,7 @@ func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClie
 // WaitForSync waits for a Celestia node to synchronize based on a provided sync condition within a specified timeout.
 // The method periodically checks the node's sync status. Returns an error if the timeout is exceeded.
 // Returns nil when the provided condition function returns true.
-func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
+func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, client rpcclient.Client, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
@@ -148,8 +148,8 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 	s.T().Log("Waiting for sync to complete...")
 
 	// check immediately first
-	if status, err := statusClient.Status(timeoutCtx); err == nil {
-		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+	if status, err := client.Status(timeoutCtx); err == nil {
+		s.logSyncStatus(timeoutCtx, client, status.SyncInfo)
 		if syncCondition(status.SyncInfo) {
 			s.T().Logf("Sync completed successfully")
 			return nil
@@ -160,13 +160,13 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 	for {
 		select {
 		case <-ticker.C:
-			status, err := statusClient.Status(timeoutCtx)
+			status, err := client.Status(timeoutCtx)
 			if err != nil {
 				s.T().Logf("Failed to get status from state sync node, retrying...: %v", err)
 				continue
 			}
 
-			s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+			s.logSyncStatus(timeoutCtx, client, status.SyncInfo)
 
 			if syncCondition(status.SyncInfo) {
 				s.T().Logf("Sync completed successfully")
@@ -177,6 +177,16 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 			return fmt.Errorf("timed out waiting for state sync node to catch up after %v", syncTimeout)
 		}
 	}
+}
+
+// logSyncStatus logs the node's sync status along with peer count. A NetInfo
+// error is logged but not fatal — sync-wait polling continues either way.
+func (s *CelestiaTestSuite) logSyncStatus(ctx context.Context, client rpcclient.Client, info coretypes.SyncInfo) {
+	peers := -1
+	if netInfo, err := client.NetInfo(ctx); err == nil {
+		peers = netInfo.NPeers
+	}
+	s.T().Logf("Sync node status: Height=%d, CatchingUp=%t, Peers=%d", info.LatestBlockHeight, info.CatchingUp, peers)
 }
 
 // CheckLiveness validates that all validators proposed blocks and no nodes halted.
