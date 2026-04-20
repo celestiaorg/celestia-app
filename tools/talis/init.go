@@ -24,13 +24,25 @@ const (
 	EnvVarDigitalOceanToken      = "DIGITALOCEAN_TOKEN"
 	EnvVarGoogleCloudProject     = "GOOGLE_CLOUD_PROJECT"
 	EnvVarGoogleCloudKeyJSONPath = "GOOGLE_CLOUD_KEY_JSON_PATH"
-	EnvVarAWSAccessKeyID         = "AWS_ACCESS_KEY_ID"
-	EnvVarAWSSecretAccessKey     = "AWS_SECRET_ACCESS_KEY"
-	EnvVarAWSRegion              = "AWS_DEFAULT_REGION"
-	EnvVarS3Bucket               = "AWS_S3_BUCKET"
-	EnvVarS3Endpoint             = "AWS_S3_ENDPOINT"
-	EnvVarChainID                = "CHAIN_ID"
-	mebibyte                     = 1_048_576
+	// AWS_* env vars: real AWS. Used for EC2 compute and, when
+	// --provider=aws, also for the S3 payload bucket (region =
+	// AWS_DEFAULT_REGION, no custom endpoint).
+	EnvVarAWSAccessKeyID     = "AWS_ACCESS_KEY_ID"
+	EnvVarAWSSecretAccessKey = "AWS_SECRET_ACCESS_KEY"
+	EnvVarAWSRegion          = "AWS_DEFAULT_REGION"
+	EnvVarAWSS3Bucket        = "AWS_S3_BUCKET"
+	// DO_SPACES_* env vars: DigitalOcean Spaces (S3-compatible). Used for
+	// the payload bucket when --provider=digitalocean or
+	// --provider=googlecloud. Kept separate from AWS_* so operators who
+	// run AWS compute alongside DO Spaces don't get them mixed up.
+	EnvVarDOSpacesAccessKeyID     = "DO_SPACES_ACCESS_KEY_ID"
+	EnvVarDOSpacesSecretAccessKey = "DO_SPACES_SECRET_ACCESS_KEY"
+	EnvVarDOSpacesRegion          = "DO_SPACES_REGION"
+	EnvVarDOSpacesBucket          = "DO_SPACES_BUCKET"
+	EnvVarDOSpacesEndpoint        = "DO_SPACES_ENDPOINT"
+
+	EnvVarChainID = "CHAIN_ID"
+	mebibyte      = 1_048_576
 )
 
 func initCmd() *cobra.Command {
@@ -94,7 +106,7 @@ func initCmd() *cobra.Command {
 			}
 
 			// todo: use the number of validators, bridges, and lights to create the config
-			cfg := NewConfig(experiment, chainID).
+			cfg := NewConfig(experiment, chainID, provider).
 				WithSSHPubKeyPath(SSHPubKeyPath).
 				WithSSHKeyName(SSHKeyName)
 

@@ -179,7 +179,10 @@ type Config struct {
 	S3Config S3Config `json:"s3_config"`
 }
 
-func NewConfig(experiment, chainID string) Config {
+// NewConfig builds a fresh talis config. `provider` determines which
+// env vars populate the S3 payload bucket: "aws" uses AWS_*, anything
+// else uses DO_SPACES_*. Pass "" if you will populate S3Config yourself.
+func NewConfig(experiment, chainID, provider string) Config {
 	return Config{
 		Validators:    []Instance{},
 		Bridges:       []Instance{},
@@ -188,13 +191,32 @@ func NewConfig(experiment, chainID string) Config {
 		Encoders:      []Instance{},
 		Experiment:    experiment,
 		ChainID:       TalisChainID(chainID),
-		S3Config: S3Config{
+		S3Config:      s3ConfigFromEnv(provider),
+	}
+}
+
+// s3ConfigFromEnv returns the S3 payload-bucket config for the given
+// compute provider. Each provider pulls from its own, non-overlapping
+// env var prefix so AWS and DigitalOcean Spaces setups never stomp on
+// each other.
+func s3ConfigFromEnv(provider string) S3Config {
+	switch provider {
+	case string(AWS):
+		return S3Config{
 			AccessKeyID:     os.Getenv(EnvVarAWSAccessKeyID),
 			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
-			BucketName:      os.Getenv(EnvVarS3Bucket),
+			BucketName:      os.Getenv(EnvVarAWSS3Bucket),
 			Region:          os.Getenv(EnvVarAWSRegion),
-			Endpoint:        os.Getenv(EnvVarS3Endpoint),
-		},
+			// Endpoint intentionally empty → real AWS S3.
+		}
+	default:
+		return S3Config{
+			AccessKeyID:     os.Getenv(EnvVarDOSpacesAccessKeyID),
+			SecretAccessKey: os.Getenv(EnvVarDOSpacesSecretAccessKey),
+			BucketName:      os.Getenv(EnvVarDOSpacesBucket),
+			Region:          os.Getenv(EnvVarDOSpacesRegion),
+			Endpoint:        os.Getenv(EnvVarDOSpacesEndpoint),
+		}
 	}
 }
 
