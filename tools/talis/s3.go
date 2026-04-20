@@ -131,46 +131,38 @@ func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix,
 
 func createS3Client(ctx context.Context, cfg Config) (*s3.Client, error) {
 	s3cfg := cfg.S3Config
-	var awsCfg aws.Config
-	var err error
-	if cfg.S3Config.Endpoint != "" {
+
+	opts := []func(*config.LoadOptions) error{config.WithRegion(s3cfg.Region)}
+
+	// If static creds are provided in config (typical for DO Spaces), use
+	// them. Otherwise fall back to the SDK default credential chain — env
+	// vars, AWS_PROFILE in ~/.aws/credentials, IAM role, etc. — so the AWS
+	// compute path works with named profiles.
+	if s3cfg.AccessKeyID != "" && s3cfg.SecretAccessKey != "" {
+		opts = append(opts, config.WithCredentialsProvider(
+			aws.NewCredentialsCache(
+				credentials.NewStaticCredentialsProvider(
+					s3cfg.AccessKeyID,
+					s3cfg.SecretAccessKey,
+					"",
+				),
+			),
+		))
+	}
+
+	if s3cfg.Endpoint != "" {
 		customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...any) (aws.Endpoint, error) { //nolint:staticcheck
 			return aws.Endpoint{ //nolint:staticcheck
-				URL:           cfg.S3Config.Endpoint,
+				URL:           s3cfg.Endpoint,
 				SigningRegion: region,
 			}, nil
 		})
-
-		awsCfg, err = config.LoadDefaultConfig(ctx,
-			config.WithRegion(s3cfg.Region),
-			config.WithCredentialsProvider(
-				aws.NewCredentialsCache(
-					credentials.NewStaticCredentialsProvider(
-						s3cfg.AccessKeyID,
-						s3cfg.SecretAccessKey,
-						"",
-					),
-				),
-			),
-			config.WithEndpointResolverWithOptions(customResolver), //nolint:staticcheck
-		)
-	} else {
-		awsCfg, err = config.LoadDefaultConfig(ctx,
-			config.WithRegion(s3cfg.Region),
-			config.WithCredentialsProvider(
-				aws.NewCredentialsCache(
-					credentials.NewStaticCredentialsProvider(
-						s3cfg.AccessKeyID,
-						s3cfg.SecretAccessKey,
-						"",
-					),
-				),
-			),
-		)
+		opts = append(opts, config.WithEndpointResolverWithOptions(customResolver)) //nolint:staticcheck
 	}
+
+	awsCfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build AWS config: %w", err)
 	}
-
 	return s3.NewFromConfig(awsCfg), nil
 }
