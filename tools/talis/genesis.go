@@ -302,7 +302,16 @@ func writeEncoderInitScript(path string) error {
 	script := `#!/bin/bash
 set -euo pipefail
 
-CELES_HOME="$HOME/.celestia-app"
+# On AWS i-family instances the local NVMe is mounted at /mnt/data by
+# cloud-init (see tools/talis/aws.go). Put celestia-app state there so
+# fibre-txsim keyring reads go to NVMe and match the validator layout.
+# DO and AWS sizes without local NVMe have no /mnt/data; fall through
+# to $HOME.
+STATE_BASE="$HOME"
+if mountpoint -q /mnt/data 2>/dev/null; then
+  STATE_BASE="/mnt/data"
+fi
+CELES_HOME="$STATE_BASE/.celestia-app"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
