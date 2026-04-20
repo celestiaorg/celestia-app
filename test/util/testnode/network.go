@@ -36,12 +36,7 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 			if isPortBindingError(err) {
 				t.Logf("port binding error on attempt %d/%d, retrying after %ds: %v", attempt+1, maxRetries, attempt+1, err)
 				time.Sleep(time.Duration(attempt+1) * time.Second)
-				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-				config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-				config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
-				config.AppConfig.API.Enable = true
-				config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+				reassignListenPorts(config)
 				continue
 			}
 			t.Fatalf("Failed to start network after %d attempts: %v", attempt+1, err)
@@ -122,6 +117,20 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	}
 
 	return cctx, config.TmConfig.RPC.ListenAddress, config.AppConfig.GRPC.Address, cleanup, nil
+}
+
+// reassignListenPorts reassigns every listener address in config to a new free
+// port. It must cover every port-bearing field set in DefaultTendermintConfig
+// and DefaultAppConfig; missing any one of them makes the retry loop in
+// NewNetworkWithRetry re-use a stale port on every attempt (see #7137).
+func reassignListenPorts(config *Config) {
+	config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	config.AppConfig.API.Enable = true
+	config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 }
 
 // isPortBindingError checks if an error is related to port binding failures
