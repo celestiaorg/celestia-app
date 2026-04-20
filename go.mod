@@ -22,7 +22,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.14
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.21.1
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.297.1
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.99.1
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
@@ -49,13 +48,10 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/protobuf v1.5.4
-	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6
 	github.com/grafana/otel-profiling-go v0.5.1
 	github.com/grafana/pyroscope-go v1.2.8
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.4
-	github.com/ipfs/go-datastore v0.9.1
-	github.com/ipfs/go-ds-pebble v0.5.10
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/reedsolomon v1.13.3
 	github.com/pelletier/go-toml/v2 v2.3.0
@@ -264,6 +260,7 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
+	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
@@ -302,7 +299,6 @@ require (
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
-	github.com/ipfs/go-log/v2 v2.9.1 // indirect
 	github.com/jgautheron/goconst v1.8.2 // indirect
 	github.com/jingyugao/rowserrcheck v1.1.1 // indirect
 	github.com/jjti/go-spancheck v0.6.5 // indirect
