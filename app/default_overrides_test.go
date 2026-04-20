@@ -99,6 +99,10 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
 		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
 	})
+
+	t.Run("block sync overrides", func(t *testing.T) {
+		assert.False(t, got.BlockSync.VerifyData)
+	})
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
