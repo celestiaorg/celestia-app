@@ -18,7 +18,7 @@ const (
 	DODefaultValidatorSlug     = "c2-16vcpu-32gb"
 	DODefaultEncoderSlug       = "c2-8vcpu-16gb"
 	DODefaultObservabilitySlug = "s-2vcpu-4gb"
-	DODefaultImage             = "ubuntu-22-04-x64"
+	DODefaultImage             = "ubuntu-24-04-x64"
 	RandomRegion               = "random"
 )
 
