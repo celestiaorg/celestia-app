@@ -50,6 +50,7 @@ func setupMetrics(ctx context.Context, cmd *cobra.Command) (func(context.Context
 	otel.SetMeterProvider(mp)
 
 	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		_ = mp.Shutdown(ctx)
 		return nil, fmt.Errorf("starting runtime metrics: %w", err)
 	}
 

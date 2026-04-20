@@ -395,6 +395,7 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 	otel.SetMeterProvider(mp)
 
 	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		_ = mp.Shutdown(ctx)
 		return nil, fmt.Errorf("starting runtime metrics: %w", err)
 	}
 
