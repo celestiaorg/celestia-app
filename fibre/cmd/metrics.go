@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -47,6 +48,11 @@ func setupMetrics(ctx context.Context, cmd *cobra.Command) (func(context.Context
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(mp)
+
+	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		return nil, fmt.Errorf("starting runtime metrics: %w", err)
+	}
+
 	slog.Info("metrics enabled", "endpoint", endpoint)
 
 	return func(ctx context.Context) {
