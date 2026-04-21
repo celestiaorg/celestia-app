@@ -49,6 +49,7 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/protobuf v1.5.4
+	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6
 	github.com/grafana/otel-profiling-go v0.5.1
 	github.com/grafana/pyroscope-go v1.2.8
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
@@ -260,7 +261,6 @@ require (
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
-	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
