@@ -2,6 +2,14 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v9.0.0
+
+### Node Operators (v9.0.0)
+
+#### `update-config` Command Deprecated
+
+The `celestia-appd update-config` command is deprecated. The config values it used to apply are now enforced by the binary at startup, so running it when initialising a new node is no longer necessary. The command still works for now but prints a deprecation warning and will be removed in a future release.
+
 ## v8.0.0
 
 ### Node Operators (v8.0.0)
