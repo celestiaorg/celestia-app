@@ -3,6 +3,7 @@ package fibre
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
@@ -11,6 +12,27 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+)
+
+// Upload-path defaults. Sized to match Fibre's 2/3-quorum contract: a
+// dead peer must not degrade throughput beyond a one-time cost when its
+// circuit first opens.
+const (
+	// DefaultDialTimeout bounds the initial TCP/TLS dial. Sized well below
+	// the ~75 s TCP SYN retry window so a black-holed validator is shed
+	// quickly rather than parking a goroutine on a kernel retry loop.
+	DefaultDialTimeout = 3 * time.Second
+	// DefaultRPCTimeout bounds the full UploadShard RPC after the dial
+	// succeeds. Generous enough for slow-but-healthy peers; tight enough
+	// that a frozen peer is cut loose.
+	DefaultRPCTimeout = 15 * time.Second
+	// DefaultCircuitFailureThreshold is the number of consecutive RPC
+	// failures to a single peer before its circuit opens and further
+	// attempts are short-circuited for DefaultCircuitCooldown.
+	DefaultCircuitFailureThreshold = 3
+	// DefaultCircuitCooldown is how long a peer's circuit stays open
+	// before a half-open probe is allowed.
+	DefaultCircuitCooldown = 30 * time.Second
 )
 
 // ClientConfig contains configuration options for the Fibre [Client].
@@ -31,8 +53,23 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// UploadConcurrency is the maximum number of concurrent uploads to validators.
-	UploadConcurrency int
+	// DialTimeout bounds initial connection establishment to a validator.
+	// Sized well below the TCP SYN retry window so a black-holed peer is
+	// shed quickly.
+	DialTimeout time.Duration
+
+	// RPCTimeout bounds a single UploadShard RPC (after dial succeeds).
+	RPCTimeout time.Duration
+
+	// CircuitFailureThreshold is the number of consecutive RPC failures
+	// to a single peer before its circuit opens.
+	CircuitFailureThreshold int
+
+	// CircuitCooldown is how long a peer's circuit stays open after
+	// failures cross the threshold. After cooldown a single half-open
+	// probe is allowed; success closes the circuit, failure re-opens it.
+	CircuitCooldown time.Duration
+
 	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
 	DownloadConcurrency int
 
@@ -66,14 +103,17 @@ func DefaultClientConfig() ClientConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 	return ClientConfig{
-		DefaultKeyName:      DefaultKeyName,
-		StateAddress:        "127.0.0.1:9090",
-		SafetyThreshold:     p.SafetyThreshold,
-		LivenessThreshold:   p.LivenessThreshold,
-		MinRowsPerValidator: p.MinRowsPerValidator(),
-		MaxMessageSize:      p.MaxMessageSize(),
-		UploadConcurrency:   p.MaxValidatorCount,
-		DownloadConcurrency: p.ValidatorsForReconstruction(),
+		DefaultKeyName:          DefaultKeyName,
+		StateAddress:            "127.0.0.1:9090",
+		SafetyThreshold:         p.SafetyThreshold,
+		LivenessThreshold:       p.LivenessThreshold,
+		MinRowsPerValidator:     p.MinRowsPerValidator(),
+		MaxMessageSize:          p.MaxMessageSize(),
+		DialTimeout:             DefaultDialTimeout,
+		RPCTimeout:              DefaultRPCTimeout,
+		CircuitFailureThreshold: DefaultCircuitFailureThreshold,
+		CircuitCooldown:         DefaultCircuitCooldown,
+		DownloadConcurrency:     p.ValidatorsForReconstruction(),
 	}
 }
 
@@ -99,6 +139,27 @@ func (cfg *ClientConfig) Validate() error {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()
+	}
+
+	if cfg.DialTimeout <= 0 {
+		cfg.DialTimeout = DefaultDialTimeout
+	}
+	if cfg.RPCTimeout <= 0 {
+		cfg.RPCTimeout = DefaultRPCTimeout
+	}
+	if cfg.CircuitFailureThreshold <= 0 {
+		cfg.CircuitFailureThreshold = DefaultCircuitFailureThreshold
+	}
+	if cfg.CircuitCooldown <= 0 {
+		cfg.CircuitCooldown = DefaultCircuitCooldown
+	}
+	// A DialTimeout that is >= RPCTimeout is nonsensical: the dial
+	// budget would consume the entire RPC budget, leaving no time
+	// for the actual UploadShard after connection establishment.
+	// Reject explicitly rather than silently producing unusable
+	// behavior, since the two knobs are easy to flip by accident.
+	if cfg.DialTimeout >= cfg.RPCTimeout {
+		return fmt.Errorf("DialTimeout (%s) must be less than RPCTimeout (%s)", cfg.DialTimeout, cfg.RPCTimeout)
 	}
 	return nil
 }

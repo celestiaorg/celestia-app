@@ -39,7 +39,7 @@ type Client struct {
 	clock   clock.Clock
 
 	clientCache *fibregrpc.ClientCache
-	uploadSem   chan struct{}
+	peers       *peerRegistry
 	downloadSem chan struct{}
 
 	// closeWg tracks subroutines spawned by Upload/Download operations.
@@ -87,8 +87,8 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		tracer:      cfg.Tracer,
 		metrics:     metrics,
 		clock:       cfg.Clock,
-		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, cfg.UploadConcurrency),
-		uploadSem:   make(chan struct{}, cfg.UploadConcurrency),
+		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
+		peers:       newPeerRegistry(cfg.CircuitFailureThreshold, cfg.CircuitCooldown),
 		downloadSem: make(chan struct{}, cfg.DownloadConcurrency),
 	}, nil
 }
