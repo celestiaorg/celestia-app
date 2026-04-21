@@ -529,7 +529,7 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 	}
 
 	if req.WithRlc {
-		rlcCoeffs := blob.RLCCoeffs()
+		rlcCoeffs := blob.RLC()
 		coeffBytes := make([]byte, len(rlcCoeffs)*16)
 		for i, c := range rlcCoeffs {
 			b := field.ToBytes128(c)

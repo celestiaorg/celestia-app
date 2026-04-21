@@ -206,8 +206,8 @@ func makeTestRequest(
 		}
 	}
 
-	// flatten RLC coefficients
-	rlcCoeffs := blob.RLCCoeffs()
+	// flatten RLC values
+	rlcCoeffs := blob.RLC()
 	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
 	for i, coeff := range rlcCoeffs {
 		b := field.ToBytes128(coeff)
