@@ -283,7 +283,9 @@ func (c *Client) uploadTo(
 
 	// actually push the data to the validator
 	rpcStart := time.Now()
-	resp, err := client.UploadShard(ctx, req)
+	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.UploadShardTimeout)
+	defer rpcCancel()
+	resp, err := client.UploadShard(rpcCtx, req)
 	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)

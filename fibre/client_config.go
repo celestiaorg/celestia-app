@@ -3,6 +3,7 @@ package fibre
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
@@ -12,6 +13,13 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 )
+
+// DefaultUploadShardTimeout is the default per-RPC deadline for a single
+// UploadShard call. Matches 2× the observed p99 for healthy uploads
+// (~2.5 s) with headroom — generous for slow-but-healthy validators,
+// tight enough that a network-black-holed or struggling validator can't
+// hold a goroutine / semaphore slot for the full TCP SYN retry window.
+const DefaultUploadShardTimeout = 10 * time.Second
 
 // ClientConfig contains configuration options for the Fibre [Client].
 type ClientConfig struct {
@@ -35,6 +43,16 @@ type ClientConfig struct {
 	UploadConcurrency int
 	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
 	DownloadConcurrency int
+
+	// UploadShardTimeout bounds a single UploadShard RPC (dial + send +
+	// validator signature response). Without this bound, a validator that
+	// goes silent (network partition, frozen process, saturated peer) can
+	// park its client goroutine and semaphore slot for the full TCP SYN
+	// retry window (75+ seconds), which collapses upload throughput across
+	// the whole cluster even though the 2/3 quorum threshold is met by
+	// healthy validators.
+	// Zero → DefaultUploadShardTimeout.
+	UploadShardTimeout time.Duration
 
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
 	// If nil, [Validate] creates one from [StateAddress].
@@ -74,6 +92,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MaxMessageSize:      p.MaxMessageSize(),
 		UploadConcurrency:   p.MaxValidatorCount,
 		DownloadConcurrency: p.ValidatorsForReconstruction(),
+		UploadShardTimeout:  DefaultUploadShardTimeout,
 	}
 }
 
@@ -99,6 +118,9 @@ func (cfg *ClientConfig) Validate() error {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()
+	}
+	if cfg.UploadShardTimeout <= 0 {
+		cfg.UploadShardTimeout = DefaultUploadShardTimeout
 	}
 	return nil
 }
