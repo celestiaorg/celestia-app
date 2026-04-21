@@ -96,8 +96,6 @@ func testClientUploadSucceedsWithOneThirdFailuresHighConcurrency(t *testing.T) {
 	const numValidators = 100
 	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 		cfg.NewClientFn = failingClientFn(33, cfg.NewClientFn) // Fail 1/3 of validators
-
-		cfg.UploadConcurrency = numValidators // set concurrency >= validators to test code path where semaphore doesn't limit
 	})
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
@@ -139,7 +137,10 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
 
-	// close waits for all background upload goroutines to complete
+	// Upload returns at quorum but background goroutines continue
+	// best-effort delivery to the remaining peers. Stop waits on
+	// closeWg so by the time it returns every validator has been
+	// contacted.
 	require.NoError(t, client.Stop(t.Context()))
 
 	// verify all validators received data
