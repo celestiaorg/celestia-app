@@ -1,4 +1,19 @@
 #!/bin/bash
+# If an AWS instance-store NVMe is mounted at /mnt/data (set up by the
+# cloud-init user-data in tools/talis/aws.go for i-family instances),
+# symlink the celestia homes to it so pebble writes go to fast local
+# NVMe instead of the small EBS root. CELES_HOME stays relative: every
+# tool that runs here (celestia-appd, fibre, fibre-txsim, setup-fibre)
+# resolves relative paths under $HOME, which is now transparently
+# NVMe-backed through the symlink. Works on DO (no /mnt/data, plain
+# $HOME dir) and AWS sizes without local NVMe (same fallback).
+if mountpoint -q /mnt/data 2>/dev/null; then
+  mkdir -p /mnt/data/.celestia-app /mnt/data/.celestia-fibre
+  [ -L "$HOME/.celestia-app"   ] || rm -rf "$HOME/.celestia-app"
+  [ -L "$HOME/.celestia-fibre" ] || rm -rf "$HOME/.celestia-fibre"
+  ln -sfn /mnt/data/.celestia-app   "$HOME/.celestia-app"
+  ln -sfn /mnt/data/.celestia-fibre "$HOME/.celestia-fibre"
+fi
 CELES_HOME=".celestia-app"
 MONIKER="validator"
 ARCHIVE_NAME="payload.tar.gz"
@@ -91,7 +106,14 @@ cp payload/build/fibre-txsim /bin/fibre-txsim
 
 cd $HOME
 
+# Clean slate. On AWS NVMe hosts the rm also removes the symlink we
+# set up above — fine, we re-establish it immediately so `celestia-appd
+# init` below recreates the state directory on /mnt/data through it.
 rm -rf .celestia-app/
+if mountpoint -q /mnt/data 2>/dev/null; then
+  mkdir -p /mnt/data/.celestia-app
+  ln -sfn /mnt/data/.celestia-app "$HOME/.celestia-app"
+fi
 
 celestia-appd config chain-id $CHAIN_ID
 

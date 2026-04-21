@@ -20,15 +20,21 @@ import (
 )
 
 const (
-	// c6in.4xlarge: 16 vCPU / 32 GiB / 25 Gbps baseline network with ENA
-	// Express (SRD). The "n" suffix marks network-enhanced variants, which
-	// is what talis fibre experiments care about — they're networking-bound.
-	AWSDefaultValidatorInstanceType = "c6in.4xlarge"
-	// c6in.2xlarge: 8 vCPU / 16 GiB — encoders submit blobs via gRPC and
-	// don't need the full validator footprint.
-	AWSDefaultEncoderInstanceType       = "c6in.2xlarge"
+	// i4i.4xlarge: 16 vCPU / 128 GiB / up to 25 Gbps network, and a
+	// 3.75 TB local NVMe instance-store that delivers ~3 GB/s write.
+	// Fibre's per-shard path is dominated by pebble store_put; on
+	// c6in+gp3 the 125 MB/s EBS ceiling caps upload_shard long before
+	// the network saturates. Local NVMe moves the disk ceiling back
+	// into line with the network.
+	//
+	// The NVMe is ephemeral — fine here because `talis down` always
+	// terminates the instance and experiments always re-run genesis.
+	AWSDefaultValidatorInstanceType     = "i4i.4xlarge"
+	AWSDefaultEncoderInstanceType       = "i4i.4xlarge"
 	AWSDefaultObservabilityInstanceType = "t3.medium"
-	AWSDefaultRootVolumeGB              = int32(400)
+	// Root EBS only holds the OS + /root/payload.tar.gz; fibre /
+	// celestia state lives on the local NVMe mounted at /mnt/data.
+	AWSDefaultRootVolumeGB = int32(50)
 
 	// AWSSecurityGroupName is the name of the security group used by every
 	// talis instance. It is created per-region on demand and permits all
@@ -954,12 +960,20 @@ func instanceNameFromTags(tags []ec2types.Tag) string {
 	return ""
 }
 
-// awsRootSSHUserData returns cloud-init user-data that (1) sets the
-// instance hostname to the talis name (validator_init.sh parses
-// `hostname` to pick per-validator keys — AWS's default `ip-172-…`
-// format breaks that parser), and (2) installs the operator's SSH
-// public key into /root/.ssh/authorized_keys so deployment.go can keep
-// using `root@`.
+// awsRootSSHUserData returns cloud-init user-data that at boot time:
+//  1. Sets the instance hostname to the talis name. validator_init.sh
+//     parses `hostname` to pick per-validator keys; AWS's default
+//     `ip-172-…` format breaks that parser.
+//  2. Installs the operator's SSH public key into
+//     /root/.ssh/authorized_keys so deployment.go can keep using `root@`.
+//  3. If a local NVMe instance-store device is present (i-family types
+//     like i4i/c6id/im4gn), formats it ext4, mounts it at /mnt/data
+//     with `nofail` so reboots can never brick the instance, and
+//     creates a `/root/.celestia-fibre` symlink so the fibre server's
+//     relative `--home` lands on the fast disk with no code changes on
+//     the fibre side. `validator_init.sh` and the generated
+//     `encoder_init.sh` detect `/mnt/data` themselves and point
+//     `celestia-appd` state there too.
 func awsRootSSHUserData(sshKey, instanceName string) string {
 	key := strings.TrimSpace(sshKey)
 	return fmt.Sprintf(`#cloud-config
@@ -967,8 +981,37 @@ disable_root: false
 preserve_hostname: false
 hostname: %s
 fqdn: %s
+write_files:
+  - path: /usr/local/sbin/talis-setup-nvme.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      # Format and mount the first instance-store NVMe (if any) at
+      # /mnt/data. Ephemeral disk — contents are lost on stop/terminate,
+      # which is exactly right for talis experiments.
+      set -eu
+      DEV=""
+      for candidate in /dev/nvme1n1 /dev/nvme2n1 /dev/nvme3n1; do
+        [ -b "$candidate" ] && DEV="$candidate" && break
+      done
+      [ -z "$DEV" ] && exit 0
+      if ! blkid "$DEV" >/dev/null 2>&1; then
+        mkfs.ext4 -F "$DEV"
+      fi
+      mkdir -p /mnt/data
+      mountpoint -q /mnt/data || mount "$DEV" /mnt/data
+      grep -q " /mnt/data " /etc/fstab || \
+        echo "$DEV /mnt/data ext4 defaults,nofail 0 2" >> /etc/fstab
+      chown root:root /mnt/data
+      chmod 0755 /mnt/data
+      # Point fibre state at the NVMe. celestia-appd state is redirected
+      # inside validator_init.sh / encoder_init.sh where --home is
+      # explicit and relative paths resolve through the mountpoint.
+      mkdir -p /mnt/data/.celestia-fibre
+      ln -sfn /mnt/data/.celestia-fibre /root/.celestia-fibre
 runcmd:
   - hostnamectl set-hostname %s
+  - /usr/local/sbin/talis-setup-nvme.sh
   - mkdir -p /root/.ssh
   - 'echo "%s" > /root/.ssh/authorized_keys'
   - chmod 700 /root/.ssh
