@@ -38,6 +38,20 @@ func (r *peerRegistry) get(addr string) *breaker {
 	return b
 }
 
+// prune drops entries whose addresses are not present in keep. Called
+// when the validator set changes so a rotated-out peer's breaker state
+// doesn't linger and, more importantly, doesn't get misapplied to a
+// newly-joined peer that happens to take the same address.
+func (r *peerRegistry) prune(keep map[string]struct{}) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for addr := range r.breakers {
+		if _, ok := keep[addr]; !ok {
+			delete(r.breakers, addr)
+		}
+	}
+}
+
 // breakerState is the state of a circuit breaker.
 type breakerState int32
 

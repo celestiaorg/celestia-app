@@ -196,3 +196,17 @@ func TestPeerRegistryGetIsIdempotent(t *testing.T) {
 	b3 := r.get("val-b")
 	require.NotSame(t, b1, b3)
 }
+
+// TestPeerRegistryPrune verifies prune drops entries not in keep and
+// preserves entries that are. Crucially, a rotated-out address that
+// re-joins gets a fresh breaker — no stale reputation transfer.
+func TestPeerRegistryPrune(t *testing.T) {
+	r := newPeerRegistry(3, 100*time.Millisecond)
+	kept := r.get("keep-me")
+	dropped := r.get("drop-me")
+
+	r.prune(map[string]struct{}{"keep-me": {}})
+
+	require.Same(t, kept, r.get("keep-me"), "kept entry must survive prune")
+	require.NotSame(t, dropped, r.get("drop-me"), "dropped entry must be recreated fresh after prune")
+}

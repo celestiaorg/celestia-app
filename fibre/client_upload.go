@@ -71,6 +71,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	)
 	defer span.End()
 
+	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
+	defer func() { uploadDone(err) }()
+
 	// 1) get validator set
 	valSet, err := c.state.Head(ctx)
 	if err != nil {
@@ -362,6 +365,17 @@ func (c *Client) uploadShards(
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) error {
+	// Prune peer registry to the current validator set so rotated-out
+	// peers don't hold breaker state, and newly-rotated-in peers with
+	// reused addresses don't inherit a stale reputation.
+	if len(requests) > 0 {
+		keep := make(map[string]struct{}, len(requests))
+		for val := range requests {
+			keep[val.Address.String()] = struct{}{}
+		}
+		c.peers.prune(keep)
+	}
+
 	var (
 		responses            atomic.Uint32
 		responsesExhaustedCh = make(chan struct{})
