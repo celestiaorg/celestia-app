@@ -16,7 +16,7 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
-	"github.com/docker/docker/api/types/network"
+	mobyclient "github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -98,14 +98,14 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 
 // getNetworkNameFromID resolves the network name given its ID.
 func getNetworkNameFromID(ctx context.Context, cli tastoratypes.TastoraDockerClient, networkID string) (string, error) {
-	network, err := cli.NetworkInspect(ctx, networkID, network.InspectOptions{})
+	result, err := cli.NetworkInspect(ctx, networkID, mobyclient.NetworkInspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect network %s: %w", networkID, err)
 	}
-	if network.Name == "" {
+	if result.Network.Name == "" {
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
-	return network.Name, nil
+	return result.Network.Name, nil
 }
 
 // GetLatestBlockHeight returns the latest block height of the given node.

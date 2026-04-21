@@ -29,6 +29,7 @@ func upCmd() *cobra.Command {
 	var DOAPIToken string
 	var GCProject string
 	var GCKeyJSONPath string
+	var AWSRegion string
 	var workers int
 
 	cmd := &cobra.Command{
@@ -52,6 +53,7 @@ func upCmd() *cobra.Command {
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
+			cfg.AWSRegion = resolveValue(AWSRegion, EnvVarAWSRegion, cfg.AWSRegion)
 
 			if err := checkForRunningExperiments(cmd.Context(), cfg); err != nil {
 				return err
@@ -81,6 +83,7 @@ func upCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&AWSRegion, "aws-region", "", "AWS default region for EC2 (defaults to config or AWS_DEFAULT_REGION)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
@@ -535,17 +538,28 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 	filename := filepath.Base(localPath)
 	uploader := manager.NewUploader(client)
 
-	result, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	if _, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &cfg.BucketName,
 		Key:    &filename,
-		ACL:    "public-read",
 		Body:   file,
-	})
-	if err != nil {
+	}); err != nil {
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	return result.Location, nil
+	// Return a presigned GET URL valid for an hour so remote hosts can curl
+	// the object without the bucket/object needing public-read ACLs. Works
+	// for real AWS S3 (where public access is blocked by default) and for
+	// S3-compatible providers like DigitalOcean Spaces.
+	presign := s3.NewPresignClient(client)
+	req, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: &cfg.BucketName,
+		Key:    &filename,
+	}, s3.WithPresignExpires(time.Hour))
+	if err != nil {
+		return "", fmt.Errorf("failed to presign GET: %w", err)
+	}
+
+	return req.URL, nil
 }
 
 func downCmd() *cobra.Command {
@@ -556,6 +570,7 @@ func downCmd() *cobra.Command {
 	var DOAPIToken string
 	var GCProject string
 	var GCKeyJSONPath string
+	var AWSRegion string
 	var workers int
 	var all bool
 
@@ -574,6 +589,7 @@ func downCmd() *cobra.Command {
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
+			cfg.AWSRegion = resolveValue(AWSRegion, EnvVarAWSRegion, cfg.AWSRegion)
 
 			if all {
 				return destroyAllInstances(cmd.Context(), cfg, workers)
@@ -606,6 +622,7 @@ func downCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&AWSRegion, "aws-region", "", "AWS default region for EC2 (defaults to config or AWS_DEFAULT_REGION)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 	cmd.Flags().BoolVar(&all, "all", false, "destroy all talis instances across all providers and all experiments")
 
@@ -632,6 +649,7 @@ func listCmd() *cobra.Command {
 	var DOAPIToken string
 	var GCProject string
 	var GCKeyJSONPath string
+	var AWSRegion string
 
 	cmd := &cobra.Command{
 		Use:   "list",
@@ -648,6 +666,7 @@ func listCmd() *cobra.Command {
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
+			cfg.AWSRegion = resolveValue(AWSRegion, EnvVarAWSRegion, cfg.AWSRegion)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -663,6 +682,7 @@ func listCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&DOAPIToken, "do-api-token", "t", "", "digital ocean api token (defaults to config or env)")
 	cmd.Flags().StringVar(&GCProject, "gc-project", "", "google cloud project (defaults to config or env)")
 	cmd.Flags().StringVar(&GCKeyJSONPath, "gc-key-json-path", "", "path to google cloud service account key JSON file (defaults to config or env)")
+	cmd.Flags().StringVar(&AWSRegion, "aws-region", "", "AWS default region for EC2 (defaults to config or AWS_DEFAULT_REGION)")
 
 	return cmd
 }
@@ -697,6 +717,16 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 		}
 	}
 
+	if cfg.AWSRegion != "" {
+		running, err := checkForRunningAWSExperiments(ctx, true, cfg.Experiment, cfg.ChainID)
+		if err != nil {
+			log.Printf("⚠️  Warning: failed to check AWS for running experiments: %v", err)
+		} else if running {
+			hasRunningExperiments = true
+			log.Printf("⚠️  Found experiment '%s' with chainID '%s' already running in AWS", cfg.Experiment, cfg.ChainID)
+		}
+	}
+
 	if hasRunningExperiments {
 		return fmt.Errorf("experiment '%s' with chainID '%s' is already running", cfg.Experiment, cfg.ChainID)
 	}
@@ -706,7 +736,11 @@ func checkForRunningExperiments(ctx context.Context, cfg Config) error {
 
 func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 	var wg sync.WaitGroup
-	errCh := make(chan error, 2)
+	// One slot per potential provider goroutine (DO + GCP + AWS). Sized
+	// to match max writers so a three-way all-fail doesn't deadlock on
+	// errCh<- (wg.Wait() below blocks on the goroutine, which blocks on
+	// the channel send if capacity < writers).
+	errCh := make(chan error, 3)
 
 	if cfg.DigitalOceanToken != "" {
 		wg.Go(func() {
@@ -733,10 +767,19 @@ func destroyAllInstances(ctx context.Context, cfg Config, workers int) error {
 		})
 	}
 
+	if cfg.AWSRegion != "" || os.Getenv(EnvVarAWSAccessKeyID) != "" {
+		wg.Go(func() {
+			log.Println("Destroying all AWS instances...")
+			if _, err := destroyAllTalisAWSInstances(ctx, workers); err != nil {
+				errCh <- fmt.Errorf("AWS: %w", err)
+			}
+		})
+	}
+
 	wg.Wait()
 	close(errCh)
 
-	errs := make([]error, 0, 2)
+	errs := make([]error, 0, 3)
 	for err := range errCh {
 		errs = append(errs, err)
 	}
