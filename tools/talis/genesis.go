@@ -341,6 +341,14 @@ mkdir -p "$CELES_HOME/config"
 cp encoder-payload/genesis.json "$CELES_HOME/config/genesis.json"
 cp -r "encoder-payload/$parsed_hostname/keyring-test" "$CELES_HOME/"
 
+# If state lives on NVMe (absolute /mnt/data path), link $HOME/.celestia-app
+# there so tools that use relative --keyring-dir/--home (fibre-txsim,
+# setup-fibre) resolve to the correct keyring without further flags.
+if [ "$STATE_BASE" = "/mnt/data" ]; then
+  [ -L "$HOME/.celestia-app" ] || rm -rf "$HOME/.celestia-app"
+  ln -sfn /mnt/data/.celestia-app "$HOME/.celestia-app"
+fi
+
 echo "Encoder $parsed_hostname initialized"
 `
 	return os.WriteFile(path, []byte(script), 0o755)
