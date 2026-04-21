@@ -71,9 +71,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	)
 	defer span.End()
 
-	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
-	defer func() { uploadDone(err) }()
-
 	// 1) get validator set
 	valSet, err := c.state.Head(ctx)
 	if err != nil {
