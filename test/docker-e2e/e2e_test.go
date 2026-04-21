@@ -182,11 +182,12 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, client rpcclient.Cl
 // logSyncStatus logs the node's sync status along with peer count. A NetInfo
 // error is logged but not fatal — sync-wait polling continues either way.
 func (s *CelestiaTestSuite) logSyncStatus(ctx context.Context, client rpcclient.Client, info coretypes.SyncInfo) {
-	peers := -1
-	if netInfo, err := client.NetInfo(ctx); err == nil {
-		peers = netInfo.NPeers
+	netInfo, err := client.NetInfo(ctx)
+	if err != nil {
+		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t, NetInfo error: %v", info.LatestBlockHeight, info.CatchingUp, err)
+		return
 	}
-	s.T().Logf("Sync node status: Height=%d, CatchingUp=%t, Peers=%d", info.LatestBlockHeight, info.CatchingUp, peers)
+	s.T().Logf("Sync node status: Height=%d, CatchingUp=%t, Peers=%d", info.LatestBlockHeight, info.CatchingUp, netInfo.NPeers)
 }
 
 // CheckLiveness validates that all validators proposed blocks and no nodes halted.
