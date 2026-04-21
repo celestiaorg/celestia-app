@@ -8,13 +8,13 @@ require (
 	github.com/celestiaorg/celestia-app/v9 v9.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
-	github.com/celestiaorg/tastora v0.18.0
+	github.com/celestiaorg/tastora v0.19.0
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/cosmos/ibc-go/v8 v8.7.0
-	github.com/docker/docker v28.5.2+incompatible
 	github.com/ethereum/go-ethereum v1.17.2
+	github.com/moby/moby/client v0.4.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
 	golang.org/x/sync v0.20.0
@@ -206,8 +206,7 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
-	github.com/moby/moby v28.5.2+incompatible // indirect
-	github.com/moby/sys/sequential v0.6.0 // indirect
+	github.com/moby/moby/api v1.54.1 // indirect
 	github.com/mtibben/percent v0.2.1 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/oasisprotocol/curve25519-voi v0.0.0-20230904125328-1f23a7beb09a // indirect
