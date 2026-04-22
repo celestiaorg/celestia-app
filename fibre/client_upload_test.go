@@ -31,6 +31,7 @@ func TestClientUpload(t *testing.T) {
 		{"SucceedsWith1/3Failures_HighConcurrency", testClientUploadSucceedsWithOneThirdFailuresHighConcurrency},
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
+		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
 		{"BlobConsumed", testClientUploadBlobConsumed},
 	}
@@ -144,6 +145,31 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 
 	// verify all validators received data
 	require.Equal(t, numValidators, int(counter.Load()), "not all validators received data")
+}
+
+func testClientUploadAwaitAllSignatures(t *testing.T) {
+	const numValidators = 100
+
+	var counter *atomic.Int64
+	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
+		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
+	})
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+	result, err := client.Upload(t.Context(), testNamespace, blob, fibre.WithAwaitAllSignatures())
+	require.NoError(t, err)
+
+	// WithAwaitAllSignatures waits for all responses, so all validators
+	// must have been contacted by the time Upload returns — without needing Stop.
+	require.Equal(t, numValidators, int(counter.Load()), "all validators should have been contacted before Upload returned")
+	var nonNilSigs int
+	for _, sig := range result.ValidatorSignatures {
+		if sig != nil {
+			nonNilSigs++
+		}
+	}
+	require.Equal(t, numValidators, nonNilSigs, "should have non-nil signatures from all validators")
 }
 
 func testClientUploadClosedClient(t *testing.T) {

@@ -39,6 +39,7 @@ func main() {
 		resourceMonitorCmd(),
 		downloadResourcesCmd(),
 		startCmd(),
+		syncNodeCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

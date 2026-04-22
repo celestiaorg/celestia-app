@@ -46,6 +46,7 @@ func initCmd() *cobra.Command {
 		provider            string
 		observabilityRegion string
 		observabilitySlug   string
+		awsZone             string
 	)
 
 	cmd := &cobra.Command{
@@ -108,14 +109,23 @@ func initCmd() *cobra.Command {
 					cfg = cfg.WithGoogleCloudObservability(observabilityRegion).
 						WithGoogleCloudProject(os.Getenv(EnvVarGoogleCloudProject)).
 						WithGoogleCloudKeyJSONPath(os.Getenv(EnvVarGoogleCloudKeyJSONPath))
+				case "aws":
+					cfg = cfg.WithAWSObservability(observabilityRegion).
+						WithAWSRegion(awsRegionFromEnv()).
+						WithAWSZone(resolveAWSZone(awsZone))
 				default:
-					return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+					return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud, aws)", provider)
 				}
 				enablePrometheus = true
 
 				if observabilitySlug != "" && len(cfg.Observability) > 0 {
 					cfg.Observability[0].Slug = observabilitySlug
 				}
+			} else if provider == "aws" {
+				// Stamp AWSRegion / AWSZone so NewClient later routes to
+				// AWSClient even when the user doesn't want an obs node.
+				cfg = cfg.WithAWSRegion(awsRegionFromEnv()).
+					WithAWSZone(resolveAWSZone(awsZone))
 			}
 
 			if err := cfg.Save(rootDir); err != nil {
@@ -163,9 +173,10 @@ func initCmd() *cobra.Command {
 	_ = cmd.MarkFlagRequired("experiment")
 	cmd.Flags().StringArrayVarP(&tables, "tables", "t", []string{"consensus_round_state", "consensus_block", "mempool_tx"}, "the traces that will be collected")
 	cmd.Flags().BoolVar(&withObservability, "with-observability", false, "add a observability node and enable Prometheus on validators")
-	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "provider for observability node when --with-observability is set (digitalocean, googlecloud)")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "provider for observability node when --with-observability is set (digitalocean, googlecloud, aws)")
 	cmd.Flags().StringVar(&observabilityRegion, "observability-region", "random", "region for the observability node — set to match your validator region to reduce scrape latency")
-	cmd.Flags().StringVar(&observabilitySlug, "observability-slug", "", "instance size for the observability node (default: provider's default — "+DODefaultObservabilitySlug+" for DigitalOcean, "+GCDefaultObservabilityMachineType+" for Google Cloud)")
+	cmd.Flags().StringVar(&observabilitySlug, "observability-slug", "", "instance size for the observability node (default: provider's default — "+DODefaultObservabilitySlug+" for DigitalOcean, "+GCDefaultObservabilityMachineType+" for Google Cloud, "+AWSDefaultObservabilityInstanceType+" for AWS)")
+	cmd.Flags().StringVar(&awsZone, "aws-zone", "", "availability zone for AWS instances (default: "+AWSDefaultZone+"). All AWS instances share this AZ + a cluster placement group for free intra-AZ traffic and low latency.")
 
 	defaultKeyPath := filepath.Join(homeDir, ".ssh", "id_ed25519.pub")
 	cmd.Flags().StringVarP(&SSHPubKeyPath, "ssh-pub-key-path", "s", defaultKeyPath, "path to the user's SSH public key")

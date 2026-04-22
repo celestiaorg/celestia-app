@@ -24,6 +24,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/grafana/pyroscope-go"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -178,9 +179,8 @@ func run(cfg config) error {
 		defer cancel()
 	}
 
-	// Create a single shared fibre client.
-	// The txsim targets networks with a constant validator set, so we wrap the
-	// state client to cache the validator set and avoid redundant gRPC calls.
+	// Create a single shared fibre client with a cached validator set to avoid
+	// redundant gRPC round-trips on every upload/download.
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
@@ -189,7 +189,7 @@ func run(cfg config) error {
 	if err := clientCfg.Validate(); err != nil {
 		return fmt.Errorf("invalid fibre client config: %w", err)
 	}
-	clientCfg.StateClientFn = state.WithConstantValset(clientCfg.StateClientFn)
+	clientCfg.StateClientFn = state.WithCachedValset(clientCfg.StateClientFn, 30*time.Second)
 
 	sharedFibreClient, err := fibre.NewClient(kr, clientCfg)
 	if err != nil {
@@ -393,6 +393,11 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(mp)
+
+	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		_ = mp.Shutdown(ctx)
+		return nil, fmt.Errorf("starting runtime metrics: %w", err)
+	}
 
 	return func(ctx context.Context) {
 		if err := mp.Shutdown(ctx); err != nil {

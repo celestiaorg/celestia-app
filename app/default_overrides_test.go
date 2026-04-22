@@ -11,6 +11,7 @@ import (
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	icagenesistypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/genesis/types"
 	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 	"github.com/stretchr/testify/assert"
@@ -99,6 +100,10 @@ func TestDefaultConsensusConfig(t *testing.T) {
 		assert.Equal(t, int64(100*mebibyte), got.P2P.SendRate)
 		assert.Equal(t, int64(100*mebibyte), got.P2P.RecvRate)
 	})
+
+	t.Run("block sync overrides", func(t *testing.T) {
+		assert.False(t, got.BlockSync.VerifyData)
+	})
 }
 
 func Test_icaDefaultGenesis(t *testing.T) {
@@ -122,6 +127,20 @@ func Test_ibcDefaultGenesis(t *testing.T) {
 
 	assert.Equal(t, []string{"06-solomachine", "07-tendermint"}, got.ClientGenesis.Params.AllowedClients)
 	assert.Equal(t, uint64((13 * time.Second).Nanoseconds()), got.ConnectionGenesis.Params.MaxExpectedTimePerBlock)
+}
+
+func Test_slashingDefaultGenesis(t *testing.T) {
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
+	sm := slashingModule{}
+	raw := sm.DefaultGenesis(enc.Codec)
+	got := slashingtypes.GenesisState{}
+	enc.Codec.MustUnmarshalJSON(raw, &got)
+
+	assert.Equal(t, math.LegacyNewDecWithPrec(1, 3), got.Params.MinSignedPerWindow)
+	assert.Equal(t, int64(10_000), got.Params.SignedBlocksWindow)
+	assert.Equal(t, time.Minute*1, got.Params.DowntimeJailDuration)
+	assert.Equal(t, math.LegacyNewDecWithPrec(2, 2), got.Params.SlashFractionDoubleSign)
+	assert.Equal(t, math.LegacyZeroDec(), got.Params.SlashFractionDowntime)
 }
 
 func TestEvidenceParams(t *testing.T) {
