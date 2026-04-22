@@ -44,7 +44,7 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 	return fsb.builder
 }
 
-func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
+func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
 	// note that there is an additional filter step for tx size of raw txs here
@@ -56,9 +56,15 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 		dec             = fsb.txConfig.TxDecoder()
 		n               = 0
 		m               = 0
+		currentTxBytes  int64
 	)
 
 	for _, tx := range normalTxs {
+		if currentTxBytes+int64(len(tx)) > maxTxBytes {
+			logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			continue
+		}
+
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
@@ -98,12 +104,18 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
+		currentTxBytes += int64(len(tx))
 		sdkMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx
 		n++
 	}
 
 	for _, tx := range blobTxs {
+		if currentTxBytes+int64(len(tx.Tx)) > maxTxBytes {
+			logger.Debug("skipping blob tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			continue
+		}
+
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -144,13 +156,14 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
 			continue
 		}
 
+		currentTxBytes += int64(len(tx.Tx))
 		pfbMessageCount += len(sdkTx.GetMsgs())
 		blobTxs[m] = tx
 		m++
 	}
 
 	// Process pay-for-fibre transactions (no-op when fibre build tag is disabled).
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs)
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs, maxTxBytes, currentTxBytes)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
