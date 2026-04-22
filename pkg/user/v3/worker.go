@@ -126,12 +126,6 @@ func (w *worker) signPending(ctx context.Context) {
 			w.sendConfirmed(req, nil, fmt.Errorf("buffer append: %w", err))
 			continue
 		}
-
-		select {
-		case req.signedCh <- SignedResult{TxHash: txHash, Sequence: seq}:
-		default:
-		}
-		close(req.signedCh)
 	}
 }
 
@@ -254,14 +248,7 @@ func (w *worker) submitNext(ctx context.Context) {
 			return // Stop on any error.
 		}
 
-		// Success: mark submitted, send callback.
 		entry.submitted = true
-
-		select {
-		case entry.request.submittedCh <- SubmittedResult{TxHash: entry.txHash}:
-		default:
-		}
-		close(entry.request.submittedCh)
 	}
 }
 
@@ -278,11 +265,6 @@ func (w *worker) handleSubmitError(err error, entry *txEntry) {
 	case ErrTxInMempoolCache:
 		// Already in mempool — treat as success.
 		entry.submitted = true
-		select {
-		case entry.request.submittedCh <- SubmittedResult{TxHash: entry.txHash}:
-		default:
-		}
-		close(entry.request.submittedCh)
 
 	case ErrTerminal, ErrInsufficientFee:
 		// Fatal: enter Stop mode.
@@ -533,13 +515,9 @@ func (w *worker) drainAll(err error) {
 
 // --- Helpers ---
 
-// sendConfirmed sends a ConfirmedResult to the request's callback channel.
+// sendConfirmed delivers the terminal result to the caller via the handle.
 func (w *worker) sendConfirmed(req *TxRequest, resp *sdktypes.TxResponse, err error) {
-	select {
-	case req.confirmedCh <- ConfirmedResult{Response: resp, Err: err}:
-	default:
-	}
-	close(req.confirmedCh)
+	req.resolve(resp, err)
 }
 
 // computeTxHash computes the hex-encoded SHA256 hash of tx bytes.

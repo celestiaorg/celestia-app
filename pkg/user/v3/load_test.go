@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -237,17 +238,16 @@ func TestLoadConcurrentAddTx(t *testing.T) {
 					defer wg.Done()
 					defer cancelFn()
 
-					select {
-					case result := <-h.Confirmed:
-						if result.Err != nil {
-							errCount.Add(1)
-							t.Logf("goroutine %d tx %d: confirm error: %v", gID, txID, result.Err)
-						} else {
-							confirmed.Add(1)
-						}
-					case <-ctx.Done():
+					_, err := h.Await(ctx)
+					switch {
+					case err == nil:
+						confirmed.Add(1)
+					case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 						errCount.Add(1)
 						t.Logf("goroutine %d tx %d: timeout waiting for confirm", gID, txID)
+					default:
+						errCount.Add(1)
+						t.Logf("goroutine %d tx %d: confirm error: %v", gID, txID, err)
 					}
 				}(handle, goroutineID, i, cancel)
 			}
@@ -333,10 +333,8 @@ func BenchmarkAddTx(b *testing.B) {
 				continue
 			}
 
-			select {
-			case <-handle.Confirmed:
-			case <-txCtx.Done():
-				b.Logf("timeout waiting for confirm")
+			if _, err := handle.Await(txCtx); err != nil {
+				b.Logf("await error: %v", err)
 			}
 			txCancel()
 		}
