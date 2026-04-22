@@ -169,12 +169,6 @@ async fn main() -> anyhow::Result<()> {
 
     tracing_subscriber::fmt().with_env_filter(filter).init();
 
-    println!(
-        "celestia-fibre version: {} (commit: {})",
-        env!("CELESTIA_FIBRE_VERSION"),
-        env!("CELESTIA_FIBRE_COMMIT"),
-    );
-
     let kr =
         FileKeyring::open(&args.keyring_dir, Backend::Test).context("failed to open keyring")?;
 
