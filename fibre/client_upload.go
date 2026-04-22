@@ -49,8 +49,23 @@ func WithAwaitAllSignatures() UploadOption {
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
 // May keep uploading data in background after returning successfully.
+//
+// Upload takes ownership of the blob and releases its pooled storage when all
+// background uploads complete. The blob must not be reused after calling Upload;
+// create a new one with [NewBlob] for each upload.
+//
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
+	if !blob.consume() {
+		return result, ErrBlobConsumed
+	}
+	defer func() {
+		// don't cleanup on success as uploads may still be running
+		if err != nil {
+			blob.asm.Free()
+		}
+	}()
+
 	if !c.started.Load() {
 		return result, errors.New("fibre client is not started")
 	}
@@ -133,7 +148,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
 		return result, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
-	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
+	requests := makeUploadRequests(shardMap, promiseProto, blob.RLC())
 	threshold := c.Config.SafetyThreshold
 	if opt.awaitAll {
 		threshold = cmtmath.Fraction{Numerator: 1, Denominator: 1}
@@ -251,7 +266,14 @@ func (c *Client) uploadTo(
 	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-) (hasEnough bool, err error) {
+) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
+	ctx, cancel := context.WithCancel(ctx) // GRPC calls require context cancelling upon completion
+	defer cancel()
+
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.ID().Commitment(),
@@ -282,18 +304,18 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return false, err
+		return false
 	}
 	span.AddEvent("client_acquired")
 
 	// get proofs and rows here in per request routine which is in parallel which ~39% faster for max blob size
 	for i, rowPb := range req.Shard.Rows {
-		row, rowErr := blob.Row(int(rowPb.Index))
-		if rowErr != nil {
-			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", rowErr)
-			span.RecordError(rowErr, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
+		row, err := blob.Row(int(rowPb.Index))
+		if err != nil {
+			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", err)
+			span.RecordError(err, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
 			span.SetStatus(codes.Error, "failed to generate proof for row")
-			return false, rowErr
+			return false
 		}
 		req.Shard.Rows[i].Data = row.Row
 		req.Shard.Rows[i].Proof = row.RowProof.RowProof
@@ -314,7 +336,7 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload rows")
-		return false, err
+		return false
 	}
 	span.AddEvent("rows_uploaded")
 
@@ -324,23 +346,23 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "failed to parse signature", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to parse signature")
-		return false, err
+		return false
 	}
 
 	// apply signature response and check if we have enough
-	hasEnough, err = sigSet.Add(val, signature)
+	hasEnough, err := sigSet.Add(val, signature)
 	if err != nil {
 		log.WarnContext(ctx, "failed to add signature", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to add signature")
-		return false, err
+		return false
 	}
 
 	uploadOk = true
 	log.DebugContext(ctx, "successfully uploaded to validator")
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
-	return hasEnough, nil
+	return hasEnough
 }
 
 // uploadShards pushes assigned [types.BlobShard]s to all validators and
@@ -381,17 +403,21 @@ func (c *Client) uploadShards(
 		return nil
 	}
 
+	// spawn unconditionally even under ctx cancellation: each goroutine exits
+	// fast via uploadTo(ctx) and runs its defer, so the "last one frees" path
+	// fires naturally without a separate drain step.
 	for val, req := range requests {
 		c.closeWg.Add(1)
 		go func(val *core.Validator, req *types.UploadShardRequest) {
 			defer func() {
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
+					blob.asm.Free()
 				}
 				c.closeWg.Done()
 			}()
 
-			hasEnough, _ := c.uploadTo(ctx, val, req, blob, sigSet)
+			hasEnough := c.uploadTo(ctx, val, req, blob, sigSet)
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
@@ -399,14 +425,11 @@ func (c *Client) uploadShards(
 	}
 
 	select {
-	case <-responsesExhaustedCh:
-	case <-sigsCollectedCh:
-		// Quorum reached; uploadShards returns, but background
-		// goroutines continue best-effort delivery to remaining peers.
-	case <-ctx.Done():
+	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
 		return ctx.Err()
+	case <-sigsCollectedCh: // detach: remaining goroutines finish in background
+		return nil
 	}
-	return nil
 }
 
 // makeUploadRequests constructs the requests map for all validators.

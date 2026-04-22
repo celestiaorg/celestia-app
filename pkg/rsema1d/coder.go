@@ -15,12 +15,15 @@ type Coder struct {
 }
 
 // NewCoder creates a Coder with cached Reed-Solomon encoder.
-func NewCoder(cfg *Config) (*Coder, error) {
+// Optional reedsolomon.Option values are forwarded to the underlying encoder
+// (e.g., reedsolomon.WithWorkAllocator to control work buffer allocation).
+func NewCoder(cfg *Config, opts ...reedsolomon.Option) (*Coder, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	enc, err := reedsolomon.New(cfg.K, cfg.N, reedsolomon.WithLeopardGF16(true))
+	rsOpts := append([]reedsolomon.Option{reedsolomon.WithLeopardGF16(true)}, opts...)
+	enc, err := reedsolomon.New(cfg.K, cfg.N, rsOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
 	}
@@ -67,7 +70,7 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 
 	// derive RLC coefficients and compute RLC results for original rows
 	coeffs := deriveCoefficients(rowRoot, len(extendedRows[0]))
-	rlcOrig := computeRLCOrig(extendedRows[:c.config.K], coeffs, c.config)
+	rlcOrig := computeRLCVectorized(extendedRows[:c.config.K], coeffs, c.config)
 
 	// build padded RLC Merkle tree
 	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, c.config)

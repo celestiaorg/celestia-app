@@ -24,6 +24,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/grafana/pyroscope-go"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -392,6 +393,11 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 		sdkmetric.WithResource(res),
 	)
 	otel.SetMeterProvider(mp)
+
+	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		_ = mp.Shutdown(ctx)
+		return nil, fmt.Errorf("starting runtime metrics: %w", err)
+	}
 
 	return func(ctx context.Context) {
 		if err := mp.Shutdown(ctx); err != nil {
