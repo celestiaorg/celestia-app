@@ -14,9 +14,15 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Upload-path timeout defaults. Layered so a black-holed peer is shed
+// Upload-path defaults. Layered timeouts so a black-holed peer is shed
 // fast at dial time without killing healthy-but-slow peers in the RPC.
 const (
+	// DefaultUploadMemoryBudget is the default cap on in-flight upload
+	// bytes. The accounting unit is blob.UploadSize() — each admitted
+	// Upload reserves its own blob's worth of budget until it returns.
+	// Sized to allow roughly 4 concurrent max-size (128 MiB) uploads
+	// on a validator-grade node.
+	DefaultUploadMemoryBudget int64 = 512 * 1024 * 1024
 	// DefaultDialTimeout bounds the initial TCP/TLS dial. Sized well below
 	// the ~75 s TCP SYN retry window so a black-holed validator is shed
 	// quickly rather than parking a goroutine on a kernel retry loop.
@@ -44,6 +50,14 @@ type ClientConfig struct {
 	MinRowsPerValidator int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
+
+	// UploadMemoryBudget bounds in-flight upload bytes. Each Upload()
+	// reserves blob.UploadSize() from the budget at entry and releases
+	// on exit; concurrent uploads coexist as long as their combined
+	// size fits. Small blobs pack efficiently; an oversized blob fails
+	// fast rather than deadlocking. Callers should size this to their
+	// memory budget for upload buffers.
+	UploadMemoryBudget int64
 
 	// DialTimeout bounds initial connection establishment to a validator.
 	// Sized well below the TCP SYN retry window so a black-holed peer is
@@ -92,6 +106,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
+		UploadMemoryBudget:  DefaultUploadMemoryBudget,
 		DialTimeout:         DefaultDialTimeout,
 		RPCTimeout:          DefaultRPCTimeout,
 		DownloadConcurrency: p.ValidatorsForReconstruction(),
@@ -122,6 +137,9 @@ func (cfg *ClientConfig) Validate() error {
 		cfg.Clock = clock.New()
 	}
 
+	if cfg.UploadMemoryBudget <= 0 {
+		cfg.UploadMemoryBudget = DefaultUploadMemoryBudget
+	}
 	if cfg.DialTimeout <= 0 {
 		cfg.DialTimeout = DefaultDialTimeout
 	}

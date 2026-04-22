@@ -58,6 +58,19 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		return result, ErrClientClosed
 	}
 
+	// Admission: reserve this blob's worth of bytes from the upload
+	// memory budget. Concurrent uploads share the budget; small blobs
+	// pack efficiently. An oversized blob fails fast rather than
+	// blocking forever on a reservation that can never be satisfied.
+	uploadBytes := int64(blob.UploadSize())
+	if uploadBytes > c.Config.UploadMemoryBudget {
+		return result, fmt.Errorf("fibre: upload size %d exceeds memory budget %d", uploadBytes, c.Config.UploadMemoryBudget)
+	}
+	if err := c.uploadBudget.Acquire(ctx, uploadBytes); err != nil {
+		return result, err
+	}
+	defer c.uploadBudget.Release(uploadBytes)
+
 	opt := uploadOptions{keyName: c.Config.DefaultKeyName}
 	for _, o := range opts {
 		o(&opt)
