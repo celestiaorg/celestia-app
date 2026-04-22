@@ -497,15 +497,15 @@ build-rust-fibre-txsim: ensure-rust
 	$(call build_rust_crate,tools/rust-fibre-txsim,rust-fibre-txsim,fibre-txsim)
 .PHONY: build-rust-fibre-txsim
 
-## build-talis-bins-rust: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
-build-talis-bins-rust:
+## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
+build-talis-bins-rust-fibre:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	$(MAKE) build-rust-fibre-txsim
-.PHONY: build-talis-bins-rust
+.PHONY: build-talis-bins-rust-fibre
 
 ## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
 build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
