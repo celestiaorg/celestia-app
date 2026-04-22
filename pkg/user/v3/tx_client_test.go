@@ -186,21 +186,30 @@ func TestTxBuffer_Reset(t *testing.T) {
 
 // --- TxHandle tests ---
 
-func TestNewTxHandle(t *testing.T) {
+func TestTxHandle_Await(t *testing.T) {
 	req, handle := newTxHandle(context.Background(), nil, nil, nil)
 
-	req.signedCh <- SignedResult{TxHash: "abc", Sequence: 1}
-	result := <-handle.Signed
-	assert.Equal(t, "abc", result.TxHash)
-	assert.Equal(t, uint64(1), result.Sequence)
+	go req.resolve(nil, fmt.Errorf("test error"))
 
-	req.submittedCh <- SubmittedResult{TxHash: "abc"}
-	subResult := <-handle.Submitted
-	assert.Equal(t, "abc", subResult.TxHash)
+	resp, err := handle.Await(context.Background())
+	assert.Nil(t, resp)
+	assert.EqualError(t, err, "test error")
 
-	req.confirmedCh <- ConfirmedResult{Response: nil, Err: fmt.Errorf("test error")}
-	confResult := <-handle.Confirmed
-	assert.Error(t, confResult.Err)
+	// Subsequent calls return the same result without blocking.
+	resp2, err2 := handle.Await(context.Background())
+	assert.Nil(t, resp2)
+	assert.EqualError(t, err2, "test error")
+}
+
+func TestTxHandle_AwaitContextCancel(t *testing.T) {
+	_, handle := newTxHandle(context.Background(), nil, nil, nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	resp, err := handle.Await(ctx)
+	assert.Nil(t, resp)
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 // --- computeTxHash tests ---

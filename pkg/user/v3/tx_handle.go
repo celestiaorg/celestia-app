@@ -8,33 +8,25 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 )
 
-// TxHandle provides 3-phase callbacks for tracking an async transaction
-// through the pipeline: signed, submitted, confirmed. Each channel receives
-// exactly one value and then closes.
+// TxHandle is returned by AddTx/AddPayForBlob. Call Await to block until the
+// transaction reaches a terminal state (committed, rejected, or errored).
 type TxHandle struct {
-	// Signed is sent when the transaction has been signed and a sequence assigned.
-	Signed <-chan SignedResult
-	// Submitted is sent when the transaction has been accepted by at least one node.
-	Submitted <-chan SubmittedResult
-	// Confirmed is terminal: the transaction was committed, rejected, or errored.
-	Confirmed <-chan ConfirmedResult
+	resp *sdktypes.TxResponse
+	err  error
+
+	done chan struct{}
 }
 
-// SignedResult contains information about a successfully signed transaction.
-type SignedResult struct {
-	TxHash   string
-	Sequence uint64
-}
-
-// SubmittedResult contains information about a successfully submitted transaction.
-type SubmittedResult struct {
-	TxHash string
-}
-
-// ConfirmedResult contains the terminal result of a transaction.
-type ConfirmedResult struct {
-	Response *sdktypes.TxResponse
-	Err      error
+// Await blocks until the transaction reaches a terminal state or ctx is
+// cancelled. Safe to call multiple times: subsequent calls return the same
+// result immediately.
+func (h *TxHandle) Await(ctx context.Context) (*sdktypes.TxResponse, error) {
+	select {
+	case <-h.done:
+		return h.resp, h.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // TxRequest is the internal representation of a transaction request flowing
@@ -49,35 +41,27 @@ type TxRequest struct {
 	// Ctx is the caller's context for this request.
 	Ctx context.Context
 
-	// Callback channels (send side). The worker sends exactly one value on each
-	// and then closes the channel.
-	signedCh    chan<- SignedResult
-	submittedCh chan<- SubmittedResult
-	confirmedCh chan<- ConfirmedResult
+	// handle is set by the worker when the tx reaches a terminal state.
+	handle *TxHandle
+}
+
+// resolve sets the terminal result on the handle and unblocks Await.
+// Safe to call only once per request.
+func (r *TxRequest) resolve(resp *sdktypes.TxResponse, err error) {
+	r.handle.resp = resp
+	r.handle.err = err
+	close(r.handle.done)
 }
 
 // newTxHandle creates a TxRequest with its associated TxHandle.
-// The TxHandle is returned to the caller; the TxRequest is sent to the worker.
 func newTxHandle(ctx context.Context, msgs []sdktypes.Msg, blobs []*share.Blob, opts []user.TxOption) (*TxRequest, *TxHandle) {
-	signedCh := make(chan SignedResult, 1)
-	submittedCh := make(chan SubmittedResult, 1)
-	confirmedCh := make(chan ConfirmedResult, 1)
-
+	handle := &TxHandle{done: make(chan struct{})}
 	req := &TxRequest{
-		Msgs:        msgs,
-		Blobs:       blobs,
-		Opts:        opts,
-		Ctx:         ctx,
-		signedCh:    signedCh,
-		submittedCh: submittedCh,
-		confirmedCh: confirmedCh,
+		Msgs:   msgs,
+		Blobs:  blobs,
+		Opts:   opts,
+		Ctx:    ctx,
+		handle: handle,
 	}
-
-	handle := &TxHandle{
-		Signed:    signedCh,
-		Submitted: submittedCh,
-		Confirmed: confirmedCh,
-	}
-
 	return req, handle
 }
