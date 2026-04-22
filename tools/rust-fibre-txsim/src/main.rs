@@ -444,11 +444,9 @@ async fn do_upload(
         };
 
         let start_time = Instant::now();
-        // TODO: rename this, this is not really a put in the sense of go version, it is just a wrapper
-        //  around upload that creates a MsgPayForFibre
         let msg = account
             .fibre_client
-            .put(
+            .upload_and_prepare(
                 &account.signing_key,
                 &ns,
                 &data,

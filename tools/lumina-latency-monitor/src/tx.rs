@@ -3,7 +3,7 @@ use std::time::{Duration, SystemTime};
 
 use celestia_grpc::{GrpcClient, TxConfig};
 use celestia_types::nmt::Namespace;
-use celestia_types::{AppVersion, Blob};
+use celestia_types::Blob;
 use rand::Rng;
 use tokio::sync::{Mutex, Notify, Semaphore};
 use tokio::task::JoinSet;
@@ -149,7 +149,7 @@ pub async fn run_submission_loop(
                                 latency,
                                 tx_info.hash.to_string(),
                                 0,
-                                tx_info.height.value() as i64,
+                                tx_info.height as i64,
                             ))
                         }
                         Err(e) => {
@@ -202,7 +202,7 @@ fn generate_random_blob(
 ) -> Result<(usize, Blob)> {
     let (size, data) = generate_random_data(size_min, size_max);
 
-    let blob = Blob::new(namespace, data, None, AppVersion::latest())
+    let blob = Blob::new(namespace, data, None)
         .map_err(|e| LatencyMonitorError::BlobError(e.to_string()))?;
 
     Ok((size, blob))
