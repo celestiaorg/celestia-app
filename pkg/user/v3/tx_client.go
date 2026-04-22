@@ -86,7 +86,7 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 	w := &worker{
 		v1Client:    v1,
 		conn:        conn,
-		buffer:      NewTxBuffer(acc.Sequence()),
+		buffer:      newTxBuffer(acc.Sequence()),
 		requestCh:   requestCh,
 		pollTime:    v1.PollTime(),
 		accountName: accountName,

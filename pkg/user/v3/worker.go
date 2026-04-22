@@ -46,7 +46,7 @@ const (
 type worker struct {
 	v1Client    *user.TxClient
 	conn        *grpc.ClientConn // single connection for submit + confirm
-	buffer      *TxBuffer
+	buffer      *txBuffer
 	requestCh   <-chan *TxRequest
 	pollTime    time.Duration
 	accountName string
@@ -77,7 +77,7 @@ func (w *worker) run(ctx context.Context) {
 				w.drainAll(fmt.Errorf("request channel closed"))
 				return
 			}
-			w.buffer.AddPending(req)
+			w.buffer.addPending(req)
 
 		case <-signTicker.C:
 			if w.mode == modeSubmitting {
@@ -103,8 +103,8 @@ func (w *worker) run(ctx context.Context) {
 
 // signPending signs all pending requests and appends them to the signed buffer.
 func (w *worker) signPending(ctx context.Context) {
-	for w.buffer.PendingLen() > 0 {
-		req := w.buffer.PopPending()
+	for w.buffer.pendingLen() > 0 {
+		req := w.buffer.popPending()
 		if req.Ctx.Err() != nil {
 			w.sendConfirmed(req, nil, req.Ctx.Err())
 			continue
@@ -122,7 +122,7 @@ func (w *worker) signPending(ctx context.Context) {
 			txBytes:  txBytes,
 			request:  req,
 		}
-		if err := w.buffer.AppendSigned(entry); err != nil {
+		if err := w.buffer.appendSigned(entry); err != nil {
 			w.sendConfirmed(req, nil, fmt.Errorf("buffer append: %w", err))
 			continue
 		}
@@ -243,7 +243,7 @@ func (w *worker) signRegular(ctx context.Context, req *TxRequest) ([]byte, strin
 // Processes as many as possible per tick to maximize throughput.
 func (w *worker) submitNext(ctx context.Context) {
 	for {
-		entry := w.buffer.Next()
+		entry := w.buffer.next()
 		if entry == nil {
 			return
 		}
@@ -292,24 +292,24 @@ func (w *worker) handleSubmitError(err error, entry *txEntry) {
 
 // handleSubmitSequenceMismatch handles a sequence mismatch during submission.
 func (w *worker) handleSubmitSequenceMismatch(expectedSeq uint64) {
-	lastSubmitted := w.buffer.LastSubmittedSeq()
+	lastSubmitted := w.buffer.lastSubmittedSeq()
 
 	if expectedSeq <= lastSubmitted {
 		// Expected < what we've submitted: reset submission counter.
 		// The node wants us to resubmit starting from expectedSeq.
 		// But if expectedSeq is below our buffer's first signed entry, we
 		// can't satisfy it without re-signing — enter Stop instead of looping.
-		front := w.buffer.Front()
+		front := w.buffer.front()
 		if front != nil && expectedSeq < front.sequence {
 			w.enterStop(expectedSeq, fmt.Errorf("sequence mismatch: node expects %d, before our buffer (first=%d)", expectedSeq, front.sequence))
 			return
 		}
-		w.buffer.Reset(expectedSeq)
+		w.buffer.reset(expectedSeq)
 		return
 	}
 
 	// Expected > last submitted: the node has advanced past us.
-	if w.buffer.GetBySequence(expectedSeq) != nil {
+	if w.buffer.getBySequence(expectedSeq) != nil {
 		// We have a signed tx at the expected seq → Recovery mode.
 		w.enterRecovery(expectedSeq)
 	} else {
@@ -332,7 +332,7 @@ func (w *worker) confirmNext(ctx context.Context) {
 	txClient := tx.NewTxClient(w.conn)
 
 	for {
-		front := w.buffer.Front()
+		front := w.buffer.front()
 		if front == nil {
 			return
 		}
@@ -404,13 +404,13 @@ func (w *worker) handleCommitted(entry *txEntry, resp *tx.TxStatusResponse) {
 		confirmErr = fmt.Errorf("tx execution failed with code %d: %s", resp.ExecutionCode, resp.Error)
 	}
 
-	confirmed := w.buffer.ConfirmFront()
+	confirmed := w.buffer.confirmFront()
 	if confirmed != nil {
 		w.sendConfirmed(confirmed.request, txResp, confirmErr)
 	}
 
 	// In Recovery mode: check if we've reached the target.
-	if w.mode == modeRecovering && w.buffer.LastConfirmed() >= w.recoverTarget-1 {
+	if w.mode == modeRecovering && w.buffer.lastConfirmed() >= w.recoverTarget-1 {
 		w.mode = modeSubmitting
 	}
 }
@@ -431,7 +431,7 @@ func (w *worker) handleEvicted(entry *txEntry) {
 			w.stopSeq = entry.sequence
 			w.stopErr = err
 		}
-		confirmed := w.buffer.ConfirmFront()
+		confirmed := w.buffer.confirmFront()
 		if confirmed != nil {
 			w.sendConfirmed(confirmed.request, nil, err)
 		}
@@ -456,7 +456,7 @@ func (w *worker) handleFatalConfirmError(entry *txEntry, err error) {
 			w.stopErr = err
 		}
 		// Confirm this entry as failed and remove it.
-		confirmed := w.buffer.ConfirmFront()
+		confirmed := w.buffer.confirmFront()
 		if confirmed != nil {
 			w.sendConfirmed(confirmed.request, nil, err)
 		}
@@ -493,7 +493,7 @@ func (w *worker) enterStop(seq uint64, err error) {
 
 // allConfirmedUpToStop returns true when all entries before stopSeq have been confirmed.
 func (w *worker) allConfirmedUpToStop() bool {
-	front := w.buffer.Front()
+	front := w.buffer.front()
 	if front == nil {
 		return true
 	}
@@ -504,27 +504,27 @@ func (w *worker) allConfirmedUpToStop() bool {
 // Called when Stop mode has confirmed everything up to stopSeq.
 func (w *worker) drainRemaining() {
 	// Error all remaining signed entries.
-	for w.buffer.SignedLen() > 0 {
-		entry := w.buffer.ConfirmFront()
+	for w.buffer.signedLen() > 0 {
+		entry := w.buffer.confirmFront()
 		if entry != nil {
 			w.sendConfirmed(entry.request, nil, w.stopErr)
 		}
 	}
 	// Error all pending requests.
-	for w.buffer.PendingLen() > 0 {
-		req := w.buffer.PopPending()
+	for w.buffer.pendingLen() > 0 {
+		req := w.buffer.popPending()
 		w.sendConfirmed(req, nil, w.stopErr)
 	}
 }
 
 // drainAll sends errors to all remaining handles (pending + signed).
 func (w *worker) drainAll(err error) {
-	for w.buffer.PendingLen() > 0 {
-		req := w.buffer.PopPending()
+	for w.buffer.pendingLen() > 0 {
+		req := w.buffer.popPending()
 		w.sendConfirmed(req, nil, err)
 	}
-	for w.buffer.SignedLen() > 0 {
-		entry := w.buffer.ConfirmFront()
+	for w.buffer.signedLen() > 0 {
+		entry := w.buffer.confirmFront()
 		if entry != nil {
 			w.sendConfirmed(entry.request, nil, err)
 		}

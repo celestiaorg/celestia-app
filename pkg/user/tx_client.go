@@ -1125,22 +1125,10 @@ func (client *TxClient) EstimateGasForTx(ctx context.Context, txBuilder client.T
 	return client.estimateGas(ctx, txBuilder)
 }
 
-// HandleSequenceMismatch checks if the error is a sequence mismatch and corrects it.
-// The caller must hold the client mutex. This is exported for use by the v3 async pipeline.
-func (client *TxClient) HandleSequenceMismatch(sequenceErr error, txBuilder client.TxBuilder) (bool, error) {
-	return client.handleSequenceMismatch(sequenceErr, txBuilder)
-}
-
 // CheckAccountLoaded ensures an account is loaded in the signer, querying the chain if needed.
 // The caller must hold the client mutex. This is exported for use by the v3 async pipeline.
 func (client *TxClient) CheckAccountLoaded(ctx context.Context, account string) error {
 	return client.checkAccountLoaded(ctx, account)
-}
-
-// GetAccountNameFromMsgs returns the account name derived from the signers of the messages.
-// This is exported for use by the v3 async pipeline.
-func (client *TxClient) GetAccountNameFromMsgs(msgs []sdktypes.Msg) (string, error) {
-	return client.getAccountNameFromMsgs(msgs)
 }
 
 // PollTime returns the polling interval.

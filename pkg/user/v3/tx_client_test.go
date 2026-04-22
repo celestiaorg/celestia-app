@@ -75,154 +75,105 @@ func TestClassifyBroadcastError_Nil(t *testing.T) {
 // --- TxBuffer tests ---
 
 func TestTxBuffer_PendingQueue(t *testing.T) {
-	buf := NewTxBuffer(1)
+	buf := newTxBuffer(1)
 
-	assert.Equal(t, 0, buf.PendingLen())
-	assert.Nil(t, buf.PopPending())
+	assert.Equal(t, 0, buf.pendingLen())
+	assert.Nil(t, buf.popPending())
 
 	req1 := &TxRequest{}
 	req2 := &TxRequest{}
-	buf.AddPending(req1)
-	buf.AddPending(req2)
-	assert.Equal(t, 2, buf.PendingLen())
+	buf.addPending(req1)
+	buf.addPending(req2)
+	assert.Equal(t, 2, buf.pendingLen())
 
-	assert.Equal(t, req1, buf.PopPending())
-	assert.Equal(t, 1, buf.PendingLen())
-	assert.Equal(t, req2, buf.PopPending())
-	assert.Equal(t, 0, buf.PendingLen())
+	assert.Equal(t, req1, buf.popPending())
+	assert.Equal(t, 1, buf.pendingLen())
+	assert.Equal(t, req2, buf.popPending())
+	assert.Equal(t, 0, buf.pendingLen())
 }
 
 func TestTxBuffer_SequenceContinuity(t *testing.T) {
-	buf := NewTxBuffer(10)
+	buf := newTxBuffer(10)
 
-	assert.Equal(t, uint64(10), buf.NextSequence())
-	assert.Equal(t, uint64(11), buf.NextSequence())
-
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 10, txHash: "a"}))
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 11, txHash: "b"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 10, txHash: "a"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 11, txHash: "b"}))
 
 	// Gap should fail
-	err := buf.AppendSigned(txEntry{sequence: 15, txHash: "c"})
+	err := buf.appendSigned(txEntry{sequence: 15, txHash: "c"})
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "sequence gap")
 }
 
 func TestTxBuffer_FrontAndConfirmFront(t *testing.T) {
-	buf := NewTxBuffer(1)
+	buf := newTxBuffer(1)
 
-	assert.Nil(t, buf.Front())
-	assert.Nil(t, buf.ConfirmFront())
+	assert.Nil(t, buf.front())
+	assert.Nil(t, buf.confirmFront())
 
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 1, txHash: "a"}))
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 2, txHash: "b"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 1, txHash: "a"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 2, txHash: "b"}))
 
-	front := buf.Front()
+	front := buf.front()
 	require.NotNil(t, front)
 	assert.Equal(t, uint64(1), front.sequence)
 
-	confirmed := buf.ConfirmFront()
+	confirmed := buf.confirmFront()
 	require.NotNil(t, confirmed)
 	assert.Equal(t, uint64(1), confirmed.sequence)
-	assert.Equal(t, uint64(1), buf.LastConfirmed())
+	assert.Equal(t, uint64(1), buf.lastConfirmed())
 
-	front = buf.Front()
+	front = buf.front()
 	require.NotNil(t, front)
 	assert.Equal(t, uint64(2), front.sequence)
 }
 
-func TestTxBuffer_GetByHash(t *testing.T) {
-	buf := NewTxBuffer(1)
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 1, txHash: "abc"}))
-
-	entry := buf.GetByHash("abc")
-	require.NotNil(t, entry)
-	assert.Equal(t, uint64(1), entry.sequence)
-
-	assert.Nil(t, buf.GetByHash("xyz"))
-}
-
 func TestTxBuffer_GetBySequence(t *testing.T) {
-	buf := NewTxBuffer(5)
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 5, txHash: "a"}))
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 6, txHash: "b"}))
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 7, txHash: "c"}))
+	buf := newTxBuffer(5)
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 5, txHash: "a"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 6, txHash: "b"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 7, txHash: "c"}))
 
-	entry := buf.GetBySequence(6)
+	entry := buf.getBySequence(6)
 	require.NotNil(t, entry)
 	assert.Equal(t, "b", entry.txHash)
 
-	assert.Nil(t, buf.GetBySequence(4))
-	assert.Nil(t, buf.GetBySequence(8))
-}
-
-func TestTxBuffer_EntriesInRange(t *testing.T) {
-	buf := NewTxBuffer(10)
-	for i := uint64(10); i <= 15; i++ {
-		require.NoError(t, buf.AppendSigned(txEntry{
-			sequence: i,
-			txHash:   fmt.Sprintf("tx%d", i),
-		}))
-	}
-
-	entries := buf.EntriesInRange(11, 13)
-	require.Len(t, entries, 3)
-	assert.Equal(t, uint64(11), entries[0].sequence)
-	assert.Equal(t, uint64(13), entries[2].sequence)
-
-	assert.Nil(t, buf.EntriesInRange(20, 25))
-	assert.Nil(t, buf.EntriesInRange(1, 5))
-}
-
-func TestTxBuffer_Rollback(t *testing.T) {
-	buf := NewTxBuffer(1)
-	for i := uint64(1); i <= 5; i++ {
-		require.NoError(t, buf.AppendSigned(txEntry{
-			sequence: i,
-			txHash:   fmt.Sprintf("tx%d", i),
-			request:  &TxRequest{},
-		}))
-	}
-
-	removed := buf.RollbackTo(3)
-	assert.Len(t, removed, 3) // seq 3, 4, 5
-	assert.Equal(t, uint64(3), removed[0].sequence)
-	assert.Equal(t, 2, buf.SignedLen())
-	assert.Equal(t, uint64(3), buf.NextSequence())
+	assert.Nil(t, buf.getBySequence(4))
+	assert.Nil(t, buf.getBySequence(8))
 }
 
 func TestTxBuffer_SubmissionTracking(t *testing.T) {
-	buf := NewTxBuffer(1)
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 1, txHash: "a"}))
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 2, txHash: "b"}))
-	require.NoError(t, buf.AppendSigned(txEntry{sequence: 3, txHash: "c"}))
+	buf := newTxBuffer(1)
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 1, txHash: "a"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 2, txHash: "b"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 3, txHash: "c"}))
 
 	// Nothing submitted yet.
-	assert.Equal(t, uint64(0), buf.LastSubmittedSeq())
-	next := buf.Next()
+	assert.Equal(t, uint64(0), buf.lastSubmittedSeq())
+	next := buf.next()
 	require.NotNil(t, next)
 	assert.Equal(t, uint64(1), next.sequence)
 
 	// Submit first two.
 	buf.signed[0].submitted = true
 	buf.signed[1].submitted = true
-	assert.Equal(t, uint64(2), buf.LastSubmittedSeq())
+	assert.Equal(t, uint64(2), buf.lastSubmittedSeq())
 
-	next = buf.Next()
+	next = buf.next()
 	require.NotNil(t, next)
 	assert.Equal(t, uint64(3), next.sequence)
 
 	// Submit all.
 	buf.signed[2].submitted = true
-	assert.Nil(t, buf.Next())
+	assert.Nil(t, buf.next())
 }
 
 func TestTxBuffer_Reset(t *testing.T) {
-	buf := NewTxBuffer(1)
+	buf := newTxBuffer(1)
 	for i := uint64(1); i <= 5; i++ {
-		require.NoError(t, buf.AppendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("tx%d", i), submitted: true}))
+		require.NoError(t, buf.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("tx%d", i), submitted: true}))
 	}
 
-	buf.Reset(3)
+	buf.reset(3)
 
 	// Seqs 1,2 still submitted; 3,4,5 reset.
 	assert.True(t, buf.signed[0].submitted)
@@ -230,7 +181,7 @@ func TestTxBuffer_Reset(t *testing.T) {
 	assert.False(t, buf.signed[2].submitted)
 	assert.False(t, buf.signed[3].submitted)
 	assert.False(t, buf.signed[4].submitted)
-	assert.Equal(t, uint64(2), buf.LastSubmittedSeq())
+	assert.Equal(t, uint64(2), buf.lastSubmittedSeq())
 }
 
 // --- TxHandle tests ---
