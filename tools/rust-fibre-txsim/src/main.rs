@@ -64,11 +64,23 @@ struct Args {
     duration: Duration,
 
     /// Enable download verification after each successful upload
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "true",
+    )]
     download: bool,
 
     /// Skip PFF transaction — only upload shards to validators without on-chain confirmation (no-op, kept for CLI compatibility)
-    #[arg(long, default_value_t = false)]
+    #[arg(
+        long,
+        default_value_t = false,
+        num_args = 0..=1,
+        require_equals = true,
+        default_missing_value = "true",
+    )]
     upload_only: bool,
 
     /// OpenTelemetry collector endpoint (no-op, kept for CLI compatibility)
