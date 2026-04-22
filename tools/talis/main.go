@@ -38,7 +38,6 @@ func main() {
 		fibreThroughputCmd(),
 		resourceMonitorCmd(),
 		downloadResourcesCmd(),
-		startCmd(),
 		syncNodeCmd(),
 	)
 
