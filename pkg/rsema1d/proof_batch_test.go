@@ -82,7 +82,7 @@ func TestVerifyRowsWithContextDetectsTamperedRow(t *testing.T) {
 		t.Fatalf("Encode: %v", err)
 	}
 
-	for tamperedIdx := 0; tamperedIdx < 16; tamperedIdx++ {
+	for tamperedIdx := range 16 {
 		ctx, _, err := CreateVerificationContext(rlcOrig, cfg)
 		if err != nil {
 			t.Fatalf("CreateVerificationContext: %v", err)
@@ -102,6 +102,49 @@ func TestVerifyRowsWithContextDetectsTamperedRow(t *testing.T) {
 		proofs[tamperedIdx].Row[0] ^= 0xFF
 		if err := VerifyRowsWithContext(proofs, commitment, ctx); err == nil {
 			t.Fatalf("tampered row %d was accepted", tamperedIdx)
+		}
+	}
+}
+
+// TestVerifyRowsWithContextNilProof covers the edge case where a caller passes
+// a nil proof element. The nil-first case is specifically tested with a
+// context whose config.RowSize == 0 — that path dereferences proofs[0] to
+// derive the expected row size, and would panic without the nil pre-check.
+func TestVerifyRowsWithContextNilProof(t *testing.T) {
+	encodeCfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
+	data := make([][]byte, encodeCfg.K)
+	r := rand.New(rand.NewPCG(11, 11))
+	for i := range data {
+		data[i] = make([]byte, encodeCfg.RowSize)
+		for j := range data[i] {
+			data[i][j] = byte(r.IntN(256))
+		}
+	}
+	ed, commitment, rlcOrig, err := Encode(data, encodeCfg)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+
+	// Verify context with RowSize==0 exercises the proofs[0].Row dereference
+	// path inside VerifyRowsWithContext.
+	verifyCfg := &Config{K: encodeCfg.K, N: encodeCfg.N, WorkerCount: 1}
+
+	for _, nilPos := range []int{0, minBatchedVerifyK / 2, minBatchedVerifyK} {
+		ctx, _, err := CreateVerificationContext(rlcOrig, verifyCfg)
+		if err != nil {
+			t.Fatalf("CreateVerificationContext: %v", err)
+		}
+		proofs := make([]*RowProof, minBatchedVerifyK+4)
+		for i := range proofs {
+			p, err := ed.GenerateRowProof(i)
+			if err != nil {
+				t.Fatalf("GenerateRowProof: %v", err)
+			}
+			proofs[i] = p
+		}
+		proofs[nilPos] = nil
+		if err := VerifyRowsWithContext(proofs, commitment, ctx); err == nil {
+			t.Fatalf("nil proof at position %d was accepted", nilPos)
 		}
 	}
 }
