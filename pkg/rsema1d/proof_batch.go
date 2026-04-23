@@ -47,16 +47,18 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 	// 1. Validate every proof's shape up-front (index range, row sizes, proof
 	// depths) before doing any heavy compute. This matches the checks inside
 	// VerifyRowWithContext but lets us fail fast without ever running the RLC.
+	// Nil-checks come before any proofs[0] dereference so a nil first element
+	// returns an error instead of panicking.
 	kPadded := nextPowerOfTwo(context.config.K)
 	totalPadded := nextPowerOfTwo(kPadded + context.config.N)
 	expectedProofDepth := bits.Len(uint(totalPadded)) - 1
 	rowSize := context.config.RowSize
-	if rowSize == 0 {
-		rowSize = len(proofs[0].Row)
-	}
-	for _, p := range proofs {
+	for i, p := range proofs {
 		if p == nil {
 			return errors.New("received nil proof in verifier")
+		}
+		if i == 0 && rowSize == 0 {
+			rowSize = len(p.Row)
 		}
 		if p.Index < 0 || p.Index >= context.config.K+context.config.N {
 			return fmt.Errorf("index %d out of range [0, %d)", p.Index, context.config.K+context.config.N)
