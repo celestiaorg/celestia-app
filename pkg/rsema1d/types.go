@@ -44,6 +44,13 @@ type VerificationContext struct {
 
 	coeffsOnce sync.Once
 	coeffs     []field.GF128
+
+	// coeffLogOnce gates a lazy build of the per-row LogTab precompute used
+	// by the scalar verify fast path. The first scalar verify in this
+	// context pays ~128 µs to populate coeffLog; subsequent scalar verifies
+	// hit the cache and pay only the computeRLCLogTab inner loop.
+	coeffLogOnce sync.Once
+	coeffLog     *rlcCoeffLog
 }
 
 // RowProof is a lightweight proof without RLC data

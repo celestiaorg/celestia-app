@@ -79,7 +79,14 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	if len(context.coeffs) != len(proof.Row)/2 {
 		return fmt.Errorf("row size mismatch: cached coefficients for %d bytes, got %d", len(context.coeffs)*2, len(proof.Row))
 	}
-	computedRLC := computeRLC(proof.Row, context.coeffs)
+	// Lazily build the per-row coeffLog once per context. The first scalar
+	// verify pays the ~128 µs precompute; every subsequent scalar verify
+	// hits the cached LogTab and is ~2–3x faster than the klauspost-based
+	// computeRLC path.
+	context.coeffLogOnce.Do(func() {
+		context.coeffLog = buildRLCCoeffLog(context.coeffs)
+	})
+	computedRLC := computeRLCLogTab(proof.Row, context.coeffLog)
 
 	// 3. Verify RLC matches the extended value at this index
 	if proof.Index >= len(context.rlcExtended) {
@@ -148,7 +155,11 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 
 	// 2. Compute RLC for the row
 	coeffs := deriveCoefficients(rowRoot, len(proof.Row))
-	computedRLC := computeRLC(proof.Row, coeffs)
+	// Build coeffLog once and use the LogTab fast path. The precompute cost
+	// (~128 µs) is amortized below by saving ~250–400 µs per row compared to
+	// the klauspost-based computeRLC, so a single-row standalone verify is
+	// still a net win.
+	computedRLC := computeRLCLogTab(proof.Row, buildRLCCoeffLog(coeffs))
 
 	// 3. Compute RLC root from proof
 	rlcBytes := field.ToBytes128(computedRLC)
