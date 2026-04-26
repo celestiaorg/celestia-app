@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/app"
@@ -218,6 +219,10 @@ func (n *Network) InitNodes(rootDir string) error {
 	fmt.Println("genesis file saved to", genesisPath, "with", len(n.validators), "validators")
 
 	vals := n.genesis.Validators()
+
+	// Pass 1: write per-validator node_key.json + priv_validator files, and
+	// stamp NetworkAddress into n.validators so pass 2 can build a complete
+	// persistent_peers list.
 	for _, v := range vals {
 		valPath := filepath.Join(rootDir, v.Name)
 		nodeKeyFile := filepath.Join(valPath, "node_key.json")
@@ -250,8 +255,34 @@ func (n *Network) InitNodes(rootDir string) error {
 		}
 		filePV := privval.NewFilePV(v.ConsensusKey, pvKeyFile, pvStateFile)
 		filePV.Save()
+	}
+
+	// Pass 2: now that every validator's NetworkAddress is known, write
+	// config.toml with a populated persistent_peers list. Without this the
+	// chain has no bootstrap mechanism — addrbook alone is not enough — and
+	// validators come up with zero peers and never reach quorum.
+	for _, v := range vals {
+		selfInfo := n.validators[v.Name]
+		selfID := selfInfo.NetworkAddress
+		var peers []string
+		for _, peer := range n.validators {
+			if peer.NetworkAddress == "" || peer.NetworkAddress == selfID || peer.IP == "" || peer.IP == "TBD" {
+				continue
+			}
+			peers = append(peers, peer.PeerID())
+		}
 
 		cmtcfg := cmtconfig.DefaultConfig()
+		// Without persistent_peers the chain has no bootstrap mechanism on
+		// a fresh testnet — addrbook alone is not enough — and validators
+		// come up with zero peers and never reach quorum.
+		cmtcfg.P2P.PersistentPeers = strings.Join(peers, ",")
+		// Bind RPC publicly so other instances (encoders, fibre-txsim) can
+		// submit transactions; the default 127.0.0.1 is unreachable cross-node.
+		cmtcfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
+		// Enable the priv-validator gRPC endpoint that fibre needs to fetch
+		// the validator's public key for shard-assignment verification.
+		cmtcfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
 		cmtconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg)
 
 		appcfg := app.DefaultAppConfig()
