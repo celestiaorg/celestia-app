@@ -272,7 +272,12 @@ func (n *Network) InitNodes(rootDir string) error {
 			peers = append(peers, peer.PeerID())
 		}
 
-		cmtcfg := cmtconfig.DefaultConfig()
+		// Start from app.DefaultConsensusConfig (not cmtconfig.DefaultConfig)
+		// so we keep celestia-specific overrides like P2P send/recv rates,
+		// CAT mempool, consensus timeouts, RPC timeout, "null" tx indexer,
+		// DiscardABCIResponses, BlockSync.VerifyData=false. Those land in
+		// app/default_overrides.go and apply to every talis cluster.
+		cmtcfg := app.DefaultConsensusConfig()
 		// Without persistent_peers the chain has no bootstrap mechanism on
 		// a fresh testnet — addrbook alone is not enough — and validators
 		// come up with zero peers and never reach quorum.
