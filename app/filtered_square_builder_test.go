@@ -11,6 +11,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -99,6 +102,31 @@ func newNormalTxWithMemo(t *testing.T, txConfig client.TxConfig, memo string) []
 	return txBytes
 }
 
+// newBlobTx creates a wire-valid BlobTx whose inner SDK tx wraps a real
+// MsgPayForBlobs (rather than the nil inner tx used by
+// blobfactory.UnsignedBlobTx).
+func newBlobTx(t *testing.T, txConfig client.TxConfig) []byte {
+	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	addr := sdk.AccAddress(privKey.PubKey().Address())
+
+	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	blob, err := share.NewBlob(ns, []byte("test blob"), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+
+	msg, err := blobtypes.NewMsgPayForBlobs(addr.String(), appconsts.Version, blob)
+	require.NoError(t, err)
+
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	rawSdkTx, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+
+	blobTxBytes, err := tx.MarshalBlobTx(rawSdkTx, blob)
+	require.NoError(t, err)
+	return blobTxBytes
+}
+
 func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
 	txConfig := encConf.TxConfig
@@ -121,6 +149,15 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 	smallTx := newNormalTx(t, txConfig)
 	largeTx := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 1024))
 	require.Less(t, len(smallTx), len(largeTx))
+
+	// A blob tx — the full marshaled size (inner tx + blob data) must be the
+	// number used for the byte budget, not just the inner tx size.
+	blobTx := blobfactory.UnsignedBlobTx(t)
+	blobTxSize := int64(len(blobTx))
+
+	// A blob tx with a real MsgPayForBlobs inside (non-nil inner SDK tx).
+	signedBlobTx := newBlobTx(t, txConfig)
+	signedBlobTxSize := int64(len(signedBlobTx))
 
 	tests := []struct {
 		name       string
@@ -156,6 +193,30 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 			name:       "smaller later tx fits after larger one is skipped",
 			txs:        [][]byte{largeTx, smallTx},
 			maxTxBytes: int64(len(smallTx)),
+			wantKept:   1,
+		},
+		{
+			name:       "blob tx size counted, not just inner tx",
+			txs:        [][]byte{blobTx},
+			maxTxBytes: blobTxSize - 1,
+			wantKept:   0,
+		},
+		{
+			name:       "normal and blob tx share the same max tx bytes",
+			txs:        [][]byte{tx1, blobTx},
+			maxTxBytes: normalTxSize + blobTxSize - 1,
+			wantKept:   1,
+		},
+		{
+			name:       "blob tx with inner SDK tx counted at full marshaled size",
+			txs:        [][]byte{signedBlobTx},
+			maxTxBytes: signedBlobTxSize - 1,
+			wantKept:   0,
+		},
+		{
+			name:       "blob tx with real inner SDK tx fits when max tx bytes allows it",
+			txs:        [][]byte{signedBlobTx},
+			maxTxBytes: signedBlobTxSize,
 			wantKept:   1,
 		},
 	}

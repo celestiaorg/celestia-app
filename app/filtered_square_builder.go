@@ -47,8 +47,22 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
+	// Drop any txs whose cumulative on-wire size would exceed maxTxBytes.
+	// Required because the data square can be configured larger than
+	// block.MaxBytes.
+	var currentTxBytes int64
+	filteredByMaxBytes := make([][]byte, 0, len(txs))
+	for _, tx := range txs {
+		if currentTxBytes+int64(len(tx)) > maxTxBytes {
+			logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			continue
+		}
+		currentTxBytes += int64(len(tx))
+		filteredByMaxBytes = append(filteredByMaxBytes, tx)
+	}
+
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, payForFibreTxs := separateTxs(fsb.txConfig, txs)
+	normalTxs, blobTxs, payForFibreTxs := separateTxs(fsb.txConfig, filteredByMaxBytes)
 
 	var (
 		sdkMessageCount = 0
@@ -56,15 +70,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		dec             = fsb.txConfig.TxDecoder()
 		n               = 0
 		m               = 0
-		currentTxBytes  int64
 	)
 
 	for _, tx := range normalTxs {
-		if currentTxBytes+int64(len(tx)) > maxTxBytes {
-			logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
-			continue
-		}
-
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
@@ -104,18 +112,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		currentTxBytes += int64(len(tx))
 		sdkMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx
 		n++
 	}
 
 	for _, tx := range blobTxs {
-		if currentTxBytes+int64(len(tx.Tx)) > maxTxBytes {
-			logger.Debug("skipping blob tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
-			continue
-		}
-
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -156,14 +158,13 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		currentTxBytes += int64(len(tx.Tx))
 		pfbMessageCount += len(sdkTx.GetMsgs())
 		blobTxs[m] = tx
 		m++
 	}
 
 	// Process pay-for-fibre transactions (no-op when fibre build tag is disabled).
-	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs, maxTxBytes, currentTxBytes)
+	fibreTxs := processFibreTxsForSquare(fsb, ctx, payForFibreTxs)
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)

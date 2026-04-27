@@ -106,18 +106,13 @@ func maxPayForFibreMessages() int {
 // processFibreTxsForSquare processes pay-for-fibre transactions: synthesize
 // system blob, validate, append to builder. Returns the raw tx bytes of
 // accepted fibre txs.
-func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payForFibreTxs [][]byte, maxTxBytes int64, currentTxBytes int64) [][]byte {
+func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payForFibreTxs [][]byte) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	dec := fsb.txConfig.TxDecoder()
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 
 	for _, rawTx := range payForFibreTxs {
-		if currentTxBytes+int64(len(rawTx)) > maxTxBytes {
-			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-			continue
-		}
-
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
 		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so fibreTx is always non-nil.
 		fibreTx, err := tx.TryParseFibreTx(rawTx)
@@ -164,7 +159,6 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		currentTxBytes += int64(len(rawTx))
 		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)
 	}

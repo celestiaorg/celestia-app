@@ -56,7 +56,7 @@ func maxPayForFibreMessages() int {
 	return 0
 }
 
-func processFibreTxsForSquare(_ *FilteredSquareBuilder, _ sdk.Context, _ [][]byte, _ int64, _ int64) [][]byte {
+func processFibreTxsForSquare(_ *FilteredSquareBuilder, _ sdk.Context, _ [][]byte) [][]byte {
 	return nil
 }
 
