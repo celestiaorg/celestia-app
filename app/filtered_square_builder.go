@@ -50,15 +50,22 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// Drop any txs whose cumulative on-wire size would exceed maxTxBytes.
 	// Required because the data square can be configured larger than
 	// block.MaxBytes.
-	var currentTxBytes int64
-	filteredByMaxBytes := make([][]byte, 0, len(txs))
-	for _, tx := range txs {
-		if currentTxBytes+int64(len(tx)) > maxTxBytes {
-			logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
-			continue
+	//
+	// A non-positive maxTxBytes means "no limit" — CometBFT always sets a
+	// positive value in production, but some tests construct requests
+	// directly and leave it at zero.
+	filteredByMaxBytes := txs
+	if maxTxBytes > 0 {
+		var currentTxBytes int64
+		filteredByMaxBytes = make([][]byte, 0, len(txs))
+		for _, tx := range txs {
+			if currentTxBytes+int64(len(tx)) > maxTxBytes {
+				logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+				continue
+			}
+			currentTxBytes += int64(len(tx))
+			filteredByMaxBytes = append(filteredByMaxBytes, tx)
 		}
-		currentTxBytes += int64(len(tx))
-		filteredByMaxBytes = append(filteredByMaxBytes, tx)
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
