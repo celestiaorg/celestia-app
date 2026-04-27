@@ -1,10 +1,18 @@
 package app
 
 import (
+	"math"
+	"strings"
 	"testing"
 
+	"cosmossdk.io/log"
+	"cosmossdk.io/store"
+	"cosmossdk.io/store/metrics"
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -69,6 +77,13 @@ func TestSeparateTxs(t *testing.T) {
 // newNormalTx creates an unsigned MsgSend transaction for testing.
 func newNormalTx(t *testing.T, txConfig client.TxConfig) []byte {
 	t.Helper()
+	return newNormalTxWithMemo(t, txConfig, "")
+}
+
+// newNormalTxWithMemo creates an unsigned MsgSend tx with the given memo, used
+// to control the encoded size of the tx in tests.
+func newNormalTxWithMemo(t *testing.T, txConfig client.TxConfig, memo string) []byte {
+	t.Helper()
 	privKey := secp256k1.GenPrivKey()
 	addr := sdk.AccAddress(privKey.PubKey().Address())
 	msg := &banktypes.MsgSend{
@@ -78,7 +93,88 @@ func newNormalTx(t *testing.T, txConfig client.TxConfig) []byte {
 	}
 	builder := txConfig.NewTxBuilder()
 	require.NoError(t, builder.SetMsgs(msg))
+	builder.SetMemo(memo)
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
 	require.NoError(t, err)
 	return txBytes
+}
+
+func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := encConf.TxConfig
+
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+
+	// Three txs of identical size for cumulative max tx bytes tests.
+	tx1 := newNormalTx(t, txConfig)
+	tx2 := newNormalTx(t, txConfig)
+	tx3 := newNormalTx(t, txConfig)
+	require.Equal(t, len(tx1), len(tx2))
+	require.Equal(t, len(tx1), len(tx3))
+	normalTxSize := int64(len(tx1))
+
+	// A small and a larger tx for the "continue, not break" test: a high-priority
+	// tx that exceeds max tx bytes should be skipped, but a smaller subsequent
+	// tx should still fit.
+	smallTx := newNormalTx(t, txConfig)
+	largeTx := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 1024))
+	require.Less(t, len(smallTx), len(largeTx))
+
+	tests := []struct {
+		name       string
+		txs        [][]byte
+		maxTxBytes int64
+		wantKept   int
+	}{
+		{
+			name:       "all txs fit when max tx bytes is unbounded",
+			txs:        [][]byte{tx1, tx2, tx3},
+			maxTxBytes: math.MaxInt64,
+			wantKept:   3,
+		},
+		{
+			name:       "first tx alone exceeds max tx bytes",
+			txs:        [][]byte{tx1, tx2, tx3},
+			maxTxBytes: normalTxSize - 1,
+			wantKept:   0,
+		},
+		{
+			name:       "max tx bytes fits exactly one tx",
+			txs:        [][]byte{tx1, tx2, tx3},
+			maxTxBytes: normalTxSize,
+			wantKept:   1,
+		},
+		{
+			name:       "max tx bytes fits exactly two txs",
+			txs:        [][]byte{tx1, tx2, tx3},
+			maxTxBytes: 2 * normalTxSize,
+			wantKept:   2,
+		},
+		{
+			name:       "smaller later tx fits after larger one is skipped",
+			txs:        [][]byte{largeTx, smallTx},
+			maxTxBytes: int64(len(smallTx)),
+			wantKept:   1,
+		},
+	}
+
+	// Use a max square size large enough that the square is never the limiting
+	// factor — only max tx bytes is. This mirrors the scenario the byte filter
+	// is meant to guard against: gov max square size much larger than the
+	// configured block max bytes.
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fsb, err := NewFilteredSquareBuilder(alwaysPass, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			require.NoError(t, err)
+
+			db := dbm.NewMemDB()
+			ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
+			ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
+
+			kept := fsb.Fill(ctx, tc.txs, tc.maxTxBytes)
+			require.Len(t, kept, tc.wantKept)
+		})
+	}
 }
