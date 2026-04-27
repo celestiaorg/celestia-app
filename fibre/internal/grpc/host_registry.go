@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
+	"net"
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
@@ -44,9 +44,8 @@ func (g *HostRegistry) GetHost(ctx context.Context, val *core.Validator) (valida
 		return "", err
 	}
 
-	// check if the host is a valid URL
-	_, err = url.Parse(host.String())
-	if err != nil {
+	// check if the host is a valid gRPC target (host:port)
+	if _, _, err = net.SplitHostPort(host.String()); err != nil {
 		return "", fmt.Errorf("got invalid host %s: %w", host.String(), err)
 	}
 
