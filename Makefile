@@ -43,7 +43,7 @@ CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
 CELESTIA_V6_VERSION := v6.4.4
 CELESTIA_V7_VERSION := v7.0.2-mocha
-CELESTIA_V8_VERSION := v8.0.1-mocha
+CELESTIA_V8_VERSION := v8.0.3
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -466,23 +466,51 @@ build-talis-bins-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins-fibre
 
-## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
-build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
-build-lumina-latency-monitor: CARGO := $(HOME)/.cargo/bin/cargo
-build-lumina-latency-monitor:
+CARGO := $(HOME)/.cargo/bin/cargo
+
+# Ensure cargo is on PATH and install rustup if missing.
+.PHONY: ensure-rust
+ensure-rust:
 	@if ! command -v $(CARGO) >/dev/null 2>&1; then \
 		echo "Rust is not installed. Installing..."; \
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
 		echo ""; \
 		echo "Rust installed. Continuing with cargo from $$HOME/.cargo/bin..."; \
 	fi
-	cd tools/lumina-latency-monitor && $(CARGO) xtask build-linux
+
+# build_rust_crate runs `cargo xtask build-linux` in the given crate and copies
+# the resulting binary to build/.
+# Usage: $(call build_rust_crate,<crate_dir>,<bin_name>,<dest_name>)
+define build_rust_crate
+	cd $(1) && $(CARGO) xtask build-linux
 	@mkdir -p build
-	@if [ -f tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor ]; then \
-		cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor; \
+	@if [ -f $(1)/target/x86_64-unknown-linux-gnu/release/$(2) ]; then \
+		cp $(1)/target/x86_64-unknown-linux-gnu/release/$(2) build/$(3); \
 	else \
-		cp tools/lumina-latency-monitor/target/release/lumina-latency-monitor build/latency-monitor; \
+		cp $(1)/target/release/$(2) build/$(3); \
 	fi
+endef
+
+## build-rust-fibre-txsim: Build rust-fibre-txsim for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-rust-fibre-txsim: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-rust-fibre-txsim: ensure-rust
+	$(call build_rust_crate,tools/rust-fibre-txsim,rust-fibre-txsim,fibre-txsim)
+.PHONY: build-rust-fibre-txsim
+
+## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
+build-talis-bins-rust-fibre:
+	mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	$(MAKE) build-rust-fibre-txsim
+.PHONY: build-talis-bins-rust-fibre
+
+## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-lumina-latency-monitor: ensure-rust
+	$(call build_rust_crate,tools/lumina-latency-monitor,lumina-latency-monitor,latency-monitor)
 .PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.

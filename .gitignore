@@ -7,6 +7,7 @@ coverage.txt
 .idea
 .vscode
 tools/lumina-latency-monitor/target
+tools/rust-fibre-txsim/target
 tools-stamp
 __debug_bin*
 profile.out
