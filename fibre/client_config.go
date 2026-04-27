@@ -14,22 +14,14 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Upload-path defaults. Layered timeouts so a black-holed peer is shed
-// fast at dial time without killing healthy-but-slow peers in the RPC.
+// Upload-path defaults.
 const (
-	// DefaultUploadMemoryBudget is the default cap on in-flight upload
-	// bytes. The accounting unit is blob.UploadSize() — each admitted
-	// Upload reserves its own blob's worth of budget until it returns.
-	// Sized to allow roughly 4 concurrent max-size (128 MiB) uploads
-	// on a validator-grade node.
+	// DefaultUploadMemoryBudget caps in-flight upload bytes (blob.UploadSize()
+	// per Upload). Sized for ~4 concurrent max-size (128 MiB) blobs.
 	DefaultUploadMemoryBudget int64 = 512 * 1024 * 1024
-	// DefaultDialTimeout bounds the initial TCP/TLS dial. Sized well below
-	// the ~75 s TCP SYN retry window so a black-holed validator is shed
-	// quickly rather than parking a goroutine on a kernel retry loop.
-	DefaultDialTimeout = 3 * time.Second
-	// DefaultRPCTimeout bounds the full UploadShard RPC after the dial
-	// succeeds. Generous enough for slow-but-healthy peers; tight enough
-	// that a frozen peer is cut loose.
+	// DefaultRPCTimeout bounds a single UploadShard call (dial + RPC). Sheds
+	// black-holed peers below the ~75s TCP SYN retry window while tolerating
+	// slow-but-healthy peers.
 	DefaultRPCTimeout = 15 * time.Second
 )
 
@@ -51,20 +43,12 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// UploadMemoryBudget bounds in-flight upload bytes. Each Upload()
-	// reserves blob.UploadSize() from the budget at entry and releases
-	// on exit; concurrent uploads coexist as long as their combined
-	// size fits. Small blobs pack efficiently; an oversized blob fails
-	// fast rather than deadlocking. Callers should size this to their
-	// memory budget for upload buffers.
+	// UploadMemoryBudget bounds in-flight upload bytes (blob.UploadSize() per
+	// Upload). Concurrent uploads coexist while their sum fits; oversized blobs
+	// fail fast rather than deadlock.
 	UploadMemoryBudget int64
 
-	// DialTimeout bounds initial connection establishment to a validator.
-	// Sized well below the TCP SYN retry window so a black-holed peer is
-	// shed quickly.
-	DialTimeout time.Duration
-
-	// RPCTimeout bounds a single UploadShard RPC (after dial succeeds).
+	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).
 	RPCTimeout time.Duration
 
 	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
@@ -107,7 +91,6 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		UploadMemoryBudget:  DefaultUploadMemoryBudget,
-		DialTimeout:         DefaultDialTimeout,
 		RPCTimeout:          DefaultRPCTimeout,
 		DownloadConcurrency: p.ValidatorsForReconstruction(),
 	}
@@ -140,19 +123,8 @@ func (cfg *ClientConfig) Validate() error {
 	if cfg.UploadMemoryBudget <= 0 {
 		cfg.UploadMemoryBudget = DefaultUploadMemoryBudget
 	}
-	if cfg.DialTimeout <= 0 {
-		cfg.DialTimeout = DefaultDialTimeout
-	}
 	if cfg.RPCTimeout <= 0 {
 		cfg.RPCTimeout = DefaultRPCTimeout
-	}
-	// A DialTimeout that is >= RPCTimeout is nonsensical: the dial
-	// budget would consume the entire RPC budget, leaving no time
-	// for the actual UploadShard after connection establishment.
-	// Reject explicitly rather than silently producing unusable
-	// behavior, since the two knobs are easy to flip by accident.
-	if cfg.DialTimeout >= cfg.RPCTimeout {
-		return fmt.Errorf("DialTimeout (%s) must be less than RPCTimeout (%s)", cfg.DialTimeout, cfg.RPCTimeout)
 	}
 	return nil
 }

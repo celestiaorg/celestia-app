@@ -237,14 +237,8 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64, ke
 	return promise, nil
 }
 
-// uploadTo uploads a blob shard to a single validator and adds the response
-// signature to the signature set. It splits the network budget into two
-// layers: a short DialTimeout for connection establishment (so a black-holed
-// peer is shed fast) and a longer RPCTimeout for the UploadShard call.
-//
-// Returns:
-//   - hasEnough: true if sigSet now holds enough signatures for quorum;
-//   - err: non-nil on any failure (dial, proof, RPC, signature parse/add).
+// uploadTo uploads a shard to one validator and records its signature in
+// sigSet. Returns whether sigSet has reached quorum.
 func (c *Client) uploadTo(
 	ctx context.Context,
 	val *core.Validator,
@@ -273,11 +267,12 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	// Dial under a tight deadline so a network-black-holed validator
-	// cannot park this goroutine on the TCP SYN retry window.
-	dialCtx, dialCancel := context.WithTimeout(ctx, c.Config.DialTimeout)
-	client, err := c.clientCache.GetClient(dialCtx, val)
-	dialCancel()
+	// Single deadline bounds dial + RPC so a black-holed peer fails at RPCTimeout
+	// instead of the kernel's ~75s TCP SYN retry window.
+	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+	defer rpcCancel()
+
+	client, err := c.clientCache.GetClient(rpcCtx, val)
 	if err != nil {
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
 		span.RecordError(err)
@@ -286,7 +281,7 @@ func (c *Client) uploadTo(
 	}
 	span.AddEvent("client_acquired")
 
-	// get proofs and rows here in per request routine which is in parallel which ~39% faster for max blob size
+	// Generate proofs in parallel per request (~39% faster for max blob size).
 	for i, rowPb := range req.Shard.Rows {
 		row, rowErr := blob.Row(int(rowPb.Index))
 		if rowErr != nil {
@@ -299,13 +294,6 @@ func (c *Client) uploadTo(
 		req.Shard.Rows[i].Proof = row.RowProof.RowProof
 	}
 	span.AddEvent("proofs_generated")
-
-	// Run the RPC under a separate (longer) deadline. Separating dial
-	// from RPC means a healthy-but-slow peer is not killed by a tight
-	// dial budget, while a silent peer is shed by the dial budget
-	// before it gets near the RPC budget.
-	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-	defer rpcCancel()
 
 	rpcStart := time.Now()
 	resp, err := client.UploadShard(rpcCtx, req)
