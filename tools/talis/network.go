@@ -24,6 +24,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/spf13/viper"
 )
 
 // NodeInfo is a struct that contains the name, IP address, and network address
@@ -261,8 +262,23 @@ func (n *Network) InitNodes(rootDir string) error {
 	// config.toml with a populated persistent_peers list. Without this the
 	// chain has no bootstrap mechanism — addrbook alone is not enough — and
 	// validators come up with zero peers and never reach quorum.
-	for _, v := range vals {
-		selfInfo := n.validators[v.Name]
+	//
+	// Use the templated config.toml that `talis init` wrote one level up
+	// (built from app.DefaultConsensusConfig + DefaultConfigProfile, see
+	// init.go:137-139). That carries the celestia-specific overrides
+	// AND the talis profile bits (TracingTables, Prometheus enable/listen
+	// addr, RPC.GRPCListenAddress=0.0.0.0:9090). Falling back to
+	// app.DefaultConsensusConfig directly would silently drop the talis
+	// profile — observability would break on --with-observability runs.
+	baseCfgPath := filepath.Join(filepath.Dir(rootDir), "config.toml")
+	v := viper.New()
+	v.SetConfigFile(baseCfgPath)
+	if err := v.ReadInConfig(); err != nil {
+		return fmt.Errorf("failed to read base config %q: %w", baseCfgPath, err)
+	}
+
+	for _, val := range vals {
+		selfInfo := n.validators[val.Name]
 		selfID := selfInfo.NetworkAddress
 		var peers []string
 		for _, peer := range n.validators {
@@ -272,26 +288,25 @@ func (n *Network) InitNodes(rootDir string) error {
 			peers = append(peers, peer.PeerID())
 		}
 
-		// Start from app.DefaultConsensusConfig (not cmtconfig.DefaultConfig)
-		// so we keep celestia-specific overrides like P2P send/recv rates,
-		// CAT mempool, consensus timeouts, RPC timeout, "null" tx indexer,
-		// DiscardABCIResponses, BlockSync.VerifyData=false. Those land in
-		// app/default_overrides.go and apply to every talis cluster.
+		// Start from app.DefaultConsensusConfig so any field absent from the
+		// templated TOML still inherits celestia defaults, then layer the
+		// templated values on top.
 		cmtcfg := app.DefaultConsensusConfig()
+		if err := v.Unmarshal(cmtcfg); err != nil {
+			return fmt.Errorf("failed to unmarshal base config: %w", err)
+		}
+
 		// Without persistent_peers the chain has no bootstrap mechanism on
 		// a fresh testnet — addrbook alone is not enough — and validators
 		// come up with zero peers and never reach quorum.
 		cmtcfg.P2P.PersistentPeers = strings.Join(peers, ",")
-		// Bind RPC publicly so other instances (encoders, fibre-txsim) can
-		// submit transactions; the default 127.0.0.1 is unreachable cross-node.
-		cmtcfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 		// Enable the priv-validator gRPC endpoint that fibre needs to fetch
 		// the validator's public key for shard-assignment verification.
 		cmtcfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
-		cmtconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg)
+		cmtconfig.WriteConfigFile(filepath.Join(rootDir, val.Name, "config.toml"), cmtcfg)
 
 		appcfg := app.DefaultAppConfig()
-		serverconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "app.toml"), appcfg)
+		serverconfig.WriteConfigFile(filepath.Join(rootDir, val.Name, "app.toml"), appcfg)
 	}
 
 	return nil
