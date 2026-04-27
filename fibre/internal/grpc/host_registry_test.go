@@ -127,13 +127,53 @@ func TestGetHost(t *testing.T) {
 			wantErr:  "host not found",
 		},
 		{
-			name: "invalid URL",
+			name: "garbage host",
 			mock: &mockQueryClient{
 				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
 					return &types.QueryFibreProviderInfoResponse{Found: true, Info: &types.FibreProviderInfo{Host: "ht!tp://bad"}}, nil
 				},
 			},
 			wantErr: "invalid host",
+		},
+		{
+			// Production failure mode #1: gRPC dialer treats the entire
+			// string as the host because it doesn't recognise `http` as
+			// a resolver and appends `:443`, yielding "too many colons".
+			// Catch it at the registry boundary instead.
+			name: "scheme prefix rejected",
+			mock: &mockQueryClient{
+				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+					return &types.QueryFibreProviderInfoResponse{Found: true, Info: &types.FibreProviderInfo{Host: "http://10.0.0.1:7980"}}, nil
+				},
+			},
+			wantErr: "invalid host",
+		},
+		{
+			name: "dns:/// prefix rejected",
+			mock: &mockQueryClient{
+				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+					return &types.QueryFibreProviderInfoResponse{Found: true, Info: &types.FibreProviderInfo{Host: "dns:///10.0.0.1:7980"}}, nil
+				},
+			},
+			wantErr: "invalid host",
+		},
+		{
+			name: "bare hostname without port rejected",
+			mock: &mockQueryClient{
+				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+					return &types.QueryFibreProviderInfoResponse{Found: true, Info: &types.FibreProviderInfo{Host: "validator.example.com"}}, nil
+				},
+			},
+			wantErr: "invalid host",
+		},
+		{
+			name: "host:port accepted",
+			mock: &mockQueryClient{
+				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+					return &types.QueryFibreProviderInfoResponse{Found: true, Info: &types.FibreProviderInfo{Host: "10.0.0.1:7980"}}, nil
+				},
+			},
+			want: "10.0.0.1:7980",
 		},
 	}
 
