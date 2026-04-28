@@ -17,12 +17,17 @@ import (
 // Upload-path defaults.
 const (
 	// SuggestedUploadMemoryBudget is a starting value for [ClientConfig.UploadMemoryBudget]
-	// when an operator opts in to admission control. Sized for ~4 concurrent max-size
-	// (128 MiB) blobs. The budget is disabled by default; enable only when OOMs are observed.
+	// when an operator opts in to admission control. The budget is admission weight
+	// (blob.UploadSize()), not actual memory: real per-Upload resident footprint is
+	// roughly 10x UploadSize due to parity-encoded extended data and post-quorum
+	// goroutines holding the blob past admission release. Size accordingly. The
+	// budget is disabled by default; enable only when OOMs are observed.
 	SuggestedUploadMemoryBudget int64 = 512 * 1024 * 1024
 	// DefaultRPCTimeout bounds a single UploadShard call (dial + RPC). Sheds
-	// black-holed peers below the ~75s TCP SYN retry window while tolerating
-	// slow-but-healthy peers.
+	// black-holed peers below the ~75s TCP SYN retry window. Note: this also
+	// caps healthy slow peers — at 15s, max-size shards require ~8 MiB/s
+	// sustained throughput per peer. Increase RPCTimeout for large blobs over
+	// slow links.
 	DefaultRPCTimeout = 15 * time.Second
 )
 
@@ -44,9 +49,12 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// UploadMemoryBudget bounds in-flight upload bytes (blob.UploadSize() per
-	// Upload). Disabled (no admission control) when <= 0; set a positive value
-	// to opt in. See [SuggestedUploadMemoryBudget] for a starting point.
+	// UploadMemoryBudget bounds the per-Upload admission weight in
+	// blob.UploadSize() bytes. Disabled (no admission control) when <= 0;
+	// set a positive value to opt in. Actual resident memory per Upload is
+	// roughly 10x UploadSize (parity-encoded extended data plus post-quorum
+	// goroutines holding the blob past admission release). See
+	// [SuggestedUploadMemoryBudget].
 	UploadMemoryBudget int64
 
 	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).

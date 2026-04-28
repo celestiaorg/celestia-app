@@ -28,7 +28,6 @@ func TestClientUpload(t *testing.T) {
 		{"Concurrent", testClientConcurrentUploads},
 		{"ContextCancellation", testClientUploadContextCancellation},
 		{"SucceedsWith1/3Failures", testClientUploadSucceedsWithOneThirdFailures},
-		{"SucceedsWith1/3Failures_HighConcurrency", testClientUploadSucceedsWithOneThirdFailuresHighConcurrency},
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
 		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
@@ -78,21 +77,6 @@ func testClientUploadContextCancellation(t *testing.T) {
 }
 
 func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
-	const numValidators = 100
-	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn = failingClientFn(33, cfg.NewClientFn) // Fail 1/3 of validators
-	})
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	blob := makeTestBlobV0(t, 256*1024)
-
-	result, err := client.Upload(t.Context(), testNamespace, blob)
-	require.NoError(t, err)
-	require.NotEmpty(t, result.ValidatorSignatures)
-	require.GreaterOrEqual(t, len(result.ValidatorSignatures), 67, "should have at least 2/3 signatures")
-}
-
-func testClientUploadSucceedsWithOneThirdFailuresHighConcurrency(t *testing.T) {
 	const numValidators = 100
 	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
 		cfg.NewClientFn = failingClientFn(33, cfg.NewClientFn) // Fail 1/3 of validators

@@ -48,7 +48,8 @@ func WithAwaitAllSignatures() UploadOption {
 // Upload uploads the given [Blob] to the Fibre network.
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
-// May keep uploading data in background after returning successfully.
+// May keep uploading data in background after returning, including on error
+// (e.g., context cancellation); use [Client.Await] or [Client.Stop] to drain.
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
@@ -339,7 +340,7 @@ func (c *Client) uploadTo(
 //
 //   - Fan-out is non-blocking: all goroutines are spawned up front, so
 //     a slow or dead peer cannot delay goroutines to other peers from
-//     starting. Combined with DialTimeout this is the root-cause fix
+//     starting. Combined with RPCTimeout this is the root-cause fix
 //     for the single-black-holed-validator throughput collapse that
 //     the old global RPC semaphore caused by serializing the fan-out
 //     loop behind slot acquires.
@@ -363,15 +364,16 @@ func (c *Client) uploadShards(
 		sigsCollectedCh      = make(chan struct{})
 	)
 
-	// Empty request map: nothing to do; the sigSet will surface the
-	// "no signatures" error to the caller.
+	// Empty request map (e.g., empty validator set): no goroutines to
+	// spawn and no channels to close, so the select below would block
+	// forever; return early.
 	if len(requests) == 0 {
 		return nil
 	}
 
 	for val, req := range requests {
 		c.closeWg.Add(1)
-		go func(val *core.Validator, req *types.UploadShardRequest) {
+		go func() {
 			defer func() {
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
@@ -383,7 +385,7 @@ func (c *Client) uploadShards(
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
-		}(val, req)
+		}()
 	}
 
 	select {
