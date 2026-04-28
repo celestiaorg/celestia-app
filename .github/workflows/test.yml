@@ -108,9 +108,8 @@ jobs:
         run: make test-multiplexer
 
   build-e2e-image:
-    # Run only in the merge queue and on release branches since E2E tests only
-    # run there.
-    if: github.event_name != 'pull_request'
+    # TEMPORARY: gate removed so docker-e2e tests run on PR push for branch
+    # validation. Restore `if: github.event_name != 'pull_request'` before merging.
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -138,33 +137,35 @@ jobs:
 
   test-docker-e2e:
     needs: build-e2e-image
-    # Run only in the merge queue and on release branches.
-    if: github.event_name != 'pull_request'
+    # TEMPORARY: gate removed so docker-e2e tests run on PR push for branch
+    # validation. Restore `if: github.event_name != 'pull_request'` before merging.
     runs-on: ubuntu-latest
     strategy:
       matrix:
         include:
-          - testcase: TestE2ESimple
-          - testcase: TestStateSync
-          - testcase: TestBlockSync
+          # TEMPORARY: matrix narrowed to TestE2EFullStackPFB for branch
+          # validation. Restore the full matrix before merging.
           - testcase: TestE2EFullStackPFB
-          - testcase: TestIBC
-            entrypoint: TestIBCTestSuite
-          - testcase: TestICA
-            entrypoint: TestIBCTestSuite
-          - testcase: TestStateSyncWithAppUpgrade
-          - testcase: TestMinorVersionCompatibility
-          - testcase: TestUpgradeLatest
-          - testcase: TestPFMMultiHop
-            entrypoint: TestPFMTestSuite
-          - testcase: TestHyperlaneTokenTransfer
-            entrypoint: TestHyperlaneTestSuite
-          - testcase: TestHyperlaneForwarding
-            entrypoint: TestHyperlaneTestSuite
-          - testcase: TestHyperlaneZKIsmStateTransition
-            entrypoint: TestHyperlaneTestSuite
-          - testcase: TestHyperlaneZKIsmStateMembership
-            entrypoint: TestHyperlaneTestSuite
+          # - testcase: TestE2ESimple
+          # - testcase: TestStateSync
+          # - testcase: TestBlockSync
+          # - testcase: TestIBC
+          #   entrypoint: TestIBCTestSuite
+          # - testcase: TestICA
+          #   entrypoint: TestIBCTestSuite
+          # - testcase: TestStateSyncWithAppUpgrade
+          # - testcase: TestMinorVersionCompatibility
+          # - testcase: TestUpgradeLatest
+          # - testcase: TestPFMMultiHop
+          #   entrypoint: TestPFMTestSuite
+          # - testcase: TestHyperlaneTokenTransfer
+          #   entrypoint: TestHyperlaneTestSuite
+          # - testcase: TestHyperlaneForwarding
+          #   entrypoint: TestHyperlaneTestSuite
+          # - testcase: TestHyperlaneZKIsmStateTransition
+          #   entrypoint: TestHyperlaneTestSuite
+          # - testcase: TestHyperlaneZKIsmStateMembership
+          #   entrypoint: TestHyperlaneTestSuite
 
     steps:
       - name: Checkout code
