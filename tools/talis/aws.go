@@ -29,6 +29,12 @@ const (
 	AWSDefaultEncoderInstanceType       = "c6in.2xlarge"
 	AWSDefaultObservabilityInstanceType = "t3.medium"
 	AWSDefaultRootVolumeGB              = int32(400)
+	// gp3's baseline (3000 IOPS / 125 MB/s) caps disk throughput far below
+	// what c6in nodes can drive over the network — fibre's shard store
+	// becomes the bottleneck. Provision IOPS and throughput to gp3's max
+	// (16k / 1000 MB/s) so the disk matches the 25–50 Gbps NIC budget.
+	AWSDefaultRootVolumeIops          = int32(16000)
+	AWSDefaultRootVolumeThroughputMBs = int32(1000)
 
 	// AWSSecurityGroupName is the name of the security group used by every
 	// talis instance. It is created per-region on demand and permits all
@@ -389,6 +395,8 @@ func createAWSInstance(ctx context.Context, inst Instance, sshKey, keyName strin
 			Ebs: &ec2types.EbsBlockDevice{
 				VolumeSize:          aws.Int32(AWSDefaultRootVolumeGB),
 				VolumeType:          ec2types.VolumeTypeGp3,
+				Iops:                aws.Int32(AWSDefaultRootVolumeIops),
+				Throughput:          aws.Int32(AWSDefaultRootVolumeThroughputMBs),
 				DeleteOnTermination: aws.Bool(true),
 			},
 		}},
