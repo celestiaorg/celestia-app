@@ -137,8 +137,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": celestiaCustom,
-				"P2P_NETWORK":     celestia.GetChainID(),
+				"CELESTIA_CUSTOM":                       celestiaCustom,
+				"P2P_NETWORK":                           celestia.GetChainID(),
+				"CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS": "1",
 			}),
 		)
 		s.Require().NoError(err, "failed to start bridge node")
@@ -160,8 +161,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
-				"P2P_NETWORK":     celestia.GetChainID(),
+				"CELESTIA_CUSTOM":                       tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
+				"P2P_NETWORK":                           celestia.GetChainID(),
+				"CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS": "1",
 			}),
 		)
 		s.Require().NoError(err, "failed to start light node")
