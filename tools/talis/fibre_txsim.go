@@ -12,18 +12,19 @@ const FibreTxSimSessionName = "fibre-txsim"
 
 func fibreTxsimCmd() *cobra.Command {
 	var (
-		rootDir           string
-		SSHKeyPath        string
-		instances         int
-		concurrency       int
-		blobSize          int
-		interval          time.Duration
-		duration          time.Duration
-		keyPrefix         string
-		download          bool
-		uploadOnly        bool
-		pyroscopeEndpoint string
-		onEncoders        bool
+		rootDir            string
+		SSHKeyPath         string
+		instances          int
+		concurrency        int
+		blobSize           int
+		uploadMemoryBudget int64
+		interval           time.Duration
+		duration           time.Duration
+		keyPrefix          string
+		download           bool
+		uploadOnly         bool
+		pyroscopeEndpoint  string
+		onEncoders         bool
 	)
 
 	cmd := &cobra.Command{
@@ -42,7 +43,7 @@ func fibreTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			if onEncoders {
-				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, duration, download, uploadOnly, pyroscopeEndpoint)
+				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, uploadMemoryBudget, interval, duration, download, uploadOnly, pyroscopeEndpoint)
 			}
 
 			// Legacy mode: run fibre-txsim on validators themselves
@@ -52,11 +53,12 @@ func fibreTxsimCmd() *cobra.Command {
 			// Build the remote command — binaries are copied to /bin/ by validator_init.sh
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := fmt.Sprintf(
-				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t",
+				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --upload-memory-budget %d --interval %s --duration %s --download=%t --upload-only=%t",
 				cfg.ChainID,
 				keyPrefix,
 				blobSize,
 				concurrency,
+				uploadMemoryBudget,
 				interval,
 				duration,
 				download,
@@ -90,6 +92,7 @@ func fibreTxsimCmd() *cobra.Command {
 	cmd.Flags().IntVar(&instances, "instances", 1, "number of instances to start fibre-txsim on")
 	cmd.Flags().IntVar(&concurrency, "concurrency", 1, "number of concurrent blob submissions per instance")
 	cmd.Flags().IntVar(&blobSize, "blob-size", 1000000, "size of each blob in bytes")
+	cmd.Flags().Int64Var(&uploadMemoryBudget, "upload-memory-budget", 0, "fibre client UploadMemoryBudget in bytes — caps in-flight upload bytes via a weighted semaphore (0 = no admission control; see fibre.SuggestedUploadMemoryBudget for a starting point)")
 	cmd.Flags().DurationVar(&interval, "interval", 0, "delay between blob submissions (0 = no delay)")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
@@ -104,7 +107,7 @@ func fibreTxsimCmd() *cobra.Command {
 // startFibreTxsimOnEncoders launches fibre-txsim on each encoder instance.
 // Each encoder is mapped to a validator (round-robin) and uses a unique key
 // prefix (enc0, enc1, ...) so that their escrow accounts are independent.
-func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval, duration time.Duration, download, uploadOnly bool, pyroscopeEndpoint string) error {
+func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, uploadMemoryBudget int64, interval, duration time.Duration, download, uploadOnly bool, pyroscopeEndpoint string) error {
 	if len(cfg.Encoders) == 0 {
 		return fmt.Errorf("no encoder instances found in config — add encoders via 'talis add -t encoder'")
 	}
@@ -122,12 +125,13 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 		encKeyPrefix := fmt.Sprintf("enc%d", encIndex)
 
 		remoteCmd := fmt.Sprintf(
-			"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint %s --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t",
+			"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint %s --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --upload-memory-budget %d --interval %s --duration %s --download=%t --upload-only=%t",
 			cfg.ChainID,
 			grpcEndpoint,
 			encKeyPrefix,
 			blobSize,
 			concurrency,
+			uploadMemoryBudget,
 			interval,
 			duration,
 			download,

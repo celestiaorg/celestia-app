@@ -38,19 +38,20 @@ import (
 const downloadDelay = 10 * time.Second
 
 type config struct {
-	grpcEndpoint      string
-	keyringDir        string
-	keyPrefix         string
-	blobSize          int
-	concurrency       int
-	interval          time.Duration
-	duration          time.Duration
-	otelEndpoint      string
-	download          bool
-	uploadOnly        bool
-	pyroscopeEndpoint string
-	pyroscopeUser     string
-	pyroscopePass     string
+	grpcEndpoint       string
+	keyringDir         string
+	keyPrefix          string
+	blobSize           int
+	concurrency        int
+	uploadMemoryBudget int64
+	interval           time.Duration
+	duration           time.Duration
+	otelEndpoint       string
+	download           bool
+	uploadOnly         bool
+	pyroscopeEndpoint  string
+	pyroscopeUser      string
+	pyroscopePass      string
 }
 
 func main() {
@@ -60,6 +61,7 @@ func main() {
 	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
 	flag.IntVar(&cfg.concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
+	flag.Int64Var(&cfg.uploadMemoryBudget, "upload-memory-budget", 0, "fibre client UploadMemoryBudget in bytes — caps in-flight upload bytes via a weighted semaphore (0 = no admission control; see fibre.SuggestedUploadMemoryBudget for a starting point)")
 	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
@@ -183,6 +185,9 @@ func run(cfg config) error {
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
+	if cfg.uploadMemoryBudget > 0 {
+		clientCfg.UploadMemoryBudget = cfg.uploadMemoryBudget
+	}
 	// Validate populates StateClientFn from StateAddress so we can wrap it.
 	// NewClient calls Validate again, which is idempotent for already-set fields.
 	if err := clientCfg.Validate(); err != nil {
