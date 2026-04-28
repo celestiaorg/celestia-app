@@ -68,13 +68,13 @@ DIGITALOCEAN_TOKEN=
 # TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519.pub
 # TALIS_SSH_KEY_NAME=your-username
 
-# S3/DigitalOcean Spaces Configuration (optional - for payload distribution)
+# DigitalOcean Spaces (optional - for payload distribution)
 # Create a Space and generate API keys at: https://cloud.digitalocean.com/spaces
-# AWS_DEFAULT_REGION=fra1
-# AWS_ACCESS_KEY_ID=
-# AWS_SECRET_ACCESS_KEY=
-# AWS_S3_BUCKET=
-# AWS_S3_ENDPOINT=https://fra1.digitaloceanspaces.com
+# DO_SPACES_REGION=fra1
+# DO_SPACES_ACCESS_KEY_ID=
+# DO_SPACES_SECRET_ACCESS_KEY=
+# DO_SPACES_BUCKET=
+# DO_SPACES_ENDPOINT=https://fra1.digitaloceanspaces.com
 `
 }
 
@@ -95,13 +95,12 @@ GOOGLE_CLOUD_KEY_JSON_PATH=
 # TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519.pub
 # TALIS_SSH_KEY_NAME=your-username
 
-# S3/DigitalOcean Spaces Configuration (optional - for payload distribution)
-# You can use DigitalOcean Spaces for S3-compatible storage
-# AWS_DEFAULT_REGION=fra1
-# AWS_ACCESS_KEY_ID=
-# AWS_SECRET_ACCESS_KEY=
-# AWS_S3_BUCKET=
-# AWS_S3_ENDPOINT=https://fra1.digitaloceanspaces.com
+# DigitalOcean Spaces (optional - for payload distribution)
+# DO_SPACES_REGION=fra1
+# DO_SPACES_ACCESS_KEY_ID=
+# DO_SPACES_SECRET_ACCESS_KEY=
+# DO_SPACES_BUCKET=
+# DO_SPACES_ENDPOINT=https://fra1.digitaloceanspaces.com
 `
 }
 

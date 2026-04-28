@@ -179,7 +179,11 @@ type Config struct {
 	S3Config S3Config `json:"s3_config"`
 }
 
-func NewConfig(experiment, chainID string) Config {
+// NewConfig builds a fresh talis config. The provider determines which
+// env vars populate the S3 payload bucket: AWS reads AWS_*, DigitalOcean
+// and GoogleCloud read DO_SPACES_*. Any other value yields a zero
+// S3Config — populate it yourself via WithS3Config.
+func NewConfig(experiment, chainID string, provider Provider) Config {
 	return Config{
 		Validators:    []Instance{},
 		Bridges:       []Instance{},
@@ -188,13 +192,35 @@ func NewConfig(experiment, chainID string) Config {
 		Encoders:      []Instance{},
 		Experiment:    experiment,
 		ChainID:       TalisChainID(chainID),
-		S3Config: S3Config{
+		S3Config:      s3ConfigFromEnv(provider),
+	}
+}
+
+// s3ConfigFromEnv returns the S3 payload-bucket config for the given
+// compute provider. Each provider pulls from its own, non-overlapping
+// env var prefix so AWS and DigitalOcean Spaces setups never stomp on
+// each other. Unknown providers return a zero S3Config so callers can
+// populate it explicitly via WithS3Config.
+func s3ConfigFromEnv(provider Provider) S3Config {
+	switch provider {
+	case AWS:
+		return S3Config{
 			AccessKeyID:     os.Getenv(EnvVarAWSAccessKeyID),
 			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
-			BucketName:      os.Getenv(EnvVarS3Bucket),
+			BucketName:      os.Getenv(EnvVarAWSS3Bucket),
 			Region:          os.Getenv(EnvVarAWSRegion),
-			Endpoint:        os.Getenv(EnvVarS3Endpoint),
-		},
+			// Endpoint intentionally empty → real AWS S3.
+		}
+	case DigitalOcean, GoogleCloud:
+		return S3Config{
+			AccessKeyID:     os.Getenv(EnvVarDOSpacesAccessKeyID),
+			SecretAccessKey: os.Getenv(EnvVarDOSpacesSecretAccessKey),
+			BucketName:      os.Getenv(EnvVarDOSpacesBucket),
+			Region:          os.Getenv(EnvVarDOSpacesRegion),
+			Endpoint:        os.Getenv(EnvVarDOSpacesEndpoint),
+		}
+	default:
+		return S3Config{}
 	}
 }
 
