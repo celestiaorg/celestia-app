@@ -51,6 +51,11 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int) NewClien
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
 				grpclib.MaxCallSendMsgSize(maxMsgSize),
+				// Use the pooled gogoproto codec (see codec.go) — recycles
+				// per-RPC marshal buffers and emits row payloads as
+				// zero-copy mem.SliceBuffer entries instead of memcpy'ing
+				// 28 MiB into a fresh slice on every UploadShard send.
+				grpclib.CallContentSubtype(codecName),
 			),
 		)
 		if err != nil {
