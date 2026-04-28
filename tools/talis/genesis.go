@@ -62,14 +62,14 @@ func generateCmd() *cobra.Command {
 				log.Fatalf("Failed to create payload: %v", err)
 			}
 
-			srcCmtConfig := filepath.Join(rootDir, "config.toml")
 			srcAppConfig := filepath.Join(rootDir, "app.toml")
 
 			for _, v := range cfg.Validators {
 				valDir := filepath.Join(payloadDir, v.Name)
-				if err := copyFile(srcCmtConfig, filepath.Join(valDir, "config.toml"), 0o755); err != nil {
-					return fmt.Errorf("failed to copy config.toml: %w", err)
-				}
+				// Note: per-validator config.toml is written by Network.InitNodes
+				// with the correct persistent_peers list. Don't overwrite it
+				// here — that would clobber the peer list and the chain comes
+				// up with zero peers.
 
 				if err := copyFile(srcAppConfig, filepath.Join(valDir, "app.toml"), 0o755); err != nil {
 					return fmt.Errorf("failed to copy app.toml: %w", err)
