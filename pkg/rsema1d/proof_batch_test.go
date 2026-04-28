@@ -2,6 +2,7 @@ package rsema1d
 
 import (
 	"math/rand/v2"
+	"strings"
 	"testing"
 )
 
@@ -146,6 +147,69 @@ func TestVerifyRowsWithContextNilProof(t *testing.T) {
 		if err := VerifyRowsWithContext(proofs, commitment, ctx); err == nil {
 			t.Fatalf("nil proof at position %d was accepted", nilPos)
 		}
+	}
+}
+
+// TestVerifyRowsWithContextErrorIncludesRow asserts that every error returned
+// from VerifyRowsWithContext names the offending row's data index, so the
+// fibre wrapper at server_upload.go can identify which row was malformed.
+// Covers the shape-validation branches and the scalar fallback path.
+func TestVerifyRowsWithContextErrorIncludesRow(t *testing.T) {
+	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
+	data := make([][]byte, cfg.K)
+	r := rand.New(rand.NewPCG(23, 23))
+	for i := range data {
+		data[i] = make([]byte, cfg.RowSize)
+		for j := range data[i] {
+			data[i][j] = byte(r.IntN(256))
+		}
+	}
+	ed, commitment, rlcOrig, err := Encode(data, cfg)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+
+	makeBatch := func(n int) []*RowProof {
+		proofs := make([]*RowProof, n)
+		for i := range proofs {
+			p, err := ed.GenerateRowProof(i)
+			if err != nil {
+				t.Fatalf("GenerateRowProof: %v", err)
+			}
+			row := append([]byte(nil), p.Row...)
+			proofs[i] = &RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
+		}
+		return proofs
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(p *RowProof)
+		size   int // batch size (≥ minBatchedVerifyK exercises batched, < hits fallback)
+	}{
+		{"row_size_mismatch", func(p *RowProof) { p.Row = p.Row[:len(p.Row)/2] }, minBatchedVerifyK + 4},
+		{"proof_depth_mismatch", func(p *RowProof) { p.RowProof = p.RowProof[:len(p.RowProof)-1] }, minBatchedVerifyK + 4},
+		{"scalar_fallback_tampered_row", func(p *RowProof) { p.Row[0] ^= 0xFF }, 4},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx, _, err := CreateVerificationContext(rlcOrig, cfg)
+			if err != nil {
+				t.Fatalf("CreateVerificationContext: %v", err)
+			}
+			proofs := makeBatch(tt.size)
+			bad := proofs[2]
+			tt.mutate(bad)
+			err = VerifyRowsWithContext(proofs, commitment, ctx)
+			if err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			want := "row " + itoa(bad.Index)
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("error missing %q: %q", want, err.Error())
+			}
+		})
 	}
 }
 

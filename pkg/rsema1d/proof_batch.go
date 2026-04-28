@@ -37,8 +37,11 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 	// scalar loop which is alloc-free.
 	if len(proofs) < minBatchedVerifyK {
 		for _, p := range proofs {
+			if p == nil {
+				return errors.New("received nil proof in verifier")
+			}
 			if err := VerifyRowWithContext(p, commitment, context); err != nil {
-				return err
+				return fmt.Errorf("row %d: %w", p.Index, err)
 			}
 		}
 		return nil
@@ -64,14 +67,14 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 			return fmt.Errorf("index %d out of range [0, %d)", p.Index, context.config.K+context.config.N)
 		}
 		if context.config.RowSize > 0 && len(p.Row) != context.config.RowSize {
-			return fmt.Errorf("row size mismatch: expected %d, got %d", context.config.RowSize, len(p.Row))
+			return fmt.Errorf("row %d: row size mismatch: expected %d, got %d", p.Index, context.config.RowSize, len(p.Row))
 		}
 		if len(p.Row) != rowSize {
 			return fmt.Errorf("batched verify requires equal-sized rows: row %d has %d bytes, expected %d",
 				p.Index, len(p.Row), rowSize)
 		}
 		if len(p.RowProof) != expectedProofDepth {
-			return fmt.Errorf("row proof depth mismatch: expected %d, got %d", expectedProofDepth, len(p.RowProof))
+			return fmt.Errorf("row %d: proof depth mismatch: expected %d, got %d", p.Index, expectedProofDepth, len(p.RowProof))
 		}
 		if p.Index >= len(context.rlcExtended) {
 			return fmt.Errorf("index %d out of range", p.Index)
