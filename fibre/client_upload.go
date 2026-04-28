@@ -268,12 +268,11 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	// Single deadline bounds dial + RPC so a black-holed peer fails at RPCTimeout
-	// instead of the kernel's ~75s TCP SYN retry window.
-	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-	defer rpcCancel()
-
-	client, err := c.clientCache.GetClient(rpcCtx, val)
+	// GetClient uses the caller's ctx, not rpcCtx: ClientCache permanently caches
+	// errors from newClient, so a context-deadline failure here would poison the
+	// entry for that validator forever. grpc.NewClient is lazy anyway — the
+	// actual TCP dial happens at UploadShard time and is bounded by rpcCtx below.
+	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
 		span.RecordError(err)
@@ -295,6 +294,11 @@ func (c *Client) uploadTo(
 		req.Shard.Rows[i].Proof = row.RowProof.RowProof
 	}
 	span.AddEvent("proofs_generated")
+
+	// RPCTimeout bounds the actual UploadShard call (dial + RPC). A black-holed
+	// peer fails here instead of parking on the kernel's ~75s TCP SYN retries.
+	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+	defer rpcCancel()
 
 	rpcStart := time.Now()
 	resp, err := client.UploadShard(rpcCtx, req)
