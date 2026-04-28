@@ -51,9 +51,11 @@ func setupFibreCmd() *cobra.Command {
 				// Build script: register host + deposit escrow for validator + all fibre accounts
 				var sb strings.Builder
 
-				// 1. Register fibre host address
+				// 1. Register fibre host address. Plain `host:port` form —
+				// x/valaddr requires it; the gRPC client dials it via the
+				// passthrough resolver. Don't prefix `dns:///` here.
 				sb.WriteString(fmt.Sprintf(
-					"celestia-appd tx valaddr set-host dns:///%s:%d "+
+					"celestia-appd tx valaddr set-host %s:%d "+
 						"--from validator --keyring-backend=test --home .celestia-app "+
 						"--chain-id %s --fees %s --yes\n",
 					val.PublicIP, fibrePort,

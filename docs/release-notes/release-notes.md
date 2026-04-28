@@ -2,6 +2,18 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v9.0.0
+
+### Node Operators (v9.0.0)
+
+#### `update-config` Command Deprecated
+
+The `celestia-appd update-config` command is deprecated. The config values it used to apply are now enforced by the binary at startup, so running it when initialising a new node is no longer necessary. The command still works for now but prints a deprecation warning and will be removed in a future release.
+
+#### Block Sync: `verify_data` Default Changed to `false`
+
+The default value of `verify_data` in the `[blocksync]` section of `config.toml` is now `false`. Consensus nodes no longer re-run `ProcessProposal` on each block during block sync, which meaningfully speeds up syncing. This is safe because every block received during block sync is already signed by 2/3+ of the voting power; normal validation resumes once the node switches to consensus mode. Set `verify_data = true` in `config.toml` to restore the previous behaviour.
+
 ## v8.0.0
 
 ### Node Operators (v8.0.0)

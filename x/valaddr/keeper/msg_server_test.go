@@ -27,10 +27,10 @@ func TestMsgSetFibreProviderInfo(t *testing.T) {
 	require.NoError(t, err)
 	consAddr := sdk.ConsAddress(consPubKey.Address())
 
-	t.Run("valid DNS hostname", func(t *testing.T) {
+	t.Run("valid DNS hostname with port", func(t *testing.T) {
 		msg := &types.MsgSetFibreProviderInfo{
 			Signer: valAddrStr,
-			Host:   "validator1.fibre.example.com",
+			Host:   "validator1.fibre.example.com:7980",
 		}
 
 		err = msg.ValidateBasic()
@@ -45,16 +45,100 @@ func TestMsgSetFibreProviderInfo(t *testing.T) {
 		require.Equal(t, msg.Host, retrievedInfo.Host)
 	})
 
-	t.Run("valid DNS with port", func(t *testing.T) {
+	t.Run("valid IP with port", func(t *testing.T) {
 		valAddr := sdk.ValAddress("validator1")
 
 		msg := &types.MsgSetFibreProviderInfo{
 			Signer: valAddr.String(),
-			Host:   "validator.example.com:8080",
+			Host:   "10.0.0.1:8080",
 		}
 
 		err := msg.ValidateBasic()
 		require.NoError(t, err)
+	})
+
+	t.Run("valid IPv6 with port", func(t *testing.T) {
+		valAddr := sdk.ValAddress("validator1")
+
+		// IPv6 literals must be square-bracketed in host:port form, per
+		// RFC 3986 / net.SplitHostPort.
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddr.String(),
+			Host:   "[2001:db8::1]:8080",
+		}
+
+		err := msg.ValidateBasic()
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects bare hostname without port", func(t *testing.T) {
+		valAddr := sdk.ValAddress("validator1")
+
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddr.String(),
+			Host:   "validator.example.com",
+		}
+
+		err := msg.ValidateBasic()
+		require.Error(t, err)
+		require.True(t, errors.Is(err, types.ErrInvalidHostAddress))
+	})
+
+	t.Run("rejects scheme prefix", func(t *testing.T) {
+		valAddr := sdk.ValAddress("validator1")
+
+		// `http://host:port` is a real-world operator mistake. gRPC
+		// can't dial it, so the chain should refuse to record it.
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddr.String(),
+			Host:   "http://10.0.0.1:7980",
+		}
+
+		err := msg.ValidateBasic()
+		require.Error(t, err)
+		require.True(t, errors.Is(err, types.ErrInvalidHostAddress))
+	})
+
+	t.Run("rejects dns:/// prefix", func(t *testing.T) {
+		valAddr := sdk.ValAddress("validator1")
+
+		// Historically registered form. gRPC happens to accept it as a
+		// resolver URI, but allowing it lets operators register other
+		// schemes that gRPC won't dial. Keep the chain to one form.
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddr.String(),
+			Host:   "dns:///10.0.0.1:7980",
+		}
+
+		err := msg.ValidateBasic()
+		require.Error(t, err)
+		require.True(t, errors.Is(err, types.ErrInvalidHostAddress))
+	})
+
+	t.Run("rejects port zero", func(t *testing.T) {
+		valAddr := sdk.ValAddress("validator1")
+
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddr.String(),
+			Host:   "10.0.0.1:0",
+		}
+
+		err := msg.ValidateBasic()
+		require.Error(t, err)
+		require.True(t, errors.Is(err, types.ErrInvalidHostAddress))
+	})
+
+	t.Run("rejects non-numeric port", func(t *testing.T) {
+		valAddr := sdk.ValAddress("validator1")
+
+		msg := &types.MsgSetFibreProviderInfo{
+			Signer: valAddr.String(),
+			Host:   "10.0.0.1:abc",
+		}
+
+		err := msg.ValidateBasic()
+		require.Error(t, err)
+		require.True(t, errors.Is(err, types.ErrInvalidHostAddress))
 	})
 
 	t.Run("empty host", func(t *testing.T) {
@@ -76,7 +160,7 @@ func TestMsgSetFibreProviderInfo(t *testing.T) {
 
 		msg := &types.MsgSetFibreProviderInfo{
 			Signer: arbitraryValAddr.String(),
-			Host:   "nonexistent.validator.com",
+			Host:   "nonexistent.validator.com:7980",
 		}
 
 		err := msg.ValidateBasic()

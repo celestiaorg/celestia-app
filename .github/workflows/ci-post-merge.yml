@@ -28,7 +28,7 @@ jobs:
     if: ${{ always() && (needs.lint.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure') }}
     steps:
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v3.0.1
+        uses: slackapi/slack-github-action@v3.0.2
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook

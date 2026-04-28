@@ -8,8 +8,10 @@ import (
 	httppprof "net/http/pprof"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/grafana/pyroscope-go"
+	"github.com/grafana/pyroscope-go/upstream/remote"
 	"github.com/spf13/cobra"
 )
 
@@ -105,23 +107,46 @@ func setupProfiling(cmd *cobra.Command) (func(), error) {
 	}
 
 	hostname, _ := os.Hostname()
-	profiler, err := pyroscope.Start(pyroscope.Config{
-		ApplicationName:   "fibre",
-		ServerAddress:     endpoint,
+	logger := &pyroscopeSlogAdapter{}
+
+	// We construct the pyroscope-go pieces manually (instead of calling
+	// pyroscope.Start) so we can wrap the Upstream and strip sample
+	// labels before upload. See pyroscope_labels.go for why this is
+	// needed. Everything below mirrors what pyroscope.Start does
+	// internally; the only difference is `Upstream: &stripLabelsUpstream{...}`.
+	uploader, err := remote.NewRemote(remote.Config{
+		Address:           endpoint,
 		BasicAuthUser:     basicAuthUser,
 		BasicAuthPassword: basicAuthPass,
-		Logger:            &pyroscopeSlogAdapter{},
-		Tags:              map[string]string{"version": version, "hostname": hostname},
+		Threads:           5, // matches pyroscope.Start's default
+		Timeout:           30 * time.Second,
+		Logger:            logger,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("starting Pyroscope profiler: %w", err)
+		return nil, fmt.Errorf("starting Pyroscope uploader: %w", err)
+	}
+	uploader.Start()
+
+	session, err := pyroscope.NewSession(pyroscope.SessionConfig{
+		Upstream:       &stripLabelsUpstream{inner: uploader},
+		Logger:         logger,
+		AppName:        "fibre",
+		Tags:           map[string]string{"version": version, "hostname": hostname},
+		ProfilingTypes: pyroscope.DefaultProfileTypes,
+	})
+	if err != nil {
+		uploader.Stop()
+		return nil, fmt.Errorf("starting Pyroscope session: %w", err)
+	}
+	if err := session.Start(); err != nil {
+		uploader.Stop()
+		return nil, fmt.Errorf("starting Pyroscope session: %w", err)
 	}
 	slog.Info("profiling enabled", "endpoint", endpoint)
 
 	return func() {
-		if err := profiler.Stop(); err != nil {
-			slog.Error("stopping Pyroscope profiler", "error", err)
-		}
+		session.Stop()
+		uploader.Stop()
 	}, nil
 }
 

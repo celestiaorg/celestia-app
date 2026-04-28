@@ -125,9 +125,15 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 		encKeyPrefix := fmt.Sprintf("enc%d", encIndex)
 
 		remoteCmd := fmt.Sprintf(
-			"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint %s --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --upload-memory-budget %d --interval %s --duration %s --download=%t --upload-only=%t",
+			// Encoders keep their per-encoder keyring under
+			// /root/encoder-payload/<name>/keyring-test/, never copied to
+			// the default ~/.celestia-app/keyring-test by the deploy step;
+			// point fibre-txsim at the right directory directly so it can
+			// load enc<i>-* keys.
+			"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint %s --keyring-dir encoder-payload/%s --key-prefix %s --blob-size %d --concurrency %d --upload-memory-budget %d --interval %s --duration %s --download=%t --upload-only=%t",
 			cfg.ChainID,
 			grpcEndpoint,
+			enc.Name,
 			encKeyPrefix,
 			blobSize,
 			concurrency,

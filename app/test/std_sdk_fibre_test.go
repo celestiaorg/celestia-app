@@ -22,7 +22,7 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		valAccount := s.getValidatorAccount()
 		msg := &valaddrtypes.MsgSetFibreProviderInfo{
 			Signer: valAccount.String(),
-			Host:   "www.provider.com",
+			Host:   "www.provider.com:7980",
 		}
 		txClient, err := user.SetupTxClient(s.cctx.GoContext(), s.cctx.Keyring, s.cctx.GRPCClient, s.ecfg, user.WithDefaultAccount(s.getValidatorName()))
 		require.NoError(err)
@@ -33,7 +33,7 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 
 	t.Run("query valaddr fibre provider info", func(t *testing.T) {
 		valAccount := s.getValidatorAccount()
-		testAddress := "provider street 37"
+		testAddress := "provider.example.com:7980"
 		msg := &valaddrtypes.MsgSetFibreProviderInfo{
 			Signer: valAccount.String(),
 			Host:   testAddress,
