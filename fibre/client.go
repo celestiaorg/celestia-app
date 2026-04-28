@@ -80,18 +80,21 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("creating metrics: %w", err)
 	}
 
-	return &Client{
-		Config:       cfg,
-		keyring:      kr,
-		state:        stateClient,
-		log:          cfg.Log,
-		tracer:       cfg.Tracer,
-		metrics:      metrics,
-		clock:        cfg.Clock,
-		clientCache:  fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
-		uploadBudget: semaphore.NewWeighted(cfg.UploadMemoryBudget),
-		downloadSem:  make(chan struct{}, cfg.DownloadConcurrency),
-	}, nil
+	c := &Client{
+		Config:      cfg,
+		keyring:     kr,
+		state:       stateClient,
+		log:         cfg.Log,
+		tracer:      cfg.Tracer,
+		metrics:     metrics,
+		clock:       cfg.Clock,
+		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
+		downloadSem: make(chan struct{}, cfg.DownloadConcurrency),
+	}
+	if cfg.UploadMemoryBudget > 0 {
+		c.uploadBudget = semaphore.NewWeighted(cfg.UploadMemoryBudget)
+	}
+	return c, nil
 }
 
 // ChainID returns the chain ID resolved during [Start].

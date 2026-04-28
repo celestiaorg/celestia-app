@@ -16,9 +16,10 @@ import (
 
 // Upload-path defaults.
 const (
-	// DefaultUploadMemoryBudget caps in-flight upload bytes (blob.UploadSize()
-	// per Upload). Sized for ~4 concurrent max-size (128 MiB) blobs.
-	DefaultUploadMemoryBudget int64 = 512 * 1024 * 1024
+	// SuggestedUploadMemoryBudget is a starting value for [ClientConfig.UploadMemoryBudget]
+	// when an operator opts in to admission control. Sized for ~4 concurrent max-size
+	// (128 MiB) blobs. The budget is disabled by default; enable only when OOMs are observed.
+	SuggestedUploadMemoryBudget int64 = 512 * 1024 * 1024
 	// DefaultRPCTimeout bounds a single UploadShard call (dial + RPC). Sheds
 	// black-holed peers below the ~75s TCP SYN retry window while tolerating
 	// slow-but-healthy peers.
@@ -44,8 +45,8 @@ type ClientConfig struct {
 	MaxMessageSize int
 
 	// UploadMemoryBudget bounds in-flight upload bytes (blob.UploadSize() per
-	// Upload). Concurrent uploads coexist while their sum fits; oversized blobs
-	// fail fast rather than deadlock.
+	// Upload). Disabled (no admission control) when <= 0; set a positive value
+	// to opt in. See [SuggestedUploadMemoryBudget] for a starting point.
 	UploadMemoryBudget int64
 
 	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).
@@ -90,7 +91,6 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
-		UploadMemoryBudget:  DefaultUploadMemoryBudget,
 		RPCTimeout:          DefaultRPCTimeout,
 		DownloadConcurrency: p.ValidatorsForReconstruction(),
 	}
@@ -120,9 +120,6 @@ func (cfg *ClientConfig) Validate() error {
 		cfg.Clock = clock.New()
 	}
 
-	if cfg.UploadMemoryBudget <= 0 {
-		cfg.UploadMemoryBudget = DefaultUploadMemoryBudget
-	}
 	if cfg.RPCTimeout <= 0 {
 		cfg.RPCTimeout = DefaultRPCTimeout
 	}
