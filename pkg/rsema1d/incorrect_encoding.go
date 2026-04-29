@@ -59,7 +59,7 @@ func GenerateIncorrectEncoding(data [][]byte, config *Config, rowIndices []int, 
 	newRowRoot := newRowTree.Root()
 
 	// 4. Derive new coefficients from the new row root
-	newCoeffs := deriveCoefficients(newRowRoot, config.RowSize)
+	newCoeffs := deriveCoefficients(newRowRoot, config)
 
 	// 5. Compute RLC using non-tampered original rows: for any tampered original
 	// row, use the saved pre-tamper data so the RLC values stay correct for them.

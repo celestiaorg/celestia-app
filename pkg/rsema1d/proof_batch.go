@@ -77,7 +77,7 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 
 	// Choice of rowRoots[0] is arbitrary — all are equal in a valid shard,
 	// and the per-row commitment check below rejects the batch if any differ.
-	coeffs := deriveCoefficients(rowRoots[0], len(proofs[0].Row))
+	coeffs := deriveCoefficients(rowRoots[0], context.config)
 
 	rows := make([][]byte, len(proofs))
 	for i, p := range proofs {

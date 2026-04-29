@@ -8,9 +8,20 @@ import (
 )
 
 // deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal)
-func deriveCoefficients(rowRoot [32]byte, rowSize int) []field.GF128 {
-	seed := sha256.Sum256(rowRoot[:])
-	numSymbols := rowSize / 2 // Each GF16 symbol is 2 bytes
+func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
+	// Bind rowRoot and the codec parameters (K, N, RowSize) into the
+	// Fiat-Shamir seed so coefficients are unique per (rowRoot, params) tuple.
+	h := sha256.New()
+	h.Write(rowRoot[:])
+	var params [12]byte
+	binary.LittleEndian.PutUint32(params[0:4], uint32(config.K))
+	binary.LittleEndian.PutUint32(params[4:8], uint32(config.N))
+	binary.LittleEndian.PutUint32(params[8:12], uint32(config.RowSize))
+	h.Write(params[:])
+	var seed [32]byte
+	h.Sum(seed[:0])
+
+	numSymbols := config.RowSize / 2 // Each GF16 symbol is 2 bytes
 	coeffs := make([]field.GF128, numSymbols)
 
 	var input [32 + 4]byte
@@ -19,7 +30,6 @@ func deriveCoefficients(rowRoot [32]byte, rowSize int) []field.GF128 {
 	// Reuse a single SHA256 hasher with Reset() between iterations.
 	// This avoids re-initializing the digest state from scratch on each call
 	// to sha256.Sum256, saving ~12% on coefficient derivation.
-	h := sha256.New()
 	var digest [32]byte
 	for i := range numSymbols {
 		binary.LittleEndian.PutUint32(input[32:], uint32(i))

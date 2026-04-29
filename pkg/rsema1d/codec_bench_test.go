@@ -220,7 +220,7 @@ func BenchmarkComputeRLCOrig(b *testing.B) {
 			}
 
 			rowRoot := [32]byte{1, 2, 3, 4}
-			coeffs := deriveCoefficients(rowRoot, cfg.rowSize)
+			coeffs := deriveCoefficients(rowRoot, codecConfig)
 
 			setup := func() any {
 				return generateTestData(cfg.k, cfg.rowSize)
@@ -605,7 +605,7 @@ func BenchmarkDeriveCoefficients(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				deriveCoefficients(rowRoot, config.RowSize)
+				deriveCoefficients(rowRoot, config)
 			}
 		})
 	}

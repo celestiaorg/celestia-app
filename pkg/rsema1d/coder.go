@@ -66,7 +66,7 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 	rowRoot := rowTree.Root()
 
 	// derive RLC coefficients and compute RLC results for original rows
-	coeffs := deriveCoefficients(rowRoot, len(extendedRows[0]))
+	coeffs := deriveCoefficients(rowRoot, c.config)
 	rlcOrig := computeRLCVectorized(extendedRows[:c.config.K], coeffs, c.config)
 
 	// build padded RLC Merkle tree
