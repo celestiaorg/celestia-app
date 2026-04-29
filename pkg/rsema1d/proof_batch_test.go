@@ -2,6 +2,7 @@ package rsema1d
 
 import (
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -10,7 +11,7 @@ import (
 // valid row proofs that the scalar path accepts.
 func TestVerifyRowsWithContextMatchesScalar(t *testing.T) {
 	for _, nProofs := range []int{1, 4, 8, 16, 32, 64} {
-		t.Run("N="+itoa(nProofs), func(t *testing.T) {
+		t.Run("N="+strconv.Itoa(nProofs), func(t *testing.T) {
 			// Build a realistic extended data set: K=64 rows of 1024 bytes,
 			// then sample nProofs rows out of the K+N total.
 			cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
@@ -195,33 +196,10 @@ func TestVerifyRowsWithContextErrorIncludesRow(t *testing.T) {
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
-			want := "row " + itoa(bad.Index)
+			want := "row " + strconv.Itoa(bad.Index)
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("error missing %q: %q", want, err.Error())
 			}
 		})
 	}
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := false
-	if n < 0 {
-		neg = true
-		n = -n
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
 }
