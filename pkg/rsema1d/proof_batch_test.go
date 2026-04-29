@@ -7,9 +7,7 @@ import (
 )
 
 // TestVerifyRowsWithContextMatchesScalar locks in that batched verify accepts
-// valid row proofs that the scalar path accepts — across the K values that
-// matter in production (≥ minBatchedVerifyK plus some small ones to exercise
-// the scalar fallback).
+// valid row proofs that the scalar path accepts.
 func TestVerifyRowsWithContextMatchesScalar(t *testing.T) {
 	for _, nProofs := range []int{1, 4, 8, 16, 32, 64} {
 		t.Run("N="+itoa(nProofs), func(t *testing.T) {
@@ -130,12 +128,12 @@ func TestVerifyRowsWithContextNilProof(t *testing.T) {
 	// path inside VerifyRowsWithContext.
 	verifyCfg := &Config{K: encodeCfg.K, N: encodeCfg.N, WorkerCount: 1}
 
-	for _, nilPos := range []int{0, minBatchedVerifyK / 2, minBatchedVerifyK} {
+	for _, nilPos := range []int{0, 4, 8} {
 		ctx, _, err := CreateVerificationContext(rlcOrig, verifyCfg)
 		if err != nil {
 			t.Fatalf("CreateVerificationContext: %v", err)
 		}
-		proofs := make([]*RowProof, minBatchedVerifyK+4)
+		proofs := make([]*RowProof, 12)
 		for i := range proofs {
 			p, err := ed.GenerateRowProof(i)
 			if err != nil {
@@ -150,10 +148,9 @@ func TestVerifyRowsWithContextNilProof(t *testing.T) {
 	}
 }
 
-// TestVerifyRowsWithContextErrorIncludesRow asserts that every error returned
-// from VerifyRowsWithContext names the offending row's data index, so the
+// TestVerifyRowsWithContextErrorIncludesRow asserts that the row size mismatch
+// and proof depth mismatch errors name the offending row's data index, so the
 // fibre wrapper at server_upload.go can identify which row was malformed.
-// Covers the shape-validation branches and the scalar fallback path.
 func TestVerifyRowsWithContextErrorIncludesRow(t *testing.T) {
 	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
 	data := make([][]byte, cfg.K)
@@ -169,27 +166,12 @@ func TestVerifyRowsWithContextErrorIncludesRow(t *testing.T) {
 		t.Fatalf("Encode: %v", err)
 	}
 
-	makeBatch := func(n int) []*RowProof {
-		proofs := make([]*RowProof, n)
-		for i := range proofs {
-			p, err := ed.GenerateRowProof(i)
-			if err != nil {
-				t.Fatalf("GenerateRowProof: %v", err)
-			}
-			row := append([]byte(nil), p.Row...)
-			proofs[i] = &RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
-		}
-		return proofs
-	}
-
 	tests := []struct {
 		name   string
 		mutate func(p *RowProof)
-		size   int // batch size (≥ minBatchedVerifyK exercises batched, < hits fallback)
 	}{
-		{"row_size_mismatch", func(p *RowProof) { p.Row = p.Row[:len(p.Row)/2] }, minBatchedVerifyK + 4},
-		{"proof_depth_mismatch", func(p *RowProof) { p.RowProof = p.RowProof[:len(p.RowProof)-1] }, minBatchedVerifyK + 4},
-		{"scalar_fallback_tampered_row", func(p *RowProof) { p.Row[0] ^= 0xFF }, 4},
+		{"row_size_mismatch", func(p *RowProof) { p.Row = p.Row[:len(p.Row)/2] }},
+		{"proof_depth_mismatch", func(p *RowProof) { p.RowProof = p.RowProof[:len(p.RowProof)-1] }},
 	}
 
 	for _, tt := range tests {
@@ -198,7 +180,15 @@ func TestVerifyRowsWithContextErrorIncludesRow(t *testing.T) {
 			if err != nil {
 				t.Fatalf("CreateVerificationContext: %v", err)
 			}
-			proofs := makeBatch(tt.size)
+			proofs := make([]*RowProof, 12)
+			for i := range proofs {
+				p, err := ed.GenerateRowProof(i)
+				if err != nil {
+					t.Fatalf("GenerateRowProof: %v", err)
+				}
+				row := append([]byte(nil), p.Row...)
+				proofs[i] = &RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
+			}
 			bad := proofs[2]
 			tt.mutate(bad)
 			err = VerifyRowsWithContext(proofs, commitment, ctx)

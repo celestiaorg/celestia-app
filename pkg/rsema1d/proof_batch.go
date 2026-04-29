@@ -10,40 +10,18 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
-// minBatchedVerifyK is the smallest batch size where computeRLCVectorized is
-// faster per-row than the scalar Kernel. Measured on Intel c6id.8xlarge
-// (AVX-512 + GFNI). Below this threshold, fall back to scalar VerifyRowWithContext
-// which avoids the zero-row padding overhead of the vectorized path.
-const minBatchedVerifyK = 8
-
 // VerifyRowsWithContext verifies N row proofs against the same commitment in a
-// single batched RLC computation. When len(proofs) ≥ minBatchedVerifyK it
-// replaces N calls to computeRLC with one computeRLCVectorized call, amortizing
-// the SIMD GF(2^16) kernel setup across all rows.
+// single batched RLC computation. Replaces N calls to computeRLC with one
+// computeRLCVectorized call, amortizing the SIMD GF(2^16) kernel setup across
+// all rows.
 //
 // Per-row Merkle proof verification and RLC/commitment comparisons still happen
-// individually. Returns the first error encountered, matching the fail-fast
-// semantics of a loop over VerifyRowWithContext.
+// individually. Returns the first error encountered, naming the offending row.
 func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *VerificationContext) error {
 	if context == nil {
 		return errors.New("received nil context in verifier")
 	}
 	if len(proofs) == 0 {
-		return nil
-	}
-
-	// Below the break-even, per-row SIMD would pad each batch up to K=32 and
-	// pay more than a scalar computeRLCKernel call. Fall back to the existing
-	// scalar loop which is alloc-free.
-	if len(proofs) < minBatchedVerifyK {
-		for _, p := range proofs {
-			if p == nil {
-				return errors.New("received nil proof in verifier")
-			}
-			if err := VerifyRowWithContext(p, commitment, context); err != nil {
-				return fmt.Errorf("row %d: %w", p.Index, err)
-			}
-		}
 		return nil
 	}
 
@@ -95,24 +73,17 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 		rowRoots[i] = rowRoot
 	}
 
-	// 3. Derive coefficients once, using the same sync.Once cache as the
-	// scalar path so subsequent verify calls on this context hit the cache.
-	context.coeffsOnce.Do(func() {
-		context.coeffs = deriveCoefficients(rowRoots[0], len(proofs[0].Row))
-	})
-	if len(context.coeffs) != len(proofs[0].Row)/2 {
-		return fmt.Errorf("row size mismatch: cached coefficients for %d bytes, got %d",
-			len(context.coeffs)*2, len(proofs[0].Row))
-	}
+	// 3. Derive coefficients from the first row's root. In a valid shard
+	// every row root is identical, so the choice of row 0 is arbitrary; the
+	// downstream commitment check rejects the batch if any row root differs.
+	coeffs := deriveCoefficients(rowRoots[0], len(proofs[0].Row))
 
-	// 4. Batched RLC: one vectorized pass over all rows instead of len(proofs)
-	// scalar calls. This is where the per-row cost drops from ~540 µs to ~50
-	// µs at K≥32 on AVX-512 + GFNI.
+	// 4. Batched RLC: one vectorized pass over all rows.
 	rows := make([][]byte, len(proofs))
 	for i, p := range proofs {
 		rows[i] = p.Row
 	}
-	computedRLCs := computeRLCVectorized(rows, context.coeffs, context.config)
+	computedRLCs := computeRLCVectorized(rows, coeffs, context.config)
 
 	// 5. Per-row commitment + RLC checks (cheap, keep in a tight loop).
 	for i, p := range proofs {
