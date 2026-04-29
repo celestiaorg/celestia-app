@@ -79,17 +79,17 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 	}
 
 	maxRowSize := params.MaxRowSize(blobVersion)
-	pool := row.New(maxRowSize, row.AssemblerBatchRows(params.ParityRows()), params.CodecWorkRows())
-	assembler, err := row.NewAssembler(params.Rows, params.ParityRows(), pool)
+	assembler, err := row.NewAssembler(params.Rows, params.ParityRows(), maxRowSize)
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating row assembler: %w", err)
 	}
 
+	workPool := row.NewPool(maxRowSize, params.CodecWorkRows())
 	coder, err := rsema1d.NewCoder(&rsema1d.Config{
 		K:           params.Rows,
 		N:           params.ParityRows(),
 		WorkerCount: runtime.GOMAXPROCS(0),
-	}, reedsolomon.WithWorkAllocator(pool))
+	}, reedsolomon.WithWorkAllocator(workPool))
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating rsema1d coder: %w", err)
 	}

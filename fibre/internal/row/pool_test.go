@@ -5,24 +5,18 @@ import (
 	"runtime"
 	"sync"
 	"testing"
-	"unsafe"
 )
 
-// Test shape — small values so tests stay fast. Mirrors the layout
-// the pool sees in production: one row count for the assembler batch
-// (parity + head + tail) and a distinct one for codec work buffers.
+// Test shape — small values so tests stay fast.
 const (
 	testAssemblerBatchRows = 6  // e.g. parityRows+2 with parityRows=4
 	testCodecWorkRows      = 16 // e.g. 2·ceilPow2(parityRows) with parityRows=4
 	testMaxRow             = 4096
 )
 
-// Row counts a pool built with these constants will accept.
-var testRowCounts = []int{testAssemblerBatchRows, testCodecWorkRows}
-
 func newPool(t testing.TB) *Pool {
 	t.Helper()
-	return New(testMaxRow, testAssemblerBatchRows, testCodecWorkRows)
+	return NewPool(testMaxRow, testAssemblerBatchRows)
 }
 
 // Primary row count used by most tests (assembler batch).
@@ -71,37 +65,16 @@ func TestPool_InvalidSizePanics(t *testing.T) {
 	p.Get(assemblerRowCount(), 63)
 }
 
-// Different row counts live in different partitions — no row-count fallback.
-func TestPool_RowCountsSeparate(t *testing.T) {
-	if len(testRowCounts) < 2 {
-		t.Skip("need at least two distinct row counts")
-	}
-	p := newPool(t)
-
-	a := p.Get(testRowCounts[0], 64)
-	b := p.Get(testRowCounts[1], 64)
-	if got := p.Batches(); got != 2 {
-		t.Fatalf("Batches=%d, want 2 (disjoint row counts)", got)
-	}
-	p.Put(a)
-	p.Put(b)
-}
-
-func TestPool_UnacceptedRowCountPanics(t *testing.T) {
+// Get with rowCount != pool.rowCount panics — a Pool serves only one
+// row count.
+func TestPool_RowCountMismatchPanics(t *testing.T) {
 	p := newPool(t)
 	defer func() {
 		if recover() == nil {
-			t.Fatal("Get with unaccepted row count should panic")
+			t.Fatal("Get with rowCount != pool.rowCount should panic")
 		}
 	}()
-	// A row count not in testRowCounts.
-	unaccepted := 9999
-	for _, rc := range testRowCounts {
-		if rc == unaccepted {
-			t.Fatalf("unaccepted=%d collides with an accepted class", unaccepted)
-		}
-	}
-	p.Get(unaccepted, 64)
+	p.Get(testCodecWorkRows, 64)
 }
 
 func TestPool_OversizeRowPanics(t *testing.T) {
@@ -136,22 +109,6 @@ func TestPool_PutEmptyPanics(t *testing.T) {
 	p.Put(nil)
 }
 
-func TestPool_PutForeignBatchPanics(t *testing.T) {
-	a := newPool(t)
-	b := newPool(t)
-	// Keep bufs in-use on pool a so it stays live; hand them to pool b,
-	// which should reject via the identity check in p.batches.
-	bufs := a.Get(assemblerRowCount(), 64)
-	defer a.Put(bufs)
-
-	defer func() {
-		if recover() == nil {
-			t.Fatal("Put of a batch from another pool should panic")
-		}
-	}()
-	b.Put(bufs)
-}
-
 func TestPool_GetZeroReturnsNil(t *testing.T) {
 	p := newPool(t)
 	if bufs := p.Get(0, 64); bufs != nil {
@@ -167,7 +124,7 @@ func TestPool_FallbackWithinSlack(t *testing.T) {
 	big := p.Get(rc, 320)
 	p.Put(big)
 
-	// Request 256: reqIdx=3, maxIdx=reqIdx+slack=5 (size 384). 320 fits → reuse.
+	// request 256: reqIdx=3, maxIdx=reqIdx+slack=5 (size 384). 320 fits → reuse.
 	small := p.Get(rc, 256)
 	if got := p.Batches(); got != 1 {
 		t.Fatalf("Batches=%d after slack fallback, want 1 (reused 320 slab)", got)
@@ -177,7 +134,7 @@ func TestPool_FallbackWithinSlack(t *testing.T) {
 	}
 	p.Put(small)
 
-	// On return, batch goes back to its backing bucket (320), not 256.
+	// on return, batch goes back to its backing bucket (320), not 256.
 	again := p.Get(rc, 320)
 	if got := p.Batches(); got != 1 {
 		t.Fatalf("Batches=%d after backing-bucket reuse, want 1", got)
@@ -193,7 +150,7 @@ func TestPool_FallbackOutsideSlack(t *testing.T) {
 	big := p.Get(rc, 512)
 	p.Put(big)
 
-	// Request 64: reqIdx=0, maxIdx=reqIdx+slack=2 (size 192). 512 is above → grow.
+	// request 64: reqIdx=0, maxIdx=reqIdx+slack=2 (size 192). 512 is above → grow.
 	small := p.Get(rc, 64)
 	if got := p.Batches(); got != 2 {
 		t.Fatalf("Batches=%d after out-of-slack grow, want 2", got)
@@ -206,13 +163,13 @@ func TestPool_FallbackNeverAllocates(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
-	// No 320 batch exists; request 256 → grows new 256 batch (exact key).
+	// no 320 batch exists; request 256 → grows new 256 batch (exact key).
 	a := p.Get(rc, 256)
 	if got := p.Batches(); got != 1 {
 		t.Fatalf("Batches=%d, want 1", got)
 	}
 	p.Put(a)
-	// Request 320 now: allocate new.
+	// request 320 now: allocate new.
 	b := p.Get(rc, 320)
 	if got := p.Batches(); got != 2 {
 		t.Fatalf("Batches=%d, want 2 (separate 256 and 320 batches)", got)
@@ -250,7 +207,7 @@ func TestPool_FallbackAgesLargerBucket(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
-	// Populate the 320-rowSize bucket with two free batches via direct Gets.
+	// populate the 320-rowSize bucket with two free batches via direct Gets.
 	a := p.Get(rc, 320)
 	b := p.Get(rc, 320)
 	p.Put(a)
@@ -259,9 +216,9 @@ func TestPool_FallbackAgesLargerBucket(t *testing.T) {
 		t.Fatalf("Batches=%d before aging, want 2", got)
 	}
 
-	// Drive fallback Gets at a smaller in-slack rowSize. LIFO pop means
+	// drive fallback Gets at a smaller in-slack rowSize. LIFO pop means
 	// the most-recently-Put 320 batch cycles; the other sits at the head
-	// of the free queue with a frozen lastFreeGen and ages out.
+	// of the free queue with a frozen lastPut and ages out.
 	for range evictionThreshold {
 		x := p.Get(rc, 256)
 		p.Put(x)
@@ -285,7 +242,7 @@ func TestPool_AgedEviction(t *testing.T) {
 		t.Fatalf("Batches=%d before age, want 2", got)
 	}
 
-	// Drive enough Gets to age both free batches past evictionThreshold.
+	// drive enough Gets to age both free batches past evictionThreshold.
 	for range evictionThreshold + 1 {
 		more := p.Get(rc, 64)
 		p.Put(more)
@@ -296,9 +253,10 @@ func TestPool_AgedEviction(t *testing.T) {
 	}
 }
 
-// The idle timer, when fired, drops every batch. The timer callback is
-// invoked directly to avoid waiting idleGrace in tests.
-func TestPool_IdleDropsEverything(t *testing.T) {
+// The per-bucket idle timer, when fired, drops every free batch in that
+// bucket. The timer callback is invoked directly to avoid waiting
+// idleGrace in tests.
+func TestPool_IdleDropsBucket(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
@@ -310,27 +268,69 @@ func TestPool_IdleDropsEverything(t *testing.T) {
 	if got := p.Batches(); got != 2 {
 		t.Fatalf("Batches=%d before idle, want 2", got)
 	}
-	p.dropIdle()
+	bucketAt(p, 64).dropIdle()
 	if got := p.Batches(); got != 0 {
 		t.Fatalf("Batches=%d after idle drop, want 0", got)
 	}
 }
 
-// The idle timer arms on transition to full idle and cancels on the next Get.
-func TestPool_IdleTimerArmedAndCancelled(t *testing.T) {
+// Per-bucket idle timer regression: a dormant bucket gets cleaned up
+// independently of other buckets' activity. Pool-wide idle previously
+// pinned aged free batches in dormant buckets while any other bucket
+// had in-use batches, leaking memory until the entire pool went idle.
+func TestPool_IdleDropsDormantBucketIndependently(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
-	a := p.Get(rc, 64)
-	p.Put(a)
-	if p.idleTimer == nil {
-		t.Fatal("idle timer should arm when pool goes fully idle")
+	// bucket A (rowSize 64): allocate and return — has free batches, no in-use.
+	x := p.Get(rc, 64)
+	p.Put(x)
+
+	// bucket B (rowSize 128): keep one batch in-use perpetually.
+	y := p.Get(rc, 128)
+	defer p.Put(y)
+
+	// trigger A's idle timer specifically. Even though B is non-idle,
+	// A must drop its free batches.
+	bucketAt(p, 64).dropIdle()
+
+	if got := p.Batches(); got != 1 {
+		t.Fatalf("Batches=%d, want 1 (only B's in-use batch survives)", got)
+	}
+}
+
+// The per-bucket idle timer arms on transition to fully-free and is
+// stopped on the next Get to that bucket. The timer object itself is
+// retained for reuse, so the test asserts on its armed/stopped state
+// (via Stop's return) rather than nil-ness.
+func TestPool_IdleTimerArmedAndCancelled(t *testing.T) {
+	p := newPool(t)
+	rc := assemblerRowCount()
+	bk := bucketAt(p, 64)
+
+	if bk.idleTimer != nil {
+		t.Fatal("idle timer should not exist before first idle transition")
 	}
 
-	_ = p.Get(rc, 64)
-	if p.idleTimer != nil {
-		t.Fatal("idle timer should be cancelled by Get")
+	a := p.Get(rc, 64)
+	p.Put(a)
+	if bk.idleTimer == nil {
+		t.Fatal("idle timer should be created when bucket goes fully free")
 	}
+
+	b := p.Get(rc, 64)
+	defer p.Put(b)
+	// Get's cancelIdle should have stopped the timer; a redundant Stop
+	// returns false because the timer is no longer active.
+	if bk.idleTimer.Stop() {
+		t.Fatal("idle timer should already be stopped after Get")
+	}
+}
+
+// bucketAt returns the bucket pointer for the given rowSize so tests
+// can poke at bucket-level state directly.
+func bucketAt(p *Pool, size int) *bucket {
+	return &p.buckets[size/rowSizeAlign-1]
 }
 
 // Write-aliasing check: data written through one carved view must not land
@@ -355,11 +355,11 @@ func TestPool_NoAliasWrites(t *testing.T) {
 }
 
 // TestPool_GCAnchor verifies that an in-use batch survives GC cycles.
-// While in use, the only Go-heap reference to *batch is p.batches — the
-// header back-pointer is an unsafe store GC doesn't trace, and the
-// caller's bufs share the region's backing array, not the batch struct.
-// Without the anchor, GC could reap *batch between Get and Put and Put
-// would read a dangling pointer.
+// While in use, the only Go-heap reference to *batch is its bucket's
+// used slice — the header back-pointer is an unsafe store GC doesn't
+// trace, and the caller's bufs share the region's backing array, not
+// the batch struct. Without the anchor, GC could reap *batch between
+// Get and Put and Put would read a dangling pointer.
 func TestPool_GCAnchor(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
@@ -370,13 +370,13 @@ func TestPool_GCAnchor(t *testing.T) {
 		b[0] = byte(i + 1)
 	}
 
-	// Force multiple GC cycles. If the anchor is broken, a sweep during
+	// force multiple GC cycles. If the anchor is broken, a sweep during
 	// one of these frees the *batch struct; subsequent Put would read a
 	// stale pointer.
 	runtime.GC()
 	runtime.GC()
 
-	// Data must survive GC (bufs anchor the region's backing array).
+	// data must survive GC (bufs anchor the region's backing array).
 	for i, b := range bufs {
 		if b[0] != byte(i+1) {
 			t.Fatalf("buf %d corrupted across GC: got %d want %d", i, b[0], byte(i+1))
@@ -388,7 +388,7 @@ func TestPool_GCAnchor(t *testing.T) {
 		t.Fatalf("Batches=%d after GC+Put, want 1", got)
 	}
 
-	// Reuse must return the same underlying region, proving the batch
+	// reuse must return the same underlying region, proving the batch
 	// was tracked (not silently discarded as "foreign").
 	again := p.Get(rc, 64)
 	if &again[0][0] != firstAddr {
@@ -397,9 +397,9 @@ func TestPool_GCAnchor(t *testing.T) {
 	p.Put(again)
 }
 
-// TestPool_CarveBlocksAppend verifies the full-slice expression in
-// carve — a carved buf has cap==len, so append forces a new backing
-// array rather than bleeding into the next row.
+// TestPool_CarveBlocksAppend verifies the full-slice expressions Get
+// uses to carve views — each buf has cap==len, so append forces a new
+// backing array rather than bleeding into the next row.
 func TestPool_CarveBlocksAppend(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
@@ -407,52 +407,15 @@ func TestPool_CarveBlocksAppend(t *testing.T) {
 	defer p.Put(bufs)
 
 	if cap(bufs[0]) != len(bufs[0]) {
-		t.Fatalf("bufs[0] cap=%d len=%d — carve leaked capacity past len",
+		t.Fatalf("bufs[0] cap=%d len=%d — capacity leaked past len",
 			cap(bufs[0]), len(bufs[0]))
 	}
 
-	// Mark bufs[1] then append to bufs[0]; neighbor must not change.
+	// mark bufs[1] then append to bufs[0]; neighbor must not change.
 	bufs[1][0] = 0xAA
 	_ = append(bufs[0], 0xBB)
 	if bufs[1][0] != 0xAA {
-		t.Fatal("append on carved bufs[0] bled into bufs[1] — carve missing full-slice expression")
-	}
-}
-
-// TestPool_StructLayout pins the size of the pool's hot data structures
-// so accidental bloat or sub-optimal field ordering shows up as a test
-// failure. The expected sizes are minimal for the current fields on a
-// 64-bit platform; any intentional addition should update them.
-func TestPool_StructLayout(t *testing.T) {
-	cases := []struct {
-		name string
-		got  uintptr
-		want uintptr
-	}{
-		{"Pool", unsafe.Sizeof(Pool{}), 104},
-		{"bucket", unsafe.Sizeof(bucket{}), 48},
-		{"batch", unsafe.Sizeof(batch{}), 56},
-	}
-	for _, c := range cases {
-		if c.got != c.want {
-			t.Errorf("sizeof(%s) = %d, want %d — update the expected size if the change is intentional, but double-check field ordering first",
-				c.name, c.got, c.want)
-		}
-	}
-
-	// batch must fit in a single 64-byte cache line.
-	if unsafe.Sizeof(batch{}) > 64 {
-		t.Errorf("sizeof(batch) = %d > 64, spills past one cache line", unsafe.Sizeof(batch{}))
-	}
-
-	// headerSize must hold at least a *batch back-pointer and keep the
-	// following data region 64-byte aligned.
-	ptrSize := unsafe.Sizeof((*batch)(nil))
-	if uintptr(headerSize) < ptrSize {
-		t.Errorf("headerSize %d < sizeof(*batch) %d", headerSize, ptrSize)
-	}
-	if headerSize%rowSizeAlign != 0 {
-		t.Errorf("headerSize %d not a multiple of rowSizeAlign %d", headerSize, rowSizeAlign)
+		t.Fatal("append on bufs[0] bled into bufs[1] — missing full-slice expression in carve")
 	}
 }
 

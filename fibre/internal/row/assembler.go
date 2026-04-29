@@ -8,11 +8,12 @@ import (
 )
 
 // Assembler assembles originalRows+parityRows row sets for Reed-Solomon
-// encoding.
+// encoding. It owns a [Pool] sized for its batch shape; callers don't
+// need to know the exact row count it requests internally.
 //
 // Original rows are a hybrid view over the input data (zero-copy where
-// possible); parity rows plus head and tail come from a single pool batch
-// at row count [AssemblerBatchRows](parityRows).
+// possible); parity rows plus head and tail come from a single pool
+// batch.
 //
 // Assembler is safe for concurrent use.
 type Assembler struct {
@@ -20,23 +21,24 @@ type Assembler struct {
 	parityRows   int
 	pool         *Pool
 	// zeroRow is the shared, immutable all-zeros row that empty trailing
-	// original rows alias. Sized to the pool's maxRowSize; aliased
-	// sub-slices are used for each blob's rowSize.
+	// original rows alias. Sized to maxRowSize; aliased sub-slices are
+	// used for each blob's rowSize.
 	zeroRow []byte
 }
 
 // NewAssembler creates an Assembler for originalRows original rows and
-// parityRows parity rows backed by the given pool. The pool must accept the row
-// count [AssemblerBatchRows](parityRows).
-func NewAssembler(originalRows, parityRows int, pool *Pool) (*Assembler, error) {
+// parityRows parity rows. It constructs an internal [Pool] sized for the
+// assembler's batch shape (parityRows + head + tail) and bounded by
+// maxRowSize. maxRowSize must be a positive multiple of 64.
+func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) {
 	if originalRows <= 0 || parityRows <= 0 {
 		return nil, fmt.Errorf("originalRows=%d parityRows=%d must be positive", originalRows, parityRows)
 	}
 	return &Assembler{
 		originalRows: originalRows,
 		parityRows:   parityRows,
-		pool:         pool,
-		zeroRow:      reedsolomon.AllocAligned(1, pool.maxRowSize)[0],
+		pool:         NewPool(maxRowSize, parityRows+extraRows),
+		zeroRow:      reedsolomon.AllocAligned(1, maxRowSize)[0],
 	}, nil
 }
 
@@ -55,7 +57,7 @@ func NewAssembler(originalRows, parityRows int, pool *Pool) (*Assembler, error) 
 func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly {
 	rows := make([][]byte, a.originalRows+a.parityRows)
 
-	pooled := a.pool.Get(AssemblerBatchRows(a.parityRows), rowSize)
+	pooled := a.pool.Get(a.parityRows+extraRows, rowSize)
 	for i := range a.parityRows {
 		rows[a.originalRows+i] = pooled[i]
 		clear(pooled[i])
@@ -157,8 +159,3 @@ func (a *Assembly) Free() {
 
 // extraRows is the per-blob overhead beyond parity: head + tail.
 const extraRows = 2
-
-// AssemblerBatchRows returns the row count the assembler's pooled batch
-// occupies: parityRows + head + tail. Exported so callers can size a
-// [Pool] for the assembler without reaching into its internals.
-func AssemblerBatchRows(parityRows int) int { return parityRows + extraRows }

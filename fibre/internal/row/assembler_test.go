@@ -6,15 +6,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
-// newAssemblerPool builds a pool that accepts the assembler batch
-// (n+extraRows) plus a work-row count for the companion codec.
-func newAssemblerPool(k, n, maxRowSize int) *Pool {
-	return New(maxRowSize, n+extraRows, k+n)
-}
-
 func TestAssembler_Assemble(t *testing.T) {
 	const k, n = 4, 2
-	a, err := NewAssembler(k, n, newAssemblerPool(k, n, 256))
+	a, err := NewAssembler(k, n, 256)
 	if err != nil {
 		t.Fatalf("NewAssembler: %v", err)
 	}
@@ -72,10 +66,10 @@ func TestAssembler_Assemble(t *testing.T) {
 }
 
 func TestAssembler_InvalidConfig(t *testing.T) {
-	if _, err := NewAssembler(0, 4, newAssemblerPool(4, 4, 64)); err == nil {
+	if _, err := NewAssembler(0, 4, 64); err == nil {
 		t.Fatal("expected error for non-positive k")
 	}
-	if _, err := NewAssembler(4, 0, newAssemblerPool(4, 4, 64)); err == nil {
+	if _, err := NewAssembler(4, 0, 64); err == nil {
 		t.Fatal("expected error for non-positive n")
 	}
 }
@@ -87,7 +81,7 @@ func TestAssembler_ReuseDirty(t *testing.T) {
 	const k, n, rowSize, offset = 4, 4, 64, 7
 	codec := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
 	coder, _ := rsema1d.NewCoder(codec)
-	a, _ := NewAssembler(k, n, newAssemblerPool(k, n, 256))
+	a, _ := NewAssembler(k, n, 256)
 
 	// first encode dirties parity slots in the pool
 	data1 := make([]byte, k*rowSize-offset)
@@ -137,7 +131,7 @@ func TestAssembler_ReusePartialPadding(t *testing.T) {
 	const k, n, rowSize, offset = 4, 4, 64, 7
 	codec := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
 	coder, _ := rsema1d.NewCoder(codec)
-	a, _ := NewAssembler(k, n, newAssemblerPool(k, n, 256))
+	a, _ := NewAssembler(k, n, 256)
 
 	big := make([]byte, k*rowSize-offset)
 	for i := range big {
@@ -198,7 +192,7 @@ func freshRows(data []byte, total, rowSize, offset int) [][]byte {
 // observe the transition atomically and repeated calls are no-ops.
 func TestAssembly_Free(t *testing.T) {
 	const k, n = 4, 4
-	a, _ := NewAssembler(k, n, newAssemblerPool(k, n, 256))
+	a, _ := NewAssembler(k, n, 256)
 
 	data := make([]byte, 4*64-3)
 	asm := a.Assemble(data, 64, 3)

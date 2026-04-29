@@ -12,7 +12,7 @@ import (
 func BenchmarkAssemblyReleased(b *testing.B) {
 	const k, n = 4096, 12288
 	const maxRow = 32832
-	a, err := NewAssembler(k, n, newAssemblerPool(k, n, maxRow))
+	a, err := NewAssembler(k, n, maxRow)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func BenchmarkAssemblerAssembleRelease(b *testing.B) {
 
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			a, err := NewAssembler(k, n, newAssemblerPool(k, n, maxRow))
+			a, err := NewAssembler(k, n, maxRow)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -91,7 +91,7 @@ func BenchmarkAssemblerEncode(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			a, err := NewAssembler(tc.k, tc.n, newAssemblerPool(tc.k, tc.n, tc.maxRowSize))
+			a, err := NewAssembler(tc.k, tc.n, tc.maxRowSize)
 			if err != nil {
 				b.Fatal(err)
 			}

@@ -5,7 +5,7 @@ package row
 import "errors"
 
 // disableMmap is forced true on platforms without POSIX mmap (notably
-// Windows): allocBacking then always falls through to the Go-heap path.
+// Windows): alloc then always falls through to the Go-heap path.
 const disableMmap = true
 
 // mmapAlloc is never called on non-unix (disableMmap gates the call
