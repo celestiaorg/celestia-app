@@ -346,6 +346,11 @@ func (c *Client) uploadShards(
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) error {
+	if len(requests) == 0 {
+		blob.asm.Free()
+		return nil
+	}
+
 	var (
 		responses            atomic.Uint32         // tracks finished responses
 		responsesExhaustedCh = make(chan struct{}) // closes when all responses complete
