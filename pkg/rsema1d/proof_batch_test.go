@@ -106,10 +106,10 @@ func TestVerifyRowsWithContextDetectsTamperedRow(t *testing.T) {
 	}
 }
 
-// TestVerifyRowsWithContextNilProof covers the edge case where a caller passes
-// a nil proof element. The nil-first case is specifically tested with a
-// context whose config.RowSize == 0 — that path dereferences proofs[0] to
-// derive the expected row size, and would panic without the nil pre-check.
+// TestVerifyRowsWithContextNilProof covers nil elements at several positions.
+// Position 0 is exercised with config.RowSize == 0 because that path reads
+// proofs[0].Row to derive the expected row size — the nil-check at the top
+// of the loop has to run before the dereference.
 func TestVerifyRowsWithContextNilProof(t *testing.T) {
 	encodeCfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
 	data := make([][]byte, encodeCfg.K)

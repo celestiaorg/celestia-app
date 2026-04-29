@@ -25,11 +25,8 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 		return nil
 	}
 
-	// 1. Validate every proof's shape up-front (index range, row sizes, proof
-	// depths) before doing any heavy compute. This matches the checks inside
-	// VerifyRowWithContext but lets us fail fast without ever running the RLC.
-	// Nil-checks come before any proofs[0] dereference so a nil first element
-	// returns an error instead of panicking.
+	// Validate every proof's shape before any heavy compute. The nil-check
+	// has to run before the proofs[0] dereference inside the loop.
 	kPadded := nextPowerOfTwo(context.config.K)
 	totalPadded := nextPowerOfTwo(kPadded + context.config.N)
 	expectedProofDepth := bits.Len(uint(totalPadded)) - 1
@@ -59,10 +56,8 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 		}
 	}
 
-	// 2. Verify every Merkle proof and collect the computed rowRoot per row. In
-	// a valid shard, every rowRoot is identical (they all come from the same
-	// row tree), but we check each independently so tampering with any single
-	// row still fails.
+	// Verify each row's Merkle proof independently so tampering with any
+	// single row fails, even though all rowRoots are identical in a valid shard.
 	rowRoots := make([][32]byte, len(proofs))
 	for i, p := range proofs {
 		treeIndex := mapIndexToTreePosition(p.Index, context.config)
@@ -73,25 +68,23 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 		rowRoots[i] = rowRoot
 	}
 
-	// 3. Derive coefficients from the first row's root. In a valid shard
-	// every row root is identical, so the choice of row 0 is arbitrary; the
-	// downstream commitment check rejects the batch if any row root differs.
+	// Choice of rowRoots[0] is arbitrary — all are equal in a valid shard,
+	// and the per-row commitment check below rejects the batch if any differ.
 	coeffs := deriveCoefficients(rowRoots[0], len(proofs[0].Row))
 
-	// 4. Batched RLC: one vectorized pass over all rows.
 	rows := make([][]byte, len(proofs))
 	for i, p := range proofs {
 		rows[i] = p.Row
 	}
 	computedRLCs := computeRLCVectorized(rows, coeffs, context.config)
 
-	// 5. Per-row commitment + RLC checks (cheap, keep in a tight loop).
+	h := sha256.New()
 	for i, p := range proofs {
 		if !field.Equal128(computedRLCs[i], context.rlcExtended[p.Index]) {
 			return fmt.Errorf("row %d: computed RLC does not match expected value", p.Index)
 		}
 
-		h := sha256.New()
+		h.Reset()
 		h.Write(rowRoots[i][:])
 		h.Write(context.rlcOrigRoot[:])
 		var computedCommitment [32]byte
