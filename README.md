@@ -76,6 +76,37 @@ If you'd rather not install from source, you can download a prebuilt binary from
 
 See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app/> for more information.
 
+## Supported operating systems
+
+This is the canonical matrix of operating systems that celestia-app is built for and tested against. For the OS versions a *specific* release was tested on, see the per-release entries in [docs/release-notes/release-notes.md](docs/release-notes/release-notes.md).
+
+### Tested in CI
+
+celestia-app's GitHub Actions workflows run all unit, integration, and lint jobs on:
+
+| OS                       | Version                         | Architecture |
+|--------------------------|---------------------------------|--------------|
+| Ubuntu (`ubuntu-latest`) | Ubuntu 24.04 LTS (Noble Numbat) | x86_64       |
+
+Other OS / version combinations may work but are not exercised by CI and are not officially supported.
+
+### Prebuilt binaries
+
+The [GitHub Releases](https://github.com/celestiaorg/celestia-app/releases) page provides prebuilt binaries for:
+
+| OS    | Architectures    |
+|-------|------------------|
+| Linux | `amd64`, `arm64` |
+| macOS | `amd64`, `arm64` |
+
+Linux binaries built with the multiplexer require **glibc >= 2.38** (Ubuntu 24.04 or equivalent). See [Prerequisites](#prerequisites) for details.
+
+### Known incompatibilities
+
+- **Windows**: the `celestia-appd` binary does not support signing with Ledger hardware wallets on Windows.
+- **OpenBSD**: the `celestia-appd` binary does not support signing with Ledger hardware wallets on OpenBSD.
+- **Ubuntu 22.04 and older**: incompatible with multiplexer builds (glibc < 2.38).
+
 ## Usage
 
 > [!WARNING]
