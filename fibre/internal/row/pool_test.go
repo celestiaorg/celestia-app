@@ -19,7 +19,7 @@ func newPool(t testing.TB) *Pool {
 	return NewPool(testMaxRow, testAssemblerBatchRows)
 }
 
-// Primary row count used by most tests (assembler batch).
+// Primary row count used by most tests (assembler slab).
 func assemblerRowCount() int { return testAssemblerBatchRows }
 
 func TestPool_GetPutExact(t *testing.T) {
@@ -43,14 +43,14 @@ func TestPool_GetPutExact(t *testing.T) {
 	}
 
 	p.Put(bufs)
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d after Put, want 1", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d after Put, want 1", got)
 	}
 
-	// second Get at exact key reuses the same batch.
+	// second Get at exact key reuses the same slab.
 	more := p.Get(rc, 64)
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d after exact-match reuse, want 1", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d after exact-match reuse, want 1", got)
 	}
 	p.Put(more)
 }
@@ -93,7 +93,7 @@ func TestPool_DoubleFreePanics(t *testing.T) {
 	p.Put(bufs)
 	defer func() {
 		if recover() == nil {
-			t.Fatal("second Put of same batch should panic")
+			t.Fatal("second Put of same slab should panic")
 		}
 	}()
 	p.Put(bufs)
@@ -116,7 +116,7 @@ func TestPool_GetZeroReturnsNil(t *testing.T) {
 	}
 }
 
-// A free batch of a larger class serves a smaller request within slack.
+// A free slab of a larger class serves a smaller request within slack.
 func TestPool_FallbackWithinSlack(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
@@ -126,23 +126,23 @@ func TestPool_FallbackWithinSlack(t *testing.T) {
 
 	// request 256: reqIdx=3, maxIdx=reqIdx+slack=5 (size 384). 320 fits → reuse.
 	small := p.Get(rc, 256)
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d after slack fallback, want 1 (reused 320 slab)", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d after slack fallback, want 1 (reused 320 slab)", got)
 	}
 	if len(small[0]) != 256 {
 		t.Fatalf("returned len=%d, want 256 (requested)", len(small[0]))
 	}
 	p.Put(small)
 
-	// on return, batch goes back to its backing bucket (320), not 256.
+	// on return, slab goes back to its backing bucket (320), not 256.
 	again := p.Get(rc, 320)
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d after backing-bucket reuse, want 1", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d after backing-bucket reuse, want 1", got)
 	}
 	p.Put(again)
 }
 
-// A free batch outside the slack window is NOT a fallback candidate.
+// A free slab outside the slack window is NOT a fallback candidate.
 func TestPool_FallbackOutsideSlack(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
@@ -152,8 +152,8 @@ func TestPool_FallbackOutsideSlack(t *testing.T) {
 
 	// request 64: reqIdx=0, maxIdx=reqIdx+slack=2 (size 192). 512 is above → grow.
 	small := p.Get(rc, 64)
-	if got := p.Batches(); got != 2 {
-		t.Fatalf("Batches=%d after out-of-slack grow, want 2", got)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d after out-of-slack grow, want 2", got)
 	}
 	p.Put(small)
 }
@@ -163,21 +163,21 @@ func TestPool_FallbackNeverAllocates(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
-	// no 320 batch exists; request 256 → grows new 256 batch (exact key).
+	// no 320 slab exists; request 256 → grows new 256 slab (exact key).
 	a := p.Get(rc, 256)
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d, want 1", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d, want 1", got)
 	}
 	p.Put(a)
 	// request 320 now: allocate new.
 	b := p.Get(rc, 320)
-	if got := p.Batches(); got != 2 {
-		t.Fatalf("Batches=%d, want 2 (separate 256 and 320 batches)", got)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d, want 2 (separate 256 and 320 slabs)", got)
 	}
 	p.Put(b)
 }
 
-// Free batches are reused LIFO: the most recently Put batch is the next
+// Free slabs are reused LIFO: the most recently Put slab is the next
 // one served by Get.
 func TestPool_LIFOReuse(t *testing.T) {
 	p := newPool(t)
@@ -195,40 +195,40 @@ func TestPool_LIFOReuse(t *testing.T) {
 
 	next := p.Get(rc, 64)
 	if &next[0][0] != bAddr {
-		t.Fatal("LIFO reuse: expected most-recently-freed batch")
+		t.Fatal("LIFO reuse: expected most-recently-freed slab")
 	}
 	p.Put(next)
 }
 
 // Consuming from a larger bucket via fallback advances that bucket's
-// generation and runs its aged eviction, so its other free batches age
+// generation and runs its aged eviction, so its other free slabs age
 // and evict under fallback-driven demand (not only direct Gets).
 func TestPool_FallbackAgesLargerBucket(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
-	// populate the 320-rowSize bucket with two free batches via direct Gets.
+	// populate the 320-rowSize bucket with two free slabs via direct Gets.
 	a := p.Get(rc, 320)
 	b := p.Get(rc, 320)
 	p.Put(a)
 	p.Put(b)
-	if got := p.Batches(); got != 2 {
-		t.Fatalf("Batches=%d before aging, want 2", got)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d before aging, want 2", got)
 	}
 
 	// drive fallback Gets at a smaller in-slack rowSize. LIFO pop means
-	// the most-recently-Put 320 batch cycles; the other sits at the head
+	// the most-recently-Put 320 slab cycles; the other sits at the head
 	// of the free queue with a frozen lastPut and ages out.
 	for range evictionThreshold {
 		x := p.Get(rc, 256)
 		p.Put(x)
 	}
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d after fallback-driven aging, want 1", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d after fallback-driven aging, want 1", got)
 	}
 }
 
-// A free batch aged past evictionThreshold is evicted on the next Get to
+// A free slab aged past evictionThreshold is evicted on the next Get to
 // its bucket.
 func TestPool_AgedEviction(t *testing.T) {
 	p := newPool(t)
@@ -238,22 +238,22 @@ func TestPool_AgedEviction(t *testing.T) {
 	b := p.Get(rc, 64)
 	p.Put(a)
 	p.Put(b)
-	if got := p.Batches(); got != 2 {
-		t.Fatalf("Batches=%d before age, want 2", got)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d before age, want 2", got)
 	}
 
-	// drive enough Gets to age both free batches past evictionThreshold.
+	// drive enough Gets to age both free slabs past evictionThreshold.
 	for range evictionThreshold + 1 {
 		more := p.Get(rc, 64)
 		p.Put(more)
 	}
 	_ = p.Get(rc, 64)
-	if got := p.Batches(); got > 2 {
-		t.Fatalf("Batches=%d, want <= 2 (aged eviction)", got)
+	if got := p.Slabs(); got > 2 {
+		t.Fatalf("Slabs=%d, want <= 2 (aged eviction)", got)
 	}
 }
 
-// The per-bucket idle timer, when fired, drops every free batch in that
+// The per-bucket idle timer, when fired, drops every free slab in that
 // bucket. The timer callback is invoked directly to avoid waiting
 // idleGrace in tests.
 func TestPool_IdleDropsBucket(t *testing.T) {
@@ -265,37 +265,37 @@ func TestPool_IdleDropsBucket(t *testing.T) {
 	p.Put(a)
 	p.Put(b)
 
-	if got := p.Batches(); got != 2 {
-		t.Fatalf("Batches=%d before idle, want 2", got)
+	if got := p.Slabs(); got != 2 {
+		t.Fatalf("Slabs=%d before idle, want 2", got)
 	}
 	bucketAt(p, 64).dropIdle()
-	if got := p.Batches(); got != 0 {
-		t.Fatalf("Batches=%d after idle drop, want 0", got)
+	if got := p.Slabs(); got != 0 {
+		t.Fatalf("Slabs=%d after idle drop, want 0", got)
 	}
 }
 
 // Per-bucket idle timer regression: a dormant bucket gets cleaned up
 // independently of other buckets' activity. Pool-wide idle previously
-// pinned aged free batches in dormant buckets while any other bucket
-// had in-use batches, leaking memory until the entire pool went idle.
+// pinned aged free slabs in dormant buckets while any other bucket
+// had in-use slabs, leaking memory until the entire pool went idle.
 func TestPool_IdleDropsDormantBucketIndependently(t *testing.T) {
 	p := newPool(t)
 	rc := assemblerRowCount()
 
-	// bucket A (rowSize 64): allocate and return — has free batches, no in-use.
+	// bucket A (rowSize 64): allocate and return — has free slabs, no in-use.
 	x := p.Get(rc, 64)
 	p.Put(x)
 
-	// bucket B (rowSize 128): keep one batch in-use perpetually.
+	// bucket B (rowSize 128): keep one slab in-use perpetually.
 	y := p.Get(rc, 128)
 	defer p.Put(y)
 
 	// trigger A's idle timer specifically. Even though B is non-idle,
-	// A must drop its free batches.
+	// A must drop its free slabs.
 	bucketAt(p, 64).dropIdle()
 
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d, want 1 (only B's in-use batch survives)", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d, want 1 (only B's in-use slab survives)", got)
 	}
 }
 
@@ -354,11 +354,11 @@ func TestPool_NoAliasWrites(t *testing.T) {
 	}
 }
 
-// TestPool_GCAnchor verifies that an in-use batch survives GC cycles.
-// While in use, the only Go-heap reference to *batch is its bucket's
+// TestPool_GCAnchor verifies that an in-use slab survives GC cycles.
+// While in use, the only Go-heap reference to *slab is its bucket's
 // used slice — the header back-pointer is an unsafe store GC doesn't
 // trace, and the caller's bufs share the region's backing array, not
-// the batch struct. Without the anchor, GC could reap *batch between
+// the slab struct. Without the anchor, GC could reap *slab between
 // Get and Put and Put would read a dangling pointer.
 func TestPool_GCAnchor(t *testing.T) {
 	p := newPool(t)
@@ -371,7 +371,7 @@ func TestPool_GCAnchor(t *testing.T) {
 	}
 
 	// force multiple GC cycles. If the anchor is broken, a sweep during
-	// one of these frees the *batch struct; subsequent Put would read a
+	// one of these frees the *slab struct; subsequent Put would read a
 	// stale pointer.
 	runtime.GC()
 	runtime.GC()
@@ -384,11 +384,11 @@ func TestPool_GCAnchor(t *testing.T) {
 	}
 
 	p.Put(bufs)
-	if got := p.Batches(); got != 1 {
-		t.Fatalf("Batches=%d after GC+Put, want 1", got)
+	if got := p.Slabs(); got != 1 {
+		t.Fatalf("Slabs=%d after GC+Put, want 1", got)
 	}
 
-	// reuse must return the same underlying region, proving the batch
+	// reuse must return the same underlying region, proving the slab
 	// was tracked (not silently discarded as "foreign").
 	again := p.Get(rc, 64)
 	if &again[0][0] != firstAddr {

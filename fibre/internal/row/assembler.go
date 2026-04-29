@@ -8,12 +8,12 @@ import (
 )
 
 // Assembler assembles originalRows+parityRows row sets for Reed-Solomon
-// encoding. It owns a [Pool] sized for its batch shape; callers don't
+// encoding. It owns a [Pool] sized for its slab shape; callers don't
 // need to know the exact row count it requests internally.
 //
 // Original rows are a hybrid view over the input data (zero-copy where
 // possible); parity rows plus head and tail come from a single pool
-// batch.
+// slab.
 //
 // Assembler is safe for concurrent use.
 type Assembler struct {
@@ -28,7 +28,7 @@ type Assembler struct {
 
 // NewAssembler creates an Assembler for originalRows original rows and
 // parityRows parity rows. It constructs an internal [Pool] sized for the
-// assembler's batch shape (parityRows + head + tail) and bounded by
+// assembler's slab shape (parityRows + head + tail) and bounded by
 // maxRowSize. maxRowSize must be a positive multiple of 64.
 func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) {
 	if originalRows <= 0 || parityRows <= 0 {
@@ -50,7 +50,7 @@ func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) 
 // bytes for a blob header, full middle rows alias data directly (zero-copy),
 // a partial tail row is copied to a pooled buffer, and empty trailing
 // rows share one zeroed row.
-// rows[originalRows:] are zeroed parity rows from a pooled batch.
+// rows[originalRows:] are zeroed parity rows from a pooled slab.
 //
 // The caller must not modify data or rows until [Assembly.Free] is called.
 // Rows that alias data or the shared zero row are immutable.
@@ -64,7 +64,7 @@ func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly
 	}
 	// zero head/tail too: fillOriginal only writes the portions backed
 	// by data, so bytes past the written region would carry stale
-	// content from a prior use of the pooled batch.
+	// content from a prior use of the pooled slab.
 	head, tail := pooled[a.parityRows], pooled[a.parityRows+1]
 	clear(head)
 	clear(tail)
@@ -104,8 +104,8 @@ func (a *Assembler) fillOriginal(rows [][]byte, data []byte, rowSize, offset int
 	}
 }
 
-// Assembly owns the pooled batch produced by a single [Assembler.Assemble]
-// call. Release is all-or-nothing via [Assembly.Free]; the batch is
+// Assembly owns the pooled slab produced by a single [Assembler.Assemble]
+// call. Release is all-or-nothing via [Assembly.Free]; the slab is
 // returned to the pool as one unit.
 //
 // Assembly is safe for concurrent use.
@@ -142,7 +142,7 @@ func (a *Assembly) Released() bool {
 	return a.slots == nil
 }
 
-// Free returns the pooled batch (parity + head + tail) back to the pool.
+// Free returns the pooled slab (parity + head + tail) back to the pool.
 // Subsequent calls are no-ops. Safe to call concurrently.
 func (a *Assembly) Free() {
 	if a == nil {

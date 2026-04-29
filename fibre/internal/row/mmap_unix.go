@@ -12,7 +12,7 @@ import (
 
 // disableMmap routes all allocations through the Go heap when FIBRE_ROW_NO_MMAP
 // is set. Useful for pprof alloc_space sampling, which doesn't see mmap'd
-// pages and would otherwise miss large-batch churn.
+// pages and would otherwise miss large-slab churn.
 var disableMmap = os.Getenv("FIBRE_ROW_NO_MMAP") != ""
 
 // mmapAlloc allocates size bytes via mmap, invisible to Go's GC.

@@ -125,7 +125,7 @@ func TestAssembler_ReuseDirty(t *testing.T) {
 	}
 }
 
-// A small blob reusing a pooled batch from a larger one must not carry
+// A small blob reusing a pooled slab from a larger one must not carry
 // the larger blob's bytes in head/tail padding.
 func TestAssembler_ReusePartialPadding(t *testing.T) {
 	const k, n, rowSize, offset = 4, 4, 64, 7
@@ -188,7 +188,7 @@ func freshRows(data []byte, total, rowSize, offset int) [][]byte {
 	return rows
 }
 
-// TestAssembly_Free covers whole-batch release: Rows() and Released()
+// TestAssembly_Free covers whole-slab release: Rows() and Released()
 // observe the transition atomically and repeated calls are no-ops.
 func TestAssembly_Free(t *testing.T) {
 	const k, n = 4, 4

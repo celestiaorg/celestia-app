@@ -14,6 +14,6 @@ func mmapAlloc(size int) ([]byte, error) {
 	return nil, errors.New("row: mmap not supported on this platform")
 }
 
-// mmapFree is unreachable on non-unix since no batch is ever flagged
+// mmapFree is unreachable on non-unix since no slab is ever flagged
 // mmapped; defined for symmetry with the unix build.
 func mmapFree(data []byte) error { return nil }

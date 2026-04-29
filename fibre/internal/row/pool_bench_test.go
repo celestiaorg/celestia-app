@@ -15,7 +15,7 @@ const (
 
 // BenchmarkPool_GetPut_Reuse measures the hot-path steady-state cost
 // when an exact-match bucket is primed: every iteration pops a free
-// batch and puts it back, exercising the common case after startup.
+// slab and puts it back, exercising the common case after startup.
 func BenchmarkPool_GetPut_Reuse(b *testing.B) {
 	p := NewPool(benchMaxRow, benchRowCount)
 	p.Put(p.Get(benchRowCount, 64)) // seed
@@ -29,8 +29,8 @@ func BenchmarkPool_GetPut_Reuse(b *testing.B) {
 
 // BenchmarkPool_GetPut_Fallback measures the upward-slack fallback path.
 // The 64-byte bucket is never populated; the 128-byte bucket holds the
-// reusable batch, so every Get scans within the slack window before
-// popping. Put routes back to the 128 bucket via batch.bucket.
+// reusable slab, so every Get scans within the slack window before
+// popping. Put routes back to the 128 bucket via slab.bucket.
 func BenchmarkPool_GetPut_Fallback(b *testing.B) {
 	p := NewPool(benchMaxRow, benchRowCount)
 	p.Put(p.Get(benchRowCount, 128)) // seed the fallback-target bucket
@@ -63,11 +63,11 @@ func BenchmarkPool_Concurrent(b *testing.B) {
 // p50/p99/p99.99/max — a bimodal distribution (p50 ≪ p99) signals
 // lock-held alloc tail.
 //
-// Shape: ~1 MiB batches (above mmapThreshold) so fresh allocs go
+// Shape: ~1 MiB slabs (above mmapThreshold) so fresh allocs go
 // through mmap.
 func BenchmarkPool_AllocContentionTail(b *testing.B) {
 	const rowCount = 1024
-	const baseSize = 1024    // batch size ≈ 1 MiB → mmap path
+	const baseSize = 1024    // slab size ≈ 1 MiB → mmap path
 	const maxRow = 64 * 1024 // leaves room for novel sizes
 	const allocEveryN = 256  // ~0.4% of ops force a fresh alloc
 	const workers = 16
