@@ -151,7 +151,6 @@ The sequencer client constructs an `OrderedPaymentPromise` when posting ordered 
 
 **On the server**, `FromProto()` populates the `PaymentPromise` Go struct from the proto message as it does today. The ordering `PromiseRule` then deserializes the `ParentPaymentPromise` from the `parent_promise` bytes, constructs the `OrderedPaymentPromise` wrapper from the parsed fields, and uses it for v1 sign-bytes and ordered-hash computation — verifying the sequencer's signature, verifying that the parent QC certifies the exact referenced parent hash, and producing the validator's own signature.
 
-
 ### Ordered Hash
 
 The ordered hash is a distinct v1 chaining object. It is not the existing v0 `PaymentPromise.Hash()`, and it is not a hash of the full nested protobuf payload.
@@ -335,6 +334,7 @@ The existing `PaymentPromise` type and v0 sign bytes are unchanged. Non-ordered 
 - Non-breaking: non-ordered blobs are unchanged.
 
 ### Neutral
+
 - Adds opportunities for more protocol revenue, since ordering adds costs
 - Coordinated validator upgrade required for v1 sign bytes.
 
