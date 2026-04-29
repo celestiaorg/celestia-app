@@ -8,12 +8,12 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
@@ -31,6 +31,7 @@ func TestClientUpload(t *testing.T) {
 		{"SucceedsWith1/3Failures_HighConcurrency", testClientUploadSucceedsWithOneThirdFailuresHighConcurrency},
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
+		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
 	}
 
@@ -145,6 +146,31 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	require.Equal(t, numValidators, int(counter.Load()), "not all validators received data")
 }
 
+func testClientUploadAwaitAllSignatures(t *testing.T) {
+	const numValidators = 100
+
+	var counter *atomic.Int64
+	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
+		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
+	})
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+	result, err := client.Upload(t.Context(), testNamespace, blob, fibre.WithAwaitAllSignatures())
+	require.NoError(t, err)
+
+	// WithAwaitAllSignatures waits for all responses, so all validators
+	// must have been contacted by the time Upload returns — without needing Stop.
+	require.Equal(t, numValidators, int(counter.Load()), "all validators should have been contacted before Upload returned")
+	var nonNilSigs int
+	for _, sig := range result.ValidatorSignatures {
+		if sig != nil {
+			nonNilSigs++
+		}
+	}
+	require.Equal(t, numValidators, nonNilSigs, "should have non-nil signatures from all validators")
+}
+
 func testClientUploadClosedClient(t *testing.T) {
 	client := makeTestUploadClient(t, 100, nil)
 
@@ -213,7 +239,7 @@ func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.Upload
 		return nil, err
 	}
 
-	validatorSignBytes, err := pp.SignBytesValidator()
+	signBytes, err := pp.SignBytes()
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +250,7 @@ func (v *validatorMockClient) UploadShard(ctx context.Context, req *types.Upload
 	}
 
 	return &types.UploadShardResponse{
-		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), validatorSignBytes),
+		ValidatorSignature: ed25519.Sign(ed25519.PrivateKey(privKeyBytes), signBytes),
 	}, nil
 }
 

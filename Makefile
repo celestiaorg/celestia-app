@@ -13,33 +13,37 @@ PROJECTNAME=$(shell basename "$(PWD)")
 DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
-PACKAGE_NAME := github.com/celestiaorg/celestia-app/v8
+PACKAGE_NAME := github.com/celestiaorg/celestia-app/v9
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.25.7
+GOLANG_CROSS_VERSION  ?= v1.26.1
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
 BUILD_TAGS_STANDALONE := ledger
 BUILD_TAGS_MULTIPLEXER := ledger,multiplexer
+BUILD_TAGS_FIBRE := ledger,fibre
 
-LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v8/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
+LDFLAGS_COMMON := -X github.com/cosmos/cosmos-sdk/version.Name=celestia-app -X github.com/cosmos/cosmos-sdk/version.AppName=celestia-appd -X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) -X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT) -X github.com/celestiaorg/celestia-app/v9/cmd/celestia-appd/cmd.v2UpgradeHeight=$(V2_UPGRADE_HEIGHT)
 LDFLAGS_STANDALONE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_STANDALONE)
 LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_MULTIPLEXER)
 
 BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
 BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
+LDFLAGS_FIBRE := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version.BuildTags=$(BUILD_TAGS_FIBRE)
+BUILD_FLAGS_FIBRE := -tags=$(BUILD_TAGS_FIBRE) -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 # dockerchain/config.go
-CELESTIA_V3_VERSION := v3.10.6
+CELESTIA_V3_VERSION := v3.12.0
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
 CELESTIA_V6_VERSION := v6.4.4
 CELESTIA_V7_VERSION := v7.0.2-mocha
+CELESTIA_V8_VERSION := v8.0.3
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -55,6 +59,13 @@ build-standalone: mod
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
 .PHONY: build-standalone
 
+## build-fibre: Build the celestia-appd binary with fibre module enabled.
+build-fibre: mod
+	@mkdir -p build/
+	@echo "--> Building build/celestia-appd with fibre enabled"
+	@go build $(BUILD_FLAGS_FIBRE) -o build/celestia-appd ./cmd/celestia-appd
+.PHONY: build-fibre
+
 DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
@@ -64,6 +75,7 @@ ifeq ($(DOWNLOAD),true)
 	@$(MAKE) download-v5-binaries
 	@$(MAKE) download-v6-binaries
 	@$(MAKE) download-v7-binaries
+	@$(MAKE) download-v8-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -76,9 +88,15 @@ install-standalone:
 	@go install $(BUILD_FLAGS_STANDALONE) ./cmd/celestia-appd
 .PHONY: install-standalone
 
+## install-fibre: Build and install celestia-appd with fibre module enabled into the $GOPATH/bin directory.
+install-fibre:
+	@echo "--> Installing celestia-appd with fibre support"
+	@go install $(BUILD_FLAGS_FIBRE) ./cmd/celestia-appd
+.PHONY: install-fibre
+
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries
+install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
@@ -158,6 +176,21 @@ download-v7-binaries:
 	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V7_VERSION)"
 .PHONY: download-v7-binaries
 
+## download-v8-binaries: Download the celestia-app v8 binary for the current platform.
+download-v8-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V8_VERSION) binary"
+	@mkdir -p internal/embedding
+	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
+	case "$$os-$$arch" in \
+		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v8_arm64.tar.gz ;; \
+		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v8_arm64.tar.gz ;; \
+		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v8_amd64.tar.gz ;; \
+		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v8_amd64.tar.gz ;; \
+		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
+	esac; \
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V8_VERSION)"
+.PHONY: download-v8-binaries
+
 ## mod: Update all go.mod files.
 mod:
 	@echo "--> Updating go.mod"
@@ -179,6 +212,7 @@ GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
 
 ## proto-all: Format, lint and generate Protobuf files
 proto-all: proto-deps proto-format proto-lint proto-gen
+.PHONY: proto-all
 
 ## proto-deps: Install Protobuf local dependencies
 proto-deps:
@@ -191,30 +225,40 @@ proto-deps:
 	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
 	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
+.PHONY: proto-deps
 
 ## proto-gen: Generate Protobuf files.
 proto-gen:
 	@echo "Generating Protobuf files"
 	@sh ./scripts/protocgen.sh
+.PHONY: proto-gen
 
 ## proto-format: Format Protobuf files.
 proto-format:
 	@find ./ -name "*.proto" -exec clang-format -i {} \;
+.PHONY: proto-format
 
 ## proto-lint: Lint Protobuf files.
 proto-lint:
 	@buf lint --error-format=json
+.PHONY: proto-lint
 
 ## proto-check-breaking: Check if Protobuf file contains breaking changes.
 proto-check-breaking:
 	@buf breaking --against $(HTTPS_GIT)#branch=main
+.PHONY: proto-check-breaking
 
 ## proto-update-deps: Update Protobuf dependencies.
 proto-update-deps:
 	@echo "Updating Protobuf dependencies"
 	@cd proto && buf dep update
+.PHONY: proto-update-deps
 
-.PHONY: proto-all proto-deps proto-gen proto-format proto-lint proto-check-breaking proto-update-deps
+## proto-swagger-gen: Generate Swagger/OpenAPI spec from proto files.
+proto-swagger-gen:
+	@echo "Generating Swagger/OpenAPI specs..."
+	@bash scripts/proto-swagger-gen.sh
+.PHONY: proto-swagger-gen
 
 ## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
 build-docker-standalone:
@@ -326,8 +370,15 @@ test-docker-e2e-upgrade-all:
 	cd test/docker-e2e && go test -v -run ^TestCelestiaTestSuite/TestAllUpgrades$$ -count=1 ./... -timeout 15m
 .PHONY: test-docker-e2e-upgrade-all
 
+## test-fibre-module: Run fibre-tagged unit and integration tests.
+test-fibre-module:
+	@echo "--> Running fibre-tagged tests"
+	@go test -tags fibre -timeout 30m ./app/ ./pkg/da/
+	@go test -tags fibre -timeout 30m -run "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestStandardSDKIntegrationTestSuite/TestFibreProviderTxAndQuery" ./app/test/
+.PHONY: test-fibre-module
+
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries
+test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer
@@ -357,6 +408,19 @@ test-fuzz:
 	bash -x scripts/test_fuzz.sh
 .PHONY: test-fuzz
 
+## build-fibre-server: Build the fibre server binary into the ./build directory.
+build-fibre-server:
+	@mkdir -p build/
+	@echo "--> Building build/fibre"
+	@go build -o build/fibre ./fibre/cmd
+.PHONY: build-fibre-server
+
+## install-fibre-server: Build and install the fibre server binary into the $GOPATH/bin directory.
+install-fibre-server:
+	@echo "--> Installing fibre server"
+	@go build -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
+.PHONY: install-fibre-server
+
 ## txsim-install: Install the tx simulator.
 txsim-install:
 	@echo "--> Installing tx simulator"
@@ -382,31 +446,71 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build celestia-appd, txsim, and Go latency-monitor binaries for talis VMs (ubuntu 22.04 LTS)
+## build-talis-bins: Build celestia-appd, txsim, latency-monitor, fibre, fibre-txsim, and talis binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins
 
-## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
-build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
-build-lumina-latency-monitor: CARGO := $(HOME)/.cargo/bin/cargo
-build-lumina-latency-monitor:
+## build-talis-bins-fibre: Same as build-talis-bins but with the fibre module enabled in celestia-appd.
+build-talis-bins-fibre:
+	mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+.PHONY: build-talis-bins-fibre
+
+CARGO := $(HOME)/.cargo/bin/cargo
+
+# Ensure cargo is on PATH and install rustup if missing.
+.PHONY: ensure-rust
+ensure-rust:
 	@if ! command -v $(CARGO) >/dev/null 2>&1; then \
 		echo "Rust is not installed. Installing..."; \
 		curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y; \
 		echo ""; \
 		echo "Rust installed. Continuing with cargo from $$HOME/.cargo/bin..."; \
 	fi
-	cd tools/lumina-latency-monitor && $(CARGO) xtask build-linux
+
+# build_rust_crate runs `cargo xtask build-linux` in the given crate and copies
+# the resulting binary to build/.
+# Usage: $(call build_rust_crate,<crate_dir>,<bin_name>,<dest_name>)
+define build_rust_crate
+	cd $(1) && $(CARGO) xtask build-linux
 	@mkdir -p build
-	@if [ -f tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor ]; then \
-		cp tools/lumina-latency-monitor/target/x86_64-unknown-linux-gnu/release/lumina-latency-monitor build/latency-monitor; \
+	@if [ -f $(1)/target/x86_64-unknown-linux-gnu/release/$(2) ]; then \
+		cp $(1)/target/x86_64-unknown-linux-gnu/release/$(2) build/$(3); \
 	else \
-		cp tools/lumina-latency-monitor/target/release/lumina-latency-monitor build/latency-monitor; \
+		cp $(1)/target/release/$(2) build/$(3); \
 	fi
+endef
+
+## build-rust-fibre-txsim: Build rust-fibre-txsim for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-rust-fibre-txsim: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-rust-fibre-txsim: ensure-rust
+	$(call build_rust_crate,tools/rust-fibre-txsim,rust-fibre-txsim,fibre-txsim)
+.PHONY: build-rust-fibre-txsim
+
+## build-talis-bins-rust-fibre: Build talis binaries using Rust fibre-txsim instead of Go fibre-txsim
+build-talis-bins-rust-fibre:
+	mkdir -p build
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	$(MAKE) build-rust-fibre-txsim
+.PHONY: build-talis-bins-rust-fibre
+
+## build-lumina-latency-monitor: Build lumina-latency-monitor for Linux x86_64 (installs Rust and cross-compiler if needed)
+build-lumina-latency-monitor: export PATH := $(HOME)/.cargo/bin:$(PATH)
+build-lumina-latency-monitor: ensure-rust
+	$(call build_rust_crate,tools/lumina-latency-monitor,lumina-latency-monitor,latency-monitor)
 .PHONY: build-lumina-latency-monitor
 
 ## adr-gen: Download the ADR template from the celestiaorg/.github repo.

@@ -1,63 +1,97 @@
 package keeper
 
 import (
-	"math"
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCalculatePaymentCoin(t *testing.T) {
+func TestEstimateGasForPayForFibre(t *testing.T) {
 	tests := []struct {
-		name           string
-		blobSize       uint32
-		gasPerBlobByte uint32
-		want           sdk.Coin
+		name     string
+		blobSize uint32
+		want     uint64
 	}{
 		{
-			name:           "zero blob size",
-			blobSize:       0,
-			gasPerBlobByte: 8,
-			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(0)),
+			name:     "zero blob size returns fixed cost only",
+			blobSize: 0,
+			want:     650_000,
 		},
 		{
-			name:           "zero gas per blob byte",
-			blobSize:       1000,
-			gasPerBlobByte: 0,
-			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(0)),
+			name:     "1 byte = 1 chunk",
+			blobSize: 1,
+			want:     650_000 + 45_000,
 		},
 		{
-			name:           "normal case",
-			blobSize:       1000,
-			gasPerBlobByte: 8,
-			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(8000)),
+			name:     "exactly 256 KiB = 1 chunk",
+			blobSize: 262_144,
+			want:     650_000 + 45_000,
 		},
 		{
-			name:           "overflow case: product exceeds uint32 max",
-			blobSize:       8_388_608, // 8 MiB
-			gasPerBlobByte: 1000,
-			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(8_388_608_000)),
+			name:     "256 KiB + 1 byte = 2 chunks",
+			blobSize: 262_145,
+			want:     650_000 + 2*45_000,
 		},
 		{
-			name:           "large values near uint32 max",
-			blobSize:       math.MaxUint32,
-			gasPerBlobByte: 2,
-			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2*uint64(math.MaxUint32))),
+			name:     "exactly 512 KiB = 2 chunks",
+			blobSize: 524_288,
+			want:     650_000 + 2*45_000,
 		},
 		{
-			name:           "max uint32 * max uint32 does not overflow",
-			blobSize:       math.MaxUint32,
-			gasPerBlobByte: math.MaxUint32,
-			want:           sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(uint64(math.MaxUint32)*uint64(math.MaxUint32))),
+			name:     "1 MiB = 4 chunks",
+			blobSize: 1_048_576,
+			want:     650_000 + 4*45_000,
+		},
+		{
+			name:     "8 MiB = 32 chunks",
+			blobSize: 8_388_608,
+			want:     650_000 + 32*45_000,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := calculatePaymentCoin(tt.blobSize, tt.gasPerBlobByte)
+			got := EstimateGasForPayForFibre(tt.blobSize)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestCalculatePaymentAmount(t *testing.T) {
+	tests := []struct {
+		name     string
+		blobSize uint32
+		want     sdk.Coin
+	}{
+		{
+			name:     "zero blob size",
+			blobSize: 0,
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(650_000)),
+		},
+		{
+			name:     "1 byte blob",
+			blobSize: 1,
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(695_000)),
+		},
+		{
+			name:     "exactly 256 KiB",
+			blobSize: 262_144,
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(695_000)),
+		},
+		{
+			name:     "8 MiB blob",
+			blobSize: 8_388_608,
+			want:     sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(2_090_000)),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gas := EstimateGasForPayForFibre(tt.blobSize)
+			got := sdk.NewCoin(appconsts.BondDenom, sdkmath.NewIntFromUint64(gas))
 			assert.Equal(t, tt.want, got)
 		})
 	}

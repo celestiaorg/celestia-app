@@ -1,6 +1,8 @@
 services:
   prometheus:
     image: prom/prometheus:v3.8.1
+    ports:
+      - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./targets:/targets:ro
@@ -10,6 +12,27 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--enable-feature=exemplar-storage'
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.120.0
+    volumes:
+      - ./otel-collector/config.yml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    restart: unless-stopped
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:2.7.2
+    volumes:
+      - ./tempo/config.yml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+    command:
+      - '-config.file=/etc/tempo/config.yaml'
     restart: unless-stopped
 
   grafana:
@@ -29,6 +52,8 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
+      - pyroscope
 
   loki:
     image: grafana/loki:3.1.1
@@ -41,7 +66,17 @@ services:
       - '-config.file=/etc/loki/loki-config.yml'
     restart: unless-stopped
 
+  pyroscope:
+    image: grafana/pyroscope:1.12.0
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope-data:/data
+    restart: unless-stopped
+
 volumes:
   prometheus-data:
   grafana-data:
   loki-data:
+  tempo-data:
+  pyroscope-data:

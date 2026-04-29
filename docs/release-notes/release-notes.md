@@ -2,11 +2,56 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v9.0.0
+
+### Node Operators (v9.0.0)
+
+#### `update-config` Command Deprecated
+
+The `celestia-appd update-config` command is deprecated. The config values it used to apply are now enforced by the binary at startup, so running it when initialising a new node is no longer necessary. The command still works for now but prints a deprecation warning and will be removed in a future release.
+
+#### Block Sync: `verify_data` Default Changed to `false`
+
+The default value of `verify_data` in the `[blocksync]` section of `config.toml` is now `false`. Consensus nodes no longer re-run `ProcessProposal` on each block during block sync, which meaningfully speeds up syncing. This is safe because every block received during block sync is already signed by 2/3+ of the voting power; normal validation resumes once the node switches to consensus mode. Set `verify_data = true` in `config.toml` to restore the previous behaviour.
+
+## v8.0.0
+
+### Node Operators (v8.0.0)
+
+Node operators MUST upgrade their binary to this version prior to the v8 activation height.
+
+#### Prerequisites
+
+##### Minimum OS Version
+
+The v8 multiplexer embeds a v7 binary that was compiled against glibc >= 2.38, which means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error. If you encounter this, upgrade your host OS before proceeding with the v8 upgrade.
+
+#### Upgrade Handler
+
+The upgrade handler re-applies the commission rate migrations from v7 (min 20%, max 60%) to ensure validators that upgraded directly from v6 are compliant. These migrations are idempotent — validators already compliant from v7 are unaffected.
+
+#### Node Shutdown on Consensus Panic
+
+v8 changes the behavior when a consensus panic occurs. Previously, a consensus panic only stopped the consensus reactor while the rest of the node (RPC, mempool, p2p) continued running. This gave node operators the false impression that their node was still functional. Starting in v8, a consensus panic triggers a **full node shutdown** ([celestia-core#2222](https://github.com/celestiaorg/celestia-core/issues/2222)). Node operators using process managers (e.g., systemd) should ensure their restart policies account for this change.
+
+### State Machine Changes (v8.0.0)
+
+#### Forwarding Address Derivation (Breaking)
+
+v8 binds the token identity to forwarding address derivation in `x/forwarding` ([#6906](https://github.com/celestiaorg/celestia-app/pull/6906)). Frontends and relayers select the token route off-chain and the module verifies it matches the derived address. Each unique `(destDomain, destRecipient, tokenId)` tuple now derives its own forwarding address. Any assets sent to a forwarding address with a mismatched denomination are irrecoverable by design. Existing forwarding addresses derived without the token identifier will no longer be valid.
+
 ## v7.0.0
 
 ### Node Operators (v7.0.0)
 
 Node operators MUST upgrade their binary to this version prior to the v7 activation height.
+
+#### Prerequisites
+
+##### Minimum OS Version
+
+> [!CAUTION]
+> The multiplexer embeds binaries that were compiled against glibc >= 2.38, which means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error. If you encounter this, upgrade your host OS before proceeding with the upgrade.
 
 #### Validator Commission Rate Changes
 
@@ -21,10 +66,6 @@ Non-compliant validators will have their rates **automatically adjusted** at the
 - Validators with a max commission rate below 60% will be set to 60%
 
 No manual action is required, but validators should be aware of this change.
-
-#### LevelDB Deprecation
-
-LevelDB (`goleveldb`) is deprecated starting in v7. PebbleDB provides faster performance when saving blocks and is required for Fibre. Node operators should migrate to PebbleDB using the [`migrate-db` tool](../../tools/migrate-db/README.md). LevelDB support will be removed in v8.
 
 #### Horcrux Deprecation
 

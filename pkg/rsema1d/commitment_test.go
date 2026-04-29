@@ -5,7 +5,7 @@ import (
 	"crypto/sha256"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
 func TestDeriveCoefficients(t *testing.T) {
@@ -33,8 +33,8 @@ func TestDeriveCoefficients(t *testing.T) {
 			rowRoot := sha256.Sum256([]byte("test root"))
 
 			// Derive coefficients
-			coeffs1 := deriveCoefficients(rowRoot, config)
-			coeffs2 := deriveCoefficients(rowRoot, config)
+			coeffs1 := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs2 := deriveCoefficients(rowRoot, config.RowSize)
 
 			// Test determinism
 			if len(coeffs1) != len(coeffs2) {
@@ -55,7 +55,7 @@ func TestDeriveCoefficients(t *testing.T) {
 
 			// Test that different roots produce different coefficients
 			differentRoot := sha256.Sum256([]byte("different root"))
-			coeffs3 := deriveCoefficients(differentRoot, config)
+			coeffs3 := deriveCoefficients(differentRoot, config.RowSize)
 
 			allSame := true
 			for i := range coeffs1 {
@@ -98,7 +98,7 @@ func TestComputeRLC(t *testing.T) {
 
 			// Derive coefficients
 			rowRoot := sha256.Sum256([]byte("test"))
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 			// Compute RLC
 			rlc1 := computeRLC(row, coeffs)
@@ -190,7 +190,7 @@ func TestRLCLinearity(t *testing.T) {
 
 	// Derive coefficients
 	rowRoot := sha256.Sum256([]byte("test"))
-	coeffs := deriveCoefficients(rowRoot, config)
+	coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 	// Compute RLCs
 	rlcA := computeRLC(rowA, coeffs)
@@ -271,7 +271,7 @@ func TestCoefficientsConsistency(t *testing.T) {
 			WorkerCount: 1,
 		}
 
-		coeffs := deriveCoefficients(rowRoot, config)
+		coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 		// All configs with same rowSize should produce same coefficients
 		if i > 0 {

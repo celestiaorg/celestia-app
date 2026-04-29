@@ -7,8 +7,8 @@ import (
 	"io"
 	"log/slog"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
@@ -24,8 +24,9 @@ type Server struct {
 	grpc   *fibregrpc.Server
 	signer core.PrivValidator
 
-	log    *slog.Logger
-	tracer trace.Tracer
+	log     *slog.Logger
+	tracer  trace.Tracer
+	metrics *serverMetrics
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -43,11 +44,17 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
+	metrics, err := newServerMetrics(cfg.Meter)
+	if err != nil {
+		return nil, fmt.Errorf("creating metrics: %w", err)
+	}
+
 	server := &Server{
-		Config: cfg,
-		state:  stateClient,
-		log:    cfg.Log,
-		tracer: cfg.Tracer,
+		Config:  cfg,
+		state:   stateClient,
+		log:     cfg.Log,
+		tracer:  cfg.Tracer,
+		metrics: metrics,
 	}
 
 	server.grpc, err = fibregrpc.NewServer(

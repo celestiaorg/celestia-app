@@ -26,8 +26,10 @@ func initEnvCmd() *cobra.Command {
 				envContent = generateDigitalOceanEnv()
 			case "googlecloud":
 				envContent = generateGoogleCloudEnv()
+			case "aws":
+				envContent = generateAWSEnv()
 			default:
-				return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud)", provider)
+				return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud, aws)", provider)
 			}
 
 			// Check if .env already exists
@@ -49,7 +51,7 @@ func initEnvCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Cloud provider (digitalocean or googlecloud)")
+	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Cloud provider (digitalocean, googlecloud, aws)")
 
 	return cmd
 }
@@ -100,5 +102,36 @@ GOOGLE_CLOUD_KEY_JSON_PATH=
 # AWS_SECRET_ACCESS_KEY=
 # AWS_S3_BUCKET=
 # AWS_S3_ENDPOINT=https://fra1.digitaloceanspaces.com
+`
+}
+
+func generateAWSEnv() string {
+	return `# Provider Configuration
+PROVIDER=aws
+
+# AWS Credentials (used for both EC2 and the S3 payload bucket)
+# Create an access key at: https://console.aws.amazon.com/iam/home#/security_credentials
+# The user must have EC2 permissions (RunInstances, Terminate, Describe*,
+# ImportKeyPair, CreateSecurityGroup/AuthorizeSecurityGroupIngress,
+# CreatePlacementGroup, DescribeVpcs/DescribeSubnets, DescribeImages) and
+# S3 (PutObject, GetObject) on the payload bucket.
+#
+# You can also leave these unset and use 'aws configure --profile <name>' +
+# AWS_PROFILE=<name> — the Go SDK picks up shared credentials automatically.
+AWS_ACCESS_KEY_ID=
+AWS_SECRET_ACCESS_KEY=
+
+# Region for EC2 and (by default) the S3 payload bucket.
+AWS_DEFAULT_REGION=us-east-1
+
+# SSH Configuration
+# TALIS_SSH_KEY_PATH is the local path to your SSH public key. The key is
+# imported to EC2 (once per region) under TALIS_SSH_KEY_NAME.
+# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_KEY_NAME=your-username
+
+# S3 Payload Bucket (optional — omit and use 'deploy --direct-payload-upload')
+# Must be an S3 bucket you own in AWS_DEFAULT_REGION.
+# AWS_S3_BUCKET=
 `
 }

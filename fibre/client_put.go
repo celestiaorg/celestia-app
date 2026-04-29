@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -58,7 +58,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
-	signedPromise, err := c.Upload(ctx, ns, blob)
+	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(txClient.DefaultAccountName()))
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")
@@ -69,10 +69,16 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	))
 
 	// broadcast PayForFibre transaction
+	promiseProto, err := signedPromise.ToProto()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
+		return result, fmt.Errorf("converting payment promise to proto: %w", err)
+	}
 	signerAddr := txClient.DefaultAddress()
 	msg := &types.MsgPayForFibre{
 		Signer:              signerAddr.String(),
-		PaymentPromise:      *signedPromise.ToProto(),
+		PaymentPromise:      *promiseProto,
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 	}
 

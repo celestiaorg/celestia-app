@@ -9,8 +9,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -61,7 +61,7 @@ func Run(
 	}
 
 	// Create the account manager to handle account transactions.
-	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant)
+	manager, err := NewAccountManager(ctx, keys, encCfg, opts.masterAcc, conn, opts.pollTime, opts.useFeeGrant, opts.fireAndForget, opts.fireAndForgetDelay)
 	if err != nil {
 		return err
 	}
@@ -137,13 +137,15 @@ func Run(
 }
 
 type Options struct {
-	seed           int64
-	masterAcc      string
-	pollTime       time.Duration
-	useFeeGrant    bool
-	suppressLogger bool
-	gasLimit       uint64
-	gasPrice       float64
+	seed               int64
+	masterAcc          string
+	pollTime           time.Duration
+	useFeeGrant        bool
+	suppressLogger     bool
+	gasLimit           uint64
+	gasPrice           float64
+	fireAndForget      bool
+	fireAndForgetDelay time.Duration
 }
 
 func (o *Options) Fill() {
@@ -193,6 +195,12 @@ func (o *Options) WithGasLimit(gasLimit uint64) *Options {
 
 func (o *Options) WithGasPrice(gasPrice float64) *Options {
 	o.gasPrice = gasPrice
+	return o
+}
+
+func (o *Options) WithFireAndForget(delay time.Duration) *Options {
+	o.fireAndForget = true
+	o.fireAndForgetDelay = delay
 	return o
 }
 

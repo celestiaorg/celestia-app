@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
@@ -172,6 +172,57 @@ func TestSignatureSet(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid signature")
 		require.False(t, hasEnough)
+	})
+
+	t.Run("DuplicateSignatureNoOp", func(t *testing.T) {
+		s := setupSignatureSet(3, 10, half)
+
+		// Add a valid signature from validator 0
+		signature, err := s.privKeys[0].Sign(s.signBytes)
+		require.NoError(t, err)
+		hasEnough, err := s.sigSet.Add(s.validators[0], signature)
+		require.NoError(t, err)
+		require.False(t, hasEnough)
+
+		// Add the same validator's signature again — should be a no-op
+		hasEnough, err = s.sigSet.Add(s.validators[0], signature)
+		require.NoError(t, err)
+		require.False(t, hasEnough)
+
+		// Voting power should be 10 (not 20)
+		sigs, err := s.sigSet.Signatures()
+		require.Error(t, err)
+
+		var sigErr *validator.NotEnoughSignaturesError
+		require.ErrorAs(t, err, &sigErr)
+		require.Equal(t, int64(10), sigErr.CollectedPower)
+		require.Equal(t, int64(15), sigErr.RequiredPower)
+		require.Nil(t, sigs)
+	})
+
+	t.Run("DuplicateSignatureConcurrent", func(t *testing.T) {
+		s := setupSignatureSet(3, 10, half)
+
+		signature, err := s.privKeys[0].Sign(s.signBytes)
+		require.NoError(t, err)
+
+		// Add the same validator's signature concurrently from 10 goroutines
+		var wg sync.WaitGroup
+		for range 10 {
+			wg.Go(func() {
+				_, addErr := s.sigSet.Add(s.validators[0], signature)
+				require.NoError(t, addErr)
+			})
+		}
+		wg.Wait()
+
+		// Voting power should be 10 (not 100)
+		_, err = s.sigSet.Signatures()
+		require.Error(t, err)
+
+		var sigErr *validator.NotEnoughSignaturesError
+		require.ErrorAs(t, err, &sigErr)
+		require.Equal(t, int64(10), sigErr.CollectedPower)
 	})
 
 	t.Run("MixedMissAndValid", func(t *testing.T) {

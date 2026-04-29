@@ -5,10 +5,10 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
@@ -142,12 +142,12 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Validate validator signatures
-	validatorSignBytes, err := pp.SignBytesValidator()
+	signBytes, err := pp.SignBytes()
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
 	}
 
-	if err := ms.validateValidatorSignatures(ctx, validatorSignBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
+	if err := ms.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
 	}
 
@@ -168,19 +168,10 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	// Calculate payment amount based on blob size and gas per byte
 	paymentAmount := ms.calculatePaymentAmount(ctx, msg.PaymentPromise.BlobSize)
 
-	// Check if sufficient balance
-	if escrowAccount.Balance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+	// Deduct payment from escrow account (may reduce pending withdrawals if needed)
+	if err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount); err != nil {
+		return nil, err
 	}
-	// Check if sufficient available balance
-	if escrowAccount.AvailableBalance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient available balance: have %s, need %s", escrowAccount.AvailableBalance, paymentAmount)
-	}
-
-	// Deduct payment from escrow account
-	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
-	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(paymentAmount)
-	ms.SetEscrowAccount(ctx, escrowAccount)
 
 	// Record processed payment
 	processedPayment := types.ProcessedPayment{
@@ -243,19 +234,10 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", escrowSigner)
 	}
 
-	// Check if sufficient balance (defensive check to prevent panic on Sub)
-	if escrowAccount.Balance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+	// Deduct payment from escrow account (may reduce pending withdrawals if needed)
+	if err := ms.deductPaymentFromEscrow(ctx, &escrowAccount, paymentAmount); err != nil {
+		return nil, err
 	}
-	// Check if sufficient available balance (should already be validated, but double-check)
-	if escrowAccount.AvailableBalance.IsLT(paymentAmount) {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient available balance: have %s, need %s", escrowAccount.AvailableBalance, paymentAmount)
-	}
-
-	// Deduct payment from escrow account (both balance and available_balance)
-	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
-	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(paymentAmount)
-	ms.SetEscrowAccount(ctx, escrowAccount)
 
 	// Record processed payment (timeout)
 	processedPayment := types.ProcessedPayment{
@@ -299,22 +281,64 @@ func (ms msgServer) UpdateFibreParams(goCtx context.Context, msg *types.MsgUpdat
 	return &types.MsgUpdateFibreParamsResponse{}, nil
 }
 
-// calculatePaymentAmount calculates the payment amount for a fibre blob based on its size and gas parameters
-func (ms msgServer) calculatePaymentAmount(ctx sdk.Context, blobSize uint32) sdk.Coin {
-	params := ms.GetParams(ctx)
-	// TODO: this assumes 1 utia per gas which may not be correct.
-	return calculatePaymentCoin(blobSize, params.GasPerBlobByte)
+// deductPaymentFromEscrow deducts the payment amount from an escrow account.
+// If AvailableBalance is not enough but Balance covers the payment, it reduces pending
+// withdrawals (FIFO) by the shortfall amount.
+func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *types.EscrowAccount, paymentAmount sdk.Coin) error {
+	if escrowAccount.Balance.IsLT(paymentAmount) {
+		return errorsmod.Wrapf(sdkerrors.ErrInsufficientFunds, "insufficient balance: have %s, need %s", escrowAccount.Balance, paymentAmount)
+	}
+
+	// availableDeduction = min(AvailableBalance, paymentAmount)
+	availableDeduction := paymentAmount
+	if escrowAccount.AvailableBalance.IsLT(paymentAmount) {
+		availableDeduction = escrowAccount.AvailableBalance
+	}
+
+	// Deduct the full payment from the total balance (guaranteed sufficient by the check above).
+	escrowAccount.Balance = escrowAccount.Balance.Sub(paymentAmount)
+	// Only deduct what AvailableBalance can cover; the rest is locked in pending withdrawals.
+	escrowAccount.AvailableBalance = escrowAccount.AvailableBalance.Sub(availableDeduction)
+	ms.SetEscrowAccount(ctx, *escrowAccount)
+
+	// If AvailableBalance couldn't cover the full payment, cancel/reduce pending withdrawals (FIFO)
+	// by the shortfall amount so that Balance and AvailableBalance stay consistent.
+	shortfall := paymentAmount.Sub(availableDeduction)
+	if shortfall.IsPositive() {
+		if err := ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-// calculatePaymentCoin computes the payment coin from blobSize and gasPerBlobByte.
-// Both operands are widened to uint64 before multiplication to prevent uint32 overflow.
-func calculatePaymentCoin(blobSize, gasPerBlobByte uint32) sdk.Coin {
-	result := uint64(blobSize) * uint64(gasPerBlobByte)
-	return sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(result))
+// calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.
+// TODO: this assumes 1 utia per gas which may not be correct.
+func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.Coin {
+	gas := EstimateGasForPayForFibre(blobSize)
+	return sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(gas))
+}
+
+// EstimateGasForPayForFibre estimates the gas required for a PayForFibre message.
+// The formula is: GasFibre = B + A × n
+// where:
+//
+//	B = 650,000 — fixed cost per blob
+//	A = 45,000 — per-chunk cost
+//	n = ⌈blobSize / 262,144⌉ — number of 256 KiB chunks
+//
+// This formula is standalone and not dependent on GasPerBlobByte or GasPerCelestiaByte.
+func EstimateGasForPayForFibre(blobSize uint32) uint64 {
+	if blobSize == 0 {
+		return appconsts.PFBFibreGasFixedCost
+	}
+	chunks := (uint64(blobSize) + uint64(appconsts.PFBFibreChunkSize) - 1) / uint64(appconsts.PFBFibreChunkSize)
+	return appconsts.PFBFibreGasFixedCost + appconsts.PFBFibreGasPerChunk*chunks
 }
 
 // validateValidatorSignatures validates validator signatures using the existing SignatureSet infrastructure
-func (ms msgServer) validateValidatorSignatures(ctx sdk.Context, validatorSignBytes []byte, height int64, signatures [][]byte) error {
+func (ms msgServer) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
 	// Get historical validator set at the height
 	historicalInfo, err := ms.stakingKeeper.GetHistoricalInfo(ctx, height)
 	if err != nil {
@@ -348,7 +372,7 @@ func (ms msgServer) validateValidatorSignatures(ctx sdk.Context, validatorSignBy
 
 	// Create signature set with 2/3+ thresholds
 	twoThirds := cmtmath.Fraction{Numerator: 2, Denominator: 3}
-	sigSet := valSet.NewSignatureSet(twoThirds, validatorSignBytes)
+	sigSet := valSet.NewSignatureSet(twoThirds, signBytes)
 
 	// Add all provided signatures to the signature set
 	for i, signature := range signatures {

@@ -3,7 +3,7 @@ package fibre
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/stretchr/testify/require"
 )
 
@@ -93,8 +93,9 @@ func TestBlob_Reconstruct(t *testing.T) {
 		require.NoError(t, err)
 
 		for _, row := range rows {
-			err = reconstructBlob.SetRow(row)
+			err = reconstructBlob.VerifyRow(row)
 			require.NoError(t, err)
+			require.True(t, reconstructBlob.SetRow(row))
 		}
 
 		err = reconstructBlob.Reconstruct()

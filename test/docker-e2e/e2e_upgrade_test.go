@@ -11,13 +11,14 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
+	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	signaltypes "github.com/celestiaorg/celestia-app/v8/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	signaltypes "github.com/celestiaorg/celestia-app/v9/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -30,6 +31,7 @@ const (
 	AppVersionV6 uint64 = 6
 	AppVersionV7 uint64 = 7
 	AppVersionV8 uint64 = 8
+	AppVersionV9 uint64 = 9
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -48,7 +50,14 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
-	EvidenceMaxAgeV8Blocks = 485280
+	EvidenceMaxAgeV8Blocks = 242640
+	EvidenceMaxAgeV9Blocks = 559940
+
+	// CIP-048 IBC MaxExpectedTimePerBlock for v9 (in nanoseconds)
+	MaxExpectedTimePerBlockV9Ns = uint64(13 * time.Second)
+
+	// Block params for v9
+	MaxBytesV9 = 32 * 1024 * 1024 // 32 MiB
 )
 
 // TestAllUpgrades tests all app version upgrades using the signaling mechanism.
@@ -89,6 +98,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 		{
 			baseAppVersion:   7,
 			targetAppVersion: 8,
+		},
+		{
+			baseAppVersion:   8,
+			targetAppVersion: 9,
 		},
 	}
 
@@ -372,6 +385,80 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 	abciInfo, err := rpcClient.ABCIInfo(ctx)
 	s.Require().NoError(err, "failed to fetch ABCI info")
 	s.Require().Equal(appVersion, abciInfo.Response.GetAppVersion(), "should be running v%d", appVersion)
+
+	// CIP-048: Consensus timeout parameters
+	s.validateTimeoutInfo(ctx, node)
+	// CIP-048: Evidence params (MaxAgeNumBlocks scaled for 2.6s blocks)
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV9Blocks, appVersion)
+	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 13s
+	s.validateMaxExpectedTimePerBlock(ctx, node)
+	// Block params: max_bytes = 32 MiB
+	s.validateBlockParams(ctx, node, MaxBytesV9, appVersion)
+}
+
+// validateTimeoutInfo queries ABCIInfo and validates that the consensus timeout
+// parameters match the expected v9 values per CIP-048.
+func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastoratypes.ChainNode) {
+	rpcClient, err := node.GetRPCClient()
+	s.Require().NoError(err, "failed to get RPC client")
+
+	abciInfo, err := rpcClient.ABCIInfo(ctx)
+	s.Require().NoError(err, "failed to fetch ABCI info")
+
+	ti := abciInfo.Response.TimeoutInfo
+	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
+	s.Require().Equal(appconsts.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
+	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
+	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(appconsts.TimeoutCommit, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
+}
+
+// validateMaxExpectedTimePerBlock queries the IBC connection params and
+// validates that MaxExpectedTimePerBlock was corrected to 13s per CIP-048.
+func (s *CelestiaTestSuite) validateMaxExpectedTimePerBlock(ctx context.Context, node tastoratypes.ChainNode) {
+	client, err := getIBCConnectionQueryClient(node)
+	s.Require().NoError(err)
+
+	resp, err := client.ConnectionParams(ctx, &ibcconnectiontypes.QueryConnectionParamsRequest{})
+	s.Require().NoError(err, "failed to query IBC connection params")
+
+	s.Require().Equal(MaxExpectedTimePerBlockV9Ns, resp.Params.MaxExpectedTimePerBlock,
+		"v9 MaxExpectedTimePerBlock mismatch: expected %d ns, got %d ns", MaxExpectedTimePerBlockV9Ns, resp.Params.MaxExpectedTimePerBlock)
+}
+
+// validateBlockParams queries consensus params and validates max_bytes.
+func (s *CelestiaTestSuite) validateBlockParams(ctx context.Context, node tastoratypes.ChainNode, expectedMaxBytes int, appVersion uint64) {
+	dcNode, ok := node.(*tastoradockertypes.ChainNode)
+	s.Require().True(ok, "node should be a docker chain node")
+
+	networkInfo, err := node.GetNetworkInfo(ctx)
+	s.Require().NoError(err, "failed to get network info from chain node")
+
+	rpcEndpoint := fmt.Sprintf("tcp://%s:26657", networkInfo.Internal.Hostname)
+	cmd := []string{"celestia-appd", "query", "consensus", "params", "--output", "json", "--node", rpcEndpoint}
+
+	stdout, stderr, err := dcNode.Exec(ctx, cmd, nil)
+	s.Require().NoError(err, "failed to query consensus params via CLI: stderr=%s", string(stderr))
+
+	var consensusParams struct {
+		Params struct {
+			Block struct {
+				MaxBytes string `json:"max_bytes"`
+			} `json:"block"`
+		} `json:"params"`
+	}
+	err = json.Unmarshal(stdout, &consensusParams)
+	s.Require().NoError(err, "failed to parse consensus params JSON response")
+
+	maxBytesStr := consensusParams.Params.Block.MaxBytes
+	s.Require().NotEmpty(maxBytesStr, "max_bytes not found in response")
+
+	actualMaxBytes, err := strconv.Atoi(maxBytesStr)
+	s.Require().NoError(err, "failed to parse max_bytes: %s", maxBytesStr)
+
+	s.Require().Equal(expectedMaxBytes, actualMaxBytes, "v%d block max_bytes mismatch: expected %d, got %d", appVersion, expectedMaxBytes, actualMaxBytes)
 }
 
 // getSignalQueryClient returns a signaltypes.QueryClient for the provided node.
@@ -390,6 +477,14 @@ func getSignalQueryClient(node tastoratypes.ChainNode) (signaltypes.QueryClient,
 func getICAHostQueryClient(node tastoratypes.ChainNode) (icahosttypes.QueryClient, error) {
 	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
 		return icahosttypes.NewQueryClient(dcNode.GrpcConn), nil
+	}
+	return nil, fmt.Errorf("GRPC connection is nil")
+}
+
+// getIBCConnectionQueryClient returns an ibcconnectiontypes.QueryClient for the provided node.
+func getIBCConnectionQueryClient(node tastoratypes.ChainNode) (ibcconnectiontypes.QueryClient, error) {
+	if dcNode, ok := node.(*tastoradockertypes.ChainNode); ok && dcNode.GrpcConn != nil {
+		return ibcconnectiontypes.NewQueryClient(dcNode.GrpcConn), nil
 	}
 	return nil, fmt.Errorf("GRPC connection is nil")
 }

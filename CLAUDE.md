@@ -9,8 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 When editing Go code, always run `make build` after changes to catch compilation errors immediately.
 
 ```bash
-make build              # Build multiplexer version (embeds v3-v6 binaries) into ./build/
-make build-standalone   # Build v7-only version (no embedded binaries)
+make build              # Build multiplexer version (embeds v3-v8 binaries) into ./build/
+make build-standalone   # Build v9-only version (no embedded binaries)
+make build-fibre        # Build with fibre+valaddr modules enabled (build tag: ledger,fibre)
+make install-fibre      # Install with fibre+valaddr modules enabled
 make mod                # Update all go.mod files
 ```
 
@@ -23,6 +25,7 @@ go test -v -run TestName ./path/to/package  # Run a single test
 make test-short                              # Run tests in short mode (1 min timeout)
 make test                                    # Run all tests (30 min timeout)
 make test-race                               # Run tests with race detection
+make test-fibre-module                       # Run fibre-tagged tests (app + pkg/da)
 ```
 
 ### Linting
@@ -50,14 +53,15 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 - **`/app`** - Application core: state machine, ABCI handlers (`prepare_proposal.go`, `process_proposal.go`), ante decorators (`ante/`)
 - **`/x`** - Custom modules: `blob` (MsgPayForBlobs), `signal` (upgrades), `minfee` (gas price governance), `mint` (inflation)
 - **`/pkg`** - Reusable packages: `appconsts`, `da`, `wrapper` (NMT), `user` (tx APIs), `inclusion`, `proof`
-- **`/multiplexer`** - Multi-version upgrade system embedding v3-v6 binaries
+- **`/multiplexer`** - Multi-version upgrade system embedding v3-v8 binaries
 - **`/cmd/celestia-appd`** - Binary entry point
 - **`/test/util`** - Test utilities: `testnode`, `blobfactory`, `testfactory`
 
-### Multiplexer vs Standalone
+### Multiplexer vs Standalone vs Fibre
 
-- **`make build`** (default): Multiplexer build embeds v3-v6 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
-- **`make build-standalone`**: v7-only, lighter. Build tag: `ledger`
+- **`make build`** (default): Multiplexer build embeds v3-v8 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
+- **`make build-standalone`**: v9-only, lighter. Build tag: `ledger`
+- **`make build-fibre`**: Standalone with fibre+valaddr modules enabled. Build tag: `ledger,fibre`. By default, the fibre and valaddr modules are **not** compiled into the binary. The module code lives under `x/fibre/` and `x/valaddr/` and is gated behind `//go:build fibre` files in `app/`.
 
 ### Dependency Forks
 
@@ -65,7 +69,9 @@ All branches use forked cosmos-sdk and celestia-core:
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.51.x-celestia` |
+| `main`       | `main`             | `release/v0.52.x-celestia` |
+| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
+| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
 | `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
@@ -76,3 +82,4 @@ All branches use forked cosmos-sdk and celestia-core:
 1. **Multi-module repo**: Copy `go.work.example` to `go.work` and run `go work sync`
 2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `feat!:` for breaking changes)
 3. **Validate inputs** in message handlers; be cautious with arithmetic overflow and gas consumption
+4. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue that contains more details on the bug and the link to the Hacken bug bounty report.

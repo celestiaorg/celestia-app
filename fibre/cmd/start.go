@@ -9,7 +9,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
 )
 
 // initServerConfig creates the home directory and writes a default config file
@@ -48,9 +48,10 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		return fmt.Errorf("starting server: %w", err)
 	}
 
-	cfg.Log.Info("server started",
+	server.Config.Log.Info("server started",
 		"listen", server.ListenAddress(),
 		"app_grpc", cfg.AppGRPCAddress,
+		"privval_grpc", cfg.SignerGRPCAddress,
 		"chain_id", server.ChainID(),
 		"store", cfg.Path,
 	)
@@ -65,6 +66,6 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		return fmt.Errorf("stopping server: %w", err)
 	}
 
-	cfg.Log.Info("server stopped")
+	server.Config.Log.Info("server stopped")
 	return nil
 }

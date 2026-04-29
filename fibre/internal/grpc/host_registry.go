@@ -4,11 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/url"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -38,18 +37,22 @@ func (g *HostRegistry) Start(ctx context.Context) error {
 }
 
 // GetHost implements the HostRegistry interface.
+//
+// The same `host:port` validation that x/valaddr's MsgSetFibreProviderInfo
+// applies on registration is re-applied here so that legacy registrations
+// (or any future bug that lets a malformed host slip past the chain check)
+// surface a clear "got invalid host" error at the registry boundary
+// instead of failing later inside grpc.NewClient with a confusing
+// "too many colons in address".
 func (g *HostRegistry) GetHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
 	host, err := g.getHost(ctx, val)
 	if err != nil {
 		return "", err
 	}
 
-	// check if the host is a valid URL
-	_, err = url.Parse(host.String())
-	if err != nil {
+	if err := types.ValidateHost(host.String()); err != nil {
 		return "", fmt.Errorf("got invalid host %s: %w", host.String(), err)
 	}
-
 	return host, nil
 }
 

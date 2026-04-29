@@ -1,0 +1,38 @@
+name: Post-merge CI
+
+# Catch failures on main that slip through the merge queue (e.g. two PRs that
+# individually pass but conflict once both land).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  build:
+    uses: ./.github/workflows/build.yml
+
+  test:
+    uses: ./.github/workflows/test.yml
+
+  notify-slack-on-failure:
+    name: Notify Slack on failure
+    runs-on: ubuntu-latest
+    needs: [lint, build, test]
+    if: ${{ always() && (needs.lint.result == 'failure' || needs.build.result == 'failure' || needs.test.result == 'failure') }}
+    steps:
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@v3.0.2
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "CI failed on main: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }

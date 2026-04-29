@@ -64,11 +64,55 @@ fi
 
 echo "Script completed successfully."
 
+# === Mount local NVMe instance store (if any) at fibre's data dir ===
+#
+# c6id / i3en / i4i / i7i and similar instance families ship one or more
+# unmounted ephemeral NVMe disks. They are 10–20× faster than the EBS
+# root volume (gp3 baseline ~125 MB/s, instance NVMe is multi-GB/s).
+# Without this block, fibre's `store.Put` writes to the EBS root and
+# becomes the upload-path bottleneck — the disk saturates around 125
+# MB/s while the instance store sits idle.
+#
+# This is a no-op when:
+#   - the instance type has no second NVMe (DigitalOcean droplets,
+#     non-c6id EC2 types, Google Cloud)
+#   - the disk is already formatted+mounted from a previous run
+#     (idempotent on talis re-deploy)
+mount_instance_nvme() {
+  local fibre_dir="/root/.celestia-fibre"
+  local label="celestia-fibre"
+  local dev=""
+  # Pick the largest unmounted whole-disk NVMe that has no partitions.
+  # Sort by size desc, take the first.
+  while read -r name size mp; do
+    [ "$mp" = "" ] || continue
+    [ -n "$(ls /sys/block/${name}/${name}p* 2>/dev/null)" ] && continue
+    dev="/dev/${name}"
+    break
+  done < <(lsblk -bdno NAME,SIZE,MOUNTPOINT 2>/dev/null \
+    | awk '$1 ~ /^nvme/ {print}' | sort -k2 -nr)
+  if [ -z "$dev" ]; then
+    echo "no spare NVMe instance store found — fibre will run on the root volume"
+    return 0
+  fi
+  if ! blkid "$dev" >/dev/null 2>&1; then
+    echo "Formatting $dev (ephemeral NVMe instance store) as ext4..."
+    mkfs.ext4 -F -E lazy_itable_init=1,lazy_journal_init=1 -L "$label" "$dev"
+  fi
+  mkdir -p "$fibre_dir"
+  if ! mountpoint -q "$fibre_dir"; then
+    mount -o noatime,nodiratime "$dev" "$fibre_dir"
+  fi
+  chown root:root "$fibre_dir"
+  echo "Mounted $dev at $fibre_dir ($(df -h "$fibre_dir" | tail -1))"
+}
+mount_instance_nvme
+
 tar -xzf /root/$ARCHIVE_NAME -C /root/
 
 source ./vars.sh
 
-sudo snap install go --channel=1.23/stable --classic
+sudo snap install go --channel=1.26/stable --classic
 
 echo 'export GOPATH="$HOME/go"' >> ~/.profile
 echo 'export GOBIN="$GOPATH/bin"' >> ~/.profile
@@ -86,6 +130,8 @@ parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
 cp payload/build/celestia-appd /bin/celestia-appd
 cp payload/build/txsim /bin/txsim
 cp payload/build/latency-monitor /bin/latency-monitor
+cp payload/build/fibre /bin/fibre
+cp payload/build/fibre-txsim /bin/fibre-txsim
 
 cd $HOME
 

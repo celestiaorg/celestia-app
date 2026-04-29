@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,7 @@ func TestStore(t *testing.T) {
 		{"Put_SameCommitmentDifferentPromises", testStorePutSameCommitmentDifferentPromises},
 		{"Get_NotFound", testStoreGetNotFound},
 		{"Get_DeterministicOrdering", testStoreGetDeterministicOrdering},
+		{"PutGet_PreservesRLCCoefficients", testStorePutGetPreservesRLCCoefficients},
 		{"PruneBefore_RemovesShardAndPromise", testStorePruneBeforeRemovesShardAndPromise},
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
 		{"PruneBefore_NonUTCCutoff_DoesNotPruneUnexpired", testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired},
@@ -60,6 +62,27 @@ func testStorePutGetRoundtrip(t *testing.T, store *fibre.Store) {
 	require.Equal(t, promise.ChainID, gotPromise.ChainID)
 	require.Equal(t, promise.Height, gotPromise.Height)
 	require.Equal(t, promise.Commitment, gotPromise.Commitment)
+}
+
+func testStorePutGetPreservesRLCCoefficients(t *testing.T, store *fibre.Store) {
+	ctx := t.Context()
+
+	blob := makeTestBlobV0(t, 256)
+	shard := makeShardWithRLC(t, blob, 0, 1, 2)
+	promise := makeTestPaymentPromise(100, blob.ID())
+
+	err := store.Put(ctx, promise, shard, promise.CreationTimestamp)
+	require.NoError(t, err)
+
+	gotShard, err := store.Get(ctx, blob.ID().Commitment())
+	require.NoError(t, err)
+	require.Len(t, gotShard.Rows, 3)
+
+	// Coefficients and root must survive the round-trip
+	require.Equal(t, shard.Coefficients, gotShard.Coefficients,
+		"RLC coefficients should be preserved after store round-trip")
+	require.Equal(t, shard.Root, gotShard.Root,
+		"RLC root should be preserved after store round-trip")
 }
 
 func testStorePutSameCommitmentSamePromise(t *testing.T, store *fibre.Store) {
@@ -275,7 +298,7 @@ func makeTestStore(t *testing.T) *fibre.Store {
 	t.Helper()
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := fibre.NewBadgerStore(cfg)
+	store, err := fibre.NewPebbleStore(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 	return store
@@ -298,8 +321,25 @@ func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobSh
 
 	return &types.BlobShard{
 		Rows: rows,
-		Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+		Root: make([]byte, 32),
 	}
+}
+
+// makeShardWithRLC extracts a shard from a blob at the given row indices,
+// including RLC coefficients and root.
+func makeShardWithRLC(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobShard {
+	t.Helper()
+	shard := makeShardFrom(t, blob, indices...)
+
+	rlcCoeffs := blob.RLCCoeffs()
+	coeffBytes := make([]byte, len(rlcCoeffs)*16)
+	for i, c := range rlcCoeffs {
+		b := field.ToBytes128(c)
+		copy(coeffBytes[i*16:(i+1)*16], b[:])
+	}
+	shard.Coefficients = coeffBytes
+
+	return shard
 }
 
 var testSignerKey = secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey)

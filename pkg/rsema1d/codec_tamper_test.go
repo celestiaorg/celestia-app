@@ -6,8 +6,8 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,13 +41,13 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment
@@ -129,7 +129,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -139,7 +139,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment with tampered RLC root
@@ -211,7 +211,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.RowSize)
 
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -222,7 +222,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			rlcOrig[tamperedOrigIndex][0] ^= 0xFFFF
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment
@@ -317,11 +317,11 @@ func TestMultipleTamperedRows(t *testing.T) {
 			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.RowSize)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Build padded RLC Merkle tree
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Create commitment
@@ -403,13 +403,13 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.RowSize)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 			if err != nil {
 				t.Fatalf("ExtendRLCResults failed: %v", err)
 			}
 
-			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			extData := &ExtendedData{
@@ -449,7 +449,7 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to compute fake row root: %v", err)
 			}
-			fakeCoeffs := deriveCoefficients(fakeRowRoot, config)
+			fakeCoeffs := deriveCoefficients(fakeRowRoot, config.RowSize)
 			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs)
 			ctx.rlcOrigRoot = rlcOrigRoot
 
@@ -494,9 +494,9 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	assert.NoError(t, err)
 	nodes, asNodes := buildAdversarialPaddedRowTree(extended)
 	rowRoot := nodes[0]
-	coeffs := deriveCoefficients([32]byte(rowRoot), config)
+	coeffs := deriveCoefficients([32]byte(rowRoot), config.RowSize)
 	rlcOrig := computeRLCOrig(data, coeffs, config)
-	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
+	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 	h := sha256.New()
 	h.Write(rowRoot)

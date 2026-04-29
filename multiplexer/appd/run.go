@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -241,7 +242,10 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath := filepath.Join(targetDirectory, header.Name)
+			dirPath, err := sanitizeTarPath(targetDirectory, header.Name)
+			if err != nil {
+				return fmt.Errorf("path traversal in tar entry: %w", err)
+			}
 			if err := os.MkdirAll(dirPath, 0o755); err != nil {
 				return fmt.Errorf("failed to create directory %s: %w", dirPath, err)
 			}
@@ -249,7 +253,10 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 		}
 
 		// Create file path
-		filePath := filepath.Join(targetDirectory, header.Name)
+		filePath, err := sanitizeTarPath(targetDirectory, header.Name)
+		if err != nil {
+			return fmt.Errorf("path traversal in tar entry: %w", err)
+		}
 
 		// Create parent directory if it doesn't exist
 		if err := os.MkdirAll(filepath.Dir(filePath), 0o755); err != nil {
@@ -290,4 +297,14 @@ func getDirectoryForCelestiaAppBinaries() string {
 // getDirectoryForVersion returns the directory for a particular version.
 func getDirectoryForVersion(version string) string {
 	return filepath.Join(getDirectoryForCelestiaAppBinaries(), version)
+}
+
+// sanitizeTarPath validates that the tar entry path resolves within the target
+// directory, preventing zip-slip (path traversal) attacks.
+func sanitizeTarPath(targetDir, headerName string) (string, error) {
+	cleanPath := filepath.Join(targetDir, headerName)
+	if !strings.HasPrefix(filepath.Clean(cleanPath), filepath.Clean(targetDir)+string(os.PathSeparator)) {
+		return "", fmt.Errorf("tar entry %q resolves to %q which is outside target directory %q", headerName, cleanPath, targetDir)
+	}
+	return cleanPath, nil
 }

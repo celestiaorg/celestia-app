@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -15,9 +16,13 @@ import (
 
 // DownloadShard handles the [types.FibreServer.DownloadShard] RPC call.
 // It retrieves [types.BlobShard] for the given blob ID.
-func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (*types.DownloadShardResponse, error) {
+func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (_ *types.DownloadShardResponse, err error) {
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.DownloadShard")
 	defer span.End()
+
+	var shardSize int64
+	downloadShardDone := s.metrics.observeDownloadShard(ctx)
+	defer func() { downloadShardDone(shardSize, err) }()
 
 	// unmarshal and validate blob ID
 	var id BlobID
@@ -37,7 +42,9 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	}
 
 	// retrieve blob shard from storage using commitment
+	storeGetStart := time.Now()
 	blobShard, err := s.store.Get(ctx, id.Commitment())
+	s.metrics.observeStoreOp(ctx, s.metrics.storeGetDuration, storeGetStart, err == nil)
 	if err != nil {
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.WarnContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
@@ -59,6 +66,16 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		attribute.Int("row_size", rowSize),
 	))
 
+	// strip coefficients unless client explicitly requests them (saves ~64KB bandwidth)
+	if !req.WithRlc {
+		blobShard.Coefficients = nil
+	}
+
+	for _, row := range blobShard.Rows {
+		shardSize += int64(len(row.Data))
+	}
+
+	s.metrics.downloadShardBytes.Add(ctx, shardSize)
 	s.log.InfoContext(ctx, "download successful",
 		"blob_commitment", id.Commitment().String(),
 		"rows", len(blobShard.Rows),

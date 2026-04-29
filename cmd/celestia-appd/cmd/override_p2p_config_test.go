@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	tmcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
@@ -192,7 +192,7 @@ func TestOverrideP2PConfig_Integration(t *testing.T) {
 		{
 			name: "Override mempool type from flood to CAT",
 			setupConfig: func(cfg *tmcfg.Config) {
-				cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+				cfg.Mempool.Type = "flood"
 			},
 			expectedSendRate:    100 * mebibyte,
 			expectedRecvRate:    100 * mebibyte,
@@ -449,7 +449,7 @@ func TestOverrideP2PConfig_OverridesNonCATMempool(t *testing.T) {
 
 	cfg := app.DefaultConsensusConfig()
 	cfg.SetRoot(tempDir)
-	cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+	cfg.Mempool.Type = "flood"
 
 	configPath := filepath.Join(configDir, "config.toml")
 	tmcfg.WriteConfigFile(configPath, cfg)
@@ -484,7 +484,7 @@ func TestOverrideP2PConfig_BypassFlagDoesNotBypassMempoolTypeOverride(t *testing
 
 	cfg := app.DefaultConsensusConfig()
 	cfg.SetRoot(tempDir)
-	cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+	cfg.Mempool.Type = "flood"
 
 	configPath := filepath.Join(configDir, "config.toml")
 	tmcfg.WriteConfigFile(configPath, cfg)
@@ -524,7 +524,7 @@ func TestOverrideMempoolType(t *testing.T) {
 
 	t.Run("overrides flood mempool to CAT", func(t *testing.T) {
 		cfg := app.DefaultConsensusConfig()
-		cfg.Mempool.Type = tmcfg.MempoolTypeFlood
+		cfg.Mempool.Type = "flood"
 		overrideMempoolType(cfg, log.NewNopLogger())
 		require.Equal(t, tmcfg.MempoolTypeCAT, cfg.Mempool.Type)
 	})

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
 )
 
 // NewNetwork starts a single validator celestia-app network using the provided
@@ -20,7 +20,7 @@ import (
 // addresses. Configured genesis options will be applied after all accounts have
 // been initialized.
 func NewNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcAddr string) {
-	return NewNetworkWithRetry(t, config, 3)
+	return NewNetworkWithRetry(t, config, 5)
 }
 
 // NewNetworkWithRetry creates a testnode network with port retry logic
@@ -34,13 +34,9 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 				cleanup()
 			}
 			if isPortBindingError(err) {
-				time.Sleep(time.Second)
-				config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-				config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-				config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-				config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
-				config.AppConfig.API.Enable = true
-				config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+				t.Logf("port binding error on attempt %d/%d, retrying after %ds: %v", attempt+1, maxRetries, attempt+1, err)
+				time.Sleep(time.Duration(attempt+1) * time.Second)
+				reassignListenPorts(config)
 				continue
 			}
 			t.Fatalf("Failed to start network after %d attempts: %v", attempt+1, err)
@@ -121,6 +117,20 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 	}
 
 	return cctx, config.TmConfig.RPC.ListenAddress, config.AppConfig.GRPC.Address, cleanup, nil
+}
+
+// reassignListenPorts reassigns every listener address in config to a new free
+// port. It must cover every port-bearing field set in DefaultTendermintConfig
+// and DefaultAppConfig; missing any one of them makes the retry loop in
+// NewNetworkWithRetry re-use a stale port on every attempt (see #7137).
+func reassignListenPorts(config *Config) {
+	config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	config.AppConfig.API.Enable = true
+	config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
 }
 
 // isPortBindingError checks if an error is related to port binding failures
