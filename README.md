@@ -88,7 +88,11 @@ celestia-app's GitHub Actions workflows run all unit, integration, and lint jobs
 |--------------------------|---------------------------------|--------------|
 | Ubuntu (`ubuntu-latest`) | Ubuntu 24.04 LTS (Noble Numbat) | x86_64       |
 
+GitHub may advance `ubuntu-latest` to a newer LTS over time; see [actions/runner-images](https://github.com/actions/runner-images) for the current alias mapping.
+
 Other OS / version combinations may work but are not exercised by CI and are not officially supported.
+
+Note that arm64 binaries are cross-compiled via goreleaser but are not executed in CI; only the x86_64 build is exercised end-to-end.
 
 ### Prebuilt binaries
 
@@ -103,14 +107,11 @@ Linux binaries built with the multiplexer require **glibc >= 2.38** (Ubuntu 24.0
 
 ### Known incompatibilities
 
-- **Windows**: the `celestia-appd` binary does not support signing with Ledger hardware wallets on Windows.
-- **OpenBSD**: the `celestia-appd` binary does not support signing with Ledger hardware wallets on OpenBSD.
+- **Windows**: the `celestia-appd` binary does not support signing with Ledger hardware wallets.
+- **OpenBSD**: the `celestia-appd` binary does not support signing with Ledger hardware wallets.
 - **Ubuntu 22.04 and older**: incompatible with multiplexer builds (glibc < 2.38).
 
 ## Usage
-
-> [!WARNING]
-> The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
 
 ### Prerequisites
 
