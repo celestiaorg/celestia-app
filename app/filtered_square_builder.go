@@ -44,11 +44,32 @@ func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 	return fsb.builder
 }
 
-func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte) [][]byte {
+func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
 	logger := ctx.Logger().With("app/filtered-square-builder")
 
+	// Drop any txs whose cumulative on-wire size would exceed maxTxBytes.
+	// Required because the data square can be configured larger than
+	// block.MaxBytes.
+	//
+	// A non-positive maxTxBytes means "no limit" — CometBFT always sets a
+	// positive value in production, but some tests construct requests
+	// directly and leave it at zero.
+	filteredByMaxBytes := txs
+	if maxTxBytes > 0 {
+		var currentTxBytes int64
+		filteredByMaxBytes = make([][]byte, 0, len(txs))
+		for _, tx := range txs {
+			if currentTxBytes+int64(len(tx)) > maxTxBytes {
+				logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+				continue
+			}
+			currentTxBytes += int64(len(tx))
+			filteredByMaxBytes = append(filteredByMaxBytes, tx)
+		}
+	}
+
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, payForFibreTxs := separateTxs(fsb.txConfig, txs)
+	normalTxs, blobTxs, payForFibreTxs := separateTxs(fsb.txConfig, filteredByMaxBytes)
 
 	var (
 		sdkMessageCount = 0

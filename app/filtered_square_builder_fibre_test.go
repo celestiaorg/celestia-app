@@ -4,6 +4,7 @@ package app
 
 import (
 	"errors"
+	"math"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -213,7 +214,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
 			ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
 
-			kept := fsb.Fill(ctx, tc.txs)
+			kept := fsb.Fill(ctx, tc.txs, math.MaxInt64)
 			require.Len(t, kept, tc.wantKeptCount)
 
 			// Count how many of the kept txs are plain SDK MsgPayForFibre txs.
@@ -264,7 +265,7 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 	ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
 	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
 
-	kept := fsb.Fill(ctx, pffTxs)
+	kept := fsb.Fill(ctx, pffTxs, math.MaxInt64)
 	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
 }
 
