@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/cometbft/cometbft/crypto"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
@@ -26,6 +26,23 @@ func (s Set) GetByAddress(address crypto.Address) (*core.Validator, bool) {
 		}
 	}
 	return nil, false
+}
+
+// SelectedValidator pairs a validator with its expected row count for download scheduling.
+type SelectedValidator struct {
+	*core.Validator
+	ExpectedRows int
+}
+
+func (s Set) rowsPerValidator(originalRows, minRows int, livenessThreshold cmtmath.Fraction) []int {
+	rowsPerValidator := make([]int, len(s.Validators))
+	for i, v := range s.Validators {
+		num := int64(originalRows) * v.VotingPower * int64(livenessThreshold.Denominator)
+		den := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
+		rows := int((num + den - 1) / den) // ceil division
+		rowsPerValidator[i] = min(max(rows, minRows), originalRows)
+	}
+	return rowsPerValidator
 }
 
 // ShardMap maps validators to the row indices they are assigned.
@@ -56,13 +73,7 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 	// rows = ceil(originalRows * stake% / livenessThreshold)
 	//      = ceil(originalRows * votingPower * denominator / (totalVotingPower * numerator))
 	// Capped at originalRows since that's all needed for reconstruction.
-	rowsPerValidator := make([]int, len(s.Validators))
-	for i, v := range s.Validators {
-		num := int64(originalRows) * v.VotingPower * int64(livenessThreshold.Denominator)
-		den := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
-		rows := int((num + den - 1) / den) // ceil division
-		rowsPerValidator[i] = min(max(rows, minRows), originalRows)
-	}
+	rowsPerValidator := s.rowsPerValidator(originalRows, minRows, livenessThreshold)
 
 	var seed [32]byte
 	copy(seed[:], commitment[:])
@@ -97,14 +108,21 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 }
 
 // Select returns validators to download shards from, shuffled by stake for load balancing.
-// Returns all validators and the minimum count needed for reconstruction (covering livenessThreshold stake).
-func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fraction) (validators []*core.Validator, minRequired int) {
+// Each [SelectedValidator] includes the expected row count for inflight estimation.
+// Validators before the split point have non-overlapping row assignments;
+// validators after it may share rows due to wrap-around.
+// Both groups are shuffled by stake so higher-stake validators are tried first.
+func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fraction) []SelectedValidator {
 	if len(s.Validators) == 0 {
-		return nil, 0
+		return nil
 	}
 
-	validators = make([]*core.Validator, len(s.Validators))
-	copy(validators, s.Validators)
+	// Build paired slice so expected rows stay aligned through shuffling
+	rpv := s.rowsPerValidator(originalRows, minRows, livenessThreshold)
+	selected := make([]SelectedValidator, len(s.Validators))
+	for i, v := range s.Validators {
+		selected[i] = SelectedValidator{Validator: v, ExpectedRows: rpv[i]}
+	}
 
 	// find split point where row assignments start overlapping
 	// each validator contributes max(their stake, minStake) where minStake ensures unique decodability
@@ -113,9 +131,9 @@ func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fractio
 	minStake := (int64(minRows)*totalStake + totalDistributedRows - 1) / totalDistributedRows // ceil division
 
 	accumulated := int64(0)
-	splitIdx := len(validators)
-	for i, v := range validators {
-		accumulated += max(v.VotingPower, minStake)
+	splitIdx := len(selected)
+	for i := range selected {
+		accumulated += max(selected[i].VotingPower, minStake)
 		if accumulated > totalStake {
 			splitIdx = i
 			break
@@ -125,33 +143,20 @@ func (s Set) Select(originalRows, minRows int, livenessThreshold cmtmath.Fractio
 	// shuffle each group by stake for load balancing
 	// NOTE: doesn't require cryptographic randomness
 	rng := rand.New(rand.NewPCG(rand.Uint64(), rand.Uint64()))
-	shuffleByStake(validators[:splitIdx], rng)
-	shuffleByStake(validators[splitIdx:], rng)
+	shuffleByStake(selected[:splitIdx], rng)
+	shuffleByStake(selected[splitIdx:], rng)
 
-	// count validators needed to cover livenessThreshold stake
-	livenessNum := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
-	livenessDen := int64(livenessThreshold.Denominator)
-	livenessStake := (livenessNum + livenessDen - 1) / livenessDen // ceil to ensure enough rows for reconstruction
-	coveredStake := int64(0)
-	for _, v := range validators[:splitIdx] {
-		minRequired++
-		coveredStake += v.VotingPower
-		if coveredStake >= livenessStake {
-			break
-		}
-	}
-
-	return validators, minRequired
+	return selected
 }
 
-// shuffleByStake shuffles validators in-place using stake-weighted random selection.
+// shuffleByStake shuffles selected validators in-place using stake-weighted random selection.
 // Validators with higher voting power are more likely to appear earlier.
-func shuffleByStake(validators []*core.Validator, rng *rand.Rand) {
-	for i := range len(validators) - 1 {
+func shuffleByStake(selected []SelectedValidator, rng *rand.Rand) {
+	for i := range len(selected) - 1 {
 		// calculate total weight of remaining validators
 		var totalWeight int64
-		for j := i; j < len(validators); j++ {
-			totalWeight += validators[j].VotingPower
+		for j := i; j < len(selected); j++ {
+			totalWeight += selected[j].VotingPower
 		}
 
 		// pick random point in weight space
@@ -159,10 +164,10 @@ func shuffleByStake(validators []*core.Validator, rng *rand.Rand) {
 
 		// find and swap the selected validator
 		var cumul int64
-		for j := i; j < len(validators); j++ {
-			cumul += validators[j].VotingPower
+		for j := i; j < len(selected); j++ {
+			cumul += selected[j].VotingPower
 			if point < cumul {
-				validators[i], validators[j] = validators[j], validators[i]
+				selected[i], selected[j] = selected[j], selected[i]
 				break
 			}
 		}

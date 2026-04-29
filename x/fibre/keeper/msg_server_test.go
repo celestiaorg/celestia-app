@@ -11,10 +11,10 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -265,8 +265,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
 
 	// Calculate required balance
-	params := suite.keeper.GetParams(suite.ctx)
-	gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
 
 	// Setup: Create escrow account with sufficient balance
@@ -403,7 +402,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	paymentPromise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
 
 	// Calculate required balance
-	gasRequired := uint64(paymentPromise.BlobSize) * uint64(params.GasPerBlobByte)
+	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
 	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
 
 	// Setup: Create escrow account with sufficient balance
@@ -653,7 +652,71 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	})
 }
 
+// TestPayForFibreWithPendingWithdrawals tests that PayForFibre reduces pending withdrawals
+// when AvailableBalance is insufficient but Balance covers the payment (issue #6842).
+func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
+	params := suite.keeper.GetParams(suite.ctx)
+
+	// Setup: Create validator set for signature validation
+	suite.setupValidatorSet()
+
+	suite.T().Run("payment succeeds when full withdrawal exists", func(t *testing.T) {
+		signerPubKey, privKey, signer := suite.newSigner()
+		paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
+		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+
+		// Create escrow account with deposit
+		escrowAccount := types.EscrowAccount{
+			Signer:           signer,
+			Balance:          depositAmount,
+			AvailableBalance: sdk.NewInt64Coin(appconsts.BondDenom, 0), // All locked in withdrawal
+		}
+		suite.keeper.SetEscrowAccount(suite.ctx, escrowAccount)
+
+		// Create a pending withdrawal for the full deposit amount
+		withdrawal := types.Withdrawal{
+			Signer:             signer,
+			Amount:             depositAmount,
+			RequestedTimestamp: suite.ctx.BlockTime(),
+			AvailableTimestamp: suite.ctx.BlockTime().Add(params.WithdrawalDelay),
+		}
+		suite.keeper.SetWithdrawal(suite.ctx, withdrawal)
+
+		msg := &types.MsgPayForFibre{
+			Signer:              signer,
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: suite.generateValidatorSignatures(&paymentPromise),
+		}
+
+		resp, err := suite.msgServer.PayForFibre(suite.ctx, msg)
+		suite.NoError(err)
+		suite.NotNil(resp)
+
+		// Verify balance was deducted
+		updatedAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+		suite.True(found)
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		expectedBalance := depositAmount.Sub(paymentAmount)
+		suite.Equal(expectedBalance, updatedAccount.Balance)
+		suite.Equal(sdk.NewInt64Coin(appconsts.BondDenom, 0), updatedAccount.AvailableBalance)
+
+		// Verify withdrawal was reduced
+		updatedWithdrawal, found := suite.keeper.GetWithdrawal(suite.ctx, signer, suite.ctx.BlockTime())
+		suite.True(found)
+		expectedWithdrawalAmount := depositAmount.Sub(paymentAmount)
+		suite.Equal(expectedWithdrawalAmount, updatedWithdrawal.Amount)
+	})
+}
+
 // Helper functions
+
+// newSigner generates a fresh key pair and returns the public key, private key, and bech32 address.
+func (suite *MsgServerTestSuite) newSigner() (secp256k1.PubKey, *secp256k1.PrivKey, string) {
+	privKey := secp256k1.GenPrivKey()
+	pubKey := privKey.PubKey()
+	return *pubKey.(*secp256k1.PubKey), privKey, sdk.AccAddress(pubKey.Address()).String()
+}
 
 func (suite *MsgServerTestSuite) createPaymentPromise(signerPubKey secp256k1.PubKey, privKey *secp256k1.PrivKey) types.PaymentPromise {
 	return suite.createPaymentPromiseWithTime(signerPubKey, privKey, suite.ctx.BlockTime())
@@ -734,7 +797,7 @@ func (suite *MsgServerTestSuite) generateValidatorSignatures(paymentPromise *typ
 	suite.NoError(err)
 
 	// Prepare validator sign bytes with domain separation (same as validation code)
-	validatorSignBytes, err := pp.SignBytesValidator()
+	signBytes, err := pp.SignBytes()
 	suite.NoError(err)
 
 	// Get validator key
@@ -743,7 +806,7 @@ func (suite *MsgServerTestSuite) generateValidatorSignatures(paymentPromise *typ
 		return [][]byte{}
 	}
 
-	signature, err := valPrivKey.Sign(validatorSignBytes)
+	signature, err := valPrivKey.Sign(signBytes)
 	suite.NoError(err)
 
 	return [][]byte{signature}

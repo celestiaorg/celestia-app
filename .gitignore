@@ -7,6 +7,7 @@ coverage.txt
 .idea
 .vscode
 tools/lumina-latency-monitor/target
+tools/rust-fibre-txsim/target
 tools-stamp
 __debug_bin*
 profile.out
@@ -33,8 +34,14 @@ config.json
 memory-bank/*
 .clinerules
 tools/talis/talis
+talis-setup/
 .gocache
 .cache
 .gomodcache
-# Claude Code 
+# Claude Code
 .claude/
+# Swagger UI page (override **/*.html)
+!docs/swagger/index.html
+# Swagger generation artifacts
+tmp-swagger-gen/
+docs/swagger/swagger.json

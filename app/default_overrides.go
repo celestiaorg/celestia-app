@@ -8,10 +8,10 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v8/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v9/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -112,8 +112,8 @@ type slashingModule struct {
 // DefaultGenesis returns custom x/slashing module genesis state.
 func (slashingModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genesis := slashingtypes.DefaultGenesisState()
-	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(75, 2) // 75%
-	genesis.Params.SignedBlocksWindow = 5000
+	genesis.Params.MinSignedPerWindow = math.LegacyNewDecWithPrec(1, 3) // 0.1%
+	genesis.Params.SignedBlocksWindow = 10_000
 	genesis.Params.DowntimeJailDuration = time.Minute * 1
 	genesis.Params.SlashFractionDoubleSign = math.LegacyNewDecWithPrec(2, 2) // 2%
 	genesis.Params.SlashFractionDowntime = math.LegacyZeroDec()              // 0%
@@ -257,13 +257,14 @@ func EvidenceParams() *tmproto.EvidenceParams {
 
 func DefaultConsensusConfig() *tmcfg.Config {
 	cfg := tmcfg.DefaultConfig()
-	cfg.DBBackend = "pebbledb"
 	// Set broadcast timeout to be 50 seconds in order to avoid timeouts for long block times
 	cfg.RPC.TimeoutBroadcastTxCommit = 50 * time.Second
 	// this value should be the same as the largest possible response. In this case, that's
 	// likely Unconfirmed txs for a full mempool and a few extra bytes.
 	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
+	// Used to initialise privval gRPC in core
+	cfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
 
 	cfg.Mempool.TTLNumBlocks = 36
 	cfg.Mempool.TTLDuration = 0 * time.Second
@@ -281,6 +282,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 	cfg.P2P.SendRate = 100 * mebibyte
 	cfg.P2P.RecvRate = 100 * mebibyte
+
+	cfg.BlockSync.VerifyData = false
 
 	return cfg
 }
@@ -303,5 +306,6 @@ func DefaultAppConfig() *serverconfig.Config {
 	cfg.MinGasPrices = ""
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
+	cfg.MinRetainBlocks = appconsts.MinRetainBlocks
 	return cfg
 }

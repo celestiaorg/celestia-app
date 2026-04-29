@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v8/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"

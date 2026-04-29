@@ -6,15 +6,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/random"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -98,7 +98,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				hashes[i] = res.TxHash
 			}
 
-			require.NoError(t, s.cctx.WaitForBlocks(10))
+			// Use a generous timeout because producing 10 blocks that each
+			// contain up to ~1 MiB of blob txs is CPU-heavy and the default
+			// 30s timeout flakes on loaded CI runners. See #7080.
+			lastHeight, err := s.cctx.LatestHeight()
+			require.NoError(t, err)
+			_, err = s.cctx.WaitForHeightWithTimeout(lastHeight+10, 2*time.Minute)
+			require.NoError(t, err)
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {

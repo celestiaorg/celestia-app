@@ -7,13 +7,13 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -58,15 +58,24 @@ func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
 
 func makeTestValidators(t *testing.T, n int) ([]*core.Validator, []cmted25519.PrivKey) {
 	t.Helper()
-	validators := make([]*core.Validator, n)
-	privKeys := make([]cmted25519.PrivKey, n)
+	stakes := make([]int64, n)
 	for i := range n {
+		stakes[i] = 100
+	}
+	return makeTestValidatorsWithStakes(t, stakes)
+}
+
+func makeTestValidatorsWithStakes(t *testing.T, stakes []int64) ([]*core.Validator, []cmted25519.PrivKey) {
+	t.Helper()
+	validators := make([]*core.Validator, len(stakes))
+	privKeys := make([]cmted25519.PrivKey, len(stakes))
+	for i, stake := range stakes {
 		privKey := cmted25519.GenPrivKey()
 		privKeys[i] = privKey
 		validators[i] = &core.Validator{
 			Address:     privKey.PubKey().Address(),
 			PubKey:      privKey.PubKey(),
-			VotingPower: 100,
+			VotingPower: stake,
 		}
 	}
 	return validators, privKeys

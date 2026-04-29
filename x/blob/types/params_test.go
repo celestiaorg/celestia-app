@@ -3,7 +3,7 @@ package types
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 )
 

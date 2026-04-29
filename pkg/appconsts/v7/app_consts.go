@@ -5,7 +5,8 @@ import "time"
 const (
 	Version              uint64 = 7
 	SquareSizeUpperBound int    = 512
-	SubtreeRootThreshold int    = 64
+	// WARNING: DO NOT MODIFY. See pkg/appconsts/app_consts.go for details.
+	SubtreeRootThreshold int = 64
 	// TimeoutPropose is the duration a proposer has to propose a block.
 	TimeoutPropose = time.Millisecond * 8500
 	// TimeoutProposeDelta is the increase in timeout propose per round.

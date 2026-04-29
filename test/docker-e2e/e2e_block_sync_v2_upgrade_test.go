@@ -38,7 +38,7 @@ func (s *CelestiaTestSuite) TestBlockSyncV2Upgrade() {
 	// Use v3.x standalone image for initial chain build
 	cfg := dockerchain.DefaultConfig(s.client, s.network).
 		WithImage("ghcr.io/celestiaorg/celestia-app-standalone").
-		WithTag("v3.10.6")
+		WithTag("v3.12.0")
 
 	// Set genesis to start at app version 1
 	cfg.Genesis = cfg.Genesis.WithAppVersion(1)

@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync"
+	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -90,6 +92,7 @@ type Blob struct {
 
 	extendedData *rsema1d.ExtendedData
 	id           BlobID
+	originalID   BlobID
 	rlcCoeffs    []field.GF128
 
 	// holds meta fields about the blob
@@ -158,6 +161,31 @@ func (d *Blob) ID() BlobID {
 	return d.id
 }
 
+// Recovered reports whether reconstruction completed with
+// [WithSkipCommitmentCheck], meaning the blob was recovered from rows whose
+// reconstructed commitment did not match the original on-chain BlobID.
+//
+// When true:
+//   - [ID] returns the reconstructed blob ID derived from the recovered data
+//   - [OriginalID] returns the original on-chain blob ID that was downloaded
+//
+// This marks recovery from an incorrect-encoding scenario where the recovered
+// data is accepted as canonical even though the original commitment was invalid.
+func (d *Blob) Recovered() bool {
+	return d.originalID != nil
+}
+
+// OriginalID returns the original on-chain BlobID before any reconstruction overwrite.
+// After recovery from an incorrect encoding (via WithSkipCommitmentCheck), this returns
+// the on-chain commitment that was replaced during reconstruction.
+// If no overwrite occurred, returns the current ID.
+func (d *Blob) OriginalID() BlobID {
+	if d.originalID != nil {
+		return d.originalID
+	}
+	return d.id
+}
+
 // Config returns the blob's configuration.
 func (d *Blob) Config() BlobConfig {
 	return d.cfg
@@ -201,22 +229,131 @@ func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
 	return d.extendedData.GenerateRowInclusionProof(index)
 }
 
-// SetRow adds and verifies [*rsema1d.RowInclusionProof] to the blob.
-// It is safe to call this method concurrently only for disjoint indices.
-func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) error {
+// VerifyRow verifies a [*rsema1d.RowInclusionProof] against the blob's commitment.
+// Safe to call concurrently — performs only pure computation with no shared state mutation.
+func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
 	config := &rsema1d.Config{
 		K:           d.cfg.OriginalRows,
 		N:           d.cfg.ParityRows,
 		RowSize:     len(row.Row),
 		WorkerCount: d.cfg.CodingWorkers,
 	}
-	err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config)
-	if err != nil {
+	if err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config); err != nil {
 		return fmt.Errorf("verifying row %d: %w", row.Index, err)
 	}
-
-	d.rows[row.Index] = row.Row
 	return nil
+}
+
+// rlcVerifier coordinates RLC-based row verification across concurrent download goroutines.
+// It holds the RLC verification state and an immutable copy of the commitment,
+// independently from the Blob. This prevents data races between straggler download
+// goroutines and the caller's Reconstruct which may mutate the Blob.
+type rlcVerifier struct {
+	commitment Commitment
+	cfg        BlobConfig
+
+	verificationCtx    *rsema1d.VerificationContext
+	verificationCtxSet atomic.Bool
+	ctxErr             error
+	rlcOnce            sync.Once
+}
+
+func newRLCVerifier(commitment Commitment, cfg BlobConfig) *rlcVerifier {
+	return &rlcVerifier{
+		commitment: commitment,
+		cfg:        cfg,
+	}
+}
+
+// setOrWaitVerificationContext validates the RLC coefficients and sets the verification
+// context for stronger per-row verification.
+//
+// Flow:
+//  1. Fast path: if context is already set, return immediately.
+//  2. Cheap validation: build the RLC Merkle tree (no extension) and check that
+//     SHA256(rowRoot || rlcOrigRoot) matches the blob's commitment.
+//  3. Expensive work (sync.Once): extend the RLC values and create the verification context.
+//     Only one goroutine performs this; others block in Once.Do until it completes.
+//
+// Returns an error if the RLC coefficients are inconsistent with the commitment.
+func (v *rlcVerifier) setOrWaitVerificationContext(
+	rlcOrig []field.GF128,
+	rowSize int,
+	sampleProof *rsema1d.RowProof,
+) error {
+	if v.verificationCtxSet.Load() {
+		return nil
+	}
+
+	config := &rsema1d.Config{
+		K:           v.cfg.OriginalRows,
+		N:           v.cfg.ParityRows,
+		RowSize:     rowSize,
+		WorkerCount: v.cfg.CodingWorkers,
+	}
+	if err := config.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+	rlcOrigRoot := rsema1d.BuildPaddedRLCTree(rlcOrig, config).Root()
+	// TODO: it is possible to reuse rowRoot from previous calculations before we started verifyRLC
+	//  but we don't need this to be super optimised due to this case being rare
+	if err := rsema1d.ValidateRLCRoot(rlcOrigRoot, rsema1d.Commitment(v.commitment), sampleProof, config); err != nil {
+		return fmt.Errorf("validating RLC root against commitment: %w", err)
+	}
+
+	v.rlcOnce.Do(func() {
+		verCtx, _, err := rsema1d.CreateVerificationContext(rlcOrig, config)
+		if err != nil {
+			v.ctxErr = fmt.Errorf("creating verification context: %w", err)
+			return
+		}
+		v.verificationCtx = verCtx
+		v.verificationCtxSet.Store(true)
+	})
+
+	if v.verificationCtxSet.Load() {
+		return nil
+	}
+	return v.ctxErr
+}
+
+// verifyRow verifies a [*rsema1d.RowInclusionProof] against the commitment
+// using the prepared RLC verification context.
+// Safe to call concurrently.
+func (v *rlcVerifier) verifyRow(row *rsema1d.RowInclusionProof) error {
+	if err := rsema1d.VerifyRowWithContext(&row.RowProof, v.commitment, v.verificationCtx); err != nil {
+		return fmt.Errorf("verifying row %d: %w", row.Index, err)
+	}
+	return nil
+}
+
+// SetRow assigns a verified [*rsema1d.RowInclusionProof] to the blob.
+// Returns true when the row is new, false when the row was already set (duplicate).
+// The row must be verified with [VerifyRow] before calling this method.
+// It is not safe to call this method concurrently.
+func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) bool {
+	if d.rows[row.Index] != nil {
+		return false
+	}
+	d.rows[row.Index] = row.Row
+	return true
+}
+
+// ReconstructOption configures the behavior of [Blob.Reconstruct].
+type ReconstructOption func(*reconstructOptions)
+
+type reconstructOptions struct {
+	skipCommitmentCheck bool
+}
+
+// WithSkipCommitmentCheck skips the commitment verification after reconstruction
+// and updates the blob's ID to the real commitment derived from the reconstructed data.
+// Use this when recovering from an incorrect encoding where the on-chain commitment
+// differs from the commitment derived from the correct data rows.
+func WithSkipCommitmentCheck() ReconstructOption {
+	return func(o *reconstructOptions) {
+		o.skipCommitmentCheck = true
+	}
 }
 
 // Reconstruct checks the accumulated rows and reconstructs the original data.
@@ -225,7 +362,11 @@ func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) error {
 // Returns:
 //   - [ErrBlobCommitmentMismatch] if the reconstructed commitment doesn't match the expected one
 //   - Reconstruction or decoding errors if either process fails
-func (d *Blob) Reconstruct() error {
+func (d *Blob) Reconstruct(opts ...ReconstructOption) error {
+	var opt reconstructOptions
+	for _, o := range opts {
+		o(&opt)
+	}
 	// TODO(@Wondertan): Move and encapsulate inside rsema1d
 
 	// use reedsolomon decoder directly as opposed to rsema1d.Reconstruct
@@ -254,7 +395,7 @@ func (d *Blob) Reconstruct() error {
 	}
 
 	// verify commitment matches
-	if d.id.Commitment() != reconstructedCommitment {
+	if !opt.skipCommitmentCheck && d.id.Commitment() != reconstructedCommitment {
 		return fmt.Errorf("%w: expected %x, got %x",
 			ErrBlobCommitmentMismatch, d.id.Commitment(), reconstructedCommitment[:])
 	}
@@ -268,6 +409,10 @@ func (d *Blob) Reconstruct() error {
 	d.data = originalData
 	d.extendedData = extendedData
 	d.rlcCoeffs = rlcCoeffs
+	if opt.skipCommitmentCheck {
+		d.originalID = d.id
+		d.id = NewBlobID(d.cfg.BlobVersion, Commitment(reconstructedCommitment))
+	}
 	return nil
 }
 

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -27,11 +27,12 @@ var updateRegistry = map[string]ConfigUpdater{
 // configuration files based on the target version.
 func updateConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "update-config",
-		Short:   "Update configuration values to be that of a specific app version",
-		Long:    "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
-		Example: "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --app-version 6 --home ~/.celestia-app --backup false",
-		Args:    cobra.NoArgs,
+		Use:        "update-config",
+		Short:      "Update configuration values to be that of a specific app version",
+		Long:       "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
+		Example:    "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --app-version 6 --home ~/.celestia-app --backup false",
+		Args:       cobra.NoArgs,
+		Deprecated: "required config values are now enforced at the binary level, so running update-config is no longer necessary when initialising a new node.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
 			if err != nil {

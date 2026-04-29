@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v8/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v8/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel/trace"
@@ -33,9 +33,10 @@ type Client struct {
 	keyring keyring.Keyring
 	state   state.Client
 
-	log    *slog.Logger
-	tracer trace.Tracer
-	clock  clock.Clock
+	log     *slog.Logger
+	tracer  trace.Tracer
+	metrics *clientMetrics
+	clock   clock.Clock
 
 	clientCache *fibregrpc.ClientCache
 	uploadSem   chan struct{}
@@ -73,12 +74,18 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		cfg.NewClientFn = fibregrpc.DefaultNewClientFn(stateClient, cfg.MaxMessageSize)
 	}
 
+	metrics, err := newClientMetrics(cfg.Meter)
+	if err != nil {
+		return nil, fmt.Errorf("creating metrics: %w", err)
+	}
+
 	return &Client{
 		Config:      cfg,
 		keyring:     kr,
 		state:       stateClient,
 		log:         cfg.Log,
 		tracer:      cfg.Tracer,
+		metrics:     metrics,
 		clock:       cfg.Clock,
 		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, cfg.UploadConcurrency),
 		uploadSem:   make(chan struct{}, cfg.UploadConcurrency),

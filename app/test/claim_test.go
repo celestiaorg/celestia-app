@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
@@ -29,6 +29,7 @@ func TestClaimRewardsAfterFullUndelegation(t *testing.T) {
 	accounts := testfactory.GenerateAccounts(2)
 	config := testnode.DefaultConfig().WithFundedAccounts(accounts...)
 	cctx, _, _ := testnode.NewNetwork(t, config)
+	require.NoError(t, cctx.WaitForNextBlock())
 
 	txClient, err := testnode.NewTxClientFromContext(cctx)
 	require.NoError(t, err)

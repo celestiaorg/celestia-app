@@ -10,16 +10,16 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user/utils"
-	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/random"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user/utils"
+	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -65,7 +65,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 	t.Run("submit blob without provided fee and gas limit", func(t *testing.T) {
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs)
 		require.NoError(t, err)
-		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(subCtx, suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.Greater(t, getTxResp.TxResponse.GasWanted, int64(0))
@@ -76,7 +76,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		gas := user.SetGasLimit(1e6)
 		resp, err := suite.txClient.SubmitPayForBlob(subCtx, blobs, fee, gas)
 		require.NoError(t, err)
-		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(subCtx, suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.EqualValues(t, getTxResp.TxResponse.GasWanted, 1e6)
@@ -98,7 +98,7 @@ func (suite *TxClientTestSuite) TestSubmitPayForBlob() {
 		require.NotEmpty(t, accountName, "could not find a non-default account")
 		resp, err := suite.txClient.SubmitPayForBlobWithAccount(subCtx, accountName, blobs, user.SetFee(1e6), user.SetGasLimit(1e6))
 		require.NoError(t, err)
-		getTxResp, err := suite.serviceClient.GetTx(subCtx, &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(subCtx, suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, 0, resp.Code)
 		require.EqualValues(t, getTxResp.TxResponse.GasWanted, 1e6)
@@ -146,7 +146,7 @@ func TestSubmitPayForBlobWithEstimatorService(t *testing.T) {
 	require.Equal(t, abci.CodeTypeOK, resp.Code)
 
 	serviceClient := sdktx.NewServiceClient(ctx.GRPCClient)
-	getTxResp, err := serviceClient.GetTx(ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	getTxResp, err := utils.GetTxWithRetry(ctx.GoContext(), serviceClient, resp.TxHash)
 	require.NoError(t, err)
 
 	require.Equal(t, int64(70000), getTxResp.TxResponse.GasWanted)
@@ -178,7 +178,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.Greater(t, getTxResp.TxResponse.GasWanted, int64(0))
 	})
@@ -191,7 +191,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(gasLimit), getTxResp.TxResponse.GasWanted)
 	})
@@ -206,7 +206,7 @@ func (suite *TxClientTestSuite) TestSubmitTx() {
 		resp, err := suite.txClient.SubmitTx(suite.ctx.GoContext(), []sdk.Msg{msg}, feeOption, gasLimitOption)
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code)
-		getTxResp, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, err)
 		require.EqualValues(t, int64(gasLimit), getTxResp.TxResponse.GasWanted)
 	})
@@ -334,7 +334,7 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.Equal(t, resp.TxHash, err.(*user.ExecutionError).TxHash)
 
 		// Compare it to the getTx response
-		getTxResp, getTxErr := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+		getTxResp, getTxErr := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 		require.NoError(t, getTxErr)
 		// This is a workaround because they are different types
 		require.Contains(t, err.(*user.ExecutionError).ErrorLog, getTxResp.TxResponse.RawLog)
@@ -522,6 +522,49 @@ func TestWithEstimatorService(t *testing.T) {
 	assert.Equal(t, uint64(70000), used)
 }
 
+// TestBroadcastTx_NonSequenceGasEstimationError verifies that when gas estimation
+// fails with a non-sequence error (e.g. network error), BroadcastTx returns the
+// error instead of silently swallowing it. Before the fix, handleSequenceMismatch
+// returned (false, nil) for non-sequence errors, causing BroadcastTx to return
+// (nil, nil), which led to nil pointer dereferences in callers accessing the
+// response's TxHash.
+func TestBroadcastTx_NonSequenceGasEstimationError(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping integration test in short mode.")
+	}
+
+	// Create a gas estimator that always returns a non-sequence error
+	// (simulating a network failure during gas estimation).
+	failingEstimator := setupEstimatorServiceWithErr(t, errors.New("connection refused"))
+
+	// Create a mock TxClient that uses the failing gas estimator.
+	// The broadcast handler doesn't matter since we'll never reach the
+	// broadcast step — gas estimation fails first.
+	handlers := []BroadcastHandler{nil}
+	mockTxClient, conns := setupTxClientWithMockServers(t, handlers, nil,
+		user.WithEstimatorService(failingEstimator.conn),
+	)
+	defer conns[0].Close()
+
+	msg := bank.NewMsgSend(
+		mockTxClient.DefaultAddress(),
+		mockTxClient.DefaultAddress(),
+		sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))),
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Call BroadcastTx WITHOUT setting gas limit — this forces gas estimation,
+	// which will fail with "connection refused" (a non-sequence error).
+	// Before the fix: returned (nil, nil) causing nil dereference panics.
+	// After the fix: returns (nil, error) with the original error.
+	resp, err := mockTxClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	require.Error(t, err, "BroadcastTx must return an error when gas estimation fails with a non-sequence error")
+	require.Nil(t, resp)
+	require.Contains(t, err.Error(), "connection refused")
+}
+
 func (suite *TxClientTestSuite) TestGasPriceAndUsageEstimation() {
 	addr := suite.txClient.DefaultAddress()
 	msg := bank.NewMsgSend(addr, testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(params.BondDenom, 10)))
@@ -560,13 +603,21 @@ func (suite *TxClientTestSuite) TestGasConsumption() {
 	require.NoError(t, err)
 
 	require.EqualValues(t, abci.CodeTypeOK, resp.Code)
+
+	// SubmitTx returns as soon as CometBFT reports the tx committed, but the
+	// app's multistore Commit() that makes the post-tx state visible over gRPC
+	// may still be in flight. Wait for the app to reach resp.Height so the
+	// balance query below reflects the tx.
+	_, err = suite.ctx.WaitForHeight(resp.Height)
+	require.NoError(t, err)
+
 	balanceAfter := suite.queryCurrentBalance(t)
 
 	// verify that the amount deducted depends on the fee set in the tx.
 	amountDeducted := balanceBefore - balanceAfter - utiaToSend
 	require.Equal(t, int64(fee), amountDeducted)
 
-	res, err := suite.serviceClient.GetTx(suite.ctx.GoContext(), &sdktx.GetTxRequest{Hash: resp.TxHash})
+	res, err := utils.GetTxWithRetry(suite.ctx.GoContext(), suite.serviceClient, resp.TxHash)
 	require.NoError(t, err)
 
 	// verify that the amount deducted does not depend on the actual gas used.
@@ -623,12 +674,17 @@ type mockEstimatorServer struct {
 	srv  *grpc.Server
 	conn *grpc.ClientConn
 	addr string
+	// estimateErr, if set, causes EstimateGasPriceAndUsage to return this error.
+	estimateErr error
 }
 
 func (m *mockEstimatorServer) EstimateGasPriceAndUsage(
-	context.Context,
-	*gasestimation.EstimateGasPriceAndUsageRequest,
+	_ context.Context,
+	_ *gasestimation.EstimateGasPriceAndUsageRequest,
 ) (*gasestimation.EstimateGasPriceAndUsageResponse, error) {
+	if m.estimateErr != nil {
+		return nil, m.estimateErr
+	}
 	return &gasestimation.EstimateGasPriceAndUsageResponse{
 		EstimatedGasPrice: 0.02,
 		EstimatedGasUsed:  70000,
@@ -640,6 +696,10 @@ func (m *mockEstimatorServer) stop() {
 }
 
 func setupEstimatorService(t *testing.T) *mockEstimatorServer {
+	return setupEstimatorServiceWithErr(t, nil)
+}
+
+func setupEstimatorServiceWithErr(t *testing.T, estimateErr error) *mockEstimatorServer {
 	t.Helper()
 
 	lis, err := net.Listen("tcp", ":0")
@@ -647,7 +707,7 @@ func setupEstimatorService(t *testing.T) *mockEstimatorServer {
 	addr := lis.Addr().String()
 
 	grpcServer := grpc.NewServer()
-	mes := &mockEstimatorServer{srv: grpcServer, addr: addr}
+	mes := &mockEstimatorServer{srv: grpcServer, addr: addr, estimateErr: estimateErr}
 	gasestimation.RegisterGasEstimatorServer(grpcServer, mes)
 
 	go func() {

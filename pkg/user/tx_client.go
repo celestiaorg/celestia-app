@@ -12,14 +12,14 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	apperrors "github.com/celestiaorg/celestia-app/v8/app/errors"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/gasestimation"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v8/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	apperrors "github.com/celestiaorg/celestia-app/v9/app/errors"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -536,7 +536,7 @@ func (client *TxClient) handleSequenceMismatch(sequenceErr error, txBuilder clie
 		return false, err
 	}
 	if !strings.Contains(sequenceErr.Error(), sdkerrors.ErrWrongSequence.Error()) {
-		return false, nil
+		return false, sequenceErr
 	}
 
 	parsedErr := extractSequenceError(sequenceErr.Error())

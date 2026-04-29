@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v8/x/blob/client/cli"
-	"github.com/celestiaorg/celestia-app/v8/x/blob/keeper"
-	"github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/x/blob/client/cli"
+	"github.com/celestiaorg/celestia-app/v9/x/blob/keeper"
+	"github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"

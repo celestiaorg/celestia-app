@@ -10,8 +10,8 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -97,6 +97,14 @@ func (s *CelestiaTestSuite) buildMixedVersionChain(ctx context.Context, versionT
 	// Use the first version tag as the base configuration
 	baseTag := versionTags[0]
 	baseCfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseTag)
+
+	// Pre-pull all per-tag images with retry so that transient ghcr.io errors
+	// surface as infra noise rather than test failures. PullImage is idempotent
+	// and becomes a no-op once the image is cached locally.
+	for _, tag := range versionTags {
+		img := tastoracontainertypes.NewImage(baseCfg.Image, tag, "10001:10001")
+		s.Require().NoError(pullImageWithRetry(ctx, s.client, img), "failed to pre-pull image %s", img.Ref())
+	}
 
 	validators := make([]genesis.Validator, len(versionTags))
 	for i := range len(versionTags) {

@@ -9,11 +9,11 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -98,6 +98,7 @@ func NewTestApp() *app.App {
 		db,
 		nil,
 		0,
+		0,
 		EmptyAppOptions{},
 		baseapp.SetChainID(ChainID),
 	)
@@ -139,7 +140,7 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 	}
 
 	// init chain will set the validator set and initialize the genesis accounts
-	cparams.Block.MaxBytes = int64(appconsts.DefaultUpperBoundMaxBytes)
+	cparams.Block.MaxBytes = int64(appconsts.BlockMaxBytes)
 	_, err = testApp.InitChain(
 		&abci.RequestInitChain{
 			Time:            GenesisTime,

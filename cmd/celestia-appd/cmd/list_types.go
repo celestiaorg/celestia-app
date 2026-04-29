@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v8/app"
+	"github.com/celestiaorg/celestia-app/v9/app"
 	dbm "github.com/cosmos/cosmos-db"
 	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 	"github.com/spf13/cobra"
@@ -24,7 +24,7 @@ in the interface registry.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Create a temporary app instance to access the encoding config
 			opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
-			tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, opts)
+			tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, opts)
 			encConfig := tempApp.GetEncodingConfig()
 			registry := encConfig.InterfaceRegistry
 

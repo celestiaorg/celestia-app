@@ -10,12 +10,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/test/util/random"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
+	"github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -94,6 +95,7 @@ func setupTxClientWithMockGRPCServerAndSigner(t *testing.T, responseSequences ma
 	s := grpc.NewServer()
 	sdktx.RegisterServiceServer(s, mockServer)
 	tx.RegisterTxServer(s, mockServer)
+	gasestimation.RegisterGasEstimatorServer(s, mockServer)
 
 	go func() {
 		if err := s.Serve(lis); err != nil {

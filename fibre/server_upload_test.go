@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre"
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -182,7 +182,8 @@ func makeTestRequest(
 		SignerKey:         pubKey.(*secp256k1.PubKey),
 	}
 
-	promisePb := promise.ToProto()
+	promisePb, err := promise.ToProto()
+	require.NoError(t, err)
 	signPromise(promisePb)
 
 	// get row assignment for server validator
@@ -216,8 +217,8 @@ func makeTestRequest(
 	req := &types.UploadShardRequest{
 		Promise: promisePb,
 		Shard: &types.BlobShard{
-			Rows: rows,
-			Rlc:  &types.BlobShard_Coefficients{Coefficients: rlcCoeffsBytes},
+			Rows:         rows,
+			Coefficients: rlcCoeffsBytes,
 		},
 	}
 

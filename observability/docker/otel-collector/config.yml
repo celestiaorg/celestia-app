@@ -1,0 +1,30 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+exporters:
+  # Expose metrics on /metrics for Prometheus to scrape (with exemplars via OpenMetrics)
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    enable_open_metrics: true
+    resource_to_telemetry_conversion:
+      enabled: true
+
+  # Forward traces to Tempo
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [prometheus]
+    traces:
+      receivers: [otlp]
+      exporters: [otlp/tempo]

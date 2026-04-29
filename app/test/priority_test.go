@@ -7,16 +7,16 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/app"
-	"github.com/celestiaorg/celestia-app/v8/app/encoding"
-	"github.com/celestiaorg/celestia-app/v8/app/params"
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v8/pkg/user"
-	"github.com/celestiaorg/celestia-app/v8/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/random"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v8/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v8/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/params"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
@@ -75,11 +75,11 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	require.NoError(t, err)
 	gasLimit := blobtypes.DefaultEstimateGas(msg)
 	wg := &sync.WaitGroup{}
-	r := random.New()
 	for _, accName := range s.accountNames {
 		wg.Go(func() {
 			// ensure that it is greater than the min gas price
 			gasPrice := float64(rand.Intn(1000)+1) * appconsts.DefaultMinGasPrice
+			r := random.New()
 			blobs := blobfactory.ManyBlobs(r, []share.Namespace{share.RandomBlobNamespace()}, []int{100})
 			resp, err := s.txClient.BroadcastPayForBlobWithAccount(
 				s.cctx.GoContext(),

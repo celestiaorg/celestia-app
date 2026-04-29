@@ -233,6 +233,123 @@ func TestCopyAndDeleteKeys_NoKeyLoss(t *testing.T) {
 	_ = destDB.Close()
 }
 
+func TestCompactPebbleDB(t *testing.T) {
+	dir := t.TempDir()
+	pdb, err := db.NewDB("compact_test", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	// Write enough data to create multiple SST files.
+	for i := range 500 {
+		key := fmt.Appendf(nil, "key-%06d", i)
+		val := make([]byte, 512)
+		_, _ = rand.Read(val)
+		require.NoError(t, pdb.Set(key, val))
+	}
+
+	require.NoError(t, compactPebbleDB("compact_test", pdb))
+	// Verify data is still intact after compaction.
+	assert.Equal(t, int64(500), countKeys(t, pdb))
+	require.NoError(t, pdb.Close())
+}
+
+func TestSourceCompactionAfterDelete(t *testing.T) {
+	dir := t.TempDir()
+	numKeys := 300
+	srcDB, err := db.NewDB("src", db.GoLevelDBBackend, dir)
+	require.NoError(t, err)
+	for i := range numKeys {
+		key := fmt.Appendf(nil, "key-%06d", i)
+		val := make([]byte, 256)
+		_, _ = rand.Read(val)
+		require.NoError(t, srcDB.Set(key, val))
+	}
+
+	srcIter, err := srcDB.Iterator(nil, nil)
+	require.NoError(t, err)
+	destDB, err := db.NewDB("dst", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	// Small chunk to trigger compaction multiple times.
+	smallChunk := int64(10 * 1024)
+	totalKeys, _, err := copyAndDeleteKeys(context.Background(), "test", srcDB, destDB, srcIter, 1024*1024, 0, smallChunk, time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, int64(numKeys), totalKeys)
+	assert.Equal(t, int64(numKeys), countKeys(t, destDB))
+
+	// Source should have no keys left (all deleted).
+	assert.Equal(t, int64(0), countKeys(t, srcDB))
+
+	_ = srcDB.Close()
+	_ = destDB.Close()
+}
+
+func TestIsPebbleDB(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a LevelDB database
+	levelDir := filepath.Join(dir, "level")
+	require.NoError(t, os.MkdirAll(levelDir, 0o755))
+	ldb, err := db.NewDB("test", db.GoLevelDBBackend, levelDir)
+	require.NoError(t, err)
+	require.NoError(t, ldb.Set([]byte("k"), []byte("v")))
+	require.NoError(t, ldb.Close())
+	assert.False(t, isPebbleDB(filepath.Join(levelDir, "test.db")), "LevelDB should not be detected as PebbleDB")
+
+	// Create a PebbleDB database
+	pebbleDir := filepath.Join(dir, "pebble")
+	require.NoError(t, os.MkdirAll(pebbleDir, 0o755))
+	pdb, err := db.NewDB("test", db.PebbleDBBackend, pebbleDir)
+	require.NoError(t, err)
+	require.NoError(t, pdb.Set([]byte("k"), []byte("v")))
+	require.NoError(t, pdb.Close())
+	assert.True(t, isPebbleDB(filepath.Join(pebbleDir, "test.db")), "PebbleDB should be detected as PebbleDB")
+
+	// Non-existent path
+	assert.False(t, isPebbleDB(filepath.Join(dir, "nonexistent.db")), "non-existent path should return false")
+}
+
+func TestMigration_SkipsWhenConfigIsPebbleDB(t *testing.T) {
+	home := t.TempDir()
+	for _, d := range []string{"data", "config"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(home, d), 0o755))
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("db_backend = \"pebbledb\"\n"), 0o644))
+
+	// Create a LevelDB database — it should never be touched because config says pebbledb
+	ldb, err := db.NewDB("application", db.GoLevelDBBackend, filepath.Join(home, "data"))
+	require.NoError(t, err)
+	require.NoError(t, ldb.Set([]byte("k"), []byte("v")))
+	require.NoError(t, ldb.Close())
+
+	o := migrateOpts{homeDir: home, backup: true, batchSizeMB: 1, deleteChunkMB: defaultDeleteChunkMB, parallel: 3, manualSwap: true}
+	require.NoError(t, runMigration(context.Background(), o))
+
+	// Verify no data_pebble directory was created (early return before any work)
+	_, err = os.Stat(filepath.Join(home, "data_pebble"))
+	assert.True(t, os.IsNotExist(err), "data_pebble should not exist — migration should have returned early")
+}
+
+func TestMigration_ErrorsOnPebbleDBSource(t *testing.T) {
+	home := t.TempDir()
+	for _, d := range []string{"data", "config"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(home, d), 0o755))
+	}
+	// Config says goleveldb, but the files on disk are already PebbleDB
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("db_backend = \"goleveldb\"\n"), 0o644))
+
+	for _, name := range allDatabases {
+		pdb, err := db.NewDB(name, db.PebbleDBBackend, filepath.Join(home, "data"))
+		require.NoError(t, err)
+		require.NoError(t, pdb.Set([]byte("k"), []byte("v")))
+		require.NoError(t, pdb.Close())
+	}
+
+	o := migrateOpts{homeDir: home, backup: true, batchSizeMB: 1, deleteChunkMB: defaultDeleteChunkMB, parallel: 3, manualSwap: false}
+	err := runMigration(context.Background(), o)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already PebbleDB")
+}
+
 func TestDeleteSourceKeys(t *testing.T) {
 	dir := t.TempDir()
 	ldb, err := db.NewDB("t", db.GoLevelDBBackend, dir)

@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.25.7
+1. [Install Go](https://go.dev/doc/install) 1.26.1
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -82,6 +82,9 @@ See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app
 > The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
 
 ### Prerequisites
+
+> [!CAUTION]
+> If you are using the multiplexer binary (default `make build`), the embedded binaries require glibc >= 2.38. This means **Ubuntu 24.04 or later** (or an equivalent distribution) is required. Nodes running older OS versions (e.g., Ubuntu 22.04) will fail to start with a glibc version mismatch error.
 
 If you are on Linux, enable the [BBR](https://www.ietf.org/archive/id/draft-cardwell-iccrg-bbr-congestion-control-01.html) ("Bottleneck Bandwidth and Round-trip propagation time") congestion control algorithm.
 
@@ -201,8 +204,17 @@ make build
 # Build and install the celestia-appd binary into the $GOPATH/bin directory.
 make install
 
+# Build celestia-appd with the fibre module enabled.
+make build-fibre
+
+# Install celestia-appd with the fibre module enabled.
+make install-fibre
+
 # Run tests.
 make test
+
+# Run fibre-tagged tests.
+make test-fibre-module
 
 # Format code with linters (this assumes golangci-lint and markdownlint are installed).
 make lint-fix
@@ -222,6 +234,8 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
 | `main`       | `main`             | `release/v0.52.x-celestia` |
+| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
+| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
 | `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |

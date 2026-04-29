@@ -18,12 +18,23 @@ import (
 
 const (
 	GCDefaultValidatorMachineType     = "c3d-highcpu-16"
+	GCDefaultEncoderMachineType       = "c3d-highcpu-8"
 	GCDefaultObservabilityMachineType = "e2-medium"
-	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
 	GCDefaultDiskSizeGB               = 400
 )
 
 var (
+	protoTCP     = "tcp"
+	protoUDP     = "udp"
+	protoICMP    = "icmp"
+	dirIngress   = computepb.Firewall_INGRESS.String()
+	boolTrue     = true
+	externalNAT  = "External NAT"
+	natType      = computepb.AccessConfig_ONE_TO_ONE_NAT.String()
+	sshKeysLabel = "ssh-keys"
+	diskSizeGB   = int64(GCDefaultDiskSizeGB)
+
 	GCRegions = []string{
 		"us-central1", "us-east1", "us-east4", "asia-southeast1", "europe-west1", "asia-east1",
 	}
@@ -63,7 +74,8 @@ func NewGCClient(cfg Config) (*GCClient, error) {
 
 func (c *GCClient) Up(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -102,7 +114,8 @@ func (c *GCClient) Up(ctx context.Context, workers int) error {
 
 func (c *GCClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -212,6 +225,17 @@ func NewGoogleCloudValidator(region string) Instance {
 	return i
 }
 
+func NewGoogleCloudEncoder(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomGCRegion()
+	}
+	i := NewBaseInstance(Encoder)
+	i.Provider = GoogleCloud
+	i.Slug = GCDefaultEncoderMachineType
+	i.Region = region
+	return i
+}
+
 func NewGoogleCloudObservability(region string) Instance {
 	if region == "" || region == RandomRegion {
 		region = RandomGCRegion()
@@ -275,18 +299,18 @@ func ensureGCFirewallRule(ctx context.Context, project string, opts []option.Cli
 		Name: &firewallName,
 		Allowed: []*computepb.Allowed{
 			{
-				IPProtocol: ptr("tcp"),
+				IPProtocol: &protoTCP,
 				Ports:      []string{"0-65535"},
 			},
 			{
-				IPProtocol: ptr("udp"),
+				IPProtocol: &protoUDP,
 				Ports:      []string{"0-65535"},
 			},
 			{
-				IPProtocol: ptr("icmp"),
+				IPProtocol: &protoICMP,
 			},
 		},
-		Direction:    ptr(computepb.Firewall_INGRESS.String()),
+		Direction:    &dirIngress,
 		SourceRanges: []string{"0.0.0.0/0"},
 		TargetTags:   []string{"talis-allow-all"},
 	}
@@ -417,11 +441,11 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 			},
 			Disks: []*computepb.AttachedDisk{
 				{
-					Boot:       ptr(true),
-					AutoDelete: ptr(true),
+					Boot:       &boolTrue,
+					AutoDelete: &boolTrue,
 					InitializeParams: &computepb.AttachedDiskInitializeParams{
 						SourceImage: &sourceImage,
-						DiskSizeGb:  ptr(int64(GCDefaultDiskSizeGB)),
+						DiskSizeGb:  &diskSizeGB,
 					},
 				},
 			},
@@ -429,8 +453,8 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 				{
 					AccessConfigs: []*computepb.AccessConfig{
 						{
-							Name: ptr("External NAT"),
-							Type: ptr(computepb.AccessConfig_ONE_TO_ONE_NAT.String()),
+							Name: &externalNAT,
+							Type: &natType,
 						},
 					},
 				},
@@ -438,7 +462,7 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 			Metadata: &computepb.Metadata{
 				Items: []*computepb.Items{
 					{
-						Key:   ptr("ssh-keys"),
+						Key:   &sshKeysLabel,
 						Value: &sshKeyMetadata,
 					},
 				},
@@ -640,7 +664,7 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 }
 
 func hasGCExperimentLabel(label, experimentID, chainID string) bool {
-	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") {
+	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") && !strings.HasPrefix(label, "encoder_") {
 		return false
 	}
 	experimentIDLabel := strings.ReplaceAll(experimentID, "-", "_")
@@ -762,8 +786,4 @@ func destroyGCInstancesInternal(ctx context.Context, project string, insts []Ins
 	}
 
 	return removed, nil
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

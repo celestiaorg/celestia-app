@@ -2,13 +2,21 @@ package cli
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
 )
+
+// decodeHexHash decodes a hex-encoded string, tolerating an optional "0x"
+// prefix.
+func decodeHexHash(s string) ([]byte, error) {
+	return hex.DecodeString(strings.TrimPrefix(s, "0x"))
+}
 
 // GetQueryCmd returns the CLI query commands for this module
 func GetQueryCmd() *cobra.Command {
@@ -148,8 +156,13 @@ $ celestia-appd query fibre is-payment-processed 0x1234...
 
 			queryClient := types.NewQueryClient(clientCtx)
 
+			promiseHash, err := decodeHexHash(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid hex payment-promise-hash: %w", err)
+			}
+
 			res, err := queryClient.IsPaymentProcessed(context.Background(), &types.QueryIsPaymentProcessedRequest{
-				PromiseHash: []byte(args[0]),
+				PromiseHash: promiseHash,
 			})
 			if err != nil {
 				return err

@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/celestiaorg/celestia-app/v8/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 

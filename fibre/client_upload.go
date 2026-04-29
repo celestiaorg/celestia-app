@@ -6,11 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v8/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v8/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v8/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -19,17 +21,46 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// UploadOption configures the behavior of [Client.Upload].
+type UploadOption func(*uploadOptions)
+
+type uploadOptions struct {
+	keyName  string
+	awaitAll bool
+}
+
+// WithKeyName sets the key name used for signing the payment promise.
+// When not provided, the default key name from [ClientConfig] is used.
+func WithKeyName(keyName string) UploadOption {
+	return func(o *uploadOptions) {
+		o.keyName = keyName
+	}
+}
+
+// WithAwaitAllSignatures makes [Client.Upload] wait for all validators to respond
+// instead of returning as soon as the safety threshold (2/3) of signatures is collected.
+func WithAwaitAllSignatures() UploadOption {
+	return func(o *uploadOptions) {
+		o.awaitAll = true
+	}
+}
+
 // Upload uploads the given [Blob] to the Fibre network.
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
 // May keep uploading data in background after returning successfully.
 // Returns [ErrClientClosed] if the client has been closed.
-func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (result SignedPaymentPromise, err error) {
+func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
 		return result, errors.New("fibre client is not started")
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
+	}
+
+	opt := uploadOptions{keyName: c.Config.DefaultKeyName}
+	for _, o := range opts {
+		o(&opt)
 	}
 
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Upload",
@@ -39,6 +70,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		),
 	)
 	defer span.End()
+
+	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
+	defer func() { uploadDone(err) }()
 
 	// 1) get validator set
 	valSet, err := c.state.Head(ctx)
@@ -53,7 +87,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	))
 
 	// 2) prepare payment promise
-	promise, err := c.signedPromise(ns, blob, valSet.Height)
+	promise, err := c.signedPromise(ns, blob, valSet.Height, opt.keyName)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create signed promise")
@@ -73,15 +107,25 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	shardMap := valSet.Assign(blob.ID().Commitment(), blob.Config().TotalRows(), blob.Config().OriginalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 	span.AddEvent("shards_assigned")
 
-	validatorSignBytes, err := promise.SignBytesValidator()
+	signBytes, err := promise.SignBytes()
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to prepare validator sign bytes")
 		return result, fmt.Errorf("preparing validator sign bytes: %w", err)
 	}
 
-	requests := makeUploadRequests(shardMap, promise.ToProto(), blob.RLCCoeffs())
-	sigSet := valSet.NewSignatureSet(c.Config.SafetyThreshold, validatorSignBytes)
+	promiseProto, err := promise.ToProto()
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
+		return result, fmt.Errorf("converting payment promise to proto: %w", err)
+	}
+	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
+	threshold := c.Config.SafetyThreshold
+	if opt.awaitAll {
+		threshold = cmtmath.Fraction{Numerator: 1, Denominator: 1}
+	}
+	sigSet := valSet.NewSignatureSet(threshold, signBytes)
 
 	c.log.DebugContext(ctx, "initiating blob upload",
 		"promise_hash", hex.EncodeToString(promiseHash),
@@ -114,6 +158,12 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 		"signatures_collected", len(sigs),
 	)
 
+	var totalShardRows int
+	for _, rows := range shardMap {
+		totalShardRows += len(rows)
+	}
+	c.metrics.observeUploadComplete(ctx, blob.UploadSize(), blob.DataSize(), totalShardRows*blob.RowSize(), len(sigs))
+
 	span.SetStatus(codes.Ok, "")
 	return SignedPaymentPromise{
 		PaymentPromise:      promise,
@@ -121,9 +171,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob) (re
 	}, nil
 }
 
-// signerKey retrieves the secp256k1 public key from the keyring.
-func (c *Client) signerKey() (*secp256k1.PubKey, error) {
-	key, err := c.keyring.Key(c.Config.DefaultKeyName)
+// signerKey retrieves the secp256k1 public key from the keyring for the given key name.
+func (c *Client) signerKey(keyName string) (*secp256k1.PubKey, error) {
+	key, err := c.keyring.Key(keyName)
 	if err != nil {
 		return nil, fmt.Errorf("getting key from keyring: %w", err)
 	}
@@ -141,9 +191,9 @@ func (c *Client) signerKey() (*secp256k1.PubKey, error) {
 	return cosmosPubKey, nil
 }
 
-// signedPromise creates and signs a [PaymentPromise].
-func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*PaymentPromise, error) {
-	signerKey, err := c.signerKey()
+// signedPromise creates and signs a [PaymentPromise] using the given key name.
+func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64, keyName string) (*PaymentPromise, error) {
+	signerKey, err := c.signerKey(keyName)
 	if err != nil {
 		return nil, err
 	}
@@ -164,8 +214,8 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64) (*
 		return nil, fmt.Errorf("getting sign bytes: %w", err)
 	}
 
-	// sign using the default key and direct mode
-	signature, _, err := c.keyring.Sign(c.Config.DefaultKeyName, signBytes, txsigning.SignMode_SIGN_MODE_DIRECT)
+	// sign using the specified key and direct mode
+	signature, _, err := c.keyring.Sign(keyName, signBytes, txsigning.SignMode_SIGN_MODE_DIRECT)
 	if err != nil {
 		return nil, fmt.Errorf("signing payment promise: %w", err)
 	}
@@ -192,13 +242,20 @@ func (c *Client) uploadTo(
 		"rows_count", len(req.Shard.Rows),
 	)
 
+	uploadOk := false
+	uploadStart := time.Now()
+	valAddrStr := val.Address.String()
+
 	ctx, span := c.tracer.Start(ctx, "upload_to",
 		trace.WithAttributes(
-			attribute.String("validator_address", val.Address.String()),
+			attribute.String("validator_address", valAddrStr),
 			attribute.Int("rows_count", len(req.Shard.Rows)),
 		),
 	)
 	defer span.End()
+	defer func() {
+		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
+	}()
 
 	// get a new or cached client with active connection
 	client, err := c.clientCache.GetClient(ctx, val)
@@ -225,7 +282,9 @@ func (c *Client) uploadTo(
 	span.AddEvent("proofs_generated")
 
 	// actually push the data to the validator
+	rpcStart := time.Now()
 	resp, err := client.UploadShard(ctx, req)
+	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
@@ -252,6 +311,7 @@ func (c *Client) uploadTo(
 		return false
 	}
 
+	uploadOk = true
 	log.DebugContext(ctx, "successfully uploaded to validator")
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
@@ -341,8 +401,8 @@ func makeUploadRequests(
 		req := &types.UploadShardRequest{
 			Promise: pbPromise,
 			Shard: &types.BlobShard{
-				Rows: rows,
-				Rlc:  &types.BlobShard_Coefficients{Coefficients: rlcCoeffsBytes},
+				Rows:         rows,
+				Coefficients: rlcCoeffsBytes,
 			},
 		}
 		requests[val] = req
