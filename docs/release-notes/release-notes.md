@@ -11,9 +11,9 @@ This guide provides notes for major version releases. These notes may be helpful
 The canonical matrix of supported operating systems lives in the [README](../../README.md#supported-operating-systems). For v9.0.0 specifically:
 
 - **Tested in CI**: Ubuntu 24.04 LTS (Noble Numbat) on x86_64.
-- **Prebuilt binaries provided**: Linux (`amd64`, `arm64`), macOS (`amd64`, `arm64`).
+- **Prebuilt binaries provided**: Linux (`amd64`, `arm64`), macOS (`amd64`, `arm64`). arm64 binaries are cross-compiled and are not executed in CI.
 - **Minimum glibc**: 2.38. Ubuntu 22.04 and older are **not supported** for multiplexer builds and will fail to start with a glibc version mismatch error.
-- **Changes since v8.0.0**: none — same matrix as v8.
+- **Changes since v8.0.0**: none. (v9 is the first release to record the matrix explicitly; the underlying CI and binary-target configuration is unchanged from v8.)
 
 #### `update-config` Command Deprecated
 
