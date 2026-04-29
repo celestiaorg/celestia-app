@@ -296,6 +296,7 @@ replace (
 	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.1
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
+	github.com/bcp-innovations/hyperlane-cosmos => github.com/bcp-innovations/hyperlane-cosmos v1.2.0-rc.0.0.20260428111302-90bd537748d7
 	github.com/celestiaorg/celestia-app/v9 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.2
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.3

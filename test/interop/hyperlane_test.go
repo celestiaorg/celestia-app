@@ -86,8 +86,8 @@ func (s *HyperlaneTestSuite) TestHyperlaneOutboundTransfer() {
 	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// enroll remote routers (pairs the utia collateral token with the synthetic token on the chainA counterparty)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, synTokenID, CelestiaDomainID, collatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, ChainADomainID, synTokenID)
+	s.EnrollRemoteRouter(s.chainA, synTokenID, CelestiaDomainID, collatTokenID)
 
 	// NOTE: Hyperlane HexAddress is expected to be 32 bytes,
 	// as cosmos addresses are 20 bytes, we must left-pad the address
@@ -218,8 +218,8 @@ func (s *HyperlaneTestSuite) TestHyperlaneInboundTransfer() {
 	synTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
 	// enroll remote routers (pairs the stake collateral token with the synthetic token on the celestia counterparty)
-	s.EnrollRemoteRouter(s.chainA, collatTokenID, CelestiaDomainID, synTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, synTokenID, ChainADomainID, collatTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, collatTokenID, CelestiaDomainID, synTokenID)
+	s.EnrollRemoteRouter(s.celestia, synTokenID, ChainADomainID, collatTokenID)
 
 	// NOTE: Hyperlane HexAddress is expected to be 32 bytes,
 	// as cosmos addresses are 20 bytes, we must left-pad the address
@@ -432,7 +432,7 @@ func (s *HyperlaneTestSuite) CreateSyntheticToken(chain *ibctesting.TestChain, i
 	return resp.Id
 }
 
-func (s *HyperlaneTestSuite) EnrollRemoteRouter(chain *ibctesting.TestChain, tokenID util.HexAddress, domain uint32, recvContract string) {
+func (s *HyperlaneTestSuite) EnrollRemoteRouter(chain *ibctesting.TestChain, tokenID util.HexAddress, domain uint32, recvContract util.HexAddress) {
 	remoteRouter := &warptypes.RemoteRouter{
 		ReceiverDomain:   domain,
 		ReceiverContract: recvContract,

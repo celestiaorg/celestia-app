@@ -16,6 +16,8 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
+	hooktypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
+	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v9/x/zkism/types"
@@ -146,6 +148,142 @@ func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfer() {
 	msgBankSend := banktypes.NewMsgSend(faucet.Address, wallet.Address, sdk.NewCoins(coin))
 
 	txResp, err := broadcaster.BroadcastMessages(ctx, faucet, msgBankSend)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	s.StartRelayerAgent(ctx, hyp)
+
+	// Initial transfer of utia collateral token to reth evm chain
+	rethDomain := s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp)
+	rethRecipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
+
+	s.SendTransferRemoteTx(ctx, chain, config.TokenID, rethDomain, rethRecipient, coin.Amount)
+
+	s.AssertERC20Balance(ctx, reth, tokenRouter, rethRecipient, coin.Amount.BigInt())
+
+	balance := s.QueryBankBalance(ctx, chain, wallet.FormattedAddress, chain.Config.Denom)
+
+	// Execute the hyperlane warp transfer from reth to celestia
+	amount := sdkmath.NewInt(500)
+
+	celestiaDomain := s.GetDomainForChain(ctx, HypCelestiaChainName, hyp)
+	celestiaRecipient, err := bech32ToBytes(wallet.FormattedAddress)
+	s.Require().NoError(err)
+
+	s.SendTransferRemoteTxEvm(ctx, reth, tokenRouter, celestiaDomain, celestiaRecipient, amount)
+
+	expBalance := balance.Add(amount)
+	s.AssertBankBalance(ctx, chain, wallet.FormattedAddress, chain.Config.Denom, expBalance)
+}
+
+func (s *HyperlaneTestSuite) TestHyperlanePostDispatchHooks() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane forwarding test in short mode")
+	}
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	da := s.WithBridgeNodeNetwork(ctx, chain)
+
+	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
+
+	hypConfig := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+	}
+
+	hypChainProvider := []hyperlane.ChainConfigProvider{reth, chain}
+	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
+	s.Require().NoError(err)
+
+	s.Require().NoError(hyp.Deploy(ctx))
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	faucet := chain.GetFaucetWallet()
+
+	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
+	s.Require().NoError(err)
+	s.Require().NotNil(t, config)
+
+	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	s.Require().NoError(err)
+
+	// ==== Create new Hooks stack and deploy =====
+	msgCreatePausableHook := hooktypes.MsgCreatePausableHook{
+		Owner:     faucet.FormattedAddress,
+		MailboxId: config.MailboxID,
+	}
+
+	msgCreateRateLimitedHook := hooktypes.MsgCreateRateLimitedHook{
+		Owner:     faucet.FormattedAddress,
+		MailboxId: config.MailboxID,
+	}
+
+	txResp, err := broadcaster.BroadcastMessages(ctx, faucet, &msgCreatePausableHook, &msgCreateRateLimitedHook)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	var msgCreatePausableHookResp hooktypes.MsgCreatePausableHookResponse
+	var msgCreateRateLimitedHookResp hooktypes.MsgCreateRateLimitedHookResponse
+	s.Require().NoError(unmarshalTxMsgResponses(txResp, &msgCreatePausableHookResp, &msgCreateRateLimitedHookResp))
+
+	pausableHookID := msgCreatePausableHookResp.Id
+	rateLimitedHookID := msgCreateRateLimitedHookResp.Id
+	s.Require().False(pausableHookID.IsZeroAddress())
+	s.Require().False(rateLimitedHookID.IsZeroAddress())
+
+	msgCreateAggregationHook := hooktypes.MsgCreateAggregationHook{
+		Owner: faucet.FormattedAddress,
+		Hooks: []hyputil.HexAddress{
+			pausableHookID,
+			rateLimitedHookID,
+		},
+	}
+	msgSetTokenRateLimit := hooktypes.MsgSetRateLimit{
+		Owner:       faucet.FormattedAddress,
+		HookId:      rateLimitedHookID,
+		TokenId:     config.TokenID,
+		MaxCapacity: sdkmath.NewIntFromUint64(hooktypes.RateLimitDurationSeconds),
+	}
+	msgSetMailbox := coretypes.MsgSetMailbox{
+		Owner:       faucet.GetFormattedAddress(),
+		MailboxId:   config.MailboxID,
+		DefaultIsm:  &config.IsmID,
+		DefaultHook: &config.HooksID,
+		// RequiredHook: aggregationHookID,
+	}
+
+	txResp, err = broadcaster.BroadcastMessages(ctx, faucet, &msgSetMailbox, &msgSetTokenRateLimit, &msgCreateAggregationHook)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	// ==== Create new Hooks stack and deploy =====
+
+	// Register Hyperlane token router connections between celestia and both evm chains
+	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, config.TokenID)
+
+	// Create and fund a new test wallet via the chain faucet
+	wallet, err := chain.CreateWallet(ctx, "test-hyperlane")
+	s.Require().NoError(err)
+
+	coin := sdk.NewCoin(chain.Config.Denom, sdkmath.NewInt(1000))
+	msgBankSend := banktypes.NewMsgSend(faucet.Address, wallet.Address, sdk.NewCoins(coin))
+
+	txResp, err = broadcaster.BroadcastMessages(ctx, faucet, msgBankSend)
 	s.Require().NoError(err)
 	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
 
@@ -863,6 +1001,30 @@ func (s *HyperlaneTestSuite) ParseUpdateISMEvent(txResp sdk.TxResponse) *zkismty
 		s.Require().True(ok)
 
 		return ismEvent
+	}
+
+	return nil
+}
+
+func unmarshalTxMsgResponses(txResp sdk.TxResponse, msgs ...proto.Message) error {
+	data, err := hex.DecodeString(txResp.Data)
+	if err != nil {
+		return fmt.Errorf("decode tx response data: %w", err)
+	}
+
+	var txMsgData sdk.TxMsgData
+	if err := proto.Unmarshal(data, &txMsgData); err != nil {
+		return fmt.Errorf("unmarshal tx message data: %w", err)
+	}
+
+	if len(msgs) != len(txMsgData.MsgResponses) {
+		return fmt.Errorf("expected %d message responses but got %d", len(msgs), len(txMsgData.MsgResponses))
+	}
+
+	for i, msg := range msgs {
+		if err := proto.Unmarshal(txMsgData.MsgResponses[i].Value, msg); err != nil {
+			return fmt.Errorf("unmarshal message response %d: %w", i, err)
+		}
 	}
 
 	return nil
