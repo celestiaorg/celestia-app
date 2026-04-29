@@ -74,6 +74,7 @@ Follow the [creating a release candidate](#creating-a-release-candidate) section
 - The version tag should not include the `-rc` suffix. Instead append the release with `-arabica` or `-mocha` depending on the target network.
 - The release notes should contain an **Upgrade Notice** section with notable changes for node operators or library consumers.
 - The release notes section should contain a link to <https://github.com/celestiaorg/celestia-app/blob/main/docs/release-notes/release-notes.md> where we capture breaking changes
+- The release notes should contain a **Supported operating systems** section per the [Release notes content](#release-notes-content) guide.
 
 ### After creating the release
 
@@ -87,3 +88,4 @@ Follow the [creating a release candidate](#creating-a-release-candidate) section
 - The version tag should not include the `-rc`, `-arabica`, or `-mocha` suffix.
 - Toggle off the **Set as a pre-release** checkbox.
 - Toggle on the **Set as the latest release** checkbox.
+- The release notes should contain a **Supported operating systems** section per the [Release notes content](#release-notes-content) guide.
