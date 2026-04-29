@@ -222,7 +222,7 @@ func (s *HyperlaneTestSuite) TestHyperlanePostDispatchHooks() {
 	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
 	s.Require().NoError(err)
 
-	// ==== Create new Hooks stack and deploy =====
+	// Create new hooks stack and set AggregationHook as the mailbox required hook.
 	msgCreatePausableHook := hooktypes.MsgCreatePausableHook{
 		Owner:     faucet.FormattedAddress,
 		MailboxId: config.MailboxID,
@@ -291,8 +291,6 @@ func (s *HyperlaneTestSuite) TestHyperlanePostDispatchHooks() {
 	txResp, err = broadcaster.BroadcastMessages(ctx, faucet, &msgSetMailbox, &msgSetTokenRateLimit)
 	s.Require().NoError(err)
 	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
-
-	// ==== Create new Hooks stack and deploy =====
 
 	// Register Hyperlane token router connections between celestia and both evm chains
 	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, config.TokenID)
