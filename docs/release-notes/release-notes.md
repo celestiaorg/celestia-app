@@ -6,6 +6,15 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ### Node Operators (v9.0.0)
 
+#### Supported operating systems
+
+The canonical matrix of supported operating systems lives in the [README](../../README.md#supported-operating-systems). For v9.0.0 specifically:
+
+- **Tested in CI**: Ubuntu 24.04 LTS (Noble Numbat) on x86_64.
+- **Prebuilt binaries provided**: Linux (`amd64`, `arm64`), macOS (`amd64`, `arm64`).
+- **Minimum glibc**: 2.38. Ubuntu 22.04 and older are **not supported** for multiplexer builds and will fail to start with a glibc version mismatch error.
+- **Changes since v8.0.0**: none — same matrix as v8.
+
 #### `update-config` Command Deprecated
 
 The `celestia-appd update-config` command is deprecated. The config values it used to apply are now enforced by the binary at startup, so running it when initialising a new node is no longer necessary. The command still works for now but prints a deprecation warning and will be removed in a future release.
