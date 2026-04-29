@@ -56,6 +56,13 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 		}
 	}
 
+	// Guard against rowSize values that would cause computeRLCVectorized to
+	// divide by zero (numChunks == 0). Config.Validate covers config.RowSize,
+	// but variable-size mode (RowSize == 0) derives rowSize from proofs[0].
+	if rowSize == 0 || rowSize%chunkSize != 0 {
+		return fmt.Errorf("row size must be a positive multiple of %d, got %d", chunkSize, rowSize)
+	}
+
 	// Verify each row's Merkle proof independently so tampering with any
 	// single row fails, even though all rowRoots are identical in a valid shard.
 	rowRoots := make([][32]byte, len(proofs))
