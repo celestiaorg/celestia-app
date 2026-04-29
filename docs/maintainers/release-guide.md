@@ -29,6 +29,32 @@ The versions of previous binaries are hard-coded at multiple places in celestia-
 1. Toggle on the **Set as a pre-release** checkbox.
 1. **Publish release**.
 
+### Release notes content
+
+After GitHub generates the auto-generated commit list, edit the release notes to add the following sections at the top, before the auto-generated content:
+
+1. **Upgrade Notice** — notable changes for node operators or library consumers (existing convention).
+2. **Supported operating systems** — required for every release. Use this template:
+
+   ```markdown
+   ## Supported operating systems
+
+   See the [canonical matrix in the README](https://github.com/celestiaorg/celestia-app/blob/<release-tag>/README.md#supported-operating-systems).
+
+   - **Tested in CI**: <e.g., Ubuntu 24.04 LTS (Noble Numbat) on x86_64>
+   - **Prebuilt binaries provided**: Linux (`amd64`, `arm64`), macOS (`amd64`, `arm64`)
+   - **Changes since the previous release**: <list any matrix changes, or "none">
+   ```
+
+   Pin the README link to the release tag (not `main`) so the matrix users read matches what was tested for *this* release.
+
+3. **Link to** [docs/release-notes/release-notes.md](https://github.com/celestiaorg/celestia-app/blob/main/docs/release-notes/release-notes.md) for breaking changes (existing convention).
+
+If the CI OS matrix in `.github/workflows/*.yml` has changed since the previous release, you must also:
+
+- Update the matrix in `README.md` under `## Supported operating systems`.
+- Update the `#### Supported operating systems` subsection under the new version's `### Node Operators` heading in `docs/release-notes/release-notes.md`.
+
 ### After creating the release candidate
 
 1. Wait until CI passes on the release and verify that prebuilt binaries were attached to the release.
