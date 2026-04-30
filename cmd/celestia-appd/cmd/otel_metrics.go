@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -30,6 +28,8 @@ const (
 	// never registered on prometheus.DefaultRegisterer, so the bridge would have
 	// no application-level metrics to scrape.
 	otelDefaultPrometheusRetention = 60
+
+	otelShutdownTimeout = 5 * time.Second
 )
 
 var otelEndpointFlagDescription = fmt.Sprintf(
@@ -41,6 +41,11 @@ var otelEndpointFlagDescription = fmt.Sprintf(
 		"pull endpoints keep working and may be disabled separately. Env: %s",
 	envOTelEndpoint,
 )
+
+// otelMeterProvider holds the active provider between the start command's
+// PreRunE (where it is constructed) and PostRunE (where it is flushed and
+// shut down). Process-global because the start command runs once per process.
+var otelMeterProvider *sdkmetric.MeterProvider
 
 func addOTelMetricsFlag(startCmd *cobra.Command) {
 	startCmd.Flags().String(flagOTelEndpoint, "", otelEndpointFlagDescription)
@@ -111,20 +116,24 @@ func setupOTelMetrics(cmd *cobra.Command, logger log.Logger) error {
 		return fmt.Errorf("start runtime metrics: %w", err)
 	}
 
+	otelMeterProvider = mp
 	logger.Info("OTel metrics push enabled", "endpoint", endpoint)
-
-	go shutdownOTelOnSignal(mp, logger)
-
 	return nil
 }
 
-func shutdownOTelOnSignal(mp *sdkmetric.MeterProvider, logger log.Logger) {
-	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-	<-sigCh
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+// shutdownOTelMetrics flushes and shuts down the meter provider on graceful
+// start-command exit, after the SDK's own signal-driven shutdown has returned
+// from RunE. It is wired as a PostRunE in addStartFlags.
+func shutdownOTelMetrics(cmd *cobra.Command) {
+	mp := otelMeterProvider
+	if mp == nil {
+		return
+	}
+	otelMeterProvider = nil
+
+	ctx, cancel := context.WithTimeout(context.Background(), otelShutdownTimeout)
 	defer cancel()
 	if err := mp.Shutdown(ctx); err != nil {
-		logger.Error("shutting down OTel meter provider", "err", err)
+		server.GetServerContextFromCmd(cmd).Logger.Error("shutting down OTel meter provider", "err", err)
 	}
 }

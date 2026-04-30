@@ -151,6 +151,15 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 	addOTelMetricsFlag(startCmd)
+
+	prevPostRunE := startCmd.PostRunE
+	startCmd.PostRunE = func(cmd *cobra.Command, args []string) error {
+		shutdownOTelMetrics(cmd)
+		if prevPostRunE != nil {
+			return prevPostRunE(cmd, args)
+		}
+		return nil
+	}
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
