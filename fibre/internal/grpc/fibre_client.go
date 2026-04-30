@@ -33,8 +33,10 @@ func (f *fibreClientCloser) Close() error {
 	return f.conn.Close()
 }
 
-// DefaultNewClientFn returns a [NewClientFn] that resolves validator hosts via
-// [validator.HostRegistry] and constructs an insecure gRPC client with OTel tracing.
+// DefaultNewClientFn returns the default [NewClientFn] that uses the provided
+// [validator.HostRegistry] to resolve validator hosts and establishes insecure gRPC connections
+// with OpenTelemetry instrumentation for distributed tracing.
+// The maxMsgSize parameter sets the maximum gRPC message size for send and receive operations.
 func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int) NewClientFn {
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
 		host, err := hostReg.GetHost(ctx, val)

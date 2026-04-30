@@ -121,10 +121,7 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
 
-	// Upload returns at quorum but background goroutines continue
-	// best-effort delivery to the remaining peers. Stop waits on
-	// closeWg so by the time it returns every validator has been
-	// contacted.
+	// Stop drains background goroutines so all peers receive data.
 	require.NoError(t, client.Stop(t.Context()))
 
 	// verify all validators received data

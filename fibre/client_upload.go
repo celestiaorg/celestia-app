@@ -59,19 +59,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		return result, ErrClientClosed
 	}
 
-	// Admission: reserve this blob's worth of bytes from the upload memory budget.
-	// Skipped when the budget is disabled (UploadMemoryBudget <= 0).
-	if c.uploadBudget != nil {
-		uploadBytes := int64(blob.UploadSize())
-		if uploadBytes > c.Config.UploadMemoryBudget {
-			return result, fmt.Errorf("fibre: upload size %d exceeds memory budget %d", uploadBytes, c.Config.UploadMemoryBudget)
-		}
-		if err := c.uploadBudget.Acquire(ctx, uploadBytes); err != nil {
-			return result, err
-		}
-		defer c.uploadBudget.Release(uploadBytes)
-	}
-
 	opt := uploadOptions{keyName: c.Config.DefaultKeyName}
 	for _, o := range opts {
 		o(&opt)
@@ -150,8 +137,21 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		"validators", len(requests),
 	)
 
-	// 3) upload data
-	if err = c.uploadShards(ctx, requests, blob, sigSet); err != nil {
+	// 3) admit and upload — release the budget only once all per-validator
+	// goroutines drain, since post-quorum delivery outlives Upload's return
+	// and keeps the blob pinned in memory.
+	onAllUploaded := func() {}
+	if c.uploadBudget != nil {
+		uploadBytes := int64(blob.UploadSize())
+		if uploadBytes > c.Config.UploadMemoryBudget {
+			return result, fmt.Errorf("fibre: upload size %d exceeds memory budget %d", uploadBytes, c.Config.UploadMemoryBudget)
+		}
+		if err = c.uploadBudget.Acquire(ctx, uploadBytes); err != nil {
+			return result, err
+		}
+		onAllUploaded = func() { c.uploadBudget.Release(uploadBytes) }
+	}
+	if err = c.uploadShards(ctx, requests, blob, sigSet, onAllUploaded); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload")
 		return result, err
@@ -246,7 +246,7 @@ func (c *Client) uploadTo(
 	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-) (hasEnough bool, err error) {
+) bool {
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.ID().Commitment(),
@@ -268,35 +268,31 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	// GetClient uses the caller's ctx, not rpcCtx: ClientCache permanently caches
-	// errors from newClient, so a context-deadline failure here would poison the
-	// entry for that validator forever. grpc.NewClient is lazy anyway — the
-	// actual TCP dial happens at UploadShard time and is bounded by rpcCtx below.
+	// Use the caller's ctx, not rpcCtx: ClientCache permanently caches errors
+	// from newClient, so an RPCTimeout deadline here would poison the entry.
 	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return false, err
+		return false
 	}
 	span.AddEvent("client_acquired")
 
 	// Generate proofs in parallel per request (~39% faster for max blob size).
 	for i, rowPb := range req.Shard.Rows {
-		row, rowErr := blob.Row(int(rowPb.Index))
-		if rowErr != nil {
-			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", rowErr)
-			span.RecordError(rowErr, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
+		row, err := blob.Row(int(rowPb.Index))
+		if err != nil {
+			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", err)
+			span.RecordError(err, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
 			span.SetStatus(codes.Error, "failed to generate proof for row")
-			return false, rowErr
+			return false
 		}
 		req.Shard.Rows[i].Data = row.Row
 		req.Shard.Rows[i].Proof = row.RowProof.RowProof
 	}
 	span.AddEvent("proofs_generated")
 
-	// RPCTimeout bounds the actual UploadShard call (dial + RPC). A black-holed
-	// peer fails here instead of parking on the kernel's ~75s TCP SYN retries.
 	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 	defer rpcCancel()
 
@@ -307,7 +303,7 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload rows")
-		return false, err
+		return false
 	}
 	span.AddEvent("rows_uploaded")
 
@@ -317,49 +313,35 @@ func (c *Client) uploadTo(
 		log.WarnContext(ctx, "failed to parse signature", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to parse signature")
-		return false, err
+		return false
 	}
 
 	// apply signature response and check if we have enough
-	hasEnough, err = sigSet.Add(val, signature)
+	hasEnough, err := sigSet.Add(val, signature)
 	if err != nil {
 		log.WarnContext(ctx, "failed to add signature", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to add signature")
-		return false, err
+		return false
 	}
 
 	uploadOk = true
 	log.DebugContext(ctx, "successfully uploaded to validator")
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
-	return hasEnough, nil
+	return hasEnough
 }
 
-// uploadShards pushes assigned [types.BlobShard]s to all validators and
-// collects signature responses. Returns when quorum is reached, all
-// responses are in, or the caller's context is done.
-//
-// Design notes (2/3 quorum isolation):
-//
-//   - Fan-out is non-blocking: all goroutines are spawned up front, so
-//     a slow or dead peer cannot delay goroutines to other peers from
-//     starting. Combined with RPCTimeout this is the root-cause fix
-//     for the single-black-holed-validator throughput collapse that
-//     the old global RPC semaphore caused by serializing the fan-out
-//     loop behind slot acquires.
-//
-//   - Best-effort post-quorum delivery: uploadShards returns as soon
-//     as quorum is reached, but background fan-out goroutines continue
-//     delivering shards to the remaining validators. More validators
-//     holding the data means downloaders have more peers to read from.
-//     Background goroutines are tracked via [c.closeWg] and inherit
-//     the caller's ctx, so they unwind on client stop or caller cancel.
+// uploadShards fans out shard requests to all validators and returns when
+// quorum is reached, all responses are in, or ctx is done. Background
+// goroutines continue best-effort delivery to remaining peers past quorum;
+// they are tracked via [c.closeWg] and unwind on client stop or caller cancel.
 func (c *Client) uploadShards(
 	ctx context.Context,
 	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
+	onAllDone func(),
 ) error {
 	var (
 		responses            atomic.Uint32
@@ -368,10 +350,8 @@ func (c *Client) uploadShards(
 		sigsCollectedCh      = make(chan struct{})
 	)
 
-	// Empty request map (e.g., empty validator set): no goroutines to
-	// spawn and no channels to close, so the select below would block
-	// forever; return early.
 	if len(requests) == 0 {
+		onAllDone()
 		return nil
 	}
 
@@ -381,11 +361,12 @@ func (c *Client) uploadShards(
 			defer func() {
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
+					onAllDone()
 				}
 				c.closeWg.Done()
 			}()
 
-			hasEnough, _ := c.uploadTo(ctx, val, req, blob, sigSet)
+			hasEnough := c.uploadTo(ctx, val, req, blob, sigSet)
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
@@ -395,8 +376,6 @@ func (c *Client) uploadShards(
 	select {
 	case <-responsesExhaustedCh:
 	case <-sigsCollectedCh:
-		// Quorum reached; uploadShards returns, but background
-		// goroutines continue best-effort delivery to remaining peers.
 	case <-ctx.Done():
 		return ctx.Err()
 	}
