@@ -28,6 +28,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestVersionFromBytes ensures the helper is total over arbitrary inputs.
+// `binary.BigEndian.Uint64` panics on inputs shorter than 8 bytes; the helper
+// must guard against that to avoid panicking inside store-iteration paths.
+func TestVersionFromBytes(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+		want  uint64
+	}{
+		{"nil", nil, 0},
+		{"empty", []byte{}, 0},
+		{"one byte", []byte{0x01}, 0},
+		{"seven bytes", []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, 0},
+		{"canonical 8 bytes", []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07}, 7},
+		{"nine bytes is rejected", []byte{0, 0, 0, 0, 0, 0, 0, 7, 0}, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NotPanics(t, func() {
+				assert.Equal(t, tt.want, signal.VersionFromBytes(tt.input))
+			})
+		})
+	}
+}
+
 func TestGetVotingPowerThreshold(t *testing.T) {
 	bigInt := big.NewInt(0)
 	bigInt.SetString("23058430092136939509", 10)
