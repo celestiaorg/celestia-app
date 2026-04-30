@@ -93,5 +93,15 @@ func validateGovMaxSquareSize(v any) error {
 		)
 	}
 
+	// Cap at the consensus-critical upper bound. Without this guard,
+	// downstream uint64 multiplications (e.g. App.getGovMaxSquareBytes which
+	// computes maxSquareSize*maxSquareSize*share.ShareSize) silently wrap.
+	if govMaxSquareSize > uint64(appconsts.SquareSizeUpperBound) {
+		return fmt.Errorf(
+			"gov max square size %d exceeds the upper bound %d",
+			govMaxSquareSize, appconsts.SquareSizeUpperBound,
+		)
+	}
+
 	return nil
 }
