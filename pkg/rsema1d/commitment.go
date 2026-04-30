@@ -31,7 +31,7 @@ func deriveCoefficients(rowRoot [32]byte, k, n, rowSize int) []field.GF128 {
 	coeffs := make([]field.GF128, numSymbols)
 	workers := min(runtime.GOMAXPROCS(0), numSymbols)
 	if workers <= 1 || numSymbols < minParallelDeriveSymbols {
-		deriveCoefficientsRange(rowRoot, coeffs, 0, numSymbols)
+		deriveCoefficientsRange(seed, coeffs, 0, numSymbols)
 		return coeffs
 	}
 	chunk := (numSymbols + workers - 1) / workers
@@ -42,7 +42,7 @@ func deriveCoefficients(rowRoot [32]byte, k, n, rowSize int) []field.GF128 {
 		end := min(start+chunk, numSymbols)
 		go func(start, end int) {
 			defer wg.Done()
-			deriveCoefficientsRange(rowRoot, coeffs, start, end)
+			deriveCoefficientsRange(seed, coeffs, start, end)
 		}(start, end)
 	}
 	wg.Wait()
@@ -53,8 +53,7 @@ func deriveCoefficients(rowRoot [32]byte, k, n, rowSize int) []field.GF128 {
 // parallel is slower below ~256 and 1.3-7× faster from 512 upward.
 const minParallelDeriveSymbols = 512
 
-func deriveCoefficientsRange(rowRoot [32]byte, coeffs []field.GF128, start, end int) {
-	seed := sha256.Sum256(rowRoot[:])
+func deriveCoefficientsRange(seed [32]byte, coeffs []field.GF128, start, end int) {
 	var input [32 + 4]byte
 	copy(input[:32], seed[:])
 
