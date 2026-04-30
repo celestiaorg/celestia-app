@@ -41,7 +41,6 @@ type Client struct {
 
 	clientCache  *fibregrpc.ClientCache
 	uploadBudget *semaphore.Weighted
-	downloadSem  chan struct{}
 
 	// closeWg tracks subroutines spawned by Upload/Download operations.
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
@@ -89,7 +88,6 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		metrics:     metrics,
 		clock:       cfg.Clock,
 		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
-		downloadSem: make(chan struct{}, cfg.DownloadConcurrency),
 	}
 	if cfg.UploadMemoryBudget > 0 {
 		c.uploadBudget = semaphore.NewWeighted(cfg.UploadMemoryBudget)

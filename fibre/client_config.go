@@ -50,9 +50,6 @@ type ClientConfig struct {
 	// Sheds black-holed peers below the kernel's ~75s TCP SYN retry window.
 	RPCTimeout time.Duration
 
-	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
-	DownloadConcurrency int
-
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
 	// If nil, [Validate] creates one from [StateAddress].
 	StateClientFn func() (state.Client, error)
@@ -90,7 +87,6 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		RPCTimeout:          DefaultRPCTimeout,
-		DownloadConcurrency: p.ValidatorsForReconstruction(),
 	}
 }
 

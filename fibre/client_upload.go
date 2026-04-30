@@ -268,8 +268,6 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	// Use the caller's ctx, not rpcCtx: ClientCache permanently caches errors
-	// from newClient, so an RPCTimeout deadline here would poison the entry.
 	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
@@ -374,8 +372,8 @@ func (c *Client) uploadShards(
 	}
 
 	select {
-	case <-responsesExhaustedCh:
-	case <-sigsCollectedCh:
+	case <-responsesExhaustedCh: // no more responses to wait for
+	case <-sigsCollectedCh: // enough signatures collected
 	case <-ctx.Done():
 		return ctx.Err()
 	}

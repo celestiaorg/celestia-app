@@ -261,9 +261,10 @@ type downloadResult struct {
 	err    error
 }
 
-// downloadBlob downloads shards from validators concurrently and populates the blob.
-// It tracks unique rows collected and dynamically launches more validators as needed,
-// applying rows single-threaded in the coordinator goroutine.
+// downloadBlob fans out shard fetches to all selected validators and populates
+// the blob. Rows are applied single-threaded in the coordinator goroutine.
+// Returns as soon as enough unique rows are collected; the deferred ctx cancel
+// unwinds in-flight fetches to peers we no longer need.
 // When withRLC is true, requests RLC coefficients for stronger per-row verification.
 func (c *Client) downloadBlob(
 	ctx context.Context,
@@ -287,58 +288,25 @@ func (c *Client) downloadBlob(
 		rlcVerifier = newRLCVerifier(id.Commitment(), blobCfg)
 	}
 
-	// Get validators in priority order (shuffled by stake for load balancing)
-	// Each SelectedValidator includes ExpectedRows for inflight estimation.
 	selected := valSet.Select(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
 	resultCh := make(chan downloadResult, len(selected))
 
-	var (
-		uniqueRows   int
-		inflightRows int
-		nextVal      int
-		active       int
-	)
+	for valIdx, sv := range selected {
+		c.closeWg.Add(1)
+		go func() {
+			defer c.closeWg.Done()
+			rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, rlcVerifier)
+			select {
+			case resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}:
+			case <-ctx.Done():
+			}
+		}()
+	}
 
-loop:
-	for {
-		// Determine if we need more validators to cover originalRows
-		needMore := uniqueRows+inflightRows < originalRows && nextVal < len(selected)
-
-		// Use nil-channel trick: only select on semaphore when we need more validators
-		var semCh chan struct{}
-		if needMore {
-			semCh = c.downloadSem
-		}
-
-		// Nothing more to do: no inflight requests and no more validators to try
-		if !needMore && active == 0 {
-			break
-		}
-
+	uniqueRows := 0
+	for range selected {
 		select {
-		case semCh <- struct{}{}:
-			// Acquired semaphore slot, launch fetch goroutine
-			valIdx := nextVal
-			sv := selected[valIdx]
-			nextVal++
-			inflightRows += sv.ExpectedRows
-			active++
-
-			c.closeWg.Add(1)
-			go func() {
-				defer func() {
-					<-c.downloadSem
-					c.closeWg.Done()
-				}()
-
-				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, rlcVerifier)
-				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
-			}()
-
 		case res := <-resultCh:
-			active--
-			inflightRows -= selected[res.valIdx].ExpectedRows
-
 			if res.err != nil {
 				c.log.WarnContext(ctx, "shard fetch failed",
 					"validator", selected[res.valIdx].Address,
@@ -347,7 +315,6 @@ loop:
 				continue
 			}
 
-			// Rows are already verified in downloadFrom; just assign to blob
 			var applied int
 			for _, row := range res.rows {
 				if blob.SetRow(row) {
@@ -362,12 +329,11 @@ loop:
 				attribute.String("validator", selected[res.valIdx].Address.String()),
 			))
 
-			if uniqueRows >= originalRows {
-				break loop
-			}
-
 		case <-ctx.Done():
 			return nil, ctx.Err()
+		}
+		if uniqueRows >= originalRows {
+			break
 		}
 	}
 
