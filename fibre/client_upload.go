@@ -389,10 +389,12 @@ func (c *Client) uploadShards(
 
 	select {
 	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
-		return ctx.Err()
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 	case <-sigsCollectedCh: // detach: remaining goroutines finish in background
-		return nil
 	}
+	return nil
 }
 
 // makeUploadRequests constructs the requests map for all validators.
