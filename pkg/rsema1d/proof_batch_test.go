@@ -49,9 +49,10 @@ func TestVerifyRowsWithContextDetectsTamperedRow(t *testing.T) {
 	}
 }
 
-// TestVerifyRowsWithContextNilProof covers nil elements at several positions,
-// ensuring VerifyRowsWithContext returns a clean error rather than panicking
-// when a proof slot is nil.
+// TestVerifyRowsWithContextNilProof covers nil elements at several positions.
+// Position 0 is exercised with config.RowSize == 0 because that path reads
+// proofs[0].Row to derive the expected row size — the nil-check at the top
+// of the loop has to run before the dereference.
 func TestVerifyRowsWithContextNilProof(t *testing.T) {
 	encodeCfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
 	data := make([][]byte, encodeCfg.K)
@@ -67,8 +68,12 @@ func TestVerifyRowsWithContextNilProof(t *testing.T) {
 		t.Fatalf("Encode: %v", err)
 	}
 
+	// Verify context with RowSize==0 exercises the proofs[0].Row dereference
+	// path inside VerifyRowsWithContext.
+	verifyCfg := &Config{K: encodeCfg.K, N: encodeCfg.N, WorkerCount: 1}
+
 	for _, nilPos := range []int{0, 4, 8} {
-		ctx, _, err := CreateVerificationContext(rlcOrig, encodeCfg)
+		ctx, _, err := CreateVerificationContext(rlcOrig, verifyCfg)
 		if err != nil {
 			t.Fatalf("CreateVerificationContext: %v", err)
 		}

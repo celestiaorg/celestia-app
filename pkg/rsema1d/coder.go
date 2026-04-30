@@ -65,8 +65,10 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 	rowTree := buildPaddedRowTree(extendedRows, c.config)
 	rowRoot := rowTree.Root()
 
-	// derive RLC coefficients and compute RLC results for original rows
-	coeffs := deriveCoefficients(rowRoot, c.config)
+	// derive RLC coefficients and compute RLC results for original rows.
+	// rowSize is taken from the data to support the Coder's deferred-RowSize
+	// mode (config.RowSize may be 0 when the Coder is reused across shards).
+	coeffs := deriveCoefficients(rowRoot, c.config.K, c.config.N, len(extendedRows[0]))
 	rlcOrig := computeRLCVectorized(extendedRows[:c.config.K], coeffs, c.config)
 
 	// build padded RLC Merkle tree

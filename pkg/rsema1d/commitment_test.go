@@ -33,8 +33,8 @@ func TestDeriveCoefficients(t *testing.T) {
 			rowRoot := sha256.Sum256([]byte("test root"))
 
 			// Derive coefficients
-			coeffs1 := deriveCoefficients(rowRoot, config)
-			coeffs2 := deriveCoefficients(rowRoot, config)
+			coeffs1 := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
+			coeffs2 := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Test determinism
 			if len(coeffs1) != len(coeffs2) {
@@ -55,7 +55,7 @@ func TestDeriveCoefficients(t *testing.T) {
 
 			// Test that different roots produce different coefficients
 			differentRoot := sha256.Sum256([]byte("different root"))
-			coeffs3 := deriveCoefficients(differentRoot, config)
+			coeffs3 := deriveCoefficients(differentRoot, config.K, config.N, config.RowSize)
 
 			allSame := true
 			for i := range coeffs1 {
@@ -98,7 +98,7 @@ func TestComputeRLC(t *testing.T) {
 
 			// Derive coefficients
 			rowRoot := sha256.Sum256([]byte("test"))
-			coeffs := deriveCoefficients(rowRoot, config)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Compute RLC
 			rlc1 := computeRLC(row, coeffs)
@@ -190,7 +190,7 @@ func TestRLCLinearity(t *testing.T) {
 
 	// Derive coefficients
 	rowRoot := sha256.Sum256([]byte("test"))
-	coeffs := deriveCoefficients(rowRoot, config)
+	coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 	// Compute RLCs
 	rlcA := computeRLC(rowA, coeffs)
@@ -253,10 +253,10 @@ func TestCoefficientsConsistency(t *testing.T) {
 	rowRoot := sha256.Sum256([]byte("consistent root"))
 	base := &Config{K: 8, N: 8, RowSize: 128, WorkerCount: 1}
 
-	baseCoeffs := deriveCoefficients(rowRoot, base)
+	baseCoeffs := deriveCoefficients(rowRoot, base.K, base.N, base.RowSize)
 
 	// Same inputs → identical output.
-	again := deriveCoefficients(rowRoot, base)
+	again := deriveCoefficients(rowRoot, base.K, base.N, base.RowSize)
 	if len(again) != len(baseCoeffs) {
 		t.Fatalf("deterministic: length mismatch: got %d want %d", len(again), len(baseCoeffs))
 	}
@@ -276,7 +276,7 @@ func TestCoefficientsConsistency(t *testing.T) {
 		{"different RowSize", &Config{K: 8, N: 8, RowSize: 256, WorkerCount: 1}},
 	}
 	for _, v := range variants {
-		got := deriveCoefficients(rowRoot, v.config)
+		got := deriveCoefficients(rowRoot, v.config.K, v.config.N, v.config.RowSize)
 		if equalGF128Slice(got, baseCoeffs) {
 			t.Errorf("%s: coefficients unexpectedly equal to base", v.name)
 		}

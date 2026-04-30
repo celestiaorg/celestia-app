@@ -8,22 +8,24 @@ import (
 )
 
 // deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal).
-// Callers must pass a config that has been validated; in particular
-// config.RowSize must be a positive multiple of 64 (enforced by Config.Validate).
-func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
-	// Bind rowRoot and the codec parameters (K, N, RowSize) into the
-	// Fiat-Shamir seed so coefficients are unique per (rowRoot, params) tuple.
+// k, n, and rowSize are bound into the seed so coefficients are unique per
+// (rowRoot, k, n, rowSize) tuple. Callers pick where rowSize comes from:
+// producer paths (Encode) pass config.RowSize; consumer paths (Verify, Coder)
+// pass the actual data length.
+func deriveCoefficients(rowRoot [32]byte, k, n, rowSize int) []field.GF128 {
+	// Bind rowRoot and the codec parameters into the Fiat-Shamir seed so
+	// coefficients are unique per (rowRoot, k, n, rowSize) tuple.
 	h := sha256.New()
 	h.Write(rowRoot[:])
 	var params [12]byte
-	binary.LittleEndian.PutUint32(params[0:4], uint32(config.K))
-	binary.LittleEndian.PutUint32(params[4:8], uint32(config.N))
-	binary.LittleEndian.PutUint32(params[8:12], uint32(config.RowSize))
+	binary.LittleEndian.PutUint32(params[0:4], uint32(k))
+	binary.LittleEndian.PutUint32(params[4:8], uint32(n))
+	binary.LittleEndian.PutUint32(params[8:12], uint32(rowSize))
 	h.Write(params[:])
 	var seed [32]byte
 	h.Sum(seed[:0])
 
-	numSymbols := config.RowSize / 2 // Each GF16 symbol is 2 bytes
+	numSymbols := rowSize / 2 // Each GF16 symbol is 2 bytes
 	coeffs := make([]field.GF128, numSymbols)
 
 	var input [32 + 4]byte

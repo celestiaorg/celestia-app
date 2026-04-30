@@ -74,7 +74,7 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 
 	// 2. Derive coefficients once and compute RLC for the row
 	context.coeffsOnce.Do(func() {
-		context.coeffs = deriveCoefficients(rowRoot, context.config)
+		context.coeffs = deriveCoefficients(rowRoot, context.config.K, context.config.N, len(proof.Row))
 	})
 	if len(context.coeffs) != len(proof.Row)/2 {
 		return fmt.Errorf("row size mismatch: cached coefficients for %d bytes, got %d", len(context.coeffs)*2, len(proof.Row))
@@ -147,7 +147,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	}
 
 	// 2. Compute RLC for the row
-	coeffs := deriveCoefficients(rowRoot, config)
+	coeffs := deriveCoefficients(rowRoot, config.K, config.N, len(proof.Row))
 	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Compute RLC root from proof
