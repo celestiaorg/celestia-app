@@ -4,6 +4,7 @@ package row
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 
@@ -35,9 +36,34 @@ func mmapAlloc(size int) ([]byte, error) {
 	return data, nil
 }
 
-// mmapFree releases mmap'd memory back to the OS.
-func mmapFree(data []byte) error {
-	return unix.Munmap(data)
+// mmapFree releases mmap'd memory off-thread via a single drain
+// goroutine. munmap of touched pages costs ~60 µs at 1 MiB and
+// parallelizing it regresses throughput, so serializing on one core
+// wins. Falls back to inline munmap on full channel.
+func mmapFree(data []byte) {
+	select {
+	case munmapCh <- data:
+	default:
+		munmap(data)
+	}
+}
+
+var munmapCh = make(chan []byte, 128)
+
+func init() {
+	go munmapDrain()
+}
+
+func munmapDrain() {
+	for region := range munmapCh {
+		munmap(region)
+	}
+}
+
+func munmap(data []byte) {
+	if err := unix.Munmap(data); err != nil {
+		slog.Error("row: munmap failed", "size", len(data), "err", err)
+	}
 }
 
 // linuxMadvDontDumpCode is the MADV_DONTDUMP advice value on Linux; x/sys

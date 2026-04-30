@@ -26,7 +26,6 @@ package row
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -104,9 +103,6 @@ type bucket struct {
 	gen        uint64
 	free, used []*slab
 	idleTimer  *time.Timer
-
-	// freeLen mirrors len(free) for an unsynchronized peek in [Pool.find].
-	freeLen atomic.Int32
 }
 
 // NewPool creates a Pool serving the given rowCount. maxRowSize must
@@ -139,21 +135,11 @@ func (p *Pool) Get(n, size int) [][]byte {
 		panic(fmt.Sprintf("row: size %d invalid (want positive multiple of %d, <= %d)", size, rowSizeAlign, p.maxRowSize))
 	}
 
-	// find → maybe new → pop, retrying on race-loss. a failed pop means
-	// a peer Get drained the chosen bucket between our peek and take;
-	// re-finding picks up free slabs from any slack-window bucket on
-	// retry. bounded by concurrent contention.
-	for {
-		bk, ok := p.find(size)
-		if !ok {
-			bk.new(n * size)
-		}
-		b := bk.pop()
-		if b == nil {
-			continue
-		}
-		return b.carve(n, size)
+	bk, s := p.pop(size)
+	if s == nil {
+		s = bk.new(n * size)
 	}
+	return s.carve(n, size)
 }
 
 // Put returns the slab backing bufs to its owning bucket. Panics on
@@ -185,44 +171,39 @@ func (p *Pool) Slabs() int {
 	return n
 }
 
-// find walks from size's exact bucket up through the slack window and
-// returns (bk, true) for the first with freeLen > 0. The atomic peek
-// skips empty buckets without locking — stale reads are benign. On a
-// clean miss returns (exact bucket, false) for the caller's slow-path
-// new.
-func (p *Pool) find(size int) (*bucket, bool) {
+// pop walks size's exact bucket up through the slack window and tries
+// to recycle a free slab. Returns (bk, slab) for the first hit, or
+// (exact bucket, nil) on a clean miss for the caller's slow-path
+// [bucket.new].
+func (p *Pool) pop(size int) (*bucket, *slab) {
 	sizeIdx := size/rowSizeAlign - 1
 	maxIdx := min(sizeIdx+slack, len(p.buckets)-1)
 	for i := sizeIdx; i <= maxIdx; i++ {
 		bk := &p.buckets[i]
-		if bk.freeLen.Load() > 0 {
-			return bk, true
+		if s := bk.pop(); s != nil {
+			return bk, s
 		}
 	}
-	return &p.buckets[sizeIdx], false
+	return &p.buckets[sizeIdx], nil
 }
 
-// new allocates a fresh slab and parks it on bk's free queue for the
-// caller's follow-up [bucket.pop]. alloc runs outside the lock — a
-// multi-MiB mmap would dominate Get p95 if held across it. Concurrent
-// slow paths each install their own slab; the surplus self-heals via
-// aged eviction.
-func (bk *bucket) new(dataSize int) {
-	region, mmapped := alloc(headerSize + dataSize)
+// new allocates a fresh slab at bk's exact key and adopts it directly
+// into bk.used. alloc runs outside the lock — a multi-MiB mmap would
+// dominate Get p95 if held across it.
+func (bk *bucket) new(dataSize int) *slab {
+	region, free := alloc(headerSize + dataSize)
 
 	bk.Lock()
 	defer bk.Unlock()
 
-	b := &slab{
-		bucket:  bk,
-		region:  region,
-		mmapped: mmapped,
-		lastPut: bk.gen, // anchor against premature aged eviction
+	s := &slab{
+		bucket: bk,
+		region: region,
+		free:   free,
 	}
-	writeSlabPtr(region, b)
-	bk.cancelIdle() // a Get is in flight; bk is not idle anymore
-	bk.free = append(bk.free, b)
-	bk.freeLen.Store(int32(len(bk.free)))
+	writeSlabPtr(region, s)
+	bk.use(s)
+	return s
 }
 
 // put hands b back to bk. The bk.used[b.usedIdx] == b identity check
@@ -248,18 +229,14 @@ func (bk *bucket) put(b *slab) {
 
 	b.lastPut = bk.gen
 	bk.free = append(bk.free, b)
-	bk.freeLen.Store(int32(len(bk.free)))
 
 	if len(bk.used) == 0 {
 		bk.armIdle()
 	}
 }
 
-// pop is the sole path by which a slab transitions from free to used.
-// Pops the most recently freed slab (LIFO), cancels the idle timer,
-// advances generation, runs aged eviction, and links the slab into
-// bk.used — all under one lock. Returns nil if bk.free is empty
-// (caller's freeLen peek was stale, or a peer raced ahead).
+// pop dequeues the most recently freed slab (LIFO) and adopts it into
+// bk.used. Returns nil if bk.free is empty.
 func (bk *bucket) pop() *slab {
 	bk.Lock()
 	defer bk.Unlock()
@@ -268,18 +245,24 @@ func (bk *bucket) pop() *slab {
 	if n == 0 {
 		return nil
 	}
-	b := bk.free[n-1]
+	s := bk.free[n-1]
 	bk.free[n-1] = nil
 	bk.free = bk.free[:n-1]
-	bk.freeLen.Store(int32(n - 1))
 
+	bk.use(s)
+	return s
+}
+
+// use cancels the idle timer, advances generation, runs aged eviction,
+// and links s into bk.used. Caller holds bk.mu. Invoked from both the
+// recycle path ([bucket.pop]) and the fresh-alloc path ([bucket.new]).
+func (bk *bucket) use(s *slab) {
 	bk.cancelIdle()
 	bk.gen++
 	bk.evict()
 
-	b.usedIdx = len(bk.used)
-	bk.used = append(bk.used, b)
-	return b
+	s.usedIdx = len(bk.used)
+	bk.used = append(bk.used, s)
 }
 
 // evict drops the oldest free slab if it has aged past
@@ -288,16 +271,15 @@ func (bk *bucket) evict() {
 	if len(bk.free) == 0 {
 		return
 	}
+
 	oldest := bk.free[0]
 	if bk.gen-oldest.lastPut < evictionThreshold {
 		return
 	}
-	if oldest.mmapped {
-		_ = mmapFree(oldest.region)
-	}
+
+	oldest.free(oldest.region)
 	bk.free[0] = nil // drop the backing-array reference before reslicing
 	bk.free = bk.free[1:]
-	bk.freeLen.Store(int32(len(bk.free)))
 }
 
 // armIdle schedules a per-bucket drop after idleGrace. Lazily creates
@@ -309,6 +291,7 @@ func (bk *bucket) armIdle() {
 		bk.idleTimer = time.AfterFunc(idleGrace, bk.dropIdle)
 		return
 	}
+
 	bk.idleTimer.Reset(idleGrace)
 }
 
@@ -325,16 +308,15 @@ func (bk *bucket) cancelIdle() {
 func (bk *bucket) dropIdle() {
 	bk.Lock()
 	defer bk.Unlock()
+
 	if len(bk.used) != 0 {
 		return
 	}
+
 	for _, b := range bk.free {
-		if b.mmapped {
-			_ = mmapFree(b.region)
-		}
+		b.free(b.region)
 	}
 	bk.free = nil
-	bk.freeLen.Store(0)
 }
 
 // slab's backing region is laid out as
@@ -346,8 +328,8 @@ func (bk *bucket) dropIdle() {
 type slab struct {
 	bucket *bucket
 
-	region  []byte // full backing region including the header
-	mmapped bool
+	region []byte       // full backing region including the header
+	free   func([]byte) // releases region; mmapFree for off-heap, noopFree for Go-heap
 
 	lastPut uint64
 	usedIdx int // index in bucket.used; updated on swap-delete
@@ -383,16 +365,19 @@ func (b *slab) carve(n, size int) [][]byte {
 	return bufs
 }
 
-// alloc returns aligned backing bytes for a slab. Large allocations
-// go through mmap (off-heap, invisible to GC); smaller ones use the
-// SIMD-aligned Go-heap allocator.
-func alloc(size int) (data []byte, mmapped bool) {
+// alloc returns a backing region and the matching release callback.
+// Large allocations go through mmap (off-heap, invisible to GC) and
+// pair with [mmapFree]; smaller ones use the SIMD-aligned Go-heap
+// allocator and pair with noopFree (GC reclaims).
+func alloc(size int) (data []byte, free func([]byte)) {
 	if !disableMmap && size >= mmapThreshold {
 		if d, err := mmapAlloc(size); err == nil {
-			return d, true
+			return d, mmapFree
 		}
 	}
-	return reedsolomon.AllocAligned(1, size)[0], false
+	return reedsolomon.AllocAligned(1, size)[0], noopFree
 }
+
+func noopFree([]byte) {}
 
 var _ reedsolomon.WorkAllocator = (*Pool)(nil)

@@ -16,4 +16,4 @@ func mmapAlloc(size int) ([]byte, error) {
 
 // mmapFree is unreachable on non-unix since no slab is ever flagged
 // mmapped; defined for symmetry with the unix build.
-func mmapFree(data []byte) error { return nil }
+func mmapFree(data []byte) {}
