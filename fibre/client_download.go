@@ -292,15 +292,13 @@ func (c *Client) downloadBlob(
 	resultCh := make(chan downloadResult, len(selected))
 
 	for valIdx, sv := range selected {
-		c.closeWg.Add(1)
-		go func() {
-			defer c.closeWg.Done()
+		c.closeWg.Go(func() {
 			rows, err := c.downloadFrom(ctx, sv.Validator, blob, id, rlcVerifier)
 			select {
 			case resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}:
 			case <-ctx.Done():
 			}
-		}()
+		})
 	}
 
 	uniqueRows := 0
