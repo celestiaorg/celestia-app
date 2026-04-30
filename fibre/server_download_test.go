@@ -156,7 +156,7 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 	}
 
 	// flatten RLC coefficients for storage
-	rlcCoeffs := blob.RLCCoeffs()
+	rlcCoeffs := blob.RLC()
 	coeffBytes := make([]byte, len(rlcCoeffs)*16)
 	for i, c := range rlcCoeffs {
 		b := field.ToBytes128(c)
