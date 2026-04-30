@@ -224,18 +224,28 @@ MapIndexToTreePosition(index, K):
 
 1. **Derive RLC Coefficients**
 
+   Bind the row root and the codec parameters (K, N, rowSize) into the
+   Fiat-Shamir seed so coefficients are unique per (rowRoot, params)
+   tuple. K, N, and rowSize are each encoded as 4-byte little-endian
+   unsigned 32-bit integers and absorbed in that order:
+
    ```text
-   seed = SHA256(rowRoot)
-   numSymbols = rowSize / 2  // Each GF16 symbol is 2 bytes
+   params     = LE32(K) || LE32(N) || LE32(rowSize)     // 12 bytes
+   seed       = SHA256(rowRoot || params)               // 32 bytes
+   numSymbols = rowSize / 2                             // each GF16 symbol is 2 bytes
    for i in 0..numSymbols:
-       coeffs[i] = HashToGF128(SHA256(seed || i))
+       coeffs[i] = HashToGF128(SHA256(seed || LE32(i))) // i as 4-byte LE uint32
    ```
 
-   Where HashToGF128 converts a 32-byte hash to a GF128 element by:
+   Where:
 
-   - Taking bytes 0-15 as 8 little-endian uint16 values
-   - Taking bytes 16-31 as 8 little-endian uint16 values
-   - XORing corresponding pairs to produce final 8 GF(2^16) values
+   - `LE32(x)` denotes the 4-byte little-endian encoding of the unsigned
+     32-bit integer `x`.
+   - `||` denotes byte concatenation.
+   - `HashToGF128` converts a 32-byte hash to a GF128 element by:
+     - Taking bytes 0-15 as 8 little-endian uint16 values
+     - Taking bytes 16-31 as 8 little-endian uint16 values
+     - XORing corresponding pairs to produce final 8 GF(2^16) values
 
 1. **Compute RLC Results (Original Rows Only)**
 
