@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	v4 "github.com/celestiaorg/go-square/v4/proto/blob/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -21,6 +22,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 func TestSeparateTxs(t *testing.T) {
@@ -65,6 +67,16 @@ func TestSeparateTxs(t *testing.T) {
 			wantBlob: 0,
 			wantPFF:  0,
 		},
+		{
+			// A proto-valid v4.BlobTx with TypeId="BLOB" but no blobs causes
+			// UnmarshalBlobTx to return (isBlob=true, err!=nil). The function
+			// must drop it instead of panicking.
+			name:     "malformed blob tx with no blobs is dropped without panicking",
+			rawTxs:   [][]byte{mustMarshal(t, &v4.BlobTx{TypeId: "BLOB"})},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
 	}
 
 	for _, tc := range tests {
@@ -75,6 +87,13 @@ func TestSeparateTxs(t *testing.T) {
 			require.Len(t, payForFibreTxs, tc.wantPFF)
 		})
 	}
+}
+
+func mustMarshal(t *testing.T, m proto.Message) []byte {
+	t.Helper()
+	b, err := proto.Marshal(m)
+	require.NoError(t, err)
+	return b
 }
 
 // newNormalTx creates an unsigned MsgSend transaction for testing.

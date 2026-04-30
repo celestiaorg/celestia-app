@@ -227,7 +227,8 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
 		if isBlob {
 			if err != nil {
-				panic(err)
+				// Drop malformed blob txs. Matches ProcessProposalHandler.
+				continue
 			}
 			blobTxs = append(blobTxs, bTx)
 			continue
