@@ -33,8 +33,8 @@ func TestDeriveCoefficients(t *testing.T) {
 			rowRoot := sha256.Sum256([]byte("test root"))
 
 			// Derive coefficients
-			coeffs1 := deriveCoefficients(rowRoot, config.RowSize)
-			coeffs2 := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs1 := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
+			coeffs2 := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Test determinism
 			if len(coeffs1) != len(coeffs2) {
@@ -55,7 +55,7 @@ func TestDeriveCoefficients(t *testing.T) {
 
 			// Test that different roots produce different coefficients
 			differentRoot := sha256.Sum256([]byte("different root"))
-			coeffs3 := deriveCoefficients(differentRoot, config.RowSize)
+			coeffs3 := deriveCoefficients(differentRoot, config.K, config.N, config.RowSize)
 
 			allSame := true
 			for i := range coeffs1 {
@@ -98,7 +98,7 @@ func TestComputeRLC(t *testing.T) {
 
 			// Derive coefficients
 			rowRoot := sha256.Sum256([]byte("test"))
-			coeffs := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Compute RLC
 			rlc1 := computeRLC(row, coeffs)
@@ -190,7 +190,7 @@ func TestRLCLinearity(t *testing.T) {
 
 	// Derive coefficients
 	rowRoot := sha256.Sum256([]byte("test"))
-	coeffs := deriveCoefficients(rowRoot, config.RowSize)
+	coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 	// Compute RLCs
 	rlcA := computeRLC(rowA, coeffs)
@@ -247,45 +247,50 @@ func TestCommitmentDeterminism(t *testing.T) {
 }
 
 func TestCoefficientsConsistency(t *testing.T) {
-	// Test that coefficient derivation is consistent across different row counts
-	// but same rowSize
-	configs := []struct {
-		k int
-		n int
-	}{
-		{4, 4},
-		{8, 8},
-		{16, 16},
-	}
-
-	rowSize := 128
+	// Coefficient derivation must be deterministic for a given
+	// (rowRoot, K, N, RowSize) tuple, and must differ when any of those
+	// transcript inputs change.
 	rowRoot := sha256.Sum256([]byte("consistent root"))
+	base := &Config{K: 8, N: 8, RowSize: 128, WorkerCount: 1}
 
-	var prevCoeffs []field.GF128
+	baseCoeffs := deriveCoefficients(rowRoot, base.K, base.N, base.RowSize)
 
-	for i, tc := range configs {
-		config := &Config{
-			K:           tc.k,
-			N:           tc.n,
-			RowSize:     rowSize,
-			WorkerCount: 1,
-		}
-
-		coeffs := deriveCoefficients(rowRoot, config.RowSize)
-
-		// All configs with same rowSize should produce same coefficients
-		if i > 0 {
-			if len(coeffs) != len(prevCoeffs) {
-				t.Fatalf("Config %d: coefficient count differs", i)
-			}
-
-			for j := range coeffs {
-				if !field.Equal128(coeffs[j], prevCoeffs[j]) {
-					t.Errorf("Config %d: coefficient %d differs", i, j)
-				}
-			}
-		}
-
-		prevCoeffs = coeffs
+	// Same inputs → identical output.
+	again := deriveCoefficients(rowRoot, base.K, base.N, base.RowSize)
+	if len(again) != len(baseCoeffs) {
+		t.Fatalf("deterministic: length mismatch: got %d want %d", len(again), len(baseCoeffs))
 	}
+	for i := range baseCoeffs {
+		if !field.Equal128(baseCoeffs[i], again[i]) {
+			t.Fatalf("deterministic: coefficient %d differs", i)
+		}
+	}
+
+	// Varying any of K, N, RowSize must change the coefficients.
+	variants := []struct {
+		name   string
+		config *Config
+	}{
+		{"different K", &Config{K: 4, N: 8, RowSize: 128, WorkerCount: 1}},
+		{"different N", &Config{K: 8, N: 16, RowSize: 128, WorkerCount: 1}},
+		{"different RowSize", &Config{K: 8, N: 8, RowSize: 256, WorkerCount: 1}},
+	}
+	for _, v := range variants {
+		got := deriveCoefficients(rowRoot, v.config.K, v.config.N, v.config.RowSize)
+		if equalGF128Slice(got, baseCoeffs) {
+			t.Errorf("%s: coefficients unexpectedly equal to base", v.name)
+		}
+	}
+}
+
+func equalGF128Slice(a, b []field.GF128) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !field.Equal128(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }

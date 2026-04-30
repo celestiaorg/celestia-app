@@ -39,7 +39,8 @@ func (c *Config) Validate() error {
 	if c.N <= 0 {
 		return errors.New("n must be positive")
 	}
-	// RowSize=0 is valid (means variable row size, determined at runtime)
+	// RowSize=0 is valid (means variable row size, determined at runtime by
+	// the Coder, which derives it from the data passed to each operation).
 	if c.RowSize < 0 {
 		return errors.New("RowSize must be non-negative")
 	}
