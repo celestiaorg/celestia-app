@@ -11,9 +11,15 @@ import (
 // the proof fails validation. If the proof passes validation, this function
 // attempts to verify the proof. It returns nil if the proof is valid.
 func (rp RowProof) Validate(root []byte) error {
-	// HACKHACK performing subtraction with unsigned integers is unsafe.
-	if int(rp.EndRow-rp.StartRow+1) != len(rp.RowRoots) {
-		return fmt.Errorf("the number of rows %d must equal the number of row roots %d", int(rp.EndRow-rp.StartRow+1), len(rp.RowRoots))
+	if rp.EndRow < rp.StartRow {
+		return fmt.Errorf("end row %d must be greater than or equal to start row %d", rp.EndRow, rp.StartRow)
+	}
+	expectedRows := int64(rp.EndRow) - int64(rp.StartRow) + 1
+	if expectedRows != int64(len(rp.RowRoots)) {
+		return fmt.Errorf("the number of rows %d must equal the number of row roots %d", expectedRows, len(rp.RowRoots))
+	}
+	if len(rp.RowRoots) == 0 {
+		return errors.New("row proof must contain at least one row root")
 	}
 	if len(rp.Proofs) != len(rp.RowRoots) {
 		return fmt.Errorf("the number of proofs %d must equal the number of row roots %d", len(rp.Proofs), len(rp.RowRoots))
