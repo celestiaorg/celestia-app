@@ -7,8 +7,13 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
-// deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal)
+// deriveCoefficients generates RLC coefficients via Fiat-Shamir (internal).
+// RowSize must be > 0; it is part of the Fiat-Shamir transcript and
+// determines the number of coefficients produced.
 func deriveCoefficients(rowRoot [32]byte, config *Config) []field.GF128 {
+	if config.RowSize <= 0 {
+		panic("deriveCoefficients requires config.RowSize > 0")
+	}
 	// Bind rowRoot and the codec parameters (K, N, RowSize) into the
 	// Fiat-Shamir seed so coefficients are unique per (rowRoot, params) tuple.
 	h := sha256.New()
