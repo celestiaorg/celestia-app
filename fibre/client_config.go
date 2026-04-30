@@ -41,8 +41,8 @@ type ClientConfig struct {
 	MaxMessageSize int
 
 	// UploadMemoryBudget caps in-flight upload bytes via a weighted semaphore
-	// keyed on blob.UploadSize(). Resident footprint per Upload is several
-	// times this weight (parity-encoded extended data, RLC coefficients);
+	// keyed on blob.UploadSize(). Benchmarks show resident footprint per Upload
+	// is ~10x this weight (parity-encoded extended data, RLC coefficients);
 	// size accordingly. Disabled when <= 0; see [SuggestedUploadMemoryBudget].
 	UploadMemoryBudget int64
 
