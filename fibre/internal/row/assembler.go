@@ -11,9 +11,10 @@ import (
 // encoding. It owns a [Pool] sized for its slab shape; callers don't
 // need to know the exact row count it requests internally.
 //
-// Original rows are a hybrid view over the input data (zero-copy where
-// possible); parity rows plus head and tail come from a single pool
-// slab.
+// Original rows are a hybrid view over the input data: full middle
+// rows alias data zero-copy, while two partial rows — row 0 (reserves
+// firstRowOffset bytes for a header) and the truncated trailing row —
+// come from a single pool slab alongside the parity rows.
 //
 // Assembler is safe for concurrent use.
 type Assembler struct {
@@ -27,8 +28,8 @@ type Assembler struct {
 }
 
 // NewAssembler creates an Assembler for originalRows original rows and
-// parityRows parity rows. It constructs an internal [Pool] sized for the
-// assembler's slab shape (parityRows + head + tail) and bounded by
+// parityRows parity rows. It constructs an internal [Pool] sized for
+// the assembler's slab shape (parityRows + partialRows) and bounded by
 // maxRowSize. maxRowSize must be a positive multiple of 64.
 func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) {
 	if originalRows <= 0 || parityRows <= 0 {
@@ -37,7 +38,7 @@ func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) 
 	return &Assembler{
 		originalRows: originalRows,
 		parityRows:   parityRows,
-		pool:         NewPool(maxRowSize, parityRows+extraRows),
+		pool:         NewPool(maxRowSize, parityRows+partialRows),
 		zeroRow:      reedsolomon.AllocAligned(1, maxRowSize)[0],
 	}, nil
 }
@@ -47,9 +48,9 @@ func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) 
 // to access the rows; [Assembly.Free] releases the pooled storage.
 //
 // rows[:originalRows] are original rows: row 0 reserves firstRowOffset
-// bytes for a blob header, full middle rows alias data directly (zero-copy),
-// a partial tail row is copied to a pooled buffer, and empty trailing
-// rows share one zeroed row.
+// bytes for a header before its data, full middle rows alias data
+// directly (zero-copy), a truncated trailing row is copied into a
+// partial buffer, and any further empty rows share one zeroed row.
 // rows[originalRows:] are zeroed parity rows from a pooled slab.
 //
 // The caller must not modify data or rows until [Assembly.Free] is called.
@@ -57,50 +58,52 @@ func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) 
 func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly {
 	rows := make([][]byte, a.originalRows+a.parityRows)
 
-	pooled := a.pool.Get(a.parityRows+extraRows, rowSize)
-	for i := range a.parityRows {
-		rows[a.originalRows+i] = pooled[i]
-		clear(pooled[i])
+	// pull one slab worth of buffers and zero them. Partial buffers must
+	// be zeroed because we only write the data-backed portion below; the
+	// parity rows because the encoder expects them clean on entry.
+	pooled := a.pool.Get(a.parityRows+partialRows, rowSize)
+	for _, p := range pooled {
+		clear(p)
 	}
-	// zero head/tail too: fillOriginal only writes the portions backed
-	// by data, so bytes past the written region would carry stale
-	// content from a prior use of the pooled slab.
-	head, tail := pooled[a.parityRows], pooled[a.parityRows+1]
-	clear(head)
-	clear(tail)
-	a.fillOriginal(rows[:a.originalRows], data, rowSize, firstRowOffset, head, tail, a.zeroRow[:rowSize])
 
-	return &Assembly{
-		pool:  a.pool,
-		slots: pooled,
-		rows:  rows,
-	}
-}
+	// land pooled in one move: partial buffers at the originals tail
+	// (overwritten as we fill below), parity in the parity range.
+	copy(rows[a.originalRows-partialRows:], pooled)
 
-// fillOriginal populates original rows as a hybrid view over data.
-// head hosts row 0 (prefix offset + data start); tail hosts any partial
-// trailing row; full middle rows alias data directly; empty rows share
-// the zero row.
-func (a *Assembler) fillOriginal(rows [][]byte, data []byte, rowSize, offset int, head, tail, zero []byte) {
-	rows[0] = head
-	n := min(rowSize-offset, len(data))
-	copy(head[offset:], data[:n])
+	// row 0 reserves firstRowOffset bytes for a header, then the data
+	// prefix. Backed by the first partial buffer (now at
+	// rows[originalRows-partialRows]).
+	rows[0] = rows[a.originalRows-partialRows]
+	n := min(rowSize-firstRowOffset, len(data))
+	copy(rows[0][firstRowOffset:], data[:n])
 
+	// full middle rows alias data zero-copy.
 	i := 1
-	for i < len(rows) && n+rowSize <= len(data) {
+	for i < a.originalRows && n+rowSize <= len(data) {
 		rows[i] = data[n : n+rowSize]
 		n += rowSize
 		i++
 	}
 
-	if i < len(rows) && n < len(data) {
-		rows[i] = tail
-		copy(tail, data[n:])
+	// truncated trailing row: copy the remaining bytes into the second
+	// partial buffer. Skipped when data fits perfectly (n == len(data))
+	// or fills every original — in either case the second partial is
+	// allocated but unused, returned to the pool on Free.
+	if i < a.originalRows && n < len(data) {
+		rows[i] = rows[a.originalRows-partialRows+1]
+		copy(rows[i], data[n:])
 		i++
 	}
 
-	for j := i; j < len(rows); j++ {
-		rows[j] = zero
+	// any remaining originals are empty — alias the shared zero row.
+	for j := i; j < a.originalRows; j++ {
+		rows[j] = a.zeroRow[:rowSize]
+	}
+
+	return &Assembly{
+		pool:  a.pool,
+		slots: pooled,
+		rows:  rows,
 	}
 }
 
@@ -112,7 +115,7 @@ func (a *Assembler) fillOriginal(rows [][]byte, data []byte, rowSize, offset int
 type Assembly struct {
 	mu    sync.RWMutex
 	pool  *Pool
-	slots [][]byte // [parity..., head, tail]; nil after Free
+	slots [][]byte // [partial[0], partial[1], parity...]; nil after Free
 	rows  [][]byte // originalRows+parityRows assembled view; nil after Free
 }
 
@@ -142,8 +145,8 @@ func (a *Assembly) Released() bool {
 	return a.slots == nil
 }
 
-// Free returns the pooled slab (parity + head + tail) back to the pool.
-// Subsequent calls are no-ops. Safe to call concurrently.
+// Free returns the pooled slab (parity + partial-row buffers) back to
+// the pool. Subsequent calls are no-ops. Safe to call concurrently.
 func (a *Assembly) Free() {
 	if a == nil {
 		return
@@ -157,5 +160,7 @@ func (a *Assembly) Free() {
 	a.slots, a.rows = nil, nil
 }
 
-// extraRows is the per-blob overhead beyond parity: head + tail.
-const extraRows = 2
+// partialRows is the per-blob overhead beyond parity: two partial-row
+// buffers (row 0 with the prefixed header, and the truncated trailing
+// row) that the assembler owns rather than aliasing.
+const partialRows = 2

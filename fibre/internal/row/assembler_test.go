@@ -41,11 +41,11 @@ func TestAssembler_Assemble(t *testing.T) {
 		t.Fatal("full middle row does not alias input data")
 	}
 
-	// partial tail row is a copy, not an alias
-	tailStart := fullRowStart + rowSize
+	// the partial trailing row is a copy, not an alias
+	partialStart := fullRowStart + rowSize
 	rows[2][0] ^= 0xFF
-	if rows[2][0] == data[tailStart] {
-		t.Fatal("partial tail row unexpectedly aliases input data")
+	if rows[2][0] == data[partialStart] {
+		t.Fatal("partial trailing row unexpectedly aliases input data")
 	}
 
 	// empty original rows share a single backing array
@@ -126,7 +126,7 @@ func TestAssembler_ReuseDirty(t *testing.T) {
 }
 
 // A small blob reusing a pooled slab from a larger one must not carry
-// the larger blob's bytes in head/tail padding.
+// the larger blob's bytes in the prefixed/partial buffers.
 func TestAssembler_ReusePartialPadding(t *testing.T) {
 	const k, n, rowSize, offset = 4, 4, 64, 7
 	codec := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
@@ -154,7 +154,7 @@ func TestAssembler_ReusePartialPadding(t *testing.T) {
 
 	for i := offset + small; i < rowSize; i++ {
 		if rows2[0][i] != 0 {
-			t.Fatalf("head[%d] = 0x%x after pool reuse, want 0", i, rows2[0][i])
+			t.Fatalf("prefixed[%d] = 0x%x after pool reuse, want 0", i, rows2[0][i])
 		}
 	}
 
@@ -179,9 +179,9 @@ func freshRows(data []byte, total, rowSize, offset int) [][]byte {
 	for i := range rows {
 		rows[i] = make([]byte, rowSize)
 	}
-	head := min(rowSize-offset, len(data))
-	copy(rows[0][offset:], data[:head])
-	for i, off := 1, head; i < total && off < len(data); i++ {
+	n := min(rowSize-offset, len(data))
+	copy(rows[0][offset:], data[:n])
+	for i, off := 1, n; i < total && off < len(data); i++ {
 		n := copy(rows[i], data[off:])
 		off += n
 	}
