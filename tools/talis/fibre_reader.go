@@ -95,7 +95,7 @@ func fibreReaderCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "max number of reader instances to launch (0 = all)")
-	cmd.Flags().IntVar(&downloadConcurrency, "download-concurrency", 8, "concurrent blob downloads per reader")
+	cmd.Flags().IntVar(&downloadConcurrency, "download-concurrency", 32, "max concurrent in-flight downloads per reader (semaphore bound; goroutine spawned per blob)")
 	cmd.Flags().DurationVar(&downloadTimeout, "download-timeout", 2*time.Minute, "per-blob download timeout")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "fibre keyring key-name prefix (only used to satisfy fibre.NewClient's key existence check; reader does not sign)")

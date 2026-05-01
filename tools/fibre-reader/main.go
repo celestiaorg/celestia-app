@@ -67,12 +67,15 @@ type stats struct {
 	blobsSeen            atomic.Int64
 	blobsOwned           atomic.Int64
 	blobsSkipped         atomic.Int64
+	blobsDropped         atomic.Int64
 	downloadsSuccess     atomic.Int64
 	downloadsFailed      atomic.Int64
 	commitmentMismatches atomic.Int64
+	downloadedBytes      atomic.Int64
 	dlTotalLatNs         atomic.Int64
 	e2eTotalLatNs        atomic.Int64
 	inclusionLatNs       atomic.Int64
+	queueWaitNs          atomic.Int64
 }
 
 type readerMetrics struct {
@@ -82,10 +85,12 @@ type readerMetrics struct {
 	downloadsSuccess     metric.Int64Counter
 	downloadsFailed      metric.Int64Counter
 	commitmentMismatches metric.Int64Counter
+	downloadedBytes      metric.Int64Counter
 	downloadLatency      metric.Float64Histogram
 	e2eLatency           metric.Float64Histogram
 	inclusionLatency     metric.Float64Histogram
 	blockProcessLatency  metric.Float64Histogram
+	queueWaitLatency     metric.Float64Histogram
 }
 
 type downloadRequest struct {
@@ -95,6 +100,7 @@ type downloadRequest struct {
 	creationTimestamp time.Time
 	blockTime         time.Time
 	dataSize          uint32
+	queuedAt          time.Time
 }
 
 func main() {
@@ -105,7 +111,7 @@ func main() {
 	flag.StringVar(&cfg.keyName, "key-name", "fibre-0", "key name in keyring (used to satisfy fibre.NewClient existence check)")
 	flag.IntVar(&cfg.readerIndex, "reader-index", -1, "this reader's index in [0, reader-count)")
 	flag.IntVar(&cfg.readerCount, "reader-count", 0, "total number of reader instances (>=1)")
-	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 8, "number of concurrent download workers")
+	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 32, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob)")
 	flag.DurationVar(&cfg.downloadTimeout, "download-timeout", 2*time.Minute, "per-download timeout")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics + tracing (e.g. http://host:4318)")
@@ -235,15 +241,14 @@ func run(cfg config) error {
 		}
 	}()
 
-	dlCh := make(chan downloadRequest, cfg.downloadConcurrency*4)
+	// Semaphore + goroutine-per-blob: every owned blob spawns its own download
+	// goroutine and acquires a slot from sem. No central queue, no drops; all
+	// owned blobs from a single block can run in parallel up to the semaphore
+	// bound. Goroutines waiting on a full sem are tiny (~few KB each), so brief
+	// bursts past the bound just queue at the sem rather than dropping data.
+	sem := make(chan struct{}, cfg.downloadConcurrency)
 	st := &stats{}
-
 	var dlWg sync.WaitGroup
-	for i := 0; i < cfg.downloadConcurrency; i++ {
-		dlWg.Go(func() {
-			downloadWorker(ctx, dlCh, fibreClient, cfg, st, rm, tracer)
-		})
-	}
 
 	startTime := time.Now()
 	fmt.Printf("[reader-%d] reader-count=%d download-concurrency=%d trailing %s...\n",
@@ -263,11 +268,10 @@ loop:
 				fmt.Fprintf(os.Stderr, "[reader-%d] unexpected event data type: %T\n", cfg.readerIndex, result.Data)
 				continue
 			}
-			processBlock(ctx, ev.Block, cfg, dlCh, st, rm, tracer)
+			processBlock(ctx, ev.Block, cfg, sem, &dlWg, fibreClient, st, rm, tracer)
 		}
 	}
 
-	close(dlCh)
 	dlWg.Wait()
 
 	elapsed := time.Since(startTime)
@@ -280,7 +284,9 @@ func processBlock(
 	ctx context.Context,
 	block *cmttypes.Block,
 	cfg config,
-	dlCh chan<- downloadRequest,
+	sem chan struct{},
+	dlWg *sync.WaitGroup,
+	fibreClient *fibre.Client,
 	st *stats,
 	rm *readerMetrics,
 	tracer trace.Tracer,
@@ -310,7 +316,7 @@ func processBlock(
 				continue
 			}
 			fibreMsgCount++
-			handlePayForFibre(pff, block, cfg, dlCh, st, rm)
+			handlePayForFibre(ctx, pff, block, cfg, sem, dlWg, fibreClient, st, rm, tracer)
 		}
 	}
 
@@ -323,12 +329,16 @@ func processBlock(
 }
 
 func handlePayForFibre(
+	ctx context.Context,
 	msg *fibretypes.MsgPayForFibre,
 	block *cmttypes.Block,
 	cfg config,
-	dlCh chan<- downloadRequest,
+	sem chan struct{},
+	dlWg *sync.WaitGroup,
+	fibreClient *fibre.Client,
 	st *stats,
 	rm *readerMetrics,
+	tracer trace.Tracer,
 ) {
 	promise := msg.PaymentPromise
 
@@ -367,34 +377,29 @@ func handlePayForFibre(
 		creationTimestamp: promise.CreationTimestamp,
 		blockTime:         block.Header.Time,
 		dataSize:          promise.BlobSize,
+		queuedAt:          time.Now(),
 	}
 
-	select {
-	case dlCh <- req:
-	default:
-		fmt.Fprintf(os.Stderr, "[reader-%d] download queue full, dropping blob commitment=%s height=%d\n",
-			cfg.readerIndex, commitment, promise.Height)
-	}
+	dlWg.Add(1)
+	go func() {
+		defer dlWg.Done()
+		// Acquire a slot. Blocks until one is free or ctx cancels — backpressure
+		// instead of dropping. Multiple owned blobs in a single block all reach
+		// here concurrently and run in parallel up to cfg.downloadConcurrency.
+		select {
+		case sem <- struct{}{}:
+		case <-ctx.Done():
+			return
+		}
+		defer func() { <-sem }()
+		downloadOne(ctx, req, fibreClient, cfg, st, rm, tracer)
+	}()
 }
 
 // owns returns true when this reader instance is responsible for the given commitment
 // under hash-modulo sharding. Commitments are SHA-derived so a uint64 prefix is uniform.
 func owns(commitment fibre.Commitment, count, index int) bool {
 	return binary.BigEndian.Uint64(commitment[:8])%uint64(count) == uint64(index)
-}
-
-func downloadWorker(
-	ctx context.Context,
-	dlCh <-chan downloadRequest,
-	fibreClient *fibre.Client,
-	cfg config,
-	st *stats,
-	rm *readerMetrics,
-	tracer trace.Tracer,
-) {
-	for req := range dlCh {
-		downloadOne(ctx, req, fibreClient, cfg, st, rm, tracer)
-	}
 }
 
 func downloadOne(
@@ -418,6 +423,18 @@ func downloadOne(
 	)
 	defer span.End()
 
+	// queue_wait = time between block scan creating the request and this
+	// goroutine acquiring its semaphore slot — surfaces saturation when the
+	// bound is hit.
+	queueWait := time.Since(req.queuedAt)
+	st.queueWaitNs.Add(queueWait.Nanoseconds())
+	if rm != nil {
+		rm.queueWaitLatency.Record(context.Background(), float64(queueWait.Milliseconds()))
+	}
+	span.AddEvent("download.started", trace.WithAttributes(
+		attribute.Int64("queue_wait_ms", queueWait.Milliseconds()),
+	))
+
 	start := time.Now()
 	blob, err := fibreClient.Download(dlCtx, req.blobID, fibre.WithHeight(uint64(req.height)))
 	dlLat := time.Since(start)
@@ -434,16 +451,18 @@ func downloadOne(
 			rm.downloadsFailed.Add(context.Background(), 1)
 		}
 		span.RecordError(err)
-		fmt.Fprintf(os.Stderr, "[reader-%d] download failed commitment=%s height=%d latency=%s err=%v\n",
-			cfg.readerIndex, req.commitment, req.height, dlLat, err)
+		fmt.Fprintf(os.Stderr, "[reader-%d] download failed commitment=%s height=%d latency=%s queue_wait=%s err=%v\n",
+			cfg.readerIndex, req.commitment, req.height, dlLat, queueWait, err)
 		return
 	}
 
 	now := time.Now()
 	e2eLat := now.Sub(req.creationTimestamp)
 	inclusionLat := now.Sub(req.blockTime)
+	bytesDl := int64(blob.DataSize())
 
 	st.downloadsSuccess.Add(1)
+	st.downloadedBytes.Add(bytesDl)
 	st.dlTotalLatNs.Add(dlLat.Nanoseconds())
 	st.e2eTotalLatNs.Add(e2eLat.Nanoseconds())
 	st.inclusionLatNs.Add(inclusionLat.Nanoseconds())
@@ -451,23 +470,31 @@ func downloadOne(
 	if rm != nil {
 		ctxBg := context.Background()
 		rm.downloadsSuccess.Add(ctxBg, 1)
+		rm.downloadedBytes.Add(ctxBg, bytesDl)
 		rm.downloadLatency.Record(ctxBg, float64(dlLat.Milliseconds()))
 		rm.e2eLatency.Record(ctxBg, float64(e2eLat.Milliseconds()))
 		rm.inclusionLatency.Record(ctxBg, float64(inclusionLat.Milliseconds()))
 	}
 
 	span.SetAttributes(attribute.Int("blob.size", blob.DataSize()))
-	fmt.Printf("[reader-%d] download ok commitment=%s height=%d size=%d dl_latency=%s e2e_latency=%s inclusion_latency=%s\n",
-		cfg.readerIndex, req.commitment, req.height, blob.DataSize(), dlLat, e2eLat, inclusionLat)
+	fmt.Printf("[reader-%d] download ok commitment=%s height=%d size=%d dl_latency=%s queue_wait=%s e2e_latency=%s inclusion_latency=%s\n",
+		cfg.readerIndex, req.commitment, req.height, blob.DataSize(), dlLat, queueWait, e2eLat, inclusionLat)
 }
 
 func printSummary(cfg config, st *stats, elapsed time.Duration) {
 	s := st.downloadsSuccess.Load()
-	var avgDl, avgE2E, avgIncl time.Duration
+	var avgDl, avgE2E, avgIncl, avgQueue time.Duration
 	if s > 0 {
 		avgDl = time.Duration(st.dlTotalLatNs.Load() / s)
 		avgE2E = time.Duration(st.e2eTotalLatNs.Load() / s)
 		avgIncl = time.Duration(st.inclusionLatNs.Load() / s)
+		avgQueue = time.Duration(st.queueWaitNs.Load() / s)
+	}
+
+	bytes := st.downloadedBytes.Load()
+	var mibPerSec float64
+	if elapsed > 0 {
+		mibPerSec = float64(bytes) / (1024 * 1024) / elapsed.Seconds()
 	}
 
 	fmt.Printf("\n--- Summary (reader-%d of %d) ---\n", cfg.readerIndex, cfg.readerCount)
@@ -482,7 +509,10 @@ func printSummary(cfg config, st *stats, elapsed time.Duration) {
 	fmt.Printf("  Successes:             %d\n", s)
 	fmt.Printf("  Failures:              %d\n", st.downloadsFailed.Load())
 	fmt.Printf("  Commitment mismatches: %d\n", st.commitmentMismatches.Load())
+	fmt.Printf("  Bytes downloaded:      %d (%.1f MiB)\n", bytes, float64(bytes)/(1024*1024))
+	fmt.Printf("  Avg throughput:        %.1f MiB/s\n", mibPerSec)
 	fmt.Printf("  Avg download latency:                  %s\n", avgDl)
+	fmt.Printf("  Avg queue wait (semaphore):            %s\n", avgQueue)
 	fmt.Printf("  Avg e2e latency (since creation):      %s\n", avgE2E)
 	fmt.Printf("  Avg inclusion->download latency:       %s\n", avgIncl)
 }
@@ -530,6 +560,13 @@ func newReaderMetrics() (*readerMetrics, error) {
 	if err != nil {
 		return nil, err
 	}
+	rm.downloadedBytes, err = m.Int64Counter("fibre_reader.downloaded_bytes_total",
+		metric.WithDescription("Total bytes successfully downloaded (rate of this gives per-reader throughput)"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, err
+	}
 	rm.downloadLatency, err = m.Float64Histogram("fibre_reader.download_latency_ms",
 		metric.WithDescription("Time to download a blob"),
 		metric.WithUnit("ms"),
@@ -553,6 +590,13 @@ func newReaderMetrics() (*readerMetrics, error) {
 	}
 	rm.blockProcessLatency, err = m.Float64Histogram("fibre_reader.block_processing_latency_ms",
 		metric.WithDescription("Time spent processing a block (decode + scan + dispatch)"),
+		metric.WithUnit("ms"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	rm.queueWaitLatency, err = m.Float64Histogram("fibre_reader.queue_wait_ms",
+		metric.WithDescription("Time a download goroutine spent waiting for a semaphore slot before the actual download began (saturation indicator)"),
 		metric.WithUnit("ms"),
 	)
 	if err != nil {
