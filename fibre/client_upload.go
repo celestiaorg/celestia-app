@@ -387,8 +387,8 @@ func (c *Client) uploadShards(
 	// defer call blob.asm.Free() while in-flight uploadTo goroutines still
 	// reference the pooled (potentially mmap'd) row buffers via the gRPC
 	// request, which races and can segfault. Cancellation propagates through
-	// uploadTo's ctx.Err() check + RPCTimeout, so all goroutines drain within
-	// at most one RPCTimeout window and responsesExhaustedCh fires.
+	// uploadTo's ctx.Err() check, so all goroutines drain and
+	// responsesExhaustedCh fires.
 	select {
 	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
 		if ctx.Err() != nil {
