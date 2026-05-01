@@ -14,9 +14,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// DefaultRPCTimeout is the default value for [ClientConfig.RPCTimeout].
-const DefaultRPCTimeout = 15 * time.Second
-
 // ClientConfig contains configuration options for the Fibre [Client].
 type ClientConfig struct {
 	// DefaultKeyName is the name of the key in the keyring to use for signing [PaymentPromise]s.
@@ -37,6 +34,7 @@ type ClientConfig struct {
 
 	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).
 	// Sheds black-holed peers below the kernel's ~75s TCP SYN retry window.
+	// See [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
@@ -75,7 +73,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
-		RPCTimeout:          DefaultRPCTimeout,
+		RPCTimeout:          15 * time.Second,
 	}
 }
 
@@ -104,7 +102,7 @@ func (cfg *ClientConfig) Validate() error {
 	}
 
 	if cfg.RPCTimeout <= 0 {
-		return fmt.Errorf("RPCTimeout must be > 0 (see [DefaultRPCTimeout])")
+		return fmt.Errorf("RPCTimeout must be > 0 (see [DefaultClientConfig])")
 	}
 	return nil
 }

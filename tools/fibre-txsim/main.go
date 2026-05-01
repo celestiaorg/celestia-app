@@ -39,19 +39,19 @@ import (
 const downloadDelay = 10 * time.Second
 
 type config struct {
-	grpcEndpoint       string
-	keyringDir         string
-	keyPrefix          string
-	blobSize           int
-	concurrency        int
-	interval           time.Duration
-	duration           time.Duration
-	otelEndpoint       string
-	download           bool
-	uploadOnly         bool
-	pyroscopeEndpoint  string
-	pyroscopeUser      string
-	pyroscopePass      string
+	grpcEndpoint      string
+	keyringDir        string
+	keyPrefix         string
+	blobSize          int
+	concurrency       int
+	interval          time.Duration
+	duration          time.Duration
+	otelEndpoint      string
+	download          bool
+	uploadOnly        bool
+	pyroscopeEndpoint string
+	pyroscopeUser     string
+	pyroscopePass     string
 }
 
 func main() {

@@ -12,18 +12,18 @@ const FibreTxSimSessionName = "fibre-txsim"
 
 func fibreTxsimCmd() *cobra.Command {
 	var (
-		rootDir            string
-		SSHKeyPath         string
-		instances          int
-		concurrency        int
-		blobSize           int
-		interval           time.Duration
-		duration           time.Duration
-		keyPrefix          string
-		download           bool
-		uploadOnly         bool
-		pyroscopeEndpoint  string
-		onEncoders         bool
+		rootDir           string
+		SSHKeyPath        string
+		instances         int
+		concurrency       int
+		blobSize          int
+		interval          time.Duration
+		duration          time.Duration
+		keyPrefix         string
+		download          bool
+		uploadOnly        bool
+		pyroscopeEndpoint string
+		onEncoders        bool
 	)
 
 	cmd := &cobra.Command{
