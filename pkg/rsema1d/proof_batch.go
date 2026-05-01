@@ -64,15 +64,20 @@ func VerifyRowsWithContext(proofs []*RowProof, commitment Commitment, context *V
 	}
 
 	// Verify each row's Merkle proof independently so tampering with any
-	// single row fails, even though all rowRoots are identical in a valid shard.
-	rowRoots := make([][32]byte, len(proofs))
+	// single row fails, even though all rowRoots are identical in a valid
+	// shard. Each ComputeRootFromProof is independent — fan out across
+	// context.config.WorkerCount goroutines via merkle.ComputeRootsFromProofs.
+	inputs := make([]merkle.ProofInput, len(proofs))
 	for i, p := range proofs {
-		treeIndex := mapIndexToTreePosition(p.Index, context.config)
-		rowRoot, err := merkle.ComputeRootFromProof(p.Row, treeIndex, p.RowProof)
-		if err != nil {
-			return fmt.Errorf("failed to compute row root for row %d: %w", p.Index, err)
+		inputs[i] = merkle.ProofInput{
+			Leaf:  p.Row,
+			Index: mapIndexToTreePosition(p.Index, context.config),
+			Path:  p.RowProof,
 		}
-		rowRoots[i] = rowRoot
+	}
+	rowRoots := make([][32]byte, len(proofs))
+	if err := merkle.ComputeRootsFromProofs(inputs, rowRoots, context.config.WorkerCount); err != nil {
+		return fmt.Errorf("failed to compute row roots: %w", err)
 	}
 
 	// Choice of rowRoots[0] is arbitrary — all are equal in a valid shard,
