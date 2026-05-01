@@ -20,13 +20,14 @@ import (
 )
 
 const (
-	// c6in.4xlarge: 16 vCPU / 32 GiB / 25 Gbps baseline network with ENA
+	// c6in.8xlarge: 32 vCPU / 64 GiB / 50 Gbps sustained network with ENA
 	// Express (SRD). The "n" suffix marks network-enhanced variants, which
 	// is what talis fibre experiments care about — they're networking-bound.
-	AWSDefaultValidatorInstanceType = "c6in.4xlarge"
-	// c6in.2xlarge: 8 vCPU / 16 GiB — encoders submit blobs via gRPC and
-	// don't need the full validator footprint.
-	AWSDefaultEncoderInstanceType       = "c6in.2xlarge"
+	// Same size for all three roles (validator, encoder, reader) keeps the
+	// cluster topology uniform and lets every role see the same NIC budget.
+	AWSDefaultValidatorInstanceType     = "c6in.8xlarge"
+	AWSDefaultEncoderInstanceType       = "c6in.8xlarge"
+	AWSDefaultReaderInstanceType        = "c6in.8xlarge"
 	AWSDefaultObservabilityInstanceType = "t3.medium"
 	AWSDefaultRootVolumeGB              = int32(400)
 	// gp3's baseline (3000 IOPS / 125 MB/s) caps disk throughput far below
@@ -55,7 +56,7 @@ const (
 	// AWSDefaultZone is the AZ used for launches when Config.AWSZone is
 	// unset. Single-AZ launches keep all cross-instance traffic intra-AZ
 	// (free) and enable a cluster placement group for minimum latency.
-	AWSDefaultZone = "us-east-1a"
+	AWSDefaultZone = "us-east-1c"
 )
 
 // AWSRegions is the pool used when "random" is selected for an AWS
@@ -98,7 +99,7 @@ func (c *AWSClient) Up(ctx context.Context, workers int) error {
 	}
 
 	insts := make([]Instance, 0)
-	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	allInstances := append(append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...), c.cfg.Readers...)
 	for _, v := range allInstances {
 		if v.Provider != AWS {
 			continue
@@ -133,7 +134,7 @@ func (c *AWSClient) Up(ctx context.Context, workers int) error {
 
 func (c *AWSClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	allInstances := append(append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...), c.cfg.Readers...)
 	for _, v := range allInstances {
 		if v.Provider != AWS {
 			continue
@@ -209,6 +210,17 @@ func NewAWSEncoder(region string) Instance {
 	i := NewBaseInstance(Encoder)
 	i.Provider = AWS
 	i.Slug = AWSDefaultEncoderInstanceType
+	i.Region = region
+	return i
+}
+
+func NewAWSReader(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomAWSRegion()
+	}
+	i := NewBaseInstance(Reader)
+	i.Provider = AWS
+	i.Slug = AWSDefaultReaderInstanceType
 	i.Region = region
 	return i
 }
@@ -764,7 +776,8 @@ func hasAWSExperimentTag(tag, experimentID, chainID string) bool {
 	if !strings.HasPrefix(tag, "validator-") &&
 		!strings.HasPrefix(tag, "bridge-") &&
 		!strings.HasPrefix(tag, "light-") &&
-		!strings.HasPrefix(tag, "encoder-") {
+		!strings.HasPrefix(tag, "encoder-") &&
+		!strings.HasPrefix(tag, "reader-") {
 		return false
 	}
 	return strings.Contains(tag, experimentID) && strings.Contains(tag, chainID)

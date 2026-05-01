@@ -35,6 +35,7 @@ func main() {
 		setupFibreCmd(),
 		startFibreCmd(),
 		fibreTxsimCmd(),
+		fibreReaderCmd(),
 		fibreThroughputCmd(),
 		resourceMonitorCmd(),
 		downloadResourcesCmd(),

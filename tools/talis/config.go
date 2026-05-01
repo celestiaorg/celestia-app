@@ -23,6 +23,8 @@ const (
 	Observability NodeType = "observability"
 	// Encoder represents a dedicated fibre-txsim encoder node.
 	Encoder NodeType = "encoder"
+	// Reader represents a dedicated fibre-reader node.
+	Reader NodeType = "reader"
 )
 
 var (
@@ -31,6 +33,7 @@ var (
 	lightCount         = atomic.Uint32{}
 	observabilityCount = atomic.Uint32{}
 	encoderCount       = atomic.Uint32{}
+	readerCount        = atomic.Uint32{}
 )
 
 // NodeName returns the name of the node based on its type and index. The
@@ -49,6 +52,8 @@ func NodeName(nodeType NodeType) string {
 		index = int(observabilityCount.Add(1)) - 1
 	case Encoder:
 		index = int(encoderCount.Add(1)) - 1
+	case Reader:
+		index = int(readerCount.Add(1)) - 1
 	default:
 		panic(fmt.Sprintf("unknown node type: %s", nodeType))
 	}
@@ -131,7 +136,7 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 
 func GetExperimentTag(tags []string) string {
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "observability-") || strings.HasPrefix(tag, "encoder-") {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "observability-") || strings.HasPrefix(tag, "encoder-") || strings.HasPrefix(tag, "reader-") {
 			return tag
 		}
 	}
@@ -145,6 +150,7 @@ type Config struct {
 	Lights        []Instance `json:"lights,omitempty"`
 	Observability []Instance `json:"observability,omitempty"`
 	Encoders      []Instance `json:"encoders,omitempty"`
+	Readers       []Instance `json:"readers,omitempty"`
 
 	// ChainID is the chain ID of the network. This is used to identify the
 	// network and is also used as the chain ID of the network. It is
@@ -190,6 +196,7 @@ func NewConfig(experiment, chainID string, provider Provider) Config {
 		Lights:        []Instance{},
 		Observability: []Instance{},
 		Encoders:      []Instance{},
+		Readers:       []Instance{},
 		Experiment:    experiment,
 		ChainID:       TalisChainID(chainID),
 		S3Config:      s3ConfigFromEnv(provider),
@@ -318,6 +325,24 @@ func (cfg Config) WithAWSEncoder(region string) Config {
 	return cfg
 }
 
+func (cfg Config) WithDigitalOceanReader(region string) Config {
+	i := NewDigitalOceanReader(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Readers = append(cfg.Readers, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudReader(region string) Config {
+	i := NewGoogleCloudReader(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Readers = append(cfg.Readers, i)
+	return cfg
+}
+
+func (cfg Config) WithAWSReader(region string) Config {
+	i := NewAWSReader(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Readers = append(cfg.Readers, i)
+	return cfg
+}
+
 func (cfg Config) WithChainID(chainID string) Config {
 	cfg.ChainID = TalisChainID(chainID)
 	return cfg
@@ -398,6 +423,13 @@ func (cfg Config) UpdateInstance(name, publicIP, privateIP string) (Config, erro
 		if cfg.Encoders[i].Name == name {
 			cfg.Encoders[i].PublicIP = publicIP
 			cfg.Encoders[i].PrivateIP = privateIP
+			return cfg, nil
+		}
+	}
+	for i := range cfg.Readers {
+		if cfg.Readers[i].Name == name {
+			cfg.Readers[i].PublicIP = publicIP
+			cfg.Readers[i].PrivateIP = privateIP
 			return cfg, nil
 		}
 	}
