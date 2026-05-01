@@ -454,7 +454,7 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins
 
 ## build-talis-bins-fibre: Same as build-talis-bins but with the fibre module enabled in celestia-appd.
@@ -465,7 +465,7 @@ build-talis-bins-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins-fibre
 
 CARGO := $(HOME)/.cargo/bin/cargo
@@ -506,7 +506,7 @@ build-talis-bins-rust-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 	$(MAKE) build-rust-fibre-txsim
 .PHONY: build-talis-bins-rust-fibre
 
