@@ -61,6 +61,21 @@ func addCmd() *cobra.Command {
 					}
 				}
 				applySlug(cfg.Encoders, start, slug)
+			case "reader":
+				start := len(cfg.Readers)
+				for range count {
+					switch provider {
+					case "digitalocean":
+						cfg = cfg.WithDigitalOceanReader(region)
+					case "googlecloud":
+						cfg = cfg.WithGoogleCloudReader(region)
+					case "aws":
+						cfg = cfg.WithAWSReader(region)
+					default:
+						return fmt.Errorf("unknown provider %q (supported: digitalocean, googlecloud, aws)", provider)
+					}
+				}
+				applySlug(cfg.Readers, start, slug)
 			case "bridge":
 				log.Println("bridges are not yet supported")
 				return nil
@@ -78,7 +93,7 @@ func addCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().IntVarP(&count, "count", "c", 0, "Number of nodes to deploy")
 	_ = cmd.MarkFlagRequired("count")
-	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, encoder, bridge, light)")
+	cmd.Flags().StringVarP(&nodeType, "type", "t", "", "Type of the node (validator, encoder, reader, bridge, light)")
 	_ = cmd.MarkFlagRequired("type")
 	cmd.Flags().StringVarP(&provider, "provider", "p", "digitalocean", "Provider for the node (digitalocean, googlecloud, aws)")
 	cmd.Flags().StringVarP(&region, "region", "r", "random", "the region to deploy the instance in (random if blank)")
