@@ -14,13 +14,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Upload-path defaults.
-const (
-	// SuggestedUploadMemoryBudget is a starting value for [ClientConfig.UploadMemoryBudget].
-	SuggestedUploadMemoryBudget int64 = 512 * 1024 * 1024
-	// DefaultRPCTimeout is the default value for [ClientConfig.RPCTimeout].
-	DefaultRPCTimeout = 15 * time.Second
-)
+// DefaultRPCTimeout is the default value for [ClientConfig.RPCTimeout].
+const DefaultRPCTimeout = 15 * time.Second
 
 // ClientConfig contains configuration options for the Fibre [Client].
 type ClientConfig struct {
@@ -39,12 +34,6 @@ type ClientConfig struct {
 	MinRowsPerValidator int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
-
-	// UploadMemoryBudget caps in-flight upload bytes via a weighted semaphore
-	// keyed on blob.UploadSize(). Benchmarks show resident footprint per Upload
-	// is ~10x this weight (parity-encoded extended data, RLC coefficients);
-	// size accordingly. Disabled when <= 0; see [SuggestedUploadMemoryBudget].
-	UploadMemoryBudget int64
 
 	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).
 	// Sheds black-holed peers below the kernel's ~75s TCP SYN retry window.
@@ -115,7 +104,7 @@ func (cfg *ClientConfig) Validate() error {
 	}
 
 	if cfg.RPCTimeout <= 0 {
-		cfg.RPCTimeout = DefaultRPCTimeout
+		return fmt.Errorf("RPCTimeout must be > 0 (see [DefaultRPCTimeout])")
 	}
 	return nil
 }

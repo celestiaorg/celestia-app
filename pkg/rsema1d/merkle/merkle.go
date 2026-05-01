@@ -69,29 +69,21 @@ func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 		return
 	}
 
-	// Use worker pool pattern for larger trees
 	workers := min(workerCount, count)
+	chunk := (count + workers - 1) / workers
 
 	var wg sync.WaitGroup
-	ch := make(chan int, count)
-
-	// Start workers
 	wg.Add(workers)
-	for range workers {
-		go func() {
+	for w := range workers {
+		start := w * chunk
+		end := min(start+chunk, count)
+		go func(start, end int) {
 			defer wg.Done()
-			for i := range ch {
+			for i := start; i < end; i++ {
 				hashFunc(i)
 			}
-		}()
+		}(start, end)
 	}
-
-	// Send work
-	for i := range count {
-		ch <- i
-	}
-	close(ch)
-
 	wg.Wait()
 }
 

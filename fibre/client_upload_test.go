@@ -32,6 +32,7 @@ func TestClientUpload(t *testing.T) {
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
 		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
+		{"BlobConsumed", testClientUploadBlobConsumed},
 	}
 
 	for _, tt := range tests {
@@ -166,6 +167,19 @@ func testClientUploadClosedClient(t *testing.T) {
 	// attempt to upload after closing
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.ErrorIs(t, err, fibre.ErrClientClosed, "expected ErrClientClosed when uploading to closed client")
+}
+
+func testClientUploadBlobConsumed(t *testing.T) {
+	client := makeTestUploadClient(t, 100, nil)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+
+	_, err := client.Upload(t.Context(), testNamespace, blob)
+	require.NoError(t, err)
+
+	_, err = client.Upload(t.Context(), testNamespace, blob)
+	require.ErrorIs(t, err, fibre.ErrBlobConsumed)
 }
 
 // makeTestUploadClient creates an upload client for testing.

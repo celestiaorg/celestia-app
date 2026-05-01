@@ -13,7 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel/trace"
-	"golang.org/x/sync/semaphore"
 )
 
 // DefaultKeyName is the default key name for the client.
@@ -39,8 +38,7 @@ type Client struct {
 	metrics *clientMetrics
 	clock   clock.Clock
 
-	clientCache  *fibregrpc.ClientCache
-	uploadBudget *semaphore.Weighted
+	clientCache *fibregrpc.ClientCache
 
 	// closeWg tracks subroutines spawned by Upload/Download operations.
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
@@ -79,7 +77,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("creating metrics: %w", err)
 	}
 
-	c := &Client{
+	return &Client{
 		Config:      cfg,
 		keyring:     kr,
 		state:       stateClient,
@@ -88,11 +86,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		metrics:     metrics,
 		clock:       cfg.Clock,
 		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
-	}
-	if cfg.UploadMemoryBudget > 0 {
-		c.uploadBudget = semaphore.NewWeighted(cfg.UploadMemoryBudget)
-	}
-	return c, nil
+	}, nil
 }
 
 // ChainID returns the chain ID resolved during [Start].

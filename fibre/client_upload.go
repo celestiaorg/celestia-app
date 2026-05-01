@@ -48,10 +48,25 @@ func WithAwaitAllSignatures() UploadOption {
 // Upload uploads the given [Blob] to the Fibre network.
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
-// May keep uploading data in background after returning, including on error
-// (e.g., context cancellation); use [Client.Await] or [Client.Stop] to drain.
+// May keep uploading data in background after returning successfully; use [Client.Await]
+// or [Client.Stop] to drain.
+//
+// Upload takes ownership of the blob and releases its pooled storage when all
+// background uploads complete. The blob must not be reused after calling Upload;
+// create a new one with [NewBlob] for each upload.
+//
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
+	if !blob.consume() {
+		return result, ErrBlobConsumed
+	}
+	defer func() {
+		// don't cleanup on success as uploads may still be running
+		if err != nil {
+			blob.asm.Free()
+		}
+	}()
+
 	if !c.started.Load() {
 		return result, errors.New("fibre client is not started")
 	}
@@ -121,7 +136,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
 		return result, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
-	requests := makeUploadRequests(shardMap, promiseProto, blob.RLCCoeffs())
+	requests := makeUploadRequests(shardMap, promiseProto, blob.RLC())
 	threshold := c.Config.SafetyThreshold
 	if opt.awaitAll {
 		threshold = cmtmath.Fraction{Numerator: 1, Denominator: 1}
@@ -137,21 +152,8 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		"validators", len(requests),
 	)
 
-	// 3) admit and upload — release the budget only once all per-validator
-	// goroutines drain, since post-quorum delivery outlives Upload's return
-	// and keeps the blob pinned in memory.
-	onAllUploaded := func() {}
-	if c.uploadBudget != nil {
-		uploadBytes := int64(blob.UploadSize())
-		if uploadBytes > c.Config.UploadMemoryBudget {
-			return result, fmt.Errorf("fibre: upload size %d exceeds memory budget %d", uploadBytes, c.Config.UploadMemoryBudget)
-		}
-		if err = c.uploadBudget.Acquire(ctx, uploadBytes); err != nil {
-			return result, err
-		}
-		onAllUploaded = func() { c.uploadBudget.Release(uploadBytes) }
-	}
-	if err = c.uploadShards(ctx, requests, blob, sigSet, onAllUploaded); err != nil {
+	// 3) upload data
+	if err = c.uploadShards(ctx, requests, blob, sigSet); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload")
 		return result, err
@@ -247,6 +249,13 @@ func (c *Client) uploadTo(
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
+	ctx, cancel := context.WithCancel(ctx) // GRPC calls require context cancelling upon completion
+	defer cancel()
+
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.ID().Commitment(),
@@ -334,13 +343,18 @@ func (c *Client) uploadTo(
 // quorum is reached, all responses are in, or ctx is done. Background
 // goroutines continue best-effort delivery to remaining peers past quorum;
 // they are tracked via [c.closeWg] and unwind on client stop or caller cancel.
+// The terminal goroutine releases the blob's pooled storage via blob.asm.Free.
 func (c *Client) uploadShards(
 	ctx context.Context,
 	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-	onAllDone func(),
 ) error {
+	if len(requests) == 0 {
+		blob.asm.Free()
+		return nil
+	}
+
 	var (
 		responses            atomic.Uint32
 		responsesExhaustedCh = make(chan struct{})
@@ -348,18 +362,16 @@ func (c *Client) uploadShards(
 		sigsCollectedCh      = make(chan struct{})
 	)
 
-	if len(requests) == 0 {
-		onAllDone()
-		return nil
-	}
-
+	// spawn unconditionally even under ctx cancellation: each goroutine exits
+	// fast via uploadTo(ctx) and runs its defer, so the "last one frees" path
+	// fires naturally without a separate drain step.
 	for val, req := range requests {
 		c.closeWg.Add(1)
-		go func() {
+		go func(val *core.Validator, req *types.UploadShardRequest) {
 			defer func() {
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
-					onAllDone()
+					blob.asm.Free()
 				}
 				c.closeWg.Done()
 			}()
@@ -368,12 +380,15 @@ func (c *Client) uploadShards(
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
-		}()
+		}(val, req)
 	}
 
 	select {
-	case <-responsesExhaustedCh: // no more responses to wait for
-	case <-sigsCollectedCh: // enough signatures collected
+	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+	case <-sigsCollectedCh: // detach: remaining goroutines finish in background
 	case <-ctx.Done():
 		return ctx.Err()
 	}

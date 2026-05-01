@@ -269,7 +269,7 @@ func TestRLCCommutationProperty(t *testing.T) {
 				t.Fatalf("Encode() error: %v", err)
 			}
 
-			coeffs := deriveCoefficients(extData.rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(extData.rowRoot, config.K, config.N, config.RowSize)
 			extendedRLCs, err := encoding.ExtendRLCResults(extData.rlcOrig, tc.n)
 			if err != nil {
 				t.Fatalf("ExtendRLCResults() error: %v", err)

@@ -40,7 +40,7 @@ func Encode(data [][]byte, config *Config) (*ExtendedData, Commitment, []field.G
 	rowRoot := rowTree.Root()
 
 	// 4. Derive RLC coefficients
-	coeffs := deriveCoefficients(rowRoot, config.RowSize)
+	coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 	// 5. Compute RLC results for original rows
 	rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -98,7 +98,7 @@ func EncodeParity(extended [][]byte, config *Config) (*ExtendedData, Commitment,
 	rowRoot := rowTree.Root()
 
 	// 3. Derive RLC coefficients
-	coeffs := deriveCoefficients(rowRoot, config.RowSize)
+	coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 	// 4. Compute RLC results for original rows (first K rows)
 	originalRows := extended[:config.K]
