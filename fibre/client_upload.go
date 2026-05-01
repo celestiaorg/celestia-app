@@ -48,7 +48,8 @@ func WithAwaitAllSignatures() UploadOption {
 // Upload uploads the given [Blob] to the Fibre network.
 // It creates a [PaymentPromise], uploads the data to validators, and collects signatures confirming the upload.
 // Returns a [SignedPaymentPromise] containing the promise and validator signatures.
-// May keep uploading data in background after returning successfully.
+// May keep uploading data in background after returning successfully; use [Client.Await]
+// or [Client.Stop] to drain.
 //
 // Upload takes ownership of the blob and releases its pooled storage when all
 // background uploads complete. The blob must not be reused after calling Upload;
@@ -239,8 +240,8 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64, ke
 	return promise, nil
 }
 
-// uploadTo uploads blob shard to a single validator and adds the response signature to the signature set.
-// Returns true if enough signatures have been collected after adding this signature.
+// uploadTo uploads a shard to one validator and records its signature in
+// sigSet. Returns whether sigSet has reached quorum.
 func (c *Client) uploadTo(
 	ctx context.Context,
 	val *core.Validator,
@@ -276,7 +277,6 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	// get a new or cached client with active connection
 	client, err := c.clientCache.GetClient(ctx, val)
 	if err != nil {
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
@@ -286,7 +286,7 @@ func (c *Client) uploadTo(
 	}
 	span.AddEvent("client_acquired")
 
-	// get proofs and rows here in per request routine which is in parallel which ~39% faster for max blob size
+	// Generate proofs in parallel per request (~39% faster for max blob size).
 	for i, rowPb := range req.Shard.Rows {
 		row, err := blob.Row(int(rowPb.Index))
 		if err != nil {
@@ -300,9 +300,11 @@ func (c *Client) uploadTo(
 	}
 	span.AddEvent("proofs_generated")
 
-	// actually push the data to the validator
+	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+	defer rpcCancel()
+
 	rpcStart := time.Now()
-	resp, err := client.UploadShard(ctx, req)
+	resp, err := client.UploadShard(rpcCtx, req)
 	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
@@ -337,9 +339,11 @@ func (c *Client) uploadTo(
 	return hasEnough
 }
 
-// uploadShards pushes assigned [types.BlobShard]s to all validators concurrently and collects signature responses.
-// Returns when either all the responses are exhausted or signatures collected or the context is done.
-// It continues uploading to every validator even after necessary amount of signatures is reached.
+// uploadShards fans out shard requests to all validators and returns when
+// quorum is reached, all responses are in, or ctx is done. Background
+// goroutines continue best-effort delivery to remaining peers past quorum;
+// they are tracked via [c.closeWg] and unwind on client stop or caller cancel.
+// The terminal goroutine releases the blob's pooled storage via blob.asm.Free.
 func (c *Client) uploadShards(
 	ctx context.Context,
 	requests map[*core.Validator]*types.UploadShardRequest,
@@ -352,41 +356,39 @@ func (c *Client) uploadShards(
 	}
 
 	var (
-		responses            atomic.Uint32         // tracks finished responses
-		responsesExhaustedCh = make(chan struct{}) // closes when all responses complete
-	)
-
-	var (
-		sigsCollectedOnce atomic.Bool
-		sigsCollectedCh   = make(chan struct{}) // closes when enough signatures are collected
+		responses            atomic.Uint32
+		responsesExhaustedCh = make(chan struct{})
+		sigsCollectedOnce    atomic.Bool
+		sigsCollectedCh      = make(chan struct{})
 	)
 
 	// spawn unconditionally even under ctx cancellation: each goroutine exits
 	// fast via uploadTo(ctx) and runs its defer, so the "last one frees" path
 	// fires naturally without a separate drain step.
 	for val, req := range requests {
-		c.uploadSem <- struct{}{}
-
 		c.closeWg.Add(1)
 		go func(val *core.Validator, req *types.UploadShardRequest) {
 			defer func() {
-				<-c.uploadSem
-
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
 					blob.asm.Free()
 				}
-
 				c.closeWg.Done()
 			}()
 
-			isDone := c.uploadTo(ctx, val, req, blob, sigSet)
-			if isDone && sigsCollectedOnce.CompareAndSwap(false, true) {
+			hasEnough := c.uploadTo(ctx, val, req, blob, sigSet)
+			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
 		}(val, req)
 	}
 
+	// No ctx.Done case: returning early on cancel would let Upload's err-path
+	// defer call blob.asm.Free() while in-flight uploadTo goroutines still
+	// reference the pooled (potentially mmap'd) row buffers via the gRPC
+	// request, which races and can segfault. Cancellation propagates through
+	// uploadTo's ctx.Err() check, so all goroutines drain and
+	// responsesExhaustedCh fires.
 	select {
 	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
 		if ctx.Err() != nil {

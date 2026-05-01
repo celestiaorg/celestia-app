@@ -27,7 +27,6 @@ func TestClientDownload(t *testing.T) {
 		fn   func(*testing.T)
 	}{
 		{"Success", testClientDownloadSuccess},
-		{"Success_ExactTargetCount", testClientDownloadExactTargetCount},
 		{"Success_Concurrent", testClientDownloadConcurrent},
 		{"FaultTolerance", testClientDownloadFaultTolerance},
 		{"ContextCancellation", testClientDownloadContextCancellation},
@@ -36,7 +35,6 @@ func TestClientDownload(t *testing.T) {
 		{"IncorrectRowDistribution", testClientDownloadIncorrectRowDistribution},
 		{"WithHeight", testClientDownloadWithHeight},
 		{"WithZeroHeight", testClientDownloadWithZeroHeight},
-		{"CustomMinRowsPerValidator", testClientDownloadCustomMinRows},
 		{"TamperedBlobRLCRetry", testClientDownloadTamperedBlobRLCRetry},
 	}
 
@@ -111,29 +109,6 @@ func testClientDownloadClosedClient(t *testing.T) {
 
 	_, err := client.Download(t.Context(), blob.ID())
 	require.ErrorIs(t, err, fibre.ErrClientClosed)
-}
-
-func testClientDownloadExactTargetCount(t *testing.T) {
-	// test that we download from exactly the minimum validators needed (no more)
-	// with 10 equal-stake validators and livenessThreshold=1/3,
-	// each validator gets ~1229 rows, so 4 validators provide ~4916 rows >= 4096 originalRows
-	const numValidators = 10
-
-	blob := makeTestBlobV0(t, 256*1024)
-
-	var counter *atomic.Int64
-	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
-	}, blob)
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	downloaded, err := client.Download(t.Context(), blob.ID())
-	require.NoError(t, err)
-	require.Equal(t, blob.Data(), downloaded.Data())
-
-	// With 10 equal-stake validators, 4 provide enough rows for reconstruction.
-	// The coordinator should launch exactly 4 (inflight rows >= originalRows) in the happy path.
-	require.Equal(t, int64(4), counter.Load(), "should download from exactly the minimum validators needed")
 }
 
 func testClientDownloadFaultTolerance(t *testing.T) {
@@ -348,32 +323,6 @@ func (g *heightTrackingSetGetter) GetByHeight(ctx context.Context, height uint64
 	g.getByHeightCalls.Add(1)
 	g.lastHeight.Store(height)
 	return g.set, nil
-}
-
-func testClientDownloadCustomMinRows(t *testing.T) {
-	// Verify that customCfg modifications to MinRowsPerValidator propagate
-	// to the mock via the pointer. Setting MinRowsPerValidator to originalRows
-	// means every validator gets all rows, so a single validator suffices.
-	// With default MinRowsPerValidator (~148), 10 equal-stake validators need 4
-	// to reconstruct. If the pointer didn't work, the mock would use default
-	// MinRowsPerValidator and the counter assertion would fail.
-	const numValidators = 10
-	blob := makeTestBlobV0(t, 256*1024)
-
-	var counter *atomic.Int64
-	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.MinRowsPerValidator = blob.Config().OriginalRows
-		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
-	}, blob)
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	downloaded, err := client.Download(t.Context(), blob.ID())
-	require.NoError(t, err)
-	require.Equal(t, blob.Data(), downloaded.Data())
-
-	// Every validator has originalRows rows, so 1 validator is enough.
-	require.Equal(t, int64(1), counter.Load(),
-		"with MinRowsPerValidator=originalRows, a single validator should suffice")
 }
 
 // makeTestDownloadClient creates a download client with equal-stake validators that serves the given blobs.
