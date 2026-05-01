@@ -292,8 +292,8 @@ func (m *Multiplexer) initRemoteGrpcConn() error {
 }
 
 // startGRPCServer initializes and starts a gRPC server if enabled in the configuration, returning the server and updated context.
-func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
-	_, _, err := net.SplitHostPort(m.svrCfg.GRPC.Address)
+func (m *Multiplexer) startGRPCServer() (_ *grpc.Server, _ client.Context, err error) {
+	_, _, err = net.SplitHostPort(m.svrCfg.GRPC.Address)
 	if err != nil {
 		return nil, m.clientContext, err
 	}
@@ -321,6 +321,11 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 	if err != nil {
 		return nil, m.clientContext, err
 	}
+	defer func() {
+		if err != nil {
+			_ = grpcClient.Close()
+		}
+	}()
 
 	m.clientContext = m.clientContext.WithGRPCClient(grpcClient)
 	m.logger.Debug("gRPC client assigned to client context", "target", m.svrCfg.GRPC.Address)
