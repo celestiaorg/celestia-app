@@ -16,6 +16,8 @@ import (
 
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
+	hooktypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
+	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	zkismtypes "github.com/celestiaorg/celestia-app/v9/x/zkism/types"
@@ -172,6 +174,166 @@ func (s *HyperlaneTestSuite) TestHyperlaneTokenTransfer() {
 
 	expBalance := balance.Add(amount)
 	s.AssertBankBalance(ctx, chain, wallet.FormattedAddress, chain.Config.Denom, expBalance)
+}
+
+func (s *HyperlaneTestSuite) TestHyperlanePostDispatchHooks() {
+	t := s.T()
+	if testing.Short() {
+		t.Skip("skipping hyperlane forwarding test in short mode")
+	}
+
+	ctx := context.Background()
+	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), s.celestiaCfg).Build(ctx)
+	s.Require().NoError(err)
+
+	s.T().Cleanup(func() {
+		if err := chain.Remove(ctx); err != nil {
+			s.T().Logf("Error removing chain: %v", err)
+		}
+	})
+
+	err = chain.Start(ctx)
+	s.Require().NoError(err)
+
+	da := s.WithBridgeNodeNetwork(ctx, chain)
+
+	reth := s.BuildEvolveEVMChain(ctx, s.BridgeNodeAddress(da), RethChainName0, RethChainID0)
+
+	hypConfig := hyperlane.Config{
+		Logger:          s.logger,
+		DockerClient:    s.client,
+		DockerNetworkID: s.network,
+		HyperlaneImage:  hyperlane.DefaultDeployerImage(),
+	}
+
+	hypChainProvider := []hyperlane.ChainConfigProvider{reth, chain}
+	hyp, err := hyperlane.NewDeployer(ctx, hypConfig, t.Name(), hypChainProvider)
+	s.Require().NoError(err)
+
+	s.Require().NoError(hyp.Deploy(ctx))
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	faucet := chain.GetFaucetWallet()
+
+	config, err := hyp.DeployCosmosNoopISM(ctx, broadcaster, faucet)
+	s.Require().NoError(err)
+	s.Require().NotNil(t, config)
+
+	tokenRouter, err := hyp.GetEVMWarpTokenAddress()
+	s.Require().NoError(err)
+
+	// Create new hooks stack and set AggregationHook as the mailbox required hook.
+	msgCreatePausableHook := hooktypes.MsgCreatePausableHook{
+		Owner:     faucet.FormattedAddress,
+		MailboxId: config.MailboxID,
+	}
+
+	msgCreateRateLimitedHook := hooktypes.MsgCreateRateLimitedHook{
+		Owner:     faucet.FormattedAddress,
+		MailboxId: config.MailboxID,
+	}
+
+	txResp, err := broadcaster.BroadcastMessages(ctx, faucet, &msgCreatePausableHook, &msgCreateRateLimitedHook)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	var msgCreatePausableHookResp hooktypes.MsgCreatePausableHookResponse
+	var msgCreateRateLimitedHookResp hooktypes.MsgCreateRateLimitedHookResponse
+	s.Require().NoError(unmarshalTxMsgResponses(txResp, &msgCreatePausableHookResp, &msgCreateRateLimitedHookResp))
+
+	pausableHookID := msgCreatePausableHookResp.Id
+	rateLimitedHookID := msgCreateRateLimitedHookResp.Id
+	s.Require().False(pausableHookID.IsZeroAddress())
+	s.Require().False(rateLimitedHookID.IsZeroAddress())
+
+	t.Logf("Created PausableHook with id: %s\n", pausableHookID.String())
+	t.Logf("Created RateLimitedHook with id: %s\n", rateLimitedHookID.String())
+
+	msgCreateAggregationHook := hooktypes.MsgCreateAggregationHook{
+		Owner: faucet.FormattedAddress,
+		Hooks: []hyputil.HexAddress{
+			config.MerkleTreeHookID,
+			pausableHookID,
+			rateLimitedHookID,
+		},
+	}
+
+	txResp, err = broadcaster.BroadcastMessages(ctx, faucet, &msgCreateAggregationHook)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	var msgCreateAggregationHookResp hooktypes.MsgCreateAggregationHookResponse
+	s.Require().NoError(unmarshalTxMsgResponses(txResp, &msgCreateAggregationHookResp))
+
+	aggregationHookID := msgCreateAggregationHookResp.Id
+	s.Require().False(aggregationHookID.IsZeroAddress())
+
+	t.Logf("Created AggregationHook with id: %s\n", aggregationHookID.String())
+
+	// Keep this capacity evenly divisible by RateLimitDuration so EffectiveCapacity
+	// is exactly MaxCapacity after integer per-second refill-rate calculation.
+	rateLimitCapacity := sdkmath.NewIntFromUint64(hooktypes.RateLimitDurationSeconds)
+	msgSetTokenRateLimit := hooktypes.MsgSetRateLimit{
+		Owner:       faucet.FormattedAddress,
+		HookId:      rateLimitedHookID,
+		TokenId:     config.TokenID,
+		MaxCapacity: rateLimitCapacity,
+	}
+
+	msgSetMailbox := coretypes.MsgSetMailbox{
+		Owner:        faucet.GetFormattedAddress(),
+		MailboxId:    config.MailboxID,
+		DefaultIsm:   &config.IsmID,
+		DefaultHook:  &config.HooksID,
+		RequiredHook: &aggregationHookID,
+	}
+
+	txResp, err = broadcaster.BroadcastMessages(ctx, faucet, &msgSetMailbox, &msgSetTokenRateLimit)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	// Register Hyperlane token router connections between celestia and both evm chains
+	s.EnrollRemoteRouters(ctx, chain, reth, hyp, tokenRouter, config.TokenID)
+
+	s.StartRelayerAgent(ctx, hyp)
+
+	rethDomain := s.GetDomainForChain(ctx, reth.HyperlaneChainName(), hyp)
+	rethRecipient := ethcommon.HexToAddress("0xaF9053bB6c4346381C77C2FeD279B17ABAfCDf4d")
+
+	successAmount := sdkmath.NewInt(1000)
+	s.SendTransferRemoteTx(ctx, chain, config.TokenID, rethDomain, rethRecipient, successAmount)
+
+	s.AssertERC20Balance(ctx, reth, tokenRouter, rethRecipient, successAmount.BigInt())
+
+	rateLimitExceededAmount := rateLimitCapacity.Add(sdkmath.OneInt())
+	s.SendTransferRemoteTxExpectFailure(
+		ctx,
+		chain,
+		config.TokenID,
+		rethDomain,
+		rethRecipient,
+		rateLimitExceededAmount,
+		hooktypes.ErrRateLimitExceeded.Error(),
+	)
+
+	msgSetPausableHookPaused := hooktypes.MsgSetPausableHookPaused{
+		Owner:  faucet.FormattedAddress,
+		HookId: pausableHookID,
+		Paused: true,
+	}
+	txResp, err = broadcaster.BroadcastMessages(ctx, faucet, &msgSetPausableHookPaused)
+	s.Require().NoError(err)
+	s.Require().Equal(uint32(0), txResp.Code, "tx failed: code=%d, log=%s", txResp.Code, txResp.RawLog)
+
+	s.SendTransferRemoteTxExpectFailure(
+		ctx,
+		chain,
+		config.TokenID,
+		rethDomain,
+		rethRecipient,
+		sdkmath.OneInt(),
+		hooktypes.ErrPausableHookPaused.Error(),
+	)
 }
 
 func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
@@ -569,7 +731,7 @@ func (s *HyperlaneTestSuite) EnrollRemoteRouters(ctx context.Context, chain *cos
 
 	evmDomain := s.GetDomainForChain(ctx, chainName, deployer)
 	remoteTokenRouter := evm.PadAddress(tokenRouter) // leftpad to bytes32
-	err = deployer.EnrollRemoteRouterOnCosmos(ctx, broadcaster, signer, tokenID, evmDomain, remoteTokenRouter.String())
+	err = deployer.EnrollRemoteRouterOnCosmos(ctx, broadcaster, signer, tokenID, evmDomain, remoteTokenRouter)
 	s.Require().NoError(err)
 }
 
@@ -740,6 +902,26 @@ func (s *HyperlaneTestSuite) SendTransferRemoteTx(ctx context.Context, chain *co
 	s.Require().Equalf(uint32(0), resp.Code, "tx failed: code=%d, log=%s", resp.Code, resp.RawLog)
 }
 
+func (s *HyperlaneTestSuite) SendTransferRemoteTxExpectFailure(ctx context.Context, chain *cosmos.Chain, tokenID hyputil.HexAddress, domain uint32, recipient ethcommon.Address, amount sdkmath.Int, expectedLog string) {
+	s.T().Helper()
+
+	broadcaster := cosmos.NewBroadcaster(chain)
+	signer := chain.GetFaucetWallet()
+
+	msgRemoteTransfer := &warptypes.MsgRemoteTransfer{
+		Sender:            signer.GetFormattedAddress(),
+		TokenId:           tokenID,
+		DestinationDomain: domain,
+		Recipient:         evm.PadAddress(recipient),
+		Amount:            amount,
+	}
+
+	resp, err := broadcaster.BroadcastMessages(ctx, signer, msgRemoteTransfer)
+	s.Require().NoError(err)
+	s.Require().NotEqualf(uint32(0), resp.Code, "tx unexpectedly succeeded: hash=%s", resp.TxHash)
+	s.Require().Contains(resp.RawLog, expectedLog)
+}
+
 func (s *HyperlaneTestSuite) SendTransferRemoteTxEvm(ctx context.Context, chain *EvolveEVMChain, tokenRouter ethcommon.Address, domain uint32, recipient [32]byte, amount sdkmath.Int) {
 	s.T().Helper()
 
@@ -863,6 +1045,30 @@ func (s *HyperlaneTestSuite) ParseUpdateISMEvent(txResp sdk.TxResponse) *zkismty
 		s.Require().True(ok)
 
 		return ismEvent
+	}
+
+	return nil
+}
+
+func unmarshalTxMsgResponses(txResp sdk.TxResponse, msgs ...proto.Message) error {
+	data, err := hex.DecodeString(txResp.Data)
+	if err != nil {
+		return fmt.Errorf("decode tx response data: %w", err)
+	}
+
+	var txMsgData sdk.TxMsgData
+	if err := proto.Unmarshal(data, &txMsgData); err != nil {
+		return fmt.Errorf("unmarshal tx message data: %w", err)
+	}
+
+	if len(msgs) != len(txMsgData.MsgResponses) {
+		return fmt.Errorf("expected %d message responses but got %d", len(msgs), len(txMsgData.MsgResponses))
+	}
+
+	for i, msg := range msgs {
+		if err := proto.Unmarshal(txMsgData.MsgResponses[i].Value, msg); err != nil {
+			return fmt.Errorf("unmarshal message response %d: %w", i, err)
+		}
 	}
 
 	return nil

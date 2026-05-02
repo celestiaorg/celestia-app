@@ -122,7 +122,7 @@ func (s *ForwardingIntegrationTestSuite) TestBankDenomForTokenTIA() {
 	ismIDChainA := s.SetupNoopISM(s.chainA)
 	s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, tiaSynTokenID)
 
 	hypToken, err := celestiaApp.WarpKeeper.HypTokens.Get(ctx, collatTokenID.GetInternalId())
 	s.Require().NoError(err)
@@ -176,7 +176,7 @@ func (s *ForwardingIntegrationTestSuite) TestHasEnrolledRouter() {
 	ismIDChainA := s.SetupNoopISM(s.chainA)
 	s.SetupMailBox(s.chainA, ismIDChainA, TestChainADomainID)
 	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxID)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID)
 
 	// After enrollment - should return true
 	hasRouteAfter, err := celestiaApp.ForwardingKeeper.HasEnrolledRouter(ctx, collatTokenID, TestChainADomainID)
@@ -204,8 +204,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullFlow() {
 	synTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, synTokenID, TestCelestiaDomainID, collatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, TestChainADomainID, synTokenID)
+	s.EnrollRemoteRouter(s.chainA, synTokenID, TestCelestiaDomainID, collatTokenID)
 
 	// Create destination recipient and derive forwarding address
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
@@ -278,7 +278,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardNoBalance() {
 	ismIDChainA := s.SetupNoopISM(s.chainA)
 	s.SetupMailBox(s.chainA, ismIDChainA, 1337)
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
-	s.EnrollRemoteRouter(s.celestia, collatTokenID, 1337, tiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, collatTokenID, 1337, tiaSynTokenID)
 
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 	forwardAddr := s.deriveForwardAddress(1337, destRecipient, collatTokenID)
@@ -308,10 +308,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardLeavesUnrelatedTokenUntou
 	celestiaSynTokenID := s.CreateSyntheticToken(s.celestia, ismIDCelestia, mailboxIDChainA)
 
 	// Enroll routers for both token pairs
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, TestCelestiaDomainID, celestiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, TestChainADomainID, chainACollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID)
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID)
+	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, TestCelestiaDomainID, celestiaSynTokenID)
+	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, TestChainADomainID, chainACollatTokenID)
 
 	// Create destination recipient and derive forwarding address bound to TIA.
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
@@ -368,8 +368,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardIgnoresUnsupportedUnrelat
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll routers for TIA only
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID)
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID)
 
 	// Create destination and derive forwarding address bound to TIA.
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
@@ -418,11 +418,13 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardNoRouteForBoundToken() {
 	tiaSynTokenID := s.CreateSyntheticToken(s.chainA, ismIDChainA, mailboxIDCelestia)
 
 	// Enroll TIA route to chainA
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, TestChainADomainID, tiaSynTokenID)
+	s.EnrollRemoteRouter(s.chainA, tiaSynTokenID, TestCelestiaDomainID, tiaCollatTokenID)
 
 	// Enroll test token route to OTHER domain only (NOT chainA)
-	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, "0x0000000000000000000000000000000000000000000000000000000000000001")
+	remoteRecv, err := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000000001")
+	s.Require().NoError(err)
+	s.EnrollRemoteRouter(s.celestia, testCollatTokenID, OtherDomainID, remoteRecv)
 
 	// Derive forwarding address for TestChainADomainID, but bind it to the token with no route.
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
@@ -433,7 +435,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardNoRouteForBoundToken() {
 
 	msg := s.newForwardMsg(forwardAddr, TestChainADomainID, destRecipient, testCollatTokenID)
 
-	_, err := s.celestia.SendMsgs(msg)
+	_, err = s.celestia.SendMsgs(msg)
 	s.Require().Error(err, "transaction should fail when the bound token has no route")
 	s.Contains(err.Error(), "no warp route to destination domain")
 
@@ -464,10 +466,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ESourceCollateralTo
 	chainBSynTokenID := s.CreateSyntheticToken(s.chainB, ismIDChainB, mailboxIDChainA)
 
 	// Enroll warp routes
-	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, CelestiaDomainID, celestiaSynTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainADomainID, chainACollatTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainBDomainID, chainBSynTokenID.String())
-	s.EnrollRemoteRouter(s.chainB, chainBSynTokenID, CelestiaDomainID, celestiaSynTokenID.String())
+	s.EnrollRemoteRouter(s.chainA, chainACollatTokenID, CelestiaDomainID, celestiaSynTokenID)
+	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainADomainID, chainACollatTokenID)
+	s.EnrollRemoteRouter(s.celestia, celestiaSynTokenID, ChainBDomainID, chainBSynTokenID)
+	s.EnrollRemoteRouter(s.chainB, chainBSynTokenID, CelestiaDomainID, celestiaSynTokenID)
 
 	// Compute forward address on Celestia bound to the synthetic token held there.
 	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
@@ -543,10 +545,10 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ETIASyntheticOnSour
 	chainBTIASynTokenID := s.CreateSyntheticToken(s.chainB, ismIDChainB, mailboxIDCelestia)
 
 	// Enroll warp routes
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, chainATIASynTokenID.String())
-	s.EnrollRemoteRouter(s.chainA, chainATIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID.String())
-	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainADomainID, chainATIASynTokenID)
+	s.EnrollRemoteRouter(s.chainA, chainATIASynTokenID, CelestiaDomainID, tiaCollatTokenID)
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID)
+	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID)
 
 	// Bridge TIA from Celestia to ChainA to create synthetic TIA
 	chainARecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
@@ -630,8 +632,8 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardFullE2ECEXWithdrawal() {
 	chainBTIASynTokenID := s.CreateSyntheticToken(s.chainB, ismIDChainB, mailboxIDCelestia)
 
 	// Enroll warp routes
-	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID.String())
-	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID.String())
+	s.EnrollRemoteRouter(s.celestia, tiaCollatTokenID, ChainBDomainID, chainBTIASynTokenID)
+	s.EnrollRemoteRouter(s.chainB, chainBTIASynTokenID, CelestiaDomainID, tiaCollatTokenID)
 
 	// Compute forward address on Celestia bound to native TIA.
 	destRecipient := MakeRecipient32(s.chainB.SenderAccount.GetAddress())
