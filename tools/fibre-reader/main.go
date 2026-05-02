@@ -31,6 +31,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cometbft/cometbft/rpc/client/http"
+	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/grafana/pyroscope-go"
@@ -56,6 +57,7 @@ type config struct {
 	readerCount         int
 	downloadConcurrency int
 	downloadTimeout     time.Duration
+	startupTimeout      time.Duration
 	duration            time.Duration
 	otelEndpoint        string
 	pyroscopeEndpoint   string
@@ -113,6 +115,7 @@ func main() {
 	flag.IntVar(&cfg.readerCount, "reader-count", 0, "total number of reader instances (>=1)")
 	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 32, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob)")
 	flag.DurationVar(&cfg.downloadTimeout, "download-timeout", 2*time.Minute, "per-download timeout")
+	flag.DurationVar(&cfg.startupTimeout, "startup-timeout", 5*time.Minute, "how long to retry connecting to the validator's gRPC + cometbft RPC at startup before giving up (handles validators not yet ready / brief restarts)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics + tracing (e.g. http://host:4318)")
 	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
@@ -204,7 +207,9 @@ func run(cfg config) error {
 	if err != nil {
 		return fmt.Errorf("failed to create fibre client: %w", err)
 	}
-	if err := fibreClient.Start(ctx); err != nil {
+	if err := retryStartup(ctx, cfg, "fibre-client", func(ctx context.Context) error {
+		return fibreClient.Start(ctx)
+	}); err != nil {
 		return fmt.Errorf("failed to start fibre client: %w", err)
 	}
 	defer func() {
@@ -229,8 +234,12 @@ func run(cfg config) error {
 	}()
 
 	subID := fmt.Sprintf("fibre-reader-%d", cfg.readerIndex)
-	sub, err := rpcClient.Subscribe(ctx, subID, "tm.event='NewBlock'")
-	if err != nil {
+	var sub <-chan coretypes.ResultEvent
+	if err := retryStartup(ctx, cfg, "rpc-subscribe", func(ctx context.Context) error {
+		var subErr error
+		sub, subErr = rpcClient.Subscribe(ctx, subID, "tm.event='NewBlock'")
+		return subErr
+	}); err != nil {
 		return fmt.Errorf("subscribing to NewBlock: %w", err)
 	}
 	defer func() {
@@ -683,4 +692,48 @@ func setupPyroscope(endpoint, user, pass string) (func(), error) {
 			fmt.Fprintf(os.Stderr, "stopping Pyroscope profiler: %v\n", err)
 		}
 	}, nil
+}
+
+// retryStartup runs op with exponential backoff up to cfg.startupTimeout,
+// retrying every connection-style failure. Validators may not be ready when
+// fibre-reader starts (post-deploy gRPC restarts, transient TCP refused on
+// fresh instances) — without this, fibre-reader exits immediately and the
+// operator has to babysit. Bounded so a misconfigured endpoint still fails
+// fast within startupTimeout instead of hanging forever.
+func retryStartup(ctx context.Context, cfg config, label string, op func(context.Context) error) error {
+	deadline := time.Now().Add(cfg.startupTimeout)
+	backoff := time.Second
+	const maxBackoff = 15 * time.Second
+	attempt := 0
+	for {
+		attempt++
+		err := op(ctx)
+		if err == nil {
+			if attempt > 1 {
+				fmt.Fprintf(os.Stderr, "[reader-%d] %s ready after %d attempts\n",
+					cfg.readerIndex, label, attempt)
+			}
+			return nil
+		}
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s failed after %d attempts within %s startup-timeout: %w",
+				label, attempt, cfg.startupTimeout, err)
+		}
+		fmt.Fprintf(os.Stderr, "[reader-%d] %s attempt %d failed: %v — retrying in %s\n",
+			cfg.readerIndex, label, attempt, err, backoff)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(backoff):
+		}
+		if backoff < maxBackoff {
+			backoff *= 2
+			if backoff > maxBackoff {
+				backoff = maxBackoff
+			}
+		}
+	}
 }
