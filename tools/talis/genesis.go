@@ -29,6 +29,7 @@ func generateCmd() *cobra.Command {
 		latencyMonitorBinaryPath      string
 		fibreBinaryPath               string
 		fibreTxsimBinaryPath          string
+		fibreReaderBinaryPath         string
 		observabilityDirPath          string
 		useMainnetStakingDistribution bool
 		fibreAccounts                 int
@@ -55,6 +56,9 @@ func generateCmd() *cobra.Command {
 			}
 			if err := os.RemoveAll(filepath.Join(rootDir, "encoder-payload")); err != nil {
 				return fmt.Errorf("failed to remove old encoder-payload directory: %w", err)
+			}
+			if err := os.RemoveAll(filepath.Join(rootDir, "reader-payload")); err != nil {
+				return fmt.Errorf("failed to remove old reader-payload directory: %w", err)
 			}
 
 			err = createPayload(cfg.Validators, cfg.Encoders, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, fibreAccounts, encoderFibreAccounts)
@@ -137,6 +141,15 @@ func generateCmd() *cobra.Command {
 				}
 			}
 
+			// Stage reader payload: copy fibre-reader binary + a keyring (any
+			// key — readers don't sign, fibre.NewClient just needs one to exist)
+			// to the reader-payload directory.
+			if len(cfg.Readers) > 0 {
+				if err := stageReaderPayload(rootDir, payloadDir, cfg.Validators, fibreReaderBinaryPath, buildDirPath); err != nil {
+					return fmt.Errorf("failed to stage reader payload: %w", err)
+				}
+			}
+
 			return cfg.Save(rootDir)
 		},
 	}
@@ -161,6 +174,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&latencyMonitorBinaryPath, "latency-monitor-binary", filepath.Join(gopath, "latency-monitor"), "latency monitor binary to include in the payload")
 	cmd.Flags().StringVar(&fibreBinaryPath, "fibre-binary", filepath.Join(gopath, "fibre"), "fibre server binary to include in the payload")
 	cmd.Flags().StringVar(&fibreTxsimBinaryPath, "fibre-txsim-binary", filepath.Join(gopath, "fibre-txsim"), "fibre-txsim binary to include in the payload")
+	cmd.Flags().StringVar(&fibreReaderBinaryPath, "fibre-reader-binary", filepath.Join(gopath, "fibre-reader"), "fibre-reader binary to include in the reader payload")
 	cmd.Flags().StringVar(&observabilityDirPath, "observability-dir", "", "path to observability directory containing docker-compose, Prometheus config, and scripts (required if observability nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
 	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 100, "number of pre-funded fibre accounts to create per validator")
@@ -333,6 +347,75 @@ cp encoder-payload/genesis.json "$CELES_HOME/config/genesis.json"
 cp -r "encoder-payload/$parsed_hostname/keyring-test" "$CELES_HOME/"
 
 echo "Encoder $parsed_hostname initialized"
+`
+	return os.WriteFile(path, []byte(script), 0o755)
+}
+
+// stageReaderPayload copies the fibre-reader binary and a fibre keyring
+// into the reader-payload directory so deploy can create a lightweight
+// tar for reader instances. Readers don't sign anything — fibre.NewClient
+// just requires the configured key name to exist in the keyring — so we
+// reuse validator-0's pre-generated fibre keyring (validator-0 always
+// exists, has fibre-0..N keys from genesis).
+func stageReaderPayload(rootDir, payloadDir string, validators []Instance, fibreReaderBinaryPath, buildDirPath string) error {
+	if len(validators) == 0 {
+		return fmt.Errorf("readers configured but no validators — cannot source the fibre keyring")
+	}
+	rdrPayload := filepath.Join(rootDir, "reader-payload")
+
+	rdrBuild := filepath.Join(rdrPayload, "build")
+	if err := os.MkdirAll(rdrBuild, 0o755); err != nil {
+		return err
+	}
+
+	if buildDirPath != "" {
+		src := filepath.Join(buildDirPath, "fibre-reader")
+		if err := copyFile(src, filepath.Join(rdrBuild, "fibre-reader"), 0o755); err != nil {
+			return fmt.Errorf("copy fibre-reader from build dir: %w", err)
+		}
+	} else {
+		if err := copyFile(fibreReaderBinaryPath, filepath.Join(rdrBuild, "fibre-reader"), 0o755); err != nil {
+			return fmt.Errorf("copy fibre-reader: %w", err)
+		}
+	}
+
+	srcKeyring := filepath.Join(payloadDir, validators[0].Name, "keyring-test")
+	dstKeyring := filepath.Join(rdrPayload, "keyring-test")
+	if err := copyDir(srcKeyring, dstKeyring); err != nil {
+		return fmt.Errorf("copy keyring from %s: %w", validators[0].Name, err)
+	}
+
+	return writeReaderInitScript(filepath.Join(rdrPayload, "reader_init.sh"))
+}
+
+// writeReaderInitScript creates a minimal init script for reader instances.
+// Readers only need fibre-reader on PATH and a keyring containing at least
+// one fibre key. They subscribe to the chain via cometbft RPC, so they
+// don't need celestia-appd, genesis, or any per-validator state.
+func writeReaderInitScript(path string) error {
+	script := `#!/bin/bash
+set -euo pipefail
+
+CELES_HOME="$HOME/.celestia-app"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+apt-get install curl jq chrony --yes -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
+
+systemctl enable chrony
+systemctl start chrony
+
+modprobe tcp_bbr || true
+sysctl -w net.core.default_qdisc=fq
+sysctl -w net.ipv4.tcp_congestion_control=bbr
+
+cp reader-payload/build/fibre-reader /bin/fibre-reader
+
+rm -rf "$CELES_HOME"
+mkdir -p "$CELES_HOME"
+cp -r reader-payload/keyring-test "$CELES_HOME/"
+
+echo "Reader $(hostname) initialized"
 `
 	return os.WriteFile(path, []byte(script), 0o755)
 }
