@@ -133,7 +133,10 @@ func deployCmd() *cobra.Command {
 				if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
 					return err
 				}
-				return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
+				if err := deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers); err != nil {
+					return err
+				}
+				return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 			}
 			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
 				if !ignoreFailed {
@@ -144,7 +147,10 @@ func deployCmd() *cobra.Command {
 			if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
 				return err
 			}
-			return deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
+			if err := deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers); err != nil {
+				return err
+			}
+			return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
 		},
 	}
 
@@ -226,6 +232,43 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 	}
 
 	log.Printf("Encoder deployment complete\n")
+	return nil
+}
+
+// deployReadersIfConfigured creates a lightweight reader-payload tar and deploys
+// it to all configured reader instances. Mirrors the encoder pattern: each reader
+// downloads the tar from S3 (or direct), extracts, and runs reader_init.sh which
+// installs the fibre-reader binary and a fibre keyring.
+func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
+	if len(cfg.Readers) == 0 {
+		return nil
+	}
+
+	readerPayloadDir := filepath.Join(rootDir, "reader-payload")
+	if _, err := os.Stat(readerPayloadDir); os.IsNotExist(err) {
+		return fmt.Errorf("reader-payload directory not found — run 'talis genesis' first")
+	}
+
+	readerTarPath := filepath.Join(rootDir, "reader-payload.tar.gz")
+	log.Printf("Compressing reader payload to %s\n", readerTarPath)
+	tarCmd := exec.Command("tar", "-czf", readerTarPath, "-C", rootDir, "reader-payload")
+	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
+	if output, err := tarCmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to compress reader payload: %w, output: %s", err, string(output))
+	}
+	log.Printf("Sending reader payload to %d reader(s)...\n", len(cfg.Readers))
+
+	if directUpload {
+		if err := deployPayloadDirect(cfg.Readers, readerTarPath, sshKeyPath, "/root", "reader-payload/reader_init.sh", 7*time.Minute, workers); err != nil {
+			return fmt.Errorf("reader deployment: %w", err)
+		}
+	} else {
+		if err := deployPayloadViaS3(ctx, rootDir, cfg.Readers, readerTarPath, sshKeyPath, "/root", "reader-payload/reader_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+			return fmt.Errorf("reader deployment: %w", err)
+		}
+	}
+
+	log.Printf("Reader deployment complete\n")
 	return nil
 }
 
