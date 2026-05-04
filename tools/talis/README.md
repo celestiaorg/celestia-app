@@ -122,11 +122,11 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
   "google_cloud_project": "pulled from env var if available",
   "google_cloud_key_json_path": "pulled from env var if available",
   "s3_config": {
-    "region": "pulled from AWS_DEFAULT_REGION env var if available",
-    "access_key_id": "pulled from AWS_ACCESS_KEY_ID env var if available",
-    "secret_access_key": "pulled from AWS_SECRET_ACCESS_KEY env var if available",
-    "bucket_name": "pulled from AWS_S3_BUCKET env var if available",
-    "endpoint": "pulled from AWS_S3_ENDPOINT env var if available. Can be left empty if targeting an AWS S3 bucket"
+    "region": "AWS_DEFAULT_REGION (--provider=aws) | DO_SPACES_REGION (digitalocean/googlecloud)",
+    "access_key_id": "AWS_ACCESS_KEY_ID (--provider=aws) | DO_SPACES_ACCESS_KEY_ID (digitalocean/googlecloud)",
+    "secret_access_key": "AWS_SECRET_ACCESS_KEY (--provider=aws) | DO_SPACES_SECRET_ACCESS_KEY (digitalocean/googlecloud)",
+    "bucket_name": "AWS_S3_BUCKET (--provider=aws) | DO_SPACES_BUCKET (digitalocean/googlecloud)",
+    "endpoint": "DO_SPACES_ENDPOINT (digitalocean/googlecloud); empty for --provider=aws → real AWS S3"
   }
 }
 ```
@@ -134,7 +134,7 @@ the celestia-app configs (config.toml and app.toml) can be manually edited here,
 Notes:
 
 - **Only use one cloud provider per experiment.** Fill out either DigitalOcean or Google Cloud fields, not both. Filling them both might end up ruining other experiments or having stuck experiments that need to be removed by hand.
-- The AWS config supports any S3-compatible bucket. So it can be used with Digital Ocean and other cloud providers.
+- S3 payload-bucket env vars are scoped per provider so AWS compute and DigitalOcean Spaces setups don't stomp on each other. The AWS provider uses `AWS_*` (real AWS S3, no endpoint override). DigitalOcean and Google Cloud providers use `DO_SPACES_*` against an S3-compatible endpoint.
 - Example: The S3 endpoint for Digital Ocean is: `https://<region>.digitaloceanspaces.com/`.
 
 ### add
