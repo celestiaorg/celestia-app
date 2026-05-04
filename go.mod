@@ -56,7 +56,7 @@ require (
 	github.com/hashicorp/go-metrics v0.5.4
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/reedsolomon v1.14.0
-	github.com/pelletier/go-toml/v2 v2.3.0
+	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cast v1.10.0
