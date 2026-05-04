@@ -45,7 +45,7 @@ func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery)
 	}
 	data, err := types.DataFromProto(&pbb.Data)
 	if err != nil {
-		panic(fmt.Errorf("error from proto block: %w", err))
+		return nil, fmt.Errorf("error from proto block: %w", err)
 	}
 
 	// create and marshal the tx inclusion proof, which we return in the form of []byte
