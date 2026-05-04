@@ -84,6 +84,29 @@ func TestStateMembershipPublicValuesEncoding(t *testing.T) {
 	require.Equal(t, expected.MessageIds, decoded.MessageIds)
 }
 
+// TestStateMembershipPublicValuesUnmarshalRejectsTrailingBytes ensures the
+// canonical-encoding contract holds: every byte string that successfully
+// parses is exactly the canonical encoding of the resulting struct. Without
+// this guarantee, two distinct payloads can decode to the same struct.
+func TestStateMembershipPublicValuesUnmarshalRejectsTrailingBytes(t *testing.T) {
+	canonical := make([]byte, 72) // StateRoot=0, MerkleTreeAddress=0, count=0
+	withTail := append(append([]byte{}, canonical...), 0xAA, 0xBB, 0xCC)
+
+	var canonicalDecoded types.StateMembershipValues
+	require.NoError(t, canonicalDecoded.Unmarshal(canonical))
+
+	var tailDecoded types.StateMembershipValues
+	require.Error(t, tailDecoded.Unmarshal(withTail), "trailing bytes must be rejected")
+}
+
+func TestStateMembershipPublicValuesUnmarshalRejectsShortInputs(t *testing.T) {
+	for _, n := range []int{1, 31, 32, 40, 64, 71} {
+		var v types.StateMembershipValues
+		err := v.Unmarshal(make([]byte, n))
+		require.Error(t, err, "expected error on %d-byte input", n)
+	}
+}
+
 func TestStateMembershipPublicValuesUnmarshalCountLimit(t *testing.T) {
 	// Create a crafted payload with count exceeding MaxMessageIdsCount
 	// Format: StateRoot (32 bytes) + MerkleTreeAddress (32 bytes) + count (8 bytes little-endian)
