@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
-	v4 "github.com/celestiaorg/go-square/v4/proto/blob/v4"
+	"github.com/celestiaorg/go-square/v4/proto/blob/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
