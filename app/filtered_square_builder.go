@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/tx"
@@ -69,7 +70,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, payForFibreTxs := separateTxs(fsb.txConfig, filteredByMaxBytes)
+	normalTxs, blobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
 
 	var (
 		sdkMessageCount = 0
@@ -210,7 +211,7 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 //
 // When the fibre build tag is not set, countMsgPayForFibre always returns 0, so
 // the payForFibreTxs slice is always empty.
-func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
+func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
 	payForFibreTxs = make([][]byte, 0, len(rawTxs))
@@ -228,6 +229,10 @@ func separateTxs(txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte,
 		if isBlob {
 			if err != nil {
 				// Drop malformed blob txs. Matches ProcessProposalHandler.
+				// CheckTx should have rejected this; reaching here indicates a
+				// regression so log + count it for visibility.
+				logger.Error("dropping malformed blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
+				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
 				continue
 			}
 			blobTxs = append(blobTxs, bTx)
