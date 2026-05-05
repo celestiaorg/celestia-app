@@ -378,7 +378,7 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	}
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
-	numberOfAccounts := 2000
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1)
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
