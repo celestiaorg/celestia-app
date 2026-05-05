@@ -17,6 +17,7 @@ import (
 const (
 	DODefaultValidatorSlug     = "c2-16vcpu-32gb"
 	DODefaultEncoderSlug       = "c2-8vcpu-16gb"
+	DODefaultReaderSlug        = "c2-8vcpu-16gb"
 	DODefaultObservabilitySlug = "s-2vcpu-4gb"
 	DODefaultImage             = "ubuntu-24-04-x64"
 	RandomRegion               = "random"
@@ -58,6 +59,17 @@ func NewDigitalOceanEncoder(region string) Instance {
 	i := NewBaseInstance(Encoder)
 	i.Provider = DigitalOcean
 	i.Slug = DODefaultEncoderSlug
+	i.Region = region
+	return i
+}
+
+func NewDigitalOceanReader(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomDORegion()
+	}
+	i := NewBaseInstance(Reader)
+	i.Provider = DigitalOcean
+	i.Slug = DODefaultReaderSlug
 	i.Region = region
 	return i
 }
@@ -484,7 +496,7 @@ func checkForRunningDOExperiments(ctx context.Context, client *godo.Client, expe
 
 func hasExperimentTag(tags []string, experimentID, chainID string) bool {
 	for _, tag := range tags {
-		if (strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "encoder-")) &&
+		if (strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "encoder-") || strings.HasPrefix(tag, "reader-")) &&
 			strings.Contains(tag, experimentID) && strings.Contains(tag, chainID) {
 			return true
 		}
