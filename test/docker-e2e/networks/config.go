@@ -1,12 +1,17 @@
 package networks
 
-import "github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+import (
+	"os"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+)
 
 // Config holds the configuration for connecting to an existing live chain
 type Config struct {
 	Name    string
 	ChainID string
 	RPCs    []string
+	GRPCs   []string
 	Seeds   string
 	Peers   string
 }
@@ -22,6 +27,20 @@ func NewMochaConfig() *Config {
 	}
 }
 
-// TODO: add additional configs for mainnet, arabica
-// func NewArabicaConfig() *Config {}
+// NewArabicaConfig returns a Config for the arabica devnet.
+// RPCs can be overridden via ARABICA_RPC env var.
+func NewArabicaConfig() *Config {
+	cfg := &Config{
+		Name:    "arabica",
+		ChainID: appconsts.ArabicaChainID,
+		RPCs:    []string{"https://rpc.celestia-arabica-11.com:443"},
+		GRPCs:   []string{"rpc.celestia-arabica-11.com:9090"},
+	}
+	if rpc := os.Getenv("ARABICA_RPC"); rpc != "" {
+		cfg.RPCs = []string{rpc}
+	}
+	return cfg
+}
+
+// TODO: add additional config for mainnet
 // func NewMainnetConfig() *Config {}
