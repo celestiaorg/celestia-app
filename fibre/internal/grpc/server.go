@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/celestiaorg/celestia-app/v9/app/observability"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"google.golang.org/grpc"
 )
@@ -23,7 +24,15 @@ func NewServer(listenAddr string, service types.FibreServer, opts ...grpc.Server
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
-	server := grpc.NewServer(opts...)
+	observability.Setup()
+	allOpts := append(
+		[]grpc.ServerOption{
+			grpc.ChainUnaryInterceptor(observability.UnaryPrometheusInterceptor()),
+			grpc.ChainStreamInterceptor(observability.StreamPrometheusInterceptor()),
+		},
+		opts...,
+	)
+	server := grpc.NewServer(allOpts...)
 	types.RegisterFibreServer(server, service)
 	return &Server{
 		server:   server,

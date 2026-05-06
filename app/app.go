@@ -35,6 +35,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
+	"github.com/celestiaorg/celestia-app/v9/app/observability"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/pkg/proof"
 	"github.com/celestiaorg/celestia-app/v9/pkg/wrapper"
@@ -233,6 +234,8 @@ func New(
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
+
+	observability.Setup()
 
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
