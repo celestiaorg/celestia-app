@@ -79,6 +79,10 @@ createGenesis() {
     # Override the log level to reduce noisy logs
     sed -i.bak 's#log_level = "info"#log_level = "*:error,p2p:info,state:info"#g' "${APP_HOME}"/config/config.toml
 
+    # Enable telemetry + Prometheus metrics endpoint at /metrics on the API server
+    sed -i.bak 's/^enabled = false/enabled = true/' "${APP_HOME}"/config/app.toml
+    sed -i.bak 's/^prometheus-retention-time = 0/prometheus-retention-time = 60/' "${APP_HOME}"/config/app.toml
+
     # Override the VotingPeriod from 1 week to 30 seconds
     sed -i.bak 's#"604800s"#"30s"#g' "${APP_HOME}"/config/genesis.json
 
