@@ -1098,6 +1098,55 @@ func (client *TxClient) Signer() *Signer {
 	return client.signer
 }
 
+// Conns returns the list of gRPC connections used by the TxClient.
+func (client *TxClient) Conns() []*grpc.ClientConn {
+	return client.conns
+}
+
+// Codec returns the codec used by the TxClient.
+func (client *TxClient) Codec() codec.Codec {
+	return client.cdc
+}
+
+// Registry returns the interface registry used by the TxClient.
+func (client *TxClient) Registry() codectypes.InterfaceRegistry {
+	return client.registry
+}
+
+// SendTxToConnection broadcasts a transaction to a specific gRPC connection.
+// This is exported for use by the v3 async pipeline.
+func (client *TxClient) SendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+	return client.sendTxToConnection(ctx, conn, txBytes)
+}
+
+// EstimateGasForTx estimates gas usage for a built transaction.
+// The caller must hold the client mutex. This is exported for use by the v3 async pipeline.
+func (client *TxClient) EstimateGasForTx(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
+	return client.estimateGas(ctx, txBuilder)
+}
+
+// CheckAccountLoaded ensures an account is loaded in the signer, querying the chain if needed.
+// The caller must hold the client mutex. This is exported for use by the v3 async pipeline.
+func (client *TxClient) CheckAccountLoaded(ctx context.Context, account string) error {
+	return client.checkAccountLoaded(ctx, account)
+}
+
+// PollTime returns the polling interval.
+func (client *TxClient) PollTime() time.Duration {
+	return client.pollTime
+}
+
+// Lock acquires the client mutex. This is exported for use by the v3 async pipeline
+// which needs to hold the lock across signing operations.
+func (client *TxClient) Lock() {
+	client.mtx.Lock()
+}
+
+// Unlock releases the client mutex.
+func (client *TxClient) Unlock() {
+	client.mtx.Unlock()
+}
+
 // StartTxQueueForTest starts the tx queue for testing purposes.
 // This function is only intended for use in tests.
 func (client *TxClient) StartTxQueueForTest(ctx context.Context) error {
