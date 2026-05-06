@@ -176,10 +176,10 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	return nil
 }
 
-// verifyShard verifies [types.BlobShard]'s rows and proofs using [rsema1d.VerificationContext].
-// Essentially checks correctness of the entire [Blob]'s data by only sampling subset of data rows.
-// Sets the RLC root on the shard and keeps coefficients as-is for later usage during verification.
-func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
+// verifyShard verifies the shard's rows and proofs using a pooled
+// [rsema1d.Verifier], blocking until one is free. Sets the RLC root on the
+// shard for inclusion-proof verification by non-RLC downloaders.
+func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
 		return err
@@ -197,21 +197,6 @@ func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *Pay
 		return err
 	}
 
-	verificationCtx, rlcRoot, err := rsema1d.CreateVerificationContext(rlcCoeffs, &rsema1d.Config{
-		K:           blobCfg.OriginalRows,
-		N:           blobCfg.ParityRows,
-		RowSize:     rowSize,
-		WorkerCount: blobCfg.CodingWorkers,
-	})
-	if err != nil {
-		return fmt.Errorf("creating verification context: %w", err)
-	}
-
-	// Batched verify: parse every row up-front, then run one vectorized RLC
-	// pass over the whole shard. All rows in a shard share the same
-	// verificationCtx and therefore the same RLC coefficients, which is the
-	// precondition computeRLCVectorized needs to amortize the SIMD kernel
-	// setup across the batch.
 	rows := make([]*rsema1d.RowProof, len(shard.Rows))
 	for i, rowPb := range shard.Rows {
 		row, err := parseRow(rowPb)
@@ -220,13 +205,66 @@ func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *Pay
 		}
 		rows[i] = row
 	}
-	if err := rsema1d.VerifyRowsWithContext(rows, promise.Commitment, verificationCtx); err != nil {
+
+	verifier, err := s.getVerifier(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring verifier: %w", err)
+	}
+	defer s.putVerifier(verifier)
+
+	rlcRoot, err := verifier.Verify(promise.Commitment, rlcCoeffs, rows)
+	if err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
 	// set RLC root, keep coefficients as-is for storage
-	shard.Root = rlcRoot[:]
+	shard.Root = rlcRoot
 	return nil
+}
+
+// newVerifierPool eagerly populates a buffered channel with n Verifiers
+// for the v0 blob layout, each pinned to WorkerCount=1 (concurrency is
+// the channel capacity).
+func newVerifierPool(n int) chan *rsema1d.Verifier {
+	blobCfg, err := BlobConfigForVersion(0)
+	if err != nil {
+		panic(fmt.Sprintf("v0 BlobConfig must exist: %v", err))
+	}
+	verifiers := make(chan *rsema1d.Verifier, n)
+	for i := range n {
+		v, err := rsema1d.NewVerifier(&rsema1d.Config{
+			K:           blobCfg.OriginalRows,
+			N:           blobCfg.ParityRows,
+			RowSize:     0, // variable; resolved per Verify call from proof rows
+			WorkerCount: 1,
+		})
+		if err != nil {
+			panic(fmt.Sprintf("creating verifier %d: %v", i, err))
+		}
+		verifiers <- v
+	}
+	return verifiers
+}
+
+// getVerifier returns a Verifier from the pool, blocking until one is free
+// or ctx is cancelled. Pair with putVerifier.
+func (s *Server) getVerifier(ctx context.Context) (*rsema1d.Verifier, error) {
+	select {
+	case v := <-s.verifiers:
+		return v, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// putVerifier returns a Verifier to the pool. The channel is sized to pool
+// capacity, so this never blocks for any verifier previously obtained via
+// getVerifier.
+func (s *Server) putVerifier(v *rsema1d.Verifier) {
+	if v == nil {
+		return
+	}
+	s.verifiers <- v
 }
 
 // parseRLCCoeffs validates and converts RLC coefficients from bytes to field elements.

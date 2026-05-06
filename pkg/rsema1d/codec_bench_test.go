@@ -519,63 +519,6 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 	}
 }
 
-// BenchmarkVerifyRowsWithContext exercises the batched VerifyRowsWithContext
-// path across the two production v0 shard shapes plus a small case for
-// quick local feedback. The per-row merkle phase fans out across
-// config.WorkerCount goroutines via merkle.ComputeRootsFromProofs.
-func BenchmarkVerifyRowsWithContext(b *testing.B) {
-	type benchCase struct {
-		name    string
-		k, n    int
-		rowSize int
-		rows    int
-	}
-
-	cases := []benchCase{
-		{"k=1024/n=1024/rows=128", 1024, 1024, 1024, 128},
-		// 128 MiB blob, ~100 validators (~163 rows each).
-		{"shard=5MB/k=4096/n=12288/batch=163", 4096, 12288, 32768, 163},
-		// 128 MiB blob, 10 validators (~1638 rows each, realistic worst
-		// case at MaxBlobSize with minimum-validator load).
-		{"shard=51MB/k=4096/n=12288/batch=1638", 4096, 12288, 32768, 1638},
-	}
-
-	for _, tc := range cases {
-		b.Run(tc.name, func(b *testing.B) {
-			codecConfig := &Config{
-				K:           tc.k,
-				N:           tc.n,
-				RowSize:     tc.rowSize,
-				WorkerCount: runtime.NumCPU(),
-			}
-
-			originalData := generateTestData(tc.k, tc.rowSize)
-			extData, commitment, _, err := Encode(originalData, codecConfig)
-			if err != nil {
-				b.Fatalf("Encode failed: %v", err)
-			}
-			ctx, _, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
-			if err != nil {
-				b.Fatalf("CreateVerificationContext failed: %v", err)
-			}
-			proofs := make([]*RowProof, tc.rows)
-			for i := range tc.rows {
-				proofs[i], err = extData.GenerateRowProof(i)
-				if err != nil {
-					b.Fatalf("GenerateRowProof(%d) failed: %v", i, err)
-				}
-			}
-
-			b.ResetTimer()
-			for range b.N {
-				if err := VerifyRowsWithContext(proofs, commitment, ctx); err != nil {
-					b.Fatalf("VerifyRowsWithContext failed: %v", err)
-				}
-			}
-		})
-	}
-}
-
 // BenchmarkDeriveCoefficients benchmarks the coefficient derivation that
 // caching avoids on repeated calls. This shows the per-call cost that is
 // saved for every row after the first.

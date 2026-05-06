@@ -82,6 +82,38 @@ func HashToGF128(data []byte) GF128 {
 // GF128Width is the number of GF16 components that make up one GF128 element.
 const GF128Width = 8
 
+// LeopardShardSize is the byte size of a single Leopard-formatted shard
+// holding one GF128 value (8 GF16 symbols, padded to 32 symbol slots).
+const LeopardShardSize = 64
+
+// PackToLeopard writes a GF128 into a Leopard-formatted shard. The destination
+// must be at least LeopardShardSize bytes; it is fully cleared first so callers
+// can reuse a shard buffer across encodes without leaving stale parity bytes
+// from a previous Reed-Solomon pass.
+//
+// Leopard interleaved format: positions 0..7 hold the low byte of each GF16
+// symbol, 32..39 the high byte; the remaining 24 symbol slots stay zero.
+func PackToLeopard(g GF128, dst []byte) {
+	_ = dst[LeopardShardSize-1]
+	clear(dst)
+	for i := range GF128Width {
+		dst[i] = byte(g[i] & 0xFF)
+		dst[32+i] = byte(g[i] >> 8)
+	}
+}
+
+// UnpackFromLeopard reads the first 8 GF16 symbols from a Leopard-formatted
+// shard back into a GF128. The source must be at least LeopardShardSize bytes;
+// any trailing zero-padded symbol slots are ignored.
+func UnpackFromLeopard(src []byte) GF128 {
+	_ = src[LeopardShardSize-1]
+	var g GF128
+	for i := range GF128Width {
+		g[i] = GF16(src[32+i])<<8 | GF16(src[i])
+	}
+	return g
+}
+
 // LeopardGF128BufSize returns the byte length of a buffer that holds k GF128
 // values laid out as GF128Width concatenated Leopard-formatted regions
 // (one per GF128 component).
