@@ -48,12 +48,19 @@ type Verifier struct {
 // NewVerifier constructs a Verifier bound to cfg. Reusable buffers sized to
 // (K+N) shards and kPadded RLC leaves are allocated up front; the cached
 // Reed-Solomon encoder is created once and shared by every Verify call.
+// The encoder's work allocator is a per-Verifier retainAllocator that
+// caches the leopard codec's ~2 MiB scratch buffer across calls and
+// keeps it pinned through GC cycles — the default sync.Pool-backed
+// allocator drops entries under heap-doubling pressure, forcing per-call
+// re-allocation of the same large slab.
 func NewVerifier(cfg *Config) (*Verifier, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	enc, err := reedsolomon.New(cfg.K, cfg.N, reedsolomon.WithLeopardGF16(true))
+	enc, err := reedsolomon.New(cfg.K, cfg.N,
+		reedsolomon.WithLeopardGF16(true),
+		reedsolomon.WithWorkAllocator(&retainAllocator{}))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
 	}
@@ -209,4 +216,26 @@ func resizeProofInputs(buf []merkle.ProofInput, n int) []merkle.ProofInput {
 		return make([]merkle.ProofInput, n)
 	}
 	return buf[:n]
+}
+
+// retainAllocator is a single-buffer reedsolomon.WorkAllocator. It lazily
+// allocates one (n, size)-shaped work slab on first Get and hands the same
+// slab back on every subsequent Get; Put returns the slab to the
+// allocator's field. Because the slab lives in a strong reference rather
+// than a sync.Pool, GC cycles never evict it — the default allocator's
+// per-cycle realloc churn vanishes.
+type retainAllocator struct {
+	work [][]byte
+}
+
+func (a *retainAllocator) Get(n, size int) [][]byte {
+	if cap(a.work) >= n && len(a.work) > 0 && cap(a.work[0]) >= size {
+		return a.work[:n]
+	}
+	a.work = reedsolomon.AllocAligned(n, size)
+	return a.work
+}
+
+func (a *retainAllocator) Put(work [][]byte) {
+	a.work = work
 }
