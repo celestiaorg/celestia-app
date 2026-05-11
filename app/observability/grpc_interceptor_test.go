@@ -1,4 +1,3 @@
-
 package observability
 
 import (
@@ -96,10 +95,10 @@ func TestUnaryInterceptor_TracksInFlight(t *testing.T) {
 
 func TestSplitFullMethod(t *testing.T) {
 	tests := []struct {
-		name           string
-		fullMethod     string
-		wantService    string
-		wantMethod     string
+		name        string
+		fullMethod  string
+		wantService string
+		wantMethod  string
 	}{
 		{
 			name:        "standard",
