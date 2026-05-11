@@ -3,17 +3,16 @@ package observability
 import (
 	"context"
 	"strings"
-	"sync"
 	"time"
 
-	servergrpc "github.com/cosmos/cosmos-sdk/server/grpc"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
 
 var (
-	grpcRequestsTotal = prometheus.NewCounterVec(
+	grpcRequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "grpc_server_requests_total",
 			Help: "Total number of gRPC server requests.",
@@ -21,7 +20,7 @@ var (
 		[]string{"service", "method", "type", "code"},
 	)
 
-	grpcRequestDurationSeconds = prometheus.NewHistogramVec(
+	grpcRequestDurationSeconds = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "grpc_server_request_duration_seconds",
 			Help:    "Duration of gRPC server requests in seconds.",
@@ -30,7 +29,7 @@ var (
 		[]string{"service", "method", "type", "code"},
 	)
 
-	grpcRequestsInFlight = prometheus.NewGaugeVec(
+	grpcRequestsInFlight = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "grpc_server_requests_in_flight",
 			Help: "Current number of in-flight gRPC server requests.",
@@ -38,30 +37,6 @@ var (
 		[]string{"service", "method", "type"},
 	)
 )
-
-// RegisterGRPCMetrics registers the gRPC server metrics on the supplied registerer.
-// Pass prometheus.DefaultRegisterer to expose them on the standard /metrics endpoint.
-func RegisterGRPCMetrics(reg prometheus.Registerer) {
-	reg.MustRegister(
-		grpcRequestsTotal,
-		grpcRequestDurationSeconds,
-		grpcRequestsInFlight,
-	)
-}
-
-var setupOnce sync.Once
-
-// Setup registers the gRPC server metrics on the default Prometheus registerer
-// and installs the unary Prometheus interceptors as extra options on
-// the SDK gRPC server. Safe to call multiple times; runs only once per process.
-func Setup() {
-	setupOnce.Do(func() {
-		RegisterGRPCMetrics(prometheus.DefaultRegisterer)
-		servergrpc.WithGRPCServerOptions(
-			grpc.ChainUnaryInterceptor(UnaryPrometheusInterceptor()),
-		)
-	})
-}
 
 func UnaryPrometheusInterceptor() grpc.UnaryServerInterceptor {
 	return func(
