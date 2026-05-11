@@ -245,7 +245,7 @@ func (w *worker) confirmCandidate() *txEntry {
 	if w.mode == modeStopped && front.sequence >= w.stopSeq {
 		return nil
 	}
-	if w.mode == modeSubmitting && !front.submitted {
+	if w.mode == modeSubmitting && !w.buffer.hasSubmissions() {
 		return nil
 	}
 	return front
@@ -255,9 +255,7 @@ func (w *worker) confirmCandidate() *txEntry {
 
 func (w *worker) onSubmitResult(e evSubmitResult) []command {
 	if e.err == nil {
-		if entry := w.buffer.getBySequence(e.seq); entry != nil {
-			entry.submitted = true
-		}
+		w.buffer.markSubmitted(e.seq)
 		return w.plan()
 	}
 	return w.handleSubmitError(e.seq, e.err)
@@ -271,9 +269,7 @@ func (w *worker) handleSubmitError(seq uint64, err error) []command {
 	case ErrMempoolFull, ErrNetworkError:
 		// non-fatal: entry is still marked unsubmitted; plan() will retry.
 	case ErrTxInMempoolCache:
-		if entry := w.buffer.getBySequence(seq); entry != nil {
-			entry.submitted = true
-		}
+		w.buffer.markSubmitted(seq)
 	case ErrTerminal, ErrInsufficientFee:
 		w.enterStop(seq, fmt.Errorf("fatal broadcast error: %w", err))
 	}
@@ -348,7 +344,7 @@ func (w *worker) onCommitted(front *txEntry, resp *tx.TxStatusResponse) []comman
 	confirmed := w.buffer.confirmFront()
 	cmds := []command{cmdFinalize{req: confirmed.request, resp: txResp, err: cerr}}
 
-	if w.mode == modeRecovering && w.buffer.lastConfirmed() >= w.recoverTarget-1 {
+	if w.mode == modeRecovering && w.buffer.nextSeq >= w.recoverTarget {
 		w.mode = modeSubmitting
 	}
 
@@ -370,7 +366,7 @@ func (w *worker) onEvicted(front *txEntry) []command {
 		return []command{cmdFinalize{req: confirmed.request, err: err}}
 
 	default: // modeSubmitting
-		front.submitted = false
+		w.buffer.reset(front.sequence)
 		return w.plan()
 	}
 }

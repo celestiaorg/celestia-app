@@ -14,7 +14,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
@@ -27,6 +27,10 @@ import (
 )
 
 const defaultQueueSize = 100
+
+// errClientClosed is returned by enqueue and resolved on any handle that
+// was still queued when Close was called.
+var errClientClosed = errors.New("tx client closed")
 
 // V3Option configures the TxClientV3.
 type V3Option func(*TxClientV3)
@@ -44,7 +48,8 @@ type TxClientV3 struct {
 	*v2.TxClient
 	requestCh chan *TxRequest
 	cancel    context.CancelFunc
-	wg        sync.WaitGroup
+	done      chan struct{}
+	closed    atomic.Bool
 	queueSize int
 }
 
@@ -60,10 +65,14 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 	signer := v1.Signer()
 	accountName := v1.DefaultAccountName()
 
-	// Get the starting sequence for the buffer.
 	acc, exists := signer.GetAccount(accountName)
 	if !exists {
 		return nil, fmt.Errorf("default account %s not found in signer", accountName)
+	}
+
+	conns := v1.Conns()
+	if len(conns) == 0 {
+		return nil, errors.New("v1 client has no gRPC connections")
 	}
 
 	c := &TxClientV3{
@@ -77,24 +86,22 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 	ctx, cancel := context.WithCancel(ctx)
 	c.cancel = cancel
 
-	requestCh := make(chan *TxRequest, c.queueSize)
-	c.requestCh = requestCh
-
-	// Use the primary connection for both submission and confirmation.
-	conn := v1.Conns()[0]
+	c.requestCh = make(chan *TxRequest, c.queueSize)
+	c.done = make(chan struct{})
 
 	w := &worker{
 		signer:      newSDKTxSigner(v1, accountName),
-		broadcaster: newGRPCTxBroadcaster(v1, conn),
+		broadcaster: newGRPCTxBroadcaster(v1, conns[0]),
 		buffer:      newTxBuffer(acc.Sequence()),
-		requestCh:   requestCh,
+		requestCh:   c.requestCh,
 		events:      make(chan event, 8),
 		pollTime:    v1.PollTime(),
 	}
 
-	c.wg.Go(func() {
+	go func() {
+		defer close(c.done)
 		w.run(ctx)
-	})
+	}()
 
 	return c, nil
 }
@@ -118,47 +125,57 @@ func SetupTxClientV3(
 	return NewTxClientV3(ctx, v2Client, v3Options...)
 }
 
-// AddTx submits a transaction to the async pipeline. It is non-blocking:
-// it creates a TxHandle with 3 phase channels and sends the request to
-// the worker. Returns an error only if the queue is full or context is cancelled.
+// AddTx submits a transaction to the async pipeline. Non-blocking: returns
+// an error only if the queue is full or the client is closed.
 func (c *TxClientV3) AddTx(ctx context.Context, msgs []sdktypes.Msg, opts ...user.TxOption) (*TxHandle, error) {
 	req, handle := newTxHandle(ctx, msgs, nil, opts)
-	return handle, c.enqueue(ctx, req)
+	return handle, c.enqueue(req)
 }
 
 // AddPayForBlob wraps blobs into MsgPayForBlobs and submits via the same
-// async pipeline as AddTx. Gas estimation is handled by the worker.
+// async pipeline as AddTx. Gas estimation is handled by the signer.
 func (c *TxClientV3) AddPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...user.TxOption) (*TxHandle, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("at least one blob is required")
 	}
 
-	// Create a placeholder MsgPayForBlobs for the msgs slice.
-	// The actual signing uses the blobs directly via CreatePayForBlobs.
 	msg, err := blobtypes.NewMsgPayForBlobs("", 0, blobs...)
 	if err != nil {
 		return nil, fmt.Errorf("creating MsgPayForBlobs: %w", err)
 	}
 
 	req, handle := newTxHandle(ctx, []sdktypes.Msg{msg}, blobs, opts)
-	return handle, c.enqueue(ctx, req)
+	return handle, c.enqueue(req)
 }
 
-// Close stops the async pipeline and waits for the worker to finish.
-// All pending and in-flight transactions will receive errors.
+// Close stops the async pipeline, waits for the worker to finish, and
+// resolves any requests left in the queue with errClientClosed so callers
+// blocked on Await don't hang. Safe to call more than once.
 func (c *TxClientV3) Close() {
+	if !c.closed.CompareAndSwap(false, true) {
+		return
+	}
 	c.cancel()
-	c.wg.Wait()
+	<-c.done
+	for {
+		select {
+		case req := <-c.requestCh:
+			req.resolve(nil, errClientClosed)
+		default:
+			return
+		}
+	}
 }
 
-// enqueue sends a request to the worker, respecting context cancellation and
-// queue backpressure.
-func (c *TxClientV3) enqueue(ctx context.Context, req *TxRequest) error {
+// enqueue is non-blocking: returns errClientClosed if Close was called,
+// nil on success, or "tx queue is full" if the buffered channel is full.
+func (c *TxClientV3) enqueue(req *TxRequest) error {
+	if c.closed.Load() {
+		return errClientClosed
+	}
 	select {
 	case c.requestCh <- req:
 		return nil
-	case <-ctx.Done():
-		return ctx.Err()
 	default:
 		return errors.New("tx queue is full")
 	}

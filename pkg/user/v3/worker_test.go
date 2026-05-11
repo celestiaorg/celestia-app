@@ -276,7 +276,10 @@ func TestHandle_SequenceMismatch_EntersRecovery(t *testing.T) {
 	}
 	// Three signed entries; submit the first two.
 	for i := uint64(1); i <= 3; i++ {
-		require.NoError(t, w.buffer.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("h%d", i), submitted: i <= 2}))
+		require.NoError(t, w.buffer.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("h%d", i)}))
+		if i <= 2 {
+			w.buffer.markSubmitted(i)
+		}
 	}
 	w.submitting = true
 
@@ -295,7 +298,8 @@ func TestHandle_FatalSubmit_EntersStop(t *testing.T) {
 		buffer: newTxBuffer(1),
 		mode:   modeSubmitting,
 	}
-	require.NoError(t, w.buffer.appendSigned(txEntry{sequence: 1, txHash: "h1", submitted: true}))
+	require.NoError(t, w.buffer.appendSigned(txEntry{sequence: 1, txHash: "h1"}))
+	w.buffer.markSubmitted(1)
 	w.submitting = true
 
 	terminalErr := &user.BroadcastTxError{
@@ -313,7 +317,8 @@ func TestHandle_Committed_FinalizesAndPlans(t *testing.T) {
 		mode:   modeSubmitting,
 	}
 	req, _ := newTxHandle(context.Background(), nil, nil, nil)
-	require.NoError(t, w.buffer.appendSigned(txEntry{sequence: 1, txHash: "h1", request: req, submitted: true}))
+	require.NoError(t, w.buffer.appendSigned(txEntry{sequence: 1, txHash: "h1", request: req}))
+	w.buffer.markSubmitted(1)
 	w.confirming = true
 
 	cmds := w.handle(evConfirmResult{seq: 1, status: committedResp()})
@@ -336,7 +341,8 @@ func TestHandle_RecoveryConfirms_ResumesSubmitting(t *testing.T) {
 	}
 	for i := uint64(1); i <= 3; i++ {
 		req, _ := newTxHandle(context.Background(), nil, nil, nil)
-		require.NoError(t, w.buffer.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("h%d", i), request: req, submitted: true}))
+		require.NoError(t, w.buffer.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("h%d", i), request: req}))
+		w.buffer.markSubmitted(i)
 	}
 	w.confirming = true
 	_ = w.handle(evConfirmResult{seq: 1, status: committedResp()})
@@ -444,4 +450,62 @@ func TestWorker_ContextCancelDrains(t *testing.T) {
 
 	assert.Error(t, awaitWithTimeout(t, h1, 1*time.Second))
 	assert.Error(t, awaitWithTimeout(t, h2, 1*time.Second))
+}
+
+// --- tx_client / Close / enqueue tests ---
+
+func TestClose_DrainsQueuedRequests(t *testing.T) {
+	// Stand up a TxClientV3 manually (no v1 wiring needed for this test) with
+	// a worker that consumes nothing — every queued request stays in requestCh.
+	ctx, cancel := context.WithCancel(context.Background())
+	c := &TxClientV3{
+		requestCh: make(chan *TxRequest, 8),
+		cancel:    cancel,
+		done:      make(chan struct{}),
+	}
+	go func() {
+		defer close(c.done)
+		<-ctx.Done() // worker stub: just block until cancel.
+	}()
+
+	var handles []*TxHandle
+	for range 3 {
+		req, h := newTxHandle(context.Background(), nil, nil, nil)
+		require.NoError(t, c.enqueue(req))
+		handles = append(handles, h)
+	}
+
+	c.Close()
+
+	for i, h := range handles {
+		err := awaitWithTimeout(t, h, 1*time.Second)
+		assert.ErrorIs(t, err, errClientClosed, "handle %d should resolve with client-closed", i)
+	}
+
+	// Second Close is a no-op.
+	c.Close()
+}
+
+func TestEnqueue_RejectsAfterClose(t *testing.T) {
+	c := &TxClientV3{
+		requestCh: make(chan *TxRequest, 1),
+	}
+	c.closed.Store(true)
+
+	req, _ := newTxHandle(context.Background(), nil, nil, nil)
+	err := c.enqueue(req)
+	assert.ErrorIs(t, err, errClientClosed)
+}
+
+func TestEnqueue_QueueFull(t *testing.T) {
+	c := &TxClientV3{
+		requestCh: make(chan *TxRequest, 1),
+	}
+	req1, _ := newTxHandle(context.Background(), nil, nil, nil)
+	require.NoError(t, c.enqueue(req1))
+
+	req2, _ := newTxHandle(context.Background(), nil, nil, nil)
+	err := c.enqueue(req2)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "queue is full")
 }

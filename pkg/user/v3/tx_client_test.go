@@ -120,7 +120,7 @@ func TestTxBuffer_FrontAndConfirmFront(t *testing.T) {
 	confirmed := buf.confirmFront()
 	require.NotNil(t, confirmed)
 	assert.Equal(t, uint64(1), confirmed.sequence)
-	assert.Equal(t, uint64(1), buf.lastConfirmed())
+	assert.Equal(t, uint64(2), buf.nextSeq)
 
 	front = buf.front()
 	require.NotNil(t, front)
@@ -148,14 +148,15 @@ func TestTxBuffer_SubmissionTracking(t *testing.T) {
 	require.NoError(t, buf.appendSigned(txEntry{sequence: 3, txHash: "c"}))
 
 	// Nothing submitted yet.
-	assert.Equal(t, uint64(0), buf.lastSubmittedSeq())
+	assert.False(t, buf.hasSubmissions())
 	next := buf.next()
 	require.NotNil(t, next)
 	assert.Equal(t, uint64(1), next.sequence)
 
 	// Submit first two.
-	buf.signed[0].submitted = true
-	buf.signed[1].submitted = true
+	buf.markSubmitted(1)
+	buf.markSubmitted(2)
+	assert.True(t, buf.hasSubmissions())
 	assert.Equal(t, uint64(2), buf.lastSubmittedSeq())
 
 	next = buf.next()
@@ -163,25 +164,44 @@ func TestTxBuffer_SubmissionTracking(t *testing.T) {
 	assert.Equal(t, uint64(3), next.sequence)
 
 	// Submit all.
-	buf.signed[2].submitted = true
+	buf.markSubmitted(3)
 	assert.Nil(t, buf.next())
 }
 
 func TestTxBuffer_Reset(t *testing.T) {
 	buf := newTxBuffer(1)
 	for i := uint64(1); i <= 5; i++ {
-		require.NoError(t, buf.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("tx%d", i), submitted: true}))
+		require.NoError(t, buf.appendSigned(txEntry{sequence: i, txHash: fmt.Sprintf("tx%d", i)}))
+		buf.markSubmitted(i)
 	}
 
 	buf.reset(3)
 
 	// Seqs 1,2 still submitted; 3,4,5 reset.
-	assert.True(t, buf.signed[0].submitted)
-	assert.True(t, buf.signed[1].submitted)
-	assert.False(t, buf.signed[2].submitted)
-	assert.False(t, buf.signed[3].submitted)
-	assert.False(t, buf.signed[4].submitted)
 	assert.Equal(t, uint64(2), buf.lastSubmittedSeq())
+	next := buf.next()
+	require.NotNil(t, next)
+	assert.Equal(t, uint64(3), next.sequence, "next unsubmitted should be seq 3")
+}
+
+func TestTxBuffer_StartSeqZero(t *testing.T) {
+	// Brand-new account: startSeq=0 used to underflow nextSeq via "confirmed-1".
+	buf := newTxBuffer(0)
+
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 0, txHash: "a"}))
+	require.NoError(t, buf.appendSigned(txEntry{sequence: 1, txHash: "b"}))
+
+	front := buf.front()
+	require.NotNil(t, front)
+	assert.Equal(t, uint64(0), front.sequence)
+
+	buf.markSubmitted(0)
+	assert.True(t, buf.hasSubmissions())
+	assert.Equal(t, uint64(0), buf.lastSubmittedSeq())
+
+	confirmed := buf.confirmFront()
+	require.NotNil(t, confirmed)
+	assert.Equal(t, uint64(1), buf.nextSeq)
 }
 
 // --- TxHandle tests ---
