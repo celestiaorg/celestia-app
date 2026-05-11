@@ -84,12 +84,12 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 	conn := v1.Conns()[0]
 
 	w := &worker{
-		v1Client:    v1,
-		conn:        conn,
+		signer:      newSDKTxSigner(v1, accountName),
+		broadcaster: newGRPCTxBroadcaster(v1, conn),
 		buffer:      newTxBuffer(acc.Sequence()),
 		requestCh:   requestCh,
+		events:      make(chan event, 8),
 		pollTime:    v1.PollTime(),
-		accountName: accountName,
 	}
 
 	c.wg.Go(func() {

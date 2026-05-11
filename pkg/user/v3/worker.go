@@ -2,69 +2,123 @@ package v3
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"math"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
 	"github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
-	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cometbft/cometbft/rpc/core"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
-	"google.golang.org/grpc"
 )
 
-const (
-	signTickRate   = 50 * time.Millisecond
-	submitTickRate = 100 * time.Millisecond
-)
+// --- events: results posted back to the worker loop. ---
 
-// workerMode represents the three modes of the worker loop.
+type event interface{ isEvent() }
+
+type evNewRequest struct{ req *TxRequest }
+
+type evSignResult struct {
+	req   *TxRequest
+	bytes []byte
+	hash  string
+	seq   uint64
+	err   error
+}
+
+type evSubmitResult struct {
+	seq uint64
+	err error
+}
+
+type evConfirmResult struct {
+	seq    uint64
+	status *tx.TxStatusResponse
+	err    error
+}
+
+type evConfirmTick struct{}
+
+func (evNewRequest) isEvent()    {}
+func (evSignResult) isEvent()    {}
+func (evSubmitResult) isEvent()  {}
+func (evConfirmResult) isEvent() {}
+func (evConfirmTick) isEvent()   {}
+
+// --- commands: what the loop tells the dispatcher to do next. ---
+
+type command interface{ isCommand() }
+
+type cmdSign struct{ req *TxRequest }
+
+type cmdSubmit struct {
+	seq   uint64
+	bytes []byte
+}
+
+type cmdConfirm struct {
+	seq  uint64
+	hash string
+}
+
+type cmdFinalize struct {
+	req  *TxRequest
+	resp *sdktypes.TxResponse
+	err  error
+}
+
+func (cmdSign) isCommand()     {}
+func (cmdSubmit) isCommand()   {}
+func (cmdConfirm) isCommand()  {}
+func (cmdFinalize) isCommand() {}
+
+// --- mode: which of the three high-level states the worker is in. ---
+
 type workerMode int
 
 const (
-	// modeSubmitting: normal operation — sign pending, submit next, confirm in parallel.
 	modeSubmitting workerMode = iota
-	// modeRecovering: submissions paused, confirming one-by-one up to recoverTarget.
 	modeRecovering
-	// modeStopped: confirm up to stopSeq, then drain remaining with errors and exit.
 	modeStopped
 )
 
-// worker is the single background goroutine that owns all mutable state
-// for the async pipeline. It implements the canonical 3-mode model:
-// Submitting → Recovering → Stopped.
+// worker orchestrates the async pipeline as a single-goroutine event loop.
 //
-// Within one run, signed transactions are never re-signed.
-// A fatal error (one requiring re-signing) triggers Stop mode.
+// All mutable state (buffer, mode, in-flight gates) is owned by the run()
+// goroutine. Sign / Submit / Status calls run in their own goroutines and
+// post results back as events. handle() is a pure (state, event) → command
+// function with no I/O, which keeps the state machine trivially testable.
+//
+// Invariants:
+//   - at most one outstanding sign at a time (signing gate)
+//   - at most one outstanding submit at a time (submitting gate)
+//   - at most one outstanding confirm at a time (confirming gate)
+//   - signed entries are contiguous in sequence; never re-signed
 type worker struct {
-	v1Client    *user.TxClient
-	conn        *grpc.ClientConn // single connection for submit + confirm
+	signer      txSigner
+	broadcaster txBroadcaster
 	buffer      *txBuffer
 	requestCh   <-chan *TxRequest
+	events      chan event
 	pollTime    time.Duration
-	accountName string
 
 	mode          workerMode
-	stopSeq       uint64 // Stop mode: confirm entries with seq < stopSeq, then exit
-	stopErr       error  // Stop mode: the fatal error that triggered stop
-	recoverTarget uint64 // Recovery mode: confirm up to this seq, then resume submitting
+	stopSeq       uint64
+	stopErr       error
+	recoverTarget uint64
+
+	signing    bool
+	submitting bool
+	confirming bool
 }
 
-// run is the main event loop.
-func (w *worker) run(ctx context.Context) {
-	signTicker := time.NewTicker(signTickRate)
-	submitTicker := time.NewTicker(submitTickRate)
-	confirmTicker := time.NewTicker(w.pollTime)
-	defer signTicker.Stop()
-	defer submitTicker.Stop()
-	defer confirmTicker.Stop()
+// run is the main event loop. It exits when the parent context is
+// cancelled, the request channel is closed, or stop mode has finished
+// draining.
+func (w *worker) run(parentCtx context.Context) {
+	ctx, cancel := context.WithCancel(parentCtx)
+	defer cancel()
+
+	confirmTick := time.NewTicker(w.pollTime)
+	defer confirmTick.Stop()
 
 	for {
 		select {
@@ -77,21 +131,14 @@ func (w *worker) run(ctx context.Context) {
 				w.drainAll(fmt.Errorf("request channel closed"))
 				return
 			}
-			w.buffer.addPending(req)
+			w.execute(ctx, w.handle(evNewRequest{req: req}))
 
-		case <-signTicker.C:
-			if w.mode == modeSubmitting {
-				w.signPending(ctx)
-			}
+		case <-confirmTick.C:
+			w.execute(ctx, w.handle(evConfirmTick{}))
 
-		case <-submitTicker.C:
-			if w.mode == modeSubmitting {
-				w.submitNext(ctx)
-			}
-
-		case <-confirmTicker.C:
-			w.confirmNext(ctx)
-			if w.mode == modeStopped && w.allConfirmedUpToStop() {
+		case e := <-w.events:
+			w.execute(ctx, w.handle(e))
+			if w.mode == modeStopped && w.allConfirmedUpToStop() && !w.anyInFlight() {
 				w.drainRemaining()
 				return
 			}
@@ -99,188 +146,143 @@ func (w *worker) run(ctx context.Context) {
 	}
 }
 
-// --- Signing ---
+func (w *worker) anyInFlight() bool {
+	return w.signing || w.submitting || w.confirming
+}
 
-// signPending signs all pending requests and appends them to the signed buffer.
-func (w *worker) signPending(ctx context.Context) {
-	for w.buffer.pendingLen() > 0 {
-		req := w.buffer.popPending()
-		if req.Ctx.Err() != nil {
-			w.sendConfirmed(req, nil, req.Ctx.Err())
-			continue
+// handle: pure state transition. No goroutines, no I/O. Returns commands
+// for the dispatcher to execute.
+func (w *worker) handle(e event) []command {
+	switch e := e.(type) {
+	case evNewRequest:
+		if w.mode == modeStopped {
+			return []command{cmdFinalize{req: e.req, err: w.stopErr}}
 		}
+		w.buffer.addPending(e.req)
+		return w.plan()
 
-		txBytes, txHash, seq, err := w.signRequest(ctx, req)
-		if err != nil {
-			w.sendConfirmed(req, nil, fmt.Errorf("signing tx: %w", err))
-			continue
+	case evSignResult:
+		w.signing = false
+		if e.err != nil {
+			return append(
+				[]command{cmdFinalize{req: e.req, err: fmt.Errorf("signing tx: %w", e.err)}},
+				w.plan()...,
+			)
 		}
-
-		entry := txEntry{
-			sequence: seq,
-			txHash:   txHash,
-			txBytes:  txBytes,
-			request:  req,
+		if w.mode == modeStopped {
+			return append(
+				[]command{cmdFinalize{req: e.req, err: w.stopErr}},
+				w.plan()...,
+			)
 		}
+		entry := txEntry{sequence: e.seq, txHash: e.hash, txBytes: e.bytes, request: e.req}
 		if err := w.buffer.appendSigned(entry); err != nil {
-			w.sendConfirmed(req, nil, fmt.Errorf("buffer append: %w", err))
-			continue
+			return append(
+				[]command{cmdFinalize{req: e.req, err: fmt.Errorf("buffer append: %w", err)}},
+				w.plan()...,
+			)
 		}
+		return w.plan()
+
+	case evSubmitResult:
+		w.submitting = false
+		return w.onSubmitResult(e)
+
+	case evConfirmResult:
+		w.confirming = false
+		return w.onConfirmResult(e)
+
+	case evConfirmTick:
+		return w.plan()
 	}
+	return nil
 }
 
-// signRequest signs a single request. No re-signing — if it fails, the caller gets an error.
-func (w *worker) signRequest(ctx context.Context, req *TxRequest) (txBytes []byte, txHash string, seq uint64, err error) {
-	w.v1Client.Lock()
-	defer w.v1Client.Unlock()
+// plan decides what to do next given current state. Enforces the
+// "one outstanding" invariants via the in-flight gates.
+func (w *worker) plan() []command {
+	var cmds []command
 
-	if err := w.v1Client.CheckAccountLoaded(ctx, w.accountName); err != nil {
-		return nil, "", 0, err
-	}
-
-	if req.Blobs != nil {
-		return w.signPFB(ctx, req)
-	}
-	return w.signRegular(ctx, req)
-}
-
-// signPFB signs a PayForBlobs transaction.
-func (w *worker) signPFB(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
-	signer := w.v1Client.Signer()
-	acc, exists := signer.GetAccount(w.accountName)
-	if !exists {
-		return nil, "", 0, fmt.Errorf("account %s not found", w.accountName)
-	}
-
-	addr := acc.Address().String()
-	msg, err := blobtypes.NewMsgPayForBlobs(addr, 0, req.Blobs...)
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	gasPrice, gasLimit, err := w.v1Client.EstimateGasPriceAndUsage(ctx, []sdktypes.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM, req.Opts...)
-	if err != nil {
-		return nil, "", 0, fmt.Errorf("estimating gas: %w", err)
-	}
-	fee := uint64(math.Ceil(gasPrice * float64(gasLimit)))
-	opts := append([]user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}, req.Opts...)
-
-	txBytes, seq, err := signer.CreatePayForBlobs(w.accountName, req.Blobs, opts...)
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	if err := signer.IncrementSequence(w.accountName); err != nil {
-		return nil, "", 0, err
-	}
-
-	hash := computeTxHash(txBytes)
-	return txBytes, hash, seq, nil
-}
-
-// signRegular signs a regular (non-PFB) transaction.
-// No HandleSequenceMismatch retry — if gas estimation fails, the error is returned.
-func (w *worker) signRegular(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
-	signer := w.v1Client.Signer()
-
-	txBuilder, err := signer.TxBuilder(req.Msgs, req.Opts...)
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	hasUserSetFee := false
-	for _, coin := range txBuilder.GetTx().GetFee() {
-		if coin.Denom == appconsts.BondDenom {
-			hasUserSetFee = true
+	// Drop any ctx-cancelled pending requests, then start at most one sign.
+	for w.mode == modeSubmitting && w.buffer.pendingLen() > 0 {
+		if w.signing {
 			break
 		}
-	}
-
-	gasLimit := txBuilder.GetTx().GetGas()
-	if gasLimit == 0 {
-		if !hasUserSetFee {
-			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+		req := w.buffer.popPending()
+		if err := req.Ctx.Err(); err != nil {
+			cmds = append(cmds, cmdFinalize{req: req, err: err})
+			continue
 		}
-		gasLimit, err = w.v1Client.EstimateGasForTx(ctx, txBuilder)
-		if err != nil {
-			return nil, "", 0, fmt.Errorf("gas estimation: %w", err)
+		w.signing = true
+		cmds = append(cmds, cmdSign{req: req})
+		break
+	}
+
+	// Submit next unsubmitted signed entry.
+	if !w.submitting && w.mode == modeSubmitting {
+		if entry := w.buffer.next(); entry != nil {
+			w.submitting = true
+			cmds = append(cmds, cmdSubmit{seq: entry.sequence, bytes: entry.txBytes})
 		}
-		txBuilder.SetGasLimit(gasLimit)
 	}
 
-	if !hasUserSetFee {
-		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
-		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(fee))))
+	// Confirm front entry if eligible.
+	if !w.confirming {
+		if entry := w.confirmCandidate(); entry != nil {
+			w.confirming = true
+			cmds = append(cmds, cmdConfirm{seq: entry.sequence, hash: entry.txHash})
+		}
 	}
 
-	accountName, seq, err := signer.SignTransaction(txBuilder)
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	txBytes, err := signer.EncodeTx(txBuilder.GetTx())
-	if err != nil {
-		return nil, "", 0, err
-	}
-
-	if err := signer.IncrementSequence(accountName); err != nil {
-		return nil, "", 0, err
-	}
-
-	hash := computeTxHash(txBytes)
-	return txBytes, hash, seq, nil
+	return cmds
 }
 
-// --- Submission (Submitting mode only) ---
-
-// submitNext sends unsubmitted entries to the node.
-// Processes as many as possible per tick to maximize throughput.
-func (w *worker) submitNext(ctx context.Context) {
-	for {
-		entry := w.buffer.next()
-		if entry == nil {
-			return
-		}
-
-		_, err := w.v1Client.SendTxToConnection(ctx, w.conn, entry.txBytes)
-		if err != nil {
-			w.handleSubmitError(err, entry)
-			return // Stop on any error.
-		}
-
-		entry.submitted = true
+func (w *worker) confirmCandidate() *txEntry {
+	front := w.buffer.front()
+	if front == nil {
+		return nil
 	}
+	if w.mode == modeStopped && front.sequence >= w.stopSeq {
+		return nil
+	}
+	if w.mode == modeSubmitting && !front.submitted {
+		return nil
+	}
+	return front
 }
 
-// handleSubmitError handles errors from sending a tx to the node.
-func (w *worker) handleSubmitError(err error, entry *txEntry) {
+// --- submit-result handling ---
+
+func (w *worker) onSubmitResult(e evSubmitResult) []command {
+	if e.err == nil {
+		if entry := w.buffer.getBySequence(e.seq); entry != nil {
+			entry.submitted = true
+		}
+		return w.plan()
+	}
+	return w.handleSubmitError(e.seq, e.err)
+}
+
+func (w *worker) handleSubmitError(seq uint64, err error) []command {
 	kind, expectedSeq := ClassifyBroadcastError(err)
 	switch kind {
 	case ErrSequenceMismatch:
 		w.handleSubmitSequenceMismatch(expectedSeq)
-
 	case ErrMempoolFull, ErrNetworkError:
-		// Non-fatal: retry on next tick (entry stays unsubmitted).
-
+		// non-fatal: entry is still marked unsubmitted; plan() will retry.
 	case ErrTxInMempoolCache:
-		// Already in mempool — treat as success.
-		entry.submitted = true
-
+		if entry := w.buffer.getBySequence(seq); entry != nil {
+			entry.submitted = true
+		}
 	case ErrTerminal, ErrInsufficientFee:
-		// Fatal: enter Stop mode.
-		w.enterStop(entry.sequence, fmt.Errorf("fatal broadcast error: %w", err))
+		w.enterStop(seq, fmt.Errorf("fatal broadcast error: %w", err))
 	}
+	return w.plan()
 }
 
-// handleSubmitSequenceMismatch handles a sequence mismatch during submission.
 func (w *worker) handleSubmitSequenceMismatch(expectedSeq uint64) {
 	lastSubmitted := w.buffer.lastSubmittedSeq()
-
 	if expectedSeq <= lastSubmitted {
-		// Expected < what we've submitted: reset submission counter.
-		// The node wants us to resubmit starting from expectedSeq.
-		// But if expectedSeq is below our buffer's first signed entry, we
-		// can't satisfy it without re-signing — enter Stop instead of looping.
 		front := w.buffer.front()
 		if front != nil && expectedSeq < front.sequence {
 			w.enterStop(expectedSeq, fmt.Errorf("sequence mismatch: node expects %d, before our buffer (first=%d)", expectedSeq, front.sequence))
@@ -289,179 +291,118 @@ func (w *worker) handleSubmitSequenceMismatch(expectedSeq uint64) {
 		w.buffer.reset(expectedSeq)
 		return
 	}
-
-	// Expected > last submitted: the node has advanced past us.
 	if w.buffer.getBySequence(expectedSeq) != nil {
-		// We have a signed tx at the expected seq → Recovery mode.
 		w.enterRecovery(expectedSeq)
 	} else {
-		// We don't have a tx at the expected seq → Stop.
 		w.enterStop(expectedSeq, fmt.Errorf("sequence mismatch: node expects %d, beyond our signed range", expectedSeq))
 	}
 }
 
-// --- Confirmation (all modes) ---
+// --- confirm-result handling ---
 
-// confirmNext confirms entries by querying TxStatus one-by-one in order.
-// Every hash is explicitly queried — no synthesized responses.
-//
-// Mode semantics:
-//   - Submitting: only query submitted entries (unsubmitted will be sent next tick).
-//   - Recovering: query Front regardless — needed to detect "hash doesn't exist"
-//     contradictions for entries we never submitted.
-//   - Stopped: query Front regardless, but only up to stopSeq.
-func (w *worker) confirmNext(ctx context.Context) {
-	txClient := tx.NewTxClient(w.conn)
+func (w *worker) onConfirmResult(e evConfirmResult) []command {
+	if e.err != nil {
+		return w.plan() // transient network error; next tick will retry.
+	}
 
-	for {
-		front := w.buffer.front()
-		if front == nil {
-			return
+	front := w.buffer.front()
+	if front == nil || front.sequence != e.seq {
+		// Buffer moved on (e.g., due to a drain). Ignore stale result.
+		return w.plan()
+	}
+
+	switch e.status.Status {
+	case core.TxStatusPending:
+		return w.plan()
+
+	case core.TxStatusCommitted:
+		return w.onCommitted(front, e.status)
+
+	case core.TxStatusEvicted:
+		return w.onEvicted(front)
+
+	case core.TxStatusRejected:
+		return w.onFatalConfirm(front, fmt.Errorf("tx rejected: %s", e.status.Error))
+
+	default:
+		if w.mode == modeRecovering {
+			return w.drainAllCmds(fmt.Errorf("recovery contradiction: unknown status for %s at seq %d", front.txHash, front.sequence))
 		}
-
-		// In Stop mode, don't query past stopSeq — drainRemaining handles those.
-		if w.mode == modeStopped && front.sequence >= w.stopSeq {
-			return
-		}
-
-		// In Submitting mode, only query submitted entries.
-		if w.mode == modeSubmitting && !front.submitted {
-			return
-		}
-
-		resp, err := txClient.TxStatus(ctx, &tx.TxStatusRequest{TxId: front.txHash})
-		if err != nil {
-			return // Retry on next tick.
-		}
-
-		switch resp.Status {
-		case core.TxStatusPending:
-			// Still in mempool — wait. Stop processing further entries.
-			return
-
-		case core.TxStatusCommitted:
-			w.handleCommitted(front, resp)
-
-		case core.TxStatusEvicted:
-			w.handleEvicted(front)
-			// In Submitting mode, the entry was marked unsubmitted; the next
-			// loop iteration would hit the "!front.submitted" guard anyway.
-			if w.mode == modeSubmitting {
-				return
-			}
-			// In Stop mode, handleEvicted confirmed-front; continue draining.
-
-		case core.TxStatusRejected:
-			// Rejected = fatal (requires re-signing).
-			w.handleFatalConfirmError(front, fmt.Errorf("tx rejected: %s", resp.Error))
-			return
-
-		default:
-			// UNKNOWN or any unrecognized status.
-			if w.mode == modeRecovering {
-				// Canonical contradiction: hash doesn't exist on the node →
-				// someone else submitted at this sequence. Exit.
-				w.drainAll(fmt.Errorf("recovery contradiction: unknown status for %s at seq %d", front.txHash, front.sequence))
-			} else {
-				w.handleFatalConfirmError(front, fmt.Errorf("unknown tx status for %s: %s", front.txHash, resp.Status))
-			}
-			return
-		}
+		return w.onFatalConfirm(front, fmt.Errorf("unknown tx status for %s: %s", front.txHash, e.status.Status))
 	}
 }
 
-// handleCommitted processes a committed tx status.
-func (w *worker) handleCommitted(entry *txEntry, resp *tx.TxStatusResponse) {
+func (w *worker) onCommitted(front *txEntry, resp *tx.TxStatusResponse) []command {
 	txResp := &sdktypes.TxResponse{
-		TxHash:    entry.txHash,
+		TxHash:    front.txHash,
 		Height:    resp.Height,
 		Code:      resp.ExecutionCode,
 		GasWanted: resp.GasWanted,
 		GasUsed:   resp.GasUsed,
 		Codespace: resp.Codespace,
 	}
-
-	var confirmErr error
+	var cerr error
 	if resp.ExecutionCode != 0 {
-		confirmErr = fmt.Errorf("tx execution failed with code %d: %s", resp.ExecutionCode, resp.Error)
+		cerr = fmt.Errorf("tx execution failed with code %d: %s", resp.ExecutionCode, resp.Error)
 	}
-
 	confirmed := w.buffer.confirmFront()
-	if confirmed != nil {
-		w.sendConfirmed(confirmed.request, txResp, confirmErr)
-	}
+	cmds := []command{cmdFinalize{req: confirmed.request, resp: txResp, err: cerr}}
 
-	// In Recovery mode: check if we've reached the target.
 	if w.mode == modeRecovering && w.buffer.lastConfirmed() >= w.recoverTarget-1 {
 		w.mode = modeSubmitting
 	}
+
+	return append(cmds, w.plan()...)
 }
 
-// handleEvicted processes an evicted tx status.
-func (w *worker) handleEvicted(entry *txEntry) {
+func (w *worker) onEvicted(front *txEntry) []command {
 	switch w.mode {
 	case modeRecovering:
-		// During recovery, eviction is a contradiction — our tx was dropped
-		// while the node expects a higher sequence. Exit.
-		w.drainAll(fmt.Errorf("recovery contradiction: tx evicted at seq %d", entry.sequence))
+		return w.drainAllCmds(fmt.Errorf("recovery contradiction: tx evicted at seq %d", front.sequence))
 
 	case modeStopped:
-		// Stop mode doesn't resubmit, so an evicted tx can never be confirmed.
-		// Treat as fatal: lower stopSeq if earlier, then confirm-front with error.
-		err := fmt.Errorf("tx evicted at seq %d during stop drain", entry.sequence)
-		if entry.sequence < w.stopSeq {
-			w.stopSeq = entry.sequence
+		err := fmt.Errorf("tx evicted at seq %d during stop drain", front.sequence)
+		if front.sequence < w.stopSeq {
+			w.stopSeq = front.sequence
 			w.stopErr = err
 		}
 		confirmed := w.buffer.confirmFront()
-		if confirmed != nil {
-			w.sendConfirmed(confirmed.request, nil, err)
-		}
+		return []command{cmdFinalize{req: confirmed.request, err: err}}
 
 	default: // modeSubmitting
-		// Mark as not-submitted so it gets resubmitted on the next submit tick.
-		entry.submitted = false
+		front.submitted = false
+		return w.plan()
 	}
 }
 
-// handleFatalConfirmError handles a fatal error discovered during confirmation.
-func (w *worker) handleFatalConfirmError(entry *txEntry, err error) {
+func (w *worker) onFatalConfirm(front *txEntry, err error) []command {
 	switch w.mode {
 	case modeRecovering:
-		// Contradiction during recovery → exit.
-		w.drainAll(fmt.Errorf("recovery error at seq %d: %w", entry.sequence, err))
+		return w.drainAllCmds(fmt.Errorf("recovery error at seq %d: %w", front.sequence, err))
 
 	case modeStopped:
-		// Another error before stopSeq → lower the stop counter.
-		if entry.sequence < w.stopSeq {
-			w.stopSeq = entry.sequence
+		if front.sequence < w.stopSeq {
+			w.stopSeq = front.sequence
 			w.stopErr = err
 		}
-		// Confirm this entry as failed and remove it.
 		confirmed := w.buffer.confirmFront()
-		if confirmed != nil {
-			w.sendConfirmed(confirmed.request, nil, err)
-		}
+		return []command{cmdFinalize{req: confirmed.request, err: err}}
 
 	default: // modeSubmitting
-		w.enterStop(entry.sequence, err)
+		w.enterStop(front.sequence, err)
+		return w.plan()
 	}
 }
 
-// --- Mode transitions ---
+// --- mode transitions ---
 
-// enterRecovery transitions to Recovery mode.
-// Submissions are paused; confirmation continues one-by-one up to target.
 func (w *worker) enterRecovery(targetSeq uint64) {
 	w.mode = modeRecovering
 	w.recoverTarget = targetSeq
 }
 
-// enterStop transitions to Stop mode.
-// Submissions are paused; confirmation continues up to stopSeq, then drain.
 func (w *worker) enterStop(seq uint64, err error) {
 	if w.mode == modeStopped {
-		// Already stopped — lower the stop counter if this is earlier.
 		if seq < w.stopSeq {
 			w.stopSeq = seq
 			w.stopErr = err
@@ -473,7 +414,6 @@ func (w *worker) enterStop(seq uint64, err error) {
 	w.stopErr = err
 }
 
-// allConfirmedUpToStop returns true when all entries before stopSeq have been confirmed.
 func (w *worker) allConfirmedUpToStop() bool {
 	front := w.buffer.front()
 	if front == nil {
@@ -482,52 +422,81 @@ func (w *worker) allConfirmedUpToStop() bool {
 	return front.sequence >= w.stopSeq
 }
 
-// drainRemaining errors all remaining entries (from stopSeq onwards) and pending requests.
-// Called when Stop mode has confirmed everything up to stopSeq.
-func (w *worker) drainRemaining() {
-	// Error all remaining signed entries.
+// drainAllCmds finalizes every pending/signed entry with err and forces
+// the worker into a permanently-drained stop state. Used when a recovery
+// contradiction makes the pipeline unrecoverable.
+func (w *worker) drainAllCmds(err error) []command {
+	var cmds []command
+	for w.buffer.pendingLen() > 0 {
+		cmds = append(cmds, cmdFinalize{req: w.buffer.popPending(), err: err})
+	}
 	for w.buffer.signedLen() > 0 {
 		entry := w.buffer.confirmFront()
-		if entry != nil {
-			w.sendConfirmed(entry.request, nil, w.stopErr)
-		}
+		cmds = append(cmds, cmdFinalize{req: entry.request, err: err})
 	}
-	// Error all pending requests.
+	w.mode = modeStopped
+	w.stopSeq = 0
+	w.stopErr = err
+	return cmds
+}
+
+// drainRemaining resolves all entries from stopSeq onwards with stopErr.
+// Called from the run loop once stop mode has caught up.
+func (w *worker) drainRemaining() {
+	for w.buffer.signedLen() > 0 {
+		entry := w.buffer.confirmFront()
+		entry.request.resolve(nil, w.stopErr)
+	}
 	for w.buffer.pendingLen() > 0 {
-		req := w.buffer.popPending()
-		w.sendConfirmed(req, nil, w.stopErr)
+		w.buffer.popPending().resolve(nil, w.stopErr)
 	}
 }
 
-// drainAll sends errors to all remaining handles (pending + signed).
+// drainAll resolves everything in the buffer with err. Called on shutdown.
 func (w *worker) drainAll(err error) {
 	for w.buffer.pendingLen() > 0 {
-		req := w.buffer.popPending()
-		w.sendConfirmed(req, nil, err)
+		w.buffer.popPending().resolve(nil, err)
 	}
 	for w.buffer.signedLen() > 0 {
 		entry := w.buffer.confirmFront()
-		if entry != nil {
-			w.sendConfirmed(entry.request, nil, err)
+		entry.request.resolve(nil, err)
+	}
+}
+
+// --- dispatcher: turns commands into goroutines / synchronous resolves. ---
+
+func (w *worker) execute(ctx context.Context, cmds []command) {
+	for _, c := range cmds {
+		switch c := c.(type) {
+		case cmdSign:
+			req := c.req
+			go func() {
+				b, h, s, err := w.signer.Sign(ctx, req)
+				w.send(ctx, evSignResult{req: req, bytes: b, hash: h, seq: s, err: err})
+			}()
+		case cmdSubmit:
+			seq, bytes := c.seq, c.bytes
+			go func() {
+				err := w.broadcaster.Submit(ctx, bytes)
+				w.send(ctx, evSubmitResult{seq: seq, err: err})
+			}()
+		case cmdConfirm:
+			seq, hash := c.seq, c.hash
+			go func() {
+				status, err := w.broadcaster.Status(ctx, hash)
+				w.send(ctx, evConfirmResult{seq: seq, status: status, err: err})
+			}()
+		case cmdFinalize:
+			c.req.resolve(c.resp, c.err)
 		}
 	}
 }
 
-// --- Helpers ---
-
-// sendConfirmed delivers the terminal result to the caller via the handle.
-func (w *worker) sendConfirmed(req *TxRequest, resp *sdktypes.TxResponse, err error) {
-	req.resolve(resp, err)
-}
-
-// computeTxHash computes the hex-encoded SHA256 hash of tx bytes.
-func computeTxHash(txBytes []byte) string {
-	// Check if this is a blob tx and extract the inner tx for hashing.
-	blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(txBytes)
-	if isBlobTx && err == nil {
-		txBytes = blobTx.Tx
+// send posts an event to the loop, or drops it if ctx is cancelled. This
+// prevents background goroutines from blocking forever when run() exits.
+func (w *worker) send(ctx context.Context, e event) {
+	select {
+	case w.events <- e:
+	case <-ctx.Done():
 	}
-
-	sum := sha256.Sum256(txBytes)
-	return hex.EncodeToString(sum[:])
 }
