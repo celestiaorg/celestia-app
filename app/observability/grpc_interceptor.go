@@ -52,15 +52,13 @@ func RegisterGRPCMetrics(reg prometheus.Registerer) {
 var setupOnce sync.Once
 
 // Setup registers the gRPC server metrics on the default Prometheus registerer
-// and installs the unary + stream Prometheus interceptors as extra options on
+// and installs the unary Prometheus interceptors as extra options on
 // the SDK gRPC server. Safe to call multiple times; runs only once per process.
 func Setup() {
 	setupOnce.Do(func() {
 		RegisterGRPCMetrics(prometheus.DefaultRegisterer)
-		servergrpc.ExtraServerOptions = append(
-			servergrpc.ExtraServerOptions,
+		servergrpc.WithGRPCServerOptions(
 			grpc.ChainUnaryInterceptor(UnaryPrometheusInterceptor()),
-			grpc.ChainStreamInterceptor(StreamPrometheusInterceptor()),
 		)
 	})
 }
@@ -91,32 +89,6 @@ func UnaryPrometheusInterceptor() grpc.UnaryServerInterceptor {
 	}
 }
 
-func StreamPrometheusInterceptor() grpc.StreamServerInterceptor {
-	return func(
-		srv any,
-		ss grpc.ServerStream,
-		info *grpc.StreamServerInfo,
-		handler grpc.StreamHandler,
-	) error {
-		service, method := splitFullMethod(info.FullMethod)
-		rpcType := streamType(info)
-
-		grpcRequestsInFlight.WithLabelValues(service, method, rpcType).Inc()
-		defer grpcRequestsInFlight.WithLabelValues(service, method, rpcType).Dec()
-
-		start := time.Now()
-		err := handler(srv, ss)
-
-		code := status.Code(err).String()
-		duration := time.Since(start).Seconds()
-
-		grpcRequestsTotal.WithLabelValues(service, method, rpcType, code).Inc()
-		grpcRequestDurationSeconds.WithLabelValues(service, method, rpcType, code).Observe(duration)
-
-		return err
-	}
-}
-
 func splitFullMethod(fullMethod string) (service, method string) {
 	fullMethod = strings.TrimPrefix(fullMethod, "/")
 	parts := strings.Split(fullMethod, "/")
@@ -124,17 +96,4 @@ func splitFullMethod(fullMethod string) (service, method string) {
 		return "unknown", fullMethod
 	}
 	return parts[0], parts[1]
-}
-
-func streamType(info *grpc.StreamServerInfo) string {
-	switch {
-	case info.IsClientStream && info.IsServerStream:
-		return "bidi_stream"
-	case info.IsClientStream:
-		return "client_stream"
-	case info.IsServerStream:
-		return "server_stream"
-	default:
-		return "stream"
-	}
 }
