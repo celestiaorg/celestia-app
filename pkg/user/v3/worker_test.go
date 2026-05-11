@@ -455,10 +455,10 @@ func TestWorker_ContextCancelDrains(t *testing.T) {
 // --- tx_client / Close / enqueue tests ---
 
 func TestClose_DrainsQueuedRequests(t *testing.T) {
-	// Stand up a TxClientV3 manually (no v1 wiring needed for this test) with
+	// Stand up a QueuedTxClient manually (no v1 wiring needed for this test) with
 	// a worker that consumes nothing — every queued request stays in requestCh.
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &TxClientV3{
+	c := &QueuedTxClient{
 		requestCh: make(chan *TxRequest, 8),
 		cancel:    cancel,
 		done:      make(chan struct{}),
@@ -487,7 +487,7 @@ func TestClose_DrainsQueuedRequests(t *testing.T) {
 }
 
 func TestEnqueue_RejectsAfterClose(t *testing.T) {
-	c := &TxClientV3{
+	c := &QueuedTxClient{
 		requestCh: make(chan *TxRequest, 1),
 	}
 	c.closed.Store(true)
@@ -498,7 +498,7 @@ func TestEnqueue_RejectsAfterClose(t *testing.T) {
 }
 
 func TestEnqueue_QueueFull(t *testing.T) {
-	c := &TxClientV3{
+	c := &QueuedTxClient{
 		requestCh: make(chan *TxRequest, 1),
 	}
 	req1, _ := newTxHandle(context.Background(), nil, nil, nil)

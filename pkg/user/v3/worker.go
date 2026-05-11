@@ -264,13 +264,13 @@ func (w *worker) onSubmitResult(e evSubmitResult) []command {
 func (w *worker) handleSubmitError(seq uint64, err error) []command {
 	kind, expectedSeq := ClassifyBroadcastError(err)
 	switch kind {
-	case ErrSequenceMismatch:
+	case KindSequenceMismatch:
 		w.handleSubmitSequenceMismatch(expectedSeq)
-	case ErrMempoolFull, ErrNetworkError:
+	case KindMempoolFull, KindNetworkError:
 		// non-fatal: entry is still marked unsubmitted; plan() will retry.
-	case ErrTxInMempoolCache:
+	case KindTxInMempoolCache:
 		w.buffer.markSubmitted(seq)
-	case ErrTerminal, ErrInsufficientFee:
+	case KindTerminal, KindInsufficientFee:
 		w.enterStop(seq, fmt.Errorf("fatal broadcast error: %w", err))
 	}
 	return w.plan()

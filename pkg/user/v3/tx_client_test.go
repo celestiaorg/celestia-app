@@ -21,7 +21,7 @@ func TestClassifyBroadcastError_NonceMismatch(t *testing.T) {
 		ErrorLog: "account sequence mismatch, expected 5, got 3: incorrect account sequence",
 	}
 	kind, seq := ClassifyBroadcastError(err)
-	assert.Equal(t, ErrSequenceMismatch, kind)
+	assert.Equal(t, KindSequenceMismatch, kind)
 	assert.Equal(t, uint64(5), seq)
 }
 
@@ -32,7 +32,7 @@ func TestClassifyBroadcastError_MempoolFull(t *testing.T) {
 		ErrorLog: "mempool is full",
 	}
 	kind, seq := ClassifyBroadcastError(err)
-	assert.Equal(t, ErrMempoolFull, kind)
+	assert.Equal(t, KindMempoolFull, kind)
 	assert.Equal(t, uint64(0), seq)
 }
 
@@ -43,18 +43,18 @@ func TestClassifyBroadcastError_TxInCache(t *testing.T) {
 		ErrorLog: "tx already exists in cache",
 	}
 	kind, seq := ClassifyBroadcastError(err)
-	assert.Equal(t, ErrTxInMempoolCache, kind)
+	assert.Equal(t, KindTxInMempoolCache, kind)
 	assert.Equal(t, uint64(0), seq)
 }
 
 func TestClassifyBroadcastError_NetworkError(t *testing.T) {
 	err := status.Error(codes.Unavailable, "connection refused")
 	kind, _ := ClassifyBroadcastError(err)
-	assert.Equal(t, ErrNetworkError, kind)
+	assert.Equal(t, KindNetworkError, kind)
 
 	err = status.Error(codes.DeadlineExceeded, "timeout")
 	kind, _ = ClassifyBroadcastError(err)
-	assert.Equal(t, ErrNetworkError, kind)
+	assert.Equal(t, KindNetworkError, kind)
 }
 
 func TestClassifyBroadcastError_Terminal(t *testing.T) {
@@ -64,12 +64,12 @@ func TestClassifyBroadcastError_Terminal(t *testing.T) {
 		ErrorLog: "some unknown error",
 	}
 	kind, _ := ClassifyBroadcastError(err)
-	assert.Equal(t, ErrTerminal, kind)
+	assert.Equal(t, KindTerminal, kind)
 }
 
 func TestClassifyBroadcastError_Nil(t *testing.T) {
 	kind, _ := ClassifyBroadcastError(nil)
-	assert.Equal(t, ErrTerminal, kind)
+	assert.Equal(t, KindTerminal, kind)
 }
 
 // --- TxBuffer tests ---

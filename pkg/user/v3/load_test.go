@@ -123,8 +123,8 @@ func (s *loadTestServer) EstimateGasPriceAndUsage(_ context.Context, _ *gasestim
 	}, nil
 }
 
-// setupLoadTest creates a TxClientV3 connected to a mock gRPC server.
-func setupLoadTest(t *testing.T) (*TxClientV3, *loadTestServer) {
+// setupLoadTest creates a QueuedTxClient connected to a mock gRPC server.
+func setupLoadTest(t *testing.T) (*QueuedTxClient, *loadTestServer) {
 	t.Helper()
 
 	server := &loadTestServer{
@@ -180,7 +180,7 @@ func setupLoadTest(t *testing.T) (*TxClientV3, *loadTestServer) {
 	require.NoError(t, err)
 
 	v2Client := v2.Wrapv1TxClient(v1Client)
-	v3Client, err := NewTxClientV3(context.Background(), v2Client, WithQueueSize(1000))
+	v3Client, err := NewQueuedTxClient(context.Background(), v2Client, WithQueueSize(1000))
 	require.NoError(t, err)
 	t.Cleanup(v3Client.Close)
 
@@ -315,7 +315,7 @@ func BenchmarkAddTx(b *testing.B) {
 	v2Client := v2.Wrapv1TxClient(v1Client)
 	ctx := b.Context()
 
-	v3Client, err := NewTxClientV3(ctx, v2Client)
+	v3Client, err := NewQueuedTxClient(ctx, v2Client)
 	require.NoError(b, err)
 	defer v3Client.Close()
 

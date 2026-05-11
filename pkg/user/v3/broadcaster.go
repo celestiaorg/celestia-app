@@ -18,21 +18,21 @@ type txBroadcaster interface {
 // grpcTxBroadcaster is the production txBroadcaster, talking to a single
 // gRPC connection.
 type grpcTxBroadcaster struct {
-	v1   *user.TxClient
-	conn *grpc.ClientConn
-	tx   tx.TxClient
+	txClient *user.TxClient
+	conn     *grpc.ClientConn
+	tx       tx.TxClient
 }
 
-func newGRPCTxBroadcaster(v1 *user.TxClient, conn *grpc.ClientConn) *grpcTxBroadcaster {
+func newGRPCTxBroadcaster(txClient *user.TxClient, conn *grpc.ClientConn) *grpcTxBroadcaster {
 	return &grpcTxBroadcaster{
-		v1:   v1,
-		conn: conn,
-		tx:   tx.NewTxClient(conn),
+		txClient: txClient,
+		conn:     conn,
+		tx:       tx.NewTxClient(conn),
 	}
 }
 
 func (b *grpcTxBroadcaster) Submit(ctx context.Context, txBytes []byte) error {
-	_, err := b.v1.SendTxToConnection(ctx, b.conn, txBytes)
+	_, err := b.txClient.SendTxToConnection(ctx, b.conn, txBytes)
 	return err
 }
 

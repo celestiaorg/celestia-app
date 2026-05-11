@@ -1,6 +1,6 @@
 // Package v3 provides a unified async transaction pipeline for Celestia.
 //
-// TxClientV3 embeds v2.TxClient (which embeds v1) and adds a non-blocking
+// QueuedTxClient embeds v2.TxClient (which embeds v1) and adds a non-blocking
 // AddTx / AddPayForBlob API. All transaction types — regular sdk.Msg and
 // MsgPayForBlobs — flow through the same single-goroutine pipeline:
 // sign → submit → confirm, with 3-phase callbacks via TxHandle.
@@ -32,19 +32,19 @@ const defaultQueueSize = 100
 // was still queued when Close was called.
 var errClientClosed = errors.New("tx client closed")
 
-// V3Option configures the TxClientV3.
-type V3Option func(*TxClientV3)
+// Option configures the QueuedTxClient.
+type Option func(*QueuedTxClient)
 
 // WithQueueSize sets the capacity of the async request channel.
-func WithQueueSize(size int) V3Option {
-	return func(c *TxClientV3) {
+func WithQueueSize(size int) Option {
+	return func(c *QueuedTxClient) {
 		c.queueSize = size
 	}
 }
 
-// TxClientV3 wraps v2.TxClient and adds a unified async pipeline for all
+// QueuedTxClient wraps v2.TxClient and adds a unified async pipeline for all
 // transaction types.
-type TxClientV3 struct {
+type QueuedTxClient struct {
 	*v2.TxClient
 	requestCh chan *TxRequest
 	cancel    context.CancelFunc
@@ -53,10 +53,10 @@ type TxClientV3 struct {
 	queueSize int
 }
 
-// NewTxClientV3 creates a new TxClientV3 wrapping the provided v2 client.
+// NewQueuedTxClient creates a new QueuedTxClient wrapping the provided v2 client.
 // The async pipeline starts immediately and runs until Close is called or
 // the context is cancelled.
-func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option) (*TxClientV3, error) {
+func NewQueuedTxClient(ctx context.Context, v2Client *v2.TxClient, opts ...Option) (*QueuedTxClient, error) {
 	if v2Client == nil {
 		return nil, errors.New("v2 client must not be nil")
 	}
@@ -75,7 +75,7 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 		return nil, errors.New("v1 client has no gRPC connections")
 	}
 
-	c := &TxClientV3{
+	c := &QueuedTxClient{
 		TxClient:  v2Client,
 		queueSize: defaultQueueSize,
 	}
@@ -106,35 +106,35 @@ func NewTxClientV3(ctx context.Context, v2Client *v2.TxClient, opts ...V3Option)
 	return c, nil
 }
 
-// SetupTxClientV3 creates a fully initialized TxClientV3 by querying the
+// SetupQueuedTxClient creates a fully initialized QueuedTxClient by querying the
 // chain for account info. This is a convenience constructor equivalent to
-// v2.SetupTxClient followed by NewTxClientV3.
-func SetupTxClientV3(
+// v2.SetupTxClient followed by NewQueuedTxClient.
+func SetupQueuedTxClient(
 	ctx context.Context,
 	keys keyring.Keyring,
 	conn *grpc.ClientConn,
 	encCfg encoding.Config,
 	v1Options []user.Option,
-	v3Options ...V3Option,
-) (*TxClientV3, error) {
+	v3Options ...Option,
+) (*QueuedTxClient, error) {
 	v2Client, err := v2.SetupTxClient(ctx, keys, conn, encCfg, v1Options...)
 	if err != nil {
 		return nil, err
 	}
 
-	return NewTxClientV3(ctx, v2Client, v3Options...)
+	return NewQueuedTxClient(ctx, v2Client, v3Options...)
 }
 
 // AddTx submits a transaction to the async pipeline. Non-blocking: returns
 // an error only if the queue is full or the client is closed.
-func (c *TxClientV3) AddTx(ctx context.Context, msgs []sdktypes.Msg, opts ...user.TxOption) (*TxHandle, error) {
+func (c *QueuedTxClient) AddTx(ctx context.Context, msgs []sdktypes.Msg, opts ...user.TxOption) (*TxHandle, error) {
 	req, handle := newTxHandle(ctx, msgs, nil, opts)
 	return handle, c.enqueue(req)
 }
 
 // AddPayForBlob wraps blobs into MsgPayForBlobs and submits via the same
 // async pipeline as AddTx. Gas estimation is handled by the signer.
-func (c *TxClientV3) AddPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...user.TxOption) (*TxHandle, error) {
+func (c *QueuedTxClient) AddPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...user.TxOption) (*TxHandle, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("at least one blob is required")
 	}
@@ -151,7 +151,7 @@ func (c *TxClientV3) AddPayForBlob(ctx context.Context, blobs []*share.Blob, opt
 // Close stops the async pipeline, waits for the worker to finish, and
 // resolves any requests left in the queue with errClientClosed so callers
 // blocked on Await don't hang. Safe to call more than once.
-func (c *TxClientV3) Close() {
+func (c *QueuedTxClient) Close() {
 	if !c.closed.CompareAndSwap(false, true) {
 		return
 	}
@@ -169,7 +169,7 @@ func (c *TxClientV3) Close() {
 
 // enqueue is non-blocking: returns errClientClosed if Close was called,
 // nil on success, or "tx queue is full" if the buffered channel is full.
-func (c *TxClientV3) enqueue(req *TxRequest) error {
+func (c *QueuedTxClient) enqueue(req *TxRequest) error {
 	if c.closed.Load() {
 		return errClientClosed
 	}

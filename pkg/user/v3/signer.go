@@ -26,19 +26,19 @@ type txSigner interface {
 // the underlying v1 TxClient's mutex so the account's sequence counter
 // is incremented atomically with the signature.
 type sdkTxSigner struct {
-	v1          *user.TxClient
+	txClient    *user.TxClient
 	accountName string
 }
 
-func newSDKTxSigner(v1 *user.TxClient, accountName string) *sdkTxSigner {
-	return &sdkTxSigner{v1: v1, accountName: accountName}
+func newSDKTxSigner(txClient *user.TxClient, accountName string) *sdkTxSigner {
+	return &sdkTxSigner{txClient: txClient, accountName: accountName}
 }
 
 func (s *sdkTxSigner) Sign(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
-	s.v1.Lock()
-	defer s.v1.Unlock()
+	s.txClient.Lock()
+	defer s.txClient.Unlock()
 
-	if err := s.v1.CheckAccountLoaded(ctx, s.accountName); err != nil {
+	if err := s.txClient.CheckAccountLoaded(ctx, s.accountName); err != nil {
 		return nil, "", 0, err
 	}
 
@@ -49,7 +49,7 @@ func (s *sdkTxSigner) Sign(ctx context.Context, req *TxRequest) ([]byte, string,
 }
 
 func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
-	signer := s.v1.Signer()
+	signer := s.txClient.Signer()
 	acc, exists := signer.GetAccount(s.accountName)
 	if !exists {
 		return nil, "", 0, fmt.Errorf("account %s not found", s.accountName)
@@ -61,7 +61,7 @@ func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest) ([]byte, stri
 		return nil, "", 0, err
 	}
 
-	gasPrice, gasLimit, err := s.v1.EstimateGasPriceAndUsage(ctx, []sdktypes.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM, req.Opts...)
+	gasPrice, gasLimit, err := s.txClient.EstimateGasPriceAndUsage(ctx, []sdktypes.Msg{msg}, gasestimation.TxPriority_TX_PRIORITY_MEDIUM, req.Opts...)
 	if err != nil {
 		return nil, "", 0, fmt.Errorf("estimating gas: %w", err)
 	}
@@ -81,7 +81,7 @@ func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest) ([]byte, stri
 }
 
 func (s *sdkTxSigner) signRegular(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
-	signer := s.v1.Signer()
+	signer := s.txClient.Signer()
 
 	txBuilder, err := signer.TxBuilder(req.Msgs, req.Opts...)
 	if err != nil {
@@ -101,7 +101,7 @@ func (s *sdkTxSigner) signRegular(ctx context.Context, req *TxRequest) ([]byte, 
 		if !hasUserSetFee {
 			txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 		}
-		gasLimit, err = s.v1.EstimateGasForTx(ctx, txBuilder)
+		gasLimit, err = s.txClient.EstimateGasForTx(ctx, txBuilder)
 		if err != nil {
 			return nil, "", 0, fmt.Errorf("gas estimation: %w", err)
 		}
