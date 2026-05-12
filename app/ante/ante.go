@@ -34,8 +34,8 @@ func NewAnteHandler(
 		ante.NewSetUpContextDecorator(),
 		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
-		// Ensure the tx does not contain any extension options.
-		ante.NewExtensionOptionsDecorator(nil),
+		// Ensure the tx contains only known critical extension options.
+		ante.NewExtensionOptionsDecorator(EIP712ExtensionOptionChecker),
 		// Ensure the tx passes ValidateBasic.
 		ante.NewValidateBasicDecorator(),
 		// Ensure the tx has not reached a height timeout.
@@ -49,11 +49,13 @@ func NewAnteHandler(
 		// Ensure that the tx's gas price is >= the network minimum gas price.
 		// Side effect: deducts fees from the fee payer. Sets the tx priority in context.
 		ante.NewDeductFeeDecorator(accountKeeper, bankKeeper, feegrantKeeper, ValidateTxFeeWrapper(minfeeKeeper)),
+		// Recover EIP-712 public keys before the stock signature decorators run.
+		NewEIP712SetPubKeyDecorator(accountKeeper),
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
 		// Ensure that the tx's count of signatures is <= the tx signature limit.
-		ante.NewValidateSigCountDecorator(accountKeeper),
+		NewEIP712ValidateSigCountDecorator(accountKeeper),
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.
 		// Side effect: consumes gas from the gas meter.
 		ante.NewSigGasConsumeDecorator(accountKeeper, sigGasConsumer),

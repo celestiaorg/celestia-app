@@ -1,0 +1,11 @@
+syntax = "proto3";
+package celestia.tx.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/pkg/tx/eip712";
+
+// ExtensionOptionsEIP712 is the critical extension option that declares the
+// Celestia EIP-712 schema version and numeric Ethereum domain chain ID.
+message ExtensionOptionsEIP712 {
+  uint32 schema_version = 1;
+  uint64 eth_chain_id = 2;
+}

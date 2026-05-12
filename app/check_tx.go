@@ -6,6 +6,7 @@ import (
 	"cosmossdk.io/errors"
 	apperr "github.com/celestiaorg/celestia-app/v9/app/errors"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -120,6 +121,16 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	}
 
 	if sigs[0].PubKey == nil {
+		if eip712.IsEIP712SignatureData(sigs[0].Data) {
+			signers, err := sigTx.GetSigners()
+			if err != nil {
+				return nil, 0, err
+			}
+			if len(signers) == 0 {
+				return nil, 0, fmt.Errorf("tx of type %T contains no signers", tx)
+			}
+			return signers[0], sigs[0].Sequence, nil
+		}
 		return nil, 0, fmt.Errorf("tx signer %d has no associated pubkey", 0)
 	}
 

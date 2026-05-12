@@ -3,6 +3,7 @@ package encoding
 import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -46,6 +47,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	// Register the standard types from the Cosmos SDK on interfaceRegistry and amino.
 	std.RegisterInterfaces(interfaceRegistry)
 	std.RegisterLegacyAminoCodec(amino)
+	eip712.RegisterInterfaces(interfaceRegistry)
 
 	for _, mod := range moduleBasics {
 		mod.RegisterInterfaces(interfaceRegistry)
@@ -62,6 +64,9 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 		SigningOptions: &signing.Options{
 			AddressCodec:          addressCodec,
 			ValidatorAddressCodec: validatorAddressCodec,
+		},
+		CustomSignModes: []signing.SignModeHandler{
+			eip712.SignModeHandler{},
 		},
 		ProtoDecoder: txDecoder,
 	})
