@@ -13,12 +13,8 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
-<<<<<<< HEAD
+	"github.com/celestiaorg/celestia-app/v8/app/observability"
 	"github.com/celestiaorg/celestia-app/v8/multiplexer/internal"
-=======
-	"github.com/celestiaorg/celestia-app/v9/app/observability"
-	"github.com/celestiaorg/celestia-app/v9/multiplexer/internal"
->>>>>>> eda077f2 (feat: add gRPC interceptors to app (#7234))
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
