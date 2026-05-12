@@ -13,7 +13,12 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v8/multiplexer/internal"
+=======
+	"github.com/celestiaorg/celestia-app/v9/app/observability"
+	"github.com/celestiaorg/celestia-app/v9/multiplexer/internal"
+>>>>>>> eda077f2 (feat: add gRPC interceptors to app (#7234))
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -324,7 +329,9 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 
 	m.clientContext = m.clientContext.WithGRPCClient(grpcClient)
 	m.logger.Debug("gRPC client assigned to client context", "target", m.svrCfg.GRPC.Address)
-	grpcSrv, err := servergrpc.NewGRPCServer(m.clientContext, m.nativeApp, m.svrCfg.GRPC)
+	grpcSrv, err := servergrpc.NewGRPCServer(m.clientContext, m.nativeApp, m.svrCfg.GRPC, servergrpc.WithGRPCServerOptions(
+		grpc.ChainUnaryInterceptor(observability.UnaryPrometheusInterceptor()),
+	))
 	if err != nil {
 		return nil, m.clientContext, err
 	}
