@@ -30,7 +30,7 @@ require (
 	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
 	github.com/celestiaorg/nmt v0.24.3
 	github.com/celestiaorg/rsmt2d v0.15.2
-	github.com/cockroachdb/pebble/v2 v2.1.4
+	github.com/cockroachdb/pebble/v2 v2.1.5
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
 	github.com/consensys/gnark v0.14.0
