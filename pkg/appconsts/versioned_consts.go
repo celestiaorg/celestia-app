@@ -5,7 +5,7 @@ import (
 )
 
 func GetTimeoutCommit(_ uint64) time.Duration {
-	return TimeoutCommit
+	return DefaultTimeoutCommit
 }
 
 // GetSquareSizeUpperBound return the upper bound (consensus critical) square

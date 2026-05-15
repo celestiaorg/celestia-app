@@ -1,0 +1,13 @@
+syntax = "proto3";
+package celestia.consensustimeouts.v1;
+
+import "celestia/consensustimeouts/v1/params.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/consensustimeouts/types";
+
+// GenesisState defines the consensustimeouts module's genesis state.
+message GenesisState {
+  // params defines the module parameters at genesis.
+  Params params = 1 [(gogoproto.nullable) = false];
+}

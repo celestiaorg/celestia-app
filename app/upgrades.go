@@ -8,6 +8,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	consensustimeoutstypes "github.com/celestiaorg/celestia-app/v9/x/consensustimeouts/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -102,14 +103,15 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		added := fibreUpgradeStoreKeys()
-		if len(added) > 0 {
-			storeUpgrades := storetypes.StoreUpgrades{
-				Added: added,
-			}
-			// configure store loader that checks if version == upgradeHeight and applies store upgrades
-			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+		fibreAdded := fibreUpgradeStoreKeys()
+		added := make([]string, 0, 1+len(fibreAdded))
+		added = append(added, consensustimeoutstypes.StoreKey)
+		added = append(added, fibreAdded...)
+		storeUpgrades := storetypes.StoreUpgrades{
+			Added: added,
 		}
+		// configure store loader that checks if version == upgradeHeight and applies store upgrades
+		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
 }
 

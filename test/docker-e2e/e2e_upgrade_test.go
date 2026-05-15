@@ -406,13 +406,13 @@ func (s *CelestiaTestSuite) validateTimeoutInfo(ctx context.Context, node tastor
 	s.Require().NoError(err, "failed to fetch ABCI info")
 
 	ti := abciInfo.Response.TimeoutInfo
-	s.Require().Equal(appconsts.TimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
-	s.Require().Equal(appconsts.DelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
-	s.Require().Equal(appconsts.TimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
-	s.Require().Equal(appconsts.TimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
-	s.Require().Equal(appconsts.TimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
-	s.Require().Equal(appconsts.TimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
-	s.Require().Equal(appconsts.TimeoutCommit, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
+	s.Require().Equal(appconsts.DefaultTimeoutPropose, ti.TimeoutPropose, "v9 TimeoutPropose mismatch")
+	s.Require().Equal(appconsts.DefaultDelayedPrecommitTimeout, ti.DelayedPrecommitTimeout, "v9 DelayedPrecommitTimeout mismatch")
+	s.Require().Equal(appconsts.DefaultTimeoutPrevote, ti.TimeoutPrevote, "v9 TimeoutPrevote mismatch")
+	s.Require().Equal(appconsts.DefaultTimeoutPrevoteDelta, ti.TimeoutPrevoteDelta, "v9 TimeoutPrevoteDelta mismatch")
+	s.Require().Equal(appconsts.DefaultTimeoutPrecommit, ti.TimeoutPrecommit, "v9 TimeoutPrecommit mismatch")
+	s.Require().Equal(appconsts.DefaultTimeoutPrecommitDelta, ti.TimeoutPrecommitDelta, "v9 TimeoutPrecommitDelta mismatch")
+	s.Require().Equal(appconsts.DefaultTimeoutCommit, ti.TimeoutCommit, "v9 TimeoutCommit mismatch")
 }
 
 // validateMaxExpectedTimePerBlock queries the IBC connection params and

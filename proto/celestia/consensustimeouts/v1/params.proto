@@ -1,0 +1,19 @@
+syntax = "proto3";
+package celestia.consensustimeouts.v1;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/duration.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/consensustimeouts/types";
+
+// Params defines the parameters for the consensustimeouts module.
+message Params {
+  google.protobuf.Duration timeout_propose           = 1 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration timeout_propose_delta     = 2 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration timeout_prevote           = 3 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration timeout_prevote_delta     = 4 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration timeout_precommit         = 5 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration timeout_precommit_delta   = 6 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration timeout_commit            = 7 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+  google.protobuf.Duration delayed_precommit_timeout = 8 [(gogoproto.nullable) = false, (gogoproto.stdduration) = true];
+}

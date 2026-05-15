@@ -10,23 +10,23 @@ import (
 
 // TestMaxExpectedTimePerBlock fails if MaxExpectedTimePerBlock deviates too
 // much from the expected block time * 5. The expected block time is primarily
-// determined by DelayedPrecommitTimeout and The TimeoutCommit. If this test fails, it means that
+// determined by DefaultDelayedPrecommitTimeout and DefaultTimeoutCommit. If this test fails, it means that
 // timeout constants were modified without updating MaxExpectedTimePerBlock (or
 // vice versa). All of these values need to be updated together:
-//   - DelayedPrecommitTimeout (and other Timeout* constants)
+//   - DefaultDelayedPrecommitTimeout (and other DefaultTimeout* constants)
 //   - MaxExpectedTimePerBlock
 func TestMaxExpectedTimePerBlock(t *testing.T) {
-	expectedBlockTime := DelayedPrecommitTimeout + TimeoutCommit
+	expectedBlockTime := DefaultDelayedPrecommitTimeout + DefaultTimeoutCommit
 	want := expectedBlockTime * 5
 	deviation := MaxExpectedTimePerBlock - want
 	if deviation < 0 {
 		deviation = -deviation
 	}
 	// Allow up to 2 seconds of tolerance to account for the fact that
-	// DelayedPrecommitTimeout + TimeoutCommit isn't exactly 3 seconds.
+	// DefaultDelayedPrecommitTimeout + DefaultTimeoutCommit isn't exactly 3 seconds.
 	tolerance := 2 * time.Second
 	assert.LessOrEqual(t, deviation, tolerance,
-		"MaxExpectedTimePerBlock (%v) deviates from (DelayedPrecommitTimeout + TimeoutCommit) * 5 (%v) by more than %v. "+
+		"MaxExpectedTimePerBlock (%v) deviates from (DefaultDelayedPrecommitTimeout + DefaultTimeoutCommit) * 5 (%v) by more than %v. "+
 			"If you changed timeout constants, also update MaxExpectedTimePerBlock.",
 		MaxExpectedTimePerBlock, want, tolerance)
 }

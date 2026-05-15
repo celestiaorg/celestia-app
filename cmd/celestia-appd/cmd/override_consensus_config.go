@@ -20,12 +20,12 @@ func overrideConsensusTimeouts(cmd *cobra.Command, logger log.Logger) error {
 	sctx := server.GetServerContextFromCmd(cmd)
 	cfg := sctx.Config
 
-	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-	cfg.Consensus.TimeoutPrevote = appconsts.TimeoutPrevote
-	cfg.Consensus.TimeoutPrevoteDelta = appconsts.TimeoutPrevoteDelta
-	cfg.Consensus.TimeoutPrecommit = appconsts.TimeoutPrecommit
-	cfg.Consensus.TimeoutPrecommitDelta = appconsts.TimeoutPrecommitDelta
-	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+	cfg.Consensus.TimeoutPropose = appconsts.DefaultTimeoutPropose
+	cfg.Consensus.TimeoutPrevote = appconsts.DefaultTimeoutPrevote
+	cfg.Consensus.TimeoutPrevoteDelta = appconsts.DefaultTimeoutPrevoteDelta
+	cfg.Consensus.TimeoutPrecommit = appconsts.DefaultTimeoutPrecommit
+	cfg.Consensus.TimeoutPrecommitDelta = appconsts.DefaultTimeoutPrecommitDelta
+	cfg.Consensus.TimeoutCommit = appconsts.DefaultTimeoutCommit
 
 	return nil
 }

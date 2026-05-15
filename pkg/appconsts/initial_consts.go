@@ -1,5 +1,7 @@
 package appconsts
 
+import "time"
+
 // The following defaults correspond to initial parameters of the network that can be changed, not via app versions
 // but other means such as on-chain governance, or the node's local config
 const (
@@ -29,4 +31,15 @@ const (
 	// This ensures all blocks in the snapshot window (SnapshotInterval × SnapshotKeepRecent)
 	// are retained so other nodes can sync from snapshots.
 	MinRetainBlocks uint64 = 3000
+
+	// Default consensus timeouts. Values match CIP-048. Governance-modifiable
+	// via the x/consensustimeouts module after the v9 upgrade.
+	DefaultTimeoutPropose          = 3000 * time.Millisecond
+	DefaultTimeoutProposeDelta     = 500 * time.Millisecond
+	DefaultTimeoutPrevote          = 2000 * time.Millisecond
+	DefaultTimeoutPrevoteDelta     = 500 * time.Millisecond
+	DefaultTimeoutPrecommit        = 3000 * time.Millisecond
+	DefaultTimeoutPrecommitDelta   = 500 * time.Millisecond
+	DefaultTimeoutCommit           = 500 * time.Millisecond
+	DefaultDelayedPrecommitTimeout = 2100 * time.Millisecond
 )

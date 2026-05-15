@@ -27,24 +27,13 @@ const (
 	// minimum, changing SubtreeRootThreshold requires a new client release and
 	// deployment before the change takes effect on the network.
 	// See: https://github.com/celestiaorg/celestia-app/issues/6831
-	SubtreeRootThreshold  int    = 64
-	TxSizeCostPerByte     uint64 = 10
-	GasPerBlobByte        uint32 = 8
-	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose               = time.Millisecond * 3000
-	TimeoutProposeDelta          = time.Millisecond * 500
-	TimeoutPrevote               = time.Millisecond * 2000
-	TimeoutPrevoteDelta          = time.Millisecond * 500
-	TimeoutPrecommit             = time.Millisecond * 3000
-	TimeoutPrecommitDelta        = time.Millisecond * 500
-	TimeoutCommit                = time.Millisecond * 500
-	// DelayedPrecommitTimeout is the primary determinant of expected block
-	// time. If this value changes, MaxExpectedTimePerBlock should also be
-	// updated. See TestMaxExpectedTimePerBlock.
-	DelayedPrecommitTimeout = time.Millisecond * 2100
+	SubtreeRootThreshold int    = 64
+	TxSizeCostPerByte    uint64 = 10
+	GasPerBlobByte       uint32 = 8
+	MaxTxSize            int    = 8_388_608 // 8 MiB in bytes
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
 	// 3-5x the expected block time. The expected block time is primarily
-	// determined by DelayedPrecommitTimeout + TimeoutCommit (~2.6 seconds), so this value is
+	// determined by DefaultDelayedPrecommitTimeout + DefaultTimeoutCommit (~2.6 seconds), so this value is
 	// 13 seconds (~5x). If the timeout constants change, this value must be
 	// updated.
 	MaxExpectedTimePerBlock = 13 * time.Second

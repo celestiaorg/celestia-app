@@ -14,6 +14,8 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v9/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/x/consensustimeouts"
+	consensustimeoutstypes "github.com/celestiaorg/celestia-app/v9/x/consensustimeouts/types"
 	"github.com/celestiaorg/celestia-app/v9/x/forwarding"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v9/x/minfee"
@@ -89,6 +91,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	zkism.AppModule{},
 	// celestia
 	blob.AppModule{},
+	consensustimeouts.AppModuleBasic{},
 	forwarding.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
@@ -175,6 +178,7 @@ func (app *App) setModuleOrder() {
 		minttypes.ModuleName,
 		ibcexported.ModuleName,
 		minfeetypes.ModuleName,
+		consensustimeoutstypes.ModuleName,
 		genutiltypes.ModuleName,
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
@@ -219,12 +223,13 @@ func allStoreKeys() []string {
 		icahosttypes.StoreKey,
 		signaltypes.StoreKey,
 		blobtypes.StoreKey,
-		minfeetypes.StoreKey,      // added in v4
-		consensustypes.StoreKey,   // added in v4
-		circuittypes.StoreKey,     // added in v4
-		hyperlanetypes.ModuleName, // added in v4
-		warptypes.ModuleName,      // added in v4
-		zkismtypes.StoreKey,       // added in v7
+		minfeetypes.StoreKey,            // added in v4
+		consensustypes.StoreKey,         // added in v4
+		circuittypes.StoreKey,           // added in v4
+		hyperlanetypes.ModuleName,       // added in v4
+		warptypes.ModuleName,            // added in v4
+		zkismtypes.StoreKey,             // added in v7
+		consensustimeoutstypes.StoreKey, // added in v9
 	}
 	keys = append(keys, fibreStoreKeys()...)
 	return keys

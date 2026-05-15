@@ -1,0 +1,17 @@
+syntax = "proto3";
+package celestia.consensustimeouts.v1;
+
+import "celestia/consensustimeouts/v1/params.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/consensustimeouts/types";
+
+// EventUpdateParams defines an event that is emitted when consensustimeouts
+// parameters are updated. It is triggered after a successful execution of a
+// parameter update proposal.
+message EventUpdateParams {
+  // authority is the address that updated the parameters.
+  string authority = 1;
+  // params are the updated parameters.
+  Params params = 2 [(gogoproto.nullable) = false];
+}

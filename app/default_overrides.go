@@ -273,8 +273,8 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Mempool.Type = tmcfg.MempoolTypeCAT
 	cfg.Mempool.MaxGossipDelay = time.Second * 20
 
-	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
-	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
+	cfg.Consensus.TimeoutPropose = appconsts.DefaultTimeoutPropose
+	cfg.Consensus.TimeoutCommit = appconsts.DefaultTimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
 
 	cfg.TxIndex.Indexer = "null"

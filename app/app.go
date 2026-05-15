@@ -41,6 +41,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v9/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/x/consensustimeouts"
+	consensustimeoutskeeper "github.com/celestiaorg/celestia-app/v9/x/consensustimeouts/keeper"
+	consensustimeoutstypes "github.com/celestiaorg/celestia-app/v9/x/consensustimeouts/types"
 	"github.com/celestiaorg/celestia-app/v9/x/forwarding"
 	forwardingkeeper "github.com/celestiaorg/celestia-app/v9/x/forwarding/keeper"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
@@ -172,33 +175,34 @@ type App struct {
 	memKeys map[string]*storetypes.MemoryStoreKey
 
 	// keepers
-	AccountKeeper       authkeeper.AccountKeeper
-	BankKeeper          bankkeeper.Keeper
-	AuthzKeeper         authzkeeper.Keeper
-	ConsensusKeeper     consensuskeeper.Keeper
-	CapabilityKeeper    *capabilitykeeper.Keeper
-	StakingKeeper       *stakingkeeper.Keeper
-	SlashingKeeper      slashingkeeper.Keeper
-	MintKeeper          mintkeeper.Keeper
-	DistrKeeper         distrkeeper.Keeper
-	GovKeeper           *govkeeper.Keeper
-	UpgradeKeeper       *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
-	SignalKeeper        signal.Keeper
-	MinFeeKeeper        *minfeekeeper.Keeper
-	ParamsKeeper        paramskeeper.Keeper
-	IBCKeeper           *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
-	EvidenceKeeper      evidencekeeper.Keeper
-	TransferKeeper      ibctransferkeeper.Keeper
-	FeeGrantKeeper      feegrantkeeper.Keeper
-	ICAHostKeeper       icahostkeeper.Keeper
-	PacketForwardKeeper *packetforwardkeeper.Keeper
-	BlobKeeper          blobkeeper.Keeper
-	CircuitKeeper       circuitkeeper.Keeper
-	HyperlaneKeeper     hyperlanekeeper.Keeper
-	WarpKeeper          warpkeeper.Keeper
-	IsmKeeper           *zkismkeeper.Keeper
-	ForwardingKeeper    forwardingkeeper.Keeper
-	fibreKeepers        //nolint:unused // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
+	AccountKeeper           authkeeper.AccountKeeper
+	BankKeeper              bankkeeper.Keeper
+	AuthzKeeper             authzkeeper.Keeper
+	ConsensusKeeper         consensuskeeper.Keeper
+	CapabilityKeeper        *capabilitykeeper.Keeper
+	StakingKeeper           *stakingkeeper.Keeper
+	SlashingKeeper          slashingkeeper.Keeper
+	MintKeeper              mintkeeper.Keeper
+	DistrKeeper             distrkeeper.Keeper
+	GovKeeper               *govkeeper.Keeper
+	UpgradeKeeper           *upgradekeeper.Keeper // Upgrades are set in endblock when signaled
+	SignalKeeper            signal.Keeper
+	MinFeeKeeper            *minfeekeeper.Keeper
+	ConsensusTimeoutsKeeper *consensustimeoutskeeper.Keeper
+	ParamsKeeper            paramskeeper.Keeper
+	IBCKeeper               *ibckeeper.Keeper // IBCKeeper must be a pointer in the app, so we can SetRouter on it correctly
+	EvidenceKeeper          evidencekeeper.Keeper
+	TransferKeeper          ibctransferkeeper.Keeper
+	FeeGrantKeeper          feegrantkeeper.Keeper
+	ICAHostKeeper           icahostkeeper.Keeper
+	PacketForwardKeeper     *packetforwardkeeper.Keeper
+	BlobKeeper              blobkeeper.Keeper
+	CircuitKeeper           circuitkeeper.Keeper
+	HyperlaneKeeper         hyperlanekeeper.Keeper
+	WarpKeeper              warpkeeper.Keeper
+	IsmKeeper               *zkismkeeper.Keeper
+	ForwardingKeeper        forwardingkeeper.Keeper
+	fibreKeepers            //nolint:unused // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -210,9 +214,12 @@ type App struct {
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
-	treePool                *wrapper.TreePool
-	delayedPrecommitTimeout time.Duration
-	timeoutCommit           time.Duration
+	treePool *wrapper.TreePool
+	// Non-nil only when CLI flags are set AND the chain-ID is not a production
+	// chain. When non-nil, TimeoutInfo overrides the keeper value for that
+	// field.
+	timeoutCommitOverride           *time.Duration
+	delayedPrecommitTimeoutOverride *time.Duration
 	// checkStateMu protects concurrent access to BaseApp's checkState (mempool state).
 	// This prevents data races between Commit updating checkState and QuerySequence
 	// reading it via CheckState().
@@ -221,8 +228,9 @@ type App struct {
 
 // New returns a reference to an uninitialized app. Callers must subsequently
 // call app.Info or app.InitChain to initialize the baseapp. Setting
-// delayedPrecommitTimeout or timeoutCommit to 0 will result in using the
-// default value from appconsts.
+// delayedPrecommitTimeout or timeoutCommit to 0 (or running on a production
+// chain-ID) results in using the value stored by the x/consensustimeouts
+// keeper.
 func New(
 	logger log.Logger,
 	db dbm.DB,
@@ -245,23 +253,33 @@ func New(
 
 	govModuleAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
-	if delayedPrecommitTimeout == 0 {
-		delayedPrecommitTimeout = appconsts.DelayedPrecommitTimeout
-	}
+	const (
+		celestiaMainnetChainID = "celestia"
+		mochaTestnetChainID    = "mocha-4"
+		arabicaDevnetChainID   = "arabica-11"
+	)
 
-	if timeoutCommit == 0 {
-		timeoutCommit = appconsts.TimeoutCommit
-	}
+	chainID := baseApp.ChainID()
+	allowOverride := chainID != celestiaMainnetChainID &&
+		chainID != mochaTestnetChainID &&
+		chainID != arabicaDevnetChainID
 
 	app := &App{
-		BaseApp:                 baseApp,
-		keys:                    keys,
-		tkeys:                   tkeys,
-		memKeys:                 memKeys,
-		txCache:                 NewTxCache(),
-		delayedPrecommitTimeout: delayedPrecommitTimeout,
-		timeoutCommit:           timeoutCommit,
-		checkStateMu:            &sync.RWMutex{},
+		BaseApp:      baseApp,
+		keys:         keys,
+		tkeys:        tkeys,
+		memKeys:      memKeys,
+		txCache:      NewTxCache(),
+		checkStateMu: &sync.RWMutex{},
+	}
+
+	if allowOverride {
+		if delayedPrecommitTimeout != 0 {
+			app.delayedPrecommitTimeoutOverride = &delayedPrecommitTimeout
+		}
+		if timeoutCommit != 0 {
+			app.timeoutCommitOverride = &timeoutCommit
+		}
 	}
 
 	// needed for migration from x/params -> module's ownership of own params
@@ -404,6 +422,12 @@ func New(
 
 	app.MinFeeKeeper = minfeekeeper.NewKeeper(encodingConfig.Codec, keys[minfeetypes.StoreKey], app.ParamsKeeper, app.GetSubspace(minfeetypes.ModuleName), authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
+	app.ConsensusTimeoutsKeeper = consensustimeoutskeeper.NewKeeper(
+		encodingConfig.Codec,
+		keys[consensustimeoutstypes.StoreKey],
+		govModuleAddr,
+	)
+
 	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 	ibcRouter := ibcporttypes.NewRouter()                                                   // Create static IBC router
 	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)                          // Add transfer route
@@ -468,6 +492,7 @@ func New(
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
+		consensustimeouts.NewAppModule(encodingConfig.Codec, app.ConsensusTimeoutsKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
 		icaModule{ica.NewAppModule(nil, &app.ICAHostKeeper)}, // The first argument is nil because the ICA controller is not enabled on celestia-app.
 		// ensure the light client module types are registered.
@@ -570,7 +595,7 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(app.NewUncachedContext(true, tmproto.Header{}))
 
 	return res, nil
 }
@@ -641,7 +666,7 @@ func (app *App) EndBlocker(ctx sdk.Context) (sdk.EndBlock, error) {
 		}
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(ctx)
 
 	return res, nil
 }
@@ -663,7 +688,7 @@ func (app *App) InitChainer(ctx sdk.Context, req *abci.RequestInitChain) (*abci.
 		return nil, err
 	}
 
-	res.TimeoutInfo = app.TimeoutInfo()
+	res.TimeoutInfo = app.TimeoutInfo(ctx)
 	return res, nil
 }
 
@@ -904,17 +929,28 @@ func (app *App) NewProposalContext(header tmproto.Header) sdk.Context {
 	return ctx
 }
 
-func (app *App) TimeoutInfo() abci.TimeoutInfo {
-	return abci.TimeoutInfo{
-		TimeoutPropose:          appconsts.TimeoutPropose,
-		TimeoutProposeDelta:     appconsts.TimeoutProposeDelta,
-		TimeoutCommit:           app.timeoutCommit,
-		TimeoutPrevote:          appconsts.TimeoutPrevote,
-		TimeoutPrevoteDelta:     appconsts.TimeoutPrevoteDelta,
-		TimeoutPrecommit:        appconsts.TimeoutPrecommit,
-		TimeoutPrecommitDelta:   appconsts.TimeoutPrecommitDelta,
-		DelayedPrecommitTimeout: app.delayedPrecommitTimeout,
+// TimeoutInfo returns the consensus timeouts to advertise to CometBFT. Values
+// are sourced from the x/consensustimeouts keeper; CLI overrides apply only on
+// non-production chains (see allowOverride in New).
+func (app *App) TimeoutInfo(ctx sdk.Context) abci.TimeoutInfo {
+	p := app.ConsensusTimeoutsKeeper.GetParams(ctx)
+	info := abci.TimeoutInfo{
+		TimeoutPropose:          p.TimeoutPropose,
+		TimeoutProposeDelta:     p.TimeoutProposeDelta,
+		TimeoutPrevote:          p.TimeoutPrevote,
+		TimeoutPrevoteDelta:     p.TimeoutPrevoteDelta,
+		TimeoutPrecommit:        p.TimeoutPrecommit,
+		TimeoutPrecommitDelta:   p.TimeoutPrecommitDelta,
+		TimeoutCommit:           p.TimeoutCommit,
+		DelayedPrecommitTimeout: p.DelayedPrecommitTimeout,
 	}
+	if app.timeoutCommitOverride != nil {
+		info.TimeoutCommit = *app.timeoutCommitOverride
+	}
+	if app.delayedPrecommitTimeoutOverride != nil {
+		info.DelayedPrecommitTimeout = *app.delayedPrecommitTimeoutOverride
+	}
+	return info
 }
 
 // Commit overrides BaseApp's Commit to add synchronization with QuerySequence.

@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util"
 	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	consensustimeoutstypes "github.com/celestiaorg/celestia-app/v9/x/consensustimeouts/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -32,6 +33,28 @@ func TestUpgrades(t *testing.T) {
 
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v8"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+	})
+}
+
+func TestApplyUpgradeSetsConsensusTimeoutsParams(t *testing.T) {
+	t.Run("apply v9 upgrade should leave ConsensusTimeoutsKeeper at default params", func(t *testing.T) {
+		consensusParams := app.DefaultConsensusParams()
+		testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v9"))
+
+		ctx := testApp.NewContext(false)
+
+		// Apply the v9 upgrade.
+		plan := upgradetypes.Plan{
+			Name:   "v9",
+			Height: 1,
+			Info:   "test",
+		}
+		err := testApp.UpgradeKeeper.ApplyUpgrade(ctx, plan)
+		require.NoError(t, err)
+
+		got := testApp.ConsensusTimeoutsKeeper.GetParams(ctx)
+		require.Equal(t, consensustimeoutstypes.DefaultParams(), got)
 	})
 }
 
