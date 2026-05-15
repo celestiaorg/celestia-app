@@ -96,6 +96,10 @@ jobs:
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
+          CELESTIA_APP_VERSION: ${{ needs.build-e2e-image.outputs.tag }}
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}
+          PUSHGATEWAY_PASSWORD: ${{ secrets.PUSHGATEWAY_PASSWORD }}
 
   test-race:
     runs-on: ubuntu-latest
