@@ -17,6 +17,13 @@ import (
 
 const TxInclusionQueryPath = "txInclusionProof"
 
+// maxQueryDataSize is the upper bound on the size of req.Data accepted by the
+// inclusion proof query handlers. It mirrors the governance upper bound on the
+// block MaxBytes parameter so any legitimate block payload fits, while
+// preventing callers from triggering an unbounded square.Construct invocation
+// (and the associated heap amplification) via /abci_query.
+const maxQueryDataSize = appconsts.DefaultUpperBoundMaxBytes
+
 // QueryTxInclusionProof defines the logic performed when the ABCI client uses the Query
 // method with the custom query path. The index of the transaction being
 // proved must be appended to the path. The marshalled bytes of the transaction
@@ -25,6 +32,11 @@ const TxInclusionQueryPath = "txInclusionProof"
 // example path for proving the third transaction in that block:
 // custom/txInclusionProof/3
 func QueryTxInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery) ([]byte, error) {
+	// reject oversized inputs before doing any allocation-heavy work
+	if len(req.Data) > maxQueryDataSize {
+		return nil, fmt.Errorf("request data too large: %d bytes exceeds maximum of %d bytes", len(req.Data), maxQueryDataSize)
+	}
+
 	// parse the index from the path
 	if len(path) != 1 {
 		return nil, fmt.Errorf("expected query path length: 1 actual: %d ", len(path))
@@ -69,6 +81,11 @@ const ShareInclusionQueryPath = "shareInclusionProof"
 // be appended to the path. Example path for proving the set of shares [3, 5]:
 // custom/shareInclusionProof/3/5
 func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQuery) ([]byte, error) {
+	// reject oversized inputs before doing any allocation-heavy work
+	if len(req.Data) > maxQueryDataSize {
+		return nil, fmt.Errorf("request data too large: %d bytes exceeds maximum of %d bytes", len(req.Data), maxQueryDataSize)
+	}
+
 	// parse the share range from the path
 	if len(path) != 2 {
 		return nil, fmt.Errorf("expected query path length: 2 actual: %d ", len(path))
