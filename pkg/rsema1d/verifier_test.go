@@ -39,8 +39,10 @@ func TestVerifierMatchesContextRoot(t *testing.T) {
 			proofs[i] = p
 		}
 
-		root, err := v.Verify(commitment, rlcOrig, proofs)
-		if err != nil {
+		if err := v.SetRLC(rlcOrig); err != nil {
+			t.Fatalf("shard %d: SetRLC: %v", shard, err)
+		}
+		if err := v.Verify(commitment, proofs); err != nil {
 			t.Fatalf("shard %d: Verify: %v", shard, err)
 		}
 
@@ -49,8 +51,8 @@ func TestVerifierMatchesContextRoot(t *testing.T) {
 		if err != nil {
 			t.Fatalf("shard %d: CreateVerificationContext: %v", shard, err)
 		}
-		if !bytes.Equal(root, expectedRoot[:]) {
-			t.Fatalf("shard %d: rlcOrigRoot mismatch: got %x want %x", shard, root, expectedRoot)
+		if !bytes.Equal(v.RLCRoot(), expectedRoot[:]) {
+			t.Fatalf("shard %d: rlcOrigRoot mismatch: got %x want %x", shard, v.RLCRoot(), expectedRoot)
 		}
 	}
 }
@@ -86,7 +88,10 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 		}
 		cleanProofs[i] = p
 	}
-	if _, err := v.Verify(commitment, rlcOrig, cleanProofs); err != nil {
+	if err := v.SetRLC(rlcOrig); err != nil {
+		t.Fatalf("SetRLC: %v", err)
+	}
+	if err := v.Verify(commitment, cleanProofs); err != nil {
 		t.Fatalf("clean verify: %v", err)
 	}
 
@@ -102,12 +107,12 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 		tampered[i] = &RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
 	}
 	tampered[3].Row[0] ^= 0xFF
-	if _, err := v.Verify(commitment, rlcOrig, tampered); err == nil {
+	if err := v.Verify(commitment, tampered); err == nil {
 		t.Fatalf("tampered row was accepted")
 	}
 
 	// And the Verifier must remain usable after a failure.
-	if _, err := v.Verify(commitment, rlcOrig, cleanProofs); err != nil {
+	if err := v.Verify(commitment, cleanProofs); err != nil {
 		t.Fatalf("post-failure verify: %v", err)
 	}
 }
@@ -134,6 +139,9 @@ func TestVerifierVariableBatchSize(t *testing.T) {
 		t.Fatalf("Encode: %v", err)
 	}
 
+	if err := v.SetRLC(rlcOrig); err != nil {
+		t.Fatalf("SetRLC: %v", err)
+	}
 	for _, n := range []int{32, 8, 48} {
 		proofs := make([]*RowProof, n)
 		for i := range proofs {
@@ -143,7 +151,7 @@ func TestVerifierVariableBatchSize(t *testing.T) {
 			}
 			proofs[i] = p
 		}
-		if _, err := v.Verify(commitment, rlcOrig, proofs); err != nil {
+		if err := v.Verify(commitment, proofs); err != nil {
 			t.Fatalf("n=%d: Verify: %v", n, err)
 		}
 	}
