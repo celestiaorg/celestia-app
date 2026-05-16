@@ -7,9 +7,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
-// chunkSize is the fixed Leopard chunk size in bytes
-const chunkSize = 64
-
 // Commitment is the cryptographic commitment to encoded data
 type Commitment = [32]byte // SHA256(rowRoot || rlcOrigRoot)
 

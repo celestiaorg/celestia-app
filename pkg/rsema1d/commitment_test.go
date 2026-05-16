@@ -128,46 +128,6 @@ func TestComputeRLC(t *testing.T) {
 	}
 }
 
-func TestExtractSymbols(t *testing.T) {
-	// Test that extractSymbols correctly interprets Leopard format
-	chunk := make([]byte, 64)
-
-	// Set up test data in Leopard format:
-	// bytes 0-31: low bytes of symbols
-	// bytes 32-63: high bytes of symbols
-	for i := range 32 {
-		chunk[i] = byte(i * 2)      // Low byte
-		chunk[32+i] = byte(i*2 + 1) // High byte
-	}
-
-	symbols := extractSymbols(chunk)
-
-	// Verify we got 32 symbols
-	if len(symbols) != 32 {
-		t.Fatalf("extractSymbols returned %d symbols, expected 32", len(symbols))
-	}
-
-	// Verify each symbol is correctly formed
-	for i := range 32 {
-		expectedSymbol := field.GF16((i*2+1)<<8 | (i * 2))
-		if symbols[i] != expectedSymbol {
-			t.Errorf("Symbol %d: got %04x, expected %04x", i, symbols[i], expectedSymbol)
-		}
-	}
-}
-
-func TestExtractSymbolsPanic(t *testing.T) {
-	// Test that extractSymbols panics with wrong size chunk
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("extractSymbols should panic with non-64-byte chunk")
-		}
-	}()
-
-	chunk := make([]byte, 63) // Wrong size
-	extractSymbols(chunk)
-}
-
 func TestRLCLinearity(t *testing.T) {
 	// Test that RLC is linear: RLC(a + b) = RLC(a) + RLC(b)
 	config := &Config{

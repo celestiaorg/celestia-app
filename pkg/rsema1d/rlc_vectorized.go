@@ -7,17 +7,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
-// The batched RLC over K rows is a matrix multiply over GF(2^16):
-// Result[r][k] = Σ_i Rows[r][i] * Coeffs[i][k]. We run it as an outer-product
-// accumulate so every inner step is a scalar-broadcast multiply — the shape
-// reedsolomon's SIMD kernel handles natively — and fuse the 8 GF128 components
-// into one kernel call per transposed column.
-const symbolsPerChunk = 32 // GF(2^16) symbols stored per 64-byte Leopard chunk
-
 // computeRLCVectorized computes the RLC of len(rows) rows against `coeffs`
-// using the vectorized GF(2^16) SIMD kernel. Rows must be Leopard-sized
-// (a positive multiple of chunkSize bytes, equal across rows); K is padded
-// up to a multiple of symbolsPerChunk internally when needed.
+// using the vectorized GF(2^16) SIMD kernel. It runs the RLC as an
+// outer-product accumulation so the inner loop maps to reedsolomon's scalar
+// broadcast kernel. Rows must be equal-sized Leopard chunks; K is padded up to
+// a multiple of field.LeopardSymbolsPerChunk when needed.
 func computeRLCVectorized(rows [][]byte, coeffs []field.GF128, config *Config) []field.GF128 {
 	origK := len(rows)
 	if origK == 0 {
@@ -25,7 +19,7 @@ func computeRLCVectorized(rows [][]byte, coeffs []field.GF128, config *Config) [
 	}
 
 	rows, K := padToSymbolsPerChunk(rows)
-	numChunks := len(rows[0]) / chunkSize
+	numChunks := len(rows[0]) / field.LeopardChunkSize
 	workers := min(max(config.WorkerCount, 1), numChunks)
 	if workers == 1 {
 		return field.GF128sFromLeopard(accumulateRLC(rows, coeffs, K, 0, numChunks), K)[:origK]
@@ -61,56 +55,53 @@ func accumulateRLC(rows [][]byte, coeffs []field.GF128, k, cStart, cEnd int) []b
 	buf := make([]byte, field.LeopardGF128BufSize(k))
 	outs := field.LeopardGF128Views(buf, k)
 	stride := 2 * k
-	cols := make([]byte, symbolsPerChunk*stride)
+	cols := make([]byte, field.LeopardSymbolsPerChunk*stride)
 
-	rowBlocks := k / symbolsPerChunk
+	rowBlocks := k / field.LeopardSymbolsPerChunk
 	for c := cStart; c < cEnd; c++ {
 		transposeChunk(cols, k, rows, c, rowBlocks)
-		for j := range symbolsPerChunk {
+		for j := range field.LeopardSymbolsPerChunk {
 			col := cols[j*stride : (j+1)*stride]
-			field.MulSliceXor8(&coeffs[c*symbolsPerChunk+j], col, &outs)
+			field.MulSliceXor8(&coeffs[c*field.LeopardSymbolsPerChunk+j], col, &outs)
 		}
 	}
 	return buf
 }
 
-// transposeChunk gathers the 64-byte Leopard chunk at row offset c from each
-// of k rows and redistributes it into symbolsPerChunk column buffers, each of
-// stride 2k bytes and itself in Leopard format. Reading a block of 32 rows
-// at a time keeps each row's cache line hot while we scatter into the column
-// buffers.
+// transposeChunk gathers the Leopard chunk at row offset c from each row and
+// redistributes it into per-symbol column buffers, each in Leopard format.
 func transposeChunk(cols []byte, k int, rows [][]byte, c, rowBlocks int) {
 	stride := 2 * k
-	rowOff := c * chunkSize
-	var block [symbolsPerChunk * chunkSize]byte
+	rowOff := c * field.LeopardChunkSize
+	var block [field.LeopardSymbolsPerChunk * field.LeopardChunkSize]byte
 	for rb := range rowBlocks {
-		rowBase := rb * symbolsPerChunk
-		for rr := range symbolsPerChunk {
-			copy(block[rr*chunkSize:(rr+1)*chunkSize], rows[rowBase+rr][rowOff:rowOff+chunkSize])
+		rowBase := rb * field.LeopardSymbolsPerChunk
+		for rr := range field.LeopardSymbolsPerChunk {
+			copy(block[rr*field.LeopardChunkSize:(rr+1)*field.LeopardChunkSize],
+				rows[rowBase+rr][rowOff:rowOff+field.LeopardChunkSize])
 		}
-		colOff := rb * chunkSize
-		for j := range symbolsPerChunk {
-			dst := cols[j*stride+colOff : j*stride+colOff+chunkSize]
-			for rr := range symbolsPerChunk {
-				src := block[rr*chunkSize:]
-				dst[rr] = src[j]                                 // low byte
-				dst[symbolsPerChunk+rr] = src[symbolsPerChunk+j] // high byte
+		colOff := rb * field.LeopardChunkSize
+		for j := range field.LeopardSymbolsPerChunk {
+			dst := cols[j*stride+colOff : j*stride+colOff+field.LeopardChunkSize]
+			for rr := range field.LeopardSymbolsPerChunk {
+				src := block[rr*field.LeopardChunkSize:]
+				dst[rr] = src[j]
+				dst[field.LeopardSymbolsPerChunk+rr] = src[field.LeopardSymbolsPerChunk+j]
 			}
 		}
 	}
 }
 
 // padToSymbolsPerChunk returns rows with its length rounded up to a multiple
-// of symbolsPerChunk by appending a single shared zero row, along with the
-// (possibly padded) length. rows is not mutated; a new slice header is
-// returned only when padding is needed.
+// of LeopardSymbolsPerChunk. rows is not mutated; a new slice header is
+// returned only when padding is needed, with padded entries sharing one zero row.
 func padToSymbolsPerChunk(rows [][]byte) ([][]byte, int) {
 	K := len(rows)
-	rem := K % symbolsPerChunk
+	rem := K % field.LeopardSymbolsPerChunk
 	if rem == 0 {
 		return rows, K
 	}
-	paddedK := K + symbolsPerChunk - rem
+	paddedK := K + field.LeopardSymbolsPerChunk - rem
 	padded := make([][]byte, paddedK)
 	copy(padded, rows)
 	zero := make([]byte, len(rows[0]))

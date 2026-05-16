@@ -478,13 +478,7 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 	}
 
 	if req.WithRlc {
-		rlcCoeffs := blob.RLC()
-		coeffBytes := make([]byte, len(rlcCoeffs)*16)
-		for i, c := range rlcCoeffs {
-			b := field.ToBytes128(c)
-			copy(coeffBytes[i*16:(i+1)*16], b[:])
-		}
-		shard.Coefficients = coeffBytes
+		shard.Coefficients = field.MarshalGF128s(blob.RLC())
 	}
 
 	return &types.DownloadShardResponse{Shard: shard}, nil
@@ -555,12 +549,7 @@ func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.Downl
 	}
 
 	if req.WithRlc {
-		coeffBytes := make([]byte, len(d.incorrectEncoding.RLCOrig)*16)
-		for i, c := range d.incorrectEncoding.RLCOrig {
-			b := field.ToBytes128(c)
-			copy(coeffBytes[i*16:(i+1)*16], b[:])
-		}
-		shard.Coefficients = coeffBytes
+		shard.Coefficients = field.MarshalGF128s(d.incorrectEncoding.RLCOrig)
 	}
 
 	return &types.DownloadShardResponse{Shard: shard}, nil

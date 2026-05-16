@@ -26,13 +26,15 @@ func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 // BuildPaddedRLCTree creates a padded Merkle tree from RLC original values
 // Only stores K values padded to kPadded (not totalPadded like row tree)
 func BuildPaddedRLCTree(rlcOrig []field.GF128, config *Config) *merkle.Tree {
-	zeroRLC := make([]byte, 16) // Zero GF128 value
+	zeroRLC := make([]byte, field.GF128Size) // Zero GF128 value
+	rlcLeavesBuf := make([]byte, config.K*field.GF128Size)
 	paddedRLCLeaves := make([][]byte, config.kPadded)
 
 	// Fill with K original RLC values
 	for i := range config.K {
-		bytes := field.ToBytes128(rlcOrig[i])
-		paddedRLCLeaves[i] = bytes[:]
+		leaf := rlcLeavesBuf[i*field.GF128Size : (i+1)*field.GF128Size]
+		field.EncodeGF128(leaf, rlcOrig[i])
+		paddedRLCLeaves[i] = leaf
 	}
 	// Pad to next power of 2
 	for i := config.K; i < config.kPadded; i++ {

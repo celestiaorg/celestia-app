@@ -192,8 +192,8 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
-	rlcCoeffs, err := parseRLCCoeffs(shard.GetCoefficients(), blobCfg.OriginalRows)
-	if err != nil {
+	rlcCoeffs := make([]field.GF128, blobCfg.OriginalRows)
+	if err := field.DecodeGF128s(rlcCoeffs, shard.GetCoefficients()); err != nil {
 		return err
 	}
 
@@ -267,23 +267,6 @@ func (s *Server) putVerifier(v *rsema1d.Verifier) {
 		return
 	}
 	s.verifiers <- v
-}
-
-// parseRLCCoeffs validates and converts RLC coefficients from bytes to field elements.
-func parseRLCCoeffs(rlcCoeffs []byte, expectedCount int) ([]field.GF128, error) {
-	expectedLen := expectedCount * 16
-	if len(rlcCoeffs) != expectedLen {
-		return nil, fmt.Errorf("expected %d bytes for %d rlc coefficients, got %d", expectedLen, expectedCount, len(rlcCoeffs))
-	}
-
-	coeffs := make([]field.GF128, expectedCount)
-	for i := range expectedCount {
-		var coeffArray [16]byte
-		copy(coeffArray[:], rlcCoeffs[i*16:(i+1)*16])
-		coeffs[i] = field.FromBytes128(coeffArray)
-	}
-
-	return coeffs, nil
 }
 
 // parseRowSize determines and validates the row size from all rows.

@@ -72,7 +72,19 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 		return fmt.Errorf("failed to compute row root: %w", err)
 	}
 
-	// 2. Derive coefficients once and compute RLC for the row
+	// 2. Verify commitment before caching coefficients. A malformed row proof
+	// must not be able to initialize the shared coefficient cache from a bogus
+	// row root and poison subsequent valid row checks.
+	h := sha256.New()
+	h.Write(rowRoot[:])
+	h.Write(context.rlcOrigRoot[:])
+	computedCommitment := h.Sum(nil)
+
+	if commitment != [32]byte(computedCommitment) {
+		return errors.New("commitment verification failed")
+	}
+
+	// 3. Derive coefficients once and compute RLC for the row
 	context.coeffsOnce.Do(func() {
 		context.coeffs = deriveCoefficients(rowRoot, context.config.K, context.config.N, len(proof.Row))
 	})
@@ -81,7 +93,7 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	}
 	computedRLC := computeRLC(proof.Row, context.coeffs)
 
-	// 3. Verify RLC matches the extended value at this index
+	// 4. Verify RLC matches the extended value at this index
 	if proof.Index >= len(context.rlcExtended) {
 		return fmt.Errorf("index %d out of range", proof.Index)
 	}
@@ -89,16 +101,6 @@ func VerifyRowWithContext(proof *RowProof, commitment Commitment, context *Verif
 	expectedRLC := context.rlcExtended[proof.Index]
 	if !field.Equal128(computedRLC, expectedRLC) {
 		return errors.New("computed RLC does not match expected value")
-	}
-
-	// 4. Verify commitment
-	h := sha256.New()
-	h.Write(rowRoot[:])
-	h.Write(context.rlcOrigRoot[:])
-	computedCommitment := h.Sum(nil)
-
-	if commitment != [32]byte(computedCommitment) {
-		return errors.New("commitment verification failed")
 	}
 
 	return nil
@@ -151,7 +153,8 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	computedRLC := computeRLC(proof.Row, coeffs)
 
 	// 3. Compute RLC root from proof
-	rlcBytes := field.ToBytes128(computedRLC)
+	var rlcBytes [field.GF128Size]byte
+	field.EncodeGF128(rlcBytes[:], computedRLC)
 	rlcOrigRoot, err := merkle.ComputeRootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
 	if err != nil {
 		return fmt.Errorf("failed to compute RLC root: %w", err)

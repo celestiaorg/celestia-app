@@ -129,21 +129,65 @@ func TestGF128Serialization(t *testing.T) {
 
 	for i, original := range tests {
 		// Serialize to bytes
-		serialized := ToBytes128(original)
+		var serialized [GF128Size]byte
+		EncodeGF128(serialized[:], original)
 
 		// Check size
-		if len(serialized) != 16 {
-			t.Errorf("Test %d: ToBytes128 returned %d bytes, expected 16", i, len(serialized))
+		if len(serialized) != GF128Size {
+			t.Errorf("Test %d: EncodeGF128 returned %d bytes, expected %d", i, len(serialized), GF128Size)
 			continue
 		}
 
 		// Deserialize back
-		deserialized := FromBytes128(serialized)
+		deserialized := DecodeGF128(serialized[:])
 
 		// Check round-trip
 		if !Equal128(deserialized, original) {
 			t.Errorf("Test %d: round-trip failed, got %v, expected %v", i, deserialized, original)
 		}
+	}
+}
+
+func TestGF128SliceSerialization(t *testing.T) {
+	values := []GF128{
+		Zero(),
+		{1, 2, 3, 4, 5, 6, 7, 8},
+		{0x1234, 0x5678, 0x9ABC, 0xDEF0, 0x1111, 0x2222, 0x3333, 0x4444},
+	}
+
+	serialized := MarshalGF128s(values)
+	if len(serialized) != len(values)*GF128Size {
+		t.Fatalf("MarshalGF128s returned %d bytes, expected %d", len(serialized), len(values)*GF128Size)
+	}
+
+	roundTrip, err := UnmarshalGF128s(serialized)
+	if err != nil {
+		t.Fatalf("UnmarshalGF128s: %v", err)
+	}
+	if len(roundTrip) != len(values) {
+		t.Fatalf("UnmarshalGF128s returned %d values, expected %d", len(roundTrip), len(values))
+	}
+	for i := range values {
+		if !Equal128(roundTrip[i], values[i]) {
+			t.Fatalf("value %d mismatch: got %v want %v", i, roundTrip[i], values[i])
+		}
+	}
+
+	decoded := make([]GF128, len(values))
+	if err := DecodeGF128s(decoded, serialized); err != nil {
+		t.Fatalf("DecodeGF128s: %v", err)
+	}
+	for i := range values {
+		if !Equal128(decoded[i], values[i]) {
+			t.Fatalf("decoded value %d mismatch: got %v want %v", i, decoded[i], values[i])
+		}
+	}
+
+	if _, err := UnmarshalGF128s(serialized[:len(serialized)-1]); err == nil {
+		t.Fatalf("UnmarshalGF128s accepted truncated data")
+	}
+	if err := DecodeGF128s(decoded, serialized[:len(serialized)-1]); err == nil {
+		t.Fatalf("DecodeGF128s accepted truncated data")
 	}
 }
 

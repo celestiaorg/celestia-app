@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -214,8 +215,8 @@ func (c *Client) downloadFrom(
 			return nil, fmt.Errorf("RLC verification requested but response is incomplete: coeffs=%d rowSize=%d proofs=%d",
 				len(result.rlcCoeffs), rowSize, len(result.proofs))
 		}
-		rlcOrig, parseErr := parseRLCCoeffs(result.rlcCoeffs, rlcVerifier.cfg.OriginalRows)
-		if parseErr != nil {
+		rlcOrig := make([]field.GF128, rlcVerifier.cfg.OriginalRows)
+		if parseErr := field.DecodeGF128s(rlcOrig, result.rlcCoeffs); parseErr != nil {
 			log.WarnContext(ctx, "failed to parse RLC coefficients, skipping validator", "error", parseErr)
 			return nil, fmt.Errorf("failed to parse RLC coefficients: %w", parseErr)
 		} else if setErr := rlcVerifier.setOrWaitVerificationContext(rlcOrig, rowSize, &result.proofs[0].RowProof); setErr != nil {

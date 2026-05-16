@@ -19,8 +19,7 @@ func TestComputeRLCVectorizedMatchesScalar(t *testing.T) {
 		{1024, 1024},
 		{1024, 8192},
 		{4096, 4096},
-		// K values that are not a multiple of symbolsPerChunk to exercise
-		// the internal zero-row padding path.
+		// K values that exercise the internal zero-row padding path.
 		{1, 64},
 		{17, 128},
 		{33, 64},

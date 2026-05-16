@@ -405,12 +405,7 @@ func makeUploadRequests(
 	pbPromise *types.PaymentPromise,
 	rlcCoeffs []field.GF128,
 ) map[*core.Validator]*types.UploadShardRequest {
-	// flatten rlc coefficients into a single byte slice (16 bytes per coefficient)
-	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, coeff := range rlcCoeffs {
-		b := field.ToBytes128(coeff)
-		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
-	}
+	rlcCoeffsBytes := field.MarshalGF128s(rlcCoeffs)
 
 	requests := make(map[*core.Validator]*types.UploadShardRequest, len(shardMap))
 	for val, rowIndices := range shardMap {

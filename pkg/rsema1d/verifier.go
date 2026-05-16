@@ -12,9 +12,6 @@ import (
 	"github.com/klauspost/reedsolomon"
 )
 
-// rlcLeafSize is the byte size of one GF128 leaf in the padded RLC merkle tree.
-const rlcLeafSize = 16
-
 // Verifier owns the reusable state for RLC-based row verification. SetRLC
 // prepares the RLC extension and root once; Verify and VerifyShared then check
 // batches of row proofs against that cached state.
@@ -26,13 +23,13 @@ type Verifier struct {
 	config *Config
 	enc    reedsolomon.Encoder
 
-	// K+N Leopard-formatted 64-byte shard views in one backing array. The
+	// K+N Leopard-formatted RLC chunks in one backing array. The
 	// first K shards are filled from the caller's RLC vector; the rest are
 	// Reed-Solomon parity.
 	rlcShards [][]byte
 
-	// kPadded 16-byte leaves for the padded RLC tree. The first K leaves alias
-	// a shared backing array; padded leaves share one zero leaf.
+	// kPadded serialized-GF128 leaves for the padded RLC tree. The first K
+	// leaves alias a shared backing array; padded leaves share one zero leaf.
 	rlcLeaves [][]byte
 
 	// Verify scratch buffers. Capacity grows to the largest batch seen.
@@ -51,7 +48,7 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	workAlloc := newRetainAllocator(leopardEncodeWorkBuffers(cfg.N), field.LeopardShardSize)
+	workAlloc := newRetainAllocator(leopardEncodeWorkBuffers(cfg.N), field.LeopardChunkSize)
 	enc, err := reedsolomon.New(cfg.K, cfg.N,
 		reedsolomon.WithLeopardGF16(true),
 		reedsolomon.WithWorkAllocator(workAlloc))
@@ -59,17 +56,17 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
 	}
 
-	rlcShardsBuf := make([]byte, (cfg.K+cfg.N)*field.LeopardShardSize)
+	rlcShardsBuf := make([]byte, (cfg.K+cfg.N)*field.LeopardChunkSize)
 	rlcShards := make([][]byte, cfg.K+cfg.N)
 	for i := range rlcShards {
-		rlcShards[i] = rlcShardsBuf[i*field.LeopardShardSize : (i+1)*field.LeopardShardSize]
+		rlcShards[i] = rlcShardsBuf[i*field.LeopardChunkSize : (i+1)*field.LeopardChunkSize]
 	}
 
-	rlcLeavesBuf := make([]byte, cfg.K*rlcLeafSize)
-	zeroLeaf := make([]byte, rlcLeafSize)
+	rlcLeavesBuf := make([]byte, cfg.K*field.GF128Size)
+	zeroLeaf := make([]byte, field.GF128Size)
 	rlcLeaves := make([][]byte, cfg.kPadded)
 	for i := range cfg.K {
-		rlcLeaves[i] = rlcLeavesBuf[i*rlcLeafSize : (i+1)*rlcLeafSize]
+		rlcLeaves[i] = rlcLeavesBuf[i*field.GF128Size : (i+1)*field.GF128Size]
 	}
 	for i := cfg.K; i < cfg.kPadded; i++ {
 		rlcLeaves[i] = zeroLeaf
@@ -94,9 +91,8 @@ func (v *Verifier) SetRLC(rlc []field.GF128) error {
 	// Pack once into both layouts needed below: Leopard shards for RS
 	// extension and serialized leaves for the padded RLC tree.
 	for i := range v.config.K {
-		field.PackToLeopard(rlc[i], v.rlcShards[i])
-		b := field.ToBytes128(rlc[i])
-		copy(v.rlcLeaves[i], b[:])
+		field.EncodeLeopardGF128(v.rlcShards[i], rlc[i])
+		field.EncodeGF128(v.rlcLeaves[i], rlc[i])
 	}
 	// parity shards must be zeroed before the in-place encode; leftover bytes
 	// from the previous Verify would otherwise feed into the systematic encode.
@@ -174,8 +170,8 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 		}
 	}
 	// Variable-row-size mode derives rowSize from proofs[0].
-	if rowSize == 0 || rowSize%chunkSize != 0 {
-		return 0, fmt.Errorf("row size must be a positive multiple of %d, got %d", chunkSize, rowSize)
+	if rowSize == 0 || rowSize%field.LeopardChunkSize != 0 {
+		return 0, fmt.Errorf("row size must be a positive multiple of %d, got %d", field.LeopardChunkSize, rowSize)
 	}
 	return rowSize, nil
 }
@@ -213,7 +209,7 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 	computedRLCs := computeRLCVectorized(rowsView, coeffs, v.config)
 
 	for i, p := range proofs {
-		expectedRLC := field.UnpackFromLeopard(v.rlcShards[p.Index])
+		expectedRLC := field.DecodeLeopardGF128(v.rlcShards[p.Index])
 		if !field.Equal128(computedRLCs[i], expectedRLC) {
 			return fmt.Errorf("row %d: computed RLC does not match expected value", p.Index)
 		}
@@ -242,8 +238,8 @@ func leopardEncodeWorkBuffers(parity int) int {
 }
 
 // retainAllocator is a fixed-size reedsolomon.WorkAllocator. The verifier only
-// uses the Leopard Encode path on 64-byte RLC shards, so the requested shape is
-// invariant after construction. Keeping the slab in a strong reference avoids
+// uses the Leopard Encode path on fixed-size RLC chunks, so the requested shape
+// is invariant after construction. Keeping the slab in a strong reference avoids
 // sync.Pool eviction under GC pressure.
 type retainAllocator struct {
 	work [][]byte

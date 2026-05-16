@@ -206,19 +206,11 @@ func makeTestRequest(
 		}
 	}
 
-	// flatten RLC values
-	rlcCoeffs := blob.RLC()
-	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, coeff := range rlcCoeffs {
-		b := field.ToBytes128(coeff)
-		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
-	}
-
 	req := &types.UploadShardRequest{
 		Promise: promisePb,
 		Shard: &types.BlobShard{
 			Rows:         rows,
-			Coefficients: rlcCoeffsBytes,
+			Coefficients: field.MarshalGF128s(blob.RLC()),
 		},
 	}
 

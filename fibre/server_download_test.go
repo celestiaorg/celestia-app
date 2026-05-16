@@ -155,18 +155,10 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 		}
 	}
 
-	// flatten RLC coefficients for storage
-	rlcCoeffs := blob.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
-
 	shard := &types.BlobShard{
 		Rows:         rows,
 		Root:         make([]byte, 32),
-		Coefficients: coeffBytes,
+		Coefficients: field.MarshalGF128s(blob.RLC()),
 	}
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))
