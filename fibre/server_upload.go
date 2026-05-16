@@ -212,13 +212,15 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	}
 	defer s.putVerifier(verifier)
 
-	rlcRoot, err := verifier.Verify(promise.Commitment, rlcCoeffs, rows)
-	if err != nil {
+	if err := verifier.SetRLC(rlcCoeffs); err != nil {
+		return fmt.Errorf("preparing verifier: %w", err)
+	}
+	if err := verifier.Verify(promise.Commitment, rows); err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
 	// set RLC root, keep coefficients as-is for storage
-	shard.Root = rlcRoot
+	shard.Root = verifier.RLCRoot()
 	return nil
 }
 

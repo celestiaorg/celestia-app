@@ -15,52 +15,46 @@ import (
 // rlcLeafSize is the byte size of one GF128 leaf in the padded RLC merkle tree.
 const rlcLeafSize = 16
 
-// Verifier batches RLC extension, padded RLC tree construction, row-proof
-// merkle verification, batched RLC computation, and commitment checks into
-// a single Verify call. The Verifier is bound to a Config at construction
-// and reuses internal buffers across Verify calls — making it the right
-// shape for hot loops where per-call allocation would otherwise dominate.
+// Verifier owns the reusable state for RLC-based row verification. SetRLC
+// prepares the RLC extension and root once; Verify and VerifyShared then check
+// batches of row proofs against that cached state.
 //
-// A Verifier is not safe for concurrent use; create one per goroutine.
+// SetRLC mutates shared state and must not race with verification. Verify also
+// reuses scratch buffers and is single-goroutine only. VerifyShared allocates
+// scratch buffers per call, so it may run concurrently after SetRLC completes.
 type Verifier struct {
 	config *Config
 	enc    reedsolomon.Encoder
 
-	// rlcShards holds K+N Leopard-formatted shard views, each a 64-byte
-	// slice into one shared backing array (the array is kept alive by the
-	// slice headers themselves — no separate field needed).
+	// K+N Leopard-formatted 64-byte shard views in one backing array. The
+	// first K shards are filled from the caller's RLC vector; the rest are
+	// Reed-Solomon parity.
 	rlcShards [][]byte
 
-	// rlcExtended holds the K+N unpacked GF128 values produced by enc.Encode.
-	rlcExtended []field.GF128
-
-	// rlcLeaves holds kPadded leaf views: the first K alias 16-byte slots in
-	// a shared backing array, the trailing kPadded-K all alias one shared
-	// zero slice.
+	// kPadded 16-byte leaves for the padded RLC tree. The first K leaves alias
+	// a shared backing array; padded leaves share one zero leaf.
 	rlcLeaves [][]byte
 
-	// Per-call grow buffers. Capacity climbs to the largest batch seen and
-	// stays there; the slice header is resliced to the current batch length.
+	// Verify scratch buffers. Capacity grows to the largest batch seen.
+	// VerifyShared uses per-call locals instead.
 	rowsView    [][]byte
 	proofInputs []merkle.ProofInput
+
+	rlcRoot [32]byte
 }
 
 // NewVerifier constructs a Verifier bound to cfg. Reusable buffers sized to
 // (K+N) shards and kPadded RLC leaves are allocated up front; the cached
 // Reed-Solomon encoder is created once and shared by every Verify call.
-// The encoder's work allocator is a per-Verifier retainAllocator that
-// caches the leopard codec's ~2 MiB scratch buffer across calls and
-// keeps it pinned through GC cycles — the default sync.Pool-backed
-// allocator drops entries under heap-doubling pressure, forcing per-call
-// re-allocation of the same large slab.
 func NewVerifier(cfg *Config) (*Verifier, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
+	workAlloc := newRetainAllocator(leopardEncodeWorkBuffers(cfg.N), field.LeopardShardSize)
 	enc, err := reedsolomon.New(cfg.K, cfg.N,
 		reedsolomon.WithLeopardGF16(true),
-		reedsolomon.WithWorkAllocator(&retainAllocator{}))
+		reedsolomon.WithWorkAllocator(workAlloc))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
 	}
@@ -82,30 +76,23 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 	}
 
 	return &Verifier{
-		config:      cfg,
-		enc:         enc,
-		rlcShards:   rlcShards,
-		rlcExtended: make([]field.GF128, cfg.K+cfg.N),
-		rlcLeaves:   rlcLeaves,
+		config:    cfg,
+		enc:       enc,
+		rlcShards: rlcShards,
+		rlcLeaves: rlcLeaves,
 	}, nil
 }
 
-// Verify validates a batch of row proofs against commitment using RLS as
-// the original K RLC values for the shard. RLC extension, padded RLC tree
-// construction, per-row merkle proof verification, batched RLC computation,
-// and per-row commitment hashing all happen in one call against the
-// Verifier's reusable buffers. Returns the rlc merkle root on success.
-func (v *Verifier) Verify(commitment Commitment, rlc []field.GF128, proofs []*RowProof) ([]byte, error) {
+// SetRLC extends the K original RLC values and caches the padded RLC root.
+// Callers that verify many shards against the same RLC vector can call SetRLC
+// once, then Verify or VerifyShared each shard without repeating the RS
+// extension and RLC tree build.
+func (v *Verifier) SetRLC(rlc []field.GF128) error {
 	if len(rlc) != v.config.K {
-		return nil, fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
+		return fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
 	}
-	if len(proofs) == 0 {
-		return nil, errors.New("no proofs provided")
-	}
-
-	// pack rlcOrig into both the Leopard shard slab (for RS extension) and the
-	// 16-byte leaves slab (for the padded RLC tree). Both source from the same
-	// caller-owned slice but each writes into its own pre-allocated backing.
+	// Pack once into both layouts needed below: Leopard shards for RS
+	// extension and serialized leaves for the padded RLC tree.
 	for i := range v.config.K {
 		field.PackToLeopard(rlc[i], v.rlcShards[i])
 		b := field.ToBytes128(rlc[i])
@@ -116,92 +103,122 @@ func (v *Verifier) Verify(commitment Commitment, rlc []field.GF128, proofs []*Ro
 	for i := v.config.K; i < v.config.K+v.config.N; i++ {
 		clear(v.rlcShards[i])
 	}
-
 	if err := v.enc.Encode(v.rlcShards); err != nil {
-		return nil, fmt.Errorf("extending RLC: %w", err)
+		return fmt.Errorf("extending RLC: %w", err)
 	}
-	for i := range v.config.K + v.config.N {
-		v.rlcExtended[i] = field.UnpackFromLeopard(v.rlcShards[i])
-	}
-	// 16-byte leaves: ALU-bound, not bandwidth-bound, so unrelated to
-	// cfg.WorkerCount (which governs the RLC-extension stages). Pinned to
-	// 1 because today merkle spawns goroutines per call — running parallel
-	// here would compound with the upload pool's own concurrency. Once
-	// merkle gets a persistent worker pool the right answer flips: delegate
-	// to the pool rather than pin sequential.
-	rlcRoot := merkle.NewTreeWithWorkers(v.rlcLeaves, 1).Root()
+	// Keep this sequential: callers often run several Verifiers in parallel.
+	v.rlcRoot = merkle.NewTreeWithWorkers(v.rlcLeaves, 1).Root()
+	return nil
+}
 
+// RLCRoot returns the padded RLC merkle root from the latest SetRLC call.
+func (v *Verifier) RLCRoot() []byte {
+	return v.rlcRoot[:]
+}
+
+// Verify checks a batch of row proofs using cached RLC state from SetRLC. It
+// verifies the shared row root, checks the commitment, then compares each
+// computed row RLC against the extended RLC shard.
+//
+// Verify reuses internal scratch buffers and is not safe for concurrent calls.
+func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof) error {
+	rowSize, err := v.validateProofs(proofs)
+	if err != nil {
+		return err
+	}
+	v.rowsView = resizeRows(v.rowsView, len(proofs))
+	v.proofInputs = resizeProofInputs(v.proofInputs, len(proofs))
+	return v.verify(commitment, proofs, rowSize, v.rowsView, v.proofInputs)
+}
+
+// VerifyShared is the concurrent-safe counterpart to Verify. It performs the
+// same checks, but allocates scratch buffers per call so multiple workers can
+// verify independent proof batches against one prepared RLC state.
+func (v *Verifier) VerifyShared(commitment Commitment, proofs []*RowProof) error {
+	rowSize, err := v.validateProofs(proofs)
+	if err != nil {
+		return err
+	}
+	rowsView := make([][]byte, len(proofs))
+	proofInputs := make([]merkle.ProofInput, len(proofs))
+	return v.verify(commitment, proofs, rowSize, rowsView, proofInputs)
+}
+
+// validateProofs checks proof shape invariants and returns the effective row
+// size, which is derived from proofs[0] when cfg.RowSize is unset.
+func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
+	if len(proofs) == 0 {
+		return 0, errors.New("no proofs provided")
+	}
 	expectedProofDepth := bits.Len(uint(v.config.totalPadded)) - 1
 	rowSize := v.config.RowSize
 	for i, p := range proofs {
 		if p == nil {
-			return nil, errors.New("received nil proof in verifier")
+			return 0, errors.New("received nil proof in verifier")
 		}
 		if i == 0 && rowSize == 0 {
 			rowSize = len(p.Row)
 		}
 		if p.Index < 0 || p.Index >= v.config.K+v.config.N {
-			return nil, fmt.Errorf("index %d out of range [0, %d)", p.Index, v.config.K+v.config.N)
+			return 0, fmt.Errorf("index %d out of range [0, %d)", p.Index, v.config.K+v.config.N)
 		}
 		if v.config.RowSize > 0 && len(p.Row) != v.config.RowSize {
-			return nil, fmt.Errorf("row %d: row size mismatch: expected %d, got %d", p.Index, v.config.RowSize, len(p.Row))
+			return 0, fmt.Errorf("row %d: row size mismatch: expected %d, got %d", p.Index, v.config.RowSize, len(p.Row))
 		}
 		if len(p.Row) != rowSize {
-			return nil, fmt.Errorf("batched verify requires equal-sized rows: row %d has %d bytes, expected %d",
+			return 0, fmt.Errorf("batched verify requires equal-sized rows: row %d has %d bytes, expected %d",
 				p.Index, len(p.Row), rowSize)
 		}
 		if len(p.RowProof) != expectedProofDepth {
-			return nil, fmt.Errorf("row %d: proof depth mismatch: expected %d, got %d", p.Index, expectedProofDepth, len(p.RowProof))
+			return 0, fmt.Errorf("row %d: proof depth mismatch: expected %d, got %d", p.Index, expectedProofDepth, len(p.RowProof))
 		}
 	}
-	// variable-row-size mode (cfg.RowSize == 0) derives rowSize from
-	// proofs[0]; guard against shapes computeRLCVectorized cannot accept.
+	// Variable-row-size mode derives rowSize from proofs[0].
 	if rowSize == 0 || rowSize%chunkSize != 0 {
-		return nil, fmt.Errorf("row size must be a positive multiple of %d, got %d", chunkSize, rowSize)
+		return 0, fmt.Errorf("row size must be a positive multiple of %d, got %d", chunkSize, rowSize)
 	}
+	return rowSize, nil
+}
 
-	v.proofInputs = resizeProofInputs(v.proofInputs, len(proofs))
+// verify is shared by Verify and VerifyShared; callers provide scratch buffers.
+func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int, rowsView [][]byte, proofInputs []merkle.ProofInput) error {
 	for i, p := range proofs {
-		v.proofInputs[i] = merkle.ProofInput{
+		proofInputs[i] = merkle.ProofInput{
 			Leaf:  p.Row,
 			Index: mapIndexToTreePosition(p.Index, v.config),
 			Path:  p.RowProof,
 		}
 	}
-	// GOMAXPROCS rather than cfg.WorkerCount: per-row merkle is ALU-bound on
-	// cache-resident proof bytes (not memory-bandwidth-bound like the RLC
-	// stages), so fanning out doesn't contend with concurrent verifiers in
-	// the bounded pool — the win is preserved even when cfg.WorkerCount=1.
-	rowRoot, err := merkle.ComputeRootFromProofs(v.proofInputs, runtime.GOMAXPROCS(0))
+	// Per-row Merkle verification is ALU-bound; use process-wide parallelism.
+	rowRoot, err := merkle.ComputeRootFromProofs(proofInputs, runtime.GOMAXPROCS(0))
 	if err != nil {
-		return nil, fmt.Errorf("verifying row proofs: %w", err)
+		return fmt.Errorf("verifying row proofs: %w", err)
 	}
 
-	// all proofs verified to the same rowRoot; check commitment once.
+	// All proofs share rowRoot, so one commitment check covers the batch.
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(v.rlcRoot[:])
 	var commit [32]byte
 	h.Sum(commit[:0])
 	if commitment != commit {
-		return nil, errors.New("commitment verification failed")
+		return errors.New("commitment verification failed")
 	}
 
 	coeffs := deriveCoefficients(rowRoot, v.config.K, v.config.N, rowSize)
 
-	v.rowsView = resizeRows(v.rowsView, len(proofs))
 	for i, p := range proofs {
-		v.rowsView[i] = p.Row
+		rowsView[i] = p.Row
 	}
-	computedRLCs := computeRLCVectorized(v.rowsView, coeffs, v.config)
+	computedRLCs := computeRLCVectorized(rowsView, coeffs, v.config)
 
 	for i, p := range proofs {
-		if !field.Equal128(computedRLCs[i], v.rlcExtended[p.Index]) {
-			return nil, fmt.Errorf("row %d: computed RLC does not match expected value", p.Index)
+		expectedRLC := field.UnpackFromLeopard(v.rlcShards[p.Index])
+		if !field.Equal128(computedRLCs[i], expectedRLC) {
+			return fmt.Errorf("row %d: computed RLC does not match expected value", p.Index)
 		}
 	}
-
-	return rlcRoot[:], nil
+	return nil
 }
 
 func resizeRows(buf [][]byte, n int) [][]byte {
@@ -218,24 +235,28 @@ func resizeProofInputs(buf []merkle.ProofInput, n int) []merkle.ProofInput {
 	return buf[:n]
 }
 
-// retainAllocator is a single-buffer reedsolomon.WorkAllocator. It lazily
-// allocates one (n, size)-shaped work slab on first Get and hands the same
-// slab back on every subsequent Get; Put returns the slab to the
-// allocator's field. Because the slab lives in a strong reference rather
-// than a sync.Pool, GC cycles never evict it — the default allocator's
-// per-cycle realloc churn vanishes.
+// leopardEncodeWorkBuffers returns the number of scratch slices requested by
+// klauspost/reedsolomon's GF(2^16) Leopard Encode path: 2*ceilPow2(parity).
+func leopardEncodeWorkBuffers(parity int) int {
+	return 2 * nextPowerOfTwo(parity)
+}
+
+// retainAllocator is a fixed-size reedsolomon.WorkAllocator. The verifier only
+// uses the Leopard Encode path on 64-byte RLC shards, so the requested shape is
+// invariant after construction. Keeping the slab in a strong reference avoids
+// sync.Pool eviction under GC pressure.
 type retainAllocator struct {
 	work [][]byte
 }
 
-func (a *retainAllocator) Get(n, size int) [][]byte {
-	if cap(a.work) >= n && len(a.work) > 0 && cap(a.work[0]) >= size {
-		return a.work[:n]
+func newRetainAllocator(n, size int) *retainAllocator {
+	return &retainAllocator{
+		work: reedsolomon.AllocAligned(n, size),
 	}
-	a.work = reedsolomon.AllocAligned(n, size)
-	return a.work
 }
 
-func (a *retainAllocator) Put(work [][]byte) {
-	a.work = work
+func (a *retainAllocator) Get(n, _ int) [][]byte {
+	return a.work[:n]
 }
+
+func (a *retainAllocator) Put([][]byte) {}
