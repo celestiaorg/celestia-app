@@ -50,8 +50,6 @@ jobs:
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
         with:
           go-version-file: 'go.mod'
-<<<<<<< HEAD
-=======
       - name: Ephemeral Go caches
         run: |
           echo "GOMODCACHE=$(mktemp -d)" >> $GITHUB_ENV
@@ -63,7 +61,6 @@ jobs:
         with:
           app-id: ${{ secrets.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
->>>>>>> d21bf9ff (chore(ci): mint GitHub App token for goreleaser (#7261))
       - name: Create .release-env file
         run: |-
           echo 'GITHUB_TOKEN=${{ steps.app-token.outputs.token }}' >> .release-env
