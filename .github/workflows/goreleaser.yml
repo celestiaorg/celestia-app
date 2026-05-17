@@ -2,7 +2,9 @@ name: goreleaser
 on:
   workflow_call:
     secrets:
-      GORELEASER_ACCESS_TOKEN:
+      RELEASE_APP_ID:
+        required: true
+      RELEASE_APP_PRIVATE_KEY:
         required: true
 
 jobs:
@@ -19,9 +21,15 @@ jobs:
       - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 #v5.5.0
         with:
           go-version-file: 'go.mod'
+      - name: Mint GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 #v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - name: Create .release-env file
         run: |-
-          echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
+          echo 'GITHUB_TOKEN=${{ steps.app-token.outputs.token }}' >> .release-env
       - name: Check the .goreleaser.yaml config file
         run: make goreleaser-check
         env:
@@ -52,9 +60,15 @@ jobs:
           echo "GOMODCACHE=$(mktemp -d)" >> $GITHUB_ENV
           echo "GOCACHE=$(mktemp -d)" >> $GITHUB_ENV
           echo "GOTMPDIR=$(mktemp -d)" >> $GITHUB_ENV
+      - name: Mint GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 #v3.2.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
       - name: Create .release-env file
         run: |-
-          echo 'GITHUB_TOKEN=${{secrets.GORELEASER_ACCESS_TOKEN}}' >> .release-env
+          echo 'GITHUB_TOKEN=${{ steps.app-token.outputs.token }}' >> .release-env
       - name: Create prebuilt binaries and attach them to the GitHub release
         run: make prebuilt-binary
         env:
