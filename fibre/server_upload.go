@@ -212,15 +212,13 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	}
 	defer s.putVerifier(verifier)
 
-	if err := verifier.SetRLC(rlcCoeffs); err != nil {
-		return fmt.Errorf("preparing verifier: %w", err)
-	}
-	if err := verifier.Verify(promise.Commitment, rows); err != nil {
+	rlcRoot, err := verifier.Verify(promise.Commitment, rows, rlcCoeffs)
+	if err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
 	// set RLC root, keep coefficients as-is for storage
-	shard.Root = verifier.RLCRoot()
+	shard.Root = rlcRoot
 	return nil
 }
 
@@ -228,10 +226,7 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 // for the v0 blob layout, each pinned to WorkerCount=1 (concurrency is
 // the channel capacity).
 func newVerifierPool(n int) chan *rsema1d.Verifier {
-	blobCfg, err := BlobConfigForVersion(0)
-	if err != nil {
-		panic(fmt.Sprintf("v0 BlobConfig must exist: %v", err))
-	}
+	blobCfg := DefaultBlobConfigV0()
 	verifiers := make(chan *rsema1d.Verifier, n)
 	for i := range n {
 		v, err := rsema1d.NewVerifier(&rsema1d.Config{

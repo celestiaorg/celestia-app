@@ -65,10 +65,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		v := makeVerifier()
 		b.ResetTimer()
 		for range b.N {
-			if err := v.SetRLC(rlcOrig); err != nil {
-				b.Fatal(err)
-			}
-			if err := v.Verify(commitment, proofs); err != nil {
+			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -83,10 +80,45 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				v := <-pool
-				if err := v.SetRLC(rlcOrig); err != nil {
+				if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 					b.Fatal(err)
 				}
-				if err := v.Verify(commitment, proofs); err != nil {
+				pool <- v
+			}
+		})
+	})
+
+	// shared/* mirrors the upload follow-up pattern: one Verify primes the
+	// shared state, then many VerifyShared calls reuse it. This is the path
+	// that the coefficient cache is meant to accelerate — VerifyShared no
+	// longer pays deriveCoefficients per call.
+	b.Run("shared/serial", func(b *testing.B) {
+		v := makeVerifier()
+		if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+			b.Fatalf("priming Verify: %v", err)
+		}
+		b.ResetTimer()
+		for range b.N {
+			if err := v.VerifyShared(commitment, proofs); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("shared/parallel/pool=NumCPU", func(b *testing.B) {
+		pool := make(chan *Verifier, numCPU)
+		for range numCPU {
+			v := makeVerifier()
+			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+				b.Fatalf("priming Verify: %v", err)
+			}
+			pool <- v
+		}
+		b.ResetTimer()
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				v := <-pool
+				if err := v.VerifyShared(commitment, proofs); err != nil {
 					b.Fatal(err)
 				}
 				pool <- v
