@@ -1,0 +1,442 @@
+<!DOCTYPE HTML>
+<html lang="en" class="sidebar-visible no-js light">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>TxClient v1 - Celestia App Specifications</title>
+        <!-- Custom HTML head -->
+        <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff" />
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+    </head>
+    <body>
+        <!-- Provide site root to javascript -->
+        <script type="text/javascript">
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script type="text/javascript">
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script type="text/javascript">
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('no-js')
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add('js');
+        </script>
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script type="text/javascript">
+            var html = document.querySelector('html');
+            var sidebar = 'hidden';
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            }
+            html.classList.remove('sidebar-visible');
+            html.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="data_structures.html"><strong aria-hidden="true">1.</strong> Data Structures</a></li><li class="chapter-item expanded "><a href="namespace.html"><strong aria-hidden="true">2.</strong> Namespace</a></li><li class="chapter-item expanded "><a href="shares.html"><strong aria-hidden="true">3.</strong> Shares</a></li><li class="chapter-item expanded "><a href="consensus.html"><strong aria-hidden="true">4.</strong> Consensus</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="cat_pool.html"><strong aria-hidden="true">4.1.</strong> CAT Pool</a></li></ol></li><li class="chapter-item expanded "><a href="block_proposer.html"><strong aria-hidden="true">5.</strong> Block Proposer</a></li><li class="chapter-item expanded "><a href="block_validity_rules.html"><strong aria-hidden="true">6.</strong> Block Validity Rules</a></li><li class="chapter-item expanded "><a href="ante_handler.html"><strong aria-hidden="true">7.</strong> AnteHandler</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="ante_handler_v1.html"><strong aria-hidden="true">7.1.</strong> AnteHandler v1</a></li><li class="chapter-item expanded "><a href="ante_handler_v2.html"><strong aria-hidden="true">7.2.</strong> AnteHandler v2</a></li><li class="chapter-item expanded "><a href="ante_handler_v3.html"><strong aria-hidden="true">7.3.</strong> AnteHandler v3</a></li><li class="chapter-item expanded "><a href="ante_handler_v4.html"><strong aria-hidden="true">7.4.</strong> AnteHandler v4</a></li><li class="chapter-item expanded "><a href="ante_handler_v5.html"><strong aria-hidden="true">7.5.</strong> AnteHandler v5</a></li><li class="chapter-item expanded "><a href="ante_handler_v6.html"><strong aria-hidden="true">7.6.</strong> AnteHandler v6</a></li></ol></li><li class="chapter-item expanded "><a href="fraud_proofs.html"><strong aria-hidden="true">8.</strong> Fraud Proofs</a></li><li class="chapter-item expanded "><a href="networking.html"><strong aria-hidden="true">9.</strong> Networking</a></li><li class="chapter-item expanded "><a href="public_key_cryptography.html"><strong aria-hidden="true">10.</strong> Public-Key Cryptography</a></li><li class="chapter-item expanded "><a href="data_square_layout.html"><strong aria-hidden="true">11.</strong> Data Square Layout</a></li><li class="chapter-item expanded "><a href="resource_pricing.html"><strong aria-hidden="true">12.</strong> Resource Pricing</a></li><li class="chapter-item expanded "><a href="multisig.html"><strong aria-hidden="true">13.</strong> Multisig</a></li><li class="chapter-item expanded "><a href="state_machine_modules.html"><strong aria-hidden="true">14.</strong> State Machine Modules</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="state_machine_modules_v1.html"><strong aria-hidden="true">14.1.</strong> State Machine Modules v1</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v2.html"><strong aria-hidden="true">14.2.</strong> State Machine Modules v2</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v3.html"><strong aria-hidden="true">14.3.</strong> State Machine Modules v3</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v4.html"><strong aria-hidden="true">14.4.</strong> State Machine Modules v4</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v5.html"><strong aria-hidden="true">14.5.</strong> State Machine Modules v5</a></li><li class="chapter-item expanded "><a href="state_machine_modules_v6.html"><strong aria-hidden="true">14.6.</strong> State Machine Modules v6</a></li></ol></li><li class="chapter-item expanded "><a href="parameters.html"><strong aria-hidden="true">15.</strong> Parameters</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="parameters_v1.html"><strong aria-hidden="true">15.1.</strong> Parameters v1</a></li><li class="chapter-item expanded "><a href="parameters_v2.html"><strong aria-hidden="true">15.2.</strong> Parameters v2</a></li><li class="chapter-item expanded "><a href="parameters_v3.html"><strong aria-hidden="true">15.3.</strong> Parameters v3</a></li><li class="chapter-item expanded "><a href="parameters_v4.html"><strong aria-hidden="true">15.4.</strong> Parameters v4</a></li><li class="chapter-item expanded "><a href="parameters_v5.html"><strong aria-hidden="true">15.5.</strong> Parameters v5</a></li><li class="chapter-item expanded "><a href="parameters_v6.html"><strong aria-hidden="true">15.6.</strong> Parameters v6</a></li></ol></li><li class="chapter-item expanded "><a href="types.html"><strong aria-hidden="true">16.</strong> Types</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="types_v5.html"><strong aria-hidden="true">16.1.</strong> Types v5</a></li><li class="chapter-item expanded "><a href="types_v6.html"><strong aria-hidden="true">16.2.</strong> Types v6</a></li></ol></li><li class="chapter-item expanded "><a href="tx_client.html" class="active"><strong aria-hidden="true">17.</strong> TxClient v1</a></li><li class="chapter-item expanded "><a href="tx_client_v2.html"><strong aria-hidden="true">18.</strong> TxClient v2</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
+        </nav>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky bordered">
+                    <div class="left-buttons">
+                        <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </button>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light (default)</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Celestia App Specifications</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/celestiaorg/celestia-app" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script type="text/javascript">
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="transaction-client"><a class="header" href="#transaction-client">Transaction Client</a></h1>
+<h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
+<p>The Transaction Client (TxClient) provides a high-level abstraction for constructing, signing, broadcasting, and confirming transactions on Celestia chain. It handles sequence mismatches, mempool evictions, rejections and provides parallel transaction submission via worker accounts. The client is built around two reliable submission strategies: ordered (sequential) and unordered (parallel) submissions.</p>
+<h2 id="protocolcomponent-description"><a class="header" href="#protocolcomponent-description">Protocol/Component Description</a></h2>
+<h3 id="gas-estimator"><a class="header" href="#gas-estimator">Gas Estimator</a></h3>
+<p>The gas estimation service is an external dependency that provides accurate gas and fee calculations for transaction submission.</p>
+<p><strong>Key Functionality</strong>:</p>
+<p>TxClient calls the gas estimation service during broadcast to ensure transactions have appropriate gas limits and fees, handling sequence mismatches automatically through re-signing with corrected sequences.</p>
+<p><strong>Note</strong>: Gas estimation is only necessary when the user did not set gas limit and gas price in tx options.</p>
+<p><strong>Gas Estimator APIs</strong>:</p>
+<ul>
+<li><code>EstimateGasPriceAndUsage(ctx context.Context, msgs []sdktypes.Msg, priority gasestimation.TxPriority, opts ...TxOption) (gasPrice float64, gasUsed uint64, err error)</code></li>
+<li><code>EstimateGasPrice(ctx context.Context, priority gasestimation.TxPriority) (float64, error)</code></li>
+</ul>
+<h2 id="tx-flow"><a class="header" href="#tx-flow">Tx Flow</a></h2>
+<p>Below will be described tx flow from submission to broadcasting it on celestia chain to confirmation and how transaction client handles it. It will be split into 3 sub-sections.</p>
+<h2 id="submission"><a class="header" href="#submission">Submission</a></h2>
+<p><strong>Important</strong>: Currently, only the below submission patterns are reliable for submitting transactions. Other patterns like sending multiple transactions from one account without waiting for confirmation will likely cause sequence mismatches and failures.</p>
+<h3 id="ordered-submission"><a class="header" href="#ordered-submission">Ordered Submission</a></h3>
+<p><strong>Characteristics</strong>: Low Throughput, Sequential Submission, Less error prone</p>
+<ul>
+<li><strong>Single Account</strong>: All transactions signed by one account</li>
+<li><strong>Sequential</strong>: Max one tx per block, each tx must be confirmed before subsequent can be resubmitted</li>
+<li><strong>Ordering</strong>: Transactions will likely be processed in submission order</li>
+<li><strong>Low Throughput</strong>: One tx per block per account</li>
+<li><strong>Use Case</strong>:
+<ul>
+<li>Applications and users requiring all blobs to be signed by a single account and reliably executed.</li>
+</ul>
+</li>
+</ul>
+<p><strong>APIs</strong>:</p>
+<ul>
+<li>
+<p><strong>SubmitTx</strong>: Sequential submission for SDK txs (no worker queue).</p>
+<ul>
+<li>
+<p><strong>Process</strong>: Build transaction → Broadcast → Confirm</p>
+<pre><code class="language-go">func (client *TxClient) SubmitTx(ctx context.Context, msgs []sdktypes.Msg, opts ...TxOption) (*TxResponse, error)
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>SubmitPayForBlob</strong>: Sequential submission with default account (no worker queue).</p>
+<ul>
+<li>
+<p><strong>Process</strong>: Create PFB with default account → Broadcast → Confirm</p>
+<pre><code class="language-go">func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error)
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>SubmitPayForBlobWithAccount</strong>: Sequential submission with a specified account (bypasses worker queue).</p>
+<ul>
+<li>
+<p><strong>Process</strong>: Create PFB with specified account → Broadcast → Confirmation</p>
+<pre><code class="language-go">func (client *TxClient) SubmitPayForBlobWithAccount(ctx context.Context, accountName string, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error)
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="unordered-submission"><a class="header" href="#unordered-submission">Unordered Submission</a></h3>
+<p><strong>Characteristics</strong>: High Throughput, Parallel submission, No Ordering</p>
+<ul>
+<li><strong>Worker Accounts</strong>: A pool of accounts is created by the primary account, each fee-granted with unlimited allowances.</li>
+<li><strong>Worker Queue</strong>: Transactions are queued and dispatched to available workers.</li>
+<li><strong>Parallel Workers</strong>:
+<ul>
+<li>Worker 0 = primary account</li>
+<li>Workers &gt;0 = additional fee-granted accounts</li>
+</ul>
+</li>
+<li><strong>High Throughput</strong>: Multiple transactions can be submitted and processed per block concurrently, without sequence contention.</li>
+<li><strong>No Ordering Guarantees</strong>: Execution order is nondeterministic; workers process transactions as they become available.</li>
+<li><strong>Fee Grants</strong>: All fees are covered by the primary account, so workers operate without individual balance management.</li>
+<li><strong>Account Reuse</strong>: Worker accounts are persisted across runtimes when parallel submission is enabled.</li>
+<li><strong>Use Case</strong>: Best suited for applications that prioritize throughput over ordering.</li>
+</ul>
+<p><strong>Note:</strong> If initialized with only one worker, this mode behaves identically to Sequential Submission (one tx per block).</p>
+<p><strong>APIs</strong>:</p>
+<ul>
+<li>
+<p><strong>SubmitPayForBlobToQueue</strong>: Uses worker queue for parallel or sequential (1 worker) submissions.</p>
+<ul>
+<li>
+<p><strong>Process</strong>: Job queued → Worker assignment → PayForBlob creation → Broadcast → Confirmation</p>
+<pre><code class="language-go">func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error)
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>QueueBlob</strong>: Direct job submission to worker queue.</p>
+<ul>
+<li>
+<p><strong>Process</strong>: Job queued directly → Worker assignment → PayForBlob creation → Broadcast → Confirmation</p>
+<pre><code class="language-go">func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption)
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+<p>All submission APIs ultimately delegate into the same broadcast and confirmation methods, they differ only in account selection, tx types and whether jobs go through the worker queue.</p>
+<h3 id="broadcast"><a class="header" href="#broadcast">Broadcast</a></h3>
+<p>Broadcasting steps are universal across SDK transactions and blob transactions.</p>
+<p><strong>Process:</strong></p>
+<ol>
+<li>
+<p><strong>Build &amp; Sign</strong>: Transaction is built and signed using the Signer</p>
+</li>
+<li>
+<p><strong>Gas Estimation</strong>:</p>
+<ul>
+<li>If no gas provided, simulate with minimal fee</li>
+<li>Call gas estimation service to determine gas usage and price</li>
+<li>If simulation fails due to a sequence mismatch:
+<ul>
+<li>Update local sequence to expected.</li>
+<li>Resign and retry gas estimation.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Fee Setting</strong>: Fee is computed as <code>ceil(minGasPrice * gasLimit)</code> unless explicitly set by the user</p>
+</li>
+<li>
+<p><strong>Broadcast</strong>: Transaction is encoded and submitted via gRPC:</p>
+<ul>
+<li><strong>Single-endpoint mode</strong>: Send to the default RPC endpoint.</li>
+<li><strong>Multi-endpoint mode</strong>: Broadcast to all endpoints, accept the first success and cancel the rest; if all fail, return the first error.</li>
+</ul>
+</li>
+<li>
+<p><strong>Broadcast Error Handling</strong>: Common to both <strong>single</strong> and <strong>multi-endpoint</strong> modes.</p>
+<ul>
+<li>Sequence mismatch during CheckTx (mempool validation):
+<ul>
+<li>Retry with corrected sequence until success or another failure.</li>
+<li>Update the signer’s local sequence to the expected value returned by the node.</li>
+<li><strong>Reasoning</strong>: Without updating to the chain’s expected sequence, the client’s local signer falls behind and stalls. Once stalled, no new transactions can be submitted until the process is manually reset.</li>
+</ul>
+</li>
+<li>Other rejections:
+<ul>
+<li>Tendermint/CometBFT does not throw mempool errors for application rejections; they are set in the transaction response.</li>
+<li>The client must parse the response code:
+<ul>
+<li>
+<p>0(<code>abci.CodeTypeOK</code>) - accepted into mempool.</p>
+</li>
+<li>
+<p>Non-zero - tx was rejected; populate and return <code>BroadcastTxError</code>.</p>
+<pre><code class="language-go"> type BroadcastTxError struct {
+ TxHash   string // Transaction hash
+ Code     uint32 // Error code from node
+ ErrorLog string // Detailed error message
+}
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Transaction Entry</strong>: On success, record (<code>signer</code>, <code>sequence</code>, <code>txBytes</code>).</p>
+</li>
+<li>
+<p><strong>Sequence Increment</strong>: After successful broadcast, increment the signer’s local sequence by calling <strong>signer.SetSequence()</strong></p>
+</li>
+</ol>
+<h3 id="confirmation"><a class="header" href="#confirmation">Confirmation</a></h3>
+<p>After broadcast, the TxClient continuously polls the chain for transaction status until resolution. This is the tx confirmation life cycle:</p>
+<ul>
+<li>
+<p><strong>Pending</strong>: Transaction in the mempool but not yet included, continue polling</p>
+</li>
+<li>
+<p><strong>Committed</strong>: Transaction included in a block.</p>
+<ul>
+<li>
+<p>If execution succeeded (response code = <code>abci.CodeTypeOK</code>): return success</p>
+</li>
+<li>
+<p>If execution failed (any other response code):</p>
+<ul>
+<li>Populate <code>ExecutionError</code> and return it to the user</li>
+</ul>
+<pre><code class="language-go">type ExecutionError struct {
+    TxHash   string // Transaction hash
+    Code     uint32 // Execution result code
+    ErrorLog string // Execution error details
+}
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Rejected</strong>: Transaction was explicitly refused by the node during <code>ReCheck()</code> (after each block commit).</p>
+<ul>
+<li>Retrieve tx sequence from the tracker.</li>
+<li>Roll back the sequence to the retrieved tx sequence.</li>
+<li>Construct and return a rejection error with the tx hash and response code. (no specific error type)</li>
+</ul>
+</li>
+<li>
+<p><strong>Evicted</strong>: Transaction dropped from mempool (low fees, mempool full).</p>
+<ul>
+<li>The client resubmits using txBytes stored in the tracker.</li>
+<li>If resubmission fails (e.g. sequence mismatch):
+<ul>
+<li><strong>Do not resign with a new sequence</strong>. Eviction isn't final, another node might still propose this tx and resigning risks duplicate inclusion.</li>
+<li>Start a 1-minute eviction timeout window. If the tx is not confirmed within timeout period, construct and return an eviction error. (no specific error type)</li>
+</ul>
+</li>
+<li>If resubmission is successful:
+<ul>
+<li>The same tx is re-added to the node's mempool</li>
+<li>Continue polling until the updated status is resolved</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Unknown/Not Found</strong>: Tx is neither evicted nor rejected or confirmed. Return error to the user that tx is unknown.</p>
+</li>
+<li>
+<p>Once transactions are concluded (rejected/evicted/confirmed) they should get pruned from the tracker before function returns.</p>
+</li>
+</ul>
+<h2 id="message-structurecommunication-format"><a class="header" href="#message-structurecommunication-format">Message Structure/Communication Format</a></h2>
+<p>The client communicates with Celestia full nodes through gRPC services for transaction broadcasting, status checking, and gas estimation.</p>
+<h3 id="transaction-broadcast"><a class="header" href="#transaction-broadcast">Transaction Broadcast</a></h3>
+<pre><code class="language-go">Request: BroadcastTxRequest { TxBytes, Mode }
+Response: BroadcastTxResponse { TxHash, Code, RawLog }
+</code></pre>
+<h3 id="transaction-status"><a class="header" href="#transaction-status">Transaction Status</a></h3>
+<pre><code class="language-go">Request: TxStatusRequest { TxId }
+Response: TxStatusResponse { Status, Height, ExecutionCode, Error }
+</code></pre>
+<h3 id="gas-estimation"><a class="header" href="#gas-estimation">Gas Estimation</a></h3>
+<pre><code class="language-go">Request: EstimateGasPriceAndUsageRequest { TxBytes, TxPriority }
+Response: EstimatedGasUsed, EstimatedGasPrice
+</code></pre>
+<h2 id="assumptions-and-considerations"><a class="header" href="#assumptions-and-considerations">Assumptions and Considerations</a></h2>
+<ul>
+<li>
+<p>Trusted Node: The client depends on a trusted consensus node for account state, sequence numbers, and gas estimation (no proof verification).</p>
+</li>
+<li>
+<p>Eviction Behavior: Evictions are local to a node. A transaction evicted by one node may still be proposed by another, so users must not re-sign the transaction immediately to avoid double-spending.</p>
+</li>
+<li>
+<p>Submission Modes: Only sequential (single account) or parallel (worker accounts with fee grants) are safe; other patterns may lead to sequence mismatches.</p>
+</li>
+</ul>
+<h2 id="implementation"><a class="header" href="#implementation">Implementation</a></h2>
+<p>TxClient implementation can be found in the <code>celestia-app</code> repo in the <code>pkg/user</code> directory</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="types_v6.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+                            <a rel="next" href="tx_client_v2.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="types_v6.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+                    <a rel="next" href="tx_client_v2.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <script type="text/javascript">
+            window.playground_copyable = true;
+        </script>
+        <script src="elasticlunr.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="mark.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="searcher.js" type="text/javascript" charset="utf-8"></script>
+        <script src="clipboard.min.js" type="text/javascript" charset="utf-8"></script>
+        <script src="highlight.js" type="text/javascript" charset="utf-8"></script>
+        <script src="book.js" type="text/javascript" charset="utf-8"></script>
+
+        <!-- Custom JS scripts -->
+    </body>
+</html>
