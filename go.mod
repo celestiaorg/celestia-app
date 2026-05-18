@@ -55,7 +55,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.5.4
 	github.com/joho/godotenv v1.5.1
-	github.com/klauspost/reedsolomon v1.14.0
+	github.com/klauspost/reedsolomon v1.14.1-0.20260518132338-1166fa573ff0
 	github.com/pelletier/go-toml/v2 v2.3.1
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.35.1
