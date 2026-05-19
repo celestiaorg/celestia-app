@@ -1,6 +1,12 @@
 package fibre_test
 
 import (
+	"encoding/hex"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,12 +25,14 @@ func TestStore(t *testing.T) {
 		{"PutGet_Roundtrip", testStorePutGetRoundtrip},
 		{"Put_SameCommitmentSamePromise", testStorePutSameCommitmentSamePromise},
 		{"Put_SameCommitmentDifferentPromises", testStorePutSameCommitmentDifferentPromises},
+		{"Put_ConcurrentSameKey", testStorePutConcurrentSameKey},
 		{"Get_NotFound", testStoreGetNotFound},
 		{"Get_DeterministicOrdering", testStoreGetDeterministicOrdering},
 		{"PutGet_PreservesRLCCoefficients", testStorePutGetPreservesRLCCoefficients},
 		{"PruneBefore_RemovesShardAndPromise", testStorePruneBeforeRemovesShardAndPromise},
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
 		{"PruneBefore_NonUTCCutoff_DoesNotPruneUnexpired", testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired},
+		{"PruneBefore_IdenticalPruneAt", testStorePruneBeforeIdenticalPruneAt},
 	}
 
 	for _, tt := range tests {
@@ -151,6 +159,35 @@ func testStorePutSameCommitmentDifferentPromises(t *testing.T, store *fibre.Stor
 	require.Equal(t, promise2.Height, gotPromise2.Height)
 }
 
+// Regression: with a fixed ".tmp" filename, concurrent same-key Puts shared
+// the same tmp file and corrupted each other; one rename also failed ENOENT.
+func testStorePutConcurrentSameKey(t *testing.T, store *fibre.Store) {
+	ctx := t.Context()
+
+	blob := makeTestBlobV0(t, 256)
+	shard := makeShardFrom(t, blob, 0, 1, 2)
+	promise := makeTestPaymentPromise(100, blob.ID())
+
+	const N = 50
+	var wg sync.WaitGroup
+	errs := make([]error, N)
+	for i := range N {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			errs[i] = store.Put(ctx, promise, shard, promise.CreationTimestamp)
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		require.NoError(t, err, "Put #%d", i)
+	}
+	got, err := store.Get(ctx, blob.ID().Commitment())
+	require.NoError(t, err)
+	require.Len(t, got.Rows, len(shard.Rows))
+}
+
 func testStoreGetNotFound(t *testing.T, store *fibre.Store) {
 	ctx := t.Context()
 
@@ -264,6 +301,24 @@ func testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired(t *testing.T, store *
 	require.NoError(t, err)
 }
 
+// Two promises sharing the same pruneAt are both pruned in one pass.
+func testStorePruneBeforeIdenticalPruneAt(t *testing.T, store *fibre.Store) {
+	ctx := t.Context()
+	blob := makeTestBlobV0(t, 256)
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+
+	for _, height := range []uint64{100, 101} {
+		p := makeTestPaymentPromise(height, blob.ID())
+		require.NoError(t, store.Put(ctx, p, makeShardFrom(t, blob, 0, 1), pruneAt))
+	}
+	pruned, err := store.PruneBefore(ctx, pruneAt.Add(time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, 2, pruned)
+
+	_, err = store.Get(ctx, blob.ID().Commitment())
+	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
+}
+
 func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store) {
 	ctx := t.Context()
 
@@ -294,11 +349,145 @@ func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store) {
 	}
 }
 
+// Reconcile drops staging/ leftovers on open, leaves real shards alone, and
+// logs the cleanup count.
+func TestStoreReconcileStaging(t *testing.T) {
+	cfg := fibre.DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := fibre.NewStore(cfg)
+	require.NoError(t, err)
+
+	blob := makeTestBlobV0(t, 256)
+	shard := makeShardFrom(t, blob, 0, 1)
+	promise := makeTestPaymentPromise(100, blob.ID())
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	require.NoError(t, store.Close())
+
+	stagingDir := filepath.Join(cfg.Path, "staging")
+	require.NoError(t, os.MkdirAll(stagingDir, 0o755))
+	staleA := filepath.Join(stagingDir, "aaa")
+	staleB := filepath.Join(stagingDir, "bbb")
+	require.NoError(t, os.WriteFile(staleA, []byte("partial-a"), 0o644))
+	require.NoError(t, os.WriteFile(staleB, []byte("partial-b"), 0o644))
+
+	var buf strings.Builder
+	cfg.Log = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+
+	store, err = fibre.NewStore(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { store.Close() })
+
+	for _, p := range []string{staleA, staleB} {
+		_, err := os.Stat(p)
+		require.True(t, os.IsNotExist(err), "%s should be removed by reconcile", p)
+	}
+	st, err := os.Stat(stagingDir)
+	require.NoError(t, err)
+	require.True(t, st.IsDir())
+
+	out := buf.String()
+	require.Contains(t, out, "store reconcile complete")
+	require.Contains(t, out, "staging_files_removed=2")
+
+	got, err := store.Get(t.Context(), blob.ID().Commitment())
+	require.NoError(t, err)
+	require.Len(t, got.Rows, 2)
+}
+
+// Get drops a /shard/ marker whose backing file is missing (crash between
+// pebble commit and rename) so future Gets stop paying the missed lookup.
+func TestStoreGetCleansOrphanMarker(t *testing.T) {
+	cfg := fibre.DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := fibre.NewStore(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { store.Close() })
+
+	blob := makeTestBlobV0(t, 256)
+	shard := makeShardFrom(t, blob, 0, 1)
+	promise := makeTestPaymentPromise(100, blob.ID())
+	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	promiseHash, err := promise.Hash()
+	require.NoError(t, err)
+	filePath := filepath.Join(cfg.Path, "shards", blob.ID().Commitment().String()+"-"+hex.EncodeToString(promiseHash))
+
+	// Simulate "metadata committed, file write never landed".
+	require.NoError(t, os.Remove(filePath))
+
+	_, err = store.Get(t.Context(), blob.ID().Commitment())
+	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
+
+	// After the first Get drops the marker, a fresh Put with a different
+	// promise must be the one Get finds — proving the orphan slot is gone.
+	promise2 := makeTestPaymentPromise(101, blob.ID())
+	shard2 := makeShardFrom(t, blob, 2, 3)
+	require.NoError(t, store.Put(t.Context(), promise2, shard2, promise2.CreationTimestamp))
+
+	got, err := store.Get(t.Context(), blob.ID().Commitment())
+	require.NoError(t, err)
+	require.Len(t, got.Rows, 2)
+	require.Equal(t, uint32(2), got.Rows[0].Index, "Get should return the new (still-present) shard, not the orphan")
+}
+
+// When iter.First() lands on an orphan marker, Get must skip it and return
+// the lex-next valid sibling for the same commit.
+func TestStoreGetSkipsOrphanToSibling(t *testing.T) {
+	cfg := fibre.DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := fibre.NewStore(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { store.Close() })
+
+	blob := makeTestBlobV0(t, 256)
+	p1 := makeTestPaymentPromise(100, blob.ID())
+	p2 := makeTestPaymentPromise(101, blob.ID())
+	s1 := makeShardFrom(t, blob, 0, 1)
+	s2 := makeShardFrom(t, blob, 2, 3)
+	require.NoError(t, store.Put(t.Context(), p1, s1, p1.CreationTimestamp))
+	require.NoError(t, store.Put(t.Context(), p2, s2, p2.CreationTimestamp))
+
+	// Delete the file for whichever promise hashes lex-first so iter.First()
+	// lands on the orphan and forces the fall-through.
+	h1, _ := p1.Hash()
+	h2, _ := p2.Hash()
+	orphan, validRow := h1, s2.Rows[0].Index
+	if hex.EncodeToString(h1) > hex.EncodeToString(h2) {
+		orphan, validRow = h2, s1.Rows[0].Index
+	}
+	require.NoError(t, os.Remove(filepath.Join(cfg.Path, "shards",
+		blob.ID().Commitment().String()+"-"+hex.EncodeToString(orphan))))
+
+	got, err := store.Get(t.Context(), blob.ID().Commitment())
+	require.NoError(t, err)
+	require.Equal(t, validRow, got.Rows[0].Index)
+}
+
+// All shards for a commit are orphans → Get returns NotFound (and cleans the
+// markers along the way).
+func TestStoreGetAllOrphans(t *testing.T) {
+	cfg := fibre.DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := fibre.NewStore(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { store.Close() })
+
+	blob := makeTestBlobV0(t, 256)
+	for i := range 3 {
+		p := makeTestPaymentPromise(uint64(100+i), blob.ID())
+		require.NoError(t, store.Put(t.Context(), p, makeShardFrom(t, blob, 0, 1), p.CreationTimestamp))
+		h, _ := p.Hash()
+		require.NoError(t, os.Remove(filepath.Join(cfg.Path, "shards",
+			blob.ID().Commitment().String()+"-"+hex.EncodeToString(h))))
+	}
+	_, err = store.Get(t.Context(), blob.ID().Commitment())
+	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
+}
+
 func makeTestStore(t *testing.T) *fibre.Store {
 	t.Helper()
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := fibre.NewPebbleStore(cfg)
+	store, err := fibre.NewStore(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 	return store
