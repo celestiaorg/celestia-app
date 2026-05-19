@@ -100,11 +100,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.log.Info("signer ready")
 
-	storeCfg := s.Config.StoreConfig
-	if storeCfg.Log == nil {
-		storeCfg.Log = s.log
-	}
-	s.store, err = s.Config.StoreFn(storeCfg)
+	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}

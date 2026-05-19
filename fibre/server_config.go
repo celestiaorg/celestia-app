@@ -95,6 +95,9 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")
 	}
+	if cfg.StoreConfig.Log == nil {
+		cfg.StoreConfig.Log = cfg.Log
+	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-server")
 	}

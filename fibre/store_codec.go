@@ -26,7 +26,9 @@ import (
 //
 // Replaces gogoproto.Marshal of BlobShard to avoid one 28 MiB allocation +
 // memcpy per Put — the proto path dominated the encoder CPU profile
-// (memmove + memclr ≈ 39%) at high concurrency.
+// (memmove + memclr ≈ 39%) at high concurrency. Length-prefixed proto
+// streaming (e.g. libp2p protoio) still marshals each message body into a
+// buffer before writing, so it doesn't address the bottleneck.
 const shardCodecVersion uint32 = 1
 
 // writeShardBinary serializes shard to w. Row payloads are written from

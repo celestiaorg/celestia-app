@@ -107,6 +107,104 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 	}
 }
 
+// FuzzShardCodecRoundTrip builds a structurally valid BlobShard from each
+// fuzz seed, round-trips it through write/read, and asserts equality.
+func FuzzShardCodecRoundTrip(f *testing.F) {
+	f.Add([]byte{0x01, 0x02, 0x03, 0x04})
+	f.Add(bytes.Repeat([]byte{0xff}, 128))
+	f.Add([]byte{})
+
+	f.Fuzz(func(t *testing.T, seed []byte) {
+		shard := shardFromSeed(seed)
+
+		var buf bytes.Buffer
+		require.NoError(t, writeShardBinary(&buf, shard))
+
+		got, err := readShardBinary(&buf)
+		require.NoError(t, err)
+		require.Equal(t, shard.Root, got.Root)
+		require.Equal(t, shard.Coefficients, got.Coefficients)
+		require.Len(t, got.Rows, len(shard.Rows))
+		for i, r := range shard.Rows {
+			require.Equal(t, r.Index, got.Rows[i].Index)
+			require.Equal(t, r.Data, got.Rows[i].Data)
+			require.Equal(t, len(r.Proof), len(got.Rows[i].Proof))
+			for j, seg := range r.Proof {
+				require.Equal(t, seg, got.Rows[i].Proof[j])
+			}
+		}
+	})
+}
+
+// FuzzShardCodecReadNoPanic feeds arbitrary bytes to the reader. Length caps
+// keep allocations bounded, so the only outcomes are a parse (rare) or an
+// error — never a panic.
+func FuzzShardCodecReadNoPanic(f *testing.F) {
+	f.Add([]byte{})
+	f.Add([]byte{0x00, 0x00, 0x00, 0x01})
+	f.Add(bytes.Repeat([]byte{0xff}, 64))
+
+	f.Fuzz(func(t *testing.T, data []byte) {
+		_, _ = readShardBinary(bytes.NewReader(data))
+	})
+}
+
+// shardFromSeed consumes seed deterministically to build a BlobShard with
+// small bounded dimensions, so writeShardBinary always succeeds and a clean
+// round-trip is possible regardless of seed contents.
+func shardFromSeed(seed []byte) *types.BlobShard {
+	r := &seedReader{seed: seed}
+	shard := &types.BlobShard{
+		Root:         r.take(int(r.byte() % 64)),
+		Coefficients: r.take(int(r.byte() % 64)),
+	}
+	numRows := int(r.byte() % 8)
+	shard.Rows = make([]*types.BlobRow, numRows)
+	for i := range shard.Rows {
+		row := &types.BlobRow{
+			Index: binary.BigEndian.Uint32(r.take(4)),
+			Data:  r.take(int(r.byte())),
+		}
+		numProof := int(r.byte() % 8)
+		if numProof > 0 {
+			row.Proof = make([][]byte, numProof)
+			for j := range row.Proof {
+				row.Proof[j] = r.take(int(r.byte() % 64))
+			}
+		}
+		shard.Rows[i] = row
+	}
+	return shard
+}
+
+type seedReader struct {
+	seed []byte
+	pos  int
+}
+
+func (r *seedReader) byte() byte {
+	if r.pos >= len(r.seed) {
+		return 0
+	}
+	b := r.seed[r.pos]
+	r.pos++
+	return b
+}
+
+func (r *seedReader) take(n int) []byte {
+	if n == 0 {
+		return nil
+	}
+	out := make([]byte, n)
+	for i := range out {
+		if r.pos < len(r.seed) {
+			out[i] = r.seed[r.pos]
+			r.pos++
+		}
+	}
+	return out
+}
+
 // A file truncated partway through must error, not return a partial BlobShard.
 func TestShardCodecTruncatedMidRow(t *testing.T) {
 	shard := &types.BlobShard{

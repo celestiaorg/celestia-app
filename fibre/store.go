@@ -144,40 +144,43 @@ func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.Blo
 	if err != nil {
 		return fmt.Errorf("writing shard tmp: %w", err)
 	}
-	finalPath := s.shardFilePath(promise.Commitment, promiseHash)
+	if err := s.commitAndPublish(promise, promiseHash, tmp, pruneAt); err != nil {
+		_ = s.fs.Remove(tmp)
+		return err
+	}
+	return nil
+}
 
+// commitAndPublish writes pebble metadata for the staged shard at tmp, then
+// renames tmp into the canonical shards/ path. On any error tmp is left in
+// place for the caller to remove.
+func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tmp string, pruneAt time.Time) error {
 	promiseProto, err := promise.ToProto()
 	if err != nil {
-		_ = s.fs.Remove(tmp)
 		return fmt.Errorf("converting payment promise to proto: %w", err)
 	}
 	ppData, err := gogoproto.Marshal(promiseProto)
 	if err != nil {
-		_ = s.fs.Remove(tmp)
 		return fmt.Errorf("marshaling payment promise: %w", err)
 	}
+
 	batch := s.db.NewBatch()
 	defer batch.Close()
 	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
-		_ = s.fs.Remove(tmp)
 		return fmt.Errorf("putting payment promise: %w", err)
 	}
 	// Empty value: the marker only exists so [Get] can iterate by commitment.
 	if err := batch.Set(shardKey(promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
-		_ = s.fs.Remove(tmp)
 		return fmt.Errorf("putting shard marker: %w", err)
 	}
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
-		_ = s.fs.Remove(tmp)
 		return fmt.Errorf("putting prune index: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		_ = s.fs.Remove(tmp)
 		return fmt.Errorf("committing metadata: %w", err)
 	}
 
-	if err := s.fs.Rename(tmp, finalPath); err != nil {
-		_ = s.fs.Remove(tmp)
+	if err := s.fs.Rename(tmp, s.shardFilePath(promise.Commitment, promiseHash)); err != nil {
 		return fmt.Errorf("renaming shard tmp to final: %w", err)
 	}
 	return nil
