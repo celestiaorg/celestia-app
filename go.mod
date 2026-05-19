@@ -33,8 +33,8 @@ require (
 	github.com/cockroachdb/pebble/v2 v2.1.4
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
-	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.2
+	github.com/consensys/gnark v0.15.0
+	github.com/consensys/gnark-crypto v0.20.1
 	github.com/cosmos/btcutil v1.0.5
 	github.com/cosmos/cosmos-db v1.1.3
 	github.com/cosmos/cosmos-proto v1.0.0-beta.5
@@ -49,7 +49,7 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/protobuf v1.5.4
-	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6
+	github.com/google/pprof v0.0.0-20260202012954-cb029daf43ef
 	github.com/grafana/otel-profiling-go v0.5.1
 	github.com/grafana/pyroscope-go v1.3.0
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
@@ -155,7 +155,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
-	github.com/bits-and-blooms/bitset v1.24.0 // indirect
+	github.com/bits-and-blooms/bitset v1.24.4 // indirect
 	github.com/bkielbasa/cyclop v1.2.3 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/blizzy78/varnamelen v0.8.0 // indirect
@@ -299,7 +299,6 @@ require (
 	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/improbable-eng/grpc-web v0.15.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
 	github.com/jgautheron/goconst v1.8.2 // indirect
 	github.com/jingyugao/rowserrcheck v1.1.1 // indirect
 	github.com/jjti/go-spancheck v0.6.5 // indirect
