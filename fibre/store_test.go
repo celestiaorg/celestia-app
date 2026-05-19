@@ -489,7 +489,7 @@ func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobSh
 		rows[i] = &types.BlobRow{
 			Index: uint32(idx),
 			Data:  rowProof.Row,
-			Proof: rowProof.RowProof.RowProof,
+			Proof: rowProof.RowProof,
 		}
 	}
 

@@ -109,11 +109,14 @@ func TestPool_PutEmptyPanics(t *testing.T) {
 	p.Put(nil)
 }
 
-func TestPool_GetZeroReturnsNil(t *testing.T) {
+func TestPool_GetZeroPanics(t *testing.T) {
 	p := newPool(t)
-	if bufs := p.Get(0, 64); bufs != nil {
-		t.Fatalf("Get(0, _) = %v, want nil", bufs)
-	}
+	defer func() {
+		if recover() == nil {
+			t.Fatal("Get(0, _) should panic")
+		}
+	}()
+	p.Get(0, 64)
 }
 
 // A free slab of a larger class serves a smaller request within slack.

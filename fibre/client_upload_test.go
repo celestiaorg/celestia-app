@@ -32,7 +32,8 @@ func TestClientUpload(t *testing.T) {
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
 		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
-		{"BlobConsumed", testClientUploadBlobConsumed},
+		{"ReUpload", testClientReUpload},
+		{"AfterFree", testClientUploadAfterFree},
 	}
 
 	for _, tt := range tests {
@@ -52,6 +53,7 @@ func testClientConcurrentUploads(t *testing.T) {
 	for range numConcurrent {
 		wg.Go(func() {
 			blob := makeTestBlobV0(t, 256*1024)
+			defer blob.Free()
 			result, err := client.Upload(t.Context(), testNamespace, blob)
 			require.NoError(t, err)
 
@@ -72,6 +74,7 @@ func testClientUploadContextCancellation(t *testing.T) {
 	cancel()
 
 	blob := makeTestBlobV0(t, 1024*1024)
+	defer blob.Free()
 
 	_, err := client.Upload(ctx, testNamespace, blob)
 	require.ErrorIs(t, err, context.Canceled)
@@ -85,6 +88,7 @@ func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 
 	result, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
@@ -100,6 +104,7 @@ func testClientUploadInsufficientVotingPower(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 512*1024)
+	defer blob.Free()
 
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.Error(t, err)
@@ -119,6 +124,7 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
 
@@ -139,6 +145,7 @@ func testClientUploadAwaitAllSignatures(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 	result, err := client.Upload(t.Context(), testNamespace, blob, fibre.WithAwaitAllSignatures())
 	require.NoError(t, err)
 
@@ -163,23 +170,50 @@ func testClientUploadClosedClient(t *testing.T) {
 	require.NoError(t, client.Stop(t.Context()))
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 
 	// attempt to upload after closing
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.ErrorIs(t, err, fibre.ErrClientClosed, "expected ErrClientClosed when uploading to closed client")
 }
 
-func testClientUploadBlobConsumed(t *testing.T) {
+// testClientReUpload verifies that the same live blob can be uploaded
+// concurrently more than once — each Upload retains/releases an independent
+// internal reference, so the asm slab stays alive across all of them and is
+// released exactly once at Free.
+func testClientReUpload(t *testing.T) {
 	client := makeTestUploadClient(t, 100, nil)
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
+
+	const numConcurrent = 8
+	var wg sync.WaitGroup
+	for range numConcurrent {
+		wg.Go(func() {
+			result, err := client.Upload(t.Context(), testNamespace, blob)
+			require.NoError(t, err)
+			require.Equal(t, blob.ID().Commitment(), result.Commitment)
+		})
+	}
+	wg.Wait()
+}
+
+// testClientUploadAfterFree verifies that uploading a blob whose pooled storage
+// was already released fails fast rather than reading recycled memory. The
+// error is intentionally opaque (not a matchable sentinel) — it signals a
+// use-after-free bug in the caller, which has no sane recovery.
+func testClientUploadAfterFree(t *testing.T) {
+	client := makeTestUploadClient(t, 100, nil)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+	blob.Free()
 
 	_, err := client.Upload(t.Context(), testNamespace, blob)
-	require.NoError(t, err)
-
-	_, err = client.Upload(t.Context(), testNamespace, blob)
-	require.ErrorIs(t, err, fibre.ErrBlobConsumed)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already released")
 }
 
 // makeTestUploadClient creates an upload client for testing.

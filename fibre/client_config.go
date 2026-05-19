@@ -32,9 +32,9 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).
-	// Sheds black-holed peers below the kernel's ~75s TCP SYN retry window.
-	// See [DefaultClientConfig] for the default value.
+	// RPCTimeout bounds a single UploadShard/DownloadShard call to one peer
+	// (dial + RPC). Sheds black-holed peers below the kernel's ~75s TCP SYN
+	// retry window. See [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
