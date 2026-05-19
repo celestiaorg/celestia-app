@@ -331,7 +331,7 @@ func makeShardWithRLC(t *testing.T, blob *fibre.Blob, indices ...int) *types.Blo
 	t.Helper()
 	shard := makeShardFrom(t, blob, indices...)
 
-	rlcCoeffs := blob.RLCCoeffs()
+	rlcCoeffs := blob.RLC()
 	coeffBytes := make([]byte, len(rlcCoeffs)*16)
 	for i, c := range rlcCoeffs {
 		b := field.ToBytes128(c)

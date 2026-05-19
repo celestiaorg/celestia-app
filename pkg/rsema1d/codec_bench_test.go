@@ -519,34 +519,34 @@ func BenchmarkVerifyRowWithContext(b *testing.B) {
 	}
 }
 
-// BenchmarkVerifyMultipleRowsWithContext benchmarks verifying multiple rows
-// against the same VerificationContext. This demonstrates the benefit of
-// caching coefficients: deriveCoefficients is called once on the first row
-// and reused for all subsequent rows.
-func BenchmarkVerifyMultipleRowsWithContext(b *testing.B) {
-	// Use a fixed small config so this benchmark runs quickly and focuses
-	// on the caching effect rather than data size.
+// BenchmarkVerifyRowsWithContext exercises the batched VerifyRowsWithContext
+// path across the two production v0 shard shapes plus a small case for
+// quick local feedback. The per-row merkle phase fans out across
+// config.WorkerCount goroutines via merkle.ComputeRootsFromProofs.
+func BenchmarkVerifyRowsWithContext(b *testing.B) {
 	type benchCase struct {
-		k       int
-		n       int
+		name    string
+		k, n    int
 		rowSize int
-		rows    int // number of rows to verify per iteration
+		rows    int
 	}
 
 	cases := []benchCase{
-		{k: 64, n: 64, rowSize: 1024, rows: 16},
-		{k: 256, n: 256, rowSize: 1024, rows: 64},
-		{k: 1024, n: 1024, rowSize: 1024, rows: 128},
+		{"k=1024/n=1024/rows=128", 1024, 1024, 1024, 128},
+		// 128 MiB blob, ~100 validators (~163 rows each).
+		{"shard=5MB/k=4096/n=12288/batch=163", 4096, 12288, 32768, 163},
+		// 128 MiB blob, 10 validators (~1638 rows each, realistic worst
+		// case at MaxBlobSize with minimum-validator load).
+		{"shard=51MB/k=4096/n=12288/batch=1638", 4096, 12288, 32768, 1638},
 	}
 
 	for _, tc := range cases {
-		name := fmt.Sprintf("k=%d/n=%d/rows=%d", tc.k, tc.n, tc.rows)
-		b.Run(name, func(b *testing.B) {
+		b.Run(tc.name, func(b *testing.B) {
 			codecConfig := &Config{
 				K:           tc.k,
 				N:           tc.n,
 				RowSize:     tc.rowSize,
-				WorkerCount: 1,
+				WorkerCount: runtime.NumCPU(),
 			}
 
 			originalData := generateTestData(tc.k, tc.rowSize)
@@ -554,8 +554,10 @@ func BenchmarkVerifyMultipleRowsWithContext(b *testing.B) {
 			if err != nil {
 				b.Fatalf("Encode failed: %v", err)
 			}
-
-			// Pre-generate proofs for the rows we'll verify
+			ctx, _, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
+			if err != nil {
+				b.Fatalf("CreateVerificationContext failed: %v", err)
+			}
 			proofs := make([]*RowProof, tc.rows)
 			for i := range tc.rows {
 				proofs[i], err = extData.GenerateRowProof(i)
@@ -566,16 +568,8 @@ func BenchmarkVerifyMultipleRowsWithContext(b *testing.B) {
 
 			b.ResetTimer()
 			for range b.N {
-				// Fresh context each iteration so sync.Once runs once per iteration
-				ctx, _, err := CreateVerificationContext(extData.rlcOrig, codecConfig)
-				if err != nil {
-					b.Fatalf("CreateVerificationContext failed: %v", err)
-				}
-
-				for _, proof := range proofs {
-					if err := VerifyRowWithContext(proof, commitment, ctx); err != nil {
-						b.Fatalf("VerifyRowWithContext failed: %v", err)
-					}
+				if err := VerifyRowsWithContext(proofs, commitment, ctx); err != nil {
+					b.Fatalf("VerifyRowsWithContext failed: %v", err)
 				}
 			}
 		})

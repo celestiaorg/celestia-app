@@ -200,7 +200,8 @@ func BenchmarkStoreWriteRowsConcurrent(b *testing.B) {
 }
 
 func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -306,7 +307,8 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 }
 
 func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, concurrency int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -527,7 +529,8 @@ func BenchmarkStoreReadRowsConcurrent(b *testing.B) {
 }
 
 func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -615,7 +618,8 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 }
 
 func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, concurrency int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 

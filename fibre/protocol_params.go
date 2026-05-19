@@ -86,6 +86,29 @@ func (p ProtocolParams) ParityRows() int {
 	return p.TotalRows() - p.Rows
 }
 
+// CodecWorkRows returns the peak row count the leopard-GF16 codec asks
+// a reedsolomon.WorkAllocator for during Encode or Reconstruct — i.e.
+// max(2·ceilPow2(N), ceilPow2(ceilPow2(N)+K)). For the default shape
+// (K=4096, N=12288) this is 32768, or 8×K rows of work buffer on top
+// of 1×K original + 3×K parity, so peak memory during an Encode is
+// ~12× the original data. Callers must size row allocators for this
+// value, not TotalRows.
+func (p ProtocolParams) CodecWorkRows() int {
+	m := ceilPow2(p.ParityRows())
+	return max(2*m, ceilPow2(m+p.Rows))
+}
+
+// ceilPow2 returns the smallest power of two >= n. n must be positive.
+func ceilPow2(n int) int {
+	if n <= 1 {
+		return 1
+	}
+	if n&(n-1) == 0 {
+		return n
+	}
+	return 1 << bits.Len(uint(n-1))
+}
+
 // MaxRowsPerValidator returns the maximum number of rows a single validator could receive.
 // Based on max stake of 1-SafetyThreshold: ceil(Rows * (1-SafetyThreshold) / livenessThreshold).
 // Validators with >1-SafetyThreshold stake are capped at Rows in Assign.

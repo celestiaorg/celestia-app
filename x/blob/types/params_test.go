@@ -34,11 +34,25 @@ func Test_validateGovMaxSquareSize(t *testing.T) {
 			input:     uint64(0),
 			expectErr: true,
 		},
+		{
+			// Without the upper-bound guard, downstream uint64 multiplications
+			// (governMaxSquareSize^2 * share.ShareSize) silently wrap.
+			name:      "exceeds upper bound",
+			input:     uint64(appconsts.SquareSizeUpperBound) * 2,
+			expectErr: true,
+		},
+		{
+			name:      "exactly at upper bound",
+			input:     uint64(appconsts.SquareSizeUpperBound),
+			expectErr: false,
+		},
 	}
 	for _, tt := range tests {
 		err := validateGovMaxSquareSize(tt.input)
 		if tt.expectErr {
 			assert.Error(t, err)
+		} else {
+			assert.NoError(t, err)
 		}
 	}
 }
