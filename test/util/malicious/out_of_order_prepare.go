@@ -41,6 +41,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.IBCKeeper,
 		a.MinFeeKeeper,
 		&a.CircuitKeeper,
+		a.EthIdentityKeeper,
 		a.GovParamFilters(),
 	)
 

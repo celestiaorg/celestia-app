@@ -8,6 +8,7 @@ import (
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	ethidentitytypes "github.com/celestiaorg/celestia-app/v9/x/ethidentity/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -102,7 +103,7 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 
 	if upgradeInfo.Name == upgradeName && !app.UpgradeKeeper.IsSkipHeight(upgradeInfo.Height) { //nolint:staticcheck
-		added := fibreUpgradeStoreKeys()
+		added := append([]string{ethidentitytypes.StoreKey}, fibreUpgradeStoreKeys()...)
 		if len(added) > 0 {
 			storeUpgrades := storetypes.StoreUpgrades{
 				Added: added,

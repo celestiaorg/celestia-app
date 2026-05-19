@@ -33,6 +33,7 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v9/app/ante"
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v9/app/ethrpc"
 	"github.com/celestiaorg/celestia-app/v9/app/grpc/gasestimation"
 	celestiatx "github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
@@ -41,6 +42,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v9/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/x/ethidentity"
+	ethidentitykeeper "github.com/celestiaorg/celestia-app/v9/x/ethidentity/keeper"
+	ethidentitytypes "github.com/celestiaorg/celestia-app/v9/x/ethidentity/types"
 	"github.com/celestiaorg/celestia-app/v9/x/forwarding"
 	forwardingkeeper "github.com/celestiaorg/celestia-app/v9/x/forwarding/keeper"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
@@ -193,6 +197,7 @@ type App struct {
 	ICAHostKeeper       icahostkeeper.Keeper
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	BlobKeeper          blobkeeper.Keeper
+	EthIdentityKeeper   ethidentitykeeper.Keeper
 	CircuitKeeper       circuitkeeper.Keeper
 	HyperlaneKeeper     hyperlanekeeper.Keeper
 	WarpKeeper          warpkeeper.Keeper
@@ -402,6 +407,8 @@ func New(
 		authtypes.NewModuleAddress(govtypes.ModuleName).String(),
 	)
 
+	app.EthIdentityKeeper = ethidentitykeeper.NewKeeper(keys[ethidentitytypes.StoreKey])
+
 	app.MinFeeKeeper = minfeekeeper.NewKeeper(encodingConfig.Codec, keys[minfeetypes.StoreKey], app.ParamsKeeper, app.GetSubspace(minfeetypes.ModuleName), authtypes.NewModuleAddress(govtypes.ModuleName).String())
 
 	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
@@ -466,6 +473,7 @@ func New(
 		capability.NewAppModule(encodingConfig.Codec, *app.CapabilityKeeper, true),
 		transfer.NewAppModule(app.TransferKeeper),
 		blob.NewAppModule(encodingConfig.Codec, app.BlobKeeper),
+		ethidentity.NewAppModule(app.EthIdentityKeeper),
 		signal.NewAppModule(app.SignalKeeper),
 		minfee.NewAppModule(encodingConfig.Codec, app.MinFeeKeeper),
 		pfm{packetforward.NewAppModule(app.PacketForwardKeeper, app.GetSubspace(packetforwardtypes.ModuleName))},
@@ -530,6 +538,7 @@ func New(
 		app.IBCKeeper,
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
+		app.EthIdentityKeeper,
 		app.GovParamFilters(),
 	))
 
@@ -778,6 +787,19 @@ func (app *App) TreePool() *wrapper.TreePool {
 // API server.
 func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 	clientCtx := apiSvr.ClientCtx
+	ethrpc.RegisterRoutes(apiSvr.Router, ethrpc.NewServer(ethrpc.Config{
+		ContextProvider: func() (sdk.Context, error) {
+			return app.CreateQueryContext(0, false)
+		},
+		ChainIDProvider: func() string {
+			return app.ChainID()
+		},
+		GasPriceProvider: app.getMinGasPrice,
+		IdentityKeeper:   app.EthIdentityKeeper,
+		AccountKeeper:    app.AccountKeeper,
+		BankKeeper:       app.BankKeeper,
+		ClientVersion:    fmt.Sprintf("celestia-app/%s", version.Version),
+	}))
 	// Register new cometbft routes from grpc-gateway.
 	tmservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)
 	// Register new tx routes from grpc-gateway.

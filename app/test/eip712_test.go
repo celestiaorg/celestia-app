@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
 	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
 	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
+	ethidentitykeeper "github.com/celestiaorg/celestia-app/v9/x/ethidentity/keeper"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -73,6 +74,18 @@ func TestEIP712TxABCIPaths(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, resp.TxResults, 1)
 		require.Equal(t, uint32(0), resp.TxResults[0].Code, resp.TxResults[0].Log)
+		_, err = testApp.Commit()
+		require.NoError(t, err)
+
+		priv := eip712TestPrivKey(t)
+		pubKey := &secp256k1.PubKey{Key: gethcrypto.CompressPubkey(&priv.PublicKey)}
+		ethAddr, err := ethidentitykeeper.EthereumAddressFromPubKey(pubKey)
+		require.NoError(t, err)
+
+		ctx := testApp.NewUncachedContext(false, tmproto.Header{ChainID: testutil.ChainID})
+		resolved, found := testApp.EthIdentityKeeper.Resolve(ctx, ethAddr)
+		require.True(t, found)
+		require.Equal(t, sdk.AccAddress(pubKey.Address()), resolved)
 	})
 }
 

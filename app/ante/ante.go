@@ -24,6 +24,7 @@ func NewAnteHandler(
 	channelKeeper *ibckeeper.Keeper,
 	minfeeKeeper *minfeekeeper.Keeper,
 	circuitkeeper *circuitkeeper.Keeper,
+	ethIdentityKeeper EthIdentityKeeper,
 	paramFilters map[string]ParamFilter,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
@@ -54,6 +55,8 @@ func NewAnteHandler(
 		// Set public keys in the context for fee-payer and all signers.
 		// Contract: must be called before all signature verification decorators.
 		ante.NewSetPubKeyDecorator(accountKeeper),
+		// Lazily index observed same-key Ethereum identities during finalized execution.
+		NewEthIdentityIndexDecorator(accountKeeper, ethIdentityKeeper),
 		// Ensure that the tx's count of signatures is <= the tx signature limit.
 		NewEIP712ValidateSigCountDecorator(accountKeeper),
 		// Ensure that the tx's gas limit is > the gas consumed based on signature verification.

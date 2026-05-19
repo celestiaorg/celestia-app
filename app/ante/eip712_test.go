@@ -12,8 +12,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
 	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
+	ethidentitykeeper "github.com/celestiaorg/celestia-app/v9/x/ethidentity/keeper"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	signingtypes "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -22,6 +24,7 @@ import (
 	minttypes "github.com/cosmos/cosmos-sdk/x/mint/types"
 	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/require"
+	protov2 "google.golang.org/protobuf/proto"
 )
 
 func TestEIP712SetPubKeyDecoratorRecoversMissingPubKey(t *testing.T) {
@@ -55,6 +58,45 @@ func TestEIP712ValidateSigCountDecoratorCountsRecoveredSignature(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestEthIdentityIndexDecoratorOnlyIndexesDuringFinalize(t *testing.T) {
+	testApp, ctx, tx := buildEIP712Tx(t, false)
+	recoveryDecorator := appante.NewEIP712SetPubKeyDecorator(testApp.AccountKeeper)
+	ctx, err := recoveryDecorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	require.NoError(t, err)
+
+	identityKeeper := &recordingEthIdentityKeeper{}
+	decorator := appante.NewEthIdentityIndexDecorator(testApp.AccountKeeper, identityKeeper)
+	_, err = decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	require.NoError(t, err)
+	require.Zero(t, identityKeeper.calls)
+
+	_, err = decorator.AnteHandle(ctx.WithExecMode(sdk.ExecModeFinalize), tx, false, nextAnteHandler)
+	require.NoError(t, err)
+	require.Equal(t, 1, identityKeeper.calls)
+}
+
+func TestEthIdentityIndexDecoratorIndexesExistingSecpPubKey(t *testing.T) {
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithExecMode(sdk.ExecModeFinalize)
+
+	pubKey := secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey)
+	signer := sdk.AccAddress(pubKey.Address())
+	acc := testApp.AccountKeeper.NewAccountWithAddress(ctx, signer)
+	require.NoError(t, acc.SetPubKey(pubKey))
+	testApp.AccountKeeper.SetAccount(ctx, acc)
+
+	tx := signerOnlyTx{signers: [][]byte{signer}}
+	decorator := appante.NewEthIdentityIndexDecorator(testApp.AccountKeeper, testApp.EthIdentityKeeper)
+	ctx, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	require.NoError(t, err)
+
+	ethAddr, err := ethidentitykeeper.EthereumAddressFromPubKey(pubKey)
+	require.NoError(t, err)
+	resolved, found := testApp.EthIdentityKeeper.Resolve(ctx, ethAddr)
+	require.True(t, found)
+	require.Equal(t, signer, resolved)
+}
+
 func TestEIP712FullAnteHandlerAcceptsRecoveredSingleSigner(t *testing.T) {
 	fee := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1000))
 	testApp, ctx, tx := buildEIP712Tx(t, false, withEIP712Fee(fee), withEIP712GasLimit(200000))
@@ -65,7 +107,7 @@ func TestEIP712FullAnteHandlerAcceptsRecoveredSingleSigner(t *testing.T) {
 
 	txBytes, err := testApp.GetTxConfig().TxEncoder()(tx)
 	require.NoError(t, err)
-	ctx = ctx.WithTxBytes(txBytes)
+	ctx = ctx.WithTxBytes(txBytes).WithExecMode(sdk.ExecModeFinalize)
 
 	handler := appante.NewAnteHandler(
 		testApp.AccountKeeper,
@@ -77,6 +119,7 @@ func TestEIP712FullAnteHandlerAcceptsRecoveredSingleSigner(t *testing.T) {
 		testApp.IBCKeeper,
 		testApp.MinFeeKeeper,
 		&testApp.CircuitKeeper,
+		testApp.EthIdentityKeeper,
 		testApp.GovParamFilters(),
 	)
 	ctx, err = handler(ctx, tx, false)
@@ -85,6 +128,14 @@ func TestEIP712FullAnteHandlerAcceptsRecoveredSingleSigner(t *testing.T) {
 	acc := testApp.AccountKeeper.GetAccount(ctx, signers[0])
 	require.NotNil(t, acc.GetPubKey())
 	require.Equal(t, uint64(1), acc.GetSequence())
+
+	pubKey, ok := acc.GetPubKey().(*secp256k1.PubKey)
+	require.True(t, ok)
+	ethAddr, err := ethidentitykeeper.EthereumAddressFromPubKey(pubKey)
+	require.NoError(t, err)
+	resolved, found := testApp.EthIdentityKeeper.Resolve(ctx, ethAddr)
+	require.True(t, found)
+	require.Equal(t, sdk.AccAddress(signers[0]), resolved)
 }
 
 func TestEIP712FullAnteHandlerRejectsTamperedSignature(t *testing.T) {
@@ -108,6 +159,7 @@ func TestEIP712FullAnteHandlerRejectsTamperedSignature(t *testing.T) {
 		testApp.IBCKeeper,
 		testApp.MinFeeKeeper,
 		&testApp.CircuitKeeper,
+		testApp.EthIdentityKeeper,
 		testApp.GovParamFilters(),
 	)
 	_, err = handler(ctx, tx, false)
@@ -257,4 +309,37 @@ func fundAccount(t *testing.T, testApp *app.App, ctx sdk.Context, addr sdk.AccAd
 	t.Helper()
 	require.NoError(t, testApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, coins))
 	require.NoError(t, testApp.BankKeeper.SendCoinsFromModuleToAccount(ctx, minttypes.ModuleName, addr, coins))
+}
+
+type recordingEthIdentityKeeper struct {
+	calls int
+}
+
+func (k *recordingEthIdentityKeeper) IndexPubKey(_ sdk.Context, _ cryptotypes.PubKey) error {
+	k.calls++
+	return nil
+}
+
+type signerOnlyTx struct {
+	signers [][]byte
+}
+
+func (tx signerOnlyTx) GetMsgs() []sdk.Msg {
+	return nil
+}
+
+func (tx signerOnlyTx) GetMsgsV2() ([]protov2.Message, error) {
+	return nil, nil
+}
+
+func (tx signerOnlyTx) GetSigners() ([][]byte, error) {
+	return tx.signers, nil
+}
+
+func (tx signerOnlyTx) GetPubKeys() ([]cryptotypes.PubKey, error) {
+	return nil, nil
+}
+
+func (tx signerOnlyTx) GetSignaturesV2() ([]signingtypes.SignatureV2, error) {
+	return nil, nil
 }

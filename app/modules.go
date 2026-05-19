@@ -14,6 +14,8 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v9/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v9/x/ethidentity"
+	ethidentitytypes "github.com/celestiaorg/celestia-app/v9/x/ethidentity/types"
 	"github.com/celestiaorg/celestia-app/v9/x/forwarding"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v9/x/minfee"
@@ -89,6 +91,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	zkism.AppModule{},
 	// celestia
 	blob.AppModule{},
+	ethidentity.AppModule{},
 	forwarding.AppModule{},
 	minfee.AppModule{},
 	mintModule{},
@@ -179,6 +182,7 @@ func (app *App) setModuleOrder() {
 		evidencetypes.ModuleName,
 		ibctransfertypes.ModuleName,
 		blobtypes.ModuleName,
+		ethidentitytypes.ModuleName,
 		vestingtypes.ModuleName,
 		feegrant.ModuleName,
 		paramstypes.ModuleName,
@@ -219,6 +223,7 @@ func allStoreKeys() []string {
 		icahosttypes.StoreKey,
 		signaltypes.StoreKey,
 		blobtypes.StoreKey,
+		ethidentitytypes.StoreKey,
 		minfeetypes.StoreKey,      // added in v4
 		consensustypes.StoreKey,   // added in v4
 		circuittypes.StoreKey,     // added in v4

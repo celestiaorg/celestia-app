@@ -30,6 +30,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.IBCKeeper,
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
+		app.EthIdentityKeeper,
 		app.GovParamFilters(),
 	)
 
