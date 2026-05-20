@@ -24,11 +24,11 @@ func seedDB(t *testing.T, name string, backend cometbftdb.BackendType, dir strin
 	require.NoError(t, err)
 	defer func() { require.NoError(t, db.Close()) }()
 
-	for i := 0; i < 256; i++ {
+	for i := range 256 {
 		key := []byte{byte(i)}
 		require.NoError(t, db.Set(key, []byte("payload-payload-payload")))
 	}
-	for i := 0; i < 128; i++ {
+	for i := range 128 {
 		require.NoError(t, db.Delete([]byte{byte(i)}))
 	}
 }
