@@ -1,0 +1,174 @@
+package cmd
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"cosmossdk.io/log"
+	cometbftdb "github.com/cometbft/cometbft-db"
+	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/spf13/cobra"
+)
+
+const flagYes = "yes"
+
+// compactBlockstoreDBs lists the CometBFT-owned databases this command compacts,
+// in the order they will be processed.
+var compactBlockstoreDBs = []string{"blockstore", "state"}
+
+func compactBlockstoreCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "compact-blockstore",
+		Short: "Compact the CometBFT blockstore and state databases",
+		Long: `Compact the CometBFT blockstore and state databases under <home>/data.
+
+This command runs an offline compaction of:
+  - <home>/data/blockstore.db
+  - <home>/data/state.db
+
+Compaction reclaims disk space and improves read performance after large
+numbers of deletes (for example, after block pruning). It does not modify or
+lose any committed data; it only reorganizes existing on-disk storage.
+
+The node MUST be stopped before running this command. While the node is
+running, the database files are locked and the command will fail with a lock
+error. Depending on database size and storage performance, compaction can
+take from a few seconds to many minutes.
+
+The database backend is read from <home>/config/config.toml (db_backend).
+Supported backends: goleveldb, pebbledb. Any other backend will be rejected
+with an error.
+
+The application database (<home>/data/application.db) is NOT compacted by
+this command.
+
+Examples:
+  celestia-appd compact-blockstore --home /var/lib/celestia-app
+  celestia-appd compact-blockstore --home /var/lib/celestia-app -y
+`,
+		RunE: runCompactBlockstore,
+	}
+	cmd.Flags().BoolP(flagYes, "y", false, "Skip the interactive confirmation prompt")
+	return cmd
+}
+
+func runCompactBlockstore(cmd *cobra.Command, _ []string) error {
+	sctx := server.GetServerContextFromCmd(cmd)
+	logger := sctx.Logger
+
+	backendStr := strings.ToLower(strings.TrimSpace(sctx.Config.DBBackend))
+	switch backendStr {
+	case "goleveldb", "pebbledb":
+	default:
+		return fmt.Errorf("unsupported db_backend %q: only goleveldb and pebbledb are supported", backendStr)
+	}
+	backend := cometbftdb.BackendType(backendStr)
+	dataDir := sctx.Config.DBDir()
+
+	for _, name := range compactBlockstoreDBs {
+		path := filepath.Join(dataDir, name+".db")
+		if _, err := os.Stat(path); err != nil {
+			return fmt.Errorf("expected database not found at %s: %w", path, err)
+		}
+	}
+
+	yes, err := cmd.Flags().GetBool(flagYes)
+	if err != nil {
+		return err
+	}
+	if !yes {
+		if _, err := fmt.Fprintf(cmd.OutOrStdout(),
+			"About to compact %v under %s (backend=%s).\nThe node must be stopped. Continue? [y/N]: ",
+			compactBlockstoreDBs, dataDir, backendStr); err != nil {
+			return err
+		}
+		reader := bufio.NewReader(cmd.InOrStdin())
+		line, err := reader.ReadString('\n')
+		// io.EOF without input is treated as "no answer" and falls through to the
+		// non-"y" check below; any other read error is fatal.
+		if err != nil && err != io.EOF {
+			return err
+		}
+		line = strings.TrimSpace(strings.ToLower(line))
+		if line != "y" && line != "yes" {
+			return fmt.Errorf("aborted by user")
+		}
+	}
+
+	for _, name := range compactBlockstoreDBs {
+		if err := compactOneCometBFTDB(logger, name, backend, dataDir); err != nil {
+			return fmt.Errorf("compact %s: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func compactOneCometBFTDB(logger log.Logger, name string, backend cometbftdb.BackendType, dataDir string) error {
+	dbPath := filepath.Join(dataDir, name+".db")
+	sizeBefore, err := dirSize(dbPath)
+	if err != nil {
+		logger.Warn("could not measure database size before compaction", "db", name, "err", err)
+	}
+
+	db, err := cometbftdb.NewDB(name, backend, dataDir)
+	if err != nil {
+		return fmt.Errorf("open: %w", err)
+	}
+	defer func() {
+		if cerr := db.Close(); cerr != nil {
+			logger.Warn("error closing database", "db", name, "err", cerr)
+		}
+	}()
+
+	logger.Info("compacting database",
+		"db", name,
+		"backend", string(backend),
+		"path", dbPath,
+		"size_before_bytes", sizeBefore,
+	)
+	start := time.Now()
+
+	type compactable interface {
+		Compact(start, end []byte) error
+	}
+	c, ok := db.(compactable)
+	if !ok {
+		return fmt.Errorf("backend %T does not implement Compact", db)
+	}
+	if err := c.Compact(nil, nil); err != nil {
+		return fmt.Errorf("compact: %w", err)
+	}
+
+	sizeAfter, err := dirSize(dbPath)
+	if err != nil {
+		logger.Warn("could not measure database size after compaction", "db", name, "err", err)
+	}
+	logger.Info("database compaction complete",
+		"db", name,
+		"elapsed", time.Since(start).String(),
+		"size_before_bytes", sizeBefore,
+		"size_after_bytes", sizeAfter,
+		"reclaimed_bytes", sizeBefore-sizeAfter,
+	)
+	return nil
+}
+
+// dirSize walks path and returns the sum of regular-file sizes in bytes.
+func dirSize(path string) (int64, error) {
+	var total int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.Mode().IsRegular() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total, err
+}
