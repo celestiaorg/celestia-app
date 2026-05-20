@@ -110,10 +110,6 @@ func runCompactBlockstore(cmd *cobra.Command, _ []string) error {
 
 func compactOneCometBFTDB(logger log.Logger, name string, backend cometbftdb.BackendType, dataDir string) error {
 	dbPath := filepath.Join(dataDir, name+".db")
-	sizeBefore, err := dirSize(dbPath)
-	if err != nil {
-		logger.Warn("could not measure database size before compaction", "db", name, "err", err)
-	}
 
 	db, err := cometbftdb.NewDB(name, backend, dataDir)
 	if err != nil {
@@ -129,7 +125,6 @@ func compactOneCometBFTDB(logger log.Logger, name string, backend cometbftdb.Bac
 		"db", name,
 		"backend", string(backend),
 		"path", dbPath,
-		"size_before_bytes", sizeBefore,
 	)
 	start := time.Now()
 
@@ -144,31 +139,9 @@ func compactOneCometBFTDB(logger log.Logger, name string, backend cometbftdb.Bac
 		return fmt.Errorf("compact: %w", err)
 	}
 
-	sizeAfter, err := dirSize(dbPath)
-	if err != nil {
-		logger.Warn("could not measure database size after compaction", "db", name, "err", err)
-	}
 	logger.Info("database compaction complete",
 		"db", name,
 		"elapsed", time.Since(start).String(),
-		"size_before_bytes", sizeBefore,
-		"size_after_bytes", sizeAfter,
-		"reclaimed_bytes", sizeBefore-sizeAfter,
 	)
 	return nil
-}
-
-// dirSize walks path and returns the sum of regular-file sizes in bytes.
-func dirSize(path string) (int64, error) {
-	var total int64
-	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.Mode().IsRegular() {
-			total += info.Size()
-		}
-		return nil
-	})
-	return total, err
 }

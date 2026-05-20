@@ -52,49 +52,6 @@ func newServerCtxCmd(t *testing.T, homeDir, backend string) *cobra.Command {
 	return cmd
 }
 
-func TestDirSize(t *testing.T) {
-	t.Run("empty directory returns 0", func(t *testing.T) {
-		dir := t.TempDir()
-		size, err := dirSize(dir)
-		require.NoError(t, err)
-		require.Equal(t, int64(0), size)
-	})
-
-	t.Run("single file returns its size", func(t *testing.T) {
-		dir := t.TempDir()
-		content := []byte("hello world")
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "f.txt"), content, 0o600))
-		size, err := dirSize(dir)
-		require.NoError(t, err)
-		require.Equal(t, int64(len(content)), size)
-	})
-
-	t.Run("sums files across nested directories", func(t *testing.T) {
-		dir := t.TempDir()
-		nested := filepath.Join(dir, "a", "b")
-		require.NoError(t, os.MkdirAll(nested, 0o700))
-		require.NoError(t, os.WriteFile(filepath.Join(dir, "top.txt"), []byte("12345"), 0o600))
-		require.NoError(t, os.WriteFile(filepath.Join(nested, "deep.txt"), []byte("xxxxxxxxxx"), 0o600))
-		size, err := dirSize(dir)
-		require.NoError(t, err)
-		require.Equal(t, int64(15), size)
-	})
-
-	t.Run("ignores subdirectories themselves", func(t *testing.T) {
-		// Only regular file sizes should be summed; directory entries must not contribute.
-		dir := t.TempDir()
-		require.NoError(t, os.MkdirAll(filepath.Join(dir, "empty-sub"), 0o700))
-		size, err := dirSize(dir)
-		require.NoError(t, err)
-		require.Equal(t, int64(0), size)
-	})
-
-	t.Run("returns error for missing path", func(t *testing.T) {
-		_, err := dirSize(filepath.Join(t.TempDir(), "does-not-exist"))
-		require.Error(t, err)
-	})
-}
-
 func TestCompactOneCometBFTDB(t *testing.T) {
 	backends := []struct {
 		name    string
