@@ -13,7 +13,7 @@ require (
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cosmos/gogoproto v1.7.2
 	github.com/cosmos/ibc-go/v8 v8.7.0
-	github.com/ethereum/go-ethereum v1.17.2
+	github.com/ethereum/go-ethereum v1.17.3
 	github.com/moby/moby/client v0.4.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.28.0
