@@ -36,7 +36,9 @@ func NewAnteHandler(
 		// Ensure that the tx does not contain any messages that are disabled by the circuit breaker.
 		circuitante.NewCircuitBreakerDecorator(circuitkeeper),
 		// Ensure the tx contains only known critical extension options.
-		ante.NewExtensionOptionsDecorator(EIP712ExtensionOptionChecker),
+		ante.NewExtensionOptionsDecorator(CelestiaExtensionOptionChecker),
+		// Enforce SIGN_MODE_ETHEREUM_TX critical extension option semantics.
+		NewEthereumTxAuthorizationDecorator(accountKeeper, ethIdentityKeeper),
 		// Ensure the tx passes ValidateBasic.
 		ante.NewValidateBasicDecorator(),
 		// Ensure the tx has not reached a height timeout.

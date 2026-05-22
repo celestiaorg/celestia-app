@@ -11,9 +11,14 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	"github.com/cosmos/cosmos-sdk/x/bank"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core/types"
+	gethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/require"
 )
@@ -68,7 +73,7 @@ func TestReadOnlyMethods(t *testing.T) {
 		{name: "net_peerCount", method: "net_peerCount", want: "0x0"},
 		{name: "eth_getCode", method: "eth_getCode", params: `["` + ethAddr.Hex() + `","latest"]`, want: "0x"},
 		{name: "eth_call", method: "eth_call", params: `[{"to":"` + ethAddr.Hex() + `"},"latest"]`, want: "0x"},
-		{name: "eth_estimateGas", method: "eth_estimateGas", params: `[{"to":"` + ethAddr.Hex() + `"}]`, want: "0x5208"},
+		{name: "eth_estimateGas", method: "eth_estimateGas", params: `[{"to":"` + ethAddr.Hex() + `"}]`, want: "0x186a0"},
 	}
 
 	for _, tc := range tests {
@@ -150,10 +155,112 @@ func TestBatchRequest(t *testing.T) {
 	require.Equal(t, "12345", results["net"])
 }
 
-func TestUnsupportedWriteMethodIsNotExposed(t *testing.T) {
-	resp := requestRPC(t, newZeroValueServer(), "eth_sendRawTransaction", `["0x00"]`)
+func TestSendRawTransactionBroadcastsTranslatedValueTransfer(t *testing.T) {
+	rawTx, txHash, from, to := signedDynamicFeeTx(t)
+	fromCelestia := sdk.AccAddress("sender-celestia-account")
+	toCelestia := sdk.AccAddress("recipient-celestia-acct")
+	account := authtypes.NewBaseAccountWithAddress(fromCelestia)
+	require.NoError(t, account.SetSequence(7))
+	var broadcastedTx []byte
+
+	server := NewServer(Config{
+		ContextProvider: func() (sdk.Context, error) {
+			return sdk.Context{}.WithBlockHeight(1), nil
+		},
+		ChainIDProvider: func() string {
+			return "celestiadev"
+		},
+		GasPriceProvider: func() (float64, error) {
+			return 0, nil
+		},
+		TxBroadcaster: func(txBytes []byte) (*sdk.TxResponse, error) {
+			broadcastedTx = append([]byte(nil), txBytes...)
+			return &sdk.TxResponse{Code: 0, TxHash: "CELESTIA_TX_HASH"}, nil
+		},
+		IdentityKeeper: mockIdentityKeeper{
+			mappings: map[common.Address]sdk.AccAddress{
+				from: fromCelestia,
+				to:   toCelestia,
+			},
+		},
+		AccountKeeper: mockAccountKeeper{
+			accounts: map[string]sdk.AccountI{fromCelestia.String(): account},
+		},
+		BankKeeper:    mockBankKeeper{},
+		ClientVersion: "celestia-app/test",
+	})
+
+	translation, err := server.translateEthereumValueTransfer(rawTx)
+	require.NoError(t, err)
+	require.Equal(t, txHash.Hex(), translation.EthereumTxHash)
+	require.Equal(t, from.Hex(), translation.FromEthereumAddress)
+	require.Equal(t, to.Hex(), translation.ToEthereumAddress)
+	require.Equal(t, fromCelestia.String(), translation.FromCelestiaAddress)
+	require.Equal(t, toCelestia.String(), translation.ToCelestiaAddress)
+	require.Equal(t, "1000000utia", translation.Amount)
+	require.Equal(t, "42utia", translation.FeeAmount)
+	require.Equal(t, uint64(21000), translation.GasLimit)
+	require.Equal(t, uint64(7), translation.Sequence)
+	require.NotEmpty(t, translation.BodyBytesHash)
+	require.NotEmpty(t, translation.AuthInfoBytesHash)
+	require.Positive(t, translation.TxRawBytesLen)
+	require.NotEmpty(t, translation.TxRawBytes)
+	enc := encoding.MakeConfig(bank.AppModuleBasic{})
+	_, err = enc.TxConfig.TxDecoder()(translation.TxRawBytes)
+	require.NoError(t, err)
+
+	resp := requestRPC(t, server, "eth_sendRawTransaction", `["`+hexutil.Encode(rawTx)+`"]`)
+	require.Nil(t, resp.Error)
+	require.Equal(t, txHash.Hex(), resp.Result)
+	require.Equal(t, translation.TxRawBytes, broadcastedTx)
+}
+
+func TestSendRawTransactionRejectsUnresolvedSender(t *testing.T) {
+	rawTx, _, _, _ := signedDynamicFeeTx(t)
+
+	resp := requestRPC(t, newZeroValueServer(), "eth_sendRawTransaction", `["`+hexutil.Encode(rawTx)+`"]`)
 	require.NotNil(t, resp.Error)
-	require.Equal(t, -32601, resp.Error.Code)
+	require.Equal(t, -32000, resp.Error.Code)
+	require.Contains(t, resp.Error.Message, "unresolved ethereum sender")
+}
+
+func TestSendRawTransactionReturnsBroadcastRejection(t *testing.T) {
+	rawTx, _, from, to := signedDynamicFeeTx(t)
+	fromCelestia := sdk.AccAddress("sender-celestia-account")
+	toCelestia := sdk.AccAddress("recipient-celestia-acct")
+	account := authtypes.NewBaseAccountWithAddress(fromCelestia)
+	require.NoError(t, account.SetSequence(7))
+
+	server := NewServer(Config{
+		ContextProvider: func() (sdk.Context, error) {
+			return sdk.Context{}.WithBlockHeight(1), nil
+		},
+		ChainIDProvider: func() string {
+			return "celestiadev"
+		},
+		GasPriceProvider: func() (float64, error) {
+			return 0, nil
+		},
+		TxBroadcaster: func(_ []byte) (*sdk.TxResponse, error) {
+			return &sdk.TxResponse{Code: 4, Codespace: "sdk", RawLog: "unauthorized"}, nil
+		},
+		IdentityKeeper: mockIdentityKeeper{
+			mappings: map[common.Address]sdk.AccAddress{
+				from: fromCelestia,
+				to:   toCelestia,
+			},
+		},
+		AccountKeeper: mockAccountKeeper{
+			accounts: map[string]sdk.AccountI{fromCelestia.String(): account},
+		},
+		BankKeeper:    mockBankKeeper{},
+		ClientVersion: "celestia-app/test",
+	})
+
+	resp := requestRPC(t, server, "eth_sendRawTransaction", `["`+hexutil.Encode(rawTx)+`"]`)
+	require.NotNil(t, resp.Error)
+	require.Equal(t, -32000, resp.Error.Code)
+	require.Contains(t, resp.Error.Message, "unauthorized")
 }
 
 func TestUnknownChainIDReturnsInternalError(t *testing.T) {
@@ -237,6 +344,29 @@ func newZeroValueServer() *Server {
 	})
 }
 
+func signedDynamicFeeTx(t *testing.T) ([]byte, common.Hash, common.Address, common.Address) {
+	t.Helper()
+
+	key, err := gethcrypto.GenerateKey()
+	require.NoError(t, err)
+	from := gethcrypto.PubkeyToAddress(key.PublicKey)
+	to := common.HexToAddress("0x1111111111111111111111111111111111111111")
+	tx := types.NewTx(&types.DynamicFeeTx{
+		ChainID:   big.NewInt(12345),
+		Nonce:     7,
+		GasTipCap: big.NewInt(1_000_000_000),
+		GasFeeCap: big.NewInt(2_000_000_000),
+		Gas:       21000,
+		To:        &to,
+		Value:     big.NewInt(1_000_000_000_000_000_000),
+	})
+	signedTx, err := types.SignTx(tx, types.LatestSignerForChainID(big.NewInt(12345)), key)
+	require.NoError(t, err)
+	rawTx, err := signedTx.MarshalBinary()
+	require.NoError(t, err)
+	return rawTx, signedTx.Hash(), from, to
+}
+
 type mockIdentityKeeper struct {
 	mappings map[common.Address]sdk.AccAddress
 }
@@ -301,4 +431,13 @@ func TestToEVMUnits(t *testing.T) {
 	require.Equal(t, "0x0", hexQuantityBigInt(toEVMUnits(nil)))
 	require.Equal(t, "0x0", hexQuantityBigInt(toEVMUnits(big.NewInt(0))))
 	require.Equal(t, "0xde0b6b3a7640000", hexQuantityBigInt(toEVMUnits(big.NewInt(1_000_000))))
+}
+
+func TestFromEVMUnits(t *testing.T) {
+	amount, err := fromEVMUnits(big.NewInt(1_000_000_000_000_000_000))
+	require.NoError(t, err)
+	require.Equal(t, sdkmath.NewInt(1_000_000), amount)
+
+	_, err = fromEVMUnits(big.NewInt(1))
+	require.Error(t, err)
 }

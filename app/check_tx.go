@@ -7,6 +7,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v9/app/errors"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
+	txethereum "github.com/celestiaorg/celestia-app/v9/pkg/tx/ethereum"
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -121,7 +122,7 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	}
 
 	if sigs[0].PubKey == nil {
-		if eip712.IsEIP712SignatureData(sigs[0].Data) {
+		if eip712.IsEIP712SignatureData(sigs[0].Data) || txethereum.IsEthereumTxSignatureData(sigs[0].Data) {
 			signers, err := sigTx.GetSigners()
 			if err != nil {
 				return nil, 0, err

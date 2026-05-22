@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
+	txethereum "github.com/celestiaorg/celestia-app/v9/pkg/tx/ethereum"
 	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
 	ethidentitykeeper "github.com/celestiaorg/celestia-app/v9/x/ethidentity/keeper"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -182,6 +183,22 @@ func TestEIP712ValidateSigCountDecoratorRejectsMultipleSignatures(t *testing.T) 
 	require.ErrorContains(t, err, "EIP-712 supports exactly one single signature")
 }
 
+func TestEthereumTxAuthorizationRequiresExtensionOption(t *testing.T) {
+	testApp, ctx, tx := buildEthereumTxPairingTx(t, false, true)
+	decorator := appante.NewEthereumTxAuthorizationDecorator(testApp.AccountKeeper, testApp.EthIdentityKeeper)
+
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	require.ErrorContains(t, err, "SIGN_MODE_ETHEREUM_TX requires ExtensionOptionsEthereumTx")
+}
+
+func TestEthereumTxAuthorizationRequiresSignMode(t *testing.T) {
+	testApp, ctx, tx := buildEthereumTxPairingTx(t, true, false)
+	decorator := appante.NewEthereumTxAuthorizationDecorator(testApp.AccountKeeper, testApp.EthIdentityKeeper)
+
+	_, err := decorator.AnteHandle(ctx, tx, false, nextAnteHandler)
+	require.ErrorContains(t, err, "SIGN_MODE_ETHEREUM_TX requires ExtensionOptionsEthereumTx")
+}
+
 type eip712TxOptions struct {
 	fee                 sdk.Coins
 	gasLimit            uint64
@@ -305,6 +322,48 @@ func buildEIP712Tx(t *testing.T, wrongSigner bool, optionFns ...eip712TxOption) 
 	return testApp, ctx, txBuilder.GetTx()
 }
 
+func buildEthereumTxPairingTx(t *testing.T, includeExt bool, includeEthereumSignMode bool) (*app.App, sdk.Context, authsigning.Tx) {
+	t.Helper()
+
+	testApp, _, _ := testutil.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testdata.RegisterInterfaces(enc.InterfaceRegistry)
+	clientCtx := client.Context{}.WithTxConfig(enc.TxConfig).WithCmdContext(context.Background())
+
+	priv := secp256k1.GenPrivKey()
+	signer := sdk.AccAddress(priv.PubKey().Address())
+	acc := testApp.AccountKeeper.NewAccountWithAddress(ctx, signer)
+	testApp.AccountKeeper.SetAccount(ctx, acc)
+
+	txBuilder := clientCtx.TxConfig.NewTxBuilder()
+	require.NoError(t, txBuilder.SetMsgs(testdata.NewTestMsg(signer)))
+	txBuilder.SetGasLimit(100000)
+
+	if includeExt {
+		ext, err := txethereum.NewExtensionOptions(txethereum.SchemaVersion, 12345, []byte{1})
+		require.NoError(t, err)
+		extBuilder, ok := txBuilder.(authtx.ExtensionOptionsTxBuilder)
+		require.True(t, ok)
+		extBuilder.SetExtensionOptions(ext)
+	}
+
+	signMode := signingtypes.SignMode_SIGN_MODE_DIRECT
+	if includeEthereumSignMode {
+		signMode = txethereum.SignMode
+	}
+	require.NoError(t, txBuilder.SetSignatures(signingtypes.SignatureV2{
+		PubKey: priv.PubKey(),
+		Data: &signingtypes.SingleSignatureData{
+			SignMode:  signMode,
+			Signature: []byte("placeholder"),
+		},
+		Sequence: 0,
+	}))
+
+	return testApp, ctx, txBuilder.GetTx()
+}
+
 func fundAccount(t *testing.T, testApp *app.App, ctx sdk.Context, addr sdk.AccAddress, coins sdk.Coins) {
 	t.Helper()
 	require.NoError(t, testApp.BankKeeper.MintCoins(ctx, minttypes.ModuleName, coins))
@@ -318,6 +377,10 @@ type recordingEthIdentityKeeper struct {
 func (k *recordingEthIdentityKeeper) IndexPubKey(_ sdk.Context, _ cryptotypes.PubKey) error {
 	k.calls++
 	return nil
+}
+
+func (k *recordingEthIdentityKeeper) Resolve(_ sdk.Context, _ []byte) (sdk.AccAddress, bool) {
+	return nil, false
 }
 
 type signerOnlyTx struct {

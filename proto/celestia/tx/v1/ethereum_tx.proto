@@ -1,0 +1,13 @@
+syntax = "proto3";
+package celestia.tx.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/pkg/tx/ethereum";
+
+// ExtensionOptionsEthereumTx is the critical extension option that preserves
+// the signed Ethereum transaction envelope used to authorize a translated
+// Celestia transaction.
+message ExtensionOptionsEthereumTx {
+  uint32 schema_version = 1;
+  uint64 eth_chain_id = 2;
+  bytes raw_transaction = 3;
+}

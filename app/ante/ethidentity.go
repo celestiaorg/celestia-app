@@ -13,6 +13,7 @@ import (
 // mappings.
 type EthIdentityKeeper interface {
 	IndexPubKey(ctx sdk.Context, pubKey cryptotypes.PubKey) error
+	Resolve(ctx sdk.Context, ethAddr []byte) (sdk.AccAddress, bool)
 }
 
 // EthIdentityIndexDecorator lazily indexes observed signer public keys.

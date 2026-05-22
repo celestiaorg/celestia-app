@@ -66,6 +66,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -795,10 +796,12 @@ func (app *App) RegisterAPIRoutes(apiSvr *api.Server, _ config.APIConfig) {
 			return app.ChainID()
 		},
 		GasPriceProvider: app.getMinGasPrice,
+		TxBroadcaster:    clientCtx.WithBroadcastMode(flags.BroadcastSync).BroadcastTx,
 		IdentityKeeper:   app.EthIdentityKeeper,
 		AccountKeeper:    app.AccountKeeper,
 		BankKeeper:       app.BankKeeper,
-		ClientVersion:    fmt.Sprintf("celestia-app/%s", version.Version),
+		ClientVersion:    fmt.Sprintf("celestia-app/%s", appconsts.Version),
+		Logger:           app.Logger(),
 	}))
 	// Register new cometbft routes from grpc-gateway.
 	tmservice.RegisterGRPCGatewayRoutes(clientCtx, apiSvr.GRPCGatewayRouter)

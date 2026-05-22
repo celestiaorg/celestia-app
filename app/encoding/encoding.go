@@ -4,6 +4,7 @@ import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
 	"github.com/celestiaorg/celestia-app/v9/pkg/tx/eip712"
+	txethereum "github.com/celestiaorg/celestia-app/v9/pkg/tx/ethereum"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -48,6 +49,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	std.RegisterInterfaces(interfaceRegistry)
 	std.RegisterLegacyAminoCodec(amino)
 	eip712.RegisterInterfaces(interfaceRegistry)
+	txethereum.RegisterInterfaces(interfaceRegistry)
 
 	for _, mod := range moduleBasics {
 		mod.RegisterInterfaces(interfaceRegistry)
@@ -67,6 +69,7 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 		},
 		CustomSignModes: []signing.SignModeHandler{
 			eip712.SignModeHandler{},
+			txethereum.SignModeHandler{},
 		},
 		ProtoDecoder: txDecoder,
 	})
