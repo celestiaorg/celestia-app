@@ -351,13 +351,16 @@ func (w *worker) onCommitted(front *txEntry, resp *tx.TxStatusResponse) []comman
 		cerr = fmt.Errorf("tx execution failed with code %d: %s", resp.ExecutionCode, resp.Error)
 	}
 	confirmed := w.buffer.confirmFront()
-	cmds := []command{cmdFinalize{req: confirmed.request, resp: txResp, err: cerr}}
-
+	// confirmFront advanced nextSeq; only now can we tell whether recovery
+	// has reached its target sequence.
 	if w.mode == modeRecovering && w.buffer.nextSeq >= w.recoverTarget {
 		w.mode = modeSubmitting
 	}
 
-	return append(cmds, w.plan()...)
+	planned := w.plan()
+	cmds := make([]command, 0, len(planned)+1)
+	cmds = append(cmds, cmdFinalize{req: confirmed.request, resp: txResp, err: cerr})
+	return append(cmds, planned...)
 }
 
 func (w *worker) onEvicted(front *txEntry) []command {

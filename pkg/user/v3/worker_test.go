@@ -363,7 +363,7 @@ func TestWorker_SubmitAndConfirm(t *testing.T) {
 		bro.setStatus(fmt.Sprintf("hash-%d", uint64(i)+1), committedResp())
 	}
 
-	var handles []*TxHandle
+	handles := make([]*TxHandle, 0, 5)
 	for range 5 {
 		handles = append(handles, enqueueRequest(context.Background(), ch))
 	}
@@ -394,7 +394,7 @@ func TestWorker_RecoveryAfterMismatch(t *testing.T) {
 		bro.setStatus(fmt.Sprintf("hash-%d", i), committedResp())
 	}
 
-	var handles []*TxHandle
+	handles := make([]*TxHandle, 0, 3)
 	for range 3 {
 		handles = append(handles, enqueueRequest(context.Background(), ch))
 	}
@@ -468,7 +468,7 @@ func TestClose_DrainsQueuedRequests(t *testing.T) {
 		<-ctx.Done() // worker stub: just block until cancel.
 	}()
 
-	var handles []*TxHandle
+	handles := make([]*TxHandle, 0, 3)
 	for range 3 {
 		req, h := newTxHandle(context.Background(), nil, nil, nil)
 		require.NoError(t, c.enqueue(req))
@@ -573,7 +573,7 @@ func TestClose_DrainsWhenWorkerExitsFirst(t *testing.T) {
 		c.Close()
 	}()
 
-	var handles []*TxHandle
+	handles := make([]*TxHandle, 0, 3)
 	for range 3 {
 		req, h := newTxHandle(context.Background(), nil, nil, nil)
 		require.NoError(t, c.enqueue(req))
