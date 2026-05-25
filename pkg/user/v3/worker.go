@@ -108,6 +108,13 @@ type worker struct {
 	signing    bool
 	submitting bool
 	confirming bool
+
+	// inflightSign holds the request currently being signed. It is set
+	// when plan() emits cmdSign and cleared on evSignResult. Tracking it
+	// outside the buffer lets drainAll resolve it on shutdown — otherwise
+	// a caller would block on Await forever because the req was popped
+	// from pending but not yet appended to signed when ctx was cancelled.
+	inflightSign *TxRequest
 }
 
 // run is the main event loop. It exits when the parent context is
@@ -163,6 +170,7 @@ func (w *worker) handle(e event) []command {
 
 	case evSignResult:
 		w.signing = false
+		w.inflightSign = nil
 		if e.err != nil {
 			return append(
 				[]command{cmdFinalize{req: e.req, err: fmt.Errorf("signing tx: %w", e.err)}},
@@ -214,6 +222,7 @@ func (w *worker) plan() []command {
 			continue
 		}
 		w.signing = true
+		w.inflightSign = req
 		cmds = append(cmds, cmdSign{req: req})
 		break
 	}
@@ -264,13 +273,13 @@ func (w *worker) onSubmitResult(e evSubmitResult) []command {
 func (w *worker) handleSubmitError(seq uint64, err error) []command {
 	kind, expectedSeq := ClassifyBroadcastError(err)
 	switch kind {
-	case KindSequenceMismatch:
+	case ErrSequenceMismatch:
 		w.handleSubmitSequenceMismatch(expectedSeq)
-	case KindMempoolFull, KindNetworkError:
+	case ErrMempoolFull, ErrNetworkError:
 		// non-fatal: entry is still marked unsubmitted; plan() will retry.
-	case KindTxInMempoolCache:
+	case ErrTxInMempoolCache:
 		w.buffer.markSubmitted(seq)
-	case KindTerminal, KindInsufficientFee:
+	case ErrUnrecoverable, ErrInsufficientFee:
 		w.enterStop(seq, fmt.Errorf("fatal broadcast error: %w", err))
 	}
 	return w.plan()
@@ -448,8 +457,15 @@ func (w *worker) drainRemaining() {
 	}
 }
 
-// drainAll resolves everything in the buffer with err. Called on shutdown.
+// drainAll resolves everything still owned by the worker with err. Called
+// on shutdown. Order: in-flight sign first (it was popped from pending
+// before the signer started, so it lives only in inflightSign), then the
+// buffer.
 func (w *worker) drainAll(err error) {
+	if w.inflightSign != nil {
+		w.inflightSign.resolve(nil, err)
+		w.inflightSign = nil
+	}
 	for w.buffer.pendingLen() > 0 {
 		w.buffer.popPending().resolve(nil, err)
 	}

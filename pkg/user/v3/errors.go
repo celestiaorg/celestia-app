@@ -10,38 +10,38 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// BroadcastErrorKind classifies broadcast errors for the async pipeline.
-// It is a discriminator, not an error value — use Kind* constants below.
-type BroadcastErrorKind int
+// BroadcastErrorCode classifies broadcast errors for the async pipeline.
+// It is a discriminator, not an error value — use the Err* constants below.
+type BroadcastErrorCode int
 
 const (
-	// KindSequenceMismatch indicates a nonce/sequence mismatch (wrong sequence).
-	KindSequenceMismatch BroadcastErrorKind = iota
-	// KindMempoolFull indicates the remote node's mempool is full.
-	KindMempoolFull
-	// KindTxInMempoolCache indicates the tx already exists in the node's mempool cache.
-	KindTxInMempoolCache
-	// KindInsufficientFee indicates insufficient fee for the transaction.
-	KindInsufficientFee
-	// KindNetworkError indicates a gRPC transport or connectivity error.
-	KindNetworkError
-	// KindTerminal indicates a non-recoverable broadcast error.
-	KindTerminal
+	// ErrSequenceMismatch indicates a nonce/sequence mismatch (wrong sequence).
+	ErrSequenceMismatch BroadcastErrorCode = iota
+	// ErrMempoolFull indicates the remote node's mempool is full.
+	ErrMempoolFull
+	// ErrTxInMempoolCache indicates the tx already exists in the node's mempool cache.
+	ErrTxInMempoolCache
+	// ErrInsufficientFee indicates insufficient fee for the transaction.
+	ErrInsufficientFee
+	// ErrNetworkError indicates a gRPC transport or connectivity error.
+	ErrNetworkError
+	// ErrUnrecoverable indicates a non-recoverable broadcast error.
+	ErrUnrecoverable
 )
 
-// ClassifyBroadcastError classifies a broadcast error into a BroadcastErrorKind.
-// For KindSequenceMismatch, it also returns the expected sequence number.
+// ClassifyBroadcastError classifies a broadcast error into a BroadcastErrorCode.
+// For ErrSequenceMismatch, it also returns the expected sequence number.
 // For all other kinds, expectedSeq is 0.
-func ClassifyBroadcastError(err error) (kind BroadcastErrorKind, expectedSeq uint64) {
+func ClassifyBroadcastError(err error) (kind BroadcastErrorCode, expectedSeq uint64) {
 	if err == nil {
-		return KindTerminal, 0
+		return ErrUnrecoverable, 0
 	}
 
 	// Check for gRPC transport errors first.
 	if s, ok := status.FromError(err); ok {
 		switch s.Code() {
 		case codes.Unavailable, codes.DeadlineExceeded:
-			return KindNetworkError, 0
+			return ErrNetworkError, 0
 		}
 	}
 
@@ -52,30 +52,30 @@ func ClassifyBroadcastError(err error) (kind BroadcastErrorKind, expectedSeq uin
 		errMsg := err.Error()
 		if strings.Contains(errMsg, "connection refused") ||
 			strings.Contains(errMsg, "connection reset") {
-			return KindNetworkError, 0
+			return ErrNetworkError, 0
 		}
-		return KindTerminal, 0
+		return ErrUnrecoverable, 0
 	}
 
 	// Classify based on the broadcast error code and message.
 	if apperrors.IsNonceMismatchCode(broadcastErr.Code) {
 		seq, parseErr := apperrors.ParseExpectedSequence(broadcastErr.ErrorLog)
 		if parseErr != nil {
-			return KindTerminal, 0
+			return ErrUnrecoverable, 0
 		}
-		return KindSequenceMismatch, seq
+		return ErrSequenceMismatch, seq
 	}
 
 	errMsg := broadcastErr.ErrorLog
 	if strings.Contains(errMsg, "mempool is full") {
-		return KindMempoolFull, 0
+		return ErrMempoolFull, 0
 	}
 	if strings.Contains(errMsg, "tx already exists in cache") {
-		return KindTxInMempoolCache, 0
+		return ErrTxInMempoolCache, 0
 	}
 	if broadcastErr.Code == sdkerrors.ErrInsufficientFee.ABCICode() {
-		return KindInsufficientFee, 0
+		return ErrInsufficientFee, 0
 	}
 
-	return KindTerminal, 0
+	return ErrUnrecoverable, 0
 }

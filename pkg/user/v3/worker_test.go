@@ -509,3 +509,82 @@ func TestEnqueue_QueueFull(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "queue is full")
 }
+
+// blockingSigner blocks Sign until ctx is cancelled. Used to park a request
+// in the "popped from pending, not yet appended to signed" window so the
+// drain path can be exercised.
+type blockingSigner struct {
+	started chan struct{}
+	once    sync.Once
+}
+
+func (s *blockingSigner) Sign(ctx context.Context, _ *TxRequest) ([]byte, string, uint64, error) {
+	s.once.Do(func() { close(s.started) })
+	<-ctx.Done()
+	return nil, "", 0, ctx.Err()
+}
+
+func TestWorker_DrainAllResolvesInflightSign(t *testing.T) {
+	// Regression: when ctx is cancelled while a request is in the signer
+	// (popped from pending, not yet appended to signed), drainAll must
+	// resolve it. Without inflightSign tracking, Await would hang forever.
+	sigStarted := make(chan struct{})
+	sig := &blockingSigner{started: sigStarted}
+	requestCh := make(chan *TxRequest, 1)
+	w := &worker{
+		signer:      sig,
+		broadcaster: newFakeBroadcaster(),
+		buffer:      newTxBuffer(1),
+		requestCh:   requestCh,
+		events:      make(chan event, 8),
+		pollTime:    10 * time.Millisecond,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		w.run(ctx)
+		close(done)
+	}()
+
+	h := enqueueRequest(context.Background(), requestCh)
+	<-sigStarted // signer is now in flight; req is owned only by inflightSign.
+
+	cancel()
+	<-done
+
+	err := awaitWithTimeout(t, h, 1*time.Second)
+	require.Error(t, err, "in-flight sign req must resolve on shutdown")
+}
+
+func TestClose_DrainsWhenWorkerExitsFirst(t *testing.T) {
+	// Regression: if the parent ctx is cancelled externally (and the user
+	// never calls Close), the requestCh must still drain — NewQueuedTxClient's
+	// worker goroutine invokes Close on its way out for exactly this reason.
+	ctx, cancel := context.WithCancel(context.Background())
+	c := &QueuedTxClient{
+		requestCh: make(chan *TxRequest, 8),
+		cancel:    cancel,
+		done:      make(chan struct{}),
+	}
+	// Mirror NewQueuedTxClient: worker calls Close on exit as a safety net.
+	go func() {
+		<-ctx.Done()
+		close(c.done)
+		c.Close()
+	}()
+
+	var handles []*TxHandle
+	for range 3 {
+		req, h := newTxHandle(context.Background(), nil, nil, nil)
+		require.NoError(t, c.enqueue(req))
+		handles = append(handles, h)
+	}
+
+	// External cancel — user never invokes Close themselves.
+	cancel()
+
+	for i, h := range handles {
+		err := awaitWithTimeout(t, h, 1*time.Second)
+		assert.ErrorIs(t, err, errClientClosed, "handle %d must resolve via worker-triggered Close", i)
+	}
+}

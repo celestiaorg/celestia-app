@@ -99,8 +99,13 @@ func NewQueuedTxClient(ctx context.Context, v2Client *v2.TxClient, opts ...Optio
 	}
 
 	go func() {
-		defer close(c.done)
 		w.run(ctx)
+		close(c.done)
+		// Safety net: if the parent ctx was cancelled externally and the
+		// user never calls Close, requestCh would otherwise hold orphaned
+		// requests forever. The CAS in Close makes the duplicate call a
+		// no-op when the user got there first.
+		c.Close()
 	}()
 
 	return c, nil
@@ -155,7 +160,9 @@ func (c *QueuedTxClient) Close() {
 	if !c.closed.CompareAndSwap(false, true) {
 		return
 	}
-	c.cancel()
+	if c.cancel != nil {
+		c.cancel()
+	}
 	<-c.done
 	for {
 		select {

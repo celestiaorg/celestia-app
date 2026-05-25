@@ -52,7 +52,11 @@ func (b *txBuffer) popPending() *TxRequest {
 		return nil
 	}
 	req := b.pending[0]
+	b.pending[0] = nil // drop ref so the backing array doesn't pin TxRequest
 	b.pending = b.pending[1:]
+	if len(b.pending) == 0 {
+		b.pending = nil // release backing array during idle periods
+	}
 	return req
 }
 
@@ -85,7 +89,13 @@ func (b *txBuffer) confirmFront() *txEntry {
 		return nil
 	}
 	entry := b.signed[0]
+	// Drop references in the vacated slot so the GC can reclaim txBytes /
+	// request — otherwise the backing array keeps them alive.
+	b.signed[0] = txEntry{}
 	b.signed = b.signed[1:]
+	if len(b.signed) == 0 {
+		b.signed = nil // release backing array during idle periods
+	}
 	b.nextSeq = entry.sequence + 1
 	if b.submittedThru > 0 {
 		b.submittedThru--
