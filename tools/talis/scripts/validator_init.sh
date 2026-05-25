@@ -124,8 +124,13 @@ cd $HOME
 # Get the hostname
 hostname=$(hostname)
 
-# Parse the first part of the hostname
-parsed_hostname=$(echo $hostname | awk -F'-' '{print $1 "-" $2}')
+# Parse the first part of the hostname. Strip any DNS suffix first so that
+# GCP hostnames like `validator-85.us-east1-c.<project>.internal` don't end
+# up parsed as `validator-85.us` — which then makes every per-validator
+# `mv`/`cp` below fail, leaving the node with the default priv_validator_key
+# from `celestia-appd init` (not in any gentx), so CometBFT logs "node is
+# not a validator" and the network never reaches quorum.
+parsed_hostname=$(echo $hostname | cut -d. -f1 | awk -F'-' '{print $1 "-" $2}')
 
 cp payload/build/celestia-appd /bin/celestia-appd
 cp payload/build/txsim /bin/txsim
