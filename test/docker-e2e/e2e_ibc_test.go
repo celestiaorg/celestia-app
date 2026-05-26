@@ -425,7 +425,7 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		// The simapp image runs as uid 1000 with HOME=/, so simd's NewRootCmd
 		// panics trying to mkdir $HOME/.simapp before --home is parsed. Point
 		// HOME at the chain's writable volume root.
-		// WithEnv("HOME=/var/cosmos-chain").
+		WithEnv("HOME=/var/cosmos-chain").
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
