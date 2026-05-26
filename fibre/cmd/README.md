@@ -70,6 +70,71 @@ To verify or override, check `config.toml`:
 priv_validator_grpc_laddr = "127.0.0.1:26659"
 ```
 
+## Transport security (TLS)
+
+The Fibre server↔client gRPC link is **TLS-only** (TLS 1.3, always on, no
+plaintext fallback). The server presents a self-signed certificate whose
+ephemeral TLS key is endorsed by the validator's **consensus key** (signed via
+`SignRawBytes` and embedded in a custom X.509 extension). The client verifies
+that the peer's certificate is endorsed by the exact validator it intended to
+dial, using the consensus pubkey from the current validator set.
+
+Properties and assumptions:
+
+- **Identity is the consensus key, not the network address.** Verification does
+  not inspect SNI/SAN/IP, so a validator may register either an **IP literal or
+  a DNS name** as its Fibre host — both work.
+- **Server-authenticated only.** There is no client certificate / mTLS.
+  `DownloadShard` is intentionally **public** (any reachable peer may read
+  shards); uploads remain gated by the payment-promise check. If reads must ever
+  be restricted, that requires adding client/app-layer authorization.
+- **The certificate is long-lived and re-minted on restart; there is no
+  in-process refresh or key rotation.** A Celestia validator's consensus key
+  does not rotate, and the TLS key is ephemeral (process memory only), so a
+  restart is the only re-issuance path needed.
+- **Loopback-only links.** The privval signer gRPC (`--signer-grpc-address`) and
+  the app-node gRPC (`--app-grpc-address`) are **not** TLS-protected and assume a
+  loopback/host-local endpoint. Do **not** point them at a remote host over an
+  untrusted network.
+
+### Rollout
+
+Because TLS is always on with no negotiation, a node on this build **cannot**
+speak Fibre gRPC with a plaintext (pre-TLS) peer. Roll out to all Fibre peers
+together (coordinated / greenfield cutover); a mixed-version Fibre mesh will
+partition. Plaintext tooling (`tools/fibre-txsim`, `tools/rust-fibre-txsim` /
+lumina) must be updated to the endorsed-TLS verifier before it can talk to a
+TLS-only server.
+
+### Design notes
+
+Why the scheme looks the way it does:
+
+- **Endorsement, not the consensus key as the TLS key.** TLS authentication
+  needs the private key to sign every handshake. The validator consensus key is
+  held in a separate signer (tmkms/HSM) and must not be in the TLS hot path — and
+  signers only expose `SignRawBytes`, not raw TLS signing. So the server uses a
+  disposable ephemeral TLS key and the consensus key signs it **once** (via
+  `SignRawBytes`) to authorize it. The consensus key is touched only at cert mint.
+- **Host-agnostic by design.** Verification pins the validator consensus key, not
+  the network location (no SNI/SAN/IP/DNS check). This is why the on-chain host
+  registry can use an IP literal *or* a DNS name (or `host:port`) — TLS imposes no
+  format constraint; the location is just a routing hint.
+- **Long-lived cert, re-minted on restart, no in-process refresh.** A Celestia
+  validator's consensus key cannot rotate, and the TLS key is ephemeral, so the
+  endorsed identity never changes while the server runs; a restart re-mints it.
+- **No chain-ID binding.** The endorsement does not bind the chain ID — the TLS
+  layer only proves "this peer is validator V". Chain and data correctness come
+  from the chain-bound, consensus-key-signed application messages (payment
+  promises, acknowledgements) and on-chain data-availability commitments, so a
+  chain binding here would be redundant. Decoupling from the runtime chain ID
+  also keeps the client free of a startup-ordering dependency.
+- **Endorsement carried in a custom DER X.509 extension.** The endorsement
+  signature must reach the client at handshake time, so it rides in the cert. DER
+  is canonical (friendly to non-Go verifiers like lumina). The extension OID will
+  live under a Celestia-owned IANA PEN; it is a documented placeholder until the
+  PEN is registered (PROTOCO-1808).
+
 ## Observability
 
 All observability flags are persistent and apply to every subcommand.

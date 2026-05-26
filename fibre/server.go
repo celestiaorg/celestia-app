@@ -98,7 +98,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.log.Info("signer ready")
 
-	cert, err := tlsid.BuildServerCert(s.signer, s.state.ChainID())
+	cert, err := tlsid.BuildServerCert(s.signer)
 	if err != nil {
 		return fmt.Errorf("building TLS cert: %w", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"io"
+	"log/slog"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/tlsid"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
@@ -39,11 +40,16 @@ func (f *fibreClientCloser) Close() error {
 // DefaultNewClientFn returns the default [NewClientFn]. It resolves the
 // validator's network host through hostReg, then dials over TLS with the
 // peer identity bound to the validator's consensus pubkey via
-// [tlsid.VerifyPeer].
+// [tlsid.VerifyConnection].
 //
-// chainID is evaluated lazily per dial because the state client resolves it
-// during Start, which can run after this constructor.
-func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int) NewClientFn {
+// log records TLS identity-verification failures with peer context. Because
+// grpc.NewClient dials lazily, verification runs on the first RPC and a failure
+// otherwise surfaces upstream only as an aggregated quorum/unavailable error;
+// logging here preserves the underlying cause for operators.
+func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int, log *slog.Logger) NewClientFn {
+	if log == nil {
+		log = slog.Default()
+	}
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
 		host, err := hostReg.GetHost(ctx, val)
 		if err != nil {
@@ -52,15 +58,21 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 		if val.PubKey == nil {
 			return nil, errors.New("validator has no consensus pubkey for TLS identity check")
 		}
-		cid := chainID()
-		if cid == "" {
-			return nil, errors.New("chain ID is empty; state client must be started before dialing")
-		}
 
+		verify := tlsid.VerifyConnection(val.PubKey)
 		tlsCfg := &tls.Config{
-			InsecureSkipVerify:    true, //nolint:gosec // identity is verified via VerifyPeerCertificate
-			VerifyPeerCertificate: tlsid.VerifyPeer(val.PubKey, cid),
-			MinVersion:            tls.VersionTLS13,
+			InsecureSkipVerify: true, //nolint:gosec // identity is verified via VerifyConnection
+			VerifyConnection: func(state tls.ConnectionState) error {
+				if err := verify(state); err != nil {
+					log.Warn("fibre TLS peer identity verification failed",
+						"validator", val.Address.String(),
+						"host", host.String(),
+						"err", err)
+					return err
+				}
+				return nil
+			},
+			MinVersion: tls.VersionTLS13,
 		}
 
 		conn, err := grpclib.NewClient(host.String(),

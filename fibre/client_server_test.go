@@ -298,8 +298,8 @@ func makeTestEnv(
 		}
 		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
 			&testHostRegistry{addresses: addresses},
-			func() string { return "celestia" },
 			clientCfg.MaxMessageSize,
+			nil,
 		)
 		clientCfg.StateClientFn = func() (state.Client, error) {
 			return &mockStateClient{SetGetter: valSetGetter, chainID: "celestia"}, nil
@@ -455,8 +455,8 @@ func TestTLSIdentityMismatchIsRejected(t *testing.T) {
 
 	newClient := grpcfibre.DefaultNewClientFn(
 		&testHostRegistry{addresses: addresses},
-		func() string { return "celestia" },
 		fibre.DefaultProtocolParams.MaxMessageSize(),
+		nil,
 	)
 
 	// Patch the host registry so the imposter resolves to the real server.
@@ -466,8 +466,10 @@ func TestTLSIdentityMismatchIsRejected(t *testing.T) {
 	require.NoError(t, err)
 	defer client.Close()
 
-	// gRPC dials lazily; the TLS handshake fires on the first RPC.
+	// gRPC dials lazily; the TLS handshake fires on the first RPC. The imposter
+	// supplies a different expected pubkey than the one that signed the real
+	// server's endorsement, so the endorsement signature fails to verify.
 	_, err = client.DownloadShard(t.Context(), &fibretypes.DownloadShardRequest{})
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "peer identity mismatch")
+	require.Contains(t, err.Error(), "peer cert signature is invalid")
 }

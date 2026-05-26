@@ -59,6 +59,15 @@ func (s *Server) Stop(ctx context.Context) {
 		return
 	}
 
+	// Registered but never served: grpc-go only takes ownership of the listener
+	// in Serve, so GracefulStop/Stop would not close it. Close it ourselves to
+	// avoid leaking the file descriptor and port on a failed startup.
+	if s.done == nil {
+		s.server.Stop()
+		_ = s.listener.Close()
+		return
+	}
+
 	done := make(chan struct{})
 	go func() {
 		s.server.GracefulStop()
@@ -71,7 +80,5 @@ func (s *Server) Stop(ctx context.Context) {
 		s.server.Stop()
 	}
 
-	if s.done != nil {
-		<-s.done
-	}
+	<-s.done
 }
