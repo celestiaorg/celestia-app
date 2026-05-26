@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -25,11 +26,10 @@ func compactBlockstoreCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "compact-blockstore",
 		Short: "Compact the CometBFT blockstore and state databases",
-		Long: `Compact the CometBFT blockstore and state databases under <home>/data.
+		Long: `Compact the CometBFT blockstore and state databases.
 
-This command runs an offline compaction of:
-  - <home>/data/blockstore.db
-  - <home>/data/state.db
+This command runs an offline compaction of blockstore.db and state.db under
+the configured db_dir (defaults to <home>/data).
 
 Compaction reclaims disk space and improves read performance after large
 numbers of deletes (for example, after block pruning). It does not modify or
@@ -44,8 +44,7 @@ The database backend is read from <home>/config/config.toml (db_backend).
 Supported backends: goleveldb, pebbledb. Any other backend will be rejected
 with an error.
 
-The application database (<home>/data/application.db) is NOT compacted by
-this command.
+The application database (application.db) is NOT compacted by this command.
 
 Examples:
   celestia-appd compact-blockstore --home /var/lib/celestia-app
@@ -91,7 +90,7 @@ func runCompactBlockstore(cmd *cobra.Command, _ []string) error {
 		line, err := reader.ReadString('\n')
 		// io.EOF without input is treated as "no answer" and falls through to the
 		// non-"y" check below; any other read error is fatal.
-		if err != nil && err != io.EOF {
+		if err != nil && !errors.Is(err, io.EOF) {
 			return err
 		}
 		line = strings.TrimSpace(strings.ToLower(line))
@@ -128,14 +127,7 @@ func compactOneCometBFTDB(logger log.Logger, name string, backend cometbftdb.Bac
 	)
 	start := time.Now()
 
-	type compactable interface {
-		Compact(start, end []byte) error
-	}
-	c, ok := db.(compactable)
-	if !ok {
-		return fmt.Errorf("backend %T does not implement Compact", db)
-	}
-	if err := c.Compact(nil, nil); err != nil {
+	if err := db.Compact(nil, nil); err != nil {
 		return fmt.Errorf("compact: %w", err)
 	}
 

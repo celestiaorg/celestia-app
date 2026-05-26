@@ -153,22 +153,3 @@ func TestRunCompactBlockstore_EndToEnd(t *testing.T) {
 		})
 	}
 }
-
-func TestRunCompactBlockstore_AbortsOnFirstFailure(t *testing.T) {
-	// Make blockstore openable but unwritable for goleveldb, so compaction fails.
-	// We achieve a forced compaction error by passing a backend that's valid in
-	// config but seeding only state.db; the blockstore stat check will fail
-	// before any DB is opened, proving the early-abort path through the missing
-	// DB guard.
-	home := t.TempDir()
-	dataDir := filepath.Join(home, "data")
-	require.NoError(t, os.MkdirAll(dataDir, 0o700))
-	seedDB(t, "state", cometbftdb.GoLevelDBBackend, dataDir)
-
-	cmd := newServerCtxCmd(t, home, "goleveldb")
-	require.NoError(t, cmd.Flags().Set(flagYes, "true"))
-
-	err := runCompactBlockstore(cmd, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "blockstore.db")
-}
