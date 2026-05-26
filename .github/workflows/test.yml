@@ -108,10 +108,9 @@ jobs:
         run: make test-multiplexer
 
   build-e2e-image:
-    # Run in the merge queue, on release branches, and on PRs from
-    # fix/simapp-home-permission (temporary — drop the head_ref clause
-    # before merging).
-    if: github.event_name != 'pull_request' || github.head_ref == 'fix/simapp-home-permission'
+    # Run only in the merge queue and on release branches since E2E tests only
+    # run there.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -139,8 +138,8 @@ jobs:
 
   test-docker-e2e:
     needs: build-e2e-image
-    # Same gating as build-e2e-image — drop the head_ref clause before merging.
-    if: github.event_name != 'pull_request' || github.head_ref == 'fix/simapp-home-permission'
+    # Run only in the merge queue and on release branches.
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
