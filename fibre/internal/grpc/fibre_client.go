@@ -2,14 +2,17 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"io"
 
+	"github.com/celestiaorg/celestia-app/v9/fibre/internal/tlsid"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	grpclib "google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 )
 
 // Client combines [FibreClient] with [io.Closer] to manage the lifecycle
@@ -33,20 +36,35 @@ func (f *fibreClientCloser) Close() error {
 	return f.conn.Close()
 }
 
-// DefaultNewClientFn returns the default [NewClientFn] that uses the provided
-// [validator.HostRegistry] to resolve validator hosts and establishes insecure gRPC connections
-// with OpenTelemetry instrumentation for distributed tracing.
-// The maxMsgSize parameter sets the maximum gRPC message size for send and receive operations.
-func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int) NewClientFn {
+// DefaultNewClientFn returns the default [NewClientFn]. It resolves the
+// validator's network host through hostReg, then dials over TLS with the
+// peer identity bound to the validator's consensus pubkey via
+// [tlsid.VerifyPeer].
+//
+// chainID is evaluated lazily per dial because the state client resolves it
+// during Start, which can run after this constructor.
+func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int) NewClientFn {
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
 		host, err := hostReg.GetHost(ctx, val)
 		if err != nil {
 			return nil, err
 		}
+		if val.PubKey == nil {
+			return nil, errors.New("validator has no consensus pubkey for TLS identity check")
+		}
+		cid := chainID()
+		if cid == "" {
+			return nil, errors.New("chain ID is empty; state client must be started before dialing")
+		}
 
-		// TODO(@Wondertan): setup secure connection
+		tlsCfg := &tls.Config{
+			InsecureSkipVerify:    true, //nolint:gosec // identity is verified via VerifyPeerCertificate
+			VerifyPeerCertificate: tlsid.VerifyPeer(val.PubKey, cid),
+			MinVersion:            tls.VersionTLS13,
+		}
+
 		conn, err := grpclib.NewClient(host.String(),
-			grpclib.WithTransportCredentials(insecure.NewCredentials()),
+			grpclib.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
