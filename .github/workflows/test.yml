@@ -108,9 +108,6 @@ jobs:
         run: make test-multiplexer
 
   build-e2e-image:
-    # Run only in the merge queue and on release branches since E2E tests only
-    # run there.
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -138,8 +135,6 @@ jobs:
 
   test-docker-e2e:
     needs: build-e2e-image
-    # Run only in the merge queue and on release branches.
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       matrix:
