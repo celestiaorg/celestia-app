@@ -121,6 +121,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		debugCmd,
 		confixcmd.ConfigCommand(),
 		addrbookCommand(),
+		compactBlockstoreCommand(),
 		downloadGenesisCommand(),
 		addrConversionCmd(),
 		server.StatusCommand(),
