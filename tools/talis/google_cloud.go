@@ -271,6 +271,31 @@ func RandomGCZone(region string) string {
 	return zones[rand.Intn(len(zones))]
 }
 
+// ShuffledGCZones returns all zones for a region in random order. Falls back
+// to {region}-a/b/c when the region is unknown.
+func ShuffledGCZones(region string) []string {
+	zones, ok := GCZones[region]
+	if !ok || len(zones) == 0 {
+		zones = []string{region + "-a", region + "-b", region + "-c"}
+	}
+	out := make([]string, len(zones))
+	copy(out, zones)
+	rand.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
+	return out
+}
+
+// isGCStockoutError reports whether err indicates the requested machine type
+// has no capacity in the target zone (GCE returns 503 with reason
+// ZONE_RESOURCE_POOL_EXHAUSTED[_WITH_DETAILS]).
+func isGCStockoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "ZONE_RESOURCE_POOL_EXHAUSTED") ||
+		strings.Contains(msg, "does not have enough resources available")
+}
+
 func ensureGCFirewallRule(ctx context.Context, project string, opts []option.ClientOption) error {
 	client, err := compute.NewFirewallsRESTClient(ctx, opts...)
 	if err != nil {
@@ -378,10 +403,23 @@ func CreateGCInstances(ctx context.Context, project string, insts []Instance, ss
 			start := time.Now()
 			log.Println("Creating instance", inst.Name, "in region", inst.Region, start.Format(time.RFC3339))
 
-			zone := RandomGCZone(inst.Region)
-			pubIP, privIP, err := createGCInstance(ctx, project, inst, zone, sshKey, opts)
-			if err != nil {
-				results <- result{inst: inst, err: fmt.Errorf("create %s: %w", inst.Name, err)}
+			zones := ShuffledGCZones(inst.Region)
+			var (
+				pubIP, privIP string
+				lastErr       error
+			)
+			for i, zone := range zones {
+				pubIP, privIP, lastErr = createGCInstance(ctx, project, inst, zone, sshKey, opts)
+				if lastErr == nil {
+					break
+				}
+				if !isGCStockoutError(lastErr) {
+					break
+				}
+				log.Printf("%s: zone %s stocked out for %s; trying next zone (%d/%d)", inst.Name, zone, inst.Slug, i+1, len(zones))
+			}
+			if lastErr != nil {
+				results <- result{inst: inst, err: fmt.Errorf("create %s: %w", inst.Name, lastErr), timeRequired: time.Since(start)}
 				return
 			}
 
