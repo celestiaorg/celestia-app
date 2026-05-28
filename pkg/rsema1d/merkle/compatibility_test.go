@@ -31,7 +31,7 @@ func TestCometBFTCompatibility(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
 
 			// Our implementation
-			ourTree := NewTree(leaves)
+			ourTree := NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
@@ -56,7 +56,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
 
 			// Build trees with both implementations
-			ourTree := NewTree(leaves)
+			ourTree := NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// Generate all proofs with CometBFT
@@ -145,7 +145,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 	}
 
 	// Our implementation
-	ourTree := NewTree(leaves)
+	ourTree := NewTree(leaves, 1)
 	ourRoot := ourTree.Root()
 
 	// CometBFT implementation
@@ -224,7 +224,7 @@ func TestCometBFTEdgeCases(t *testing.T) {
 			}
 
 			// Our implementation
-			ourTree := NewTree(leaves)
+			ourTree := NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
@@ -262,7 +262,7 @@ func TestCometBFTEmptyAndNilLeaves(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Our implementation
-			ourTree := NewTree(tt.leaves)
+			ourTree := NewTree(tt.leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation

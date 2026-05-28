@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This script starts a local single node testnet on app version 1 and then
-# upgrades to app version 2, 3, 4, 5, 6, and 7.
+# upgrades to app version 2, 3, 4, 5, 6, 7, 8 and 9.
 #
 # Prerequisites:
 # - Modify the `Makefile` and set V2_UPGRADE_HEIGHT = 2
@@ -86,6 +86,10 @@ createGenesis() {
     sed -i'.bak' '/\[telemetry\]/,/^\[/ s#enabled = false#enabled = true#' "${APP_HOME}"/config/app.toml
     sed -i'.bak' 's#prometheus-retention-time = 0#prometheus-retention-time = 60#' "${APP_HOME}"/config/app.toml
 
+    # Set minimum-gas-prices. v4+ refuses to start without this set; v3
+    # tolerates an empty value, so the v3-initialized app.toml ships blank.
+    sed -i'.bak' 's#minimum-gas-prices = ""#minimum-gas-prices = "0.004utia"#' "${APP_HOME}"/config/app.toml
+
     # Override  the log level to debug
     # sed -i'.bak' 's#log_level = "info"#log_level = "debug"#g' "${APP_HOME}"/config/config.toml
 
@@ -125,9 +129,15 @@ performUpgrade() {
         --broadcast-mode ${BROADCAST_MODE} \
         --yes
 
-    sleep 1
-    echo "Querying the tally for v${target_version}..."
-    celestia-appd query signal tally ${target_version}
+    echo "Waiting for signal tally for v${target_version} to be non-zero..."
+    while true; do
+        voting_power=$(celestia-appd query signal tally ${target_version} -o json 2>/dev/null | jq -r '.voting_power // "0"')
+        if [ -n "$voting_power" ] && [ "$voting_power" != "0" ]; then
+            echo "Tally for v${target_version}: voting_power=${voting_power}"
+            break
+        fi
+        sleep 1
+    done
 
     echo "Submitting msg try upgrade..."
     celestia-appd tx signal try-upgrade \
@@ -138,6 +148,16 @@ performUpgrade() {
         --chain-id ${CHAIN_ID} \
         --broadcast-mode ${BROADCAST_MODE} \
         --yes
+
+    echo "Waiting for pending upgrade to v${target_version} to be scheduled..."
+    while true; do
+        pending=$(celestia-appd query signal upgrade 2>/dev/null || true)
+        if echo "$pending" | grep -q "app version ${target_version}"; then
+            echo "$pending"
+            break
+        fi
+        sleep 1
+    done
 
     echo "Waiting for upgrade to complete..."
     while true; do
@@ -169,6 +189,8 @@ startUpgrades() {
     performUpgrade 5
     performUpgrade 6
     performUpgrade 7
+    performUpgrade 8
+    performUpgrade 9
 }
 
 deleteCelestiaAppHome

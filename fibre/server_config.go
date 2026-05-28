@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/sign"
@@ -33,6 +34,8 @@ type ServerConfig struct {
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
 	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
+	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
+	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 
 	StoreConfig `toml:"-"`
 
@@ -45,7 +48,7 @@ type ServerConfig struct {
 	MaxMessageSize int `toml:"-"`
 
 	// StoreFn creates the persistent [Store] for the server.
-	// If nil, defaults to [NewPebbleStore].
+	// If nil, defaults to [NewStore].
 	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
@@ -82,6 +85,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
+		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
 	}
 	return cfg
 }
@@ -95,6 +99,9 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")
 	}
+	if cfg.StoreConfig.Log == nil {
+		cfg.StoreConfig.Log = cfg.Log
+	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-server")
 	}
@@ -106,7 +113,7 @@ func (cfg *ServerConfig) Validate() error {
 		if err := cfg.StoreConfig.Validate(); err != nil {
 			return fmt.Errorf("store config: %w", err)
 		}
-		cfg.StoreFn = NewPebbleStore
+		cfg.StoreFn = NewStore
 	}
 
 	if cfg.StateClientFn == nil {
@@ -125,6 +132,10 @@ func (cfg *ServerConfig) Validate() error {
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
 			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
 		}
+	}
+
+	if cfg.UploadVerifyWorkers < 1 {
+		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
 	return nil
 }

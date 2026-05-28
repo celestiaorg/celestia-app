@@ -163,8 +163,8 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&fibreTxsimBinaryPath, "fibre-txsim-binary", filepath.Join(gopath, "fibre-txsim"), "fibre-txsim binary to include in the payload")
 	cmd.Flags().StringVar(&observabilityDirPath, "observability-dir", "", "path to observability directory containing docker-compose, Prometheus config, and scripts (required if observability nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
-	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 100, "number of pre-funded fibre accounts to create per validator")
-	cmd.Flags().IntVar(&encoderFibreAccounts, "encoder-fibre-accounts", 100, "number of pre-funded fibre accounts to create per encoder instance")
+	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 1, "number of pre-funded fibre accounts to create per validator")
+	cmd.Flags().IntVar(&encoderFibreAccounts, "encoder-fibre-accounts", 1, "number of pre-funded fibre accounts to create per encoder instance")
 
 	return cmd
 }

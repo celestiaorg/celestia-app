@@ -2,7 +2,81 @@ package merkle
 
 import (
 	"fmt"
+	"sync"
+	"sync/atomic"
 )
+
+// ProofInput bundles the inputs ComputeRootFromProof needs for a single
+// leaf. Used as the per-proof payload for ComputeRootFromProofs.
+type ProofInput struct {
+	Leaf  []byte
+	Index int
+	Path  [][]byte
+}
+
+// ComputeRootFromProofs verifies a batch of merkle proofs in parallel and
+// returns the single root they all share. Errors if any proof yields a
+// different root than the others — meaning at least one was tampered.
+// Intended for callers that already know all proofs verify the same tree
+// (e.g., every row of a single shard).
+//
+// Work fans out across up to workers goroutines via static index-range
+// chunking; below the parallel break-even (len(inputs) <= 64 or workers
+// <= 1) the call stays sequential.
+func ComputeRootFromProofs(inputs []ProofInput, workers int) ([32]byte, error) {
+	if len(inputs) == 0 {
+		return [32]byte{}, fmt.Errorf("no proof inputs")
+	}
+	roots := make([][32]byte, len(inputs))
+	verify := func(i int) error {
+		root, err := ComputeRootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
+		if err != nil {
+			return fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
+		}
+		roots[i] = root
+		return nil
+	}
+
+	if workers <= 1 || len(inputs) <= 64 {
+		for i := range inputs {
+			if err := verify(i); err != nil {
+				return [32]byte{}, err
+			}
+		}
+	} else {
+		if workers > len(inputs) {
+			workers = len(inputs)
+		}
+		chunk := (len(inputs) + workers - 1) / workers
+		var firstErr atomic.Value
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := range workers {
+			start := w * chunk
+			end := min(start+chunk, len(inputs))
+			go func(start, end int) {
+				defer wg.Done()
+				for i := start; i < end; i++ {
+					if err := verify(i); err != nil {
+						firstErr.CompareAndSwap(nil, err)
+						return
+					}
+				}
+			}(start, end)
+		}
+		wg.Wait()
+		if v := firstErr.Load(); v != nil {
+			return [32]byte{}, v.(error)
+		}
+	}
+
+	for i := 1; i < len(roots); i++ {
+		if roots[i] != roots[0] {
+			return [32]byte{}, fmt.Errorf("input %d (tree index %d): root mismatch", i, inputs[i].Index)
+		}
+	}
+	return roots[0], nil
+}
 
 // GenerateProof generates a Merkle proof for the leaf at the given index
 func (t *Tree) GenerateProof(index int) ([][]byte, error) {

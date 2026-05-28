@@ -41,7 +41,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
-			coeffs := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -129,7 +129,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
-			coeffs := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -211,7 +211,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			rowRoot := rowTree.Root()
 
 			// Step 3: Derive RLC coefficients
-			coeffs := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 
 			// Step 4: Compute RLC results for original rows
 			rlcOrig := computeRLCOrig(data, coeffs, config)
@@ -317,7 +317,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
-			coeffs := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Build padded RLC Merkle tree
@@ -403,11 +403,8 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			rowTree := buildPaddedRowTree(extended, config)
 			rowRoot := rowTree.Root()
 
-			coeffs := deriveCoefficients(rowRoot, config.RowSize)
+			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
-			if err != nil {
-				t.Fatalf("ExtendRLCResults failed: %v", err)
-			}
 
 			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
@@ -449,7 +446,7 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			if err != nil {
 				t.Errorf("Failed to compute fake row root: %v", err)
 			}
-			fakeCoeffs := deriveCoefficients(fakeRowRoot, config.RowSize)
+			fakeCoeffs := deriveCoefficients(fakeRowRoot, config.K, config.N, config.RowSize)
 			fakeRlcCommitment := computeRLC(maliciousProof.Row, fakeCoeffs)
 			ctx.rlcOrigRoot = rlcOrigRoot
 
@@ -494,7 +491,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	assert.NoError(t, err)
 	nodes, asNodes := buildAdversarialPaddedRowTree(extended)
 	rowRoot := nodes[0]
-	coeffs := deriveCoefficients([32]byte(rowRoot), config.RowSize)
+	coeffs := deriveCoefficients([32]byte(rowRoot), config.K, config.N, config.RowSize)
 	rlcOrig := computeRLCOrig(data, coeffs, config)
 	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
