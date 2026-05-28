@@ -33,7 +33,7 @@ type Server struct {
 }
 
 // NewServer creates a new Fibre [Server]. The store backend is determined by
-// [ServerConfig.StoreFn], which defaults to [NewPebbleStore].
+// [ServerConfig.StoreFn], which defaults to [NewStore].
 func NewServer(cfg ServerConfig) (*Server, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err

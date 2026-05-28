@@ -45,7 +45,7 @@ type ServerConfig struct {
 	MaxMessageSize int `toml:"-"`
 
 	// StoreFn creates the persistent [Store] for the server.
-	// If nil, defaults to [NewPebbleStore].
+	// If nil, defaults to [NewStore].
 	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
@@ -95,6 +95,9 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")
 	}
+	if cfg.StoreConfig.Log == nil {
+		cfg.StoreConfig.Log = cfg.Log
+	}
 	if cfg.Tracer == nil {
 		cfg.Tracer = otel.Tracer("fibre-server")
 	}
@@ -106,7 +109,7 @@ func (cfg *ServerConfig) Validate() error {
 		if err := cfg.StoreConfig.Validate(); err != nil {
 			return fmt.Errorf("store config: %w", err)
 		}
-		cfg.StoreFn = NewPebbleStore
+		cfg.StoreFn = NewStore
 	}
 
 	if cfg.StateClientFn == nil {
