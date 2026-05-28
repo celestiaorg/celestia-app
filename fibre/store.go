@@ -51,10 +51,14 @@ func DefaultStoreConfig() StoreConfig {
 	return StoreConfig{}
 }
 
-// Validate checks that the StoreConfig is valid.
-func (cfg StoreConfig) Validate() error {
+// Validate checks that the StoreConfig is valid and fills in defaults for
+// unset fields.
+func (cfg *StoreConfig) Validate() error {
 	if cfg.Path == "" {
 		return fmt.Errorf("store path is required")
+	}
+	if cfg.Log == nil {
+		cfg.Log = slog.Default()
 	}
 	return nil
 }
@@ -97,6 +101,10 @@ func NewStore(cfg StoreConfig) (*Store, error) {
 }
 
 func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, fmt.Errorf("validating store config: %w", err)
+	}
+
 	for _, sub := range []string{shardsSubdir, stagingSubdir} {
 		if err := filesystem.MkdirAll(filepath.Join(cfg.Path, sub), 0o755); err != nil {
 			return nil, fmt.Errorf("creating %s directory: %w", sub, err)
@@ -115,11 +123,7 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	log := cfg.Log
-	if log == nil {
-		log = slog.Default()
-	}
-	s := &Store{cfg: cfg, db: db, fs: filesystem, log: log}
+	s := &Store{cfg: cfg, db: db, fs: filesystem, log: cfg.Log}
 	if err := s.reconcile(); err != nil {
 		_ = s.db.Close()
 		return nil, fmt.Errorf("reconciling store: %w", err)
