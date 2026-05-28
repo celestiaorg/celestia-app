@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -300,7 +301,7 @@ func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) []by
 func prefixUpperBound(prefix []byte) []byte {
 	upper := make([]byte, len(prefix))
 	copy(upper, prefix)
-	for i := len(upper) - 1; i >= 0; i-- {
+	for i := range slices.Backward(upper) {
 		upper[i]++
 		if upper[i] != 0 {
 			return upper
