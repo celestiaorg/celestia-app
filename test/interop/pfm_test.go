@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -206,7 +207,7 @@ func ForwardPacket(paths []*ibctesting.Path, packet channeltypes.Packet) error {
 	}
 
 	// Now we route the acknowledgements back
-	for i := len(rewindEndpoints) - 1; i >= 0; i-- {
+	for i := range slices.Backward(rewindEndpoints) {
 		if err := rewindEndpoints[i].UpdateClient(); err != nil {
 			return err
 		}

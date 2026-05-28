@@ -330,6 +330,13 @@ func VersionToBytes(version uint64) []byte {
 }
 
 func VersionFromBytes(version []byte) uint64 {
+	// Guard against malformed values that could land in the per-validator
+	// store via a future migration or hand-edited state. The canonical encoding
+	// (VersionToBytes) always produces 8 bytes; anything else is treated as
+	// "no recognised version".
+	if len(version) != 8 {
+		return 0
+	}
 	return binary.BigEndian.Uint64(version)
 }
 

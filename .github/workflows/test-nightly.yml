@@ -96,6 +96,10 @@ jobs:
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
+          CELESTIA_APP_VERSION: ${{ needs.build-e2e-image.outputs.tag }}
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}
+          PUSHGATEWAY_PASSWORD: ${{ secrets.PUSHGATEWAY_PASSWORD }}
 
   test-race:
     runs-on: ubuntu-latest
@@ -128,7 +132,7 @@ jobs:
     if: ${{ always() && (needs.test-nightly.result == 'failure' || needs.test-race.result == 'failure' || needs.test-fuzz.result == 'failure') }}
     steps:
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v3.0.2
+        uses: slackapi/slack-github-action@v3.0.3
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook

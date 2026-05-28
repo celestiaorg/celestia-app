@@ -59,6 +59,38 @@ func TestShareProofValidate(t *testing.T) {
 	}
 }
 
+// TestShareProof_NoInt32WrapPanic ensures a malformed proof whose per-proof
+// `End - Start` spans wrap an int32 accumulator no longer leads to either a
+// "valid" Validate or a slice-bounds panic in VerifyProof.
+//
+// Three spans of 0x40000001 + 0x40000001 + 0x7FFFFFFE = 0x100000000 wrap to
+// int32(0). Combined with empty Data, the previous int32-based length check
+// passed. VerifyProof then sliced sp.Data[0:0x40000001] and panicked.
+func TestShareProof_NoInt32WrapPanic(t *testing.T) {
+	sp := ShareProof{
+		Data: [][]byte{},
+		ShareProofs: []*NMTProof{
+			{Start: 0, End: 0x40000001},
+			{Start: 0, End: 0x40000001},
+			{Start: 0, End: 0x7FFFFFFE},
+		},
+		RowProof: &RowProof{
+			RowRoots: [][]byte{make([]byte, 32), make([]byte, 32), make([]byte, 32)},
+			StartRow: 0,
+			EndRow:   2,
+		},
+	}
+
+	// Validate must fail. The exact error message isn't important — the
+	// invariant is "no nil return, no panic".
+	assert.Error(t, sp.Validate(root))
+
+	// VerifyProof, if called directly, must not panic on the slice bounds.
+	assert.NotPanics(t, func() {
+		_ = sp.VerifyProof()
+	})
+}
+
 func mismatchedShareProofs() ShareProof {
 	sp := validShareProof()
 	sp.ShareProofs = []*NMTProof{}

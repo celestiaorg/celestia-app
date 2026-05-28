@@ -2,7 +2,74 @@ package merkle
 
 import (
 	"fmt"
+	"sync"
+	"sync/atomic"
 )
+
+// ProofInput bundles the inputs ComputeRootFromProof needs for a single
+// leaf. Used as the per-proof payload for ComputeRootsFromProofs.
+type ProofInput struct {
+	Leaf  []byte
+	Index int
+	Path  [][]byte
+}
+
+// ComputeRootsFromProofs verifies a batch of merkle proofs in parallel and
+// writes each computed root to dst[i]. dst must have at least len(inputs)
+// capacity.
+//
+// The work fans out across up to workers goroutines via static index-range
+// chunking; below the parallel break-even (len(inputs) <= 64 or workers <=
+// 1) the call stays sequential — goroutine startup would otherwise dwarf
+// per-proof SHA256 work. Returns the first error any worker observed.
+func ComputeRootsFromProofs(inputs []ProofInput, dst [][32]byte, workers int) error {
+	if len(dst) < len(inputs) {
+		return fmt.Errorf("dst has length %d, need at least %d", len(dst), len(inputs))
+	}
+	verify := func(i int) error {
+		root, err := ComputeRootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
+		if err != nil {
+			return fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
+		}
+		dst[i] = root
+		return nil
+	}
+
+	if workers <= 1 || len(inputs) <= 64 {
+		for i := range inputs {
+			if err := verify(i); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if workers > len(inputs) {
+		workers = len(inputs)
+	}
+
+	chunk := (len(inputs) + workers - 1) / workers
+	var firstErr atomic.Value
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := range workers {
+		start := w * chunk
+		end := min(start+chunk, len(inputs))
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				if err := verify(i); err != nil {
+					firstErr.CompareAndSwap(nil, err)
+					return
+				}
+			}
+		}(start, end)
+	}
+	wg.Wait()
+	if v := firstErr.Load(); v != nil {
+		return v.(error)
+	}
+	return nil
+}
 
 // GenerateProof generates a Merkle proof for the leaf at the given index
 func (t *Tree) GenerateProof(index int) ([][]byte, error) {

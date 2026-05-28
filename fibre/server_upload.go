@@ -207,15 +207,21 @@ func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *Pay
 		return fmt.Errorf("creating verification context: %w", err)
 	}
 
-	for _, rowPb := range shard.Rows {
+	// Batched verify: parse every row up-front, then run one vectorized RLC
+	// pass over the whole shard. All rows in a shard share the same
+	// verificationCtx and therefore the same RLC coefficients, which is the
+	// precondition computeRLCVectorized needs to amortize the SIMD kernel
+	// setup across the batch.
+	rows := make([]*rsema1d.RowProof, len(shard.Rows))
+	for i, rowPb := range shard.Rows {
 		row, err := parseRow(rowPb)
 		if err != nil {
 			return err
 		}
-
-		if err := rsema1d.VerifyRowWithContext(row, promise.Commitment, verificationCtx); err != nil {
-			return fmt.Errorf("verification failed for row %d: %w", row.Index, err)
-		}
+		rows[i] = row
+	}
+	if err := rsema1d.VerifyRowsWithContext(rows, promise.Commitment, verificationCtx); err != nil {
+		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
 	// set RLC root, keep coefficients as-is for storage

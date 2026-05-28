@@ -3,6 +3,7 @@ package fibre
 import (
 	"fmt"
 	"log/slog"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
@@ -31,10 +32,10 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// UploadConcurrency is the maximum number of concurrent uploads to validators.
-	UploadConcurrency int
-	// DownloadConcurrency is the maximum number of concurrent read requests to validators.
-	DownloadConcurrency int
+	// RPCTimeout bounds a single UploadShard call to one peer (dial + RPC).
+	// Sheds black-holed peers below the kernel's ~75s TCP SYN retry window.
+	// See [DefaultClientConfig] for the default value.
+	RPCTimeout time.Duration
 
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
 	// If nil, [Validate] creates one from [StateAddress].
@@ -72,8 +73,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
-		UploadConcurrency:   p.MaxValidatorCount,
-		DownloadConcurrency: p.ValidatorsForReconstruction(),
+		RPCTimeout:          15 * time.Second,
 	}
 }
 
@@ -99,6 +99,10 @@ func (cfg *ClientConfig) Validate() error {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()
+	}
+
+	if cfg.RPCTimeout <= 0 {
+		return fmt.Errorf("RPCTimeout must be > 0 (see [DefaultClientConfig])")
 	}
 	return nil
 }

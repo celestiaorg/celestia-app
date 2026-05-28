@@ -76,10 +76,42 @@ If you'd rather not install from source, you can download a prebuilt binary from
 
 See <https://docs.celestia.org/operate/consensus-validators/install-celestia-app/> for more information.
 
-## Usage
+## Supported operating systems
 
-> [!WARNING]
-> The celestia-appd binary doesn't support signing with Ledger hardware wallets on Windows and OpenBSD.
+This is the canonical matrix of operating systems that celestia-app is built for and tested against. For the OS versions a *specific* release was tested on, see the per-release entries in [docs/release-notes/release-notes.md](docs/release-notes/release-notes.md).
+
+### Tested in CI
+
+celestia-app's GitHub Actions workflows run all unit, integration, and lint jobs on:
+
+| OS                       | Version                         | Architecture |
+|--------------------------|---------------------------------|--------------|
+| Ubuntu (`ubuntu-latest`) | Ubuntu 24.04 LTS (Noble Numbat) | x86_64       |
+
+GitHub may advance `ubuntu-latest` to a newer LTS over time; see [actions/runner-images](https://github.com/actions/runner-images) for the current alias mapping.
+
+Other OS / version combinations may work but are not exercised by CI and are not officially supported.
+
+Note that arm64 binaries are cross-compiled via goreleaser but are not executed in CI; only the x86_64 build is exercised end-to-end.
+
+### Prebuilt binaries
+
+The [GitHub Releases](https://github.com/celestiaorg/celestia-app/releases) page provides prebuilt binaries for:
+
+| OS    | Architectures    |
+|-------|------------------|
+| Linux | `amd64`, `arm64` |
+| macOS | `amd64`, `arm64` |
+
+Linux binaries built with the multiplexer require **glibc >= 2.38** (Ubuntu 24.04 or equivalent). See [Prerequisites](#prerequisites) for details.
+
+### Known incompatibilities
+
+- **Windows**: the `celestia-appd` binary does not support signing with Ledger hardware wallets.
+- **OpenBSD**: the `celestia-appd` binary does not support signing with Ledger hardware wallets.
+- **Ubuntu 22.04 and older**: incompatible with multiplexer builds (glibc < 2.38).
+
+## Usage
 
 ### Prerequisites
 

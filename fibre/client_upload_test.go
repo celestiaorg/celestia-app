@@ -28,11 +28,11 @@ func TestClientUpload(t *testing.T) {
 		{"Concurrent", testClientConcurrentUploads},
 		{"ContextCancellation", testClientUploadContextCancellation},
 		{"SucceedsWith1/3Failures", testClientUploadSucceedsWithOneThirdFailures},
-		{"SucceedsWith1/3Failures_HighConcurrency", testClientUploadSucceedsWithOneThirdFailuresHighConcurrency},
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
 		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
+		{"BlobConsumed", testClientUploadBlobConsumed},
 	}
 
 	for _, tt := range tests {
@@ -92,23 +92,6 @@ func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
 	require.GreaterOrEqual(t, len(result.ValidatorSignatures), 67, "should have at least 2/3 signatures")
 }
 
-func testClientUploadSucceedsWithOneThirdFailuresHighConcurrency(t *testing.T) {
-	const numValidators = 100
-	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn = failingClientFn(33, cfg.NewClientFn) // Fail 1/3 of validators
-
-		cfg.UploadConcurrency = numValidators // set concurrency >= validators to test code path where semaphore doesn't limit
-	})
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	blob := makeTestBlobV0(t, 256*1024)
-
-	result, err := client.Upload(t.Context(), testNamespace, blob)
-	require.NoError(t, err)
-	require.NotEmpty(t, result.ValidatorSignatures)
-	require.GreaterOrEqual(t, len(result.ValidatorSignatures), 67, "should have at least 2/3 signatures")
-}
-
 func testClientUploadInsufficientVotingPower(t *testing.T) {
 	const numValidators = 100
 	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
@@ -139,7 +122,7 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
 
-	// close waits for all background upload goroutines to complete
+	// Stop drains background goroutines so all peers receive data.
 	require.NoError(t, client.Stop(t.Context()))
 
 	// verify all validators received data
@@ -184,6 +167,19 @@ func testClientUploadClosedClient(t *testing.T) {
 	// attempt to upload after closing
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.ErrorIs(t, err, fibre.ErrClientClosed, "expected ErrClientClosed when uploading to closed client")
+}
+
+func testClientUploadBlobConsumed(t *testing.T) {
+	client := makeTestUploadClient(t, 100, nil)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+
+	_, err := client.Upload(t.Context(), testNamespace, blob)
+	require.NoError(t, err)
+
+	_, err = client.Upload(t.Context(), testNamespace, blob)
+	require.ErrorIs(t, err, fibre.ErrBlobConsumed)
 }
 
 // makeTestUploadClient creates an upload client for testing.

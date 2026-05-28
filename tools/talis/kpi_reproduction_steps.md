@@ -44,14 +44,14 @@ This document provides instructions for reproducing the core-app KPIs. These KPI
 
 5. **S3 bucket for faster deployment (optional):**
 
-   For faster deployments using S3 upload instead of direct payload upload, configure an S3 bucket:
+   For faster deployments using S3 upload instead of direct payload upload, configure an S3 bucket. With `--provider=googlecloud` (or `digitalocean`), the bucket env vars use the `DO_SPACES_*` prefix:
 
    ```bash
-   AWS_ACCESS_KEY_ID=your-access-key
-   AWS_SECRET_ACCESS_KEY=your-secret-key
-   AWS_DEFAULT_REGION=fra1
-   AWS_S3_ENDPOINT=https://fra1.digitaloceanspaces.com
-   AWS_S3_BUCKET=your-bucket-name
+   DO_SPACES_ACCESS_KEY_ID=your-access-key
+   DO_SPACES_SECRET_ACCESS_KEY=your-secret-key
+   DO_SPACES_REGION=fra1
+   DO_SPACES_ENDPOINT=https://fra1.digitaloceanspaces.com
+   DO_SPACES_BUCKET=your-bucket-name
    ```
 
 ## Talis Network Deployment

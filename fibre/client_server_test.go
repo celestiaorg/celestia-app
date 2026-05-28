@@ -87,18 +87,21 @@ func TestClientServerUploadDownload(t *testing.T) {
 						return fmt.Errorf("generating random data for blob %d: %w", blobIdx, err)
 					}
 
-					blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
-					if err != nil {
-						return fmt.Errorf("creating blob %d: %w", blobIdx, err)
-					}
-
 					slotIdx := clientIdx*tt.blobsPerClient + blobIdx
 					allPromiseHashes[slotIdx] = make([][]byte, 0, tt.duplicate)
 
 					// upload blob (possibly multiple times at different heights)
+					// each upload requires a fresh blob since Upload takes ownership
 					for uploadIdx := range tt.duplicate {
 						if tt.duplicate > 1 {
 							env.SetHeight(uint64(100 + uploadIdx*100))
+						}
+						blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+						if err != nil {
+							return fmt.Errorf("creating blob %d (upload %d): %w", blobIdx, uploadIdx, err)
+						}
+						if uploadIdx == 0 {
+							allBlobIDs[slotIdx] = blob.ID()
 						}
 						signedPromise, err := client.Upload(ctx, testNamespace, blob)
 						if err != nil {
@@ -112,7 +115,6 @@ func TestClientServerUploadDownload(t *testing.T) {
 						allPromiseHashes[slotIdx] = append(allPromiseHashes[slotIdx], promiseHash)
 					}
 
-					allBlobIDs[slotIdx] = blob.ID()
 					allData[slotIdx] = data
 				}
 

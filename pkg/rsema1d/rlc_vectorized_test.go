@@ -40,8 +40,8 @@ func TestComputeRLCVectorizedMatchesScalar(t *testing.T) {
 		for i := range rowRoot {
 			rowRoot[i] = byte(r.IntN(256))
 		}
-		coeffs := deriveCoefficients(rowRoot, tc.rowSize)
 		cfg := &Config{K: tc.k, N: tc.k, RowSize: tc.rowSize, WorkerCount: 1}
+		coeffs := deriveCoefficients(rowRoot, cfg.K, cfg.N, cfg.RowSize)
 
 		want := computeRLCOrig(rows, coeffs, cfg)
 		for _, workers := range []int{1, 4} {
@@ -81,7 +81,7 @@ func BenchmarkComputeRLCVectorized(b *testing.B) {
 				K: cfg.k, N: cfg.n, RowSize: rowSize, WorkerCount: cfg.workers,
 			}
 			rowRoot := [32]byte{1, 2, 3, 4}
-			coeffs := deriveCoefficients(rowRoot, rowSize)
+			coeffs := deriveCoefficients(rowRoot, codecConfig.K, codecConfig.N, codecConfig.RowSize)
 
 			data := make([][]byte, cfg.k)
 			r := rand.New(rand.NewPCG(uint64(cfg.k), uint64(rowSize)))
