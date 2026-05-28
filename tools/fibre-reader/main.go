@@ -69,7 +69,6 @@ type stats struct {
 	blobsSeen            atomic.Int64
 	blobsOwned           atomic.Int64
 	blobsSkipped         atomic.Int64
-	blobsDropped         atomic.Int64
 	downloadsSuccess     atomic.Int64
 	downloadsFailed      atomic.Int64
 	commitmentMismatches atomic.Int64
@@ -113,7 +112,7 @@ func main() {
 	flag.StringVar(&cfg.keyName, "key-name", "fibre-0", "key name in keyring (used to satisfy fibre.NewClient existence check)")
 	flag.IntVar(&cfg.readerIndex, "reader-index", -1, "this reader's index in [0, reader-count)")
 	flag.IntVar(&cfg.readerCount, "reader-count", 0, "total number of reader instances (>=1)")
-	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 32, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob)")
+	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs — each in-flight slot can hold 1+ GiB of buffered shards.")
 	flag.DurationVar(&cfg.downloadTimeout, "download-timeout", 2*time.Minute, "per-download timeout")
 	flag.DurationVar(&cfg.startupTimeout, "startup-timeout", 5*time.Minute, "how long to retry connecting to the validator's gRPC + cometbft RPC at startup before giving up (handles validators not yet ready / brief restarts)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
@@ -305,7 +304,7 @@ func processBlock(
 	ctx, span := tracer.Start(ctx, "fibre_reader.block.process",
 		trace.WithAttributes(
 			attribute.Int64("block.height", block.Height),
-			attribute.Int("block.tx_count", len(block.Data.Txs)),
+			attribute.Int("block.tx_count", len(block.Txs)),
 		),
 	)
 	defer span.End()
@@ -384,14 +383,12 @@ func handlePayForFibre(
 		commitment:        commitment,
 		height:            promise.Height,
 		creationTimestamp: promise.CreationTimestamp,
-		blockTime:         block.Header.Time,
+		blockTime:         block.Time,
 		dataSize:          promise.BlobSize,
 		queuedAt:          time.Now(),
 	}
 
-	dlWg.Add(1)
-	go func() {
-		defer dlWg.Done()
+	dlWg.Go(func() {
 		// Acquire a slot. Blocks until one is free or ctx cancels — backpressure
 		// instead of dropping. Multiple owned blobs in a single block all reach
 		// here concurrently and run in parallel up to cfg.downloadConcurrency.
@@ -402,7 +399,7 @@ func handlePayForFibre(
 		}
 		defer func() { <-sem }()
 		downloadOne(ctx, req, fibreClient, cfg, st, rm, tracer)
-	}()
+	})
 }
 
 // owns returns true when this reader instance is responsible for the given commitment

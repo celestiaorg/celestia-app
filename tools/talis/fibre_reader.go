@@ -49,8 +49,12 @@ func fibreReaderCmd() *cobra.Command {
 
 			fmt.Printf("Starting fibre-reader on %d reader(s)...\n", readerCount)
 
-			for _, r := range readers {
-				readerIndex := extractIndexFromName(r.Name)
+			// Use the slice position as readerIndex, not the suffix parsed from
+			// r.Name. Reader names can be non-contiguous (e.g. after destroying
+			// reader-1 from a [reader-0, reader-1, reader-2] set), and the
+			// sharding formula `hash % readerCount == index` requires indices
+			// in [0, readerCount).
+			for readerIndex, r := range readers {
 				valIdx := readerIndex % len(cfg.Validators)
 				target := cfg.Validators[valIdx]
 				rpcEndpoint := fmt.Sprintf("tcp://%s:26657", target.PrivateIP)
@@ -95,7 +99,7 @@ func fibreReaderCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "max number of reader instances to launch (0 = all)")
-	cmd.Flags().IntVar(&downloadConcurrency, "download-concurrency", 32, "max concurrent in-flight downloads per reader (semaphore bound; goroutine spawned per blob)")
+	cmd.Flags().IntVar(&downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads per reader (semaphore bound; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs.")
 	cmd.Flags().DurationVar(&downloadTimeout, "download-timeout", 2*time.Minute, "per-blob download timeout")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "fibre keyring key-name prefix (only used to satisfy fibre.NewClient's key existence check; reader does not sign)")
