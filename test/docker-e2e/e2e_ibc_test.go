@@ -425,7 +425,15 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithDockerClient(cfg.DockerClient).
 		WithChainID("chain-b").
-		WithNode(cosmos.NewChainNodeConfigBuilder().Build())
+		// Set HOME to the node's home directory. As of tastora v0.20.0,
+		// container commands run as the image's UID:GID (1000:1000 here)
+		// instead of root. The ibc-go-simd image has no HOME set, so simd's
+		// NewRootCmd() tries to write its default client config to /.simapp,
+		// which UID 1000 cannot create. Pointing HOME at the writable,
+		// bind-mounted home dir (/var/cosmos-chain/<chain name>) fixes this.
+		WithNode(cosmos.NewChainNodeConfigBuilder().
+			WithEnvVars("HOME=/var/cosmos-chain/simapp").
+			Build())
 }
 
 // registerInterchainAccount registers an ICA using message broadcasting instead of CLI
