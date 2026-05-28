@@ -114,10 +114,8 @@ func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix,
 			}
 
 			// stream body into file
-			downloader := manager.NewDownloader(client)
-			_, err = downloader.Download(ctx, f,
-				&s3.GetObjectInput{Bucket: aws.String(bucket), Key: obj.Key},
-			)
+			downloader := manager.NewDownloader(client)                                                        //nolint:staticcheck
+			_, err = downloader.Download(ctx, f, &s3.GetObjectInput{Bucket: aws.String(bucket), Key: obj.Key}) //nolint:staticcheck
 			if err != nil {
 				return fmt.Errorf("download %s: %w", *obj.Key, err)
 			}

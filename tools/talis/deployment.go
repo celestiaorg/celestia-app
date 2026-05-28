@@ -536,9 +536,9 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 	defer file.Close()
 
 	filename := filepath.Base(localPath)
-	uploader := manager.NewUploader(client)
+	uploader := manager.NewUploader(client) //nolint:staticcheck
 
-	if _, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	if _, err := uploader.Upload(ctx, &s3.PutObjectInput{ //nolint:staticcheck
 		Bucket: &cfg.BucketName,
 		Key:    &filename,
 		Body:   file,
