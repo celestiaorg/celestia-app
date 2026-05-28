@@ -135,7 +135,7 @@ talis fibre-reader \
 |--------------------------|---------|------------------------------------------------------------------------------------------------------------------------------|
 | `--directory`            | `.`     | Experiment root directory                                                                                                    |
 | `--instances`            | `0` (all) | Max number of readers to launch                                                                                            |
-| `--download-concurrency` | `32`    | Max concurrent in-flight downloads per reader (semaphore-bounded; goroutine spawned per blob)                                |
+| `--download-concurrency` | `8`     | Max concurrent in-flight downloads per reader (semaphore-bounded; goroutine spawned per blob)                                |
 | `--download-timeout`     | `2m`    | Per-blob download timeout                                                                                                    |
 | `--duration`             | `0`     | How long to run (`0` = until killed)                                                                                         |
 | `--key-prefix`           | `fibre` | Fibre keyring key-name prefix (only used to satisfy `fibre.NewClient`'s key-existence check; reader does not sign anything)  |
@@ -151,7 +151,7 @@ Each reader is launched with `--reader-index N --reader-count K` (talis fills th
 
 ### Memory notes
 
-`--download-concurrency 32` (default) can OOM on hosts with `<= 64 GiB` RAM when running with 128 MiB blobs — each in-flight download holds an extended (parity-doubled) blob buffer plus per-validator gRPC scatter buffers, easily 1+ GiB per slot at the high end. On `c6in.8xlarge` (64 GiB), `--download-concurrency 8` is the safe upper bound until the Reed-Solomon coder is pooled (see Pyroscope `inuse_space` profile dominated by `reedsolomon.AllocAligned`).
+The default `--download-concurrency 8` is the safe upper bound on `c6in.8xlarge` (64 GiB) at 128 MiB blobs — each in-flight download holds an extended (parity-doubled) blob buffer plus per-validator gRPC scatter buffers, easily 1+ GiB per slot at the high end. Larger values (e.g. 32) can OOM here until the Reed-Solomon coder is pooled (Pyroscope `inuse_space` is dominated by `reedsolomon.AllocAligned`). Raise this on bigger instance types.
 
 ### Logs and lifecycle
 
