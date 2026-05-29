@@ -1,6 +1,7 @@
 package rlc
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
@@ -117,4 +118,34 @@ func equal128s(a, b Vector) bool {
 		}
 	}
 	return true
+}
+
+// BenchmarkDerive measures Fiat-Shamir coefficient derivation across the
+// serial/parallel rowSize threshold. workers=1 forces the serial path;
+// workers=runtime.GOMAXPROCS exercises the parallel fan-out above
+// minParallelSymbols (rowSize >= 1024 bytes / 512 symbols).
+func BenchmarkDerive(b *testing.B) {
+	rowRoot := [32]byte{1, 2, 3, 4}
+	cases := []struct {
+		name              string
+		k, n, rowSize, ws int
+	}{
+		{"rs=64/serial", 1024, 1024, 64, 1},
+		{"rs=1024/serial", 1024, 1024, 1024, 1},
+		{"rs=8192/serial", 1024, 1024, 8192, 1},
+		{"rs=8192/workers=GOMAXPROCS", 1024, 1024, 8192, 0},
+	}
+	for _, tc := range cases {
+		b.Run(tc.name, func(b *testing.B) {
+			ws := tc.ws
+			if ws == 0 {
+				ws = runtime.GOMAXPROCS(0)
+			}
+			b.SetBytes(int64(tc.rowSize))
+			b.ResetTimer()
+			for range b.N {
+				_ = Derive(rowRoot, tc.k, tc.n, tc.rowSize, ws)
+			}
+		})
+	}
 }

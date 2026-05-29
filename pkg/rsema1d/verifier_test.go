@@ -275,3 +275,49 @@ func rangeProofs(t *testing.T, ed *ExtendedData, lo, hi int) []*RowProof {
 	}
 	return proofs
 }
+
+// proofsAtIndices generates row proofs for the given concrete indices.
+func proofsAtIndices(t *testing.T, ed *ExtendedData, indices []int) []*RowProof {
+	t.Helper()
+	proofs := make([]*RowProof, len(indices))
+	for i, idx := range indices {
+		p, err := ed.GenerateRowProof(idx)
+		if err != nil {
+			t.Fatalf("GenerateRowProof(%d): %v", idx, err)
+		}
+		proofs[i] = p
+	}
+	return proofs
+}
+
+// TestVerifierAcrossConfigurations runs the encode-verify roundtrip across
+// the full K/N/RowSize matrix (small/large, 1:1/1:3 ratios, arbitrary K and N
+// including non-powers-of-2) to surface padding or boundary bugs that show
+// up only for specific shapes. Verifies a representative set of row indices
+// covering both original and parity ranges.
+func TestVerifierAcrossConfigurations(t *testing.T) {
+	for _, tc := range roundtripConfigs {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
+			ed, commitment, rlcOrig := encodeRows(t, cfg, fillRows(tc.k, tc.rowSize))
+
+			indices := []int{
+				0,               // first original
+				tc.k - 1,        // last original
+				tc.k,            // first parity
+				tc.k + tc.n - 1, // last parity
+				tc.k / 2,        // mid original
+				tc.k + tc.n/2,   // mid parity
+			}
+			proofs := proofsAtIndices(t, ed, indices)
+
+			v, err := NewVerifier(cfg)
+			if err != nil {
+				t.Fatalf("NewVerifier: %v", err)
+			}
+			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+				t.Fatalf("Verify: %v", err)
+			}
+		})
+	}
+}

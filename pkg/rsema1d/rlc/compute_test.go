@@ -61,6 +61,46 @@ func TestComputeMatchesScalar(t *testing.T) {
 	}
 }
 
+// TestComputeLinearity verifies the RLC operator is linear over GF(2):
+// Compute(a) XOR Compute(b) == Compute(a XOR b), where XOR is component-wise
+// over rows and byte-wise within each row. Linearity is the property that
+// lets the protocol extend RLC values through Reed-Solomon and have them
+// commute with per-row RLC computation.
+func TestComputeLinearity(t *testing.T) {
+	const k, rowSize = 32, 256
+	r := rand.New(rand.NewPCG(7, 11))
+	a := make([][]byte, k)
+	b := make([][]byte, k)
+	sum := make([][]byte, k)
+	for i := range a {
+		a[i] = make([]byte, rowSize)
+		b[i] = make([]byte, rowSize)
+		sum[i] = make([]byte, rowSize)
+		for j := range a[i] {
+			a[i][j] = byte(r.IntN(256))
+			b[i][j] = byte(r.IntN(256))
+			sum[i][j] = a[i][j] ^ b[i][j] // GF(2^16) addition is byte-wise XOR
+		}
+	}
+
+	var rowRoot [32]byte
+	for i := range rowRoot {
+		rowRoot[i] = byte(r.IntN(256))
+	}
+	coeffs := Derive(rowRoot, k, k, rowSize, 1)
+
+	rlcA := Compute(a, coeffs, 1)
+	rlcB := Compute(b, coeffs, 1)
+	rlcSum := Compute(sum, coeffs, 1)
+
+	for i := range rlcSum {
+		want := field.Add128(rlcA[i], rlcB[i])
+		if !field.Equal128(rlcSum[i], want) {
+			t.Fatalf("row %d: RLC(a XOR b) != RLC(a) XOR RLC(b): got %v want %v", i, rlcSum[i], want)
+		}
+	}
+}
+
 // BenchmarkCompute measures the vectorized SIMD RLC kernel at the largest
 // single-row size in the matrix — 128MB total, K=1024 → 128KB per row. Both
 // single-worker and 16-worker variants are covered for k=1024 with n=1024
