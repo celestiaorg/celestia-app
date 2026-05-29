@@ -30,10 +30,7 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 		}
 	}
 
-	extData, commitment, _, err := Encode(source, cfg)
-	if err != nil {
-		b.Fatal(err)
-	}
+	extData, commitment, _ := encodeRows(b, cfg, source)
 
 	coder, err := NewCoder(&Config{K: k, N: n, WorkerCount: 1})
 	if err != nil {

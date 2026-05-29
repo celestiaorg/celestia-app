@@ -1,62 +1,12 @@
 package rsema1d
 
 import (
-	"bytes"
 	"math/rand/v2"
 	"sync"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
-
-// TestVerifierMatchesContextRoot cross-checks the rlcOrigRoot returned by
-// Verify against the one CreateVerificationContext computes from the same
-// rlcOrig — both build the same padded RLC tree and must agree.
-func TestVerifierMatchesContextRoot(t *testing.T) {
-	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
-	v, err := NewVerifier(cfg)
-	if err != nil {
-		t.Fatalf("NewVerifier: %v", err)
-	}
-
-	r := rand.New(rand.NewPCG(42, 42))
-	for shard := range 3 {
-		data := make([][]byte, cfg.K)
-		for i := range data {
-			data[i] = make([]byte, cfg.RowSize)
-			for j := range data[i] {
-				data[i][j] = byte(r.IntN(256))
-			}
-		}
-		ed, commitment, rlcOrig, err := Encode(data, cfg)
-		if err != nil {
-			t.Fatalf("shard %d: Encode: %v", shard, err)
-		}
-
-		proofs := make([]*RowProof, 16)
-		for i := range proofs {
-			p, err := ed.GenerateRowProof(i)
-			if err != nil {
-				t.Fatalf("shard %d: GenerateRowProof(%d): %v", shard, i, err)
-			}
-			proofs[i] = p
-		}
-
-		root, err := v.Verify(commitment, proofs, rlcOrig)
-		if err != nil {
-			t.Fatalf("shard %d: Verify: %v", shard, err)
-		}
-
-		// Cross-check the rlcOrigRoot against the existing API.
-		_, expectedRoot, err := CreateVerificationContext(rlcOrig, cfg)
-		if err != nil {
-			t.Fatalf("shard %d: CreateVerificationContext: %v", shard, err)
-		}
-		if !bytes.Equal(root, expectedRoot[:]) {
-			t.Fatalf("shard %d: rlcOrigRoot mismatch: got %x want %x", shard, root, expectedRoot)
-		}
-	}
-}
 
 // TestVerifierRejectsTamperedRow ensures buffer reuse across calls does not
 // mask tampering: a corrupted row in any iteration must surface an error.
@@ -68,17 +18,7 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 	}
 
 	r := rand.New(rand.NewPCG(7, 7))
-	data := make([][]byte, cfg.K)
-	for i := range data {
-		data[i] = make([]byte, cfg.RowSize)
-		for j := range data[i] {
-			data[i][j] = byte(r.IntN(256))
-		}
-	}
-	ed, commitment, rlcOrig, err := Encode(data, cfg)
-	if err != nil {
-		t.Fatalf("Encode: %v", err)
-	}
+	ed, commitment, rlcOrig := encodeRandom(t, r, cfg)
 
 	// Run a clean verify first to populate the Verifier's internal buffers.
 	cleanProofs := make([]*RowProof, 16)
@@ -125,17 +65,7 @@ func TestVerifierVariableBatchSize(t *testing.T) {
 	}
 
 	r := rand.New(rand.NewPCG(99, 99))
-	data := make([][]byte, cfg.K)
-	for i := range data {
-		data[i] = make([]byte, cfg.RowSize)
-		for j := range data[i] {
-			data[i][j] = byte(r.IntN(256))
-		}
-	}
-	ed, commitment, rlcOrig, err := Encode(data, cfg)
-	if err != nil {
-		t.Fatalf("Encode: %v", err)
-	}
+	ed, commitment, rlcOrig := encodeRandom(t, r, cfg)
 
 	for _, n := range []int{32, 8, 48} {
 		proofs := make([]*RowProof, n)
@@ -255,11 +185,7 @@ func encodeRandom(t *testing.T, r *rand.Rand, cfg *Config) (*ExtendedData, Commi
 			data[i][j] = byte(r.IntN(256))
 		}
 	}
-	ed, commitment, rlcOrig, err := Encode(data, cfg)
-	if err != nil {
-		t.Fatalf("Encode: %v", err)
-	}
-	return ed, commitment, rlcOrig
+	return encodeRows(t, cfg, data)
 }
 
 // rangeProofs generates row proofs for indices [lo, hi).

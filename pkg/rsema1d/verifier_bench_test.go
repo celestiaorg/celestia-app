@@ -40,10 +40,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		}
 	}
 	encodeCfg := &Config{K: k, N: n, RowSize: rowSize, WorkerCount: numCPU}
-	ed, commitment, rlcOrig, err := Encode(data, encodeCfg)
-	if err != nil {
-		b.Fatalf("Encode: %v", err)
-	}
+	ed, commitment, rlcOrig := encodeRows(b, encodeCfg, data)
 	proofs := make([]*RowProof, batch)
 	for i := range proofs {
 		p, err := ed.GenerateRowProof(i)

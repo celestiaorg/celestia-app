@@ -83,10 +83,7 @@ func BenchmarkCoderReconstruct(b *testing.B) {
 				}
 			}
 
-			extData, _, _, err := Encode(data, config)
-			if err != nil {
-				b.Fatal(err)
-			}
+			extData, _, _ := encodeRows(b, config, data)
 
 			// mixed indices: half original, half parity
 			indices := make([]int, sz.k)

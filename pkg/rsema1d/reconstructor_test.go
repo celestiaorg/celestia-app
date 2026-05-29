@@ -22,10 +22,7 @@ func TestReconstructorReconstructRequiresEnoughRows(t *testing.T) {
 		}
 	}
 
-	extData, commitment, _, err := Encode(source, cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
+	extData, commitment, _ := encodeRows(t, cfg, source)
 
 	coder, err := NewCoder(&Config{K: k, N: n, WorkerCount: 1})
 	if err != nil {

@@ -13,14 +13,14 @@ import (
 // rows[:K], zero parity slots in rows[K:K+N]), runs the produce path, and
 // returns the same (ExtendedData, Commitment, []GF128) triple historical
 // tests rely on.
-func encodeRows(t *testing.T, cfg *Config, data [][]byte) (*ExtendedData, Commitment, []field.GF128) {
-	t.Helper()
+func encodeRows(tb testing.TB, cfg *Config, data [][]byte) (*ExtendedData, Commitment, []field.GF128) {
+	tb.Helper()
 	if len(data) != cfg.K {
-		t.Fatalf("encodeRows: expected %d input rows, got %d", cfg.K, len(data))
+		tb.Fatalf("encodeRows: expected %d input rows, got %d", cfg.K, len(data))
 	}
 	coder, err := NewCoder(cfg)
 	if err != nil {
-		t.Fatalf("NewCoder: %v", err)
+		tb.Fatalf("NewCoder: %v", err)
 	}
 	rows := make([][]byte, cfg.K+cfg.N)
 	copy(rows, data)
@@ -29,7 +29,7 @@ func encodeRows(t *testing.T, cfg *Config, data [][]byte) (*ExtendedData, Commit
 	}
 	ed, err := coder.Encode(rows)
 	if err != nil {
-		t.Fatalf("Coder.Encode: %v", err)
+		tb.Fatalf("Coder.Encode: %v", err)
 	}
 	return ed, ed.Commitment(), ed.RLC()
 }
