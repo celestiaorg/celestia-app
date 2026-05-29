@@ -70,8 +70,6 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 	rowRoot := rowTree.Root()
 
 	// derive RLC coefficients and compute RLC results for original rows.
-	// rowSize is taken from the data to support the Coder's deferred-RowSize
-	// mode (config.RowSize may be 0 when the Coder is reused across shards).
 	coeffs := rlc.Derive(rowRoot, c.config.K, c.config.N, len(extendedRows[0]), c.config.WorkerCount)
 	rlcOrig := rlc.Compute(extendedRows[:c.config.K], coeffs, c.config.WorkerCount)
 

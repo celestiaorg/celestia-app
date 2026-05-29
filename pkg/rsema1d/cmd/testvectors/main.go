@@ -16,7 +16,6 @@ func main() {
 	config1 := &rsema1d.Config{
 		K:           4,
 		N:           4,
-		RowSize:     64,
 		WorkerCount: 1,
 	}
 
@@ -46,7 +45,6 @@ func main() {
 	config2 := &rsema1d.Config{
 		K:           3,
 		N:           9,
-		RowSize:     256,
 		WorkerCount: 1,
 	}
 
@@ -77,10 +75,11 @@ func encode(cfg *rsema1d.Config, data [][]byte) rsema1d.Commitment {
 	if err != nil {
 		log.Fatal(err)
 	}
+	rowSize := len(data[0])
 	rows := make([][]byte, cfg.K+cfg.N)
 	copy(rows, data)
 	for i := cfg.K; i < cfg.K+cfg.N; i++ {
-		rows[i] = make([]byte, cfg.RowSize)
+		rows[i] = make([]byte, rowSize)
 	}
 	ed, err := coder.Encode(rows)
 	if err != nil {

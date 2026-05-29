@@ -17,13 +17,13 @@ import (
 // a 16-proof batch starting at firstProofIndex.
 func tamperedSetup(t *testing.T, seed uint64, firstProofIndex int) (*rsema1d.Verifier, rsema1d.Commitment, []*rsema1d.RowProof, []field.GF128) {
 	t.Helper()
-	cfg := &rsema1d.Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: 64, N: 64, WorkerCount: 1}
 	v, err := rsema1d.NewVerifier(cfg)
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}
 	r := rand.New(rand.NewPCG(seed, seed))
-	ed, commitment, rlcOrig := encodeRandom(t, r, cfg)
+	ed, commitment, rlcOrig := encodeRandom(t, r, cfg, 1024)
 	return v, commitment, rangeProofs(t, ed, firstProofIndex, firstProofIndex+16), rlcOrig
 }
 

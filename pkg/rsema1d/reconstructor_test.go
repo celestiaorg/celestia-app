@@ -15,7 +15,7 @@ func TestReconstructorReconstructRequiresEnoughRows(t *testing.T) {
 		rowSize = 256
 	)
 
-	cfg := &rsema1d.Config{K: k, N: n, RowSize: rowSize, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
 	source := make([][]byte, k)
 	for i := range source {
 		source[i] = make([]byte, rowSize)
@@ -76,7 +76,7 @@ func TestReconstructorReconstructRequiresEnoughRows(t *testing.T) {
 func TestReconstructorFromVariousSelections(t *testing.T) {
 	for _, tc := range roundtripConfigs {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &rsema1d.Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
+			cfg := &rsema1d.Config{K: tc.k, N: tc.n, WorkerCount: 1}
 			data := fillRows(tc.k, tc.rowSize)
 			ed, commitment, rlcOrig := encodeRows(t, cfg, data)
 

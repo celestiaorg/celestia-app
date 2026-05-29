@@ -6,10 +6,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
-// buildPaddedRowTree creates a padded Merkle tree from extended rows.
-// rowSize is derived from extended[0] rather than config.RowSize so the
-// Coder's deferred-RowSize mode (config.RowSize=0, reused across blobs)
-// still produces correctly-sized leaf scratch buffers.
+// buildPaddedRowTree creates a padded Merkle tree from extended rows. The
+// per-leaf scratch is sized from extended[0], so the same Config can drive
+// blobs of different widths without restating row size.
 func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 	rowSize := len(extended[0])
 	return merkle.NewTreeFromWriter(config.totalPadded, rowSize, config.WorkerCount, func(i int, dst []byte) {

@@ -76,7 +76,7 @@ func BenchmarkCoderReconstruct(b *testing.B) {
 
 	for _, sz := range sizes {
 		b.Run(sz.name, func(b *testing.B) {
-			config := &rsema1d.Config{K: sz.k, N: sz.n, RowSize: sz.rowSize, WorkerCount: 1}
+			config := &rsema1d.Config{K: sz.k, N: sz.n, WorkerCount: 1}
 			data := make([][]byte, sz.k)
 			for i := range sz.k {
 				data[i] = make([]byte, sz.rowSize)

@@ -23,10 +23,11 @@ func encodeRows(tb testing.TB, cfg *rsema1d.Config, data [][]byte) (*rsema1d.Ext
 	if err != nil {
 		tb.Fatalf("NewCoder: %v", err)
 	}
+	rowSize := len(data[0])
 	rows := make([][]byte, cfg.K+cfg.N)
 	copy(rows, data)
 	for i := cfg.K; i < cfg.K+cfg.N; i++ {
-		rows[i] = make([]byte, cfg.RowSize)
+		rows[i] = make([]byte, rowSize)
 	}
 	ed, err := coder.Encode(rows)
 	if err != nil {
@@ -79,7 +80,7 @@ func fillRows(k, rowSize int) [][]byte {
 func TestCoderEncodeRoundtrip(t *testing.T) {
 	for _, tc := range roundtripConfigs {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &rsema1d.Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
+			cfg := &rsema1d.Config{K: tc.k, N: tc.n, WorkerCount: 1}
 			data := fillRows(tc.k, tc.rowSize)
 
 			ed, commitment, rlcOrig := encodeRows(t, cfg, data)

@@ -4,16 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
-// Config holds all configurable parameters for the codec
+// Config holds all configurable parameters for the codec.
 type Config struct {
 	// Core parameters (required)
-	K       int // Number of original rows (can be arbitrary)
-	N       int // Number of parity rows (can be arbitrary)
-	RowSize int // Size of each row in bytes (multiple of Leopard chunk size)
+	K int // Number of original rows (can be arbitrary)
+	N int // Number of parity rows (can be arbitrary)
 
 	// Optional parameters with defaults
 	WorkerCount int // Number of parallel workers (minimum 1)
@@ -26,9 +23,8 @@ type Config struct {
 // DefaultConfig returns a standard configuration
 func DefaultConfig() *Config {
 	return &Config{
-		K:           32768, // 32768 rows × 4096 bytes = 128 MB of original data
-		N:           32768, // 32768 parity rows = 128 MB of parity data
-		RowSize:     4096,
+		K:           32768, // 32768 original rows
+		N:           32768, // 32768 parity rows
 		WorkerCount: runtime.NumCPU(),
 	}
 }
@@ -41,28 +37,10 @@ func (c *Config) Validate() error {
 	if c.N <= 0 {
 		return errors.New("n must be positive")
 	}
-	// RowSize=0 is valid (means variable row size, determined at runtime by
-	// the Coder, which derives it from the data passed to each operation).
-	if c.RowSize < 0 {
-		return errors.New("RowSize must be non-negative")
-	}
 
 	// Check K + N <= 65536 (GF(2^16) field size limit)
 	if c.K+c.N > 65536 {
 		return fmt.Errorf("k + n must be <= 65536, got %d", c.K+c.N)
-	}
-
-	// When RowSize is specified (> 0), validate constraints
-	if c.RowSize > 0 {
-		// Check RowSize is a whole number of Leopard chunks.
-		if c.RowSize%field.LeopardChunkSize != 0 {
-			return fmt.Errorf("RowSize must be a multiple of %d, got %d", field.LeopardChunkSize, c.RowSize)
-		}
-
-		// Check RowSize is at least one Leopard chunk.
-		if c.RowSize < field.LeopardChunkSize {
-			return fmt.Errorf("RowSize must be at least %d, got %d", field.LeopardChunkSize, c.RowSize)
-		}
 	}
 
 	// WorkerCount must be at least 1

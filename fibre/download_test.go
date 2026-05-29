@@ -25,7 +25,7 @@ const (
 // per-validator ExpectedRows.
 func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowProof, rlc.Vector) {
 	t.Helper()
-	cfg := &rsema1d.Config{K: testK, N: testN, RowSize: testRowSize, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: testK, N: testN, WorkerCount: 1}
 	coder, err := rsema1d.NewCoder(cfg)
 	require.NoError(t, err)
 
@@ -44,7 +44,7 @@ func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowPr
 	rows := make([][]byte, cfg.K+cfg.N)
 	copy(rows, data)
 	for i := cfg.K; i < cfg.K+cfg.N; i++ {
-		rows[i] = make([]byte, cfg.RowSize)
+		rows[i] = make([]byte, testRowSize)
 	}
 	ed, err := coder.Encode(rows)
 	require.NoError(t, err)

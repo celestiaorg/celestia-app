@@ -28,9 +28,6 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	if proof.Index < 0 || proof.Index >= config.K {
 		return fmt.Errorf("standalone verification only supports original rows (got index %d, K=%d)", proof.Index, config.K)
 	}
-	if config.RowSize > 0 && len(proof.Row) != config.RowSize {
-		return fmt.Errorf("row size mismatch: expected %d, got %d", config.RowSize, len(proof.Row))
-	}
 
 	rowTreeDepth := bits.Len(uint(config.totalPadded)) - 1
 	if len(proof.RowProof.RowProof) != rowTreeDepth {

@@ -41,7 +41,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 			data[i][j] = byte(r.IntN(256))
 		}
 	}
-	encodeCfg := &rsema1d.Config{K: k, N: n, RowSize: rowSize, WorkerCount: numCPU}
+	encodeCfg := &rsema1d.Config{K: k, N: n, WorkerCount: numCPU}
 	ed, commitment, rlcOrig := encodeRows(b, encodeCfg, data)
 	proofs := make([]*rsema1d.RowProof, batch)
 	for i := range proofs {
@@ -53,7 +53,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 	}
 
 	makeVerifier := func() *rsema1d.Verifier {
-		v, err := rsema1d.NewVerifier(&rsema1d.Config{K: k, N: n, RowSize: rowSize, WorkerCount: 1})
+		v, err := rsema1d.NewVerifier(&rsema1d.Config{K: k, N: n, WorkerCount: 1})
 		if err != nil {
 			b.Fatalf("NewVerifier: %v", err)
 		}

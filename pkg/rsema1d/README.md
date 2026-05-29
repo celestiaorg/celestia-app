@@ -24,12 +24,14 @@ import (
 )
 
 func main() {
-    // Configure codec parameters.
+    // Configure codec parameters. Row size is decided per-blob from the
+    // data buffer you hand to Coder.Encode — the same Config can drive
+    // blobs of different widths.
     config := &rsema1d.Config{
-        K:       4,    // Number of original rows
-        N:       4,    // Number of parity rows
-        RowSize: 4096, // Size of each row (must be multiple of 64)
+        K: 4, // Number of original rows
+        N: 4, // Number of parity rows
     }
+    const rowSize = 4096 // multiple of 64 (one Leopard chunk)
 
     coder, err := rsema1d.NewCoder(config)
     if err != nil {
@@ -40,11 +42,11 @@ func main() {
     // parity slots in rows[K:K+N].
     rows := make([][]byte, config.K+config.N)
     for i := range config.K {
-        rows[i] = make([]byte, config.RowSize)
+        rows[i] = make([]byte, rowSize)
         // ... fill row i with your data ...
     }
     for i := config.K; i < config.K+config.N; i++ {
-        rows[i] = make([]byte, config.RowSize)
+        rows[i] = make([]byte, rowSize)
     }
 
     extended, err := coder.Encode(rows)
@@ -152,15 +154,16 @@ The `Config` struct controls all codec parameters:
 type Config struct {
     K           int  // Number of original rows (1 ≤ K ≤ 65536)
     N           int  // Number of parity rows (1 ≤ N ≤ 65536, K+N ≤ 65536)
-    RowSize     int  // Bytes per row (must be ≥ 64 and multiple of 64)
     WorkerCount int  // Parallel workers (default: runtime.NumCPU())
 }
 ```
 
+Row size is not in Config — every operation (Encode, Verify, VerifyStandaloneProof) reads it from the input rows or proofs, so a single Config drives blobs of varying width.
+
 ### Parameter Constraints
 
 - **K + N ≤ 65536**: Limited by GF(2^16) field size
-- **RowSize**: Must be at least 64 bytes and a multiple of 64 (Leopard codec requirement)
+- **Row size**: Must be at least 64 bytes and a multiple of 64 (Leopard codec requirement)
 - **Non-power-of-2 support**: K and N can be arbitrary values, padding is handled automatically
 
 ## Architecture

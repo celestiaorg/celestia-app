@@ -23,7 +23,7 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 		chunkSize = 163
 	)
 
-	cfg := &rsema1d.Config{K: k, N: n, RowSize: rowSize, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
 	source := make([][]byte, k)
 	for i := range source {
 		source[i] = make([]byte, rowSize)

@@ -130,35 +130,28 @@ func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
 }
 
 // validateProofs checks proof shape invariants and returns the effective row
-// size, which is derived from proofs[0] when cfg.RowSize is unset.
+// size, derived from proofs[0].
 func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 	if len(proofs) == 0 {
 		return 0, errors.New("no proofs provided")
 	}
 	expectedProofDepth := bits.Len(uint(v.config.totalPadded)) - 1
-	rowSize := v.config.RowSize
+	rowSize := len(proofs[0].Row)
 	for i, p := range proofs {
 		if p == nil {
 			return 0, errors.New("received nil proof in verifier")
 		}
-		if i == 0 && rowSize == 0 {
-			rowSize = len(p.Row)
-		}
 		if p.Index < 0 || p.Index >= v.config.K+v.config.N {
 			return 0, fmt.Errorf("index %d out of range [0, %d)", p.Index, v.config.K+v.config.N)
-		}
-		if v.config.RowSize > 0 && len(p.Row) != v.config.RowSize {
-			return 0, fmt.Errorf("row %d: row size mismatch: expected %d, got %d", p.Index, v.config.RowSize, len(p.Row))
 		}
 		if len(p.Row) != rowSize {
 			return 0, fmt.Errorf("batched verify requires equal-sized rows: row %d has %d bytes, expected %d",
 				p.Index, len(p.Row), rowSize)
 		}
 		if len(p.RowProof) != expectedProofDepth {
-			return 0, fmt.Errorf("row %d: proof depth mismatch: expected %d, got %d", p.Index, expectedProofDepth, len(p.RowProof))
+			return 0, fmt.Errorf("row %d: proof depth mismatch: expected %d, got %d", i, expectedProofDepth, len(p.RowProof))
 		}
 	}
-	// Variable-row-size mode derives rowSize from proofs[0].
 	if rowSize == 0 || rowSize%field.LeopardChunkSize != 0 {
 		return 0, fmt.Errorf("row size must be a positive multiple of %d, got %d", field.LeopardChunkSize, rowSize)
 	}
