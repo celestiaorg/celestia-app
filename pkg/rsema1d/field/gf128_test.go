@@ -61,63 +61,6 @@ func TestGF128Addition(t *testing.T) {
 	}
 }
 
-func TestGF128ScalarMultiplication(t *testing.T) {
-	tests := []struct {
-		name   string
-		scalar GF16
-		vec    GF128
-	}{
-		{
-			name:   "multiply_by_zero",
-			scalar: 0,
-			vec:    GF128{1, 2, 3, 4, 5, 6, 7, 8},
-		},
-		{
-			name:   "multiply_by_one",
-			scalar: 1,
-			vec:    GF128{1, 2, 3, 4, 5, 6, 7, 8},
-		},
-		{
-			name:   "multiply_by_two",
-			scalar: 2,
-			vec:    GF128{1, 2, 3, 4, 5, 6, 7, 8},
-		},
-		{
-			name:   "general_case",
-			scalar: 0x1234,
-			vec:    GF128{0xABCD, 0xEF01, 0x2345, 0x6789, 0xBCDE, 0xF012, 0x3456, 0x789A},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := Mul128(tt.scalar, tt.vec)
-
-			// Check zero property
-			if tt.scalar == 0 {
-				if !Equal128(result, Zero()) {
-					t.Errorf("Mul128(0, %v) = %v, expected zero", tt.vec, result)
-				}
-			}
-
-			// Check identity property
-			if tt.scalar == 1 {
-				if !Equal128(result, tt.vec) {
-					t.Errorf("Mul128(1, %v) = %v, expected %v", tt.vec, result, tt.vec)
-				}
-			}
-
-			// Check that each component is multiplied correctly
-			for i := range 8 {
-				expected := Mul16(tt.scalar, tt.vec[i])
-				if result[i] != expected {
-					t.Errorf("Component %d: got %d, expected %d", i, result[i], expected)
-				}
-			}
-		})
-	}
-}
-
 func TestGF128Serialization(t *testing.T) {
 	tests := []GF128{
 		Zero(),
@@ -204,26 +147,12 @@ func TestHashToGF128(t *testing.T) {
 	}
 }
 
-func TestGF128Properties(t *testing.T) {
-	// Test associativity of addition
+func TestAdd128Associative(t *testing.T) {
 	a := GF128{1, 2, 3, 4, 5, 6, 7, 8}
 	b := GF128{9, 10, 11, 12, 13, 14, 15, 16}
 	c := GF128{17, 18, 19, 20, 21, 22, 23, 24}
 
-	// (a + b) + c = a + (b + c)
-	left := Add128(Add128(a, b), c)
-	right := Add128(a, Add128(b, c))
-	if !Equal128(left, right) {
-		t.Errorf("Addition not associative: %v != %v", left, right)
-	}
-
-	// Test distributivity of scalar multiplication
-	// s * (a + b) = (s * a) + (s * b)
-	scalar := GF16(0x1234)
-	sum := Add128(a, b)
-	left2 := Mul128(scalar, sum)
-	right2 := Add128(Mul128(scalar, a), Mul128(scalar, b))
-	if !Equal128(left2, right2) {
-		t.Errorf("Scalar multiplication not distributive: %v != %v", left2, right2)
+	if !Equal128(Add128(Add128(a, b), c), Add128(a, Add128(b, c))) {
+		t.Errorf("Add128 not associative")
 	}
 }

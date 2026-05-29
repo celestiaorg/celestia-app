@@ -35,11 +35,7 @@ func main() {
 	}
 
 	// Encode and get commitment
-	_, commitment1, _, err := rsema1d.Encode(data1, config1)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	commitment1 := encode(config1, data1)
 	fmt.Printf("\nCommitment: 0x%s\n", hex.EncodeToString(commitment1[:]))
 	fmt.Println()
 
@@ -69,10 +65,26 @@ func main() {
 	}
 
 	// Encode and get commitment
-	_, commitment2, _, err := rsema1d.Encode(data2, config2)
+	commitment2 := encode(config2, data2)
+	fmt.Printf("\nCommitment: 0x%s\n", hex.EncodeToString(commitment2[:]))
+}
+
+// encode wraps Coder.Encode to produce the commitment for the given data: it
+// builds the K+N row buffer the Coder expects (data in rows[:K], zero parity
+// slots in rows[K:K+N]), runs the produce path, and returns the commitment.
+func encode(cfg *rsema1d.Config, data [][]byte) rsema1d.Commitment {
+	coder, err := rsema1d.NewCoder(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Printf("\nCommitment: 0x%s\n", hex.EncodeToString(commitment2[:]))
+	rows := make([][]byte, cfg.K+cfg.N)
+	copy(rows, data)
+	for i := cfg.K; i < cfg.K+cfg.N; i++ {
+		rows[i] = make([]byte, cfg.RowSize)
+	}
+	ed, err := coder.Encode(rows)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return ed.Commitment()
 }

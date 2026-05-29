@@ -41,8 +41,14 @@ func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowPr
 	}
 	hdr := newBlobHeaderV0(testK*testRowSize - blobHeaderLen)
 	hdr.marshalTo(data[0])
-	ed, commitment, rlc, err := rsema1d.Encode(data, cfg)
+	rows := make([][]byte, cfg.K+cfg.N)
+	copy(rows, data)
+	for i := cfg.K; i < cfg.K+cfg.N; i++ {
+		rows[i] = make([]byte, cfg.RowSize)
+	}
+	ed, err := coder.Encode(rows)
 	require.NoError(t, err)
+	commitment, rlc := ed.Commitment(), ed.RLC()
 
 	proofs := make([]*rsema1d.RowProof, testK+testN)
 	for i := range proofs {

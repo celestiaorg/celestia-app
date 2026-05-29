@@ -13,7 +13,7 @@ func TestGF16FromLeopard(t *testing.T) {
 	}
 
 	for r := range 2 * LeopardSymbolsPerChunk {
-		want := GF16((r*2+1)<<8 | (r * 2))
+		want := uint16((r*2+1)<<8 | (r * 2))
 		if got := GF16FromLeopard(slab, r); got != want {
 			t.Fatalf("symbol %d: got %04x, want %04x", r, got, want)
 		}
