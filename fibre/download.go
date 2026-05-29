@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
 // download is the per-download session/state for fetching and reconstructing a blob.
@@ -123,7 +123,7 @@ func (s *download) ready() bool {
 // [download.store] writes to disjoint slots without further locking. Callers
 // must invoke [download.SkipShard] on error; successful adds release the
 // reservation internally.
-func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.RowProof, rlc []field.GF128) error {
+func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.RowProof, rlc rlc.Vector) error {
 	novel, err := s.reconstructor.Add(proofs, rlc)
 	if err != nil {
 		return err

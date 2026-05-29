@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
 // Config holds all configurable parameters for the codec
@@ -11,7 +13,7 @@ type Config struct {
 	// Core parameters (required)
 	K       int // Number of original rows (can be arbitrary)
 	N       int // Number of parity rows (can be arbitrary)
-	RowSize int // Size of each row in bytes (multiple of 64)
+	RowSize int // Size of each row in bytes (multiple of Leopard chunk size)
 
 	// Optional parameters with defaults
 	WorkerCount int // Number of parallel workers (minimum 1)
@@ -52,14 +54,14 @@ func (c *Config) Validate() error {
 
 	// When RowSize is specified (> 0), validate constraints
 	if c.RowSize > 0 {
-		// Check RowSize is multiple of 64 (Leopard constraint)
-		if c.RowSize%64 != 0 {
-			return fmt.Errorf("RowSize must be a multiple of 64, got %d", c.RowSize)
+		// Check RowSize is a whole number of Leopard chunks.
+		if c.RowSize%field.LeopardChunkSize != 0 {
+			return fmt.Errorf("RowSize must be a multiple of %d, got %d", field.LeopardChunkSize, c.RowSize)
 		}
 
-		// Check RowSize is at least 64
-		if c.RowSize < 64 {
-			return fmt.Errorf("RowSize must be at least 64, got %d", c.RowSize)
+		// Check RowSize is at least one Leopard chunk.
+		if c.RowSize < field.LeopardChunkSize {
+			return fmt.Errorf("RowSize must be at least %d, got %d", field.LeopardChunkSize, c.RowSize)
 		}
 	}
 

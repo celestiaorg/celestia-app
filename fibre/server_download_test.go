@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
@@ -155,18 +155,10 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 		}
 	}
 
-	// flatten RLC coefficients for storage
-	rlcCoeffs := blob.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
-
 	shard := &types.BlobShard{
 		Rows:         rows,
 		Root:         make([]byte, 32),
-		Coefficients: coeffBytes,
+		Coefficients: rlc.Marshal(blob.RLC()),
 	}
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))

@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/fibre"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -206,19 +206,11 @@ func makeTestRequest(
 		}
 	}
 
-	// flatten RLC values
-	rlcCoeffs := blob.RLC()
-	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, coeff := range rlcCoeffs {
-		b := field.ToBytes128(coeff)
-		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
-	}
-
 	req := &types.UploadShardRequest{
 		Promise: promisePb,
 		Shard: &types.BlobShard{
 			Rows:         rows,
-			Coefficients: rlcCoeffsBytes,
+			Coefficients: rlc.Marshal(blob.RLC()),
 		},
 	}
 

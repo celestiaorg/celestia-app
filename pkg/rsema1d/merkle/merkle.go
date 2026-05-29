@@ -13,6 +13,9 @@ var (
 	innerPrefix = []byte{1}
 )
 
+// Root is the canonical type for a 32-byte SHA-256 Merkle root.
+type Root = [32]byte
+
 // Tree represents a binary Merkle tree
 type Tree struct {
 	nodes [][32]byte // using array instead of slice enables single contiguous memory allocation for the entire tree
@@ -138,7 +141,7 @@ func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 // scratch must have length at least leaves. leafScratch is cleared and passed
 // to writeLeaf for each index, then hashed as a Merkle leaf internally.
 // Requires: leaves must be a positive power of 2.
-func ComputeRootFromWriter(scratch [][32]byte, leafScratch []byte, leaves int, writeLeaf func(i int, dst []byte)) [32]byte {
+func ComputeRootFromWriter(scratch [][32]byte, leafScratch []byte, leaves int, writeLeaf func(i int, dst []byte)) Root {
 	if leaves == 0 {
 		panic("cannot compute Merkle root with 0 leaves")
 	}
@@ -179,7 +182,7 @@ func (t *Tree) depth() int {
 }
 
 // Root returns the Merkle root
-func (t *Tree) Root() [32]byte {
+func (t *Tree) Root() Root {
 	return t.nodes[0]
 }
 

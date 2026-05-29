@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
 // ErrNotEnoughRows is returned when reconstruction is attempted before K
@@ -75,7 +75,7 @@ func (c *Coder) NewReconstructor(commitment Commitment) (*Reconstructor, error) 
 //
 // Safe to call concurrently. Concurrent Add calls return disjoint Index sets,
 // so callers can store novel proofs into their own buffer without locking.
-func (r *Reconstructor) Add(proofs []*RowProof, rlc []field.GF128) ([]*RowProof, error) {
+func (r *Reconstructor) Add(proofs []*RowProof, rlc rlc.Vector) ([]*RowProof, error) {
 	if err := r.verify(rlc, proofs); err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 // concurrent-safe VerifyShared against the cached RLC. Slow path: serialize on
 // verifierMu and install this caller's RLC, but only mark it cached if Verify
 // validates it against the commitment.
-func (r *Reconstructor) verify(rlc []field.GF128, proofs []*RowProof) error {
+func (r *Reconstructor) verify(rlc rlc.Vector, proofs []*RowProof) error {
 	if r.verifierRLC.Load() {
 		return r.verifier.VerifyShared(r.commitment, proofs)
 	}

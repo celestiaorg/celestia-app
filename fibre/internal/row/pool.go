@@ -29,14 +29,16 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/klauspost/reedsolomon"
 )
 
 // Structural constants — invariants of the memory layout, not tuning knobs.
 const (
 	// rowSizeAlign is the quantum for both rowSize and the minimum
-	// accepted rowSize; SIMD-aligned to 64 bytes.
-	rowSizeAlign = 64
+	// accepted rowSize; matches the Leopard chunk size that the underlying
+	// SIMD GF(2^16) kernels require.
+	rowSizeAlign = field.LeopardChunkSize
 
 	// headerSize prefixes every slab's backing region. Sized to keep
 	// data 64-byte (SIMD) aligned; the first word is a back-pointer to

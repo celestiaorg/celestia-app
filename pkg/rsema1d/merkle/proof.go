@@ -23,7 +23,7 @@ type ProofInput struct {
 // Work fans out across up to workers goroutines via static index-range
 // chunking; below the parallel break-even (len(inputs) <= 64 or workers
 // <= 1) the call stays sequential.
-func ComputeRootFromProofs(inputs []ProofInput, workers int) ([32]byte, error) {
+func ComputeRootFromProofs(inputs []ProofInput, workers int) (Root, error) {
 	if len(inputs) == 0 {
 		return [32]byte{}, fmt.Errorf("no proof inputs")
 	}
@@ -138,7 +138,7 @@ func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
 }
 
 // ComputeRootFromProof computes the Merkle root given a leaf and its proof
-func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) ([32]byte, error) {
+func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) (Root, error) {
 	// Start with the hashed leaf (apply leaf prefix like in tree construction)
 	var current [32]byte
 	hashLeaf(leaf, &current)
@@ -166,7 +166,7 @@ func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) ([32]byte, err
 
 // ComputeRootFromLeftSubtreeProof computes the full tree root given a left subtree root and sibling roots
 // The subtree is assumed to be the leftmost k leaves where k is a power of 2
-func ComputeRootFromLeftSubtreeProof(leftSubtreeRoot [32]byte, siblingRoots [][]byte) [32]byte {
+func ComputeRootFromLeftSubtreeProof(leftSubtreeRoot Root, siblingRoots [][]byte) Root {
 	current := leftSubtreeRoot
 
 	// Process each sibling in the proof

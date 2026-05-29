@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
@@ -505,13 +505,7 @@ func makeShardWithRLC(t *testing.T, blob *fibre.Blob, indices ...int) *types.Blo
 	t.Helper()
 	shard := makeShardFrom(t, blob, indices...)
 
-	rlcCoeffs := blob.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
-	shard.Coefficients = coeffBytes
+	shard.Coefficients = rlc.Marshal(blob.RLC())
 
 	return shard
 }

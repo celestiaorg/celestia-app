@@ -8,7 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -186,7 +186,7 @@ func (c *Client) downloadFrom(
 		return err
 	}
 
-	proofs, rlc, err := parseShard(resp.GetShard(), state.cfg.OriginalRows)
+	proofs, rlc, err := parseShard(resp.GetShard())
 	if err != nil {
 		log.WarnContext(ctx, "failed to parse shard", "error", err)
 		span.RecordError(err)
@@ -256,7 +256,7 @@ var errDownloaded = errors.New("downloaded")
 
 // parseShard extracts row proofs and the parsed RLC vector from a BlobShard
 // response.
-func parseShard(shard *types.BlobShard, expectedRLC int) ([]*rsema1d.RowProof, []field.GF128, error) {
+func parseShard(shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error) {
 	if shard == nil {
 		return nil, nil, fmt.Errorf("shard response is nil")
 	}
@@ -278,12 +278,12 @@ func parseShard(shard *types.BlobShard, expectedRLC int) ([]*rsema1d.RowProof, [
 		}
 	}
 
-	coeffs, err := parseRLCCoeffs(shard.GetCoefficients(), expectedRLC)
+	coeffs, err := rlc.Unmarshal(shard.GetCoefficients())
 	if err != nil {
-		if len(shard.GetCoefficients()) == 0 {
-			return nil, nil, errors.New("validator returned no RLC coefficients")
-		}
 		return nil, nil, err
+	}
+	if len(coeffs) == 0 {
+		return nil, nil, errors.New("validator returned no RLC")
 	}
 
 	return proofs, coeffs, nil

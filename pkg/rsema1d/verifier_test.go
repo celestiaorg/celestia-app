@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
 // TestVerifierMatchesContextRoot cross-checks the rlcOrigRoot returned by
@@ -246,7 +246,7 @@ func TestVerifierVerifySharedConcurrent(t *testing.T) {
 
 // encodeRandom encodes a fresh random K×RowSize matrix and returns the extended
 // data alongside the commitment and original RLC vector.
-func encodeRandom(t *testing.T, r *rand.Rand, cfg *Config) (*ExtendedData, Commitment, []field.GF128) {
+func encodeRandom(t *testing.T, r *rand.Rand, cfg *Config) (*ExtendedData, Commitment, rlc.Vector) {
 	t.Helper()
 	data := make([][]byte, cfg.K)
 	for i := range data {

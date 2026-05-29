@@ -6,6 +6,7 @@ import (
 	"math"
 	"math/bits"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 )
 
@@ -65,7 +66,7 @@ var DefaultProtocolParams = ProtocolParams{
 	LivenessThreshold:          cmtmath.Fraction{Numerator: 1, Denominator: 3},
 
 	MaxBlobSize: 1 << 27, // 128 MiB
-	MinRowSize:  1 << 6,  // 64 byte
+	MinRowSize:  field.LeopardChunkSize,
 }
 
 func init() {
