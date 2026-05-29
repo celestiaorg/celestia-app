@@ -18,7 +18,7 @@ func BenchmarkNewTree(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			for b.Loop() {
-				_ = NewTree(leaves)
+				_ = NewTree(leaves, 1)
 			}
 		})
 	}
@@ -32,7 +32,7 @@ func BenchmarkComputeRootFromProof(b *testing.B) {
 	for _, numLeaves := range []int{16, 256, 4096} {
 		b.Run(fmt.Sprintf("depth_%d", bits.Len(uint(numLeaves-1))), func(b *testing.B) {
 			leaves := makeTestLeaves(numLeaves)
-			tree := NewTree(leaves)
+			tree := NewTree(leaves, 1)
 
 			// Generate proof for middle leaf
 			index := numLeaves / 2
@@ -56,7 +56,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 	for _, numLeaves := range []int{16, 256, 4096} {
 		b.Run(fmt.Sprintf("depth_%d", bits.Len(uint(numLeaves-1))), func(b *testing.B) {
 			leaves := makeTestLeaves(numLeaves)
-			tree := NewTree(leaves)
+			tree := NewTree(leaves, 1)
 			index := numLeaves / 2
 
 			b.ResetTimer()

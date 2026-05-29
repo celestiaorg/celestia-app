@@ -47,7 +47,7 @@ func TestTamperedExtendedDataBeforeCommitment(t *testing.T) {
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment
@@ -139,7 +139,7 @@ func TestTamperedRLCBeforeCommitment(t *testing.T) {
 			rlcOrig[tamperedRLCIndex][0] ^= 0xFFFF
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment with tampered RLC root
@@ -222,7 +222,7 @@ func TestTamperedOriginalRLCBeforeCommitment(t *testing.T) {
 			rlcOrig[tamperedOrigIndex][0] ^= 0xFFFF
 
 			// Step 5: Build padded RLC Merkle tree
-			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Step 6: Create commitment
@@ -321,7 +321,7 @@ func TestMultipleTamperedRows(t *testing.T) {
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
 			// Build padded RLC Merkle tree
-			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			// Create commitment
@@ -406,7 +406,7 @@ func TestInvalidRowProofDepth(t *testing.T) {
 			coeffs := deriveCoefficients(rowRoot, config.K, config.N, config.RowSize)
 			rlcOrig := computeRLCOrig(data, coeffs, config)
 
-			rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+			rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 			rlcOrigRoot := rlcOrigTree.Root()
 
 			extData := &ExtendedData{
@@ -493,7 +493,7 @@ func TestVerifyRowWithContextWithMultipleOpenings(t *testing.T) {
 	rowRoot := nodes[0]
 	coeffs := deriveCoefficients([32]byte(rowRoot), config.K, config.N, config.RowSize)
 	rlcOrig := computeRLCOrig(data, coeffs, config)
-	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 	h := sha256.New()
 	h.Write(rowRoot)

@@ -75,7 +75,7 @@ func benchmarkPruneBefore(b *testing.B, totalEntries, prunePercent int) {
 func makeBenchStore(b *testing.B) *fibre.Store {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = b.TempDir()
-	store, err := fibre.NewPebbleStore(cfg)
+	store, err := fibre.NewStore(cfg)
 	if err != nil {
 		b.Fatalf("failed to create store: %v", err)
 	}
@@ -96,8 +96,8 @@ func makeBenchShard(blob *fibre.Blob) *types.BlobShard {
 	row1, _ := blob.Row(1)
 	return &types.BlobShard{
 		Rows: []*types.BlobRow{
-			{Index: 0, Data: row0.Row, Proof: row0.RowProof.RowProof},
-			{Index: 1, Data: row1.Row, Proof: row1.RowProof.RowProof},
+			{Index: 0, Data: row0.Row, Proof: row0.RowProof},
+			{Index: 1, Data: row1.Row, Proof: row1.RowProof},
 		},
 		Root: make([]byte, 32),
 	}
@@ -238,7 +238,7 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(rowIdx),
 				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
+				Proof: rowProof.RowProof,
 			})
 		}
 
@@ -345,7 +345,7 @@ func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(rowIdx),
 				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
+				Proof: rowProof.RowProof,
 			})
 		}
 
@@ -567,10 +567,10 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(rowIdx),
 				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
+				Proof: rowProof.RowProof,
 			})
 			totalRowsWritten++
-			totalBytesWritten += len(rowProof.Row) + len(rowProof.RowProof.RowProof)
+			totalBytesWritten += len(rowProof.Row) + len(rowProof.RowProof)
 		}
 
 		promise := makeTestPaymentPromise(uint64(v), blobID)
@@ -656,10 +656,10 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(rowIdx),
 				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
+				Proof: rowProof.RowProof,
 			})
 			totalRowsWritten++
-			totalBytesWritten += len(rowProof.Row) + len(rowProof.RowProof.RowProof)
+			totalBytesWritten += len(rowProof.Row) + len(rowProof.RowProof)
 		}
 
 		promise := makeTestPaymentPromise(uint64(v), blobID)
