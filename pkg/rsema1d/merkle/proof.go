@@ -28,45 +28,16 @@ func ComputeRootFromProofs(inputs []ProofInput, workers int) (Root, error) {
 		return [32]byte{}, fmt.Errorf("no proof inputs")
 	}
 	roots := make([][32]byte, len(inputs))
-	verify := func(i int) error {
-		root, err := ComputeRootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
-		if err != nil {
-			return fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
-		}
-		roots[i] = root
-		return nil
-	}
 
 	if workers <= 1 || len(inputs) <= 64 {
 		for i := range inputs {
-			if err := verify(i); err != nil {
+			if err := computeRootFromProofInput(inputs, roots, i); err != nil {
 				return [32]byte{}, err
 			}
 		}
 	} else {
-		if workers > len(inputs) {
-			workers = len(inputs)
-		}
-		chunk := (len(inputs) + workers - 1) / workers
-		var firstErr atomic.Value
-		var wg sync.WaitGroup
-		wg.Add(workers)
-		for w := range workers {
-			start := w * chunk
-			end := min(start+chunk, len(inputs))
-			go func(start, end int) {
-				defer wg.Done()
-				for i := start; i < end; i++ {
-					if err := verify(i); err != nil {
-						firstErr.CompareAndSwap(nil, err)
-						return
-					}
-				}
-			}(start, end)
-		}
-		wg.Wait()
-		if v := firstErr.Load(); v != nil {
-			return [32]byte{}, v.(error)
+		if err := computeRootFromProofsParallel(inputs, roots, workers); err != nil {
+			return [32]byte{}, err
 		}
 	}
 
@@ -76,6 +47,44 @@ func ComputeRootFromProofs(inputs []ProofInput, workers int) (Root, error) {
 		}
 	}
 	return roots[0], nil
+}
+
+func computeRootFromProofInput(inputs []ProofInput, roots []Root, i int) error {
+	root, err := ComputeRootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
+	if err != nil {
+		return fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
+	}
+	roots[i] = root
+	return nil
+}
+
+func computeRootFromProofsParallel(inputs []ProofInput, roots []Root, workers int) error {
+	count := len(inputs)
+	if workers > count {
+		workers = count
+	}
+	chunk := (count + workers - 1) / workers
+	var firstErr atomic.Value
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := range workers {
+		start := w * chunk
+		end := min(start+chunk, count)
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				if err := computeRootFromProofInput(inputs, roots, i); err != nil {
+					firstErr.CompareAndSwap(nil, err)
+					return
+				}
+			}
+		}(start, end)
+	}
+	wg.Wait()
+	if v := firstErr.Load(); v != nil {
+		return v.(error)
+	}
+	return nil
 }
 
 // GenerateProof generates a Merkle proof for the leaf at the given index

@@ -88,7 +88,10 @@ func hashLeavesWithWriter(leaves int, leafSize int, workerCount int, writeLeaf f
 		}
 		return
 	}
+	hashLeavesWithWriterParallel(leaves, leafSize, workerCount, writeLeaf, hash)
+}
 
+func hashLeavesWithWriterParallel(leaves int, leafSize int, workerCount int, writeLeaf func(i int, dst []byte), hash func(i int, leaf []byte)) {
 	workers := min(workerCount, leaves)
 	chunk := (leaves + workers - 1) / workers
 
@@ -118,7 +121,10 @@ func parallelizeHashing(count int, workerCount int, hashFunc func(i int)) {
 		}
 		return
 	}
+	parallelizeHashingParallel(count, workerCount, hashFunc)
+}
 
+func parallelizeHashingParallel(count int, workerCount int, hashFunc func(i int)) {
 	workers := min(workerCount, count)
 	chunk := (count + workers - 1) / workers
 
