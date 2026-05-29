@@ -71,27 +71,25 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 
 	// derive RLC coefficients and compute RLC results for original rows.
 	coeffs := rlc.Derive(rowRoot, c.config.K, c.config.N, len(extendedRows[0]), c.config.WorkerCount)
-	rlcOrig := rlc.Compute(extendedRows[:c.config.K], coeffs, c.config.WorkerCount)
+	rlc := rlc.Compute(extendedRows[:c.config.K], coeffs, c.config.WorkerCount)
 
 	// build padded RLC Merkle tree
-	rlcOrigTree := buildPaddedRLCTree(rlcOrig, c.config)
-	rlcOrigRoot := rlcOrigTree.Root()
+	rlcTree := buildPaddedRLCTree(rlc, c.config)
+	rlcRoot := rlcTree.Root()
 
-	// create commitment: SHA256(rowRoot || rlcOrigRoot)
+	// create commitment: SHA256(rowRoot || rlcRoot)
 	h := sha256.New()
 	h.Write(rowRoot[:])
-	h.Write(rlcOrigRoot[:])
+	h.Write(rlcRoot[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 
 	return &ExtendedData{
-		config:      c.config,
-		rows:        extendedRows,
-		rowRoot:     rowRoot,
-		rlcOrig:     rlcOrig,
-		rowTree:     rowTree,
-		rlcOrigTree: rlcOrigTree,
-		rlcOrigRoot: rlcOrigRoot,
-		commitment:  commitment,
+		config:     c.config,
+		rows:       extendedRows,
+		rlc:        rlc,
+		commitment: commitment,
+		rowsTree:   rowTree,
+		rlcTree:    rlcTree,
 	}
 }

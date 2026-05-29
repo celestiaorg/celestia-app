@@ -13,14 +13,15 @@ type Commitment = [32]byte // SHA256(rowRoot || rlcOrigRoot)
 // ExtendedData holds the K+N row matrix produced by [Coder.Encode] together
 // with the merkle structures needed to issue row proofs.
 type ExtendedData struct {
-	config      *Config
-	rows        [][]byte     // K+N rows of data
-	rowRoot     merkle.Root  // Merkle root of rows
-	rlcOrig     rlc.Vector   // RLC results for the K original rows
-	rowTree     *merkle.Tree // Cached row Merkle tree
-	rlcOrigTree *merkle.Tree // Cached RLC Merkle tree
-	rlcOrigRoot merkle.Root  // Cached RLC root
-	commitment  Commitment   // SHA256(rowRoot || rlcOrigRoot)
+	config *Config
+
+	rows     [][]byte // K+N rows of data
+	rowsTree *merkle.Tree
+
+	rlc     rlc.Vector // RLC results for the K original rows
+	rlcTree *merkle.Tree
+
+	commitment Commitment // SHA256(rowRoot || rlcOrigRoot)
 }
 
 // Commitment returns the cryptographic commitment for this extended data.
@@ -30,7 +31,7 @@ func (ed *ExtendedData) Commitment() Commitment {
 
 // RLC returns the random linear combination values for the K original rows.
 func (ed *ExtendedData) RLC() rlc.Vector {
-	return ed.rlcOrig
+	return ed.rlc
 }
 
 // Row returns the row at the given index in [0, K+N). Originals occupy
@@ -58,7 +59,7 @@ func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
 	}
 	treeIndex := mapIndexToTreePosition(index, ed.config)
-	rowProof, err := ed.rowTree.GenerateProof(treeIndex)
+	rowProof, err := ed.rowsTree.GenerateProof(treeIndex)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate row proof: %w", err)
 	}
@@ -91,7 +92,7 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 	if err != nil {
 		return nil, err
 	}
-	rlcProof, err := ed.rlcOrigTree.GenerateProof(index)
+	rlcProof, err := ed.rlcTree.GenerateProof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
 	}
