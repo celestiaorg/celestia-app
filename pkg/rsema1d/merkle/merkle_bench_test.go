@@ -1,9 +1,11 @@
-package merkle
+package merkle_test
 
 import (
 	"fmt"
 	"math/bits"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
 // Benchmark results (AMD Ryzen 9 7940HS):
@@ -18,7 +20,7 @@ func BenchmarkNewTree(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			for b.Loop() {
-				_ = NewTree(leaves, 1)
+				_ = merkle.NewTree(leaves, 1)
 			}
 		})
 	}
@@ -32,7 +34,7 @@ func BenchmarkComputeRootFromProof(b *testing.B) {
 	for _, numLeaves := range []int{16, 256, 4096} {
 		b.Run(fmt.Sprintf("depth_%d", bits.Len(uint(numLeaves-1))), func(b *testing.B) {
 			leaves := makeTestLeaves(numLeaves)
-			tree := NewTree(leaves, 1)
+			tree := merkle.NewTree(leaves, 1)
 
 			// Generate proof for middle leaf
 			index := numLeaves / 2
@@ -42,7 +44,7 @@ func BenchmarkComputeRootFromProof(b *testing.B) {
 			b.ResetTimer()
 			b.ReportAllocs()
 			for b.Loop() {
-				_, _ = ComputeRootFromProof(leaf, index, proof)
+				_, _ = merkle.ComputeRootFromProof(leaf, index, proof)
 			}
 		})
 	}
@@ -56,7 +58,7 @@ func BenchmarkGenerateProof(b *testing.B) {
 	for _, numLeaves := range []int{16, 256, 4096} {
 		b.Run(fmt.Sprintf("depth_%d", bits.Len(uint(numLeaves-1))), func(b *testing.B) {
 			leaves := makeTestLeaves(numLeaves)
-			tree := NewTree(leaves, 1)
+			tree := merkle.NewTree(leaves, 1)
 			index := numLeaves / 2
 
 			b.ResetTimer()

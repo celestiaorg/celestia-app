@@ -1,8 +1,10 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
 // TestVerifyStandaloneProofAcceptsValid runs GenerateStandaloneProof followed
@@ -11,7 +13,7 @@ import (
 func TestVerifyStandaloneProofAcceptsValid(t *testing.T) {
 	for _, tc := range roundtripConfigs {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
+			cfg := &rsema1d.Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
 			ed, commitment, _ := encodeRows(t, cfg, fillRows(tc.k, tc.rowSize))
 
 			// Verify first, middle, and last original rows.
@@ -20,7 +22,7 @@ func TestVerifyStandaloneProofAcceptsValid(t *testing.T) {
 				if err != nil {
 					t.Fatalf("GenerateStandaloneProof(%d): %v", idx, err)
 				}
-				if err := VerifyStandaloneProof(proof, commitment, cfg); err != nil {
+				if err := rsema1d.VerifyStandaloneProof(proof, commitment, cfg); err != nil {
 					t.Fatalf("VerifyStandaloneProof(%d): %v", idx, err)
 				}
 			}
@@ -31,7 +33,7 @@ func TestVerifyStandaloneProofAcceptsValid(t *testing.T) {
 // TestGenerateStandaloneProofRejectsParity confirms the producer side refuses
 // to issue standalone proofs for parity rows (Index >= K).
 func TestGenerateStandaloneProofRejectsParity(t *testing.T) {
-	cfg := &Config{K: 8, N: 8, RowSize: 256, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: 8, N: 8, RowSize: 256, WorkerCount: 1}
 	ed, _, _ := encodeRows(t, cfg, fillRows(cfg.K, cfg.RowSize))
 
 	if _, err := ed.GenerateStandaloneProof(cfg.K); err == nil {
@@ -43,7 +45,7 @@ func TestGenerateStandaloneProofRejectsParity(t *testing.T) {
 // the recomputed RLC won't match the RLC merkle leaf, so the commitment
 // check fails.
 func TestVerifyStandaloneProofRejectsTamperedRow(t *testing.T) {
-	cfg := &Config{K: 8, N: 8, RowSize: 256, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: 8, N: 8, RowSize: 256, WorkerCount: 1}
 	r := rand.New(rand.NewPCG(31, 31))
 	ed, commitment, _ := encodeRows(t, cfg, randomRows(r, cfg.K, cfg.RowSize))
 
@@ -53,7 +55,7 @@ func TestVerifyStandaloneProofRejectsTamperedRow(t *testing.T) {
 	}
 	proof.Row = append([]byte(nil), proof.Row...)
 	proof.Row[0] ^= 0xFF
-	if err := VerifyStandaloneProof(proof, commitment, cfg); err == nil {
+	if err := rsema1d.VerifyStandaloneProof(proof, commitment, cfg); err == nil {
 		t.Fatalf("VerifyStandaloneProof accepted tampered row")
 	}
 }

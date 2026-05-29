@@ -33,6 +33,13 @@ func (ed *ExtendedData) RLC() rlc.Vector {
 	return ed.rlcOrig
 }
 
+// Row returns the row at the given index in [0, K+N). Originals occupy
+// [0, K); parity rows occupy [K, K+N). The returned slice aliases the
+// internal storage — callers must not mutate it.
+func (ed *ExtendedData) Row(index int) []byte {
+	return ed.rows[index]
+}
+
 // RowProof binds a row to the commitment via a Merkle path through the row
 // tree. Verified against the rowRoot recovered from the proof, then against
 // the commitment together with the expected RLC shard.

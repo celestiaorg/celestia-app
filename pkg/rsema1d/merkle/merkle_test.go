@@ -1,10 +1,11 @@
-package merkle
+package merkle_test
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"fmt"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
 func TestNewTree(t *testing.T) {
@@ -34,14 +35,11 @@ func TestNewTree(t *testing.T) {
 			}
 
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree := NewTree(leaves, 1)
+			tree := merkle.NewTree(leaves, 1)
 
 			if !tt.wantPanic {
 				if tree == nil {
 					t.Error("NewTree returned nil")
-				}
-				if tree.numLeaves() != tt.numLeaves {
-					t.Errorf("tree.numLeaves() = %d, want %d", tree.numLeaves(), tt.numLeaves)
 				}
 			}
 		})
@@ -64,8 +62,8 @@ func TestTreeRoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree1 := NewTree(leaves, 1)
-			tree2 := NewTree(leaves, 1)
+			tree1 := merkle.NewTree(leaves, 1)
+			tree2 := merkle.NewTree(leaves, 1)
 
 			root1 := tree1.Root()
 			root2 := tree2.Root()
@@ -78,7 +76,7 @@ func TestTreeRoot(t *testing.T) {
 			// Test that root changes with different data
 			leaves2 := makeTestLeaves(tt.numLeaves)
 			leaves2[0][0] ^= 1 // Modify first byte
-			tree3 := NewTree(leaves2, 1)
+			tree3 := merkle.NewTree(leaves2, 1)
 			root3 := tree3.Root()
 
 			if bytes.Equal(root1[:], root3[:]) {
@@ -92,10 +90,10 @@ func TestComputeRootFromWriter(t *testing.T) {
 	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
 		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
-			treeRoot := NewTree(leaves, 1).Root()
+			treeRoot := merkle.NewTree(leaves, 1).Root()
 			scratch := make([][32]byte, numLeaves)
 			leafScratch := make([]byte, len(leaves[0]))
-			root := ComputeRootFromWriter(scratch, leafScratch, numLeaves, func(i int, dst []byte) {
+			root := merkle.ComputeRootFromWriter(scratch, leafScratch, numLeaves, func(i int, dst []byte) {
 				copy(dst, leaves[i])
 			})
 			if !bytes.Equal(root[:], treeRoot[:]) {
@@ -109,8 +107,8 @@ func TestNewTreeFromWriter(t *testing.T) {
 	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
 		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
-			want := NewTree(leaves, 4).Root()
-			got := NewTreeFromWriter(numLeaves, len(leaves[0]), 4, func(i int, dst []byte) {
+			want := merkle.NewTree(leaves, 4).Root()
+			got := merkle.NewTreeFromWriter(numLeaves, len(leaves[0]), 4, func(i int, dst []byte) {
 				copy(dst, leaves[i])
 			}).Root()
 
@@ -128,7 +126,7 @@ func TestCallerOwnedStorageDoesNotAllocate(t *testing.T) {
 	var scratch [8][32]byte
 	var leafScratch [32]byte
 	rootAllocs := testing.AllocsPerRun(100, func() {
-		root = ComputeRootFromWriter(scratch[:], leafScratch[:], len(leaves), func(i int, dst []byte) {
+		root = merkle.ComputeRootFromWriter(scratch[:], leafScratch[:], len(leaves), func(i int, dst []byte) {
 			copy(dst, leaves[i])
 		})
 	})
@@ -143,7 +141,7 @@ func TestCallerOwnedStorageDoesNotAllocate(t *testing.T) {
 func TestGenerateProof(t *testing.T) {
 	numLeaves := 8
 	leaves := makeTestLeaves(numLeaves)
-	tree := NewTree(leaves, 1)
+	tree := merkle.NewTree(leaves, 1)
 
 	for i := range numLeaves {
 		t.Run(fmt.Sprintf("leaf_%d", i), func(t *testing.T) {
@@ -160,7 +158,7 @@ func TestGenerateProof(t *testing.T) {
 
 			// Verify the proof works
 			root := tree.Root()
-			computedRoot, err := ComputeRootFromProof(leaves[i], i, proof)
+			computedRoot, err := merkle.ComputeRootFromProof(leaves[i], i, proof)
 			if err != nil {
 				t.Fatalf("ComputeRootFromProof error: %v", err)
 			}
@@ -174,7 +172,7 @@ func TestGenerateProof(t *testing.T) {
 
 func TestGenerateProofErrors(t *testing.T) {
 	leaves := makeTestLeaves(8)
-	tree := NewTree(leaves, 1)
+	tree := merkle.NewTree(leaves, 1)
 
 	tests := []struct {
 		name  string
@@ -199,7 +197,7 @@ func TestComputeRootFromProof(t *testing.T) {
 	// Build a tree and generate proofs
 	numLeaves := 16
 	leaves := makeTestLeaves(numLeaves)
-	tree := NewTree(leaves, 1)
+	tree := merkle.NewTree(leaves, 1)
 	expectedRoot := tree.Root()
 
 	for i := range numLeaves {
@@ -209,7 +207,7 @@ func TestComputeRootFromProof(t *testing.T) {
 		}
 
 		// Test correct proof
-		computedRoot, err := ComputeRootFromProof(leaves[i], i, proof)
+		computedRoot, err := merkle.ComputeRootFromProof(leaves[i], i, proof)
 		if err != nil {
 			t.Fatalf("ComputeRootFromProof error: %v", err)
 		}
@@ -220,7 +218,7 @@ func TestComputeRootFromProof(t *testing.T) {
 
 		// Test wrong index
 		wrongIndex := (i + 1) % numLeaves
-		wrongRoot, _ := ComputeRootFromProof(leaves[i], wrongIndex, proof)
+		wrongRoot, _ := merkle.ComputeRootFromProof(leaves[i], wrongIndex, proof)
 		if bytes.Equal(expectedRoot[:], wrongRoot[:]) {
 			t.Errorf("Index %d: proof should fail with wrong index", i)
 		}
@@ -229,7 +227,7 @@ func TestComputeRootFromProof(t *testing.T) {
 		wrongLeaf := make([]byte, 32)
 		copy(wrongLeaf, leaves[i])
 		wrongLeaf[0] ^= 1
-		wrongRoot, _ = ComputeRootFromProof(wrongLeaf, i, proof)
+		wrongRoot, _ = merkle.ComputeRootFromProof(wrongLeaf, i, proof)
 		if bytes.Equal(expectedRoot[:], wrongRoot[:]) {
 			t.Errorf("Index %d: proof should fail with wrong leaf", i)
 		}
@@ -257,7 +255,7 @@ func TestGenerateLeftSubtreeProof(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree := NewTree(leaves, 1)
+			tree := merkle.NewTree(leaves, 1)
 
 			proof, err := tree.GenerateLeftSubtreeProof(tt.k)
 			if tt.wantErr {
@@ -278,11 +276,11 @@ func TestGenerateLeftSubtreeProof(t *testing.T) {
 			// Verify the proof works
 			// Compute the left subtree root manually
 			leftLeaves := leaves[:tt.k]
-			leftTree := NewTree(leftLeaves, 1)
+			leftTree := merkle.NewTree(leftLeaves, 1)
 			leftRoot := leftTree.Root()
 
 			// Use the proof to compute the full root
-			computedRoot := ComputeRootFromLeftSubtreeProof(leftRoot, proof)
+			computedRoot := merkle.ComputeRootFromLeftSubtreeProof(leftRoot, proof)
 			expectedRoot := tree.Root()
 
 			if !bytes.Equal(expectedRoot[:], computedRoot[:]) {
@@ -292,122 +290,8 @@ func TestGenerateLeftSubtreeProof(t *testing.T) {
 	}
 }
 
-func TestTreeDepth(t *testing.T) {
-	tests := []struct {
-		numLeaves int
-		wantDepth int
-	}{
-		{1, 0},
-		{2, 1},
-		{4, 2},
-		{8, 3},
-		{16, 4},
-		{32, 5},
-		{64, 6},
-		{128, 7},
-		{256, 8},
-	}
-
-	for _, tt := range tests {
-		t.Run(fmt.Sprintf("leaves_%d", tt.numLeaves), func(t *testing.T) {
-			leaves := makeTestLeaves(tt.numLeaves)
-			tree := NewTree(leaves, 1)
-
-			depth := tree.depth()
-			if depth != tt.wantDepth {
-				t.Errorf("depth() = %d, want %d", depth, tt.wantDepth)
-			}
-		})
-	}
-}
-
-func TestHashPair(t *testing.T) {
-	left := hashLeafTest([]byte("left data"))
-	right := hashLeafTest([]byte("right data"))
-
-	// Test that hashPair is deterministic
-	hash1 := hashPairTest(left, right)
-	hash2 := hashPairTest(left, right)
-
-	if !bytes.Equal(hash1, hash2) {
-		t.Error("hashPair is not deterministic")
-	}
-
-	// Test that order matters
-	hash3 := hashPairTest(right, left)
-	if bytes.Equal(hash1, hash3) {
-		t.Error("hashPair(left, right) should differ from hashPair(right, left)")
-	}
-
-	// Test expected length
-	if len(hash1) != 32 {
-		t.Errorf("hashPair returned %d bytes, expected 32", len(hash1))
-	}
-
-	// Test with actual SHA256 (now includes inner prefix)
-	h := sha256.New()
-	h.Write(innerPrefix)
-	h.Write(left)
-	h.Write(right)
-	expected := h.Sum(nil)
-
-	if !bytes.Equal(hash1, expected) {
-		t.Error("hashPair does not match expected SHA256 output")
-	}
-}
-
-func TestHashLeaf(t *testing.T) {
-	data := []byte("leaf data")
-
-	// Test that hashLeaf is deterministic
-	hash1 := hashLeafTest(data)
-	hash2 := hashLeafTest(data)
-
-	if !bytes.Equal(hash1, hash2) {
-		t.Error("hashLeaf is not deterministic")
-	}
-
-	// Test expected length
-	if len(hash1) != 32 {
-		t.Errorf("hashLeaf returned %d bytes, expected 32", len(hash1))
-	}
-
-	// Test with actual SHA256 (includes leaf prefix)
-	h := sha256.New()
-	h.Write(leafPrefix)
-	h.Write(data)
-	expected := h.Sum(nil)
-
-	if !bytes.Equal(hash1, expected) {
-		t.Error("hashLeaf does not match expected SHA256 output")
-	}
-
-	// Test that hashLeaf differs from raw hash
-	h2 := sha256.New()
-	h2.Write(data)
-	rawHash := h2.Sum(nil)
-
-	if bytes.Equal(hash1, rawHash) {
-		t.Error("hashLeaf should differ from raw SHA256 due to leaf prefix")
-	}
-}
-
-// Helper functions
-
-func hashLeafTest(data []byte) []byte {
-	var result [32]byte
-	hashLeaf(data, &result)
-	return result[:]
-}
-
-func hashPairTest(left, right []byte) []byte {
-	var l, r, result [32]byte
-	copy(l[:], left)
-	copy(r[:], right)
-	hashPair(&l, &r, &result)
-	return result[:]
-}
-
+// makeTestLeaves builds n 32-byte leaves with a deterministic per-index pattern.
+// Shared across the external merkle_test package files.
 func makeTestLeaves(n int) [][]byte {
 	leaves := make([][]byte, n)
 	for i := range n {

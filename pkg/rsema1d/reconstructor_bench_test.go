@@ -1,8 +1,10 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
 // BenchmarkReconstructorFibreMaxReconstruct models the download flow at the
@@ -21,7 +23,7 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 		chunkSize = 163
 	)
 
-	cfg := &Config{K: k, N: n, RowSize: rowSize, WorkerCount: 1}
+	cfg := &rsema1d.Config{K: k, N: n, RowSize: rowSize, WorkerCount: 1}
 	source := make([][]byte, k)
 	for i := range source {
 		source[i] = make([]byte, rowSize)
@@ -32,7 +34,7 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 
 	extData, commitment, _ := encodeRows(b, cfg, source)
 
-	coder, err := NewCoder(&Config{K: k, N: n, WorkerCount: 1})
+	coder, err := rsema1d.NewCoder(&rsema1d.Config{K: k, N: n, WorkerCount: 1})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -64,7 +66,7 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 				for i := range rows {
 					switch {
 					case pattern.present[i]:
-						rows[i] = extData.rows[i]
+						rows[i] = extData.Row(i)
 					case i < k:
 						rows[i] = originalScratch[i][:0]
 					default:
@@ -73,7 +75,7 @@ func BenchmarkReconstructorFibreMaxReconstruct(b *testing.B) {
 				}
 			}
 
-			proofs := make([]*RowProof, 0, k)
+			proofs := make([]*rsema1d.RowProof, 0, k)
 			for i, ok := range pattern.present {
 				if !ok {
 					continue

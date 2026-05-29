@@ -1,10 +1,11 @@
-package rlc
+package rlc_test
 
 import (
 	"math/rand/v2"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
 // TestComputeMatchesScalar verifies the vectorized SIMD kernel produces the
@@ -40,14 +41,14 @@ func TestComputeMatchesScalar(t *testing.T) {
 		for i := range rowRoot {
 			rowRoot[i] = byte(r.IntN(256))
 		}
-		coeffs := Derive(rowRoot, tc.k, tc.k, tc.rowSize, 1)
+		coeffs := rlc.Derive(rowRoot, tc.k, tc.k, tc.rowSize, 1)
 
-		want := make(Vector, tc.k)
+		want := make(rlc.Vector, tc.k)
 		for i, row := range rows {
-			want[i] = ComputeRow(row, coeffs)
+			want[i] = rlc.ComputeRow(row, coeffs)
 		}
 		for _, workers := range []int{1, 4} {
-			got := Compute(rows, coeffs, workers)
+			got := rlc.Compute(rows, coeffs, workers)
 			if len(want) != len(got) {
 				t.Fatalf("k=%d rs=%d workers=%d length mismatch", tc.k, tc.rowSize, workers)
 			}
@@ -87,11 +88,11 @@ func TestComputeLinearity(t *testing.T) {
 	for i := range rowRoot {
 		rowRoot[i] = byte(r.IntN(256))
 	}
-	coeffs := Derive(rowRoot, k, k, rowSize, 1)
+	coeffs := rlc.Derive(rowRoot, k, k, rowSize, 1)
 
-	rlcA := Compute(a, coeffs, 1)
-	rlcB := Compute(b, coeffs, 1)
-	rlcSum := Compute(sum, coeffs, 1)
+	rlcA := rlc.Compute(a, coeffs, 1)
+	rlcB := rlc.Compute(b, coeffs, 1)
+	rlcSum := rlc.Compute(sum, coeffs, 1)
 
 	for i := range rlcSum {
 		want := field.Add128(rlcA[i], rlcB[i])
@@ -120,7 +121,7 @@ func BenchmarkCompute(b *testing.B) {
 		b.Run(cfg.name, func(b *testing.B) {
 			rowSize := cfg.bytes / cfg.k
 			rowRoot := [32]byte{1, 2, 3, 4}
-			coeffs := Derive(rowRoot, cfg.k, cfg.n, rowSize, cfg.workers)
+			coeffs := rlc.Derive(rowRoot, cfg.k, cfg.n, rowSize, cfg.workers)
 
 			data := make([][]byte, cfg.k)
 			r := rand.New(rand.NewPCG(uint64(cfg.k), uint64(rowSize)))
@@ -134,7 +135,7 @@ func BenchmarkCompute(b *testing.B) {
 			b.SetBytes(int64(cfg.bytes))
 			b.ResetTimer()
 			for range b.N {
-				_ = Compute(data, coeffs, cfg.workers)
+				_ = rlc.Compute(data, coeffs, cfg.workers)
 			}
 		})
 	}

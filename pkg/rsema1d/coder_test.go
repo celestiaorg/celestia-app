@@ -1,10 +1,11 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"bytes"
 	"math/rand/v2"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
@@ -13,12 +14,12 @@ import (
 // rows[:K], zero parity slots in rows[K:K+N]), runs the produce path, and
 // returns the same (ExtendedData, Commitment, []GF128) triple historical
 // tests rely on.
-func encodeRows(tb testing.TB, cfg *Config, data [][]byte) (*ExtendedData, Commitment, []field.GF128) {
+func encodeRows(tb testing.TB, cfg *rsema1d.Config, data [][]byte) (*rsema1d.ExtendedData, rsema1d.Commitment, []field.GF128) {
 	tb.Helper()
 	if len(data) != cfg.K {
 		tb.Fatalf("encodeRows: expected %d input rows, got %d", cfg.K, len(data))
 	}
-	coder, err := NewCoder(cfg)
+	coder, err := rsema1d.NewCoder(cfg)
 	if err != nil {
 		tb.Fatalf("NewCoder: %v", err)
 	}
@@ -78,19 +79,19 @@ func fillRows(k, rowSize int) [][]byte {
 func TestCoderEncodeRoundtrip(t *testing.T) {
 	for _, tc := range roundtripConfigs {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
+			cfg := &rsema1d.Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
 			data := fillRows(tc.k, tc.rowSize)
 
 			ed, commitment, rlcOrig := encodeRows(t, cfg, data)
 
-			if commitment == (Commitment{}) {
+			if commitment == (rsema1d.Commitment{}) {
 				t.Error("commitment is zero")
 			}
 			if len(rlcOrig) != cfg.K {
 				t.Errorf("rlcOrig len=%d want %d", len(rlcOrig), cfg.K)
 			}
 			for i := range cfg.K {
-				if !bytes.Equal(ed.rows[i], data[i]) {
+				if !bytes.Equal(ed.Row(i), data[i]) {
 					t.Errorf("row %d mutated by encode", i)
 				}
 			}

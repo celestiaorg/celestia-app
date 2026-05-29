@@ -1,9 +1,10 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
@@ -14,10 +15,10 @@ import (
 
 // tamperedSetup encodes a fresh random matrix and returns the Verifier plus
 // a 16-proof batch starting at firstProofIndex.
-func tamperedSetup(t *testing.T, seed uint64, firstProofIndex int) (*Verifier, Commitment, []*RowProof, []field.GF128) {
+func tamperedSetup(t *testing.T, seed uint64, firstProofIndex int) (*rsema1d.Verifier, rsema1d.Commitment, []*rsema1d.RowProof, []field.GF128) {
 	t.Helper()
-	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
-	v, err := NewVerifier(cfg)
+	cfg := &rsema1d.Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
+	v, err := rsema1d.NewVerifier(cfg)
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}

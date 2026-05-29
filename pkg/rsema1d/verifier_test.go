@@ -1,18 +1,19 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"sync"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
 // TestVerifierRejectsTamperedRow ensures buffer reuse across calls does not
 // mask tampering: a corrupted row in any iteration must surface an error.
 func TestVerifierRejectsTamperedRow(t *testing.T) {
-	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
-	v, err := NewVerifier(cfg)
+	cfg := &rsema1d.Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
+	v, err := rsema1d.NewVerifier(cfg)
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}
@@ -21,7 +22,7 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 	ed, commitment, rlcOrig := encodeRandom(t, r, cfg)
 
 	// Run a clean verify first to populate the Verifier's internal buffers.
-	cleanProofs := make([]*RowProof, 16)
+	cleanProofs := make([]*rsema1d.RowProof, 16)
 	for i := range cleanProofs {
 		p, err := ed.GenerateRowProof(i)
 		if err != nil {
@@ -35,14 +36,14 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 
 	// Re-issue proofs with a tampered row and confirm the next Verify call
 	// rejects the batch despite the buffers carrying state from the prior call.
-	tampered := make([]*RowProof, 16)
+	tampered := make([]*rsema1d.RowProof, 16)
 	for i := range tampered {
 		p, err := ed.GenerateRowProof(i)
 		if err != nil {
 			t.Fatalf("GenerateRowProof(%d): %v", i, err)
 		}
 		row := append([]byte(nil), p.Row...)
-		tampered[i] = &RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
+		tampered[i] = &rsema1d.RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
 	}
 	tampered[3].Row[0] ^= 0xFF
 	if _, err := v.Verify(commitment, tampered, rlcOrig); err == nil {
@@ -58,8 +59,8 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 // TestVerifierVariableBatchSize exercises the per-call grow buffers
 // (rowRoots, rowsView) when batch size shrinks then grows.
 func TestVerifierVariableBatchSize(t *testing.T) {
-	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
-	v, err := NewVerifier(cfg)
+	cfg := &rsema1d.Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 1}
+	v, err := rsema1d.NewVerifier(cfg)
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}
@@ -68,7 +69,7 @@ func TestVerifierVariableBatchSize(t *testing.T) {
 	ed, commitment, rlcOrig := encodeRandom(t, r, cfg)
 
 	for _, n := range []int{32, 8, 48} {
-		proofs := make([]*RowProof, n)
+		proofs := make([]*rsema1d.RowProof, n)
 		for i := range proofs {
 			p, err := ed.GenerateRowProof(i)
 			if err != nil {
@@ -86,8 +87,8 @@ func TestVerifierVariableBatchSize(t *testing.T) {
 // by a prior Verify: it accepts an honest disjoint batch, rejects a tampered
 // one, and requires Verify to have run first.
 func TestVerifierVerifyShared(t *testing.T) {
-	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
-	v, err := NewVerifier(cfg)
+	cfg := &rsema1d.Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
+	v, err := rsema1d.NewVerifier(cfg)
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}
@@ -129,8 +130,8 @@ func TestVerifierVerifyShared(t *testing.T) {
 // same cached RLC state from parallel goroutines. Best run with -race, which is
 // what guards the "concurrent-safe after Verify" contract.
 func TestVerifierVerifySharedConcurrent(t *testing.T) {
-	cfg := &Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
-	v, err := NewVerifier(cfg)
+	cfg := &rsema1d.Config{K: 64, N: 64, RowSize: 1024, WorkerCount: 2}
+	v, err := rsema1d.NewVerifier(cfg)
 	if err != nil {
 		t.Fatalf("NewVerifier: %v", err)
 	}
@@ -145,7 +146,7 @@ func TestVerifierVerifySharedConcurrent(t *testing.T) {
 
 	// Each goroutine owns a disjoint, independently built proof batch.
 	const workers = 4
-	batches := make([][]*RowProof, workers)
+	batches := make([][]*rsema1d.RowProof, workers)
 	for w := range batches {
 		lo := w * 16
 		batches[w] = rangeProofs(t, ed, lo, lo+16)
@@ -176,7 +177,7 @@ func TestVerifierVerifySharedConcurrent(t *testing.T) {
 
 // encodeRandom encodes a fresh random K×RowSize matrix and returns the extended
 // data alongside the commitment and original RLC vector.
-func encodeRandom(t *testing.T, r *rand.Rand, cfg *Config) (*ExtendedData, Commitment, rlc.Vector) {
+func encodeRandom(t *testing.T, r *rand.Rand, cfg *rsema1d.Config) (*rsema1d.ExtendedData, rsema1d.Commitment, rlc.Vector) {
 	t.Helper()
 	data := make([][]byte, cfg.K)
 	for i := range data {
@@ -189,9 +190,9 @@ func encodeRandom(t *testing.T, r *rand.Rand, cfg *Config) (*ExtendedData, Commi
 }
 
 // rangeProofs generates row proofs for indices [lo, hi).
-func rangeProofs(t *testing.T, ed *ExtendedData, lo, hi int) []*RowProof {
+func rangeProofs(t *testing.T, ed *rsema1d.ExtendedData, lo, hi int) []*rsema1d.RowProof {
 	t.Helper()
-	proofs := make([]*RowProof, hi-lo)
+	proofs := make([]*rsema1d.RowProof, hi-lo)
 	for i := range proofs {
 		p, err := ed.GenerateRowProof(lo + i)
 		if err != nil {
@@ -203,9 +204,9 @@ func rangeProofs(t *testing.T, ed *ExtendedData, lo, hi int) []*RowProof {
 }
 
 // proofsAtIndices generates row proofs for the given concrete indices.
-func proofsAtIndices(t *testing.T, ed *ExtendedData, indices []int) []*RowProof {
+func proofsAtIndices(t *testing.T, ed *rsema1d.ExtendedData, indices []int) []*rsema1d.RowProof {
 	t.Helper()
-	proofs := make([]*RowProof, len(indices))
+	proofs := make([]*rsema1d.RowProof, len(indices))
 	for i, idx := range indices {
 		p, err := ed.GenerateRowProof(idx)
 		if err != nil {
@@ -224,7 +225,7 @@ func proofsAtIndices(t *testing.T, ed *ExtendedData, indices []int) []*RowProof 
 func TestVerifierAcrossConfigurations(t *testing.T) {
 	for _, tc := range roundtripConfigs {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := &Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
+			cfg := &rsema1d.Config{K: tc.k, N: tc.n, RowSize: tc.rowSize, WorkerCount: 1}
 			ed, commitment, rlcOrig := encodeRows(t, cfg, fillRows(tc.k, tc.rowSize))
 
 			indices := []int{
@@ -237,7 +238,7 @@ func TestVerifierAcrossConfigurations(t *testing.T) {
 			}
 			proofs := proofsAtIndices(t, ed, indices)
 
-			v, err := NewVerifier(cfg)
+			v, err := rsema1d.NewVerifier(cfg)
 			if err != nil {
 				t.Fatalf("NewVerifier: %v", err)
 			}
