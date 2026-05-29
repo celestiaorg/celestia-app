@@ -417,7 +417,10 @@ func (s *IBCTestSuite) newSimappChainBuilder(t *testing.T, cfg *dockerchain.Conf
 		WithChainID("chain-b").
 		// TODO: this is a custom built simapp that has the bech32prefix as "celestia" as a workaround for the global
 		// SDK config not being usable when 2 chains have a different bech32 prefix (e.g. "celestia" and "cosmos" ) because it is sealed.
-		WithImage(tastoracontainertypes.NewImage("ghcr.io/chatton/ibc-go-simd", "v8.5.0", "1000:1000")).
+		// Run as root (0:0) so simd's NewRootCmd can mkdir its default home
+		// ($HOME/.simapp) — uid 1000 has HOME=/ and panics on mkdir /.simapp
+		// before the --home flag is parsed.
+		WithImage(tastoracontainertypes.NewImage("ghcr.io/chatton/ibc-go-simd", "v8.5.0", "0:0")).
 		WithBinaryName("simd").
 		WithBech32Prefix("celestia").
 		WithDenom("stake").

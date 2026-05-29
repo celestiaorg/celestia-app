@@ -151,7 +151,7 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 		rows[i] = &types.BlobRow{
 			Index: uint32(i),
 			Data:  rowProof.Row,
-			Proof: rowProof.RowProof.RowProof,
+			Proof: rowProof.RowProof,
 		}
 	}
 

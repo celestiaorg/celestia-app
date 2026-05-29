@@ -7,68 +7,75 @@ import (
 )
 
 // ProofInput bundles the inputs ComputeRootFromProof needs for a single
-// leaf. Used as the per-proof payload for ComputeRootsFromProofs.
+// leaf. Used as the per-proof payload for ComputeRootFromProofs.
 type ProofInput struct {
 	Leaf  []byte
 	Index int
 	Path  [][]byte
 }
 
-// ComputeRootsFromProofs verifies a batch of merkle proofs in parallel and
-// writes each computed root to dst[i]. dst must have at least len(inputs)
-// capacity.
+// ComputeRootFromProofs verifies a batch of merkle proofs in parallel and
+// returns the single root they all share. Errors if any proof yields a
+// different root than the others — meaning at least one was tampered.
+// Intended for callers that already know all proofs verify the same tree
+// (e.g., every row of a single shard).
 //
-// The work fans out across up to workers goroutines via static index-range
-// chunking; below the parallel break-even (len(inputs) <= 64 or workers <=
-// 1) the call stays sequential — goroutine startup would otherwise dwarf
-// per-proof SHA256 work. Returns the first error any worker observed.
-func ComputeRootsFromProofs(inputs []ProofInput, dst [][32]byte, workers int) error {
-	if len(dst) < len(inputs) {
-		return fmt.Errorf("dst has length %d, need at least %d", len(dst), len(inputs))
+// Work fans out across up to workers goroutines via static index-range
+// chunking; below the parallel break-even (len(inputs) <= 64 or workers
+// <= 1) the call stays sequential.
+func ComputeRootFromProofs(inputs []ProofInput, workers int) ([32]byte, error) {
+	if len(inputs) == 0 {
+		return [32]byte{}, fmt.Errorf("no proof inputs")
 	}
+	roots := make([][32]byte, len(inputs))
 	verify := func(i int) error {
 		root, err := ComputeRootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
 		if err != nil {
 			return fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
 		}
-		dst[i] = root
+		roots[i] = root
 		return nil
 	}
 
 	if workers <= 1 || len(inputs) <= 64 {
 		for i := range inputs {
 			if err := verify(i); err != nil {
-				return err
+				return [32]byte{}, err
 			}
 		}
-		return nil
-	}
-	if workers > len(inputs) {
-		workers = len(inputs)
+	} else {
+		if workers > len(inputs) {
+			workers = len(inputs)
+		}
+		chunk := (len(inputs) + workers - 1) / workers
+		var firstErr atomic.Value
+		var wg sync.WaitGroup
+		wg.Add(workers)
+		for w := range workers {
+			start := w * chunk
+			end := min(start+chunk, len(inputs))
+			go func(start, end int) {
+				defer wg.Done()
+				for i := start; i < end; i++ {
+					if err := verify(i); err != nil {
+						firstErr.CompareAndSwap(nil, err)
+						return
+					}
+				}
+			}(start, end)
+		}
+		wg.Wait()
+		if v := firstErr.Load(); v != nil {
+			return [32]byte{}, v.(error)
+		}
 	}
 
-	chunk := (len(inputs) + workers - 1) / workers
-	var firstErr atomic.Value
-	var wg sync.WaitGroup
-	wg.Add(workers)
-	for w := range workers {
-		start := w * chunk
-		end := min(start+chunk, len(inputs))
-		go func(start, end int) {
-			defer wg.Done()
-			for i := start; i < end; i++ {
-				if err := verify(i); err != nil {
-					firstErr.CompareAndSwap(nil, err)
-					return
-				}
-			}
-		}(start, end)
+	for i := 1; i < len(roots); i++ {
+		if roots[i] != roots[0] {
+			return [32]byte{}, fmt.Errorf("input %d (tree index %d): root mismatch", i, inputs[i].Index)
+		}
 	}
-	wg.Wait()
-	if v := firstErr.Load(); v != nil {
-		return v.(error)
-	}
-	return nil
+	return roots[0], nil
 }
 
 // GenerateProof generates a Merkle proof for the leaf at the given index

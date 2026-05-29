@@ -34,7 +34,7 @@ func TestNewTree(t *testing.T) {
 			}
 
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree := NewTree(leaves)
+			tree := NewTree(leaves, 1)
 
 			if !tt.wantPanic {
 				if tree == nil {
@@ -64,8 +64,8 @@ func TestTreeRoot(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree1 := NewTree(leaves)
-			tree2 := NewTree(leaves)
+			tree1 := NewTree(leaves, 1)
+			tree2 := NewTree(leaves, 1)
 
 			root1 := tree1.Root()
 			root2 := tree2.Root()
@@ -78,7 +78,7 @@ func TestTreeRoot(t *testing.T) {
 			// Test that root changes with different data
 			leaves2 := makeTestLeaves(tt.numLeaves)
 			leaves2[0][0] ^= 1 // Modify first byte
-			tree3 := NewTree(leaves2)
+			tree3 := NewTree(leaves2, 1)
 			root3 := tree3.Root()
 
 			if bytes.Equal(root1[:], root3[:]) {
@@ -88,10 +88,62 @@ func TestTreeRoot(t *testing.T) {
 	}
 }
 
+func TestComputeRootFromWriter(t *testing.T) {
+	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
+		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
+			leaves := makeTestLeaves(numLeaves)
+			treeRoot := NewTree(leaves, 1).Root()
+			scratch := make([][32]byte, numLeaves)
+			leafScratch := make([]byte, len(leaves[0]))
+			root := ComputeRootFromWriter(scratch, leafScratch, numLeaves, func(i int, dst []byte) {
+				copy(dst, leaves[i])
+			})
+			if !bytes.Equal(root[:], treeRoot[:]) {
+				t.Fatalf("root mismatch: got %x want %x", root, treeRoot)
+			}
+		})
+	}
+}
+
+func TestNewTreeFromWriter(t *testing.T) {
+	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
+		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
+			leaves := makeTestLeaves(numLeaves)
+			want := NewTree(leaves, 4).Root()
+			got := NewTreeFromWriter(numLeaves, len(leaves[0]), 4, func(i int, dst []byte) {
+				copy(dst, leaves[i])
+			}).Root()
+
+			if !bytes.Equal(got[:], want[:]) {
+				t.Fatalf("root mismatch: got %x want %x", got, want)
+			}
+		})
+	}
+}
+
+func TestCallerOwnedStorageDoesNotAllocate(t *testing.T) {
+	leaves := makeTestLeaves(8)
+
+	var root [32]byte
+	var scratch [8][32]byte
+	var leafScratch [32]byte
+	rootAllocs := testing.AllocsPerRun(100, func() {
+		root = ComputeRootFromWriter(scratch[:], leafScratch[:], len(leaves), func(i int, dst []byte) {
+			copy(dst, leaves[i])
+		})
+	})
+	if rootAllocs != 0 {
+		t.Fatalf("ComputeRootFromWriter allocated %.0f times", rootAllocs)
+	}
+	if root == ([32]byte{}) {
+		t.Fatal("unexpected zero root")
+	}
+}
+
 func TestGenerateProof(t *testing.T) {
 	numLeaves := 8
 	leaves := makeTestLeaves(numLeaves)
-	tree := NewTree(leaves)
+	tree := NewTree(leaves, 1)
 
 	for i := range numLeaves {
 		t.Run(fmt.Sprintf("leaf_%d", i), func(t *testing.T) {
@@ -122,7 +174,7 @@ func TestGenerateProof(t *testing.T) {
 
 func TestGenerateProofErrors(t *testing.T) {
 	leaves := makeTestLeaves(8)
-	tree := NewTree(leaves)
+	tree := NewTree(leaves, 1)
 
 	tests := []struct {
 		name  string
@@ -147,7 +199,7 @@ func TestComputeRootFromProof(t *testing.T) {
 	// Build a tree and generate proofs
 	numLeaves := 16
 	leaves := makeTestLeaves(numLeaves)
-	tree := NewTree(leaves)
+	tree := NewTree(leaves, 1)
 	expectedRoot := tree.Root()
 
 	for i := range numLeaves {
@@ -205,7 +257,7 @@ func TestGenerateLeftSubtreeProof(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree := NewTree(leaves)
+			tree := NewTree(leaves, 1)
 
 			proof, err := tree.GenerateLeftSubtreeProof(tt.k)
 			if tt.wantErr {
@@ -226,7 +278,7 @@ func TestGenerateLeftSubtreeProof(t *testing.T) {
 			// Verify the proof works
 			// Compute the left subtree root manually
 			leftLeaves := leaves[:tt.k]
-			leftTree := NewTree(leftLeaves)
+			leftTree := NewTree(leftLeaves, 1)
 			leftRoot := leftTree.Root()
 
 			// Use the proof to compute the full root
@@ -259,7 +311,7 @@ func TestTreeDepth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("leaves_%d", tt.numLeaves), func(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
-			tree := NewTree(leaves)
+			tree := NewTree(leaves, 1)
 
 			depth := tree.depth()
 			if depth != tt.wantDepth {

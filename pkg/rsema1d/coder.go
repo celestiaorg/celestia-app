@@ -75,7 +75,7 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 	rlcOrig := computeRLCVectorized(extendedRows[:c.config.K], coeffs, c.config)
 
 	// build padded RLC Merkle tree
-	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, c.config)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, c.config)
 	rlcOrigRoot := rlcOrigTree.Root()
 
 	// create commitment: SHA256(rowRoot || rlcOrigRoot)
