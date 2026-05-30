@@ -39,6 +39,9 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if req, ok := v.(*types.UploadShardRequest); ok {
 		return marshalUploadShardRequestScatter(req)
 	}
+	if resp, ok := v.(*types.DownloadShardResponse); ok {
+		return marshalDownloadShardResponseScatter(resp)
+	}
 
 	msg, ok := v.(sizedMarshaler)
 	if !ok {

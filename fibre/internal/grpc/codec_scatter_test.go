@@ -214,5 +214,80 @@ func FuzzScatterMarshalParity(f *testing.F) {
 				seed, rowCount, proofPerRow, dataLen,
 				len(canonical), canonical, len(scattered), scattered)
 		}
+
+		// The same BlobShard wrapped in a download response must also marshal
+		// byte-identical to gogoproto.
+		resp := &types.DownloadShardResponse{Shard: req.Shard}
+		respCanonical, err := resp.Marshal()
+		if err != nil {
+			t.Fatalf("download canonical marshal: %v", err)
+		}
+		respBS, err := marshalDownloadShardResponseScatter(resp)
+		if err != nil {
+			t.Fatalf("download scatter marshal: %v", err)
+		}
+		if got := respBS.Materialize(); !bytes.Equal(respCanonical, got) {
+			t.Fatalf("download wire mismatch (seed=%d)\ncanonical (%d): %x\nscattered (%d): %x",
+				seed, len(respCanonical), respCanonical, len(got), got)
+		}
 	})
+}
+
+// TestDownloadResponseScatterMarshal checks the serve-side scatter marshal of
+// DownloadShardResponse is byte-identical to gogoproto across shard shapes,
+// including the proto3 edge cases (nil/empty shard, zero index, no data).
+func TestDownloadResponseScatterMarshal(t *testing.T) {
+	mkBytes := func(rng *rand.Rand, n int) []byte {
+		b := make([]byte, n)
+		_, _ = rng.Read(b)
+		return b
+	}
+	rng := rand.New(rand.NewSource(2))
+
+	cases := []struct {
+		name string
+		resp *types.DownloadShardResponse
+	}{
+		{"nil_shard", &types.DownloadShardResponse{}},
+		{"empty_shard", &types.DownloadShardResponse{Shard: &types.BlobShard{}}},
+		{"one_row", &types.DownloadShardResponse{Shard: &types.BlobShard{
+			Rows:         []*types.BlobRow{{Index: 1, Data: mkBytes(rng, 64), Proof: [][]byte{mkBytes(rng, 32)}}},
+			Coefficients: mkBytes(rng, 64),
+			Root:         mkBytes(rng, 32),
+		}}},
+		{"zero_index_omitted", &types.DownloadShardResponse{Shard: &types.BlobShard{
+			Rows: []*types.BlobRow{{Index: 0, Data: mkBytes(rng, 8), Proof: [][]byte{mkBytes(rng, 32)}}},
+		}}},
+		{"row_without_data", &types.DownloadShardResponse{Shard: &types.BlobShard{
+			Rows: []*types.BlobRow{{Index: 5, Proof: [][]byte{mkBytes(rng, 32), mkBytes(rng, 32)}}},
+			Root: mkBytes(rng, 32),
+		}}},
+		{"many_rows", &types.DownloadShardResponse{Shard: &types.BlobShard{
+			Rows: func() []*types.BlobRow {
+				rows := make([]*types.BlobRow, 8)
+				for i := range rows {
+					rows[i] = &types.BlobRow{Index: uint32(i), Data: mkBytes(rng, 1024), Proof: [][]byte{mkBytes(rng, 32), mkBytes(rng, 32)}}
+				}
+				return rows
+			}(),
+			Coefficients: mkBytes(rng, 128),
+		}}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			canonical, err := tc.resp.Marshal()
+			if err != nil {
+				t.Fatalf("canonical marshal: %v", err)
+			}
+			bs, err := marshalDownloadShardResponseScatter(tc.resp)
+			if err != nil {
+				t.Fatalf("scatter marshal: %v", err)
+			}
+			if scattered := bs.Materialize(); !bytes.Equal(canonical, scattered) {
+				t.Fatalf("wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
+					len(canonical), canonical, len(scattered), scattered)
+			}
+		})
+	}
 }
