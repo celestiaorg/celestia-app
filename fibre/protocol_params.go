@@ -195,22 +195,22 @@ func (p ProtocolParams) MaxRowSize(blobVersion uint8) int {
 }
 
 // MaxShardSize calculates the maximum size of a shard in bytes.
-// A shard contains: RLC coefficients + (rows_per_validator * (row_index + row_data + merkle_proof))
+// A shard contains: RLC vector + (rows_per_validator * (row_index + row_data + merkle_proof))
 func (p ProtocolParams) MaxShardSize() int {
 	const (
 		rowIndexSize = 4  // uint32 index per row
-		rlcCoeffSize = 16 // uint128 coefficient per row
+		rlcEntrySize = 16 // uint128 RLC vector entry per row
 	)
 
 	totalRows := p.TotalRows()
 	maxRowSize := p.MaxRowSize(0) // version 0 is the only supported version
-	rlcCoeffsSize := p.Rows * rlcCoeffSize
+	rlcsSize := p.Rows * rlcEntrySize
 
 	// calculate merkle tree depth for inclusion proofs: ceil(log2(totalRows))
 	treeDepth := bits.Len(uint(totalRows - 1))
 	proofSizePerRow := treeDepth * sha256.Size
 
-	return rlcCoeffsSize + (p.MaxRowsPerValidator() * (rowIndexSize + maxRowSize + proofSizePerRow))
+	return rlcsSize + (p.MaxRowsPerValidator() * (rowIndexSize + maxRowSize + proofSizePerRow))
 }
 
 // MaxMessageSize returns the maximum gRPC message size for upload requests.

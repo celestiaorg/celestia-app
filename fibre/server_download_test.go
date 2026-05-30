@@ -50,32 +50,14 @@ func TestServerDownloadShard(t *testing.T) {
 			},
 		},
 		{
-			name:      "WithRlc_ReturnsCoefficients",
-			storeBlob: true,
-			requestModifier: func(req *types.DownloadShardRequest, _ fibre.BlobID) {
-				req.WithRlc = true
-			},
-			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
-				require.NoError(t, err)
-				require.NotNil(t, resp.Shard)
-				require.NotEmpty(t, resp.Shard.Rows)
-				require.NotEmpty(t, resp.Shard.Coefficients,
-					"coefficients should be present when WithRlc is true")
-				require.NotEmpty(t, resp.Shard.Root,
-					"RLC root should be present")
-			},
-		},
-		{
-			name:      "WithoutRlc_StripsCoefficients",
+			name:      "ReturnsRLCs",
 			storeBlob: true,
 			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
 				require.NoError(t, err)
 				require.NotNil(t, resp.Shard)
 				require.NotEmpty(t, resp.Shard.Rows)
-				require.Empty(t, resp.Shard.Coefficients,
-					"coefficients should be stripped when WithRlc is false")
-				require.NotEmpty(t, resp.Shard.Root,
-					"RLC root should always be present")
+				require.NotEmpty(t, resp.Shard.Rlcs,
+					"RLCs should always be returned")
 			},
 		},
 		{
@@ -156,9 +138,8 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 	}
 
 	shard := &types.BlobShard{
-		Rows:         rows,
-		Root:         make([]byte, 32),
-		Coefficients: rlc.Marshal(blob.RLC()),
+		Rows: rows,
+		Rlcs: rlc.Marshal(blob.RLC()),
 	}
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))

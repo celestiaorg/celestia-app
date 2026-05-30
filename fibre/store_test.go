@@ -31,7 +31,7 @@ func TestStore(t *testing.T) {
 		{"Get_CleansOrphanMarker", testStoreGetCleansOrphanMarker},
 		{"Get_SkipsOrphanToSibling", testStoreGetSkipsOrphanToSibling},
 		{"Get_AllOrphans", testStoreGetAllOrphans},
-		{"PutGet_PreservesRLCCoefficients", testStorePutGetPreservesRLCCoefficients},
+		{"PutGet_PreservesRLCs", testStorePutGetPreservesRLCs},
 		{"PruneBefore_RemovesShardAndPromise", testStorePruneBeforeRemovesShardAndPromise},
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
 		{"PruneBefore_NonUTCCutoff_DoesNotPruneUnexpired", testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired},
@@ -75,7 +75,7 @@ func testStorePutGetRoundtrip(t *testing.T, store *fibre.Store, _ string) {
 	require.Equal(t, promise.Commitment, gotPromise.Commitment)
 }
 
-func testStorePutGetPreservesRLCCoefficients(t *testing.T, store *fibre.Store, _ string) {
+func testStorePutGetPreservesRLCs(t *testing.T, store *fibre.Store, _ string) {
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
@@ -89,11 +89,9 @@ func testStorePutGetPreservesRLCCoefficients(t *testing.T, store *fibre.Store, _
 	require.NoError(t, err)
 	require.Len(t, gotShard.Rows, 3)
 
-	// Coefficients and root must survive the round-trip
-	require.Equal(t, shard.Coefficients, gotShard.Coefficients,
-		"RLC coefficients should be preserved after store round-trip")
-	require.Equal(t, shard.Root, gotShard.Root,
-		"RLC root should be preserved after store round-trip")
+	// RLCs must survive the round-trip
+	require.Equal(t, shard.Rlcs, gotShard.Rlcs,
+		"RLCs should be preserved after store round-trip")
 }
 
 func testStorePutSameCommitmentSamePromise(t *testing.T, store *fibre.Store, _ string) {
@@ -495,17 +493,16 @@ func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobSh
 
 	return &types.BlobShard{
 		Rows: rows,
-		Root: make([]byte, 32),
 	}
 }
 
 // makeShardWithRLC extracts a shard from a blob at the given row indices,
-// including RLC coefficients and root.
+// including its RLC vector.
 func makeShardWithRLC(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobShard {
 	t.Helper()
 	shard := makeShardFrom(t, blob, indices...)
 
-	shard.Coefficients = rlc.Marshal(blob.RLC())
+	shard.Rlcs = rlc.Marshal(blob.RLC())
 
 	return shard
 }

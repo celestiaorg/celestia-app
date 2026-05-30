@@ -200,7 +200,7 @@ func (d *Blob) Config() BlobConfig {
 	return d.cfg
 }
 
-// RLC returns the computed random linear combination values for the original rows.
+// RLC returns the computed random linear combination vector for the original rows.
 func (d *Blob) RLC() rlc.Vector {
 	if d.extendedData == nil {
 		return nil

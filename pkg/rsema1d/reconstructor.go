@@ -145,7 +145,7 @@ func (r *Reconstructor) verify(rlc rlc.Vector, proofs []*RowProof) error {
 		// another caller installed a validated RLC while we waited for the lock
 		return r.verifier.VerifyShared(r.commitment, proofs)
 	}
-	if _, err := r.verifier.Verify(r.commitment, proofs, rlc); err != nil {
+	if err := r.verifier.Verify(r.commitment, proofs, rlc); err != nil {
 		return err
 	}
 	r.verifierRLC.Store(true)

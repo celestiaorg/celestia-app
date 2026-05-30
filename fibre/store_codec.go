@@ -15,8 +15,7 @@ import (
 // On-disk shard format (custom binary, all big-endian):
 //
 //	uint32  version (=1)
-//	uint32  root_len; []byte root
-//	uint32  coefficients_len; []byte coefficients
+//	uint32  rlcs_len; []byte rlcs
 //	uint32  num_rows
 //	  for each row:
 //	    uint32 index
@@ -40,20 +39,11 @@ func writeShardBinary(w io.Writer, shard *types.BlobShard) error {
 	buf := stack[:0]
 
 	buf = binary.BigEndian.AppendUint32(buf, shardCodecVersion)
-	buf = binary.BigEndian.AppendUint32(buf, uint32(len(shard.Root)))
+	buf = binary.BigEndian.AppendUint32(buf, uint32(len(shard.Rlcs)))
 	if _, err := w.Write(buf); err != nil {
 		return err
 	}
-	if _, err := w.Write(shard.Root); err != nil {
-		return err
-	}
-
-	buf = buf[:0]
-	buf = binary.BigEndian.AppendUint32(buf, uint32(len(shard.Coefficients)))
-	if _, err := w.Write(buf); err != nil {
-		return err
-	}
-	if _, err := w.Write(shard.Coefficients); err != nil {
+	if _, err := w.Write(shard.Rlcs); err != nil {
 		return err
 	}
 
@@ -135,22 +125,13 @@ func readShardBinary(r io.Reader) (*types.BlobShard, error) {
 		return nil, fmt.Errorf("unsupported shard codec version %d (want %d)", version, shardCodecVersion)
 	}
 
-	rootLen, err := readUint32(r, scratch[:])
+	rlcsLen, err := readUint32(r, scratch[:])
 	if err != nil {
-		return nil, fmt.Errorf("reading root len: %w", err)
+		return nil, fmt.Errorf("reading rlcs len: %w", err)
 	}
-	root, err := readBytes(r, rootLen)
+	rlcs, err := readBytes(r, rlcsLen)
 	if err != nil {
-		return nil, fmt.Errorf("reading root: %w", err)
-	}
-
-	coeffsLen, err := readUint32(r, scratch[:])
-	if err != nil {
-		return nil, fmt.Errorf("reading coefficients len: %w", err)
-	}
-	coeffs, err := readBytes(r, coeffsLen)
-	if err != nil {
-		return nil, fmt.Errorf("reading coefficients: %w", err)
+		return nil, fmt.Errorf("reading rlcs: %w", err)
 	}
 
 	numRows, err := readUint32(r, scratch[:])
@@ -162,9 +143,8 @@ func readShardBinary(r io.Reader) (*types.BlobShard, error) {
 	}
 
 	shard := &types.BlobShard{
-		Rows:         make([]*types.BlobRow, numRows),
-		Coefficients: coeffs,
-		Root:         root,
+		Rows: make([]*types.BlobRow, numRows),
+		Rlcs: rlcs,
 	}
 	for i := range numRows {
 		index, err := readUint32(r, scratch[:])

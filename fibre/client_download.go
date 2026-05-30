@@ -173,7 +173,7 @@ func (c *Client) downloadFrom(
 	defer rpcCancel()
 
 	rpcStart := time.Now()
-	resp, err := client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
+	resp, err := client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id})
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
@@ -278,13 +278,13 @@ func parseShard(shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error)
 		}
 	}
 
-	coeffs, err := rlc.Unmarshal(shard.GetCoefficients())
+	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(coeffs) == 0 {
-		return nil, nil, errors.New("validator returned no RLC")
+	if len(rlcs) == 0 {
+		return nil, nil, errors.New("validator returned no RLCs")
 	}
 
-	return proofs, coeffs, nil
+	return proofs, rlcs, nil
 }

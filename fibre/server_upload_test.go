@@ -209,8 +209,8 @@ func makeTestRequest(
 	req := &types.UploadShardRequest{
 		Promise: promisePb,
 		Shard: &types.BlobShard{
-			Rows:         rows,
-			Coefficients: rlc.Marshal(blob.RLC()),
+			Rows: rows,
+			Rlcs: rlc.Marshal(blob.RLC()),
 		},
 	}
 

@@ -64,7 +64,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		v := makeVerifier()
 		b.ResetTimer()
 		for range b.N {
-			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+			if err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -79,7 +79,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		b.RunParallel(func(pb *testing.PB) {
 			for pb.Next() {
 				v := <-pool
-				if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+				if err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 					b.Fatal(err)
 				}
 				pool <- v
@@ -93,7 +93,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 	// longer pays deriveCoefficients per call.
 	b.Run("shared/serial", func(b *testing.B) {
 		v := makeVerifier()
-		if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+		if err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 			b.Fatalf("priming Verify: %v", err)
 		}
 		b.ResetTimer()
@@ -108,7 +108,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		pool := make(chan *rsema1d.Verifier, numCPU)
 		for range numCPU {
 			v := makeVerifier()
-			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+			if err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 				b.Fatalf("priming Verify: %v", err)
 			}
 			pool <- v
