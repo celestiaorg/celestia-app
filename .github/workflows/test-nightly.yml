@@ -55,12 +55,19 @@ jobs:
   test-nightly:
     needs: build-e2e-image
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Generous budget so the retried sync test (up to 3 attempts) has headroom
+    # without prematurely killing the long-running upgrade/tx tests.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
+          # TestSyncToTipMocha syncs against the live mocha testnet and can
+          # intermittently stall when no connected peer is serving a usable
+          # state-sync snapshot. Retry it before failing the nightly. Other
+          # tests default to a single attempt so real failures aren't masked.
           - test: TestSyncToTipMocha
+            max-attempts: 3
           - test: TestAllUpgrades
           - test: TestTxSubmission
             extra-image: true
@@ -92,7 +99,13 @@ jobs:
           -f docker/latency-monitor/Dockerfile .
 
       - name: Run ${{ matrix.test }}
-        run: make test-docker-e2e test=${{ matrix.test }}
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          # Per-attempt cap; comfortably above a single run of any nightly test.
+          timeout_minutes: 30
+          # Defaults to 1 attempt (no retry) for tests that don't opt in.
+          max_attempts: ${{ matrix.max-attempts || 1 }}
+          command: make test-docker-e2e test=${{ matrix.test }}
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
