@@ -71,6 +71,11 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if reply, ok := v.(*DownloadReply); ok {
 		return decodeDownloadShardResponse(data, reply)
 	}
+	// UploadShardRequest (server receive) decodes through the arena path too,
+	// aliasing row payloads into a single buffer instead of per-row copies.
+	if req, ok := v.(*types.UploadShardRequest); ok {
+		return decodeUploadShardRequest(data, req)
+	}
 
 	msg, ok := v.(sizedUnmarshaler)
 	if !ok {
