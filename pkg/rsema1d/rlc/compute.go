@@ -123,9 +123,7 @@ func ComputeRow(row []byte, coeffs Vector) field.GF128 {
 // must have len(in) bytes, and len(in) must be a multiple of chunkSize.
 func mulXorGF128(coeff *field.GF128, in []byte, accs *[field.GF128Width][]byte) {
 	var s [field.GF128Width]uint16
-	for k, v := range coeff {
-		s[k] = uint16(v)
-	}
+	copy(s[:], coeff[:])
 	ll.GF16MulSliceXor8(&s, in, accs)
 }
 

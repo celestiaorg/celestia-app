@@ -232,7 +232,6 @@ func newVerifierPool(n int) chan *rsema1d.Verifier {
 		v, err := rsema1d.NewVerifier(&rsema1d.Config{
 			K:           blobCfg.OriginalRows,
 			N:           blobCfg.ParityRows,
-			RowSize:     0, // variable; resolved per Verify call from proof rows
 			WorkerCount: 1,
 		})
 		if err != nil {

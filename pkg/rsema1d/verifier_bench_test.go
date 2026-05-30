@@ -1,9 +1,11 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"runtime"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
 // BenchmarkVerifier exercises the upload-side Verifier in two regimes that
@@ -39,12 +41,9 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 			data[i][j] = byte(r.IntN(256))
 		}
 	}
-	encodeCfg := &Config{K: k, N: n, RowSize: rowSize, WorkerCount: numCPU}
-	ed, commitment, rlcOrig, err := Encode(data, encodeCfg)
-	if err != nil {
-		b.Fatalf("Encode: %v", err)
-	}
-	proofs := make([]*RowProof, batch)
+	encodeCfg := &rsema1d.Config{K: k, N: n, WorkerCount: numCPU}
+	ed, commitment, rlcOrig := encodeRows(b, encodeCfg, data)
+	proofs := make([]*rsema1d.RowProof, batch)
 	for i := range proofs {
 		p, err := ed.GenerateRowProof(i)
 		if err != nil {
@@ -53,8 +52,8 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 		proofs[i] = p
 	}
 
-	makeVerifier := func() *Verifier {
-		v, err := NewVerifier(&Config{K: k, N: n, RowSize: rowSize, WorkerCount: 1})
+	makeVerifier := func() *rsema1d.Verifier {
+		v, err := rsema1d.NewVerifier(&rsema1d.Config{K: k, N: n, WorkerCount: 1})
 		if err != nil {
 			b.Fatalf("NewVerifier: %v", err)
 		}
@@ -72,7 +71,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 	})
 
 	b.Run("parallel/pool=NumCPU", func(b *testing.B) {
-		pool := make(chan *Verifier, numCPU)
+		pool := make(chan *rsema1d.Verifier, numCPU)
 		for range numCPU {
 			pool <- makeVerifier()
 		}
@@ -106,7 +105,7 @@ func benchmarkVerifier(b *testing.B, k, n, rowSize, batch int) {
 	})
 
 	b.Run("shared/parallel/pool=NumCPU", func(b *testing.B) {
-		pool := make(chan *Verifier, numCPU)
+		pool := make(chan *rsema1d.Verifier, numCPU)
 		for range numCPU {
 			v := makeVerifier()
 			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {

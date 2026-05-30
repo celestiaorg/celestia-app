@@ -1,9 +1,11 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"runtime"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
 func BenchmarkCoderEncode(b *testing.B) {
@@ -31,7 +33,7 @@ func BenchmarkCoderEncode(b *testing.B) {
 			if workers == 0 {
 				workers = runtime.NumCPU()
 			}
-			coder, err := NewCoder(&Config{K: sz.k, N: sz.n, WorkerCount: workers})
+			coder, err := rsema1d.NewCoder(&rsema1d.Config{K: sz.k, N: sz.n, WorkerCount: workers})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -74,7 +76,7 @@ func BenchmarkCoderReconstruct(b *testing.B) {
 
 	for _, sz := range sizes {
 		b.Run(sz.name, func(b *testing.B) {
-			config := &Config{K: sz.k, N: sz.n, RowSize: sz.rowSize, WorkerCount: 1}
+			config := &rsema1d.Config{K: sz.k, N: sz.n, WorkerCount: 1}
 			data := make([][]byte, sz.k)
 			for i := range sz.k {
 				data[i] = make([]byte, sz.rowSize)
@@ -83,10 +85,7 @@ func BenchmarkCoderReconstruct(b *testing.B) {
 				}
 			}
 
-			extData, _, _, err := Encode(data, config)
-			if err != nil {
-				b.Fatal(err)
-			}
+			extData, _, _ := encodeRows(b, config, data)
 
 			// mixed indices: half original, half parity
 			indices := make([]int, sz.k)
@@ -100,10 +99,10 @@ func BenchmarkCoderReconstruct(b *testing.B) {
 
 			rows := make([][]byte, sz.k)
 			for i, idx := range indices {
-				rows[i] = extData.rows[idx]
+				rows[i] = extData.Row(idx)
 			}
 
-			coder, _ := NewCoder(&Config{K: sz.k, N: sz.n, WorkerCount: 1})
+			coder, _ := rsema1d.NewCoder(&rsema1d.Config{K: sz.k, N: sz.n, WorkerCount: 1})
 			b.SetBytes(int64(sz.k * sz.rowSize))
 			b.ResetTimer()
 			for b.Loop() {

@@ -1,12 +1,25 @@
-package merkle
+package merkle_test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 	cmtmerkle "github.com/cometbft/cometbft/crypto/merkle"
 )
+
+// leafHashWithPrefix mirrors the CometBFT/Tendermint leaf-hash convention
+// (sha256(0x00 || data)) so the cross-verification tests can construct a
+// CometBFT proof that matches the merkle package's leaf encoding without
+// depending on the unexported hashLeaf primitive.
+func leafHashWithPrefix(data []byte) []byte {
+	h := sha256.New()
+	h.Write([]byte{0x00})
+	h.Write(data)
+	return h.Sum(nil)
+}
 
 // TestCometBFTCompatibility tests that our merkle tree implementation
 // produces the same roots as CometBFT/Celestia-core's implementation
@@ -31,7 +44,7 @@ func TestCometBFTCompatibility(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
 
 			// Our implementation
-			ourTree := NewTree(leaves, 1)
+			ourTree := merkle.NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
@@ -56,7 +69,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
 
 			// Build trees with both implementations
-			ourTree := NewTree(leaves, 1)
+			ourTree := merkle.NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// Generate all proofs with CometBFT
@@ -94,7 +107,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 				}
 
 				// Verify our proof with our implementation
-				computedRoot, err := ComputeRootFromProof(leaves[i], i, ourProof)
+				computedRoot, err := merkle.ComputeRootFromProof(leaves[i], i, ourProof)
 				if err != nil {
 					t.Fatalf("Our verification failed for index %d: %v", i, err)
 				}
@@ -104,7 +117,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 
 				// Cross-verify: Create a CometBFT proof from our proof
 				// We need to provide the leaf hash with proper prefix
-				leafHash := hashLeafTest(leaves[i])
+				leafHash := leafHashWithPrefix(leaves[i])
 				crossCheckProof := &cmtmerkle.Proof{
 					Total:    int64(numLeaves),
 					Index:    int64(i),
@@ -145,7 +158,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 	}
 
 	// Our implementation
-	ourTree := NewTree(leaves, 1)
+	ourTree := merkle.NewTree(leaves, 1)
 	ourRoot := ourTree.Root()
 
 	// CometBFT implementation
@@ -180,7 +193,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 
 	// Cross-verify our proof with CometBFT verifier
 	// CometBFT expects the leaf hash to be computed with the leaf prefix
-	leafHash := hashLeafTest(leaves[0])
+	leafHash := leafHashWithPrefix(leaves[0])
 	crossProof := &cmtmerkle.Proof{
 		Total:    4,
 		Index:    0,
@@ -224,7 +237,7 @@ func TestCometBFTEdgeCases(t *testing.T) {
 			}
 
 			// Our implementation
-			ourTree := NewTree(leaves, 1)
+			ourTree := merkle.NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
@@ -262,7 +275,7 @@ func TestCometBFTEmptyAndNilLeaves(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Our implementation
-			ourTree := NewTree(tt.leaves, 1)
+			ourTree := merkle.NewTree(tt.leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
