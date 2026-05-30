@@ -684,6 +684,7 @@ func downloadBlob(ctx context.Context, req *downloadRequest, st *stats) {
 			req.keyName, req.blobID, err, time.Since(t))
 		return
 	}
+	defer blob.Free()
 
 	lat := time.Since(t)
 	verified := bytes.Equal(blob.Data(), req.originalData)

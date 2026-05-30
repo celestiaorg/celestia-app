@@ -24,7 +24,7 @@ func CreateVerificationContext(rlcOrig []field.GF128, config *Config) (*Verifica
 	}
 
 	// Build padded RLC Merkle tree
-	rlcOrigTree := BuildPaddedRLCTree(rlcOrig, config)
+	rlcOrigTree := buildPaddedRLCTree(rlcOrig, config)
 	rlcOrigRoot := rlcOrigTree.Root()
 
 	// Extend RLC results to get all K+N values
