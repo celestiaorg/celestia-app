@@ -1,4 +1,4 @@
-package rsema1d
+package rlc
 
 import (
 	"math/rand/v2"
@@ -7,10 +7,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 )
 
-// TestComputeRLCVectorizedMatchesScalar verifies the vectorized SIMD kernel
-// produces the same []GF128 as the per-row scalar loop across a range of
-// eligible K/rowSize combinations and both worker counts.
-func TestComputeRLCVectorizedMatchesScalar(t *testing.T) {
+// TestComputeMatchesScalar verifies the vectorized SIMD kernel produces the
+// same []GF128 as the per-row scalar reference across a range of eligible
+// K/rowSize combinations and both worker counts.
+func TestComputeMatchesScalar(t *testing.T) {
 	cases := []struct{ k, rowSize int }{
 		{32, 64},
 		{32, 128},
@@ -40,13 +40,14 @@ func TestComputeRLCVectorizedMatchesScalar(t *testing.T) {
 		for i := range rowRoot {
 			rowRoot[i] = byte(r.IntN(256))
 		}
-		cfg := &Config{K: tc.k, N: tc.k, RowSize: tc.rowSize, WorkerCount: 1}
-		coeffs := deriveCoefficients(rowRoot, cfg.K, cfg.N, cfg.RowSize)
+		coeffs := Derive(rowRoot, tc.k, tc.k, tc.rowSize, 1)
 
-		want := computeRLCOrig(rows, coeffs, cfg)
+		want := make(Vector, tc.k)
+		for i, row := range rows {
+			want[i] = ComputeRow(row, coeffs)
+		}
 		for _, workers := range []int{1, 4} {
-			cfg.WorkerCount = workers
-			got := computeRLCVectorized(rows, coeffs, cfg)
+			got := Compute(rows, coeffs, workers)
 			if len(want) != len(got) {
 				t.Fatalf("k=%d rs=%d workers=%d length mismatch", tc.k, tc.rowSize, workers)
 			}
@@ -60,10 +61,11 @@ func TestComputeRLCVectorizedMatchesScalar(t *testing.T) {
 	}
 }
 
-// BenchmarkComputeRLCVectorized measures the vectorized SIMD RLC kernel at
-// the largest single-row size in the matrix — 128MB total, K=1024 → 128KB
-// per row. Both single-worker and default-worker variants are covered.
-func BenchmarkComputeRLCVectorized(b *testing.B) {
+// BenchmarkCompute measures the vectorized SIMD RLC kernel at the largest
+// single-row size in the matrix — 128MB total, K=1024 → 128KB per row. Both
+// single-worker and 16-worker variants are covered for k=1024 with n=1024
+// and n=3072.
+func BenchmarkCompute(b *testing.B) {
 	configs := []struct {
 		name        string
 		bytes, k, n int
@@ -77,11 +79,8 @@ func BenchmarkComputeRLCVectorized(b *testing.B) {
 	for _, cfg := range configs {
 		b.Run(cfg.name, func(b *testing.B) {
 			rowSize := cfg.bytes / cfg.k
-			codecConfig := &Config{
-				K: cfg.k, N: cfg.n, RowSize: rowSize, WorkerCount: cfg.workers,
-			}
 			rowRoot := [32]byte{1, 2, 3, 4}
-			coeffs := deriveCoefficients(rowRoot, codecConfig.K, codecConfig.N, codecConfig.RowSize)
+			coeffs := Derive(rowRoot, cfg.k, cfg.n, rowSize, cfg.workers)
 
 			data := make([][]byte, cfg.k)
 			r := rand.New(rand.NewPCG(uint64(cfg.k), uint64(rowSize)))
@@ -95,7 +94,7 @@ func BenchmarkComputeRLCVectorized(b *testing.B) {
 			b.SetBytes(int64(cfg.bytes))
 			b.ResetTimer()
 			for range b.N {
-				_ = computeRLCVectorized(data, coeffs, codecConfig)
+				_ = Compute(data, coeffs, cfg.workers)
 			}
 		})
 	}

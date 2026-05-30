@@ -67,7 +67,7 @@ func deriveCoefficientsRange(seed [32]byte, coeffs []field.GF128, start, end int
 		h.Reset()
 		h.Write(input[:])
 		h.Sum(digest[:0])
-		coeffs[i] = field.HashToGF128(digest[:])
+		coeffs[i] = field.HashToGF128(digest)
 	}
 }
 

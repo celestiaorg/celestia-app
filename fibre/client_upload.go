@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
@@ -399,14 +399,9 @@ func (c *Client) uploadShards(
 func makeUploadRequests(
 	shardMap validator.ShardMap,
 	pbPromise *types.PaymentPromise,
-	rlcCoeffs []field.GF128,
+	rlcCoeffs rlc.Vector,
 ) map[*core.Validator]*types.UploadShardRequest {
-	// flatten rlc coefficients into a single byte slice (16 bytes per coefficient)
-	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, coeff := range rlcCoeffs {
-		b := field.ToBytes128(coeff)
-		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
-	}
+	rlcCoeffsBytes := rlc.Marshal(rlcCoeffs)
 
 	requests := make(map[*core.Validator]*types.UploadShardRequest, len(shardMap))
 	for val, rowIndices := range shardMap {

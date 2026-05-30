@@ -1,7 +1,6 @@
 package field
 
 import (
-	"bytes"
 	"testing"
 )
 
@@ -129,16 +128,17 @@ func TestGF128Serialization(t *testing.T) {
 
 	for i, original := range tests {
 		// Serialize to bytes
-		serialized := ToBytes128(original)
+		var serialized [GF128Size]byte
+		EncodeGF128(serialized[:], original)
 
 		// Check size
-		if len(serialized) != 16 {
-			t.Errorf("Test %d: ToBytes128 returned %d bytes, expected 16", i, len(serialized))
+		if len(serialized) != GF128Size {
+			t.Errorf("Test %d: EncodeGF128 returned %d bytes, expected %d", i, len(serialized), GF128Size)
 			continue
 		}
 
 		// Deserialize back
-		deserialized := FromBytes128(serialized)
+		deserialized := DecodeGF128(serialized[:])
 
 		// Check round-trip
 		if !Equal128(deserialized, original) {
@@ -166,61 +166,42 @@ func TestGF128Equal(t *testing.T) {
 }
 
 func TestHashToGF128(t *testing.T) {
+	var sequential [32]byte
+	for i := range sequential {
+		sequential[i] = byte(i)
+	}
+	var allOnes [32]byte
+	for i := range allOnes {
+		allOnes[i] = 0xFF
+	}
 	tests := []struct {
 		name string
-		data []byte
+		data [32]byte
 	}{
-		{
-			name: "all_zeros",
-			data: make([]byte, 32),
-		},
-		{
-			name: "all_ones",
-			data: bytes.Repeat([]byte{0xFF}, 32),
-		},
-		{
-			name: "sequential",
-			data: func() []byte {
-				b := make([]byte, 32)
-				for i := range b {
-					b[i] = byte(i)
-				}
-				return b
-			}(),
-		},
+		{"all_zeros", [32]byte{}},
+		{"all_ones", allOnes},
+		{"sequential", sequential},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := HashToGF128(tt.data)
 
-			// Test determinism - same input should give same output
+			// Test determinism — same input should give same output.
 			result2 := HashToGF128(tt.data)
 			if !Equal128(result, result2) {
 				t.Errorf("HashToGF128 not deterministic: %v != %v", result, result2)
 			}
 
-			// Test that changing input changes output
-			modifiedData := make([]byte, 32)
-			copy(modifiedData, tt.data)
-			modifiedData[0] ^= 1
-			result3 := HashToGF128(modifiedData)
+			// Test that changing input changes output.
+			modified := tt.data
+			modified[0] ^= 1
+			result3 := HashToGF128(modified)
 			if Equal128(result, result3) {
 				t.Errorf("HashToGF128 did not change with different input")
 			}
 		})
 	}
-}
-
-func TestHashToGF128Panic(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Errorf("HashToGF128 should panic with less than 32 bytes")
-		}
-	}()
-
-	// Should panic with less than 32 bytes
-	HashToGF128(make([]byte, 31))
 }
 
 func TestGF128Properties(t *testing.T) {

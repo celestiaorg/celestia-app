@@ -9,11 +9,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
-
-// rlcLeafSize is the byte size of one GF128 leaf in the padded RLC merkle tree.
-const rlcLeafSize = 16
 
 // Verifier owns the reusable state for RLC-based row verification.
 // Verify prepares RLC values, root and coefficients once.
@@ -26,18 +24,18 @@ type Verifier struct {
 	config *Config
 	enc    reedsolomon.Encoder
 
-	rlcRoot   [32]byte      // RLC merkle root
-	rlcCoeffs []field.GF128 // Fiat-Shamir coefficients for the current matrix.
-	rlcShards [][]byte      // Leopard-formatted 64-byte RLC shards
+	rlcRoot   merkle.Root // RLC merkle root
+	rlcCoeffs rlc.Vector  // Fiat-Shamir coefficients for the current matrix.
+	rlcShards [][]byte    // Leopard-formatted 64-byte RLC shards
 
 	// scratch buffers for RLC root compute
 	rlcRootScratch [][32]byte
-	rlcLeafScratch [rlcLeafSize]byte
+	rlcLeafScratch [field.GF128Size]byte
 
 	// Verify scratch buffers. Capacity grows to the largest batch seen.
 	// VerifyShared uses per-call locals instead.
-	rowsScratch   [][]byte
-	proofsScratch []merkle.ProofInput
+	rowsScratch  [][]byte
+	proofScratch []merkle.ProofInput
 }
 
 // NewVerifier constructs a Verifier bound to cfg. Reusable buffers sized to
@@ -48,7 +46,7 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	workAlloc := newRetainAllocator(leopardEncodeWorkBuffers(cfg.N), field.LeopardShardSize)
+	workAlloc := newRetainAllocator(leopardEncodeWorkBuffers(cfg.N), field.LeopardChunkSize)
 	enc, err := reedsolomon.New(cfg.K, cfg.N,
 		reedsolomon.WithLeopardGF16(true),
 		reedsolomon.WithWorkAllocator(workAlloc))
@@ -56,10 +54,10 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 		return nil, fmt.Errorf("failed to create encoder: %w", err)
 	}
 
-	rlcShardsBuf := make([]byte, (cfg.K+cfg.N)*field.LeopardShardSize)
+	rlcShardsBuf := make([]byte, (cfg.K+cfg.N)*field.LeopardChunkSize)
 	rlcShards := make([][]byte, cfg.K+cfg.N)
 	for i := range rlcShards {
-		rlcShards[i] = rlcShardsBuf[i*field.LeopardShardSize : (i+1)*field.LeopardShardSize]
+		rlcShards[i] = rlcShardsBuf[i*field.LeopardChunkSize : (i+1)*field.LeopardChunkSize]
 	}
 
 	return &Verifier{
@@ -75,7 +73,7 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 // computed row RLC against the extended RLC shard. RLC gets cached for [Verifier.VerifyShared] counterpart.
 //
 // Verify reuses internal scratch buffers and is not safe for concurrent calls.
-func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc []field.GF128) ([]byte, error) {
+func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vector) ([]byte, error) {
 	rlcRoot, err := v.setRLC(rlc)
 	if err != nil {
 		return nil, err
@@ -86,8 +84,8 @@ func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc []field
 		return nil, err
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
-	v.proofsScratch = resizeProofInputs(v.proofsScratch, len(proofs))
-	return rlcRoot, v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofsScratch)
+	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
+	return rlcRoot, v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
 }
 
 // VerifyShared is the concurrent-safe counterpart to [Verifier.Verify]. It performs the
@@ -108,13 +106,13 @@ func (v *Verifier) VerifyShared(commitment Commitment, proofs []*RowProof) error
 }
 
 // setRLC extends the K original RLC values and caches the padded RLC root.
-func (v *Verifier) setRLC(rlc []field.GF128) ([]byte, error) {
+func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
 	if len(rlc) != v.config.K {
 		return nil, fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
 	}
 	// Pack into Leopard shards for RS extension.
 	for i := range v.config.K {
-		field.PackToLeopard(rlc[i], v.rlcShards[i])
+		field.GF128ToLeopard(rlc[i], v.rlcShards[i])
 	}
 	// parity shards must be zeroed before the in-place encode; leftover bytes
 	// from the previous Verify would otherwise feed into the systematic encode.
@@ -161,8 +159,8 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 		}
 	}
 	// Variable-row-size mode derives rowSize from proofs[0].
-	if rowSize == 0 || rowSize%chunkSize != 0 {
-		return 0, fmt.Errorf("row size must be a positive multiple of %d, got %d", chunkSize, rowSize)
+	if rowSize == 0 || rowSize%field.LeopardChunkSize != 0 {
+		return 0, fmt.Errorf("row size must be a positive multiple of %d, got %d", field.LeopardChunkSize, rowSize)
 	}
 	return rowSize, nil
 }
@@ -197,10 +195,10 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 	for i, p := range proofs {
 		rowsView[i] = p.Row
 	}
-	computedRLCs := computeRLCVectorized(rowsView, coeffs, v.config)
+	computedRLCs := rlc.Compute(rowsView, coeffs, v.config.WorkerCount)
 
 	for i, p := range proofs {
-		expectedRLC := field.UnpackFromLeopard(v.rlcShards[p.Index])
+		expectedRLC := field.GF128FromLeopard(v.rlcShards[p.Index])
 		if !field.Equal128(computedRLCs[i], expectedRLC) {
 			return fmt.Errorf("row %d: computed RLC does not match expected value", p.Index)
 		}
@@ -209,21 +207,20 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 }
 
 // coefficients lazily computes Fiat-Shamir coefficients for the current matrix.
-func (v *Verifier) coefficients(rowRoot [32]byte, rowSize int) []field.GF128 {
+func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) rlc.Vector {
 	if v.rlcCoeffs == nil {
-		v.rlcCoeffs = deriveCoefficients(rowRoot, v.config.K, v.config.N, rowSize)
+		v.rlcCoeffs = rlc.Derive(rowRoot, v.config.K, v.config.N, rowSize, v.config.WorkerCount)
 	}
 	return v.rlcCoeffs
 }
 
-func computePaddedRLCRoot(rlc []field.GF128, scratch [][32]byte, leafScratch []byte) [32]byte {
+func computePaddedRLCRoot(rlc rlc.Vector, scratch [][32]byte, leafScratch []byte) [32]byte {
 	// Keep the RLC root build sequential for the v0 fibre shape (K=4096):
 	// worker fan-out is slower than the small tree/hash work it parallelizes,
 	// and upload throughput already comes from the verifier pool.
 	return merkle.ComputeRootFromWriter(scratch, leafScratch, len(scratch), func(i int, dst []byte) {
 		if i < len(rlc) {
-			leaf := field.ToBytes128(rlc[i])
-			copy(dst, leaf[:])
+			field.EncodeGF128(dst, rlc[i])
 		}
 	})
 }

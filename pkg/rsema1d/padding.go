@@ -3,6 +3,7 @@ package rsema1d
 import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 )
 
 // buildPaddedRowTree creates a padded Merkle tree from extended rows.
@@ -23,11 +24,10 @@ func buildPaddedRowTree(extended [][]byte, config *Config) *merkle.Tree {
 
 // buildPaddedRLCTree creates a padded Merkle tree from RLC original values
 // Only stores K values padded to kPadded (not totalPadded like row tree)
-func buildPaddedRLCTree(rlcOrig []field.GF128, config *Config) *merkle.Tree {
-	return merkle.NewTreeFromWriter(config.kPadded, rlcLeafSize, config.WorkerCount, func(i int, dst []byte) {
+func buildPaddedRLCTree(rlcOrig rlc.Vector, config *Config) *merkle.Tree {
+	return merkle.NewTreeFromWriter(config.kPadded, field.GF128Size, config.WorkerCount, func(i int, dst []byte) {
 		if i < config.K {
-			bytes := field.ToBytes128(rlcOrig[i])
-			copy(dst, bytes[:])
+			field.EncodeGF128(dst, rlcOrig[i])
 		}
 	})
 }

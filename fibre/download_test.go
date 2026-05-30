@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
@@ -23,7 +23,7 @@ const (
 // newTestDownload returns a download primed for one encoded data set, plus
 // the matching row proofs and RLC. Validators are synthesized with the given
 // per-validator ExpectedRows.
-func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowProof, []field.GF128) {
+func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowProof, rlc.Vector) {
 	t.Helper()
 	cfg := &rsema1d.Config{K: testK, N: testN, RowSize: testRowSize, WorkerCount: 1}
 	coder, err := rsema1d.NewCoder(cfg)

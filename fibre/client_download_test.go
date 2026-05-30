@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -533,13 +533,7 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 		Rows: rows,
 	}
 
-	rlcCoeffs := blob.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
-	shard.Coefficients = coeffBytes
+	shard.Coefficients = rlc.Marshal(blob.RLC())
 
 	return &types.DownloadShardResponse{Shard: shard}, nil
 }
@@ -623,13 +617,7 @@ func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.Downl
 		Rows: rows,
 	}
 
-	rlcCoeffs := source.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
-	shard.Coefficients = coeffBytes
+	shard.Coefficients = rlc.Marshal(source.RLC())
 
 	return &types.DownloadShardResponse{Shard: shard}, nil
 }

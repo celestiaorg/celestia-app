@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -71,8 +72,8 @@ func (c *Coder) commit(extendedRows [][]byte) *ExtendedData {
 	// derive RLC coefficients and compute RLC results for original rows.
 	// rowSize is taken from the data to support the Coder's deferred-RowSize
 	// mode (config.RowSize may be 0 when the Coder is reused across shards).
-	coeffs := deriveCoefficients(rowRoot, c.config.K, c.config.N, len(extendedRows[0]))
-	rlcOrig := computeRLCVectorized(extendedRows[:c.config.K], coeffs, c.config)
+	coeffs := rlc.Derive(rowRoot, c.config.K, c.config.N, len(extendedRows[0]), c.config.WorkerCount)
+	rlcOrig := rlc.Compute(extendedRows[:c.config.K], coeffs, c.config.WorkerCount)
 
 	// build padded RLC Merkle tree
 	rlcOrigTree := buildPaddedRLCTree(rlcOrig, c.config)

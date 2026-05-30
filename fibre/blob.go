@@ -9,7 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -201,7 +201,7 @@ func (d *Blob) Config() BlobConfig {
 }
 
 // RLC returns the computed random linear combination values for the original rows.
-func (d *Blob) RLC() []field.GF128 {
+func (d *Blob) RLC() rlc.Vector {
 	if d.extendedData == nil {
 		return nil
 	}
