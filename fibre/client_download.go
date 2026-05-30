@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
@@ -173,7 +174,20 @@ func (c *Client) downloadFrom(
 	defer rpcCancel()
 
 	rpcStart := time.Now()
-	resp, err := client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
+	req := &types.DownloadShardRequest{BlobId: id, WithRlc: true}
+	// Prefer the zero-allocation arena codec when the client supports it. hold
+	// is the pooled arena the response rows alias, owned by this frame until
+	// AddShard retains it; in-process mocks fall back to the stock decode.
+	var resp *types.DownloadShardResponse
+	var hold retainer
+	if di, ok := client.(grpc.DownloadInto); ok {
+		reply := &grpc.DownloadReply{}
+		if err = di.DownloadShardInto(rpcCtx, req, reply); err == nil {
+			resp, hold = reply.Resp, reply
+		}
+	} else {
+		resp, err = client.DownloadShard(rpcCtx, req)
+	}
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
@@ -188,6 +202,7 @@ func (c *Client) downloadFrom(
 
 	proofs, rlc, err := parseShard(resp.GetShard(), state.cfg.OriginalRows)
 	if err != nil {
+		freeRetainer(hold)
 		log.WarnContext(ctx, "failed to parse shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to parse shard")
@@ -209,7 +224,10 @@ func (c *Client) downloadFrom(
 			"got", len(proofs), "expected", from.ExpectedRows)
 	}
 
-	if err := state.AddShard(from, proofs, rlc); err != nil {
+	// On success AddShard retains hold (parity rows alias it) and the download
+	// owns it; on error the shard is dropped and we release the arena here.
+	if err := state.AddShard(from, proofs, rlc, hold); err != nil {
+		freeRetainer(hold)
 		log.WarnContext(ctx, "invalid shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "invalid shard")
@@ -220,6 +238,14 @@ func (c *Client) downloadFrom(
 	))
 	span.SetStatus(codes.Ok, "")
 	return nil
+}
+
+// freeRetainer releases a pooled arena if present. Safe on a nil retainer
+// (the mock fallback path carries none).
+func freeRetainer(r retainer) {
+	if r != nil {
+		r.Free()
+	}
 }
 
 // downloadBlob downloads shards and reconstructs the K original rows behind

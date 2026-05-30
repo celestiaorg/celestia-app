@@ -78,7 +78,7 @@ func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowPr
 func TestDownload_OverReservationGatesFurtherDispatch(t *testing.T) {
 	d, proofs, rlc := newTestDownload(t, testK+5, testK/2)
 	for from := range d.ShardSources(context.Background()) {
-		require.NoError(t, d.AddShard(from, proofs[:testK], rlc))
+		require.NoError(t, d.AddShard(from, proofs[:testK], rlc, nil))
 	}
 	blob, err := d.Blob(context.Background())
 	require.NoError(t, err)
@@ -91,7 +91,7 @@ func TestDownload_OverReservationGatesFurtherDispatch(t *testing.T) {
 func TestDownload_DuplicateRowsDoNotDoubleCount(t *testing.T) {
 	d, proofs, rlc := newTestDownload(t, testK/2, testK/2)
 	for from := range d.ShardSources(context.Background()) {
-		require.NoError(t, d.AddShard(from, proofs[:testK/2], rlc))
+		require.NoError(t, d.AddShard(from, proofs[:testK/2], rlc, nil))
 	}
 	_, err := d.Blob(context.Background())
 	require.ErrorIs(t, err, ErrNotEnoughShards)
@@ -132,7 +132,7 @@ func TestDownload_DispatchCount(t *testing.T) {
 				}
 				shard := proofs[delivered*chunk : delivered*chunk+chunk]
 				delivered++
-				go func() { _ = d.AddShard(from, shard, rlc) }()
+				go func() { _ = d.AddShard(from, shard, rlc, nil) }()
 			}
 			// ShardSources returns only once inflight==0 — every dispatched
 			// worker has stored and released — so Blob is safe to read s.rows

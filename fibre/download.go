@@ -34,7 +34,17 @@ type download struct {
 	slab     []byte // K*rowSize contiguous pool region; nil until first Add and after Free
 
 	rows [][]byte // K+N; rows[:K] become slab-backed after the first Add
+
+	// retained holds pooled per-response arenas whose bytes parity rows alias
+	// (originals are copied into slab; parity rows adopt arena slices by
+	// pointer). Released together by freeRetained once reconstruct has consumed
+	// the parity. Guarded by mu.
+	retained []retainer
 }
+
+// retainer is pooled memory backing rows that must stay alive until
+// reconstruction; released exactly once via [download.freeRetained].
+type retainer interface{ Free() }
 
 func newDownload(
 	blobCfg BlobConfig,
@@ -123,7 +133,12 @@ func (s *download) ready() bool {
 // [download.store] writes to disjoint slots without further locking. Callers
 // must invoke [download.SkipShard] on error; successful adds release the
 // reservation internally.
-func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.RowProof, rlc []field.GF128) error {
+// hold, when non-nil, is the pooled arena backing this shard's row bytes; it is
+// retained until reconstruction (parity rows alias it) and released by
+// freeRetained. On the error path the shard is not stored and the caller owns
+// hold. retain happens before release so Blob's inflightWg.Wait cannot observe
+// completion before the arena is registered.
+func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.RowProof, rlc []field.GF128, hold retainer) error {
 	novel, err := s.reconstructor.Add(proofs, rlc)
 	if err != nil {
 		return err
@@ -133,8 +148,31 @@ func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.
 		s.acquireSlab(rowLn)
 		s.store(novel)
 	}
+	if hold != nil {
+		s.retain(hold)
+	}
 	s.release(from)
 	return nil
+}
+
+// retain registers a pooled arena to be freed after reconstruction.
+func (s *download) retain(r retainer) {
+	s.mu.Lock()
+	s.retained = append(s.retained, r)
+	s.mu.Unlock()
+}
+
+// freeRetained releases every retained arena back to its pool. Idempotent.
+// Must be called only after reconstruct has consumed the parity rows that alias
+// these arenas (or on an abort path where the download is discarded).
+func (s *download) freeRetained() {
+	s.mu.Lock()
+	retained := s.retained
+	s.retained = nil
+	s.mu.Unlock()
+	for _, r := range retained {
+		r.Free()
+	}
 }
 
 // SkipShard returns a worker's reservation without contributing rows. Must be
@@ -179,14 +217,19 @@ func (s *download) Blob(ctx context.Context) (*Blob, error) {
 	s.inflightWg.Wait()
 
 	if err := ctx.Err(); err != nil {
+		s.freeRetained()
 		s.freeSlab()
 		return nil, err
 	}
 
 	if err := s.reconstruct(); err != nil {
+		s.freeRetained()
 		s.freeSlab()
 		return nil, err
 	}
+	// Reconstruction has consumed every parity row; the slab is now
+	// self-contained, so the arenas those parity rows aliased can be released.
+	s.freeRetained()
 
 	var header blobHeaderV0
 	data, err := header.decode(s.slab, s.cfg)
