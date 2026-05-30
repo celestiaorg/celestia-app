@@ -69,8 +69,12 @@ func (c *Config) Validate() error {
 	}
 
 	// Compute padding values for tree construction
-	c.kPadded = nextPowerOfTwo(c.K)
-	c.totalPadded = nextPowerOfTwo(c.kPadded + c.N)
+	if c.kPadded == 0 {
+		c.kPadded = nextPowerOfTwo(c.K)
+	}
+	if c.totalPadded == 0 {
+		c.totalPadded = nextPowerOfTwo(c.kPadded + c.N)
+	}
 
 	return nil
 }

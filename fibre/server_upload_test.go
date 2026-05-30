@@ -202,7 +202,7 @@ func makeTestRequest(
 		rows[i] = &types.BlobRow{
 			Index: uint32(rowIndex),
 			Data:  rowProof.Row,
-			Proof: rowProof.RowProof.RowProof,
+			Proof: rowProof.RowProof,
 		}
 	}
 

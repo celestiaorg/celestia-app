@@ -33,6 +33,29 @@ func (f *fibreClientCloser) Close() error {
 	return f.conn.Close()
 }
 
+// downloadShardMethod is the full gRPC method name for the DownloadShard RPC,
+// matching the generated stub.
+const downloadShardMethod = "/celestia.fibre.v1.Fibre/DownloadShard"
+
+// DownloadInto is implemented by clients that can decode a DownloadShard
+// response through the zero-allocation arena codec (the fibre-proto
+// [pooledCodec]), handing back the pooled arena via the [DownloadReply].
+// Callers type-assert this and fall back to the stock
+// [types.FibreClient.DownloadShard] when unavailable (e.g. in-process test
+// mocks).
+type DownloadInto interface {
+	DownloadShardInto(ctx context.Context, req *types.DownloadShardRequest, reply *DownloadReply) error
+}
+
+// DownloadShardInto invokes DownloadShard over the fibre-proto codec, which
+// decodes the response into reply.Resp with row payloads aliasing a single
+// pooled buffer that the caller must release via [DownloadReply.Free] once the
+// rows are no longer needed. Selecting the content-subtype also makes the
+// server marshal the response zero-copy (scatter-gather).
+func (f *fibreClientCloser) DownloadShardInto(ctx context.Context, req *types.DownloadShardRequest, reply *DownloadReply) error {
+	return f.conn.Invoke(ctx, downloadShardMethod, req, reply, grpclib.CallContentSubtype(codecName))
+}
+
 // DefaultNewClientFn returns the default [NewClientFn] that uses the provided
 // [validator.HostRegistry] to resolve validator hosts and establishes insecure gRPC connections
 // with OpenTelemetry instrumentation for distributed tracing.

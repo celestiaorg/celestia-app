@@ -39,6 +39,9 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if req, ok := v.(*types.UploadShardRequest); ok {
 		return marshalUploadShardRequestScatter(req)
 	}
+	if resp, ok := v.(*types.DownloadShardResponse); ok {
+		return marshalDownloadShardResponseScatter(resp)
+	}
 
 	msg, ok := v.(sizedMarshaler)
 	if !ok {
@@ -63,6 +66,17 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 }
 
 func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
+	// DownloadShardResponse decodes through the zero-allocation arena path when
+	// the caller supplies a *DownloadReply (see DownloadShardInto).
+	if reply, ok := v.(*DownloadReply); ok {
+		return decodeDownloadShardResponse(data, reply)
+	}
+	// UploadShardRequest (server receive) decodes through the arena path too,
+	// aliasing row payloads into a single buffer instead of per-row copies.
+	if req, ok := v.(*types.UploadShardRequest); ok {
+		return decodeUploadShardRequest(data, req)
+	}
+
 	msg, ok := v.(sizedUnmarshaler)
 	if !ok {
 		return fmt.Errorf("fibre-proto codec: %T does not implement sizedUnmarshaler", v)

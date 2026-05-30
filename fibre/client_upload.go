@@ -51,28 +51,22 @@ func WithAwaitAllSignatures() UploadOption {
 // May keep uploading data in background after returning successfully; use [Client.Await]
 // or [Client.Stop] to drain.
 //
-// Upload takes ownership of the blob and releases its pooled storage when all
-// background uploads complete. The blob must not be reused after calling Upload;
-// create a new one with [NewBlob] for each upload.
+// Canceling Context right after Upload drops remaining background uploads.
+// Avoid immediate cancels if uploads redundancy matters (it usually does).
 //
+// The blob must not be reused after calling [Blob.Free].
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
-	if !blob.consume() {
-		return result, ErrBlobConsumed
-	}
-	defer func() {
-		// don't cleanup on success as uploads may still be running
-		if err != nil {
-			blob.asm.Free()
-		}
-	}()
-
 	if !c.started.Load() {
-		return result, errors.New("fibre client is not started")
+		return result, errors.New("fibre: client is not started")
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
 	}
+	if !blob.retain() {
+		return result, errors.New("fibre: blob already released; create a new blob to upload")
+	}
+	defer blob.release()
 
 	opt := uploadOptions{keyName: c.Config.DefaultKeyName}
 	for _, o := range opts {
@@ -296,7 +290,7 @@ func (c *Client) uploadTo(
 			return false
 		}
 		req.Shard.Rows[i].Data = row.Row
-		req.Shard.Rows[i].Proof = row.RowProof.RowProof
+		req.Shard.Rows[i].Proof = row.RowProof
 	}
 	span.AddEvent("proofs_generated")
 
@@ -343,15 +337,18 @@ func (c *Client) uploadTo(
 // quorum is reached, all responses are in, or ctx is done. Background
 // goroutines continue best-effort delivery to remaining peers past quorum;
 // they are tracked via [c.closeWg] and unwind on client stop or caller cancel.
-// The terminal goroutine releases the blob's pooled storage via blob.asm.Free.
+// The terminal goroutine releases the internal refcount via [Blob.release];
+// pool storage is freed once both that release and Client.Upload's deferred
+// [Blob.Free] of the user reference have fired.
 func (c *Client) uploadShards(
 	ctx context.Context,
 	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) error {
+	blob.retain()
 	if len(requests) == 0 {
-		blob.asm.Free()
+		blob.release()
 		return nil
 	}
 
@@ -371,7 +368,7 @@ func (c *Client) uploadShards(
 			defer func() {
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
-					blob.asm.Free()
+					blob.release()
 				}
 				c.closeWg.Done()
 			}()
@@ -383,12 +380,11 @@ func (c *Client) uploadShards(
 		}(val, req)
 	}
 
-	// No ctx.Done case: returning early on cancel would let Upload's err-path
-	// defer call blob.asm.Free() while in-flight uploadTo goroutines still
-	// reference the pooled (potentially mmap'd) row buffers via the gRPC
-	// request, which races and can segfault. Cancellation propagates through
-	// uploadTo's ctx.Err() check, so all goroutines drain and
-	// responsesExhaustedCh fires.
+	// No ctx.Done case: returning early on cancel would let Upload's deferred
+	// [Blob.Free] race the in-flight uploadTo goroutines still referencing
+	// pooled (potentially mmap'd) row buffers via the gRPC request, which
+	// can segfault. Cancellation propagates through uploadTo's ctx.Err()
+	// check, so all goroutines drain and responsesExhaustedCh fires.
 	select {
 	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
 		if ctx.Err() != nil {
