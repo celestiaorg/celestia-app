@@ -27,7 +27,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/app"
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
 	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cometbft/cometbft/rpc/client/http"
@@ -200,7 +199,8 @@ func run(cfg config) error {
 	if err := clientCfg.Validate(); err != nil {
 		return fmt.Errorf("invalid fibre client config: %w", err)
 	}
-	clientCfg.StateClientFn = state.WithCachedValset(clientCfg.StateClientFn, 30*time.Second)
+	// Baseline (no-opt) build: the valset-caching optimization is absent,
+	// so the reader uses the default (uncached) state client.
 
 	fibreClient, err := fibre.NewClient(kr, clientCfg)
 	if err != nil {
