@@ -29,7 +29,7 @@ type Verifier struct {
 	rlcShards [][]byte    // Leopard-formatted 64-byte RLC shards
 
 	// scratch buffers for RLC root compute
-	rlcRootScratch [][32]byte
+	rlcRootScratch []byte
 	rlcLeafScratch [field.GF128Size]byte
 
 	// Verify scratch buffers. Capacity grows to the largest batch seen.
@@ -64,7 +64,7 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 		config:         cfg,
 		enc:            enc,
 		rlcShards:      rlcShards,
-		rlcRootScratch: make([][32]byte, cfg.kPadded),
+		rlcRootScratch: make([]byte, cfg.K*merkle.NodeSize),
 	}, nil
 }
 
@@ -123,7 +123,7 @@ func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
 		return nil, fmt.Errorf("extending RLC: %w", err)
 	}
 
-	rlcRoot := computePaddedRLCRoot(rlc, v.rlcRootScratch, v.rlcLeafScratch[:])
+	rlcRoot := computeRLCRoot(rlc, v.rlcRootScratch, v.rlcLeafScratch[:])
 	v.rlcRoot = rlcRoot
 	v.rlcCoeffs = nil // invalidate coeffs
 	return rlcRoot[:], nil
@@ -135,7 +135,7 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 	if len(proofs) == 0 {
 		return 0, errors.New("no proofs provided")
 	}
-	expectedProofDepth := bits.Len(uint(v.config.totalPadded)) - 1
+	expectedProofDepth := bits.Len(uint(v.config.K+v.config.N)) - 1
 	rowSize := len(proofs[0].Row)
 	for i, p := range proofs {
 		if p == nil {
@@ -163,12 +163,12 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 	for i, p := range proofs {
 		proofInputs[i] = merkle.ProofInput{
 			Leaf:  p.Row,
-			Index: mapIndexToTreePosition(p.Index, v.config),
+			Index: p.Index,
 			Path:  p.RowProof,
 		}
 	}
 	// Per-row Merkle verification is ALU-bound; use process-wide parallelism.
-	rowRoot, err := merkle.ComputeRootFromProofs(proofInputs, gomaxprocs)
+	rowRoot, err := merkle.RootFromProofs(proofInputs, gomaxprocs)
 	if err != nil {
 		return fmt.Errorf("verifying row proofs: %w", err)
 	}
@@ -207,14 +207,13 @@ func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) rlc.Vector {
 	return v.rlcCoeffs
 }
 
-func computePaddedRLCRoot(rlc rlc.Vector, scratch [][32]byte, leafScratch []byte) [32]byte {
+func computeRLCRoot(rlc rlc.Vector, scratch []byte, leafScratch []byte) [32]byte {
 	// Keep the RLC root build sequential for the v0 fibre shape (K=4096):
 	// worker fan-out is slower than the small tree/hash work it parallelizes,
 	// and upload throughput already comes from the verifier pool.
-	return merkle.ComputeRootFromWriter(scratch, leafScratch, len(scratch), func(i int, dst []byte) {
-		if i < len(rlc) {
-			field.EncodeGF128(dst, rlc[i])
-		}
+	return merkle.RootFromFunc(scratch, func(i int, _ []byte) []byte {
+		field.EncodeGF128(leafScratch, rlc[i])
+		return leafScratch
 	})
 }
 

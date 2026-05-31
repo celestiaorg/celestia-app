@@ -41,6 +41,17 @@ func (ed *ExtendedData) Row(index int) []byte {
 	return ed.rows[index]
 }
 
+// RowProofs yields the row data and Merkle proof for each index, carving all
+// proofs from a single arena — far cheaper than [ExtendedData.GenerateRowProof]
+// per index. row and proof alias ExtendedData storage, valid until it is
+// released; yield must not retain them.
+func (ed *ExtendedData) RowProofs(indices []int, yield func(index int, row []byte, proof [][]byte)) error {
+	return ed.rowsTree.Proofs(indices, func(i int, proof [][]byte) {
+		index := indices[i]
+		yield(index, ed.rows[index], proof)
+	})
+}
+
 // RowProof binds a row to the commitment via a Merkle path through the row
 // tree. Verified against the rowRoot recovered from the proof, then against
 // the commitment together with the expected RLC shard.
@@ -58,13 +69,12 @@ func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 	if index < 0 || index >= ed.config.K+ed.config.N {
 		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
 	}
-	treeIndex := mapIndexToTreePosition(index, ed.config)
-	rowProof, err := ed.rowsTree.GenerateProof(treeIndex)
+	rowProof, err := ed.rowsTree.Proof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate row proof: %w", err)
 	}
 	return &RowProof{
-		Index:    index, // actual data index, not the tree position
+		Index:    index,
 		Row:      ed.rows[index],
 		RowProof: rowProof,
 	}, nil
@@ -92,7 +102,7 @@ func (ed *ExtendedData) GenerateStandaloneProof(index int) (*StandaloneProof, er
 	if err != nil {
 		return nil, err
 	}
-	rlcProof, err := ed.rlcTree.GenerateProof(index)
+	rlcProof, err := ed.rlcTree.Proof(index)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate RLC proof: %w", err)
 	}

@@ -517,16 +517,14 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 
 	rowIndices := shardMap[val]
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
-	for _, idx := range rowIndices {
-		row, err := blob.Row(idx)
-		if err != nil {
-			continue
-		}
+	if err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
 		rows = append(rows, &types.BlobRow{
-			Index: uint32(row.Index),
-			Data:  row.Row,
-			Proof: row.RowProof,
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
 		})
+	}); err != nil {
+		return &types.DownloadShardResponse{}, nil
 	}
 
 	shard := &types.BlobShard{
@@ -601,16 +599,14 @@ func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.Downl
 
 	rowIndices := shardMap[val]
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
-	for _, idx := range rowIndices {
-		proof, err := source.Row(idx)
-		if err != nil {
-			continue
-		}
+	if err := source.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
 		rows = append(rows, &types.BlobRow{
-			Index: uint32(proof.Index),
-			Data:  proof.Row,
-			Proof: proof.RowProof,
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
 		})
+	}); err != nil {
+		return &types.DownloadShardResponse{}, nil
 	}
 
 	shard := &types.BlobShard{
