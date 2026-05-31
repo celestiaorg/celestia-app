@@ -86,29 +86,12 @@ func NewBadgerStore(cfg StoreConfig) (*Store, error) {
 }
 
 // NewPebbleStore creates a new [Store] with a pebble datastore at the given path.
-// Tuned for FIBRE's use case: large values (32KB rows), bulk writes/reads.
+//
+// Baseline (no-opt) build: pebble runs with default options. The FIBRE
+// storage tunings — 16 MiB memtable and value separation for large values —
+// are intentionally omitted so the storage path is unoptimized.
 func NewPebbleStore(cfg StoreConfig) (*Store, error) {
 	opts := &pebbledb.Options{}
-
-	// MemTable settings - moderate size for bulk writes
-	opts.MemTableSize = 16 << 20 // 16 MiB memtable (default 4 MiB)
-
-	// L0 compaction settings - reduce write stalls
-	opts.L0CompactionThreshold = 4  // Start compaction at 4 L0 files (default 4)
-	opts.L0StopWritesThreshold = 12 // Stall writes at 12 L0 files (default 12)
-	opts.LBaseMaxBytes = 64 << 20   // 64 MiB base level (default 64 MiB)
-
-	// Value separation for large values (our rows are up to 32KB)
-	// Only enable for values > 4KB to avoid overhead on smaller values
-	opts.Experimental.ValueSeparationPolicy = func() pebbledb.ValueSeparationPolicy {
-		return pebbledb.ValueSeparationPolicy{
-			Enabled:               true,
-			MinimumSize:           4096, // Values > 4KB go to blob files
-			MaxBlobReferenceDepth: 4,    // Limit overlapping blob files
-			TargetGarbageRatio:    0.3,  // Rewrite when 30% garbage
-			RewriteMinimumAge:     0,    // Allow immediate rewrites
-		}
-	}
 
 	pds, err := pebble.NewDatastore(cfg.Path, pebble.WithPebbleOpts(opts))
 	if err != nil {
