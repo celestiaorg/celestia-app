@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -179,18 +178,10 @@ func run(cfg config) error {
 		defer cancel()
 	}
 
-	// Create a single shared fibre client.
-	// The txsim targets networks with a constant validator set, so we wrap the
-	// state client to cache the validator set and avoid redundant gRPC calls.
+	// Create a single shared fibre client
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
-	// Validate populates StateClientFn from StateAddress so we can wrap it.
-	// NewClient calls Validate again, which is idempotent for already-set fields.
-	if err := clientCfg.Validate(); err != nil {
-		return fmt.Errorf("invalid fibre client config: %w", err)
-	}
-	clientCfg.StateClientFn = state.WithConstantValset(clientCfg.StateClientFn)
 
 	sharedFibreClient, err := fibre.NewClient(kr, clientCfg)
 	if err != nil {
