@@ -63,8 +63,7 @@ type RowProof struct {
 
 // GenerateRowProof returns a Merkle proof binding the row at `index` to the
 // commitment's rowRoot. Index covers both original (0..K-1) and parity
-// (K..K+N-1) rows; the helper handles the padded-tree position mapping so
-// callers can use the natural data-space index.
+// (K..K+N-1) rows.
 func (ed *ExtendedData) GenerateRowProof(index int) (*RowProof, error) {
 	if index < 0 || index >= ed.config.K+ed.config.N {
 		return nil, fmt.Errorf("index %d out of range [0, %d)", index, ed.config.K+ed.config.N)
