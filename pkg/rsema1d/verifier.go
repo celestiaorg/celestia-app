@@ -39,7 +39,7 @@ type Verifier struct {
 }
 
 // NewVerifier constructs a Verifier bound to cfg. Reusable buffers sized to
-// (K+N) shards and the padded RLC root scratch are allocated up front; the
+// (K+N) shards and the RLC root scratch are allocated up front; the
 // cached Reed-Solomon encoder is created once and shared by every Verify call.
 func NewVerifier(cfg *Config) (*Verifier, error) {
 	if err := cfg.Validate(); err != nil {
@@ -105,7 +105,7 @@ func (v *Verifier) VerifyShared(commitment Commitment, proofs []*RowProof) error
 	return v.verify(commitment, proofs, rowSize, rowsView, proofInputs)
 }
 
-// setRLC extends the K original RLC values and caches the padded RLC root.
+// setRLC extends the K original RLC values and caches the RLC root.
 func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
 	if len(rlc) != v.config.K {
 		return nil, fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
