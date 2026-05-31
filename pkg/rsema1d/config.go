@@ -39,9 +39,8 @@ func (c *Config) Validate() error {
 	if c.N <= 0 {
 		return errors.New("n must be positive")
 	}
-	// RowSize=0 is valid (means variable row size, determined at runtime)
-	if c.RowSize < 0 {
-		return errors.New("RowSize must be non-negative")
+	if c.RowSize <= 0 {
+		return errors.New("RowSize must be positive")
 	}
 
 	// Check K + N <= 65536 (GF(2^16) field size limit)
@@ -49,17 +48,14 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("k + n must be <= 65536, got %d", c.K+c.N)
 	}
 
-	// When RowSize is specified (> 0), validate constraints
-	if c.RowSize > 0 {
-		// Check RowSize is multiple of 64 (Leopard constraint)
-		if c.RowSize%64 != 0 {
-			return fmt.Errorf("RowSize must be a multiple of 64, got %d", c.RowSize)
-		}
+	// Check RowSize is multiple of 64 (Leopard constraint)
+	if c.RowSize%64 != 0 {
+		return fmt.Errorf("RowSize must be a multiple of 64, got %d", c.RowSize)
+	}
 
-		// Check RowSize is at least 64
-		if c.RowSize < 64 {
-			return fmt.Errorf("RowSize must be at least 64, got %d", c.RowSize)
-		}
+	// Check RowSize is at least 64
+	if c.RowSize < 64 {
+		return fmt.Errorf("RowSize must be at least 64, got %d", c.RowSize)
 	}
 
 	// WorkerCount must be at least 1
