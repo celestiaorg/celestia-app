@@ -1,116 +1,115 @@
-# Fibre read/write benchmark — BASELINE build (no optimizations)
+# Fibre read/write benchmark — no-optimization BASELINE
 
-This worktree is the **baseline** ("old, unoptimized") leg of the fibre read/write
-A/B experiment. It is built to be **identical to the optimized setup in every way
-except the performance optimizations**, so that any latency/throughput delta is
-attributable only to those optimizations.
+This branch is the **unoptimized baseline** for the fibre read/write benchmark.
+It is the "old commit" leg of the comparison: full telemetry + talis experiment
+infra and the same chain params / functional behavior as a current build, but
+with **every fibre performance optimization removed** — so any latency/throughput
+delta against an optimized (main-based) build is attributable to the
+optimizations alone.
 
 - **Branch:** `experiment/aws-fibre-baseline-no-opt`
 - **Worktree:** `/Users/vladkrintisn/Celestia/celestia-app-baseline`
+- **Base commit:** `a401fab36` (2026-04-13) — already carries fibre + telemetry + talis
 - **Built:** 2026-05-31 — compile-check only (no full talis bundle yet)
 
-## The two setups
+## How it was constructed
 
-| | Optimized ("new") | Baseline ("old") |
+`a401fab36` already has fibre, base telemetry (otel/pyroscope, client/server
+metrics), and base talis. Rather than cherry-pick ~50 commits onto it, the branch
+was forked from the assembled experiment tip (`experiment/aws-fibre-all-prs`,
+itself `a401fab36` + the fibre PR stack) and then had the optimizations removed:
+
+1. **Reverted** the 7 optimization commits from the PR stack (see below).
+2. **Stripped** an optimization baked into `a401fab36` itself that the reverts
+   couldn't catch (Pebble value separation).
+3. **Added** the fibre-reader read-path simulator (PR #7221), adapted for no-opt.
+4. **Reconfigured** talis AWS to c7i.8xlarge + a large provisioned gp3 root volume.
+
+## What is NOT optimized (the point of this baseline)
+
+### Storage
+- **Pebble value separation + memtable tuning — stripped.** `NewPebbleStore` shipped
+  value separation (>4 KB values → blob files) and a 16 MiB memtable *since the
+  original fibre import*; this predates the PR stack so the reverts didn't touch it.
+  Now runs **default Pebble options** (commit `35e670065`).
+- **Direct-Pebble API (#7062) + value separation (#7063) — reverted.** Store is back
+  on the `go-ds-pebble` wrapper.
+- **Flat-file / raw-file shard store (#7190) — absent.** Never in this branch's
+  ancestry; shard `Put`/`Get` go through go-datastore (pebble), no `os.WriteFile`
+  bypass.
+
+### gRPC
+- **Zero-allocation gRPC codec (#7191) — never added.** No scatter/zero-copy marshal
+  path; `fibre/internal/grpc` has only `ClientCache` (basic per-validator connection
+  reuse, not a perf optimization).
+
+### rsema1d / CPU
+- `#7064` SHA256 hasher reuse, cached-RS `Coder` type, `#7075` computeRLCOrig
+  scheduling — all reverted.
+
+### Validator-set caching (read path)
+- `#7077` ConstantValsetClient and `#7087` TTL CachingClient — reverted. The
+  fibre-reader was adapted to use the default **uncached** state client.
+
+#### The 7 reverted optimization commits
+
+| Revert | Original | Area |
 |---|---|---|
-| Branch | `experiment/aws-fibre-all-prs` | `experiment/aws-fibre-baseline-no-opt` |
-| Worktree | `/Users/vladkrintisn/Celestia/celestia-app-combined` | `/Users/vladkrintisn/Celestia/celestia-app-baseline` |
-| Fork point | `a401fab36` (2026-04-13) | `a401fab36` (2026-04-13) |
-| Telemetry / talis | yes | yes |
-| Chain params + functional + txsim | yes | yes |
-| **Perf optimizations** | **yes** | **no** |
+| `c907813ff` | `e0f7fa9de` TTL CachingClient (#7087) | valset cache (read) |
+| `bc537edf7` | `e35ccacba` ConstantValsetClient (#7077) | valset cache (read) |
+| `3cbd2714b` | `3c5c7f416` reduce computeRLCOrig overhead (#7075) | rsema1d CPU |
+| `1f54da953` | `eb4cf7da7` Coder type w/ cached RS encoder | rsema1d CPU |
+| `5338c63ce` | `4cf343fc8` Pebble value separation (#7063) | storage |
+| `0c7d6ccd5` | `5ff371971` direct Pebble API (#7062) | storage |
+| `2ac8d2df6` | `5aed8d967` reuse SHA256 hasher (#7064) | hashing CPU |
 
-## How this baseline was constructed
+> **Caveat — still present:** three micro-opts from the original profiling pass
+> (parallel row verification, zero-alloc `hashPair`, inlined `extractSymbols`)
+> predate `a401fab36` and are CPU-path, not storage/gRPC. They remain in this
+> baseline. Remove them too if a fully-naive CPU path is wanted.
 
-Rather than cherry-pick ~50 wanted commits onto `a401fab36` (error-prone), the
-baseline is the optimized tip with **only the optimization commits reverted**.
-This guarantees the *only* delta between the two setups is the optimizations.
+## What IS included (parity with an optimized build)
 
-```
-git worktree add -b experiment/aws-fibre-baseline-no-opt \
-    /Users/vladkrintisn/Celestia/celestia-app-baseline experiment/aws-fibre-all-prs
-# then revert the 7 optimization commits (newest-first)
-```
+`a401fab36` base + the fibre PR stack minus optimizations:
 
-`git diff experiment/aws-fibre-all-prs..experiment/aws-fibre-baseline-no-opt`
-touches only: `pkg/rsema1d/*`, `fibre/store.go`, `tools/fibre-txsim/main.go`,
-`go.mod`/`go.sum` (restores `go-ds-pebble`). Net: +350 / −730 lines.
+- **Telemetry:** Grafana dashboard (#7021), Go runtime metrics (#7135),
+  MeterProvider shutdown fix, Pyroscope label strip (#7140)
+- **Talis:** dedicated encoder instances (#7059), AWS EC2 provider (#7142),
+  provider-tied S3 env (#7144), NVMe-on-i-family (#7145), Ubuntu 24.04 (#7136),
+  presigned S3 URLs (#7141), verify_data=false (#7134)
+- **Chain params:** max square size 256 (#7076), evidence max age (#7067),
+  mainnet slashing (#7090)
+- **Functional read/write path:** RLC-check-on-download (#7041), gas estimation (#7066)
+- **fibre-txsim load gen:** async confirm (#7061), WithAwaitAllSignatures (#7088)
+- **Reader (PR #7221):** fibre-reader read-path simulator + talis Reader instance
+  type + reader payload/deploy path. Adapted for no-opt (dropped `WithCachedValset`).
 
-## SKIPPED — the optimizations reverted out of the baseline
+## talis AWS instance + volume config
 
-These are the *only* difference from the optimized build:
+Changed from the upstream i4i NVMe setup to (resolved in `tools/talis/aws.go`):
 
-| Revert commit | Original | What it optimized |
-|---|---|---|
-| `c907813ff` | `e0f7fa9de` feat(fibre): TTL-based CachingClient (#7087) | caches validator set (read path) |
-| `bc537edf7` | `e35ccacba` feat(fibre): ConstantValsetClient (#7077) | caches validator set (read path) |
-| `3cbd2714b` | `3c5c7f416` perf(rsema1d): reduce computeRLCOrig scheduling overhead (#7075) | RLC encode/decode CPU |
-| `1f54da953` | `eb4cf7da7` feat(rsema1d): Coder type with cached RS encoder | reuses RS encoder across calls |
-| `5338c63ce` | `4cf343fc8` perf(fibre): Pebble value separation for shard storage (#7063) | shard store I/O |
-| `0c7d6ccd5` | `5ff371971` refactor(fibre): direct Pebble API (drops go-ds-pebble) (#7062) | shard store I/O |
-| `2ac8d2df6` | `5aed8d967` perf(rsema1d): reuse SHA256 hasher in coefficient derivation (#7064) | hashing CPU on encode |
+- **Instance type (all roles — validator/fibre server, encoder, reader):** `c7i.8xlarge`
+  (32 vCPU / 64 GiB, EBS-only, up to 12.5 Gbps).
+- **Root gp3 EBS:** 1 TB (`AWSDefaultRootVolumeGB=1000`), provisioned to gp3 max —
+  **1000 MB/s throughput, 16000 IOPS**. c7i has no local instance-store, so fibre/
+  celestia state lives on this root volume; the provisioning keeps the disk out of
+  the `store_put` critical path.
 
-After revert the baseline confirms:
-- `fibre/store.go` back on the `go-ds-pebble` wrapper (no direct Pebble, no value separation)
-- `pkg/rsema1d/coder.go` removed — no cached RS `Coder`
-- no `CachingClient` / `ConstantValsetClient` — valset fetched per request
-
-> Note: the earlier in-tree micro-opts from the original profiling pass (parallel
-> row verification, zero-alloc `hashPair`, inlined `extractSymbols` — see
-> `project_fibre_experiment.md`) predate `a401fab36` and are therefore present in
-> **both** legs. This A/B isolates only the 7 PRs above, not those.
-
-## INCLUDED on top of `a401fab36` (present in both legs)
-
-`a401fab36` already carried fibre + base telemetry (otel/pyroscope, client/server
-metrics) + base talis. On top of that, both legs additionally carry:
-
-**Telemetry / observability**
-- `c7160eb81` chore(observability): fibre Grafana dashboard with validator filtering (#7021)
-- `698a3f008` feat(fibre): Go runtime metrics for fibre server and txsim (#7135)
-- `a8883b87c` fix: shutdown MeterProvider on runtime.Start failure
-- `87a4b7853` fix(fibre): strip sample labels before Pyroscope upload (#7140)
-
-**Talis / experiment infra**
-- `4d4f7a8d1` feat(talis): dedicated encoder instances for fibre-txsim (#7059)
-- `df5bb38eb` / `7bc16e763` feat(talis): AWS (EC2) as a compute provider (#7142)
-- `f1551720e` feat(talis): tie S3 payload bucket env vars to the provider (#7144)
-- `99a20b475` feat(talis): use local NVMe on AWS i-family instances (#7145)
-- `79ec6a5fc` chore(talis): default OS image → Ubuntu 24.04 LTS (#7136)
-- `58583f69b` fix(talis): presigned S3 URLs for payload distribution (#7141)
-- `3a18d5860` chore: set verify_data=false for blocksync (#7134)
-
-**Chain / consensus params (for A/B parity)**
-- `61e92d2a6` feat: upgrade handler sets max square size to 256 (#7076)
-- `9d4ac970b` feat: set evidence max age num blocks in upgrade handler (#7067)
-- `b8e7b1c08` fix: default slashing params to match mainnet governance (#7090)
-
-**Functional / read-write path (for parity)**
-- `c13efbee8` feat!: check RLC when downloading fibre rows (#7041) — read-path verification
-- `3a42d9bf8` feat: gas estimation for fibre blobs (#7066)
-
-**fibre-txsim load generator (for identical write-path load)**
-- `8bbf4ab5f` feat(fibre-txsim): async tx confirmation for pipelined uploads (#7061)
-- `12da242d1` feat(fibre): WithAwaitAllSignatures upload option (#7088)
-
-Plus the usual non-functional carry-over from the stack: dependency bumps, CI
-workflows, security hardening (SSH TOFU, Grafana password, zip-slip guard), and
-test-flake fixes. These don't affect the measured paths.
+> Note: `main` carries an upstream equivalent of the gp3 provisioning
+> (`#7192 feat(talis): provision gp3 root volume to max IOPS/throughput`); this
+> branch uses a hand-written version of the same idea.
 
 ## Build / compile-check status (2026-05-31)
 
 | Target | Result |
 |---|---|
 | `make build-fibre` (celestia-appd +fibre) | ✅ builds |
-| `go build ./tools/talis/...` | ✅ builds |
+| `go build ./tools/talis/...` (new aws.go) | ✅ builds |
 | `go build -tags "ledger fibre" ./fibre/... ./pkg/rsema1d/...` | ✅ builds |
 | `go build -tags "ledger fibre" ./fibre/cmd/...` (fibre, fibre-txsim) | ✅ builds |
-
-Reverting the direct-Pebble PRs restored the `go-ds-pebble` dependency in
-`go.mod`/`go.sum` and the package still compiles — no later commit hard-depended
-on the direct-Pebble API.
+| `go build -tags "ledger fibre" ./tools/fibre-reader` | ✅ builds |
 
 ## Next step (not yet done)
 
-Produce the deployable talis bundle when ready:
-`make build-talis-bins-fibre` in this worktree → upload to S3 (never SCP).
+Produce the deployable talis bundle: `make build-talis-bins-fibre` in this
+worktree → upload to S3 (never SCP).
