@@ -1,170 +1,72 @@
 package merkle
 
-import (
-	"fmt"
-	"sync"
-	"sync/atomic"
-)
+import "fmt"
 
-// ProofInput bundles the inputs ComputeRootFromProof needs for a single
-// leaf. Used as the per-proof payload for ComputeRootFromProofs.
-type ProofInput struct {
-	Leaf  []byte
-	Index int
-	Path  [][]byte
+// Proof returns the Merkle proof (sibling hashes, leaf to root) for the
+// leaf at index.
+func (t *Tree) Proof(index int) ([][]byte, error) {
+	proof := make([][]byte, t.depth())
+	if err := t.fillProof(proof, index); err != nil {
+		return nil, err
+	}
+	return proof, nil
 }
 
-// ComputeRootFromProofs verifies a batch of merkle proofs in parallel and
-// returns the single root they all share. Errors if any proof yields a
-// different root than the others — meaning at least one was tampered.
-// Intended for callers that already know all proofs verify the same tree
-// (e.g., every row of a single shard).
-//
-// Work fans out across up to workers goroutines via static index-range
-// chunking; below the parallel break-even (len(inputs) <= 64 or workers
-// <= 1) the call stays sequential.
-func ComputeRootFromProofs(inputs []ProofInput, workers int) (Root, error) {
-	if len(inputs) == 0 {
-		return [32]byte{}, fmt.Errorf("no proof inputs")
-	}
-	roots := make([][32]byte, len(inputs))
-
-	if workers <= 1 || len(inputs) <= 64 {
-		for i := range inputs {
-			if err := computeRootFromProofInput(inputs, roots, i); err != nil {
-				return [32]byte{}, err
-			}
+// Proofs yields the proof for the leaf at each of positions, carving all
+// proofs from a single arena. yield(i, proof) gets the proof for positions[i];
+// each proof aliases tree storage and is valid for the tree's lifetime. Stops on
+// the first out-of-range position.
+func (t *Tree) Proofs(positions []int, yield func(i int, proof [][]byte)) error {
+	depth := t.depth()
+	arena := make([][]byte, len(positions)*depth)
+	for i, pos := range positions {
+		proof := arena[i*depth : (i+1)*depth]
+		if err := t.fillProof(proof, pos); err != nil {
+			return err
 		}
-	} else {
-		if err := computeRootFromProofsParallel(inputs, roots, workers); err != nil {
-			return [32]byte{}, err
-		}
-	}
-
-	for i := 1; i < len(roots); i++ {
-		if roots[i] != roots[0] {
-			return [32]byte{}, fmt.Errorf("input %d (tree index %d): root mismatch", i, inputs[i].Index)
-		}
-	}
-	return roots[0], nil
-}
-
-func computeRootFromProofInput(inputs []ProofInput, roots []Root, i int) error {
-	root, err := ComputeRootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
-	if err != nil {
-		return fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
-	}
-	roots[i] = root
-	return nil
-}
-
-func computeRootFromProofsParallel(inputs []ProofInput, roots []Root, workers int) error {
-	count := len(inputs)
-	if workers > count {
-		workers = count
-	}
-	chunk := (count + workers - 1) / workers
-	var firstErr atomic.Value
-	var wg sync.WaitGroup
-	wg.Add(workers)
-	for w := range workers {
-		start := w * chunk
-		end := min(start+chunk, count)
-		go func(start, end int) {
-			defer wg.Done()
-			for i := start; i < end; i++ {
-				if err := computeRootFromProofInput(inputs, roots, i); err != nil {
-					firstErr.CompareAndSwap(nil, err)
-					return
-				}
-			}
-		}(start, end)
-	}
-	wg.Wait()
-	if v := firstErr.Load(); v != nil {
-		return v.(error)
+		yield(i, proof)
 	}
 	return nil
 }
 
-// GenerateProof generates a Merkle proof for the leaf at the given index
-func (t *Tree) GenerateProof(index int) ([][]byte, error) {
+// fillProof writes index's sibling hashes into dst, one per level. dst must have
+// len == depth; the full power-of-2 tree fills every entry. Elements alias tree
+// storage.
+func (t *Tree) fillProof(dst [][]byte, index int) error {
 	n := t.numLeaves()
 	if index < 0 || index >= n {
-		return nil, fmt.Errorf("index %d out of range [0, %d)", index, n)
+		return fmt.Errorf("index %d out of range [0, %d)", index, n)
 	}
 
-	proof := make([][]byte, 0, t.depth())
+	// Traverse from leaf to root, recording each level's sibling.
 	pos := n - 1 + index
-
-	// Traverse from leaf to root
-	for pos > 0 {
-		// Find sibling
-		var sibling int
+	for level := 0; pos > 0; level++ {
+		sibling := pos - 1 // left sibling
 		if pos%2 == 1 {
-			sibling = pos + 1 // Right sibling
-		} else {
-			sibling = pos - 1 // Left sibling
+			sibling = pos + 1 // right sibling
 		}
-
-		if sibling < len(t.nodes) {
-			proof = append(proof, t.nodes[sibling][:])
-		}
-
-		// Move to parent
+		dst[level] = t.node(sibling)
 		pos = (pos - 1) / 2
 	}
 
-	return proof, nil
+	return nil
 }
 
-// GenerateLeftSubtreeProof generates a proof from the leftmost k leaves to the full tree root
-// Returns the sibling subtree roots needed to compute from k-leaf left subtree to full root
-// Requires: k must be a power of 2 and k < numLeaves
-func (t *Tree) GenerateLeftSubtreeProof(k int) ([][]byte, error) {
-	n := t.numLeaves()
+// RootFromProof recomputes the Merkle root from a leaf and its proof.
+func RootFromProof(leaf []byte, index int, proof [][]byte) (Root, error) {
+	var current Root
+	hashLeaf(leaf, current[:])
 
-	if k <= 1 || k >= n {
-		return nil, fmt.Errorf("k must be in range (1, %d), got %d", n, k)
-	}
-	if k&(k-1) != 0 {
-		return nil, fmt.Errorf("k must be a power of 2, got %d", k)
-	}
-
-	proof := [][]byte{}
-	currentSize := k
-
-	// Algorithm from spec: collect sibling subtree roots
-	for currentSize < n {
-		// The root of sibling subtree [currentSize, currentSize*2) is at position:
-		// (n + currentSize - 2) / currentSize
-		siblingPos := (n + currentSize - 2) / currentSize
-		proof = append(proof, t.nodes[siblingPos][:])
-		currentSize *= 2
-	}
-
-	return proof, nil
-}
-
-// ComputeRootFromProof computes the Merkle root given a leaf and its proof
-func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) (Root, error) {
-	// Start with the hashed leaf (apply leaf prefix like in tree construction)
-	var current [32]byte
-	hashLeaf(leaf, &current)
 	pos := index
-
-	// Traverse up the tree using the proof
 	for _, siblingBytes := range proof {
-		var sibling [32]byte
+		var sibling Root
 		copy(sibling[:], siblingBytes)
 
-		var next [32]byte
+		var next Root
 		if pos%2 == 0 {
-			// Current is left child
-			hashPair(&current, &sibling, &next)
+			hashPair(current[:], sibling[:], next[:]) // current is the left child
 		} else {
-			// Current is right child
-			hashPair(&sibling, &current, &next)
+			hashPair(sibling[:], current[:], next[:]) // current is the right child
 		}
 		current = next
 		pos /= 2
@@ -173,22 +75,64 @@ func ComputeRootFromProof(leaf []byte, index int, proof [][]byte) (Root, error) 
 	return current, nil
 }
 
-// ComputeRootFromLeftSubtreeProof computes the full tree root given a left subtree root and sibling roots
-// The subtree is assumed to be the leftmost k leaves where k is a power of 2
-func ComputeRootFromLeftSubtreeProof(leftSubtreeRoot Root, siblingRoots [][]byte) Root {
-	current := leftSubtreeRoot
+// ProofInput bundles the inputs [RootFromProof] needs for a single leaf.
+// It is the per-proof payload for [RootFromProofs].
+type ProofInput struct {
+	Leaf  []byte
+	Index int
+	Path  [][]byte
+}
 
-	// Process each sibling in the proof
-	for _, siblingBytes := range siblingRoots {
-		var sibling [32]byte
-		copy(sibling[:], siblingBytes)
+// proofGrain is the per-worker proof floor for [RootFromProofs]. A proof costs
+// about tree-depth hashes — far more than one node — so a batch parallelizes at a
+// much smaller size than raw hashing (hashGrain).
+const proofGrain = 32
 
-		var next [32]byte
-		// At each level, our current subtree is on the left,
-		// and the sibling is on the right
-		hashPair(&current, &sibling, &next)
-		current = next
+// RootFromProofs verifies a batch of Merkle proofs and returns the single root
+// they all share, erroring if any proof yields a different root (at least one was
+// tampered). Intended for callers that already know all proofs verify the same
+// tree, e.g. every row of a shard. Fans out across up to workers goroutines.
+func RootFromProofs(inputs []ProofInput, workers int) (Root, error) {
+	if len(inputs) == 0 {
+		return Root{}, fmt.Errorf("no proof inputs")
+	}
+	nw := splitWorkers(len(inputs), workers, proofGrain)
+	if nw <= 1 {
+		return reduceProofs(inputs, 0, len(inputs))
 	}
 
-	return current
+	roots := make([]Root, nw)
+	errs := make([]error, nw)
+	n := parallelChunks(len(inputs), nw, func(w, start, end int) {
+		roots[w], errs[w] = reduceProofs(inputs, start, end)
+	})
+
+	for w := range n {
+		if errs[w] != nil {
+			return Root{}, errs[w]
+		}
+		if roots[w] != roots[0] {
+			return Root{}, fmt.Errorf("proof chunk %d: root mismatch", w)
+		}
+	}
+	return roots[0], nil
+}
+
+// reduceProofs recomputes the root of inputs[start:end] (a non-empty range) and
+// returns it, erroring if any input yields a different root than the range's first.
+func reduceProofs(inputs []ProofInput, start, end int) (Root, error) {
+	want, err := RootFromProof(inputs[start].Leaf, inputs[start].Index, inputs[start].Path)
+	if err != nil {
+		return Root{}, fmt.Errorf("input %d (tree index %d): %w", start, inputs[start].Index, err)
+	}
+	for i := start + 1; i < end; i++ {
+		root, err := RootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
+		if err != nil {
+			return Root{}, fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
+		}
+		if root != want {
+			return Root{}, fmt.Errorf("input %d (tree index %d): root mismatch", i, inputs[i].Index)
+		}
+	}
+	return want, nil
 }

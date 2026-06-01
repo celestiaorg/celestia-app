@@ -86,15 +86,14 @@ func TestTreeRoot(t *testing.T) {
 	}
 }
 
-func TestComputeRootFromWriter(t *testing.T) {
+func TestRootFromFunc(t *testing.T) {
 	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
 		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
 			treeRoot := merkle.NewTree(leaves, 1).Root()
-			scratch := make([][32]byte, numLeaves)
-			leafScratch := make([]byte, len(leaves[0]))
-			root := merkle.ComputeRootFromWriter(scratch, leafScratch, numLeaves, func(i int, dst []byte) {
-				copy(dst, leaves[i])
+			buf := make([]byte, numLeaves*merkle.NodeSize)
+			root := merkle.RootFromFunc(buf, func(i int, dst []byte) []byte {
+				return leaves[i]
 			})
 			if !bytes.Equal(root[:], treeRoot[:]) {
 				t.Fatalf("root mismatch: got %x want %x", root, treeRoot)
@@ -103,13 +102,59 @@ func TestComputeRootFromWriter(t *testing.T) {
 	}
 }
 
-func TestNewTreeFromWriter(t *testing.T) {
+// TestRootFromFuncRecyclesDst verifies the tree threads each leaf's returned
+// slice back as the next dst, so a serializing callback allocates only once.
+func TestRootFromFuncRecyclesDst(t *testing.T) {
+	leaves := makeTestLeaves(256)
+	buf := make([]byte, 256*merkle.NodeSize)
+	allocs := 0
+	merkle.RootFromFunc(buf, func(i int, dst []byte) []byte {
+		if cap(dst) < 32 {
+			allocs++
+			dst = make([]byte, 32)
+		}
+		dst = dst[:32]
+		copy(dst, leaves[i])
+		return dst
+	})
+	if allocs != 1 {
+		t.Fatalf("callback allocated %d times, want 1 (dst should be recycled)", allocs)
+	}
+}
+
+func TestNewTreeInto(t *testing.T) {
 	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
 		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
 			want := merkle.NewTree(leaves, 4).Root()
-			got := merkle.NewTreeFromWriter(numLeaves, len(leaves[0]), 4, func(i int, dst []byte) {
-				copy(dst, leaves[i])
+			buf := make([]byte, merkle.TreeBufferSize(numLeaves))
+			got := merkle.NewTreeInto(buf, leaves, 4).Root()
+
+			if !bytes.Equal(got[:], want[:]) {
+				t.Fatalf("root mismatch: got %x want %x", got, want)
+			}
+		})
+	}
+}
+
+func TestNewTreeIntoLeafCountMismatch(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewTreeInto with mismatched leaf count should panic")
+		}
+	}()
+	buf := make([]byte, merkle.TreeBufferSize(8))
+	merkle.NewTreeInto(buf, makeTestLeaves(4), 1)
+}
+
+func TestNewTreeFuncInto(t *testing.T) {
+	for _, numLeaves := range []int{1, 2, 4, 16, 256} {
+		t.Run(fmt.Sprintf("leaves_%d", numLeaves), func(t *testing.T) {
+			leaves := makeTestLeaves(numLeaves)
+			want := merkle.NewTree(leaves, 4).Root()
+			buf := make([]byte, merkle.TreeBufferSize(numLeaves))
+			got := merkle.NewTreeFuncInto(buf, 4, func(i int, _ []byte) []byte {
+				return leaves[i]
 			}).Root()
 
 			if !bytes.Equal(got[:], want[:]) {
@@ -123,31 +168,30 @@ func TestCallerOwnedStorageDoesNotAllocate(t *testing.T) {
 	leaves := makeTestLeaves(8)
 
 	var root [32]byte
-	var scratch [8][32]byte
-	var leafScratch [32]byte
+	var buf [8 * merkle.NodeSize]byte
 	rootAllocs := testing.AllocsPerRun(100, func() {
-		root = merkle.ComputeRootFromWriter(scratch[:], leafScratch[:], len(leaves), func(i int, dst []byte) {
-			copy(dst, leaves[i])
+		root = merkle.RootFromFunc(buf[:], func(i int, dst []byte) []byte {
+			return leaves[i]
 		})
 	})
 	if rootAllocs != 0 {
-		t.Fatalf("ComputeRootFromWriter allocated %.0f times", rootAllocs)
+		t.Fatalf("RootFromFunc allocated %.0f times", rootAllocs)
 	}
 	if root == ([32]byte{}) {
 		t.Fatal("unexpected zero root")
 	}
 }
 
-func TestGenerateProof(t *testing.T) {
+func TestProof(t *testing.T) {
 	numLeaves := 8
 	leaves := makeTestLeaves(numLeaves)
 	tree := merkle.NewTree(leaves, 1)
 
 	for i := range numLeaves {
 		t.Run(fmt.Sprintf("leaf_%d", i), func(t *testing.T) {
-			proof, err := tree.GenerateProof(i)
+			proof, err := tree.Proof(i)
 			if err != nil {
-				t.Fatalf("GenerateProof(%d) error: %v", i, err)
+				t.Fatalf("Proof(%d) error: %v", i, err)
 			}
 
 			// Proof length should be log2(numLeaves)
@@ -158,9 +202,9 @@ func TestGenerateProof(t *testing.T) {
 
 			// Verify the proof works
 			root := tree.Root()
-			computedRoot, err := merkle.ComputeRootFromProof(leaves[i], i, proof)
+			computedRoot, err := merkle.RootFromProof(leaves[i], i, proof)
 			if err != nil {
-				t.Fatalf("ComputeRootFromProof error: %v", err)
+				t.Fatalf("RootFromProof error: %v", err)
 			}
 
 			if !bytes.Equal(root[:], computedRoot[:]) {
@@ -170,7 +214,7 @@ func TestGenerateProof(t *testing.T) {
 	}
 }
 
-func TestGenerateProofErrors(t *testing.T) {
+func TestProofErrors(t *testing.T) {
 	leaves := makeTestLeaves(8)
 	tree := merkle.NewTree(leaves, 1)
 
@@ -185,15 +229,15 @@ func TestGenerateProofErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := tree.GenerateProof(tt.index)
+			_, err := tree.Proof(tt.index)
 			if err == nil {
-				t.Errorf("GenerateProof(%d) should return error", tt.index)
+				t.Errorf("Proof(%d) should return error", tt.index)
 			}
 		})
 	}
 }
 
-func TestComputeRootFromProof(t *testing.T) {
+func TestRootFromProof(t *testing.T) {
 	// Build a tree and generate proofs
 	numLeaves := 16
 	leaves := makeTestLeaves(numLeaves)
@@ -201,15 +245,15 @@ func TestComputeRootFromProof(t *testing.T) {
 	expectedRoot := tree.Root()
 
 	for i := range numLeaves {
-		proof, err := tree.GenerateProof(i)
+		proof, err := tree.Proof(i)
 		if err != nil {
-			t.Fatalf("GenerateProof(%d) error: %v", i, err)
+			t.Fatalf("Proof(%d) error: %v", i, err)
 		}
 
 		// Test correct proof
-		computedRoot, err := merkle.ComputeRootFromProof(leaves[i], i, proof)
+		computedRoot, err := merkle.RootFromProof(leaves[i], i, proof)
 		if err != nil {
-			t.Fatalf("ComputeRootFromProof error: %v", err)
+			t.Fatalf("RootFromProof error: %v", err)
 		}
 
 		if !bytes.Equal(expectedRoot[:], computedRoot[:]) {
@@ -218,7 +262,7 @@ func TestComputeRootFromProof(t *testing.T) {
 
 		// Test wrong index
 		wrongIndex := (i + 1) % numLeaves
-		wrongRoot, _ := merkle.ComputeRootFromProof(leaves[i], wrongIndex, proof)
+		wrongRoot, _ := merkle.RootFromProof(leaves[i], wrongIndex, proof)
 		if bytes.Equal(expectedRoot[:], wrongRoot[:]) {
 			t.Errorf("Index %d: proof should fail with wrong index", i)
 		}
@@ -227,66 +271,10 @@ func TestComputeRootFromProof(t *testing.T) {
 		wrongLeaf := make([]byte, 32)
 		copy(wrongLeaf, leaves[i])
 		wrongLeaf[0] ^= 1
-		wrongRoot, _ = merkle.ComputeRootFromProof(wrongLeaf, i, proof)
+		wrongRoot, _ = merkle.RootFromProof(wrongLeaf, i, proof)
 		if bytes.Equal(expectedRoot[:], wrongRoot[:]) {
 			t.Errorf("Index %d: proof should fail with wrong leaf", i)
 		}
-	}
-}
-
-func TestGenerateLeftSubtreeProof(t *testing.T) {
-	tests := []struct {
-		name      string
-		numLeaves int
-		k         int
-		wantErr   bool
-		proofLen  int
-	}{
-		{"k4_n4", 8, 4, false, 1},     // 4 original, 4 parity
-		{"k4_n12", 16, 4, false, 2},   // 4 original, 12 parity
-		{"k8_n8", 16, 8, false, 1},    // 8 original, 8 parity
-		{"k16_n48", 64, 16, false, 2}, // 16 original, 48 parity
-		{"k32_n32", 64, 32, false, 1}, // 32 original, 32 parity
-		{"invalid_k0", 8, 0, true, 0},
-		{"invalid_k_equals_n", 8, 8, true, 0},
-		{"invalid_k_not_power", 8, 3, true, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			leaves := makeTestLeaves(tt.numLeaves)
-			tree := merkle.NewTree(leaves, 1)
-
-			proof, err := tree.GenerateLeftSubtreeProof(tt.k)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("GenerateLeftSubtreeProof(%d) should return error", tt.k)
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("GenerateLeftSubtreeProof(%d) error: %v", tt.k, err)
-			}
-
-			if len(proof) != tt.proofLen {
-				t.Errorf("Proof length = %d, want %d", len(proof), tt.proofLen)
-			}
-
-			// Verify the proof works
-			// Compute the left subtree root manually
-			leftLeaves := leaves[:tt.k]
-			leftTree := merkle.NewTree(leftLeaves, 1)
-			leftRoot := leftTree.Root()
-
-			// Use the proof to compute the full root
-			computedRoot := merkle.ComputeRootFromLeftSubtreeProof(leftRoot, proof)
-			expectedRoot := tree.Root()
-
-			if !bytes.Equal(expectedRoot[:], computedRoot[:]) {
-				t.Error("Left subtree proof verification failed")
-			}
-		})
 	}
 }
 

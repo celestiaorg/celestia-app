@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -21,37 +22,56 @@ import (
 	grpclib "google.golang.org/grpc"
 )
 
-// BenchmarkClient_Upload measures the performance of the Upload operation with mocked validators.
-// This benchmark isolates client-side performance by mocking out network and server overhead.
+// BenchmarkClient_Upload measures the performance of the Upload operation with
+// mocked validators, isolating client-side cost (network and server overhead
+// are mocked out). It sweeps blob size at concurrency 1 (the plain single-upload
+// case) and a few sizes across higher concurrency levels, where each iteration
+// fans out N independent uploads.
 //
-// Run with: go test -bench=BenchmarkClient_Upload$ -benchmem -count=5 -run=^$ -timeout=15m
+// Run with: go test -bench=BenchmarkClient_Upload$ -benchmem -count=5 -run=^$ -timeout=40m
 //
-// CPU: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics
-// Results with 100 validators (averaged over 5 iterations):
+// CPU: AMD Ryzen AI 9 HX 370 w/ Radeon 890M
+// Results with 100 validators:
 //
-//	Blob Size      Time/op    Throughput    Memory/op    Allocs/op
-//	1 KiB          ~21.6 ms   ~0.046 MiB/s  ~25.6 MB     ~200.9k
-//	16 KiB         ~18.2 ms   ~0.86 MiB/s   ~25.5 MB     ~200.7k
-//	128 KiB        ~18.1 ms   ~6.9 MiB/s    ~25.4 MB     ~198.9k
-//	1 MiB          ~21.2 ms   ~47.2 MiB/s   ~38.2 MB     ~198.0k
-//	128 MiB (max)  ~845 ms    ~154 MiB/s    ~1,771 MB    ~240.0k
+//	Blob Size      Concurrency    Time/op     Throughput     Memory/op    Allocs/op
+//	256 KiB        1              ~4.0 ms     ~61 MiB/s      ~11.0 MB     ~6.6k
+//	1 MiB          1              ~5.2 ms     ~191 MiB/s     ~11.1 MB     ~6.6k
+//	16 MiB         1              ~59 ms      ~273 MiB/s     ~17.9 MB     ~6.8k
+//	32 MiB         1              ~130 ms     ~245 MiB/s     ~18.0 MB     ~6.8k
+//	128 MiB (max)  1              ~510 ms     ~250 MiB/s     ~18.2 MB     ~6.9k
+//	256 KiB        4              ~7.8 ms     ~127 MiB/s     ~43.7 MB     ~26.2k
+//	256 KiB        8              ~13.8 ms    ~145 MiB/s     ~84.7 MB     ~52.4k
+//	1 MiB          4              ~12.1 ms    ~330 MiB/s     ~42.4 MB     ~26.3k
+//	1 MiB          8              ~26.4 ms    ~303 MiB/s     ~84.5 MB     ~52.5k
+//	1 MiB          16             ~58 ms      ~275 MiB/s     ~169.8 MB    ~104.9k
+//	16 MiB         4              ~265 ms     ~241 MiB/s     ~71.8 MB     ~26.9k
+//	16 MiB         8              ~485 ms     ~264 MiB/s     ~144 MB      ~53.5k
+//	128 MiB (max)  4              ~1.8 s+     ~290 MiB/s     ~72 MB       ~27.0k
 //
 // Key observations:
-//   - Small blobs (<=128 KiB): overhead-dominated, fixed ~18-22ms cost limits throughput
-//   - Medium blobs (1 MiB): ~21.2ms with ~47.2 MiB/s throughput
-//   - Large blobs (128 MiB): throughput reaches ~154 MiB/s as encoding work dominates
-//   - Throughput scales with blob size as fixed overhead becomes less significant
+//   - Single uploads: throughput plateaus at ~250 MiB/s for >=16 MiB as encoding dominates.
+//   - 1 MiB: peaks ~330 MiB/s at concurrency 4, easing off as scheduling overhead grows.
+//   - 128 MiB at concurrency 4 is memory-bound (4x multi-hundred-MB live heaps ->
+//     GC pressure), so wall time is high-variance; ~290 MiB/s is a best case.
 func BenchmarkClient_Upload(b *testing.B) {
 	benchmarks := []struct {
-		name     string
-		sizeKiB  int
-		numBytes int
+		name        string
+		numBytes    int
+		concurrency int
 	}{
-		{"1_KiB", 1, 1 * 1024},
-		{"16_KiB", 16, 16 * 1024},
-		{"128_KiB", 128, 128 * 1024},
-		{"1_MiB", 1024, 1 * 1024 * 1024},
-		{"128_MiB_max", 128 * 1024, 128 * 1024 * 1024},
+		{"256_KiB", 256 * 1024, 1},
+		{"1_MiB", 1 * 1024 * 1024, 1},
+		{"16_MiB", 16 * 1024 * 1024, 1},
+		{"32_MiB", 32 * 1024 * 1024, 1},
+		{"128_MiB_max", 128 * 1024 * 1024, 1},
+		{"256_KiB/concurrency_4", 256 * 1024, 4},
+		{"256_KiB/concurrency_8", 256 * 1024, 8},
+		{"1_MiB/concurrency_4", 1 * 1024 * 1024, 4},
+		{"1_MiB/concurrency_8", 1 * 1024 * 1024, 8},
+		{"1_MiB/concurrency_16", 1 * 1024 * 1024, 16},
+		{"16_MiB/concurrency_4", 16 * 1024 * 1024, 4},
+		{"16_MiB/concurrency_8", 16 * 1024 * 1024, 8},
+		{"128_MiB_max/concurrency_4", 128 * 1024 * 1024, 4},
 	}
 
 	for _, bm := range benchmarks {
@@ -63,104 +83,51 @@ func BenchmarkClient_Upload(b *testing.B) {
 
 			namespace := share.MustNewV0Namespace([]byte("bench"))
 
-			// pre-generate random data to exclude from benchmark
-			data := make([]byte, bm.numBytes)
+			// pre-generate random data to exclude from benchmark. numBytes names
+			// the target blob size, so the payload is that minus the header NewBlob
+			// prepends — keeps the labeled size exact and the max within MaxDataSize.
+			cfg := fibre.DefaultBlobConfigV0()
+			headerLen := fibre.DefaultProtocolParams.MaxBlobSize - cfg.MaxDataSize
+			dataSize := bm.numBytes - headerLen
+			data := make([]byte, dataSize)
 			_, err := rand.Read(data)
 			require.NoError(b, err)
 
-			for b.Loop() {
-				blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
-				require.NoError(b, err)
-
+			upload := func() error {
+				blob, err := fibre.NewBlob(data, cfg)
+				if err != nil {
+					return err
+				}
 				result, err := client.Upload(ctx, namespace, blob)
-				require.NoError(b, err)
-				require.NotEmpty(b, result.ValidatorSignatures)
+				if err != nil {
+					return err
+				}
+				if len(result.ValidatorSignatures) == 0 {
+					return errors.New("upload returned no validator signatures")
+				}
+				return nil
 			}
 
-			// calculate and report throughput
-			bytesProcessed := int64(b.N) * int64(bm.numBytes)
-			b.ReportMetric(float64(bytesProcessed)/b.Elapsed().Seconds()/(1024*1024), "MiB/s")
-		})
-	}
-}
-
-// BenchmarkClient_Upload_Concurrent measures concurrent Upload operations across different blob sizes.
-//
-// Run with: go test -bench=BenchmarkClient_Upload_Concurrent -benchmem -count=5 -run=^$ -timeout=30m
-//
-// CPU: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics
-// Results with 100 validators (averaged over 5 iterations):
-//
-//	Blob Size    Concurrency    Time/op     Throughput     Memory/op    Allocs/op
-//	128 KiB      1              ~17.8 ms    ~7.0 MiB/s     ~25.4 MB     ~198.9k
-//	128 KiB      4              ~26.5 ms    ~18.9 MiB/s    ~101.8 MB    ~796k
-//	128 KiB      8              ~54.1 ms    ~18.7 MiB/s    ~203.5 MB    ~1.59M
-//	1 MiB        1              ~22.8 ms    ~44.2 MiB/s    ~38.2 MB     ~198.0k
-//	1 MiB        4              ~40.9 ms    ~97.9 MiB/s    ~152.7 MB    ~792k
-//	1 MiB        8              ~80.3 ms    ~99.8 MiB/s    ~305.4 MB    ~1.58M
-//	1 MiB        16             ~167 ms     ~95.5 MiB/s    ~610.8 MB    ~3.17M
-//	128 MiB      1              ~852 ms     ~151 MiB/s     ~1,772 MB    ~242k
-//	128 MiB      4              ~2,680 ms   ~191 MiB/s     ~7,088 MB    ~976k
-//
-// Key observations:
-//   - Small blobs (128 KiB): good concurrency scaling from ~7.0 to ~18.9 MiB/s aggregate at concurrency 4
-//   - Medium blobs (1 MiB): peak throughput at concurrency 8 (~99.8 MiB/s), slight drop at 16 due to overhead
-//   - Medium blobs (1 MiB): strong throughput gains from concurrency 4 (~97.9 MiB/s) to 8 (~99.8 MiB/s)
-//   - Large blobs (128 MiB): best aggregate throughput at concurrency 4 (~191 MiB/s, 1.26x single upload)
-//   - Concurrency benefits increase with blob size as encoding work parallelizes better
-func BenchmarkClient_Upload_Concurrent(b *testing.B) {
-	benchmarks := []struct {
-		name        string
-		blobSize    int
-		concurrency int
-	}{
-		{"128_KiB/concurrency_1", 128 * 1024, 1},
-		{"128_KiB/concurrency_4", 128 * 1024, 4},
-		{"128_KiB/concurrency_8", 128 * 1024, 8},
-		{"1_MiB/concurrency_1", 1 * 1024 * 1024, 1},
-		{"1_MiB/concurrency_4", 1 * 1024 * 1024, 4},
-		{"1_MiB/concurrency_8", 1 * 1024 * 1024, 8},
-		{"1_MiB/concurrency_16", 1 * 1024 * 1024, 16},
-		{"128_MiB_max/concurrency_1", 128 * 1024 * 1024, 1},
-		{"128_MiB_max/concurrency_4", 128 * 1024 * 1024, 4},
-	}
-
-	for _, bm := range benchmarks {
-		b.Run(bm.name, func(b *testing.B) {
-			ctx := context.Background()
-			client := makeBenchmarkClient(&testing.T{}, 100)
-			defer func() { _ = client.Stop(ctx) }()
-
-			namespace := share.MustNewV0Namespace([]byte("bench"))
-
-			// pre-generate random data to exclude from benchmark
-			data := make([]byte, bm.blobSize)
-			_, err := rand.Read(data)
-			require.NoError(b, err)
-
 			for b.Loop() {
-				// launch concurrent uploads
+				// concurrency 1 is the plain single-upload case; skip the
+				// goroutine/channel machinery for it.
+				if bm.concurrency == 1 {
+					require.NoError(b, upload())
+					continue
+				}
+
+				// launch concurrency independent uploads and wait for all.
 				errChan := make(chan error, bm.concurrency)
 				for range bm.concurrency {
-					go func() {
-						blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
-						require.NoError(b, err)
-
-						_, err = client.Upload(ctx, namespace, blob)
-						errChan <- err
-					}()
+					go func() { errChan <- upload() }()
 				}
-
-				// wait for all uploads to complete
 				for range bm.concurrency {
-					err := <-errChan
-					require.NoError(b, err)
+					require.NoError(b, <-errChan)
 				}
 			}
 
-			// calculate and report aggregate throughput
-			// each iteration processes bm.concurrency blobs
-			bytesProcessed := int64(b.N) * int64(bm.concurrency) * int64(bm.blobSize)
+			// report aggregate throughput: each iteration uploads concurrency blobs.
+			bytesProcessed := int64(b.N) * int64(bm.concurrency) * int64(dataSize)
 			b.ReportMetric(float64(bytesProcessed)/b.Elapsed().Seconds()/(1024*1024), "MiB/s")
 		})
 	}

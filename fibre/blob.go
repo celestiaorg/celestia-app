@@ -74,17 +74,19 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 	}
 
 	maxRowSize := params.MaxRowSize(blobVersion)
-	assembler, err := row.NewAssembler(params.Rows, params.ParityRows(), maxRowSize)
+	codecCfg := &rsema1d.Config{
+		K:           params.Rows,
+		N:           params.ParityRows(),
+		WorkerCount: runtime.GOMAXPROCS(0),
+	}
+
+	assembler, err := row.NewAssembler(params.Rows, params.ParityRows(), maxRowSize, codecCfg.TreeBufferSize())
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating row assembler: %w", err)
 	}
 
 	workPool := row.NewPool(maxRowSize, params.CodecWorkRows())
-	coder, err := rsema1d.NewCoder(&rsema1d.Config{
-		K:           params.Rows,
-		N:           params.ParityRows(),
-		WorkerCount: runtime.GOMAXPROCS(0),
-	}, reedsolomon.WithWorkAllocator(workPool))
+	coder, err := rsema1d.NewCoder(codecCfg, reedsolomon.WithWorkAllocator(workPool))
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating rsema1d coder: %w", err)
 	}
@@ -231,17 +233,17 @@ func (d *Blob) Data() []byte {
 	return d.data
 }
 
-// Row returns the [rsema1d.RowProof] for the given index. Rows are
-// served until the blob's pooled storage is released; after release, every
-// call returns an error.
-func (d *Blob) Row(index int) (*rsema1d.RowProof, error) {
+// RowProofs yields the row data and Merkle proof for each index (see
+// [rsema1d.ExtendedData.RowProofs]). row and proof alias pooled storage valid
+// until the blob is released; returns an error after release.
+func (d *Blob) RowProofs(indices []int, yield func(index int, row []byte, proof [][]byte)) error {
 	if d.extendedData == nil {
-		return nil, fmt.Errorf("no extended data available")
+		return fmt.Errorf("no extended data available")
 	}
 	if d.released() {
-		return nil, fmt.Errorf("row %d: storage has been released", index)
+		return fmt.Errorf("storage has been released")
 	}
-	return d.extendedData.GenerateRowProof(index)
+	return d.extendedData.RowProofs(indices, yield)
 }
 
 // retain bumps the refcount for an additional non-user owner — used by
@@ -305,10 +307,10 @@ func newBlobHeaderV0(dataSize int) blobHeaderV0 {
 func (h blobHeaderV0) encode(data []byte, cfg BlobConfig) (*rsema1d.ExtendedData, *row.Assembly, error) {
 	rowSize := cfg.RowSize(len(data))
 	asm := cfg.Assembler.Assemble(data, rowSize, blobHeaderLen)
-	rows := asm.Rows()
+	rows, treeBuf := asm.Buffers()
 	h.marshalTo(rows[0])
 
-	extData, err := cfg.Coder.Encode(rows)
+	extData, err := cfg.Coder.EncodeWithTree(rows, treeBuf)
 	if err != nil {
 		asm.Free()
 		return nil, nil, fmt.Errorf("encoding data: %w", err)

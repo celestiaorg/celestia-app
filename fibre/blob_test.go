@@ -52,16 +52,17 @@ func TestNewBlob_EncodeDecodeRoundTrip(t *testing.T) {
 	}
 }
 
-func TestBlob_RowAfterRelease(t *testing.T) {
+func TestBlob_RowProofsAfterRelease(t *testing.T) {
 	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
 	require.NoError(t, err)
 
-	_, err = blob.Row(0)
+	noop := func(int, []byte, [][]byte) {}
+	err = blob.RowProofs([]int{0}, noop)
 	require.NoError(t, err)
 
 	blob.Free()
 
-	_, err = blob.Row(0)
+	err = blob.RowProofs([]int{0}, noop)
 	require.Error(t, err)
 }
 
@@ -80,7 +81,7 @@ func TestBlob_RetainRefusesAfterRelease(t *testing.T) {
 	// The user's Free drops one ref; the extra owner keeps storage alive.
 	blob.Free()
 	require.False(t, blob.released())
-	_, err = blob.Row(0)
+	err = blob.RowProofs([]int{0}, func(int, []byte, [][]byte) {})
 	require.NoError(t, err)
 
 	// The last owner releases -> storage returns to the pool.
