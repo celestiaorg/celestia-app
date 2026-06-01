@@ -517,11 +517,11 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 
 	rowIndices := shardMap[val]
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
-	if err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+	if err := blob.RowProofs(rowIndices, func(index int, row []byte, slice []byte, root [32]byte) {
 		rows = append(rows, &types.BlobRow{
 			Index: uint32(index),
 			Data:  row,
-			Proof: proof,
+			Proof: [][]byte{root[:], slice},
 		})
 	}); err != nil {
 		return &types.DownloadShardResponse{}, nil
@@ -599,11 +599,11 @@ func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.Downl
 
 	rowIndices := shardMap[val]
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
-	if err := source.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+	if err := source.RowProofs(rowIndices, func(index int, row []byte, slice []byte, root [32]byte) {
 		rows = append(rows, &types.BlobRow{
 			Index: uint32(index),
 			Data:  row,
-			Proof: proof,
+			Proof: [][]byte{root[:], slice},
 		})
 	}); err != nil {
 		return &types.DownloadShardResponse{}, nil

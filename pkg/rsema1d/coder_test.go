@@ -138,13 +138,10 @@ func TestEncodeWithTreeBuffer(t *testing.T) {
 		t.Fatalf("commitment mismatch between buffer-backed and allocated encode")
 	}
 
-	func() {
-		defer func() {
-			if recover() == nil {
-				t.Fatalf("expected panic with undersized tree buffer")
-			}
-		}()
-		zeroParity()
-		_, _ = coder.EncodeWithTree(rows, make([]byte, 8))
-	}()
+	// treeBuffer is now ignored (the Bao row tree self-allocates and the RLC
+	// commitment is a flat hash), so an undersized buffer is harmless.
+	zeroParity()
+	if _, err := coder.EncodeWithTree(rows, make([]byte, 8)); err != nil {
+		t.Fatalf("EncodeWithTree with ignored buffer: %v", err)
+	}
 }

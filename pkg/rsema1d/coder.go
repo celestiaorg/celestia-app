@@ -1,13 +1,12 @@
 package rsema1d
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
+	"lukechampine.com/blake3"
 )
 
 // Coder provides encoding and reconstruction operations with a cached Reed-Solomon encoder.
@@ -41,19 +40,18 @@ func (c *Coder) Encode(rows [][]byte) (*ExtendedData, error) {
 	return c.EncodeWithTree(rows, nil)
 }
 
-// EncodeWithTree is like [Coder.Encode] but builds the row and RLC Merkle trees
-// into the caller-provided treeBuffer instead of allocating. treeBuffer must be
-// at least [Config.TreeBufferSize] bytes — the tree panics if it is too small.
-// The returned [ExtendedData]'s trees alias treeBuffer, which must outlive them
-// and not be reused meanwhile.
-func (c *Coder) EncodeWithTree(rows [][]byte, treeBuffer []byte) (*ExtendedData, error) {
+// EncodeWithTree is retained for API compatibility with callers that pre-size a
+// commitment scratch buffer. treeBuffer is now ignored: the row commitment is a
+// BLAKE3-Bao tree that allocates its own nodes, and the RLC commitment is a flat
+// hash, so no external node storage is needed.
+func (c *Coder) EncodeWithTree(rows [][]byte, _ []byte) (*ExtendedData, error) {
 	if err := c.validateRows(rows); err != nil {
 		return nil, err
 	}
 	if err := c.enc.Encode(rows); err != nil {
 		return nil, fmt.Errorf("failed to encode: %w", err)
 	}
-	return c.commit(rows, treeBuffer), nil
+	return c.commit(rows)
 }
 
 func (c *Coder) validateRows(rows [][]byte) error {
@@ -63,32 +61,26 @@ func (c *Coder) validateRows(rows [][]byte) error {
 	return nil
 }
 
-// commit builds the row and RLC Merkle trees and the commitment over them. buf
-// backs both trees' nodes (row tree first, RLC tree in the tail); if nil it is
-// allocated. A too-small buf panics inside the tree builder.
-func (c *Coder) commit(extendedRows [][]byte, buf []byte) *ExtendedData {
-	rowSize := merkle.TreeBufferSize(c.config.K + c.config.N)
-	if buf == nil {
-		buf = make([]byte, rowSize+merkle.TreeBufferSize(c.config.K))
+// commit builds the BLAKE3-Bao row tree, derives the RLC, and forms the
+// commitment BLAKE3(rowRoot || rlcCommitment). The RLC is committed with a flat
+// hash rather than a Merkle tree: the only consumer (the batched Verifier) is
+// always handed the full RLC vector, so per-element openings were never needed.
+func (c *Coder) commit(extendedRows [][]byte) (*ExtendedData, error) {
+	baoRow, err := buildBaoRowTree(extendedRows, len(extendedRows[0]))
+	if err != nil {
+		return nil, fmt.Errorf("building bao row tree: %w", err)
 	}
-
-	// build Merkle tree over the extended rows (uses buf[:rowSize]; the tree
-	// builder panics if buf is too small)
-	rowTree := buildRowTree(extendedRows, c.config, buf)
-	rowRoot := rowTree.Root()
+	rowRoot := baoRow.root
 
 	// derive RLC coefficients and compute RLC results for original rows.
 	coeffs := rlc.Derive(rowRoot, c.config.K, c.config.N, len(extendedRows[0]), c.config.WorkerCount)
 	rlcVec := rlc.Compute(extendedRows[:c.config.K], coeffs, c.config.WorkerCount)
 
-	// build Merkle tree over the RLC values from the buffer's tail
-	rlcTree := buildRLCTree(rlcVec, c.config, buf[rowSize:])
-	rlcRoot := rlcTree.Root()
-
-	// create commitment: SHA256(rowRoot || rlcRoot)
-	h := sha256.New()
+	// commitment: BLAKE3(rowRoot || BLAKE3(rlc))
+	rlcCommit := rlcCommitment(rlcVec)
+	h := blake3.New(32, nil)
 	h.Write(rowRoot[:])
-	h.Write(rlcRoot[:])
+	h.Write(rlcCommit[:])
 	var commitment Commitment
 	h.Sum(commitment[:0])
 
@@ -97,27 +89,22 @@ func (c *Coder) commit(extendedRows [][]byte, buf []byte) *ExtendedData {
 		rows:       extendedRows,
 		rlc:        rlcVec,
 		commitment: commitment,
-		rowsTree:   rowTree,
-		rlcTree:    rlcTree,
+		baoRow:     baoRow,
+		rowRoot:    rowRoot,
+	}, nil
+}
+
+// rlcCommitment hashes the K original RLC values into a single 32-byte
+// commitment over their canonical GF128 serialization. Producer (commit) and
+// consumer (Verifier.setRLC) must agree on this exactly.
+func rlcCommitment(vec rlc.Vector) [32]byte {
+	h := blake3.New(32, nil)
+	var buf [field.GF128Size]byte
+	for i := range vec {
+		field.EncodeGF128(buf[:], vec[i])
+		h.Write(buf[:])
 	}
-}
-
-// buildRowTree creates the Merkle tree over the K+N extended rows, which are
-// already materialized.
-func buildRowTree(extended [][]byte, config *Config, buf []byte) *merkle.Tree {
-	nodes := buf[:merkle.TreeBufferSize(config.K+config.N)]
-	return merkle.NewTreeInto(nodes, extended, config.WorkerCount)
-}
-
-// buildRLCTree creates the Merkle tree over the K original RLC values, each
-// serialized into the tree-recycled scratch buffer.
-func buildRLCTree(rlc rlc.Vector, config *Config, buf []byte) *merkle.Tree {
-	nodes := buf[:merkle.TreeBufferSize(config.K)]
-	return merkle.NewTreeFuncInto(nodes, config.WorkerCount, func(i int, dst []byte) []byte {
-		if cap(dst) == 0 {
-			dst = make([]byte, field.GF128Size)
-		}
-		field.EncodeGF128(dst, rlc[i])
-		return dst
-	})
+	var out [32]byte
+	h.Sum(out[:0])
+	return out
 }

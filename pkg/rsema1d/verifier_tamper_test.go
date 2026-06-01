@@ -33,7 +33,7 @@ func tamperedSetup(t *testing.T, seed uint64, firstProofIndex int) (*rsema1d.Ver
 func TestVerifierRejectsTamperedCommitment(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 1, 0)
 	commitment[0] ^= 1
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered commitment")
 	}
 }
@@ -45,7 +45,7 @@ func TestVerifierRejectsTamperedOriginalRow(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 2, 0)
 	proofs[3].Row = append([]byte(nil), proofs[3].Row...)
 	proofs[3].Row[0] ^= 0xFF
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered original row")
 	}
 }
@@ -56,21 +56,20 @@ func TestVerifierRejectsTamperedParityRow(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 3, 64)
 	proofs[0].Row = append([]byte(nil), proofs[0].Row...)
 	proofs[0].Row[0] ^= 0xFF
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered parity row")
 	}
 }
 
-// TestVerifierRejectsTamperedRowProof flips a byte inside a proof's merkle
-// path. The recomputed row root won't match what the commitment was built
-// against, so the commitment check fails.
+// TestVerifierRejectsTamperedRowProof flips a byte inside a proof's BLAKE3-Bao
+// slice. The sibling path no longer hashes up to the committed row root, so the
+// per-row Bao slice verification fails.
 func TestVerifierRejectsTamperedRowProof(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 4, 0)
-	proofs[3].RowProof = append([][]byte(nil), proofs[3].RowProof...)
-	proofs[3].RowProof[0] = append([]byte(nil), proofs[3].RowProof[0]...)
-	proofs[3].RowProof[0][0] ^= 1
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
-		t.Fatalf("Verify accepted tampered row proof path")
+	proofs[3].Slice = append([]byte(nil), proofs[3].Slice...)
+	proofs[3].Slice[0] ^= 1
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+		t.Fatalf("Verify accepted tampered bao slice")
 	}
 }
 
@@ -82,7 +81,7 @@ func TestVerifierRejectsTamperedRLC(t *testing.T) {
 	tampered := make([]field.GF128, len(rlcOrig))
 	copy(tampered, rlcOrig)
 	tampered[3][0] ^= 1
-	if _, err := v.Verify(commitment, proofs, tampered); err == nil {
+	if err := v.Verify(commitment, proofs, tampered); err == nil {
 		t.Fatalf("Verify accepted tampered RLC")
 	}
 }
@@ -95,18 +94,18 @@ func TestVerifierRejectsMultipleTamperedRows(t *testing.T) {
 		proofs[i].Row = append([]byte(nil), proofs[i].Row...)
 		proofs[i].Row[0] ^= 0xFF
 	}
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted multiple tampered rows")
 	}
 }
 
-// TestVerifierRejectsBadProofDepth supplies a row proof whose merkle path is
-// shorter than the expected tree depth, exercising the upfront validateProofs
-// shape check.
+// TestVerifierRejectsBadProofDepth supplies a row whose BLAKE3-Bao slice is
+// shorter than the tree depth, so the sibling-path walk can't reach the root
+// and verification fails.
 func TestVerifierRejectsBadProofDepth(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 7, 0)
-	proofs[0].RowProof = proofs[0].RowProof[:len(proofs[0].RowProof)-1]
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
-		t.Fatalf("Verify accepted proof with bad depth")
+	proofs[0].Slice = proofs[0].Slice[:len(proofs[0].Slice)-32]
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+		t.Fatalf("Verify accepted proof with bad slice length")
 	}
 }

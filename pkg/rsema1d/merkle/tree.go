@@ -1,16 +1,15 @@
 package merkle
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"math/bits"
 )
 
-// NodeSize is the byte length of a Merkle node (one SHA-256 hash). Flat node
+// NodeSize is the byte length of a Merkle node (one BLAKE3 hash). Flat node
 // buffers passed to the API are multiples of it.
-const NodeSize = sha256.Size
+const NodeSize = 32
 
-// Root is a 32-byte SHA-256 Merkle root.
+// Root is a 32-byte BLAKE3 Merkle root.
 type Root = [NodeSize]byte
 
 // Tree is a binary Merkle tree over a power-of-2 number of leaves. Nodes are

@@ -233,10 +233,10 @@ func (d *Blob) Data() []byte {
 	return d.data
 }
 
-// RowProofs yields the row data and Merkle proof for each index (see
-// [rsema1d.ExtendedData.RowProofs]). row and proof alias pooled storage valid
+// RowProofs yields the row data and BLAKE3-Bao slice for each index (see
+// [rsema1d.ExtendedData.RowProofs]). row and slice alias pooled storage valid
 // until the blob is released; returns an error after release.
-func (d *Blob) RowProofs(indices []int, yield func(index int, row []byte, proof [][]byte)) error {
+func (d *Blob) RowProofs(indices []int, yield func(index int, row []byte, slice []byte, root [32]byte)) error {
 	if d.extendedData == nil {
 		return fmt.Errorf("no extended data available")
 	}

@@ -61,8 +61,6 @@ func TestServerDownloadShard(t *testing.T) {
 				require.NotEmpty(t, resp.Shard.Rows)
 				require.NotEmpty(t, resp.Shard.Coefficients,
 					"coefficients should be present when WithRlc is true")
-				require.NotEmpty(t, resp.Shard.Root,
-					"RLC root should be present")
 			},
 		},
 		{
@@ -74,8 +72,6 @@ func TestServerDownloadShard(t *testing.T) {
 				require.NotEmpty(t, resp.Shard.Rows)
 				require.Empty(t, resp.Shard.Coefficients,
 					"coefficients should be stripped when WithRlc is false")
-				require.NotEmpty(t, resp.Shard.Root,
-					"RLC root should always be present")
 			},
 		},
 		{
@@ -145,11 +141,11 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 
 	// create rows for the shard
 	rows := make([]*types.BlobRow, 0, 3)
-	require.NoError(t, blob.RowProofs([]int{0, 1, 2}, func(index int, row []byte, proof [][]byte) {
+	require.NoError(t, blob.RowProofs([]int{0, 1, 2}, func(index int, row []byte, slice []byte, root [32]byte) {
 		rows = append(rows, &types.BlobRow{
 			Index: uint32(index),
 			Data:  row,
-			Proof: proof,
+			Proof: [][]byte{root[:], slice},
 		})
 	}))
 

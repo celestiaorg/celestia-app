@@ -12,6 +12,7 @@ import (
 // TestCometBFTCompatibility tests that our merkle tree implementation
 // produces the same roots as CometBFT/Celestia-core's implementation
 func TestCometBFTCompatibility(t *testing.T) {
+	t.Skip("prototype uses BLAKE3, intentionally divergent from CometBFT SHA-256")
 	tests := []struct {
 		name      string
 		numLeaves int
@@ -50,6 +51,7 @@ func TestCometBFTCompatibility(t *testing.T) {
 // TestCometBFTProofCrossVerification tests that our implementation
 // produces proofs compatible with CometBFT's verification
 func TestCometBFTProofCrossVerification(t *testing.T) {
+	t.Skip("prototype uses BLAKE3, intentionally divergent from CometBFT SHA-256")
 	testCases := []int{1, 2, 4, 8, 16, 32}
 
 	for _, numLeaves := range testCases {
@@ -136,6 +138,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 
 // TestCometBFTProofSimple tests simple proof compatibility
 func TestCometBFTProofSimple(t *testing.T) {
+	t.Skip("prototype uses BLAKE3, intentionally divergent from CometBFT SHA-256")
 	// Simple 4-leaf test for debugging
 	leaves := [][]byte{
 		[]byte("leaf0"),
@@ -196,6 +199,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 
 // TestCometBFTEdgeCases tests edge cases and special scenarios
 func TestCometBFTEdgeCases(t *testing.T) {
+	t.Skip("prototype uses BLAKE3, intentionally divergent from CometBFT SHA-256")
 	// Test with different leaf sizes
 	tests := []struct {
 		name      string
@@ -238,6 +242,7 @@ func TestCometBFTEdgeCases(t *testing.T) {
 
 // TestCometBFTEmptyAndNilLeaves tests handling of empty and nil leaves
 func TestCometBFTEmptyAndNilLeaves(t *testing.T) {
+	t.Skip("prototype uses BLAKE3, intentionally divergent from CometBFT SHA-256")
 	tests := []struct {
 		name   string
 		leaves [][]byte

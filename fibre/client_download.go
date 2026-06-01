@@ -271,10 +271,17 @@ func parseShard(shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error)
 		if row == nil {
 			return nil, nil, fmt.Errorf("shard row %d is nil", i)
 		}
+		// Wire-format hack for the Bao prototype: row.Proof is [rowRoot(32B), slice].
+		if len(row.Proof) != 2 || len(row.Proof[0]) != 32 {
+			return nil, nil, fmt.Errorf("shard row %d: malformed proof (expected [rowRoot32B, slice], got %d elements)", i, len(row.Proof))
+		}
+		var rowRoot [32]byte
+		copy(rowRoot[:], row.Proof[0])
 		proofs[i] = &rsema1d.RowProof{
-			Index:    int(row.Index),
-			Row:      row.Data,
-			RowProof: row.Proof,
+			Index:   int(row.Index),
+			Row:     row.Data,
+			Slice:   row.Proof[1],
+			RowRoot: rowRoot,
 		}
 	}
 

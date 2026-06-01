@@ -56,7 +56,7 @@ func TestBlob_RowProofsAfterRelease(t *testing.T) {
 	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
 	require.NoError(t, err)
 
-	noop := func(int, []byte, [][]byte) {}
+	noop := func(int, []byte, []byte, [32]byte) {}
 	err = blob.RowProofs([]int{0}, noop)
 	require.NoError(t, err)
 
@@ -81,7 +81,7 @@ func TestBlob_RetainRefusesAfterRelease(t *testing.T) {
 	// The user's Free drops one ref; the extra owner keeps storage alive.
 	blob.Free()
 	require.False(t, blob.released())
-	err = blob.RowProofs([]int{0}, func(int, []byte, [][]byte) {})
+	err = blob.RowProofs([]int{0}, func(int, []byte, []byte, [32]byte) {})
 	require.NoError(t, err)
 
 	// The last owner releases -> storage returns to the pool.

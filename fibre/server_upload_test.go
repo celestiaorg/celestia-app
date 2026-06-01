@@ -196,11 +196,11 @@ func makeTestRequest(
 
 	// create rows with proofs
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
-	require.NoError(t, blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+	require.NoError(t, blob.RowProofs(rowIndices, func(index int, row []byte, slice []byte, root [32]byte) {
 		rows = append(rows, &types.BlobRow{
 			Index: uint32(index),
 			Data:  row,
-			Proof: proof,
+			Proof: [][]byte{root[:], slice},
 		})
 	}))
 

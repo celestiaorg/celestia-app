@@ -212,13 +212,12 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	}
 	defer s.putVerifier(verifier)
 
-	rlcRoot, err := verifier.Verify(promise.Commitment, rows, rlc)
-	if err != nil {
+	if err := verifier.Verify(promise.Commitment, rows, rlc); err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
-	// set RLC root, keep coefficients as-is for storage
-	shard.Root = rlcRoot
+	// shard.Root is no longer populated: the RLC commitment is folded into the
+	// data commitment and the field is not consumed by the download path.
 	return nil
 }
 
@@ -285,17 +284,27 @@ func parseRowSize(rows []*types.BlobRow) (int, error) {
 }
 
 // parseRow validates and converts a single proto row to rsema1d.RowProof format.
+// Wire-format hack for the Bao prototype: row.Proof is [rowRoot(32B), slice].
 func parseRow(row *types.BlobRow) (*rsema1d.RowProof, error) {
-	if len(row.Proof) == 0 {
-		return nil, fmt.Errorf("row %d missing proof", row.Index)
+	if len(row.Proof) != 2 {
+		return nil, fmt.Errorf("row %d expected 2 proof elements (rowRoot, slice), got %d", row.Index, len(row.Proof))
+	}
+	if len(row.Proof[0]) != 32 {
+		return nil, fmt.Errorf("row %d invalid RowRoot length: got %d, want 32", row.Index, len(row.Proof[0]))
+	}
+	if len(row.Proof[1]) == 0 {
+		return nil, fmt.Errorf("row %d empty bao slice", row.Index)
 	}
 	if len(row.Data) == 0 {
 		return nil, fmt.Errorf("row %d missing data", row.Index)
 	}
 
+	var rowRoot [32]byte
+	copy(rowRoot[:], row.Proof[0])
 	return &rsema1d.RowProof{
-		Index:    int(row.Index),
-		Row:      row.Data,
-		RowProof: row.Proof,
+		Index:   int(row.Index),
+		Row:     row.Data,
+		Slice:   row.Proof[1],
+		RowRoot: rowRoot,
 	}, nil
 }

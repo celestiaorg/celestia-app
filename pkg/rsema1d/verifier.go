@@ -1,16 +1,16 @@
 package rsema1d
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"math/bits"
 	"runtime"
+	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
+	"lukechampine.com/blake3"
 )
 
 // Verifier owns the reusable state for RLC-based row verification.
@@ -24,18 +24,13 @@ type Verifier struct {
 	config *Config
 	enc    reedsolomon.Encoder
 
-	rlcRoot   merkle.Root // RLC merkle root
-	rlcCoeffs rlc.Vector  // Fiat-Shamir coefficients for the current matrix.
-	rlcShards [][]byte    // Leopard-formatted 64-byte RLC shards
-
-	// scratch buffers for RLC root compute
-	rlcRootScratch []byte
-	rlcLeafScratch [field.GF128Size]byte
+	rlcRoot   [32]byte   // flat BLAKE3 commitment over the K RLC values
+	rlcCoeffs rlc.Vector // Fiat-Shamir coefficients for the current matrix.
+	rlcShards [][]byte   // Leopard-formatted 64-byte RLC shards
 
 	// Verify scratch buffers. Capacity grows to the largest batch seen.
 	// VerifyShared uses per-call locals instead.
-	rowsScratch  [][]byte
-	proofScratch []merkle.ProofInput
+	rowsScratch [][]byte
 }
 
 // NewVerifier constructs a Verifier bound to cfg. Reusable buffers sized to
@@ -61,31 +56,29 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 	}
 
 	return &Verifier{
-		config:         cfg,
-		enc:            enc,
-		rlcShards:      rlcShards,
-		rlcRootScratch: make([]byte, cfg.K*merkle.NodeSize),
+		config:    cfg,
+		enc:       enc,
+		rlcShards: rlcShards,
 	}, nil
 }
 
-// Verify checks a batch of row proofs using given RLC and report its RLC root. It
-// verifies the shared row root, checks the commitment, then compares each
-// computed row RLC against the extended RLC shard. RLC gets cached for [Verifier.VerifyShared] counterpart.
+// Verify checks a batch of row proofs using the given RLC. It checks the
+// commitment against the shared row root and the cached RLC commitment, then
+// compares each computed row RLC against the extended RLC shard. The RLC is
+// cached for the [Verifier.VerifyShared] counterpart.
 //
 // Verify reuses internal scratch buffers and is not safe for concurrent calls.
-func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vector) ([]byte, error) {
-	rlcRoot, err := v.setRLC(rlc)
-	if err != nil {
-		return nil, err
+func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vector) error {
+	if err := v.setRLC(rlc); err != nil {
+		return err
 	}
 
 	rowSize, err := v.validateProofs(proofs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
-	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
-	return rlcRoot, v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
+	return v.verify(commitment, proofs, rowSize, v.rowsScratch)
 }
 
 // VerifyShared is the concurrent-safe counterpart to [Verifier.Verify]. It performs the
@@ -101,14 +94,13 @@ func (v *Verifier) VerifyShared(commitment Commitment, proofs []*RowProof) error
 		return err
 	}
 	rowsView := make([][]byte, len(proofs))
-	proofInputs := make([]merkle.ProofInput, len(proofs))
-	return v.verify(commitment, proofs, rowSize, rowsView, proofInputs)
+	return v.verify(commitment, proofs, rowSize, rowsView)
 }
 
-// setRLC extends the K original RLC values and caches the RLC root.
-func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
+// setRLC extends the K original RLC values and caches the RLC commitment.
+func (v *Verifier) setRLC(rlc rlc.Vector) error {
 	if len(rlc) != v.config.K {
-		return nil, fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
+		return fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
 	}
 	// Pack into Leopard shards for RS extension.
 	for i := range v.config.K {
@@ -120,13 +112,12 @@ func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
 		clear(v.rlcShards[i])
 	}
 	if err := v.enc.Encode(v.rlcShards); err != nil {
-		return nil, fmt.Errorf("extending RLC: %w", err)
+		return fmt.Errorf("extending RLC: %w", err)
 	}
 
-	rlcRoot := computeRLCRoot(rlc, v.rlcRootScratch, v.rlcLeafScratch[:])
-	v.rlcRoot = rlcRoot
+	v.rlcRoot = rlcCommitment(rlc)
 	v.rlcCoeffs = nil // invalidate coeffs
-	return rlcRoot[:], nil
+	return nil
 }
 
 // validateProofs checks proof shape invariants and returns the effective row
@@ -135,11 +126,15 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 	if len(proofs) == 0 {
 		return 0, errors.New("no proofs provided")
 	}
-	expectedProofDepth := bits.Len(uint(v.config.K+v.config.N)) - 1
-	rowSize := len(proofs[0].Row)
+	var rowSize int
+	var sharedRoot [32]byte
 	for i, p := range proofs {
 		if p == nil {
 			return 0, errors.New("received nil proof in verifier")
+		}
+		if i == 0 {
+			rowSize = len(p.Row)
+			sharedRoot = p.RowRoot
 		}
 		if p.Index < 0 || p.Index >= v.config.K+v.config.N {
 			return 0, fmt.Errorf("index %d out of range [0, %d)", p.Index, v.config.K+v.config.N)
@@ -148,8 +143,11 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 			return 0, fmt.Errorf("batched verify requires equal-sized rows: row %d has %d bytes, expected %d",
 				p.Index, len(p.Row), rowSize)
 		}
-		if len(p.RowProof) != expectedProofDepth {
-			return 0, fmt.Errorf("row %d: proof depth mismatch: expected %d, got %d", i, expectedProofDepth, len(p.RowProof))
+		if p.RowRoot != sharedRoot {
+			return 0, fmt.Errorf("row %d: RowRoot disagrees with batch (got %x, want %x)", p.Index, p.RowRoot, sharedRoot)
+		}
+		if len(p.Slice) == 0 {
+			return 0, fmt.Errorf("row %d: empty bao slice", p.Index)
 		}
 	}
 	if rowSize == 0 || rowSize%field.LeopardChunkSize != 0 {
@@ -159,28 +157,47 @@ func (v *Verifier) validateProofs(proofs []*RowProof) (int, error) {
 }
 
 // verify is shared by Verify and VerifyShared; callers provide scratch buffers.
-func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int, rowsView [][]byte, proofInputs []merkle.ProofInput) error {
-	for i, p := range proofs {
-		proofInputs[i] = merkle.ProofInput{
-			Leaf:  p.Row,
-			Index: p.Index,
-			Path:  p.RowProof,
-		}
-	}
-	// Per-row Merkle verification is ALU-bound; use process-wide parallelism.
-	rowRoot, err := merkle.RootFromProofs(proofInputs, gomaxprocs)
-	if err != nil {
-		return fmt.Errorf("verifying row proofs: %w", err)
-	}
+// validateProofs has already confirmed that every proof claims the same RowRoot.
+func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int, rowsView [][]byte) error {
+	rowRoot := proofs[0].RowRoot
 
 	// All proofs share rowRoot, so one commitment check covers the batch.
-	h := sha256.New()
+	h := blake3.New(32, nil)
 	h.Write(rowRoot[:])
 	h.Write(v.rlcRoot[:])
 	var commit [32]byte
 	h.Sum(commit[:0])
 	if commitment != commit {
 		return errors.New("commitment verification failed")
+	}
+
+	// Per-row Bao slice verification, parallelized across the batch.
+	totalRows := v.config.K + v.config.N
+	workers := min(gomaxprocs, len(proofs))
+	if workers < 1 {
+		workers = 1
+	}
+	chunk := (len(proofs) + workers - 1) / workers
+	var firstErr atomic.Value
+	var wg sync.WaitGroup
+	wg.Add(workers)
+	for w := range workers {
+		start := w * chunk
+		end := min(start+chunk, len(proofs))
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				p := proofs[i]
+				if !verifyRowSlice(p.Slice, p.Row, p.Index, totalRows, rowRoot) {
+					firstErr.CompareAndSwap(nil, fmt.Errorf("row %d: bao slice verification failed", p.Index))
+					return
+				}
+			}
+		}(start, end)
+	}
+	wg.Wait()
+	if e := firstErr.Load(); e != nil {
+		return e.(error)
 	}
 
 	coeffs := v.coefficients(rowRoot, rowSize)
@@ -200,33 +217,16 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 }
 
 // coefficients lazily computes Fiat-Shamir coefficients for the current matrix.
-func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) rlc.Vector {
+func (v *Verifier) coefficients(rowRoot [32]byte, rowSize int) rlc.Vector {
 	if v.rlcCoeffs == nil {
 		v.rlcCoeffs = rlc.Derive(rowRoot, v.config.K, v.config.N, rowSize, v.config.WorkerCount)
 	}
 	return v.rlcCoeffs
 }
 
-func computeRLCRoot(rlc rlc.Vector, scratch []byte, leafScratch []byte) [32]byte {
-	// Keep the RLC root build sequential for the v0 fibre shape (K=4096):
-	// worker fan-out is slower than the small tree/hash work it parallelizes,
-	// and upload throughput already comes from the verifier pool.
-	return merkle.RootFromFunc(scratch, func(i int, _ []byte) []byte {
-		field.EncodeGF128(leafScratch, rlc[i])
-		return leafScratch
-	})
-}
-
 func resizeRows(buf [][]byte, n int) [][]byte {
 	if cap(buf) < n {
 		return make([][]byte, n)
-	}
-	return buf[:n]
-}
-
-func resizeProofInputs(buf []merkle.ProofInput, n int) []merkle.ProofInput {
-	if cap(buf) < n {
-		return make([]merkle.ProofInput, n)
 	}
 	return buf[:n]
 }

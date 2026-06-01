@@ -93,8 +93,8 @@ func makeBenchBlob(seed int) *fibre.Blob {
 
 func makeBenchShard(blob *fibre.Blob) *types.BlobShard {
 	rows := make([]*types.BlobRow, 0, 2)
-	_ = blob.RowProofs([]int{0, 1}, func(index int, row []byte, proof [][]byte) {
-		rows = append(rows, &types.BlobRow{Index: uint32(index), Data: row, Proof: proof})
+	_ = blob.RowProofs([]int{0, 1}, func(index int, row []byte, slice []byte, root [32]byte) {
+		rows = append(rows, &types.BlobRow{Index: uint32(index), Data: row, Proof: [][]byte{root[:], slice}})
 	})
 	return &types.BlobShard{
 		Rows: rows,
@@ -250,11 +250,11 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 			indices[i] = startIdx + i
 		}
 		rows := make([]*types.BlobRow, 0, len(indices))
-		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, slice []byte, root [32]byte) {
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(index),
 				Data:  row,
-				Proof: proof,
+				Proof: [][]byte{root[:], slice},
 			})
 		}))
 
@@ -359,11 +359,11 @@ func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams
 			indices[i] = startIdx + i
 		}
 		rows := make([]*types.BlobRow, 0, len(indices))
-		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, slice []byte, root [32]byte) {
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(index),
 				Data:  row,
-				Proof: proof,
+				Proof: [][]byte{root[:], slice},
 			})
 		}))
 
@@ -580,11 +580,11 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 			indices[i] = startIdx + i
 		}
 		rows := make([]*types.BlobRow, 0, len(indices))
-		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, slice []byte, root [32]byte) {
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(index),
 				Data:  row,
-				Proof: proof,
+				Proof: [][]byte{root[:], slice},
 			})
 		}))
 
@@ -671,11 +671,11 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 			indices[i] = startIdx + i
 		}
 		rows := make([]*types.BlobRow, 0, len(indices))
-		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, slice []byte, root [32]byte) {
 			rows = append(rows, &types.BlobRow{
 				Index: uint32(index),
 				Data:  row,
-				Proof: proof,
+				Proof: [][]byte{root[:], slice},
 			})
 		}))
 

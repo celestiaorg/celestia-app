@@ -284,11 +284,14 @@ func (c *Client) uploadTo(
 	blobRows := make([]types.BlobRow, len(rowIndices))
 	req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
 	i := 0
-	err = blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+	err = blob.RowProofs(rowIndices, func(index int, row []byte, slice []byte, root [32]byte) {
 		br := &blobRows[i]
 		br.Index = uint32(index)
 		br.Data = row
-		br.Proof = proof
+		// Wire-format hack for the Bao prototype: pack (RowRoot, Slice) into
+		// the existing `repeated bytes proof` field as two elements.
+		rowRoot := root
+		br.Proof = [][]byte{rowRoot[:], slice}
 		req.Shard.Rows[i] = br
 		i++
 	})

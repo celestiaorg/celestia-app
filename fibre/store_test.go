@@ -483,11 +483,11 @@ func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobSh
 	t.Helper()
 
 	rows := make([]*types.BlobRow, 0, len(indices))
-	require.NoError(t, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+	require.NoError(t, blob.RowProofs(indices, func(index int, row []byte, slice []byte, root [32]byte) {
 		rows = append(rows, &types.BlobRow{
 			Index: uint32(index),
 			Data:  row,
-			Proof: proof,
+			Proof: [][]byte{root[:], slice},
 		})
 	}))
 
