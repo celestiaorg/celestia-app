@@ -492,6 +492,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
 			return
 		}
+		defer blob.Free()
 		_, err = w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 		lat := time.Since(t)
 		if err != nil {
@@ -515,6 +516,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
 		return
 	}
+	defer blob.Free()
 
 	signedPromise, err := w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 	if err != nil {

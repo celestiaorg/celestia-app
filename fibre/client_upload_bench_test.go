@@ -98,6 +98,7 @@ func BenchmarkClient_Upload(b *testing.B) {
 				if err != nil {
 					return err
 				}
+				defer blob.Free()
 				result, err := client.Upload(ctx, namespace, blob)
 				if err != nil {
 					return err
