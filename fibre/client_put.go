@@ -51,6 +51,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		span.SetStatus(codes.Error, "failed to encode blob")
 		return result, err
 	}
+	defer blob.Free()
 
 	blobID := blob.ID()
 	span.AddEvent("blob_encoded", trace.WithAttributes(
