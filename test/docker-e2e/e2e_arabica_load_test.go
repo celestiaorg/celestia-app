@@ -15,16 +15,15 @@ import (
 )
 
 const (
-	// Default load targets 16 MiB of blob data per block (~3 s block time).
-	// 2 MiB blobs every 375 ms → 8 blobs per 3 s block = 16 MiB/block.
-	defaultArabicaBlobSize        = 7 * 1024 * 1024       // 2 MiB per blob
-	defaultArabicaSubmissionDelay = 125 * time.Millisecond // 8 blobs/s × 2 MiB = 16 MiB/s
+	// Default load targets 20 MiB of blob data per second.
+	// 5 MiB blobs every 250 ms → 4 blobs/s × 5 MiB = 20 MiB/s.
+	defaultArabicaBlobSize        = 5 * 1024 * 1024        // 5 MiB per blob
+	defaultArabicaSubmissionDelay = 250 * time.Millisecond // 4 blobs/s × 5 MiB = 20 MiB/s
 	defaultArabicaTestDuration    = 10 * time.Minute
 
 	// The single assertion: average block time must stay ≤ 4 s while the
-	// network processes 16 MiB of blobs per block.
-	maxAvgBlockTime = 7 * time.Second
-
+	// network processes 20 MiB of blobs per second.
+	maxAvgBlockTime = 4 * time.Second
 )
 
 // TestArabicaLoad connects to the Arabica devnet, submits blobs via the
@@ -37,8 +36,8 @@ const (
 // Optional env vars (with defaults):
 //
 //	ARABICA_RPC              – RPC endpoint      (default: https://rpc.celestia-arabica-11.com:443)
-//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 2 MiB)
-//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 125ms)
+//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
+//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 250ms)
 //	ARABICA_TEST_DURATION    – total duration      (default: 10m)
 func (s *CelestiaTestSuite) TestArabicaLoad() {
 	t := s.T()
@@ -125,9 +124,9 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	t.Logf("  Avg Latency: %v", latencyResults.AvgLatency)
 	t.Logf("  Max Latency: %v", latencyResults.MaxLatency)
 
-	// --- 8. Assert: block time must not exceed 4 s under 16 MiB/s load ---
+	// --- 8. Assert: block time must not exceed 4 s under 20 MiB/s load ---
 	require.LessOrEqual(t, avgBT, maxAvgBlockTime,
-		"average block time %v exceeds %v under 16 MiB/s blob load", avgBT, maxAvgBlockTime)
+		"average block time %v exceeds %v under 20 MiB/s blob load", avgBT, maxAvgBlockTime)
 
 	t.Log("Arabica load test passed")
 }
