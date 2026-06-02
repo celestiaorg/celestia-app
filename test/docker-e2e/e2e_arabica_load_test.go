@@ -16,10 +16,17 @@ import (
 
 const (
 	// Default load targets 20 MiB of blob data per second.
-	// 5 MiB blobs every 250 ms → 4 blobs/s × 5 MiB = 20 MiB/s.
-	defaultArabicaBlobSize        = 5 * 1024 * 1024        // 5 MiB per blob
-	defaultArabicaSubmissionDelay = 250 * time.Millisecond // 4 blobs/s × 5 MiB = 20 MiB/s
+	// 2 MiB blobs every 100 ms → 10 blobs/s × 2 MiB = 20 MiB/s.
+	defaultArabicaBlobSize        = 2 * 1024 * 1024        // 2 MiB per blob
+	defaultArabicaSubmissionDelay = 100 * time.Millisecond // 10 blobs/s × 2 MiB = 20 MiB/s
 	defaultArabicaTestDuration    = 10 * time.Minute
+
+	// Parallel worker accounts. Each worker submits on its own account so
+	// broadcasts don't serialize behind a single sequence; without enough
+	// workers the submission rate is capped by per-broadcast latency rather
+	// than the submission delay. Worker accounts are auto-created, funded, and
+	// fee-granted from the master (ARABICA_PRIV_KEY) account.
+	defaultArabicaWorkers = 10
 
 	// The single assertion: average block time must stay ≤ 4 s while the
 	// network processes 20 MiB of blobs per second.
@@ -36,9 +43,10 @@ const (
 // Optional env vars (with defaults):
 //
 //	ARABICA_RPC              – RPC endpoint      (default: https://rpc.celestia-arabica-11.com:443)
-//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
-//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 250ms)
+//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 2 MiB)
+//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 100ms)
 //	ARABICA_TEST_DURATION    – total duration      (default: 10m)
+//	ARABICA_WORKERS          – parallel worker accounts (default: 10)
 func (s *CelestiaTestSuite) TestArabicaLoad() {
 	t := s.T()
 	if testing.Short() {
@@ -55,6 +63,7 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	blobSize := envIntOr("ARABICA_BLOB_SIZE", defaultArabicaBlobSize)
 	submissionDelay := envDurationOr("ARABICA_SUBMISSION_DELAY", defaultArabicaSubmissionDelay)
 	testDuration := envDurationOr("ARABICA_TEST_DURATION", defaultArabicaTestDuration)
+	workers := envIntOr("ARABICA_WORKERS", defaultArabicaWorkers)
 
 	arabicaCfg := networks.NewArabicaConfig()
 
@@ -63,6 +72,7 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	t.Logf("  gRPC:             %s", arabicaCfg.GRPCs[0])
 	t.Logf("  Blob size:        %d bytes", blobSize)
 	t.Logf("  Submission delay: %v", submissionDelay)
+	t.Logf("  Workers:          %d", workers)
 	t.Logf("  Test duration:    %v", testDuration)
 	t.Logf("  Per-block data:   ~%.1f MiB (assuming 3 s blocks)",
 		float64(blobSize)*3/submissionDelay.Seconds()/1024/1024)
@@ -83,6 +93,7 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 		BlobSize:        blobSize,
 		MinBlobSize:     blobSize,
 		SubmissionDelay: submissionDelay,
+		Workers:         workers,
 		PrivKeyHex:      privKeyHex,
 		KeyringDir:      keyringDir,
 	})
