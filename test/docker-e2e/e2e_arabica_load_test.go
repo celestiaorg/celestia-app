@@ -21,12 +21,14 @@ const (
 	defaultArabicaSubmissionDelay = 100 * time.Millisecond // 10 blobs/s × 2 MiB = 20 MiB/s
 	defaultArabicaTestDuration    = 10 * time.Minute
 
-	// Parallel worker accounts. Each worker submits on its own account so
-	// broadcasts don't serialize behind a single sequence; without enough
-	// workers the submission rate is capped by per-broadcast latency rather
-	// than the submission delay. Worker accounts are auto-created, funded, and
-	// fee-granted from the master (ARABICA_PRIV_KEY) account.
-	defaultArabicaWorkers = 10
+	// Parallel worker accounts. Each worker submits on its own account and
+	// blocks until its tx is committed before taking the next one, so the
+	// submission-rate ceiling is workers / confirmation_time, not the
+	// submission delay. At ~5.5s confirmation, sustaining 10 tx/s (20 MiB/s of
+	// 2 MiB blobs) needs ~55 workers; 60 leaves headroom for latency rising
+	// under load. Worker accounts are auto-created, funded, and fee-granted
+	// from the master (ARABICA_PRIV_KEY) account.
+	defaultArabicaWorkers = 60
 
 	// The single assertion: average block time must stay ≤ 4 s while the
 	// network processes 20 MiB of blobs per second.
@@ -46,7 +48,7 @@ const (
 //	ARABICA_BLOB_SIZE        – blob size in bytes (default: 2 MiB)
 //	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 100ms)
 //	ARABICA_TEST_DURATION    – total duration      (default: 10m)
-//	ARABICA_WORKERS          – parallel worker accounts (default: 10)
+//	ARABICA_WORKERS          – parallel worker accounts (default: 60)
 func (s *CelestiaTestSuite) TestArabicaLoad() {
 	t := s.T()
 	if testing.Short() {
