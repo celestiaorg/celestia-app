@@ -185,6 +185,24 @@ func createKeyringFromPrivKey(dir, privKeyHex string) error {
 	return nil
 }
 
+// SaveLatencyLogs captures the full stdout of the latency-monitor container
+// (the [SUBMIT]/[CONFIRM] stream) and writes it to destPath so CI can upload it
+// as an artifact. Safe to call after the container has been stopped, as long as
+// it has not been removed. Errors are logged but not fatal.
+func (s *CelestiaTestSuite) SaveLatencyLogs(ctx context.Context, t *testing.T, containerName, destPath string) {
+	logsCmd := exec.CommandContext(ctx, "docker", "logs", containerName)
+	output, err := logsCmd.CombinedOutput()
+	if err != nil {
+		t.Logf("Warning: failed to read latency-monitor logs: %v", err)
+		return
+	}
+	if err := os.WriteFile(destPath, output, 0o644); err != nil {
+		t.Logf("Warning: failed to write latency-monitor logs to %s: %v", destPath, err)
+		return
+	}
+	t.Logf("Saved %d bytes of latency-monitor logs to %s", len(output), destPath)
+}
+
 // CollectLatencyResults sends SIGTERM to trigger CSV writing, waits for exit,
 // then copies and parses the results file.
 func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testing.T, containerName string) (*LatencyMonitorResult, error) {

@@ -15,20 +15,17 @@ import (
 )
 
 const (
-	// Default load targets 20 MiB of blob data per second.
-	// 2 MiB blobs every 100 ms → 10 blobs/s × 2 MiB = 20 MiB/s.
-	defaultArabicaBlobSize        = 2 * 1024 * 1024        // 2 MiB per blob
-	defaultArabicaSubmissionDelay = 100 * time.Millisecond // 10 blobs/s × 2 MiB = 20 MiB/s
+	// Default load: 5 MiB blobs every 250 ms (sequential, no workers).
+	defaultArabicaBlobSize        = 5 * 1024 * 1024        // 5 MiB per blob
+	defaultArabicaSubmissionDelay = 250 * time.Millisecond // 4 blobs/s × 5 MiB
 	defaultArabicaTestDuration    = 10 * time.Minute
 
-	// Parallel worker accounts. Each worker submits on its own account and
-	// blocks until its tx is committed before taking the next one, so the
-	// submission-rate ceiling is workers / confirmation_time, not the
-	// submission delay. At ~5.5s confirmation, sustaining 10 tx/s (20 MiB/s of
-	// 2 MiB blobs) needs ~55 workers; 60 leaves headroom for latency rising
-	// under load. Worker accounts are auto-created, funded, and fee-granted
-	// from the master (ARABICA_PRIV_KEY) account.
-	defaultArabicaWorkers = 60
+	// Parallel worker accounts. 1 = sequential submission (broadcast only, no
+	// per-tx confirmation wait on the critical path). Values >1 enable parallel
+	// workers, but each worker then blocks until its tx is committed, so the
+	// submission ceiling becomes workers / confirmation_time. Worker accounts
+	// are auto-created, funded, and fee-granted from the master account.
+	defaultArabicaWorkers = 1
 
 	// The single assertion: average block time must stay ≤ 4 s while the
 	// network processes 20 MiB of blobs per second.
@@ -45,10 +42,10 @@ const (
 // Optional env vars (with defaults):
 //
 //	ARABICA_RPC              – RPC endpoint      (default: https://rpc.celestia-arabica-11.com:443)
-//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 2 MiB)
-//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 100ms)
+//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
+//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 250ms)
 //	ARABICA_TEST_DURATION    – total duration      (default: 10m)
-//	ARABICA_WORKERS          – parallel worker accounts (default: 60)
+//	ARABICA_WORKERS          – parallel worker accounts (default: 1 = sequential)
 func (s *CelestiaTestSuite) TestArabicaLoad() {
 	t := s.T()
 	if testing.Short() {
@@ -100,6 +97,15 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 		KeyringDir:      keyringDir,
 	})
 	require.NoError(t, err, "failed to deploy latency-monitor")
+
+	// Capture the full latency-monitor stdout ([SUBMIT]/[CONFIRM] stream) so CI
+	// can upload it as an artifact. Registered as a cleanup so the logs are
+	// saved even if the test fails before results are collected. Runs before
+	// the container's own stop cleanup (LIFO), so the container is still
+	// present when we read its logs.
+	t.Cleanup(func() {
+		s.SaveLatencyLogs(ctx, t, container.Name, "latency-monitor.log")
+	})
 
 	// --- 4. Run for the test duration ---
 	t.Logf("Running load test for %v...", testDuration)
