@@ -53,6 +53,11 @@ func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
 
 	blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 	require.NoError(t, err)
+	// Free the source blob when the test ends so it is released even when the
+	// caller does not free it explicitly. Free is idempotent, so callers that
+	// already `defer blob.Free()` (or free early, as the use-after-free test
+	// does) remain correct.
+	t.Cleanup(blob.Free)
 	return blob
 }
 
