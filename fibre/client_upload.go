@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
@@ -272,19 +273,12 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	client, err := c.clientCache.GetClient(ctx, val)
-	if err != nil {
-		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return false
-	}
-	span.AddEvent("client_acquired")
-
+	// Build the shard rows up front; they don't depend on the gRPC client and
+	// must be ready before any (re)dial + RPC attempt made by withHostRefresh.
 	blobRows := make([]types.BlobRow, len(rowIndices))
 	req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
 	i := 0
-	err = blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+	err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
 		br := &blobRows[i]
 		br.Index = uint32(index)
 		br.Data = row
@@ -300,16 +294,17 @@ func (c *Client) uploadTo(
 	}
 	span.AddEvent("proofs_added")
 
-	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-	defer rpcCancel()
-
 	rpcStart := time.Now()
-	resp, err := client.UploadShard(rpcCtx, req)
+	resp, err := withHostRefresh(c, ctx, val, func(client fibregrpc.Client) (*types.UploadShardResponse, error) {
+		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+		defer rpcCancel()
+		return client.UploadShard(rpcCtx, req)
+	})
 	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
-		log.WarnContext(ctx, "failed to upload rows", "error", err)
+		log.WarnContext(ctx, "failed to upload shard", "error", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to upload rows")
+		span.SetStatus(codes.Error, "failed to upload shard")
 		return false
 	}
 	span.AddEvent("rows_uploaded")

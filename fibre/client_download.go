@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
@@ -156,24 +157,12 @@ func (c *Client) downloadFrom(
 		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
 	}()
 
-	client, err := c.clientCache.GetClient(ctx, from.Validator)
-	if err != nil {
-		if context.Cause(ctx) == errDownloaded {
-			span.SetStatus(codes.Ok, "")
-			return err
-		}
-		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return err
-	}
-	span.AddEvent("client_acquired")
-
-	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-	defer rpcCancel()
-
 	rpcStart := time.Now()
-	resp, err := client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
+	resp, err := withHostRefresh(c, ctx, from.Validator, func(client fibregrpc.Client) (*types.DownloadShardResponse, error) {
+		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+		defer rpcCancel()
+		return client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
+	})
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
@@ -185,6 +174,7 @@ func (c *Client) downloadFrom(
 		span.SetStatus(codes.Error, "failed to download shard")
 		return err
 	}
+	span.AddEvent("client_acquired")
 
 	proofs, rlc, err := parseShard(resp.GetShard())
 	if err != nil {

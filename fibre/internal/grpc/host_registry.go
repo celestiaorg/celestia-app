@@ -5,30 +5,63 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	clock "github.com/filecoin-project/go-clock"
 )
 
 var _ validator.HostRegistry = &HostRegistry{}
 
+// DefaultRefreshInterval is the minimum time between on-chain host re-queries
+// for a single validator. It matches the expected block time, since registry
+// state cannot change faster than one block.
+var DefaultRefreshInterval = appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit
+
 // HostRegistry is a registry of validator hosts. It caches the hosts for validators in the active set.
 // It uses the [types.QueryClient] to query the fibre provider information for validators in the active set.
 type HostRegistry struct {
-	queryClient types.QueryClient
-	log         *slog.Logger
+	queryClient     types.QueryClient
+	log             *slog.Logger
+	clock           clock.Clock
+	refreshInterval time.Duration
+
 	mu          sync.RWMutex
 	cachedHosts map[string]validator.Host
+	lastRefresh map[string]time.Time
 }
 
-func NewHostRegistry(queryClient types.QueryClient, log *slog.Logger) *HostRegistry {
-	return &HostRegistry{
-		queryClient: queryClient,
-		log:         log,
-		cachedHosts: make(map[string]validator.Host),
+// HostRegistryOption configures a [HostRegistry].
+type HostRegistryOption func(*HostRegistry)
+
+// WithClock sets the clock used to rate-limit [HostRegistry.RefreshHost].
+func WithClock(c clock.Clock) HostRegistryOption {
+	return func(g *HostRegistry) { g.clock = c }
+}
+
+// WithRefreshInterval sets the minimum time between on-chain host re-queries
+// for a single validator in [HostRegistry.RefreshHost].
+func WithRefreshInterval(d time.Duration) HostRegistryOption {
+	return func(g *HostRegistry) { g.refreshInterval = d }
+}
+
+func NewHostRegistry(queryClient types.QueryClient, log *slog.Logger, opts ...HostRegistryOption) *HostRegistry {
+	g := &HostRegistry{
+		queryClient:     queryClient,
+		log:             log,
+		clock:           clock.New(),
+		refreshInterval: DefaultRefreshInterval,
+		cachedHosts:     make(map[string]validator.Host),
+		lastRefresh:     make(map[string]time.Time),
 	}
+	for _, opt := range opts {
+		opt(g)
+	}
+	return g
 }
 
 // Start the host registry by pulling all active fibre providers.
@@ -88,21 +121,68 @@ func (g *HostRegistry) PullAll(ctx context.Context) error {
 // PullHost pulls the host for a specific validator from the query client and caches it, overwriting any existing cached host.
 func (g *HostRegistry) PullHost(ctx context.Context, val *core.Validator) (validator.Host, error) {
 	consAddr := sdk.ConsAddress(val.Address.Bytes())
+	host, err := g.queryHost(ctx, consAddr.String())
+	if err != nil {
+		return "", err
+	}
+
+	g.writeHost(consAddr.String(), host)
+	g.log.Debug("pulled fibre provider host", "validator", consAddr.String(), "host", host)
+
+	return host, nil
+}
+
+// RefreshHost implements the [validator.HostRegistry] interface. See the
+// interface for the returned semantics.
+func (g *HostRegistry) RefreshHost(ctx context.Context, val *core.Validator) (changed bool, isValid bool, err error) {
+	consAddr := sdk.ConsAddress(val.Address.Bytes()).String()
+
+	// rate-limit per validator: state cannot change faster than one block, so
+	// re-querying more often is pointless. The timestamp is stamped upfront,
+	// regardless of the query outcome, to bound query load unconditionally.
+	g.mu.Lock()
+	if last, ok := g.lastRefresh[consAddr]; ok && g.clock.Since(last) < g.refreshInterval {
+		g.mu.Unlock()
+		// Rate-limited: skip the query and report no change. changed=false makes
+		// the caller fall back to the original error, isValid is meaningless
+		// without a fresh query, and err=nil because being rate-limited is not a
+		// failure — the host simply hasn't been re-checked this block.
+		return false, false, nil
+	}
+	old := g.cachedHosts[consAddr]
+	g.lastRefresh[consAddr] = g.clock.Now()
+	g.mu.Unlock()
+
+	host, err := g.queryHost(ctx, consAddr)
+	if err != nil {
+		return false, false, err
+	}
+
+	changed = host != old
+	isValid = types.ValidateHost(host.String()) == nil
+	// Cache the true on-chain host even when invalid, so the next refresh sees
+	// new == old and the "changed" signal goes quiet instead of re-firing every
+	// block.
+	if changed {
+		g.writeHost(consAddr, host)
+		g.log.Debug("refreshed fibre provider host", "validator", consAddr, "host", host, "valid", isValid)
+	}
+
+	return changed, isValid, nil
+}
+
+// queryHost queries the fibre provider host for a validator consensus address.
+func (g *HostRegistry) queryHost(ctx context.Context, consAddr string) (validator.Host, error) {
 	resp, err := g.queryClient.FibreProviderInfo(ctx, &types.QueryFibreProviderInfoRequest{
-		ValidatorConsensusAddress: consAddr.String(),
+		ValidatorConsensusAddress: consAddr,
 	})
 	if err != nil {
 		return "", err
 	}
 	if !resp.Found {
-		return "", fmt.Errorf("host not found for validator %s", consAddr.String())
+		return "", fmt.Errorf("host not found for validator %s", consAddr)
 	}
-
-	host := validator.Host(resp.Info.Host)
-	g.writeHost(consAddr.String(), host)
-	g.log.Debug("pulled fibre provider host", "validator", consAddr.String(), "host", host)
-
-	return host, nil
+	return validator.Host(resp.Info.Host), nil
 }
 
 // readHost reads a host from the cache with a read lock.

@@ -289,3 +289,7 @@ func (r *fixedHostRegistry) GetHost(_ context.Context, _ *core.Validator) (valid
 	}
 	return validator.Host(r.addr), nil
 }
+
+func (r *fixedHostRegistry) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
+	return false, false, nil
+}

@@ -57,6 +57,29 @@ func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Clie
 	return entry.clientCloser, entry.err
 }
 
+// Evict closes and removes the cached [Client] for val, so the next
+// [ClientCache.GetClient] re-resolves the host and re-dials. A cached dial
+// error is cleared as well.
+func (cc *ClientCache) Evict(val *core.Validator) {
+	addr := val.Address.String()
+
+	cc.mu.Lock()
+	entry, ok := cc.clients[addr]
+	if ok {
+		delete(cc.clients, addr)
+	}
+	cc.mu.Unlock()
+
+	if !ok {
+		return
+	}
+	entry.Lock()
+	defer entry.Unlock()
+	if entry.clientCloser != nil {
+		_ = entry.clientCloser.Close()
+	}
+}
+
 // Close closes all cached [Client]s.
 func (cc *ClientCache) Close() (err error) {
 	cc.mu.Lock()
