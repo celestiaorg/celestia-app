@@ -6,11 +6,13 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre"
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
@@ -24,16 +26,17 @@ func TestClientDownload(t *testing.T) {
 		fn   func(*testing.T)
 	}{
 		{"Success", testClientDownloadSuccess},
-		{"Success_ExactTargetCount", testClientDownloadExactTargetCount},
 		{"Success_Concurrent", testClientDownloadConcurrent},
 		{"FaultTolerance", testClientDownloadFaultTolerance},
 		{"ContextCancellation", testClientDownloadContextCancellation},
+		{"CancelDrainsInflight", testClientDownloadCancelDrainsInflight},
 		{"ClosedClient", testClientDownloadClosedClient},
 		{"LargeValidatorFailure", testClientDownloadLargeValidatorFailure},
 		{"IncorrectRowDistribution", testClientDownloadIncorrectRowDistribution},
 		{"WithHeight", testClientDownloadWithHeight},
 		{"WithZeroHeight", testClientDownloadWithZeroHeight},
-		{"CustomMinRowsPerValidator", testClientDownloadCustomMinRows},
+		{"TamperedBlobRLC", testClientDownloadTamperedBlob},
+		{"MaliciousSubmitterCollusion", testClientDownloadMaliciousSubmitter},
 	}
 
 	for _, tt := range tests {
@@ -47,6 +50,7 @@ func testClientDownloadSuccess(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	downloaded, err := client.Download(t.Context(), blob.ID())
+	defer downloaded.Free()
 	require.NoError(t, err)
 	require.NotNil(t, downloaded)
 	require.Equal(t, blob.Data(), downloaded.Data())
@@ -70,6 +74,7 @@ func testClientDownloadConcurrent(t *testing.T) {
 			defer wg.Done()
 
 			downloaded, err := client.Download(t.Context(), blob.ID())
+			defer downloaded.Free()
 			require.NoError(t, err)
 			require.Equal(t, blob.Data(), downloaded.Data())
 		}(blob)
@@ -85,8 +90,52 @@ func testClientDownloadContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := client.Download(ctx, blob.ID())
+	downloaded, err := client.Download(ctx, blob.ID())
+	defer downloaded.Free()
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+// testClientDownloadCancelDrainsInflight verifies that cancelling a download
+// mid-flight does not let Download return while a worker is still in flight.
+// The worker may still be storing into the pool slab the download is about to
+// free, so Blob must drain it first. Pre-fix, Download returned immediately on
+// cancel and that store raced the slab release.
+func testClientDownloadCancelDrainsInflight(t *testing.T) {
+	blob := makeTestBlobV0(t, 256*1024)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	client := makeTestDownloadClient(t, 1, func(cfg *fibre.ClientConfig) {
+		inner := cfg.NewClientFn
+		cfg.NewClientFn = func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
+			c, err := inner(ctx, val)
+			if err != nil {
+				return nil, err
+			}
+			return &blockingDownloadClient{Client: c, entered: entered, release: release}, nil
+		}
+	}, blob)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	ctx, cancel := context.WithCancel(t.Context())
+	done := make(chan error, 1)
+	go func() {
+		_, err := client.Download(ctx, blob.ID())
+		done <- err
+	}()
+
+	<-entered // a worker is in flight, parked inside DownloadShard
+	cancel()  // cancel while it is still running
+
+	// Download must keep waiting for the in-flight worker to drain.
+	select {
+	case <-done:
+		t.Fatal("Download returned while a worker was still in flight")
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	close(release) // worker completes; the drain can now finish
+	require.ErrorIs(t, <-done, context.Canceled)
 }
 
 func testClientDownloadClosedClient(t *testing.T) {
@@ -97,31 +146,9 @@ func testClientDownloadClosedClient(t *testing.T) {
 	require.NoError(t, client.Stop(t.Context()))
 	require.NoError(t, client.Stop(t.Context())) // idempotent
 
-	_, err := client.Download(t.Context(), blob.ID())
-	require.ErrorIs(t, err, fibre.ErrClientClosed)
-}
-
-func testClientDownloadExactTargetCount(t *testing.T) {
-	// test that we download from exactly the minimum validators needed (no more)
-	// with 10 equal-stake validators and livenessThreshold=1/3,
-	// each validator gets ~1229 rows, so 4 validators provide ~4916 rows >= 4096 originalRows
-	const numValidators = 10
-
-	blob := makeTestBlobV0(t, 256*1024)
-
-	var counter *atomic.Int64
-	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
-	}, blob)
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
 	downloaded, err := client.Download(t.Context(), blob.ID())
-	require.NoError(t, err)
-	require.Equal(t, blob.Data(), downloaded.Data())
-
-	// With 10 equal-stake validators, 4 provide enough rows for reconstruction.
-	// The coordinator should launch exactly 4 (inflight rows >= originalRows) in the happy path.
-	require.Equal(t, int64(4), counter.Load(), "should download from exactly the minimum validators needed")
+	defer downloaded.Free()
+	require.ErrorIs(t, err, fibre.ErrClientClosed)
 }
 
 func testClientDownloadFaultTolerance(t *testing.T) {
@@ -150,6 +177,7 @@ func testClientDownloadFaultTolerance(t *testing.T) {
 			t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 			downloaded, err := client.Download(t.Context(), blob.ID())
+			defer downloaded.Free()
 			if tc.expectErr != nil {
 				require.ErrorIs(t, err, tc.expectErr)
 			} else {
@@ -187,6 +215,7 @@ func testClientDownloadLargeValidatorFailure(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	downloaded, err := client.Download(t.Context(), blob.ID())
+	defer downloaded.Free()
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 }
@@ -256,6 +285,7 @@ func testClientDownloadIncorrectRowDistribution(t *testing.T) {
 	// Despite the mismatched row distribution, download should succeed
 	// and return the correct data.
 	downloaded, err := client.Download(t.Context(), blob.ID())
+	defer downloaded.Free()
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 }
@@ -281,6 +311,7 @@ func testClientDownloadWithHeight(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.WithHeight(42))
+	defer downloaded.Free()
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -311,6 +342,7 @@ func testClientDownloadWithZeroHeight(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	downloaded, err := client.Download(t.Context(), blob.ID())
+	defer downloaded.Free()
 	require.NoError(t, err)
 	require.Equal(t, blob.Data(), downloaded.Data())
 
@@ -336,32 +368,6 @@ func (g *heightTrackingSetGetter) GetByHeight(ctx context.Context, height uint64
 	g.getByHeightCalls.Add(1)
 	g.lastHeight.Store(height)
 	return g.set, nil
-}
-
-func testClientDownloadCustomMinRows(t *testing.T) {
-	// Verify that customCfg modifications to MinRowsPerValidator propagate
-	// to the mock via the pointer. Setting MinRowsPerValidator to originalRows
-	// means every validator gets all rows, so a single validator suffices.
-	// With default MinRowsPerValidator (~148), 10 equal-stake validators need 4
-	// to reconstruct. If the pointer didn't work, the mock would use default
-	// MinRowsPerValidator and the counter assertion would fail.
-	const numValidators = 10
-	blob := makeTestBlobV0(t, 256*1024)
-
-	var counter *atomic.Int64
-	client := makeTestDownloadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.MinRowsPerValidator = blob.Config().OriginalRows
-		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
-	}, blob)
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	downloaded, err := client.Download(t.Context(), blob.ID())
-	require.NoError(t, err)
-	require.Equal(t, blob.Data(), downloaded.Data())
-
-	// Every validator has originalRows rows, so 1 validator is enough.
-	require.Equal(t, int64(1), counter.Load(),
-		"with MinRowsPerValidator=originalRows, a single validator should suffice")
 }
 
 // makeTestDownloadClient creates a download client with equal-stake validators that serves the given blobs.
@@ -447,6 +453,22 @@ func makeDownloadMockClientFn(
 
 // mock infrastructure
 
+// blockingDownloadClient gates DownloadShard: it signals once a worker has
+// entered (entered) and blocks until the test unblocks it (release), letting the
+// test pin a worker in flight while it cancels the download.
+type blockingDownloadClient struct {
+	grpc.Client
+	entered chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (b *blockingDownloadClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
+	b.once.Do(func() { close(b.entered) })
+	<-b.release
+	return b.Client.DownloadShard(ctx, req, opts...)
+}
+
 type downloadMockClient struct {
 	validator *core.Validator
 	privKey   cmted25519.PrivKey
@@ -495,30 +517,238 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 
 	rowIndices := shardMap[val]
 	rows := make([]*types.BlobRow, 0, len(rowIndices))
-	var rlcRoot [32]byte
-	for _, idx := range rowIndices {
-		row, err := blob.Row(idx)
-		if err != nil {
-			continue
-		}
+	if err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
 		rows = append(rows, &types.BlobRow{
-			Index: uint32(row.Index),
-			Data:  row.Row,
-			Proof: row.RowProof.RowProof,
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
 		})
-		if len(rows) == 1 {
-			rlcRoot = row.RLCRoot
-		}
+	}); err != nil {
+		return &types.DownloadShardResponse{}, nil
 	}
 
-	return &types.DownloadShardResponse{
-		Shard: &types.BlobShard{
-			Rlc:  &types.BlobShard_Root{Root: rlcRoot[:]},
-			Rows: rows,
-		},
-	}, nil
+	shard := &types.BlobShard{
+		Rows: rows,
+	}
+
+	shard.Coefficients = rlc.Marshal(blob.RLC())
+
+	return &types.DownloadShardResponse{Shard: shard}, nil
 }
 
 func (d *downloadMockClient) Close() error {
 	return nil
+}
+
+// tamperedMockClient models a network of two coexisting valid encodings —
+// an honest blob and a separate "bad" blob with its own commitment. Validators
+// in the malicious set serve bad-blob shards; the rest serve honest-blob
+// shards. The mock answers requests for either commitment, but bad-commitment
+// requests are only honored by malicious validators (others return empty as
+// if they had no data for that commitment).
+type tamperedMockClient struct {
+	validator  *core.Validator
+	honestBlob *fibre.Blob
+	badBlob    *fibre.Blob
+	malicious  map[string]bool
+	blobCfg    fibre.BlobConfig
+	valSet     validator.Set
+	clientCfg  *fibre.ClientConfig
+}
+
+func (d *tamperedMockClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
+	return &types.UploadShardResponse{}, nil
+}
+
+func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.DownloadShardRequest, opts ...grpclib.CallOption) (*types.DownloadShardResponse, error) {
+	var id fibre.BlobID
+	if err := id.UnmarshalBinary(req.BlobId); err != nil {
+		return nil, err
+	}
+
+	requestedHonest := id.Commitment() == d.honestBlob.ID().Commitment()
+	requestedBad := id.Commitment() == d.badBlob.ID().Commitment()
+	if !requestedHonest && !requestedBad {
+		return &types.DownloadShardResponse{}, nil
+	}
+
+	malicious := d.malicious[d.validator.Address.String()]
+	// Bad-commitment requests are only served by colluding (malicious)
+	// validators; honest validators have no data for that commitment.
+	if requestedBad && !malicious {
+		return &types.DownloadShardResponse{}, nil
+	}
+
+	source := d.honestBlob
+	if malicious {
+		source = d.badBlob
+	}
+
+	shardMap := d.valSet.Assign(
+		id.Commitment(),
+		d.blobCfg.TotalRows(),
+		d.blobCfg.OriginalRows,
+		d.clientCfg.MinRowsPerValidator,
+		d.clientCfg.LivenessThreshold,
+	)
+
+	val, ok := d.valSet.GetByAddress(d.validator.Address)
+	if !ok {
+		return &types.DownloadShardResponse{}, nil
+	}
+
+	rowIndices := shardMap[val]
+	rows := make([]*types.BlobRow, 0, len(rowIndices))
+	if err := source.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}); err != nil {
+		return &types.DownloadShardResponse{}, nil
+	}
+
+	shard := &types.BlobShard{
+		Rows: rows,
+	}
+
+	shard.Coefficients = rlc.Marshal(source.RLC())
+
+	return &types.DownloadShardResponse{Shard: shard}, nil
+}
+
+func (d *tamperedMockClient) Close() error {
+	return nil
+}
+
+// makeTamperedDownloadMockClientFn creates a mock client factory where
+// validators in the malicious set serve rows from badBlob and the rest serve
+// rows from honestBlob. Both blobs are independently valid; they just commit
+// to different bytes.
+func makeTamperedDownloadMockClientFn(
+	valSet validator.Set,
+	cfg *fibre.ClientConfig,
+	privKeys []cmted25519.PrivKey,
+	honestBlob *fibre.Blob,
+	badBlob *fibre.Blob,
+	malicious map[string]bool,
+	blobCfg fibre.BlobConfig,
+) grpc.NewClientFn {
+	privKeyByAddr := make(map[string]cmted25519.PrivKey)
+	for _, pk := range privKeys {
+		privKeyByAddr[pk.PubKey().Address().String()] = pk
+	}
+
+	return func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
+		if _, ok := privKeyByAddr[val.Address.String()]; !ok {
+			return nil, fmt.Errorf("validator not found: %s", val.Address)
+		}
+		return &tamperedMockClient{
+			validator:  val,
+			honestBlob: honestBlob,
+			badBlob:    badBlob,
+			malicious:  malicious,
+			blobCfg:    blobCfg,
+			valSet:     valSet,
+			clientCfg:  cfg,
+		}, nil
+	}
+}
+
+func testClientDownloadTamperedBlob(t *testing.T) {
+	// Test recovery in the realistic threat model: an honest uploader pushed
+	// the blob, but some validators serve a locally-tampered version with
+	// their own merkle paths. Malicious shards fail batched commitment
+	// verification at the client (their row root, combined with the original
+	// RLC root, doesn't hash to the on-chain commitment) and get rejected
+	// wholesale; honest shards verify and contribute their rows toward
+	// reconstruction.
+	const numValidators = 10
+
+	honest := makeTestBlobV0(t, 256*1024)
+	decoy := makeTestBlobV0(t, 256*1024) // an independent valid encoding with a different commitment
+
+	validators, privKeys := makeTestValidators(t, numValidators)
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
+
+	// Mark every other validator as malicious. With 10 validators at 1/3
+	// liveness threshold, each validator covers ~3K/10 of the K+N=3K rows
+	// non-overlappingly, so 5 honest validators have ~1.5K rows — well
+	// above the K threshold needed to reconstruct.
+	malicious := make(map[string]bool, numValidators/2)
+	for i := 0; i < numValidators; i += 2 {
+		malicious[validators[i].Address.String()] = true
+	}
+
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = makeTamperedDownloadMockClientFn(valSet, &cfg, privKeys, honest, decoy, malicious, honest.Config())
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	downloaded, err := client.Download(t.Context(), honest.ID())
+	defer downloaded.Free()
+	require.NoError(t, err)
+	require.NotNil(t, downloaded)
+
+	// The recovered data must match the original blob's data and commitment.
+	require.Equal(t, honest.Data(), downloaded.Data())
+	require.Equal(t, honest.ID().Commitment(), downloaded.ID().Commitment())
+}
+
+func testClientDownloadMaliciousSubmitter(t *testing.T) {
+	// Threat model: the submitter built the row tree over tampered data and
+	// computed the RLC from those same tampered rows, so the bad commitment
+	// is fully self-consistent. They distributed those bad shards to every
+	// validator. The protocol intentionally cannot tell the data is "bad"
+	// — the commitment binds, not the data's correctness. What it does
+	// guarantee is determinism: every downloader of the same commitment
+	// reconstructs the same bytes, regardless of which validators served
+	// them. So the application can rely on commitment-equals-content while
+	// remaining responsible for deciding whether that commitment is the one
+	// it expected.
+	const numValidators = 10
+
+	honest := makeTestBlobV0(t, 256*1024)
+	bad := makeTestBlobV0(t, 256*1024) // a separate, fully-consistent encoding with its own commitment
+
+	validators, privKeys := makeTestValidators(t, numValidators)
+	valSet := validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: 100}
+
+	// Every validator was handed the bad shards by the submitter.
+	holdsBad := make(map[string]bool, numValidators)
+	for _, v := range validators {
+		holdsBad[v.Address.String()] = true
+	}
+
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = makeTamperedDownloadMockClientFn(valSet, &cfg, privKeys, honest, bad, holdsBad, honest.Config())
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: &mockValidatorSetGetter{set: valSet}}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	first, err := client.Download(t.Context(), bad.ID())
+	defer first.Free()
+	require.NoError(t, err)
+	require.NotNil(t, first)
+	require.Equal(t, bad.ID().Commitment(), first.ID().Commitment())
+	require.NotEqual(t, honest.Data(), first.Data(), "reconstructed data is the malicious version, not the honest one")
+
+	// Repeat the download: even though shard selection and worker order are
+	// non-deterministic, the reconstructed bytes must match exactly.
+	second, err := client.Download(t.Context(), bad.ID())
+	defer second.Free()
+	require.NoError(t, err)
+	require.Equal(t, first.Data(), second.Data(), "downloads of the same commitment must be byte-identical")
 }

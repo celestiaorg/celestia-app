@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -361,7 +362,8 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	// Check sufficient balance (includes funds locked in pending withdrawals)
 	// TODO: This assumes 1 gas = 1 utia but the minimum gas price could be
 	// different.
-	requiredAmount := calculatePaymentCoin(promise.BlobSize, params.GasPerBlobByte)
+	gas := EstimateGasForPayForFibre(promise.BlobSize)
+	requiredAmount := sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(gas))
 
 	hasSufficientBalance := escrowAccount.Balance.IsGTE(requiredAmount)
 	if !hasSufficientBalance {

@@ -23,6 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	"github.com/spf13/viper"
 )
 
 // NodeInfo is a struct that contains the name, IP address, and network address
@@ -138,6 +139,29 @@ func (n *Network) AddValidator(name, ip, payLoadRoot, region string, stake int64
 	return nil
 }
 
+// AddEncoder creates a keyring for a dedicated encoder instance with uniquely
+// prefixed fibre accounts (enc0-0, enc0-1, ...) so that multiple encoders can
+// each fund their own escrow without blocking one another.
+func (n *Network) AddEncoder(name, payLoadRoot string, fibreAccounts int) error {
+	kr, err := keyring.New(app.Name, keyring.BackendTest,
+		filepath.Join(payLoadRoot, name), nil, n.ecfg.Codec)
+	if err != nil {
+		return err
+	}
+
+	index := extractIndexFromName(name)
+	keyPrefix := fmt.Sprintf("enc%d", index)
+
+	fmt.Printf("creating %d fibre accounts for encoder %s (prefix=%s)\n", fibreAccounts, name, keyPrefix)
+	for i := range fibreAccounts {
+		if err := addFundedAccount(kr, n.genesis, fmt.Sprintf("%s-%d", keyPrefix, i)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // addFundedAccount creates a new key in the local keyring and registers it as a
 // funded account in genesis. The key lives in the validator's keyring so the
 // binary (txsim, fibre-txsim) can sign transactions at runtime.
@@ -195,6 +219,10 @@ func (n *Network) InitNodes(rootDir string) error {
 	fmt.Println("genesis file saved to", genesisPath, "with", len(n.validators), "validators")
 
 	vals := n.genesis.Validators()
+
+	// Pass 1: write per-validator node_key.json + priv_validator files, and
+	// stamp NetworkAddress into n.validators so pass 2 can build a complete
+	// persistent_peers list.
 	for _, v := range vals {
 		valPath := filepath.Join(rootDir, v.Name)
 		nodeKeyFile := filepath.Join(valPath, "node_key.json")
@@ -227,12 +255,47 @@ func (n *Network) InitNodes(rootDir string) error {
 		}
 		filePV := privval.NewFilePV(v.ConsensusKey, pvKeyFile, pvStateFile)
 		filePV.Save()
+	}
 
-		cmtcfg := cmtconfig.DefaultConfig()
-		cmtconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "config.toml"), cmtcfg)
+	// Pass 2: write each validator's config.toml. Peer discovery is handled by
+	// the shipped addrbook.json + PEX, so we set no
+	// persistent_peers — nodes seed their peer set from the address book and let
+	// PEX fill outbound connections up to max_num_outbound_peers, forming a
+	// partial mesh instead of connecting to every other validator.
+	//
+	// Use the templated config.toml that `talis init` wrote one level up
+	// (built from app.DefaultConsensusConfig + DefaultConfigProfile, see
+	// init.go:137-139). That carries the celestia-specific overrides
+	// AND the talis profile bits (TracingTables, Prometheus enable/listen
+	// addr, RPC.GRPCListenAddress=0.0.0.0:9090). Falling back to
+	// app.DefaultConsensusConfig directly would silently drop the talis
+	// profile — observability would break on --with-observability runs.
+	baseCfgPath := filepath.Join(filepath.Dir(rootDir), "config.toml")
+	v := viper.New()
+	v.SetConfigFile(baseCfgPath)
+	if err := v.ReadInConfig(); err != nil {
+		return fmt.Errorf("failed to read base config %q: %w", baseCfgPath, err)
+	}
+
+	for _, val := range vals {
+		// Start from app.DefaultConsensusConfig so any field absent from the
+		// templated TOML still inherits celestia defaults, then layer the
+		// templated values on top.
+		cmtcfg := app.DefaultConsensusConfig()
+		if err := v.Unmarshal(cmtcfg); err != nil {
+			return fmt.Errorf("failed to unmarshal base config: %w", err)
+		}
+
+		// No persistent_peers: nodes form a partial mesh up to
+		// max_num_outbound_peers via the shipped addrbook.json + PEX.
+		cmtcfg.P2P.PersistentPeers = ""
+		// Enable the priv-validator gRPC endpoint that fibre needs to fetch
+		// the validator's public key for shard-assignment verification.
+		cmtcfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
+		cmtconfig.WriteConfigFile(filepath.Join(rootDir, val.Name, "config.toml"), cmtcfg)
 
 		appcfg := app.DefaultAppConfig()
-		serverconfig.WriteConfigFile(filepath.Join(rootDir, v.Name, "app.toml"), appcfg)
+		serverconfig.WriteConfigFile(filepath.Join(rootDir, val.Name, "app.toml"), appcfg)
 	}
 
 	return nil

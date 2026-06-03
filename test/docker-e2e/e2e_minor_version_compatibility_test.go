@@ -98,6 +98,14 @@ func (s *CelestiaTestSuite) buildMixedVersionChain(ctx context.Context, versionT
 	baseTag := versionTags[0]
 	baseCfg := dockerchain.DefaultConfig(s.client, s.network).WithTag(baseTag)
 
+	// Pre-pull all per-tag images with retry so that transient ghcr.io errors
+	// surface as infra noise rather than test failures. PullImage is idempotent
+	// and becomes a no-op once the image is cached locally.
+	for _, tag := range versionTags {
+		img := tastoracontainertypes.NewImage(baseCfg.Image, tag, "10001:10001")
+		s.Require().NoError(pullImageWithRetry(ctx, s.client, img), "failed to pre-pull image %s", img.Ref())
+	}
+
 	validators := make([]genesis.Validator, len(versionTags))
 	for i := range len(versionTags) {
 		validators[i] = genesis.NewDefaultValidator(fmt.Sprintf("validator%d", i))

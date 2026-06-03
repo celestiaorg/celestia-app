@@ -18,8 +18,9 @@ import (
 
 const (
 	GCDefaultValidatorMachineType     = "c3d-highcpu-16"
+	GCDefaultEncoderMachineType       = "c3d-highcpu-8"
 	GCDefaultObservabilityMachineType = "e2-medium"
-	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2204-lts"
+	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
 	GCDefaultDiskSizeGB               = 400
 )
 
@@ -73,7 +74,8 @@ func NewGCClient(cfg Config) (*GCClient, error) {
 
 func (c *GCClient) Up(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -112,7 +114,8 @@ func (c *GCClient) Up(ctx context.Context, workers int) error {
 
 func (c *GCClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != GoogleCloud {
 			continue
 		}
@@ -222,6 +225,17 @@ func NewGoogleCloudValidator(region string) Instance {
 	return i
 }
 
+func NewGoogleCloudEncoder(region string) Instance {
+	if region == "" || region == RandomRegion {
+		region = RandomGCRegion()
+	}
+	i := NewBaseInstance(Encoder)
+	i.Provider = GoogleCloud
+	i.Slug = GCDefaultEncoderMachineType
+	i.Region = region
+	return i
+}
+
 func NewGoogleCloudObservability(region string) Instance {
 	if region == "" || region == RandomRegion {
 		region = RandomGCRegion()
@@ -255,6 +269,31 @@ func RandomGCZone(region string) string {
 		return region + "-a"
 	}
 	return zones[rand.Intn(len(zones))]
+}
+
+// ShuffledGCZones returns all zones for a region in random order. Falls back
+// to {region}-a/b/c when the region is unknown.
+func ShuffledGCZones(region string) []string {
+	zones, ok := GCZones[region]
+	if !ok || len(zones) == 0 {
+		zones = []string{region + "-a", region + "-b", region + "-c"}
+	}
+	out := make([]string, len(zones))
+	copy(out, zones)
+	rand.Shuffle(len(out), func(i, j int) { out[i], out[j] = out[j], out[i] })
+	return out
+}
+
+// isGCStockoutError reports whether err indicates the requested machine type
+// has no capacity in the target zone (GCE returns 503 with reason
+// ZONE_RESOURCE_POOL_EXHAUSTED[_WITH_DETAILS]).
+func isGCStockoutError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "ZONE_RESOURCE_POOL_EXHAUSTED") ||
+		strings.Contains(msg, "does not have enough resources available")
 }
 
 func ensureGCFirewallRule(ctx context.Context, project string, opts []option.ClientOption) error {
@@ -364,10 +403,23 @@ func CreateGCInstances(ctx context.Context, project string, insts []Instance, ss
 			start := time.Now()
 			log.Println("Creating instance", inst.Name, "in region", inst.Region, start.Format(time.RFC3339))
 
-			zone := RandomGCZone(inst.Region)
-			pubIP, privIP, err := createGCInstance(ctx, project, inst, zone, sshKey, opts)
-			if err != nil {
-				results <- result{inst: inst, err: fmt.Errorf("create %s: %w", inst.Name, err)}
+			zones := ShuffledGCZones(inst.Region)
+			var (
+				pubIP, privIP string
+				lastErr       error
+			)
+			for i, zone := range zones {
+				pubIP, privIP, lastErr = createGCInstance(ctx, project, inst, zone, sshKey, opts)
+				if lastErr == nil {
+					break
+				}
+				if !isGCStockoutError(lastErr) {
+					break
+				}
+				log.Printf("%s: zone %s stocked out for %s; trying next zone (%d/%d)", inst.Name, zone, inst.Slug, i+1, len(zones))
+			}
+			if lastErr != nil {
+				results <- result{inst: inst, err: fmt.Errorf("create %s: %w", inst.Name, lastErr), timeRequired: time.Since(start)}
 				return
 			}
 
@@ -650,7 +702,7 @@ func checkForRunningGCExperiments(ctx context.Context, project string, opts []op
 }
 
 func hasGCExperimentLabel(label, experimentID, chainID string) bool {
-	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") {
+	if !strings.HasPrefix(label, "validator_") && !strings.HasPrefix(label, "bridge_") && !strings.HasPrefix(label, "light_") && !strings.HasPrefix(label, "encoder_") {
 		return false
 	}
 	experimentIDLabel := strings.ReplaceAll(experimentID, "-", "_")

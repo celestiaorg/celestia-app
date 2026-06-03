@@ -3,11 +3,24 @@ package fibre
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/stretchr/testify/require"
 )
 
-func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
+func TestBlobHeaderV0_MarshalRoundTrip(t *testing.T) {
+	sizes := []int{1, 10, 500, 5000, 1024, 1 << 20}
+
+	for _, size := range sizes {
+		h := newBlobHeaderV0(size)
+		buf := make([]byte, blobHeaderLen)
+		h.marshalTo(buf)
+
+		var got blobHeaderV0
+		require.NoError(t, got.unmarshalFrom(buf))
+		require.Equal(t, uint32(size), got.dataSize)
+	}
+}
+
+func TestNewBlob_EncodeDecodeRoundTrip(t *testing.T) {
 	cfg := DefaultBlobConfigV0()
 
 	tests := []struct {
@@ -15,112 +28,67 @@ func TestBlobHeaderV0_EncodeToRows_DecodeFromRows(t *testing.T) {
 		dataSize int
 	}{
 		{"single byte", 1},
-		{"small data", 10},
-		{"medium data", 500},
-		{"large data", 5000},
+		{"small", 10},
+		{"medium", 500},
+		{"large", 5000},
 		{"1 KiB", 1024},
-		{"1 MiB", 1024 * 1024},
+		{"1 MiB", 1 << 20},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create test data with recognizable pattern
 			data := make([]byte, tt.dataSize)
 			for i := range data {
 				data[i] = byte(i % 256)
 			}
 
-			// Encode
-			header := newBlobHeaderV0(len(data))
-			rows := header.encodeToRows(data, cfg)
+			blob, err := NewBlob(data, cfg)
+			require.NoError(t, err)
+			defer blob.Free()
 
-			// Verify correct number of rows
-			if len(rows) != cfg.OriginalRows {
-				t.Fatalf("encodeToRows() returned %d rows, want %d", len(rows), cfg.OriginalRows)
-			}
-
-			// Verify all rows have same size
-			expectedRowSize := cfg.RowSize(len(data))
-			for i, row := range rows {
-				if len(row) != expectedRowSize {
-					t.Errorf("row %d size = %d, want %d", i, len(row), expectedRowSize)
-				}
-			}
-
-			// Decode
-			var decodeHeader blobHeaderV0
-			decodedData, err := decodeHeader.decodeFromRows(rows, cfg)
-			if err != nil {
-				t.Fatalf("decodeFromRows() error = %v", err)
-			}
-
-			// Verify round-trip
-			if len(decodedData) != len(data) {
-				t.Errorf("decodeFromRows() data length mismatch, got %d bytes, want %d bytes", len(decodedData), len(data))
-			}
-			for i := range data {
-				if decodedData[i] != data[i] {
-					t.Errorf("decodeFromRows() data mismatch at index %d, got %d, want %d", i, decodedData[i], data[i])
-					break
-				}
-			}
-
-			// Verify header was decoded correctly
-			if decodeHeader.dataSize != uint32(tt.dataSize) {
-				t.Errorf("decodeFromRows() header.dataSize = %d, want %d", decodeHeader.dataSize, tt.dataSize)
-			}
+			require.Equal(t, tt.dataSize, blob.DataSize())
+			require.Equal(t, data, blob.Data())
 		})
 	}
 }
 
-func TestBlob_Reconstruct(t *testing.T) {
-	testData := []byte("test erasure coding reconstruction")
-	cfg := DefaultBlobConfigV0()
-
-	blob, err := NewBlob(testData, cfg)
+func TestBlob_RowProofsAfterRelease(t *testing.T) {
+	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
 	require.NoError(t, err)
 
-	totalRows := cfg.OriginalRows + cfg.ParityRows
-	allRows := make([]*rsema1d.RowInclusionProof, totalRows)
-	for i := range totalRows {
-		row, err := blob.Row(i)
-		require.NoError(t, err)
-		allRows[i] = row
-	}
+	noop := func(int, []byte, [][]byte) {}
+	err = blob.RowProofs([]int{0}, noop)
+	require.NoError(t, err)
 
-	testReconstruct := func(t *testing.T, rows []*rsema1d.RowInclusionProof) {
-		reconstructBlob, err := NewEmptyBlob(blob.ID())
-		require.NoError(t, err)
+	blob.Free()
 
-		for _, row := range rows {
-			err = reconstructBlob.VerifyRow(row)
-			require.NoError(t, err)
-			require.True(t, reconstructBlob.SetRow(row))
-		}
+	err = blob.RowProofs([]int{0}, noop)
+	require.Error(t, err)
+}
 
-		err = reconstructBlob.Reconstruct()
-		require.NoError(t, err)
+// TestBlob_RetainRefusesAfterRelease verifies the refcount cannot be resurrected
+// once pooled storage has been released: retain returns false instead of bumping
+// 0 -> 1. This is what stops a freed blob from being re-uploaded into memory the
+// pool may have recycled.
+func TestBlob_RetainRefusesAfterRelease(t *testing.T) {
+	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
+	require.NoError(t, err)
 
-		reconstructedData := reconstructBlob.Data()
-		require.Equal(t, testData, reconstructedData)
-	}
+	// While alive, an additional non-user owner can retain.
+	require.True(t, blob.retain())
+	require.False(t, blob.released())
 
-	t.Run("FirstKRows", func(t *testing.T) {
-		testReconstruct(t, allRows[:cfg.OriginalRows])
-	})
+	// The user's Free drops one ref; the extra owner keeps storage alive.
+	blob.Free()
+	require.False(t, blob.released())
+	err = blob.RowProofs([]int{0}, func(int, []byte, [][]byte) {})
+	require.NoError(t, err)
 
-	t.Run("LastKRows", func(t *testing.T) {
-		testReconstruct(t, allRows[totalRows-cfg.OriginalRows:])
-	})
+	// The last owner releases -> storage returns to the pool.
+	blob.release()
+	require.True(t, blob.released())
 
-	t.Run("MixedRows", func(t *testing.T) {
-		mixedRows := make([]*rsema1d.RowInclusionProof, 0, cfg.OriginalRows)
-		for i := 0; i < cfg.OriginalRows; i++ {
-			idx := i * 2
-			if idx < totalRows {
-				mixedRows = append(mixedRows, allRows[idx])
-			}
-		}
-		testReconstruct(t, mixedRows)
-	})
+	// A retain now must refuse rather than resurrect the freed blob.
+	require.False(t, blob.retain())
+	require.True(t, blob.released())
 }

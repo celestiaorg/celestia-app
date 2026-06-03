@@ -28,7 +28,7 @@ const (
 	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
 	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
 	// we can bump it as required.
-	celestiaNodeVersion    = "v0.30.0-rc0"
+	celestiaNodeVersion    = "cb0ffce"
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
 )
 
@@ -137,8 +137,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--core.ip", coreNodeHostname, "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": celestiaCustom,
-				"P2P_NETWORK":     celestia.GetChainID(),
+				"CELESTIA_CUSTOM":                       celestiaCustom,
+				"P2P_NETWORK":                           celestia.GetChainID(),
+				"CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS": "1",
 			}),
 		)
 		s.Require().NoError(err, "failed to start bridge node")
@@ -160,8 +161,9 @@ func (s *CelestiaTestSuite) DeployDANetwork(ctx context.Context, celestia *tasto
 			da.WithChainID(celestia.GetChainID()),
 			da.WithAdditionalStartArguments("--p2p.network", celestia.GetChainID(), "--rpc.addr", "0.0.0.0"),
 			da.WithEnvironmentVariables(map[string]string{
-				"CELESTIA_CUSTOM": tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
-				"P2P_NETWORK":     celestia.GetChainID(),
+				"CELESTIA_CUSTOM":                       tastoratypes.BuildCelestiaCustomEnvVar(celestia.GetChainID(), genesisHash, bridgeP2PAddr),
+				"P2P_NETWORK":                           celestia.GetChainID(),
+				"CELESTIA_SHREX_DISABLE_RESOURCE_LIMITS": "1",
 			}),
 		)
 		s.Require().NoError(err, "failed to start light node")

@@ -88,6 +88,22 @@ func validRowProof() RowProof {
 	}
 }
 
+// TestRowProofValidate_RejectsVacuousProof ensures Validate rejects a
+// constructed RowProof where EndRow < StartRow with empty RowRoots/Proofs.
+// Previously the uint32 subtraction `EndRow-StartRow+1` underflowed, the
+// arity check passed, and Validate returned nil for a proof that proved
+// nothing.
+func TestRowProofValidate_RejectsVacuousProof(t *testing.T) {
+	rp := RowProof{
+		StartRow: 5,
+		EndRow:   4,
+		RowRoots: nil,
+		Proofs:   nil,
+	}
+	err := rp.Validate(root)
+	assert.Error(t, err)
+}
+
 func mismatchedRowRoots() RowProof {
 	rp := validRowProof()
 	rp.RowRoots = [][]byte{}

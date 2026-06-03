@@ -8,8 +8,8 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
-	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -38,23 +38,32 @@ func WithHeight(height uint64) DownloadOption {
 	}
 }
 
-// Download retrieves and reconstructs a [Blob] by [BlobID] from the [Server]s.
+// Download retrieves and reconstructs a [Blob] by [BlobID] from the network.
 //
-// The algorithm selects validators shuffled by stake weight for load balancing
-// and requests them for shards. It tracks unique rows collected and dynamically
-// launches more validators as needed until enough rows are collected for reconstruction.
-// If any requests fail, more validators are contacted automatically.
+// Validators are selected shuffled by stake weight and queried for shards in
+// parallel until enough unique rows are collected to reconstruct the blob;
+// failed requests automatically pull in more validators.
+//
+// The commitment binds the bytes, not their meaning. A malicious uploader can
+// publish a self-consistent encoding over arbitrary data — every shard will
+// verify, reconstruction will succeed, and the returned blob's content may not
+// match what the caller expected. The protocol guarantees that every honest
+// downloader of the same [BlobID] reconstructs byte-identical data; deciding
+// whether that data is the "right" data is the caller's responsibility.
 //
 // Errors:
-//   - [ErrNotFound]: no shard was retrieved for the blob
-//   - [ErrNotEnoughShards]: not enough shards were retrieved to reconstruct the original data
-//   - [ErrBlobCommitmentMismatch]: the commitment doesn't match the reconstructed blob
+//   - [ErrNotFound]: no shards were retrieved
+//   - [ErrNotEnoughShards]: not enough shards to reconstruct
+//   - reconstruction or decoding errors if the rows cannot produce a valid blob
 func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption) (blob *Blob, err error) {
 	if !c.started.Load() {
 		return nil, errors.New("fibre client is not started")
 	}
 	if c.closed.Load() {
 		return nil, ErrClientClosed
+	}
+	if err := id.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid blob ID: %w", err)
 	}
 
 	var opt downloadOptions
@@ -72,9 +81,9 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 
 	c.log.DebugContext(ctx, "initiating blob download", "blob_commitment", id.Commitment())
 
-	// most of the times we probably should have the height, so we get the exact height
-	// but if we don't the current head validator set will mostly have the same stakes
-	// and if not this still won't affect correctness, just the amount of nodes we contact
+	// Prefer the exact validator set at height when provided; otherwise fall
+	// back to the head set — stakes are stable enough that this only affects
+	// the number of validators contacted, not correctness.
 	var valSet validator.Set
 	if opt.height > 0 {
 		valSet, err = c.state.GetByHeight(ctx, opt.height)
@@ -91,18 +100,16 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 		attribute.Int64("validator_set_height", int64(valSet.Height)),
 	))
 
-	blob, err = c.downloadBlob(ctx, valSet, id)
+	blobCfg, err := BlobConfigForVersion(id.Version())
+	if err != nil {
+		return nil, err
+	}
+
+	blob, err = c.downloadBlob(ctx, valSet, id, blobCfg)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to download")
 		return nil, err
-	}
-
-	err = blob.Reconstruct()
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to reconstruct")
-		return nil, fmt.Errorf("reconstructing data: %w", err)
 	}
 
 	c.metrics.downloadBytes.Add(ctx, int64(blob.DataSize()))
@@ -120,22 +127,27 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 	return blob, nil
 }
 
-// downloadFrom downloads a shard for a blob from a single validator, verifies the rows,
-// and returns only valid ones. Rows are not applied to the blob; the caller (coordinator)
-// is responsible for that.
+// downloadFrom runs one validator's full attempt: fetches the shard, hands it
+// to the download, and emits per-attempt tracing/metrics. A non-nil return
+// leaves the reservation held — the caller must [download.SkipShard]. A nil
+// return means [download.AddShard] committed the shard and consumed the
+// reservation.
 func (c *Client) downloadFrom(
 	ctx context.Context,
-	val *core.Validator,
-	blob *Blob,
+	from validator.SelectedValidator,
 	id BlobID,
-) (rows []*rsema1d.RowInclusionProof, err error) {
-	log := c.log.With("validator", val.Address.String(), "blob_commitment", id.Commitment())
+	state *download,
+) (err error) {
+	log := c.log.With("validator", from.Address.String(), "blob_commitment", id.Commitment())
 
 	downloadStart := time.Now()
-	valAddrStr := val.Address.String()
+	valAddrStr := from.Address.String()
 
 	ctx, span := c.tracer.Start(ctx, "download_from",
-		trace.WithAttributes(attribute.String("validator_address", valAddrStr)),
+		trace.WithAttributes(
+			attribute.String("validator_address", valAddrStr),
+			attribute.Int("expected_rows", from.ExpectedRows),
+		),
 	)
 	defer span.End()
 
@@ -144,228 +156,135 @@ func (c *Client) downloadFrom(
 		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
 	}()
 
-	client, err := c.clientCache.GetClient(ctx, val)
+	client, err := c.clientCache.GetClient(ctx, from.Validator)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")
-			return nil, err
+			return err
 		}
 		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return nil, err
+		return err
 	}
 	span.AddEvent("client_acquired")
 
+	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+	defer rpcCancel()
+
 	rpcStart := time.Now()
-	resp, err := client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: id})
+	resp, err := client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")
-			return nil, err
+			return err
 		}
 		log.WarnContext(ctx, "failed to download shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to download shard")
-		return nil, err
+		return err
 	}
-	rows, err = parseShard(resp.GetShard())
+
+	proofs, rlc, err := parseShard(resp.GetShard())
 	if err != nil {
 		log.WarnContext(ctx, "failed to parse shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to parse shard")
-		return nil, err
+		return err
 	}
-	var rowSize int
-	if len(rows) > 0 && len(rows[0].Row) > 0 {
-		rowSize = len(rows[0].Row)
+
+	rowSize := 0
+	if len(proofs) > 0 {
+		rowSize = len(proofs[0].Row)
 	}
 	span.AddEvent("rows_received", trace.WithAttributes(
-		attribute.Int("row_count", len(rows)),
+		attribute.Int("row_count", len(proofs)),
 		attribute.Int("row_size", rowSize),
 	))
+	log.DebugContext(ctx, "got shard", "rows_total", len(proofs), "row_size", rowSize)
 
-	verified := make([]*rsema1d.RowInclusionProof, 0, len(rows))
-	for _, row := range rows {
-		if err := blob.VerifyRow(row); err != nil {
-			log.WarnContext(ctx, "invalid row", "row_index", row.Index, "error", err)
-			span.AddEvent("invalid_row", trace.WithAttributes(
-				attribute.Int("row_index", row.Index),
-				attribute.String("error", err.Error()),
-			))
-			continue
-		}
-		verified = append(verified, row)
+	if len(proofs) < from.ExpectedRows {
+		log.WarnContext(ctx, "validator under-delivered shard",
+			"got", len(proofs), "expected", from.ExpectedRows)
 	}
 
-	if len(verified) == 0 {
-		log.WarnContext(ctx, "no valid rows from validator", "rows_total", len(rows), "row_size", rowSize)
-		span.SetStatus(codes.Error, "no valid rows")
-		return nil, fmt.Errorf("no valid rows from validator %s", val.Address)
+	if err := state.AddShard(from, proofs, rlc); err != nil {
+		log.WarnContext(ctx, "invalid shard", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "invalid shard")
+		return err
 	}
-
-	log.DebugContext(ctx, "got rows", "rows_total", len(rows), "verified", len(verified), "row_size", rowSize)
+	span.AddEvent("rows_added", trace.WithAttributes(
+		attribute.Int("total_rows", state.RowsCount()),
+	))
 	span.SetStatus(codes.Ok, "")
-	return verified, nil
+	return nil
 }
 
-// downloadResult holds the result of a single validator shard download.
-type downloadResult struct {
-	valIdx int
-	rows   []*rsema1d.RowInclusionProof
-	err    error
-}
-
-// downloadBlob downloads shards from validators concurrently and populates the blob.
-// It tracks unique rows collected and dynamically launches more validators as needed,
-// applying rows single-threaded in the coordinator goroutine.
+// downloadBlob downloads shards and reconstructs the K original rows behind
+// id, returning them wrapped in a [Blob] that aliases the underlying pool
+// slab. Callers must invoke [Blob.Free] to release the slab.
 func (c *Client) downloadBlob(
 	ctx context.Context,
 	valSet validator.Set,
 	id BlobID,
+	blobCfg BlobConfig,
 ) (*Blob, error) {
-	span := trace.SpanFromContext(ctx)
 	ctx, cancel := context.WithCancelCause(ctx)
 	defer cancel(errDownloaded)
 
-	blob, err := NewEmptyBlob(id)
+	selected := valSet.Select(blobCfg.OriginalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
+	state, err := newDownload(blobCfg, id, selected)
 	if err != nil {
-		return nil, fmt.Errorf("creating empty blob: %w", err)
+		return nil, err
 	}
 
-	blobCfg := blob.Config()
-	originalRows := blobCfg.OriginalRows
-
-	// Get validators in priority order (shuffled by stake for load balancing)
-	// Each SelectedValidator includes ExpectedRows for inflight estimation.
-	selected := valSet.Select(originalRows, c.Config.MinRowsPerValidator, c.Config.LivenessThreshold)
-	resultCh := make(chan downloadResult, len(selected))
-
-	var (
-		uniqueRows   int
-		inflightRows int
-		nextVal      int
-		active       int
-	)
-
-loop:
-	for {
-		// Determine if we need more validators to cover originalRows
-		needMore := uniqueRows+inflightRows < originalRows && nextVal < len(selected)
-
-		// Use nil-channel trick: only select on semaphore when we need more validators
-		var semCh chan struct{}
-		if needMore {
-			semCh = c.downloadSem
-		}
-
-		// Nothing more to do: no inflight requests and no more validators to try
-		if !needMore && active == 0 {
-			break
-		}
-
-		select {
-		case semCh <- struct{}{}:
-			// Acquired semaphore slot, launch fetch goroutine
-			valIdx := nextVal
-			sv := selected[valIdx]
-			nextVal++
-			inflightRows += sv.ExpectedRows
-			active++
-
-			c.closeWg.Add(1)
-			go func() {
-				defer func() {
-					<-c.downloadSem
-					c.closeWg.Done()
-				}()
-
-				rows, err := c.downloadFrom(ctx, sv.Validator, blob, id)
-				resultCh <- downloadResult{valIdx: valIdx, rows: rows, err: err}
-			}()
-
-		case res := <-resultCh:
-			active--
-			inflightRows -= selected[res.valIdx].ExpectedRows
-
-			if res.err != nil {
-				c.log.WarnContext(ctx, "shard fetch failed",
-					"validator", selected[res.valIdx].Address,
-					"error", res.err,
-				)
-				continue
+	for from := range state.ShardSources(ctx) {
+		c.closeWg.Go(func() {
+			if err := c.downloadFrom(ctx, from, id, state); err != nil {
+				state.SkipShard(from)
 			}
-
-			// Rows are already verified in downloadFrom; just assign to blob
-			var applied int
-			for _, row := range res.rows {
-				if blob.SetRow(row) {
-					applied++
-				}
-			}
-			uniqueRows += applied
-			span.AddEvent("rows_applied", trace.WithAttributes(
-				attribute.Int("applied", applied),
-				attribute.Int("unique_rows", uniqueRows),
-				attribute.Int("original_rows", originalRows),
-				attribute.String("validator", selected[res.valIdx].Address.String()),
-			))
-
-			if uniqueRows >= originalRows {
-				break loop
-			}
-
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
+		})
 	}
 
-	switch {
-	case uniqueRows == 0:
-		return nil, ErrNotFound
-	case uniqueRows < originalRows:
-		return nil, ErrNotEnoughShards
-	default:
-		return blob, nil
-	}
+	return state.Blob(ctx)
 }
 
 // errDownloaded signals that context was cancelled because download completed successfully.
 var errDownloaded = errors.New("downloaded")
 
-// parseShard extracts rows from the BlobShard response, constructing RowInclusionProofs.
-func parseShard(shard *types.BlobShard) ([]*rsema1d.RowInclusionProof, error) {
+// parseShard extracts row proofs and the parsed RLC vector from a BlobShard
+// response.
+func parseShard(shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error) {
 	if shard == nil {
-		return nil, fmt.Errorf("shard response is nil")
+		return nil, nil, fmt.Errorf("shard response is nil")
 	}
 
 	rowsArray := shard.GetRows()
 	if len(rowsArray) == 0 {
-		return nil, fmt.Errorf("no rows in shard")
+		return nil, nil, fmt.Errorf("no rows in shard")
 	}
 
-	if len(shard.GetRoot()) != 32 {
-		return nil, fmt.Errorf("invalid RLC root length: expected 32 bytes, got %d", len(shard.GetRoot()))
-	}
-
-	var rlcRoot [32]byte
-	copy(rlcRoot[:], shard.GetRoot())
-
-	proofs := make([]*rsema1d.RowInclusionProof, 0, len(rowsArray))
-	for _, row := range rowsArray {
+	proofs := make([]*rsema1d.RowProof, len(rowsArray))
+	for i, row := range rowsArray {
 		if row == nil {
-			continue
+			return nil, nil, fmt.Errorf("shard row %d is nil", i)
 		}
-		proofs = append(proofs, &rsema1d.RowInclusionProof{
-			RowProof: rsema1d.RowProof{
-				Index:    int(row.Index),
-				Row:      row.Data,
-				RowProof: row.Proof,
-			},
-			RLCRoot: rlcRoot,
-		})
+		proofs[i] = &rsema1d.RowProof{
+			Index:    int(row.Index),
+			Row:      row.Data,
+			RowProof: row.Proof,
+		}
 	}
 
-	return proofs, nil
+	coeffs, err := rlc.Unmarshal(shard.GetCoefficients())
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(coeffs) == 0 {
+		return nil, nil, errors.New("validator returned no RLC")
+	}
+
+	return proofs, coeffs, nil
 }

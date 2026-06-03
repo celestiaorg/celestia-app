@@ -18,6 +18,8 @@ var (
 	KeyPaymentPromiseHeightWindow    = []byte("PaymentPromiseHeightWindow")
 
 	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
+	// TODO: should this param be removed? The PFF gas formula is now standalone
+	// (EstimateGasForPayForFibre) and does not depend on GasPerBlobByte.
 	DefaultGasPerBlobByte uint32 = 1
 	// DefaultWithdrawalDelay is the initial value of the withdrawal delay parameter.
 	DefaultWithdrawalDelay = 24 * time.Hour

@@ -98,7 +98,13 @@ func (s *IntegrationTestSuite) TestMaxBlockSize() {
 				hashes[i] = res.TxHash
 			}
 
-			require.NoError(t, s.cctx.WaitForBlocks(10))
+			// Use a generous timeout because producing 10 blocks that each
+			// contain up to ~1 MiB of blob txs is CPU-heavy and the default
+			// 30s timeout flakes on loaded CI runners. See #7080.
+			lastHeight, err := s.cctx.LatestHeight()
+			require.NoError(t, err)
+			_, err = s.cctx.WaitForHeightWithTimeout(lastHeight+10, 2*time.Minute)
+			require.NoError(t, err)
 
 			heights := make(map[int64]int)
 			for _, hash := range hashes {

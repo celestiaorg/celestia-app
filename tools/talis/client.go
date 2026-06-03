@@ -40,6 +40,9 @@ func NewClient(cfg Config) (Client, error) {
 	if cfg.GoogleCloudProject != "" {
 		return NewGCClient(cfg)
 	}
+	if cfg.AWSRegion != "" {
+		return NewAWSClient(cfg)
+	}
 	return nil, errors.New("no cloud provider credentials found")
 }
 
@@ -77,7 +80,8 @@ func NewDOClient(cfg Config) (*DOClient, error) {
 
 func (c *DOClient) Up(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != DigitalOcean {
 			log.Println("unexpectedly skipping instance since only DO is supported", v.Name, "in region", v.Region)
 			continue
@@ -149,7 +153,8 @@ func (c *DOClient) countRunningDroplets(ctx context.Context) (int, error) {
 
 func (c *DOClient) Down(ctx context.Context, workers int) error {
 	insts := make([]Instance, 0)
-	for _, v := range append(c.cfg.Validators, c.cfg.Observability...) {
+	allInstances := append(append(c.cfg.Validators, c.cfg.Observability...), c.cfg.Encoders...)
+	for _, v := range allInstances {
 		if v.Provider != DigitalOcean {
 			log.Println("unexpectedly skipping instance since only DO is supported", v.Name, "in region", v.Region)
 			continue

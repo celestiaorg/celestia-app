@@ -42,7 +42,7 @@ import (
 
 var (
 	// ForwardingRelayerImage is the docker container image for the forwarding relayer service.
-	ForwardingRelayerImage = container.NewImage("ghcr.io/celestiaorg/forwarding-relayer", "v0.2.0", "1000:1000")
+	ForwardingRelayerImage = container.NewImage("ghcr.io/celestiaorg/forwarding-relayer", "v0.2.0", "0:0")
 
 	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
 	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
@@ -240,7 +240,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	forwardingService := s.ConfigureForwardRelayer(ctx, chain)
 
-	// Compute the forwarding address on celestia for recipient on reth1 destintation chain
+	// Compute the forwarding address on celestia for recipient on reth1 destination chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
 	forwardAddress := s.QueryForwardingAddress(ctx, chain, config.TokenID.String(), destDomain, destRecipient)

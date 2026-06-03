@@ -43,7 +43,7 @@ jobs:
 
       - name: Upload Docker image artifact
         if: ${{ inputs.tag == '' }}
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f #v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
         with:
           name: e2e-image
           path: /tmp/e2e-image.tar.gz
@@ -80,12 +80,19 @@ jobs:
   test-nightly:
     needs: [build-e2e-image, build-latency-monitor-image]
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Generous budget so the retried sync test (up to 3 attempts) has headroom
+    # without prematurely killing the long-running upgrade/tx tests.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
+          # TestSyncToTipMocha syncs against the live mocha testnet and can
+          # intermittently stall when no connected peer is serving a usable
+          # state-sync snapshot. Retry it before failing the nightly. Other
+          # tests default to a single attempt so real failures aren't masked.
           - test: TestSyncToTipMocha
+            max-attempts: 3
           - test: TestAllUpgrades
           - test: TestTxSubmission
             extra-image: true
@@ -123,11 +130,21 @@ jobs:
         run: docker load < /tmp/latency-monitor-image.tar.gz
 
       - name: Run ${{ matrix.test }}
-        run: make test-docker-e2e test=${{ matrix.test }}
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3.0.2
+        with:
+          # Per-attempt cap; comfortably above a single run of any nightly test.
+          timeout_minutes: 30
+          # Defaults to 1 attempt (no retry) for tests that don't opt in.
+          max_attempts: ${{ matrix.max-attempts || 1 }}
+          command: make test-docker-e2e test=${{ matrix.test }}
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
           ARABICA_PRIV_KEY: ${{ secrets.ARABICA_PRIV_KEY }}
+          CELESTIA_APP_VERSION: ${{ needs.build-e2e-image.outputs.tag }}
+          PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
+          PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}
+          PUSHGATEWAY_PASSWORD: ${{ secrets.PUSHGATEWAY_PASSWORD }}
 
   test-race:
     runs-on: ubuntu-latest
@@ -160,7 +177,7 @@ jobs:
     if: ${{ always() && (needs.test-nightly.result == 'failure' || needs.test-race.result == 'failure' || needs.test-fuzz.result == 'failure') }}
     steps:
       - name: Slack Notification
-        uses: slackapi/slack-github-action@v3.0.1
+        uses: slackapi/slack-github-action@v3.0.3
         with:
           webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
           webhook-type: incoming-webhook

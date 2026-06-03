@@ -21,6 +21,8 @@ const (
 	Light NodeType = "light"
 	// Observability represents a observability monitoring node for Prometheus/Grafana.
 	Observability NodeType = "observability"
+	// Encoder represents a dedicated fibre-txsim encoder node.
+	Encoder NodeType = "encoder"
 )
 
 var (
@@ -28,6 +30,7 @@ var (
 	nodeCount          = atomic.Uint32{}
 	lightCount         = atomic.Uint32{}
 	observabilityCount = atomic.Uint32{}
+	encoderCount       = atomic.Uint32{}
 )
 
 // NodeName returns the name of the node based on its type and index. The
@@ -44,6 +47,8 @@ func NodeName(nodeType NodeType) string {
 		index = int(lightCount.Add(1)) - 1
 	case Observability:
 		index = int(observabilityCount.Add(1)) - 1
+	case Encoder:
+		index = int(encoderCount.Add(1)) - 1
 	default:
 		panic(fmt.Sprintf("unknown node type: %s", nodeType))
 	}
@@ -56,6 +61,7 @@ type Provider string
 const (
 	DigitalOcean Provider = "digitalocean"
 	GoogleCloud  Provider = "googlecloud"
+	AWS          Provider = "aws"
 )
 
 // Instance represents a single instance in the network. It contains
@@ -77,6 +83,11 @@ type Instance struct {
 	// Region is the region in which the instance is created. For example,
 	// "nyc1" for DigitalOcean or "us-east-1" for AWS.
 	Region string `json:"region"`
+	// Zone is the provider-specific availability zone within Region. Empty
+	// means "any zone". Currently only populated for AWS (e.g. "us-east-1a")
+	// so instances can be pinned to a single AZ for free intra-AZ traffic
+	// and minimum latency within a cluster placement group.
+	Zone string `json:"zone,omitempty"`
 	// Name is the name of the instance. This is used to identify the instance
 	// in the network and is also used as the hostname of the instance. It
 	// therefore should be unique.
@@ -120,7 +131,7 @@ func ExperimentTag(nodeType NodeType, index int, experimentID, chainID string) s
 
 func GetExperimentTag(tags []string) string {
 	for _, tag := range tags {
-		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "observability-") {
+		if strings.HasPrefix(tag, "validator-") || strings.HasPrefix(tag, "bridge-") || strings.HasPrefix(tag, "light-") || strings.HasPrefix(tag, "observability-") || strings.HasPrefix(tag, "encoder-") {
 			return tag
 		}
 	}
@@ -133,6 +144,7 @@ type Config struct {
 	Bridges       []Instance `json:"bridges,omitempty"`
 	Lights        []Instance `json:"lights,omitempty"`
 	Observability []Instance `json:"observability,omitempty"`
+	Encoders      []Instance `json:"encoders,omitempty"`
 
 	// ChainID is the chain ID of the network. This is used to identify the
 	// network and is also used as the chain ID of the network. It is
@@ -152,27 +164,63 @@ type Config struct {
 	SSHKeyName string `json:"ssh_key_name"`
 	// DigitalOceanToken is used to authenticate with DigitalOcean. It can be
 	// provided via an env var or flag.
-	DigitalOceanToken      string   `json:"digitalocean_token"`
-	GoogleCloudProject     string   `json:"google_cloud_project"`
-	GoogleCloudKeyJSONPath string   `json:"google_cloud_key_json_path"`
-	S3Config               S3Config `json:"s3_config"`
+	DigitalOceanToken      string `json:"digitalocean_token"`
+	GoogleCloudProject     string `json:"google_cloud_project"`
+	GoogleCloudKeyJSONPath string `json:"google_cloud_key_json_path"`
+	// AWSRegion is the default region for launching EC2 instances. When set
+	// (and DigitalOceanToken / GoogleCloudProject are empty), NewClient
+	// uses AWS as the compute provider. Credentials come from the standard
+	// AWS SDK credential chain (env vars, ~/.aws/credentials, IAM role).
+	AWSRegion string `json:"aws_region"`
+	// AWSZone is the availability zone within AWSRegion. All AWS instances
+	// get pinned to this AZ + a cluster placement group so intra-cluster
+	// traffic stays free and latency is minimised. Empty means "default AZ".
+	AWSZone  string   `json:"aws_zone"`
+	S3Config S3Config `json:"s3_config"`
 }
 
-func NewConfig(experiment, chainID string) Config {
+// NewConfig builds a fresh talis config. The provider determines which
+// env vars populate the S3 payload bucket: AWS reads AWS_*, DigitalOcean
+// and GoogleCloud read DO_SPACES_*. Any other value yields a zero
+// S3Config — populate it yourself via WithS3Config.
+func NewConfig(experiment, chainID string, provider Provider) Config {
 	return Config{
 		Validators:    []Instance{},
 		Bridges:       []Instance{},
 		Lights:        []Instance{},
 		Observability: []Instance{},
+		Encoders:      []Instance{},
 		Experiment:    experiment,
 		ChainID:       TalisChainID(chainID),
-		S3Config: S3Config{
+		S3Config:      s3ConfigFromEnv(provider),
+	}
+}
+
+// s3ConfigFromEnv returns the S3 payload-bucket config for the given
+// compute provider. Each provider pulls from its own, non-overlapping
+// env var prefix so AWS and DigitalOcean Spaces setups never stomp on
+// each other. Unknown providers return a zero S3Config so callers can
+// populate it explicitly via WithS3Config.
+func s3ConfigFromEnv(provider Provider) S3Config {
+	switch provider {
+	case AWS:
+		return S3Config{
 			AccessKeyID:     os.Getenv(EnvVarAWSAccessKeyID),
 			SecretAccessKey: os.Getenv(EnvVarAWSSecretAccessKey),
-			BucketName:      os.Getenv(EnvVarS3Bucket),
+			BucketName:      os.Getenv(EnvVarAWSS3Bucket),
 			Region:          os.Getenv(EnvVarAWSRegion),
-			Endpoint:        os.Getenv(EnvVarS3Endpoint),
-		},
+			// Endpoint intentionally empty → real AWS S3.
+		}
+	case DigitalOcean, GoogleCloud:
+		return S3Config{
+			AccessKeyID:     os.Getenv(EnvVarDOSpacesAccessKeyID),
+			SecretAccessKey: os.Getenv(EnvVarDOSpacesSecretAccessKey),
+			BucketName:      os.Getenv(EnvVarDOSpacesBucket),
+			Region:          os.Getenv(EnvVarDOSpacesRegion),
+			Endpoint:        os.Getenv(EnvVarDOSpacesEndpoint),
+		}
+	default:
+		return S3Config{}
 	}
 }
 
@@ -198,6 +246,16 @@ func (cfg Config) WithGoogleCloudProject(project string) Config {
 
 func (cfg Config) WithGoogleCloudKeyJSONPath(keyJSONPath string) Config {
 	cfg.GoogleCloudKeyJSONPath = keyJSONPath
+	return cfg
+}
+
+func (cfg Config) WithAWSRegion(region string) Config {
+	cfg.AWSRegion = region
+	return cfg
+}
+
+func (cfg Config) WithAWSZone(zone string) Config {
+	cfg.AWSZone = zone
 	return cfg
 }
 
@@ -227,6 +285,36 @@ func (cfg Config) WithGoogleCloudValidator(region string) Config {
 func (cfg Config) WithGoogleCloudObservability(region string) Config {
 	i := NewGoogleCloudObservability(region).WithExperiment(cfg.Experiment, cfg.ChainID)
 	cfg.Observability = append(cfg.Observability, i)
+	return cfg
+}
+
+func (cfg Config) WithDigitalOceanEncoder(region string) Config {
+	i := NewDigitalOceanEncoder(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Encoders = append(cfg.Encoders, i)
+	return cfg
+}
+
+func (cfg Config) WithGoogleCloudEncoder(region string) Config {
+	i := NewGoogleCloudEncoder(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Encoders = append(cfg.Encoders, i)
+	return cfg
+}
+
+func (cfg Config) WithAWSValidator(region string) Config {
+	i := NewAWSValidator(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Validators = append(cfg.Validators, i)
+	return cfg
+}
+
+func (cfg Config) WithAWSObservability(region string) Config {
+	i := NewAWSObservability(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Observability = append(cfg.Observability, i)
+	return cfg
+}
+
+func (cfg Config) WithAWSEncoder(region string) Config {
+	i := NewAWSEncoder(region).WithExperiment(cfg.Experiment, cfg.ChainID)
+	cfg.Encoders = append(cfg.Encoders, i)
 	return cfg
 }
 
@@ -303,6 +391,13 @@ func (cfg Config) UpdateInstance(name, publicIP, privateIP string) (Config, erro
 		if cfg.Observability[i].Name == name {
 			cfg.Observability[i].PublicIP = publicIP
 			cfg.Observability[i].PrivateIP = privateIP
+			return cfg, nil
+		}
+	}
+	for i := range cfg.Encoders {
+		if cfg.Encoders[i].Name == name {
+			cfg.Encoders[i].PublicIP = publicIP
+			cfg.Encoders[i].PrivateIP = privateIP
 			return cfg, nil
 		}
 	}

@@ -87,15 +87,14 @@ func TestClientServerUploadDownload(t *testing.T) {
 						return fmt.Errorf("generating random data for blob %d: %w", blobIdx, err)
 					}
 
+					slotIdx := clientIdx*tt.blobsPerClient + blobIdx
+					allPromiseHashes[slotIdx] = make([][]byte, 0, tt.duplicate)
+
 					blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 					if err != nil {
 						return fmt.Errorf("creating blob %d: %w", blobIdx, err)
 					}
-
-					slotIdx := clientIdx*tt.blobsPerClient + blobIdx
-					allPromiseHashes[slotIdx] = make([][]byte, 0, tt.duplicate)
-
-					// upload blob (possibly multiple times at different heights)
+					allBlobIDs[slotIdx] = blob.ID()
 					for uploadIdx := range tt.duplicate {
 						if tt.duplicate > 1 {
 							env.SetHeight(uint64(100 + uploadIdx*100))
@@ -111,8 +110,8 @@ func TestClientServerUploadDownload(t *testing.T) {
 						}
 						allPromiseHashes[slotIdx] = append(allPromiseHashes[slotIdx], promiseHash)
 					}
+					blob.Free()
 
-					allBlobIDs[slotIdx] = blob.ID()
 					allData[slotIdx] = data
 				}
 
@@ -198,13 +197,17 @@ func TestClientServerUploadDownload(t *testing.T) {
 					if err != nil {
 						return fmt.Errorf("downloading blob %s: %w", id.String(), err)
 					}
-					if !bytes.Equal(blob.Data(), originalData) {
+					match := bytes.Equal(blob.Data(), originalData)
+					gotLen := len(blob.Data())
+					gotID := blob.ID()
+					blob.Free()
+					if !match {
 						return fmt.Errorf("data mismatch for %s: downloaded %d bytes, expected %d bytes",
-							id.String(), len(blob.Data()), len(originalData))
+							id.String(), gotLen, len(originalData))
 					}
-					if !blob.ID().Equals(id) {
+					if !gotID.Equals(id) {
 						return fmt.Errorf("blob ID mismatch: got %s, expected %s",
-							blob.ID().String(), id.String())
+							gotID.String(), id.String())
 					}
 				}
 				return nil

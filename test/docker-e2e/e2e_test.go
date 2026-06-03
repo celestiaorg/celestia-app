@@ -16,7 +16,7 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
-	"github.com/docker/docker/api/types/network"
+	mobyclient "github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -98,14 +98,14 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 
 // getNetworkNameFromID resolves the network name given its ID.
 func getNetworkNameFromID(ctx context.Context, cli tastoratypes.TastoraDockerClient, networkID string) (string, error) {
-	network, err := cli.NetworkInspect(ctx, networkID, network.InspectOptions{})
+	result, err := cli.NetworkInspect(ctx, networkID, mobyclient.NetworkInspectOptions{})
 	if err != nil {
 		return "", fmt.Errorf("failed to inspect network %s: %w", networkID, err)
 	}
-	if network.Name == "" {
+	if result.Network.Name == "" {
 		return "", fmt.Errorf("network %s has no name", networkID)
 	}
-	return network.Name, nil
+	return result.Network.Name, nil
 }
 
 // GetLatestBlockHeight returns the latest block height of the given node.
@@ -138,7 +138,7 @@ func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClie
 // WaitForSync waits for a Celestia node to synchronize based on a provided sync condition within a specified timeout.
 // The method periodically checks the node's sync status. Returns an error if the timeout is exceeded.
 // Returns nil when the provided condition function returns true.
-func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpcclient.StatusClient, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
+func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, client rpcclient.Client, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
@@ -148,8 +148,8 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 	s.T().Log("Waiting for sync to complete...")
 
 	// check immediately first
-	if status, err := statusClient.Status(timeoutCtx); err == nil {
-		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+	if status, err := client.Status(timeoutCtx); err == nil {
+		s.logSyncStatus(timeoutCtx, client, status.SyncInfo)
 		if syncCondition(status.SyncInfo) {
 			s.T().Logf("Sync completed successfully")
 			return nil
@@ -160,13 +160,13 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 	for {
 		select {
 		case <-ticker.C:
-			status, err := statusClient.Status(timeoutCtx)
+			status, err := client.Status(timeoutCtx)
 			if err != nil {
 				s.T().Logf("Failed to get status from state sync node, retrying...: %v", err)
 				continue
 			}
 
-			s.T().Logf("Sync node status: Height=%d, CatchingUp=%t", status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+			s.logSyncStatus(timeoutCtx, client, status.SyncInfo)
 
 			if syncCondition(status.SyncInfo) {
 				s.T().Logf("Sync completed successfully")
@@ -177,6 +177,17 @@ func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, statusClient rpccli
 			return fmt.Errorf("timed out waiting for state sync node to catch up after %v", syncTimeout)
 		}
 	}
+}
+
+// logSyncStatus logs the node's sync status along with peer count. A NetInfo
+// error is logged but not fatal — sync-wait polling continues either way.
+func (s *CelestiaTestSuite) logSyncStatus(ctx context.Context, client rpcclient.Client, info coretypes.SyncInfo) {
+	netInfo, err := client.NetInfo(ctx)
+	if err != nil {
+		s.T().Logf("Sync node status: Height=%d, CatchingUp=%t, NetInfo error: %v", info.LatestBlockHeight, info.CatchingUp, err)
+		return
+	}
+	s.T().Logf("Sync node status: Height=%d, CatchingUp=%t, Peers=%d", info.LatestBlockHeight, info.CatchingUp, netInfo.NPeers)
 }
 
 // CheckLiveness validates that all validators proposed blocks and no nodes halted.

@@ -209,9 +209,9 @@ fn generate_random_blob(
 }
 
 fn generate_random_data(size_min: usize, size_max: usize) -> (usize, Vec<u8>) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let size = if size_max > size_min {
-        rng.gen_range(size_min..=size_max)
+        rng.random_range(size_min..=size_max)
     } else {
         size_min
     };

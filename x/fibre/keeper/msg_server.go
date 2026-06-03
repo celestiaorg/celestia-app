@@ -313,18 +313,28 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 	return nil
 }
 
-// calculatePaymentAmount calculates the payment amount for a fibre blob based on its size and gas parameters
-func (ms msgServer) calculatePaymentAmount(ctx sdk.Context, blobSize uint32) sdk.Coin {
-	params := ms.GetParams(ctx)
-	// TODO: this assumes 1 utia per gas which may not be correct.
-	return calculatePaymentCoin(blobSize, params.GasPerBlobByte)
+// calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.
+// TODO: this assumes 1 utia per gas which may not be correct.
+func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.Coin {
+	gas := EstimateGasForPayForFibre(blobSize)
+	return sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(gas))
 }
 
-// calculatePaymentCoin computes the payment coin from blobSize and gasPerBlobByte.
-// Both operands are widened to uint64 before multiplication to prevent uint32 overflow.
-func calculatePaymentCoin(blobSize, gasPerBlobByte uint32) sdk.Coin {
-	result := uint64(blobSize) * uint64(gasPerBlobByte)
-	return sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(result))
+// EstimateGasForPayForFibre estimates the gas required for a PayForFibre message.
+// The formula is: GasFibre = B + A × n
+// where:
+//
+//	B = 650,000 — fixed cost per blob
+//	A = 45,000 — per-chunk cost
+//	n = ⌈blobSize / 262,144⌉ — number of 256 KiB chunks
+//
+// This formula is standalone and not dependent on GasPerBlobByte or GasPerCelestiaByte.
+func EstimateGasForPayForFibre(blobSize uint32) uint64 {
+	if blobSize == 0 {
+		return appconsts.PFBFibreGasFixedCost
+	}
+	chunks := (uint64(blobSize) + uint64(appconsts.PFBFibreChunkSize) - 1) / uint64(appconsts.PFBFibreChunkSize)
+	return appconsts.PFBFibreGasFixedCost + appconsts.PFBFibreGasPerChunk*chunks
 }
 
 // validateValidatorSignatures validates validator signatures using the existing SignatureSet infrastructure

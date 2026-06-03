@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -176,10 +176,10 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 	return nil
 }
 
-// verifyShard verifies [types.BlobShard]'s rows and proofs using [rsema1d.VerificationContext].
-// Essentially checks correctness of the entire [Blob]'s data by only sampling subset of data rows.
-// Sets the RLC root on the shard and clears the coefficients after verification.
-func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
+// verifyShard verifies the shard's rows and proofs using a pooled
+// [rsema1d.Verifier], blocking until one is free. Sets the RLC root on the
+// shard for inclusion-proof verification by non-RLC downloaders.
+func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
 		return err
@@ -192,52 +192,75 @@ func (s *Server) verifyShard(_ context.Context, blobCfg BlobConfig, promise *Pay
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
-	rlcCoeffs, err := parseRLCCoeffs(shard.GetCoefficients(), blobCfg.OriginalRows)
+	rlc, err := rlc.Unmarshal(shard.GetCoefficients())
 	if err != nil {
 		return err
 	}
 
-	verificationCtx, rlcRoot, err := rsema1d.CreateVerificationContext(rlcCoeffs, &rsema1d.Config{
-		K:           blobCfg.OriginalRows,
-		N:           blobCfg.ParityRows,
-		RowSize:     rowSize,
-		WorkerCount: blobCfg.CodingWorkers,
-	})
-	if err != nil {
-		return fmt.Errorf("creating verification context: %w", err)
-	}
-
-	for _, rowPb := range shard.Rows {
+	rows := make([]*rsema1d.RowProof, len(shard.Rows))
+	for i, rowPb := range shard.Rows {
 		row, err := parseRow(rowPb)
 		if err != nil {
 			return err
 		}
-
-		if err := rsema1d.VerifyRowWithContext(row, promise.Commitment, verificationCtx); err != nil {
-			return fmt.Errorf("verification failed for row %d: %w", row.Index, err)
-		}
+		rows[i] = row
 	}
 
-	// set RLC root and clear coefficients
-	shard.Rlc = &types.BlobShard_Root{Root: rlcRoot[:]}
+	verifier, err := s.getVerifier(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring verifier: %w", err)
+	}
+	defer s.putVerifier(verifier)
+
+	rlcRoot, err := verifier.Verify(promise.Commitment, rows, rlc)
+	if err != nil {
+		return fmt.Errorf("shard row verification failed: %w", err)
+	}
+
+	// set RLC root, keep coefficients as-is for storage
+	shard.Root = rlcRoot
 	return nil
 }
 
-// parseRLCCoeffs validates and converts RLC coefficients from bytes to field elements.
-func parseRLCCoeffs(rlcCoeffs []byte, expectedCount int) ([]field.GF128, error) {
-	expectedLen := expectedCount * 16
-	if len(rlcCoeffs) != expectedLen {
-		return nil, fmt.Errorf("expected %d bytes for %d rlc coefficients, got %d", expectedLen, expectedCount, len(rlcCoeffs))
+// newVerifierPool eagerly populates a buffered channel with n Verifiers
+// for the v0 blob layout, each pinned to WorkerCount=1 (concurrency is
+// the channel capacity).
+func newVerifierPool(n int) chan *rsema1d.Verifier {
+	blobCfg := DefaultBlobConfigV0()
+	verifiers := make(chan *rsema1d.Verifier, n)
+	for i := range n {
+		v, err := rsema1d.NewVerifier(&rsema1d.Config{
+			K:           blobCfg.OriginalRows,
+			N:           blobCfg.ParityRows,
+			WorkerCount: 1,
+		})
+		if err != nil {
+			panic(fmt.Sprintf("creating verifier %d: %v", i, err))
+		}
+		verifiers <- v
 	}
+	return verifiers
+}
 
-	coeffs := make([]field.GF128, expectedCount)
-	for i := range expectedCount {
-		var coeffArray [16]byte
-		copy(coeffArray[:], rlcCoeffs[i*16:(i+1)*16])
-		coeffs[i] = field.FromBytes128(coeffArray)
+// getVerifier returns a Verifier from the pool, blocking until one is free
+// or ctx is cancelled. Pair with putVerifier.
+func (s *Server) getVerifier(ctx context.Context) (*rsema1d.Verifier, error) {
+	select {
+	case v := <-s.verifiers:
+		return v, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
+}
 
-	return coeffs, nil
+// putVerifier returns a Verifier to the pool. The channel is sized to pool
+// capacity, so this never blocks for any verifier previously obtained via
+// getVerifier.
+func (s *Server) putVerifier(v *rsema1d.Verifier) {
+	if v == nil {
+		return
+	}
+	s.verifiers <- v
 }
 
 // parseRowSize determines and validates the row size from all rows.

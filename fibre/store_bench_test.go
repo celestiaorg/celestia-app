@@ -72,31 +72,10 @@ func benchmarkPruneBefore(b *testing.B, totalEntries, prunePercent int) {
 	}
 }
 
-type storeBackend string
-
-const (
-	backendBadger storeBackend = "badger"
-	backendPebble storeBackend = "pebble"
-)
-
 func makeBenchStore(b *testing.B) *fibre.Store {
-	return makeBenchStoreWithBackend(b, backendBadger)
-}
-
-func makeBenchStoreWithBackend(b *testing.B, backend storeBackend) *fibre.Store {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = b.TempDir()
-
-	var store *fibre.Store
-	var err error
-	switch backend {
-	case backendBadger:
-		store, err = fibre.NewBadgerStore(cfg)
-	case backendPebble:
-		store, err = fibre.NewPebbleStore(cfg)
-	default:
-		b.Fatalf("unknown backend: %s", backend)
-	}
+	store, err := fibre.NewStore(cfg)
 	if err != nil {
 		b.Fatalf("failed to create store: %v", err)
 	}
@@ -113,15 +92,29 @@ func makeBenchBlob(seed int) *fibre.Blob {
 }
 
 func makeBenchShard(blob *fibre.Blob) *types.BlobShard {
-	row0, _ := blob.Row(0)
-	row1, _ := blob.Row(1)
+	rows := make([]*types.BlobRow, 0, 2)
+	_ = blob.RowProofs([]int{0, 1}, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{Index: uint32(index), Data: row, Proof: proof})
+	})
 	return &types.BlobShard{
-		Rows: []*types.BlobRow{
-			{Index: 0, Data: row0.Row, Proof: row0.RowProof.RowProof},
-			{Index: 1, Data: row1.Row, Proof: row1.RowProof.RowProof},
-		},
-		Rlc: &types.BlobShard_Root{Root: make([]byte, 32)},
+		Rows: rows,
+		Root: make([]byte, 32),
 	}
+}
+
+// sampleShardSize reads one shard for the commitment (Store.Get returns a single
+// shard) and returns its row count and serialized byte size (row data + proof),
+// used to scale the read benchmarks' per-read metrics.
+func sampleShardSize(b *testing.B, store *fibre.Store, commitment fibre.Commitment) (rows, bytes int) {
+	shard, err := store.Get(b.Context(), commitment)
+	require.NoError(b, err)
+	for _, r := range shard.Rows {
+		bytes += len(r.Data)
+		for _, p := range r.Proof {
+			bytes += len(p)
+		}
+	}
+	return len(shard.Rows), bytes
 }
 
 // BenchmarkStoreWriteRows measures sequential row write performance across blob sizes.
@@ -221,7 +214,8 @@ func BenchmarkStoreWriteRowsConcurrent(b *testing.B) {
 }
 
 func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -249,24 +243,26 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for v := range validators {
-		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
-		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
-			rowIdx := startIdx + r
-			rowProof, err := blob.Row(rowIdx)
-			require.NoError(b, err)
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIdx),
-				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
-			})
+		end := min(startIdx+rowsPerShard, totalRows)
+		indices := make([]int, end-startIdx)
+		for i := range indices {
+			indices[i] = startIdx + i
 		}
+		rows := make([]*types.BlobRow, 0, len(indices))
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+			rows = append(rows, &types.BlobRow{
+				Index: uint32(index),
+				Data:  row,
+				Proof: proof,
+			})
+		}))
 
 		shards[v] = shardEntry{
 			promise: makeTestPaymentPromise(uint64(v), blob.ID()),
 			shard: &types.BlobShard{
 				Rows: rows,
-				Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+				Root: make([]byte, 32),
 			},
 			pruneAt: baseTime.Add(time.Duration(v) * time.Minute),
 		}
@@ -327,7 +323,8 @@ func benchmarkStoreWriteRows(b *testing.B, params fibre.ProtocolParams, validato
 }
 
 func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, concurrency int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -355,24 +352,26 @@ func benchmarkStoreWriteRowsConcurrent(b *testing.B, params fibre.ProtocolParams
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	for v := range validators {
-		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
-		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
-			rowIdx := startIdx + r
-			rowProof, err := blob.Row(rowIdx)
-			require.NoError(b, err)
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIdx),
-				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
-			})
+		end := min(startIdx+rowsPerShard, totalRows)
+		indices := make([]int, end-startIdx)
+		for i := range indices {
+			indices[i] = startIdx + i
 		}
+		rows := make([]*types.BlobRow, 0, len(indices))
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+			rows = append(rows, &types.BlobRow{
+				Index: uint32(index),
+				Data:  row,
+				Proof: proof,
+			})
+		}))
 
 		shards[v] = shardEntry{
 			promise: makeTestPaymentPromise(uint64(v), blob.ID()),
 			shard: &types.BlobShard{
 				Rows: rows,
-				Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+				Root: make([]byte, 32),
 			},
 			pruneAt: baseTime.Add(time.Duration(v) * time.Minute),
 		}
@@ -548,7 +547,8 @@ func BenchmarkStoreReadRowsConcurrent(b *testing.B) {
 }
 
 func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -572,33 +572,35 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 	store := makeBenchStore(b)
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	totalRowsWritten := 0
-	totalBytesWritten := 0
-
 	for v := range validators {
-		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
-		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
-			rowIdx := startIdx + r
-			rowProof, err := blob.Row(rowIdx)
-			require.NoError(b, err)
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIdx),
-				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
-			})
-			totalRowsWritten++
-			totalBytesWritten += len(rowProof.Row) + len(rowProof.RowProof.RowProof)
+		end := min(startIdx+rowsPerShard, totalRows)
+		indices := make([]int, end-startIdx)
+		for i := range indices {
+			indices[i] = startIdx + i
 		}
+		rows := make([]*types.BlobRow, 0, len(indices))
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+			rows = append(rows, &types.BlobRow{
+				Index: uint32(index),
+				Data:  row,
+				Proof: proof,
+			})
+		}))
 
 		promise := makeTestPaymentPromise(uint64(v), blobID)
 		shard := &types.BlobShard{
 			Rows: rows,
-			Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+			Root: make([]byte, 32),
 		}
 		err := store.Put(b.Context(), promise, shard, baseTime.Add(time.Duration(v)*time.Minute))
 		require.NoError(b, err)
 	}
+
+	// Get returns one validator's shard for the commitment (the first found, see
+	// Store.Get), so the read benchmark measures a single-shard read. Size the
+	// metrics off that sampled shard, not the full distributed set.
+	rowsPerRead, bytesPerRead := sampleShardSize(b, store, commitment)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -608,8 +610,8 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 		if err != nil {
 			b.Fatal(err)
 		}
-		if len(shard.Rows) != totalRowsWritten {
-			b.Fatalf("expected %d rows, got %d", totalRowsWritten, len(shard.Rows))
+		if len(shard.Rows) != rowsPerRead {
+			b.Fatalf("expected %d rows, got %d", rowsPerRead, len(shard.Rows))
 		}
 	}
 
@@ -619,9 +621,9 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 	elapsed := b.Elapsed()
 	iterations := float64(b.N)
 
-	rowsPerSec := (iterations * float64(totalRowsWritten)) / elapsed.Seconds()
-	goodputMBps := (iterations * float64(dataSize)) / elapsed.Seconds() / (1 << 20)
-	throughputMBps := (iterations * float64(totalBytesWritten)) / elapsed.Seconds() / (1 << 20)
+	rowsPerSec := (iterations * float64(rowsPerRead)) / elapsed.Seconds()
+	goodputMBps := (iterations * float64(rowsPerRead*rowSize)) / elapsed.Seconds() / (1 << 20)
+	throughputMBps := (iterations * float64(bytesPerRead)) / elapsed.Seconds() / (1 << 20)
 
 	b.ReportMetric(rowsPerSec, "rows/sec")
 	b.ReportMetric(goodputMBps, "goodput-MiB/s")
@@ -629,14 +631,15 @@ func benchmarkStoreReadRows(b *testing.B, params fibre.ProtocolParams, validator
 
 	fmt.Printf("\n=== Store Read Performance ===\n")
 	fmt.Printf("Data size: %d MiB, Row size: %d bytes\n", dataSize/(1<<20), rowSize)
-	fmt.Printf("Rows read: %d, Total bytes: %d MiB\n", totalRowsWritten, totalBytesWritten/(1<<20))
+	fmt.Printf("Rows/read: %d, Bytes/read: %d KiB\n", rowsPerRead, bytesPerRead/1024)
 	fmt.Printf("Rows/sec: %.0f\n", rowsPerSec)
 	fmt.Printf("Goodput: %.2f MiB/s (raw data)\n", goodputMBps)
 	fmt.Printf("Throughput: %.2f MiB/s (with encoding)\n", throughputMBps)
 }
 
 func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, concurrency int) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
+	cfg, cfgErr := fibre.NewBlobConfigFromParams(0, params)
+	require.NoError(b, cfgErr)
 
 	dataSize := min(blobSize, cfg.MaxDataSize)
 
@@ -660,33 +663,34 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 	store := makeBenchStore(b)
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 
-	totalRowsWritten := 0
-	totalBytesWritten := 0
-
 	for v := range validators {
-		rows := make([]*types.BlobRow, 0, rowsPerShard)
 		startIdx := v * rowsPerShard
-		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
-			rowIdx := startIdx + r
-			rowProof, err := blob.Row(rowIdx)
-			require.NoError(b, err)
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIdx),
-				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
-			})
-			totalRowsWritten++
-			totalBytesWritten += len(rowProof.Row) + len(rowProof.RowProof.RowProof)
+		end := min(startIdx+rowsPerShard, totalRows)
+		indices := make([]int, end-startIdx)
+		for i := range indices {
+			indices[i] = startIdx + i
 		}
+		rows := make([]*types.BlobRow, 0, len(indices))
+		require.NoError(b, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+			rows = append(rows, &types.BlobRow{
+				Index: uint32(index),
+				Data:  row,
+				Proof: proof,
+			})
+		}))
 
 		promise := makeTestPaymentPromise(uint64(v), blobID)
 		shard := &types.BlobShard{
 			Rows: rows,
-			Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
+			Root: make([]byte, 32),
 		}
 		err := store.Put(b.Context(), promise, shard, baseTime.Add(time.Duration(v)*time.Minute))
 		require.NoError(b, err)
 	}
+
+	// Get returns one validator's shard for the commitment, so each read is a
+	// single-shard read; scale metrics off that sampled shard.
+	rowsPerRead, bytesPerRead := sampleShardSize(b, store, commitment)
 
 	b.ResetTimer()
 	b.ReportAllocs()
@@ -696,8 +700,8 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 		for range concurrency {
 			go func() {
 				shard, err := store.Get(b.Context(), commitment)
-				if err == nil && len(shard.Rows) != totalRowsWritten {
-					err = fmt.Errorf("expected %d rows, got %d", totalRowsWritten, len(shard.Rows))
+				if err == nil && len(shard.Rows) != rowsPerRead {
+					err = fmt.Errorf("expected %d rows, got %d", rowsPerRead, len(shard.Rows))
 				}
 				errCh <- err
 			}()
@@ -717,9 +721,9 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 	iterations := float64(b.N)
 	totalOps := iterations * float64(concurrency)
 
-	rowsPerSec := (totalOps * float64(totalRowsWritten)) / elapsed.Seconds()
-	goodputMBps := (totalOps * float64(dataSize)) / elapsed.Seconds() / (1 << 20)
-	throughputMBps := (totalOps * float64(totalBytesWritten)) / elapsed.Seconds() / (1 << 20)
+	rowsPerSec := (totalOps * float64(rowsPerRead)) / elapsed.Seconds()
+	goodputMBps := (totalOps * float64(rowsPerRead*rowSize)) / elapsed.Seconds() / (1 << 20)
+	throughputMBps := (totalOps * float64(bytesPerRead)) / elapsed.Seconds() / (1 << 20)
 
 	b.ReportMetric(rowsPerSec, "rows/sec")
 	b.ReportMetric(goodputMBps, "goodput-MiB/s")
@@ -728,7 +732,7 @@ func benchmarkStoreReadRowsConcurrent(b *testing.B, params fibre.ProtocolParams,
 
 	fmt.Printf("\n=== Store Read Performance (Concurrent) ===\n")
 	fmt.Printf("Data size: %d MiB, Row size: %d bytes, Concurrency: %d\n", dataSize/(1<<20), rowSize, concurrency)
-	fmt.Printf("Rows read: %d, Total bytes: %d MiB\n", totalRowsWritten, totalBytesWritten/(1<<20))
+	fmt.Printf("Rows/read: %d, Bytes/read: %d KiB\n", rowsPerRead, bytesPerRead/1024)
 	fmt.Printf("Rows/sec: %.0f\n", rowsPerSec)
 	fmt.Printf("Goodput: %.2f MiB/s (raw data)\n", goodputMBps)
 	fmt.Printf("Throughput: %.2f MiB/s (with encoding)\n", throughputMBps)
@@ -769,8 +773,6 @@ func BenchmarkStoreBackendComparison(b *testing.B) {
 	const validators = 100
 	params := fibre.DefaultProtocolParams
 
-	backends := []storeBackend{backendBadger, backendPebble}
-
 	blobSizes := []struct {
 		name string
 		size int
@@ -780,163 +782,14 @@ func BenchmarkStoreBackendComparison(b *testing.B) {
 		{"128_MiB", 128 << 20},
 	}
 
-	for _, backend := range backends {
-		for _, bs := range blobSizes {
-			b.Run(fmt.Sprintf("%s/write/%s", backend, bs.name), func(b *testing.B) {
-				benchmarkStoreWriteRowsWithBackend(b, params, validators, bs.size, backend)
-			})
-		}
-		for _, bs := range blobSizes {
-			b.Run(fmt.Sprintf("%s/read/%s", backend, bs.name), func(b *testing.B) {
-				benchmarkStoreReadRowsWithBackend(b, params, validators, bs.size, backend)
-			})
-		}
+	for _, bs := range blobSizes {
+		b.Run(fmt.Sprintf("pebble/write/%s", bs.name), func(b *testing.B) {
+			benchmarkStoreWriteRows(b, params, validators, bs.size)
+		})
 	}
-}
-
-func benchmarkStoreWriteRowsWithBackend(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, backend storeBackend) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
-
-	dataSize := min(blobSize, cfg.MaxDataSize)
-
-	data := make([]byte, dataSize)
-	_, err := rand.Read(data)
-	require.NoError(b, err)
-
-	blob, err := fibre.NewBlob(data, cfg)
-	require.NoError(b, err)
-
-	rowsPerShard := params.MinRowsPerValidator()
-	totalRows := params.TotalRows()
-
-	type shardEntry struct {
-		promise *fibre.PaymentPromise
-		shard   *types.BlobShard
-		pruneAt time.Time
+	for _, bs := range blobSizes {
+		b.Run(fmt.Sprintf("pebble/read/%s", bs.name), func(b *testing.B) {
+			benchmarkStoreReadRows(b, params, validators, bs.size)
+		})
 	}
-
-	shards := make([]shardEntry, validators)
-	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	for v := range validators {
-		rows := make([]*types.BlobRow, 0, rowsPerShard)
-		startIdx := v * rowsPerShard
-		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
-			rowIdx := startIdx + r
-			rowProof, err := blob.Row(rowIdx)
-			require.NoError(b, err)
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIdx),
-				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
-			})
-		}
-
-		shards[v] = shardEntry{
-			promise: makeTestPaymentPromise(uint64(v), blob.ID()),
-			shard: &types.BlobShard{
-				Rows: rows,
-				Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
-			},
-			pruneAt: baseTime.Add(time.Duration(v) * time.Minute),
-		}
-	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for b.Loop() {
-		b.StopTimer()
-		store := makeBenchStoreWithBackend(b, backend)
-		b.StartTimer()
-
-		for _, s := range shards {
-			err := store.Put(b.Context(), s.promise, s.shard, s.pruneAt)
-			if err != nil {
-				b.Fatal(err)
-			}
-		}
-
-		b.StopTimer()
-		store.Close()
-		b.StartTimer()
-	}
-
-	b.StopTimer()
-
-	elapsed := b.Elapsed()
-	iterations := float64(b.N)
-
-	goodputMBps := (iterations * float64(dataSize)) / elapsed.Seconds() / (1 << 20)
-	b.ReportMetric(goodputMBps, "goodput-MiB/s")
-}
-
-func benchmarkStoreReadRowsWithBackend(b *testing.B, params fibre.ProtocolParams, validators int, blobSize int, backend storeBackend) {
-	cfg := fibre.NewBlobConfigFromParams(0, params)
-
-	dataSize := min(blobSize, cfg.MaxDataSize)
-
-	data := make([]byte, dataSize)
-	_, err := rand.Read(data)
-	require.NoError(b, err)
-
-	blob, err := fibre.NewBlob(data, cfg)
-	require.NoError(b, err)
-
-	rowsPerShard := params.MinRowsPerValidator()
-	totalRows := params.TotalRows()
-	blobID := blob.ID()
-	commitment := blobID.Commitment()
-
-	// Pre-generate and store all shards
-	store := makeBenchStoreWithBackend(b, backend)
-	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-
-	totalRowsWritten := 0
-
-	for v := range validators {
-		rows := make([]*types.BlobRow, 0, rowsPerShard)
-		startIdx := v * rowsPerShard
-		for r := 0; r < rowsPerShard && startIdx+r < totalRows; r++ {
-			rowIdx := startIdx + r
-			rowProof, err := blob.Row(rowIdx)
-			require.NoError(b, err)
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIdx),
-				Data:  rowProof.Row,
-				Proof: rowProof.RowProof.RowProof,
-			})
-			totalRowsWritten++
-		}
-
-		promise := makeTestPaymentPromise(uint64(v), blobID)
-		shard := &types.BlobShard{
-			Rows: rows,
-			Rlc:  &types.BlobShard_Root{Root: make([]byte, 32)},
-		}
-		err := store.Put(b.Context(), promise, shard, baseTime.Add(time.Duration(v)*time.Minute))
-		require.NoError(b, err)
-	}
-
-	b.ResetTimer()
-	b.ReportAllocs()
-
-	for b.Loop() {
-		shard, err := store.Get(b.Context(), commitment)
-		if err != nil {
-			b.Fatal(err)
-		}
-		if len(shard.Rows) != totalRowsWritten {
-			b.Fatalf("expected %d rows, got %d", totalRowsWritten, len(shard.Rows))
-		}
-	}
-
-	b.StopTimer()
-	store.Close()
-
-	elapsed := b.Elapsed()
-	iterations := float64(b.N)
-
-	goodputMBps := (iterations * float64(dataSize)) / elapsed.Seconds() / (1 << 20)
-	b.ReportMetric(goodputMBps, "goodput-MiB/s")
 }

@@ -69,7 +69,9 @@ All branches use forked cosmos-sdk and celestia-core:
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.51.x-celestia` |
+| `main`       | `main`             | `release/v0.52.x-celestia` |
+| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
+| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
 | `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
 | `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |

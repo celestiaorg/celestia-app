@@ -1,0 +1,49 @@
+[workspace]
+members = ["xtask"]
+
+[package]
+name = "rust-fibre-txsim"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# Fibre client — pinned to a specific lumina commit for reproducible builds;
+# bump deliberately via `cargo update` when a newer snapshot is needed.
+celestia-fibre = { git = "https://github.com/celestiaorg/lumina", rev = "b49f4003f7179db1252cad73640428fcd7bc4568" }
+celestia-grpc = { git = "https://github.com/celestiaorg/lumina", rev = "b49f4003f7179db1252cad73640428fcd7bc4568", features = ["tls-ring"] }
+celestia-proto = { git = "https://github.com/celestiaorg/lumina", rev = "b49f4003f7179db1252cad73640428fcd7bc4568" }
+celestia-types = { git = "https://github.com/celestiaorg/lumina", rev = "b49f4003f7179db1252cad73640428fcd7bc4568" }
+
+# Crypto (for signing key conversion from keyring)
+k256 = { version = "0.13", features = ["ecdsa"] }
+
+# Async runtime
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "sync", "time"] }
+tokio-util = "0.7"
+
+# CLI
+clap = { version = "4.5", features = ["derive", "env"] }
+humantime = "2.1"
+
+# Utilities
+rand = "0.8"
+hex = "0.4"
+anyhow = "1.0"
+
+# Keyring support (same as lumina-latency-monitor)
+prost = "0.13"
+dirs = "5.0"
+bech32 = "0.11"
+sha2 = "0.10"
+ripemd = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.22"
+thiserror = "2.0"
+
+# JWE decryption (pure Rust, no OpenSSL)
+pbkdf2 = { version = "0.12", features = ["hmac"] }
+aes-gcm = "0.10"
+aes-kw = "0.2"
+hmac = "0.12"
+tracing-subscriber = { version = "0.3.15", features = ["env-filter"] }

@@ -18,12 +18,12 @@ ARG UPGRADE_HEIGHT_DELAY
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # NOTE: This version must be updated at the same time as the version in the
 # Makefile.
-ARG CELESTIA_VERSION_V3="v3.11.0"
+ARG CELESTIA_VERSION_V3="v3.12.0"
 ARG CELESTIA_VERSION_V4="v4.1.0"
 ARG CELESTIA_VERSION_V5="v5.0.12"
 ARG CELESTIA_VERSION_V6="v6.4.4"
 ARG CELESTIA_VERSION_V7="v7.0.2-mocha"
-ARG CELESTIA_VERSION_V8="v8.0.1-mocha"
+ARG CELESTIA_VERSION_V8="v8.0.6-arabica"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3

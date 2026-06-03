@@ -4,29 +4,28 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
-// Config holds all configurable parameters for the codec
+// Config holds all configurable parameters for the codec.
+//
+// Both K and K+N must be powers of 2: the row Merkle tree has K+N leaves and
+// the RLC tree has K leaves, and the tree requires a power-of-2 leaf count.
 type Config struct {
 	// Core parameters (required)
-	K       int // Number of original rows (can be arbitrary)
-	N       int // Number of parity rows (can be arbitrary)
-	RowSize int // Size of each row in bytes (multiple of 64)
+	K int // Number of original rows (power of 2)
+	N int // Number of parity rows (K+N must be a power of 2)
 
 	// Optional parameters with defaults
 	WorkerCount int // Number of parallel workers (minimum 1)
-
-	// Computed padding values (set during Validate)
-	kPadded     int // Next power of 2 >= K
-	totalPadded int // Next power of 2 >= (kPadded + N)
 }
 
 // DefaultConfig returns a standard configuration
 func DefaultConfig() *Config {
 	return &Config{
-		K:           32768, // 32768 rows × 4096 bytes = 128 MB of original data
-		N:           32768, // 32768 parity rows = 128 MB of parity data
-		RowSize:     4096,
+		K:           32768, // 32768 original rows
+		N:           32768, // 32768 parity rows
 		WorkerCount: runtime.NumCPU(),
 	}
 }
@@ -39,23 +38,17 @@ func (c *Config) Validate() error {
 	if c.N <= 0 {
 		return errors.New("n must be positive")
 	}
-	if c.RowSize <= 0 {
-		return errors.New("RowSize must be positive")
+	if c.K&(c.K-1) != 0 {
+		return fmt.Errorf("k must be a power of 2, got %d", c.K)
+	}
+	total := c.K + c.N
+	if total&(total-1) != 0 {
+		return fmt.Errorf("k+n must be a power of 2, got %d", total)
 	}
 
 	// Check K + N <= 65536 (GF(2^16) field size limit)
-	if c.K+c.N > 65536 {
-		return fmt.Errorf("k + n must be <= 65536, got %d", c.K+c.N)
-	}
-
-	// Check RowSize is multiple of 64 (Leopard constraint)
-	if c.RowSize%64 != 0 {
-		return fmt.Errorf("RowSize must be a multiple of 64, got %d", c.RowSize)
-	}
-
-	// Check RowSize is at least 64
-	if c.RowSize < 64 {
-		return fmt.Errorf("RowSize must be at least 64, got %d", c.RowSize)
+	if total > 65536 {
+		return fmt.Errorf("k + n must be <= 65536, got %d", total)
 	}
 
 	// WorkerCount must be at least 1
@@ -63,23 +56,24 @@ func (c *Config) Validate() error {
 		return errors.New("WorkerCount must be at least 1")
 	}
 
-	// Compute padding values for tree construction
-	c.kPadded = nextPowerOfTwo(c.K)
-	c.totalPadded = nextPowerOfTwo(c.kPadded + c.N)
-
 	return nil
 }
 
-// nextPowerOfTwo returns the smallest power of 2 >= n
+// TreeBufferSize returns the byte size of the Merkle-tree node storage an encode
+// needs — the row tree over K+N leaves plus the RLC tree over K leaves. It is
+// the minimum length for a [Coder.EncodeWithTree] buffer.
+func (c *Config) TreeBufferSize() int {
+	return merkle.TreeBufferSize(c.K+c.N) + merkle.TreeBufferSize(c.K)
+}
+
+// nextPowerOfTwo returns the smallest power of 2 >= n.
 func nextPowerOfTwo(n int) int {
 	if n <= 1 {
 		return 1
 	}
-	// If already power of 2, return it
 	if n&(n-1) == 0 {
 		return n
 	}
-	// Find next power of 2
 	power := 1
 	for power < n {
 		power <<= 1

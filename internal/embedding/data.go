@@ -10,12 +10,12 @@ import (
 // NOTE: This version must be updated at the same time as the version in the
 // Makefile.
 const (
-	v3Version = "v3.11.0"
+	v3Version = "v3.12.0"
 	v4Version = "v4.1.0"
 	v5Version = "v5.0.12"
 	v6Version = "v6.4.4"
 	v7Version = "v7.0.2-mocha"
-	v8Version = "v8.0.1-mocha"
+	v8Version = "v8.0.6-arabica"
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and

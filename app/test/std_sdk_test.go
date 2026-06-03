@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 	"time"
@@ -66,6 +67,7 @@ func (s *StandardSDKIntegrationTestSuite) SetupSuite() {
 	s.accounts = testfactory.GenerateAccounts(35)
 	s.cfg = testnode.DefaultConfig().WithFundedAccounts(s.accounts...)
 	s.cctx, _, _ = testnode.NewNetwork(t, s.cfg)
+	require.NoError(t, s.cctx.WaitForNextBlock())
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 }
 
@@ -348,21 +350,30 @@ func (s *StandardSDKIntegrationTestSuite) TestStandardSDK() {
 
 				switch txError := err.(type) {
 				case *user.ExecutionError:
-					txResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: txError.TxHash})
-					require.NoError(t, err)
-					assert.Equal(t, tt.expectedCode, txError.Code, txResp.TxResponse.RawLog)
+					assert.Equal(t, tt.expectedCode, txError.Code, fetchRawLog(s.cctx.GoContext(), serviceClient, txError.TxHash))
 				case *user.BroadcastTxError:
 					assert.Equal(t, tt.expectedCode, txError.Code, txError.ErrorLog)
 				}
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, res)
-				getTxResp, err := serviceClient.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
-				require.NoError(t, err)
-				assert.Equal(t, tt.expectedCode, res.Code, getTxResp.TxResponse.RawLog)
+				assert.Equal(t, tt.expectedCode, res.Code, fetchRawLog(s.cctx.GoContext(), serviceClient, res.TxHash))
 			}
 		})
 	}
+}
+
+// fetchRawLog returns the raw log for txHash on a best-effort basis. Used only
+// to enrich assert failure messages; it must not fail the test if the cosmos
+// tx indexer hasn't caught up yet (celestia's TxStatus reports COMMITTED via
+// BlockStore.SaveTxInfo before the async IndexerService populates the index
+// GetTx reads, so calls right after SubmitTx can race and return NotFound).
+func fetchRawLog(ctx context.Context, serviceClient sdktx.ServiceClient, txHash string) string {
+	resp, err := serviceClient.GetTx(ctx, &sdktx.GetTxRequest{Hash: txHash})
+	if err != nil || resp == nil || resp.TxResponse == nil {
+		return ""
+	}
+	return resp.TxResponse.RawLog
 }
 
 func (s *StandardSDKIntegrationTestSuite) TestGRPCQueries() {

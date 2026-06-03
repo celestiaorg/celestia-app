@@ -1,10 +1,11 @@
-package merkle
+package merkle_test
 
 import (
 	"bytes"
 	"fmt"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 	cmtmerkle "github.com/cometbft/cometbft/crypto/merkle"
 )
 
@@ -31,7 +32,7 @@ func TestCometBFTCompatibility(t *testing.T) {
 			leaves := makeTestLeaves(tt.numLeaves)
 
 			// Our implementation
-			ourTree := NewTree(leaves)
+			ourTree := merkle.NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
@@ -56,7 +57,7 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 			leaves := makeTestLeaves(numLeaves)
 
 			// Build trees with both implementations
-			ourTree := NewTree(leaves)
+			ourTree := merkle.NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// Generate all proofs with CometBFT
@@ -88,13 +89,13 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 				}
 
 				// Generate our proof
-				ourProof, err := ourTree.GenerateProof(i)
+				ourProof, err := ourTree.Proof(i)
 				if err != nil {
-					t.Fatalf("Our GenerateProof failed for index %d: %v", i, err)
+					t.Fatalf("Our Proof failed for index %d: %v", i, err)
 				}
 
 				// Verify our proof with our implementation
-				computedRoot, err := ComputeRootFromProof(leaves[i], i, ourProof)
+				computedRoot, err := merkle.RootFromProof(leaves[i], i, ourProof)
 				if err != nil {
 					t.Fatalf("Our verification failed for index %d: %v", i, err)
 				}
@@ -102,13 +103,12 @@ func TestCometBFTProofCrossVerification(t *testing.T) {
 					t.Errorf("Our proof verification failed for index %d", i)
 				}
 
-				// Cross-verify: Create a CometBFT proof from our proof
-				// We need to provide the leaf hash with proper prefix
-				leafHash := hashLeafTest(leaves[i])
+				// Cross-verify: feed our proof aunts into a CometBFT proof,
+				// reusing CometBFT's own leaf hash (sha256(0x00 || leaf)).
 				crossCheckProof := &cmtmerkle.Proof{
 					Total:    int64(numLeaves),
 					Index:    int64(i),
-					LeafHash: leafHash,
+					LeafHash: cometProof.LeafHash,
 					Aunts:    ourProof,
 				}
 
@@ -145,7 +145,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 	}
 
 	// Our implementation
-	ourTree := NewTree(leaves)
+	ourTree := merkle.NewTree(leaves, 1)
 	ourRoot := ourTree.Root()
 
 	// CometBFT implementation
@@ -159,7 +159,7 @@ func TestCometBFTProofSimple(t *testing.T) {
 	}
 
 	// Test index 0
-	ourProof, _ := ourTree.GenerateProof(0)
+	ourProof, _ := ourTree.Proof(0)
 	cometProof := cometProofs[0]
 
 	t.Logf("Our proof aunts for index 0: %d aunts", len(ourProof))
@@ -178,20 +178,17 @@ func TestCometBFTProofSimple(t *testing.T) {
 		t.Fatalf("CometBFT verification failed: %v", err)
 	}
 
-	// Cross-verify our proof with CometBFT verifier
-	// CometBFT expects the leaf hash to be computed with the leaf prefix
-	leafHash := hashLeafTest(leaves[0])
+	// Cross-verify our proof aunts with CometBFT's verifier, reusing CometBFT's
+	// own leaf hash (sha256(0x00 || leaf)).
 	crossProof := &cmtmerkle.Proof{
 		Total:    4,
 		Index:    0,
-		LeafHash: leafHash,
+		LeafHash: cometProof.LeafHash,
 		Aunts:    ourProof,
 	}
 	err = crossProof.Verify(cometRoot, leaves[0])
 	if err != nil {
 		t.Errorf("Cross-verification failed: %v", err)
-		t.Logf("  LeafHash we provided: %x", leafHash)
-		t.Logf("  CometBFT leaf hash:   %x", cometProof.LeafHash)
 	} else {
 		t.Log("Cross-verification succeeded!")
 	}
@@ -224,7 +221,7 @@ func TestCometBFTEdgeCases(t *testing.T) {
 			}
 
 			// Our implementation
-			ourTree := NewTree(leaves)
+			ourTree := merkle.NewTree(leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation
@@ -262,7 +259,7 @@ func TestCometBFTEmptyAndNilLeaves(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Our implementation
-			ourTree := NewTree(tt.leaves)
+			ourTree := merkle.NewTree(tt.leaves, 1)
 			ourRoot := ourTree.Root()
 
 			// CometBFT implementation

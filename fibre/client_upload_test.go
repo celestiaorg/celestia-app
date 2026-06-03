@@ -28,10 +28,12 @@ func TestClientUpload(t *testing.T) {
 		{"Concurrent", testClientConcurrentUploads},
 		{"ContextCancellation", testClientUploadContextCancellation},
 		{"SucceedsWith1/3Failures", testClientUploadSucceedsWithOneThirdFailures},
-		{"SucceedsWith1/3Failures_HighConcurrency", testClientUploadSucceedsWithOneThirdFailuresHighConcurrency},
 		{"InsufficientVotingPower", testClientUploadInsufficientVotingPower},
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
+		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
+		{"ReUpload", testClientReUpload},
+		{"AfterFree", testClientUploadAfterFree},
 	}
 
 	for _, tt := range tests {
@@ -51,6 +53,7 @@ func testClientConcurrentUploads(t *testing.T) {
 	for range numConcurrent {
 		wg.Go(func() {
 			blob := makeTestBlobV0(t, 256*1024)
+			defer blob.Free()
 			result, err := client.Upload(t.Context(), testNamespace, blob)
 			require.NoError(t, err)
 
@@ -71,6 +74,7 @@ func testClientUploadContextCancellation(t *testing.T) {
 	cancel()
 
 	blob := makeTestBlobV0(t, 1024*1024)
+	defer blob.Free()
 
 	_, err := client.Upload(ctx, testNamespace, blob)
 	require.ErrorIs(t, err, context.Canceled)
@@ -84,23 +88,7 @@ func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
-
-	result, err := client.Upload(t.Context(), testNamespace, blob)
-	require.NoError(t, err)
-	require.NotEmpty(t, result.ValidatorSignatures)
-	require.GreaterOrEqual(t, len(result.ValidatorSignatures), 67, "should have at least 2/3 signatures")
-}
-
-func testClientUploadSucceedsWithOneThirdFailuresHighConcurrency(t *testing.T) {
-	const numValidators = 100
-	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn = failingClientFn(33, cfg.NewClientFn) // Fail 1/3 of validators
-
-		cfg.UploadConcurrency = numValidators // set concurrency >= validators to test code path where semaphore doesn't limit
-	})
-	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
-
-	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 
 	result, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
@@ -116,6 +104,7 @@ func testClientUploadInsufficientVotingPower(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 512*1024)
+	defer blob.Free()
 
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.Error(t, err)
@@ -135,14 +124,41 @@ func testClientUploadAllValidatorsReceiveData(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.NoError(t, err)
 
-	// close waits for all background upload goroutines to complete
+	// Stop drains background goroutines so all peers receive data.
 	require.NoError(t, client.Stop(t.Context()))
 
 	// verify all validators received data
 	require.Equal(t, numValidators, int(counter.Load()), "not all validators received data")
+}
+
+func testClientUploadAwaitAllSignatures(t *testing.T) {
+	const numValidators = 100
+
+	var counter *atomic.Int64
+	client := makeTestUploadClient(t, numValidators, func(cfg *fibre.ClientConfig) {
+		cfg.NewClientFn, counter = countingClientFn(cfg.NewClientFn)
+	})
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
+	result, err := client.Upload(t.Context(), testNamespace, blob, fibre.WithAwaitAllSignatures())
+	require.NoError(t, err)
+
+	// WithAwaitAllSignatures waits for all responses, so all validators
+	// must have been contacted by the time Upload returns — without needing Stop.
+	require.Equal(t, numValidators, int(counter.Load()), "all validators should have been contacted before Upload returned")
+	var nonNilSigs int
+	for _, sig := range result.ValidatorSignatures {
+		if sig != nil {
+			nonNilSigs++
+		}
+	}
+	require.Equal(t, numValidators, nonNilSigs, "should have non-nil signatures from all validators")
 }
 
 func testClientUploadClosedClient(t *testing.T) {
@@ -154,10 +170,50 @@ func testClientUploadClosedClient(t *testing.T) {
 	require.NoError(t, client.Stop(t.Context()))
 
 	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
 
 	// attempt to upload after closing
 	_, err := client.Upload(t.Context(), testNamespace, blob)
 	require.ErrorIs(t, err, fibre.ErrClientClosed, "expected ErrClientClosed when uploading to closed client")
+}
+
+// testClientReUpload verifies that the same live blob can be uploaded
+// concurrently more than once — each Upload retains/releases an independent
+// internal reference, so the asm slab stays alive across all of them and is
+// released exactly once at Free.
+func testClientReUpload(t *testing.T) {
+	client := makeTestUploadClient(t, 100, nil)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+	defer blob.Free()
+
+	const numConcurrent = 8
+	var wg sync.WaitGroup
+	for range numConcurrent {
+		wg.Go(func() {
+			result, err := client.Upload(t.Context(), testNamespace, blob)
+			require.NoError(t, err)
+			require.Equal(t, blob.ID().Commitment(), result.Commitment)
+		})
+	}
+	wg.Wait()
+}
+
+// testClientUploadAfterFree verifies that uploading a blob whose pooled storage
+// was already released fails fast rather than reading recycled memory. The
+// error is intentionally opaque (not a matchable sentinel) — it signals a
+// use-after-free bug in the caller, which has no sane recovery.
+func testClientUploadAfterFree(t *testing.T) {
+	client := makeTestUploadClient(t, 100, nil)
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 256*1024)
+	blob.Free()
+
+	_, err := client.Upload(t.Context(), testNamespace, blob)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "already released")
 }
 
 // makeTestUploadClient creates an upload client for testing.

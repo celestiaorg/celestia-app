@@ -1,0 +1,64 @@
+package rsema1d_test
+
+import (
+	"math/rand/v2"
+	"runtime"
+	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+)
+
+func BenchmarkCoderEncode(b *testing.B) {
+	sizes := []struct {
+		name    string
+		k, n    int
+		rowSize int
+		workers int // 0 means runtime.NumCPU()
+	}{
+		{"4x4x64", 4, 4, 64, 1},
+		{"64x64x512", 64, 64, 512, 1},
+		{"1024x1024x1024", 1024, 1024, 1024, 1},
+		{"4096x12288x8192", 4096, 12288, 8192, 1},
+		// 128 MB original / K=1024 / 128 KB rows — the largest single-row size
+		// in the wider bench matrix. Covers both workers=1 and the default
+		// multi-worker path so the RLC SIMD win vs. the rest of the pipeline
+		// (Leopard extend + row-Merkle) is visible.
+		{"1024x1024x131072", 1024, 1024, 131072, 1},
+		{"1024x1024x131072/workers=default", 1024, 1024, 131072, 0},
+	}
+
+	for _, sz := range sizes {
+		b.Run(sz.name, func(b *testing.B) {
+			workers := sz.workers
+			if workers == 0 {
+				workers = runtime.NumCPU()
+			}
+			coder, err := rsema1d.NewCoder(&rsema1d.Config{K: sz.k, N: sz.n, WorkerCount: workers})
+			if err != nil {
+				b.Fatal(err)
+			}
+
+			rows := make([][]byte, sz.k+sz.n)
+			for i := range sz.k {
+				rows[i] = make([]byte, sz.rowSize)
+				for j := range sz.rowSize {
+					rows[i][j] = byte(rand.IntN(256))
+				}
+			}
+			for i := sz.k; i < sz.k+sz.n; i++ {
+				rows[i] = make([]byte, sz.rowSize)
+			}
+
+			b.SetBytes(int64(sz.k * sz.rowSize))
+			b.ResetTimer()
+			for b.Loop() {
+				for i := sz.k; i < sz.k+sz.n; i++ {
+					clear(rows[i])
+				}
+				if _, err := coder.Encode(rows); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
