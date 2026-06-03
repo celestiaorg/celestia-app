@@ -23,6 +23,10 @@ The `celestia-appd update-config` command is deprecated. The config values it us
 
 The default value of `verify_data` in the `[blocksync]` section of `config.toml` is now `false`. Consensus nodes no longer re-run `ProcessProposal` on each block during block sync, which meaningfully speeds up syncing. This is safe because every block received during block sync is already signed by 2/3+ of the voting power; normal validation resumes once the node switches to consensus mode. Set `verify_data = true` in `config.toml` to restore the previous behaviour.
 
+#### Pruning
+
+`min-retain-blocks` is now honoured even when it is lower than the evidence window (`MaxAgeNumBlocks`) ([#6954](https://github.com/celestiaorg/celestia-app/issues/6954)). If you change `min-retain-blocks` from `0` to another value, the node will start pruning the backlog on startup; if it has been running for a long time this can take a while, so either leave it running until it catches up or re-sync a fresh node (e.g. via state sync) if history is not important to you. Archival nodes must keep `min-retain-blocks = 0` (the default): any non-zero value enables pruning and the node will no longer be a full archival node.
+
 ## v8.0.0
 
 ### Node Operators (v8.0.0)
