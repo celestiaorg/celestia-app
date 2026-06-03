@@ -276,11 +276,11 @@ func (c *Client) uploadTo(
 	// Generating row proofs is non-trivial, so build them lazily — only once
 	// withHostRefresh has acquired a working client. When the host can't be
 	// resolved (e.g. an invalid registration no refresh can fix) the closure
-	// never runs and we skip the work entirely. The guard builds them once, so
-	// a retry against a corrected host reuses the same shard.
-	proofsBuilt := false
+	// never runs and we skip the work entirely. A non-nil req.Shard.Rows means
+	// they were already built on a prior attempt, so a retry against a corrected
+	// host reuses the same shard.
 	buildRows := func() error {
-		if proofsBuilt {
+		if req.Shard.Rows != nil {
 			return nil
 		}
 		blobRows := make([]types.BlobRow, len(rowIndices))
@@ -296,7 +296,6 @@ func (c *Client) uploadTo(
 		}); err != nil {
 			return fmt.Errorf("generating row proofs: %w", err)
 		}
-		proofsBuilt = true
 		span.AddEvent("proofs_added")
 		return nil
 	}
