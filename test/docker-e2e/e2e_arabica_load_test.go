@@ -27,9 +27,10 @@ const (
 	// are auto-created, funded, and fee-granted from the master account.
 	defaultArabicaWorkers = 1
 
-	// The single assertion: average block time must stay ≤ 4 s while the
-	// network processes 20 MiB of blobs per second.
-	maxAvgBlockTime = 4 * time.Second
+	// Assertions: both the average and the worst single inter-block interval
+	// must stay ≤ 4 s while the network processes 20 MiB of blobs per second.
+	maxAvgBlockTime    = 4 * time.Second
+	maxSingleBlockTime = 4 * time.Second
 )
 
 // TestArabicaLoad connects to the Arabica devnet, submits blobs via the
@@ -129,12 +130,15 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	avgBT, err := averageBlockTime(blockTimes, startHeight, endHeight)
 	require.NoError(t, err, "failed to compute average block time")
 
+	maxBT := maxBlockTime(blockTimes, startHeight, endHeight)
+
 	// --- 7. Report ---
 	t.Logf("")
 	t.Logf("=== Arabica Load Test Results ===")
 	t.Logf("")
 	t.Logf("Block Time Statistics (%d blocks):", len(blockTimes))
 	t.Logf("  Average: %v", avgBT)
+	t.Logf("  Max:     %v", maxBT)
 	t.Logf("")
 	t.Logf("Tx Submission Statistics:")
 	t.Logf("  Total Transactions: %d", latencyResults.TotalTxs)
@@ -146,6 +150,8 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	// --- 8. Assert: block time must not exceed 4 s under 20 MiB/s load ---
 	require.LessOrEqual(t, avgBT, maxAvgBlockTime,
 		"average block time %v exceeds %v under 20 MiB/s blob load", avgBT, maxAvgBlockTime)
+	require.LessOrEqual(t, maxBT, maxSingleBlockTime,
+		"max block time %v exceeds %v under 20 MiB/s blob load", maxBT, maxSingleBlockTime)
 
 	t.Log("Arabica load test passed")
 }
@@ -160,9 +166,11 @@ func fetchBlockTimes(ctx context.Context, rpcClient *rpchttp.HTTP, startHeight, 
 	// BlockchainInfo accepts inclusive [min, max] ranges of up to 20 blocks per call.
 	const batchSize = 20
 	times := make(map[int64]time.Time, endHeight-startHeight+1)
-	for batchStart := startHeight; batchStart <= endHeight; batchStart += batchSize {
+	for batchStart := startHeight; batchStart <= endHeight; {
 		// Last height in this batch (inclusive), capped so we never query past endHeight.
+		fmt.Println("BATCH START", batchStart)
 		batchEnd := min(batchStart+batchSize-1, endHeight)
+		fmt.Println("BATCH END", batchEnd)
 		info, err := rpcClient.BlockchainInfo(ctx, batchStart, batchEnd)
 		if err != nil {
 			return nil, fmt.Errorf("BlockchainInfo(%d, %d): %w", batchStart, batchEnd, err)
@@ -170,6 +178,7 @@ func fetchBlockTimes(ctx context.Context, rpcClient *rpchttp.HTTP, startHeight, 
 		for _, bm := range info.BlockMetas {
 			times[bm.Header.Height] = bm.Header.Time
 		}
+		batchStart = batchEnd + 1 // next window starts right after this one
 	}
 
 	return times, nil
@@ -187,6 +196,25 @@ func averageBlockTime(times map[int64]time.Time, startHeight, endHeight int64) (
 		return 0, fmt.Errorf("missing block time for end height %d", endHeight)
 	}
 	return last.Sub(first) / time.Duration(endHeight-startHeight), nil
+}
+
+// maxBlockTime returns the largest interval between two consecutive blocks in
+// [startHeight, endHeight].
+func maxBlockTime(times map[int64]time.Time, startHeight, endHeight int64) time.Duration {
+	var maxBT time.Duration
+	for h := startHeight + 1; h <= endHeight; h++ {
+		cur, curOK := times[h]
+		prev, prevOK := times[h-1]
+		if !curOK || !prevOK {
+			continue
+		}
+		fmt.Println("CURRENT TIME", cur)
+		fmt.Println("REVIOPS TIME", prev)
+		if bt := cur.Sub(prev); bt > maxBT {
+			maxBT = bt
+		}
+	}
+	return maxBT
 }
 
 // envIntOr reads an integer from an environment variable or returns a default.
