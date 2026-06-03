@@ -174,7 +174,6 @@ func (c *Client) downloadFrom(
 		span.SetStatus(codes.Error, "failed to download shard")
 		return err
 	}
-	span.AddEvent("client_acquired")
 
 	proofs, rlc, err := parseShard(resp.GetShard())
 	if err != nil {

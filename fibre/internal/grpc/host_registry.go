@@ -12,7 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	clock "github.com/filecoin-project/go-clock"
+	"github.com/filecoin-project/go-clock"
 )
 
 var _ validator.HostRegistry = &HostRegistry{}
@@ -25,14 +25,15 @@ var DefaultRefreshInterval = appconsts.DelayedPrecommitTimeout + appconsts.Timeo
 // HostRegistry is a registry of validator hosts. It caches the hosts for validators in the active set.
 // It uses the [types.QueryClient] to query the fibre provider information for validators in the active set.
 type HostRegistry struct {
-	queryClient     types.QueryClient
-	log             *slog.Logger
-	clock           clock.Clock
-	refreshInterval time.Duration
-
+	queryClient types.QueryClient
+	log         *slog.Logger
 	mu          sync.RWMutex
 	cachedHosts map[string]validator.Host
-	lastRefresh map[string]time.Time
+
+	// Refresh timing state used to rate-limit on-chain host re-queries per validator.
+	clock           clock.Clock
+	refreshInterval time.Duration
+	lastRefresh     map[string]time.Time
 }
 
 // HostRegistryOption configures a [HostRegistry].
