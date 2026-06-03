@@ -12,7 +12,7 @@ import (
 func BenchmarkAssemblyReleased(b *testing.B) {
 	const k, n = 4096, 12288
 	const maxRow = 32832
-	a, err := NewAssembler(k, n, maxRow)
+	a, err := NewAssembler(k, n, maxRow, 64)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func BenchmarkAssemblerAssembleRelease(b *testing.B) {
 
 	for _, tc := range cases {
 		b.Run(tc.name, func(b *testing.B) {
-			a, err := NewAssembler(k, n, maxRow)
+			a, err := NewAssembler(k, n, maxRow, 64)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -64,7 +64,7 @@ func BenchmarkAssemblerAssembleRelease(b *testing.B) {
 			b.ResetTimer()
 			for b.Loop() {
 				asm := a.Assemble(data, tc.rowSize, 5)
-				rows := asm.Rows()
+				rows, _ := asm.Buffers()
 				rows[0][0]++
 				asm.Free()
 			}
@@ -91,7 +91,7 @@ func BenchmarkAssemblerEncode(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			a, err := NewAssembler(tc.k, tc.n, tc.maxRowSize)
+			a, err := NewAssembler(tc.k, tc.n, tc.maxRowSize, 64)
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -103,7 +103,8 @@ func BenchmarkAssemblerEncode(b *testing.B) {
 
 			// warm up
 			asm := a.Assemble(data, tc.rowSize, 5)
-			if _, err := coder.Encode(asm.Rows()); err != nil {
+			rows, _ := asm.Buffers()
+			if _, err := coder.Encode(rows); err != nil {
 				b.Fatal(err)
 			}
 			asm.Free()
@@ -113,7 +114,8 @@ func BenchmarkAssemblerEncode(b *testing.B) {
 			b.ResetTimer()
 			for b.Loop() {
 				asm := a.Assemble(data, tc.rowSize, 5)
-				if _, err := coder.Encode(asm.Rows()); err != nil {
+				rows, _ := asm.Buffers()
+				if _, err := coder.Encode(rows); err != nil {
 					b.Fatal(err)
 				}
 				asm.Free()

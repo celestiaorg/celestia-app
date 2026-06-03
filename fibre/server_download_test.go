@@ -126,16 +126,14 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 	}
 
 	// create rows for the shard
-	rows := make([]*types.BlobRow, 3)
-	for i := range 3 {
-		rowProof, err := blob.Row(i)
-		require.NoError(t, err)
-		rows[i] = &types.BlobRow{
-			Index: uint32(i),
-			Data:  rowProof.Row,
-			Proof: rowProof.RowProof,
-		}
-	}
+	rows := make([]*types.BlobRow, 0, 3)
+	require.NoError(t, blob.RowProofs([]int{0, 1, 2}, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}))
 
 	shard := &types.BlobShard{
 		Rows: rows,

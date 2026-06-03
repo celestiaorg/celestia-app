@@ -36,9 +36,8 @@ func encodeRows(tb testing.TB, cfg *rsema1d.Config, data [][]byte) (*rsema1d.Ext
 	return ed, ed.Commitment(), ed.RLC()
 }
 
-// roundtripConfigs covers a mix of small/large, 1:1/1:3 ratios, power-of-2
-// and arbitrary K/N — enough breadth to surface padding / boundary bugs in
-// the Coder + Verifier roundtrip across realistic shape variations.
+// roundtripConfigs covers a mix of small/large and 1:1/1:3 ratios. Both K and
+// K+N are powers of 2, as the codec requires.
 var roundtripConfigs = []struct {
 	name          string
 	k, n, rowSize int
@@ -49,14 +48,6 @@ var roundtripConfigs = []struct {
 	{"1:3 medium k=8 n=24", 8, 24, 256},
 	{"1:1 large k=16 n=16", 16, 16, 512},
 	{"1:3 large k=16 n=48", 16, 48, 512},
-	{"arbitrary k=3 n=5", 3, 5, 64},
-	{"arbitrary k=5 n=7", 5, 7, 128},
-	{"arbitrary k=7 n=9", 7, 9, 128},
-	{"arbitrary k=10 n=15", 10, 15, 256},
-	{"arbitrary k=13 n=19", 13, 19, 256},
-	{"arbitrary k=17 n=31", 17, 31, 512},
-	{"arbitrary k=100 n=150", 100, 150, 512},
-	{"arbitrary k=127 n=129", 127, 129, 512},
 }
 
 // fillRows fills k rows of `rowSize` deterministic bytes seeded by k+rowSize
@@ -103,4 +94,57 @@ func TestCoderEncodeRoundtrip(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestEncodeWithTreeBuffer checks that a caller-provided tree buffer yields the
+// same commitment as the allocating path, and that an undersized buffer panics
+// in the tree builder.
+func TestEncodeWithTreeBuffer(t *testing.T) {
+	cfg := &rsema1d.Config{K: 16, N: 48, WorkerCount: 1}
+	coder, err := rsema1d.NewCoder(cfg)
+	if err != nil {
+		t.Fatalf("NewCoder: %v", err)
+	}
+
+	const rowSize = 256
+	rows := make([][]byte, cfg.K+cfg.N)
+	for i := range rows {
+		rows[i] = make([]byte, rowSize)
+	}
+	for i := range cfg.K {
+		for j := range rows[i] {
+			rows[i][j] = byte(i*7 + j)
+		}
+	}
+	zeroParity := func() {
+		for i := cfg.K; i < cfg.K+cfg.N; i++ {
+			clear(rows[i])
+		}
+	}
+
+	zeroParity()
+	want, err := coder.Encode(rows)
+	if err != nil {
+		t.Fatalf("Encode: %v", err)
+	}
+
+	zeroParity()
+	buf := make([]byte, cfg.TreeBufferSize())
+	got, err := coder.EncodeWithTree(rows, buf)
+	if err != nil {
+		t.Fatalf("EncodeWithTree: %v", err)
+	}
+	if want.Commitment() != got.Commitment() {
+		t.Fatalf("commitment mismatch between buffer-backed and allocated encode")
+	}
+
+	func() {
+		defer func() {
+			if recover() == nil {
+				t.Fatalf("expected panic with undersized tree buffer")
+			}
+		}()
+		zeroParity()
+		_, _ = coder.EncodeWithTree(rows, make([]byte, 8))
+	}()
 }

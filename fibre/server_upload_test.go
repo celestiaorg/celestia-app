@@ -195,16 +195,14 @@ func makeTestRequest(
 	require.NotEmpty(t, rowIndices, "server validator has no rows assigned")
 
 	// create rows with proofs
-	rows := make([]*types.BlobRow, len(rowIndices))
-	for i, rowIndex := range rowIndices {
-		rowProof, err := blob.Row(rowIndex)
-		require.NoError(t, err)
-		rows[i] = &types.BlobRow{
-			Index: uint32(rowIndex),
-			Data:  rowProof.Row,
-			Proof: rowProof.RowProof,
-		}
-	}
+	rows := make([]*types.BlobRow, 0, len(rowIndices))
+	require.NoError(t, blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}))
 
 	req := &types.UploadShardRequest{
 		Promise: promisePb,

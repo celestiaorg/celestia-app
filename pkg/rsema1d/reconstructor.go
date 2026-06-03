@@ -13,12 +13,11 @@ import (
 // unique rows have been added to a Reconstructor.
 var ErrNotEnoughRows = errors.New("not enough rows to reconstruct")
 
-// Reconstructor is the download-path counterpart to [Coder.Reconstruct]: it
-// collects RLC-verified row proofs from many sources and recovers the K
-// original rows once enough unique indices have arrived. Because every
-// contributing row is RLC-verified against the target commitment as it lands,
-// [Reconstructor.Reconstruct] runs only Reed-Solomon data-shard recovery and
-// skips the merkle/commitment rebuild that [Coder.Reconstruct] performs.
+// Reconstructor is the download-path row collector: it collects RLC-verified
+// row proofs from many sources and recovers the K original rows once enough
+// unique indices have arrived. Because every contributing row is RLC-verified
+// against the target commitment as it lands, [Reconstructor.Reconstruct] runs
+// only Reed-Solomon data-shard recovery and skips the merkle/commitment rebuild.
 //
 // Reconstructor does not own row storage. The caller supplies a row buffer to
 // [Reconstructor.Reconstruct]; dedup happens internally via a per-index seen

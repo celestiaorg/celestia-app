@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/app"
@@ -258,10 +257,11 @@ func (n *Network) InitNodes(rootDir string) error {
 		filePV.Save()
 	}
 
-	// Pass 2: now that every validator's NetworkAddress is known, write
-	// config.toml with a populated persistent_peers list. Without this the
-	// chain has no bootstrap mechanism — addrbook alone is not enough — and
-	// validators come up with zero peers and never reach quorum.
+	// Pass 2: write each validator's config.toml. Peer discovery is handled by
+	// the shipped addrbook.json + PEX, so we set no
+	// persistent_peers — nodes seed their peer set from the address book and let
+	// PEX fill outbound connections up to max_num_outbound_peers, forming a
+	// partial mesh instead of connecting to every other validator.
 	//
 	// Use the templated config.toml that `talis init` wrote one level up
 	// (built from app.DefaultConsensusConfig + DefaultConfigProfile, see
@@ -278,16 +278,6 @@ func (n *Network) InitNodes(rootDir string) error {
 	}
 
 	for _, val := range vals {
-		selfInfo := n.validators[val.Name]
-		selfID := selfInfo.NetworkAddress
-		var peers []string
-		for _, peer := range n.validators {
-			if peer.NetworkAddress == "" || peer.NetworkAddress == selfID || peer.IP == "" || peer.IP == "TBD" {
-				continue
-			}
-			peers = append(peers, peer.PeerID())
-		}
-
 		// Start from app.DefaultConsensusConfig so any field absent from the
 		// templated TOML still inherits celestia defaults, then layer the
 		// templated values on top.
@@ -296,10 +286,9 @@ func (n *Network) InitNodes(rootDir string) error {
 			return fmt.Errorf("failed to unmarshal base config: %w", err)
 		}
 
-		// Without persistent_peers the chain has no bootstrap mechanism on
-		// a fresh testnet — addrbook alone is not enough — and validators
-		// come up with zero peers and never reach quorum.
-		cmtcfg.P2P.PersistentPeers = strings.Join(peers, ",")
+		// No persistent_peers: nodes form a partial mesh up to
+		// max_num_outbound_peers via the shipped addrbook.json + PEX.
+		cmtcfg.P2P.PersistentPeers = ""
 		// Enable the priv-validator gRPC endpoint that fibre needs to fetch
 		// the validator's public key for shard-assignment verification.
 		cmtcfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"

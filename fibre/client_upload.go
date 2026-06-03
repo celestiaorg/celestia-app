@@ -147,7 +147,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	)
 
 	// 3) upload data
-	if err = c.uploadShards(ctx, requests, blob, sigSet); err != nil {
+	if err = c.uploadShards(ctx, shardMap, requests, blob, sigSet); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload")
 		return result, err
@@ -239,6 +239,7 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64, ke
 func (c *Client) uploadTo(
 	ctx context.Context,
 	val *core.Validator,
+	rowIndices []int,
 	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
@@ -253,7 +254,7 @@ func (c *Client) uploadTo(
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.ID().Commitment(),
-		"rows_count", len(req.Shard.Rows),
+		"rows_count", len(rowIndices),
 	)
 
 	uploadOk := false
@@ -263,7 +264,7 @@ func (c *Client) uploadTo(
 	ctx, span := c.tracer.Start(ctx, "upload_to",
 		trace.WithAttributes(
 			attribute.String("validator_address", valAddrStr),
-			attribute.Int("rows_count", len(req.Shard.Rows)),
+			attribute.Int("rows_count", len(rowIndices)),
 		),
 	)
 	defer span.End()
@@ -280,19 +281,24 @@ func (c *Client) uploadTo(
 	}
 	span.AddEvent("client_acquired")
 
-	// Generate proofs in parallel per request (~39% faster for max blob size).
-	for i, rowPb := range req.Shard.Rows {
-		row, err := blob.Row(int(rowPb.Index))
-		if err != nil {
-			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", err)
-			span.RecordError(err, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
-			span.SetStatus(codes.Error, "failed to generate proof for row")
-			return false
-		}
-		req.Shard.Rows[i].Data = row.Row
-		req.Shard.Rows[i].Proof = row.RowProof
+	blobRows := make([]types.BlobRow, len(rowIndices))
+	req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
+	i := 0
+	err = blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+		br := &blobRows[i]
+		br.Index = uint32(index)
+		br.Data = row
+		br.Proof = proof
+		req.Shard.Rows[i] = br
+		i++
+	})
+	if err != nil {
+		log.WarnContext(ctx, "failed to generate row proofs", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to generate row proofs")
+		return false
 	}
-	span.AddEvent("proofs_generated")
+	span.AddEvent("proofs_added")
 
 	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 	defer rpcCancel()
@@ -342,6 +348,7 @@ func (c *Client) uploadTo(
 // [Blob.Free] of the user reference have fired.
 func (c *Client) uploadShards(
 	ctx context.Context,
+	shardMap validator.ShardMap,
 	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
@@ -373,7 +380,7 @@ func (c *Client) uploadShards(
 				c.closeWg.Done()
 			}()
 
-			hasEnough := c.uploadTo(ctx, val, req, blob, sigSet)
+			hasEnough := c.uploadTo(ctx, val, shardMap[val], req, blob, sigSet)
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
@@ -395,7 +402,9 @@ func (c *Client) uploadShards(
 	return nil
 }
 
-// makeUploadRequests constructs the requests map for all validators.
+// makeUploadRequests builds the per-validator request envelopes — the shared
+// promise and RLC coefficients. The shard's rows (data + proofs) are built
+// per validator by uploadTo, in the fan-out goroutines.
 func makeUploadRequests(
 	shardMap validator.ShardMap,
 	pbPromise *types.PaymentPromise,
@@ -403,22 +412,16 @@ func makeUploadRequests(
 ) map[*core.Validator]*types.UploadShardRequest {
 	rlcsBytes := rlc.Marshal(rlcs)
 
+	reqs := make([]types.UploadShardRequest, len(shardMap))
+	shards := make([]types.BlobShard, len(shardMap))
 	requests := make(map[*core.Validator]*types.UploadShardRequest, len(shardMap))
-	for val, rowIndices := range shardMap {
-		rows := make([]*types.BlobRow, 0, len(rowIndices))
-		for _, rowIndex := range rowIndices {
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIndex),
-			})
-		}
-		req := &types.UploadShardRequest{
-			Promise: pbPromise,
-			Shard: &types.BlobShard{
-				Rows: rows,
-				Rlcs: rlcsBytes,
-			},
-		}
-		requests[val] = req
+	i := 0
+	for val := range shardMap {
+		shards[i].Rlcs = rlcsBytes
+		reqs[i].Promise = pbPromise
+		reqs[i].Shard = &shards[i]
+		requests[val] = &reqs[i]
+		i++
 	}
 	return requests
 }

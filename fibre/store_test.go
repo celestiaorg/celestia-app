@@ -480,16 +480,14 @@ func makeTestStore(t *testing.T) (*fibre.Store, string) {
 func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobShard {
 	t.Helper()
 
-	rows := make([]*types.BlobRow, len(indices))
-	for i, idx := range indices {
-		rowProof, err := blob.Row(idx)
-		require.NoError(t, err)
-		rows[i] = &types.BlobRow{
-			Index: uint32(idx),
-			Data:  rowProof.Row,
-			Proof: rowProof.RowProof,
-		}
-	}
+	rows := make([]*types.BlobRow, 0, len(indices))
+	require.NoError(t, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}))
 
 	return &types.BlobShard{
 		Rows: rows,

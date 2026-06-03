@@ -6,7 +6,7 @@ RSEMA1D (Reed-Solomon Evans-Mohnblatt-Angeris 1D) is a high-performance data ava
 
 - **Vertical Reed-Solomon Extension**: Efficient encoding using Leopard codec over GF(2^16)
 - **Dual Proof System**: Optimized for different verification contexts (DA sampling vs. single row reads)
-- **Arbitrary Parameters**: Supports any K and N values (non-power-of-2) with automatic padding
+- **Power-of-2 Sizing**: K and K+N are powers of two, so Merkle trees are complete and proofs need no padding
 - **128-bit Security**: Uses GF(2^128) for RLC forgery resistance
 - **Parallel Processing**: Built-in support for concurrent encoding/verification
 - **Efficient Verification**: O(K) operations for extended rows, O(log K) for original rows
@@ -144,16 +144,14 @@ if reconstructor.Want() == 0 {
 }
 ```
 
-For in-process reconstruction with all rows already on hand, [`Coder.Reconstruct`] takes a K+N row buffer (missing rows as nil) and rebuilds the originals in place.
-
 ## Configuration
 
 The `Config` struct controls all codec parameters:
 
 ```go
 type Config struct {
-    K           int  // Number of original rows (1 ≤ K ≤ 65536)
-    N           int  // Number of parity rows (1 ≤ N ≤ 65536, K+N ≤ 65536)
+    K           int  // Number of original rows (power of 2)
+    N           int  // Number of parity rows (K+N must be a power of 2, ≤ 65536)
     WorkerCount int  // Parallel workers (default: runtime.NumCPU())
 }
 ```
@@ -162,9 +160,9 @@ Row size is not in Config — every operation (Encode, Verify, VerifyStandaloneP
 
 ### Parameter Constraints
 
+- **Power-of-2 sizing**: K and K+N must each be a power of 2, so the Merkle trees are complete (no padding)
 - **K + N ≤ 65536**: Limited by GF(2^16) field size
 - **Row size**: Must be at least 64 bytes and a multiple of 64 (Leopard codec requirement)
-- **Non-power-of-2 support**: K and N can be arbitrary values, padding is handled automatically
 
 ## Architecture
 

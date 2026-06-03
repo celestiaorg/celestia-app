@@ -29,17 +29,17 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 		return fmt.Errorf("standalone verification only supports original rows (got index %d, K=%d)", proof.Index, config.K)
 	}
 
-	rowTreeDepth := bits.Len(uint(config.totalPadded)) - 1
+	rowTreeDepth := bits.Len(uint(config.K+config.N)) - 1
 	if len(proof.RowProof.RowProof) != rowTreeDepth {
 		return fmt.Errorf("row proof depth mismatch: expected %d, got %d", rowTreeDepth, len(proof.RowProof.RowProof))
 	}
-	rlcTreeDepth := bits.Len(uint(config.kPadded)) - 1
+	rlcTreeDepth := bits.Len(uint(config.K)) - 1
 	if len(proof.RLCProof) != rlcTreeDepth {
 		return fmt.Errorf("rlc proof depth mismatch: expected %d, got %d", rlcTreeDepth, len(proof.RLCProof))
 	}
 
 	// 1. Recover rowRoot from the row's Merkle proof.
-	rowRoot, err := merkle.ComputeRootFromProof(proof.Row, proof.Index, proof.RowProof.RowProof)
+	rowRoot, err := merkle.RootFromProof(proof.Row, proof.Index, proof.RowProof.RowProof)
 	if err != nil {
 		return fmt.Errorf("computing row root: %w", err)
 	}
@@ -51,7 +51,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	// 3. Recover rlcOrigRoot from the RLC's Merkle proof.
 	var rlcBytes [field.GF128Size]byte
 	field.EncodeGF128(rlcBytes[:], rlcValue)
-	rlcOrigRoot, err := merkle.ComputeRootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
+	rlcOrigRoot, err := merkle.RootFromProof(rlcBytes[:], proof.Index, proof.RLCProof)
 	if err != nil {
 		return fmt.Errorf("computing RLC root: %w", err)
 	}
