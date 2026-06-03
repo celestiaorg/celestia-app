@@ -311,9 +311,9 @@ func (c *Client) uploadTo(
 	})
 	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
-		log.WarnContext(ctx, "failed to upload shard", "error", err)
+		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to upload shard")
+		span.SetStatus(codes.Error, "failed to upload rows")
 		return false
 	}
 	span.AddEvent("rows_uploaded")
