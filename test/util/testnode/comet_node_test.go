@@ -1,6 +1,7 @@
 package testnode
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -67,10 +68,9 @@ func (s *IntegrationTestSuite) TestFillBlock() {
 		resp, err := s.cctx.FillBlock(squareSize, s.accounts[1], flags.BroadcastSync)
 		require.NoError(err)
 
-		err = s.cctx.WaitForBlocks(3)
-		require.NoError(err, squareSize)
-
-		res, err := QueryWithoutProof(s.cctx.Context, resp.TxHash)
+		queryCtx, queryCancel := context.WithTimeout(s.cctx.GoContext(), 15*time.Second)
+		defer queryCancel()
+		res, err := QueryWithoutProofWithRetry(queryCtx, s.cctx.Context, resp.TxHash)
 		require.NoError(err, squareSize)
 		require.Equal(abci.CodeTypeOK, res.TxResult.Code, squareSize)
 

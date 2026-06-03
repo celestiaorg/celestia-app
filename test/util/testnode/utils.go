@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"sync/atomic"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/app"
@@ -57,6 +58,34 @@ func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 	}
 
 	return node.Tx(context.Background(), hash, false)
+}
+
+// QueryWithoutProofWithRetry polls for a tx by hash until it is indexed
+// or the context is cancelled.
+func QueryWithoutProofWithRetry(ctx context.Context, clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
+	hash, err := hex.DecodeString(hashHexStr)
+	if err != nil {
+		return nil, err
+	}
+
+	node, err := clientCtx.GetNode()
+	if err != nil {
+		return nil, err
+	}
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("tx %s not found: %w", hashHexStr, ctx.Err())
+		case <-ticker.C:
+			res, err := node.Tx(ctx, hash, false)
+			if err == nil {
+				return res, nil
+			}
+		}
+	}
 }
 
 func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
