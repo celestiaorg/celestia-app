@@ -107,7 +107,7 @@ func TestClientCacheEvict(t *testing.T) {
 	require.NotNil(t, c1)
 
 	cache.Evict(val)
-	assert.True(t, c1.(*mockFibreClientCloser).closed, "evicted client should be closed")
+	assert.True(t, c1.(*mockFibreClientCloser).closed, "evicted client should be closed immediately")
 
 	c2, err := cache.GetClient(t.Context(), val)
 	require.NoError(t, err)

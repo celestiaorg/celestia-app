@@ -273,29 +273,39 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	// Build the shard rows up front; they don't depend on the gRPC client and
-	// must be ready before any (re)dial + RPC attempt made by withHostRefresh.
-	blobRows := make([]types.BlobRow, len(rowIndices))
-	req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
-	i := 0
-	err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
-		br := &blobRows[i]
-		br.Index = uint32(index)
-		br.Data = row
-		br.Proof = proof
-		req.Shard.Rows[i] = br
-		i++
-	})
-	if err != nil {
-		log.WarnContext(ctx, "failed to generate row proofs", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to generate row proofs")
-		return false
+	// Generating row proofs is non-trivial, so build them lazily — only once
+	// withHostRefresh has acquired a working client. When the host can't be
+	// resolved (e.g. an invalid registration no refresh can fix) the closure
+	// never runs and we skip the work entirely. The guard builds them once, so
+	// a retry against a corrected host reuses the same shard.
+	proofsBuilt := false
+	buildRows := func() error {
+		if proofsBuilt {
+			return nil
+		}
+		blobRows := make([]types.BlobRow, len(rowIndices))
+		req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
+		i := 0
+		if err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+			br := &blobRows[i]
+			br.Index = uint32(index)
+			br.Data = row
+			br.Proof = proof
+			req.Shard.Rows[i] = br
+			i++
+		}); err != nil {
+			return fmt.Errorf("generating row proofs: %w", err)
+		}
+		proofsBuilt = true
+		span.AddEvent("proofs_added")
+		return nil
 	}
-	span.AddEvent("proofs_added")
 
 	rpcStart := time.Now()
 	resp, err := withHostRefresh(c, ctx, val, func(client fibregrpc.Client) (*types.UploadShardResponse, error) {
+		if err := buildRows(); err != nil {
+			return nil, err
+		}
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 		defer rpcCancel()
 		return client.UploadShard(rpcCtx, req)

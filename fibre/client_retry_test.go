@@ -12,6 +12,8 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	grpccodes "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // fakeFibreClient is a gRPC client bound to the host it was dialed against.
@@ -48,11 +50,12 @@ func newRetryClient(host *string, mu *sync.Mutex, refresh func() (bool, bool, er
 	}
 }
 
-// do returns the bound host, or an error when bound to the "bad" host.
+// do returns the bound host, or a transport (Unavailable) error when bound to
+// the "bad" host — mimicking an unreachable peer.
 func do(cl fibregrpc.Client) (string, error) {
 	f := cl.(*fakeFibreClient)
 	if f.host != "good" {
-		return "", errors.New("rpc failed")
+		return "", status.Error(grpccodes.Unavailable, "rpc failed")
 	}
 	return f.host, nil
 }
@@ -81,7 +84,7 @@ func TestWithHostRefresh_UnchangedReturnsOriginalError(t *testing.T) {
 
 	_, err := withHostRefresh(c, t.Context(), &core.Validator{Address: []byte("v1")}, do)
 	require.Error(t, err)
-	assert.Equal(t, "rpc failed", err.Error())
+	assert.Equal(t, grpccodes.Unavailable, status.Code(err))
 }
 
 func TestWithHostRefresh_ChangedButInvalidReturnsOriginalError(t *testing.T) {
@@ -96,8 +99,56 @@ func TestWithHostRefresh_ChangedButInvalidReturnsOriginalError(t *testing.T) {
 
 	_, err := withHostRefresh(c, t.Context(), &core.Validator{Address: []byte("v1")}, do)
 	require.Error(t, err)
-	assert.Equal(t, "rpc failed", err.Error(), "should not retry into a known-invalid host")
+	assert.Equal(t, grpccodes.Unavailable, status.Code(err), "should not retry into a known-invalid host")
 	assert.True(t, refreshed)
+}
+
+// TestWithHostRefresh_AppErrorSkipsRefresh verifies an application-level error
+// from a reachable peer (e.g. NotFound) does not trigger a host refresh.
+func TestWithHostRefresh_AppErrorSkipsRefresh(t *testing.T) {
+	var mu sync.Mutex
+	host := "good" // dial + connection succeed
+	refreshed := false
+	c := newRetryClient(&host, &mu, func() (bool, bool, error) {
+		refreshed = true
+		return true, true, nil
+	})
+
+	appErr := status.Error(grpccodes.NotFound, "blob not found")
+	_, err := withHostRefresh(c, t.Context(), &core.Validator{Address: []byte("v1")},
+		func(fibregrpc.Client) (string, error) { return "", appErr })
+	require.Error(t, err)
+	assert.Equal(t, grpccodes.NotFound, status.Code(err))
+	assert.False(t, refreshed, "application errors must not trigger a host refresh")
+}
+
+// TestWithHostRefresh_DialFailureTriggersRefresh verifies that a failed dial
+// (e.g. an invalid host that returns no gRPC status) is itself enough to
+// trigger a refresh, recovering once the host is corrected.
+func TestWithHostRefresh_DialFailureTriggersRefresh(t *testing.T) {
+	var mu sync.Mutex
+	host := "bad"
+	dial := func(_ context.Context, _ *core.Validator) (fibregrpc.Client, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if host == "good" {
+			return &fakeFibreClient{host: host}, nil
+		}
+		return nil, errors.New("invalid host") // plain error, not a gRPC status
+	}
+	c := &Client{
+		state: &fakeState{refresh: func() (bool, bool, error) {
+			mu.Lock()
+			host = "good"
+			mu.Unlock()
+			return true, true, nil
+		}},
+		clientCache: fibregrpc.NewClientCache(dial, 1),
+	}
+
+	res, err := withHostRefresh(c, t.Context(), &core.Validator{Address: []byte("v1")}, do)
+	require.NoError(t, err)
+	assert.Equal(t, "good", res)
 }
 
 func TestWithHostRefresh_SkipsRefreshOnCancelledContext(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -462,6 +463,38 @@ func TestRefreshHost_QueryError(t *testing.T) {
 	_, _, err = registry.RefreshHost(t.Context(), val)
 	require.NoError(t, err)
 	assert.Equal(t, 1, infoCall, "failed query must still count against the per-block budget")
+}
+
+// TestRefreshHost_BoundsConcurrentQueries verifies that under heavy concurrency
+// a validator's host is queried at most once: the rate-limit timestamp is
+// stamped under the lock before the query runs, so only the first caller to win
+// the lock queries and the rest are suppressed.
+func TestRefreshHost_BoundsConcurrentQueries(t *testing.T) {
+	val := createTestValidator(nil)
+	const newHost = "validator1.example.com:9091"
+
+	var infoCalls atomic.Int32
+	mock := &mockQueryClient{
+		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			infoCalls.Add(1)
+			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: newHost}, Found: true}, nil
+		},
+	}
+	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(clock.NewMock()), grpc.WithRefreshInterval(time.Minute))
+
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Go(func() {
+			_, _, err := registry.RefreshHost(t.Context(), val)
+			assert.NoError(t, err)
+		})
+	}
+	wg.Wait()
+
+	assert.Equal(t, int32(1), infoCalls.Load(), "concurrent refreshes must issue at most one query")
+	host, err := registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
+	assert.Equal(t, newHost, host.String(), "the refreshed host should be applied to the cache")
 }
 
 func TestGetHost_MultipleValidators(t *testing.T) {
