@@ -157,14 +157,11 @@ func (c *Client) downloadFrom(
 		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
 	}()
 
-	var resp *types.DownloadShardResponse
 	rpcStart := time.Now()
-	err = c.clientCache.Request(ctx, from.Validator, func(client fibregrpc.Client) error {
+	resp, err := withHostRefresh(c, ctx, from.Validator, func(client fibregrpc.Client) (*types.DownloadShardResponse, error) {
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 		defer rpcCancel()
-		var err error
-		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
-		return err
+		return client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id, WithRlc: true})
 	})
 	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
