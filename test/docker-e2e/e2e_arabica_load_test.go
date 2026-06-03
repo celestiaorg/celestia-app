@@ -99,15 +99,6 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	})
 	require.NoError(t, err, "failed to deploy latency-monitor")
 
-	// Capture the full latency-monitor stdout ([SUBMIT]/[CONFIRM] stream) so CI
-	// can upload it as an artifact. Registered as a cleanup so the logs are
-	// saved even if the test fails before results are collected. Runs before
-	// the container's own stop cleanup (LIFO), so the container is still
-	// present when we read its logs.
-	t.Cleanup(func() {
-		s.SaveLatencyLogs(ctx, t, container.Name, "latency-monitor.log")
-	})
-
 	// --- 4. Run for the test duration ---
 	t.Logf("Running load test for %v...", testDuration)
 	time.Sleep(testDuration)
@@ -168,9 +159,7 @@ func fetchBlockTimes(ctx context.Context, rpcClient *rpchttp.HTTP, startHeight, 
 	times := make(map[int64]time.Time, endHeight-startHeight+1)
 	for batchStart := startHeight; batchStart <= endHeight; {
 		// Last height in this batch (inclusive), capped so we never query past endHeight.
-		fmt.Println("BATCH START", batchStart)
 		batchEnd := min(batchStart+batchSize-1, endHeight)
-		fmt.Println("BATCH END", batchEnd)
 		info, err := rpcClient.BlockchainInfo(ctx, batchStart, batchEnd)
 		if err != nil {
 			return nil, fmt.Errorf("BlockchainInfo(%d, %d): %w", batchStart, batchEnd, err)
@@ -208,8 +197,6 @@ func maxBlockTime(times map[int64]time.Time, startHeight, endHeight int64) time.
 		if !curOK || !prevOK {
 			continue
 		}
-		fmt.Println("CURRENT TIME", cur)
-		fmt.Println("REVIOPS TIME", prev)
 		if bt := cur.Sub(prev); bt > maxBT {
 			maxBT = bt
 		}
