@@ -8,9 +8,7 @@ import (
 
 // overridePrivValidatorGRPCConfig disables the privval gRPC server in non-fibre
 // builds by clearing its listen address (core only starts the server when the
-// address is non-empty). Its default, 127.0.0.1:26659, conflicts with the
-// default TMKMS remote signing port. The fibre module needs this endpoint for
-// signing, so it is left untouched in fibre builds.
+// address is non-empty).
 func overridePrivValidatorGRPCConfig(cmd *cobra.Command, logger log.Logger) error {
 	if isFibreEnabled() {
 		return nil
