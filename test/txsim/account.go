@@ -531,8 +531,9 @@ func (am *AccountManager) setLatestHeight(height int64) uint64 {
 func (am *AccountManager) updateHeight(ctx context.Context) (uint64, error) {
 	am.mtx.Lock()
 	if time.Since(am.lastUpdated) < am.pollTime {
+		height := am.latestHeight
 		am.mtx.Unlock()
-		return am.latestHeight, nil
+		return height, nil
 	}
 	am.mtx.Unlock()
 	resp, err := tmservice.NewServiceClient(am.conn).GetLatestBlock(ctx, &tmservice.GetLatestBlockRequest{})
