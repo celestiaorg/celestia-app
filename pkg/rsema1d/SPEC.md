@@ -132,6 +132,11 @@ padding:
 - Row tree: K+N leaves — positions [0, K) original rows, [K, K+N) parity rows
 - RLC tree: K leaves — one per original row's RLC value
 
+Because both trees are complete, `log2(K+N)` and `log2(K)` are the exact tree
+depths; there is no padded count (no `K_padded`/`N_padded`) to account for. The
+proof-size and memory estimates in sections 3.4 and 5.3 are therefore exact
+rather than asymptotic.
+
 ### 3.2 Data Extension
 
 **Input**: K rows of `rowSize` bytes each
@@ -191,11 +196,15 @@ needed for proof generation or verification.
    unsigned 32-bit integers and absorbed in that order:
 
    ```text
-   params     = LE32(K) || LE32(N) || LE32(rowSize)     // 12 bytes
-   seed       = SHA256(rowRoot || params)               // 32 bytes
-   numSymbols = rowSize / 2                             // each GF16 symbol is 2 bytes
-   for i in 0..numSymbols:
-       coeffs[i] = HashToGF128(SHA256(seed || LE32(i))) // i as 4-byte LE uint32
+   // DeriveCoefficients derives one GF128 RLC coefficient per row symbol from
+   // the row root and codec parameters (K, N, rowSize) via Fiat-Shamir.
+   DeriveCoefficients(rowRoot, K, N, rowSize):
+      params     = LE32(K) || LE32(N) || LE32(rowSize)     // 12 bytes
+      seed       = SHA256(rowRoot || params)               // 32 bytes
+      numSymbols = rowSize / 2                              // each GF16 symbol is 2 bytes
+      for i in 0..numSymbols:
+          coeffs[i] = HashToGF128(SHA256(seed || LE32(i)))  // i as 4-byte LE uint32
+      return coeffs
    ```
 
    Where:
@@ -310,6 +319,34 @@ This optimization can significantly reduce proof sizes, especially for extended 
 
 **Input**: Proof, commitment (32 bytes), parameters
 
+**Helper Functions:**
+
+```text
+// RootFromProof recomputes a Merkle root from a single leaf and its inclusion
+// proof. It is the inverse of the tree construction in 3.3 / Appendix B.3:
+// hash the leaf as SHA256(0x00 || leaf), then fold in each sibling hash from
+// proof according to index, combining with SHA256(0x01 || left || right), and
+// return the resulting root.
+RootFromProof(leaf, index, proof) -> root
+
+// ExtendRLCResults Reed-Solomon extends the K original RLC values to K+N values
+// using the same Leopard codec as data extension (3.2). Each GF128 RLC value is
+// packed into a 64-byte Leopard shard via PackGF128ToLeopard (Appendix B.2),
+// the N parity shards are produced by a single Leopard encode call, and every
+// shard is converted back to a GF128 value via UnpackGF128FromLeopard.
+ExtendRLCResults(rlcOrig, N):
+   shards = new array[K + N]
+   for j in 0 .. K:
+      shards[j] = PackGF128ToLeopard(rlcOrig[j])
+   parity = LeopardEncode(shards[0..K], N)   // N parity shards
+   for j in 0 .. N:
+      shards[K + j] = parity[j]
+   rlcExtended = new array[K + N]
+   for j in 0 .. K + N:
+      rlcExtended[j] = UnpackGF128FromLeopard(shards[j])
+   return rlcExtended
+```
+
 **Process**:
 
 1. **Compute Row Root from Proof**
@@ -321,7 +358,7 @@ This optimization can significantly reduce proof sizes, especially for extended 
 2. **Recompute RLC**
 
    ```text
-   coeffs = DeriveCoefficients(rowRoot, params)  // Same as in 3.3.2
+   coeffs = DeriveCoefficients(rowRoot, K, N, rowSize)  // See 3.3, step 2
    rlcI = 0
    for c in 0..numChunks:
        chunk = proof.row[c*64..(c+1)*64]
