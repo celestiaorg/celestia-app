@@ -5913,18 +5913,13 @@
             "$ref": "#/definitions/v1BlobRow"
           }
         },
-        "coefficients": {
+        "rlcs": {
           "type": "string",
           "format": "byte",
-          "title": "flattened rlc coefficients, 16 bytes per original row // TODO: Rename to just RLCs, RLC coefficients are a completly different thing"
-        },
-        "root": {
-          "type": "string",
-          "format": "byte",
-          "title": "const len == 32 when present // TODO: Remove with a future protocol breaking change"
+          "title": "flattened RLC vector, 16 bytes per original row"
         }
       },
-      "title": "BlobShard represents a subset of rows of a Fibre blob.\nContains row data along with RLC proof data:\n- coefficients: flattened RLC coefficients (K × 16 bytes), stored during upload\n- root: RLC Merkle root (32 bytes), computed during upload verification"
+      "description": "BlobShard represents a subset of rows of a Fibre blob.\nContains row data along with the RLC (random linear combination) vector\ncomputed during upload: flattened, 16 bytes per original row."
     },
     "v1DownloadShardResponse": {
       "type": "object",
