@@ -93,6 +93,7 @@ func (cfg *ClientConfig) Validate() error {
 			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log,
 				fibregrpc.WithClock(cfg.Clock),
 				fibregrpc.WithRefreshInterval(cfg.HostRefreshInterval),
+				fibregrpc.WithQueryTimeout(cfg.RPCTimeout),
 			)
 		}
 	}

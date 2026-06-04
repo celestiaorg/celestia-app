@@ -22,6 +22,12 @@ var _ validator.HostRegistry = &HostRegistry{}
 // state cannot change faster than one block.
 var DefaultRefreshInterval = appconsts.DelayedPrecommitTimeout + appconsts.TimeoutCommit
 
+// DefaultQueryTimeout bounds a single on-chain host query in
+// [HostRegistry.RefreshHost]. It matches the client's default RPCTimeout so a
+// slow or black-holed state node can't add unbounded latency to the request
+// that triggered the refresh.
+const DefaultQueryTimeout = 15 * time.Second
+
 // HostRegistry is a registry of validator hosts. It caches the hosts for validators in the active set.
 // It uses the [types.QueryClient] to query the fibre provider information for validators in the active set.
 type HostRegistry struct {
@@ -34,6 +40,8 @@ type HostRegistry struct {
 	clock           clock.Clock
 	refreshInterval time.Duration
 	lastRefresh     map[string]time.Time
+	// queryTimeout bounds a single on-chain host query in RefreshHost.
+	queryTimeout time.Duration
 }
 
 // HostRegistryOption configures a [HostRegistry].
@@ -50,6 +58,16 @@ func WithRefreshInterval(d time.Duration) HostRegistryOption {
 	return func(g *HostRegistry) { g.refreshInterval = d }
 }
 
+// WithQueryTimeout sets the timeout bounding a single on-chain host query in
+// [HostRegistry.RefreshHost]. A non-positive value leaves the default in place.
+func WithQueryTimeout(d time.Duration) HostRegistryOption {
+	return func(g *HostRegistry) {
+		if d > 0 {
+			g.queryTimeout = d
+		}
+	}
+}
+
 func NewHostRegistry(queryClient types.QueryClient, log *slog.Logger, opts ...HostRegistryOption) *HostRegistry {
 	g := &HostRegistry{
 		queryClient:     queryClient,
@@ -58,6 +76,7 @@ func NewHostRegistry(queryClient types.QueryClient, log *slog.Logger, opts ...Ho
 		refreshInterval: DefaultRefreshInterval,
 		cachedHosts:     make(map[string]validator.Host),
 		lastRefresh:     make(map[string]time.Time),
+		queryTimeout:    DefaultQueryTimeout,
 	}
 	for _, opt := range opts {
 		opt(g)
@@ -154,7 +173,11 @@ func (g *HostRegistry) RefreshHost(ctx context.Context, val *core.Validator) (ch
 	g.lastRefresh[consAddr] = g.clock.Now()
 	g.mu.Unlock()
 
-	host, err := g.queryHost(ctx, consAddr)
+	// Bound the query so a slow or black-holed state node can't add unbounded
+	// latency to the request that triggered the refresh.
+	qctx, cancel := context.WithTimeout(ctx, g.queryTimeout)
+	defer cancel()
+	host, err := g.queryHost(qctx, consAddr)
 	if err != nil {
 		return false, false, err
 	}

@@ -465,6 +465,43 @@ func TestRefreshHost_QueryError(t *testing.T) {
 	assert.Equal(t, 1, infoCall, "failed query must still count against the per-block budget")
 }
 
+// TestRefreshHost_QueryTimeout verifies the on-chain query is bounded by the
+// configured timeout, so a hanging state node can't stall the request that
+// triggered the refresh.
+func TestRefreshHost_QueryTimeout(t *testing.T) {
+	val := createTestValidator(nil)
+
+	mock := &mockQueryClient{
+		fibreProviderInfoFn: func(ctx context.Context, _ *types.QueryFibreProviderInfoRequest, _ ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			<-ctx.Done() // hang until the query context is cancelled by the timeout
+			return nil, ctx.Err()
+		},
+	}
+
+	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithQueryTimeout(50*time.Millisecond))
+
+	done := make(chan struct{})
+	var (
+		changed, valid bool
+		err            error
+	)
+	go func() {
+		changed, valid, err = registry.RefreshHost(context.Background(), val)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("RefreshHost did not return; query timeout was not enforced")
+	}
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	assert.False(t, changed)
+	assert.False(t, valid)
+}
+
 // TestRefreshHost_BoundsConcurrentQueries verifies that under heavy concurrency
 // a validator's host is queried at most once: the rate-limit timestamp is
 // stamped under the lock before the query runs, so only the first caller to win
