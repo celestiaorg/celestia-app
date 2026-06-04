@@ -1,10 +1,13 @@
 package networks
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
@@ -56,6 +59,59 @@ func NewChainBuilder(t *testing.T, chainConfig *Config, cfg *dockerchain.Config)
 // NewClient creates a new RPC client for connecting to the specified chain.
 func NewClient(rpc string) (*rpchttp.HTTP, error) {
 	return rpchttp.New(rpc, "/websocket")
+}
+
+// FetchPeers queries /net_info on each RPC endpoint and returns a
+// deduplicated, comma-separated list of peers suitable for
+// --p2p.persistent_peers. It tries every RPC in the config and merges results
+// so that transient failures on a single provider don't leave us with zero
+// peers. maxPeers caps the returned list to avoid bloating the arg.
+func FetchPeers(t *testing.T, rpcs []string, maxPeers int) string {
+	t.Helper()
+
+	seen := make(map[string]struct{})
+	var peers []string
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	for _, rpc := range rpcs {
+		if len(peers) >= maxPeers {
+			break
+		}
+		client, err := NewClient(rpc)
+		if err != nil {
+			t.Logf("FetchPeers: %s: %v", rpc, err)
+			continue
+		}
+		netInfo, err := client.NetInfo(ctx)
+		if err != nil {
+			t.Logf("FetchPeers: %s: %v", rpc, err)
+			continue
+		}
+		for _, p := range netInfo.Peers {
+			id := string(p.NodeInfo.DefaultNodeID)
+			if id == "" || p.RemoteIP == "" {
+				continue
+			}
+			if _, ok := seen[id]; ok {
+				continue
+			}
+			seen[id] = struct{}{}
+			// extract port from listen_addr (e.g. "tcp://0.0.0.0:26656")
+			port := "26656"
+			if parts := strings.Split(p.NodeInfo.ListenAddr, ":"); len(parts) > 1 {
+				port = parts[len(parts)-1]
+			}
+			peers = append(peers, fmt.Sprintf("%s@%s:%s", id, p.RemoteIP, port))
+		}
+	}
+
+	if len(peers) > maxPeers {
+		peers = peers[:maxPeers]
+	}
+	t.Logf("FetchPeers: discovered %d peers from %d RPCs", len(peers), len(rpcs))
+	return strings.Join(peers, ",")
 }
 
 // downloadGenesis downloads the genesis file for the given chain ID from the celestia networks repo
