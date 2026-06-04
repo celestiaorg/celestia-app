@@ -140,9 +140,9 @@ func TestClientServerUploadDownload(t *testing.T) {
 						return fmt.Errorf("store %d has empty rows for blob %s", storeIdx, id.String())
 					}
 
-					// verify RLC root is set
-					if rows.GetRoot() == nil || len(rows.GetRoot()) != 32 {
-						return fmt.Errorf("store %d has invalid RLC root for blob %s", storeIdx, id.String())
+					// verify RLCs are set
+					if len(rows.GetRlcs()) == 0 {
+						return fmt.Errorf("store %d has no RLCs for blob %s", storeIdx, id.String())
 					}
 
 					// collect row indices for duplicate detection

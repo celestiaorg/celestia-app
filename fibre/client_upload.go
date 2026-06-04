@@ -408,16 +408,16 @@ func (c *Client) uploadShards(
 func makeUploadRequests(
 	shardMap validator.ShardMap,
 	pbPromise *types.PaymentPromise,
-	rlcCoeffs rlc.Vector,
+	rlcs rlc.Vector,
 ) map[*core.Validator]*types.UploadShardRequest {
-	rlcCoeffsBytes := rlc.Marshal(rlcCoeffs)
+	rlcsBytes := rlc.Marshal(rlcs)
 
 	reqs := make([]types.UploadShardRequest, len(shardMap))
 	shards := make([]types.BlobShard, len(shardMap))
 	requests := make(map[*core.Validator]*types.UploadShardRequest, len(shardMap))
 	i := 0
 	for val := range shardMap {
-		shards[i].Coefficients = rlcCoeffsBytes
+		shards[i].Rlcs = rlcsBytes
 		reqs[i].Promise = pbPromise
 		reqs[i].Shard = &shards[i]
 		requests[val] = &reqs[i]

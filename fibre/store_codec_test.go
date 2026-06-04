@@ -13,8 +13,7 @@ import (
 
 func TestShardCodecRoundTrip(t *testing.T) {
 	shard := &types.BlobShard{
-		Root:         bytes.Repeat([]byte{0xab}, 32),
-		Coefficients: bytes.Repeat([]byte{0xcd}, 64),
+		Rlcs: bytes.Repeat([]byte{0xcd}, 64),
 		Rows: []*types.BlobRow{
 			{Index: 0, Data: bytes.Repeat([]byte{0x01}, 1024), Proof: [][]byte{[]byte("seg-a"), []byte("seg-b")}},
 			{Index: 7, Data: bytes.Repeat([]byte{0x02}, 2048), Proof: nil},
@@ -26,8 +25,7 @@ func TestShardCodecRoundTrip(t *testing.T) {
 
 	got, err := readShardBinary(&buf)
 	require.NoError(t, err)
-	require.Equal(t, shard.Root, got.Root)
-	require.Equal(t, shard.Coefficients, got.Coefficients)
+	require.Equal(t, shard.Rlcs, got.Rlcs)
 	require.Len(t, got.Rows, len(shard.Rows))
 	for i, r := range shard.Rows {
 		require.Equal(t, r.Index, got.Rows[i].Index)
@@ -50,8 +48,7 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 			buildFile: func() []byte {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
-				b = binary.BigEndian.AppendUint32(b, 0) // root_len
-				b = binary.BigEndian.AppendUint32(b, 0) // coeffs_len
+				b = binary.BigEndian.AppendUint32(b, 0) // rlcs_len
 				b = binary.BigEndian.AppendUint32(b, maxShardRows+1)
 				return b
 			},
@@ -62,8 +59,7 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 			buildFile: func() []byte {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
-				b = binary.BigEndian.AppendUint32(b, 0) // root_len
-				b = binary.BigEndian.AppendUint32(b, 0) // coeffs_len
+				b = binary.BigEndian.AppendUint32(b, 0) // rlcs_len
 				b = binary.BigEndian.AppendUint32(b, 1) // numRows = 1
 				b = binary.BigEndian.AppendUint32(b, 0) // row index
 				b = binary.BigEndian.AppendUint32(b, 0) // row data_len
@@ -77,7 +73,7 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 			buildFile: func() []byte {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
-				b = binary.BigEndian.AppendUint32(b, shardLengthLimit+1) // root_len
+				b = binary.BigEndian.AppendUint32(b, shardLengthLimit+1) // rlcs_len
 				return b
 			},
 			wantSub: "exceeds shard limit",
@@ -122,8 +118,7 @@ func FuzzShardCodecRoundTrip(f *testing.F) {
 
 		got, err := readShardBinary(&buf)
 		require.NoError(t, err)
-		require.Equal(t, shard.Root, got.Root)
-		require.Equal(t, shard.Coefficients, got.Coefficients)
+		require.Equal(t, shard.Rlcs, got.Rlcs)
 		require.Len(t, got.Rows, len(shard.Rows))
 		for i, r := range shard.Rows {
 			require.Equal(t, r.Index, got.Rows[i].Index)
@@ -155,8 +150,7 @@ func FuzzShardCodecReadNoPanic(f *testing.F) {
 func shardFromSeed(seed []byte) *types.BlobShard {
 	r := &seedReader{seed: seed}
 	shard := &types.BlobShard{
-		Root:         r.take(int(r.byte() % 64)),
-		Coefficients: r.take(int(r.byte() % 64)),
+		Rlcs: r.take(int(r.byte() % 64)),
 	}
 	numRows := int(r.byte() % 8)
 	shard.Rows = make([]*types.BlobRow, numRows)
@@ -208,7 +202,7 @@ func (r *seedReader) take(n int) []byte {
 // A file truncated partway through must error, not return a partial BlobShard.
 func TestShardCodecTruncatedMidRow(t *testing.T) {
 	shard := &types.BlobShard{
-		Root: bytes.Repeat([]byte{0xab}, 32),
+		Rlcs: bytes.Repeat([]byte{0xab}, 32),
 		Rows: []*types.BlobRow{
 			{Index: 0, Data: bytes.Repeat([]byte{0x01}, 1024)},
 		},

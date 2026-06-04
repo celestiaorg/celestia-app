@@ -68,24 +68,23 @@ func NewVerifier(cfg *Config) (*Verifier, error) {
 	}, nil
 }
 
-// Verify checks a batch of row proofs using given RLC and report its RLC root. It
-// verifies the shared row root, checks the commitment, then compares each
-// computed row RLC against the extended RLC shard. RLC gets cached for [Verifier.VerifyShared] counterpart.
+// Verify checks a batch of row proofs using given RLC. It verifies the shared
+// row root, checks the commitment, then compares each computed row RLC against
+// the extended RLC shard. RLC gets cached for [Verifier.VerifyShared] counterpart.
 //
 // Verify reuses internal scratch buffers and is not safe for concurrent calls.
-func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vector) ([]byte, error) {
-	rlcRoot, err := v.setRLC(rlc)
-	if err != nil {
-		return nil, err
+func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vector) error {
+	if err := v.setRLC(rlc); err != nil {
+		return err
 	}
 
 	rowSize, err := v.validateProofs(proofs)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
 	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
-	return rlcRoot, v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
+	return v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
 }
 
 // VerifyShared is the concurrent-safe counterpart to [Verifier.Verify]. It performs the
@@ -105,10 +104,10 @@ func (v *Verifier) VerifyShared(commitment Commitment, proofs []*RowProof) error
 	return v.verify(commitment, proofs, rowSize, rowsView, proofInputs)
 }
 
-// setRLC extends the K original RLC values and caches the RLC root.
-func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
+// setRLC extends the K original RLC values and caches the padded RLC root.
+func (v *Verifier) setRLC(rlc rlc.Vector) error {
 	if len(rlc) != v.config.K {
-		return nil, fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
+		return fmt.Errorf("expected %d RLC values, got %d", v.config.K, len(rlc))
 	}
 	// Pack into Leopard shards for RS extension.
 	for i := range v.config.K {
@@ -120,13 +119,13 @@ func (v *Verifier) setRLC(rlc rlc.Vector) ([]byte, error) {
 		clear(v.rlcShards[i])
 	}
 	if err := v.enc.Encode(v.rlcShards); err != nil {
-		return nil, fmt.Errorf("extending RLC: %w", err)
+		return fmt.Errorf("extending RLC: %w", err)
 	}
 
 	rlcRoot := computeRLCRoot(rlc, v.rlcRootScratch, v.rlcLeafScratch[:])
 	v.rlcRoot = rlcRoot
 	v.rlcCoeffs = nil // invalidate coeffs
-	return rlcRoot[:], nil
+	return nil
 }
 
 // validateProofs checks proof shape invariants and returns the effective row
