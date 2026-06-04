@@ -44,18 +44,28 @@ func TestTimeInPrepareProposalContext(t *testing.T) {
 	}
 	tests := []test{
 		{
-			name: "create continuous vesting account with a start time in the future",
+			name: "create continuous vesting account that has already started vesting",
 			msgFunc: func() (msgs []sdk.Msg, signer string) {
 				_, _, err := cctx.Keyring.NewMnemonic(vestAccName, keyring.English, "", "", hd.Secp256k1)
 				require.NoError(t, err)
 				sendingAccAddr := testfactory.GetAddress(cctx.Keyring, sendAccName)
 				vestAccAddr := testfactory.GetAddress(cctx.Keyring, vestAccName)
+				// Start vesting in the past so that some coins have already
+				// vested (and are therefore spendable) by the time the second
+				// transaction is included in a block. Continuous vesting
+				// returns zero vested coins while blockTime <= startTime, so
+				// using time.Now() as the start time made this test flaky: if
+				// the send tx landed in a block whose timestamp (truncated to
+				// whole seconds) equalled the start time, the vesting account
+				// had zero spendable balance and could not pay the fee.
+				startTime := time.Now().Add(-time.Minute)
+				endTime := time.Now().Add(time.Second * 100)
 				msg := vestingtypes.NewMsgCreateVestingAccount(
 					sendingAccAddr,
 					vestAccAddr,
 					sdk.NewCoins(sdk.NewCoin(params.BondDenom, math.NewInt(1000000))),
-					time.Now().Unix(),
-					time.Now().Add(time.Second*100).Unix(),
+					startTime.Unix(),
+					endTime.Unix(),
 					false,
 				)
 				return []sdk.Msg{msg}, sendAccName
