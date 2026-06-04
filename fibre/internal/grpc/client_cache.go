@@ -70,9 +70,6 @@ func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Clie
 // (rate-limited per validator) for the host. When the host changed to a valid
 // new value it evicts the stale client, re-dials, and retries fn exactly once.
 // Application-level errors from a reachable server are returned as-is.
-//
-// This recovers from a validator that registered an invalid/unreachable host
-// and later corrected it, without requiring a client restart.
 func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func(Client) error) error {
 	client, err := cc.GetClient(ctx, val)
 	if err == nil {
@@ -85,9 +82,7 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 	if ctx.Err() != nil {
 		return err
 	}
-	// A successful dial followed by an application-level error (NotFound,
-	// InvalidArgument, ...) is not a host problem, so don't spend a state query
-	// on it. client == nil means the dial itself failed.
+	// client == nil means the dial itself failed.
 	if client != nil && !isUnreachable(err) {
 		return err
 	}

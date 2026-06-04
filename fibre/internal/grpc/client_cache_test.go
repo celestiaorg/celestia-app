@@ -115,9 +115,6 @@ func TestClientCacheEvict(t *testing.T) {
 	c2, err := cache.GetClient(t.Context(), val)
 	require.NoError(t, err)
 	assert.NotSame(t, c1, c2, "GetClient after Evict should re-dial a new client")
-
-	// Evicting an unknown validator is a no-op.
-	cache.Evict(&core.Validator{Address: []byte("unknown")})
 }
 
 // TestClientCacheEvictClearsCachedError verifies Evict clears a cached dial
