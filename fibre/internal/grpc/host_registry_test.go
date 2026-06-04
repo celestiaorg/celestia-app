@@ -371,14 +371,9 @@ func TestRefreshHost(t *testing.T) {
 		invalidHost = "invalid-host-without-port"
 	)
 
-	var (
-		mu       sync.Mutex
-		curHost  = initialHost
-		infoCall int
-	)
-	setHost := func(h string) { mu.Lock(); curHost = h; mu.Unlock() }
-	calls := func() int { mu.Lock(); defer mu.Unlock(); return infoCall }
-
+	// All RefreshHost calls below are sequential, so plain variables suffice.
+	curHost := initialHost
+	infoCalls := 0
 	mock := &mockQueryClient{
 		allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
 			return &types.QueryAllFibreProvidersResponse{
@@ -386,9 +381,7 @@ func TestRefreshHost(t *testing.T) {
 			}, nil
 		},
 		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-			mu.Lock()
-			defer mu.Unlock()
-			infoCall++
+			infoCalls++
 			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: curHost}, Found: true}, nil
 		},
 	}
@@ -405,12 +398,12 @@ func TestRefreshHost(t *testing.T) {
 	assert.True(t, valid)
 
 	// 2) host changed on chain, but within the interval -> rate-limited, no query.
-	setHost(changedHost)
-	before := calls()
+	curHost = changedHost
+	before := infoCalls
 	changed, _, err = registry.RefreshHost(t.Context(), val)
 	require.NoError(t, err)
 	assert.False(t, changed)
-	assert.Equal(t, before, calls(), "rate-limited refresh must not query")
+	assert.Equal(t, before, infoCalls, "rate-limited refresh must not query")
 
 	// 3) advance past the interval -> detects the valid change and updates cache.
 	mockClock.Add(interval)
@@ -424,7 +417,7 @@ func TestRefreshHost(t *testing.T) {
 
 	// 4) host changed to an invalid value -> (changed, !valid); cache still updated.
 	mockClock.Add(interval)
-	setHost(invalidHost)
+	curHost = invalidHost
 	changed, valid, err = registry.RefreshHost(t.Context(), val)
 	require.NoError(t, err)
 	assert.True(t, changed)
