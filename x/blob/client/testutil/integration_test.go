@@ -1,11 +1,13 @@
 package testutil
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
@@ -156,11 +158,10 @@ func (s *IntegrationTestSuite) TestSubmitPayForBlob() {
 			require.Equal(tc.expectedCode, txResp.Code,
 				"test: %s, output\n:", tc.name, out.String())
 
-			// wait for the tx to be indexed
-			s.Require().NoError(s.ctx.WaitForNextBlock())
-
-			// attempt to query for the transaction using the tx's hash
-			res, err := testnode.QueryWithoutProof(s.ctx.Context, txResp.TxHash)
+			// poll until the tx is indexed
+			queryCtx, queryCancel := context.WithTimeout(s.ctx.GoContext(), 5*time.Second)
+			defer queryCancel()
+			res, err := testnode.QueryWithoutProofWithRetry(queryCtx, s.ctx.Context, txResp.TxHash)
 			require.NoError(err)
 			require.Equal(abci.CodeTypeOK, res.TxResult.Code)
 
