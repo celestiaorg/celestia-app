@@ -219,7 +219,7 @@ account that can act as the master account. The command runs until all sequences
 				opts,
 				sequences...,
 			)
-			if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			if txsim.IsContextEnded(err) {
 				return nil
 			}
 			return err
