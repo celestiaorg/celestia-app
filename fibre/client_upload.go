@@ -274,7 +274,7 @@ func (c *Client) uploadTo(
 	}()
 
 	// Generating row proofs is non-trivial, so build them lazily — only once
-	// withHostRefresh has acquired a working client. When the host can't be
+	// ClientCache.Request has acquired a working client. When the host can't be
 	// resolved (e.g. an invalid registration no refresh can fix) the closure
 	// never runs and we skip the work entirely. A non-nil req.Shard.Rows means
 	// they were already built on a prior attempt, so a retry against a corrected
@@ -300,14 +300,17 @@ func (c *Client) uploadTo(
 		return nil
 	}
 
+	var resp *types.UploadShardResponse
 	rpcStart := time.Now()
-	resp, err := withHostRefresh(c, ctx, val, func(client fibregrpc.Client) (*types.UploadShardResponse, error) {
+	err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
 		if err := buildRows(); err != nil {
-			return nil, err
+			return err
 		}
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 		defer rpcCancel()
-		return client.UploadShard(rpcCtx, req)
+		var err error
+		resp, err = client.UploadShard(rpcCtx, req)
+		return err
 	})
 	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
