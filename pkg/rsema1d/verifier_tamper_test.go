@@ -33,7 +33,7 @@ func tamperedSetup(t *testing.T, seed uint64, firstProofIndex int) (*rsema1d.Ver
 func TestVerifierRejectsTamperedCommitment(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 1, 0)
 	commitment[0] ^= 1
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered commitment")
 	}
 }
@@ -45,7 +45,7 @@ func TestVerifierRejectsTamperedOriginalRow(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 2, 0)
 	proofs[3].Row = append([]byte(nil), proofs[3].Row...)
 	proofs[3].Row[0] ^= 0xFF
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered original row")
 	}
 }
@@ -56,7 +56,7 @@ func TestVerifierRejectsTamperedParityRow(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 3, 64)
 	proofs[0].Row = append([]byte(nil), proofs[0].Row...)
 	proofs[0].Row[0] ^= 0xFF
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered parity row")
 	}
 }
@@ -69,7 +69,7 @@ func TestVerifierRejectsTamperedRowProof(t *testing.T) {
 	proofs[3].RowProof = append([][]byte(nil), proofs[3].RowProof...)
 	proofs[3].RowProof[0] = append([]byte(nil), proofs[3].RowProof[0]...)
 	proofs[3].RowProof[0][0] ^= 1
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted tampered row proof path")
 	}
 }
@@ -82,7 +82,7 @@ func TestVerifierRejectsTamperedRLC(t *testing.T) {
 	tampered := make([]field.GF128, len(rlcOrig))
 	copy(tampered, rlcOrig)
 	tampered[3][0] ^= 1
-	if _, err := v.Verify(commitment, proofs, tampered); err == nil {
+	if err := v.Verify(commitment, proofs, tampered); err == nil {
 		t.Fatalf("Verify accepted tampered RLC")
 	}
 }
@@ -95,7 +95,7 @@ func TestVerifierRejectsMultipleTamperedRows(t *testing.T) {
 		proofs[i].Row = append([]byte(nil), proofs[i].Row...)
 		proofs[i].Row[0] ^= 0xFF
 	}
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted multiple tampered rows")
 	}
 }
@@ -106,7 +106,7 @@ func TestVerifierRejectsMultipleTamperedRows(t *testing.T) {
 func TestVerifierRejectsBadProofDepth(t *testing.T) {
 	v, commitment, proofs, rlcOrig := tamperedSetup(t, 7, 0)
 	proofs[0].RowProof = proofs[0].RowProof[:len(proofs[0].RowProof)-1]
-	if _, err := v.Verify(commitment, proofs, rlcOrig); err == nil {
+	if err := v.Verify(commitment, proofs, rlcOrig); err == nil {
 		t.Fatalf("Verify accepted proof with bad depth")
 	}
 }

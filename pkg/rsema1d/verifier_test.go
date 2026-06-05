@@ -30,7 +30,7 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 		}
 		cleanProofs[i] = p
 	}
-	if _, err := v.Verify(commitment, cleanProofs, rlcOrig); err != nil {
+	if err := v.Verify(commitment, cleanProofs, rlcOrig); err != nil {
 		t.Fatalf("clean verify: %v", err)
 	}
 
@@ -46,12 +46,12 @@ func TestVerifierRejectsTamperedRow(t *testing.T) {
 		tampered[i] = &rsema1d.RowProof{Index: p.Index, Row: row, RowProof: p.RowProof}
 	}
 	tampered[3].Row[0] ^= 0xFF
-	if _, err := v.Verify(commitment, tampered, rlcOrig); err == nil {
+	if err := v.Verify(commitment, tampered, rlcOrig); err == nil {
 		t.Fatalf("tampered row was accepted")
 	}
 
 	// And the Verifier must remain usable after a failure.
-	if _, err := v.Verify(commitment, cleanProofs, rlcOrig); err != nil {
+	if err := v.Verify(commitment, cleanProofs, rlcOrig); err != nil {
 		t.Fatalf("post-failure verify: %v", err)
 	}
 }
@@ -77,7 +77,7 @@ func TestVerifierVariableBatchSize(t *testing.T) {
 			}
 			proofs[i] = p
 		}
-		if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+		if err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 			t.Fatalf("n=%d: Verify: %v", n, err)
 		}
 	}
@@ -103,7 +103,7 @@ func TestVerifierVerifyShared(t *testing.T) {
 	}
 
 	// Verify primes the RS extension and RLC root for the shared calls.
-	if _, err := v.Verify(commitment, rangeProofs(t, ed, 0, 16), rlcOrig); err != nil {
+	if err := v.Verify(commitment, rangeProofs(t, ed, 0, 16), rlcOrig); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
 
@@ -140,7 +140,7 @@ func TestVerifierVerifySharedConcurrent(t *testing.T) {
 	ed, commitment, rlcOrig := encodeRandom(t, r, cfg, 1024)
 
 	// Prime the shared RLC state once; the goroutines below only call VerifyShared.
-	if _, err := v.Verify(commitment, rangeProofs(t, ed, 0, 16), rlcOrig); err != nil {
+	if err := v.Verify(commitment, rangeProofs(t, ed, 0, 16), rlcOrig); err != nil {
 		t.Fatalf("Verify: %v", err)
 	}
 
@@ -242,7 +242,7 @@ func TestVerifierAcrossConfigurations(t *testing.T) {
 			if err != nil {
 				t.Fatalf("NewVerifier: %v", err)
 			}
-			if _, err := v.Verify(commitment, proofs, rlcOrig); err != nil {
+			if err := v.Verify(commitment, proofs, rlcOrig); err != nil {
 				t.Fatalf("Verify: %v", err)
 			}
 		})

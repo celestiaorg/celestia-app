@@ -166,10 +166,10 @@ func DefaultTendermintConfig() *tmconfig.Config {
 	tmCfg := app.DefaultConsensusConfig()
 
 	// Set all the ports to random open ones.
-	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-	tmCfg.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	tmCfg.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	tmCfg.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
 
 	tmCfg.TxIndex.Indexer = "kv"
 
@@ -231,8 +231,8 @@ func CustomAppCreator(appOptions ...func(*baseapp.BaseApp)) srvtypes.AppCreator 
 func DefaultAppConfig() *srvconfig.Config {
 	appCfg := app.DefaultAppConfig()
 	appCfg.GRPC.Enable = true
-	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	appCfg.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
 	appCfg.API.Enable = true
-	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	appCfg.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 	return appCfg
 }

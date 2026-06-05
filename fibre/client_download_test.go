@@ -531,7 +531,7 @@ func (d *downloadMockClient) DownloadShard(ctx context.Context, req *types.Downl
 		Rows: rows,
 	}
 
-	shard.Coefficients = rlc.Marshal(blob.RLC())
+	shard.Rlcs = rlc.Marshal(blob.RLC())
 
 	return &types.DownloadShardResponse{Shard: shard}, nil
 }
@@ -613,7 +613,7 @@ func (d *tamperedMockClient) DownloadShard(ctx context.Context, req *types.Downl
 		Rows: rows,
 	}
 
-	shard.Coefficients = rlc.Marshal(source.RLC())
+	shard.Rlcs = rlc.Marshal(source.RLC())
 
 	return &types.DownloadShardResponse{Shard: shard}, nil
 }

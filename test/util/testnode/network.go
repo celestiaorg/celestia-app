@@ -124,13 +124,13 @@ func tryStartNetwork(t testing.TB, config *Config) (cctx Context, rpcAddr, grpcA
 // and DefaultAppConfig; missing any one of them makes the retry loop in
 // NewNetworkWithRetry re-use a stale port on every attempt (see #7137).
 func reassignListenPorts(config *Config) {
-	config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-	config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-	config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
-	config.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
-	config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", MustGetFreePort())
+	config.TmConfig.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	config.TmConfig.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	config.TmConfig.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
+	config.TmConfig.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
+	config.AppConfig.GRPC.Address = fmt.Sprintf("127.0.0.1:%d", GetDeterministicPort())
 	config.AppConfig.API.Enable = true
-	config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", MustGetFreePort())
+	config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 }
 
 // isPortBindingError checks if an error is related to port binding failures

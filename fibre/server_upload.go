@@ -177,8 +177,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 }
 
 // verifyShard verifies the shard's rows and proofs using a pooled
-// [rsema1d.Verifier], blocking until one is free. Sets the RLC root on the
-// shard for inclusion-proof verification by non-RLC downloaders.
+// [rsema1d.Verifier], blocking until one is free.
 func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
@@ -192,7 +191,7 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
-	rlc, err := rlc.Unmarshal(shard.GetCoefficients())
+	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
 	if err != nil {
 		return err
 	}
@@ -212,13 +211,10 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	}
 	defer s.putVerifier(verifier)
 
-	rlcRoot, err := verifier.Verify(promise.Commitment, rows, rlc)
-	if err != nil {
+	if err := verifier.Verify(promise.Commitment, rows, rlcs); err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
-	// set RLC root, keep coefficients as-is for storage
-	shard.Root = rlcRoot
 	return nil
 }
 

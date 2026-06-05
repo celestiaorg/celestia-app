@@ -16,8 +16,11 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
+	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,6 +36,9 @@ type LatencyMonitorConfig struct {
 	BlobSize        int
 	MinBlobSize     int
 	SubmissionDelay time.Duration
+	Workers         int    // parallel worker accounts (0 or 1 = sequential)
+	PrivKeyHex      string // if set, creates a keyring from hex-encoded private key
+	KeyringDir      string // if set, bind-mounts this existing keyring directory
 }
 
 type LatencyMonitorResult struct {
@@ -95,6 +101,88 @@ func (s *CelestiaTestSuite) DeployLatencyMonitor(
 	})
 
 	return container, nil
+}
+
+// DeployLatencyMonitorForNetwork starts a latency-monitor container that connects to
+// an external network (e.g., Arabica) using the given gRPC endpoint. If cfg.PrivKeyHex
+// is set, a test keyring is created on disk from the private key and bind-mounted into
+// the container. Unlike DeployLatencyMonitor, this does not require a local Docker chain.
+func (s *CelestiaTestSuite) DeployLatencyMonitorForNetwork(
+	ctx context.Context,
+	grpcEndpoint string,
+	cfg LatencyMonitorConfig,
+) (*tastoracontainertypes.Container, error) {
+	t := s.T()
+
+	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
+	if err != nil {
+		return nil, err
+	}
+
+	tag := dockerchain.GetCelestiaTag()
+
+	// Resolve keyring directory: use existing dir or create from private key.
+	var keyringDir string
+	switch {
+	case cfg.KeyringDir != "":
+		keyringDir = cfg.KeyringDir
+	case cfg.PrivKeyHex != "":
+		keyringDir = t.TempDir()
+		if err := createKeyringFromPrivKey(keyringDir, cfg.PrivKeyHex); err != nil {
+			return nil, fmt.Errorf("failed to create keyring from private key: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("either KeyringDir or PrivKeyHex must be set")
+	}
+
+	image := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), latencyMonitorImage, tag)
+
+	args := []string{
+		"/bin/latency-monitor",
+		"--grpc-endpoint", grpcEndpoint,
+		"--keyring-dir", "/celestia-home",
+		"--blob-size", strconv.Itoa(cfg.BlobSize),
+		"--blob-size-min", strconv.Itoa(cfg.MinBlobSize),
+		"--submission-delay", cfg.SubmissionDelay.String(),
+		"--namespace", "loadtest",
+		"--disable-observability",
+	}
+
+	if cfg.Workers > 1 {
+		args = append(args, "--workers", strconv.Itoa(cfg.Workers))
+	}
+
+	t.Logf("Starting latency-monitor for external network with args: %v", args)
+
+	container, err := image.Start(ctx, args, tastoracontainertypes.Options{
+		User:  "0:0",
+		Binds: []string{keyringDir + ":/celestia-home"},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to start latency-monitor: %w", err)
+	}
+
+	t.Cleanup(func() {
+		if err := container.Stop(10 * time.Second); err != nil {
+			t.Logf("Error stopping latency-monitor: %v", err)
+		}
+	})
+
+	return container, nil
+}
+
+// createKeyringFromPrivKey creates a test-backend keyring at the given directory
+// with a single account imported from a hex-encoded private key.
+func createKeyringFromPrivKey(dir, privKeyHex string) error {
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	kr, err := keyring.New(app.Name, keyring.BackendTest, dir, nil, encCfg.Codec)
+	if err != nil {
+		return fmt.Errorf("creating keyring: %w", err)
+	}
+	if err := kr.ImportPrivKeyHex("master", privKeyHex, "secp256k1"); err != nil {
+		return fmt.Errorf("importing private key: %w", err)
+	}
+	return nil
 }
 
 // CollectLatencyResults sends SIGTERM to trigger CSV writing, waits for exit,
