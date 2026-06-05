@@ -158,15 +158,15 @@ func (c *Client) downloadFrom(
 	}()
 
 	var resp *types.DownloadShardResponse
-	rpcStart := time.Now()
 	err = c.clientCache.Request(ctx, from.Validator, func(client fibregrpc.Client) error {
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 		defer rpcCancel()
 		var err error
+		rpcStart := time.Now()
 		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id})
+		c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 		return err
 	})
-	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")

@@ -301,7 +301,6 @@ func (c *Client) uploadTo(
 	}
 
 	var resp *types.UploadShardResponse
-	rpcStart := time.Now()
 	err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
 		if err := buildRows(); err != nil {
 			return err
@@ -309,10 +308,11 @@ func (c *Client) uploadTo(
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 		defer rpcCancel()
 		var err error
+		rpcStart := time.Now()
 		resp, err = client.UploadShard(rpcCtx, req)
+		c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 		return err
 	})
-	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)
