@@ -7,6 +7,10 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otelcodes "go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -16,6 +20,7 @@ import (
 type ClientCache struct {
 	newClient NewClientFn
 	hosts     validator.HostRegistry
+	tracer    trace.Tracer
 	mu        sync.Mutex
 	clients   map[string]*clientEntry // keyed by validator address string
 }
@@ -27,15 +32,34 @@ type clientEntry struct {
 	err          error
 }
 
+// ClientCacheOption configures a [ClientCache].
+type ClientCacheOption func(*ClientCache)
+
+// WithTracer sets the tracer used to trace [ClientCache.Request]. A nil tracer
+// is ignored, leaving the default otel.Tracer("fibre-client") in place — which
+// matches the fibre client so request spans nest under the caller's span.
+func WithTracer(tracer trace.Tracer) ClientCacheOption {
+	return func(cc *ClientCache) {
+		if tracer != nil {
+			cc.tracer = tracer
+		}
+	}
+}
+
 // NewClientCache creates a new [ClientCache] with the given [NewClientFn]. The
 // [validator.HostRegistry] is used by [ClientCache.Request] to re-resolve a
 // validator's host when a request fails because the peer is unreachable.
-func NewClientCache(newClient NewClientFn, hosts validator.HostRegistry, expectedSize int) *ClientCache {
-	return &ClientCache{
+func NewClientCache(newClient NewClientFn, hosts validator.HostRegistry, expectedSize int, opts ...ClientCacheOption) *ClientCache {
+	cc := &ClientCache{
 		newClient: newClient,
 		hosts:     hosts,
+		tracer:    otel.Tracer("fibre-client"),
 		clients:   make(map[string]*clientEntry, expectedSize),
 	}
+	for _, opt := range opts {
+		opt(cc)
+	}
+	return cc
 }
 
 // GetClient returns a cached [Client] for the validator, creating one if needed.
@@ -71,12 +95,19 @@ func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Clie
 // new value it evicts the stale client, re-dials, and retries fn exactly once.
 // Application-level errors from a reachable server are returned as-is.
 func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func(Client) error) error {
+	ctx, span := cc.tracer.Start(ctx, "client_cache.request")
+	defer span.End()
+
 	client, err := cc.GetClient(ctx, val)
 	if err == nil {
 		if err = fn(client); err == nil {
+			span.SetStatus(otelcodes.Ok, "")
 			return nil
 		}
 	}
+	span.RecordError(err)
+	span.AddEvent("initial attempt failed")
+
 	// Don't refresh on a cancelled context: the failure is the caller leaving,
 	// not a stale host.
 	if ctx.Err() != nil {
@@ -84,25 +115,45 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 	}
 	// client == nil means the dial itself failed.
 	if client != nil && !isUnreachable(err) {
+		span.AddEvent("application error; not refreshing host")
 		return err
 	}
 
-	changed, valid, _ := cc.hosts.RefreshHost(ctx, val)
+	span.AddEvent("refreshing host")
+	changed, valid, refreshErr := cc.hosts.RefreshHost(ctx, val)
+	span.SetAttributes(
+		attribute.Bool("host.changed", changed),
+		attribute.Bool("host.valid", valid),
+	)
+	if refreshErr != nil {
+		span.RecordError(refreshErr)
+	}
 	if !changed {
+		span.AddEvent("host unchanged; not retrying")
 		return err
 	}
 	// The host changed on chain, so the cached connection points at a stale
 	// address whether or not the new host is valid; drop it either way.
 	cc.Evict(val)
 	if !valid {
+		span.AddEvent("host changed but invalid; not retrying")
 		return err
 	}
 
 	client, retryErr := cc.GetClient(ctx, val)
 	if retryErr != nil {
+		span.RecordError(retryErr)
+		span.SetStatus(otelcodes.Error, "re-dial failed")
 		return retryErr
 	}
-	return fn(client)
+	span.AddEvent("retrying against refreshed host")
+	if err = fn(client); err != nil {
+		span.RecordError(err)
+		span.SetStatus(otelcodes.Error, "retry failed")
+		return err
+	}
+	span.SetStatus(otelcodes.Ok, "")
+	return nil
 }
 
 // isUnreachable reports whether err is a transport-level gRPC error that a

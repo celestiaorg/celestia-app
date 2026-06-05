@@ -85,7 +85,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		tracer:      cfg.Tracer,
 		metrics:     metrics,
 		clock:       cfg.Clock,
-		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, stateClient, DefaultProtocolParams.MaxValidatorCount),
+		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, stateClient, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
 	}, nil
 }
 
