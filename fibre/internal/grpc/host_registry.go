@@ -53,9 +53,14 @@ func WithClock(c clock.Clock) HostRegistryOption {
 }
 
 // WithRefreshInterval sets the minimum time between on-chain host re-queries
-// for a single validator in [HostRegistry.RefreshHost].
+// for a single validator in [HostRegistry.RefreshHost]. A non-positive value
+// leaves the default in place.
 func WithRefreshInterval(d time.Duration) HostRegistryOption {
-	return func(g *HostRegistry) { g.refreshInterval = d }
+	return func(g *HostRegistry) {
+		if d > 0 {
+			g.refreshInterval = d
+		}
+	}
 }
 
 // WithQueryTimeout sets the timeout bounding a single on-chain host query in
