@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -45,10 +44,9 @@ func TestTxsimCommandEnvVar(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	os.Setenv(TxsimMnemonic, testfactory.TestAccMnemo)
-	os.Setenv(TxsimGRPC, grpcAddr)
-	os.Setenv(TxsimSeed, "1234")
-	defer os.Clearenv()
+	t.Setenv(TxsimMnemonic, testfactory.TestAccMnemo)
+	t.Setenv(TxsimGRPC, grpcAddr)
+	t.Setenv(TxsimSeed, "1234")
 	cmd.SetArgs([]string{
 		"--blob", "5",
 	})
