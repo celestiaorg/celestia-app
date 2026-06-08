@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/spf13/cobra"
 )
@@ -73,6 +73,7 @@ credentials in it, then recursively downloads everything under
 
 // downloadS3Directory lists and downloads all objects under the given prefix.
 func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix, dest string) error {
+	transferClient := transfermanager.New(client)
 	paginator := s3.NewListObjectsV2Paginator(client, &s3.ListObjectsV2Input{
 		Bucket: aws.String(bucket),
 		Prefix: aws.String(prefix),
@@ -103,21 +104,12 @@ func downloadS3Directory(ctx context.Context, client *s3.Client, bucket, prefix,
 			}
 			defer f.Close()
 
-			_, err = client.GetObject(ctx, &s3.GetObjectInput{
-				Bucket: aws.String(bucket),
-				Key:    obj.Key,
-			}, func(o *s3.Options) {
-				// no special options
-			})
-			if err != nil {
-				return err
-			}
-
 			// stream body into file
-			downloader := manager.NewDownloader(client)
-			_, err = downloader.Download(ctx, f,
-				&s3.GetObjectInput{Bucket: aws.String(bucket), Key: obj.Key},
-			)
+			_, err = transferClient.DownloadObject(ctx, &transfermanager.DownloadObjectInput{
+				Bucket:   aws.String(bucket),
+				Key:      obj.Key,
+				WriterAt: f,
+			})
 			if err != nil {
 				return fmt.Errorf("download %s: %w", *obj.Key, err)
 			}
