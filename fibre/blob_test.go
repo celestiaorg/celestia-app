@@ -114,3 +114,20 @@ func TestBlob_RowAfterRelease(t *testing.T) {
 	_, err = blob.Row(0)
 	require.Error(t, err)
 }
+
+func TestBlob_Free(t *testing.T) {
+	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
+	require.NoError(t, err)
+
+	require.NotZero(t, blob.DataSize())
+	_, err = blob.Row(0)
+	require.NoError(t, err)
+
+	blob.Free()
+	blob.Free()
+
+	require.Zero(t, blob.DataSize())
+	require.Nil(t, blob.Data())
+	_, err = blob.Row(0)
+	require.Error(t, err)
+}

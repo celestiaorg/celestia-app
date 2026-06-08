@@ -264,6 +264,24 @@ func (d *Blob) Data() []byte {
 	return d.data
 }
 
+// Free releases payload storage held by the blob. Call it after finishing with
+// blobs returned by [Client.Download].
+//
+// Do not call Free on a blob after passing it to [Client.Upload]; Upload takes
+// ownership and releases upload buffers after its background goroutines finish.
+// It is not safe to call concurrently with other Blob methods.
+func (d *Blob) Free() {
+	if d == nil {
+		return
+	}
+	if d.asm != nil {
+		d.asm.Free()
+	}
+	d.extendedData = nil
+	d.rows = nil
+	d.data = nil
+}
+
 // Row returns the [rsema1d.RowInclusionProof] for the given index. Rows are
 // served until the blob's pooled storage is released; after release, every
 // call returns an error.

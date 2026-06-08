@@ -461,6 +461,7 @@ func downloadOne(
 			cfg.readerIndex, req.commitment, req.height, dlLat, queueWait, err)
 		return
 	}
+	defer blob.Free()
 
 	now := time.Now()
 	e2eLat := now.Sub(req.creationTimestamp)
