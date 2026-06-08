@@ -75,7 +75,22 @@ jobs:
           DIRTY=""
           for moddir in $(find . -name 'go.mod' -exec dirname {} \;); do
             echo "Checking $moddir"
-            (cd "$moddir" && go mod tidy -diff) || DIRTY="$DIRTY $moddir"
+            # Retry to tolerate transient module download failures (e.g.
+            # proxy.golang.org stream errors). Without retries, a network blip
+            # makes `go mod tidy -diff` exit non-zero and is misreported as a
+            # tidy diff. A genuine diff fails every attempt and is still caught.
+            ok=false
+            for attempt in 1 2 3; do
+              if (cd "$moddir" && go mod tidy -diff); then
+                ok=true
+                break
+              fi
+              echo "go mod tidy -diff failed in $moddir (attempt $attempt/3)"
+              sleep 5
+            done
+            if [ "$ok" = false ]; then
+              DIRTY="$DIRTY $moddir"
+            fi
           done
           if [ -n "$DIRTY" ]; then
             echo "ERROR: go mod tidy produced changes in:$DIRTY"
