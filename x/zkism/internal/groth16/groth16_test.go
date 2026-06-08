@@ -100,8 +100,10 @@ func TestUnmarshalProof(t *testing.T) {
 	proofBz, err := os.ReadFile("../testdata/state_transition/proof.bin")
 	require.NoError(t, err, "failed to read proof file")
 
-	// discard the first 4 bytes as with SP1 this is a prefix of the first 4 bytes of the verifier key hash
-	proofBz = proofBz[4:]
+	// Discard the SP1 v6 framing to recover the raw gnark proof: the first 4
+	// bytes are the verifier-key-hash prefix, followed by 96 bytes of metadata
+	// (exit_code, vk_root, proof_nonce). The gnark proof starts at offset 100.
+	proofBz = proofBz[100:]
 
 	proof, err := groth16.UnmarshalProof(proofBz)
 	require.NoError(t, err, "failed to unmarshal proof")
