@@ -33,7 +33,7 @@ func NewNetworkWithRetry(t testing.TB, config *Config, maxRetries int) (cctx Con
 			if cleanup != nil {
 				cleanup()
 			}
-			if isPortBindingError(err) {
+			if IsPortBindingError(err) {
 				t.Logf("port binding error on attempt %d/%d, retrying after %ds: %v", attempt+1, maxRetries, attempt+1, err)
 				time.Sleep(time.Duration(attempt+1) * time.Second)
 				reassignListenPorts(config)
@@ -133,8 +133,8 @@ func reassignListenPorts(config *Config) {
 	config.AppConfig.API.Address = fmt.Sprintf("tcp://127.0.0.1:%d", GetDeterministicPort())
 }
 
-// isPortBindingError checks if an error is related to port binding failures
-func isPortBindingError(err error) bool {
+// IsPortBindingError checks if an error is related to port binding failures.
+func IsPortBindingError(err error) bool {
 	if err == nil {
 		return false
 	}

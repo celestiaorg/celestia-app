@@ -54,40 +54,56 @@ func TestRun(t *testing.T) {
 	err = Run(context.Background(), cfg, dir)
 	require.NoError(t, err)
 
-	tmCfg := testnode.DefaultTendermintConfig()
-	tmCfg.SetRoot(cfg.ExistingDir)
+	// retry node start with fresh ports on binding errors (TOCTOU in
+	// GetDeterministicPort can cause collisions under -race).
+	const maxRetries = 3
+	var cometNode *node.Node
+	for attempt := range maxRetries {
+		tmCfg := testnode.DefaultTendermintConfig()
+		tmCfg.SetRoot(cfg.ExistingDir)
 
-	appDB, err := tmdbm.NewDB("application", tmdbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = appDB.Close() })
+		appDB, err := tmdbm.NewDB("application", tmdbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
+		require.NoError(t, err)
 
-	app := app.New(
-		log.NewNopLogger(),
-		appDB,
-		nil,
-		0, // delayed precommit timeout
-		0, // timeout commit
-		util.EmptyAppOptions{},
-		baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
-	)
+		celestiaApp := app.New(
+			log.NewNopLogger(),
+			appDB,
+			nil,
+			0, // delayed precommit timeout
+			0, // timeout commit
+			util.EmptyAppOptions{},
+			baseapp.SetMinGasPrices(fmt.Sprintf("%f%s", appconsts.DefaultMinGasPrice, appconsts.BondDenom)),
+		)
 
-	nodeKey, err := p2p.LoadNodeKey(tmCfg.NodeKeyFile())
-	require.NoError(t, err)
+		nodeKey, err := p2p.LoadNodeKey(tmCfg.NodeKeyFile())
+		require.NoError(t, err)
 
-	cmtApp := server.NewCometABCIWrapper(app)
-	cometNode, err := node.NewNode(
-		tmCfg,
-		privval.LoadOrGenFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile()),
-		nodeKey,
-		proxy.NewLocalClientCreator(cmtApp),
-		getGenDocProvider(tmCfg),
-		cmtcfg.DefaultDBProvider,
-		node.DefaultMetricsProvider(tmCfg.Instrumentation),
-		tmlog.NewNopLogger(),
-	)
-	require.NoError(t, err)
-
-	require.NoError(t, cometNode.Start())
+		cmtApp := server.NewCometABCIWrapper(celestiaApp)
+		cometNode, err = node.NewNode(
+			tmCfg,
+			privval.LoadOrGenFilePV(tmCfg.PrivValidatorKeyFile(), tmCfg.PrivValidatorStateFile()),
+			nodeKey,
+			proxy.NewLocalClientCreator(cmtApp),
+			getGenDocProvider(tmCfg),
+			cmtcfg.DefaultDBProvider,
+			node.DefaultMetricsProvider(tmCfg.Instrumentation),
+			tmlog.NewNopLogger(),
+		)
+		if err == nil {
+			err = cometNode.Start()
+		}
+		if err != nil {
+			_ = appDB.Close()
+			if testnode.IsPortBindingError(err) && attempt < maxRetries-1 {
+				t.Logf("port binding error on attempt %d/%d, retrying: %v", attempt+1, maxRetries, err)
+				time.Sleep(time.Duration(attempt+1) * time.Second)
+				continue
+			}
+			require.NoError(t, err)
+		}
+		t.Cleanup(func() { _ = appDB.Close() })
+		break
+	}
 	defer func() { _ = cometNode.Stop() }()
 
 	client := local.New(cometNode)
