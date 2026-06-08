@@ -14,7 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/digitalocean/godo"
 	"github.com/spf13/cobra"
@@ -536,9 +536,8 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 	defer file.Close()
 
 	filename := filepath.Base(localPath)
-	uploader := manager.NewUploader(client)
-
-	if _, err := uploader.Upload(ctx, &s3.PutObjectInput{
+	transferClient := transfermanager.New(client)
+	if _, err := transferClient.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: &cfg.BucketName,
 		Key:    &filename,
 		Body:   file,
