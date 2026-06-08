@@ -19,6 +19,8 @@ import (
 // green when modifying proto types.
 
 const (
+	scatterFramingInitialCap = 8 << 10 // 8 KiB
+
 	uploadShardRequestFieldPromise = 1
 	uploadShardRequestFieldShard   = 2
 
@@ -67,7 +69,7 @@ func blobShardSize(shard *types.BlobShard) int {
 }
 
 func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.BufferSlice, error) {
-	framing := make([]byte, 0, 8<<10)
+	framing := make([]byte, 0, scatterFramingInitialCap)
 
 	// Segments index byte ranges within framing (not slices) so framing
 	// can grow freely; sliced into mem.SliceBuffer only after all writes.

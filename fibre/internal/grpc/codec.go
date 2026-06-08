@@ -12,12 +12,12 @@ import (
 // grpc.CallContentSubtype.
 const codecName = "fibre-proto"
 
-type sizedMarshaler interface {
+type sizedBufferMarshaler interface {
 	Size() int
 	MarshalToSizedBuffer([]byte) (int, error)
 }
 
-type sizedUnmarshaler interface {
+type protoUnmarshaler interface {
 	Unmarshal([]byte) error
 }
 
@@ -40,14 +40,14 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 		return marshalUploadShardRequestScatter(req)
 	}
 
-	msg, ok := v.(sizedMarshaler)
+	msg, ok := v.(sizedBufferMarshaler)
 	if !ok {
-		return nil, fmt.Errorf("fibre-proto codec: %T does not implement sizedMarshaler", v)
+		return nil, fmt.Errorf("fibre-proto codec: %T does not implement sizedBufferMarshaler", v)
 	}
 
 	size := msg.Size()
 	if size == 0 {
-		return nil, nil
+		return mem.BufferSlice{}, nil
 	}
 
 	bufPtr := c.pool.Get(size)
@@ -63,9 +63,9 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 }
 
 func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
-	msg, ok := v.(sizedUnmarshaler)
+	msg, ok := v.(protoUnmarshaler)
 	if !ok {
-		return fmt.Errorf("fibre-proto codec: %T does not implement sizedUnmarshaler", v)
+		return fmt.Errorf("fibre-proto codec: %T does not implement protoUnmarshaler", v)
 	}
 	if data.Len() == 0 {
 		return msg.Unmarshal(nil)
