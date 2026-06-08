@@ -20,12 +20,11 @@ import (
 )
 
 const (
-	// c6in.8xlarge: 32 vCPU / 64 GiB / 50 Gbps sustained network with ENA
-	// Express (SRD). The "n" suffix marks network-enhanced variants, which
-	// is what talis fibre experiments care about — they're networking-bound.
-	// Same size for all three roles (validator, encoder, reader) keeps the
-	// cluster topology uniform and lets every role see the same NIC budget.
-	AWSDefaultValidatorInstanceType     = "c6in.8xlarge"
+	// c6in keeps AWS fibre experiments on network-enhanced instances.
+	// Validators default to the 16 vCPU / 32 GiB shape used by the other
+	// providers' validator defaults; encoders/readers stay larger to drive
+	// synthetic fibre load.
+	AWSDefaultValidatorInstanceType     = "c6in.4xlarge"
 	AWSDefaultEncoderInstanceType       = "c6in.8xlarge"
 	AWSDefaultReaderInstanceType        = "c6in.8xlarge"
 	AWSDefaultObservabilityInstanceType = "t3.medium"
