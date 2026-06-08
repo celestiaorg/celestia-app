@@ -61,8 +61,7 @@ func fibreReaderCmd() *cobra.Command {
 				grpcEndpoint := fmt.Sprintf("%s:9091", target.PrivateIP)
 
 				remoteCmd := fmt.Sprintf(
-					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --chain-id %s --rpc-endpoint %s --grpc-endpoint %s --keyring-dir .celestia-app --key-name %s-0 --reader-index %d --reader-count %d --download-concurrency %d --download-timeout %s --duration %s",
-					cfg.ChainID,
+					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --keyring-dir .celestia-app --key-name %s-0 --reader-index %d --reader-count %d --download-concurrency %d --download-timeout %s --duration %s",
 					rpcEndpoint,
 					grpcEndpoint,
 					keyPrefix,

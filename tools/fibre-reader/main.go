@@ -120,9 +120,7 @@ func main() {
 	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
 	flag.StringVar(&cfg.pyroscopeUser, "pyroscope-basic-auth-user", "", "Pyroscope basic auth username")
 	flag.StringVar(&cfg.pyroscopePass, "pyroscope-basic-auth-password", "", "Pyroscope basic auth password")
-	chainID := flag.String("chain-id", "", "chain ID of the network (unused, accepted for compatibility)")
 	flag.Parse()
-	_ = chainID
 
 	if err := run(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)

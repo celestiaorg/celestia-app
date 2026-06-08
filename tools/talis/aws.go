@@ -21,12 +21,11 @@ import (
 
 const (
 	// c6in keeps AWS fibre experiments on network-enhanced instances.
-	// Validators default to the 16 vCPU / 32 GiB shape used by the other
-	// providers' validator defaults; encoders/readers stay larger to drive
-	// synthetic fibre load.
+	// Defaults mirror the other providers: validators use a 16 vCPU / 32 GiB
+	// shape, while encoders/readers use 8 vCPU / 16 GiB.
 	AWSDefaultValidatorInstanceType     = "c6in.4xlarge"
-	AWSDefaultEncoderInstanceType       = "c6in.8xlarge"
-	AWSDefaultReaderInstanceType        = "c6in.8xlarge"
+	AWSDefaultEncoderInstanceType       = "c6in.2xlarge"
+	AWSDefaultReaderInstanceType        = "c6in.2xlarge"
 	AWSDefaultObservabilityInstanceType = "t3.medium"
 	AWSDefaultRootVolumeGB              = int32(400)
 	// gp3's baseline (3000 IOPS / 125 MB/s) caps disk throughput far below
