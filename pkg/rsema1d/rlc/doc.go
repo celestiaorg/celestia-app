@@ -3,7 +3,7 @@
 //
 // Public surface:
 //
-//   - [Derive]: Fiat-Shamir derivation of per-symbol coefficients from a
+//   - [DeriveCoefficients]: Fiat-Shamir derivation of per-symbol coefficients from a
 //     row Merkle root and the codec parameters.
 //   - [Compute]: vectorized GF(2^16) SIMD computation of the RLC of every
 //     row against the derived coefficients.
