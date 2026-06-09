@@ -20,8 +20,9 @@ import (
 )
 
 const (
-	flagRunBlockMode   = "mode"
-	flagRunBlockCommit = "commit"
+	flagRunBlockMode                   = "mode"
+	flagRunBlockCommit                 = "commit"
+	flagRunBlockContinueOnCheckTxError = "continue-on-checktx-error"
 
 	runBlockModeFinalizeOnly         = "finalize"
 	runBlockModeProcessFinalize      = "process-finalize"
@@ -36,8 +37,11 @@ func appHashMismatchRunBlockCmd() *cobra.Command {
 
 The intended workflow is to copy a node home at height H-1, then run block H
 through CheckTx/ProcessProposal/FinalizeBlock in-process. By default the command
-does not call Commit, so it computes the FinalizeBlock AppHash without writing
-the application DB. Pass --commit only when --home points at a disposable copy.
+	does not call Commit, so it computes the FinalizeBlock AppHash without writing
+	the application DB. Pass --commit only when --home points at a disposable copy.
+
+	CheckTx is intentionally not part of the default mode because it is mempool
+	admission state, not deterministic block replay state.
 
 Modes:
   finalize                FinalizeBlock only
@@ -59,13 +63,18 @@ Modes:
 			if err != nil {
 				return err
 			}
+			continueOnCheckTxError, err := cmd.Flags().GetBool(flagRunBlockContinueOnCheckTxError)
+			if err != nil {
+				return err
+			}
 
 			r := &blockRunner{
-				serverCtx: serverCtx,
-				home:      serverCtx.Config.RootDir,
-				height:    height,
-				mode:      mode,
-				commit:    commit,
+				serverCtx:              serverCtx,
+				home:                   serverCtx.Config.RootDir,
+				height:                 height,
+				mode:                   mode,
+				commit:                 commit,
+				continueOnCheckTxError: continueOnCheckTxError,
 			}
 			result, err := r.run()
 			if err != nil {
@@ -82,17 +91,19 @@ Modes:
 
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "node home directory; use a disposable copy when passing --commit")
 	cmd.Flags().Int64(flagHeight, 0, "block height H to execute; --home must contain app state at H-1")
-	cmd.Flags().String(flagRunBlockMode, runBlockModeCheckProcessFinalize, "execution mode: finalize, process-finalize, check-process-finalize")
+	cmd.Flags().String(flagRunBlockMode, runBlockModeProcessFinalize, "execution mode: finalize, process-finalize, check-process-finalize")
 	cmd.Flags().Bool(flagRunBlockCommit, false, "call Commit after FinalizeBlock and persist state to --home")
+	cmd.Flags().Bool(flagRunBlockContinueOnCheckTxError, false, "continue to ProcessProposal/FinalizeBlock after CheckTx errors; useful for inspecting cache side effects")
 	return cmd
 }
 
 type blockRunner struct {
-	serverCtx *server.Context
-	home      string
-	height    int64
-	mode      string
-	commit    bool
+	serverCtx              *server.Context
+	home                   string
+	height                 int64
+	mode                   string
+	commit                 bool
+	continueOnCheckTxError bool
 }
 
 type runBlockResult struct {
@@ -109,6 +120,7 @@ type runBlockResult struct {
 	BlobTxsUnwrapped         int               `json:"blob_txs_unwrapped"`
 	NextBlockExpectedAppHash string            `json:"next_block_expected_app_hash,omitempty"`
 	CheckTx                  []txResultSummary `json:"check_tx,omitempty"`
+	CheckTxError             string            `json:"check_tx_error,omitempty"`
 	ProcessProposal          *proposalSummary  `json:"process_proposal,omitempty"`
 	FinalizeBlock            finalizeSummary   `json:"finalize_block"`
 	Commit                   *commitSummary    `json:"commit,omitempty"`
@@ -230,10 +242,13 @@ func (r *blockRunner) run() (*runBlockResult, error) {
 
 	if r.mode == runBlockModeCheckProcessFinalize {
 		checkResults, err := runCheckTx(application, rawTxs)
-		if err != nil {
-			return nil, err
-		}
 		result.CheckTx = checkResults
+		if err != nil {
+			if !r.continueOnCheckTxError {
+				return nil, err
+			}
+			result.CheckTxError = err.Error()
+		}
 	}
 
 	if r.mode == runBlockModeProcessFinalize || r.mode == runBlockModeCheckProcessFinalize {
@@ -367,7 +382,7 @@ func runCheckTx(application interface {
 	for i, tx := range txs {
 		resp, err := application.CheckTx(&abci.RequestCheckTx{Tx: tx, Type: abci.CheckTxType_New})
 		if err != nil {
-			return nil, fmt.Errorf("check tx %d: %w", i, err)
+			return results[:i], fmt.Errorf("check tx %d: %w", i, err)
 		}
 		results[i] = txResultSummary{
 			Index:     i,
