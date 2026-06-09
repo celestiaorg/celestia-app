@@ -45,7 +45,7 @@ func VerifyStandaloneProof(proof *StandaloneProof, commitment Commitment, config
 	}
 
 	// 2. Derive coefficients and recompute the row's RLC scalar-wise.
-	coeffs := rlc.Derive(rowRoot, config.K, config.N, len(proof.Row), config.WorkerCount)
+	coeffs := rlc.DeriveCoefficients(rowRoot, config.K, config.N, len(proof.Row), config.WorkerCount)
 	rlcValue := rlc.ComputeRow(proof.Row, coeffs)
 
 	// 3. Recover rlcOrigRoot from the RLC's Merkle proof.

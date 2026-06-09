@@ -41,7 +41,7 @@ func TestComputeMatchesScalar(t *testing.T) {
 		for i := range rowRoot {
 			rowRoot[i] = byte(r.IntN(256))
 		}
-		coeffs := rlc.Derive(rowRoot, tc.k, tc.k, tc.rowSize, 1)
+		coeffs := rlc.DeriveCoefficients(rowRoot, tc.k, tc.k, tc.rowSize, 1)
 
 		want := make(rlc.Vector, tc.k)
 		for i, row := range rows {
@@ -88,7 +88,7 @@ func TestComputeLinearity(t *testing.T) {
 	for i := range rowRoot {
 		rowRoot[i] = byte(r.IntN(256))
 	}
-	coeffs := rlc.Derive(rowRoot, k, k, rowSize, 1)
+	coeffs := rlc.DeriveCoefficients(rowRoot, k, k, rowSize, 1)
 
 	rlcA := rlc.Compute(a, coeffs, 1)
 	rlcB := rlc.Compute(b, coeffs, 1)
@@ -121,7 +121,7 @@ func BenchmarkCompute(b *testing.B) {
 		b.Run(cfg.name, func(b *testing.B) {
 			rowSize := cfg.bytes / cfg.k
 			rowRoot := [32]byte{1, 2, 3, 4}
-			coeffs := rlc.Derive(rowRoot, cfg.k, cfg.n, rowSize, cfg.workers)
+			coeffs := rlc.DeriveCoefficients(rowRoot, cfg.k, cfg.n, rowSize, cfg.workers)
 
 			data := make([][]byte, cfg.k)
 			r := rand.New(rand.NewPCG(uint64(cfg.k), uint64(rowSize)))
