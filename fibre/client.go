@@ -21,9 +21,9 @@ const DefaultKeyName = "default-fibre"
 
 var (
 	// ErrClientClosed is returned when an operation is attempted on a closed client.
-	ErrClientClosed = errors.New("fibre client is closed")
+	ErrClientClosed = errors.New("fibre: client is closed")
 	// ErrKeyNotFound is returned when the configured key is not found in the keyring.
-	ErrKeyNotFound = errors.New("key not found in keyring")
+	ErrKeyNotFound = errors.New("fibre: key not found in keyring")
 )
 
 // Client is the Fibre DA client.

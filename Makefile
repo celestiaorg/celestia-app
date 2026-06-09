@@ -16,7 +16,7 @@ HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v9
 # Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
-GOLANG_CROSS_VERSION  ?= v1.26.1
+GOLANG_CROSS_VERSION  ?= v1.26.2
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -43,7 +43,7 @@ CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
 CELESTIA_V6_VERSION := v6.4.4
 CELESTIA_V7_VERSION := v7.0.2-mocha
-CELESTIA_V8_VERSION := v8.0.3
+CELESTIA_V8_VERSION := v8.0.8
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -388,7 +388,7 @@ test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestSquareSizeIntegrationTest|TestStandardSDKIntegrationTestSuite|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestPriorityTestSuite|TestTimeInPrepareProposalContext|TestTxClientTestSuite|TestEvictions|TestEstimateGasUsed|TestPrepareProposalCappingNumberOfMessages|TestRejections|TestClaimRewardsAfterFullUndelegation|TestParallelTxSubmission|TestBigBlobSuite|TestTxsimDefaultKeypath|TestGasEstimatorE2E|TestMintIntegrationTestSuite|TestSubmitPayForBlobWithEstimatorService|TestSendToSelfWithLargeFee|TestV2SubmitMethods|TestCLITestSuite|TestClientServerUploadDownload|TestFibreE2ETestSuite"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestSquareSizeIntegrationTest|TestClientServerUploadDownload"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.

@@ -15,6 +15,7 @@ import (
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -261,6 +262,26 @@ func TestAllSharesInclusionProof(t *testing.T) {
 	)
 	require.NoError(t, err)
 	assert.NoError(t, proof.Validate(dataRoot))
+}
+
+// TestQueryTxInclusionProof_DoesNotPanicOnMalformedData ensures the handler
+// returns errors (rather than panicking) when given inputs that look like a
+// proto-block but trigger error paths in downstream parsing.
+func TestQueryTxInclusionProof_DoesNotPanicOnMalformedData(t *testing.T) {
+	emptyBlockBytes, err := (&tmproto.Block{}).Marshal()
+	require.NoError(t, err)
+
+	cases := [][]byte{
+		nil,
+		{},
+		[]byte("not a proto block"),
+		emptyBlockBytes,
+	}
+	for _, data := range cases {
+		assert.NotPanics(t, func() {
+			_, _ = proof.QueryTxInclusionProof(sdk.Context{}, []string{"0"}, &abci.RequestQuery{Data: data})
+		})
+	}
 }
 
 // Ensure that we reject negative index values and avoid overflows.

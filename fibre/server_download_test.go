@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
@@ -50,32 +50,14 @@ func TestServerDownloadShard(t *testing.T) {
 			},
 		},
 		{
-			name:      "WithRlc_ReturnsCoefficients",
-			storeBlob: true,
-			requestModifier: func(req *types.DownloadShardRequest, _ fibre.BlobID) {
-				req.WithRlc = true
-			},
-			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
-				require.NoError(t, err)
-				require.NotNil(t, resp.Shard)
-				require.NotEmpty(t, resp.Shard.Rows)
-				require.NotEmpty(t, resp.Shard.Coefficients,
-					"coefficients should be present when WithRlc is true")
-				require.NotEmpty(t, resp.Shard.Root,
-					"RLC root should be present")
-			},
-		},
-		{
-			name:      "WithoutRlc_StripsCoefficients",
+			name:      "ReturnsRLCs",
 			storeBlob: true,
 			check: func(t *testing.T, resp *types.DownloadShardResponse, err error) {
 				require.NoError(t, err)
 				require.NotNil(t, resp.Shard)
 				require.NotEmpty(t, resp.Shard.Rows)
-				require.Empty(t, resp.Shard.Coefficients,
-					"coefficients should be stripped when WithRlc is false")
-				require.NotEmpty(t, resp.Shard.Root,
-					"RLC root should always be present")
+				require.NotEmpty(t, resp.Shard.Rlcs,
+					"RLCs should always be returned")
 			},
 		},
 		{
@@ -144,29 +126,18 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 	}
 
 	// create rows for the shard
-	rows := make([]*types.BlobRow, 3)
-	for i := range 3 {
-		rowProof, err := blob.Row(i)
-		require.NoError(t, err)
-		rows[i] = &types.BlobRow{
-			Index: uint32(i),
-			Data:  rowProof.Row,
-			Proof: rowProof.RowProof.RowProof,
-		}
-	}
-
-	// flatten RLC coefficients for storage
-	rlcCoeffs := blob.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
+	rows := make([]*types.BlobRow, 0, 3)
+	require.NoError(t, blob.RowProofs([]int{0, 1, 2}, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}))
 
 	shard := &types.BlobShard{
-		Rows:         rows,
-		Root:         make([]byte, 32),
-		Coefficients: coeffBytes,
+		Rows: rows,
+		Rlcs: rlc.Marshal(blob.RLC()),
 	}
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))

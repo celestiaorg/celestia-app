@@ -3,12 +3,15 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/push"
 
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
 )
@@ -28,6 +31,9 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	}
 
 	ctx := context.TODO()
+
+	metrics := newSyncMetrics("mocha")
+	defer metrics.push(t)
 
 	mochaConfig := networks.NewMochaConfig()
 	mochaClient, err := networks.NewClient(mochaConfig.RPCs[0])
@@ -100,6 +106,7 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	s.Require().NoError(err, "state sync did not reach trust height within timeout")
 
 	stateSyncDuration := time.Since(startTime)
+	metrics.recordPhase("state_sync", stateSyncDuration)
 	t.Logf("Phase 1 complete: state sync took %s", stateSyncDuration)
 
 	// Verify that state sync was used.
@@ -120,6 +127,8 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 
 	blockSyncDuration := time.Since(blockSyncStart)
 	totalDuration := time.Since(startTime)
+	metrics.recordPhase("block_sync", blockSyncDuration)
+	metrics.recordPhase("total", totalDuration)
 
 	t.Logf("Block sync complete: took %s", blockSyncDuration)
 	t.Logf("Total sync duration: %s (state sync: %s, block sync: %s)", totalDuration, stateSyncDuration, blockSyncDuration)
@@ -127,4 +136,79 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	s.Require().Less(totalDuration, syncToTipTimeout,
 		"total sync duration %s exceeded KPI target of %s (state sync: %s, block sync: %s)",
 		totalDuration, syncToTipTimeout, stateSyncDuration, blockSyncDuration)
+
+	metrics.markSuccess()
+}
+
+const pushJobName = "celestia_e2e_sync_to_tip"
+
+type syncMetrics struct {
+	network string
+	phases  map[string]time.Duration
+	success bool
+}
+
+func newSyncMetrics(network string) *syncMetrics {
+	return &syncMetrics{network: network, phases: make(map[string]time.Duration)}
+}
+
+func (m *syncMetrics) recordPhase(phase string, d time.Duration) {
+	m.phases[phase] = d
+}
+
+func (m *syncMetrics) markSuccess() {
+	m.success = true
+}
+
+// push sends the recorded sync durations and success flag to the Prometheus
+// Pushgateway specified by PUSHGATEWAY_URL. If the env var is unset the push is
+// skipped so local runs and PR CI don't try to reach an external service. Push
+// failures are logged but do not fail the test — the test result reflects the
+// sync KPI, not observability health.
+func (m *syncMetrics) push(t *testing.T) {
+	t.Helper()
+	url := os.Getenv("PUSHGATEWAY_URL")
+	if url == "" {
+		t.Log("PUSHGATEWAY_URL not set; skipping metrics push")
+		return
+	}
+
+	labels := []string{"commit_sha", "github_run_id", "celestia_app_version"}
+	durationGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "celestia_e2e_sync_duration_seconds",
+		Help: "Time taken for each phase of the sync-to-tip e2e test.",
+	}, append([]string{"phase"}, labels...))
+	successGauge := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "celestia_e2e_sync_success",
+		Help: "Whether the most recent sync-to-tip e2e run met its KPI (1 = success, 0 = failure).",
+	}, labels)
+
+	commitSHA := os.Getenv("GITHUB_SHA")
+	if len(commitSHA) > 8 {
+		commitSHA = commitSHA[:8]
+	}
+	labelVals := []string{commitSHA, os.Getenv("GITHUB_RUN_ID"), os.Getenv("CELESTIA_APP_VERSION")}
+
+	for phase, d := range m.phases {
+		durationGauge.WithLabelValues(append([]string{phase}, labelVals...)...).Set(d.Seconds())
+	}
+	var successVal float64
+	if m.success {
+		successVal = 1
+	}
+	successGauge.WithLabelValues(labelVals...).Set(successVal)
+
+	pusher := push.New(url, pushJobName).
+		Grouping("network", m.network).
+		Collector(durationGauge).
+		Collector(successGauge)
+	if user := os.Getenv("PUSHGATEWAY_USERNAME"); user != "" {
+		pusher = pusher.BasicAuth(user, os.Getenv("PUSHGATEWAY_PASSWORD"))
+	}
+
+	if err := pusher.Push(); err != nil {
+		t.Logf("failed to push metrics to Pushgateway: %v", err)
+		return
+	}
+	t.Logf("pushed sync metrics to Pushgateway at %s (success=%v)", url, m.success)
 }

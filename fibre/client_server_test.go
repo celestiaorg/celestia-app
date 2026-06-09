@@ -90,18 +90,14 @@ func TestClientServerUploadDownload(t *testing.T) {
 					slotIdx := clientIdx*tt.blobsPerClient + blobIdx
 					allPromiseHashes[slotIdx] = make([][]byte, 0, tt.duplicate)
 
-					// upload blob (possibly multiple times at different heights)
-					// each upload requires a fresh blob since Upload takes ownership
+					blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+					if err != nil {
+						return fmt.Errorf("creating blob %d: %w", blobIdx, err)
+					}
+					allBlobIDs[slotIdx] = blob.ID()
 					for uploadIdx := range tt.duplicate {
 						if tt.duplicate > 1 {
 							env.SetHeight(uint64(100 + uploadIdx*100))
-						}
-						blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
-						if err != nil {
-							return fmt.Errorf("creating blob %d (upload %d): %w", blobIdx, uploadIdx, err)
-						}
-						if uploadIdx == 0 {
-							allBlobIDs[slotIdx] = blob.ID()
 						}
 						signedPromise, err := client.Upload(ctx, testNamespace, blob)
 						if err != nil {
@@ -114,6 +110,7 @@ func TestClientServerUploadDownload(t *testing.T) {
 						}
 						allPromiseHashes[slotIdx] = append(allPromiseHashes[slotIdx], promiseHash)
 					}
+					blob.Free()
 
 					allData[slotIdx] = data
 				}
@@ -143,9 +140,9 @@ func TestClientServerUploadDownload(t *testing.T) {
 						return fmt.Errorf("store %d has empty rows for blob %s", storeIdx, id.String())
 					}
 
-					// verify RLC root is set
-					if rows.GetRoot() == nil || len(rows.GetRoot()) != 32 {
-						return fmt.Errorf("store %d has invalid RLC root for blob %s", storeIdx, id.String())
+					// verify RLCs are set
+					if len(rows.GetRlcs()) == 0 {
+						return fmt.Errorf("store %d has no RLCs for blob %s", storeIdx, id.String())
 					}
 
 					// collect row indices for duplicate detection
@@ -200,13 +197,17 @@ func TestClientServerUploadDownload(t *testing.T) {
 					if err != nil {
 						return fmt.Errorf("downloading blob %s: %w", id.String(), err)
 					}
-					if !bytes.Equal(blob.Data(), originalData) {
+					match := bytes.Equal(blob.Data(), originalData)
+					gotLen := len(blob.Data())
+					gotID := blob.ID()
+					blob.Free()
+					if !match {
 						return fmt.Errorf("data mismatch for %s: downloaded %d bytes, expected %d bytes",
-							id.String(), len(blob.Data()), len(originalData))
+							id.String(), gotLen, len(originalData))
 					}
-					if !blob.ID().Equals(id) {
+					if !gotID.Equals(id) {
 						return fmt.Errorf("blob ID mismatch: got %s, expected %s",
-							blob.ID().String(), id.String())
+							gotID.String(), id.String())
 					}
 				}
 				return nil

@@ -5,23 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
-	"sync"
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
 
-var (
-	// ErrBlobTooLarge is returned when the blob size exceeds BlobConfig.MaxDataSize.
-	ErrBlobTooLarge = errors.New("blob size exceeds maximum allowed size")
-	// ErrBlobCommitmentMismatch is returned when the reconstructed commitment doesn't match the expected one.
-	ErrBlobCommitmentMismatch = errors.New("commitment mismatch: reconstructed data doesn't match expected commitment")
-	// ErrBlobConsumed is returned when a blob is reused after being uploaded.
-	ErrBlobConsumed = errors.New("blob cannot be reused after upload")
-)
+// ErrBlobTooLarge is returned when the blob size exceeds BlobConfig.MaxDataSize.
+var ErrBlobTooLarge = errors.New("blob size exceeds maximum allowed size")
 
 // BlobConfig contains configuration parameters for blob encoding and decoding.
 type BlobConfig struct {
@@ -39,10 +32,12 @@ type BlobConfig struct {
 	// CodingWorkers is the number of workers to use for encoding and decoding rsema1d.
 	CodingWorkers int
 
-	// Coder is a cached Reed-Solomon encoder/decoder for encoding blobs.
+	// Coder is a cached rsema1d encoder/decoder for blob encoding and reconstruction.
 	Coder *rsema1d.Coder
 	// Assembler builds pooled row layouts for encoding blobs.
 	Assembler *row.Assembler
+	// DataPool pools blob downloads allocations.
+	DataPool *row.Pool
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -79,20 +74,23 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 	}
 
 	maxRowSize := params.MaxRowSize(blobVersion)
-	assembler, err := row.NewAssembler(params.Rows, params.ParityRows(), maxRowSize)
+	codecCfg := &rsema1d.Config{
+		K:           params.Rows,
+		N:           params.ParityRows(),
+		WorkerCount: runtime.GOMAXPROCS(0),
+	}
+
+	assembler, err := row.NewAssembler(params.Rows, params.ParityRows(), maxRowSize, codecCfg.TreeBufferSize())
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating row assembler: %w", err)
 	}
 
 	workPool := row.NewPool(maxRowSize, params.CodecWorkRows())
-	coder, err := rsema1d.NewCoder(&rsema1d.Config{
-		K:           params.Rows,
-		N:           params.ParityRows(),
-		WorkerCount: runtime.GOMAXPROCS(0),
-	}, reedsolomon.WithWorkAllocator(workPool))
+	coder, err := rsema1d.NewCoder(codecCfg, reedsolomon.WithWorkAllocator(workPool))
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating rsema1d coder: %w", err)
 	}
+	dataPool := row.NewPool(maxRowSize, params.Rows)
 
 	return BlobConfig{
 		BlobVersion:  blobVersion,
@@ -105,6 +103,7 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		CodingWorkers: runtime.GOMAXPROCS(0),
 		Coder:         coder,
 		Assembler:     assembler,
+		DataPool:      dataPool,
 	}, nil
 }
 
@@ -128,21 +127,15 @@ type Blob struct {
 
 	extendedData *rsema1d.ExtendedData
 	id           BlobID
-	originalID   BlobID
 
 	// holds meta fields about the blob
 	header blobHeaderV0
 	// data holds the decoded original data (without header).
 	data []byte
 
-	// fields for reconstruction
-	rows [][]byte
-
-	consumed atomic.Bool
-
-	// asm owns pooled row storage from the assembler. Nil for reconstructed
-	// blobs.
-	asm *row.Assembly
+	refCount     atomic.Int32
+	userReleased atomic.Bool
+	releaseFn    func()
 }
 
 // NewBlob creates a new [Blob] instance by encoding the data.
@@ -152,9 +145,10 @@ type Blob struct {
 // The data is prefixed with a header containing the blob version and data size.
 // Returns [ErrBlobTooLarge] if the data size exceeds BlobConfig.MaxDataSize.
 //
-// The returned blob holds pooled row buffers from the [row.Assembler].
-// Pooled storage is released automatically when [Client.Upload] completes.
-// Data must not be modified after ownership is transferred to the blob.
+// The returned blob holds pooled row buffers from the [row.Assembler]. The
+// caller is responsible for calling [Blob.Free] once they are done with the
+// blob — when handing the blob to [Client.Upload], the standard pattern is
+// `defer blob.Free()` at the call site.
 func NewBlob(data []byte, cfg BlobConfig) (*Blob, error) {
 	if len(data) == 0 {
 		return nil, fmt.Errorf("data cannot be empty")
@@ -169,61 +163,37 @@ func NewBlob(data []byte, cfg BlobConfig) (*Blob, error) {
 		return nil, err
 	}
 
-	return &Blob{
+	b := &Blob{
 		cfg:          cfg,
 		extendedData: extendedData,
 		id:           NewBlobID(cfg.BlobVersion, extendedData.Commitment()),
 		header:       header,
 		data:         data,
-		asm:          asm,
-	}, nil
+		releaseFn:    asm.Free,
+	}
+	b.refCount.Store(1)
+	return b, nil
 }
 
-// NewEmptyBlob creates a new [Blob] instance for receiving and reconstructing data.
-// Returns an error if the BlobID is invalid or the blob version is not supported.
-func NewEmptyBlob(id BlobID) (*Blob, error) {
-	if err := id.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid blob ID: %w", err)
+// Free releases the caller's reference. When all references (including any
+// internal references taken by [Client.Upload]) have been released, the
+// blob's pool-backed storage — assembler slab on the upload side, slab
+// alias on the download side — is returned to its pool. Idempotent against
+// repeated calls from the same caller; safe on a nil receiver. Reading
+// [Blob.Data] after Free is undefined behavior — for download blobs the
+// bytes may have been recycled by another consumer of the pool.
+func (d *Blob) Free() {
+	if d == nil {
+		return
 	}
-	cfg, err := BlobConfigForVersion(id.Version())
-	if err != nil {
-		return nil, err
+	if d.userReleased.Swap(true) {
+		return
 	}
-	totalRows := cfg.OriginalRows + cfg.ParityRows
-	return &Blob{
-		cfg:  cfg,
-		id:   id,
-		rows: make([][]byte, totalRows),
-	}, nil
+	d.release()
 }
 
 // ID returns the BlobID of this blob.
 func (d *Blob) ID() BlobID {
-	return d.id
-}
-
-// Recovered reports whether reconstruction completed with
-// [WithSkipCommitmentCheck], meaning the blob was recovered from rows whose
-// reconstructed commitment did not match the original on-chain BlobID.
-//
-// When true:
-//   - [ID] returns the reconstructed blob ID derived from the recovered data
-//   - [OriginalID] returns the original on-chain blob ID that was downloaded
-//
-// This marks recovery from an incorrect-encoding scenario where the recovered
-// data is accepted as canonical even though the original commitment was invalid.
-func (d *Blob) Recovered() bool {
-	return d.originalID != nil
-}
-
-// OriginalID returns the original on-chain BlobID before any reconstruction overwrite.
-// After recovery from an incorrect encoding (via WithSkipCommitmentCheck), this returns
-// the on-chain commitment that was replaced during reconstruction.
-// If no overwrite occurred, returns the current ID.
-func (d *Blob) OriginalID() BlobID {
-	if d.originalID != nil {
-		return d.originalID
-	}
 	return d.id
 }
 
@@ -232,8 +202,8 @@ func (d *Blob) Config() BlobConfig {
 	return d.cfg
 }
 
-// RLC returns the computed random linear combination values for the original rows.
-func (d *Blob) RLC() []field.GF128 {
+// RLC returns the computed random linear combination vector for the original rows.
+func (d *Blob) RLC() rlc.Vector {
 	if d.extendedData == nil {
 		return nil
 	}
@@ -259,231 +229,52 @@ func (d *Blob) UploadSize() int {
 }
 
 // Data returns the cached original data (without header).
-// Returns nil if the data has not been decoded yet (call Reconstruct first for received blobs).
 func (d *Blob) Data() []byte {
 	return d.data
 }
 
-// Free releases payload storage held by the blob. Call it after finishing with
-// blobs returned by [Client.Download].
-//
-// Do not call Free on a blob after passing it to [Client.Upload]; Upload takes
-// ownership and releases upload buffers after its background goroutines finish.
-// It is not safe to call concurrently with other Blob methods.
-func (d *Blob) Free() {
-	if d == nil {
-		return
-	}
-	if d.asm != nil {
-		d.asm.Free()
-	}
-	d.extendedData = nil
-	d.rows = nil
-	d.data = nil
-}
-
-// Row returns the [rsema1d.RowInclusionProof] for the given index. Rows are
-// served until the blob's pooled storage is released; after release, every
-// call returns an error.
-func (d *Blob) Row(index int) (*rsema1d.RowInclusionProof, error) {
+// RowProofs yields the row data and Merkle proof for each index (see
+// [rsema1d.ExtendedData.RowProofs]). row and proof alias pooled storage valid
+// until the blob is released; returns an error after release.
+func (d *Blob) RowProofs(indices []int, yield func(index int, row []byte, proof [][]byte)) error {
 	if d.extendedData == nil {
-		return nil, fmt.Errorf("no extended data available")
+		return fmt.Errorf("no extended data available")
 	}
-	if d.asm.Released() {
-		return nil, fmt.Errorf("row %d: storage has been released", index)
+	if d.released() {
+		return fmt.Errorf("storage has been released")
 	}
-	return d.extendedData.GenerateRowInclusionProof(index)
+	return d.extendedData.RowProofs(indices, yield)
 }
 
-// VerifyRow verifies a [*rsema1d.RowInclusionProof] against the blob's commitment.
-// Safe to call concurrently — performs only pure computation with no shared state mutation.
-func (d *Blob) VerifyRow(row *rsema1d.RowInclusionProof) error {
-	config := &rsema1d.Config{
-		K:           d.cfg.OriginalRows,
-		N:           d.cfg.ParityRows,
-		RowSize:     len(row.Row),
-		WorkerCount: d.cfg.CodingWorkers,
-	}
-	if err := rsema1d.VerifyRowInclusionProof(row, d.id.Commitment(), config); err != nil {
-		return fmt.Errorf("verifying row %d: %w", row.Index, err)
-	}
-	return nil
-}
-
-// rlcVerifier coordinates RLC-based row verification across concurrent download goroutines.
-// It holds the RLC verification state and an immutable copy of the commitment,
-// independently from the Blob. This prevents data races between straggler download
-// goroutines and the caller's Reconstruct which may mutate the Blob.
-type rlcVerifier struct {
-	commitment Commitment
-	cfg        BlobConfig
-
-	verificationCtx    *rsema1d.VerificationContext
-	verificationCtxSet atomic.Bool
-	ctxErr             error
-	rlcOnce            sync.Once
-}
-
-func newRLCVerifier(commitment Commitment, cfg BlobConfig) *rlcVerifier {
-	return &rlcVerifier{
-		commitment: commitment,
-		cfg:        cfg,
-	}
-}
-
-// setOrWaitVerificationContext validates the RLC coefficients and sets the verification
-// context for stronger per-row verification.
-//
-// Flow:
-//  1. Fast path: if context is already set, return immediately.
-//  2. Cheap validation: build the RLC Merkle tree (no extension) and check that
-//     SHA256(rowRoot || rlcOrigRoot) matches the blob's commitment.
-//  3. Expensive work (sync.Once): extend the RLC values and create the verification context.
-//     Only one goroutine performs this; others block in Once.Do until it completes.
-//
-// Returns an error if the RLC coefficients are inconsistent with the commitment.
-func (v *rlcVerifier) setOrWaitVerificationContext(
-	rlcOrig []field.GF128,
-	rowSize int,
-	sampleProof *rsema1d.RowProof,
-) error {
-	if v.verificationCtxSet.Load() {
-		return nil
-	}
-
-	config := &rsema1d.Config{
-		K:           v.cfg.OriginalRows,
-		N:           v.cfg.ParityRows,
-		RowSize:     rowSize,
-		WorkerCount: v.cfg.CodingWorkers,
-	}
-	if err := config.Validate(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-	rlcOrigRoot := rsema1d.BuildPaddedRLCTree(rlcOrig, config).Root()
-	// TODO: it is possible to reuse rowRoot from previous calculations before we started verifyRLC
-	//  but we don't need this to be super optimised due to this case being rare
-	if err := rsema1d.ValidateRLCRoot(rlcOrigRoot, rsema1d.Commitment(v.commitment), sampleProof, config); err != nil {
-		return fmt.Errorf("validating RLC root against commitment: %w", err)
-	}
-
-	v.rlcOnce.Do(func() {
-		verCtx, _, err := rsema1d.CreateVerificationContext(rlcOrig, config)
-		if err != nil {
-			v.ctxErr = fmt.Errorf("creating verification context: %w", err)
-			return
+// retain bumps the refcount for an additional non-user owner — used by
+// [Client.Upload] to keep the asm slab alive across background goroutines
+// that read the blob's pool-backed rows. It returns false if the storage has
+// already been released (refcount 0).
+// Each successful retain must pair with a later [Blob.release].
+func (d *Blob) retain() bool {
+	for {
+		n := d.refCount.Load()
+		if n == 0 {
+			return false
 		}
-		v.verificationCtx = verCtx
-		v.verificationCtxSet.Store(true)
-	})
-
-	if v.verificationCtxSet.Load() {
-		return nil
-	}
-	return v.ctxErr
-}
-
-// verifyRow verifies a [*rsema1d.RowInclusionProof] against the commitment
-// using the prepared RLC verification context.
-// Safe to call concurrently.
-func (v *rlcVerifier) verifyRow(row *rsema1d.RowInclusionProof) error {
-	if err := rsema1d.VerifyRowWithContext(&row.RowProof, v.commitment, v.verificationCtx); err != nil {
-		return fmt.Errorf("verifying row %d: %w", row.Index, err)
-	}
-	return nil
-}
-
-// SetRow assigns a verified [*rsema1d.RowInclusionProof] to the blob.
-// Returns true when the row is new, false when the row was already set (duplicate).
-// The row must be verified with [VerifyRow] before calling this method.
-// It is not safe to call this method concurrently.
-func (d *Blob) SetRow(row *rsema1d.RowInclusionProof) bool {
-	if d.rows[row.Index] != nil {
-		return false
-	}
-	d.rows[row.Index] = row.Row
-	return true
-}
-
-// ReconstructOption configures the behavior of [Blob.Reconstruct].
-type ReconstructOption func(*reconstructOptions)
-
-type reconstructOptions struct {
-	skipCommitmentCheck bool
-}
-
-// WithSkipCommitmentCheck skips the commitment verification after reconstruction
-// and updates the blob's ID to the real commitment derived from the reconstructed data.
-// Use this when recovering from an incorrect encoding where the on-chain commitment
-// differs from the commitment derived from the correct data rows.
-func WithSkipCommitmentCheck() ReconstructOption {
-	return func(o *reconstructOptions) {
-		o.skipCommitmentCheck = true
+		if d.refCount.CompareAndSwap(n, n+1) {
+			return true
+		}
 	}
 }
 
-// Reconstruct checks the accumulated rows and reconstructs the original data.
-// It is not safe to call this method concurrently.
-//
-// Returns:
-//   - [ErrBlobCommitmentMismatch] if the reconstructed commitment doesn't match the expected one
-//   - Reconstruction or decoding errors if either process fails
-func (d *Blob) Reconstruct(opts ...ReconstructOption) error {
-	var opt reconstructOptions
-	for _, o := range opts {
-		o(&opt)
+// release decrements the refcount; when it hits zero the releaseFn fires.
+// Called by internal owners (e.g., Upload's terminal goroutine) after they
+// finish using the blob.
+func (d *Blob) release() {
+	if d.refCount.Add(-1) == 0 && d.releaseFn != nil {
+		d.releaseFn()
+		d.releaseFn = nil
 	}
-	// TODO(@Wondertan): Move and encapsulate inside rsema1d
-
-	// use reedsolomon decoder directly as opposed to rsema1d.Reconstruct
-	// the decoder is used to reconstruct missing shards in-place which is more efficient than copying data and
-	// passing indicies as a slice of integers.
-	enc, err := reedsolomon.New(d.cfg.OriginalRows, d.cfg.ParityRows, reedsolomon.WithLeopardGF16(true))
-	if err != nil {
-		return fmt.Errorf("creating reedsolomon decoder: %w", err)
-	}
-
-	// reconstruct missing shards in-place
-	if err := enc.Reconstruct(d.rows); err != nil {
-		return fmt.Errorf("reconstructing rows: %w", err)
-	}
-
-	// use EncodeParity to verify the commitment and populate extendedData and rlcCoeffs
-	config := &rsema1d.Config{
-		K:           d.cfg.OriginalRows,
-		N:           d.cfg.ParityRows,
-		RowSize:     len(d.rows[0]), // NOTE: successful reconstruct must fill all rows, so if this ever panics something is really wrong
-		WorkerCount: d.cfg.CodingWorkers,
-	}
-	extendedData, reconstructedCommitment, _, err := rsema1d.EncodeParity(d.rows, config)
-	if err != nil {
-		return fmt.Errorf("encoding parity: %w", err)
-	}
-
-	// verify commitment matches
-	if !opt.skipCommitmentCheck && d.id.Commitment() != reconstructedCommitment {
-		return fmt.Errorf("%w: expected %x, got %x",
-			ErrBlobCommitmentMismatch, d.id.Commitment(), reconstructedCommitment[:])
-	}
-
-	// decode header and extract original data from the first K rows, then cache it
-	originalData, err := d.header.decodeFromRows(d.rows[:d.cfg.OriginalRows], d.cfg)
-	if err != nil {
-		return fmt.Errorf("decoding data from rows: %w", err)
-	}
-
-	d.data = originalData
-	d.extendedData = extendedData
-	if opt.skipCommitmentCheck {
-		d.originalID = d.id
-		d.id = NewBlobID(d.cfg.BlobVersion, Commitment(reconstructedCommitment))
-	}
-	return nil
 }
 
-// consume marks the blob as owned by an upload. Returns false if already consumed.
-func (d *Blob) consume() bool {
-	return d.consumed.CompareAndSwap(false, true)
+func (d *Blob) released() bool {
+	return d.refCount.Load() == 0
 }
 
 const (
@@ -516,10 +307,10 @@ func newBlobHeaderV0(dataSize int) blobHeaderV0 {
 func (h blobHeaderV0) encode(data []byte, cfg BlobConfig) (*rsema1d.ExtendedData, *row.Assembly, error) {
 	rowSize := cfg.RowSize(len(data))
 	asm := cfg.Assembler.Assemble(data, rowSize, blobHeaderLen)
-	rows := asm.Rows()
+	rows, treeBuf := asm.Buffers()
 	h.marshalTo(rows[0])
 
-	extData, err := cfg.Coder.Encode(rows)
+	extData, err := cfg.Coder.EncodeWithTree(rows, treeBuf)
 	if err != nil {
 		asm.Free()
 		return nil, nil, fmt.Errorf("encoding data: %w", err)
@@ -527,51 +318,33 @@ func (h blobHeaderV0) encode(data []byte, cfg BlobConfig) (*rsema1d.ExtendedData
 	return extData, asm, nil
 }
 
-// decodeFromRows decodes the data from rows with version 0 header format.
-// Decodes the header from the first row, validates it, then extracts the original data.
-// Returns error if rows are invalid, header cannot be decoded, or data cannot be extracted.
-func (h *blobHeaderV0) decodeFromRows(rows [][]byte, cfg BlobConfig) ([]byte, error) {
-	if len(rows) == 0 {
-		return nil, fmt.Errorf("no rows to decode")
+// decode runs Reed-Solomon data-shard recovery when the reconstructor has
+// enough unique rows, parses the blob header from the contiguous bytes
+// view, and returns the data sub-slice (header stripped). The returned
+// slice aliases bytes — no copy.
+//
+// decode parses the v0 header at the start of bytes and returns the sub-slice
+// spanning just the payload (no header). bytes is typically the K*rowSize
+// contiguous region of a download's row slab. The returned slice aliases
+// bytes — no copy.
+func (h *blobHeaderV0) decode(bytes []byte, cfg BlobConfig) ([]byte, error) {
+	if len(bytes) < blobHeaderLen {
+		return nil, fmt.Errorf("bytes too small for header: got %d, need at least %d", len(bytes), blobHeaderLen)
 	}
-
-	if len(rows[0]) < blobHeaderLen {
-		return nil, fmt.Errorf("first row too small: need at least %d bytes for header, got %d", blobHeaderLen, len(rows[0]))
-	}
-
-	// decode header from first row
-	if err := h.unmarshalFrom(rows[0]); err != nil {
+	if err := h.unmarshalFrom(bytes); err != nil {
 		return nil, fmt.Errorf("decoding header: %w", err)
 	}
-
-	// validate blob size is within reasonable bounds
-	if h.dataSize == 0 {
+	dataSize := int(h.dataSize)
+	if dataSize == 0 {
 		return nil, fmt.Errorf("invalid blob size in header: must be greater than 0")
 	}
-	if int(h.dataSize) > cfg.MaxDataSize {
-		return nil, fmt.Errorf("blob size in header (%d bytes) exceeds maximum allowed size (%d bytes)", h.dataSize, cfg.MaxDataSize)
+	if dataSize > cfg.MaxDataSize {
+		return nil, fmt.Errorf("blob size in header (%d bytes) exceeds maximum allowed size (%d bytes)", dataSize, cfg.MaxDataSize)
 	}
-
-	dataSize := int(h.dataSize)
-
-	// pre-allocate only the data size (excluding header)
-	data := make([]byte, dataSize)
-	offset := 0
-	for i := 0; i < cfg.OriginalRows && offset < dataSize; i++ {
-		// skip header in first row
-		row := rows[i]
-		if i == 0 {
-			row = row[blobHeaderLen:]
-		}
-
-		offset += copy(data[offset:], row)
+	if blobHeaderLen+dataSize > len(bytes) {
+		return nil, fmt.Errorf("data size in header (%d bytes) exceeds available bytes (%d bytes)", dataSize, len(bytes)-blobHeaderLen)
 	}
-
-	if offset != dataSize {
-		return nil, fmt.Errorf("data size mismatch: copied %d bytes, expected %d", offset, dataSize)
-	}
-
-	return data, nil
+	return bytes[blobHeaderLen : blobHeaderLen+dataSize], nil
 }
 
 // marshalTo writes the version 0 blob header into the provided buffer.

@@ -9,6 +9,7 @@ import (
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
@@ -28,12 +29,14 @@ type Server struct {
 	tracer  trace.Tracer
 	metrics *serverMetrics
 
+	verifiers chan *rsema1d.Verifier // caps concurrent verifications
+
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
 }
 
 // NewServer creates a new Fibre [Server]. The store backend is determined by
-// [ServerConfig.StoreFn], which defaults to [NewPebbleStore].
+// [ServerConfig.StoreFn], which defaults to [NewStore].
 func NewServer(cfg ServerConfig) (*Server, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
@@ -50,11 +53,12 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	server := &Server{
-		Config:  cfg,
-		state:   stateClient,
-		log:     cfg.Log,
-		tracer:  cfg.Tracer,
-		metrics: metrics,
+		Config:    cfg,
+		state:     stateClient,
+		log:       cfg.Log,
+		tracer:    cfg.Tracer,
+		metrics:   metrics,
+		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
 	}
 
 	server.grpc, err = fibregrpc.NewServer(

@@ -127,11 +127,14 @@ func (v *StateMembershipValues) Marshal() ([]byte, error) {
 func (v *StateMembershipValues) Unmarshal(data []byte) error {
 	buf := bytes.NewReader(data)
 
-	if _, err := buf.Read(v.StateRoot[:]); err != nil {
+	// Use io.ReadFull on fixed-size fields. bytes.Reader.Read returns (n, nil)
+	// on partial reads, which would silently zero-pad fields and admit
+	// non-canonical encodings.
+	if _, err := io.ReadFull(buf, v.StateRoot[:]); err != nil {
 		return fmt.Errorf("read StateRoot: %w", err)
 	}
 
-	if _, err := buf.Read(v.MerkleTreeAddress[:]); err != nil {
+	if _, err := io.ReadFull(buf, v.MerkleTreeAddress[:]); err != nil {
 		return fmt.Errorf("read MerkleTreeAddress: %w", err)
 	}
 
@@ -144,14 +147,14 @@ func (v *StateMembershipValues) Unmarshal(data []byte) error {
 		return fmt.Errorf("message ids count %d exceeds maximum allowed %d", count, MaxMessageIdsCount)
 	}
 
-	remaining := buf.Len()
-	if remaining < int(count*32) {
-		return fmt.Errorf("buffer too short: need %d, have %d", count*32, remaining)
+	// Use int64 to avoid uint64 wrap on count*32.
+	if int64(buf.Len()) != int64(count)*32 {
+		return fmt.Errorf("buffer length mismatch: need exactly %d, have %d", int64(count)*32, buf.Len())
 	}
 
 	v.MessageIds = make([][32]byte, count)
 	for i := 0; i < int(count); i++ {
-		if _, err := buf.Read(v.MessageIds[i][:]); err != nil {
+		if _, err := io.ReadFull(buf, v.MessageIds[i][:]); err != nil {
 			return fmt.Errorf("read message_id %d: %w", i, err)
 		}
 	}

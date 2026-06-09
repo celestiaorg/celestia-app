@@ -8,7 +8,7 @@ import (
 
 func TestAssembler_Assemble(t *testing.T) {
 	const k, n = 4, 2
-	a, err := NewAssembler(k, n, 256)
+	a, err := NewAssembler(k, n, 256, 64)
 	if err != nil {
 		t.Fatalf("NewAssembler: %v", err)
 	}
@@ -23,7 +23,7 @@ func TestAssembler_Assemble(t *testing.T) {
 
 	asm := a.Assemble(data, rowSize, offset)
 	defer asm.Free()
-	rows := asm.Rows()
+	rows, _ := asm.Buffers()
 
 	if len(rows) != k+n {
 		t.Fatalf("got %d rows, want %d", len(rows), k+n)
@@ -66,10 +66,10 @@ func TestAssembler_Assemble(t *testing.T) {
 }
 
 func TestAssembler_InvalidConfig(t *testing.T) {
-	if _, err := NewAssembler(0, 4, 64); err == nil {
+	if _, err := NewAssembler(0, 4, 64, 64); err == nil {
 		t.Fatal("expected error for non-positive k")
 	}
-	if _, err := NewAssembler(4, 0, 64); err == nil {
+	if _, err := NewAssembler(4, 0, 64, 64); err == nil {
 		t.Fatal("expected error for non-positive n")
 	}
 }
@@ -81,7 +81,7 @@ func TestAssembler_ReuseDirty(t *testing.T) {
 	const k, n, rowSize, offset = 4, 4, 64, 7
 	codec := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
 	coder, _ := rsema1d.NewCoder(codec)
-	a, _ := NewAssembler(k, n, 256)
+	a, _ := NewAssembler(k, n, 256, 64)
 
 	// first encode dirties parity slots in the pool
 	data1 := make([]byte, k*rowSize-offset)
@@ -89,7 +89,8 @@ func TestAssembler_ReuseDirty(t *testing.T) {
 		data1[i] = byte(i + 1)
 	}
 	asm1 := a.Assemble(data1, rowSize, offset)
-	if _, err := coder.Encode(asm1.Rows()); err != nil {
+	rows1, _ := asm1.Buffers()
+	if _, err := coder.Encode(rows1); err != nil {
 		t.Fatalf("first Encode: %v", err)
 	}
 	asm1.Free()
@@ -101,7 +102,7 @@ func TestAssembler_ReuseDirty(t *testing.T) {
 	}
 	asm2 := a.Assemble(data2, rowSize, offset)
 	defer asm2.Free()
-	rows2 := asm2.Rows()
+	rows2, _ := asm2.Buffers()
 
 	for i := k; i < k+n; i++ {
 		for j, b := range rows2[i] {
@@ -131,14 +132,15 @@ func TestAssembler_ReusePartialPadding(t *testing.T) {
 	const k, n, rowSize, offset = 4, 4, 64, 7
 	codec := &rsema1d.Config{K: k, N: n, WorkerCount: 1}
 	coder, _ := rsema1d.NewCoder(codec)
-	a, _ := NewAssembler(k, n, 256)
+	a, _ := NewAssembler(k, n, 256, 64)
 
 	big := make([]byte, k*rowSize-offset)
 	for i := range big {
 		big[i] = 0xFF
 	}
 	asm1 := a.Assemble(big, rowSize, offset)
-	if _, err := coder.Encode(asm1.Rows()); err != nil {
+	rows1, _ := asm1.Buffers()
+	if _, err := coder.Encode(rows1); err != nil {
 		t.Fatalf("first Encode: %v", err)
 	}
 	asm1.Free()
@@ -150,7 +152,7 @@ func TestAssembler_ReusePartialPadding(t *testing.T) {
 	}
 	asm2 := a.Assemble(tiny, rowSize, offset)
 	defer asm2.Free()
-	rows2 := asm2.Rows()
+	rows2, _ := asm2.Buffers()
 
 	for i := offset + small; i < rowSize; i++ {
 		if rows2[0][i] != 0 {
@@ -192,7 +194,7 @@ func freshRows(data []byte, total, rowSize, offset int) [][]byte {
 // observe the transition atomically and repeated calls are no-ops.
 func TestAssembly_Free(t *testing.T) {
 	const k, n = 4, 4
-	a, _ := NewAssembler(k, n, 256)
+	a, _ := NewAssembler(k, n, 256, 64)
 
 	data := make([]byte, 4*64-3)
 	asm := a.Assemble(data, 64, 3)
@@ -200,7 +202,7 @@ func TestAssembly_Free(t *testing.T) {
 	if asm.Released() {
 		t.Fatal("fresh Assembly should not report Released")
 	}
-	if asm.Rows() == nil {
+	if rows, _ := asm.Buffers(); rows == nil {
 		t.Fatal("fresh Assembly should expose Rows")
 	}
 
@@ -210,7 +212,7 @@ func TestAssembly_Free(t *testing.T) {
 	if !asm.Released() {
 		t.Fatal("Released() should be true after Free")
 	}
-	if asm.Rows() != nil {
+	if rows, _ := asm.Buffers(); rows != nil {
 		t.Fatal("Rows() should be nil after Free")
 	}
 }

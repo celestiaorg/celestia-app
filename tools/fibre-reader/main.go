@@ -15,7 +15,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -66,32 +65,30 @@ type config struct {
 }
 
 type stats struct {
-	blobsSeen            atomic.Int64
-	blobsOwned           atomic.Int64
-	blobsSkipped         atomic.Int64
-	downloadsSuccess     atomic.Int64
-	downloadsFailed      atomic.Int64
-	commitmentMismatches atomic.Int64
-	downloadedBytes      atomic.Int64
-	dlTotalLatNs         atomic.Int64
-	e2eTotalLatNs        atomic.Int64
-	inclusionLatNs       atomic.Int64
-	queueWaitNs          atomic.Int64
+	blobsSeen        atomic.Int64
+	blobsOwned       atomic.Int64
+	blobsSkipped     atomic.Int64
+	downloadsSuccess atomic.Int64
+	downloadsFailed  atomic.Int64
+	downloadedBytes  atomic.Int64
+	dlTotalLatNs     atomic.Int64
+	e2eTotalLatNs    atomic.Int64
+	inclusionLatNs   atomic.Int64
+	queueWaitNs      atomic.Int64
 }
 
 type readerMetrics struct {
-	blobsSeen            metric.Int64Counter
-	blobsOwned           metric.Int64Counter
-	blobsSkipped         metric.Int64Counter
-	downloadsSuccess     metric.Int64Counter
-	downloadsFailed      metric.Int64Counter
-	commitmentMismatches metric.Int64Counter
-	downloadedBytes      metric.Int64Counter
-	downloadLatency      metric.Float64Histogram
-	e2eLatency           metric.Float64Histogram
-	inclusionLatency     metric.Float64Histogram
-	blockProcessLatency  metric.Float64Histogram
-	queueWaitLatency     metric.Float64Histogram
+	blobsSeen           metric.Int64Counter
+	blobsOwned          metric.Int64Counter
+	blobsSkipped        metric.Int64Counter
+	downloadsSuccess    metric.Int64Counter
+	downloadsFailed     metric.Int64Counter
+	downloadedBytes     metric.Int64Counter
+	downloadLatency     metric.Float64Histogram
+	e2eLatency          metric.Float64Histogram
+	inclusionLatency    metric.Float64Histogram
+	blockProcessLatency metric.Float64Histogram
+	queueWaitLatency    metric.Float64Histogram
 }
 
 type downloadRequest struct {
@@ -445,12 +442,6 @@ func downloadOne(
 
 	if err != nil {
 		st.downloadsFailed.Add(1)
-		if errors.Is(err, fibre.ErrBlobCommitmentMismatch) {
-			st.commitmentMismatches.Add(1)
-			if rm != nil {
-				rm.commitmentMismatches.Add(context.Background(), 1)
-			}
-		}
 		if rm != nil {
 			rm.downloadsFailed.Add(context.Background(), 1)
 		}
@@ -513,7 +504,6 @@ func printSummary(cfg config, st *stats, elapsed time.Duration) {
 	fmt.Println("Downloads:")
 	fmt.Printf("  Successes:             %d\n", s)
 	fmt.Printf("  Failures:              %d\n", st.downloadsFailed.Load())
-	fmt.Printf("  Commitment mismatches: %d\n", st.commitmentMismatches.Load())
 	fmt.Printf("  Bytes downloaded:      %d (%.1f MiB)\n", bytes, float64(bytes)/(1024*1024))
 	fmt.Printf("  Avg throughput:        %.1f MiB/s\n", mibPerSec)
 	fmt.Printf("  Avg download latency:                  %s\n", avgDl)
@@ -555,12 +545,6 @@ func newReaderMetrics() (*readerMetrics, error) {
 	}
 	rm.downloadsFailed, err = m.Int64Counter("fibre_reader.downloads_failed",
 		metric.WithDescription("Failed blob downloads"),
-	)
-	if err != nil {
-		return nil, err
-	}
-	rm.commitmentMismatches, err = m.Int64Counter("fibre_reader.commitment_mismatches",
-		metric.WithDescription("Downloads that returned ErrBlobCommitmentMismatch"),
 	)
 	if err != nil {
 		return nil, err
