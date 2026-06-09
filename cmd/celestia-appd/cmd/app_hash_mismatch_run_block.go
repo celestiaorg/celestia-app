@@ -6,16 +6,21 @@ import (
 	"path/filepath"
 	"strings"
 
+	"cosmossdk.io/collections"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v9/app"
 	cmtdbm "github.com/cometbft/cometbft-db"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/store"
 	cmttypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +28,7 @@ const (
 	flagRunBlockMode                   = "mode"
 	flagRunBlockCommit                 = "commit"
 	flagRunBlockContinueOnCheckTxError = "continue-on-checktx-error"
+	flagRunBlockInjectFeeCollectorUTIA = "inject-fee-collector-utia"
 
 	runBlockModeFinalizeOnly         = "finalize"
 	runBlockModeProcessFinalize      = "process-finalize"
@@ -40,8 +46,13 @@ through CheckTx/ProcessProposal/FinalizeBlock in-process. By default the command
 	does not call Commit, so it computes the FinalizeBlock AppHash without writing
 	the application DB. Pass --commit only when --home points at a disposable copy.
 
-	CheckTx is intentionally not part of the default mode because it is mempool
-	admission state, not deterministic block replay state.
+CheckTx is intentionally not part of the default mode because it is mempool
+admission state, not deterministic block replay state.
+
+The --inject-fee-collector-utia flag is a destructive experiment for copied
+state only. It directly sets the fee collector's bank balance before block
+execution without updating bank supply, which is useful for testing suspected
+ghost balance/cache leakage.
 
 Modes:
   finalize                FinalizeBlock only
@@ -67,6 +78,10 @@ Modes:
 			if err != nil {
 				return err
 			}
+			injectFeeCollectorUTIA, err := cmd.Flags().GetInt64(flagRunBlockInjectFeeCollectorUTIA)
+			if err != nil {
+				return err
+			}
 
 			r := &blockRunner{
 				serverCtx:              serverCtx,
@@ -75,6 +90,7 @@ Modes:
 				mode:                   mode,
 				commit:                 commit,
 				continueOnCheckTxError: continueOnCheckTxError,
+				injectFeeCollectorUTIA: injectFeeCollectorUTIA,
 			}
 			result, err := r.run()
 			if err != nil {
@@ -94,6 +110,7 @@ Modes:
 	cmd.Flags().String(flagRunBlockMode, runBlockModeProcessFinalize, "execution mode: finalize, process-finalize, check-process-finalize")
 	cmd.Flags().Bool(flagRunBlockCommit, false, "call Commit after FinalizeBlock and persist state to --home")
 	cmd.Flags().Bool(flagRunBlockContinueOnCheckTxError, false, "continue to ProcessProposal/FinalizeBlock after CheckTx errors; useful for inspecting cache side effects")
+	cmd.Flags().Int64(flagRunBlockInjectFeeCollectorUTIA, 0, "debug only: directly set fee_collector utia balance before execution, without updating supply")
 	return cmd
 }
 
@@ -104,6 +121,7 @@ type blockRunner struct {
 	mode                   string
 	commit                 bool
 	continueOnCheckTxError bool
+	injectFeeCollectorUTIA int64
 }
 
 type runBlockResult struct {
@@ -119,6 +137,7 @@ type runBlockResult struct {
 	FinalizeTxs              int               `json:"finalize_txs"`
 	BlobTxsUnwrapped         int               `json:"blob_txs_unwrapped"`
 	NextBlockExpectedAppHash string            `json:"next_block_expected_app_hash,omitempty"`
+	InjectedFeeCollector     *balanceInjection `json:"injected_fee_collector,omitempty"`
 	CheckTx                  []txResultSummary `json:"check_tx,omitempty"`
 	CheckTxError             string            `json:"check_tx_error,omitempty"`
 	ProcessProposal          *proposalSummary  `json:"process_proposal,omitempty"`
@@ -161,12 +180,23 @@ type storeHash struct {
 	Hash string `json:"hash"`
 }
 
+type balanceInjection struct {
+	Denom         string `json:"denom"`
+	Injected      string `json:"injected"`
+	BalanceBefore string `json:"balance_before"`
+	BalanceAfter  string `json:"balance_after"`
+	Supply        string `json:"supply"`
+}
+
 func (r *blockRunner) run() (*runBlockResult, error) {
 	if r.height <= 0 {
 		return nil, fmt.Errorf("--%s must be set to the block height to execute", flagHeight)
 	}
 	if err := validateRunBlockMode(r.mode); err != nil {
 		return nil, err
+	}
+	if r.injectFeeCollectorUTIA < 0 {
+		return nil, fmt.Errorf("--%s must be non-negative", flagRunBlockInjectFeeCollectorUTIA)
 	}
 
 	dataDir := filepath.Join(r.home, "data")
@@ -238,6 +268,18 @@ func (r *blockRunner) run() (*runBlockResult, error) {
 		FinalizeTxs:              len(finalizeTxs),
 		BlobTxsUnwrapped:         blobTxsUnwrapped,
 		NextBlockExpectedAppHash: expectedAppHash,
+	}
+
+	if r.injectFeeCollectorUTIA > 0 {
+		capp, ok := application.(*app.App)
+		if !ok {
+			return nil, fmt.Errorf("could not cast application to *app.App for fee collector injection")
+		}
+		injection, err := injectFeeCollectorUTIA(capp, cometState.ChainID, info.LastBlockHeight, r.injectFeeCollectorUTIA)
+		if err != nil {
+			return nil, err
+		}
+		result.InjectedFeeCollector = injection
 	}
 
 	if r.mode == runBlockModeCheckProcessFinalize {
@@ -441,4 +483,42 @@ func appStoreHashes(cms storetypes.CommitMultiStore, height int64) ([]storeHash,
 		}
 	}
 	return stores, fmt.Sprintf("%X", ci.Hash()), nil
+}
+
+func injectFeeCollectorUTIA(capp *app.App, chainID string, height int64, amount int64) (*balanceInjection, error) {
+	const denom = "utia"
+
+	ctx := sdk.NewContext(
+		capp.CommitMultiStore(),
+		cmtproto.Header{ChainID: chainID, Height: height},
+		false,
+		capp.Logger(),
+	)
+	feeCollector := authtypes.NewModuleAddress(authtypes.FeeCollectorName)
+
+	before := capp.BankKeeper.GetBalance(ctx, feeCollector, denom)
+	injected := sdk.NewInt64Coin(denom, amount)
+
+	keyCodec := collections.PairKeyCodec(sdk.AccAddressKey, collections.StringKey)
+	key, err := collections.EncodeKeyWithPrefix(banktypes.BalancesPrefix.Bytes(), keyCodec, collections.Join(feeCollector, denom))
+	if err != nil {
+		return nil, fmt.Errorf("encode fee collector balance key: %w", err)
+	}
+	value, err := banktypes.BalanceValueCodec.Encode(injected.Amount)
+	if err != nil {
+		return nil, fmt.Errorf("encode fee collector balance value: %w", err)
+	}
+	bankStore := ctx.KVStore(capp.GetKey(banktypes.StoreKey))
+	bankStore.Set(key, value)
+
+	after := capp.BankKeeper.GetBalance(ctx, feeCollector, denom)
+	supply := capp.BankKeeper.GetSupply(ctx, denom)
+
+	return &balanceInjection{
+		Denom:         denom,
+		Injected:      injected.Amount.String(),
+		BalanceBefore: before.Amount.String(),
+		BalanceAfter:  after.Amount.String(),
+		Supply:        supply.Amount.String(),
+	}, nil
 }
