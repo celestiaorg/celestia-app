@@ -29,14 +29,16 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
 	"github.com/klauspost/reedsolomon"
 )
 
 // Structural constants — invariants of the memory layout, not tuning knobs.
 const (
 	// rowSizeAlign is the quantum for both rowSize and the minimum
-	// accepted rowSize; SIMD-aligned to 64 bytes.
-	rowSizeAlign = 64
+	// accepted rowSize; matches the Leopard chunk size that the underlying
+	// SIMD GF(2^16) kernels require.
+	rowSizeAlign = field.LeopardChunkSize
 
 	// headerSize prefixes every slab's backing region. Sized to keep
 	// data 64-byte (SIMD) aligned; the first word is a back-pointer to
@@ -125,9 +127,22 @@ func NewPool(maxRowSize, rowCount int) *Pool {
 // n must equal the pool's rowCount; size must be a positive multiple
 // of 64 in [64, maxRowSize]. Violations panic.
 func (p *Pool) Get(n, size int) [][]byte {
-	if n == 0 {
-		return nil
-	}
+	return p.acquire(n, size).carve(n, size)
+}
+
+// GetRegion returns the n*size contiguous bytes of a slab's data region
+// without allocating the per-row [][]byte view that [Pool.Get] does.
+// The returned slice aliases pool memory and is released when passed
+// to [Pool.PutRegion] (or any one of its derived per-row sub-slices
+// passed to [Pool.Put]).
+func (p *Pool) GetRegion(n, size int) []byte {
+	s := p.acquire(n, size)
+	return s.region[headerSize : headerSize+n*size]
+}
+
+// acquire reserves a slab sized for n rows of size bytes — recycling from
+// the bucket's free list when available, allocating fresh otherwise.
+func (p *Pool) acquire(n, size int) *slab {
 	if n != p.rowCount {
 		panic(fmt.Sprintf("row: rowCount %d does not match pool's %d", n, p.rowCount))
 	}
@@ -139,7 +154,7 @@ func (p *Pool) Get(n, size int) [][]byte {
 	if s == nil {
 		s = bk.new(n * size)
 	}
-	return s.carve(n, size)
+	return s
 }
 
 // Put returns the slab backing bufs to its owning bucket. Panics on
@@ -149,11 +164,20 @@ func (p *Pool) Put(bufs [][]byte) {
 	if len(bufs) == 0 {
 		panic("row: Put called with empty bufs")
 	}
-	b := slabFromBuf(bufs[0])
+	p.putBuf(bufs[0])
+}
+
+// PutRegion returns the slab backing a contiguous region (such as the one
+// returned by [Pool.GetRegion]) to its owning bucket.
+func (p *Pool) PutRegion(region []byte) {
+	p.putBuf(region)
+}
+
+func (p *Pool) putBuf(buf []byte) {
+	b := slabFromBuf(buf)
 	if b == nil {
 		panic("row: Put called with empty buffer")
 	}
-
 	b.bucket.put(b)
 }
 
@@ -339,8 +363,11 @@ type slab struct {
 // stored headerSize bytes below the buffer's base. Symmetric with
 // writeSlabPtr. A buffer whose backing array begins within headerSize
 // of a page start can fault here — contract forbids passing such buffers.
+//
+// Recovery is cap-based, not len-based: a carved buffer re-sliced to
+// [:0:cap] keeps its backing pointer and remains valid for [Pool.Put].
 func slabFromBuf(buf []byte) *slab {
-	if len(buf) == 0 {
+	if cap(buf) == 0 {
 		return nil
 	}
 	base := unsafe.Pointer(unsafe.SliceData(buf))

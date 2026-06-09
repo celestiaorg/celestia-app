@@ -52,17 +52,51 @@ jobs:
     outputs:
       tag: ${{ steps.tag.outputs.value }}
 
-  test-nightly:
+  # Build the latency-monitor image once and share it with every test that
+  # needs it via an artifact, rather than rebuilding it in each matrix job.
+  build-latency-monitor-image:
     needs: build-e2e-image
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+
+      - name: Build latency-monitor Docker image
+        run: >-
+          docker build
+          -t "ghcr.io/celestiaorg/latency-monitor:${{ needs.build-e2e-image.outputs.tag }}"
+          -f docker/latency-monitor/Dockerfile .
+
+      - name: Save Docker image as artifact
+        run: docker save "ghcr.io/celestiaorg/latency-monitor:${{ needs.build-e2e-image.outputs.tag }}" | gzip > /tmp/latency-monitor-image.tar.gz
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
+        with:
+          name: latency-monitor-image
+          path: /tmp/latency-monitor-image.tar.gz
+          retention-days: 1
+
+  test-nightly:
+    needs: [build-e2e-image, build-latency-monitor-image]
+    runs-on: ubuntu-latest
+    # Generous budget so the retried sync test (up to 3 attempts) has headroom
+    # without prematurely killing the long-running upgrade/tx tests.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
+          # TestSyncToTipMocha syncs against the live mocha testnet and can
+          # intermittently stall when no connected peer is serving a usable
+          # state-sync snapshot. Retry it before failing the nightly. Other
+          # tests default to a single attempt so real failures aren't masked.
           - test: TestSyncToTipMocha
+            max-attempts: 3
           - test: TestAllUpgrades
           - test: TestTxSubmission
+            extra-image: true
+          - test: TestArabicaLoad
             extra-image: true
     steps:
       - name: Checkout code
@@ -84,18 +118,29 @@ jobs:
         if: ${{ inputs.tag == '' }}
         run: docker load < /tmp/e2e-image.tar.gz
 
-      - name: Build latency-monitor Docker image
+      - name: Download latency-monitor image artifact
         if: ${{ matrix.extra-image }}
-        run: >-
-          docker build
-          -t "ghcr.io/celestiaorg/latency-monitor:${{ needs.build-e2e-image.outputs.tag }}"
-          -f docker/latency-monitor/Dockerfile .
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c #v8.0.1
+        with:
+          name: latency-monitor-image
+          path: /tmp
+
+      - name: Load latency-monitor Docker image
+        if: ${{ matrix.extra-image }}
+        run: docker load < /tmp/latency-monitor-image.tar.gz
 
       - name: Run ${{ matrix.test }}
-        run: make test-docker-e2e test=${{ matrix.test }}
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        with:
+          # Per-attempt cap; comfortably above a single run of any nightly test.
+          timeout_minutes: 30
+          # Defaults to 1 attempt (no retry) for tests that don't opt in.
+          max_attempts: ${{ matrix.max-attempts || 1 }}
+          command: make test-docker-e2e test=${{ matrix.test }}
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
+          ARABICA_PRIV_KEY: ${{ secrets.ARABICA_PRIV_KEY }}
           CELESTIA_APP_VERSION: ${{ needs.build-e2e-image.outputs.tag }}
           PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
           PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}

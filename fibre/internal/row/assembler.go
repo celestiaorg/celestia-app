@@ -8,8 +8,8 @@ import (
 )
 
 // Assembler assembles originalRows+parityRows row sets for Reed-Solomon
-// encoding. It owns a [Pool] sized for its slab shape; callers don't
-// need to know the exact row count it requests internally.
+// encoding. It owns a [Pool] sized for the expected number of rows and a
+// [Pool] for merkle trees.
 //
 // Original rows are a hybrid view over the input data: full middle
 // rows alias data zero-copy, while two partial rows — row 0 (reserves
@@ -18,9 +18,12 @@ import (
 //
 // Assembler is safe for concurrent use.
 type Assembler struct {
-	originalRows int
-	parityRows   int
-	pool         *Pool
+	originalRows   int
+	parityRows     int
+	treeBufferSize int
+
+	rowsPool *Pool
+	treePool *Pool
 	// zeroRow is the shared, immutable all-zeros row that empty trailing
 	// original rows alias. Sized to maxRowSize; aliased sub-slices are
 	// used for each blob's rowSize.
@@ -28,23 +31,25 @@ type Assembler struct {
 }
 
 // NewAssembler creates an Assembler for originalRows original rows and
-// parityRows parity rows. It constructs an internal [Pool] sized for
-// the assembler's slab shape (parityRows + partialRows) and bounded by
-// maxRowSize. maxRowSize must be a positive multiple of 64.
-func NewAssembler(originalRows, parityRows, maxRowSize int) (*Assembler, error) {
+// parityRows parity rows. It constructs internal [Pool]s sized for the
+// assembler's slab shape (parityRows + partialRows) bounded by maxRowSize
+// and a tree pool for per-blob Merkle-tree node storage sized by treeBufferSize.
+func NewAssembler(originalRows, parityRows, maxRowSize, treeBufferSize int) (*Assembler, error) {
 	if originalRows <= 0 || parityRows <= 0 {
 		return nil, fmt.Errorf("originalRows=%d parityRows=%d must be positive", originalRows, parityRows)
 	}
 	return &Assembler{
-		originalRows: originalRows,
-		parityRows:   parityRows,
-		pool:         NewPool(maxRowSize, parityRows+partialRows),
-		zeroRow:      reedsolomon.AllocAligned(1, maxRowSize)[0],
+		originalRows:   originalRows,
+		parityRows:     parityRows,
+		rowsPool:       NewPool(maxRowSize, parityRows+partialRows),
+		treePool:       NewPool(treeBufferSize, 1),
+		treeBufferSize: treeBufferSize,
+		zeroRow:        reedsolomon.AllocAligned(1, maxRowSize)[0],
 	}, nil
 }
 
 // Assemble returns an [Assembly] holding the originalRows+parityRows
-// row view for encoding data at the given rowSize. Use [Assembly.Rows]
+// row view for encoding data at the given rowSize. Use [Assembly.Buffers]
 // to access the rows; [Assembly.Free] releases the pooled storage.
 //
 // rows[:originalRows] are original rows: row 0 reserves firstRowOffset
@@ -61,7 +66,7 @@ func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly
 	// pull one slab worth of buffers and zero them. Partial buffers must
 	// be zeroed because we only write the data-backed portion below; the
 	// parity rows because the encoder expects them clean on entry.
-	pooled := a.pool.Get(a.parityRows+partialRows, rowSize)
+	pooled := a.rowsPool.Get(a.parityRows+partialRows, rowSize)
 	for _, p := range pooled {
 		clear(p)
 	}
@@ -101,37 +106,38 @@ func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly
 	}
 
 	return &Assembly{
-		pool:  a.pool,
-		slots: pooled,
-		rows:  rows,
+		asm:     a,
+		slots:   pooled,
+		treeBuf: a.treePool.GetRegion(1, a.treeBufferSize),
+		rows:    rows,
 	}
 }
 
-// Assembly owns the pooled slab produced by a single [Assembler.Assemble]
+// Assembly owns pooled data and tree slabs produced by a single [Assembler.Assemble]
 // call. Release is all-or-nothing via [Assembly.Free]; the slab is
 // returned to the pool as one unit.
 //
 // Assembly is safe for concurrent use.
 type Assembly struct {
-	mu    sync.RWMutex
-	pool  *Pool
-	slots [][]byte // [partial[0], partial[1], parity...]; nil after Free
-	rows  [][]byte // originalRows+parityRows assembled view; nil after Free
+	asm *Assembler
+
+	mu      sync.RWMutex
+	slots   [][]byte // [partial[0], partial[1], parity...]; nil after Free
+	treeBuf []byte   // pooled Merkle-tree node storage; nil after Free
+	rows    [][]byte // originalRows+parityRows assembled view; nil after Free
 }
 
-// Rows returns the originalRows+parityRows assembled row view. Returns
-// nil after [Assembly.Free].
-//
-// The returned slice shares its backing array with the Assembly; callers
-// must not use it concurrently with Free, which nils the field. In practice
-// Rows is intended for the encode phase before any Free has been issued.
-func (a *Assembly) Rows() [][]byte {
+// Buffers returns the originalRows+parityRows assembled row view and the pooled
+// Merkle-tree node storage for this blob. Both alias the Assembly's pooled
+// storage and are valid until [Assembly.Free] (which nils them); callers must
+// not use them concurrently with Free.
+func (a *Assembly) Buffers() (rows [][]byte, tree []byte) {
 	if a == nil {
-		return nil
+		return nil, nil
 	}
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.rows
+	return a.rows, a.treeBuf
 }
 
 // Released reports whether [Assembly.Free] has run. After release the pooled
@@ -145,8 +151,8 @@ func (a *Assembly) Released() bool {
 	return a.slots == nil
 }
 
-// Free returns the pooled slab (parity + partial-row buffers) back to
-// the pool. Subsequent calls are no-ops. Safe to call concurrently.
+// Free returns the pooled row slab (parity + partial-row buffers) and the tree
+// buffer to their pools. Subsequent calls are no-ops. Safe to call concurrently.
 func (a *Assembly) Free() {
 	if a == nil {
 		return
@@ -156,8 +162,9 @@ func (a *Assembly) Free() {
 	if a.slots == nil {
 		return
 	}
-	a.pool.Put(a.slots)
-	a.slots, a.rows = nil, nil
+	a.asm.rowsPool.Put(a.slots)
+	a.asm.treePool.PutRegion(a.treeBuf)
+	a.slots, a.treeBuf, a.rows = nil, nil, nil
 }
 
 // partialRows is the per-blob overhead beyond parity: two partial-row

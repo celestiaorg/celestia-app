@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
@@ -31,7 +31,7 @@ func TestStore(t *testing.T) {
 		{"Get_CleansOrphanMarker", testStoreGetCleansOrphanMarker},
 		{"Get_SkipsOrphanToSibling", testStoreGetSkipsOrphanToSibling},
 		{"Get_AllOrphans", testStoreGetAllOrphans},
-		{"PutGet_PreservesRLCCoefficients", testStorePutGetPreservesRLCCoefficients},
+		{"PutGet_PreservesRLCs", testStorePutGetPreservesRLCs},
 		{"PruneBefore_RemovesShardAndPromise", testStorePruneBeforeRemovesShardAndPromise},
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
 		{"PruneBefore_NonUTCCutoff_DoesNotPruneUnexpired", testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired},
@@ -75,7 +75,7 @@ func testStorePutGetRoundtrip(t *testing.T, store *fibre.Store, _ string) {
 	require.Equal(t, promise.Commitment, gotPromise.Commitment)
 }
 
-func testStorePutGetPreservesRLCCoefficients(t *testing.T, store *fibre.Store, _ string) {
+func testStorePutGetPreservesRLCs(t *testing.T, store *fibre.Store, _ string) {
 	ctx := t.Context()
 
 	blob := makeTestBlobV0(t, 256)
@@ -89,11 +89,9 @@ func testStorePutGetPreservesRLCCoefficients(t *testing.T, store *fibre.Store, _
 	require.NoError(t, err)
 	require.Len(t, gotShard.Rows, 3)
 
-	// Coefficients and root must survive the round-trip
-	require.Equal(t, shard.Coefficients, gotShard.Coefficients,
-		"RLC coefficients should be preserved after store round-trip")
-	require.Equal(t, shard.Root, gotShard.Root,
-		"RLC root should be preserved after store round-trip")
+	// RLCs must survive the round-trip
+	require.Equal(t, shard.Rlcs, gotShard.Rlcs,
+		"RLCs should be preserved after store round-trip")
 }
 
 func testStorePutSameCommitmentSamePromise(t *testing.T, store *fibre.Store, _ string) {
@@ -482,36 +480,27 @@ func makeTestStore(t *testing.T) (*fibre.Store, string) {
 func makeShardFrom(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobShard {
 	t.Helper()
 
-	rows := make([]*types.BlobRow, len(indices))
-	for i, idx := range indices {
-		rowProof, err := blob.Row(idx)
-		require.NoError(t, err)
-		rows[i] = &types.BlobRow{
-			Index: uint32(idx),
-			Data:  rowProof.Row,
-			Proof: rowProof.RowProof.RowProof,
-		}
-	}
+	rows := make([]*types.BlobRow, 0, len(indices))
+	require.NoError(t, blob.RowProofs(indices, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}))
 
 	return &types.BlobShard{
 		Rows: rows,
-		Root: make([]byte, 32),
 	}
 }
 
 // makeShardWithRLC extracts a shard from a blob at the given row indices,
-// including RLC coefficients and root.
+// including its RLC vector.
 func makeShardWithRLC(t *testing.T, blob *fibre.Blob, indices ...int) *types.BlobShard {
 	t.Helper()
 	shard := makeShardFrom(t, blob, indices...)
 
-	rlcCoeffs := blob.RLC()
-	coeffBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, c := range rlcCoeffs {
-		b := field.ToBytes128(c)
-		copy(coeffBytes[i*16:(i+1)*16], b[:])
-	}
-	shard.Coefficients = coeffBytes
+	shard.Rlcs = rlc.Marshal(blob.RLC())
 
 	return shard
 }

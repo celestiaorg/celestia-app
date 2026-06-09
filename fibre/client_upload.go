@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
@@ -51,28 +51,22 @@ func WithAwaitAllSignatures() UploadOption {
 // May keep uploading data in background after returning successfully; use [Client.Await]
 // or [Client.Stop] to drain.
 //
-// Upload takes ownership of the blob and releases its pooled storage when all
-// background uploads complete. The blob must not be reused after calling Upload;
-// create a new one with [NewBlob] for each upload.
+// Canceling Context right after Upload drops remaining background uploads.
+// Avoid immediate cancels if uploads redundancy matters (it usually does).
 //
+// The blob must not be reused after calling [Blob.Free].
 // Returns [ErrClientClosed] if the client has been closed.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
-	if !blob.consume() {
-		return result, ErrBlobConsumed
-	}
-	defer func() {
-		// don't cleanup on success as uploads may still be running
-		if err != nil {
-			blob.asm.Free()
-		}
-	}()
-
 	if !c.started.Load() {
-		return result, errors.New("fibre client is not started")
+		return result, errors.New("fibre: client is not started")
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
 	}
+	if !blob.retain() {
+		return result, errors.New("fibre: blob already released; create a new blob to upload")
+	}
+	defer blob.release()
 
 	opt := uploadOptions{keyName: c.Config.DefaultKeyName}
 	for _, o := range opts {
@@ -153,7 +147,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	)
 
 	// 3) upload data
-	if err = c.uploadShards(ctx, requests, blob, sigSet); err != nil {
+	if err = c.uploadShards(ctx, shardMap, requests, blob, sigSet); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload")
 		return result, err
@@ -245,6 +239,7 @@ func (c *Client) signedPromise(ns share.Namespace, blob *Blob, height uint64, ke
 func (c *Client) uploadTo(
 	ctx context.Context,
 	val *core.Validator,
+	rowIndices []int,
 	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
@@ -259,7 +254,7 @@ func (c *Client) uploadTo(
 	log := c.log.With(
 		"validator", val.Address.String(),
 		"blob_commitment", blob.ID().Commitment(),
-		"rows_count", len(req.Shard.Rows),
+		"rows_count", len(rowIndices),
 	)
 
 	uploadOk := false
@@ -269,7 +264,7 @@ func (c *Client) uploadTo(
 	ctx, span := c.tracer.Start(ctx, "upload_to",
 		trace.WithAttributes(
 			attribute.String("validator_address", valAddrStr),
-			attribute.Int("rows_count", len(req.Shard.Rows)),
+			attribute.Int("rows_count", len(rowIndices)),
 		),
 	)
 	defer span.End()
@@ -286,19 +281,24 @@ func (c *Client) uploadTo(
 	}
 	span.AddEvent("client_acquired")
 
-	// Generate proofs in parallel per request (~39% faster for max blob size).
-	for i, rowPb := range req.Shard.Rows {
-		row, err := blob.Row(int(rowPb.Index))
-		if err != nil {
-			log.WarnContext(ctx, "failed to generate proof for row", "row_index", rowPb.Index, "error", err)
-			span.RecordError(err, trace.WithAttributes(attribute.Int("row_index", int(rowPb.Index))))
-			span.SetStatus(codes.Error, "failed to generate proof for row")
-			return false
-		}
-		req.Shard.Rows[i].Data = row.Row
-		req.Shard.Rows[i].Proof = row.RowProof.RowProof
+	blobRows := make([]types.BlobRow, len(rowIndices))
+	req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
+	i := 0
+	err = blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+		br := &blobRows[i]
+		br.Index = uint32(index)
+		br.Data = row
+		br.Proof = proof
+		req.Shard.Rows[i] = br
+		i++
+	})
+	if err != nil {
+		log.WarnContext(ctx, "failed to generate row proofs", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to generate row proofs")
+		return false
 	}
-	span.AddEvent("proofs_generated")
+	span.AddEvent("proofs_added")
 
 	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 	defer rpcCancel()
@@ -343,15 +343,19 @@ func (c *Client) uploadTo(
 // quorum is reached, all responses are in, or ctx is done. Background
 // goroutines continue best-effort delivery to remaining peers past quorum;
 // they are tracked via [c.closeWg] and unwind on client stop or caller cancel.
-// The terminal goroutine releases the blob's pooled storage via blob.asm.Free.
+// The terminal goroutine releases the internal refcount via [Blob.release];
+// pool storage is freed once both that release and Client.Upload's deferred
+// [Blob.Free] of the user reference have fired.
 func (c *Client) uploadShards(
 	ctx context.Context,
+	shardMap validator.ShardMap,
 	requests map[*core.Validator]*types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
 ) error {
+	blob.retain()
 	if len(requests) == 0 {
-		blob.asm.Free()
+		blob.release()
 		return nil
 	}
 
@@ -371,24 +375,23 @@ func (c *Client) uploadShards(
 			defer func() {
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
-					blob.asm.Free()
+					blob.release()
 				}
 				c.closeWg.Done()
 			}()
 
-			hasEnough := c.uploadTo(ctx, val, req, blob, sigSet)
+			hasEnough := c.uploadTo(ctx, val, shardMap[val], req, blob, sigSet)
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}
 		}(val, req)
 	}
 
-	// No ctx.Done case: returning early on cancel would let Upload's err-path
-	// defer call blob.asm.Free() while in-flight uploadTo goroutines still
-	// reference the pooled (potentially mmap'd) row buffers via the gRPC
-	// request, which races and can segfault. Cancellation propagates through
-	// uploadTo's ctx.Err() check, so all goroutines drain and
-	// responsesExhaustedCh fires.
+	// No ctx.Done case: returning early on cancel would let Upload's deferred
+	// [Blob.Free] race the in-flight uploadTo goroutines still referencing
+	// pooled (potentially mmap'd) row buffers via the gRPC request, which
+	// can segfault. Cancellation propagates through uploadTo's ctx.Err()
+	// check, so all goroutines drain and responsesExhaustedCh fires.
 	select {
 	case <-responsesExhaustedCh: // every goroutine finished; terminal Free already fired
 		if ctx.Err() != nil {
@@ -399,35 +402,26 @@ func (c *Client) uploadShards(
 	return nil
 }
 
-// makeUploadRequests constructs the requests map for all validators.
+// makeUploadRequests builds the per-validator request envelopes — the shared
+// promise and RLC coefficients. The shard's rows (data + proofs) are built
+// per validator by uploadTo, in the fan-out goroutines.
 func makeUploadRequests(
 	shardMap validator.ShardMap,
 	pbPromise *types.PaymentPromise,
-	rlcCoeffs []field.GF128,
+	rlcs rlc.Vector,
 ) map[*core.Validator]*types.UploadShardRequest {
-	// flatten rlc coefficients into a single byte slice (16 bytes per coefficient)
-	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, coeff := range rlcCoeffs {
-		b := field.ToBytes128(coeff)
-		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
-	}
+	rlcsBytes := rlc.Marshal(rlcs)
 
+	reqs := make([]types.UploadShardRequest, len(shardMap))
+	shards := make([]types.BlobShard, len(shardMap))
 	requests := make(map[*core.Validator]*types.UploadShardRequest, len(shardMap))
-	for val, rowIndices := range shardMap {
-		rows := make([]*types.BlobRow, 0, len(rowIndices))
-		for _, rowIndex := range rowIndices {
-			rows = append(rows, &types.BlobRow{
-				Index: uint32(rowIndex),
-			})
-		}
-		req := &types.UploadShardRequest{
-			Promise: pbPromise,
-			Shard: &types.BlobShard{
-				Rows:         rows,
-				Coefficients: rlcCoeffsBytes,
-			},
-		}
-		requests[val] = req
+	i := 0
+	for val := range shardMap {
+		shards[i].Rlcs = rlcsBytes
+		reqs[i].Promise = pbPromise
+		reqs[i].Shard = &shards[i]
+		requests[val] = &reqs[i]
+		i++
 	}
 	return requests
 }

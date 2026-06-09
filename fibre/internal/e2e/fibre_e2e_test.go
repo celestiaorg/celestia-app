@@ -272,8 +272,7 @@ func (s *FibreE2ETestSuite) Test03Put() {
 	require.NoError(t, err)
 	require.NotNil(t, shard)
 	require.NotEmpty(t, shard.Rows, "stored shard should have rows")
-	require.NotNil(t, shard.GetRoot(), "stored shard should have an RLC root")
-	require.Len(t, shard.GetRoot(), 32, "RLC root should be 32 bytes")
+	require.NotEmpty(t, shard.GetRlcs(), "stored shard should have RLCs")
 
 	// verify the PayForFibre tx was included on chain by waiting for the block.
 	_, err = s.cctx.WaitForTx(result.TxHash, 5)

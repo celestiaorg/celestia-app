@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"sync/atomic"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/app"
@@ -28,6 +29,10 @@ import (
 // Starting from 20000 to avoid conflicts with common ports
 // We use a larger increment on macOS to account for port release delays
 var portCounter atomic.Int64
+
+// portWrapOffset shifts the port sequence by 1 each time we wrap past 65535,
+// so repeated cycles land on different ports.
+var portWrapOffset atomic.Int64
 
 // portIncrement defines how much to increment between port allocations
 // Mimic cicaidas by using a prime number to avoid patterns and conflicts with other allocation schemes
@@ -57,6 +62,34 @@ func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.R
 	}
 
 	return node.Tx(context.Background(), hash, false)
+}
+
+// QueryWithoutProofWithRetry polls for a tx by hash until it is indexed
+// or the context is cancelled.
+func QueryWithoutProofWithRetry(ctx context.Context, clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) {
+	hash, err := hex.DecodeString(hashHexStr)
+	if err != nil {
+		return nil, err
+	}
+
+	node, err := clientCtx.GetNode()
+	if err != nil {
+		return nil, err
+	}
+
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("tx %s not found: %w", hashHexStr, ctx.Err())
+		case <-ticker.C:
+			res, err := node.Tx(ctx, hash, false)
+			if err == nil {
+				return res, nil
+			}
+		}
+	}
 }
 
 func NewKeyring(accounts ...string) (keyring.Keyring, []sdk.AccAddress) {
@@ -115,15 +148,6 @@ func GetFreePort() (int, error) {
 	return l.LocalAddr().(*net.UDPAddr).Port, nil
 }
 
-// MustGetFreePort returns a free port and panics in case of an error.
-func MustGetFreePort() int {
-	port, err := GetFreePort()
-	if err != nil {
-		panic(err)
-	}
-	return port
-}
-
 // isPortAvailable checks if a port is available by attempting to listen on it.
 // It checks both TCP and UDP to ensure the port is truly available across platforms.
 func isPortAvailable(port int) bool {
@@ -157,9 +181,13 @@ func isPortAvailable(port int) bool {
 // Uses larger increments to avoid conflicts from delayed port releases on macOS.
 func GetDeterministicPort() int {
 	for {
-		port := int(portCounter.Add(portIncrement))
-		if isPortAvailable(port) {
-			return port
+		raw := int(portCounter.Add(portIncrement))
+		if raw > 65535 {
+			portCounter.Store(20000 + portWrapOffset.Add(1))
+			raw = int(portCounter.Add(portIncrement))
+		}
+		if isPortAvailable(raw) {
+			return raw
 		}
 		// On macOS, ports may not be immediately available after closing
 		// Continue with next increment if port is still bound

@@ -3,7 +3,6 @@ package fibre
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +44,7 @@ func TestNewBlob_EncodeDecodeRoundTrip(t *testing.T) {
 
 			blob, err := NewBlob(data, cfg)
 			require.NoError(t, err)
-			defer blob.asm.Free()
+			defer blob.Free()
 
 			require.Equal(t, tt.dataSize, blob.DataSize())
 			require.Equal(t, data, blob.Data())
@@ -53,64 +52,43 @@ func TestNewBlob_EncodeDecodeRoundTrip(t *testing.T) {
 	}
 }
 
-func TestBlob_Reconstruct(t *testing.T) {
-	testData := []byte("test erasure coding reconstruction")
-	cfg := DefaultBlobConfigV0()
-
-	blob, err := NewBlob(testData, cfg)
-	require.NoError(t, err)
-	defer blob.asm.Free()
-
-	totalRows := cfg.OriginalRows + cfg.ParityRows
-	allRows := make([]*rsema1d.RowInclusionProof, totalRows)
-	for i := range totalRows {
-		row, err := blob.Row(i)
-		require.NoError(t, err)
-		allRows[i] = row
-	}
-
-	testReconstruct := func(t *testing.T, rows []*rsema1d.RowInclusionProof) {
-		reconstructBlob, err := NewEmptyBlob(blob.ID())
-		require.NoError(t, err)
-
-		for _, row := range rows {
-			require.NoError(t, reconstructBlob.VerifyRow(row))
-			require.True(t, reconstructBlob.SetRow(row))
-		}
-
-		require.NoError(t, reconstructBlob.Reconstruct())
-		require.Equal(t, testData, reconstructBlob.Data())
-	}
-
-	t.Run("FirstKRows", func(t *testing.T) {
-		testReconstruct(t, allRows[:cfg.OriginalRows])
-	})
-
-	t.Run("LastKRows", func(t *testing.T) {
-		testReconstruct(t, allRows[totalRows-cfg.OriginalRows:])
-	})
-
-	t.Run("MixedRows", func(t *testing.T) {
-		mixedRows := make([]*rsema1d.RowInclusionProof, 0, cfg.OriginalRows)
-		for i := 0; i < cfg.OriginalRows; i++ {
-			idx := i * 2
-			if idx < totalRows {
-				mixedRows = append(mixedRows, allRows[idx])
-			}
-		}
-		testReconstruct(t, mixedRows)
-	})
-}
-
-func TestBlob_RowAfterRelease(t *testing.T) {
+func TestBlob_RowProofsAfterRelease(t *testing.T) {
 	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
 	require.NoError(t, err)
 
-	_, err = blob.Row(0)
+	noop := func(int, []byte, [][]byte) {}
+	err = blob.RowProofs([]int{0}, noop)
 	require.NoError(t, err)
 
-	blob.asm.Free()
+	blob.Free()
 
-	_, err = blob.Row(0)
+	err = blob.RowProofs([]int{0}, noop)
 	require.Error(t, err)
+}
+
+// TestBlob_RetainRefusesAfterRelease verifies the refcount cannot be resurrected
+// once pooled storage has been released: retain returns false instead of bumping
+// 0 -> 1. This is what stops a freed blob from being re-uploaded into memory the
+// pool may have recycled.
+func TestBlob_RetainRefusesAfterRelease(t *testing.T) {
+	blob, err := NewBlob([]byte("test"), DefaultBlobConfigV0())
+	require.NoError(t, err)
+
+	// While alive, an additional non-user owner can retain.
+	require.True(t, blob.retain())
+	require.False(t, blob.released())
+
+	// The user's Free drops one ref; the extra owner keeps storage alive.
+	blob.Free()
+	require.False(t, blob.released())
+	err = blob.RowProofs([]int{0}, func(int, []byte, [][]byte) {})
+	require.NoError(t, err)
+
+	// The last owner releases -> storage returns to the pool.
+	blob.release()
+	require.True(t, blob.released())
+
+	// A retain now must refuse rather than resurrect the freed blob.
+	require.False(t, blob.retain())
+	require.True(t, blob.released())
 }

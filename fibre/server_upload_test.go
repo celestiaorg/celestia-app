@@ -8,7 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/fibre"
 	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -195,30 +195,20 @@ func makeTestRequest(
 	require.NotEmpty(t, rowIndices, "server validator has no rows assigned")
 
 	// create rows with proofs
-	rows := make([]*types.BlobRow, len(rowIndices))
-	for i, rowIndex := range rowIndices {
-		rowProof, err := blob.Row(rowIndex)
-		require.NoError(t, err)
-		rows[i] = &types.BlobRow{
-			Index: uint32(rowIndex),
-			Data:  rowProof.Row,
-			Proof: rowProof.RowProof.RowProof,
-		}
-	}
-
-	// flatten RLC values
-	rlcCoeffs := blob.RLC()
-	rlcCoeffsBytes := make([]byte, len(rlcCoeffs)*16)
-	for i, coeff := range rlcCoeffs {
-		b := field.ToBytes128(coeff)
-		copy(rlcCoeffsBytes[i*16:(i+1)*16], b[:])
-	}
+	rows := make([]*types.BlobRow, 0, len(rowIndices))
+	require.NoError(t, blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+		rows = append(rows, &types.BlobRow{
+			Index: uint32(index),
+			Data:  row,
+			Proof: proof,
+		})
+	}))
 
 	req := &types.UploadShardRequest{
 		Promise: promisePb,
 		Shard: &types.BlobShard{
-			Rows:         rows,
-			Coefficients: rlcCoeffsBytes,
+			Rows: rows,
+			Rlcs: rlc.Marshal(blob.RLC()),
 		},
 	}
 

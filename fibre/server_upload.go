@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -177,8 +177,7 @@ func (s *Server) verifyAssignment(ctx context.Context, promise *PaymentPromise, 
 }
 
 // verifyShard verifies the shard's rows and proofs using a pooled
-// [rsema1d.Verifier], blocking until one is free. Sets the RLC root on the
-// shard for inclusion-proof verification by non-RLC downloaders.
+// [rsema1d.Verifier], blocking until one is free.
 func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *PaymentPromise, shard *types.BlobShard) error {
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
@@ -192,7 +191,7 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
-	rlcCoeffs, err := parseRLCCoeffs(shard.GetCoefficients(), blobCfg.OriginalRows)
+	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
 	if err != nil {
 		return err
 	}
@@ -212,13 +211,10 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	}
 	defer s.putVerifier(verifier)
 
-	rlcRoot, err := verifier.Verify(promise.Commitment, rows, rlcCoeffs)
-	if err != nil {
+	if err := verifier.Verify(promise.Commitment, rows, rlcs); err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)
 	}
 
-	// set RLC root, keep coefficients as-is for storage
-	shard.Root = rlcRoot
 	return nil
 }
 
@@ -232,7 +228,6 @@ func newVerifierPool(n int) chan *rsema1d.Verifier {
 		v, err := rsema1d.NewVerifier(&rsema1d.Config{
 			K:           blobCfg.OriginalRows,
 			N:           blobCfg.ParityRows,
-			RowSize:     0, // variable; resolved per Verify call from proof rows
 			WorkerCount: 1,
 		})
 		if err != nil {
@@ -262,23 +257,6 @@ func (s *Server) putVerifier(v *rsema1d.Verifier) {
 		return
 	}
 	s.verifiers <- v
-}
-
-// parseRLCCoeffs validates and converts RLC coefficients from bytes to field elements.
-func parseRLCCoeffs(rlcCoeffs []byte, expectedCount int) ([]field.GF128, error) {
-	expectedLen := expectedCount * 16
-	if len(rlcCoeffs) != expectedLen {
-		return nil, fmt.Errorf("expected %d bytes for %d rlc coefficients, got %d", expectedLen, expectedCount, len(rlcCoeffs))
-	}
-
-	coeffs := make([]field.GF128, expectedCount)
-	for i := range expectedCount {
-		var coeffArray [16]byte
-		copy(coeffArray[:], rlcCoeffs[i*16:(i+1)*16])
-		coeffs[i] = field.FromBytes128(coeffArray)
-	}
-
-	return coeffs, nil
 }
 
 // parseRowSize determines and validates the row size from all rows.

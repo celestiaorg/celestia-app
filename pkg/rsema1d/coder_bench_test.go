@@ -1,9 +1,11 @@
-package rsema1d
+package rsema1d_test
 
 import (
 	"math/rand/v2"
 	"runtime"
 	"testing"
+
+	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
 )
 
 func BenchmarkCoderEncode(b *testing.B) {
@@ -31,7 +33,7 @@ func BenchmarkCoderEncode(b *testing.B) {
 			if workers == 0 {
 				workers = runtime.NumCPU()
 			}
-			coder, err := NewCoder(&Config{K: sz.k, N: sz.n, WorkerCount: workers})
+			coder, err := rsema1d.NewCoder(&rsema1d.Config{K: sz.k, N: sz.n, WorkerCount: workers})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -54,64 +56,6 @@ func BenchmarkCoderEncode(b *testing.B) {
 					clear(rows[i])
 				}
 				if _, err := coder.Encode(rows); err != nil {
-					b.Fatal(err)
-				}
-			}
-		})
-	}
-}
-
-func BenchmarkCoderReconstruct(b *testing.B) {
-	sizes := []struct {
-		name    string
-		k, n    int
-		rowSize int
-	}{
-		{"4x4x64", 4, 4, 64},
-		{"64x64x512", 64, 64, 512},
-		{"1024x1024x1024", 1024, 1024, 1024},
-	}
-
-	for _, sz := range sizes {
-		b.Run(sz.name, func(b *testing.B) {
-			config := &Config{K: sz.k, N: sz.n, RowSize: sz.rowSize, WorkerCount: 1}
-			data := make([][]byte, sz.k)
-			for i := range sz.k {
-				data[i] = make([]byte, sz.rowSize)
-				for j := range sz.rowSize {
-					data[i][j] = byte(rand.IntN(256))
-				}
-			}
-
-			extData, _, _, err := Encode(data, config)
-			if err != nil {
-				b.Fatal(err)
-			}
-
-			// mixed indices: half original, half parity
-			indices := make([]int, sz.k)
-			halfK := sz.k / 2
-			for i := range halfK {
-				indices[i] = i
-			}
-			for i := range sz.k - halfK {
-				indices[halfK+i] = sz.k + i
-			}
-
-			rows := make([][]byte, sz.k)
-			for i, idx := range indices {
-				rows[i] = extData.rows[idx]
-			}
-
-			coder, _ := NewCoder(&Config{K: sz.k, N: sz.n, WorkerCount: 1})
-			b.SetBytes(int64(sz.k * sz.rowSize))
-			b.ResetTimer()
-			for b.Loop() {
-				reconRows := make([][]byte, sz.k+sz.n)
-				for i, idx := range indices {
-					reconRows[idx] = rows[i]
-				}
-				if _, err := coder.Reconstruct(reconRows); err != nil {
 					b.Fatal(err)
 				}
 			}
