@@ -163,7 +163,12 @@ func (r *blockRunner) run() (*runBlockResult, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open application db: %w", err)
 	}
-	defer appDB.Close()
+	appOwnsDB := false
+	defer func() {
+		if !appOwnsDB {
+			_ = appDB.Close()
+		}
+	}()
 
 	cmtBackend := cmtdbm.BackendType(r.serverCtx.Config.DBBackend)
 	blockDB, err := cmtdbm.NewDB("blockstore", cmtBackend, dataDir)
@@ -189,6 +194,7 @@ func (r *blockRunner) run() (*runBlockResult, error) {
 	}
 
 	application := NewAppServer(r.serverCtx.Logger, appDB, nil, r.serverCtx.Viper)
+	appOwnsDB = true
 	defer application.Close()
 	info, err := application.Info(&abci.RequestInfo{})
 	if err != nil {

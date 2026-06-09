@@ -2,9 +2,6 @@ package cmd
 
 import (
 	"archive/tar"
-	"compress/gzip"
-	"crypto/sha256"
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
@@ -20,13 +17,20 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/app"
 	cmtdbm "github.com/cometbft/cometbft-db"
 	sm "github.com/cometbft/cometbft/state"
-	"github.com/cometbft/cometbft/store"
-	"github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/spf13/cobra"
+)
+
+import (
+	"compress/gzip"
+	"crypto/sha256"
+	"encoding/json"
+
+	"github.com/cometbft/cometbft/store"
+	"github.com/cometbft/cometbft/types"
 )
 
 const (
