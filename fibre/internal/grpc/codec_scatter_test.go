@@ -36,9 +36,8 @@ func TestScatterMarshalWireParity(t *testing.T) {
 					Signature:         mkBytes(rng, 64),
 				},
 				Shard: &types.BlobShard{
-					Rows:         []*types.BlobRow{{Index: 1, Data: mkBytes(rng, 64), Proof: [][]byte{mkBytes(rng, 32)}}},
-					Coefficients: mkBytes(rng, 64),
-					Root:         mkBytes(rng, 32),
+					Rows: []*types.BlobRow{{Index: 1, Data: mkBytes(rng, 64), Proof: [][]byte{mkBytes(rng, 32)}}},
+					Rlcs: mkBytes(rng, 64),
 				},
 			},
 		},
@@ -68,8 +67,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 						}
 						return rows
 					}(),
-					Coefficients: mkBytes(rng, 128),
-					Root:         mkBytes(rng, 32),
+					Rlcs: mkBytes(rng, 128),
 				},
 			},
 		},
@@ -102,7 +100,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 				},
 				Shard: &types.BlobShard{
 					Rows: []*types.BlobRow{{Index: 5, Proof: [][]byte{mkBytes(rng, 32), mkBytes(rng, 32)}}},
-					Root: mkBytes(rng, 32),
+					Rlcs: mkBytes(rng, 32),
 				},
 			},
 		},
@@ -194,9 +192,8 @@ func FuzzScatterMarshalParity(f *testing.F) {
 				Signature:         mk(64),
 			},
 			Shard: &types.BlobShard{
-				Rows:         rows,
-				Coefficients: mk(int(dataLen)),
-				Root:         mk(32),
+				Rows: rows,
+				Rlcs: mk(int(dataLen)),
 			},
 		}
 

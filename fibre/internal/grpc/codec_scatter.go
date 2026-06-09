@@ -7,7 +7,7 @@ import (
 )
 
 // Scatter-gather marshaler for UploadShardRequest. Emits row payloads
-// (BlobRow.Data, BlobRow.Proof, BlobShard.Coefficients, BlobShard.Root) as
+// (BlobRow.Data, BlobRow.Proof, BlobShard.Rlcs) as
 // zero-copy mem.SliceBuffer views over the caller's existing buffers
 // instead of copying them into a single contiguous wire buffer. The
 // resulting bytes are bit-identical to gogoproto's MarshalToSizedBuffer.
@@ -24,9 +24,8 @@ const (
 	uploadShardRequestFieldPromise = 1
 	uploadShardRequestFieldShard   = 2
 
-	blobShardFieldRows         = 1
-	blobShardFieldCoefficients = 2
-	blobShardFieldRoot         = 3
+	blobShardFieldRows = 1
+	blobShardFieldRlcs = 2
 
 	blobRowFieldIndex = 1
 	blobRowFieldData  = 2
@@ -59,11 +58,8 @@ func blobShardSize(shard *types.BlobShard) int {
 		rowLen := blobRowSize(row)
 		size += protowire.SizeTag(blobShardFieldRows) + protowire.SizeBytes(rowLen)
 	}
-	if len(shard.Coefficients) > 0 {
-		size += protowire.SizeTag(blobShardFieldCoefficients) + protowire.SizeBytes(len(shard.Coefficients))
-	}
-	if len(shard.Root) > 0 {
-		size += protowire.SizeTag(blobShardFieldRoot) + protowire.SizeBytes(len(shard.Root))
+	if len(shard.Rlcs) > 0 {
+		size += protowire.SizeTag(blobShardFieldRlcs) + protowire.SizeBytes(len(shard.Rlcs))
 	}
 	return size
 }
@@ -129,15 +125,10 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.Buffer
 			}
 		}
 
-		if len(req.Shard.Coefficients) > 0 {
-			framing = protowire.AppendTag(framing, blobShardFieldCoefficients, protowire.BytesType)
-			framing = protowire.AppendVarint(framing, uint64(len(req.Shard.Coefficients)))
-			pushFraming(len(framing), req.Shard.Coefficients)
-		}
-		if len(req.Shard.Root) > 0 {
-			framing = protowire.AppendTag(framing, blobShardFieldRoot, protowire.BytesType)
-			framing = protowire.AppendVarint(framing, uint64(len(req.Shard.Root)))
-			pushFraming(len(framing), req.Shard.Root)
+		if len(req.Shard.Rlcs) > 0 {
+			framing = protowire.AppendTag(framing, blobShardFieldRlcs, protowire.BytesType)
+			framing = protowire.AppendVarint(framing, uint64(len(req.Shard.Rlcs)))
+			pushFraming(len(framing), req.Shard.Rlcs)
 		}
 	}
 
