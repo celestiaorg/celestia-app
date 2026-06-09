@@ -201,7 +201,7 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 // coefficients lazily computes Fiat-Shamir coefficients for the current matrix.
 func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) rlc.Vector {
 	if v.rlcCoeffs == nil {
-		v.rlcCoeffs = rlc.Derive(rowRoot, v.config.K, v.config.N, rowSize, v.config.WorkerCount)
+		v.rlcCoeffs = rlc.DeriveCoefficients(rowRoot, v.config.K, v.config.N, rowSize, v.config.WorkerCount)
 	}
 	return v.rlcCoeffs
 }

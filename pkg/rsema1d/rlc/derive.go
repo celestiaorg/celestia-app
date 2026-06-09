@@ -9,12 +9,13 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
 )
 
-// Derive generates Fiat-Shamir RLC coefficients bound to (rowRoot, k, n, rowSize).
-// k, n, and rowSize are mixed into the seed so coefficients are unique per
-// (rowRoot, k, n, rowSize) tuple. Producer paths bind rowSize to the configured
-// row length; consumer paths bind it to the actual data length. workers <= 0
-// is treated as 1; the parallel path only kicks in above minParallelSymbols.
-func Derive(rowRoot merkle.Root, k, n, rowSize, workers int) Vector {
+// DeriveCoefficients generates Fiat-Shamir RLC coefficients bound to
+// (rowRoot, k, n, rowSize). k, n, and rowSize are mixed into the seed so
+// coefficients are unique per (rowRoot, k, n, rowSize) tuple. Producer paths
+// bind rowSize to the configured row length; consumer paths bind it to the
+// actual data length. workers <= 0 is treated as 1; the parallel path only
+// kicks in above minParallelSymbols.
+func DeriveCoefficients(rowRoot merkle.Root, k, n, rowSize, workers int) Vector {
 	h := sha256.New()
 	h.Write(rowRoot[:])
 	var params [12]byte
