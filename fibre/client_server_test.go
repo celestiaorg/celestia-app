@@ -298,6 +298,7 @@ func makeTestEnv(
 		}
 		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
 			&testHostRegistry{addresses: addresses},
+			func() string { return "celestia" },
 			clientCfg.MaxMessageSize,
 			nil,
 		)
@@ -455,6 +456,7 @@ func TestTLSIdentityMismatchIsRejected(t *testing.T) {
 
 	newClient := grpcfibre.DefaultNewClientFn(
 		&testHostRegistry{addresses: addresses},
+		func() string { return "celestia" },
 		fibre.DefaultProtocolParams.MaxMessageSize(),
 		nil,
 	)

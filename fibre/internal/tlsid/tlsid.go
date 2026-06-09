@@ -33,12 +33,12 @@
 //     signed window;
 //   - the certificate carries the serverAuth extended key usage.
 //
-// The endorsement deliberately does NOT bind the chain ID. The TLS layer only
-// proves "this peer is validator V"; chain and data semantics are enforced by
-// the chain-bound, consensus-key-signed application messages (payment promises,
-// validator acknowledgements) and by on-chain data-availability commitments, so
-// a chain binding here would be redundant. This also keeps the client free of a
-// startup-ordering dependency on the resolved chain ID.
+// The BindingPayload deliberately does NOT include the chain ID. The TLS layer
+// only proves "this peer is validator V"; chain and data semantics are enforced
+// by the chain-bound, consensus-key-signed application messages (payment
+// promises, validator acknowledgements) and by on-chain data-availability
+// commitments. The outer SignRawBytes envelope still uses the runtime chain ID
+// so the endorsement is compatible with chain-ID-enforcing remote signers.
 //
 // This is a Celestia-specific identity scheme; it is NOT libp2p-TLS compatible
 // (different OID, signing prefix, sign-byte wrapper, and pubkey encoding), so a
@@ -60,6 +60,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"slices"
 	"time"
 
 	"github.com/cometbft/cometbft/crypto"
@@ -75,16 +76,17 @@ const SignUniqueID = "celestia-fibre-tls-v1"
 // signature can never collide with another payload signed by the same key.
 const SignPrefix = "celestia-fibre-tls:"
 
-// signDomain is supplied in the chain-ID slot of SignRawBytes /
-// RawBytesMessageSignBytes. The endorsement deliberately does not bind the
-// runtime chain ID (see the package doc), but RawBytesMessageSignBytes rejects
-// an empty chain ID, so a fixed constant is used. Purpose-based domain
-// separation from votes/proposals/promises is provided by SignUniqueID.
-const signDomain = "celestia-fibre-tls"
-
 // bindingVersion is the schema version of the signed BindingPayload. Bumping it
 // is a protocol-level break.
 const bindingVersion = 1
+
+// MaxPayloadDERSize bounds the signed BindingPayload DER accepted from peer
+// certificates. Correctly generated payloads are small; this cap keeps malformed
+// certs from forcing unbounded parser/allocation work.
+const MaxPayloadDERSize = 4096
+
+// MaxIdentityExtensionSize bounds the custom certificate extension DER.
+const MaxIdentityExtensionSize = 8192
 
 // CertValidity is how long generated certificates remain valid. The cert is
 // re-minted on every server start (the TLS keypair is ephemeral and lives only
@@ -135,14 +137,18 @@ type bindingPayload struct {
 
 // BuildServerCert generates an ephemeral Ed25519 TLS keypair and a self-signed
 // certificate that binds it to the consensus identity exposed by signer.
-// The signer is invoked once via SignRawBytes.
-func BuildServerCert(signer core.PrivValidator) (tls.Certificate, error) {
-	return buildServerCert(signer, time.Now(), CertValidity)
+// The signer is invoked once via SignRawBytes using chainID in the CometBFT
+// signing envelope.
+func BuildServerCert(signer core.PrivValidator, chainID string) (tls.Certificate, error) {
+	return buildServerCert(signer, chainID, time.Now(), CertValidity)
 }
 
-func buildServerCert(signer core.PrivValidator, now time.Time, validity time.Duration) (tls.Certificate, error) {
+func buildServerCert(signer core.PrivValidator, chainID string, now time.Time, validity time.Duration) (tls.Certificate, error) {
 	if signer == nil {
 		return tls.Certificate{}, errors.New("signer must not be nil")
+	}
+	if chainID == "" {
+		return tls.Certificate{}, errors.New("chain ID must not be empty")
 	}
 
 	tlsPub, tlsPriv, err := ed25519.GenerateKey(rand.Reader)
@@ -170,7 +176,7 @@ func buildServerCert(signer core.PrivValidator, now time.Time, validity time.Dur
 		return tls.Certificate{}, fmt.Errorf("marshal binding payload: %w", err)
 	}
 
-	sig, err := signer.SignRawBytes(signDomain, SignUniqueID, signedBytes(payloadDER))
+	sig, err := signer.SignRawBytes(chainID, SignUniqueID, signedBytes(payloadDER))
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("sign TLS binding: %w", err)
 	}
@@ -212,7 +218,8 @@ func buildServerCert(signer core.PrivValidator, now time.Time, validity time.Dur
 // for expected. Prefer [VerifyConnection], which also runs on resumed TLS 1.3
 // sessions. Use only with tls.Config.InsecureSkipVerify=true; the custom
 // verifier replaces CA/hostname validation with validator consensus-key binding.
-func VerifyPeer(expected crypto.PubKey) func([][]byte, [][]*x509.Certificate) error {
+// chainID must match the chain ID used when the server endorsed the certificate.
+func VerifyPeer(expected crypto.PubKey, chainID string) func([][]byte, [][]*x509.Certificate) error {
 	return func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 		if len(rawCerts) == 0 {
 			return errors.New("peer presented no certificate")
@@ -221,25 +228,29 @@ func VerifyPeer(expected crypto.PubKey) func([][]byte, [][]*x509.Certificate) er
 		if err != nil {
 			return fmt.Errorf("parse peer cert: %w", err)
 		}
-		return verifyCert(cert, expected)
+		return verifyCert(cert, expected, chainID)
 	}
 }
 
 // VerifyConnection returns a [tls.Config.VerifyConnection] callback equivalent
 // to [VerifyPeer]. Unlike VerifyPeerCertificate it also runs for resumed TLS
 // 1.3 sessions, so identity is re-checked on every connection.
-func VerifyConnection(expected crypto.PubKey) func(tls.ConnectionState) error {
+// chainID must match the chain ID used when the server endorsed the certificate.
+func VerifyConnection(expected crypto.PubKey, chainID string) func(tls.ConnectionState) error {
 	return func(state tls.ConnectionState) error {
 		if len(state.PeerCertificates) == 0 {
 			return errors.New("peer presented no certificate")
 		}
-		return verifyCert(state.PeerCertificates[0], expected)
+		return verifyCert(state.PeerCertificates[0], expected, chainID)
 	}
 }
 
-func verifyCert(cert *x509.Certificate, expected crypto.PubKey) error {
+func verifyCert(cert *x509.Certificate, expected crypto.PubKey, chainID string) error {
 	if expected == nil {
 		return errors.New("no expected validator pubkey")
+	}
+	if chainID == "" {
+		return errors.New("chain ID must not be empty")
 	}
 
 	var extBytes []byte
@@ -252,6 +263,9 @@ func verifyCert(cert *x509.Certificate, expected crypto.PubKey) error {
 	if extBytes == nil {
 		return errors.New("peer cert is missing the fibre identity extension")
 	}
+	if len(extBytes) > MaxIdentityExtensionSize {
+		return fmt.Errorf("identity extension size %d exceeds maximum %d", len(extBytes), MaxIdentityExtensionSize)
+	}
 
 	var id signedIdentity
 	rest, err := asn1.Unmarshal(extBytes, &id)
@@ -263,6 +277,9 @@ func verifyCert(cert *x509.Certificate, expected crypto.PubKey) error {
 	}
 	if len(id.Payload) == 0 {
 		return errors.New("empty identity payload")
+	}
+	if len(id.Payload) > MaxPayloadDERSize {
+		return fmt.Errorf("identity payload size %d exceeds maximum %d", len(id.Payload), MaxPayloadDERSize)
 	}
 	if len(id.Signature) == 0 {
 		return errors.New("empty identity signature")
@@ -284,7 +301,7 @@ func verifyCert(cert *x509.Certificate, expected crypto.PubKey) error {
 	// using the expected validator's consensus pubkey (from the validator set).
 	// A signature that verifies under `expected` is the proof the validator
 	// authorized this TLS key, so no pubkey needs to be embedded in the cert.
-	signed, err := core.RawBytesMessageSignBytes(signDomain, SignUniqueID, signedBytes(id.Payload))
+	signed, err := core.RawBytesMessageSignBytes(chainID, SignUniqueID, signedBytes(id.Payload))
 	if err != nil {
 		return fmt.Errorf("compute signed bytes: %w", err)
 	}
@@ -323,14 +340,7 @@ func verifyCert(cert *x509.Certificate, expected crypto.PubKey) error {
 	}
 
 	// Require the serverAuth EKU that BuildServerCert sets.
-	hasServerAuth := false
-	for _, eku := range cert.ExtKeyUsage {
-		if eku == x509.ExtKeyUsageServerAuth {
-			hasServerAuth = true
-			break
-		}
-	}
-	if !hasServerAuth {
+	if !slices.Contains(cert.ExtKeyUsage, x509.ExtKeyUsageServerAuth) {
 		return errors.New("peer cert missing serverAuth extended key usage")
 	}
 
@@ -338,7 +348,7 @@ func verifyCert(cert *x509.Certificate, expected crypto.PubKey) error {
 }
 
 func signedBytes(payloadDER []byte) []byte {
-	out := make([]byte, 0, len(SignPrefix)+len(payloadDER))
+	out := make([]byte, 0, len(SignPrefix))
 	out = append(out, SignPrefix...)
 	out = append(out, payloadDER...)
 	return out

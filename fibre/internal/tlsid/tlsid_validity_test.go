@@ -19,25 +19,27 @@ import (
 // enforcement: they mint certificates with controlled validity via the
 // unexported buildServerCert and forgeCert helpers.
 
+const validityTestChainID = "test-chain"
+
 func TestVerify_AcceptsWithinWindow(t *testing.T) {
 	pv := core.NewMockPV()
-	cert, err := buildServerCert(pv, time.Now(), CertValidity)
+	cert, err := buildServerCert(pv, validityTestChainID, time.Now(), CertValidity)
 	require.NoError(t, err)
 
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	require.NoError(t, VerifyPeer(pub)(cert.Certificate, nil))
+	require.NoError(t, VerifyPeer(pub, validityTestChainID)(cert.Certificate, nil))
 }
 
 func TestVerify_RejectsExpiredCert(t *testing.T) {
 	pv := core.NewMockPV()
 	// Issued 48h ago with a 24h window: long expired by now.
-	cert, err := buildServerCert(pv, time.Now().Add(-48*time.Hour), 24*time.Hour)
+	cert, err := buildServerCert(pv, validityTestChainID, time.Now().Add(-48*time.Hour), 24*time.Hour)
 	require.NoError(t, err)
 
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	err = VerifyPeer(pub)(cert.Certificate, nil)
+	err = VerifyPeer(pub, validityTestChainID)(cert.Certificate, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not valid at")
 }
@@ -45,12 +47,12 @@ func TestVerify_RejectsExpiredCert(t *testing.T) {
 func TestVerify_RejectsNotYetValidCert(t *testing.T) {
 	pv := core.NewMockPV()
 	// Issued as if 48h in the future: not yet valid.
-	cert, err := buildServerCert(pv, time.Now().Add(48*time.Hour), 24*time.Hour)
+	cert, err := buildServerCert(pv, validityTestChainID, time.Now().Add(48*time.Hour), 24*time.Hour)
 	require.NoError(t, err)
 
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	err = VerifyPeer(pub)(cert.Certificate, nil)
+	err = VerifyPeer(pub, validityTestChainID)(cert.Certificate, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not valid at")
 }
@@ -58,12 +60,12 @@ func TestVerify_RejectsNotYetValidCert(t *testing.T) {
 func TestVerify_RejectsOverLongCert(t *testing.T) {
 	pv := core.NewMockPV()
 	// Currently valid, but with a window that exceeds MaxCertValidity.
-	cert, err := buildServerCert(pv, time.Now(), MaxCertValidity+time.Hour)
+	cert, err := buildServerCert(pv, validityTestChainID, time.Now(), MaxCertValidity+time.Hour)
 	require.NoError(t, err)
 
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	err = VerifyPeer(pub)(cert.Certificate, nil)
+	err = VerifyPeer(pub, validityTestChainID)(cert.Certificate, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "exceeds maximum")
 }
@@ -85,7 +87,7 @@ func TestVerify_RejectsCertValidityDifferentFromSigned(t *testing.T) {
 
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	err = verifyCert(cert, pub)
+	err = verifyCert(cert, pub, validityTestChainID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "certificate validity does not match signed identity")
 }
@@ -106,7 +108,7 @@ func TestVerify_RejectsMissingServerAuthEKU(t *testing.T) {
 
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	err = verifyCert(cert, pub)
+	err = verifyCert(cert, pub, validityTestChainID)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "serverAuth")
 }
@@ -139,7 +141,7 @@ func forgeCert(t *testing.T, signer core.PrivValidator, o forgeOpts) *x509.Certi
 	})
 	require.NoError(t, err)
 
-	sig, err := signer.SignRawBytes(signDomain, SignUniqueID, signedBytes(payloadDER))
+	sig, err := signer.SignRawBytes(validityTestChainID, SignUniqueID, signedBytes(payloadDER))
 	require.NoError(t, err)
 
 	extBytes, err := asn1.Marshal(signedIdentity{Payload: payloadDER, Signature: sig})

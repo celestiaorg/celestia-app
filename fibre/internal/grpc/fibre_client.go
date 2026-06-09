@@ -46,9 +46,15 @@ func (f *fibreClientCloser) Close() error {
 // grpc.NewClient dials lazily, verification runs on the first RPC and a failure
 // otherwise surfaces upstream only as an aggregated quorum/unavailable error;
 // logging here preserves the underlying cause for operators.
-func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int, log *slog.Logger) NewClientFn {
+//
+// chainID is evaluated lazily per dial because the state client resolves it
+// during Start, which can run after this constructor.
+func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int, log *slog.Logger) NewClientFn {
 	if log == nil {
 		log = slog.Default()
+	}
+	if chainID == nil {
+		chainID = func() string { return "" }
 	}
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
 		host, err := hostReg.GetHost(ctx, val)
@@ -58,9 +64,16 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int, log *slo
 		if val.PubKey == nil {
 			return nil, errors.New("validator has no consensus pubkey for TLS identity check")
 		}
+		cid := chainID()
+		if cid == "" {
+			return nil, errors.New("chain ID is empty; state client must be started before dialing")
+		}
 
-		verify := tlsid.VerifyConnection(val.PubKey)
+		verify := tlsid.VerifyConnection(val.PubKey, cid)
 		tlsCfg := &tls.Config{
+			// The peer certificate is self-signed; VerifyConnection below authenticates the
+			// validator consensus-key endorsement instead of a CA/SAN chain.
+			// codeql[go/disabled-certificate-check]
 			InsecureSkipVerify: true, //nolint:gosec // identity is verified via VerifyConnection
 			VerifyConnection: func(state tls.ConnectionState) error {
 				if err := verify(state); err != nil {

@@ -123,12 +123,11 @@ Why the scheme looks the way it does:
 - **Long-lived cert, re-minted on restart, no in-process refresh.** A Celestia
   validator's consensus key cannot rotate, and the TLS key is ephemeral, so the
   endorsed identity never changes while the server runs; a restart re-mints it.
-- **No chain-ID binding.** The endorsement does not bind the chain ID — the TLS
-  layer only proves "this peer is validator V". Chain and data correctness come
-  from the chain-bound, consensus-key-signed application messages (payment
-  promises, acknowledgements) and on-chain data-availability commitments, so a
-  chain binding here would be redundant. Decoupling from the runtime chain ID
-  also keeps the client free of a startup-ordering dependency.
+- **Payload is chain-ID-free; the signing envelope is not.** The certificate's
+  structured binding payload only contains the schema version, validity window,
+  and TLS public key, because the TLS layer proves "this peer is validator V".
+  The outer `SignRawBytes` envelope still uses the runtime chain ID so
+  chain-ID-enforcing remote signers and HSM policy remain compatible.
 - **Endorsement carried in a custom DER X.509 extension.** The endorsement
   signature must reach the client at handshake time, so it rides in the cert. DER
   is canonical (friendly to non-Go verifiers like lumina). The extension OID will

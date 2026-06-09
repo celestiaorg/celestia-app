@@ -7,6 +7,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"fmt"
 	"math/big"
 	"net"
 	"testing"
@@ -18,9 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testChainID = "test-chain"
+
 func TestBuildAndVerify_RoundTrip(t *testing.T) {
 	pv := core.NewMockPV()
-	cert, err := tlsid.BuildServerCert(pv)
+	cert, err := tlsid.BuildServerCert(pv, testChainID)
 	require.NoError(t, err)
 	require.NotNil(t, cert.PrivateKey)
 	require.Len(t, cert.Certificate, 1)
@@ -28,13 +31,13 @@ func TestBuildAndVerify_RoundTrip(t *testing.T) {
 	expectedPub, err := pv.GetPubKey()
 	require.NoError(t, err)
 
-	verify := tlsid.VerifyPeer(expectedPub)
+	verify := tlsid.VerifyPeer(expectedPub, testChainID)
 	require.NoError(t, verify(cert.Certificate, nil))
 }
 
 func TestVerify_RejectsWrongValidator(t *testing.T) {
 	server := core.NewMockPV()
-	cert, err := tlsid.BuildServerCert(server)
+	cert, err := tlsid.BuildServerCert(server, testChainID)
 	require.NoError(t, err)
 
 	other := core.NewMockPV()
@@ -44,9 +47,36 @@ func TestVerify_RejectsWrongValidator(t *testing.T) {
 	// The endorsement was signed by `server`, so verifying against `other`'s
 	// pubkey fails the signature check (identity is established by the signature
 	// verifying under the expected key, not by an embedded pubkey field).
-	err = tlsid.VerifyPeer(otherPub)(cert.Certificate, nil)
+	err = tlsid.VerifyPeer(otherPub, testChainID)(cert.Certificate, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signature is invalid")
+}
+
+func TestVerify_RejectsWrongChainID(t *testing.T) {
+	pv := core.NewMockPV()
+	cert, err := tlsid.BuildServerCert(pv, testChainID)
+	require.NoError(t, err)
+
+	pub, err := pv.GetPubKey()
+	require.NoError(t, err)
+
+	err = tlsid.VerifyPeer(pub, "other-chain")(cert.Certificate, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "signature is invalid")
+}
+
+func TestBuildServerCert_UsesProvidedChainID(t *testing.T) {
+	pv := &chainIDEnforcingPV{
+		PrivValidator: core.NewMockPV(),
+		chainID:       testChainID,
+	}
+
+	_, err := tlsid.BuildServerCert(pv, testChainID)
+	require.NoError(t, err)
+
+	_, err = tlsid.BuildServerCert(pv, "other-chain")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected chain ID")
 }
 
 func TestVerify_RejectsMissingExtension(t *testing.T) {
@@ -57,7 +87,7 @@ func TestVerify_RejectsMissingExtension(t *testing.T) {
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
 
-	err = tlsid.VerifyPeer(pub)([][]byte{rawCert}, nil)
+	err = tlsid.VerifyPeer(pub, testChainID)([][]byte{rawCert}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing the fibre identity extension")
 }
@@ -67,24 +97,24 @@ func TestVerify_RejectsEmptyChain(t *testing.T) {
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
 
-	err = tlsid.VerifyPeer(pub)(nil, nil)
+	err = tlsid.VerifyPeer(pub, testChainID)(nil, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no certificate")
 }
 
 func TestVerify_RejectsNilExpected(t *testing.T) {
 	pv := core.NewMockPV()
-	cert, err := tlsid.BuildServerCert(pv)
+	cert, err := tlsid.BuildServerCert(pv, testChainID)
 	require.NoError(t, err)
 
-	err = tlsid.VerifyPeer(nil)(cert.Certificate, nil)
+	err = tlsid.VerifyPeer(nil, testChainID)(cert.Certificate, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no expected validator pubkey")
 }
 
 func TestVerify_RejectsTamperedSignature(t *testing.T) {
 	pv := core.NewMockPV()
-	cert, err := tlsid.BuildServerCert(pv)
+	cert, err := tlsid.BuildServerCert(pv, testChainID)
 	require.NoError(t, err)
 
 	parsed, err := x509.ParseCertificate(cert.Certificate[0])
@@ -96,19 +126,24 @@ func TestVerify_RejectsTamperedSignature(t *testing.T) {
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
 
-	err = tlsid.VerifyPeer(pub)([][]byte{tampered}, nil)
+	err = tlsid.VerifyPeer(pub, testChainID)([][]byte{tampered}, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signature is invalid")
 }
 
 func TestBuildServerCert_RejectsNilSigner(t *testing.T) {
-	_, err := tlsid.BuildServerCert(nil)
+	_, err := tlsid.BuildServerCert(nil, testChainID)
+	require.Error(t, err)
+}
+
+func TestBuildServerCert_RejectsEmptyChainID(t *testing.T) {
+	_, err := tlsid.BuildServerCert(core.NewMockPV(), "")
 	require.Error(t, err)
 }
 
 func TestTLSHandshake_EndToEnd(t *testing.T) {
 	pv := core.NewMockPV()
-	cert, err := tlsid.BuildServerCert(pv)
+	cert, err := tlsid.BuildServerCert(pv, testChainID)
 	require.NoError(t, err)
 
 	serverCfg := &tls.Config{
@@ -120,7 +155,7 @@ func TestTLSHandshake_EndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	clientCfg := &tls.Config{
 		InsecureSkipVerify:    true, //nolint:gosec // identity is checked via VerifyPeerCertificate
-		VerifyPeerCertificate: tlsid.VerifyPeer(pub),
+		VerifyPeerCertificate: tlsid.VerifyPeer(pub, testChainID),
 		MinVersion:            tls.VersionTLS13,
 	}
 
@@ -145,6 +180,18 @@ func TestTLSHandshake_EndToEnd(t *testing.T) {
 	tlsClient := tls.Client(rawClient, clientCfg)
 	require.NoError(t, tlsClient.Handshake())
 	require.NoError(t, <-srvDone)
+}
+
+type chainIDEnforcingPV struct {
+	core.PrivValidator
+	chainID string
+}
+
+func (pv *chainIDEnforcingPV) SignRawBytes(chainID, uniqueID string, rawBytes []byte) ([]byte, error) {
+	if chainID != pv.chainID {
+		return nil, fmt.Errorf("unexpected chain ID %q", chainID)
+	}
+	return pv.PrivValidator.SignRawBytes(chainID, uniqueID, rawBytes)
 }
 
 // buildPlainSelfSignedCert returns DER bytes of a self-signed Ed25519 cert
