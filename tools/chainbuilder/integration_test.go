@@ -101,10 +101,12 @@ func TestRun(t *testing.T) {
 			}
 			require.NoError(t, err)
 		}
-		t.Cleanup(func() { _ = appDB.Close() })
 		break
 	}
-	defer func() { _ = cometNode.Stop() }()
+	defer func() {
+		_ = cometNode.Stop()
+		cometNode.Wait()
+	}()
 
 	client := local.New(cometNode)
 	status, err := client.Status(context.Background())
@@ -116,8 +118,6 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks*2)
 	}, time.Second*10, time.Millisecond*100)
-	require.NoError(t, cometNode.Stop())
-	cometNode.Wait()
 }
 
 // getGenDocProvider returns a function that loads the genesis document from file.

@@ -140,7 +140,6 @@ func IsPortBindingError(err error) bool {
 	}
 	errStr := err.Error()
 	// Check for common port binding error patterns
-	return strings.Contains(errStr, "bind: address already in use") ||
-		strings.Contains(errStr, "address already in use") ||
+	return strings.Contains(errStr, "address already in use") ||
 		strings.Contains(errStr, "failed to listen on")
 }
