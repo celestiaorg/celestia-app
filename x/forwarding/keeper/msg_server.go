@@ -63,7 +63,8 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("failed to resolve token denom: %w", err)
 	}
 
-	balance := m.k.bankKeeper.GetBalance(ctx, forwardAddr, denom)
+	// Use the spendable balance so that only transferable coins are forwarded.
+	balance := m.k.bankKeeper.SpendableCoin(ctx, forwardAddr, denom)
 	if !balance.IsPositive() {
 		return nil, types.ErrNoBalance
 	}
