@@ -69,7 +69,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 	}
 
 	if cfg.NewClientFn == nil {
-		cfg.NewClientFn = fibregrpc.DefaultNewClientFn(stateClient, cfg.MaxMessageSize)
+		cfg.NewClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log)
 	}
 
 	metrics, err := newClientMetrics(cfg.Meter)
