@@ -175,8 +175,10 @@ func shuffleByStake(selected []SelectedValidator, rng *rand.Rand) {
 }
 
 // Verify checks if all given row indices are assigned to [core.Validator].
-// Returns error if validator is not in the map, count doesn't match, or any row is not assigned.
-// This method builds a temporary set for O(r + n) complexity instead of O(n × r).
+// Returns error if validator is not in the map, count doesn't match, any
+//
+//	row is not assigned or row indices are duplicate. This method builds
+//	a temporary set for O(r + n) complexity instead of O(n × r).
 func (sm ShardMap) Verify(val *core.Validator, rowIndices []uint32) error {
 	rows, ok := sm[val]
 	if !ok {
@@ -193,10 +195,16 @@ func (sm ShardMap) Verify(val *core.Validator, rowIndices []uint32) error {
 		assignedSet[idx] = struct{}{}
 	}
 
+	// Reject duplicate submitted indices so a repeated valid row can't stand in for a missing assigned one.
+	seen := make(map[uint32]struct{}, len(rowIndices))
 	for _, rowIdx := range rowIndices {
 		if _, ok := assignedSet[int(rowIdx)]; !ok {
 			return fmt.Errorf("row %d not assigned to validator", rowIdx)
 		}
+		if _, dup := seen[rowIdx]; dup {
+			return fmt.Errorf("duplicate row %d", rowIdx)
+		}
+		seen[rowIdx] = struct{}{}
 	}
 	return nil
 }

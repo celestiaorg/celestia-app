@@ -153,6 +153,20 @@ func TestShardMap_Verify(t *testing.T) {
 			break
 		}
 	})
+
+	t.Run("duplicate rows", func(t *testing.T) {
+		for val, rows := range shardMap {
+			if len(rows) < 2 {
+				continue
+			}
+			indices := make([]uint32, len(rows))
+			for i := range indices {
+				indices[i] = uint32(rows[0])
+			}
+			require.ErrorContains(t, shardMap.Verify(val, indices), "duplicate row")
+			break
+		}
+	})
 }
 
 func TestSet_Select(t *testing.T) {
