@@ -450,14 +450,12 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build celestia-appd, txsim, latency-monitor, fibre, fibre-txsim, and talis binaries for talis VMs (ubuntu 22.04 LTS)
+## build-talis-bins: Build non-fibre binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins
 
 ## build-talis-bins-fibre: Same as build-talis-bins but with the fibre module enabled in celestia-appd.
@@ -468,6 +466,7 @@ build-talis-bins-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins-fibre
 
 CARGO := $(HOME)/.cargo/bin/cargo
@@ -508,6 +507,7 @@ build-talis-bins-rust-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 	$(MAKE) build-rust-fibre-txsim
 .PHONY: build-talis-bins-rust-fibre
 
