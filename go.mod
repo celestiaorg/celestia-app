@@ -27,7 +27,7 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
+	github.com/celestiaorg/go-square/v4 v4.0.0-rc4.0.20260611153920-53e607aa1d60
 	github.com/celestiaorg/nmt v0.24.3
 	github.com/celestiaorg/rsmt2d v0.15.2
 	github.com/cockroachdb/pebble/v2 v2.1.4
@@ -77,7 +77,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	golang.org/x/crypto v0.52.0
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.45.0
 	golang.org/x/term v0.43.0
 	google.golang.org/api v0.279.0
