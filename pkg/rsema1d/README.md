@@ -169,7 +169,7 @@ Row size is not in Config — every operation (Encode, Verify, VerifyStandaloneP
 ### Core Components
 
 - **Field Arithmetic** (`field/`): GF(2^16) and GF(2^128) primitives plus Leopard byte-layout codec
-- **Random Linear Combination** (`rlc/`): Fiat-Shamir coefficient derivation (`rlc.Derive`), batched vectorized RLC compute (`rlc.Compute`), single-row scalar (`rlc.ComputeRow`), and RLC vector serialization (`rlc.Marshal` / `Unmarshal` and the `rlc.Vector` type)
+- **Random Linear Combination** (`rlc/`): Fiat-Shamir coefficient derivation (`rlc.DeriveCoefficients`), batched vectorized RLC compute (`rlc.Compute`), single-row scalar (`rlc.ComputeRow`), and RLC vector serialization (`rlc.Marshal` / `Unmarshal` and the `rlc.Vector` type)
 - **Merkle Trees** (`merkle/`): Binary trees with RFC 6962-compatible formatting; `merkle.Root` is the canonical 32-byte hash type
 - **Coder** (`coder.go`): Producer-side encoding and reconstruction with a cached Reed-Solomon encoder
 - **Verifier** (`verifier.go`): Batched proof verification with reusable scratch and a concurrent-safe `VerifyShared` path
