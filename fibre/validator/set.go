@@ -190,21 +190,21 @@ func (sm ShardMap) Verify(val *core.Validator, rowIndices []uint32) error {
 		return fmt.Errorf("expected %d rows, got %d", len(rows), len(rowIndices))
 	}
 
-	assignedSet := make(map[int]struct{}, len(rows))
+	// Map each assigned row to whether it has been seen, reject duplicates.
+	assigned := make(map[uint32]bool, len(rows))
 	for _, idx := range rows {
-		assignedSet[idx] = struct{}{}
+		assigned[uint32(idx)] = false
 	}
 
-	// Reject duplicate submitted indices so a repeated valid row can't stand in for a missing assigned one.
-	seen := make(map[uint32]struct{}, len(rowIndices))
 	for _, rowIdx := range rowIndices {
-		if _, ok := assignedSet[int(rowIdx)]; !ok {
+		seen, ok := assigned[rowIdx]
+		if !ok {
 			return fmt.Errorf("row %d not assigned to validator", rowIdx)
 		}
-		if _, dup := seen[rowIdx]; dup {
+		if seen {
 			return fmt.Errorf("duplicate row %d", rowIdx)
 		}
-		seen[rowIdx] = struct{}{}
+		assigned[rowIdx] = true
 	}
 	return nil
 }
