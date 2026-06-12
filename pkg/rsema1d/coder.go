@@ -78,7 +78,7 @@ func (c *Coder) commit(extendedRows [][]byte, buf []byte) *ExtendedData {
 	rowRoot := rowTree.Root()
 
 	// derive RLC coefficients and compute RLC results for original rows.
-	coeffs := rlc.Derive(rowRoot, c.config.K, c.config.N, len(extendedRows[0]), c.config.WorkerCount)
+	coeffs := rlc.DeriveCoefficients(rowRoot, c.config.K, c.config.N, len(extendedRows[0]), c.config.WorkerCount)
 	rlcVec := rlc.Compute(extendedRows[:c.config.K], coeffs, c.config.WorkerCount)
 
 	// build Merkle tree over the RLC values from the buffer's tail

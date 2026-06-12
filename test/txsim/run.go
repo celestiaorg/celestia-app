@@ -15,8 +15,10 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 )
 
 const DefaultSeed = 900183116
@@ -122,7 +124,7 @@ func Run(
 			log.Info().Err(err).Msg("sequence terminated")
 			continue
 		}
-		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		if IsContextEnded(err) {
 			continue
 		}
 		log.Error().Err(err).Msg("sequence failed")
@@ -134,6 +136,33 @@ func Run(
 	}
 
 	return finalErr
+}
+
+// IsContextEnded reports whether err indicates that the controlling context was
+// canceled or its deadline exceeded. txsim is designed to run until its context
+// ends, so callers use this to distinguish a clean shutdown from a genuine
+// failure.
+//
+// In addition to the standard context sentinels, this recognizes gRPC status
+// errors with codes Canceled or DeadlineExceeded. When a context ends while an
+// RPC is in flight, gRPC returns such a status error (e.g. "code =
+// DeadlineExceeded desc = stream terminated by RST_STREAM with error code:
+// CANCEL") which does NOT satisfy errors.Is(err, context.DeadlineExceeded).
+// txsim sets no per-call gRPC deadlines, so these codes can only originate from
+// the controlling context ending.
+func IsContextEnded(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	switch status.Code(err) {
+	case codes.Canceled, codes.DeadlineExceeded:
+		return true
+	default:
+		return false
+	}
 }
 
 type Options struct {

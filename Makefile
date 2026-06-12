@@ -43,7 +43,7 @@ CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
 CELESTIA_V6_VERSION := v6.4.4
 CELESTIA_V7_VERSION := v7.0.2-mocha
-CELESTIA_V8_VERSION := v8.0.6-arabica
+CELESTIA_V8_VERSION := v8.0.8
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -387,8 +387,12 @@ test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries
 test-race:
 # TODO: Remove the -skip flag once the following tests no longer contain data races.
 # https://github.com/celestiaorg/celestia-app/issues/1369
+# The TestTxsim* CLI tests spin up an in-process node via testnode.NewNetwork and
+# drive txsim against it, which races the consensus IAVL writes against the gRPC
+# query reads. The race lives in the test harness, not in production code, so the
+# tests still run (and provide coverage) outside of race mode.
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestSquareSizeIntegrationTest|TestClientServerUploadDownload"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestSquareSizeIntegrationTest|TestClientServerUploadDownload|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -446,14 +450,12 @@ latency-monitor-build-docker:
 	docker build -t ghcr.io/celestiaorg/latency-monitor:$(CELESTIA_TAG) -f docker/latency-monitor/Dockerfile .
 .PHONY: latency-monitor-build-docker
 
-## build-talis-bins: Build celestia-appd, txsim, latency-monitor, fibre, fibre-txsim, and talis binaries for talis VMs (ubuntu 22.04 LTS)
+## build-talis-bins: Build non-fibre binaries for talis VMs (ubuntu 22.04 LTS)
 build-talis-bins:
 	mkdir -p build
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 .PHONY: build-talis-bins
 
 ## build-talis-bins-fibre: Same as build-talis-bins but with the fibre module enabled in celestia-appd.
@@ -464,6 +466,7 @@ build-talis-bins-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins-fibre
 
 CARGO := $(HOME)/.cargo/bin/cargo
@@ -504,6 +507,7 @@ build-talis-bins-rust-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_FIBRE)" -o build/celestia-appd ./cmd/celestia-appd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 	$(MAKE) build-rust-fibre-txsim
 .PHONY: build-talis-bins-rust-fibre
 
