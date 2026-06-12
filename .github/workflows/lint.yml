@@ -72,10 +72,25 @@ jobs:
           go-version-file: "go.mod"
       - name: Check go mod tidy
         run: |
+          # `go mod tidy -diff` exits non-zero for ANY error, including transient
+          # module download failures from the Go proxy, not only when a genuine
+          # diff exists. Retry a few times before declaring a module dirty: a
+          # network blip succeeds on retry, while a genuine diff fails every
+          # attempt and is still caught. See #7380.
           DIRTY=""
+          MAX_ATTEMPTS=3
           for moddir in $(find . -name 'go.mod' -exec dirname {} \;); do
             echo "Checking $moddir"
-            (cd "$moddir" && go mod tidy -diff) || DIRTY="$DIRTY $moddir"
+            attempt=1
+            until (cd "$moddir" && go mod tidy -diff); do
+              if [ "$attempt" -ge "$MAX_ATTEMPTS" ]; then
+                DIRTY="$DIRTY $moddir"
+                break
+              fi
+              echo "go mod tidy -diff failed for $moddir (attempt $attempt/$MAX_ATTEMPTS); retrying after backoff..."
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
           done
           if [ -n "$DIRTY" ]; then
             echo "ERROR: go mod tidy produced changes in:$DIRTY"
