@@ -51,6 +51,8 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, maxMsgSize int) NewClien
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
 				grpclib.MaxCallSendMsgSize(maxMsgSize),
+				// Pooled + scatter-gather codec; see codec.go.
+				grpclib.CallContentSubtype(codecName),
 			),
 		)
 		if err != nil {

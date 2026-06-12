@@ -22,9 +22,9 @@ func TestDeriveDeterministic(t *testing.T) {
 		{1024, 1024, 8192}, // 4096 symbols — parallel
 	}
 	for _, tc := range cases {
-		serial := rlc.Derive(rowRoot, tc.k, tc.n, tc.rowSize, 1)
-		again := rlc.Derive(rowRoot, tc.k, tc.n, tc.rowSize, 1)
-		parallel := rlc.Derive(rowRoot, tc.k, tc.n, tc.rowSize, 4)
+		serial := rlc.DeriveCoefficients(rowRoot, tc.k, tc.n, tc.rowSize, 1)
+		again := rlc.DeriveCoefficients(rowRoot, tc.k, tc.n, tc.rowSize, 1)
+		parallel := rlc.DeriveCoefficients(rowRoot, tc.k, tc.n, tc.rowSize, 4)
 		if got, want := len(serial), tc.rowSize/2; got != want {
 			t.Errorf("k=%d n=%d rs=%d: len got %d want %d", tc.k, tc.n, tc.rowSize, got, want)
 			continue
@@ -44,21 +44,21 @@ func TestDeriveDeterministic(t *testing.T) {
 // mixed into the Fiat-Shamir seed: changing any of them changes the
 // coefficients.
 func TestDeriveSensitivity(t *testing.T) {
-	base := rlc.Derive([32]byte{1}, 100, 200, 256, 1)
+	base := rlc.DeriveCoefficients([32]byte{1}, 100, 200, 256, 1)
 
-	if equal128s(base, rlc.Derive([32]byte{2}, 100, 200, 256, 1)) {
+	if equal128s(base, rlc.DeriveCoefficients([32]byte{2}, 100, 200, 256, 1)) {
 		t.Error("changing rowRoot did not change coefficients")
 	}
-	if equal128s(base, rlc.Derive([32]byte{1}, 101, 200, 256, 1)) {
+	if equal128s(base, rlc.DeriveCoefficients([32]byte{1}, 101, 200, 256, 1)) {
 		t.Error("changing k did not change coefficients")
 	}
-	if equal128s(base, rlc.Derive([32]byte{1}, 100, 201, 256, 1)) {
+	if equal128s(base, rlc.DeriveCoefficients([32]byte{1}, 100, 201, 256, 1)) {
 		t.Error("changing n did not change coefficients")
 	}
 	// Changing rowSize also changes the slice length, so compare the leading
 	// len(base) coefficients of a longer rowSize derivation — they must differ
 	// from base if rowSize is properly bound into the seed.
-	other := rlc.Derive([32]byte{1}, 100, 200, 258, 1)
+	other := rlc.DeriveCoefficients([32]byte{1}, 100, 200, 258, 1)
 	if len(other) <= len(base) {
 		t.Fatalf("expected longer derivation: len=%d base=%d", len(other), len(base))
 	}
@@ -67,10 +67,10 @@ func TestDeriveSensitivity(t *testing.T) {
 	}
 }
 
-// TestDeriveEmptyRowSize verifies Derive(_, _, _, 0) returns an empty slice
+// TestDeriveEmptyRowSize verifies DeriveCoefficients(_, _, _, 0) returns an empty slice
 // rather than panicking on the runtime.GOMAXPROCS / chunk-size math.
 func TestDeriveEmptyRowSize(t *testing.T) {
-	got := rlc.Derive([32]byte{}, 1, 1, 0, 1)
+	got := rlc.DeriveCoefficients([32]byte{}, 1, 1, 0, 1)
 	if len(got) != 0 {
 		t.Errorf("expected empty slice, got len %d", len(got))
 	}
@@ -112,7 +112,7 @@ func BenchmarkDerive(b *testing.B) {
 			b.SetBytes(int64(tc.rowSize))
 			b.ResetTimer()
 			for range b.N {
-				_ = rlc.Derive(rowRoot, tc.k, tc.n, tc.rowSize, ws)
+				_ = rlc.DeriveCoefficients(rowRoot, tc.k, tc.n, tc.rowSize, ws)
 			}
 		})
 	}
