@@ -134,7 +134,7 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 	}
 	// The host changed on chain, so the cached connection points at a stale
 	// address whether or not the new host is valid; drop it either way.
-	cc.Evict(val)
+	cc.evict(val)
 	if !valid {
 		span.AddEvent("host changed but invalid; not retrying")
 		return err
@@ -168,10 +168,10 @@ func isUnreachable(err error) bool {
 	}
 }
 
-// Evict closes and removes the cached [Client] for val, so the next
+// evict closes and removes the cached [Client] for val, so the next
 // [ClientCache.GetClient] re-resolves the host and re-dials. A cached dial
 // error is cleared as well.
-func (cc *ClientCache) Evict(val *core.Validator) {
+func (cc *ClientCache) evict(val *core.Validator) {
 	addr := val.Address.String()
 
 	cc.mu.Lock()

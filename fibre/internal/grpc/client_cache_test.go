@@ -101,25 +101,30 @@ func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
 	wg.Wait()
 }
 
-func TestClientCacheEvict(t *testing.T) {
-	cache := grpc.NewClientCache(mockClientFn(false), stubHostRegistry{}, 1)
+// TestClientCacheRequest_EvictsStaleClient verifies that when a host change
+// forces eviction, the stale client is closed and a fresh one is dialed.
+func TestClientCacheRequest_EvictsStaleClient(t *testing.T) {
+	cache := grpc.NewClientCache(mockClientFn(false), refreshes(true, true, nil), 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
-	c1, err := cache.GetClient(t.Context(), val)
+	var stale, fresh grpc.Client
+	err := cache.Request(t.Context(), val, func(c grpc.Client) error {
+		if stale == nil {
+			stale = c
+			return errUnreachable // stale host triggers refresh + eviction
+		}
+		fresh = c
+		return nil // corrected host
+	})
 	require.NoError(t, err)
-	require.NotNil(t, c1)
-
-	cache.Evict(val)
-	assert.True(t, c1.(*mockFibreClientCloser).closed, "evicted client should be closed immediately")
-
-	c2, err := cache.GetClient(t.Context(), val)
-	require.NoError(t, err)
-	assert.NotSame(t, c1, c2, "GetClient after Evict should re-dial a new client")
+	assert.True(t, stale.(*mockFibreClientCloser).closed, "evicted client should be closed")
+	assert.NotSame(t, stale, fresh, "a fresh client should be dialed after eviction")
 }
 
-// TestClientCacheEvictClearsCachedError verifies Evict clears a cached dial
-// error so the next GetClient retries — the recovery path for a corrected host.
-func TestClientCacheEvictClearsCachedError(t *testing.T) {
+// TestClientCacheRequest_ClearsCachedDialError verifies that eviction (here
+// driven by a host change) clears a cached dial error so the next call
+// re-dials — the recovery path for a corrected host.
+func TestClientCacheRequest_ClearsCachedDialError(t *testing.T) {
 	var calls int
 	fn := func(_ context.Context, val *core.Validator) (grpc.Client, error) {
 		calls++
@@ -128,20 +133,20 @@ func TestClientCacheEvictClearsCachedError(t *testing.T) {
 		}
 		return &mockFibreClientCloser{id: val.Address.String()}, nil
 	}
-	cache := grpc.NewClientCache(fn, stubHostRegistry{}, 1)
+	cache := grpc.NewClientCache(fn, refreshes(true, true, nil), 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
+	// The first two GetClient calls cache and reuse the dial error.
 	_, err := cache.GetClient(t.Context(), val)
 	require.Error(t, err)
 	_, err = cache.GetClient(t.Context(), val)
 	require.Error(t, err)
 	require.Equal(t, 1, calls, "error should be cached, not re-dialed")
 
-	cache.Evict(val)
-	c, err := cache.GetClient(t.Context(), val)
-	require.NoError(t, err)
-	require.NotNil(t, c)
-	require.Equal(t, 2, calls, "Evict should clear the cached error and allow a re-dial")
+	// A request whose host changed evicts the entry, clearing the cached error
+	// and allowing a re-dial.
+	require.NoError(t, cache.Request(t.Context(), val, func(grpc.Client) error { return nil }))
+	require.Equal(t, 2, calls, "host change should clear the cached error and allow a re-dial")
 }
 
 // mockFibreClientCloser is a mock implementation for testing
