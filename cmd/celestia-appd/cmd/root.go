@@ -181,6 +181,10 @@ func replaceLogger(cmd *cobra.Command) error {
 	}
 
 	sctx := server.GetServerContextFromCmd(cmd)
+	// Disable colored output when logging to a file so that the log file does
+	// not contain ANSI color escape codes (e.g. [90m). See
+	// https://github.com/celestiaorg/celestia-app/issues/4966
+	sctx.Viper.Set(flags.FlagLogNoColor, true)
 	sctx.Logger, err = server.CreateSDKLogger(sctx, kitlog.NewSyncWriter(file))
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)
