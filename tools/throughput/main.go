@@ -62,7 +62,7 @@ func (bm *BlockMetrics) CalculateMetrics() (float64, float64, float64) {
 
 func main() {
 	if err := Run(); err != nil {
-		fmt.Printf("ERROR: %s", err.Error())
+		fmt.Printf("ERROR: %s\n", err.Error())
 	}
 }
 
@@ -83,7 +83,7 @@ func Run() error {
 	defer func() {
 		err := client.Stop()
 		if err != nil {
-			fmt.Printf("error while stopping node: %s", err.Error())
+			fmt.Printf("error while stopping node: %s\n", err.Error())
 		}
 	}()
 
@@ -99,7 +99,7 @@ func Run() error {
 	defer func() {
 		err := client.Unsubscribe(ctx, "heights-watcher", "tm.event = 'NewBlockHeader'")
 		if err != nil {
-			fmt.Printf("error while unsubscribing: %s", err.Error())
+			fmt.Printf("error while unsubscribing: %s\n", err.Error())
 		}
 	}()
 
