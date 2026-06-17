@@ -3,6 +3,7 @@ package app_test
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
@@ -97,14 +98,23 @@ func verifyDelegationExists(t *testing.T, cctx *testnode.Context, stakingClient 
 	assert.Equal(t, delegationAmount.String(), delegationResp.DelegationResponse.Balance.Amount.String())
 }
 
+// verifyRewardsExist polls until the delegation has accrued rewards. Rewards
+// only start accruing in the block after the delegation is created, so a
+// one-shot query can race with block production and observe zero rewards.
 func verifyRewardsExist(t *testing.T, cctx *testnode.Context, distributionClient distributiontypes.QueryClient, delegatorAddress, validatorAddress string) {
-	rewardsResp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
-		DelegatorAddress: delegatorAddress,
-		ValidatorAddress: validatorAddress,
-	})
-	require.NoError(t, err)
-	require.Greater(t, len(rewardsResp.Rewards), 0)
-	t.Logf("Rewards before undelegation: %v", rewardsResp.Rewards)
+	var rewards types.DecCoins
+	require.Eventually(t, func() bool {
+		rewardsResp, err := distributionClient.DelegationRewards(cctx.GoContext(), &distributiontypes.QueryDelegationRewardsRequest{
+			DelegatorAddress: delegatorAddress,
+			ValidatorAddress: validatorAddress,
+		})
+		if err != nil {
+			return false
+		}
+		rewards = rewardsResp.Rewards
+		return len(rewards) > 0
+	}, 30*time.Second, 100*time.Millisecond, "delegation rewards did not accrue")
+	t.Logf("Rewards before undelegation: %v", rewards)
 }
 
 func undelegate(t *testing.T, cctx *testnode.Context, txClient *user.TxClient, delegatorAddress, validatorAddress string, amount types.Coin) {

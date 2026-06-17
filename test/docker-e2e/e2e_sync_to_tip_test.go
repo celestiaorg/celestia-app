@@ -57,12 +57,16 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	dockerCfg, err := networks.NewConfig(mochaConfig, s.client, s.network)
 	s.Require().NoError(err, "failed to create mocha config")
 
+	// fetch live peers from RPC /net_info endpoints so we don't rely on a
+	// hardcoded list that goes stale over time.
+	peers := networks.FetchPeers(t, mochaConfig.RPCs, 10)
+
 	startArgs := []string{"--force-no-bbr"}
 	if mochaConfig.Seeds != "" {
 		startArgs = append(startArgs, fmt.Sprintf("--p2p.seeds=%s", mochaConfig.Seeds))
 	}
-	if mochaConfig.Peers != "" {
-		startArgs = append(startArgs, fmt.Sprintf("--p2p.persistent_peers=%s", mochaConfig.Peers))
+	if peers != "" {
+		startArgs = append(startArgs, fmt.Sprintf("--p2p.persistent_peers=%s", peers))
 	}
 
 	builder := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg)

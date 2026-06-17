@@ -101,7 +101,9 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	fibreAddr := s.fibreServer.ListenAddress()
 	clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
 		&fixedHostRegistry{addr: fibreAddr},
+		func() string { return s.fibreClient.ChainID() },
 		clientCfg.MaxMessageSize,
+		nil,
 	)
 
 	s.txClient = txClient
