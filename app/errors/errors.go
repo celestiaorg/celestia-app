@@ -12,4 +12,7 @@ const AppErrorsCodespace = "app"
 var (
 	// ErrTxExceedsMaxSize is returned when a transaction size exceeds the maximum allowed limit
 	ErrTxExceedsMaxSize = errors.Register(AppErrorsCodespace, 11142, "transaction size exceeds maximum allowed limit")
+
+	// ErrTxExceedsMaxSDKMessages is returned when an SDK tx contains more messages than a single block may ever include.
+	ErrTxExceedsMaxSDKMessages = errors.Register(AppErrorsCodespace, 11143, "transaction exceeds maximum allowed SDK message count")
 )
