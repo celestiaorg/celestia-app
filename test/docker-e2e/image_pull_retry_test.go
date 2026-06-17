@@ -11,6 +11,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestBusyboxImage_MatchesTastoraRef guards the busybox reference we pre-pull
+// against tastora's internal one. tastora pulls busybox:stable
+// (github.com/celestiaorg/tastora/framework/docker/internal.BusyboxRef) during
+// chain-node initialization and skips the pull when the image is already cached
+// locally. Pre-pulling must use the exact same ref for that cache hit to work;
+// the internal package can't be imported, so this test documents the coupling.
+func TestBusyboxImage_MatchesTastoraRef(t *testing.T) {
+	assert.Equal(t, "busybox:stable", busyboxImage().Ref())
+}
+
 func TestRetryPull_SucceedsOnFirstAttempt(t *testing.T) {
 	calls := 0
 	err := retryPull(context.Background(), 3, time.Millisecond, func() error {
