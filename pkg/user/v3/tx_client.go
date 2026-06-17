@@ -14,8 +14,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync/atomic"
-
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user"
 	"github.com/celestiaorg/celestia-app/v9/pkg/user/v2"
@@ -24,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc"
+	"sync/atomic"
 )
 
 const defaultQueueSize = 100
@@ -139,12 +138,25 @@ func (c *QueuedTxClient) AddTx(ctx context.Context, msgs []sdktypes.Msg, opts ..
 
 // AddPayForBlob wraps blobs into MsgPayForBlobs and submits via the same
 // async pipeline as AddTx. Gas estimation is handled by the signer.
+//
+// The signer address is resolved here from the embedded TxClient rather
+// than asked of the caller: this keeps the API symmetric with AddTx (the
+// caller never has to know about accounts) and lets NewMsgPayForBlobs run
+// its full validation eagerly, including ValidateBlobShareVersion which
+// requires the signer bytes. The worker rebuilds the message during
+// signing (see signer.go); this construction is purely for fail-fast.
 func (c *QueuedTxClient) AddPayForBlob(ctx context.Context, blobs []*share.Blob, opts ...user.TxOption) (*TxHandle, error) {
 	if len(blobs) == 0 {
 		return nil, errors.New("at least one blob is required")
 	}
 
-	msg, err := blobtypes.NewMsgPayForBlobs("", 0, blobs...)
+	signer := c.Signer()
+	acc, exists := signer.GetAccount(c.DefaultAccountName())
+	if !exists {
+		return nil, fmt.Errorf("default account %s not found in signer", c.DefaultAccountName())
+	}
+
+	msg, err := blobtypes.NewMsgPayForBlobs(acc.Address().String(), 0, blobs...)
 	if err != nil {
 		return nil, fmt.Errorf("creating MsgPayForBlobs: %w", err)
 	}
