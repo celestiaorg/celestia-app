@@ -94,6 +94,22 @@ func TestServerUploadShard(t *testing.T) {
 			},
 		},
 		{
+			name: "DuplicateRows",
+			requestModifier: func(req *types.UploadShardRequest) {
+				// repeat the first assigned row across every slot: the count and
+				// membership checks pass, but the rows are not unique
+				require.Greater(t, len(req.Shard.Rows), 1, "need >1 assigned row to duplicate")
+				for i := range req.Shard.Rows {
+					req.Shard.Rows[i] = req.Shard.Rows[0]
+				}
+			},
+			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "shard assignment verification failed")
+				require.Contains(t, err.Error(), "duplicate row")
+			},
+		},
+		{
 			name: "InvalidRowProof",
 			requestModifier: func(req *types.UploadShardRequest) {
 				// corrupt the proof
