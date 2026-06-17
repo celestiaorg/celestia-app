@@ -137,6 +137,7 @@ cp payload/build/txsim /bin/txsim
 cp payload/build/latency-monitor /bin/latency-monitor
 cp payload/build/fibre /bin/fibre
 cp payload/build/fibre-txsim /bin/fibre-txsim
+[ -f payload/build/spam-txclient-v3 ] && cp payload/build/spam-txclient-v3 /bin/spam-txclient-v3
 
 cd $HOME
 

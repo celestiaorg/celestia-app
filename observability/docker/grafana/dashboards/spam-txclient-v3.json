@@ -1,0 +1,134 @@
+{
+  "title": "Spam TxClient v3",
+  "uid": "spam-txclient-v3",
+  "tags": ["celestia", "load", "txclient"],
+  "timezone": "",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(spam_v3_enqueued_total, service_instance_id)", "refId": "StandardVariableQuery" },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Throughput — confirmed tx/s",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(spam_v3_confirmed_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "confirmed" },
+        { "refId": "B", "expr": "sum(rate(spam_v3_enqueued_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "enqueued" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Confirm latency (enqueue → commit)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.50, sum by(le) (rate(spam_v3_tx_latency_ms_bucket{service_instance_id=~\"$instance\"}[$__rate_interval])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by(le) (rate(spam_v3_tx_latency_ms_bucket{service_instance_id=~\"$instance\"}[$__rate_interval])))", "legendFormat": "p95" },
+        { "refId": "C", "expr": "histogram_quantile(0.99, sum by(le) (rate(spam_v3_tx_latency_ms_bucket{service_instance_id=~\"$instance\"}[$__rate_interval])))", "legendFormat": "p99" },
+        { "refId": "D", "expr": "sum(rate(spam_v3_tx_latency_ms_sum{service_instance_id=~\"$instance\"}[$__rate_interval])) / sum(rate(spam_v3_tx_latency_ms_count{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "avg" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Errors & rejections / s",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(spam_v3_failed_tx_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "failed tx (code!=0)" },
+        { "refId": "B", "expr": "sum(rate(spam_v3_await_err_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "await error" },
+        { "refId": "C", "expr": "sum(rate(spam_v3_add_err_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "add error" },
+        { "refId": "D", "expr": "sum(rate(spam_v3_queue_full_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "queue full" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Confirmed tx/s per instance",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by(service_instance_id) (rate(spam_v3_confirmed_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{service_instance_id}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Confirmed (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(spam_v3_confirmed_total{service_instance_id=~\"$instance\"})", "legendFormat": "confirmed" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Enqueued (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(spam_v3_enqueued_total{service_instance_id=~\"$instance\"})", "legendFormat": "enqueued" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Failed tx (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 12, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(spam_v3_failed_tx_total{service_instance_id=~\"$instance\"})", "legendFormat": "failed" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "stat",
+      "title": "Queue full hits (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 6, "x": 18, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "orange" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(spam_v3_queue_full_total{service_instance_id=~\"$instance\"})", "legendFormat": "queue full" }
+      ]
+    }
+  ]
+}
