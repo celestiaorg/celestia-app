@@ -75,7 +75,6 @@ This will, for every database:
 | `--backup`             | `false`           | Keep source LevelDB data after migration (preserved through swap) |
 | `--batch-size <MB>`    | `64`              | Write batch size in MB                                 |
 | `--delete-chunk <MB>`  | `1024`            | Delete source keys every N MB migrated (no-backup mode)|
-| `--sync-interval <MB>` | `1024`            | Fsync the dest WAL every N MB (0 = sync at chunk/DB boundaries only) |
 | `--parallel <N>`       | `3`               | Migrate N databases concurrently                       |
 | `--db <name>`          | all               | Migrate only a specific database (disables auto-swap)  |
 | `--manual-swap`        | `false`           | Skip auto-swap; print manual instructions instead      |
@@ -183,7 +182,7 @@ rm -rf ~/.celestia-app/customdb/*.db.leveldb-bak   # if a custom db_dir was used
 | Power loss during copy            | At most one delete-chunk of data is re-migrated; source keys are only deleted after the destination is durably flushed and validated. |
 | Crash during swap                 | Swap is rolled back (old DB restored, new DB returned to staging). Re-run to retry. |
 | Crash after config flip           | Re-run detects the migration state and resumes the swap/verify. |
-| `data_pebble/` manually deleted   | Fresh start — no state to resume from.                                |
+| `data_pebble/` (state) deleted    | If `.pebble-migrate` staging dirs remain, the tool refuses to start (won't reuse stale data). Remove the `.pebble-migrate` dirs too for a clean fresh start. |
 
 ## Verification & durability
 

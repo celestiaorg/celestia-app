@@ -289,6 +289,141 @@ func TestCheckPassesAfterMigration(t *testing.T) {
 	require.NoError(t, runMigration(context.Background(), c))
 }
 
+// Critical 1: a missing *required* database must abort and never flip config.
+func TestMigration_RequiredDBMissingAborts(t *testing.T) {
+	home := setupTestNode(t, 50, 128)
+	require.NoError(t, os.RemoveAll(filepath.Join(home, "data", "application.db")))
+
+	o := opts(home)
+	o.manualSwap = false
+	o.backup = false
+	o.parallel = 1
+	err := runMigration(context.Background(), o)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "required database not found")
+
+	cfg, rerr := os.ReadFile(filepath.Join(home, "config", "config.toml"))
+	require.NoError(t, rerr)
+	assert.NotContains(t, string(cfg), "pebbledb", "config must not be flipped when a required DB is missing")
+}
+
+// Critical 1 (corollary): a missing *optional* database is tolerated.
+func TestMigration_OptionalDBMissingTolerated(t *testing.T) {
+	home := setupTestNode(t, 50, 128)
+	require.NoError(t, os.RemoveAll(filepath.Join(home, "data", "tx_index.db")))
+
+	o := opts(home)
+	o.manualSwap = false
+	o.backup = false
+	require.NoError(t, runMigration(context.Background(), o))
+
+	cfg, err := os.ReadFile(filepath.Join(home, "config", "config.toml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(cfg), `db_backend = "pebbledb"`)
+}
+
+// Critical 2: the deletion count is reported incrementally (per chunk), not only
+// at the end, so a crash leaves an accurate lower bound.
+func TestCopyAndDeleteKeys_RecordsDeletedPerChunk(t *testing.T) {
+	dir := t.TempDir()
+	numKeys := 200
+	srcDB, err := db.NewDB("src", db.GoLevelDBBackend, dir)
+	require.NoError(t, err)
+	for i := range numKeys {
+		val := make([]byte, 256)
+		_, _ = rand.Read(val)
+		require.NoError(t, srcDB.Set(fmt.Appendf(nil, "key-%06d", i), val))
+	}
+	srcIter, err := srcDB.Iterator(nil, nil)
+	require.NoError(t, err)
+	destDB, err := db.NewDB("dst", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	var recorded int64
+	var calls int
+	rec := func(n int64) error { recorded += n; calls++; return nil }
+
+	target := dbTarget{name: "test", fileName: "dst", dir: dir}
+	smallChunk := int64(10 * 1024) // forces several chunks for 200×256B
+	_, _, deleted, err := copyAndDeleteKeys(context.Background(), target, srcDB, destDB, srcIter, 1024*1024, smallChunk, rec, time.Now())
+	require.NoError(t, err)
+	assert.Equal(t, int64(numKeys), deleted)
+	assert.Equal(t, int64(numKeys), recorded, "incrementally recorded total must equal deleted")
+	assert.Greater(t, calls, 1, "deletion should be recorded across multiple chunks")
+
+	_ = srcDB.Close()
+	_ = destDB.Close()
+}
+
+// Critical 2 (crash window): the deletion count is recorded BEFORE the source
+// keys are physically removed, so a crash between the two can't undercount.
+func TestDeleteChunk_RecordsBeforeDeleting(t *testing.T) {
+	dir := t.TempDir()
+	srcDB, err := db.NewDB("src", db.GoLevelDBBackend, dir)
+	require.NoError(t, err)
+	destDB, err := db.NewDB("dst", db.PebbleDBBackend, dir)
+	require.NoError(t, err)
+
+	keys := make([][]byte, 0, 50)
+	for i := range 50 {
+		k := fmt.Appendf(nil, "k-%04d", i)
+		require.NoError(t, srcDB.Set(k, []byte("v")))
+		require.NoError(t, destDB.Set(k, []byte("v"))) // present in dest so validation passes
+		keys = append(keys, k)
+	}
+
+	srcCountAtRecord := int64(-1)
+	rec := func(n int64) error {
+		srcCountAtRecord = countKeys(t, srcDB) // source must still be intact when we record
+		return nil
+	}
+	pdb, _ := destDB.(*db.PebbleDB)
+	require.NoError(t, deleteChunk(pdb, srcDB, destDB, keys, "test", rec))
+
+	assert.Equal(t, int64(50), srcCountAtRecord, "count must be recorded before source keys are deleted")
+	assert.Equal(t, int64(0), countKeys(t, srcDB), "source keys should be deleted after deleteChunk")
+
+	_ = srcDB.Close()
+	_ = destDB.Close()
+}
+
+// Critical 2 (stale staging): a fresh run (no state) must refuse to reuse
+// leftover .pebble-migrate staging data rather than resume from stale keys.
+func TestMigration_RejectsStaleStagingWithoutState(t *testing.T) {
+	home := setupTestNode(t, 50, 128)
+	// Simulate a prior interrupted run whose data_pebble (state) was removed but
+	// whose staging dir survived: create a staged PebbleDB for application.
+	stageDir := filepath.Join(home, "data", stagingDirName)
+	require.NoError(t, os.MkdirAll(stageDir, 0o755))
+	staged, err := db.NewDB("application", db.PebbleDBBackend, stageDir)
+	require.NoError(t, err)
+	require.NoError(t, staged.Set([]byte("stale"), []byte("data")))
+	require.NoError(t, staged.Close())
+
+	err = runMigration(context.Background(), opts(home))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stale staging data")
+}
+
+// Critical 3: if the app.toml write fails, config.toml is restored so the two
+// files never disagree.
+func TestUpdateBackendConfig_RollbackOnAppTomlFailure(t *testing.T) {
+	home := t.TempDir()
+	cfgDir := filepath.Join(home, "config")
+	require.NoError(t, os.MkdirAll(cfgDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(cfgDir, "config.toml"), []byte("db_backend = \"goleveldb\"\n"), 0o644))
+	// Make app.toml a directory so the write to it fails after config.toml succeeded.
+	require.NoError(t, os.MkdirAll(filepath.Join(cfgDir, "app.toml"), 0o755))
+
+	err := updateBackendConfig(home, "pebbledb")
+	require.Error(t, err)
+
+	cfg, rerr := os.ReadFile(filepath.Join(cfgDir, "config.toml"))
+	require.NoError(t, rerr)
+	assert.Contains(t, string(cfg), `db_backend = "goleveldb"`, "config.toml must be restored on app.toml failure")
+	assert.NotContains(t, string(cfg), "pebbledb")
+}
+
 func TestSaveAndLoadState(t *testing.T) {
 	dir := t.TempDir()
 	state := &MigrationState{Backup: true, Databases: map[string]DBState{
@@ -368,7 +503,7 @@ func TestCopyAndDeleteKeys_NoKeyLoss(t *testing.T) {
 
 	target := dbTarget{name: "test", fileName: "dst", dir: dir}
 	smallChunk := int64(10 * 1024)
-	totalKeys, _, deleted, err := copyAndDeleteKeys(context.Background(), target, srcDB, destDB, srcIter, 1024*1024, 0, smallChunk, time.Now())
+	totalKeys, _, deleted, err := copyAndDeleteKeys(context.Background(), target, srcDB, destDB, srcIter, 1024*1024, smallChunk, nil, time.Now())
 	require.NoError(t, err)
 	assert.Equal(t, int64(numKeys), totalKeys, "reported key count wrong")
 	assert.Equal(t, int64(numKeys), deleted, "reported delete count wrong")
@@ -431,7 +566,7 @@ func TestSourceCompactionAfterDelete(t *testing.T) {
 
 	target := dbTarget{name: "test", fileName: "dst", dir: dir}
 	smallChunk := int64(10 * 1024)
-	totalKeys, _, _, err := copyAndDeleteKeys(context.Background(), target, srcDB, destDB, srcIter, 1024*1024, 0, smallChunk, time.Now())
+	totalKeys, _, _, err := copyAndDeleteKeys(context.Background(), target, srcDB, destDB, srcIter, 1024*1024, smallChunk, nil, time.Now())
 	require.NoError(t, err)
 	assert.Equal(t, int64(numKeys), totalKeys)
 	assert.Equal(t, int64(numKeys), countKeys(t, destDB))

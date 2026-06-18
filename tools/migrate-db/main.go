@@ -137,9 +137,7 @@ type migrateOpts struct {
 	backup        bool
 	batchSizeMB   int
 	deleteChunkMB int
-	syncInterval  int
 	parallel      int
-	verify        bool
 	dbFilter      string
 	manualSwap    bool
 	skipCompact   bool
@@ -153,9 +151,7 @@ func main() {
 	flag.BoolVar(&opts.backup, "backup", false, "Keep source LevelDB data after migration (default: delete incrementally)")
 	flag.IntVar(&opts.batchSizeMB, "batch-size", 64, "Batch size in MB")
 	flag.IntVar(&opts.deleteChunkMB, "delete-chunk", defaultDeleteChunkMB, "Delete source keys every N MB migrated (no-backup mode)")
-	flag.IntVar(&opts.syncInterval, "sync-interval", 1024, "Fsync every N MB (0 = sync only at DB end)")
 	flag.IntVar(&opts.parallel, "parallel", 3, "Migrate N databases concurrently")
-	flag.BoolVar(&opts.verify, "verify", false, "Run full verification after migration (default: reopen consistency + count; always on)")
 	flag.StringVar(&opts.dbFilter, "db", "", "Migrate only a specific database (e.g. --db blockstore)")
 	flag.BoolVar(&opts.manualSwap, "manual-swap", false, "Skip auto-swap; print manual instructions instead")
 	flag.BoolVar(&opts.skipCompact, "skip-compact", false, "Skip post-migration compaction (not recommended)")
@@ -322,23 +318,15 @@ func runMigration(ctx context.Context, opts migrateOpts) error {
 		return nil
 	}
 
-	if len(targets) < len(mustResolveAll(opts.homeDir)) {
-		fmt.Printf("\nSkipping auto-swap: a --db filter is active (only %d database(s) migrated).\n", len(targets))
+	// Auto-swap requires the full set of databases; a --db filter only ever
+	// migrates a subset, so it can't flip the node's config safely.
+	if opts.dbFilter != "" {
+		fmt.Println("\nSkipping auto-swap: a --db filter is active.")
 		fmt.Println("Re-run without --db to migrate all databases, or use --manual-swap.")
 		return nil
 	}
 
 	return performAutoSwap(opts.homeDir, targets, tracker, opts.backup)
-}
-
-// mustResolveAll returns the full unfiltered target list length for the auto-swap
-// completeness gate. Errors are treated as "cannot confirm completeness".
-func mustResolveAll(homeDir string) []dbTarget {
-	targets, err := resolveTargets(homeDir)
-	if err != nil {
-		return nil
-	}
-	return targets
 }
 
 func filterTargets(targets []dbTarget, name string) []dbTarget {
@@ -357,7 +345,6 @@ func printBanner(opts migrateOpts, targets []dbTarget) {
 	fmt.Printf("Backup:            %v\n", opts.backup)
 	fmt.Printf("Batch size:        %d MB\n", opts.batchSizeMB)
 	fmt.Printf("Delete chunk:      %d MB\n", opts.deleteChunkMB)
-	fmt.Printf("Sync interval:     %d MB\n", opts.syncInterval)
 	fmt.Printf("Parallel:          %d\n", opts.parallel)
 	fmt.Printf("Databases:\n")
 	for _, t := range targets {
@@ -390,6 +377,20 @@ func loadOrInitState(stateDir string, targets []dbTarget, opts migrateOpts) (*st
 
 	deleteChunkBytes := int64(opts.deleteChunkMB) * 1024 * 1024
 	if state == nil {
+		// Starting fresh. Refuse to run if staged PebbleDB data already exists:
+		// the state file (in data_pebble) and the staging dirs (next to each
+		// source) are separate, so removing data_pebble alone orphans staging.
+		// Reusing it would resume from keys that may not match this source — and
+		// in no-backup mode the staged data could be the only copy of source keys
+		// a previous run already deleted. Require an explicit cleanup instead.
+		for _, t := range targets {
+			if isPebbleDB(t.stagedPath()) {
+				return nil, fmt.Errorf("found stale staging data at %s but no migration state in %s: "+
+					"if a previous migration was interrupted, restore its %s to resume safely; "+
+					"otherwise remove the stale staging directories (rm -rf the %q dirs) and re-run",
+					t.stagedPath(), stateDir, migrationStateFile, stagingDirName)
+			}
+		}
 		state = &MigrationState{
 			StartedAt:        time.Now(),
 			Backup:           opts.backup,
@@ -450,18 +451,18 @@ func migrateOneDB(ctx context.Context, t dbTarget, tracker *stateTracker, opts m
 
 	// Source missing.
 	if !srcExists {
-		switch ds.Status {
-		case statusInProgress, statusMigrated:
+		switch {
+		case ds.Status == statusInProgress || ds.Status == statusMigrated:
 			// No-backup crash recovery: source was deleted, dest holds the data.
 			fmt.Printf("[%s] Source not found but was %s — proceeding to verification\n", t.name, ds.Status)
-		default:
-			if t.optional {
-				fmt.Printf("[%s] LevelDB not found, skipping (optional)\n", t.name)
-			} else {
-				fmt.Printf("[%s] LevelDB not found, skipping\n", t.name)
-			}
+		case t.optional:
+			fmt.Printf("[%s] LevelDB not found, skipping (optional)\n", t.name)
 			ds.Status = statusNotFound
 			return tracker.updateDBState(t.name, ds)
+		default:
+			// A required database is missing and was never migrated. Fail loudly
+			// so auto-swap cannot flip the config with a database absent.
+			return fmt.Errorf("[%s] required database not found at %s — refusing to migrate (resolve before continuing)", t.name, t.srcPath())
 		}
 	} else if isPebbleDB(t.srcPath()) {
 		return fmt.Errorf("[%s] source database at %s is already PebbleDB — resolve this inconsistency before migrating", t.name, t.srcPath())
@@ -478,18 +479,26 @@ func migrateOneDB(ctx context.Context, t dbTarget, tracker *stateTracker, opts m
 			return fmt.Errorf("[%s] failed to create staging dir: %w", t.name, err)
 		}
 
+		// recordDeleted persists the running source-deletion count after every
+		// chunk so a crash mid-copy leaves an accurate lower bound for the
+		// no-backup verification (rather than only saving it at DB end).
+		recordDeleted := func(n int64) error {
+			ds.SourceKeysDeleted += n
+			return tracker.updateDBState(t.name, ds)
+		}
+
 		fmt.Printf("[%s] Starting migration...\n", t.name)
-		keys, bytesMigrated, deleted, err := migrateSingleDB(ctx, t, tracker.state.DeleteChunkBytes, opts)
+		keys, bytesMigrated, err := migrateSingleDB(ctx, t, tracker.state.DeleteChunkBytes, opts, recordDeleted)
 		if err != nil {
 			return fmt.Errorf("[%s] migration failed: %w", t.name, err)
 		}
 
-		// Accumulate across resumed runs (a crash mid-copy may split a DB's
+		// SourceKeysDeleted was already accumulated via recordDeleted. Keys/bytes
+		// accumulate across resumed runs (a crash mid-copy may split a DB's
 		// migration over several invocations).
 		ds.Status = statusMigrated
 		ds.KeysMigrated += keys
 		ds.BytesMigrated += bytesMigrated
-		ds.SourceKeysDeleted += deleted
 		ds.CompletedAt = time.Now()
 		if err := tracker.updateDBState(t.name, ds); err != nil {
 			return fmt.Errorf("[%s] failed to save state: %w", t.name, err)
@@ -520,27 +529,27 @@ func migrateOneDB(ctx context.Context, t dbTarget, tracker *stateTracker, opts m
 	return nil
 }
 
-// migrateSingleDB opens source and dest DBs, finds the resume point, and copies keys.
-// Returns total keys copied (this run), bytes copied (this run), and source keys deleted (this run).
-func migrateSingleDB(ctx context.Context, t dbTarget, deleteChunkBytes int64, opts migrateOpts) (int64, int64, int64, error) {
+// migrateSingleDB opens source and dest DBs, finds the resume point, and copies
+// keys. It returns the keys and bytes copied in this run. In no-backup mode it
+// reports each deleted chunk through recordDeleted as it goes.
+func migrateSingleDB(ctx context.Context, t dbTarget, deleteChunkBytes int64, opts migrateOpts, recordDeleted func(int64) error) (int64, int64, error) {
 	startTime := time.Now()
 	batchBytes := int64(opts.batchSizeMB) * 1024 * 1024
-	syncBytes := int64(opts.syncInterval) * 1024 * 1024
 
 	sourceDB, err := db.NewDB(t.fileName, db.GoLevelDBBackend, t.dir)
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to open source LevelDB: %w", err)
+		return 0, 0, fmt.Errorf("failed to open source LevelDB: %w", err)
 	}
 	defer func() { _ = sourceDB.Close() }()
 
 	destDB, err := db.NewDB(t.fileName, db.PebbleDBBackend, t.stagingDir())
 	if err != nil {
-		return 0, 0, 0, fmt.Errorf("failed to open destination PebbleDB: %w", err)
+		return 0, 0, fmt.Errorf("failed to open destination PebbleDB: %w", err)
 	}
 	pdb, ok := destDB.(*db.PebbleDB)
 	if !ok {
 		_ = destDB.Close()
-		return 0, 0, 0, fmt.Errorf("destination is not a PebbleDB")
+		return 0, 0, fmt.Errorf("destination is not a PebbleDB")
 	}
 	destClosed := false
 	closeDest := func() error {
@@ -556,25 +565,26 @@ func migrateSingleDB(ctx context.Context, t dbTarget, deleteChunkBytes int64, op
 
 	resumeKey, err := findResumePoint(destDB, t.name)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 	if err := verifyResumePoint(sourceDB, destDB, resumeKey, t.name); err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 
 	srcIter, err := iteratorFrom(sourceDB, resumeKey)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 
-	var totalKeys, totalBytes, deleted int64
+	var totalKeys, totalBytes int64
 	if !opts.backup {
-		totalKeys, totalBytes, deleted, err = copyAndDeleteKeys(ctx, t, sourceDB, destDB, srcIter, batchBytes, syncBytes, deleteChunkBytes, startTime)
+		// recordDeleted persists the deletion count as it goes; the returned total is unused here.
+		totalKeys, totalBytes, _, err = copyAndDeleteKeys(ctx, t, sourceDB, destDB, srcIter, batchBytes, deleteChunkBytes, recordDeleted, startTime)
 	} else {
-		totalKeys, totalBytes, err = copyAllKeys(ctx, t.name, destDB, srcIter, batchBytes, syncBytes, startTime)
+		totalKeys, totalBytes, err = copyAllKeys(ctx, t.name, destDB, srcIter, batchBytes, startTime)
 	}
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, err
 	}
 
 	// Force all memtables to durable SSTs so the on-disk LSM is complete and
@@ -582,25 +592,25 @@ func migrateSingleDB(ctx context.Context, t dbTarget, deleteChunkBytes int64, op
 	// in the (NoSync) WAL and a non-graceful stop can leave the MANIFEST
 	// referencing files that were never written.
 	if err := pdb.DB().Flush(); err != nil {
-		return 0, 0, 0, fmt.Errorf("[%s] flush failed: %w", t.name, err)
+		return 0, 0, fmt.Errorf("[%s] flush failed: %w", t.name, err)
 	}
 
 	if !opts.skipCompact {
 		if err := compactPebbleDB(t.name, destDB); err != nil {
-			return 0, 0, 0, err
+			return 0, 0, err
 		}
 	}
 
 	// Checked close — propagate any close error instead of swallowing it.
 	if err := closeDest(); err != nil {
-		return 0, 0, 0, fmt.Errorf("[%s] failed to close destination cleanly: %w", t.name, err)
+		return 0, 0, fmt.Errorf("[%s] failed to close destination cleanly: %w", t.name, err)
 	}
 
 	elapsed := time.Since(startTime)
 	fmt.Printf("[%s] Migration complete: %d keys copied, %s, elapsed %s\n",
 		t.name, totalKeys, humanBytes(totalBytes), elapsed.Round(time.Second))
 
-	return totalKeys, totalBytes, deleted, nil
+	return totalKeys, totalBytes, nil
 }
 
 // compactPebbleDB runs a full compaction on the destination PebbleDB to reduce disk bloat
@@ -711,17 +721,14 @@ func iteratorFrom(sourceDB db.DB, resumeKey []byte) (db.Iterator, error) {
 	return srcIter, nil
 }
 
-// flushBatch writes the batch (sync or async), closes it, and returns a fresh batch.
-func flushBatch(batch db.Batch, destDB db.DB, sync bool) (db.Batch, error) {
-	var writeErr error
-	if sync {
-		writeErr = batch.WriteSync()
-	} else {
-		writeErr = batch.Write()
-	}
-	if writeErr != nil {
+// flushBatch commits the batch asynchronously (NoSync), closes it, and returns a
+// fresh batch. Durability is provided separately by Flush() at chunk boundaries
+// (no-backup mode) and at the end of each database, so per-batch fsync is
+// unnecessary and would only slow the copy down.
+func flushBatch(batch db.Batch, destDB db.DB) (db.Batch, error) {
+	if err := batch.Write(); err != nil {
 		_ = batch.Close()
-		return nil, fmt.Errorf("failed to write batch: %w", writeErr)
+		return nil, fmt.Errorf("failed to write batch: %w", err)
 	}
 	if err := batch.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close batch: %w", err)
@@ -741,19 +748,18 @@ func logProgress(dbName string, totalKeys, totalBytes int64, startTime time.Time
 	}
 }
 
-// copyAllKeys copies all keys from srcIter into destDB in batches. Returns total keys and bytes copied.
-func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes int64, startTime time.Time) (int64, int64, error) {
-	var totalKeys int64
-	var totalBytes, bytesSinceSync int64
+// copyAllKeys copies all keys from srcIter into destDB in batches. Returns total
+// keys and bytes copied. Batches are committed async; the caller's Flush() makes
+// the result durable.
+func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.Iterator, batchBytes int64, startTime time.Time) (int64, int64, error) {
+	var totalKeys, totalBytes int64
 	lastLogTime := time.Now()
 
 	batch := destDB.NewBatch()
-	var batchKeyCount int
 
 	for ; srcIter.Valid(); srcIter.Next() {
 		key := srcIter.Key()
 		value := srcIter.Value()
-		kvSize := int64(len(key) + len(value))
 
 		if err := batch.Set(key, value); err != nil {
 			_ = srcIter.Close()
@@ -762,22 +768,13 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 		}
 
 		totalKeys++
-		batchKeyCount++
-		totalBytes += kvSize
-		bytesSinceSync += kvSize
+		totalBytes += int64(len(key) + len(value))
 
-		currentBatchSize, _ := batch.GetByteSize()
-		if int64(currentBatchSize) >= batchBytes {
-			needSync := syncBytes > 0 && bytesSinceSync >= syncBytes
+		if size, _ := batch.GetByteSize(); int64(size) >= batchBytes {
 			var err error
-			batch, err = flushBatch(batch, destDB, needSync)
-			if err != nil {
+			if batch, err = flushBatch(batch, destDB); err != nil {
 				_ = srcIter.Close()
 				return 0, 0, err
-			}
-			batchKeyCount = 0
-			if needSync {
-				bytesSinceSync = 0
 			}
 		}
 
@@ -802,161 +799,119 @@ func copyAllKeys(ctx context.Context, dbName string, destDB db.DB, srcIter db.It
 		return 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
 	}
 
-	if batchKeyCount > 0 {
-		if err := batch.WriteSync(); err != nil {
-			_ = batch.Close()
-			return 0, 0, fmt.Errorf("failed to write batch: %w", err)
-		}
+	if err := batch.Write(); err != nil {
+		_ = batch.Close()
+		return 0, 0, fmt.Errorf("failed to write final batch: %w", err)
 	}
 	_ = batch.Close()
 
 	return totalKeys, totalBytes, nil
 }
 
-// copyAndDeleteKeys copies keys into destDB and incrementally deletes them from sourceDB.
-// Before each delete chunk, it durably flushes the destination and validates that
-// every key/value about to be deleted is present and correct in the destination,
-// so a crash can never leave a key absent from both source and destination.
-func copyAndDeleteKeys(ctx context.Context, t dbTarget, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, syncBytes, deleteChunkBytes int64, startTime time.Time) (int64, int64, int64, error) {
+// copyAndDeleteKeys copies keys into destDB and incrementally deletes them from
+// sourceDB in chunks to keep disk usage low. Each chunk is only deleted after the
+// destination is durably flushed and the chunk's values are validated against the
+// source (see deleteChunk), so a crash can never leave a key absent from both.
+// Returns total keys copied, bytes copied, and source keys deleted (this run).
+func copyAndDeleteKeys(ctx context.Context, t dbTarget, sourceDB, destDB db.DB, srcIter db.Iterator, batchBytes, deleteChunkBytes int64, recordDeleted func(int64) error, startTime time.Time) (int64, int64, int64, error) {
 	dbName := t.name
-	var totalKeys int64
-	var totalBytes, bytesSinceSync, bytesSinceDelete, totalDeleted int64
-	var deleteKeys [][]byte
-	lastLogTime := time.Now()
-
-	batch := destDB.NewBatch()
-	var batchKeyCount int
-
 	pdb, _ := destDB.(*db.PebbleDB)
+
+	var totalKeys, totalBytes, bytesSinceDelete, totalDeleted int64
+	var deleteKeys [][]byte
+	var pending int // keys written to the current batch but not yet committed
+	lastLogTime := time.Now()
+	batch := destDB.NewBatch()
+
+	fail := func(err error) (int64, int64, int64, error) {
+		_ = srcIter.Close()
+		_ = batch.Close()
+		return 0, 0, 0, err
+	}
 
 	for srcIter.Valid() {
 		key := srcIter.Key()
 		value := srcIter.Value()
-		kvSize := int64(len(key) + len(value))
 
 		if err := batch.Set(key, value); err != nil {
-			_ = srcIter.Close()
-			_ = batch.Close()
-			return 0, 0, 0, fmt.Errorf("failed to set key in batch: %w", err)
+			return fail(fmt.Errorf("failed to set key in batch: %w", err))
 		}
-
 		totalKeys++
-		batchKeyCount++
-		totalBytes += kvSize
-		bytesSinceSync += kvSize
-		bytesSinceDelete += kvSize
+		pending++
+		totalBytes += int64(len(key) + len(value))
+		bytesSinceDelete += int64(len(key) + len(value))
+		deleteKeys = append(deleteKeys, append([]byte(nil), key...))
 
-		keyCopy := make([]byte, len(key))
-		copy(keyCopy, key)
-		deleteKeys = append(deleteKeys, keyCopy)
-
-		currentBatchSize, _ := batch.GetByteSize()
-		if int64(currentBatchSize) >= batchBytes {
-			needSync := syncBytes > 0 && bytesSinceSync >= syncBytes
+		if size, _ := batch.GetByteSize(); int64(size) >= batchBytes {
 			var err error
-			batch, err = flushBatch(batch, destDB, needSync)
-			if err != nil {
-				_ = srcIter.Close()
-				return 0, 0, 0, err
+			if batch, err = flushBatch(batch, destDB); err != nil {
+				return fail(err)
 			}
-			batchKeyCount = 0
-			if needSync {
-				bytesSinceSync = 0
-			}
+			pending = 0
 		}
 
 		if totalKeys%10000 == 0 {
 			if err := ctx.Err(); err != nil {
-				_ = srcIter.Close()
-				_ = batch.Close()
-				return 0, 0, 0, fmt.Errorf("cancelled: %w", err)
+				return fail(fmt.Errorf("cancelled: %w", err))
 			}
 		}
-
 		logProgress(dbName, totalKeys, totalBytes, startTime, &lastLogTime)
 
-		// Trigger a delete chunk on either byte size or key count to bound memory.
+		// Delete a chunk on either byte size or key count (the latter bounds memory).
 		if bytesSinceDelete >= deleteChunkBytes || len(deleteKeys) >= maxDeleteKeys {
-			// Flush any pending batch (sync) for durability.
-			if batchKeyCount > 0 {
+			lastKey := append([]byte(nil), key...)
+			// Commit pending writes and release the source iterator (LevelDB
+			// iterators pin a snapshot) before deleting.
+			if pending > 0 {
 				var err error
-				batch, err = flushBatch(batch, destDB, true)
-				if err != nil {
-					_ = srcIter.Close()
-					return 0, 0, 0, err
+				if batch, err = flushBatch(batch, destDB); err != nil {
+					return fail(err)
 				}
-				batchKeyCount = 0
-				bytesSinceSync = 0
+				pending = 0
 			}
-
-			lastKey := make([]byte, len(key))
-			copy(lastKey, key)
 			if err := srcIter.Close(); err != nil {
 				_ = batch.Close()
 				return 0, 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
 			}
 
-			// Durable-flush the destination and validate the chunk is present
-			// before deleting anything from the source.
-			if err := flushAndValidate(pdb, sourceDB, destDB, deleteKeys, dbName); err != nil {
+			if err := deleteChunk(pdb, sourceDB, destDB, deleteKeys, dbName, recordDeleted); err != nil {
 				_ = batch.Close()
 				return 0, 0, 0, err
 			}
-
-			if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
-				_ = batch.Close()
-				return 0, 0, 0, fmt.Errorf("failed to delete source keys: %w", err)
-			}
 			totalDeleted += int64(len(deleteKeys))
-			if ldb, ok := sourceDB.(*db.GoLevelDB); ok {
-				if err := ldb.ForceCompact(deleteKeys[0], deleteKeys[len(deleteKeys)-1]); err != nil {
-					_ = batch.Close()
-					return 0, 0, 0, fmt.Errorf("[%s] source compaction failed: %w", dbName, err)
-				}
-			}
 			deleteKeys = deleteKeys[:0]
 			bytesSinceDelete = 0
 
 			var err error
-			srcIter, err = sourceDB.Iterator(lastKey, nil)
-			if err != nil {
+			if srcIter, err = sourceDB.Iterator(lastKey, nil); err != nil {
 				_ = batch.Close()
 				return 0, 0, 0, fmt.Errorf("failed to reopen source iterator: %w", err)
 			}
 			if srcIter.Valid() && bytes.Equal(srcIter.Key(), lastKey) {
-				srcIter.Next()
+				srcIter.Next() // lastKey was just deleted; skip it if still present
 			}
 			continue
 		}
-
 		srcIter.Next()
 	}
 
 	if err := srcIter.Error(); err != nil {
-		_ = srcIter.Close()
-		_ = batch.Close()
-		return 0, 0, 0, fmt.Errorf("iterator error: %w", err)
+		return fail(fmt.Errorf("iterator error: %w", err))
 	}
 	if err := srcIter.Close(); err != nil {
 		_ = batch.Close()
 		return 0, 0, 0, fmt.Errorf("failed to close source iterator: %w", err)
 	}
-
-	if batchKeyCount > 0 {
-		if err := batch.WriteSync(); err != nil {
-			_ = batch.Close()
-			return 0, 0, 0, fmt.Errorf("failed to write batch: %w", err)
-		}
+	if err := batch.Write(); err != nil {
+		_ = batch.Close()
+		return 0, 0, 0, fmt.Errorf("failed to write final batch: %w", err)
 	}
 	_ = batch.Close()
 
-	// Delete any remaining tracked keys (validated first).
+	// Delete whatever remains in the final partial chunk.
 	if len(deleteKeys) > 0 {
-		if err := flushAndValidate(pdb, sourceDB, destDB, deleteKeys, dbName); err != nil {
+		if err := deleteChunk(pdb, sourceDB, destDB, deleteKeys, dbName, recordDeleted); err != nil {
 			return 0, 0, 0, err
-		}
-		if err := deleteSourceKeys(sourceDB, deleteKeys); err != nil {
-			return 0, 0, 0, fmt.Errorf("failed to delete remaining source keys: %w", err)
 		}
 		totalDeleted += int64(len(deleteKeys))
 	}
@@ -964,10 +919,16 @@ func copyAndDeleteKeys(ctx context.Context, t dbTarget, sourceDB, destDB db.DB, 
 	return totalKeys, totalBytes, totalDeleted, nil
 }
 
-// flushAndValidate durably flushes the destination, then confirms every key in
-// keys is present in the destination with the same value as the source. This is
-// the safety gate that makes incremental source deletion recoverable.
-func flushAndValidate(pdb *db.PebbleDB, sourceDB, destDB db.DB, keys [][]byte, dbName string) error {
+// deleteChunk is the only place that removes source data. It durably flushes the
+// destination, confirms every key in the chunk is present in the destination with
+// the same value as the source, records the running count, and only then deletes
+// the keys from the source and compacts the freed range. Returns without deleting
+// anything if validation fails, so a key can never be lost from both databases.
+func deleteChunk(pdb *db.PebbleDB, sourceDB, destDB db.DB, keys [][]byte, dbName string, recordDeleted func(int64) error) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	// Force memtables to durable SSTs, then verify the chunk round-trips.
 	if pdb != nil {
 		if err := pdb.DB().Flush(); err != nil {
 			return fmt.Errorf("[%s] flush before delete failed: %w", dbName, err)
@@ -984,6 +945,26 @@ func flushAndValidate(pdb *db.PebbleDB, sourceDB, destDB db.DB, keys [][]byte, d
 		}
 		if !bytes.Equal(srcVal, destVal) {
 			return fmt.Errorf("[%s] validate: value mismatch before delete at key %x — refusing to delete source", dbName, key)
+		}
+	}
+
+	// Persist the count BEFORE physically deleting from the source. At this point
+	// the keys are confirmed durably present in the destination, so recording
+	// first keeps the no-backup lower bound accurate even if a crash happens
+	// between here and the delete: the keys are in dest, and on resume the
+	// undeleted source keys (all <= dest's last key) are skipped and cleaned up by
+	// the final source removal. Recording AFTER the delete could undercount.
+	if recordDeleted != nil {
+		if err := recordDeleted(int64(len(keys))); err != nil {
+			return err
+		}
+	}
+	if err := deleteSourceKeys(sourceDB, keys); err != nil {
+		return fmt.Errorf("[%s] failed to delete source keys: %w", dbName, err)
+	}
+	if ldb, ok := sourceDB.(*db.GoLevelDB); ok {
+		if err := ldb.ForceCompact(keys[0], keys[len(keys)-1]); err != nil {
+			return fmt.Errorf("[%s] source compaction failed: %w", dbName, err)
 		}
 	}
 	return nil
@@ -1024,15 +1005,10 @@ func deleteSourceKeys(sourceDB db.DB, keys [][]byte) error {
 // block-level corruption or missing SST. In --backup mode it additionally
 // compares the full source against the destination (count + content hash).
 func verifyDestination(t dbTarget, ds DBState, opts migrateOpts) error {
-	destDB, err := db.NewDB(t.fileName, db.PebbleDBBackend, t.stagingDir())
+	// Reopening runs pebble's checkConsistency; the full read surfaces corruption.
+	destCount, destHash, err := openAndFullRead(t.fileName, t.stagingDir())
 	if err != nil {
-		return fmt.Errorf("destination failed to open (consistency check failed): %w", err)
-	}
-	defer func() { _ = destDB.Close() }()
-
-	destCount, destHash, err := iterateCountHash(destDB)
-	if err != nil {
-		return fmt.Errorf("destination iteration failed (possible corruption): %w", err)
+		return fmt.Errorf("destination failed to open or read back (consistency check failed): %w", err)
 	}
 
 	if opts.backup {
@@ -1072,6 +1048,19 @@ func verifyDestination(t dbTarget, ds DBState, opts migrateOpts) error {
 
 // iterateCountHash iterates the entire DB in key order, reading every value, and
 // returns the key count plus a SHA-256 over the length-prefixed key/value stream.
+// openAndFullRead opens the PebbleDB at dir/<fileName>.db, fully iterates it
+// (reading every value, which surfaces missing SSTs and block-level corruption),
+// and returns the key count and a content hash. Opening also runs pebble's own
+// checkConsistency.
+func openAndFullRead(fileName, dir string) (int64, []byte, error) {
+	d, err := db.NewDB(fileName, db.PebbleDBBackend, dir)
+	if err != nil {
+		return 0, nil, err
+	}
+	defer func() { _ = d.Close() }()
+	return iterateCountHash(d)
+}
+
 func iterateCountHash(d db.DB) (int64, []byte, error) {
 	it, err := d.Iterator(nil, nil)
 	if err != nil {
@@ -1116,16 +1105,9 @@ func runCheck(targets []dbTarget, backend string) error {
 			failures++
 			continue
 		}
-		d, err := db.NewDB(t.fileName, db.PebbleDBBackend, t.dir)
+		count, _, err := openAndFullRead(t.fileName, t.dir)
 		if err != nil {
-			fmt.Printf("[%s] FAILED to open: %v\n", t.name, err)
-			failures++
-			continue
-		}
-		count, _, err := iterateCountHash(d)
-		_ = d.Close()
-		if err != nil {
-			fmt.Printf("[%s] FAILED full read: %v\n", t.name, err)
+			fmt.Printf("[%s] FAILED: %v\n", t.name, err)
 			failures++
 			continue
 		}
@@ -1211,16 +1193,17 @@ func fsyncDir(dir string) error {
 // config.toml. The old LevelDB directories are moved aside (not deleted) until
 // the swap and config update succeed.
 func performAutoSwap(homeDir string, targets []dbTarget, tracker *stateTracker, backup bool) error {
-	// Gate: every database must be verified (or legitimately absent).
+	// Gate: every database must be verified (or, only if optional, legitimately
+	// absent). A required database that is missing must never let the swap flip
+	// the node's config.
 	for _, t := range targets {
 		ds := tracker.getDBState(t.name)
-		if ds.Status == statusVerified || ds.Status == statusSwapped {
-			continue
+		switch {
+		case ds.Status == statusVerified || ds.Status == statusSwapped:
+		case ds.Status == statusNotFound && t.optional:
+		default:
+			return fmt.Errorf("database %q has status %q, expected %q — cannot auto-swap", t.name, ds.Status, statusVerified)
 		}
-		if ds.Status == statusNotFound {
-			continue
-		}
-		return fmt.Errorf("database %q has status %q, expected %q — cannot auto-swap", t.name, ds.Status, statusVerified)
 	}
 
 	fmt.Println("\nPerforming auto-swap...")
@@ -1400,19 +1383,35 @@ func readTomlString(path, key string) (string, bool, error) {
 	return "", false, nil
 }
 
-// updateBackendConfig sets the backend in both config.toml (db_backend) and, if
-// it exists, app.toml (app-db-backend). Both are written atomically. If either
-// write fails the caller rolls back the swap.
+// updateBackendConfig sets the backend in config.toml (db_backend) and, if it
+// exists, app.toml (app-db-backend). It is transactional: if the app.toml write
+// fails, config.toml is restored to its original contents so the two files never
+// end up disagreeing (which would leave the app and consensus layers on
+// different backends).
 func updateBackendConfig(homeDir, backend string) error {
 	configPath := filepath.Join(homeDir, "config", "config.toml")
+	appPath := filepath.Join(homeDir, "config", "app.toml")
+
+	origConfig, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read config.toml: %w", err)
+	}
+	appExists := false
+	if _, err := os.Stat(appPath); err == nil {
+		appExists = true
+	}
+
 	if err := setTomlKey(configPath, configDBBackendKey, backend, true); err != nil {
 		return fmt.Errorf("config.toml: %w", err)
 	}
-	appPath := filepath.Join(homeDir, "config", "app.toml")
-	if _, err := os.Stat(appPath); err == nil {
+	if appExists {
 		// app-db-backend takes precedence at runtime; it must agree with config.
 		if err := setTomlKey(appPath, appDBBackendKey, backend, true); err != nil {
-			return fmt.Errorf("app.toml: %w", err)
+			// Restore config.toml so the two files stay consistent.
+			if rerr := atomicWriteFile(configPath, origConfig, 0o644); rerr != nil {
+				return fmt.Errorf("app.toml: %w (and failed to restore config.toml: %v)", err, rerr)
+			}
+			return fmt.Errorf("app.toml: %w (config.toml restored)", err)
 		}
 	}
 	return nil
