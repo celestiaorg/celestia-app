@@ -83,12 +83,12 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 
 	// shuffle all totalRows indices with Fisher-Yates algorithm
 	// NOTE: std library Shuffle implements Fisher-Yates algorithm
-	rowsIndicies := make([]int, totalRows)
+	rowsIndices := make([]int, totalRows)
 	for i := range totalRows {
-		rowsIndicies[i] = i
+		rowsIndices[i] = i
 	}
 	rng.Shuffle(totalRows, func(i, j int) {
-		rowsIndicies[i], rowsIndicies[j] = rowsIndicies[j], rowsIndicies[i]
+		rowsIndices[i], rowsIndices[j] = rowsIndices[j], rowsIndices[i]
 	})
 
 	// assign rows to validators, wrapping around with modulo if total assigned exceeds totalRows
@@ -98,7 +98,7 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 		rows := make([]int, rowsPerValidator[i])
 		for j := range rows {
 			// modulo ensures wrap-around when minRows causes over-assignment
-			rows[j] = rowsIndicies[(offset+j)%totalRows]
+			rows[j] = rowsIndices[(offset+j)%totalRows]
 		}
 		shardMap[validator] = rows
 		offset += rowsPerValidator[i]
