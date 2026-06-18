@@ -187,10 +187,6 @@ func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tm
 		return fmt.Errorf("renaming shard tmp to final: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		if rmErr := s.fs.Remove(shardPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
-			s.log.Warn("removing the shard file after commit failure",
-				"commitment", promise.Commitment.String(), "error", rmErr)
-		}
 		return fmt.Errorf("committing metadata: %w", err)
 	}
 
