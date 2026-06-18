@@ -35,6 +35,22 @@ func retryPull(ctx context.Context, maxAttempts int, baseDelay time.Duration, op
 	return fmt.Errorf("retryPull exhausted after %d attempts: %w", maxAttempts, lastErr)
 }
 
+// busybox{Repository,Version} mirror tastora's internal busybox image reference
+// (github.com/celestiaorg/tastora/framework/docker/internal.BusyboxRef =
+// "busybox:stable"). tastora pulls this image during chain-node initialization
+// to set volume ownership, and skips the pull when the image is already cached
+// locally. The internal package can't be imported, so the ref is duplicated
+// here; TestBusyboxImage_MatchesTastoraRef guards the two staying in sync.
+const (
+	busyboxRepository = "busybox"
+	busyboxVersion    = "stable"
+)
+
+// busyboxImage returns the busybox image that tastora pulls internally.
+func busyboxImage() tastoracontainertypes.Image {
+	return tastoracontainertypes.NewImage(busyboxRepository, busyboxVersion, "")
+}
+
 // pullImageWithRetry pulls the given image via tastora's idempotent PullImage,
 // retrying on transient registry errors (e.g. ghcr.io timeouts). Safe to call
 // on images that are already cached locally — PullImage is a no-op in that case.
