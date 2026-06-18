@@ -391,6 +391,10 @@ func (r *testHostRegistry) GetHost(ctx context.Context, val *core.Validator) (va
 	return validator.Host(addr), nil
 }
 
+func (r *testHostRegistry) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
+	return false, false, nil
+}
+
 // shufflingValidatorSetGetter returns deterministically shuffled validator sets based on height.
 // Each height produces a different but deterministic ordering using height as the random seed.
 type shufflingValidatorSetGetter struct {
