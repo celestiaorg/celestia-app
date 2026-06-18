@@ -1,10 +1,4 @@
-VERSION := $(shell \
-	if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
-		git describe --tags --always --match "v*" | cut -d'-' -f1 | sed 's/^v//'; \
-	else \
-		git describe --tags --always --match "v*" | sed 's/^v//'; \
-	fi \
-)
+VERSION := $(shell ./scripts/version.sh)
 COMMIT := $(shell git rev-parse --short HEAD)
 CELESTIA_TAG := $(shell git rev-parse --short=8 HEAD)
 export CELESTIA_TAG
