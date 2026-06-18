@@ -23,5 +23,15 @@ else
     echo "Binary $out not found, downloading"
 fi
 
-wget -q "https://github.com/celestiaorg/celestia-app/releases/download/$version/$url" -O internal/embedding/$out
+# Retry on transient failures (connection refused, host errors, and transient
+# HTTP status codes such as 429 rate limiting and 5xx server errors). A genuine
+# 404 (missing asset) is not in the retry list, so it still fails fast.
+wget -q \
+    --tries=5 \
+    --waitretry=5 \
+    --retry-connrefused \
+    --retry-on-host-error \
+    --retry-on-http-error=429,500,502,503,504 \
+    "https://github.com/celestiaorg/celestia-app/releases/download/$version/$url" \
+    -O internal/embedding/$out
 echo "$version" > internal/embedding/.embed_version_$out

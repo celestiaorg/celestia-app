@@ -27,6 +27,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -264,6 +265,22 @@ func TestCheckTx(t *testing.T) {
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "normal transaction exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[9]
+				addr := signer.Account(accounts[9]).Address()
+				msgs := make([]sdk.Msg, appconsts.MaxSDKMessages+1)
+				for i := range msgs {
+					msgs[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+				}
+				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 	}
 

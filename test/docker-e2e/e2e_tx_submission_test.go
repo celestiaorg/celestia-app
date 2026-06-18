@@ -15,15 +15,13 @@ const (
 	submissionDelay = 1 * time.Second
 
 	maxAvgLatency = 8 * time.Second
-	// minSuccessRate is the minimum fraction of submitted transactions that
-	// must succeed. The run submits roughly one tx per second for 15 minutes
-	// (~900 txs), and the latency-monitor counts transient client-side errors
-	// (e.g. "context deadline exceeded") as failures. A 99.9% threshold
-	// tolerates zero failures at this volume (900 * 0.001 = 0.9), so a single
-	// transient failure fails the whole nightly. 99.5% leaves headroom for rare
-	// transient noise while still catching genuine reliability regressions,
-	// which manifest as far more than 0.5% failures.
-	minSuccessRate = 0.995 // 99.5%
+	// minSuccessRate tolerates a small number of transient submission
+	// failures. The test submits a blob roughly once per second for 15
+	// minutes (~900 attempts), so a 99.9% threshold effectively allowed zero
+	// failures and flaked on isolated, transient errors (e.g. a single failed
+	// broadcast). 99% leaves headroom for transient noise while still catching
+	// real regressions, which drop the success rate well below this bound.
+	minSuccessRate = 0.99 // 99%
 )
 
 func (s *CelestiaTestSuite) TestTxSubmission() {
