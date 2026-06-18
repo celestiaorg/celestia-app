@@ -47,6 +47,15 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
 	s.client, s.network = tastoradockertypes.Setup(s.T())
+	s.prePullBusybox(context.Background())
+}
+
+// prePullBusybox pre-pulls the busybox image (with retry) that tastora pulls
+// internally during chain-node initialization. Calling this from SetupSuite
+// turns tastora's otherwise-flaky 60s pull into a local cache hit, so transient
+// registry errors don't surface as test failures. Safe to call repeatedly.
+func (s *CelestiaTestSuite) prePullBusybox(ctx context.Context) {
+	s.Require().NoError(pullImageWithRetry(ctx, s.client, busyboxImage()), "failed to pre-pull busybox image")
 }
 
 // CreateTxSim deploys and starts a txsim container to simulate transactions against the given celestia chain in the test environment.
