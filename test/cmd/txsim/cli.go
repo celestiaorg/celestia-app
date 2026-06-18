@@ -55,7 +55,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer cancel()
 	if err := command().ExecuteContext(ctx); err != nil {
-		fmt.Print(err)
+		fmt.Println(err)
 	}
 }
 
