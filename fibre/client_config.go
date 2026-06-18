@@ -37,6 +37,11 @@ type ClientConfig struct {
 	// retry window. See [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
+	// HostRefreshInterval is the minimum time between on-chain host re-queries
+	// for a single validator when a request fails. Defaults to the expected
+	// block time, since registry state cannot change faster than one block.
+	HostRefreshInterval time.Duration
+
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
 	// If nil, [Validate] creates one from [StateAddress].
 	StateClientFn func() (state.Client, error)
@@ -74,6 +79,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		RPCTimeout:          15 * time.Second,
+		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
 	}
 }
 
@@ -84,7 +90,11 @@ func (cfg *ClientConfig) Validate() error {
 			return fmt.Errorf("state address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log)
+			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log,
+				fibregrpc.WithClock(cfg.Clock),
+				fibregrpc.WithRefreshInterval(cfg.HostRefreshInterval),
+				fibregrpc.WithQueryTimeout(cfg.RPCTimeout),
+			)
 		}
 	}
 
@@ -99,6 +109,9 @@ func (cfg *ClientConfig) Validate() error {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()
+	}
+	if cfg.HostRefreshInterval <= 0 {
+		cfg.HostRefreshInterval = fibregrpc.DefaultRefreshInterval
 	}
 
 	if cfg.RPCTimeout <= 0 {

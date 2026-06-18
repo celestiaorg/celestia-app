@@ -164,6 +164,10 @@ func (s *stubStateClient) GetHost(context.Context, *core.Validator) (validator.H
 	return "", nil
 }
 
+func (s *stubStateClient) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
+	return false, false, nil
+}
+
 func (s *stubStateClient) VerifyPromise(context.Context, *state.PaymentPromise) (state.VerifiedPromise, error) {
 	return state.VerifiedPromise{}, nil
 }
