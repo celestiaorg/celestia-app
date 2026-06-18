@@ -131,12 +131,11 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 	return s, nil
 }
 
-// Put stores a [PaymentPromise] and [types.BlobShard] using a stage → commit
-// → publish pattern: write tmp under staging/, commit pebble metadata, then
-// rename into shards/<commit>-<hash>. A crash between commit and rename
+// Put stores a [PaymentPromise] and [types.BlobShard] using a stage → publish
+// → commit pattern: write tmp under staging/, rename into shards/<commit>-<hash>,
+// then commit pebble metadata. A crash between rename and commit
 // leaves a phantom marker that [Store.Get] cleans lazily and [PruneBefore]
 // sweeps at pruneAt.
-//
 // Puts for the same commitment but different promises are stored independently
 // without deduplication.
 func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
@@ -156,8 +155,8 @@ func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.Blo
 	return nil
 }
 
-// commitAndPublish writes pebble metadata for the staged shard at tmp, then
-// renames tmp into the canonical shards/ path. On any error tmp is left in
+// commitAndPublish renames tmp into the canonical shards/ path, then writes
+// pebble metadata for the published shard. On any error tmp is left in
 // place for the caller to remove.
 func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tmp string, pruneAt time.Time) error {
 	promiseProto, err := promise.ToProto()
@@ -181,13 +180,16 @@ func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tm
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)
 	}
+
+	// Publish the file, then commit the marker that makes it discoverable.
+	shardPath := s.shardFilePath(promise.Commitment, promiseHash)
+	if err := s.fs.Rename(tmp, shardPath); err != nil {
+		return fmt.Errorf("renaming shard tmp to final: %w", err)
+	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		return fmt.Errorf("committing metadata: %w", err)
 	}
 
-	if err := s.fs.Rename(tmp, s.shardFilePath(promise.Commitment, promiseHash)); err != nil {
-		return fmt.Errorf("renaming shard tmp to final: %w", err)
-	}
 	return nil
 }
 
