@@ -1237,9 +1237,15 @@ func performAutoSwap(homeDir string, targets []dbTarget, tracker *stateTracker, 
 
 		staged := t.stagedPath()
 		if _, err := os.Stat(staged); err != nil {
-			// The staged DB must exist for a verified database.
+			// Staged DB is gone. If the destination is already PebbleDB, this DB
+			// was already swapped by an earlier (interrupted) run — idempotently
+			// skip it so a crash mid-swap can be resumed.
+			if isPebbleDB(t.srcPath()) {
+				fmt.Printf("  [%s] already swapped, skipping\n", t.name)
+				continue
+			}
 			rollback()
-			return fmt.Errorf("[%s] expected staged database missing at %s: %w", t.name, staged, err)
+			return fmt.Errorf("[%s] expected staged database missing at %s and destination is not PebbleDB: %w", t.name, staged, err)
 		}
 
 		var backupPath string
@@ -1292,25 +1298,27 @@ func performAutoSwap(homeDir string, targets []dbTarget, tracker *stateTracker, 
 	}
 	fmt.Printf("  Updated backend = %q in app.toml and config.toml\n", pebbleBackendName)
 
-	// Success: now delete the moved-aside LevelDB backups unless --backup.
-	for _, m := range movedList {
-		if m.backupPath == "" {
+	// Success: handle the moved-aside LevelDB backups. Iterate all targets (not
+	// just movedList) so this is correct even on a resumed swap where some
+	// backups were created by an earlier run.
+	for _, t := range targets {
+		bak := t.backupPath()
+		if _, err := os.Stat(bak); err != nil {
 			continue
 		}
 		if backup {
-			fmt.Printf("  [%s] backup preserved at %s\n", m.target.name, m.backupPath)
+			fmt.Printf("  [%s] backup preserved at %s\n", t.name, bak)
 			continue
 		}
-		fmt.Printf("  [%s] removing old LevelDB %s\n", m.target.name, m.backupPath)
-		if err := os.RemoveAll(m.backupPath); err != nil {
-			fmt.Fprintf(os.Stderr, "  Warning: failed to remove old DB %s: %v\n", m.backupPath, err)
+		fmt.Printf("  [%s] removing old LevelDB %s\n", t.name, bak)
+		if err := os.RemoveAll(bak); err != nil {
+			fmt.Fprintf(os.Stderr, "  Warning: failed to remove old DB %s: %v\n", bak, err)
 		}
-		_ = os.RemoveAll(m.target.stagingDir())
 	}
 
-	// Clean up staging dirs and state.
+	// Clean up (now-empty) staging dirs and state.
 	for _, t := range targets {
-		_ = os.Remove(t.stagingDir()) // only succeeds if empty
+		_ = os.RemoveAll(t.stagingDir())
 	}
 	stateDir := filepath.Join(homeDir, "data_pebble")
 	_ = os.Remove(filepath.Join(stateDir, migrationStateFile))
