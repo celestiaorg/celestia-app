@@ -38,6 +38,10 @@ func (m *mockClient) GetHost(_ context.Context, _ *core.Validator) (validator.Ho
 	return "", nil
 }
 
+func (m *mockClient) RefreshHost(_ context.Context, _ *core.Validator) (bool, bool, error) {
+	return false, false, nil
+}
+
 func (m *mockClient) ChainID() string { return "test" }
 
 func (m *mockClient) VerifyPromise(context.Context, *state.PaymentPromise) (state.VerifiedPromise, error) {
