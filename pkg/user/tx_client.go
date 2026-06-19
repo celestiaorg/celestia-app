@@ -972,9 +972,30 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	if err != nil {
 		return 0, err
 	}
-	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: txBytes})
-	if err != nil {
-		return 0, err
+
+	// Retry on sequence mismatch, mirroring EstimateGasPriceAndUsage. Gas
+	// estimation simulates the tx through the ante handler, which verifies the
+	// account sequence. Under an async pipeline with many in-flight txs the
+	// signed sequence races ahead of the node's committed view, so the first
+	// simulate fails with "account sequence mismatch". Correct the sequence and
+	// re-sign instead of failing the whole tx (previously this path returned the
+	// error directly, so PFB went through EstimateGasPriceAndUsage and survived
+	// while regular txs via EstimateGasForTx did not).
+	var resp *gasestimation.EstimateGasPriceAndUsageResponse
+	for {
+		resp, err = client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: txBytes})
+		if err == nil {
+			break
+		}
+		if ok, herr := client.handleSequenceMismatch(err, txBuilder); !ok {
+			return 0, herr
+		}
+		if _, _, err = client.signer.signTransaction(txBuilder); err != nil {
+			return 0, fmt.Errorf("re-signing with corrected sequence: %w", err)
+		}
+		if txBytes, err = client.signer.EncodeTx(txBuilder.GetTx()); err != nil {
+			return 0, fmt.Errorf("re-encoding tx: %w", err)
+		}
 	}
 
 	gasLimit := resp.EstimatedGasUsed
