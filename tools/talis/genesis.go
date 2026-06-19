@@ -26,7 +26,7 @@ func generateCmd() *cobra.Command {
 		appBinaryPath                 string
 		nodeBinaryPath                string
 		txsimBinaryPath               string
-		spamV3BinaryPath              string
+		spamQueuedBinaryPath          string
 		latencyMonitorBinaryPath      string
 		fibreBinaryPath               string
 		fibreTxsimBinaryPath          string
@@ -110,9 +110,9 @@ func generateCmd() *cobra.Command {
 					return fmt.Errorf("failed to copy txsim binary: %w", err)
 				}
 
-				// Copy spam-txclient-v3 binary (v3 QueuedTxClient load generator)
-				if err := copyFile(spamV3BinaryPath, filepath.Join(buildDest, "spam-txclient-v3"), 0o755); err != nil {
-					log.Printf("failed to copy spam-txclient-v3 binary: %v", err)
+				// Copy spam-txclient-queued binary (queued Client load generator)
+				if err := copyFile(spamQueuedBinaryPath, filepath.Join(buildDest, "spam-txclient-queued"), 0o755); err != nil {
+					log.Printf("failed to copy spam-txclient-queued binary: %v", err)
 				}
 
 				// Copy latency monitor binary
@@ -177,7 +177,7 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&appBinaryPath, "app-binary", "a", filepath.Join(gopath, "celestia-appd"), "app binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&nodeBinaryPath, "node-binary", "n", filepath.Join(gopath, "celestia"), "node binary to include in the payload (assumes the binary is installed")
 	cmd.Flags().StringVarP(&txsimBinaryPath, "txsim-binary", "t", filepath.Join(gopath, "txsim"), "txsim binary to include in the payload (assumes the binary is installed)")
-	cmd.Flags().StringVar(&spamV3BinaryPath, "spam-txclient-v3-binary", filepath.Join(gopath, "spam-txclient-v3"), "v3 QueuedTxClient load generator binary to include in the payload")
+	cmd.Flags().StringVar(&spamQueuedBinaryPath, "spam-txclient-queued-binary", filepath.Join(gopath, "spam-txclient-queued"), "queued Client load generator binary to include in the payload")
 	cmd.Flags().StringVar(&latencyMonitorBinaryPath, "latency-monitor-binary", filepath.Join(gopath, "latency-monitor"), "latency monitor binary to include in the payload")
 	cmd.Flags().StringVar(&fibreBinaryPath, "fibre-binary", filepath.Join(gopath, "fibre"), "fibre server binary to include in the payload")
 	cmd.Flags().StringVar(&fibreTxsimBinaryPath, "fibre-txsim-binary", filepath.Join(gopath, "fibre-txsim"), "fibre-txsim binary to include in the payload")

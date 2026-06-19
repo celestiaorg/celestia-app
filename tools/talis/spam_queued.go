@@ -8,12 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const SpamV3SessionName = "spam-v3"
+const SpamQueuedSessionName = "spam-queued"
 
-// startSpamV3Cmd creates a cobra command that starts the v3 QueuedTxClient load
-// generator (spam-txclient-v3) on remote validators in a detached tmux session.
+// startSpamQueuedCmd creates a cobra command that starts the queued Client load
+// generator (spam-txclient-queued) on remote validators in a detached tmux session.
 // It mirrors the txsim command but drives the async AddPayForBlob pipeline.
-func startSpamV3Cmd() *cobra.Command {
+func startSpamQueuedCmd() *cobra.Command {
 	var (
 		instances    int
 		blobSizeKB   int
@@ -28,9 +28,9 @@ func startSpamV3Cmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "spam-v3",
-		Short: "Starts the v3 QueuedTxClient load generator on remote validators",
-		Long:  "Connects to remote validators and starts the spam-txclient-v3 binary (async AddPayForBlob load) in a detached tmux session.",
+		Use:   "spam-queued",
+		Short: "Starts the queued Client load generator on remote validators",
+		Long:  "Connects to remote validators and starts the spam-txclient-queued binary (async AddPayForBlob load) in a detached tmux session.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
@@ -44,7 +44,7 @@ func startSpamV3Cmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			spamScript := fmt.Sprintf(
-				"spam-txclient-v3 -keyring-dir .celestia-app -account %s -endpoint localhost:9091 -blob-size-kb %d -duration %s -queue-size %d -rate %d",
+				"spam-txclient-queued -keyring-dir .celestia-app -account %s -endpoint localhost:9091 -blob-size-kb %d -duration %s -queue-size %d -rate %d",
 				account,
 				blobSizeKB,
 				duration.String(),
@@ -62,7 +62,7 @@ func startSpamV3Cmd() *cobra.Command {
 				spamScript += fmt.Sprintf(" -otel-endpoint %s", otel)
 			}
 
-			spamScript += " > spam-v3.log"
+			spamScript += " > spam-queued.log"
 
 			// only spin up the load generator on the number of instances specified.
 			insts := []Instance{}
@@ -75,7 +75,7 @@ func startSpamV3Cmd() *cobra.Command {
 
 			fmt.Println(insts, "\n", spamScript)
 
-			return runScriptInTMux(insts, resolvedSSHKeyPath, spamScript, SpamV3SessionName, time.Minute*5)
+			return runScriptInTMux(insts, resolvedSSHKeyPath, spamScript, SpamQueuedSessionName, time.Minute*5)
 		},
 	}
 

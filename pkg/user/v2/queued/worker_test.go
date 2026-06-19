@@ -1,4 +1,4 @@
-package v3
+package queued
 
 import (
 	"context"
@@ -32,7 +32,7 @@ func newFakeSigner(start uint64) *fakeSigner {
 	return &fakeSigner{next: start}
 }
 
-func (s *fakeSigner) Sign(_ context.Context, req *TxRequest) ([]byte, string, uint64, error) {
+func (s *fakeSigner) Sign(_ context.Context, req *TxRequest, seq uint64) ([]byte, string, uint64, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.err != nil {
@@ -40,8 +40,9 @@ func (s *fakeSigner) Sign(_ context.Context, req *TxRequest) ([]byte, string, ui
 		s.err = nil
 		return nil, "", 0, e
 	}
-	seq := s.next
-	s.next++
+	// Honor the sequence queued dictates (fix A: queued is authoritative). It tracks
+	// the buffer's expected sequence in lockstep with next.
+	s.next = seq + 1
 	hash := fmt.Sprintf("hash-%d", seq)
 	bytes := []byte(hash)
 	s.logs = append(s.logs, fmt.Sprintf("sign:%d", seq))
@@ -311,6 +312,77 @@ func TestHandle_FatalSubmit_EntersStop(t *testing.T) {
 	assert.Equal(t, uint64(1), w.stopSeq)
 }
 
+func TestAddTx_NilHandleOnClosed(t *testing.T) {
+	c := &Client{requestCh: make(chan *TxRequest, 1)}
+	c.closed.Store(true)
+
+	h, err := c.AddTx(context.Background(), nil)
+	require.Error(t, err)
+	assert.Nil(t, h, "no handle should be returned when the client is closed")
+}
+
+func TestAddTx_NilHandleOnFull(t *testing.T) {
+	// Unbuffered channel with no reader → enqueue hits the default branch.
+	c := &Client{requestCh: make(chan *TxRequest)}
+
+	h, err := c.AddTx(context.Background(), nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "queue is full")
+	assert.Nil(t, h, "no handle should be returned when the queue is full")
+}
+
+func TestHandle_MempoolFull_RetriesWithBackoff(t *testing.T) {
+	const delay = 500 * time.Millisecond
+	w := &worker{
+		buffer:           newTxBuffer(1),
+		mode:             modeSubmitting,
+		submitRetryDelay: delay,
+	}
+	// One signed entry, currently in flight (submitting=true, not yet marked
+	// submitted — markSubmitted only happens on success).
+	require.NoError(t, w.buffer.appendSigned(txEntry{sequence: 1, txHash: "h1", txBytes: []byte("hash-1")}))
+	w.submitting = true
+
+	mempoolErr := &user.BroadcastTxError{Code: 20, ErrorLog: "mempool is full"}
+	cmds := w.handle(evSubmitResult{seq: 1, err: mempoolErr})
+
+	// Transient: not fatal, stays submitting.
+	assert.Equal(t, modeSubmitting, w.mode)
+
+	// The retry cmdSubmit must carry the backoff delay, then it's consumed.
+	var sub *cmdSubmit
+	for i := range cmds {
+		if c, ok := cmds[i].(cmdSubmit); ok {
+			c := c
+			sub = &c
+		}
+	}
+	require.NotNil(t, sub, "expected a cmdSubmit retry")
+	assert.Equal(t, uint64(1), sub.seq)
+	assert.Equal(t, delay, sub.delay, "retry must carry the backoff delay")
+	assert.Equal(t, time.Duration(0), w.nextSubmitDelay, "delay should be consumed")
+}
+
+func TestHandle_FirstSubmit_NoBackoff(t *testing.T) {
+	w := &worker{
+		buffer:           newTxBuffer(1),
+		mode:             modeSubmitting,
+		submitRetryDelay: 500 * time.Millisecond,
+	}
+	require.NoError(t, w.buffer.appendSigned(txEntry{sequence: 1, txHash: "h1", txBytes: []byte("hash-1")}))
+
+	cmds := w.plan() // fresh submit, no prior error
+	var sub *cmdSubmit
+	for i := range cmds {
+		if c, ok := cmds[i].(cmdSubmit); ok {
+			c := c
+			sub = &c
+		}
+	}
+	require.NotNil(t, sub)
+	assert.Equal(t, time.Duration(0), sub.delay, "first submit must have no backoff")
+}
+
 func TestHandle_Committed_FinalizesAndPlans(t *testing.T) {
 	w := &worker{
 		buffer: newTxBuffer(1),
@@ -455,10 +527,10 @@ func TestWorker_ContextCancelDrains(t *testing.T) {
 // --- tx_client / Close / enqueue tests ---
 
 func TestClose_DrainsQueuedRequests(t *testing.T) {
-	// Stand up a QueuedTxClient manually (no v1 wiring needed for this test) with
+	// Stand up a Client manually (no v1 wiring needed for this test) with
 	// a worker that consumes nothing — every queued request stays in requestCh.
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &QueuedTxClient{
+	c := &Client{
 		requestCh: make(chan *TxRequest, 8),
 		cancel:    cancel,
 		done:      make(chan struct{}),
@@ -487,7 +559,7 @@ func TestClose_DrainsQueuedRequests(t *testing.T) {
 }
 
 func TestEnqueue_RejectsAfterClose(t *testing.T) {
-	c := &QueuedTxClient{
+	c := &Client{
 		requestCh: make(chan *TxRequest, 1),
 	}
 	c.closed.Store(true)
@@ -498,7 +570,7 @@ func TestEnqueue_RejectsAfterClose(t *testing.T) {
 }
 
 func TestEnqueue_QueueFull(t *testing.T) {
-	c := &QueuedTxClient{
+	c := &Client{
 		requestCh: make(chan *TxRequest, 1),
 	}
 	req1, _ := newTxHandle(context.Background(), nil, nil, nil)
@@ -518,7 +590,7 @@ type blockingSigner struct {
 	once    sync.Once
 }
 
-func (s *blockingSigner) Sign(ctx context.Context, _ *TxRequest) ([]byte, string, uint64, error) {
+func (s *blockingSigner) Sign(ctx context.Context, _ *TxRequest, _ uint64) ([]byte, string, uint64, error) {
 	s.once.Do(func() { close(s.started) })
 	<-ctx.Done()
 	return nil, "", 0, ctx.Err()
@@ -558,15 +630,15 @@ func TestWorker_DrainAllResolvesInflightSign(t *testing.T) {
 
 func TestClose_DrainsWhenWorkerExitsFirst(t *testing.T) {
 	// Regression: if the parent ctx is cancelled externally (and the user
-	// never calls Close), the requestCh must still drain — NewQueuedTxClient's
+	// never calls Close), the requestCh must still drain — NewClient's
 	// worker goroutine invokes Close on its way out for exactly this reason.
 	ctx, cancel := context.WithCancel(context.Background())
-	c := &QueuedTxClient{
+	c := &Client{
 		requestCh: make(chan *TxRequest, 8),
 		cancel:    cancel,
 		done:      make(chan struct{}),
 	}
-	// Mirror NewQueuedTxClient: worker calls Close on exit as a safety net.
+	// Mirror NewClient: worker calls Close on exit as a safety net.
 	go func() {
 		<-ctx.Done()
 		close(c.done)

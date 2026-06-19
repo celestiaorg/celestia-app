@@ -1,4 +1,4 @@
-package v3
+package queued
 
 import (
 	"context"
@@ -123,8 +123,8 @@ func (s *loadTestServer) EstimateGasPriceAndUsage(_ context.Context, _ *gasestim
 	}, nil
 }
 
-// setupLoadTest creates a QueuedTxClient connected to a mock gRPC server.
-func setupLoadTest(t *testing.T) (*QueuedTxClient, *loadTestServer) {
+// setupLoadTest creates a Client connected to a mock gRPC server.
+func setupLoadTest(t *testing.T) (*Client, *loadTestServer) {
 	t.Helper()
 
 	server := &loadTestServer{
@@ -180,11 +180,11 @@ func setupLoadTest(t *testing.T) (*QueuedTxClient, *loadTestServer) {
 	require.NoError(t, err)
 
 	v2Client := v2.Wrapv1TxClient(v1Client)
-	v3Client, err := NewQueuedTxClient(context.Background(), v2Client, WithQueueSize(1000))
+	client, err := NewClient(context.Background(), v2Client, WithQueueSize(1000))
 	require.NoError(t, err)
-	t.Cleanup(v3Client.Close)
+	t.Cleanup(client.Close)
 
-	return v3Client, server
+	return client, server
 }
 
 // TestLoadConcurrentAddTx spawns many goroutines submitting txs concurrently
@@ -315,18 +315,18 @@ func BenchmarkAddTx(b *testing.B) {
 	v2Client := v2.Wrapv1TxClient(v1Client)
 	ctx := b.Context()
 
-	v3Client, err := NewQueuedTxClient(ctx, v2Client)
+	client, err := NewClient(ctx, v2Client)
 	require.NoError(b, err)
-	defer v3Client.Close()
+	defer client.Close()
 
-	senderAddr := v3Client.DefaultAddress()
+	senderAddr := client.DefaultAddress()
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			msg := newBankSendMsg(senderAddr, senderAddr, 1)
 			txCtx, txCancel := context.WithTimeout(ctx, 30*time.Second)
-			handle, err := v3Client.AddTx(txCtx, []sdk.Msg{msg})
+			handle, err := client.AddTx(txCtx, []sdk.Msg{msg})
 			if err != nil {
 				txCancel()
 				b.Logf("AddTx error: %v", err)

@@ -1,4 +1,4 @@
-package v3
+package queued
 
 import (
 	"context"
@@ -47,11 +47,15 @@ func (evConfirmTick) isEvent()   {}
 
 type command interface{ isCommand() }
 
-type cmdSign struct{ req *TxRequest }
+type cmdSign struct {
+	req *TxRequest
+	seq uint64 // sequence queued requires this tx to be signed with
+}
 
 type cmdSubmit struct {
 	seq   uint64
 	bytes []byte
+	delay time.Duration // backoff to wait before submitting (0 = submit immediately)
 }
 
 type cmdConfirm struct {
@@ -108,6 +112,15 @@ type worker struct {
 	signing    bool
 	submitting bool
 	confirming bool
+
+	// submitRetryDelay is the fixed backoff applied before re-submitting an
+	// entry after a transient broadcast error (mempool full / network). It
+	// mirrors Lumina's tx_client_v2 (fixed 500ms, same sequence reused, no
+	// exponential backoff). A zero value means no delay (used by tests).
+	submitRetryDelay time.Duration
+	// nextSubmitDelay is the backoff to attach to the next cmdSubmit. It is
+	// set on a transient submit error and consumed by the next plan().
+	nextSubmitDelay time.Duration
 
 	// inflightSign holds the request currently being signed. It is set
 	// when plan() emits cmdSign and cleared on evSignResult. Tracking it
@@ -223,7 +236,7 @@ func (w *worker) plan() []command {
 		}
 		w.signing = true
 		w.inflightSign = req
-		cmds = append(cmds, cmdSign{req: req})
+		cmds = append(cmds, cmdSign{req: req, seq: w.buffer.nextExpectedSeq()})
 		break
 	}
 
@@ -231,7 +244,8 @@ func (w *worker) plan() []command {
 	if !w.submitting && w.mode == modeSubmitting {
 		if entry := w.buffer.next(); entry != nil {
 			w.submitting = true
-			cmds = append(cmds, cmdSubmit{seq: entry.sequence, bytes: entry.txBytes})
+			cmds = append(cmds, cmdSubmit{seq: entry.sequence, bytes: entry.txBytes, delay: w.nextSubmitDelay})
+			w.nextSubmitDelay = 0
 		}
 	}
 
@@ -276,7 +290,9 @@ func (w *worker) handleSubmitError(seq uint64, err error) []command {
 	case ErrSequenceMismatch:
 		w.handleSubmitSequenceMismatch(expectedSeq)
 	case ErrMempoolFull, ErrNetworkError:
-		// non-fatal: entry is still marked unsubmitted; plan() will retry.
+		// non-fatal: entry is still marked unsubmitted; plan() will retry
+		// after a fixed backoff so we don't hot-loop hammering the node.
+		w.nextSubmitDelay = w.submitRetryDelay
 	case ErrTxInMempoolCache:
 		w.buffer.markSubmitted(seq)
 	case ErrUnrecoverable, ErrInsufficientFee:
@@ -484,14 +500,23 @@ func (w *worker) execute(ctx context.Context, cmds []command) {
 	for _, c := range cmds {
 		switch c := c.(type) {
 		case cmdSign:
-			req := c.req
+			req, seq := c.req, c.seq
 			go func() {
-				b, h, s, err := w.signer.Sign(ctx, req)
+				b, h, s, err := w.signer.Sign(ctx, req, seq)
 				w.send(ctx, evSignResult{req: req, bytes: b, hash: h, seq: s, err: err})
 			}()
 		case cmdSubmit:
-			seq, bytes := c.seq, c.bytes
+			seq, bytes, delay := c.seq, c.bytes, c.delay
 			go func() {
+				if delay > 0 {
+					t := time.NewTimer(delay)
+					defer t.Stop()
+					select {
+					case <-t.C:
+					case <-ctx.Done():
+						return // shutting down; run() will drain this entry
+					}
+				}
 				err := w.broadcaster.Submit(ctx, bytes)
 				w.send(ctx, evSubmitResult{seq: seq, err: err})
 			}()

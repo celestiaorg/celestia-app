@@ -1,4 +1,4 @@
-package v3
+package queued
 
 import (
 	"fmt"
@@ -60,9 +60,17 @@ func (b *txBuffer) popPending() *TxRequest {
 	return req
 }
 
+// nextExpectedSeq returns the sequence the next appended signed entry must
+// have. The worker passes this into the signer so queued stays authoritative over
+// sequence assignment regardless of any sequence resets the underlying v1
+// gas-estimation path may perform.
+func (b *txBuffer) nextExpectedSeq() uint64 {
+	return b.nextSeq + uint64(len(b.signed))
+}
+
 // appendSigned appends a signed entry to the buffer, enforcing sequence continuity.
 func (b *txBuffer) appendSigned(entry txEntry) error {
-	expected := b.nextSeq + uint64(len(b.signed))
+	expected := b.nextExpectedSeq()
 	if entry.sequence != expected {
 		return fmt.Errorf("sequence gap: expected %d, got %d", expected, entry.sequence)
 	}

@@ -1,4 +1,4 @@
-package v3
+package queued
 
 import (
 	"context"
@@ -18,8 +18,14 @@ import (
 
 // txSigner produces wire-ready transaction bytes for a TxRequest. It hides
 // SDK-, PFB-, and gas-estimation concerns from the worker.
+//
+// seq is the sequence queued requires the tx to be signed with. The signer forces
+// the account to this sequence right before signing, so any sequence reset
+// performed by the underlying gas-estimation path (which queued does not control)
+// cannot desync the signer from queued's buffer. queued is the sole authority over
+// sequence assignment; real on-chain mismatches are handled at submit time.
 type txSigner interface {
-	Sign(ctx context.Context, req *TxRequest) (txBytes []byte, txHash string, seq uint64, err error)
+	Sign(ctx context.Context, req *TxRequest, seq uint64) (txBytes []byte, txHash string, sequence uint64, err error)
 }
 
 // sdkTxSigner is the production txSigner. It serializes signing through
@@ -34,7 +40,7 @@ func newSDKTxSigner(txClient *user.TxClient, accountName string) *sdkTxSigner {
 	return &sdkTxSigner{txClient: txClient, accountName: accountName}
 }
 
-func (s *sdkTxSigner) Sign(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
+func (s *sdkTxSigner) Sign(ctx context.Context, req *TxRequest, seq uint64) ([]byte, string, uint64, error) {
 	s.txClient.Lock()
 	defer s.txClient.Unlock()
 
@@ -43,12 +49,12 @@ func (s *sdkTxSigner) Sign(ctx context.Context, req *TxRequest) ([]byte, string,
 	}
 
 	if req.Blobs != nil {
-		return s.signPFB(ctx, req)
+		return s.signPFB(ctx, req, seq)
 	}
-	return s.signRegular(ctx, req)
+	return s.signRegular(ctx, req, seq)
 }
 
-func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
+func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest, seq uint64) ([]byte, string, uint64, error) {
 	signer := s.txClient.Signer()
 	acc, exists := signer.GetAccount(s.accountName)
 	if !exists {
@@ -68,6 +74,14 @@ func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest) ([]byte, stri
 	fee := uint64(math.Ceil(gasPrice * float64(gasLimit)))
 	opts := append([]user.TxOption{user.SetGasLimit(gasLimit), user.SetFee(fee)}, req.Opts...)
 
+	// Gas estimation above may have reset the account's sequence (the v1
+	// estimation path corrects sequence mismatches against the node's view).
+	// Force it back to the sequence queued requires before signing for real, so
+	// the signer never desyncs from queued's buffer.
+	if err := signer.SetSequence(s.accountName, seq); err != nil {
+		return nil, "", 0, fmt.Errorf("setting sequence: %w", err)
+	}
+
 	txBytes, seq, err := signer.CreatePayForBlobs(s.accountName, req.Blobs, opts...)
 	if err != nil {
 		return nil, "", 0, err
@@ -80,7 +94,7 @@ func (s *sdkTxSigner) signPFB(ctx context.Context, req *TxRequest) ([]byte, stri
 	return txBytes, computeTxHash(txBytes), seq, nil
 }
 
-func (s *sdkTxSigner) signRegular(ctx context.Context, req *TxRequest) ([]byte, string, uint64, error) {
+func (s *sdkTxSigner) signRegular(ctx context.Context, req *TxRequest, seq uint64) ([]byte, string, uint64, error) {
 	signer := s.txClient.Signer()
 
 	txBuilder, err := signer.TxBuilder(req.Msgs, req.Opts...)
@@ -111,6 +125,12 @@ func (s *sdkTxSigner) signRegular(ctx context.Context, req *TxRequest) ([]byte, 
 	if !hasUserSetFee {
 		fee := int64(math.Ceil(appconsts.DefaultMinGasPrice * float64(gasLimit)))
 		txBuilder.SetFeeAmount(sdktypes.NewCoins(sdktypes.NewCoin(appconsts.BondDenom, sdkmath.NewInt(fee))))
+	}
+
+	// Force the sequence queued requires before signing for real: gas estimation
+	// above may have reset it against the node's view (see signPFB).
+	if err := signer.SetSequence(s.accountName, seq); err != nil {
+		return nil, "", 0, fmt.Errorf("setting sequence: %w", err)
 	}
 
 	accountName, seq, err := signer.SignTransaction(txBuilder)

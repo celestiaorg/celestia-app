@@ -440,18 +440,18 @@ txsim-build:
 	@go mod tidy
 .PHONY: txsim-build
 
-## spam-txclient-v3-install: Install the v3 QueuedTxClient load generator.
-spam-txclient-v3-install:
-	@echo "--> Installing spam-txclient-v3"
-	@go install $(BUILD_FLAGS_STANDALONE) ./tools/spam-txclient-v3
-.PHONY: spam-txclient-v3-install
+## spam-txclient-queued-install: Install the queued Client load generator.
+spam-txclient-queued-install:
+	@echo "--> Installing spam-txclient-queued"
+	@go install $(BUILD_FLAGS_STANDALONE) ./tools/spam-txclient-queued
+.PHONY: spam-txclient-queued-install
 
-## spam-txclient-v3-build: Build the v3 QueuedTxClient load generator into the ./build directory.
-spam-txclient-v3-build:
-	@echo "--> Building spam-txclient-v3"
+## spam-txclient-queued-build: Build the queued Client load generator into the ./build directory.
+spam-txclient-queued-build:
+	@echo "--> Building spam-txclient-queued"
 	@mkdir -p build/
-	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./tools/spam-txclient-v3
-.PHONY: spam-txclient-v3-build
+	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./tools/spam-txclient-queued
+.PHONY: spam-txclient-queued-build
 
 ## txsim-build-docker: Build the tx simulator Docker image. Requires Docker.
 txsim-build-docker:
@@ -469,7 +469,7 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/spam-txclient-v3 ./tools/spam-txclient-v3
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/spam-txclient-queued ./tools/spam-txclient-queued
 .PHONY: build-talis-bins
 
 ## build-talis-bins-fibre: Same as build-talis-bins but with the fibre module enabled in celestia-appd.
@@ -481,7 +481,7 @@ build-talis-bins-fibre:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger,fibre" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/spam-txclient-v3 ./tools/spam-txclient-v3
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/spam-txclient-queued ./tools/spam-txclient-queued
 .PHONY: build-talis-bins-fibre
 
 CARGO := $(HOME)/.cargo/bin/cargo

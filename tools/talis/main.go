@@ -28,7 +28,7 @@ func main() {
 		deployCmd(),
 		addCmd(),
 		startTxsimCmd(),
-		startSpamV3Cmd(),
+		startSpamQueuedCmd(),
 		startLatencyMonitorCmd(),
 		uploadDataCmd(),
 		killTmuxSessionCmd(),
