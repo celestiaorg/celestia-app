@@ -406,6 +406,8 @@ The implementation does not submit PFF through a Fibre payment relay service and
 10. Reconstruct and decode the v0 blob header.
 11. Return a `Blob`.
 
+RLC verification is a client-side recovery mechanism. The attack is: an uploader commits to rows where some assigned rows were tampered with, and malicious validators sign or serve those bad rows. The Merkle proofs still pass because the commitment was built from those rows, but the rows do not form a correct Reed-Solomon encoding. RLC lets downloaders detect those bad rows, ignore them, and recover from honest rows when enough are available. It does not stop a bad Fibre payment from being accepted on-chain if enough validators sign it; slashing or banning is handled separately.
+
 Errors are classified as:
 
 * `ErrNotFound`: no rows were retrieved.
