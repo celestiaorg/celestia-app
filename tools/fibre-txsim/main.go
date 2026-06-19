@@ -9,6 +9,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -50,6 +51,9 @@ type config struct {
 	otelEndpoint      string
 	download          bool
 	uploadOnly        bool
+	asyncConfirm      bool
+	queueSize         int
+	confirmWorkers    int
 	pyroscopeEndpoint string
 	pyroscopeUser     string
 	pyroscopePass     string
@@ -67,6 +71,9 @@ func main() {
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
 	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
+	flag.BoolVar(&cfg.asyncConfirm, "async", true, "fire Upload+AddTx without blocking on confirmation; awaits happen in a background confirm pool (tests the queued client's async pipeline). Set false for the old submit→await→next behavior")
+	flag.IntVar(&cfg.queueSize, "queue-size", 0, "queued client intake-channel capacity (0 = client default)")
+	flag.IntVar(&cfg.confirmWorkers, "confirm-workers", 512, "background goroutines awaiting confirmations in async mode")
 	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
 	flag.StringVar(&cfg.pyroscopeUser, "pyroscope-basic-auth-user", "", "Pyroscope basic auth username")
 	flag.StringVar(&cfg.pyroscopePass, "pyroscope-basic-auth-password", "", "Pyroscope basic auth password")
@@ -85,6 +92,15 @@ type worker struct {
 	fibreClient *fibre.Client
 	txClient    *queued.Client
 	keyName     string
+}
+
+// confirmJob carries an enqueued PFF handle to a background confirm worker so
+// the upload loop can keep firing Upload+AddTx without blocking on Await. This
+// is what exercises the queued client's async pipeline (many in-flight at once).
+type confirmJob struct {
+	handle  *queued.TxHandle
+	started time.Time
+	keyName string
 }
 
 // downloadRequest is sent from upload workers to download workers after a successful upload.
@@ -110,6 +126,7 @@ type stats struct {
 	confirmSuccesses atomic.Int64
 	confirmFailures  atomic.Int64
 	confirmLatNs     atomic.Int64
+	queueFull        atomic.Int64
 
 	dlSuccesses  atomic.Int64
 	dlFailures   atomic.Int64
@@ -124,6 +141,7 @@ type instruments struct {
 	submitted metric.Int64Counter
 	confirmed metric.Int64Counter
 	failed    metric.Int64Counter
+	queueFull metric.Int64Counter
 	latency   metric.Float64Histogram
 }
 
@@ -133,6 +151,7 @@ func newInstruments() *instruments {
 	in.submitted, _ = m.Int64Counter("fibre_txsim.pff_submitted", metric.WithDescription("PFF txs uploaded and enqueued via AddTx"))
 	in.confirmed, _ = m.Int64Counter("fibre_txsim.pff_confirmed", metric.WithDescription("PFF txs committed (code 0)"))
 	in.failed, _ = m.Int64Counter("fibre_txsim.pff_failed", metric.WithDescription("PFF txs that failed (upload/addtx/await/non-zero code)"))
+	in.queueFull, _ = m.Int64Counter("fibre_txsim.pff_queue_full", metric.WithDescription("AddTx enqueues rejected because the async queue was full (backpressure)"))
 	in.latency, _ = m.Float64Histogram("fibre_txsim.pff_confirm_latency_ms", metric.WithDescription("upload-to-confirm latency in milliseconds"))
 	return in
 }
@@ -247,7 +266,11 @@ func run(cfg config) error {
 		}
 		defer grpcConn.Close()
 
-		txClient, err := queued.SetupClient(ctx, kr, grpcConn, encCfg, []user.Option{user.WithDefaultAccount(keyName)})
+		var queuedOpts []queued.Option
+		if cfg.queueSize > 0 {
+			queuedOpts = append(queuedOpts, queued.WithQueueSize(cfg.queueSize))
+		}
+		txClient, err := queued.SetupClient(ctx, kr, grpcConn, encCfg, []user.Option{user.WithDefaultAccount(keyName)}, queuedOpts...)
 		if err != nil {
 			return fmt.Errorf("failed to set up tx client for worker %d (%s): %w", i, keyName, err)
 		}
@@ -276,6 +299,27 @@ func run(cfg config) error {
 
 	var uploadWg sync.WaitGroup
 	var dlWg sync.WaitGroup
+	var confirmWg sync.WaitGroup
+
+	// Confirm pool: in async mode the upload loop hands each enqueued PFF handle
+	// here instead of awaiting inline, so it can keep firing Upload+AddTx and
+	// pile many txs into the queued client's pipeline at once.
+	var confirmCh chan confirmJob
+	if cfg.asyncConfirm && !cfg.uploadOnly {
+		confirmWorkers := cfg.confirmWorkers
+		if confirmWorkers <= 0 {
+			confirmWorkers = 1
+		}
+		confirmCh = make(chan confirmJob, confirmWorkers)
+		for range confirmWorkers {
+			confirmWg.Go(func() {
+				for job := range confirmCh {
+					awaitConfirm(ctx, job, st, inst)
+				}
+			})
+		}
+		fmt.Printf("async confirm mode: %d background confirm workers\n", confirmWorkers)
+	}
 
 	// Spawn download workers
 	if cfg.download {
@@ -292,7 +336,7 @@ func run(cfg config) error {
 	for _, w := range workers {
 		uploadWg.Go(func() {
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, inst, dlCh)
+				submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, inst, dlCh, confirmCh)
 				if cfg.interval > 0 {
 					select {
 					case <-ctx.Done():
@@ -314,6 +358,12 @@ func run(cfg config) error {
 	}()
 
 	uploadWg.Wait()
+	// All uploads done — no more handles will be dispatched, so close the confirm
+	// channel and let the background confirm workers drain in-flight awaits.
+	if confirmCh != nil {
+		close(confirmCh)
+	}
+	confirmWg.Wait()
 	dlWg.Wait()
 
 	elapsed := time.Since(startTime)
@@ -336,6 +386,10 @@ func run(cfg config) error {
 	if uc := st.uploadCount.Load(); uc > 0 {
 		avgUploadLat := time.Duration(st.uploadLatNs.Load() / uc)
 		fmt.Printf("  Avg upload latency (encode+upload+enqueue): %s\n", avgUploadLat)
+		fmt.Printf("  Enqueue rate (upload+AddTx): %.1f/s\n", float64(uc)/elapsed.Seconds())
+	}
+	if qf := st.queueFull.Load(); qf > 0 {
+		fmt.Printf("  Queue-full (backpressure, AddTx rejected): %d\n", qf)
 	}
 
 	if !cfg.uploadOnly {
@@ -452,7 +506,7 @@ func setupPyroscope(endpoint, user, pass string) (func(), error) {
 	}, nil
 }
 
-func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, inst *instruments, dlCh chan<- downloadRequest) {
+func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, inst *instruments, dlCh chan<- downloadRequest, confirmCh chan<- confirmJob) {
 	// Generate random namespace
 	nsID := make([]byte, share.NamespaceVersionZeroIDSize)
 	if _, err := rand.Read(nsID); err != nil {
@@ -549,6 +603,14 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		if ctx.Err() != nil {
 			return
 		}
+		// A full intake queue is backpressure, not a failure: the upload
+		// succeeded but the async pipeline is saturated. Track it separately
+		// so it doesn't pollute the failure rate.
+		if strings.Contains(err.Error(), "queue is full") {
+			st.queueFull.Add(1)
+			inst.inc(ctx, inst.queueFull)
+			return
+		}
 		st.failures.Add(1)
 		inst.inc(ctx, inst.failed)
 		fmt.Printf("[%s] addtx error: %v\n", w.keyName, err)
@@ -559,6 +621,26 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	st.uploadLatNs.Add(uploadLat.Nanoseconds())
 	st.uploadCount.Add(1)
 	inst.inc(ctx, inst.submitted)
+
+	// Async mode: hand the enqueued handle to a background confirm worker and
+	// return immediately so this worker keeps firing Upload+AddTx (many PFFs
+	// in-flight in the queued client). Confirmation/metrics happen off the hot
+	// path in awaitConfirm.
+	if confirmCh != nil {
+		// Overlap download with confirmation, same as the sync path below.
+		if dlCh != nil {
+			select {
+			case dlCh <- downloadRequest{blobID: blob.ID(), originalData: data, fibreClient: w.fibreClient, keyName: w.keyName}:
+			default:
+			}
+		}
+		select {
+		case confirmCh <- confirmJob{handle: handle, started: t, keyName: w.keyName}:
+		case <-ctx.Done():
+		}
+		return
+	}
+
 	fmt.Printf("[%s] submitted: upload+enqueue=%s, awaiting...\n", w.keyName, uploadLat)
 
 	// Send download request (non-blocking) before awaiting so download can
@@ -607,6 +689,38 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	}
 	fmt.Printf("[%s] confirmed: tx=%s height=%d total_latency=%s\n",
 		w.keyName, resp.TxHash, resp.Height, confirmLat)
+}
+
+// awaitConfirm blocks on a handed-off PFF handle and records its terminal
+// outcome. Runs in the background confirm pool so the upload loop never waits.
+func awaitConfirm(ctx context.Context, job confirmJob, st *stats, inst *instruments) {
+	resp, err := job.handle.Await(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return
+		}
+		st.failures.Add(1)
+		st.confirmFailures.Add(1)
+		inst.inc(ctx, inst.failed)
+		fmt.Printf("[%s] confirm error: %v\n", job.keyName, err)
+		return
+	}
+	if resp.Code != 0 {
+		st.failures.Add(1)
+		st.confirmFailures.Add(1)
+		inst.inc(ctx, inst.failed)
+		fmt.Printf("[%s] tx failed: code=%d log=%s\n", job.keyName, resp.Code, resp.RawLog)
+		return
+	}
+	confirmLat := time.Since(job.started)
+	st.successes.Add(1)
+	st.totalLatNs.Add(confirmLat.Nanoseconds())
+	st.confirmSuccesses.Add(1)
+	st.confirmLatNs.Add(confirmLat.Nanoseconds())
+	inst.inc(ctx, inst.confirmed)
+	if inst.latency != nil {
+		inst.latency.Record(ctx, float64(confirmLat.Milliseconds()))
+	}
 }
 
 func downloadWorkerLoop(ctx context.Context, dlCh <-chan downloadRequest, st *stats) {
