@@ -14,6 +14,7 @@ import (
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v9/app/observability"
+	"github.com/celestiaorg/celestia-app/v9/multiplexer/appd"
 	"github.com/celestiaorg/celestia-app/v9/multiplexer/internal"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
@@ -147,7 +148,7 @@ func (m *Multiplexer) Start() error {
 
 	if m.isEmbeddedApp() {
 		m.logger.Debug("using embedded app, not continuing with grpc or api servers")
-		return m.g.Wait()
+		return m.waitForEmbeddedApp()
 	}
 
 	if err := m.enableGRPCAndAPIServers(m.nativeApp); err != nil {
@@ -515,6 +516,61 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 // embeddedVersionRunning returns true if there is an active version specified which is running.
 func (m *Multiplexer) embeddedVersionRunning() bool {
 	return m.activeVersion.Appd != nil && m.activeVersion.Appd.IsRunning()
+}
+
+// waitForEmbeddedApp blocks until either a quit signal cancels the context or
+// the running embedded app exits. If the embedded app exits unexpectedly (i.e.
+// not as part of a planned version switch or graceful shutdown) it returns an
+// error so the parent celestia-appd process exits non-zero instead of hanging
+// silently. See https://github.com/celestiaorg/celestia-app/issues/7405.
+func (m *Multiplexer) waitForEmbeddedApp() error {
+	for {
+		// Snapshot the currently active embedded app under the lock so we watch
+		// the right process across version switches.
+		m.mu.Lock()
+		watched := m.activeVersion.Appd
+		appVersion := m.activeVersion.AppVersion
+		m.mu.Unlock()
+
+		if watched == nil {
+			// No embedded app is running (e.g. we switched to the native app).
+			// Fall back to waiting on the errgroup, which blocks until a quit
+			// signal is received.
+			return m.g.Wait()
+		}
+
+		select {
+		case <-m.ctx.Done():
+			// A quit signal cancelled the context; shut down gracefully.
+			return m.g.Wait()
+		case <-watched.WaitCh():
+			if !m.embeddedExitIsFatal(watched) {
+				// The exit was planned (graceful shutdown or version switch).
+				// Loop to watch the new active app, if any.
+				continue
+			}
+			return fmt.Errorf("embedded app for version %d exited unexpectedly: %w", appVersion, watched.ExitError())
+		}
+	}
+}
+
+// embeddedExitIsFatal reports whether the exit of the watched embedded app
+// should be treated as a fatal error. An exit is fatal only when it was not
+// initiated by the multiplexer: the context is still live (no quit signal) and
+// the watched app is still the active version (it was not replaced by a version
+// switch).
+func (m *Multiplexer) embeddedExitIsFatal(watched *appd.Appd) bool {
+	// A cancelled context means a quit signal was received: this is a graceful
+	// shutdown, not a failure.
+	if m.ctx.Err() != nil {
+		return false
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// If the watched app is no longer the active version it was intentionally
+	// stopped as part of a version switch.
+	return m.activeVersion.Appd == watched
 }
 
 // startCmtNode initializes and starts a CometBFT node, sets up cleanup tasks, and assigns it to the Multiplexer instance.

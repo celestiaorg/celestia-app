@@ -28,6 +28,12 @@ type Appd struct {
 	stdout io.Writer
 	// cmd is the started celestia-appd binary.
 	cmd *exec.Cmd
+	// exited is closed once the underlying process has exited and exitErr has
+	// been populated. It is created in Start.
+	exited chan struct{}
+	// exitErr is the result of the underlying cmd.Wait(). It is only valid to
+	// read after exited has been closed.
+	exitErr error
 }
 
 // New returns a new Appd instance.
@@ -97,6 +103,16 @@ func (a *Appd) Start(args ...string) error {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
 	a.cmd = cmd
+
+	// Reap the process in a single dedicated goroutine. cmd.Wait must only be
+	// called once, so it is centralized here. Both Stop and WaitCh observe the
+	// result via the exited channel rather than calling cmd.Wait themselves.
+	a.exited = make(chan struct{})
+	go func() {
+		err := cmd.Wait()
+		a.exitErr = err
+		close(a.exited)
+	}()
 	return nil
 }
 
@@ -106,28 +122,45 @@ func (a *Appd) IsRunning() bool {
 
 func (a *Appd) IsStopped() bool {
 	// Never started or failed to start
-	if a.cmd == nil || a.cmd.Process == nil {
+	if a.cmd == nil || a.cmd.Process == nil || a.exited == nil {
 		return true
 	}
 
-	// If ProcessState is not nil, it means Wait() was called and the process has finished
-	// (either by exiting normally or being terminated by a signal)
-	if a.cmd.ProcessState != nil {
+	// If the exited channel is closed, the process has finished (either by
+	// exiting normally or being terminated by a signal).
+	select {
+	case <-a.exited:
 		return true
+	default:
+		return false
 	}
+}
 
-	// ProcessState is nil, which means the process is still running
-	return false
+// WaitCh returns a channel that is closed once the underlying process has
+// exited. After it is closed, ExitError reports the exit result. The returned
+// channel is nil if the process was never started; receiving from a nil channel
+// blocks forever, so callers should only wait on it after a successful Start.
+func (a *Appd) WaitCh() <-chan struct{} {
+	return a.exited
+}
+
+// ExitError returns the error returned by the underlying cmd.Wait(). It is only
+// meaningful after the process has exited (i.e. after WaitCh has been closed).
+// A nil return means the process exited successfully.
+func (a *Appd) ExitError() error {
+	return a.exitErr
 }
 
 // Stop interrupts and then kills the running appd process if it exists and
 // waits for it to fully exit. If the process is not running, it returns nil.
 // The method will wait up to 6 seconds for graceful shutdown before force killing.
 func (a *Appd) Stop() error {
-	if a.cmd == nil {
+	if a.cmd == nil || a.cmd.Process == nil || a.exited == nil {
 		return nil
 	}
-	if a.cmd.Process == nil {
+
+	// If the process has already exited there is nothing to do.
+	if a.IsStopped() {
 		return nil
 	}
 
@@ -138,8 +171,9 @@ func (a *Appd) Stop() error {
 			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
 
-		if err := a.cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
+		<-a.exited
+		if a.exitErr != nil {
+			log.Printf("Process finished with error: %v\n", a.exitErr)
 		}
 		return nil
 	}
@@ -147,15 +181,10 @@ func (a *Appd) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() {
-		done <- a.cmd.Wait()
-	}()
-
 	select {
-	case err := <-done:
-		if err != nil {
-			log.Printf("Process finished with error: %v\n", err)
+	case <-a.exited:
+		if a.exitErr != nil {
+			log.Printf("Process finished with error: %v\n", a.exitErr)
 		} else {
 			log.Printf("Process finished with no error\n")
 		}
@@ -166,8 +195,9 @@ func (a *Appd) Stop() error {
 			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
 		}
 
-		if err := <-done; err != nil {
-			log.Printf("Process finished with error after force kill: %v\n", err)
+		<-a.exited
+		if a.exitErr != nil {
+			log.Printf("Process finished with error after force kill: %v\n", a.exitErr)
 		} else {
 			log.Printf("Process finished after force kill\n")
 		}

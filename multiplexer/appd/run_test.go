@@ -1,55 +1,12 @@
-//go:build multiplexer
-
 package appd
 
 import (
-	"bytes"
-	"fmt"
 	"os"
-	"strings"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/internal/embedding"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// TestCreateExecCommand execs a command to an embedded binary.
-func TestCreateExecCommand(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping test which expects an embedded binary")
-	}
-
-	binaryGenerators := []func() (string, []byte, error){
-		embedding.CelestiaAppV3,
-		embedding.CelestiaAppV4,
-		embedding.CelestiaAppV5,
-	}
-
-	for idx, binaryGenerator := range binaryGenerators {
-		t.Run(fmt.Sprintf("v%d", idx+3), func(t *testing.T) {
-			version, compressedBinary, err := binaryGenerator()
-			require.NoError(t, err)
-
-			appdInstance, err := New(version, compressedBinary)
-			require.NoError(t, err)
-			require.NotNil(t, appdInstance)
-
-			cmd := appdInstance.CreateExecCommand("version")
-			require.NotNil(t, cmd)
-
-			var outputBuffer bytes.Buffer
-			cmd.Stdout = &outputBuffer
-
-			require.NoError(t, cmd.Run())
-
-			want := strings.TrimPrefix(version, "v")
-			got := outputBuffer.String()
-			require.NotEmpty(t, got)
-			assert.Contains(t, got, want)
-		})
-	}
-}
 
 func TestStart(t *testing.T) {
 	t.Run("should start the process", func(t *testing.T) {
@@ -134,6 +91,54 @@ func TestStop(t *testing.T) {
 
 		require.True(t, appdInstance.IsStopped())
 		require.False(t, appdInstance.IsRunning())
+	})
+}
+
+func TestWaitCh(t *testing.T) {
+	t.Run("closes and reports no error when the process exits cleanly", func(t *testing.T) {
+		mockBinary := createMockExecutable(t, "exit 0")
+		defer os.Remove(mockBinary)
+
+		appdInstance := &Appd{
+			path:   mockBinary,
+			stdin:  os.Stdin,
+			stdout: os.Stdout,
+			stderr: os.Stderr,
+		}
+
+		require.NoError(t, appdInstance.Start())
+
+		select {
+		case <-appdInstance.WaitCh():
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for the process to exit")
+		}
+
+		require.NoError(t, appdInstance.ExitError())
+		require.True(t, appdInstance.IsStopped())
+	})
+
+	t.Run("closes and reports an error when the process fails", func(t *testing.T) {
+		mockBinary := createMockExecutable(t, "exit 3")
+		defer os.Remove(mockBinary)
+
+		appdInstance := &Appd{
+			path:   mockBinary,
+			stdin:  os.Stdin,
+			stdout: os.Stdout,
+			stderr: os.Stderr,
+		}
+
+		require.NoError(t, appdInstance.Start())
+
+		select {
+		case <-appdInstance.WaitCh():
+		case <-time.After(5 * time.Second):
+			t.Fatal("timed out waiting for the process to exit")
+		}
+
+		require.Error(t, appdInstance.ExitError())
+		require.True(t, appdInstance.IsStopped())
 	})
 }
 

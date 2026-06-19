@@ -1,12 +1,42 @@
 package abci
 
 import (
+	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/multiplexer/appd"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/stretchr/testify/require"
 )
+
+// TestEmbeddedExitIsFatal verifies the multiplexer correctly classifies an
+// embedded app exit as fatal (unexpected) or not (planned shutdown / version
+// switch). See https://github.com/celestiaorg/celestia-app/issues/7405.
+func TestEmbeddedExitIsFatal(t *testing.T) {
+	running := &appd.Appd{}
+	other := &appd.Appd{}
+
+	t.Run("fatal when the exited app is still the active version", func(t *testing.T) {
+		m := &Multiplexer{ctx: context.Background()}
+		m.activeVersion = Version{AppVersion: 3, Appd: running}
+		require.True(t, m.embeddedExitIsFatal(running))
+	})
+
+	t.Run("not fatal when the context has been cancelled (shutdown)", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		m := &Multiplexer{ctx: ctx}
+		m.activeVersion = Version{AppVersion: 3, Appd: running}
+		require.False(t, m.embeddedExitIsFatal(running))
+	})
+
+	t.Run("not fatal when the app was replaced by a version switch", func(t *testing.T) {
+		m := &Multiplexer{ctx: context.Background()}
+		m.activeVersion = Version{AppVersion: 4, Appd: other}
+		require.False(t, m.embeddedExitIsFatal(running))
+	})
+}
 
 // TestInitTelemetryIsIdempotent verifies that initTelemetry is idempotent.
 //
