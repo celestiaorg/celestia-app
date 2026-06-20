@@ -147,7 +147,7 @@ func (m *Multiplexer) Start() error {
 
 	if m.isEmbeddedApp() {
 		m.logger.Debug("using embedded app, not continuing with grpc or api servers")
-		return m.g.Wait()
+		return m.waitForEmbeddedApp()
 	}
 
 	if err := m.enableGRPCAndAPIServers(m.nativeApp); err != nil {

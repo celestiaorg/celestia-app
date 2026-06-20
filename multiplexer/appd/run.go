@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -28,6 +29,16 @@ type Appd struct {
 	stdout io.Writer
 	// cmd is the started celestia-appd binary.
 	cmd *exec.Cmd
+	// waitCh is closed when the process started by Start exits. It is created
+	// by Start so that a single background goroutine owns cmd.Wait() (exec.Cmd
+	// forbids calling Wait more than once).
+	waitCh chan struct{}
+	// waitErr holds the result of cmd.Wait(). It is only safe to read after
+	// waitCh is closed.
+	waitErr error
+	// stopping is set when Stop is called so that callers can distinguish an
+	// operator-initiated shutdown from an unexpected process exit.
+	stopping atomic.Bool
 }
 
 // New returns a new Appd instance.
@@ -97,6 +108,16 @@ func (a *Appd) Start(args ...string) error {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
 	a.cmd = cmd
+	a.stopping.Store(false)
+
+	// A single background goroutine owns cmd.Wait(): exec.Cmd forbids calling
+	// Wait more than once, so both Stop and the process monitors observe the
+	// exit via waitCh instead of calling Wait themselves.
+	a.waitCh = make(chan struct{})
+	go func() {
+		a.waitErr = cmd.Wait()
+		close(a.waitCh)
+	}()
 	return nil
 }
 
@@ -105,19 +126,40 @@ func (a *Appd) IsRunning() bool {
 }
 
 func (a *Appd) IsStopped() bool {
-	// Never started or failed to start
-	if a.cmd == nil || a.cmd.Process == nil {
+	// Never started or failed to start.
+	if a.cmd == nil || a.cmd.Process == nil || a.waitCh == nil {
 		return true
 	}
 
-	// If ProcessState is not nil, it means Wait() was called and the process has finished
-	// (either by exiting normally or being terminated by a signal)
-	if a.cmd.ProcessState != nil {
+	// waitCh is closed once the process has exited.
+	select {
+	case <-a.waitCh:
 		return true
+	default:
+		return false
 	}
+}
 
-	// ProcessState is nil, which means the process is still running
-	return false
+// StopInitiated reports whether Stop has been called on this Appd. It is used
+// to distinguish an operator-initiated shutdown from an unexpected process
+// exit.
+func (a *Appd) StopInitiated() bool {
+	return a.stopping.Load()
+}
+
+// ExitError returns the error returned by the process started by Start. It
+// returns nil while the process is still running and nil if the process exited
+// cleanly.
+func (a *Appd) ExitError() error {
+	if a.waitCh == nil {
+		return nil
+	}
+	select {
+	case <-a.waitCh:
+		return a.waitErr
+	default:
+		return nil
+	}
 }
 
 // Stop interrupts and then kills the running appd process if it exists and
@@ -131,6 +173,10 @@ func (a *Appd) Stop() error {
 		return nil
 	}
 
+	// Record that this is an operator-initiated shutdown so process monitors
+	// don't mistake the resulting exit for an unexpected crash.
+	a.stopping.Store(true)
+
 	err := a.cmd.Process.Signal(os.Interrupt)
 	if err != nil {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
@@ -138,8 +184,9 @@ func (a *Appd) Stop() error {
 			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
 
-		if err := a.cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
+		<-a.waitCh
+		if a.waitErr != nil {
+			log.Printf("Process finished with error: %v\n", a.waitErr)
 		}
 		return nil
 	}
@@ -147,15 +194,10 @@ func (a *Appd) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() {
-		done <- a.cmd.Wait()
-	}()
-
 	select {
-	case err := <-done:
-		if err != nil {
-			log.Printf("Process finished with error: %v\n", err)
+	case <-a.waitCh:
+		if a.waitErr != nil {
+			log.Printf("Process finished with error: %v\n", a.waitErr)
 		} else {
 			log.Printf("Process finished with no error\n")
 		}
@@ -166,8 +208,9 @@ func (a *Appd) Stop() error {
 			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
 		}
 
-		if err := <-done; err != nil {
-			log.Printf("Process finished with error after force kill: %v\n", err)
+		<-a.waitCh
+		if a.waitErr != nil {
+			log.Printf("Process finished with error after force kill: %v\n", a.waitErr)
 		} else {
 			log.Printf("Process finished after force kill\n")
 		}
