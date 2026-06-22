@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -26,8 +27,21 @@ type Appd struct {
 	stdin  io.Reader
 	stderr io.Writer
 	stdout io.Writer
+
+	// mu guards the fields below which are accessed by both the caller and the
+	// goroutine that waits on the running process.
+	mu sync.Mutex
 	// cmd is the started celestia-appd binary.
 	cmd *exec.Cmd
+	// waitCh is closed when the process started by the most recent call to
+	// Start exits. It is nil until Start is called.
+	waitCh chan struct{}
+	// waitErr is the error returned by cmd.Wait. It is only valid to read after
+	// waitCh has been closed.
+	waitErr error
+	// stopping is set to true when Stop is called so that the process exit is
+	// recognised as intentional rather than a crash.
+	stopping bool
 }
 
 // New returns a new Appd instance.
@@ -96,7 +110,26 @@ func (a *Appd) Start(args ...string) error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
+
+	// Wait on the process from a single goroutine. Centralizing the cmd.Wait
+	// call here means both Stop and Wait can observe the exit via waitCh without
+	// racing on a second cmd.Wait call.
+	waitCh := make(chan struct{})
+	a.mu.Lock()
 	a.cmd = cmd
+	a.waitCh = waitCh
+	a.waitErr = nil
+	a.stopping = false
+	a.mu.Unlock()
+
+	go func() {
+		err := cmd.Wait()
+		a.mu.Lock()
+		a.waitErr = err
+		a.mu.Unlock()
+		close(waitCh)
+	}()
+
 	return nil
 }
 
@@ -105,40 +138,76 @@ func (a *Appd) IsRunning() bool {
 }
 
 func (a *Appd) IsStopped() bool {
-	// Never started or failed to start
-	if a.cmd == nil || a.cmd.Process == nil {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	// Never started or failed to start.
+	if a.cmd == nil || a.cmd.Process == nil || a.waitCh == nil {
 		return true
 	}
 
-	// If ProcessState is not nil, it means Wait() was called and the process has finished
-	// (either by exiting normally or being terminated by a signal)
-	if a.cmd.ProcessState != nil {
+	// If waitCh is closed, the process has exited.
+	select {
+	case <-a.waitCh:
 		return true
+	default:
+		return false
+	}
+}
+
+// Wait blocks until the running process exits and reports whether the exit was
+// unexpected. It returns:
+//   - nil if the process was never started or was stopped intentionally via
+//     Stop.
+//   - a non-nil error if the process exited on its own, regardless of the exit
+//     code, since the multiplexer never expects an embedded binary to exit
+//     while it is still running.
+func (a *Appd) Wait() error {
+	a.mu.Lock()
+	waitCh := a.waitCh
+	a.mu.Unlock()
+
+	if waitCh == nil {
+		return nil
 	}
 
-	// ProcessState is nil, which means the process is still running
-	return false
+	<-waitCh
+
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.stopping {
+		return nil
+	}
+	if a.waitErr != nil {
+		return fmt.Errorf("embedded app exited unexpectedly: %w", a.waitErr)
+	}
+	return fmt.Errorf("embedded app exited unexpectedly")
 }
 
 // Stop interrupts and then kills the running appd process if it exists and
 // waits for it to fully exit. If the process is not running, it returns nil.
 // The method will wait up to 6 seconds for graceful shutdown before force killing.
 func (a *Appd) Stop() error {
-	if a.cmd == nil {
+	a.mu.Lock()
+	if a.cmd == nil || a.cmd.Process == nil || a.waitCh == nil {
+		a.mu.Unlock()
 		return nil
 	}
-	if a.cmd.Process == nil {
-		return nil
-	}
+	// Mark the shutdown as intentional before signalling the process so that the
+	// Wait observer does not interpret the exit as a crash.
+	a.stopping = true
+	process := a.cmd.Process
+	waitCh := a.waitCh
+	a.mu.Unlock()
 
-	err := a.cmd.Process.Signal(os.Interrupt)
-	if err != nil {
+	if err := process.Signal(os.Interrupt); err != nil {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
-		if err := a.cmd.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
+		if err := process.Kill(); err != nil {
+			return fmt.Errorf("failed to kill process with PID %d: %w", process.Pid, err)
 		}
 
-		if err := a.cmd.Wait(); err != nil {
+		<-waitCh
+		if err := a.exitErr(); err != nil {
 			log.Printf("Process finished with error: %v\n", err)
 		}
 		return nil
@@ -147,14 +216,9 @@ func (a *Appd) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() {
-		done <- a.cmd.Wait()
-	}()
-
 	select {
-	case err := <-done:
-		if err != nil {
+	case <-waitCh:
+		if err := a.exitErr(); err != nil {
 			log.Printf("Process finished with error: %v\n", err)
 		} else {
 			log.Printf("Process finished with no error\n")
@@ -162,17 +226,26 @@ func (a *Appd) Stop() error {
 		return nil
 	case <-ctx.Done():
 		log.Printf("Process did not exit within 6 seconds, force killing")
-		if err := a.cmd.Process.Kill(); err != nil {
-			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
+		if err := process.Kill(); err != nil {
+			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", process.Pid, err)
 		}
 
-		if err := <-done; err != nil {
+		<-waitCh
+		if err := a.exitErr(); err != nil {
 			log.Printf("Process finished with error after force kill: %v\n", err)
 		} else {
 			log.Printf("Process finished after force kill\n")
 		}
 		return nil
 	}
+}
+
+// exitErr returns the error returned by the underlying process. It must only be
+// called after the process has exited (waitCh closed).
+func (a *Appd) exitErr() error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.waitErr
 }
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.

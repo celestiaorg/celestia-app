@@ -87,6 +87,15 @@ type Multiplexer struct {
 	// Prometheus collector registration when enableGRPCAndAPIServers is
 	// called more than once (e.g. during a version switch).
 	metrics *telemetry.Metrics
+	// fatalCh is closed when an embedded app exits unexpectedly. It unblocks
+	// Start so the process can exit instead of hanging silently.
+	fatalCh chan struct{}
+	// fatalErr describes why fatalCh was closed. It is only valid to read after
+	// fatalCh has been closed.
+	fatalErr error
+	// fatalOnce ensures fatalCh is closed at most once even if multiple embedded
+	// apps report a failure.
+	fatalOnce sync.Once
 }
 
 // NewMultiplexer creates a new Multiplexer.
@@ -127,6 +136,7 @@ func (m *Multiplexer) isGrpcOnly() bool {
 
 func (m *Multiplexer) Start() error {
 	m.g, m.ctx = getCtx(m.svrCtx, true)
+	m.fatalCh = make(chan struct{})
 
 	emitServerInfoMetrics()
 
@@ -147,7 +157,7 @@ func (m *Multiplexer) Start() error {
 
 	if m.isEmbeddedApp() {
 		m.logger.Debug("using embedded app, not continuing with grpc or api servers")
-		return m.g.Wait()
+		return m.waitForEmbeddedApp()
 	}
 
 	if err := m.enableGRPCAndAPIServers(m.nativeApp); err != nil {
@@ -233,6 +243,7 @@ func (m *Multiplexer) startApp() error {
 
 		m.started = true
 		m.activeVersion = currentVersion
+		m.monitorEmbeddedApp(currentVersion)
 	}
 
 	return m.initRemoteGrpcConn()
@@ -508,6 +519,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 
 		m.activeVersion = version
 		m.started = true
+		m.monitorEmbeddedApp(version)
 	}
 	return nil
 }
@@ -515,6 +527,43 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 // embeddedVersionRunning returns true if there is an active version specified which is running.
 func (m *Multiplexer) embeddedVersionRunning() bool {
 	return m.activeVersion.Appd != nil && m.activeVersion.Appd.IsRunning()
+}
+
+// waitForEmbeddedApp blocks until either a quit signal arrives (handled by the
+// errgroup) or the embedded app exits unexpectedly. The signal handler in m.g
+// only returns on an OS signal, so g.Wait alone would hang forever if the
+// embedded binary died on its own. fatalCh covers that case so the process
+// exits with an error instead.
+func (m *Multiplexer) waitForEmbeddedApp() error {
+	gDone := make(chan error, 1)
+	go func() {
+		gDone <- m.g.Wait()
+	}()
+
+	select {
+	case <-m.fatalCh:
+		return m.fatalErr
+	case err := <-gDone:
+		return err
+	}
+}
+
+// monitorEmbeddedApp watches an embedded app process and records a fatal error
+// if it exits unexpectedly (i.e. not via Stop). Intentional shutdowns, such as
+// the one performed during a version switch, report no error and are ignored.
+func (m *Multiplexer) monitorEmbeddedApp(version Version) {
+	appd := version.Appd
+	if appd == nil {
+		return
+	}
+	go func() {
+		if err := appd.Wait(); err != nil {
+			m.fatalOnce.Do(func() {
+				m.fatalErr = fmt.Errorf("embedded app for version %d exited unexpectedly: %w", version.AppVersion, err)
+				close(m.fatalCh)
+			})
+		}
+	}()
 }
 
 // startCmtNode initializes and starts a CometBFT node, sets up cleanup tasks, and assigns it to the Multiplexer instance.
