@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"hash"
@@ -1189,12 +1190,17 @@ func fsyncDir(dir string) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = d.Close() }()
 	if err := d.Sync(); err != nil {
-		// Some filesystems return EINVAL for directory fsync; tolerate that.
-		return nil
+		_ = d.Close()
+		// Some filesystems legitimately reject directory fsync with EINVAL; that
+		// is benign. Any other error (EIO, ENOSPC, ...) is a real durability
+		// failure and must propagate.
+		if errors.Is(err, syscall.EINVAL) {
+			return nil
+		}
+		return fmt.Errorf("fsync dir %s: %w", dir, err)
 	}
-	return nil
+	return d.Close()
 }
 
 // performAutoSwap moves staged PebbleDB databases into place using a crash-safe,
