@@ -17,7 +17,7 @@ jobs:
       run:
         working-directory: tools/lumina-latency-monitor
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
