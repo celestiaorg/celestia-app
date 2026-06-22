@@ -424,6 +424,31 @@ func TestUpdateBackendConfig_RollbackOnAppTomlFailure(t *testing.T) {
 	assert.NotContains(t, string(cfg), "pebbledb")
 }
 
+// --check on a not-yet-migrated (goleveldb) node must refuse and must NOT write
+// any PebbleDB metadata into the live LevelDB directories (which would make them
+// un-migratable).
+func TestCheck_RefusesAndDoesNotPolluteLevelDB(t *testing.T) {
+	home := setupTestNode(t, 50, 128) // config.toml says goleveldb
+	o := opts(home)
+	o.check = true
+	err := runMigration(context.Background(), o)
+	require.Error(t, err, "--check must refuse on a goleveldb node")
+	assert.Contains(t, err.Error(), "refusing")
+
+	for _, name := range testMainDBs {
+		dir := filepath.Join(home, "data", name+".db")
+		matches, _ := filepath.Glob(filepath.Join(dir, "OPTIONS-*"))
+		assert.Empty(t, matches, "[%s] --check polluted the LevelDB dir with pebble OPTIONS files", name)
+		assert.False(t, isPebbleDB(dir), "[%s] LevelDB dir must remain non-PebbleDB (still migratable)", name)
+	}
+
+	// And the node must still be migratable afterwards.
+	o2 := opts(home)
+	o2.manualSwap = false
+	o2.backup = false
+	require.NoError(t, runMigration(context.Background(), o2), "node must still migrate after a --check attempt")
+}
+
 func TestSaveAndLoadState(t *testing.T) {
 	dir := t.TempDir()
 	state := &MigrationState{Backup: true, Databases: map[string]DBState{

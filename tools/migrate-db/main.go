@@ -1090,9 +1090,18 @@ func writeLenPrefixed(h hash.Hash, lenBuf, b []byte) {
 	_, _ = h.Write(b)
 }
 
-// runCheck opens each target's database (expected PebbleDB) at its final
-// location and verifies it opens and fully iterates without error.
+// runCheck opens each target's PebbleDB at its final location and verifies it
+// opens and fully iterates without error.
+//
+// It refuses to run unless the node's effective backend is already PebbleDB:
+// otherwise the source directories are LevelDB, and opening them as PebbleDB
+// would write pebble metadata into them — corrupting them and tripping the
+// "already PebbleDB" guard on every later migrate-db run.
 func runCheck(targets []dbTarget, backend string) error {
+	if backend != pebbleBackendName {
+		return fmt.Errorf("--check verifies an already-migrated node, but the effective backend is %q; "+
+			"refusing so LevelDB directories are not opened (and corrupted) as PebbleDB — migrate first", backend)
+	}
 	fmt.Printf("Running consistency check (effective backend: %q)...\n", backend)
 	var failures int
 	for _, t := range targets {
@@ -1105,13 +1114,13 @@ func runCheck(targets []dbTarget, backend string) error {
 			failures++
 			continue
 		}
-		count, _, err := openAndFullRead(t.fileName, t.dir)
+		count, sum, err := openAndFullRead(t.fileName, t.dir)
 		if err != nil {
 			fmt.Printf("[%s] FAILED: %v\n", t.name, err)
 			failures++
 			continue
 		}
-		fmt.Printf("[%s] OK (%d keys)\n", t.name, count)
+		fmt.Printf("[%s] OK (%d keys, sha256=%x)\n", t.name, count, sum)
 	}
 	if failures > 0 {
 		return fmt.Errorf("consistency check failed for %d database(s)", failures)
