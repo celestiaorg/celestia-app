@@ -4695,7 +4695,10 @@ service Fibre {
 <li>Reconstruct and decode the v0 blob header.</li>
 <li>Return a <code>Blob</code>.</li>
 </ol>
-<p>RLC verification is a client-side recovery mechanism. The attack is: an uploader commits to rows where some assigned rows were tampered with, and malicious validators sign or serve those bad rows. The Merkle proofs still pass because the commitment was built from those rows, but the rows do not form a correct Reed-Solomon encoding. RLC lets downloaders detect those bad rows, ignore them, and recover from honest rows when enough are available. It does not stop a bad Fibre payment from being accepted on-chain if enough validators sign it; slashing or banning is handled separately.</p>
+<p>RLC verification is for client-side recovery. An attacker can publish a commitment built from tampered rows, so Merkle proofs still pass. But those rows may not be a valid Reed-Solomon encoding. RLC lets the downloader spot the bad rows, skip them, and recover from enough honest rows. It does not prevent a bad commitment from being accepted on-chain if enough validators sign it; punishment or banning is separate.</p>
+<blockquote>
+<p><strong>Note</strong>: The on-chain commitment in this attack is the tampered one, so it differs from the commitment for the correctly encoded data.</p>
+</blockquote>
 <p>Errors are classified as:</p>
 <ul>
 <li><code>ErrNotFound</code>: no rows were retrieved.</li>
