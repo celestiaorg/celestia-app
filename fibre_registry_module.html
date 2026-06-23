@@ -139,7 +139,8 @@
                     <main>
                         <h1 id="validator-address-registry"><a class="header" href="#validator-address-registry">Validator Address Registry</a></h1>
 <h2 id="abstract"><a class="header" href="#abstract">Abstract</a></h2>
-<p>The <code>x/valaddr</code> module enables validators to register their fibre service provider information.</p>
+<p>The <code>x/valaddr</code> module lets a validator operator register the Fibre server host for its consensus validator. Fibre clients use these records to resolve the gRPC endpoint for validators selected from a validator set.</p>
+<p>The module is wired into the app only when the <code>fibre</code> build tag is enabled.</p>
 <h2 id="contents"><a class="header" href="#contents">Contents</a></h2>
 <ol>
 <li><a href="#concepts">Concepts</a></li>
@@ -148,104 +149,124 @@
 <li><a href="#events">Events</a></li>
 <li><a href="#queries">Queries</a></li>
 <li><a href="#parameters">Parameters</a></li>
+<li><a href="#genesis">Genesis</a></li>
 <li><a href="#client">Client</a></li>
 </ol>
 <h2 id="concepts"><a class="header" href="#concepts">Concepts</a></h2>
-<h3 id="fibre-service-provider"><a class="header" href="#fibre-service-provider">Fibre Service Provider</a></h3>
-<p>Every validator in the active set is a Fibre Service Provider (FSP). Each FSP register's their service addresses to the celestia-app state. Fibre clients encode data and send unique chunks to each FSP. In return, each FSP signs over a commitment to that data using their consensus key, indicating that they have downloaded it, verified that the encoding is uniquely decodable, and will serve that data upon request for at least the service period.</p>
-<h3 id="state-management"><a class="header" href="#state-management">State Management</a></h3>
-<p>The module maintains a simple key-value store where:</p>
-<ul>
-<li><strong>Key</strong>: Validator consensus address (celestiavalcons...)</li>
-<li><strong>Value</strong>: FibreProviderInfo struct containing service details</li>
-</ul>
+<h3 id="fibre-provider-host"><a class="header" href="#fibre-provider-host">Fibre Provider Host</a></h3>
+<p>A Fibre provider host is the dial target for a validator-operated Fibre gRPC server. The registered value is a canonical <code>host:port</code> string. The host portion can be a DNS name, an IPv4 literal, or a bracketed IPv6 literal. Schemes such as <code>http://</code> or <code>dns:///</code> and URL paths are rejected by message validation.</p>
+<p>The registry is keyed by validator consensus address, but registration is submitted by the validator operator address (<code>celestiavaloper...</code>). The message handler looks up the staking validator, derives its consensus public key, and stores the host under the derived consensus address.</p>
+<p>The registry does not compute validator-set membership. <code>AllFibreProviders</code> returns all stored provider records; clients combine these records with the current validator set when selecting providers.</p>
 <h2 id="state"><a class="header" href="#state">State</a></h2>
-<p>The <code>x/valaddr</code> module stores the following data:</p>
+<p>The <code>x/valaddr</code> module stores provider info under the module store key <code>valaddr</code>.</p>
 <h3 id="fibreproviderinfo"><a class="header" href="#fibreproviderinfo">FibreProviderInfo</a></h3>
 <pre><code class="language-protobuf">message FibreProviderInfo {
-  // ip_address is the IP address where users can access the fibre service
-  string ip_address = 1;
+  // host is the network address for the fibre service provider.
+  string host = 1;
 }
 </code></pre>
 <h3 id="store-keys"><a class="header" href="#store-keys">Store Keys</a></h3>
 <ul>
-<li><code>0x01 | ValidatorConsensusAddress -&gt; ProtocolBuffer(FibreProviderInfo)</code>: Maps validator consensus address to fibre provider info</li>
+<li><code>0x01 | ValidatorConsensusAddress -&gt; ProtocolBuffer(FibreProviderInfo)</code>: maps a validator consensus address to its Fibre provider host.</li>
 </ul>
 <h2 id="messages"><a class="header" href="#messages">Messages</a></h2>
 <h3 id="msgsetfibreproviderinfo"><a class="header" href="#msgsetfibreproviderinfo">MsgSetFibreProviderInfo</a></h3>
-<p>Allows a validator to set or update their fibre provider information.</p>
+<p>Allows a validator operator to set or update Fibre provider information for its validator.</p>
 <pre><code class="language-protobuf">message MsgSetFibreProviderInfo {
-  string signer = 1;
-  // host is the network address for the fibre service provider (max 90 characters)
+  option (cosmos.msg.v1.signer) = &quot;signer&quot;;
+
+  // signer is the validator's operator address (celestiavaloper...).
+  string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.ValidatorAddressString&quot;];
+
+  // host is the network address for the fibre service provider.
   string host = 2;
 }
 </code></pre>
-<p><strong>Validation Rules:</strong></p>
+<p>Validation rules:</p>
 <ul>
-<li><code>signer</code> must be a valid validator consensus operator address</li>
-<li><code>host</code> must be less than 90 characters</li>
+<li><code>signer</code> must be a non-empty valid validator operator address.</li>
+<li><code>host</code> must be non-empty and at most 100 characters.</li>
+<li><code>host</code> must be in <code>host:port</code> form.</li>
+<li>The host part must be non-empty.</li>
+<li>The port must be numeric and in the range <code>[1, 65535]</code>.</li>
+<li>The normal transaction path rejects scheme-prefixed or path-bearing hosts because they do not match canonical <code>host:port</code> form.</li>
+<li>The message handler requires the validator operator address to exist in the staking keeper, derives the validator consensus address, and stores the host under that consensus address.</li>
 </ul>
 <h2 id="events"><a class="header" href="#events">Events</a></h2>
-<h3 id="eventsetfibreproviderinfo"><a class="header" href="#eventsetfibreproviderinfo">EventSetFibreProviderInfo</a></h3>
-<p>Emitted when a validator sets or updates their fibre provider information.</p>
+<h3 id="set-fibre-provider-info"><a class="header" href="#set-fibre-provider-info">Set Fibre Provider Info</a></h3>
+<p>The proto event shape is:</p>
 <pre><code class="language-protobuf">message EventSetFibreProviderInfo {
-  // validator_consensus_address is the consensus address of the validator
+  // validator_consensus_address is the validator consensus address (celestiavalcons...).
   string validator_consensus_address = 1;
-  // ip_address is the IP addresses for the fibre service provider
-  string ip_address = 2;
+
+  // host is the network address for the fibre service provider.
+  string host = 2;
 }
 </code></pre>
-<h2 id="queries"><a class="header" href="#queries">Queries</a></h2>
-<p>The module supports two types of queries. The first one is aimed for new fibre clients to build their address book. The second
-is to request the info for specific providers when a) they are added to the validator set or b) they are unreachable and thus the address may have changed.</p>
-<h3 id="queryallactivefibreproviders"><a class="header" href="#queryallactivefibreproviders">QueryAllActiveFibreProviders</a></h3>
-<p>Query fibre provider information for all validators in the active set.</p>
-<p><strong>Request:</strong></p>
-<pre><code class="language-protobuf">message QueryAllActiveFibreProvidersRequest {}
+<p>The current message handler emits a plain SDK event:</p>
+<pre><code class="language-text">type: set_fibre_provider_info
+attributes:
+  validator_consensus_address = &lt;celestiavalcons...&gt;
+  host = &lt;host:port&gt;
 </code></pre>
-<p><strong>Response:</strong></p>
-<pre><code class="language-protobuf">message QueryAllActiveFibreProvidersResponse {
-  // providers contains all active fibre providers
+<h2 id="queries"><a class="header" href="#queries">Queries</a></h2>
+<p>The module supports a query for one validator consensus address and a query for all stored provider records.</p>
+<h3 id="fibreproviderinfo-1"><a class="header" href="#fibreproviderinfo-1">FibreProviderInfo</a></h3>
+<p>Queries Fibre provider information for a specific validator consensus address.</p>
+<pre><code class="language-protobuf">message QueryFibreProviderInfoRequest {
+  // validator_consensus_address is the validator consensus address (celestiavalcons...).
+  string validator_consensus_address = 1;
+}
+
+message QueryFibreProviderInfoResponse {
+  // info contains the fibre provider information.
+  FibreProviderInfo info = 1;
+
+  // found indicates if the validator has registered info.
+  bool found = 2;
+}
+</code></pre>
+<p>HTTP gateway route:</p>
+<pre><code class="language-text">GET /valaddr/v1/fibre-provider-info/{validator_consensus_address}
+</code></pre>
+<h3 id="allfibreproviders"><a class="header" href="#allfibreproviders">AllFibreProviders</a></h3>
+<p>Queries all stored Fibre provider records. This is not filtered to the active validator set and has no pagination argument.</p>
+<pre><code class="language-protobuf">message QueryAllFibreProvidersRequest {}
+
+message QueryAllFibreProvidersResponse {
+  // providers contains all fibre providers with a host defined.
   repeated FibreProvider providers = 1;
 }
 
 message FibreProvider {
-  // validator_consensus_address is the consensus address of the validator
+  // validator_consensus_address is the validator consensus address (celestiavalcons...).
   string validator_consensus_address = 1;
-  // info contains the fibre provider information
+
+  // info contains the fibre provider information.
   FibreProviderInfo info = 2;
 }
 </code></pre>
-<h3 id="queryfibreproviderinfo"><a class="header" href="#queryfibreproviderinfo">QueryFibreProviderInfo</a></h3>
-<p>Query fibre provider information for a specific validator.</p>
-<p><strong>Request:</strong></p>
-<pre><code class="language-protobuf">message QueryFibreProviderInfoRequest {
-  // validator_consensus_address is the consensus address of the validator
-  string validator_consensus_address = 1;
-}
-</code></pre>
-<p><strong>Response:</strong></p>
-<pre><code class="language-protobuf">message QueryFibreProviderInfoResponse {
-  // info contains the fibre provider information
-  FibreProviderInfo info = 1;
-  // found indicates if the validator has registered info
-  bool found = 2;
-}
+<p>HTTP gateway route:</p>
+<pre><code class="language-text">GET /valaddr/v1/all-fibre-providers
 </code></pre>
 <h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
 <p>The <code>x/valaddr</code> module has no parameters.</p>
+<h2 id="genesis"><a class="header" href="#genesis">Genesis</a></h2>
+<p><code>GenesisState</code> is empty. Provider records are not imported from genesis and are not exported into genesis.</p>
+<pre><code class="language-protobuf">message GenesisState {}
+</code></pre>
 <h2 id="client"><a class="header" href="#client">Client</a></h2>
 <h3 id="cli-commands"><a class="header" href="#cli-commands">CLI Commands</a></h3>
-<p><strong>Query Commands:</strong></p>
-<pre><code class="language-bash"># Query specific validator's fibre info
-celestia-appd query fibre provider &lt;validator-consensus-address&gt;
+<p>Query commands:</p>
+<pre><code class="language-bash"># Query one validator's Fibre provider info by consensus address.
+celestia-appd query valaddr provider &lt;validator-consensus-address&gt;
 
-# Query all active fibre providers
-celestia-appd query fibre providers &lt;num-providers&gt;
+# Query all stored Fibre provider records.
+celestia-appd query valaddr providers
 </code></pre>
-<p><strong>Transaction Commands:</strong></p>
-<pre><code class="language-bash"># Set fibre provider info (must be signed by validator)
-celestia-appd tx fibre set-host &lt;host-address&gt; --from &lt;validator-operator-key&gt;
+<p>Transaction commands:</p>
+<pre><code class="language-bash"># Set Fibre provider host. The --from key must correspond to the validator operator account.
+celestia-appd tx valaddr set-host &lt;host:port&gt; --from &lt;validator-operator-key&gt;
 </code></pre>
 
                     </main>

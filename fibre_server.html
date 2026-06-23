@@ -138,381 +138,178 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="fibre-server"><a class="header" href="#fibre-server">Fibre Server</a></h1>
-<h2 id="1-public-grpc-apis"><a class="header" href="#1-public-grpc-apis">1) Public gRPC APIs</a></h2>
-<h3 id="11-fibre-api-data-plane"><a class="header" href="#11-fibre-api-data-plane">1.1 Fibre API (data plane)</a></h3>
-<pre><code class="language-proto">syntax = &quot;proto3&quot;;
-package fibre.v1;
-
-import &quot;google/protobuf/timestamp.proto&quot;;
-
-message GF128 { bytes coeffs = 1; }                       // len == 16
-message Commitment { bytes value = 1; }                   // len == 32
-message RowWithProof { uint32 index = 1; bytes row = 2; bytes proof = 3; }
-message RlcOrig { repeated GF128 coeffs = 1; }            // len == N
-
-// Mirrors x/fibre.PaymentPromise (names unified, Timestamp used)
-message PaymentPromise {
-  string signer = 1;                                      // bech32 escrow owner
-  bytes namespace = 2;                                    // 29 raw bytes
-  uint32 blob_size = 3;                                   // original length (pre-padding)
-  bytes commitment = 4;                                   // 32 bytes
-  uint32 fibre_blob_version = 5;                          // = 1
-  google.protobuf.Timestamp creation_timestamp = 6;       // UTC
-  uint64 valset_height = 7;                               // assignment height
-  bytes signature = 8;                                    // signer signature over PP sign-bytes
+<p>This document describes the Fibre server implemented by the <code>fibre.Server</code> type. The server is a validator-operated gRPC service that accepts assigned blob shards, verifies payment promises and row proofs, stores shards locally until the payment promise expires, signs the payment promise with the validator consensus key, and serves stored shards back to download clients.</p>
+<h2 id="public-grpc-api"><a class="header" href="#public-grpc-api">Public gRPC API</a></h2>
+<p>The implemented data-plane service is <code>celestia.fibre.v1.Fibre</code>:</p>
+<pre><code class="language-protobuf">service Fibre {
+  rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
+  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
 }
 
-message UploadRowsRequest {
+message BlobRow {
+  uint32 index = 1;
+  bytes data = 2;
+  repeated bytes proof = 3;
+}
+
+message BlobShard {
+  repeated BlobRow rows = 1;
+  bytes rlcs = 2;
+}
+
+message UploadShardRequest {
   PaymentPromise promise = 1;
-  Commitment commitment = 2;
-  repeated RowWithProof rows = 3;                         // this FSP's assigned subset only
-  RlcOrig rlc_orig = 4;                                   // corrected field number
+  BlobShard shard = 2;
 }
 
-message UploadRowsResponse {
-  bytes validator_signature = 1;                          // ed25519 over SignBytes (see §2.3)
-  optional uint64 ttl = 2;                                // seconds remaining (if known)
-  optional uint32 backoff_ms = 10;                        // server hint for client backoff
+message UploadShardResponse {
+  bytes validator_signature = 1;
 }
 
-message GetRowsRequest {
-  Commitment commitment = 1;
+message DownloadShardRequest {
+  bytes blob_id = 1;
 }
 
-message GetRowsResponse {
-  repeated RowWithProof rows = 1;                         // ALL rows this FSP holds for the commitment
-  RlcOrig rlc_orig = 2;
-  optional uint64 ttl = 3;
-  optional uint32 backoff_ms = 10;
+message DownloadShardResponse {
+  BlobShard shard = 1;
 }
+</code></pre>
+<p>There is no Fibre server <code>FibreAccount</code> API and no server-side <code>PaymentProcessor</code> relay API in the current implementation. Escrow account operations, <code>MsgPayForFibre</code>, and timeout settlement are handled through the normal app query and transaction clients.</p>
+<h2 id="paymentpromise"><a class="header" href="#paymentpromise">PaymentPromise</a></h2>
+<p>The server uses the <code>celestia.fibre.v1.PaymentPromise</code> protobuf from <code>x/fibre</code>:</p>
+<pre><code class="language-protobuf">message PaymentPromise {
+  string chain_id = 1;
+  int64 height = 2;
+  bytes namespace = 3;
+  uint32 blob_size = 4;
+  uint32 blob_version = 5;
+  bytes commitment = 6;
+  google.protobuf.Timestamp creation_timestamp = 7;
+  cosmos.crypto.secp256k1.PubKey signer_public_key = 8;
+  bytes signature = 9;
+}
+</code></pre>
+<p>The internal <code>fibre.PaymentPromise</code> treats <code>signer_public_key</code> as the escrow-owner secp256k1 public key. <code>blob_size</code> is the padded upload size used by Fibre, not the raw user payload size. The supported blob version is currently <code>0</code>.</p>
+<h2 id="sign-bytes"><a class="header" href="#sign-bytes">Sign Bytes</a></h2>
+<p>Both the escrow owner and validators sign the same CometBFT raw-bytes domain:</p>
+<pre><code class="language-text">SignBytes = RawBytesMessageSignBytes(chain_id, &quot;fibre/pp:v0&quot;, stripped)
 
-service Fibre {
-  rpc UploadRows(UploadRowsRequest) returns (UploadRowsResponse);
-  rpc GetRows(GetRowsRequest) returns (GetRowsResponse);
+stripped =
+  signer_public_key_compressed_33 ||
+  namespace_29 ||
+  upload_size_u32be ||
+  commitment_32 ||
+  blob_version_u32be ||
+  height_u64be ||
+  creation_timestamp_utc_go_binary
+</code></pre>
+<p><code>PaymentPromise.Hash()</code> is <code>SHA256(SignBytes || escrow_owner_signature)</code>. Validator signatures are produced with the validator consensus signer via <code>PrivValidator.SignRawBytes(chain_id, &quot;fibre/pp:v0&quot;, stripped)</code> and must be ed25519 signature length.</p>
+<h2 id="construction-and-configuration"><a class="header" href="#construction-and-configuration">Construction And Configuration</a></h2>
+<p><code>NewServer</code> validates <code>ServerConfig</code>, constructs the app state client, creates metrics, allocates the verifier pool, and binds the gRPC listener.</p>
+<pre><code class="language-go">type ServerConfig struct {
+    AppGRPCAddress      string
+    ServerListenAddress string
+    SignerGRPCAddress   string
+    UploadVerifyWorkers int
+
+    StoreConfig
+
+    LivenessThreshold   cmtmath.Fraction
+    MinRowsPerValidator int
+    MaxMessageSize      int
+
+    StoreFn      func(StoreConfig) (*Store, error)
+    StateClientFn func() (state.Client, error)
+    SignerFn     func(chainID string) (core.PrivValidator, error)
+
+    Log    *slog.Logger
+    Tracer trace.Tracer
+    Meter  metric.Meter
 }
 </code></pre>
-<h3 id="12-fibreaccount-api-control-plane"><a class="header" href="#12-fibreaccount-api-control-plane">1.2 FibreAccount API (control plane)</a></h3>
-<blockquote>
-<p>Typed pass-through to the payments module. Message types/semantics are defined by the <code>x/fibre</code> spec.</p>
-</blockquote>
-<pre><code class="language-proto">service FibreAccount {
-  rpc QueryEscrowAccount(QueryEscrowAccountRequest) returns (QueryEscrowAccountResponse);
-  rpc Deposit(DepositRequest) returns (DepositResponse);
-  rpc Withdraw(WithdrawRequest) returns (WithdrawResponse);
-  rpc PendingWithdrawals(PendingWithdrawalsRequest) returns (PendingWithdrawalsResponse);
-}
+<p>Defaults:</p>
+<pre><code class="language-text">app_grpc_address = &quot;127.0.0.1:9090&quot;
+server_listen_address = &quot;0.0.0.0:7980&quot;
+signer_grpc_address = &quot;127.0.0.1:26659&quot;
+upload_verify_workers = runtime.GOMAXPROCS(0)
 </code></pre>
-<h3 id="13-paymentprocessor-api-control-plane"><a class="header" href="#13-paymentprocessor-api-control-plane">1.3 PaymentProcessor API (control plane)</a></h3>
-<blockquote>
-<p>Server-side helpers to relay <code>MsgPayForFibre</code> and <code>MsgPaymentTimeout</code> (best-effort).</p>
-</blockquote>
-<pre><code class="language-proto">service PaymentProcessor {
-  rpc SubmitPayForFibre(SubmitPFFRequest) returns (SubmitPFFResponse);
-  rpc SubmitPaymentTimeout(SubmitPaymentTimeoutRequest) returns (SubmitPaymentTimeoutResponse);
-}
-</code></pre>
-<hr />
-<h2 id="2-handler-semantics"><a class="header" href="#2-handler-semantics">2) Handler Semantics</a></h2>
-<h3 id="21-fibreuploadrows"><a class="header" href="#21-fibreuploadrows">2.1 <code>Fibre.UploadRows</code></a></h3>
-<p><strong>Goal:</strong> accept rows for a <strong>specific FSP's</strong> assignment slice, verify payment authorizations and proofs, store rows with TTL, and return the validator's signature over the PP.</p>
-<p><strong>Flow (normative):</strong></p>
+<p><code>StoreConfig.Path</code> is not a TOML field; the standalone <code>fibre start</code> command sets it from <code>--home</code>. The default state client is a gRPC app client connected to <code>AppGRPCAddress</code>. The default signer is a PrivValidatorAPI gRPC client connected to <code>SignerGRPCAddress</code>. Both app-node gRPC and signer gRPC use insecure local transport and are expected to be loopback or otherwise protected.</p>
+<h2 id="lifecycle"><a class="header" href="#lifecycle">Lifecycle</a></h2>
+<p><code>Server.Start</code> starts the state client first, detects the chain ID, creates the signer, builds a TLS certificate endorsed by the validator consensus key, registers the Fibre gRPC service with TLS 1.3 credentials and max send/receive message sizes, opens the store, starts the prune loop, and starts serving gRPC in the background.</p>
+<p><code>Server.Stop</code> cancels the prune loop, stops the gRPC server, closes the signer if it implements <code>io.Closer</code>, closes the store, and stops the state client.</p>
+<h2 id="transport-security"><a class="header" href="#transport-security">Transport Security</a></h2>
+<p>The Fibre server-to-client gRPC link is TLS-only. On startup the server generates an ephemeral TLS keypair and uses the validator consensus signer to endorse that TLS public key. Clients verify the presented TLS key against the expected validator consensus public key and chain ID. There is no client certificate requirement and no mTLS. <code>DownloadShard</code> is public to any reachable client that can complete the server-authenticated TLS handshake.</p>
+<h2 id="state-client"><a class="header" href="#state-client">State Client</a></h2>
+<p>The server depends on <code>state.Client</code> for chain ID, validator sets, validator host lookup, and payment-promise state validation. The default implementation is <code>fibre/internal/grpc.AppClient</code>, which uses app-node gRPC. Validator sets are fetched through the CometBFT Block API <code>ValidatorSet</code> endpoint. Payment promises are checked with the app <code>x/fibre</code> <code>ValidatePaymentPromise</code> query, which returns the expiration time used for local pruning.</p>
+<h2 id="uploadshard-flow"><a class="header" href="#uploadshard-flow">UploadShard Flow</a></h2>
+<p><code>UploadShard</code> performs the following work:</p>
 <ol>
-<li>
-<p><strong>Validate stateless:</strong></p>
-<ul>
-<li>msg size ≤ 8 MiB (enforced by max gRPC message size), TODO: update based on latest params</li>
-<li>size bounds: <code>0 &lt; blob_size ≤ 128 MiB</code> (derived from params),</li>
-<li>row inclusion proof size matches <code>original_rows</code> size (network level params)</li>
-<li><code>signer</code> bech32, <code>namespace</code> version=2 and 29 bytes,</li>
-<li><code>commitment</code> 32 bytes,</li>
-<li><code>fibre_blob_version == 1</code>,</li>
-<li><code>creation_timestamp</code> ∈ <code>[now - withdrawal_delay - skew, now + skew]</code>,</li>
-<li><code>valset_height &gt; 0</code>,</li>
-<li><code>signature</code> present.</li>
-</ul>
-</li>
-<li>
-<p><strong>Proof/encoding checks:</strong></p>
-<ul>
-<li>Verify RLC and Merkle proofs for provided <code>rows</code> against <code>commitment</code> and <code>rlc_orig</code>.</li>
-<li>On failure: <code>INVALID_ARGUMENT</code> (ErrInvalidEncoding). <strong>Note:</strong> PP remains in unprocessed; timeout may still charge.</li>
-</ul>
-</li>
-<li>
-<p><strong>Idempotency checks:</strong></p>
-<ul>
-<li><strong>Put</strong> PP found in <strong>unprocessed</strong> index. If found already → <strong>OK</strong> (return <code>validator_signature</code>)</li>
-</ul>
-</li>
-<li>
-<p><strong>Stateful PP validation (payments module):</strong></p>
-<ul>
-<li>
-<p>Call <code>ValidatePaymentPromise</code>:</p>
-<ul>
-<li>escrow exists,</li>
-<li>sufficient <strong>available</strong> balance for gas bound,</li>
-<li>signer signature valid,</li>
-<li>not processed.</li>
-</ul>
-</li>
-<li>
-<p>On failure: return <code>FAILED_PRECONDITION</code> (ErrInvalidPaymentPromise or ErrInsufficientBalance). With machine-readable detail code.</p>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>Assignment check:</strong></p>
-<ul>
-<li>Load <code>valset</code> at <code>valset_height</code>, run <code>Assignment(commitment, valset)</code>.</li>
-<li>Ensure the <code>rows.index</code> set equals the assignment slice for <strong>this</strong> FSP.</li>
-<li>On mismatch: <code>PERMISSION_DENIED</code> (ErrInvalidAssignment).</li>
-</ul>
-</li>
-<li>
-<p><strong>Persist rows (single horizon):</strong></p>
-<ul>
-<li>Store under <code>(commitment, valset_height)</code> with TTL=<code>retention_ttl</code> (24h),</li>
-<li><strong>Multiple PPs for the same commitment:</strong> store rows per PP (per <code>valset_height</code>).</li>
-</ul>
-</li>
-<li>
-<p><strong>Return validator signature:</strong></p>
-<ul>
-<li>Sign <code>SignBytes</code> (see §2.3) with validator key (ed25519),</li>
-<li>Reply with <code>validator_signature</code>, and optional <code>ttl</code> / <code>backoff_ms</code>.</li>
-</ul>
-</li>
+<li>Convert the protobuf payment promise into the internal <code>fibre.PaymentPromise</code>.</li>
+<li>Check that <code>promise.chain_id</code> matches the connected app chain ID.</li>
+<li>Check that <code>promise.blob_version</code> is supported.</li>
+<li>Run stateless promise validation: signer public key exists and is 33 bytes, chain ID is non-empty and at most 20 bytes, upload size is positive, creation timestamp is nonzero, escrow-owner signature is 64 bytes, height is positive, and the escrow-owner secp256k1 signature verifies against <code>SignBytes</code>.</li>
+<li>Run stateful validation through the app state client. On success this returns <code>ExpiresAt</code>; the server uses that time as <code>pruneAt</code>.</li>
+<li>Compute the payment-promise hash.</li>
+<li>Fetch the validator set at <code>promise.height</code>.</li>
+<li>Fetch this server's validator consensus public key from the signer and find it in the validator set.</li>
+<li>Compute <code>validator.Set.Assign(promise.commitment, totalRows, originalRows, minRows, livenessThreshold)</code>.</li>
+<li>Verify the uploaded row indices exactly match this validator's assignment by count, membership, and duplicate checks.</li>
+<li>Validate the shard: all rows must be present and share one nonzero row size, each row must include data and proof, <code>promise.blob_size</code> must equal <code>row_size * originalRows</code>, <code>shard.rlcs</code> must unmarshal, and <code>rsema1d.Verifier.Verify</code> must accept the commitment, row proofs, and RLC vector.</li>
+<li>Store the promise and shard.</li>
+<li>Sign the payment promise with the validator signer and return the validator signature.</li>
 </ol>
-<p><strong>gRPC status mapping (suggested):</strong></p>
-<ul>
-<li><code>INVALID_ARGUMENT</code> — malformed fields, encoding/proofs invalid.</li>
-<li><code>FAILED_PRECONDITION</code> — insufficient balance, PP not valid in current window.</li>
-<li><code>PERMISSION_DENIED</code> — assignment slice mismatch.</li>
-<li><code>ALREADY_EXISTS</code> — if client attempts to overwrite different rows for the same (commitment, valset_height) and FSP slice.</li>
-<li><code>RESOURCE_EXHAUSTED</code> — rate-limit/back-pressure (include <code>backoff_ms</code>).</li>
-</ul>
-<h3 id="22-fibregetrows"><a class="header" href="#22-fibregetrows">2.2 <code>Fibre.GetRows</code></a></h3>
-<ol>
-<li>Validate request (non-empty commitment).</li>
-<li>Lookup <strong>all rows this FSP holds</strong> for <code>commitment</code> across all stored PPs.</li>
-<li>If none: <code>NOT_FOUND</code> (ErrCommitmentNotFound).</li>
-<li>Return <code>rows</code> + <code>rlc_orig</code> and <code>ttl</code>/<code>backoff_ms</code> hints.</li>
-</ol>
-<h3 id="23-validator-signbytes"><a class="header" href="#23-validator-signbytes">2.3 Validator <code>SignBytes</code></a></h3>
-<p>Validators sign the PP domain to attest service for the data:</p>
-<pre><code class="language-text">SignBytes = SHA256(
-  &quot;fibre/pp:v1&quot; || Chain_id ||
-  signer_bytes || namespace ||
-  blob_size_u32be || commitment ||
-  fibre_blob_version_u32be || creation_timestamp_pb || valset_height_u64be
-)
+<p>The server stores before signing. A successful validator signature means the server accepted and stored the shard.</p>
+<h2 id="assignment"><a class="header" href="#assignment">Assignment</a></h2>
+<p>Assignment is not a base/remainder split over a non-overlapping permutation. The implementation computes rows per validator from voting power and the liveness threshold:</p>
+<pre><code class="language-text">rows = ceil(originalRows * votingPower * livenessThreshold.denominator / (totalVotingPower * livenessThreshold.numerator))
+rows = min(max(rows, minRows), originalRows)
 </code></pre>
-<ul>
-<li><code>signer_bytes</code>: 20-byte raw account address.</li>
-<li><code>creation_timestamp_pb</code>: protobuf <code>Timestamp</code> bytes.</li>
-<li>Scheme: <strong>ed25519</strong> over the above digest.</li>
-</ul>
-<hr />
-<h2 id="3-internal-architecture"><a class="header" href="#3-internal-architecture">3) Internal Architecture</a></h2>
-<h3 id="31-components-expanded"><a class="header" href="#31-components-expanded">3.1 Components (expanded)</a></h3>
-<ol>
-<li>
-<p><strong>FibreServer</strong></p>
-<ul>
-<li>Implements <code>Fibre</code> service.</li>
-<li>Manages lifecycle, config, and subcomponents.</li>
-<li>Delegates to subcomponents:
-<ul>
-<li><code>StateAccessor</code>,</li>
-<li><code>ValidatorTracker</code>,</li>
-<li><code>ShardMap</code>,</li>
-<li><code>RowsStorage</code>,</li>
-<li><code>PromiseStore</code>,</li>
-<li><code>RateLimiter</code>.</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>PromiseStore</strong></p>
-<ul>
-<li>
-<p>Two logical indexes:</p>
-<ul>
-<li><strong>Unprocessed</strong>: PPs seen but not finalized on-chain. Cleanup  via <code>MsgPayForFibre</code> or <code>MsgPaymentTimeout</code>.</li>
-</ul>
-</li>
-<li>
-<p>Responsibilities:</p>
-<ul>
-<li>Idempotency checks (first-seen vs. duplicates).</li>
-<li>Promotes PPs from unprocessed → processed on-chain events.</li>
-<li>Timeouts: scans unprocessed for expirations; submits <code>MsgPaymentTimeout</code> (best-effort).</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>RowsStorage</strong></p>
-<ul>
-<li>
-<p>Persists <code>(commitment, valset_height)</code> buckets with:</p>
-<ul>
-<li>Assigned rows + <code>rlc_orig</code>,</li>
-</ul>
-</li>
-<li>
-<p>TTL GC based on <code>retention_ttl</code> (24h).</p>
-</li>
-<li>
-<p><strong>Badger layout (v1):</strong></p>
-<ul>
-<li><code>d/&lt;commitment&gt;/&lt;valset_height&gt;</code> → rows blob</li>
-<li><code>b/&lt;YYYYMMDDHHmm&gt;/&lt;commitment&gt;/&lt;valset_height&gt;</code> → retention buckets</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>ValidatorTracker</strong></p>
-<ul>
-<li>Fetches historical validator sets by height (fast-path cache + light/RPC backend).</li>
-<li>Exposes <code>Get(height) -&gt; (valset, err)</code> and quorum checks (power, count).</li>
-<li>Internally listens to events from StateAccessor to keep up-to-date.</li>
-<li>Retains recent sets for performance (e.g., last 24h of heights). TODO: consider to lower it if memory usage is too high.</li>
-</ul>
-</li>
-<li>
-<p><strong>ShardMap</strong></p>
-<ul>
-<li>
-<p>Deterministic assignment:</p>
-<ul>
-<li>Permutes shares by <code>SHA256(&quot;share&quot;||commitment||i)</code>,</li>
-<li>Optionally permutes validators by <code>SHA256(&quot;validator&quot;||commitment||j)</code>,</li>
-<li>Splits into contiguous ranges per validator (base/r scheme).</li>
-</ul>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>StateAccessor</strong> (payments bridge)</p>
-<ul>
-<li>
-<p>Wraps queries to <code>x/fibre</code>:</p>
-<ul>
-<li><code>ValidatePaymentPromise(PP)</code>,</li>
-<li><code>QueryEscrowAccount</code>, <code>PendingWithdrawals</code>,</li>
-<li>Relay helpers for <code>SubmitPayForFibre</code>, <code>SubmitPaymentTimeout</code>.</li>
-</ul>
-</li>
-<li>
-<p>May return <strong>proofs</strong> (if enabled) for client verification.</p>
-</li>
-</ul>
-</li>
-<li>
-<p><strong>RateLimiter / Back-pressure</strong></p>
-</li>
-</ol>
-<!-- markdownlint-disable MD031 -->
-<pre><code class="language-text">* Token buckets **per peer** and **total throughput**,
-* Global concurrency caps: `max_concurrent_uploads`, `max_concurrent_gets`,
-* Emits `RESOURCE_EXHAUSTED` with `backoff_ms`.
+<p>The row indices <code>0..totalRows-1</code> are shuffled with a ChaCha8 RNG seeded by the commitment. Validators are then walked in CometBFT validator-set order and assigned the next <code>rows</code> shuffled indices. If the total assigned rows exceed <code>totalRows</code>, assignment wraps modulo <code>totalRows</code>, so the same row may be assigned to multiple validators.</p>
+<h2 id="downloadshard-flow"><a class="header" href="#downloadshard-flow">DownloadShard Flow</a></h2>
+<p><code>DownloadShard</code> accepts a 33-byte <code>BlobID</code> (<code>blob_version || commitment</code>), validates the blob ID and supported blob version, looks up a stored shard by commitment, and returns the first matching stored <code>BlobShard</code>. If there are multiple promises for the same commitment, the store returns one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC <code>NotFound</code>.</p>
+<h2 id="storage"><a class="header" href="#storage">Storage</a></h2>
+<p>The store uses Pebble for metadata and flat files for bulk shard payloads. The layout under <code>StoreConfig.Path</code> is:</p>
+<pre><code class="language-text">shards/&lt;commitment-hex&gt;-&lt;promise-hash-hex&gt;  finalized shard payload
+staging/&lt;random&gt;                            temporary in-flight write
 </code></pre>
-<ol>
-<li><strong>Telemetry</strong></li>
-</ol>
-<pre><code class="language-text">* Metrics: RPS, bytes/s, assignment mismatches, proof/RLC failures, write latency, GC times, validator_sig issuance, PP validation latency, insufficient-balance events, backoff distribution.
+<p>Pebble metadata keys are:</p>
+<pre><code class="language-text">/pp/&lt;promise-hash-hex&gt;                         protobuf PaymentPromise
+/shard/&lt;commitment-hex&gt;/&lt;promise-hash-hex&gt;     shard marker
+/prune/&lt;YYYYMMDDHHmm&gt;/&lt;commitment&gt;/&lt;hash&gt;      prune index
 </code></pre>
-<!-- markdownlint-enable MD031 -->
-<h3 id="32-data-model--keys"><a class="header" href="#32-data-model--keys">3.2 Data Model &amp; Keys</a></h3>
-<ul>
-<li>
-<p><strong>PP keys</strong></p>
-<ul>
-<li><code>pp/unprocessed/h/&lt;promise_hash&gt;</code> → PP metadata without user signature (signer, creation_timestamp, valset_height, gas_bound, …)</li>
-<li><code>pp/unprocessed/b/&lt;YYYYMMDDHHmm&gt;/&lt;promise_hash&gt;</code> → TTL bucket index</li>
-</ul>
-</li>
-<li>
-<p><strong>Commitment data</strong></p>
-<ul>
-<li><code>d/&lt;commitment&gt;/&lt;valset_height&gt;</code> → rows blob, rlc_orig</li>
-<li><code>b/&lt;YYYYMMDDHHmm&gt;/&lt;commitment&gt;/&lt;valset_height&gt;</code> → TTL bucket index</li>
-</ul>
-</li>
-</ul>
-<p><strong>Note:</strong> <code>promise_hash = SHA256( PaymentPromise (canonical bytes) )</code>.</p>
-<h3 id="33-background-workers"><a class="header" href="#33-background-workers">3.3 Background Workers</a></h3>
-<ol>
-<li>
-<p><strong>BlockSubscriber</strong></p>
-<ul>
-<li>Subscribes to app events (<code>EventPayForFibre</code>, etc.),</li>
-<li>Moves matching entries from <strong>unprocessed → processed</strong>,</li>
-<li>Updates local caches.</li>
-</ul>
-</li>
-<li>
-<p><strong>TimeoutScanner</strong></p>
-<ul>
-<li>Scans <strong>unprocessed</strong> for <code>creation_timestamp + promise_timeout ≤ now</code>,</li>
-<li>Submits <code>MsgPaymentTimeout</code> (best-effort).</li>
-</ul>
-</li>
-<li>
-<p><strong>TTLPruner</strong></p>
-<ul>
-<li>Iterates <code>b/&lt;bucket&gt;</code> to prune expired <code>(commitment, valset_height)</code> data.</li>
-</ul>
-</li>
-</ol>
-<hr />
-<h2 id="4-configuration"><a class="header" href="#4-configuration">4) Configuration</a></h2>
-<pre><code class="language-text">chain_id: string                     # domain for SignBytes
-retention_ttl: 24h                   # single horizon
-rows_per_message_limit: 166      # ≈ ceil(N / |valset|) + 1 (guard rail)
-throughput_cap_bytes_per_sec: 50_485_760
-payment_processing_timeout: 1h
-max_concurrent_uploads: 100
-max_concurrent_gets: 100
-clock_skew_allowance: 5s           # TODO: finalize value
-</code></pre>
-<p>TODO: <code>rows_per_message_limit</code> should be derived at runtime from the <strong>actual</strong> <code>|valset|</code> in <code>promise.valset_height</code> to avoid false positives.</p>
-<hr />
-<h2 id="5-rate-limit--dos-controls"><a class="header" href="#5-rate-limit--dos-controls">5) Rate-Limit &amp; DoS Controls</a></h2>
-<ul>
-<li><strong>Admission control</strong>: check message sizes against <code>rows_per_message_limit</code> and effective <code>row_size</code>.</li>
-<li><strong>Per-client/total</strong> token buckets with refill tied to <code>throughput_cap_bytes_per_sec</code>.</li>
-<li><strong>Burst caps</strong>: bound outstanding inflight bytes and RPCs per peer.</li>
-<li><strong>Backoff hints</strong>: include <code>backoff_ms</code> in responses; prefer exponential backoff with jitter on clients.</li>
-<li><strong>Server enforced keepalive policy</strong>: close idle connections after a timeout (e.g., 2m).</li>
-</ul>
-<hr />
-<h2 id="6-security--correctness"><a class="header" href="#6-security--correctness">6) Security &amp; Correctness</a></h2>
-<ul>
-<li><strong>Replay protection</strong>: ChainID in SignBytes.</li>
-<li><strong>Namespace enforcement</strong>: namespace <strong>version=2</strong> only.</li>
-<li><strong>Quorum thresholds</strong>: server signs upon local PP validation; on-chain acceptance still requires ≥2/3 <strong>power</strong> and ≥2/3 <strong>count</strong> (client enforces before submitting PFF).</li>
-<li><strong>Clock skew</strong>: small tolerance (<code>clock_skew_allowance</code>) for <code>creation_timestamp</code> checks.</li>
-<li><strong>Multiple PPs / same commitment</strong>: store each valid PP independently (partition by <code>valset_height</code>); <code>GetRows</code> returns <strong>all</strong> rows the FSP holds for the commitment.</li>
-</ul>
-<hr />
-<h2 id="7-errors"><a class="header" href="#7-errors">7) Errors</a></h2>
-<div class="table-wrapper"><table><thead><tr><th>Code</th><th>When</th></tr></thead><tbody>
-<tr><td><code>INVALID_ARGUMENT</code></td><td>Malformed PP fields; encoding/proof invalid; bad commitment.</td></tr>
-<tr><td><code>FAILED_PRECONDITION</code></td><td>Insufficient escrow; PP not valid in window; state mismatch.</td></tr>
-<tr><td><code>PERMISSION_DENIED</code></td><td>Assignment slice mismatch (rows not belonging to this FSP).</td></tr>
-<tr><td><code>NOT_FOUND</code></td><td>Commitment unknown to this FSP.</td></tr>
-<tr><td><code>ALREADY_EXISTS</code></td><td>Conflicting re-upload for same (commitment, valset_height).</td></tr>
-<tr><td><code>RESOURCE_EXHAUSTED</code></td><td>Rate-limit / capacity exceeded; backoff advised.</td></tr>
-<tr><td><code>UNAVAILABLE</code></td><td>Backend (node) RPC failure; try later.</td></tr>
-<tr><td><code>INTERNAL</code></td><td>Unhandled server error.</td></tr>
+<p><code>Store.Put</code> writes the shard to a random staging file, writes metadata, then renames the staging file to the canonical shard file. Puts for the same commitment but different payment promises are stored independently by promise hash. <code>Store.Get(commitment)</code> iterates <code>/shard/&lt;commitment&gt;/</code> and returns the first readable shard file. If it finds an orphan marker whose shard file is missing, it deletes the marker lazily. <code>Store.PruneBefore</code> iterates the ordered <code>/prune/</code> index and deletes shard files, shard markers, payment promises, and prune entries whose prune timestamp is older than the cutoff.</p>
+<h2 id="pruning"><a class="header" href="#pruning">Pruning</a></h2>
+<p>The only background worker in the server is the prune loop. It runs once per minute and calls <code>Store.PruneBefore(time.Now())</code>. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits <code>MsgPaymentPromiseTimeout</code>.</p>
+<h2 id="error-mapping"><a class="header" href="#error-mapping">Error Mapping</a></h2>
+<p>Current gRPC status behavior is intentionally simple:</p>
+<div class="table-wrapper"><table><thead><tr><th>RPC</th><th>Condition</th><th>Status</th></tr></thead><tbody>
+<tr><td><code>UploadShard</code></td><td>payment promise conversion, chain ID, blob version, stateless validation, or stateful validation fails</td><td><code>InvalidArgument</code></td></tr>
+<tr><td><code>UploadShard</code></td><td>assignment verification fails</td><td><code>InvalidArgument</code></td></tr>
+<tr><td><code>UploadShard</code></td><td>row, proof, RLC, upload-size, or commitment verification fails</td><td><code>InvalidArgument</code></td></tr>
+<tr><td><code>UploadShard</code></td><td>store write or validator signing fails</td><td><code>Internal</code></td></tr>
+<tr><td><code>DownloadShard</code></td><td>invalid blob ID or unsupported blob version</td><td><code>InvalidArgument</code></td></tr>
+<tr><td><code>DownloadShard</code></td><td>no shard found for commitment</td><td><code>NotFound</code></td></tr>
+<tr><td><code>DownloadShard</code></td><td>store read failure</td><td><code>Internal</code></td></tr>
 </tbody></table>
 </div>
-<p>TODO: Add machine-readable error <strong>details</strong> (e.g., <code>{available_balance, required_payment}</code> on balance failures).</p>
+<p>The implementation does not currently return <code>FailedPrecondition</code>, <code>PermissionDenied</code>, <code>AlreadyExists</code>, or <code>ResourceExhausted</code> for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.</p>
+<h2 id="concurrency-and-dos-controls"><a class="header" href="#concurrency-and-dos-controls">Concurrency And DoS Controls</a></h2>
+<p>The server does not implement per-peer token buckets, throughput caps, request backoff hints, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by <code>UploadVerifyWorkers</code>, which is the size of the pooled <code>rsema1d.Verifier</code> channel. gRPC receive/send message size is bounded by <code>MaxMessageSize</code> from protocol params.</p>
+<h2 id="metrics"><a class="header" href="#metrics">Metrics</a></h2>
+<p>The server records OpenTelemetry metrics for:</p>
+<ul>
+<li><code>fibre.server.upload_shard.in_flight</code></li>
+<li><code>fibre.server.upload_shard.duration</code></li>
+<li><code>fibre.server.upload_shard.bytes</code></li>
+<li><code>fibre.server.download_shard.in_flight</code></li>
+<li><code>fibre.server.download_shard.duration</code></li>
+<li><code>fibre.server.download_shard.bytes</code></li>
+<li><code>fibre.server.store.put.duration</code></li>
+<li><code>fibre.server.store.get.duration</code></li>
+<li><code>fibre.server.sign.duration</code></li>
+<li><code>fibre.server.prune.entries</code></li>
+<li><code>fibre.server.prune.duration</code></li>
+</ul>
 
                     </main>
 
