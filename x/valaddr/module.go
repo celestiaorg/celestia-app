@@ -25,6 +25,7 @@ var (
 	_ module.HasServices         = AppModule{}
 	_ module.HasConsensusVersion = AppModule{}
 	_ appmodule.AppModule        = AppModule{}
+	_ appmodule.HasEndBlocker    = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the valaddr module.
@@ -117,3 +118,9 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 
 // ConsensusVersion implements AppModule/ConsensusVersion.
 func (AppModule) ConsensusVersion() uint64 { return 1 }
+
+// EndBlock garbage-collects stale fibre provider entries for validators that
+// have left the active set. See keeper.RemoveFibreProviders.
+func (am AppModule) EndBlock(ctx context.Context) error {
+	return am.keeper.RemoveFibreProviders(ctx)
+}

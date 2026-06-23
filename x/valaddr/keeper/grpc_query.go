@@ -37,6 +37,10 @@ func (k Keeper) AllFibreProviders(goCtx context.Context, req *types.QueryAllFibr
 
 	var providers []types.FibreProvider
 	err := k.IterateFibreProviderInfo(goCtx, func(consAddr sdk.ConsAddress, info types.FibreProviderInfo) bool {
+		validator, err := k.stakingKeeper.GetValidatorByConsAddr(goCtx, consAddr)
+		if err != nil || !validator.IsBonded() {
+			return false
+		}
 		providers = append(providers, types.FibreProvider{
 			ValidatorConsensusAddress: consAddr.String(),
 			Info:                      info,

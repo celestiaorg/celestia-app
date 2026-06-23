@@ -58,22 +58,27 @@ func TestAllFibreProvidersQuery(t *testing.T) {
 	types.RegisterQueryServer(queryHelper, testApp.ValAddrKeeper)
 	queryClient := types.NewQueryClient(queryHelper)
 
-	consAddr1 := sdk.ConsAddress("validator1")
-	info1 := types.FibreProviderInfo{
-		Host: "validator1.fibre.example.com",
-	}
-	err := testApp.ValAddrKeeper.SetFibreProviderInfo(ctx, consAddr1, info1)
+	// Use the consensus address of a real bonded validator: AllFibreProviders
+	// only advertises providers whose validator is currently in the active set.
+	validators, err := testApp.StakingKeeper.GetBondedValidatorsByPower(ctx)
 	require.NoError(t, err)
+	require.NotEmpty(t, validators)
+	consPubKey, err := validators[0].ConsPubKey()
+	require.NoError(t, err)
+	bondedConsAddr := sdk.ConsAddress(consPubKey.Address())
 
-	consAddr2 := sdk.ConsAddress("validator2")
-	info2 := types.FibreProviderInfo{
-		Host: "validator2.fibre.example.com",
-	}
-	err = testApp.ValAddrKeeper.SetFibreProviderInfo(ctx, consAddr2, info2)
-	require.NoError(t, err)
+	bondedInfo := types.FibreProviderInfo{Host: "bonded.fibre.example.com:7980"}
+	require.NoError(t, testApp.ValAddrKeeper.SetFibreProviderInfo(ctx, bondedConsAddr, bondedInfo))
+
+	// A provider for an address that is not a bonded validator must be excluded
+	// from the response (it is a stale host).
+	staleConsAddr := sdk.ConsAddress("not_a_validator____")
+	require.NoError(t, testApp.ValAddrKeeper.SetFibreProviderInfo(ctx, staleConsAddr, types.FibreProviderInfo{Host: "stale.example.com:7980"}))
 
 	resp, err := queryClient.AllFibreProviders(gocontext.Background(), &types.QueryAllFibreProvidersRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	require.Len(t, resp.Providers, 2)
+	require.Len(t, resp.Providers, 1)
+	require.Equal(t, bondedConsAddr.String(), resp.Providers[0].ValidatorConsensusAddress)
+	require.Equal(t, bondedInfo.Host, resp.Providers[0].Info.Host)
 }

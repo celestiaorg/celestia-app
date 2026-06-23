@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"context"
+	"errors"
 
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
@@ -9,6 +10,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 // Keeper of the valaddr store
@@ -75,6 +77,55 @@ func (k Keeper) DeleteFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAd
 	store := k.storeService.OpenKVStore(ctx)
 	key := types.GetFibreProviderInfoKey(consAddr)
 	return store.Delete(key)
+}
+
+// RemoveFibreProviders garbage-collects FibreProviderInfo entries whose
+// validator has permanently left the active set: either fully removed from
+// staking state, or jailed and unbonded for longer than
+// JailedGracePeriod(1 month).
+func (k Keeper) RemoveFibreProviders(ctx context.Context) error {
+	blockTime := sdk.UnwrapSDKContext(ctx).BlockTime()
+
+	var stale []sdk.ConsAddress
+	err := k.IterateFibreProviderInfo(ctx, func(consAddr sdk.ConsAddress, _ types.FibreProviderInfo) bool {
+		validator, err := k.stakingKeeper.GetValidatorByConsAddr(ctx, consAddr)
+		if err != nil {
+			// Only a definitively-removed validator counts as stale; on any
+			// other (unexpected) lookup error keep the entry rather than risk
+			// deleting a live registration.
+			if errors.Is(err, stakingtypes.ErrNoValidatorFound) {
+				stale = append(stale, copyConsAddr(consAddr))
+			}
+			return false
+		}
+
+		// A validator that has been jailed and has finished unbonding without
+		// recovering for longer than the grace period is treated as gone.
+		if validator.IsJailed() && !validator.IsBonded() &&
+			blockTime.After(validator.UnbondingTime.Add(types.JailedGracePeriod)) {
+			stale = append(stale, copyConsAddr(consAddr))
+		}
+		return false
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, consAddr := range stale {
+		if err := k.DeleteFibreProviderInfo(ctx, consAddr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyConsAddr returns a copy of the consensus address. The address handed to
+// the iterator callback aliases iterator-owned memory that is reused on the
+// next iteration, so it must be copied before being retained.
+func copyConsAddr(consAddr sdk.ConsAddress) sdk.ConsAddress {
+	out := make(sdk.ConsAddress, len(consAddr))
+	copy(out, consAddr)
+	return out
 }
 
 // IterateFibreProviderInfo iterates over all fibre provider info entries
