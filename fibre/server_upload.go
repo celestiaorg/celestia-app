@@ -184,6 +184,12 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 		return err
 	}
 
+	// reject oversized rows: a row larger than MaxRowSize cannot be backed by
+	// the protocol's row pool on the read side and must never be signed/stored.
+	if blobCfg.MaxRowSize > 0 && rowSize > blobCfg.MaxRowSize {
+		return fmt.Errorf("row size %d exceeds maximum %d", rowSize, blobCfg.MaxRowSize)
+	}
+
 	// validate upload size matches the row size
 	expectedUploadSize := rowSize * blobCfg.OriginalRows
 	if int(promise.UploadSize) != expectedUploadSize {
