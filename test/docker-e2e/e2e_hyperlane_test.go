@@ -82,6 +82,7 @@ func (s *HyperlaneTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
 	s.client, s.network = tastoradockertypes.Setup(s.T())
+	s.prePullBusybox(context.Background())
 
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)

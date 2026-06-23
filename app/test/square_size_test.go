@@ -18,7 +18,6 @@ import (
 	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
@@ -181,14 +180,14 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 	// change txs get included quickly
 	opt := user.SetGasLimitAndGasPrice(2_000_000, .1)
 
+	// SubmitTx polls TxStatus until the tx is committed and returns an error if
+	// the execution code is not OK, so a successful response already confirms
+	// inclusion. Querying GetTx here would be redundant and flaky because the tx
+	// indexer (tx_search) can lag behind the TxStatus commit signal, producing
+	// intermittent "tx not found" errors.
 	res, err := txClient.SubmitTx(s.cctx.GoContext(), []sdk.Msg{msgSubmitProp}, opt)
 	require.NoError(t, err)
-	require.Equal(t, uint32(0), res.Code)
-
-	txService := sdktx.NewServiceClient(s.cctx.GRPCClient)
-	getTxResp, err := txService.GetTx(s.cctx.GoContext(), &sdktx.GetTxRequest{Hash: res.TxHash})
-	require.NoError(t, err)
-	require.Equal(t, res.Code, abci.CodeTypeOK, getTxResp.TxResponse.RawLog)
+	require.Equal(t, abci.CodeTypeOK, res.Code)
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
