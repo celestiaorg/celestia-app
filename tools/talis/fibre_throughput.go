@@ -302,8 +302,7 @@ func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to i
 
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(concurrency)
-	for i := 0; i < n; i++ {
-		i := i
+	for i := range n {
 		height := from + int64(i)
 		g.Go(func() error {
 			// startIdx=i preserves the round-robin distribution of first
@@ -402,8 +401,5 @@ func backoffDuration(attempt int) time.Duration {
 		attempt = 5
 	}
 	d := 250 * time.Millisecond * time.Duration(int64(1)<<uint(attempt))
-	if d > 5*time.Second {
-		d = 5 * time.Second
-	}
-	return d
+	return min(d, 5*time.Second)
 }
