@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -24,6 +25,9 @@ type mockStakingKeeper struct {
 	// byCons maps consAddr.String() to the validator returned for it. A missing
 	// key models a validator that has been fully removed from staking state.
 	byCons map[string]stakingtypes.Validator
+	// errByCons maps consAddr.String() to an error returned for it, modeling a
+	// staking state-read failure. It takes precedence over byCons.
+	errByCons map[string]error
 }
 
 func (m mockStakingKeeper) GetValidator(context.Context, sdk.ValAddress) (stakingtypes.Validator, error) {
@@ -35,6 +39,9 @@ func (m mockStakingKeeper) GetBondedValidatorsByPower(context.Context) ([]stakin
 }
 
 func (m mockStakingKeeper) GetValidatorByConsAddr(_ context.Context, consAddr sdk.ConsAddress) (stakingtypes.Validator, error) {
+	if err, ok := m.errByCons[consAddr.String()]; ok {
+		return stakingtypes.Validator{}, err
+	}
 	v, ok := m.byCons[consAddr.String()]
 	if !ok {
 		return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
@@ -91,7 +98,7 @@ func TestRemoveFibreProviders(t *testing.T) {
 		require.NoError(t, k.SetFibreProviderInfo(ctx, consAddr, info))
 	}
 
-	require.NoError(t, k.RemoveFibreProviders(ctx))
+	require.NoError(t, k.RemoveStaleFibreProviders(ctx))
 
 	assertPresent := func(consAddr sdk.ConsAddress, want bool) {
 		_, found := k.GetFibreProviderInfo(ctx, consAddr)
@@ -120,7 +127,7 @@ func TestRemoveFibreProviders_GracePeriodBoundary(t *testing.T) {
 		// blockTime == UnbondingTime + grace; deletion requires strictly after.
 		k, ctx := newTestKeeper(t, jailedAt(blockTime.Add(-types.JailedGracePeriod)), blockTime)
 		require.NoError(t, k.SetFibreProviderInfo(ctx, consAddr, types.FibreProviderInfo{Host: "h:1"}))
-		require.NoError(t, k.RemoveFibreProviders(ctx))
+		require.NoError(t, k.RemoveStaleFibreProviders(ctx))
 		_, found := k.GetFibreProviderInfo(ctx, consAddr)
 		require.True(t, found)
 	})
@@ -128,8 +135,29 @@ func TestRemoveFibreProviders_GracePeriodBoundary(t *testing.T) {
 	t.Run("one second past threshold is deleted", func(t *testing.T) {
 		k, ctx := newTestKeeper(t, jailedAt(blockTime.Add(-types.JailedGracePeriod-time.Second)), blockTime)
 		require.NoError(t, k.SetFibreProviderInfo(ctx, consAddr, types.FibreProviderInfo{Host: "h:1"}))
-		require.NoError(t, k.RemoveFibreProviders(ctx))
+		require.NoError(t, k.RemoveStaleFibreProviders(ctx))
 		_, found := k.GetFibreProviderInfo(ctx, consAddr)
 		require.False(t, found)
 	})
+}
+
+// TestRemoveFibreProviders_AbortsOnLookupError verifies that a non-NotFound
+// validator lookup error (a staking state-read problem) aborts the sweep and is
+// returned, leaving the entry untouched rather than acting on partial state.
+func TestRemoveFibreProviders_AbortsOnLookupError(t *testing.T) {
+	blockTime := time.Date(2026, 6, 23, 0, 0, 0, 0, time.UTC)
+	consAddr := sdk.ConsAddress("readerror_validator")
+
+	readErr := errors.New("kv store read failure")
+	staking := mockStakingKeeper{errByCons: map[string]error{consAddr.String(): readErr}}
+
+	k, ctx := newTestKeeper(t, staking, blockTime)
+	require.NoError(t, k.SetFibreProviderInfo(ctx, consAddr, types.FibreProviderInfo{Host: "h:1"}))
+
+	err := k.RemoveStaleFibreProviders(ctx)
+	require.ErrorIs(t, err, readErr)
+
+	// The entry must NOT have been deleted; the sweep aborted.
+	_, found := k.GetFibreProviderInfo(ctx, consAddr)
+	require.True(t, found)
 }

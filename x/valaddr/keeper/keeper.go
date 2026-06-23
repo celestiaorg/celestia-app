@@ -3,6 +3,7 @@ package keeper
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"cosmossdk.io/core/store"
 	"cosmossdk.io/log"
@@ -79,24 +80,32 @@ func (k Keeper) DeleteFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAd
 	return store.Delete(key)
 }
 
-// RemoveFibreProviders garbage-collects FibreProviderInfo entries whose
+// RemoveStaleFibreProviders garbage-collects FibreProviderInfo entries whose
 // validator has permanently left the active set: either fully removed from
 // staking state, or jailed and unbonded for longer than
 // JailedGracePeriod(1 month).
-func (k Keeper) RemoveFibreProviders(ctx context.Context) error {
+//
+// A validator lookup that fails with anything other than ErrNoValidatorFound
+// indicates a staking state-read problem; in that case the sweep aborts and
+// returns the error rather than acting on partial state.
+func (k Keeper) RemoveStaleFibreProviders(ctx context.Context) error {
 	blockTime := sdk.UnwrapSDKContext(ctx).BlockTime()
 
 	var stale []sdk.ConsAddress
+	var lookupErr error
 	err := k.IterateFibreProviderInfo(ctx, func(consAddr sdk.ConsAddress, _ types.FibreProviderInfo) bool {
 		validator, err := k.stakingKeeper.GetValidatorByConsAddr(ctx, consAddr)
 		if err != nil {
-			// Only a definitively-removed validator counts as stale; on any
-			// other (unexpected) lookup error keep the entry rather than risk
-			// deleting a live registration.
+			// A definitively-removed validator is stale and its entry is dropped.
 			if errors.Is(err, stakingtypes.ErrNoValidatorFound) {
 				stale = append(stale, copyConsAddr(consAddr))
+				return false
 			}
-			return false
+			// Any other error means staking state could not be read. Something
+			// is off, so abort the sweep instead of risking action on partial
+			// state.
+			lookupErr = fmt.Errorf("looking up validator %s: %w", consAddr, err)
+			return true
 		}
 
 		// A validator that has been jailed and has finished unbonding without
@@ -109,6 +118,9 @@ func (k Keeper) RemoveFibreProviders(ctx context.Context) error {
 	})
 	if err != nil {
 		return err
+	}
+	if lookupErr != nil {
+		return lookupErr
 	}
 
 	for _, consAddr := range stale {

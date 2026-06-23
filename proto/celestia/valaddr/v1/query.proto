@@ -13,9 +13,11 @@ service Query {
     option (google.api.http).get = "/valaddr/v1/fibre-provider-info/{validator_consensus_address}";
   }
 
-  // AllFibreProviders queries fibre provider information for all validators
-  rpc AllFibreProviders(QueryAllFibreProvidersRequest) returns (QueryAllFibreProvidersResponse) {
-    option (google.api.http).get = "/valaddr/v1/all-fibre-providers";
+  // AllBondedFibreProviders queries fibre provider information for all currently
+  // bonded validators. Providers whose validator has left the active set (e.g.
+  // unbonded or jailed) are omitted so callers never receive a stale host.
+  rpc AllBondedFibreProviders(QueryAllBondedFibreProvidersRequest) returns (QueryAllBondedFibreProvidersResponse) {
+    option (google.api.http).get = "/valaddr/v1/all-bonded-fibre-providers";
   }
 }
 
@@ -33,12 +35,12 @@ message QueryFibreProviderInfoResponse {
   bool found = 2;
 }
 
-// QueryAllFibreProvidersRequest is the request type for the Query/AllFibreProviders RPC method.
-message QueryAllFibreProvidersRequest {}
+// QueryAllBondedFibreProvidersRequest is the request type for the Query/AllBondedFibreProviders RPC method.
+message QueryAllBondedFibreProvidersRequest {}
 
-// QueryAllFibreProvidersResponse is the response type for the Query/AllFibreProviders RPC method.
-message QueryAllFibreProvidersResponse {
-  // providers contains all fibre providers with a host defined
+// QueryAllBondedFibreProvidersResponse is the response type for the Query/AllBondedFibreProviders RPC method.
+message QueryAllBondedFibreProvidersResponse {
+  // providers contains the fibre providers of all currently bonded validators
   repeated FibreProvider providers = 1 [(gogoproto.nullable) = false];
 }
 

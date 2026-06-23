@@ -50,7 +50,7 @@ func TestFibreProviderInfoQuery(t *testing.T) {
 	})
 }
 
-func TestAllFibreProvidersQuery(t *testing.T) {
+func TestAllBondedFibreProvidersQuery(t *testing.T) {
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
 	ctx := testApp.NewContext(true)
 
@@ -58,7 +58,7 @@ func TestAllFibreProvidersQuery(t *testing.T) {
 	types.RegisterQueryServer(queryHelper, testApp.ValAddrKeeper)
 	queryClient := types.NewQueryClient(queryHelper)
 
-	// Use the consensus address of a real bonded validator: AllFibreProviders
+	// Use the consensus address of a real bonded validator: AllBondedFibreProviders
 	// only advertises providers whose validator is currently in the active set.
 	validators, err := testApp.StakingKeeper.GetBondedValidatorsByPower(ctx)
 	require.NoError(t, err)
@@ -75,7 +75,7 @@ func TestAllFibreProvidersQuery(t *testing.T) {
 	staleConsAddr := sdk.ConsAddress("not_a_validator____")
 	require.NoError(t, testApp.ValAddrKeeper.SetFibreProviderInfo(ctx, staleConsAddr, types.FibreProviderInfo{Host: "stale.example.com:7980"}))
 
-	resp, err := queryClient.AllFibreProviders(gocontext.Background(), &types.QueryAllFibreProvidersRequest{})
+	resp, err := queryClient.AllBondedFibreProviders(gocontext.Background(), &types.QueryAllBondedFibreProvidersRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	require.Len(t, resp.Providers, 1)

@@ -129,7 +129,7 @@ func (g *HostRegistry) getHost(ctx context.Context, val *core.Validator) (valida
 
 // PullAll pulls all active fibre providers from the query client and caches them, overwriting any existing cached hosts.
 func (g *HostRegistry) PullAll(ctx context.Context) error {
-	resp, err := g.queryClient.AllFibreProviders(ctx, &types.QueryAllFibreProvidersRequest{})
+	resp, err := g.queryClient.AllBondedFibreProviders(ctx, &types.QueryAllBondedFibreProvidersRequest{})
 	if err != nil {
 		return err
 	}

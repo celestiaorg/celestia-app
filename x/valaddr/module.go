@@ -120,7 +120,7 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
 // EndBlock garbage-collects stale fibre provider entries for validators that
-// have left the active set. See keeper.RemoveFibreProviders.
+// have left the active set. See keeper.RemoveStaleFibreProviders.
 func (am AppModule) EndBlock(ctx context.Context) error {
-	return am.keeper.RemoveFibreProviders(ctx)
+	return am.keeper.RemoveStaleFibreProviders(ctx)
 }
