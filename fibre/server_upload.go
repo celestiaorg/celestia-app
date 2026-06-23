@@ -37,6 +37,17 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	uploadSize = int64(promise.UploadSize)
 	log := s.log.With("blob_commitment", promise.Commitment.String(), "promise_height", promise.Height)
 
+	// validate request shape before verifyAssignment/verifyShard dereference
+	// the shard. A peer can send UploadShard with the Shard field omitted,
+	// which would otherwise cause a nil-pointer panic in the handler.
+	if req.Shard == nil {
+		err := errors.New("shard is required")
+		log.WarnContext(ctx, "missing shard in upload request", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "missing shard in upload request")
+		return nil, status.Error(grpccodes.InvalidArgument, err.Error())
+	}
+
 	span.AddEvent("promise_verified", trace.WithAttributes(
 		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
 		attribute.String("blob_commitment", promise.Commitment.String()),
