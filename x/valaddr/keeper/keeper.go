@@ -83,7 +83,7 @@ func (k Keeper) DeleteFibreProviderInfo(ctx context.Context, consAddr sdk.ConsAd
 // RemoveStaleFibreProviders garbage-collects FibreProviderInfo entries whose
 // validator has permanently left the active set: either fully removed from
 // staking state, or jailed and unbonded for longer than
-// JailedGracePeriod(1 month).
+// JailedGracePeriod (1 week).
 //
 // A validator lookup that fails with anything other than ErrNoValidatorFound
 // indicates a staking state-read problem; in that case the sweep aborts and

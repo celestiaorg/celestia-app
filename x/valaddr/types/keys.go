@@ -21,8 +21,9 @@ const (
 // before the EndBlocker sweep garbage-collects its Info entry. A
 // validator that recovers before this elapses keeps its
 // registration. This is a cleanup threshold, not a consensus-critical value, so
-// the exact duration is intentionally approximate (~1 month).
-const JailedGracePeriod = 30 * 24 * time.Hour
+// the exact duration is intentionally approximate. A week is plenty: a healthy
+// validator unjails within hours to at most a few days.
+const JailedGracePeriod = 7 * 24 * time.Hour
 
 // Store key prefixes
 var (
