@@ -131,6 +131,19 @@ func TestServerUploadShard(t *testing.T) {
 			},
 		},
 		{
+			name: "NilShard",
+			requestModifier: func(req *types.UploadShardRequest) {
+				// omit the entire Shard message (a peer can send UploadShard
+				// with the Shard field unset). The handler must reject this
+				// gracefully rather than panicking on a nil dereference.
+				req.Shard = nil
+			},
+			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
+				require.Error(t, err)
+				require.Nil(t, resp)
+			},
+		},
+		{
 			name: "InvalidUploadSize",
 			requestModifier: func(req *types.UploadShardRequest) {
 				// set wrong upload size
