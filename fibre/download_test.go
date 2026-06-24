@@ -79,6 +79,68 @@ func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowPr
 	return d, proofs, rlc
 }
 
+// A malicious/custom uploader can serve a shard whose row size exceeds the
+// reader's configured MaxRowSize. AddShard must reject it gracefully rather
+// than panicking inside the DataPool (which is sized for MaxRowSize).
+func TestDownload_OversizedRowReturnsError(t *testing.T) {
+	cfg := &rsema1d.Config{K: testK, N: testN, WorkerCount: 1}
+	coder, err := rsema1d.NewCoder(cfg)
+	require.NoError(t, err)
+
+	data := make([][]byte, testK)
+	r := rand.New(rand.NewPCG(1, 2))
+	for i := range data {
+		data[i] = make([]byte, testRowSize)
+		for j := range data[i] {
+			data[i][j] = byte(r.IntN(256))
+		}
+	}
+	hdr := newBlobHeaderV0(testK*testRowSize - blobHeaderLen)
+	hdr.marshalTo(data[0])
+	rows := make([][]byte, cfg.K+cfg.N)
+	copy(rows, data)
+	for i := cfg.K; i < cfg.K+cfg.N; i++ {
+		rows[i] = make([]byte, testRowSize)
+	}
+	ed, err := coder.Encode(rows)
+	require.NoError(t, err)
+	commitment, rlcVec := ed.Commitment(), ed.RLC()
+
+	proofs := make([]*rsema1d.RowProof, testK)
+	for i := range proofs {
+		p, err := ed.GenerateRowProof(i)
+		require.NoError(t, err)
+		proofs[i] = p
+	}
+
+	priv := cmted25519.GenPrivKey()
+	selected := []validator.SelectedValidator{{
+		Validator:    &core.Validator{Address: priv.PubKey().Address(), PubKey: priv.PubKey(), VotingPower: 1},
+		ExpectedRows: testK,
+	}}
+
+	// Reader is configured for a MaxRowSize smaller than the wire row size, as
+	// if the attacker's row exceeds the protocol maximum the reader pool backs.
+	const readerMaxRowSize = testRowSize / 2
+	blobCfg := BlobConfig{
+		OriginalRows: testK,
+		ParityRows:   testN,
+		MaxDataSize:  testK*testRowSize - blobHeaderLen,
+		MaxRowSize:   readerMaxRowSize,
+		Coder:        coder,
+		DataPool:     row.NewPool(readerMaxRowSize, testK),
+	}
+	d, err := newDownload(blobCfg, NewBlobID(0, commitment), selected)
+	require.NoError(t, err)
+	t.Cleanup(d.freeSlab)
+
+	from, ok := d.pick()
+	require.True(t, ok)
+	err = d.AddShard(from, proofs, rlcVec)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "row size")
+}
+
 // First validator's reservation overshoots K; the K-budget gate prevents
 // dispatching the second.
 func TestDownload_OverReservationGatesFurtherDispatch(t *testing.T) {

@@ -52,13 +52,24 @@ func resetCmd() *cobra.Command {
 				}
 			}
 
+			// Validators run the widest set of talis commands, so this removes
+			// every tmux session, data dir, payload, log, trace, and binary that
+			// talis subcommands drop on the host. The remote home directory is
+			// /root. We deliberately leave /root/.ssh untouched so the SSH access
+			// used to run this very script is preserved.
 			cleanupScript := `
-				tmux kill-session -t app 2>/dev/null || true
-				tmux kill-session -t txsim 2>/dev/null || true
-				tmux kill-session -t latency-monitor 2>/dev/null || true
-				tmux kill-session -t fibre 2>/dev/null || true
-				tmux kill-session -t fibre-txsim 2>/dev/null || true
-				rm -rf .celestia-app .celestia-fibre logs payload payload.tar.gz /bin/celestia* /bin/txsim /bin/fibre /bin/fibre-txsim
+				for s in app txsim latency-monitor fibre fibre-txsim setup-fibre monitor fibre-reader; do
+					tmux kill-session -t "$s" 2>/dev/null || true
+				done
+				rm -rf \
+					.celestia-app .celestia-fibre .celestia-app-sync \
+					logs latency-monitor-logs \
+					payload payload.tar.gz reader-payload reader-payload.tar.gz \
+					monitor.jsonl sync-node.log promtail.log promtail-config.yml \
+					/root/talis-*.log /root/talis-*.sh \
+					/tmp/talis-traces.tar.xz \
+					/bin/celestia* /bin/txsim /bin/fibre /bin/fibre-txsim /bin/fibre-reader /bin/latency-monitor \
+					/usr/local/bin/celestia-appd /usr/local/bin/promtail
 			`
 			// Run cleanup on each validator
 			var wg sync.WaitGroup
@@ -80,10 +91,13 @@ func resetCmd() *cobra.Command {
 			// Clean up encoder instances.
 			if len(cfg.Encoders) > 0 {
 				encoderCleanup := `
-					tmux kill-session -t app 2>/dev/null || true
-					tmux kill-session -t fibre-txsim 2>/dev/null || true
-					tmux kill-session -t setup-fibre 2>/dev/null || true
-					rm -rf .celestia-app encoder-payload encoder-payload.tar.gz /bin/celestia* /bin/fibre-txsim
+					for s in app fibre-txsim setup-fibre; do
+						tmux kill-session -t "$s" 2>/dev/null || true
+					done
+					rm -rf \
+						.celestia-app encoder-payload encoder-payload.tar.gz \
+						/root/talis-*.log /root/talis-*.sh \
+						/bin/celestia* /bin/fibre-txsim
 				`
 				var encWG sync.WaitGroup
 				encWorkerChan := make(chan struct{}, workers)
@@ -100,6 +114,32 @@ func resetCmd() *cobra.Command {
 					}(enc)
 				}
 				encWG.Wait()
+			}
+
+			// Clean up reader instances (fibre-reader).
+			if len(cfg.Readers) > 0 {
+				readerCleanup := `
+					tmux kill-session -t fibre-reader 2>/dev/null || true
+					rm -rf \
+						.celestia-app reader-payload reader-payload.tar.gz \
+						/root/talis-*.log /root/talis-*.sh \
+						/bin/fibre-reader /bin/celestia*
+				`
+				var rdrWG sync.WaitGroup
+				rdrWorkerChan := make(chan struct{}, workers)
+				for _, rdr := range cfg.Readers {
+					rdrWG.Add(1)
+					go func(r Instance) {
+						defer rdrWG.Done()
+						rdrWorkerChan <- struct{}{}
+						defer func() { <-rdrWorkerChan }()
+						fmt.Printf("Resetting reader %s...\n", r.Name)
+						if err := runScriptInTMux([]Instance{r}, resolvedKey, readerCleanup, "cleanup", time.Minute*5); err != nil {
+							fmt.Printf("Warning: error while cleaning up %s: %v\n", r.Name, err)
+						}
+					}(rdr)
+				}
+				rdrWG.Wait()
 			}
 
 			// Clean up observability stack (Grafana/Prometheus/Loki) if configured.
