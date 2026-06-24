@@ -795,15 +795,15 @@
         ]
       }
     },
-    "/valaddr/v1/all-fibre-providers": {
+    "/valaddr/v1/all-bonded-fibre-providers": {
       "get": {
-        "summary": "AllFibreProviders queries fibre provider information for all validators",
-        "operationId": "AllFibreProviders",
+        "summary": "AllBondedFibreProviders queries fibre provider information for all currently\nbonded validators. Providers whose validator has left the active set (e.g.\nunbonded or jailed) are omitted so callers never receive a stale host.",
+        "operationId": "AllBondedFibreProviders",
         "responses": {
           "200": {
             "description": "A successful response.",
             "schema": {
-              "$ref": "#/definitions/v1QueryAllFibreProvidersResponse"
+              "$ref": "#/definitions/v1QueryAllBondedFibreProvidersResponse"
             }
           },
           "default": {
@@ -6196,7 +6196,7 @@
       },
       "description": "FibreProvider represents a validator and their fibre provider information."
     },
-    "v1QueryAllFibreProvidersResponse": {
+    "v1QueryAllBondedFibreProvidersResponse": {
       "type": "object",
       "properties": {
         "providers": {
@@ -6205,10 +6205,10 @@
             "type": "object",
             "$ref": "#/definitions/v1FibreProvider"
           },
-          "title": "providers contains all fibre providers with a host defined"
+          "title": "providers contains the fibre providers of all currently bonded validators"
         }
       },
-      "description": "QueryAllFibreProvidersResponse is the response type for the Query/AllFibreProviders RPC method."
+      "description": "QueryAllBondedFibreProvidersResponse is the response type for the Query/AllBondedFibreProviders RPC method."
     },
     "v1QueryFibreProviderInfoResponse": {
       "type": "object",
