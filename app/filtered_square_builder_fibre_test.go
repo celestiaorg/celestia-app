@@ -136,7 +136,10 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	}
 
 	normalTx := newNormalTx(t, txConfig)
-	blobTx := blobfactory.UnsignedBlobTx(t)
+	// Use a blob tx with a real MsgPayForBlobs inner SDK tx (not the nil inner
+	// tx from blobfactory.UnsignedBlobTx) so it survives the inner-tx decode in
+	// Fill, where the decoder rejects empty tx bytes.
+	blobTx := newBlobTx(t, txConfig)
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 
 	tests := []struct {
