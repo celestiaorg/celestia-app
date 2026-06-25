@@ -33,13 +33,13 @@ func TestMakeConfig(t *testing.T) {
 
 	t.Run("should return an error for an empty tx", func(t *testing.T) {
 		decodedTx, err := config.TxConfig.TxDecoder()([]byte{})
-		require.Error(t, err)
+		require.ErrorIs(t, err, encoding.ErrEmptyTx)
 		require.Nil(t, decodedTx)
 	})
 
 	t.Run("should return an error for a nil tx", func(t *testing.T) {
 		decodedTx, err := config.TxConfig.TxDecoder()(nil)
-		require.Error(t, err)
+		require.ErrorIs(t, err, encoding.ErrEmptyTx)
 		require.Nil(t, decodedTx)
 	})
 }
