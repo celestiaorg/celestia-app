@@ -261,7 +261,6 @@ Stateful Processing:
 
 1. Validate PaymentPromise
 2. Verify validator ed25519 signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
-   - Signatures must represent 2/3+ of total voting power AND 2/3+ of validator count
    - Each signature is verified using the validator's ed25519 public key from the validator set
 3. Calculate gas cost (see [Payment Amount](#payment-amount) section) and deduct from both escrow balance and available_balance. The deducted amount is transferred from the fibre module account to the `fee_collector` module account, where it is distributed to validators and delegators by `x/distribution` like a regular data-availability fee (see [Payment Settlement Destination](#payment-settlement-destination)).
 4. Mark promise as processed by storing `ProcessedPayment` with `processed_at` timestamp in both indexes:
