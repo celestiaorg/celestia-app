@@ -45,7 +45,7 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		require.Equal(abci.CodeTypeOK, res.Code)
 
 		queryClient := valaddrtypes.NewQueryClient(s.cctx.GRPCClient)
-		allProvidersResp, err := queryClient.AllFibreProviders(s.cctx.GoContext(), &valaddrtypes.QueryAllFibreProvidersRequest{})
+		allProvidersResp, err := queryClient.AllBondedFibreProviders(s.cctx.GoContext(), &valaddrtypes.QueryAllBondedFibreProvidersRequest{})
 		require.NoError(err)
 		require.NotNil(allProvidersResp)
 		require.Equal(0, slices.IndexFunc(allProvidersResp.Providers, func(provider valaddrtypes.FibreProvider) bool {

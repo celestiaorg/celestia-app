@@ -29,14 +29,22 @@ func (k Keeper) FibreProviderInfo(goCtx context.Context, req *types.QueryFibrePr
 	}, nil
 }
 
-// AllFibreProviders queries fibre provider information for all validators that have a host defined
-func (k Keeper) AllFibreProviders(goCtx context.Context, req *types.QueryAllFibreProvidersRequest) (*types.QueryAllFibreProvidersResponse, error) {
+// AllBondedFibreProviders returns the fibre provider info of every currently
+// bonded validator that has registered a host. Providers whose validator has
+// left the active set (unbonded, or jailed and no longer bonded) are omitted so
+// callers never dial a stale host; such entries are also garbage-collected by
+// the EndBlocker sweep (see keeper.RemoveStaleFibreProviders).
+func (k Keeper) AllBondedFibreProviders(goCtx context.Context, req *types.QueryAllBondedFibreProvidersRequest) (*types.QueryAllBondedFibreProvidersResponse, error) {
 	if req == nil {
 		return nil, errorsmod.Wrap(types.ErrInvalidValidator, "empty request")
 	}
 
 	var providers []types.FibreProvider
 	err := k.IterateFibreProviderInfo(goCtx, func(consAddr sdk.ConsAddress, info types.FibreProviderInfo) bool {
+		validator, err := k.stakingKeeper.GetValidatorByConsAddr(goCtx, consAddr)
+		if err != nil || !validator.IsBonded() {
+			return false
+		}
 		providers = append(providers, types.FibreProvider{
 			ValidatorConsensusAddress: consAddr.String(),
 			Info:                      info,
@@ -47,7 +55,7 @@ func (k Keeper) AllFibreProviders(goCtx context.Context, req *types.QueryAllFibr
 		return nil, errorsmod.Wrap(err, "failed to iterate fibre provider info")
 	}
 
-	return &types.QueryAllFibreProvidersResponse{
+	return &types.QueryAllBondedFibreProvidersResponse{
 		Providers: providers,
 	}, nil
 }
