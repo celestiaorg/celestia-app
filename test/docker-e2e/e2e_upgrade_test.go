@@ -126,7 +126,28 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(baseAppVersion)
 
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	// Build and start the chain, retrying on Docker host-port collisions
+	// ("address already in use"). When upgrade subtests run sequentially, a
+	// prior subtest's containers may not have released their published host
+	// ports yet; rebuilding the chain allocates fresh ports. See
+	// isPortBindingError for details.
+	var chain *tastoradockertypes.Chain
+	err := retryOnPortCollision(ctx, 3, 2*time.Second, func() error {
+		built, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+		if err != nil {
+			return err
+		}
+		if err := built.Start(ctx); err != nil {
+			// Release the partially-started chain's containers and host ports
+			// before retrying so the next attempt can rebind cleanly.
+			if removeErr := built.Remove(ctx); removeErr != nil {
+				s.T().Logf("Error removing chain after failed start: %v", removeErr)
+			}
+			return err
+		}
+		chain = built
+		return nil
+	})
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {
@@ -134,9 +155,6 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
 
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")
