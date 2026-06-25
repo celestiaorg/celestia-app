@@ -14,6 +14,7 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -308,6 +309,16 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 		if err := ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall); err != nil {
 			return err
 		}
+	}
+
+	// Route the settled payment to the fee collector so it is distributed to
+	// validators and delegators like a regular data-availability fee. The
+	// escrow accounting above only shrinks Balance/AvailableBalance; without
+	// this transfer the coins would stay stranded in the module account and be
+	// paid to no one. The full payment leaves the module account regardless of
+	// how it was split between available balance and pending withdrawals.
+	if err := ms.bankKeeper.SendCoinsFromModuleToModule(ctx, types.ModuleName, authtypes.FeeCollectorName, sdk.NewCoins(paymentAmount)); err != nil {
+		return errorsmod.Wrap(err, "failed to send fibre payment to fee collector")
 	}
 
 	return nil
