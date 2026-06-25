@@ -334,7 +334,7 @@ Stateful Processing:</p>
 <li>Each signature is verified using the validator's ed25519 public key from the validator set</li>
 </ul>
 </li>
-<li>Calculate gas cost (see <a href="#gas-consumption">Gas Consumption</a> section) and deduct from both escrow balance and available_balance. The deducted amount is transferred from the fibre module account to the <code>fee_collector</code> module account, where it is distributed to validators and delegators by <code>x/distribution</code> like a regular data-availability fee (see <a href="#payment-settlement-destination">Payment Settlement Destination</a>).</li>
+<li>Calculate gas cost (see <a href="#payment-amount">Payment Amount</a> section) and deduct from both escrow balance and available_balance. The deducted amount is transferred from the fibre module account to the <code>fee_collector</code> module account, where it is distributed to validators and delegators by <code>x/distribution</code> like a regular data-availability fee (see <a href="#payment-settlement-destination">Payment Settlement Destination</a>).</li>
 <li>Mark promise as processed by storing <code>ProcessedPayment</code> with <code>processed_at</code> timestamp in both indexes:
 <ul>
 <li><code>processed_payments_by_hash/{payment_promise_hash}</code> for replay protection</li>
@@ -378,7 +378,7 @@ Stateful Processing:</p>
 <ol>
 <li>Validate PaymentPromise</li>
 <li>Verify <code>promise.creation_timestamp + payment_promise_timeout &lt;= header_timestamp</code> (timeout has passed)</li>
-<li>Calculate gas cost (see <a href="#gas-consumption">Gas Consumption</a> section) and deduct from both escrow balance and available_balance. As with <code>MsgPayForFibre</code>, the deducted amount is transferred from the fibre module account to the <code>fee_collector</code> module account (see <a href="#payment-settlement-destination">Payment Settlement Destination</a>).</li>
+<li>Calculate gas cost (see <a href="#payment-amount">Payment Amount</a> section) and deduct from both escrow balance and available_balance. As with <code>MsgPayForFibre</code>, the deducted amount is transferred from the fibre module account to the <code>fee_collector</code> module account (see <a href="#payment-settlement-destination">Payment Settlement Destination</a>).</li>
 <li>Mark promise as processed by storing <code>ProcessedPayment</code> with <code>processed_at</code> timestamp in both indexes:
 <ul>
 <li><code>processed_payments_by_hash/{payment_promise_hash}</code> for replay protection</li>
