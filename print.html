@@ -5101,7 +5101,30 @@ amount = gas utia
 </code></pre>
 <p><code>ValidateBasic</code> requires a valid transaction signer, a valid payment promise by <code>PaymentPromise.ValidateBasic</code>, and at least one validator signature. The handler converts the promise to the internal Fibre type, verifies the internal stateless validation and escrow-owner secp256k1 signature, runs normal stateful validation, verifies validator signatures, hashes the promise, derives the escrow signer from <code>payment_promise.signer_public_key</code>, deducts the calculated payment amount from escrow, stores the processed payment, and emits <code>EventPayForFibre</code>.</p>
 <p>Validator signatures are interpreted as a slice indexed by the validator-set order at <code>payment_promise.height</code>. Empty signatures are skipped, non-empty signatures whose index exceeds the validator count are invalid, each non-empty signature must verify with the corresponding CometBFT ed25519 validator public key over the payment-promise sign bytes, and the only threshold enforced is collected voting power at least <code>floor(2/3 * total_voting_power)</code>. This means exactly two thirds can pass when the integer voting power calculation allows it, for example 2 of 3 total power. The implementation does not enforce a separate validator-count threshold. <code>EventPayForFibre.validator_count</code> is the length of the submitted signature slice.</p>
-<p>Payment deduction first requires total escrow <code>balance &gt;= payment_amount</code>. It subtracts the full payment from total <code>balance</code>, subtracts <code>min(available_balance, payment_amount)</code> from <code>available_balance</code>, and if the payment uses funds that were locked in pending withdrawals, it calls <code>ReduceWithdrawalsForPayment</code> to delete or reduce the signer's pending withdrawals in signer-index iteration order.</p>
+<p>Payment deduction first requires total escrow <code>balance &gt;= payment_amount</code>. It subtracts the full payment from total <code>balance</code>, subtracts <code>min(available_balance, payment_amount)</code> from <code>available_balance</code>, and if the payment uses funds that were locked in pending withdrawals, it calls <code>ReduceWithdrawalsForPayment</code> to delete or reduce the signer's pending withdrawals in signer-index iteration order.
+Stateful Processing:</p>
+<ol>
+<li>Validate PaymentPromise</li>
+<li>Verify validator ed25519 signatures represent 2/3+ threshold from validator set at <code>promise.height</code> (obtained via historical info query from staking module):
+<ul>
+<li>Each signature is verified using the validator's ed25519 public key from the validator set</li>
+</ul>
+</li>
+<li>Calculate gas cost (see <a href="fibre_module.html#payment-amount">Payment Amount</a> section) and deduct from both escrow balance and available_balance. The deducted amount is transferred from the fibre module account to the <code>fee_collector</code> module account, where it is distributed to validators and delegators by <code>x/distribution</code> like a regular data-availability fee (see <a href="fibre_module.html#payment-settlement-destination">Payment Settlement Destination</a>).</li>
+<li>Mark promise as processed by storing <code>ProcessedPayment</code> with <code>processed_at</code> timestamp in both indexes:
+<ul>
+<li><code>processed_payments_by_hash/{payment_promise_hash}</code> for replay protection</li>
+<li><code>processed_payments_by_time/{processed_at}/{payment_promise_hash}</code> for time-ordered pruning</li>
+</ul>
+</li>
+<li>Include commitment in data square</li>
+<li>Emit EventPayForFibre</li>
+</ol>
+<p>When processing a successful <code>MsgPayForFibre</code>, two pieces of metadata are written to the original data square:</p>
+<ol>
+<li>The tx containing the <code>MsgPayForFibre</code> is included in the reserved namespace for Fibre transactions.</li>
+<li>A system-level blob is generated with the namespace from the PaymentPromise and the blob data is the Fibre blob commitment.</li>
+</ol>
 <h3 id="msgpaymentpromisetimeout"><a class="header" href="#msgpaymentpromisetimeout">MsgPaymentPromiseTimeout</a></h3>
 <pre><code class="language-proto">message MsgPaymentPromiseTimeout {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
@@ -5128,6 +5151,23 @@ amount = gas utia
 <pre><code class="language-go">share.NewV2Blob(namespace, payment_promise.blob_version, payment_promise.commitment, signer_bytes)
 </code></pre>
 <p>Therefore the synthesized system blob includes the promise namespace, blob version, commitment, and raw message signer bytes. The v2 blob payload represents the blob version and 32-byte commitment; it is not just the commitment by itself. The PayForFibre transaction bytes are encoded under the PayForFibre namespace while the synthesized system blob is appended as the associated Fibre system blob by the square builder.</p>
+<ol>
+<li>Validate PaymentPromise</li>
+<li>Verify <code>promise.creation_timestamp + payment_promise_timeout &lt;= header_timestamp</code> (timeout has passed)</li>
+<li>Calculate gas cost (see <a href="fibre_module.html#payment-amount">Payment Amount</a> section) and deduct from both escrow balance and available_balance. As with <code>MsgPayForFibre</code>, the deducted amount is transferred from the fibre module account to the <code>fee_collector</code> module account (see <a href="fibre_module.html#payment-settlement-destination">Payment Settlement Destination</a>).</li>
+<li>Mark promise as processed by storing <code>ProcessedPayment</code> with <code>processed_at</code> timestamp in both indexes:
+<ul>
+<li><code>processed_payments_by_hash/{payment_promise_hash}</code> for replay protection</li>
+<li><code>processed_payments_by_time/{processed_at}/{payment_promise_hash}</code> for time-ordered pruning</li>
+</ul>
+</li>
+<li>DO NOT include commitment in data square (since no validator consensus was reached)</li>
+<li>Emit EventPaymentPromiseTimeout</li>
+</ol>
+<h3 id="payment-settlement-destination"><a class="header" href="#payment-settlement-destination">Payment Settlement Destination</a></h3>
+<p>Both settlement paths (<code>MsgPayForFibre</code> and <code>MsgPaymentPromiseTimeout</code>) charge the escrow owner the gas-based payment amount. This charge is distinct from the fee paid for the settlement transaction itself: the transaction fee is paid by the broadcaster and distributed via the ante handler, whereas the escrow charge is the data-availability fee owed by the escrow owner for the Fibre blob.</p>
+<p>The charged amount is transferred from the fibre module account to the <code>fee_collector</code> module account. From there it follows the standard fee pipeline in <code>x/distribution</code>, paying validators (proportional to stake) and their delegators, with the community tax applied. This mirrors how regular blob fees (<code>MsgPayForBlobs</code>) are settled, and keeps the funds from being stranded in the fibre module account.</p>
+<p>The destination is independent of which validators signed the PaymentPromise. This is required because the timeout path carries no validator signatures, so a signer-dependent destination could not settle both paths consistently.</p>
 <h2 id="automatic-state-transitions"><a class="header" href="#automatic-state-transitions">Automatic State Transitions</a></h2>
 <p><code>BeginBlocker</code> runs <code>processAvailableWithdrawals</code> first and <code>pruneProcessedPayments</code> second.</p>
 <p><code>processAvailableWithdrawals</code> iterates the withdrawals-by-available-time index in time order, stops when it reaches a future <code>available_timestamp</code>, parses the signer from the key, loads the withdrawal, loads the escrow account, subtracts the withdrawal amount from total <code>balance</code>, stores the escrow account, sends coins from the <code>fibre</code> module account to the signer account, deletes the withdrawal from both indexes after a successful send, and emits <code>EventWithdrawFromEscrowExecuted</code>. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the escrow balance is stored before the bank send and the withdrawal is deleted only after a successful send.</p>
