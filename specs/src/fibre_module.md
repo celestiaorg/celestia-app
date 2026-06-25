@@ -257,6 +257,22 @@ message MsgPayForFibre {
 Validator signatures are interpreted as a slice indexed by the validator-set order at `payment_promise.height`. Empty signatures are skipped, non-empty signatures whose index exceeds the validator count are invalid, each non-empty signature must verify with the corresponding CometBFT ed25519 validator public key over the payment-promise sign bytes, and the only threshold enforced is collected voting power at least `floor(2/3 * total_voting_power)`. This means exactly two thirds can pass when the integer voting power calculation allows it, for example 2 of 3 total power. The implementation does not enforce a separate validator-count threshold. `EventPayForFibre.validator_count` is the length of the submitted signature slice.
 
 Payment deduction first requires total escrow `balance >= payment_amount`. It subtracts the full payment from total `balance`, subtracts `min(available_balance, payment_amount)` from `available_balance`, and if the payment uses funds that were locked in pending withdrawals, it calls `ReduceWithdrawalsForPayment` to delete or reduce the signer's pending withdrawals in signer-index iteration order.
+Stateful Processing:
+
+1. Validate PaymentPromise
+2. Verify validator ed25519 signatures represent 2/3+ threshold from validator set at `promise.height` (obtained via historical info query from staking module):
+   - Each signature is verified using the validator's ed25519 public key from the validator set
+3. Calculate gas cost (see [Payment Amount](#payment-amount) section) and deduct from both escrow balance and available_balance. The deducted amount is transferred from the fibre module account to the `fee_collector` module account, where it is distributed to validators and delegators by `x/distribution` like a regular data-availability fee (see [Payment Settlement Destination](#payment-settlement-destination)).
+4. Mark promise as processed by storing `ProcessedPayment` with `processed_at` timestamp in both indexes:
+   - `processed_payments_by_hash/{payment_promise_hash}` for replay protection
+   - `processed_payments_by_time/{processed_at}/{payment_promise_hash}` for time-ordered pruning
+5. Include commitment in data square
+6. Emit EventPayForFibre
+
+When processing a successful `MsgPayForFibre`, two pieces of metadata are written to the original data square:
+
+1. The tx containing the `MsgPayForFibre` is included in the reserved namespace for Fibre transactions.
+2. A system-level blob is generated with the namespace from the PaymentPromise and the blob data is the Fibre blob commitment.
 
 ### MsgPaymentPromiseTimeout
 
@@ -301,6 +317,23 @@ share.NewV2Blob(namespace, payment_promise.blob_version, payment_promise.commitm
 ```
 
 Therefore the synthesized system blob includes the promise namespace, blob version, commitment, and raw message signer bytes. The v2 blob payload represents the blob version and 32-byte commitment; it is not just the commitment by itself. The PayForFibre transaction bytes are encoded under the PayForFibre namespace while the synthesized system blob is appended as the associated Fibre system blob by the square builder.
+
+1. Validate PaymentPromise
+2. Verify `promise.creation_timestamp + payment_promise_timeout <= header_timestamp` (timeout has passed)
+3. Calculate gas cost (see [Payment Amount](#payment-amount) section) and deduct from both escrow balance and available_balance. As with `MsgPayForFibre`, the deducted amount is transferred from the fibre module account to the `fee_collector` module account (see [Payment Settlement Destination](#payment-settlement-destination)).
+4. Mark promise as processed by storing `ProcessedPayment` with `processed_at` timestamp in both indexes:
+   - `processed_payments_by_hash/{payment_promise_hash}` for replay protection
+   - `processed_payments_by_time/{processed_at}/{payment_promise_hash}` for time-ordered pruning
+5. DO NOT include commitment in data square (since no validator consensus was reached)
+6. Emit EventPaymentPromiseTimeout
+
+### Payment Settlement Destination
+
+Both settlement paths (`MsgPayForFibre` and `MsgPaymentPromiseTimeout`) charge the escrow owner the gas-based payment amount. This charge is distinct from the fee paid for the settlement transaction itself: the transaction fee is paid by the broadcaster and distributed via the ante handler, whereas the escrow charge is the data-availability fee owed by the escrow owner for the Fibre blob.
+
+The charged amount is transferred from the fibre module account to the `fee_collector` module account. From there it follows the standard fee pipeline in `x/distribution`, paying validators (proportional to stake) and their delegators, with the community tax applied. This mirrors how regular blob fees (`MsgPayForBlobs`) are settled, and keeps the funds from being stranded in the fibre module account.
+
+The destination is independent of which validators signed the PaymentPromise. This is required because the timeout path carries no validator signatures, so a signer-dependent destination could not settle both paths consistently.
 
 ## Automatic State Transitions
 
