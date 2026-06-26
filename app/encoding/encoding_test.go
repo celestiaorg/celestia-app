@@ -30,6 +30,18 @@ func TestMakeConfig(t *testing.T) {
 		msgType := sdk.MsgTypeURL(msgs[0])
 		require.Equal(t, "/celestia.blob.v1.MsgPayForBlobs", msgType)
 	})
+
+	t.Run("should return an error for an empty tx", func(t *testing.T) {
+		decodedTx, err := config.TxConfig.TxDecoder()([]byte{})
+		require.ErrorIs(t, err, encoding.ErrEmptyTx)
+		require.Nil(t, decodedTx)
+	})
+
+	t.Run("should return an error for a nil tx", func(t *testing.T) {
+		decodedTx, err := config.TxConfig.TxDecoder()(nil)
+		require.ErrorIs(t, err, encoding.ErrEmptyTx)
+		require.Nil(t, decodedTx)
+	})
 }
 
 func createBlobTx(t *testing.T, testApp *app.App, config encoding.Config, kr keyring.Keyring, accounts []string) []byte {
