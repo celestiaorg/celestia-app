@@ -59,6 +59,20 @@ func TestSetField(t *testing.T) {
 			value:   "fail",
 			wantErr: errors.New("invalid path"),
 		},
+		{
+			name:    "invalid path - empty",
+			input:   `{"a": {"b": 1}}`,
+			path:    "",
+			value:   10,
+			wantErr: errors.New("invalid path"),
+		},
+		{
+			name:    "invalid path - empty segment",
+			input:   `{"a": {"b": 1}}`,
+			path:    "a..b",
+			value:   10,
+			wantErr: errors.New("invalid path"),
+		},
 	}
 
 	for _, tt := range tests {
@@ -110,6 +124,12 @@ func TestDeleteField(t *testing.T) {
 			name:    "delete invalid nested path",
 			input:   `{"x": 5}`,
 			path:    "x.y.z",
+			wantErr: errors.New("invalid path"),
+		},
+		{
+			name:    "delete invalid path - empty",
+			input:   `{"x": 5}`,
+			path:    "",
 			wantErr: errors.New("invalid path"),
 		},
 	}

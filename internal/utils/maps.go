@@ -14,7 +14,12 @@ func SetField(bz []byte, path string, value any) ([]byte, error) {
 		return nil, fmt.Errorf("failed to unmarshal genesis: %w", err)
 	}
 
-	if err := setOrDeleteNestedField(doc, path, value); err != nil {
+	keys, err := splitPath(path)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := setOrDeleteNestedField(doc, keys, value); err != nil {
 		return nil, err
 	}
 
@@ -26,11 +31,19 @@ func RemoveField(bz []byte, path string) ([]byte, error) {
 	return SetField(bz, path, nil)
 }
 
-// setOrDeleteNestedField modifies a nested field in a map based on a dot-delimited path or deletes it if value is nil.
-// Returns an error if the path is invalid or intermediate nodes are not maps.
-func setOrDeleteNestedField(doc map[string]any, path string, value any) error {
+func splitPath(path string) ([]string, error) {
 	keys := strings.Split(path, ".")
+	for _, key := range keys {
+		if key == "" {
+			return nil, fmt.Errorf("invalid path: %q contains an empty segment", path)
+		}
+	}
+	return keys, nil
+}
 
+// setOrDeleteNestedField modifies a nested field in a map based on path keys or deletes it if value is nil.
+// Returns an error if the path is invalid or intermediate nodes are not maps.
+func setOrDeleteNestedField(doc map[string]any, keys []string, value any) error {
 	current := doc
 	for i, key := range keys {
 		// if it's the last key, set the value
