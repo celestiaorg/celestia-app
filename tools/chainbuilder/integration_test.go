@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/test/util"
 	"github.com/celestiaorg/celestia-app/v9/test/util/random"
 	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	cometdbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	tmlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/node"
@@ -78,6 +79,19 @@ func TestRun(t *testing.T) {
 		nodeKey, err := p2p.LoadNodeKey(tmCfg.NodeKeyFile())
 		require.NoError(t, err)
 
+		// Track the databases the node opens (blockstore, state, etc.) so they
+		// can be closed if the node fails to start. Otherwise their locks leak
+		// and the next retry attempt fails with "lock held by current process".
+		var nodeDBs []cometdbm.DB
+		dbProvider := func(ctx *cmtcfg.DBContext) (cometdbm.DB, error) {
+			db, err := cmtcfg.DefaultDBProvider(ctx)
+			if err != nil {
+				return nil, err
+			}
+			nodeDBs = append(nodeDBs, db)
+			return db, nil
+		}
+
 		cmtApp := server.NewCometABCIWrapper(celestiaApp)
 		cometNode, err = node.NewNode(
 			tmCfg,
@@ -85,7 +99,7 @@ func TestRun(t *testing.T) {
 			nodeKey,
 			proxy.NewLocalClientCreator(cmtApp),
 			getGenDocProvider(tmCfg),
-			cmtcfg.DefaultDBProvider,
+			dbProvider,
 			node.DefaultMetricsProvider(tmCfg.Instrumentation),
 			tmlog.NewNopLogger(),
 		)
@@ -94,6 +108,9 @@ func TestRun(t *testing.T) {
 		}
 		if err != nil {
 			_ = appDB.Close()
+			for _, db := range nodeDBs {
+				_ = db.Close()
+			}
 			if testnode.IsPortBindingError(err) && attempt < maxRetries-1 {
 				t.Logf("port binding error on attempt %d/%d, retrying: %v", attempt+1, maxRetries, err)
 				time.Sleep(time.Duration(attempt+1) * time.Second)
