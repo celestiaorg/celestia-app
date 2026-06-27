@@ -235,6 +235,20 @@ To load the network we can use `talis` to start txsim on as many validator nodes
 talis txsim -i <count> -s <blob-sequences> --min-blob-size <size> --max-blob-size <size>
 ```
 
+### spam-queued
+
+To load the network using the queued `Client` (the async `AddPayForBlob` pipeline) instead of txsim, use `spam-queued`. It runs the `spam-txclient-queued` binary on each selected validator against `localhost:9091`, signing with the pre-funded `txsim` keyring account, and saturates the client's async queue.
+
+The binary must be staged into the payload at `genesis` time. `make build-talis-bins` already cross-compiles it (alongside `celestia-appd`, `txsim`, etc.) into `build/`, so the standard `talis genesis -b build` workflow picks it up automatically. Alternatively, override the path with `--spam-txclient-queued-binary`, or build only it with `make spam-txclient-queued-build`.
+
+```sh
+# start spam-txclient-queued on some number of the validator instances
+# -r 0 saturates the queue; set -r >0 for a fixed enqueue rate (tx/s)
+talis spam-queued -i <count> -b <blob-size-kb> -t <duration> -q <queue-size> -r <rate>
+```
+
+When observability nodes are configured (`talis init --with-observability`), `spam-queued` auto-wires the OTLP endpoint (`--otel-endpoint http://<observability-ip>:4318`), so its metrics (`spam_queued.enqueued`, `spam_queued.confirmed`, `spam_queued.failed_tx`, `spam_queued.queue_full`, `spam_queued.tx_latency_ms`, …) show up in Grafana under service `spam-txclient-queued`. Override the endpoint with `--otel-endpoint`.
+
 ### status
 
 Often, it's useful to quickly check if all the nodes have caught up to the tip of the chain. This can be done via the status command, which simply prints the height of each validator after querying the `Status` endpoint.
