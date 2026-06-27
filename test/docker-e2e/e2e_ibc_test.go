@@ -67,23 +67,46 @@ func (s *IBCTestSuite) setupIBCInfrastructure(appVersion uint64) {
 
 	g, gCtx := errgroup.WithContext(ctx)
 
+	// Build and start each chain, retrying on Docker host-port collisions
+	// ("address already in use"). The two chains start concurrently and may
+	// race each other (or a prior test's not-yet-released ports) for the same
+	// published host port; rebuilding the chain allocates fresh ports. See
+	// isPortBindingError for details.
 	g.Go(func() error {
-		var err error
-		s.chainA, err = dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(gCtx)
-		if err != nil {
-			return fmt.Errorf("failed to build chain A: %w", err)
-		}
-		return s.chainA.Start(gCtx)
+		return retryOnPortCollision(gCtx, 3, 2*time.Second, func() error {
+			built, err := dockerchain.NewCelestiaChainBuilder(t, s.celestiaCfg).Build(gCtx)
+			if err != nil {
+				return fmt.Errorf("failed to build chain A: %w", err)
+			}
+			if err := built.Start(gCtx); err != nil {
+				// Release the partially-started chain's containers and host
+				// ports before retrying so the next attempt can rebind cleanly.
+				if removeErr := built.Remove(gCtx); removeErr != nil {
+					t.Logf("Error removing chain A after failed start: %v", removeErr)
+				}
+				return err
+			}
+			s.chainA = built
+			return nil
+		})
 	})
 
 	g.Go(func() error {
-		var err error
-		builder := s.newSimappChainBuilder(t, s.celestiaCfg)
-		s.chainB, err = builder.Build(gCtx)
-		if err != nil {
-			return fmt.Errorf("failed to build chain B: %w", err)
-		}
-		return s.chainB.Start(gCtx)
+		return retryOnPortCollision(gCtx, 3, 2*time.Second, func() error {
+			builder := s.newSimappChainBuilder(t, s.celestiaCfg)
+			built, err := builder.Build(gCtx)
+			if err != nil {
+				return fmt.Errorf("failed to build chain B: %w", err)
+			}
+			if err := built.Start(gCtx); err != nil {
+				if removeErr := built.Remove(gCtx); removeErr != nil {
+					t.Logf("Error removing chain B after failed start: %v", removeErr)
+				}
+				return err
+			}
+			s.chainB = built
+			return nil
+		})
 	})
 
 	s.Require().NoError(g.Wait(), "failed to setup chains")
