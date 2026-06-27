@@ -45,16 +45,17 @@ const (
 	groth16VkeyCurvePointsSize = 288
 
 	// Groth16VkeyG1KLength is the expected number of G1.K elements in the
-	// verifying key. For the SP1 scheme with 2 public inputs this is
-	// nPublic + 1 = 3.
-	Groth16VkeyG1KLength = 3
+	// verifying key. For the SP1 v6 scheme with 5 public inputs (vkey_hash,
+	// committed_values_digest, exit_code, vk_root, proof_nonce) this is
+	// nPublic + 1 = 6.
+	Groth16VkeyG1KLength = 6
 
 	// Groth16VkeySize is the exact expected size of a serialized Groth16
-	// verifying key for the BN254 curve with 2 public inputs (SP1 scheme).
+	// verifying key for the BN254 curve with 5 public inputs (SP1 v6 scheme).
 	// Layout: 6 curve points (288 bytes) + uint32 G1.K length (4 bytes) +
-	// 3 × compressed G1 points (96 bytes) + uint32 CommitmentKeys length (4 bytes) +
-	// uint32 PublicAndCommitmentCommitted length (4 bytes) = 396.
-	Groth16VkeySize = 396
+	// 6 × compressed G1 points (192 bytes) + uint32 CommitmentKeys length (4 bytes) +
+	// uint32 PublicAndCommitmentCommitted length (4 bytes) = 492.
+	Groth16VkeySize = 492
 
 	// groth16VkeyCommitmentKeysOffset is the byte offset of the uint32
 	// CommitmentKeys length prefix in a serialized BN254 verifying key.

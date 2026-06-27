@@ -52,8 +52,8 @@ func (msg *MsgUpdateInterchainSecurityModule) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}
 
-	if len(msg.Proof) != (PrefixLen + ProofSize) {
-		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", (PrefixLen + ProofSize), len(msg.Proof))
+	if len(msg.Proof) != ProofBytesLen {
+		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", ProofBytesLen, len(msg.Proof))
 	}
 
 	if len(msg.PublicValues) > MaxStateTransitionValuesBytes {
@@ -69,8 +69,8 @@ func (msg *MsgSubmitMessages) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
 	}
 
-	if len(msg.Proof) != (PrefixLen + ProofSize) {
-		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", (PrefixLen + ProofSize), len(msg.Proof))
+	if len(msg.Proof) != ProofBytesLen {
+		return errorsmod.Wrapf(ErrInvalidProofLength, "expected %d, got %d", ProofBytesLen, len(msg.Proof))
 	}
 
 	if len(msg.PublicValues) > MaxStateMembershipValuesBytes {
