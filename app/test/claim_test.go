@@ -112,8 +112,8 @@ func verifyRewardsExist(t *testing.T, cctx *testnode.Context, distributionClient
 			return false
 		}
 		rewards = rewardsResp.Rewards
-		return len(rewards) > 0
-	}, 30*time.Second, 100*time.Millisecond, "delegation rewards did not accrue")
+		return rewards.AmountOf(appconsts.BondDenom).GT(math.LegacyOneDec())
+	}, 30*time.Second, 100*time.Millisecond, "delegation rewards did not accrue above 1%s", appconsts.BondDenom)
 	t.Logf("Rewards before undelegation: %v", rewards)
 }
 
