@@ -2,6 +2,7 @@ package gasestimation
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"math"
 	"testing"
@@ -10,8 +11,10 @@ import (
 	"github.com/celestiaorg/celestia-app/v9/test/util/random"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	protov2 "google.golang.org/protobuf/proto"
 )
 
 func TestMedian(t *testing.T) {
@@ -294,6 +297,95 @@ func TestGasEstimatorWithNetworkMinGasPrice(t *testing.T) {
 	_, err = serverWithError.estimateGasPrice(context.Background(), TxPriority_TX_PRIORITY_MEDIUM)
 	require.Error(t, err)
 }
+
+// TestEstimateGasPriceLimitsToGovMaxBytes verifies that estimateGasPrice only
+// considers the transactions that would actually fit within the governance max
+// block size (gov max square bytes) rather than the larger upper bound on max
+// bytes. When the mempool contains a small set of high gas price transactions
+// that fill a gov-sized block plus many cheaper transactions that would only
+// fit in a larger block, the estimate must reflect the high gas price
+// transactions that would actually be included.
+func TestEstimateGasPriceLimitsToGovMaxBytes(t *testing.T) {
+	const txSize = 100
+	// govMaxSquareBytes only has room for the high gas price transactions.
+	const govMaxSquareBytes = 10 * txSize
+
+	decoder := newMockTxDecoder()
+	txs := make([]types.Tx, 0, 110)
+	// 10 high gas price transactions with prices spread across 100..109 so the
+	// values aren't tightly clustered (which would trigger a priority
+	// adjustment). The median of these prices is 104.5.
+	for i := range 10 {
+		txs = append(txs, decoder.add(txSize, int64(100+i), 1))
+	}
+	// 100 low gas price transactions: gas price = 1. These only fit when the
+	// larger upper bound on max bytes is (incorrectly) used.
+	for range 100 {
+		txs = append(txs, decoder.add(txSize, 1, 1))
+	}
+
+	server := &gasEstimatorServer{
+		mempoolClient: newMockMempoolClient(txs),
+		txDecoder:     decoder.decode,
+		minGasPriceFn: func() (float64, error) { return 0, nil },
+		govMaxSquareBytesFn: func() (uint64, error) {
+			return govMaxSquareBytes, nil
+		},
+	}
+
+	gasPrice, err := server.estimateGasPrice(context.Background(), TxPriority_TX_PRIORITY_MEDIUM)
+	require.NoError(t, err)
+	// Only the high gas price transactions fit in a gov-sized block, so the
+	// estimate should be their median (104.5), not the cheaper transactions'
+	// price of 1.
+	require.Equal(t, 104.5, gasPrice)
+}
+
+// mockTxDecoder builds mock transactions of a chosen size and decodes them back
+// into mockFeeTx values carrying a fee and gas.
+type mockTxDecoder struct {
+	feeTxs map[string]mockFeeTx
+	next   uint32
+}
+
+func newMockTxDecoder() *mockTxDecoder {
+	return &mockTxDecoder{feeTxs: make(map[string]mockFeeTx)}
+}
+
+// add returns a transaction of the requested size whose decoded form reports
+// the provided fee and gas.
+func (d *mockTxDecoder) add(size int, fee, gas int64) types.Tx {
+	raw := make([]byte, size)
+	// Make each transaction unique so the decoder map keys don't collide.
+	binary.BigEndian.PutUint32(raw, d.next)
+	d.next++
+	d.feeTxs[string(raw)] = mockFeeTx{
+		fee: sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, fee)),
+		gas: uint64(gas),
+	}
+	return raw
+}
+
+func (d *mockTxDecoder) decode(txBytes []byte) (sdk.Tx, error) {
+	feeTx, ok := d.feeTxs[string(txBytes)]
+	if !ok {
+		return nil, errors.New("unknown transaction")
+	}
+	return feeTx, nil
+}
+
+// mockFeeTx is a minimal sdk.FeeTx used to exercise gas price extraction.
+type mockFeeTx struct {
+	fee sdk.Coins
+	gas uint64
+}
+
+func (m mockFeeTx) GetGas() uint64                        { return m.gas }
+func (m mockFeeTx) GetFee() sdk.Coins                     { return m.fee }
+func (m mockFeeTx) FeePayer() []byte                      { return nil }
+func (m mockFeeTx) FeeGranter() []byte                    { return nil }
+func (m mockFeeTx) GetMsgs() []sdk.Msg                    { return nil }
+func (m mockFeeTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
 
 type mockMempoolClient struct {
 	txs        []types.Tx
