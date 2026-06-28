@@ -94,7 +94,14 @@ jobs:
           - test: TestSyncToTipMocha
             max-attempts: 3
           - test: TestAllUpgrades
+          # TestTxSubmission asserts a wall-clock average tx-inclusion latency
+          # bound. On shared GitHub-hosted runners a single run can occasionally
+          # see sustained CPU contention that inflates latency well above the
+          # threshold (e.g. 17s avg vs the usual ~4.6s). A genuine latency
+          # regression shifts the whole distribution and fails every attempt,
+          # so a retry de-flakes transient runner noise without masking it.
           - test: TestTxSubmission
+            max-attempts: 2
             extra-image: true
           - test: TestArabicaLoad
             extra-image: true
