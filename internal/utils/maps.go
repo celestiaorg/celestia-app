@@ -30,9 +30,16 @@ func RemoveField(bz []byte, path string) ([]byte, error) {
 // Returns an error if the path is invalid or intermediate nodes are not maps.
 func setOrDeleteNestedField(doc map[string]any, path string, value any) error {
 	keys := strings.Split(path, ".")
+	if len(keys) == 0 || keys[0] == "" {
+		return fmt.Errorf("invalid path: path must not be empty")
+	}
 
 	current := doc
 	for i, key := range keys {
+		if key == "" {
+			return fmt.Errorf("invalid path: empty key at position %d", i)
+		}
+
 		// if it's the last key, set the value
 		if i == len(keys)-1 {
 			if value == nil {
