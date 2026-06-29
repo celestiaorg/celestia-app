@@ -7,12 +7,14 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v9/fibre/internal/sign"
 	"github.com/celestiaorg/celestia-app/v9/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
+	clock "github.com/filecoin-project/go-clock"
 	toml "github.com/pelletier/go-toml/v2"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/metric"
@@ -20,6 +22,33 @@ import (
 )
 
 const DefaultConfigFileName = "server_config.toml"
+
+// DefaultUploadRateLimitBytesPerSecond is the default server upload admission
+// rate. "10 MB/s" is interpreted as 10 MiB/s. It is charged as
+// [PaymentPromise.UploadSize] (the whole-blob upload size) per UploadShard, so
+// each validator independently approximates the network's global PFF
+// blob-admission throughput. The controller is disabled when
+// [ServerConfig.UploadRateLimitEnabled] is false OR this rate is <= 0.
+const DefaultUploadRateLimitBytesPerSecond = 10 * 1024 * 1024
+
+// uploadProcessingMargin is the headroom added to the worst-case server-side
+// rate-limit wait (burst/rate, i.e. MaxBlobSize/rate) when deriving the
+// client's upload timeout. It covers verify + store + sign + dial + network so
+// a client can tolerate a validator that waits out the rate limiter while still
+// reaching quorum. Kept far below the ~75s kernel TCP SYN window that
+// black-hole peer shedding relies on.
+const uploadProcessingMargin = 12 * time.Second
+
+// maxUploadRateLimitWait returns the worst-case time a request waits for the
+// upload rate limiter to admit a maximum-size blob from a drained bucket at the
+// default rate: burst/rate, where burst is the largest admissible upload
+// (MaxRowSize * Rows, == MaxBlobSize for default params). It is the single
+// source for both the server's default UploadRateLimitMaxWait and the client's
+// UploadTimeout, so the two stay in sync.
+func maxUploadRateLimitWait(p ProtocolParams) time.Duration {
+	burst := p.MaxRowSize(0) * p.Rows
+	return time.Duration(burst) * time.Second / time.Duration(DefaultUploadRateLimitBytesPerSecond)
+}
 
 // DefaultConfigPath returns the default config file path for the given home directory.
 func DefaultConfigPath(home string) string {
@@ -36,6 +65,28 @@ type ServerConfig struct {
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
+
+	// UploadRateLimitEnabled toggles the upload admission controller (both the
+	// byte-throughput limit and the in-flight cap). The controller is active only
+	// when this is true AND UploadRateLimitBytesPerSecond > 0.
+	UploadRateLimitEnabled bool `toml:"upload_rate_limit_enabled" comment:"UploadRateLimitEnabled toggles the upload admission controller (byte-throughput limit and in-flight cap). Active only when true and upload_rate_limit_bytes_per_second > 0."`
+	// UploadRateLimitBytesPerSecond caps admitted upload throughput in bytes/sec,
+	// charged as PaymentPromise.UploadSize per UploadShard. A value <= 0 disables
+	// the entire upload admission controller (rate limit AND in-flight cap).
+	UploadRateLimitBytesPerSecond int `toml:"upload_rate_limit_bytes_per_second" comment:"UploadRateLimitBytesPerSecond caps admitted upload throughput in bytes/sec, charged as the whole-blob UploadSize per UploadShard. <= 0 disables the upload admission controller (rate limit and in-flight cap)."`
+	// UploadRateLimitBurstBytes is the token-bucket burst in bytes. Defaults to the
+	// maximum admissible upload size so any single blob fits without debt; it also
+	// bounds the largest instantaneous burst admitted from a full bucket.
+	UploadRateLimitBurstBytes int `toml:"upload_rate_limit_burst_bytes" comment:"UploadRateLimitBurstBytes is the token-bucket burst in bytes. Defaults to the maximum blob size so any single blob fits without debt."`
+	// UploadRateLimitMaxWait caps how long a request waits for byte budget before
+	// returning ResourceExhausted, as a Go duration string (e.g. "12.8s").
+	// Defaults to burst/rate so a single max-size blob is admitted after the
+	// necessary wait; stacked contention beyond this is rejected. The wait is also
+	// bounded by the request context.
+	UploadRateLimitMaxWait string `toml:"upload_rate_limit_max_wait" comment:"UploadRateLimitMaxWait caps how long a request waits for byte budget before ResourceExhausted, as a Go duration string (e.g. \"12.8s\"). Defaults to burst/rate (also bounded by the request context)."`
+	// MaxUploadShardInFlight caps the number of UploadShard handlers admitted past
+	// verification at once. A full cap returns ResourceExhausted immediately.
+	MaxUploadShardInFlight int `toml:"max_upload_shard_in_flight" comment:"MaxUploadShardInFlight caps concurrent UploadShard handlers admitted past verification. A full cap returns ResourceExhausted immediately."`
 
 	StoreConfig `toml:"-"`
 
@@ -67,6 +118,10 @@ type ServerConfig struct {
 	// Meter is the OpenTelemetry meter for recording metrics.
 	// If nil, otel.Meter("fibre-server") will be used.
 	Meter metric.Meter `toml:"-"`
+	// Clock is the clock used by the upload admission controller for rate
+	// accounting and bounded waits. If nil, [clock.New] will be used. It uses
+	// server observation time, never the client-controlled promise timestamp.
+	Clock clock.Clock `toml:"-"`
 }
 
 // DefaultServerConfig returns a [ServerConfig] with default values.
@@ -78,14 +133,23 @@ func DefaultServerConfig() ServerConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
-		AppGRPCAddress:      "127.0.0.1:9090",
-		ServerListenAddress: "0.0.0.0:7980",
-		SignerGRPCAddress:   "127.0.0.1:26659",
-		StoreConfig:         DefaultStoreConfig(),
-		LivenessThreshold:   p.LivenessThreshold,
-		MinRowsPerValidator: p.MinRowsPerValidator(),
-		MaxMessageSize:      p.MaxMessageSize(),
-		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
+		AppGRPCAddress:                "127.0.0.1:9090",
+		ServerListenAddress:           "0.0.0.0:7980",
+		SignerGRPCAddress:             "127.0.0.1:26659",
+		StoreConfig:                   DefaultStoreConfig(),
+		LivenessThreshold:             p.LivenessThreshold,
+		MinRowsPerValidator:           p.MinRowsPerValidator(),
+		MaxMessageSize:                p.MaxMessageSize(),
+		UploadVerifyWorkers:           runtime.GOMAXPROCS(0),
+		UploadRateLimitEnabled:        true,
+		UploadRateLimitBytesPerSecond: DefaultUploadRateLimitBytesPerSecond,
+		// The largest UploadSize verifyShard accepts is MaxRowSize * Rows (rowSize
+		// is capped at MaxRowSize, an upload has at most OriginalRows == p.Rows
+		// rows), == MaxBlobSize (128 MiB) for default params. A burst >= this
+		// guarantees a single blob never exceeds the token bucket.
+		UploadRateLimitBurstBytes: p.MaxRowSize(0) * p.Rows,
+		UploadRateLimitMaxWait:    maxUploadRateLimitWait(p).String(),
+		MaxUploadShardInFlight:    max(32, 2*runtime.GOMAXPROCS(0)),
 	}
 	return cfg
 }
@@ -107,6 +171,9 @@ func (cfg *ServerConfig) Validate() error {
 	}
 	if cfg.Meter == nil {
 		cfg.Meter = otel.Meter("fibre-server")
+	}
+	if cfg.Clock == nil {
+		cfg.Clock = clock.New()
 	}
 
 	if cfg.StoreFn == nil {
@@ -137,7 +204,41 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
+
+	// Upload admission controller. A non-positive rate disables it (independent
+	// of the enabled toggle), so the other knobs are only validated when the rate
+	// is positive.
+	if cfg.UploadRateLimitBytesPerSecond > 0 {
+		if cfg.UploadRateLimitBurstBytes <= 0 {
+			return fmt.Errorf("upload_rate_limit_burst_bytes must be > 0 when rate limiting is enabled, got %d", cfg.UploadRateLimitBurstBytes)
+		}
+		wait, err := cfg.uploadRateLimitMaxWait()
+		if err != nil {
+			return fmt.Errorf("upload_rate_limit_max_wait: %w", err)
+		}
+		if wait < 0 {
+			return fmt.Errorf("upload_rate_limit_max_wait must be >= 0, got %s", wait)
+		}
+		if cfg.MaxUploadShardInFlight < 1 {
+			return fmt.Errorf("max_upload_shard_in_flight must be >= 1 when rate limiting is enabled, got %d", cfg.MaxUploadShardInFlight)
+		}
+	}
 	return nil
+}
+
+// uploadRateLimitMaxWait parses [ServerConfig.UploadRateLimitMaxWait] into a
+// duration. An empty string means no wait (0).
+func (cfg *ServerConfig) uploadRateLimitMaxWait() (time.Duration, error) {
+	if cfg.UploadRateLimitMaxWait == "" {
+		return 0, nil
+	}
+	return time.ParseDuration(cfg.UploadRateLimitMaxWait)
+}
+
+// uploadRateLimitActive reports whether the upload admission controller is
+// active: enabled by the toggle AND configured with a positive rate.
+func (cfg *ServerConfig) uploadRateLimitActive() bool {
+	return cfg.UploadRateLimitEnabled && cfg.UploadRateLimitBytesPerSecond > 0
 }
 
 // Load reads the TOML config file at path into the receiver, overriding only

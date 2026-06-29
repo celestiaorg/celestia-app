@@ -32,10 +32,16 @@ type ClientConfig struct {
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
 
-	// RPCTimeout bounds a single UploadShard/DownloadShard call to one peer
-	// (dial + RPC). Sheds black-holed peers below the kernel's ~75s TCP SYN
+	// RPCTimeout bounds a single DownloadShard call and on-chain host query to one
+	// peer (dial + RPC). Sheds black-holed peers below the kernel's ~75s TCP SYN
 	// retry window. See [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
+
+	// UploadTimeout bounds a single UploadShard call to one peer. It is larger
+	// than [ClientConfig.RPCTimeout] so a client can outlast a validator waiting
+	// out the server's upload rate limiter (worst case burst/rate) and still
+	// reach quorum. If <= 0, [Validate] falls back to RPCTimeout.
+	UploadTimeout time.Duration
 
 	// HostRefreshInterval is the minimum time between on-chain host re-queries
 	// for a single validator when a request fails. Defaults to the expected
@@ -79,8 +85,19 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		RPCTimeout:          15 * time.Second,
+		UploadTimeout:       defaultUploadTimeout(p),
 		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
 	}
+}
+
+// defaultUploadTimeout derives the per-peer upload timeout so a client can
+// tolerate a validator that waits out the server's upload rate limiter and
+// still reach quorum, plus processing/network margin. It stays far below the
+// ~75s kernel TCP SYN window that black-hole peer shedding relies on. It shares
+// maxUploadRateLimitWait with the server's default UploadRateLimitMaxWait, so
+// the two stay in sync.
+func defaultUploadTimeout(p ProtocolParams) time.Duration {
+	return maxUploadRateLimitWait(p) + uploadProcessingMargin
 }
 
 // Validate validates the ClientConfig and sets default values for unset fields.
@@ -116,6 +133,11 @@ func (cfg *ClientConfig) Validate() error {
 
 	if cfg.RPCTimeout <= 0 {
 		return fmt.Errorf("RPCTimeout must be > 0 (see [DefaultClientConfig])")
+	}
+	// UploadTimeout should outlast the server's rate-limit wait; if unset, fall
+	// back to RPCTimeout rather than failing.
+	if cfg.UploadTimeout <= 0 {
+		cfg.UploadTimeout = cfg.RPCTimeout
 	}
 	return nil
 }

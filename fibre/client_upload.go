@@ -305,7 +305,7 @@ func (c *Client) uploadTo(
 		if err := buildRows(); err != nil {
 			return err
 		}
-		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.UploadTimeout)
 		defer rpcCancel()
 		var err error
 		rpcStart := time.Now()
