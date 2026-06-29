@@ -155,6 +155,15 @@ func TestServerConfigValidateRateLimit(t *testing.T) {
 		require.NoError(t, cfg.Validate())
 	})
 
+	t.Run("disabled toggle skips other rate-limit validation", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.UploadRateLimitEnabled = false
+		cfg.UploadRateLimitBurstBytes = 0
+		cfg.UploadRateLimitMaxWait = "not-a-duration"
+		cfg.MaxUploadShardInFlight = 0
+		require.NoError(t, cfg.Validate())
+	})
+
 	t.Run("enabled with zero burst errors", func(t *testing.T) {
 		cfg := baseEnabled()
 		cfg.UploadRateLimitBurstBytes = 0

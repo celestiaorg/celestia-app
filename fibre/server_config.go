@@ -205,10 +205,9 @@ func (cfg *ServerConfig) Validate() error {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
 
-	// Upload admission controller. A non-positive rate disables it (independent
-	// of the enabled toggle), so the other knobs are only validated when the rate
-	// is positive.
-	if cfg.UploadRateLimitBytesPerSecond > 0 {
+	// Upload admission controller. The other knobs are only used when the
+	// controller is active.
+	if cfg.uploadRateLimitActive() {
 		if cfg.UploadRateLimitBurstBytes <= 0 {
 			return fmt.Errorf("upload_rate_limit_burst_bytes must be > 0 when rate limiting is enabled, got %d", cfg.UploadRateLimitBurstBytes)
 		}
