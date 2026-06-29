@@ -97,19 +97,22 @@ func (l *uploadLimiter) acquireBytes(ctx context.Context, n int) (time.Duration,
 		return 0, status.Errorf(grpccodes.ResourceExhausted, "upload rate limit exceeded: required wait %s exceeds max %s", delay, l.maxWait)
 	}
 
+	waitStart := l.clk.Now()
 	timer := l.clk.Timer(delay)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
-		l.metrics.uploadRateWaitDuration.Record(ctx, delay.Seconds())
+		wait := l.clk.Now().Sub(waitStart)
+		l.metrics.uploadRateWaitDuration.Record(ctx, wait.Seconds())
 		l.metrics.uploadAdmittedBytes.Add(ctx, int64(n))
-		return delay, nil
+		return wait, nil
 	case <-ctx.Done():
 		// Return the tokens we reserved so a cancelled request doesn't starve
 		// others. CancelAt only refunds when the reservation has not yet been
 		// "consumed" (i.e. delay not yet elapsed), which holds here.
-		r.CancelAt(l.clk.Now())
-		return 0, ctx.Err()
+		now := l.clk.Now()
+		r.CancelAt(now)
+		return now.Sub(waitStart), ctx.Err()
 	}
 }
 

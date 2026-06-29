@@ -151,6 +151,31 @@ func TestUploadLimiterContextCancelWhileWaiting(t *testing.T) {
 	}
 }
 
+func TestUploadLimiterContextCancelReturnsElapsedWait(t *testing.T) {
+	const rate, burst = 1000, 1000
+	metrics, err := newServerMetrics(otel.Meter("fibre-test"))
+	require.NoError(t, err)
+	cfg := ServerConfig{
+		UploadRateLimitEnabled:        true,
+		UploadRateLimitBytesPerSecond: rate,
+		UploadRateLimitBurstBytes:     burst,
+		UploadRateLimitMaxWait:        time.Second.String(),
+		MaxUploadShardInFlight:        4,
+		Clock:                         clock.New(),
+	}
+	l := newUploadLimiter(cfg, metrics)
+
+	_, err = l.acquireBytes(t.Context(), burst) // drain so the next call must wait
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+	wait, err := l.acquireBytes(ctx, 500)
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.GreaterOrEqual(t, wait, 10*time.Millisecond)
+	require.Less(t, wait, 500*time.Millisecond)
+}
+
 func TestUploadLimiterInFlightCap(t *testing.T) {
 	l, _ := newTestLimiter(t, 1000, 1000, 100*time.Millisecond, 2)
 
