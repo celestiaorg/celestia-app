@@ -230,7 +230,7 @@ stripped =
 <p>Defaults:</p>
 <pre><code class="language-text">app_grpc_address = &quot;127.0.0.1:9090&quot;
 server_listen_address = &quot;0.0.0.0:7980&quot;
-signer_grpc_address = &quot;127.0.0.1:26659&quot;
+signer_grpc_address = &quot;127.0.0.1:26669&quot;
 upload_verify_workers = runtime.GOMAXPROCS(0)
 </code></pre>
 <p><code>StoreConfig.Path</code> is not a TOML field; the standalone <code>fibre start</code> command sets it from <code>--home</code>. The default state client is a gRPC app client connected to <code>AppGRPCAddress</code>. The default signer is a PrivValidatorAPI gRPC client connected to <code>SignerGRPCAddress</code>. Both app-node gRPC and signer gRPC use insecure local transport and are expected to be loopback or otherwise protected.</p>
