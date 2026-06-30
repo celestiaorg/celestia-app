@@ -14,6 +14,8 @@ import (
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v10/x/blob"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v10/x/forwarding"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
 	"github.com/celestiaorg/celestia-app/v10/x/minfee"
@@ -21,6 +23,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v10/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism"
 	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -93,10 +97,8 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	minfee.AppModule{},
 	mintModule{},
 	signal.AppModule{},
-}
-
-func init() {
-	ModuleEncodingRegisters = append(ModuleEncodingRegisters, fibreEncodingRegisters()...)
+	fibre.AppModule{},
+	valaddr.AppModule{},
 }
 
 func (app *App) setModuleOrder() {
@@ -104,7 +106,7 @@ func (app *App) setModuleOrder() {
 	// there is nothing left over in the validator fee pool, so as to keep the
 	// CanWithdrawInvariant invariant.
 	// NOTE: staking module is required if HistoricalEntries param > 0
-	beginBlockers := []string{ //nolint:prealloc
+	beginBlockers := []string{
 		capabilitytypes.ModuleName,
 		minttypes.ModuleName,
 		distrtypes.ModuleName,
@@ -122,15 +124,16 @@ func (app *App) setModuleOrder() {
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		zkismtypes.ModuleName,
+		fibretypes.ModuleName,
+		valaddrtypes.ModuleName,
 	}
-	beginBlockers = append(beginBlockers, fibreBeginBlockers()...)
 	app.ModuleManager.SetOrderBeginBlockers(beginBlockers...)
 
 	app.ModuleManager.SetOrderPreBlockers(
 		upgradetypes.ModuleName,
 	)
 
-	endBlockers := []string{ //nolint:prealloc
+	endBlockers := []string{
 		govtypes.ModuleName,
 		stakingtypes.ModuleName,
 		capabilitytypes.ModuleName,
@@ -152,8 +155,9 @@ func (app *App) setModuleOrder() {
 		minfeetypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		icatypes.ModuleName,
+		fibretypes.ModuleName,
+		valaddrtypes.ModuleName,
 	}
-	endBlockers = append(endBlockers, fibreEndBlockers()...)
 	app.ModuleManager.SetOrderEndBlockers(endBlockers...)
 
 	// NOTE: The genutils module must occur after staking so that pools are
@@ -163,7 +167,7 @@ func (app *App) setModuleOrder() {
 	// can do so safely.
 	// NOTE: The minfee module must occur before genutil so DeliverTx can
 	// successfully pass the fee checking logic
-	initGenesis := []string{ //nolint:prealloc
+	initGenesis := []string{
 		capabilitytypes.ModuleName,
 		consensustypes.ModuleName,
 		authtypes.ModuleName,
@@ -192,14 +196,15 @@ func (app *App) setModuleOrder() {
 		warptypes.ModuleName,
 		zkismtypes.ModuleName,
 		forwardingtypes.ModuleName,
+		fibretypes.ModuleName,
+		valaddrtypes.ModuleName,
 	}
-	initGenesis = append(initGenesis, fibreInitGenesisModules()...)
 	app.ModuleManager.SetOrderInitGenesis(initGenesis...)
 	app.ModuleManager.SetOrderExportGenesis(initGenesis...)
 }
 
 func allStoreKeys() []string {
-	keys := []string{ //nolint:prealloc
+	return []string{
 		authtypes.StoreKey,
 		authzkeeper.StoreKey,
 		banktypes.StoreKey,
@@ -225,7 +230,7 @@ func allStoreKeys() []string {
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
 		zkismtypes.StoreKey,       // added in v7
+		valaddrtypes.StoreKey,
+		fibretypes.StoreKey,
 	}
-	keys = append(keys, fibreStoreKeys()...)
-	return keys
 }
