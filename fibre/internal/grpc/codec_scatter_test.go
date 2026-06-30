@@ -148,6 +148,11 @@ func TestScatterMarshalWireParity(t *testing.T) {
 // shapes and asserts byte equality against gogoproto's canonical marshal.
 // Catches drift if new fields are added to UploadShardRequest / BlobShard /
 // BlobRow without updating codec_scatter.go.
+//
+// WARNING: This fuzzer is a defense line against fibre scatter-codec wire-format
+// drift and runs nightly in CI via scripts/test_fuzz.sh. Do NOT delete it, and
+// if you rename it update the matching -fuzz line in scripts/test_fuzz.sh in
+// lockstep. See https://github.com/celestiaorg/celestia-app/issues/7392.
 func FuzzScatterMarshalParity(f *testing.F) {
 	f.Add(int64(1), uint32(4), uint32(3), uint32(2))
 	f.Add(int64(42), uint32(0), uint32(0), uint32(0))
