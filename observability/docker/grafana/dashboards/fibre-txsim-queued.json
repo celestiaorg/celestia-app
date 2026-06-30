@@ -1,0 +1,132 @@
+{
+  "title": "Fibre TxSim (queued)",
+  "uid": "fibre-txsim-queued",
+  "tags": ["celestia", "load", "txclient", "fibre"],
+  "timezone": "",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "time": { "from": "now-30m", "to": "now" },
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Instance",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": { "query": "label_values(fibre_txsim_pff_submitted_total, service_instance_id)", "refId": "StandardVariableQuery" },
+        "refresh": 2,
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" },
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Throughput — PFF tx/s (confirmed vs submitted)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(fibre_txsim_pff_confirmed_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "confirmed" },
+        { "refId": "B", "expr": "sum(rate(fibre_txsim_pff_submitted_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "submitted" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Confirm latency (upload → commit)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": { "defaults": { "unit": "ms", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_txsim_pff_confirm_latency_ms_bucket{service_instance_id=~\"$instance\"}[$__rate_interval])))", "legendFormat": "p50" },
+        { "refId": "B", "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_txsim_pff_confirm_latency_ms_bucket{service_instance_id=~\"$instance\"}[$__rate_interval])))", "legendFormat": "p95" },
+        { "refId": "C", "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_txsim_pff_confirm_latency_ms_bucket{service_instance_id=~\"$instance\"}[$__rate_interval])))", "legendFormat": "p99" },
+        { "refId": "D", "expr": "sum(rate(fibre_txsim_pff_confirm_latency_ms_sum{service_instance_id=~\"$instance\"}[$__rate_interval])) / sum(rate(fibre_txsim_pff_confirm_latency_ms_count{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "avg" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Failures / s",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(fibre_txsim_pff_failed_total{service_instance_id=~\"$instance\"}[$__rate_interval])) or vector(0)", "legendFormat": "failed" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Confirmed tx/s per instance",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "fieldConfig": { "defaults": { "unit": "ops", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum by(service_instance_id) (rate(fibre_txsim_pff_confirmed_total{service_instance_id=~\"$instance\"}[$__rate_interval]))", "legendFormat": "{{service_instance_id}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Confirmed (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(fibre_txsim_pff_confirmed_total{service_instance_id=~\"$instance\"})", "legendFormat": "confirmed" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Submitted (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "blue" } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(fibre_txsim_pff_submitted_total{service_instance_id=~\"$instance\"})", "legendFormat": "submitted" }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "Failed (total)",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 16 },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] } }, "overrides": [] },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "" }, "colorMode": "value", "graphMode": "area" },
+      "targets": [
+        { "refId": "A", "expr": "sum(fibre_txsim_pff_failed_total{service_instance_id=~\"$instance\"}) or vector(0)", "legendFormat": "failed" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "Awaiting (in-flight: submitted − confirmed − failed)",
+      "description": "PFFs submitted but not yet confirmed/failed. Climbing = confirmation can't keep up with submission.",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 22 },
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10, "showPoints": "never" } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "lastNotNull", "max"] }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "refId": "A", "expr": "sum(fibre_txsim_pff_submitted_total{service_instance_id=~\"$instance\"}) - sum(fibre_txsim_pff_confirmed_total{service_instance_id=~\"$instance\"}) - (sum(fibre_txsim_pff_failed_total{service_instance_id=~\"$instance\"}) or vector(0))", "legendFormat": "in-flight" }
+      ]
+    }
+  ]
+}

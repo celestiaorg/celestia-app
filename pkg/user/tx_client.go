@@ -972,9 +972,30 @@ func (client *TxClient) estimateGas(ctx context.Context, txBuilder client.TxBuil
 	if err != nil {
 		return 0, err
 	}
-	resp, err := client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: txBytes})
-	if err != nil {
-		return 0, err
+
+	// Retry on sequence mismatch, mirroring EstimateGasPriceAndUsage. Gas
+	// estimation simulates the tx through the ante handler, which verifies the
+	// account sequence. Under an async pipeline with many in-flight txs the
+	// signed sequence races ahead of the node's committed view, so the first
+	// simulate fails with "account sequence mismatch". Correct the sequence and
+	// re-sign instead of failing the whole tx (previously this path returned the
+	// error directly, so PFB went through EstimateGasPriceAndUsage and survived
+	// while regular txs via EstimateGasForTx did not).
+	var resp *gasestimation.EstimateGasPriceAndUsageResponse
+	for {
+		resp, err = client.gasEstimationClient.EstimateGasPriceAndUsage(ctx, &gasestimation.EstimateGasPriceAndUsageRequest{TxBytes: txBytes})
+		if err == nil {
+			break
+		}
+		if ok, herr := client.handleSequenceMismatch(err, txBuilder); !ok {
+			return 0, herr
+		}
+		if _, _, err = client.signer.signTransaction(txBuilder); err != nil {
+			return 0, fmt.Errorf("re-signing with corrected sequence: %w", err)
+		}
+		if txBytes, err = client.signer.EncodeTx(txBuilder.GetTx()); err != nil {
+			return 0, fmt.Errorf("re-encoding tx: %w", err)
+		}
 	}
 
 	gasLimit := resp.EstimatedGasUsed
@@ -1096,6 +1117,55 @@ func (client *TxClient) GetTxFromTxTracker(hash string) (sequence uint64, signer
 // Signer exposes the tx clients underlying signer
 func (client *TxClient) Signer() *Signer {
 	return client.signer
+}
+
+// Conns returns the list of gRPC connections used by the TxClient.
+func (client *TxClient) Conns() []*grpc.ClientConn {
+	return client.conns
+}
+
+// Codec returns the codec used by the TxClient.
+func (client *TxClient) Codec() codec.Codec {
+	return client.cdc
+}
+
+// Registry returns the interface registry used by the TxClient.
+func (client *TxClient) Registry() codectypes.InterfaceRegistry {
+	return client.registry
+}
+
+// SendTxToConnection broadcasts a transaction to a specific gRPC connection.
+// This is exported for use by the v3 async pipeline.
+func (client *TxClient) SendTxToConnection(ctx context.Context, conn *grpc.ClientConn, txBytes []byte) (*sdktypes.TxResponse, error) {
+	return client.sendTxToConnection(ctx, conn, txBytes)
+}
+
+// EstimateGasForTx estimates gas usage for a built transaction.
+// The caller must hold the client mutex. This is exported for use by the v3 async pipeline.
+func (client *TxClient) EstimateGasForTx(ctx context.Context, txBuilder client.TxBuilder) (uint64, error) {
+	return client.estimateGas(ctx, txBuilder)
+}
+
+// CheckAccountLoaded ensures an account is loaded in the signer, querying the chain if needed.
+// The caller must hold the client mutex. This is exported for use by the v3 async pipeline.
+func (client *TxClient) CheckAccountLoaded(ctx context.Context, account string) error {
+	return client.checkAccountLoaded(ctx, account)
+}
+
+// PollTime returns the polling interval.
+func (client *TxClient) PollTime() time.Duration {
+	return client.pollTime
+}
+
+// Lock acquires the client mutex. This is exported for use by the v3 async pipeline
+// which needs to hold the lock across signing operations.
+func (client *TxClient) Lock() {
+	client.mtx.Lock()
+}
+
+// Unlock releases the client mutex.
+func (client *TxClient) Unlock() {
+	client.mtx.Unlock()
 }
 
 // StartTxQueueForTest starts the tx queue for testing purposes.
