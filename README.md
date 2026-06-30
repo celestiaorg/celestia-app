@@ -265,7 +265,8 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.52.x-celestia` |
+| `main`       | `v0.40.x`          | `release/v0.52.x-celestia` |
+| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia` |
 | `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
