@@ -6,9 +6,9 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -75,23 +75,6 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
 
-			if err := app.SetBlockMaxBytes(ctx, int64(appconsts.BlockMaxBytes)); err != nil {
-				return nil, fmt.Errorf("failed to set block max bytes: %w", err)
-			}
-
-			if err := app.SetEvidenceMaxAgeNumBlocks(ctx, appconsts.MaxAgeNumBlocks); err != nil {
-				return nil, fmt.Errorf("failed to set evidence max age num blocks: %w", err)
-			}
-
-			if err := app.SetGovMaxSquareSize(sdkCtx, appconsts.MaxSquareSize); err != nil {
-				return nil, fmt.Errorf("failed to set gov max square size: %w", err)
-			}
-
-			if err := app.SetMaxExpectedTimePerBlock(sdkCtx); err != nil {
-				sdkCtx.Logger().Error("failed to set MaxExpectedTimePerBlock", "error", err)
-				return nil, err
-			}
-
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
@@ -111,60 +94,4 @@ func (app App) RegisterUpgradeHandlers() {
 			app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 		}
 	}
-}
-
-// SetBlockMaxBytes updates the consensus parameter Block.MaxBytes.
-func (app App) SetBlockMaxBytes(ctx context.Context, maxBytes int64) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get consensus params", "err", err)
-		return err
-	}
-	params.Block.MaxBytes = maxBytes
-	sdkCtx.Logger().Info("setting block max bytes", "maxBytes", maxBytes)
-	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, params); err != nil {
-		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
-		return err
-	}
-	return nil
-}
-
-// SetEvidenceMaxAgeNumBlocks updates the consensus parameter Evidence.MaxAgeNumBlocks.
-func (app App) SetEvidenceMaxAgeNumBlocks(ctx context.Context, maxAgeNumBlocks int64) error {
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
-
-	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
-	if err != nil {
-		sdkCtx.Logger().Error("failed to get consensus params", "err", err)
-		return err
-	}
-	params.Evidence.MaxAgeNumBlocks = maxAgeNumBlocks
-	sdkCtx.Logger().Info("setting evidence max age num blocks", "maxAgeNumBlocks", maxAgeNumBlocks)
-	if err := app.ConsensusKeeper.ParamsStore.Set(ctx, params); err != nil {
-		sdkCtx.Logger().Error("failed to set consensus params", "err", err)
-		return err
-	}
-	return nil
-}
-
-// SetGovMaxSquareSize updates the blob module's GovMaxSquareSize parameter.
-func (app App) SetGovMaxSquareSize(ctx sdk.Context, govMaxSquareSize uint64) error {
-	params := app.BlobKeeper.GetParams(ctx)
-	params.GovMaxSquareSize = govMaxSquareSize
-	ctx.Logger().Info("setting blob gov max square size", "govMaxSquareSize", govMaxSquareSize)
-	app.BlobKeeper.SetParams(ctx, params)
-	return nil
-}
-
-// SetMaxExpectedTimePerBlock sets the IBC connection MaxExpectedTimePerBlock
-// parameter to appconsts.MaxExpectedTimePerBlock.
-func (app App) SetMaxExpectedTimePerBlock(ctx sdk.Context) error {
-	params := ibcconnectiontypes.Params{
-		MaxExpectedTimePerBlock: uint64(appconsts.MaxExpectedTimePerBlock.Nanoseconds()),
-	}
-	ctx.Logger().Info(fmt.Sprintf("Setting IBC connection MaxExpectedTimePerBlock to %v", appconsts.MaxExpectedTimePerBlock))
-	app.IBCKeeper.ConnectionKeeper.SetParams(ctx, params)
-	return nil
 }

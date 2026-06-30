@@ -3,7 +3,7 @@ package grpc
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/mem"
 )

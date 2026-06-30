@@ -6,9 +6,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

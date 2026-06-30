@@ -1,10 +1,10 @@
 package malicious
 
 import (
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/ante"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/da"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/ante"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	core "github.com/cometbft/cometbft/proto/tendermint/types"

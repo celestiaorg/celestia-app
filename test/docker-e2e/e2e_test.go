@@ -1,6 +1,7 @@
 package docker_e2e
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
+	"github.com/moby/moby/api/pkg/stdcopy"
 	mobyclient "github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -103,6 +105,67 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 			t.Logf("Error stopping txsim container: %v", err)
 		}
 	})
+
+	// txsim's Start returns successfully even if txsim crashes shortly after (for
+	// example when the gRPC endpoint is unreachable). Without this check the
+	// failure would otherwise surface as a confusing error in unrelated,
+	// downstream test steps that depend on txsim producing transactions.
+	s.requireTxSimRunning(ctx, container.Name)
+}
+
+// requireTxSimRunning fails the test if the named container is not running, or
+// exits during a short stabilization window after startup. On failure it
+// includes the container's exit status and logs to aid debugging.
+func (s *CelestiaTestSuite) requireTxSimRunning(ctx context.Context, containerName string) {
+	t := s.T()
+	const (
+		stabilizationPeriod = 10 * time.Second
+		pollInterval        = 1 * time.Second
+	)
+
+	timeoutCtx, cancel := context.WithTimeout(ctx, stabilizationPeriod)
+	defer cancel()
+
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+
+	for {
+		inspect, err := s.client.ContainerInspect(ctx, containerName, mobyclient.ContainerInspectOptions{})
+		require.NoError(t, err, "failed to inspect txsim container %s", containerName)
+
+		if state := inspect.Container.State; !state.Running {
+			t.Fatalf("txsim container %s exited early (status: %s, exit code: %d)\nlogs:\n%s",
+				containerName, state.Status, state.ExitCode, s.containerLogs(ctx, containerName))
+		}
+
+		select {
+		case <-timeoutCtx.Done():
+			// The container stayed running for the full stabilization window.
+			return
+		case <-ticker.C:
+			// Poll again.
+		}
+	}
+}
+
+// containerLogs returns the combined stdout and stderr of a container. It
+// returns a descriptive string rather than an error so it can be embedded
+// directly in test failure messages.
+func (s *CelestiaTestSuite) containerLogs(ctx context.Context, containerName string) string {
+	rc, err := s.client.ContainerLogs(ctx, containerName, mobyclient.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+	})
+	if err != nil {
+		return fmt.Sprintf("failed to fetch logs: %v", err)
+	}
+	defer func() { _ = rc.Close() }()
+
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, rc); err != nil {
+		return fmt.Sprintf("failed to read logs: %v", err)
+	}
+	return stdout.String() + stderr.String()
 }
 
 // getNetworkNameFromID resolves the network name given its ID.

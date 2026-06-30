@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel"

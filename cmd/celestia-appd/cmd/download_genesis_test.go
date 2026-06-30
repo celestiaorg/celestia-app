@@ -3,7 +3,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/stretchr/testify/assert"
 )
 

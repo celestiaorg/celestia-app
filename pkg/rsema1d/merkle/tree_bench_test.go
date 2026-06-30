@@ -5,7 +5,7 @@ import (
 	"math/bits"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
 )
 
 // Benchmark results (AMD Ryzen AI 9 HX 370):

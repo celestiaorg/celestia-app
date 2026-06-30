@@ -5,21 +5,21 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	embedding "github.com/celestiaorg/celestia-app/v9/internal/embedding"
-	"github.com/celestiaorg/celestia-app/v9/multiplexer/abci"
-	"github.com/celestiaorg/celestia-app/v9/multiplexer/appd"
-	multiplexer "github.com/celestiaorg/celestia-app/v9/multiplexer/cmd"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	embedding "github.com/celestiaorg/celestia-app/v10/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	multiplexer "github.com/celestiaorg/celestia-app/v10/multiplexer/cmd"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.
 // this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v9/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v9/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v9/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
+// -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""
 
 var defaultArgs = []string{
@@ -89,6 +89,16 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
+	v9Tag, v9CompressedBinary, err := embedding.CelestiaAppV9()
+	if err != nil {
+		panic(err)
+	}
+
+	appdV9, err := appd.New(v9Tag, v9CompressedBinary)
+	if err != nil {
+		panic(err)
+	}
+
 	v3Args := defaultArgs
 	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
@@ -134,6 +144,11 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV8,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  8,
+			StartArgs:   defaultArgs,
+		}, abci.Version{
+			Appd:        appdV9,
+			ABCIVersion: abci.ABCIClientVersion2,
+			AppVersion:  9,
 			StartArgs:   defaultArgs,
 		})
 	if err != nil {
