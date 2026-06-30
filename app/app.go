@@ -198,7 +198,7 @@ type App struct {
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
-	fibreKeepers        //nolint:unused // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
+	fibreKeepers        // FibreKeeper and ValAddrKeeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes

@@ -1,5 +1,3 @@
-//go:build fibre
-
 package da
 
 import (

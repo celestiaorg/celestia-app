@@ -11,8 +11,6 @@ When editing Go code, always run `make build` after changes to catch compilation
 ```bash
 make build              # Build multiplexer version (embeds v3-v9 binaries) into ./build/
 make build-standalone   # Build v10-only version (no embedded binaries)
-make build-fibre        # Build with fibre+valaddr modules enabled (build tag: ledger,fibre)
-make install-fibre      # Install with fibre+valaddr modules enabled
 make mod                # Update all go.mod files
 ```
 
@@ -25,7 +23,6 @@ go test -v -run TestName ./path/to/package  # Run a single test
 make test-short                              # Run tests in short mode (1 min timeout)
 make test                                    # Run all tests (30 min timeout)
 make test-race                               # Run tests with race detection
-make test-fibre-module                       # Run fibre-tagged tests (app + pkg/da)
 ```
 
 ### Linting
@@ -57,11 +54,12 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 - **`/cmd/celestia-appd`** - Binary entry point
 - **`/test/util`** - Test utilities: `testnode`, `blobfactory`, `testfactory`
 
-### Multiplexer vs Standalone vs Fibre
+### Multiplexer vs Standalone
 
 - **`make build`** (default): Multiplexer build embeds v3-v9 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
 - **`make build-standalone`**: v10-only, lighter. Build tag: `ledger`
-- **`make build-fibre`**: Standalone with fibre+valaddr modules enabled. Build tag: `ledger,fibre`. By default, the fibre and valaddr modules are **not** compiled into the binary. The module code lives under `x/fibre/` and `x/valaddr/` and is gated behind `//go:build fibre` files in `app/`.
+
+The fibre and valaddr modules are compiled into every build by default. The module code lives under `x/fibre/` and `x/valaddr/`, wired into the app via `app/fibre.go`.
 
 ### Dependency Forks
 

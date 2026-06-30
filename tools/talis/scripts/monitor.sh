@@ -7,7 +7,7 @@ set -euo pipefail
 
 INTERVAL="${MONITOR_INTERVAL:-1}"
 OUTPUT="/root/monitor.jsonl"
-PORTS="${MONITOR_PORTS:-9091 26656 26657 7980 26659}"
+PORTS="${MONITOR_PORTS:-9091 26656 26657 7980 26669}"
 PROCESS_NAMES="${MONITOR_PROCESS_NAMES:-celestia-appd fibre fibre-txsim txsim latency-monitor}"
 
 # ---------- iptables accounting setup ----------
