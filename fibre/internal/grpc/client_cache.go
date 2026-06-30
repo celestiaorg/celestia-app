@@ -5,7 +5,7 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"

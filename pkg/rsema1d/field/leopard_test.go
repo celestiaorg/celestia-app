@@ -3,7 +3,7 @@ package field_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 )
 
 func TestGF16FromLeopard(t *testing.T) {

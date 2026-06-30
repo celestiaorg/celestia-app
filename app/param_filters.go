@@ -2,9 +2,9 @@ package app
 
 import (
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v9/app/ante"
-	"github.com/celestiaorg/celestia-app/v9/app/params"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/app/ante"
+	"github.com/celestiaorg/celestia-app/v10/app/params"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"

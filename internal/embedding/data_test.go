@@ -103,6 +103,53 @@ func TestCelestiaAppV8(t *testing.T) {
 	}
 }
 
+func TestCelestiaAppV9(t *testing.T) {
+	realData := v9binaryCompressed
+	defer func() {
+		v9binaryCompressed = realData
+	}()
+
+	testCases := []struct {
+		name            string
+		modifyFn        func()
+		expectedVersion string
+		expectedError   error
+	}{
+		{
+			name: "valid binary data",
+			modifyFn: func() {
+				v9binaryCompressed = realData
+			},
+			expectedVersion: v9Version,
+		},
+		{
+			name: "nil binaryCompressed",
+			modifyFn: func() {
+				v9binaryCompressed = nil
+			},
+			expectedError: fmt.Errorf("no binary data available for platform %s", platform()),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.modifyFn()
+			version, binary, err := CelestiaAppV9()
+
+			if tc.expectedError != nil {
+				assert.Error(t, err)
+				assert.Equal(t, tc.expectedError, err)
+				assert.Empty(t, version)
+				assert.Nil(t, binary)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.expectedVersion, version)
+				assert.NotEmpty(t, binary)
+			}
+		})
+	}
+}
+
 func TestCelestiaAppV3(t *testing.T) {
 	// prevent messing with other tests by modifying this.
 	realData := v3binaryCompressed

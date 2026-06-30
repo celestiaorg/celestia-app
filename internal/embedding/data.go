@@ -16,6 +16,7 @@ const (
 	v6Version = "v6.4.4"
 	v7Version = "v7.0.2-mocha"
 	v8Version = "v8.0.8"
+	v9Version = "v9.0.4"
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
@@ -77,6 +78,16 @@ func CelestiaAppV8() (version string, compressedBinary []byte, err error) {
 	}
 
 	return v8Version, v8binaryCompressed, nil
+}
+
+// CelestiaAppV9 returns the compressed platform specific Celestia binary and
+// the version.
+func CelestiaAppV9() (version string, compressedBinary []byte, err error) {
+	if len(v9binaryCompressed) == 0 {
+		return "", nil, fmt.Errorf("no binary data available for platform %s", platform())
+	}
+
+	return v9Version, v9binaryCompressed, nil
 }
 
 // platform returns a string representing the current operating system and architecture

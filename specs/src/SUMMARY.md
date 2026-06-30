@@ -45,6 +45,7 @@ Celestia App Specifications
   - [Parameters v7](./parameters_v7.md)
   - [Parameters v8](./parameters_v8.md)
   - [Parameters v9](./parameters_v9.md)
+  - [Parameters v10](./parameters_v10.md)
 - [Types](./types.md)
   - [Types v5](./types_v5.md)
   - [Types v6](./types_v6.md)

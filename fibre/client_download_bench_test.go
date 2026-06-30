@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/stretchr/testify/require"
 )
 

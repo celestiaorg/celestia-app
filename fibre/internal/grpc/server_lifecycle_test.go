@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/stretchr/testify/require"
 )
 
