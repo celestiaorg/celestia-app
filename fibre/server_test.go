@@ -16,7 +16,9 @@ import (
 )
 
 // makeTestServer creates a server with all necessary test infrastructure.
-func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator) {
+// Optional modifiers tweak the [fibre.ServerConfig] (e.g. to inject a mock
+// clock or low rate-limit values) before the server is constructed.
+func makeTestServer(t *testing.T, modifiers ...func(*fibre.ServerConfig)) (*fibre.Server, validator.Set, *core.Validator) {
 	t.Helper()
 
 	// create validator set (use enough validators for good distribution)
@@ -55,6 +57,9 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 
 	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
+	}
+	for _, modify := range modifiers {
+		modify(&cfg)
 	}
 	server, err := fibre.NewServer(cfg)
 	require.NoError(t, err)

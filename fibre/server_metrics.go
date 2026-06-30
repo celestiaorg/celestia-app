@@ -16,6 +16,11 @@ type serverMetrics struct {
 	uploadShardDuration metric.Float64Histogram
 	uploadShardBytes    metric.Int64Counter
 
+	// UploadShard admission control (rate limiting + in-flight cap)
+	uploadRateLimited      metric.Int64Counter
+	uploadRateWaitDuration metric.Float64Histogram
+	uploadAdmittedBytes    metric.Int64Counter
+
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
 	downloadShardDuration metric.Float64Histogram
@@ -62,6 +67,34 @@ func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard bytes counter: %w", err)
+	}
+
+	// UploadShard admission control metrics
+	sm.uploadRateLimited, err = m.Int64Counter("fibre.server.upload_shard.rate_limited",
+		metric.WithDescription("UploadShard RPCs rejected by the admission controller, by reason (byte_budget|in_flight)"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard rate_limited counter: %w", err)
+	}
+
+	sm.uploadRateWaitDuration, err = m.Float64Histogram("fibre.server.upload_shard.rate_wait.duration",
+		metric.WithDescription("Time UploadShard RPCs spent waiting for byte budget before admission in seconds"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.01, 0.1, 0.5, 1, 2.5, 5, 10, 15),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard rate_wait duration histogram: %w", err)
+	}
+
+	// admitted_bytes counts the whole-blob UploadSize charged to the limiter on
+	// admission. This is intentionally distinct from upload_shard.bytes, which
+	// counts the actual shard bytes this validator received.
+	sm.uploadAdmittedBytes, err = m.Int64Counter("fibre.server.upload_shard.admitted_bytes",
+		metric.WithDescription("Total promise UploadSize admitted by the rate limiter"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard admitted_bytes counter: %w", err)
 	}
 
 	// DownloadShard RPC metrics
@@ -140,16 +173,23 @@ func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
 
 // observeUploadShard records in-flight increment and returns a function that records
 // duration and decrements in-flight. Call the returned function in a defer.
-func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize int64, err error)) {
+//
+// rateWait is the time the handler spent parked on the upload rate limiter; it
+// is subtracted from the recorded duration so the histogram reflects real
+// processing latency rather than intentional throttling (the wait itself is
+// tracked separately by uploadRateWaitDuration). The in-flight gauge still
+// counts parked requests, since the RPC genuinely remains open during the wait.
+func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize int64, rateWait time.Duration, err error)) {
 	start := time.Now()
 	m.uploadShardInFlight.Add(ctx, 1)
-	return func(uploadSize int64, err error) {
+	return func(uploadSize int64, rateWait time.Duration, err error) {
 		m.uploadShardInFlight.Add(ctx, -1)
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
 		if uploadSize > 0 {
 			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
 		}
-		m.uploadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
+		processing := max(time.Since(start)-rateWait, 0)
+		m.uploadShardDuration.Record(ctx, processing.Seconds(), metric.WithAttributes(attrs...))
 	}
 }
 

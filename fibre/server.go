@@ -32,7 +32,8 @@ type Server struct {
 	tracer  trace.Tracer
 	metrics *serverMetrics
 
-	verifiers chan *rsema1d.Verifier // caps concurrent verifications
+	verifiers     chan *rsema1d.Verifier // caps concurrent verifications
+	uploadLimiter *uploadLimiter         // admission control for UploadShard
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -56,12 +57,13 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	server := &Server{
-		Config:    cfg,
-		state:     stateClient,
-		log:       cfg.Log,
-		tracer:    cfg.Tracer,
-		metrics:   metrics,
-		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
+		Config:        cfg,
+		state:         stateClient,
+		log:           cfg.Log,
+		tracer:        cfg.Tracer,
+		metrics:       metrics,
+		verifiers:     newVerifierPool(cfg.UploadVerifyWorkers),
+		uploadLimiter: newUploadLimiter(cfg, metrics),
 	}
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress)
@@ -132,7 +134,24 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+	s.logUploadRateLimit()
 	return nil
+}
+
+// logUploadRateLimit emits the active posture of the upload admission
+// controller at startup so operators can see whether it is on and with what
+// settings.
+func (s *Server) logUploadRateLimit() {
+	if !s.Config.uploadRateLimitActive() {
+		s.log.Info("upload rate limiting disabled")
+		return
+	}
+	s.log.Info("upload rate limiting enabled",
+		"bytes_per_second", s.Config.UploadRateLimitBytesPerSecond,
+		"burst_bytes", s.Config.UploadRateLimitBurstBytes,
+		"max_wait", s.Config.UploadRateLimitMaxWait,
+		"max_in_flight", s.Config.MaxUploadShardInFlight,
+	)
 }
 
 // Stop gracefully stops the gRPC server and background routines,

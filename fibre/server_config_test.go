@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,4 +92,112 @@ func TestServerConfigValidateNoSigner(t *testing.T) {
 	err := cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signer_grpc_address is required")
+}
+
+func TestServerConfigRateLimitDefaults(t *testing.T) {
+	cfg := DefaultServerConfig()
+	assert.True(t, cfg.UploadRateLimitEnabled)
+	// "10 MB/s" is interpreted as 10 MiB/s.
+	assert.Equal(t, 10*1024*1024, cfg.UploadRateLimitBytesPerSecond)
+	// Burst defaults to the max admissible upload size (128 MiB for default params).
+	assert.Equal(t, 128*1024*1024, cfg.UploadRateLimitBurstBytes)
+	// MaxWait defaults to burst/rate, here 128 MiB / 10 MiB/s == 12.8s.
+	wait, err := cfg.uploadRateLimitMaxWait()
+	require.NoError(t, err)
+	assert.Equal(t, 12800*time.Millisecond, wait)
+	assert.GreaterOrEqual(t, cfg.MaxUploadShardInFlight, 32)
+}
+
+func TestServerConfigRateLimitSaveAndLoad(t *testing.T) {
+	home := t.TempDir()
+	configPath := DefaultConfigPath(home)
+
+	cfg := DefaultServerConfig()
+	cfg.UploadRateLimitEnabled = true
+	cfg.UploadRateLimitBytesPerSecond = 5 * 1024 * 1024
+	cfg.UploadRateLimitBurstBytes = 64 * 1024 * 1024
+	cfg.UploadRateLimitMaxWait = "7s"
+	cfg.MaxUploadShardInFlight = 48
+	require.NoError(t, cfg.Save(configPath))
+
+	// Saved TOML carries the new keys and their documentation.
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	content := string(data)
+	assert.Contains(t, content, "upload_rate_limit_enabled =")
+	assert.Contains(t, content, "upload_rate_limit_bytes_per_second =")
+	assert.Contains(t, content, "upload_rate_limit_burst_bytes =")
+	assert.Contains(t, content, "upload_rate_limit_max_wait =")
+	assert.Contains(t, content, "max_upload_shard_in_flight =")
+
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(configPath))
+	assert.Equal(t, 5*1024*1024, loaded.UploadRateLimitBytesPerSecond)
+	assert.Equal(t, 64*1024*1024, loaded.UploadRateLimitBurstBytes)
+	assert.Equal(t, "7s", loaded.UploadRateLimitMaxWait)
+	assert.Equal(t, 48, loaded.MaxUploadShardInFlight)
+}
+
+func TestServerConfigValidateRateLimit(t *testing.T) {
+	baseEnabled := func() ServerConfig {
+		cfg := DefaultServerConfig()
+		cfg.Path = t.TempDir()
+		cfg.SignerGRPCAddress = "127.0.0.1:26659"
+		return cfg
+	}
+
+	t.Run("disabled rate skips other rate-limit validation", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.UploadRateLimitBytesPerSecond = 0 // disables the controller
+		cfg.UploadRateLimitBurstBytes = 0
+		cfg.UploadRateLimitMaxWait = ""
+		cfg.MaxUploadShardInFlight = 0
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("disabled toggle skips other rate-limit validation", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.UploadRateLimitEnabled = false
+		cfg.UploadRateLimitBurstBytes = 0
+		cfg.UploadRateLimitMaxWait = "not-a-duration"
+		cfg.MaxUploadShardInFlight = 0
+		require.NoError(t, cfg.Validate())
+	})
+
+	t.Run("enabled with zero burst errors", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.UploadRateLimitBurstBytes = 0
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upload_rate_limit_burst_bytes")
+	})
+
+	t.Run("enabled with unparseable max wait errors", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.UploadRateLimitMaxWait = "not-a-duration"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upload_rate_limit_max_wait")
+	})
+
+	t.Run("enabled with negative max wait errors", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.UploadRateLimitMaxWait = "-1s"
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "upload_rate_limit_max_wait")
+	})
+
+	t.Run("enabled with zero in-flight errors", func(t *testing.T) {
+		cfg := baseEnabled()
+		cfg.MaxUploadShardInFlight = 0
+		err := cfg.Validate()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "max_upload_shard_in_flight")
+	})
+
+	t.Run("defaults validate", func(t *testing.T) {
+		cfg := baseEnabled()
+		require.NoError(t, cfg.Validate())
+	})
 }

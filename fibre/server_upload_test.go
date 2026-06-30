@@ -13,7 +13,10 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
+	clock "github.com/filecoin-project/go-clock"
 	"github.com/stretchr/testify/require"
+	grpccodes "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TestServerUploadShard unit tests the [Server.UploadShard].
@@ -182,6 +185,69 @@ func TestServerUploadShard(t *testing.T) {
 			tt.check(t, resp, err)
 		})
 	}
+}
+
+// TestServerUploadShardRateLimit exercises the upload admission controller.
+func TestServerUploadShardRateLimit(t *testing.T) {
+	// Size the burst to exactly one upload (derived from the blob layout, which
+	// rounds the row count up for the blob header) so a full bucket admits the
+	// first upload and a drained bucket rejects the next.
+	uploadSize := makeTestBlobV0(t, 256*1024).UploadSize()
+
+	t.Run("over-budget verified upload returns ResourceExhausted without storing or signing", func(t *testing.T) {
+		server, valSet, serverValidator := makeTestServer(t, func(cfg *fibre.ServerConfig) {
+			cfg.Clock = clock.NewMock() // never advanced: budget cannot refill
+			cfg.UploadRateLimitBytesPerSecond = 1
+			cfg.UploadRateLimitBurstBytes = uploadSize
+			cfg.UploadRateLimitMaxWait = "0s"
+			cfg.MaxUploadShardInFlight = 8
+		})
+
+		// First verified upload drains the full bucket and succeeds.
+		req1 := makeTestRequest(t, valSet, serverValidator, nil)
+		resp1, err := server.UploadShard(t.Context(), req1)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp1.ValidatorSignature)
+
+		// Second verified upload needs refill exceeding maxWait (0) → rejected.
+		req2 := makeTestRequest(t, valSet, serverValidator, nil)
+		resp2, err := server.UploadShard(t.Context(), req2)
+		require.Error(t, err)
+		require.Nil(t, resp2)
+		require.Equal(t, grpccodes.ResourceExhausted, status.Code(err))
+
+		// Rejection happens before store.Put, so nothing was persisted for it.
+		var commitment2 fibre.Commitment
+		copy(commitment2[:], req2.Promise.Commitment)
+		_, getErr := server.Store().Get(t.Context(), commitment2)
+		require.ErrorIs(t, getErr, fibre.ErrStoreNotFound)
+	})
+
+	t.Run("invalid shard does not consume byte budget", func(t *testing.T) {
+		server, valSet, serverValidator := makeTestServer(t, func(cfg *fibre.ServerConfig) {
+			cfg.Clock = clock.NewMock()
+			cfg.UploadRateLimitBytesPerSecond = 1
+			cfg.UploadRateLimitBurstBytes = uploadSize // room for exactly one blob
+			cfg.UploadRateLimitMaxWait = "0s"
+			cfg.MaxUploadShardInFlight = 8
+		})
+
+		// An invalid upload (corrupt proof) is rejected at verification. Because
+		// the byte budget is charged only after verification, it must not drain
+		// the bucket.
+		badReq := makeTestRequest(t, valSet, serverValidator, func(req *types.UploadShardRequest) {
+			req.Shard.Rows[0].Proof[0] = []byte("invalid proof")
+		})
+		_, err := server.UploadShard(t.Context(), badReq)
+		require.Error(t, err)
+		require.Equal(t, grpccodes.InvalidArgument, status.Code(err))
+
+		// The full burst is still available, so a subsequent valid upload admits.
+		goodReq := makeTestRequest(t, valSet, serverValidator, nil)
+		resp, err := server.UploadShard(t.Context(), goodReq)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ValidatorSignature)
+	})
 }
 
 // makeTestRequest creates a valid UploadShardRequest for the given test setup.

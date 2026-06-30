@@ -13,6 +13,12 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerGRPCAddress   = "signer-grpc-address"
+
+	flagUploadRateLimitEnabled = "upload-rate-limit-enabled"
+	flagUploadRateLimitBPS     = "upload-rate-limit-bytes-per-second"
+	flagUploadRateLimitBurst   = "upload-rate-limit-burst-bytes"
+	flagUploadRateLimitMaxWait = "upload-rate-limit-max-wait"
+	flagMaxUploadShardInFlight = "max-upload-shard-in-flight"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -68,6 +74,13 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
+
+	// Upload admission controller. Active only when enabled AND rate > 0.
+	cmd.Flags().BoolVar(&cfg.UploadRateLimitEnabled, flagUploadRateLimitEnabled, cfg.UploadRateLimitEnabled, "enable the upload admission controller (rate limit and in-flight cap)")
+	cmd.Flags().IntVar(&cfg.UploadRateLimitBytesPerSecond, flagUploadRateLimitBPS, cfg.UploadRateLimitBytesPerSecond, "upload admission rate in bytes/sec (charged as whole-blob UploadSize); <= 0 disables the controller")
+	cmd.Flags().IntVar(&cfg.UploadRateLimitBurstBytes, flagUploadRateLimitBurst, cfg.UploadRateLimitBurstBytes, "token-bucket burst in bytes (defaults to the maximum blob size)")
+	cmd.Flags().StringVar(&cfg.UploadRateLimitMaxWait, flagUploadRateLimitMaxWait, cfg.UploadRateLimitMaxWait, "max time a request waits for byte budget before ResourceExhausted, as a Go duration (e.g. \"12.8s\")")
+	cmd.Flags().IntVar(&cfg.MaxUploadShardInFlight, flagMaxUploadShardInFlight, cfg.MaxUploadShardInFlight, "max concurrent UploadShard handlers admitted past verification")
 
 	return cmd
 }

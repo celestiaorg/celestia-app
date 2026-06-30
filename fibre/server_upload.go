@@ -22,9 +22,12 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	ctx, span := s.tracer.Start(ctx, "fibre.Server.UploadShard")
 	defer span.End()
 
-	var uploadSize int64
+	var (
+		uploadSize int64
+		rateWait   time.Duration
+	)
 	uploadShardDone := s.metrics.observeUploadShard(ctx)
-	defer func() { uploadShardDone(uploadSize, err) }()
+	defer func() { uploadShardDone(uploadSize, rateWait, err) }()
 
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
@@ -47,6 +50,23 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		span.SetStatus(codes.Error, "missing shard in upload request")
 		return nil, status.Error(grpccodes.InvalidArgument, err.Error())
 	}
+
+	// Admission control: take an in-flight slot before the expensive
+	// verifyAssignment/verifyShard work and the byte-budget wait, bounding the
+	// shards held in memory by handlers parked on the rate limiter. A full cap
+	// is rejected immediately rather than queued.
+	release := s.uploadLimiter.acquireSlot()
+	if release == nil {
+		s.uploadLimiter.observeRejected(ctx, "in_flight")
+		log.WarnContext(ctx, "upload rejected: in-flight capacity exceeded",
+			"promise_hash", hex.EncodeToString(promiseHash),
+			"upload_size", uploadSize,
+			"max_in_flight", s.Config.MaxUploadShardInFlight,
+		)
+		span.SetStatus(codes.Error, "upload in-flight capacity exceeded")
+		return nil, status.Error(grpccodes.ResourceExhausted, "upload in-flight capacity exceeded")
+	}
+	defer release()
 
 	span.AddEvent("promise_verified", trace.WithAttributes(
 		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
@@ -76,6 +96,30 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		attribute.Int("row_size", len(req.Shard.Rows[0].Data)), // this must be valid, as we just verified the rows, so no panics
 		attribute.Int("rows_count", len(req.Shard.Rows)),
 	))
+
+	// Charge the byte budget only now that the promise and shard are fully
+	// verified, so invalid uploads never consume throughput. Waits up to the
+	// configured max (and the request context) before rejecting. The wait is
+	// excluded from the RPC duration metric via rateWait.
+	rateWait, err = s.uploadLimiter.acquireBytes(ctx, int(uploadSize))
+	if err != nil {
+		if status.Code(err) == grpccodes.ResourceExhausted {
+			s.uploadLimiter.observeRejected(ctx, "byte_budget")
+			log.WarnContext(ctx, "upload rejected: rate limit exceeded",
+				"promise_hash", hex.EncodeToString(promiseHash),
+				"upload_size", uploadSize,
+				"error", err,
+			)
+			span.SetStatus(codes.Error, "upload rate limit exceeded")
+			return nil, err
+		}
+		// Context ended first (Canceled / DeadlineExceeded): surface it as a
+		// proper gRPC status rather than the raw error.
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "upload admission context ended")
+		return nil, status.FromContextError(err).Err()
+	}
+	span.AddEvent("rate_admitted")
 
 	// store payment promise and shard with RLC roots
 	storePutStart := time.Now()
