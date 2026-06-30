@@ -180,7 +180,7 @@ func TestStartCmdGRPCSignerFlags(t *testing.T) {
 	}{
 		{
 			name:            "default: gRPC signer flag is set",
-			wantGRPCAddress: "127.0.0.1:26659",
+			wantGRPCAddress: "127.0.0.1:26669",
 		},
 		{
 			name:            "flag overrides default",

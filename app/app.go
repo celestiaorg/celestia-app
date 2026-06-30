@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"io"
-	"maps"
 	"math"
 	"os"
 	"sync"
@@ -41,6 +40,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v10/x/forwarding"
 	forwardingkeeper "github.com/celestiaorg/celestia-app/v10/x/forwarding/keeper"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
@@ -52,6 +54,9 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v10/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr"
+	valaddrkeeper "github.com/celestiaorg/celestia-app/v10/x/valaddr/keeper"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism"
 	zkismkeeper "github.com/celestiaorg/celestia-app/v10/x/zkism/keeper"
 	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
@@ -135,23 +140,20 @@ import (
 
 // maccPerms is short for module account permissions. It is a map from module
 // account name to a list of permissions for that module account.
-var maccPerms = func() map[string][]string {
-	perms := map[string][]string{
-		authtypes.FeeCollectorName:     nil,
-		distrtypes.ModuleName:          nil,
-		govtypes.ModuleName:            {authtypes.Burner},
-		minttypes.ModuleName:           {authtypes.Minter},
-		stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
-		stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
-		ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
-		icatypes.ModuleName:            nil,
-		hyperlanetypes.ModuleName:      nil,
-		warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
-		forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
-	}
-	maps.Copy(perms, fibreMaccPerms())
-	return perms
-}()
+var maccPerms = map[string][]string{
+	authtypes.FeeCollectorName:     nil,
+	distrtypes.ModuleName:          nil,
+	govtypes.ModuleName:            {authtypes.Burner},
+	minttypes.ModuleName:           {authtypes.Minter},
+	stakingtypes.BondedPoolName:    {authtypes.Burner, authtypes.Staking},
+	stakingtypes.NotBondedPoolName: {authtypes.Burner, authtypes.Staking},
+	ibctransfertypes.ModuleName:    {authtypes.Minter, authtypes.Burner},
+	icatypes.ModuleName:            nil,
+	hyperlanetypes.ModuleName:      nil,
+	warptypes.ModuleName:           {authtypes.Minter, authtypes.Burner},
+	forwardingtypes.ModuleName:     nil, // No special permissions needed - only holds tokens temporarily
+	fibretypes.ModuleName:          nil,
+}
 
 var (
 	_ servertypes.Application = (*App)(nil)
@@ -198,7 +200,8 @@ type App struct {
 	WarpKeeper          warpkeeper.Keeper
 	IsmKeeper           *zkismkeeper.Keeper
 	ForwardingKeeper    forwardingkeeper.Keeper
-	fibreKeepers        //nolint:unused // FibreKeeper and ValAddrKeeper (conditional on fibre build tag)
+	FibreKeeper         *fibrekeeper.Keeper
+	ValAddrKeeper       valaddrkeeper.Keeper
 
 	ScopedIBCKeeper      capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
 	ScopedTransferKeeper capabilitykeeper.ScopedKeeper // This keeper is public for test purposes
@@ -441,7 +444,20 @@ func New(
 		&app.HyperlaneKeeper,
 	)
 
-	app.initFibreKeepers(encodingConfig, keys, logger, govModuleAddr)
+	app.ValAddrKeeper = valaddrkeeper.NewKeeper(
+		encodingConfig.Codec,
+		runtime.NewKVStoreService(keys[valaddrtypes.StoreKey]),
+		logger,
+		app.StakingKeeper,
+	)
+
+	app.FibreKeeper = fibrekeeper.NewKeeper(
+		encodingConfig.Codec,
+		keys[fibretypes.StoreKey],
+		app.BankKeeper,
+		app.StakingKeeper,
+		govModuleAddr,
+	)
 
 	/****  Module Options ****/
 
@@ -478,10 +494,9 @@ func New(
 		warp.NewAppModule(encodingConfig.Codec, app.WarpKeeper),
 		zkism.NewAppModule(encodingConfig.Codec, app.IsmKeeper),
 		forwarding.NewAppModule(encodingConfig.Codec, app.ForwardingKeeper),
+		valaddr.NewAppModule(encodingConfig.Codec, app.ValAddrKeeper),
+		fibre.NewAppModule(encodingConfig.Codec, *app.FibreKeeper),
 	)
-	for _, m := range app.fibreAppModules(encodingConfig) {
-		app.ModuleManager.Modules[m.Name()] = m
-	}
 
 	// BasicModuleManager defines the module BasicManager is in charge of setting up basic,
 	// non-dependant module elements, such as genesis verification.

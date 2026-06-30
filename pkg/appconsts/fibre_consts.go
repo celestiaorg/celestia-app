@@ -1,4 +1,4 @@
-//go:build fibre && !benchmarks
+//go:build !benchmarks
 
 package appconsts
 

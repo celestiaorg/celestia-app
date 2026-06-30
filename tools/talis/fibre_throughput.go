@@ -104,12 +104,6 @@ func fibreThroughputCmd() *cobra.Command {
 			fmt.Printf("Fetch concurrency: %d\n", concurrency)
 
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			// The fibre module is gated behind the "fibre" build tag, so its
-			// interfaces are absent from ModuleEncodingRegisters in tag-less
-			// builds (which is how talis is normally installed). Register them
-			// explicitly so MsgPayForFibre txs decode regardless of build tag;
-			// otherwise they fail to decode and are silently counted as zero.
-			fibretypes.RegisterInterfaces(encCfg.InterfaceRegistry)
 			txDecoder := encCfg.TxConfig.TxDecoder()
 
 			ctx, cancel := context.WithCancel(context.Background())
