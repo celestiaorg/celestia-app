@@ -5,9 +5,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"

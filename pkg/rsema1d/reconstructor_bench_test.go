@@ -4,7 +4,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 )
 
 // BenchmarkReconstructorFibreMaxReconstruct models the download flow at the

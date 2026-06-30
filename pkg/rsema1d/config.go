@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
 )
 
 // Config holds all configurable parameters for the codec.

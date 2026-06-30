@@ -3,7 +3,7 @@ package rlc
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 )
 
 // Encode serializes values into dst as contiguous field.GF128Size-byte

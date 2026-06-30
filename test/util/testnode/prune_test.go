@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/stretchr/testify/require"
 )

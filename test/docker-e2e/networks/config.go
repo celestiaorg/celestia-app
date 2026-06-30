@@ -3,7 +3,7 @@ package networks
 import (
 	"os"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 )
 
 // Config holds the configuration for connecting to an existing live chain

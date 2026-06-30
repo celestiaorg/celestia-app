@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
