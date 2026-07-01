@@ -35,7 +35,7 @@ Override config values with flags (flags take precedence over config file):
 fibre start \
   --app-grpc-address 127.0.0.1:9090 \
   --server-listen-address 0.0.0.0:7980 \
-  --signer-grpc-address 127.0.0.1:26659
+  --signer-grpc-address 127.0.0.1:26669
 ```
 
 ### Version
@@ -70,18 +70,18 @@ Fibre signs payment promises by connecting to the consensus node's PrivValidator
 
 ### How it works
 
-1. Fibre connects to the node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26659`)
+1. Fibre connects to the node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26669`)
 2. Fibre fetches the validator's public key via `GetPubKey` RPC to identify itself in the validator set
 3. Payment promises are signed via `SignRawBytes` RPC calls for the server's lifetime
 
 ### Setup
 
-The privval gRPC endpoint is enabled by default when running `celestia-appd init` on `127.0.0.1:26659`.
+The privval gRPC endpoint is enabled by default when running `celestia-appd init` on `127.0.0.1:26669`.
 
 To verify or override, check `config.toml`:
 
 ```toml
-priv_validator_grpc_laddr = "127.0.0.1:26659"
+priv_validator_grpc_laddr = "127.0.0.1:26669"
 ```
 
 ## Transport security (TLS)

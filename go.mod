@@ -1,4 +1,4 @@
-module github.com/celestiaorg/celestia-app/v9
+module github.com/celestiaorg/celestia-app/v10
 
 go 1.26.1
 
@@ -53,10 +53,10 @@ require (
 	github.com/grafana/otel-profiling-go v0.6.0
 	github.com/grafana/pyroscope-go v1.3.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
-	github.com/hashicorp/go-metrics v0.5.4
+	github.com/hashicorp/go-metrics v0.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/klauspost/reedsolomon v1.14.1
-	github.com/pelletier/go-toml/v2 v2.4.0
+	github.com/pelletier/go-toml/v2 v2.4.2
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cast v1.10.0

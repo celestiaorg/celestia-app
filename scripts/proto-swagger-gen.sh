@@ -46,7 +46,7 @@ jq -s 'reduce .[] as $item (
     "info": {
       "title": "Celestia App - REST API",
       "description": "Auto-generated OpenAPI spec for celestia-app gRPC-gateway endpoints.",
-      "version": "v9"
+      "version": "v10"
     },
     "consumes": ["application/json"],
     "produces": ["application/json"],

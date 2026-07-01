@@ -165,6 +165,10 @@ jobs:
       - name: Run tests in race mode
         run: make test-race
 
+  # WARNING: Required job — a defense line against codec / wire-format bugs,
+  # including the fibre scatter codec. The fuzz targets live in
+  # scripts/test_fuzz.sh. Do NOT remove or disable this job; doing so re-opens
+  # https://github.com/celestiaorg/celestia-app/issues/7392.
   test-fuzz:
     runs-on: ubuntu-latest
     steps:

@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/internal/sign"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	toml "github.com/pelletier/go-toml/v2"
@@ -90,7 +90,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
 		AppGRPCAddress:      "127.0.0.1:9090",
 		ServerListenAddress: "0.0.0.0:7980",
-		SignerGRPCAddress:   "127.0.0.1:26659",
+		SignerGRPCAddress:   "127.0.0.1:26669",
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),

@@ -29,7 +29,7 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/klauspost/reedsolomon"
 )
 

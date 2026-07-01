@@ -3,9 +3,9 @@ package app_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/test/util"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/stretchr/testify/require"
 )
 

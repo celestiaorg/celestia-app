@@ -11,3 +11,4 @@ The parameters in the application depend on the app version:
 - [Parameters v7](./parameters_v7.md)
 - [Parameters v8](./parameters_v8.md)
 - [Parameters v9](./parameters_v9.md)
+- [Parameters v10](./parameters_v10.md)

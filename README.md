@@ -236,17 +236,8 @@ make build
 # Build and install the celestia-appd binary into the $GOPATH/bin directory.
 make install
 
-# Build celestia-appd with the fibre module enabled.
-make build-fibre
-
-# Install celestia-appd with the fibre module enabled.
-make install-fibre
-
 # Run tests.
 make test
-
-# Run fibre-tagged tests.
-make test-fibre-module
 
 # Format code with linters (this assumes golangci-lint and markdownlint are installed).
 make lint-fix
@@ -265,7 +256,8 @@ The source of truth for dependencies is the `go.mod` file but the table below de
 
 | celestia-app | celestia-core      | cosmos-sdk                 |
 |--------------|--------------------|----------------------------|
-| `main`       | `main`             | `release/v0.52.x-celestia` |
+| `main`       | `v0.40.x`          | `release/v0.52.x-celestia` |
+| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia` |
 | `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
 | `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |

@@ -114,7 +114,7 @@ Defaults:
 ```text
 app_grpc_address = "127.0.0.1:9090"
 server_listen_address = "0.0.0.0:7980"
-signer_grpc_address = "127.0.0.1:26659"
+signer_grpc_address = "127.0.0.1:26669"
 upload_verify_workers = runtime.GOMAXPROCS(0)
 ```
 

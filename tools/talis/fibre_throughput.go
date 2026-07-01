@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
-	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
@@ -104,12 +104,6 @@ func fibreThroughputCmd() *cobra.Command {
 			fmt.Printf("Fetch concurrency: %d\n", concurrency)
 
 			encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-			// The fibre module is gated behind the "fibre" build tag, so its
-			// interfaces are absent from ModuleEncodingRegisters in tag-less
-			// builds (which is how talis is normally installed). Register them
-			// explicitly so MsgPayForFibre txs decode regardless of build tag;
-			// otherwise they fail to decode and are silently counted as zero.
-			fibretypes.RegisterInterfaces(encCfg.InterfaceRegistry)
 			txDecoder := encCfg.TxConfig.TxDecoder()
 
 			ctx, cancel := context.WithCancel(context.Background())

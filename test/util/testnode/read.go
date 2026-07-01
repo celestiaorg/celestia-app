@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	"github.com/cometbft/cometbft/types"

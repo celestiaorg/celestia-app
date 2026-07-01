@@ -1,5 +1,3 @@
-//go:build fibre
-
 package app_test
 
 import (
@@ -7,13 +5,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v9/x/fibre/keeper"
-	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"

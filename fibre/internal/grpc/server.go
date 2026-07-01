@@ -7,7 +7,7 @@ import (
 	"net"
 	"runtime/debug"
 
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

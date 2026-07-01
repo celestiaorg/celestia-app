@@ -8,9 +8,9 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math/unsafe"
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -275,7 +275,7 @@ func (g *Genesis) ExportBytes() ([]byte, error) {
 			g.accounts,
 			g.GenesisTime,
 		)
-	case 4, 5, 6, 7, 8, 9:
+	case 4, 5, 6, 7, 8, 9, 10:
 		tempApp := app.New(log.NewNopLogger(), dbm.NewMemDB(), nil, 0, 0, simtestutil.EmptyAppOptions{})
 		return DocumentBytes(
 			tempApp.DefaultGenesis(),

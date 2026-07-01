@@ -7,8 +7,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	rpctypes "github.com/cometbft/cometbft/rpc/core/types"
 	"github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

@@ -59,7 +59,7 @@ talis start-fibre
 | `--instances`       | `0` (all)           | Number of validators to start fibre on                        |
 | `--otel-endpoint`   | *(auto)*            | OTLP HTTP endpoint for metrics/traces (auto-enabled with observability) |
 
-The fibre server delegates signing to the colocated validator node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26659`). Override with `--signer-grpc-address` if needed. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
+The fibre server delegates signing to the colocated validator node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26669`). Override with `--signer-grpc-address` if needed. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
 
 Each validator runs the fibre server inside a tmux session called `fibre`. To stop:
 
@@ -119,7 +119,7 @@ talis deploy --workers 20
 
 `talis genesis` stages a `reader-payload/` directory (fibre-reader binary + a fibre keyring borrowed from validator-0). `talis deploy` ships it to each reader and runs `reader_init.sh`, which installs `/bin/fibre-reader` and `/root/.celestia-app/keyring-test/`. Mirrors the encoder pattern.
 
-The fibre-reader binary must be built with `-tags=ledger,fibre` so its codec can decode `MsgPayForFibre`. `make build-talis-bins-fibre` does this automatically.
+`make build-talis-bins` builds the fibre-reader binary along with the other talis binaries. Its codec can decode `MsgPayForFibre` because the fibre module is compiled into every build by default.
 
 `fibre-txsim` needs to be running with `--upload-only=false` so PFF transactions actually land on chain — otherwise readers see nothing to download.
 

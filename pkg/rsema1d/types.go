@@ -3,8 +3,8 @@ package rsema1d
 import (
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 )
 
 // Commitment is the cryptographic commitment to encoded data.

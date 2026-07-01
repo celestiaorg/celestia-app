@@ -28,18 +28,19 @@ jobs:
           # sentinel value to run all other tests.
           - package: "unit"
           # split the heaviest ones
-          - package: "github.com/celestiaorg/celestia-app/v9/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
             pattern: "TestIntegration.*"
-          - package: "github.com/celestiaorg/celestia-app/v9/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
             pattern: "TestBigBlob.*|TestStandardSDK.*"
-          - package: "github.com/celestiaorg/celestia-app/v9/app/test"
+          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
             pattern: "TestSquareSize.*|TestPriority.*"
-          - package: "github.com/celestiaorg/celestia-app/v9/test/txsim"
-          - package: "github.com/celestiaorg/celestia-app/v9/pkg/user"
-          - package: "github.com/celestiaorg/celestia-app/v9/test/ledger"
-          - package: "github.com/celestiaorg/celestia-app/v9/fibre/..."
-            tags: "fibre"
-          - package: "github.com/celestiaorg/celestia-app/v9/tools/chainbuilder"
+          - package: "github.com/celestiaorg/celestia-app/v10/app/test"
+            pattern: "TestProcessProposalCappingPayForFibreMessages|TestProcessProposalWithPayForFibre|TestFibreSettlementRoutesToFeeCollector"
+          - package: "github.com/celestiaorg/celestia-app/v10/test/txsim"
+          - package: "github.com/celestiaorg/celestia-app/v10/pkg/user"
+          - package: "github.com/celestiaorg/celestia-app/v10/test/ledger"
+          - package: "github.com/celestiaorg/celestia-app/v10/fibre/..."
+          - package: "github.com/celestiaorg/celestia-app/v10/tools/chainbuilder"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
@@ -51,7 +52,7 @@ jobs:
         run: |
           if [ "${{ matrix.package }}" = "unit" ]; then
             # run all packages except the heavy ones
-            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v9/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
+            make test PACKAGES="$(go list ./... | grep -v 'app/test$' | grep -v 'test/txsim$' | grep -v 'pkg/user$' | grep -v 'test/ledger$' | grep -v 'celestia-app/v10/fibre' | grep -v 'tools/chainbuilder$' | tr '\n' ' ')"
           elif [ -n "${{ matrix.pattern }}" ]; then
             # run specific test patterns
             go test -timeout 30m -run "${{ matrix.pattern }}" ${{ matrix.package }}
@@ -63,31 +64,15 @@ jobs:
             make test PACKAGES="${{ matrix.package }}"
           fi
 
-  test-fibre:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
-
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
-        with:
-          go-version-file: "go.mod"
-
-      - name: Run fibre-tagged tests
-        run: make test-fibre-module
-
   test:
     runs-on: ubuntu-latest
-    needs: [go-test, test-fibre]
+    needs: [go-test]
     if: always()
     steps:
       - name: Check test results
         run: |
           if [ "${{ needs.go-test.result }}" != "success" ]; then
             echo "One or more go-test jobs failed"
-            exit 1
-          fi
-          if [ "${{ needs.test-fibre.result }}" != "success" ]; then
-            echo "Fibre module test job failed"
             exit 1
           fi
           echo "All tests passed"
@@ -142,6 +127,9 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
+      # Don't cancel the other e2e tests when one fails; each test is
+      # independent and we want signal from all of them.
+      fail-fast: false
       matrix:
         include:
           - testcase: TestE2ESimple

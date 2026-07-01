@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/filecoin-project/go-clock"

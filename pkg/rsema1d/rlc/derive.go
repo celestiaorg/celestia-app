@@ -5,8 +5,8 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
 )
 
 // DeriveCoefficients generates Fiat-Shamir RLC coefficients bound to
