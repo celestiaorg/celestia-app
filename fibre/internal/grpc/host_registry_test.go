@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -245,86 +244,60 @@ func TestPullAll(t *testing.T) {
 	}
 }
 
-func TestPullHost(t *testing.T) {
-	val := createTestValidator(nil)
-	expectedHost := "validator1.example.com:9090"
-
-	tests := []struct {
-		name    string
-		mock    *mockQueryClient
-		want    string
-		wantErr string
-	}{
-		{
-			name: "success",
-			mock: &mockQueryClient{
-				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-					return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: expectedHost}, Found: true}, nil
-				},
-			},
-			want: expectedHost,
-		},
-		{
-			name: "not found",
-			mock: &mockQueryClient{
-				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-					return &types.QueryFibreProviderInfoResponse{Found: false}, nil
-				},
-			},
-			wantErr: "host not found",
-		},
-		{
-			name: "error",
-			mock: &mockQueryClient{
-				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-					return nil, errors.New("grpc error")
-				},
-			},
-			wantErr: "grpc error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			host, err := grpc.NewHostRegistry(tt.mock, slog.Default()).PullHost(context.Background(), val)
-			if tt.wantErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want, host.String())
-			}
-		})
-	}
-}
-
-func TestPullHost_OverwritesCache(t *testing.T) {
+// TestGetHost_RequeriesAfterInterval verifies GetHost serves the warmed host
+// within the rate-limit window and re-queries for the freshest host once the
+// window elapses.
+func TestGetHost_RequeriesAfterInterval(t *testing.T) {
 	val := createTestValidator(nil)
 	consAddr := getConsAddrString(val)
-	firstHost := "validator1.example.com:9090"
-	secondHost := "validator1.example.com:9091"
+	const (
+		firstHost  = "validator1.example.com:9090"
+		secondHost = "validator1.example.com:9091"
+	)
 
-	registry := grpc.NewHostRegistry(&mockQueryClient{
+	infoCalls := 0
+	mock := &mockQueryClient{
 		allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
 			return &types.QueryAllBondedFibreProvidersResponse{
 				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: firstHost}}},
 			}, nil
 		},
 		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			infoCalls++
 			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: secondHost}, Found: true}, nil
 		},
-	}, slog.Default())
-	err := registry.Start(t.Context())
+	}
+
+	mockClock := clock.NewMock()
+	const interval = time.Minute
+	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(mockClock), grpc.WithRefreshInterval(interval))
+	require.NoError(t, registry.Start(t.Context())) // warms firstHost via PullAll
+
+	// Within the window: served from the warmed host, no per-validator query.
+	host, err := registry.GetHost(t.Context(), val)
 	require.NoError(t, err)
-
-	host, _ := registry.GetHost(context.Background(), val)
 	assert.Equal(t, firstHost, host.String())
+	assert.Equal(t, 0, infoCalls, "a warm host must be served without a query")
 
-	host, _ = registry.PullHost(context.Background(), val)
-	assert.Equal(t, secondHost, host.String())
+	// Still within the window after a small advance: still served warm.
+	mockClock.Add(interval / 2)
+	host, err = registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
+	assert.Equal(t, firstHost, host.String())
+	assert.Equal(t, 0, infoCalls)
 
-	host, _ = registry.GetHost(context.Background(), val)
+	// Past the window: re-queries and returns the freshest host.
+	mockClock.Add(interval)
+	host, err = registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
 	assert.Equal(t, secondHost, host.String())
+	assert.Equal(t, 1, infoCalls, "an elapsed window must trigger exactly one re-query")
+
+	// The re-queried host is now cached and served within the new window.
+	host, err = registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
+	assert.Equal(t, secondHost, host.String())
+	assert.Equal(t, 1, infoCalls)
 }
 
 func TestHostRegistry_ConcurrentAccess(t *testing.T) {
@@ -362,75 +335,45 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 	assert.LessOrEqual(t, callCount, 5)
 }
 
-func TestRefreshHost(t *testing.T) {
+// TestGetHost_ServesLastKnownOnQueryError verifies that once the window elapses,
+// a transient query failure falls back to the last known host rather than
+// failing the caller.
+func TestGetHost_ServesLastKnownOnQueryError(t *testing.T) {
 	val := createTestValidator(nil)
 	consAddr := getConsAddrString(val)
-	const (
-		initialHost = "validator1.example.com:9090"
-		changedHost = "validator1.example.com:9091"
-		invalidHost = "invalid-host-without-port"
-	)
+	const warmHost = "validator1.example.com:9090"
 
-	// All RefreshHost calls below are sequential, so plain variables suffice.
-	curHost := initialHost
-	infoCalls := 0
+	fail := false
 	mock := &mockQueryClient{
 		allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
 			return &types.QueryAllBondedFibreProvidersResponse{
-				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: initialHost}}},
+				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: warmHost}}},
 			}, nil
 		},
 		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-			infoCalls++
-			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: curHost}, Found: true}, nil
+			if fail {
+				return nil, errors.New("boom")
+			}
+			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: warmHost}, Found: true}, nil
 		},
 	}
 
 	mockClock := clock.NewMock()
 	const interval = time.Minute
 	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(mockClock), grpc.WithRefreshInterval(interval))
-	require.NoError(t, registry.Start(t.Context())) // seeds initialHost via PullAll
+	require.NoError(t, registry.Start(t.Context())) // warms warmHost via PullAll
 
-	// 1) host unchanged -> (false, valid).
-	changed, valid, err := registry.RefreshHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.False(t, changed)
-	assert.True(t, valid)
-
-	// 2) host changed on chain, but within the interval -> rate-limited, no query.
-	curHost = changedHost
-	before := infoCalls
-	changed, _, err = registry.RefreshHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.False(t, changed)
-	assert.Equal(t, before, infoCalls, "rate-limited refresh must not query")
-
-	// 3) advance past the interval -> detects the valid change and updates cache.
-	mockClock.Add(interval)
-	changed, valid, err = registry.RefreshHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.True(t, changed)
-	assert.True(t, valid)
+	// Force a re-query past the window, but make the query fail.
+	mockClock.Add(interval * 2)
+	fail = true
 	host, err := registry.GetHost(t.Context(), val)
 	require.NoError(t, err)
-	assert.Equal(t, changedHost, host.String())
-
-	// 4) host changed to an invalid value -> (changed, !valid); cache still updated.
-	mockClock.Add(interval)
-	curHost = invalidHost
-	changed, valid, err = registry.RefreshHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.True(t, changed)
-	assert.False(t, valid)
-
-	// 5) same invalid host on a later block -> signal goes quiet (no re-fire).
-	mockClock.Add(interval)
-	changed, _, err = registry.RefreshHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.False(t, changed, "an unchanged (still invalid) host must not re-fire changed")
+	assert.Equal(t, warmHost, host.String(), "a transient query failure should serve the last known host")
 }
 
-func TestRefreshHost_QueryError(t *testing.T) {
+// TestGetHost_QueryError verifies that a query failure with no previously known
+// host surfaces the error.
+func TestGetHost_QueryError(t *testing.T) {
 	val := createTestValidator(nil)
 
 	var infoCall int
@@ -440,28 +383,17 @@ func TestRefreshHost_QueryError(t *testing.T) {
 			return nil, errors.New("boom")
 		},
 	}
+	registry := grpc.NewHostRegistry(mock, slog.Default())
 
-	mockClock := clock.NewMock()
-	const interval = time.Minute
-	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(mockClock), grpc.WithRefreshInterval(interval))
-
-	changed, valid, err := registry.RefreshHost(t.Context(), val)
+	_, err := registry.GetHost(t.Context(), val)
 	require.Error(t, err)
-	assert.False(t, changed)
-	assert.False(t, valid)
+	assert.Contains(t, err.Error(), "boom")
 	assert.Equal(t, 1, infoCall)
-
-	// The rate-limit timestamp is stamped even on a failed query: a second call
-	// within the interval is suppressed.
-	_, _, err = registry.RefreshHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.Equal(t, 1, infoCall, "failed query must still count against the per-block budget")
 }
 
-// TestRefreshHost_QueryTimeout verifies the on-chain query is bounded by the
-// configured timeout, so a hanging state node can't stall the request that
-// triggered the refresh.
-func TestRefreshHost_QueryTimeout(t *testing.T) {
+// TestGetHost_QueryTimeout verifies the on-chain query is bounded by the
+// configured timeout, so a hanging state node can't stall the caller.
+func TestGetHost_QueryTimeout(t *testing.T) {
 	val := createTestValidator(nil)
 
 	mock := &mockQueryClient{
@@ -474,57 +406,20 @@ func TestRefreshHost_QueryTimeout(t *testing.T) {
 	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithQueryTimeout(50*time.Millisecond))
 
 	done := make(chan struct{})
-	var (
-		changed, valid bool
-		err            error
-	)
+	var err error
 	go func() {
-		changed, valid, err = registry.RefreshHost(context.Background(), val)
+		_, err = registry.GetHost(context.Background(), val)
 		close(done)
 	}()
 
 	select {
 	case <-done:
 	case <-time.After(5 * time.Second):
-		t.Fatal("RefreshHost did not return; query timeout was not enforced")
+		t.Fatal("GetHost did not return; query timeout was not enforced")
 	}
 
 	require.Error(t, err)
 	assert.ErrorIs(t, err, context.DeadlineExceeded)
-	assert.False(t, changed)
-	assert.False(t, valid)
-}
-
-// TestRefreshHost_BoundsConcurrentQueries verifies that under heavy concurrency
-// a validator's host is queried at most once: the rate-limit timestamp is
-// stamped under the lock before the query runs, so only the first caller to win
-// the lock queries and the rest are suppressed.
-func TestRefreshHost_BoundsConcurrentQueries(t *testing.T) {
-	val := createTestValidator(nil)
-	const newHost = "validator1.example.com:9091"
-
-	var infoCalls atomic.Int32
-	mock := &mockQueryClient{
-		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-			infoCalls.Add(1)
-			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: newHost}, Found: true}, nil
-		},
-	}
-	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(clock.NewMock()), grpc.WithRefreshInterval(time.Minute))
-
-	var wg sync.WaitGroup
-	for range 50 {
-		wg.Go(func() {
-			_, _, err := registry.RefreshHost(t.Context(), val)
-			assert.NoError(t, err)
-		})
-	}
-	wg.Wait()
-
-	assert.Equal(t, int32(1), infoCalls.Load(), "concurrent refreshes must issue at most one query")
-	host, err := registry.GetHost(t.Context(), val)
-	require.NoError(t, err)
-	assert.Equal(t, newHost, host.String(), "the refreshed host should be applied to the cache")
 }
 
 func TestGetHost_MultipleValidators(t *testing.T) {

@@ -5,10 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	otelcodes "go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	grpccodes "google.golang.org/grpc/codes"
@@ -19,7 +17,6 @@ import (
 // TODO(@Wondertan): Needs cleanup strategy, e.g. LRU
 type ClientCache struct {
 	newClient NewClientFn
-	hosts     validator.HostRegistry
 	tracer    trace.Tracer
 	mu        sync.Mutex
 	clients   map[string]*clientEntry // keyed by validator address string
@@ -46,13 +43,12 @@ func WithTracer(tracer trace.Tracer) ClientCacheOption {
 	}
 }
 
-// NewClientCache creates a new [ClientCache] with the given [NewClientFn]. The
-// [validator.HostRegistry] is used by [ClientCache.Request] to re-resolve a
-// validator's host when a request fails because the peer is unreachable.
-func NewClientCache(newClient NewClientFn, hosts validator.HostRegistry, expectedSize int, opts ...ClientCacheOption) *ClientCache {
+// NewClientCache creates a new [ClientCache] with the given [NewClientFn].
+// [ClientCache.Request] re-resolves a validator's host through newClient when a
+// request fails because the peer is unreachable.
+func NewClientCache(newClient NewClientFn, expectedSize int, opts ...ClientCacheOption) *ClientCache {
 	cc := &ClientCache{
 		newClient: newClient,
-		hosts:     hosts,
 		tracer:    otel.Tracer("fibre-client"),
 		clients:   make(map[string]*clientEntry, expectedSize),
 	}
@@ -90,10 +86,11 @@ func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Clie
 
 // Request runs fn against val's cached [Client]. If it fails in a way a changed
 // host could explain — a failed dial (e.g. an invalid host) or a transport-level
-// gRPC error (an unreachable or timed-out peer) — it re-queries state once
-// (rate-limited per validator) for the host. When the host changed to a valid
-// new value it evicts the stale client, re-dials, and retries fn exactly once.
-// Application-level errors from a reachable server are returned as-is.
+// gRPC error (an unreachable or timed-out peer) — it evicts the stale client and
+// re-dials once, retrying fn exactly once. The re-dial resolves the host afresh
+// through the [NewClientFn] (rate-limited in the host registry), so a host that
+// changed on chain is picked up here. Application-level errors from a reachable
+// server are returned as-is.
 func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func(Client) error) error {
 	ctx, span := cc.tracer.Start(ctx, "client_cache.request")
 	defer span.End()
@@ -108,37 +105,24 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 	span.RecordError(err)
 	span.AddEvent("initial attempt failed")
 
-	// Don't refresh on a cancelled context: the failure is the caller leaving,
+	// Don't retry on a cancelled context: the failure is the caller leaving,
 	// not a stale host.
 	if ctx.Err() != nil {
 		return err
 	}
-	// client == nil means the dial itself failed.
+	// client == nil means the dial itself failed. Only a failed dial or an
+	// unreachable/timed-out peer can be explained by a stale host; an application
+	// error from a reachable server is returned as-is.
 	if client != nil && !isUnreachable(err) {
-		span.AddEvent("application error; not refreshing host")
+		span.AddEvent("application error; not retrying")
 		return err
 	}
 
-	span.AddEvent("refreshing host")
-	changed, valid, refreshErr := cc.hosts.RefreshHost(ctx, val)
-	span.SetAttributes(
-		attribute.Bool("host.changed", changed),
-		attribute.Bool("host.valid", valid),
-	)
-	if refreshErr != nil {
-		span.RecordError(refreshErr)
-	}
-	if !changed {
-		span.AddEvent("host unchanged; not retrying")
-		return err
-	}
-	// The host changed on chain, so the cached connection points at a stale
-	// address whether or not the new host is valid; drop it either way.
+	// Drop the stale connection and re-dial once. GetClient re-runs the
+	// [NewClientFn], which re-resolves the host, so a host that changed on chain
+	// is picked up on the retry.
+	span.AddEvent("evicting and re-dialing")
 	cc.evict(val)
-	if !valid {
-		span.AddEvent("host changed but invalid; not retrying")
-		return err
-	}
 
 	client, retryErr := cc.GetClient(ctx, val)
 	if retryErr != nil {
@@ -146,7 +130,7 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 		span.SetStatus(otelcodes.Error, "re-dial failed")
 		return retryErr
 	}
-	span.AddEvent("retrying against refreshed host")
+	span.AddEvent("retrying against re-resolved host")
 	if err = fn(client); err != nil {
 		span.RecordError(err)
 		span.SetStatus(otelcodes.Error, "retry failed")
