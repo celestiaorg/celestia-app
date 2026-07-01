@@ -127,6 +127,9 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     strategy:
+      # Don't cancel the other e2e tests when one fails; each test is
+      # independent and we want signal from all of them.
+      fail-fast: false
       matrix:
         include:
           - testcase: TestE2ESimple
