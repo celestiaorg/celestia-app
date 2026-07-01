@@ -7,7 +7,6 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
@@ -327,25 +326,14 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.
 // TODO: this assumes 1 utia per gas which may not be correct.
 func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.Coin {
-	gas := EstimateGasForPayForFibre(blobSize)
-	return sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(gas))
+	return types.PaymentAmount(blobSize)
 }
 
 // EstimateGasForPayForFibre estimates the gas required for a PayForFibre message.
-// The formula is: GasFibre = B + A × n
-// where:
-//
-//	B = 650,000 — fixed cost per blob
-//	A = 45,000 — per-chunk cost
-//	n = ⌈blobSize / 262,144⌉ — number of 256 KiB chunks
-//
-// This formula is standalone and not dependent on GasPerBlobByte or GasPerCelestiaByte.
+// It delegates to [types.EstimateGasForPayForFibre], the shared source of truth for
+// the gas formula (also used by the client-side escrow accounting).
 func EstimateGasForPayForFibre(blobSize uint32) uint64 {
-	if blobSize == 0 {
-		return appconsts.PFBFibreGasFixedCost
-	}
-	chunks := (uint64(blobSize) + uint64(appconsts.PFBFibreChunkSize) - 1) / uint64(appconsts.PFBFibreChunkSize)
-	return appconsts.PFBFibreGasFixedCost + appconsts.PFBFibreGasPerChunk*chunks
+	return types.EstimateGasForPayForFibre(blobSize)
 }
 
 // validateValidatorSignatures validates validator signatures using the existing SignatureSet infrastructure
