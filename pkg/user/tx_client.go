@@ -1029,6 +1029,11 @@ func (client *TxClient) DefaultAddress() sdktypes.AccAddress {
 
 func (client *TxClient) DefaultAccountName() string { return client.defaultAccount }
 
+// GRPCConn returns the client's primary gRPC connection. It is exposed so
+// callers can issue module queries over the same endpoint the client submits
+// transactions to (e.g. the fibre escrow balance query).
+func (client *TxClient) GRPCConn() *grpc.ClientConn { return client.conns[0] }
+
 func (client *TxClient) checkAccountLoaded(ctx context.Context, account string) error {
 	if _, exists := client.signer.accounts[account]; exists {
 		return nil
