@@ -7,6 +7,7 @@ import (
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel"
@@ -60,6 +61,27 @@ type ClientConfig struct {
 	// Clock is the clock for time-related operations.
 	// If nil, [clock.New] will be used.
 	Clock clock.Clock
+
+	// Escrow configures client-side escrow auto-funding so uploads don't fail
+	// when the escrow account runs low.
+	Escrow EscrowConfig
+}
+
+// defaultEscrowConfig derives escrow auto-funding defaults from the protocol
+// params. Watermarks are sized as multiples of the maximum single-blob payment
+// so a burst of in-flight max-size blobs can never overcommit the escrow, and
+// the reservation TTL outlasts the module's payment-promise timeout (the point
+// by which a promise is necessarily settled or dead).
+func defaultEscrowConfig(p ProtocolParams) EscrowConfig {
+	maxBlobPayment := fibretypes.PaymentAmount(uint32(p.MaxBlobSize)).Amount
+	return EscrowConfig{
+		AutoFund:            true,
+		LowWatermark:        maxBlobPayment.MulRaw(2),
+		HighWatermark:       maxBlobPayment.MulRaw(10),
+		RefillCheckInterval: time.Second,
+		ReconcileInterval:   5 * time.Second,
+		ReservationTTL:      fibretypes.DefaultPaymentPromiseTimeout + 10*time.Minute,
+	}
 }
 
 // DefaultClientConfig returns a [ClientConfig] with the default values.
@@ -80,6 +102,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MaxMessageSize:      p.MaxMessageSize(),
 		RPCTimeout:          15 * time.Second,
 		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
+		Escrow:              defaultEscrowConfig(p),
 	}
 }
 
@@ -116,6 +139,40 @@ func (cfg *ClientConfig) Validate() error {
 
 	if cfg.RPCTimeout <= 0 {
 		return fmt.Errorf("RPCTimeout must be > 0 (see [DefaultClientConfig])")
+	}
+
+	if err := cfg.Escrow.Validate(); err != nil {
+		return fmt.Errorf("escrow config: %w", err)
+	}
+	return nil
+}
+
+// Validate fills unset fields with defaults and rejects invalid combinations.
+// Watermarks and intervals are sanitized whether or not AutoFund is set, since
+// the ledger uses them (RefillCheckInterval, ReservationTTL) even when funding
+// is disabled.
+func (e *EscrowConfig) Validate() error {
+	d := defaultEscrowConfig(DefaultProtocolParams)
+	if e.LowWatermark.IsNil() {
+		e.LowWatermark = d.LowWatermark
+	}
+	if e.HighWatermark.IsNil() {
+		e.HighWatermark = d.HighWatermark
+	}
+	if e.RefillCheckInterval <= 0 {
+		e.RefillCheckInterval = d.RefillCheckInterval
+	}
+	if e.ReconcileInterval <= 0 {
+		e.ReconcileInterval = d.ReconcileInterval
+	}
+	if e.ReservationTTL <= 0 {
+		e.ReservationTTL = d.ReservationTTL
+	}
+	if !e.LowWatermark.IsPositive() {
+		return fmt.Errorf("low_watermark must be > 0, got %s", e.LowWatermark)
+	}
+	if e.HighWatermark.LTE(e.LowWatermark) {
+		return fmt.Errorf("high_watermark (%s) must be > low_watermark (%s)", e.HighWatermark, e.LowWatermark)
 	}
 	return nil
 }

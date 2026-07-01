@@ -28,6 +28,57 @@ type PutResult struct {
 	Height uint64
 }
 
+// escrowReservation is a single Put's handle on its escrow admission. The zero
+// value (returned when AutoFund is disabled) makes settle/release no-ops.
+type escrowReservation struct {
+	ledger  *escrowLedger
+	hash    string
+	settled bool
+}
+
+// admitEscrow reserves blob's settlement cost against txClient's escrow before
+// signing/uploading, so concurrent in-flight promises can never collectively
+// overcommit the account (the failure mode neither the server's per-promise
+// check nor a fixed upfront deposit prevents). It blocks — auto-funding as
+// needed — until the budget is available, then kicks off background upkeep off
+// the hot path. Returns the zero reservation when AutoFund is disabled.
+func (c *Client) admitEscrow(ctx context.Context, txClient *user.TxClient, blob *Blob) (escrowReservation, error) {
+	if !c.Config.Escrow.AutoFund {
+		return escrowReservation{}, nil
+	}
+	ledger := c.escrowLedgerFor(txClient)
+	hash := c.newEscrowReservationKey(blob.ID())
+	amount := types.PaymentAmount(uint32(blob.UploadSize())).Amount
+	if err := ledger.ensureSeeded(ctx); err != nil {
+		return escrowReservation{}, fmt.Errorf("seeding escrow ledger: %w", err)
+	}
+	if !ledger.reserve(hash, amount) {
+		if err := ledger.waitForBudget(ctx, hash, amount); err != nil {
+			return escrowReservation{}, fmt.Errorf("waiting for escrow budget: %w", err)
+		}
+	}
+	c.maintainEscrowAsync(ledger)
+	return escrowReservation{ledger: ledger, hash: hash}, nil
+}
+
+// settle marks the reservation paid on-chain (the PFF was confirmed): the escrow
+// was debited, so the reservation shrinks both the reserved total and the
+// tracked balance.
+func (r *escrowReservation) settle() {
+	if r.ledger != nil {
+		r.ledger.releaseSettled(r.hash)
+		r.settled = true
+	}
+}
+
+// release returns the budget for a reservation that was never settled (an error
+// aborted the Put before the PFF landed). Safe to defer unconditionally.
+func (r *escrowReservation) release() {
+	if r.ledger != nil && !r.settled {
+		r.ledger.releaseUnsettled(r.hash)
+	}
+}
+
 // Put uploads given data to the Fibre network.
 // It encodes the data into a [Blob], calls [Client.Upload] to upload it,
 // and submits a MsgPayForFibre transaction using the provided [user.TxClient].
@@ -58,6 +109,17 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		attribute.String("blob_id", blobID.String()),
 		attribute.Int("row_size", blob.RowSize()),
 	))
+
+	// Escrow admission: reserve this promise's settlement cost before signing and
+	// uploading. Released as settled once the PFF is confirmed, or unsettled (via
+	// the deferred release) on any earlier error. No-op when AutoFund is disabled.
+	reservation, err := c.admitEscrow(ctx, txClient, blob)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "escrow admission failed")
+		return result, err
+	}
+	defer reservation.release()
 
 	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(txClient.DefaultAccountName()))
 	if err != nil {
@@ -103,6 +165,9 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	span.AddEvent("pff_confirmed", trace.WithAttributes(
 		attribute.Int64("height", txResp.Height),
 	))
+
+	// The PFF is on-chain: the escrow was debited, so settle the reservation.
+	reservation.settle()
 
 	span.SetStatus(codes.Ok, "")
 	return PutResult{

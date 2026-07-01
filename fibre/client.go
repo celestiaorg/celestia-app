@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"sync"
 	"sync/atomic"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel/trace"
@@ -39,6 +41,16 @@ type Client struct {
 	clock   clock.Clock
 
 	clientCache *fibregrpc.ClientCache
+
+	// escrowLedgers holds one client-side escrow accountant per signer address,
+	// created lazily on first use. It guards local reservation and auto-funding
+	// so uploads don't fail on an underfunded escrow. See [escrowLedger].
+	escrowMu      sync.Mutex
+	escrowLedgers map[string]*escrowLedger
+	// escrowSeq makes each escrow reservation key unique. The blob ID alone is
+	// content-addressed, so two uploads of identical data would otherwise collide
+	// on one (idempotent) reservation while settling two on-chain payments.
+	escrowSeq atomic.Uint64
 
 	// closeWg tracks subroutines spawned by Upload/Download operations.
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
@@ -78,15 +90,57 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		Config:      cfg,
-		keyring:     kr,
-		state:       stateClient,
-		log:         cfg.Log,
-		tracer:      cfg.Tracer,
-		metrics:     metrics,
-		clock:       cfg.Clock,
-		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, stateClient, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
+		Config:        cfg,
+		keyring:       kr,
+		state:         stateClient,
+		log:           cfg.Log,
+		tracer:        cfg.Tracer,
+		metrics:       metrics,
+		clock:         cfg.Clock,
+		clientCache:   fibregrpc.NewClientCache(cfg.NewClientFn, stateClient, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
+		escrowLedgers: make(map[string]*escrowLedger),
 	}, nil
+}
+
+// escrowLedgerFor returns the escrow ledger for the account behind txClient,
+// creating it (and its deposit/query adapters) on first use. The signer is the
+// tx client's default address — the escrow owner that signs PaymentPromises.
+func (c *Client) escrowLedgerFor(txClient *user.TxClient) *escrowLedger {
+	signer := txClient.DefaultAddress().String()
+	c.escrowMu.Lock()
+	defer c.escrowMu.Unlock()
+	if l, ok := c.escrowLedgers[signer]; ok {
+		return l
+	}
+	l := newEscrowLedger(signer, c.Config.Escrow, c.clock,
+		newTxEscrowQuerier(txClient), txDepositor{tx: txClient}, c.log)
+	c.escrowLedgers[signer] = l
+	return l
+}
+
+// newEscrowReservationKey returns a process-unique key identifying one upload's
+// escrow reservation. A [BlobID] is content-addressed (identical data yields an
+// identical BlobID), so it cannot key the reservation on its own: two uploads of
+// the same bytes would share one idempotent reservation while each still settles
+// its own on-chain payment (overcommit). A monotonic sequence guarantees
+// uniqueness; the BlobID prefix carries no semantics beyond making the key
+// legible in logs and traces, and the "#" merely separates the two parts.
+func (c *Client) newEscrowReservationKey(blobID BlobID) string {
+	return blobID.String() + "#" + strconv.FormatUint(c.escrowSeq.Add(1), 10)
+}
+
+// maintainEscrowAsync runs ledger upkeep (refill + reconcile) off the Put hot
+// path, tracked by closeWg so Close waits for in-flight deposits. It is a no-op
+// once the client is closed.
+func (c *Client) maintainEscrowAsync(ledger *escrowLedger) {
+	if c.closed.Load() {
+		return
+	}
+	c.closeWg.Go(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*c.Config.RPCTimeout)
+		defer cancel()
+		ledger.maintain(ctx)
+	})
 }
 
 // ChainID returns the chain ID resolved during [Start].
