@@ -432,6 +432,14 @@ Escrow state and transactions are available through the app's `x/fibre` query an
 
 Callers that need deposits, withdrawals, escrow queries, or PFF transaction submission use the normal app gRPC query clients and transaction clients.
 
+### Escrow ledger accounting safety
+
+When escrow auto-funding is enabled, the per-signer ledger admits uploads against a locally tracked balance (`chainBal`) minus the sum of in-flight, signed-but-unsettled reservations. `chainBal` is updated from two sources: additively when a background deposit (`Msg.DepositToEscrow`) confirms, and by overwrite when `reconcile` re-reads the on-chain balance as ground truth.
+
+These two sources can race: if a `reconcile` reads the post-deposit balance while a deposit is still in flight and the deposit is then also added on top, `chainBal` double-counts it — overstating available budget and risking an escrow overcommit, the one invariant the ledger must never break. To prevent this, `reconcile` bumps a generation counter whenever it overwrites `chainBal`, and a completing deposit applies its additive delta only if that counter is unchanged since the deposit was snapshotted. If a reconcile intervened, the additive is skipped and the ledger relies on the reconciled ground truth.
+
+The accounting is deliberately one-sided: skipping the additive can briefly *understate* the balance (which only refuses budget, never overcommits), and the next reconcile restores ground truth. It never overstates.
+
 ## 12) Errors
 
 Important client-side errors include:
