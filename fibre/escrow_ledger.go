@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"cosmossdk.io/math"
@@ -72,8 +73,11 @@ type reservation struct {
 // so concurrent promises can never collectively overcommit the escrow.
 //
 // One ledger instance owns one signer and is shared by all goroutines that
-// upload for it. All state is guarded by mu; refills are single-flighted by
-// refillMu, seeding by seedMu, and background maintenance by maintainMu.
+// upload for it. All mutable accounting is guarded by mu, held only for short,
+// non-blocking critical sections (never across a chain round-trip). The two
+// network operations are kept off mu: a deposit is single-flighted by the
+// refilling flag, and the one-time seeding reconcile is serialized by seedMu so
+// late callers wait for it to finish rather than racing an unseeded balance.
 type escrowLedger struct {
 	signer    string
 	cfg       EscrowConfig
@@ -87,13 +91,12 @@ type escrowLedger struct {
 	reserved      math.Int               // Σ amounts of in-flight promises
 	inflight      map[string]reservation // keyed by unique per-upload reservation id
 	ttl           time.Duration          // effective reservation TTL (>= chain PaymentPromiseTimeout)
-	seeded        bool                   // chainBal initialized from chain
 	lastReconcile time.Time              // last successful reconcile
 	reconcileGen  uint64                 // bumped every time reconcile overwrites chainBal from chain
 
-	refillMu   sync.Mutex // serializes deposits so concurrent callers don't double-fund
-	seedMu     sync.Mutex // serializes the initial seeding reconcile
-	maintainMu sync.Mutex // single-flights background maintenance
+	seeded    atomic.Bool // chainBal initialized from chain; lock-free double-check in ensureSeeded
+	refilling atomic.Bool // single-flights DepositToEscrow so concurrent callers don't double-fund
+	seedMu    sync.Mutex  // blocks late callers until the one-time seeding reconcile completes
 }
 
 // newEscrowLedger builds a ledger for signer. chainBal starts at zero and is
@@ -150,40 +153,37 @@ func (l *escrowLedger) reserve(hash string, amount math.Int) bool {
 	return true
 }
 
+// release drops the reservation for hash (no-op if unknown), always shrinking
+// reserved. When debitChain is set the amount is also subtracted from chainBal,
+// reflecting funds that have left the escrow. See releaseSettled/releaseUnsettled.
+func (l *escrowLedger) release(hash string, debitChain bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	r, ok := l.inflight[hash]
+	if !ok {
+		return
+	}
+	l.reserved = l.reserved.Sub(r.amount)
+	if debitChain {
+		l.chainBal = l.chainBal.Sub(r.amount)
+	}
+	delete(l.inflight, hash)
+}
+
 // releaseSettled drops the reservation for a promise that was paid on-chain. The
 // funds have left the escrow, so both reserved and chainBal shrink by the
-// amount, leaving available unchanged (the budget was already committed). No-op
-// if hash is unknown.
+// amount, leaving available unchanged (the budget was already committed).
 //
 // If a reconcile happened to read the post-settlement balance before this call,
 // chainBal is briefly understated (debited twice); this is conservative — it can
 // only refuse budget, never overcommit — and the next reconcile restores ground
 // truth.
-func (l *escrowLedger) releaseSettled(hash string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	r, ok := l.inflight[hash]
-	if !ok {
-		return
-	}
-	l.reserved = l.reserved.Sub(r.amount)
-	l.chainBal = l.chainBal.Sub(r.amount)
-	delete(l.inflight, hash)
-}
+func (l *escrowLedger) releaseSettled(hash string) { l.release(hash, true) }
 
 // releaseUnsettled drops the reservation for a promise that was aborted before
 // settlement (upload/broadcast failed) and whose funds were never debited. Only
-// reserved shrinks, returning the budget to available. No-op if hash is unknown.
-func (l *escrowLedger) releaseUnsettled(hash string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	r, ok := l.inflight[hash]
-	if !ok {
-		return
-	}
-	l.reserved = l.reserved.Sub(r.amount)
-	delete(l.inflight, hash)
-}
+// reserved shrinks, returning the budget to available.
+func (l *escrowLedger) releaseUnsettled(hash string) { l.release(hash, false) }
 
 // reconcile re-reads the escrow balance from chain (ground truth, reflecting all
 // settlements and withdrawals) and drops reservations older than ReservationTTL,
@@ -213,16 +213,16 @@ func (l *escrowLedger) reconcile(ctx context.Context) error {
 
 // maybeRefill deposits up to HighWatermark when available has fallen below
 // LowWatermark. It is a no-op when AutoFund is off, when already above the low
-// watermark, or when another refill is in flight (single-flighted via refillMu),
-// so concurrent callers never stack deposits.
+// watermark, or when another refill is in flight (single-flighted via the
+// refilling flag), so concurrent callers never stack deposits.
 func (l *escrowLedger) maybeRefill(ctx context.Context) error {
 	if !l.cfg.AutoFund {
 		return nil
 	}
-	if !l.refillMu.TryLock() {
+	if !l.refilling.CompareAndSwap(false, true) {
 		return nil // another refill is already running
 	}
-	defer l.refillMu.Unlock()
+	defer l.refilling.Store(false)
 
 	l.mu.Lock()
 	avail := l.availableLocked()
@@ -230,7 +230,7 @@ func (l *escrowLedger) maybeRefill(ctx context.Context) error {
 	genBefore := l.reconcileGen
 	l.mu.Unlock()
 
-	if avail.GTE(l.cfg.LowWatermark) || deposit.LTE(math.ZeroInt()) {
+	if avail.GTE(l.cfg.LowWatermark) || !deposit.IsPositive() {
 		return nil
 	}
 
@@ -289,71 +289,69 @@ func (l *escrowLedger) waitForBudget(ctx context.Context, hash string, amount ma
 // balance instead of triggering an unnecessary deposit. Subsequent calls are a
 // cheap no-op.
 func (l *escrowLedger) ensureSeeded(ctx context.Context) error {
-	l.mu.Lock()
-	seeded := l.seeded
-	l.mu.Unlock()
-	if seeded {
+	if l.seeded.Load() {
 		return nil
 	}
 	l.seedMu.Lock()
 	defer l.seedMu.Unlock()
-	l.mu.Lock()
-	seeded = l.seeded
-	l.mu.Unlock()
-	if seeded {
+	if l.seeded.Load() {
 		return nil
 	}
+
 	if err := l.reconcile(ctx); err != nil {
 		return err
 	}
+
 	// Best-effort: pin the effective TTL to the chain's actual PaymentPromiseTimeout
 	// (which governance may have raised above the configured default) so reconcile
 	// can't reclaim a reservation whose promise is still settleable. A failure here
 	// leaves the configured TTL in place; it must not block seeding.
+	ttl := l.cfg.ReservationTTL
 	if timeout, err := l.querier.PaymentPromiseTimeout(ctx); err != nil {
 		if l.log != nil {
 			l.log.Warn("escrow payment-promise timeout query failed; using configured TTL", "signer", l.signer, "err", err)
 		}
-	} else if chainTTL := timeout + reservationTTLMargin; chainTTL > l.cfg.ReservationTTL {
-		l.mu.Lock()
-		l.ttl = chainTTL
-		l.mu.Unlock()
+	} else if chainTTL := timeout + reservationTTLMargin; chainTTL > ttl {
+		ttl = chainTTL
 	}
+
 	l.mu.Lock()
-	l.seeded = true
+	l.ttl = ttl
 	l.lastReconcile = l.clk.Now()
 	l.mu.Unlock()
+
+	// Publish seeded last, after chainBal/ttl are in place, so a goroutine that
+	// sees seeded via the lock-free fast path also sees the seeded state.
+	l.seeded.Store(true)
 	return nil
 }
 
 // maintain performs off-critical-path upkeep: a refill if the budget is low and
-// a reconcile if one is due (ReconcileInterval since the last). It is
-// single-flighted so concurrent Puts don't stack redundant work.
+// a reconcile if one is due (ReconcileInterval since the last). Both sub-steps
+// single-flight themselves — the refill via the refilling flag, the reconcile by
+// claiming the due slot below — so concurrent Puts don't stack redundant work
+// and no dedicated maintenance lock is needed.
 func (l *escrowLedger) maintain(ctx context.Context) {
-	if !l.maintainMu.TryLock() {
-		return
-	}
-	defer l.maintainMu.Unlock()
-
 	if err := l.maybeRefill(ctx); err != nil && l.log != nil {
 		l.log.Warn("escrow refill failed", "signer", l.signer, "err", err)
 	}
 
+	// Claim the reconcile slot by advancing lastReconcile before the query, so
+	// concurrent maintainers see "not due" and skip; only one reconciles per
+	// interval. On failure the slot stays claimed and the next interval retries.
 	l.mu.Lock()
-	due := l.clk.Now().Sub(l.lastReconcile) >= l.cfg.ReconcileInterval
+	now := l.clk.Now()
+	due := now.Sub(l.lastReconcile) >= l.cfg.ReconcileInterval
+	if due {
+		l.lastReconcile = now
+	}
 	l.mu.Unlock()
 	if !due {
 		return
 	}
-	if err := l.reconcile(ctx); err != nil {
-		if l.log != nil {
-			l.log.Warn("escrow reconcile failed", "signer", l.signer, "err", err)
-		}
-		return
+	if err := l.reconcile(ctx); err != nil && l.log != nil {
+		l.log.Warn("escrow reconcile failed", "signer", l.signer, "err", err)
 	}
-	l.mu.Lock()
-	l.lastReconcile = l.clk.Now()
-	l.mu.Unlock()
 }
 
 // snapshot returns the ledger's current accounting for metrics/diagnostics.
