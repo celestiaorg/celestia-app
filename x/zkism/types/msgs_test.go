@@ -71,9 +71,9 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "396-byte vkey with inflated G1.K length bypasses size check",
+			name: "492-byte vkey with inflated G1.K length bypasses size check",
 			mallate: func() {
-				// Craft a payload that is exactly Groth16VkeySize (396 bytes)
+				// Craft a payload that is exactly Groth16VkeySize (492 bytes)
 				// so it passes the length check, but set the G1.K length prefix
 				// at bytes 288-291 to 0xFFFFFFFF. This tests whether the
 				// inflated internal length can trigger a huge allocation in
@@ -89,30 +89,30 @@ func TestMsgCreateInterchainSecurityModuleValidateBasic(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "396-byte vkey with inflated CommitmentKeys length is rejected",
+			name: "492-byte vkey with inflated CommitmentKeys length is rejected",
 			mallate: func() {
 				malicious := make([]byte, types.Groth16VkeySize)
 				copy(malicious, groth16Vk)
-				// Set CommitmentKeys length at offset 388 to 0xFFFFFFFF.
+				// Set CommitmentKeys length at offset 484 to 0xFFFFFFFF.
 				// Passes size and G1.K checks but would OOM gnark.
-				malicious[388] = 0xFF
-				malicious[389] = 0xFF
-				malicious[390] = 0xFF
-				malicious[391] = 0xFF
+				malicious[484] = 0xFF
+				malicious[485] = 0xFF
+				malicious[486] = 0xFF
+				malicious[487] = 0xFF
 				msg.Groth16Vkey = malicious
 			},
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "396-byte vkey with inflated PublicAndCommitmentCommitted length is rejected",
+			name: "492-byte vkey with inflated PublicAndCommitmentCommitted length is rejected",
 			mallate: func() {
 				malicious := make([]byte, types.Groth16VkeySize)
 				copy(malicious, groth16Vk)
-				// Set PublicAndCommitmentCommitted length at offset 392 to 0xFFFFFFFF.
-				malicious[392] = 0xFF
-				malicious[393] = 0xFF
-				malicious[394] = 0xFF
-				malicious[395] = 0xFF
+				// Set PublicAndCommitmentCommitted length at offset 488 to 0xFFFFFFFF.
+				malicious[488] = 0xFF
+				malicious[489] = 0xFF
+				malicious[490] = 0xFF
+				malicious[491] = 0xFF
 				msg.Groth16Vkey = malicious
 			},
 			expErr: types.ErrInvalidVerifyingKey,
@@ -196,7 +196,7 @@ func TestMsgUpdateInterchainSecurityModuleValidateBasic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			msg = &types.MsgUpdateInterchainSecurityModule{
 				Id:           util.CreateMockHexAddress("module", 1),
-				Proof:        bytes.Repeat([]byte{0x01}, types.PrefixLen+types.ProofSize),
+				Proof:        bytes.Repeat([]byte{0x01}, types.ProofBytesLen),
 				PublicValues: []byte{0x01, 0x02},
 			}
 
@@ -253,7 +253,7 @@ func TestMsgSubmitMessagesValidateBasic(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			msg = &types.MsgSubmitMessages{
 				Id:           util.CreateMockHexAddress("module", 1),
-				Proof:        bytes.Repeat([]byte{0x01}, types.PrefixLen+types.ProofSize),
+				Proof:        bytes.Repeat([]byte{0x01}, types.ProofBytesLen),
 				PublicValues: []byte{0x01, 0x02},
 			}
 
