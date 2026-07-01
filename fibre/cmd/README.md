@@ -50,6 +50,20 @@ The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fib
 
 Config precedence: **flag > config file > default**.
 
+### Shard retention
+
+`shard_retention` controls how long uploaded shards are kept locally before pruning (default `4h`). It is a local server policy, independent of the chain's payment-promise timeout. Set it in `server_config.toml`:
+
+```toml
+shard_retention = "4h"
+```
+
+or via the flag:
+
+```sh
+fibre start --shard-retention 4h
+```
+
 ## Signing
 
 Fibre signs payment promises by connecting to the consensus node's PrivValidatorAPI gRPC endpoint. The node handles its own key management (local key, tmkms, etc.) — fibre just delegates signing to it.

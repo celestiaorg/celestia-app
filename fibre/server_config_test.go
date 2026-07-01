@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -91,4 +92,53 @@ func TestServerConfigValidateNoSigner(t *testing.T) {
 	err := cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signer_grpc_address is required")
+}
+
+func TestServerConfigShardRetention(t *testing.T) {
+	home := t.TempDir()
+	configPath := DefaultConfigPath(home)
+
+	// the default is written in human-readable form ("4h"), not integer nanoseconds.
+	cfg := DefaultServerConfig()
+	require.NoError(t, cfg.Save(configPath))
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	content := string(data)
+	assert.Contains(t, content, "shard_retention")
+	assert.Contains(t, content, "4h")
+	assert.NotContains(t, content, "14400000000000") // not nanoseconds
+
+	// Load reads the value back from the file.
+	loaded := DefaultServerConfig()
+	loaded.ShardRetention = "ignored"
+	require.NoError(t, loaded.Load(configPath))
+	assert.Equal(t, "4h", loaded.ShardRetention)
+
+	// Validate parses the string into the cached duration.
+	custom := DefaultServerConfig()
+	custom.Path = t.TempDir()
+	custom.ShardRetention = "2h"
+	require.NoError(t, custom.Validate())
+	assert.Equal(t, 2*time.Hour, custom.shardRetention)
+}
+
+func TestServerConfigValidateShardRetention(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   string
+		wantErr string
+	}{
+		{"unparseable", "banana", "invalid shard_retention"},
+		{"non-positive", "0s", "must be positive"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultServerConfig()
+			cfg.Path = t.TempDir()
+			cfg.ShardRetention = tt.value
+			err := cfg.Validate()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
 }

@@ -15,8 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// makeTestServer creates a server with all necessary test infrastructure.
-func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator) {
+// makeTestServer creates a server with all necessary test infrastructure and
+// returns the in-memory store backing it.
+func makeTestServer(t *testing.T) (*fibre.Server, *fibre.Store, validator.Set, *core.Validator) {
 	t.Helper()
 
 	// create validator set (use enough validators for good distribution)
@@ -53,8 +54,10 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 		return privVal, nil
 	}
 
+	var store *fibre.Store
 	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
-		return fibre.NewMemoryStore(scfg), nil
+		store = fibre.NewMemoryStore(scfg)
+		return store, nil
 	}
 	server, err := fibre.NewServer(cfg)
 	require.NoError(t, err)
@@ -64,7 +67,7 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 		require.NoError(t, server.Stop(context.Background()))
 	})
 
-	return server, valSet, serverValidator
+	return server, store, valSet, serverValidator
 }
 
 // mockStateClient implements state.Client for testing.
