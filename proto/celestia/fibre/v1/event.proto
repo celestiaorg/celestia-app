@@ -7,7 +7,7 @@ import "cosmos/base/v1beta1/coin.proto";
 import "cosmos_proto/cosmos.proto";
 import "celestia/fibre/v1/params.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 
 // EventDepositToEscrow is emitted when a deposit is made to an escrow account.
 message EventDepositToEscrow {
