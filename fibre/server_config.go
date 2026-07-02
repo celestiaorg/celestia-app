@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -21,10 +20,6 @@ import (
 )
 
 const DefaultConfigFileName = "server_config.toml"
-
-// DefaultShardRetention is the default local retention for uploaded shards. It is a
-// string so it parses like any user-supplied value (see [ServerConfig.Validate]).
-const DefaultShardRetention = "4h"
 
 // DefaultConfigPath returns the default config file path for the given home directory.
 func DefaultConfigPath(home string) string {
@@ -41,11 +36,6 @@ type ServerConfig struct {
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
-	// ShardRetention is how long uploaded shards are kept locally before pruning (e.g. "4h").
-	// It is decoupled from the chain's PaymentPromiseTimeout; see shardPruneAt in server_upload.go.
-	ShardRetention string `toml:"shard_retention" comment:"ShardRetention is how long uploaded shards are kept locally before pruning (e.g. 4h)."`
-	// shardRetention is ShardRetention parsed to a duration; set by Validate.
-	shardRetention time.Duration
 
 	StoreConfig `toml:"-"`
 
@@ -96,7 +86,6 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
-		ShardRetention:      DefaultShardRetention,
 	}
 	return cfg
 }
@@ -148,15 +137,6 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
-
-	d, err := time.ParseDuration(cfg.ShardRetention)
-	if err != nil {
-		return fmt.Errorf("invalid shard_retention %q: %w", cfg.ShardRetention, err)
-	}
-	if d <= 0 {
-		return fmt.Errorf("shard_retention must be positive, got %s", d)
-	}
-	cfg.shardRetention = d
 
 	return nil
 }

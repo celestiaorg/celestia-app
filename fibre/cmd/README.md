@@ -52,17 +52,7 @@ Config precedence: **flag > config file > default**.
 
 ### Shard retention
 
-`shard_retention` controls how long uploaded shards are kept locally before pruning (default `4h`). It is a local server policy, independent of the chain's payment-promise timeout. Set it in `server_config.toml`:
-
-```toml
-shard_retention = "4h"
-```
-
-or via the flag:
-
-```sh
-fibre start --shard-retention 4h
-```
+How long uploaded shards are kept locally before pruning is the `shard_retention` on-chain parameter of the `x/fibre` module (default `4h`), changeable by governance. It is independent of the chain's payment-promise timeout. The server reads the current value from the app node on every upload (returned by `ValidatePaymentPromise`), so there is no local setting to configure.
 
 ## Signing
 

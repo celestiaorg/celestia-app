@@ -142,7 +142,7 @@ The server depends on `state.Client` for chain ID, validator sets, validator hos
 2. Check that `promise.chain_id` matches the connected app chain ID.
 3. Check that `promise.blob_version` is supported.
 4. Run stateless promise validation: signer public key exists and is 33 bytes, chain ID is non-empty and at most 20 bytes, upload size is positive, creation timestamp is nonzero, escrow-owner signature is 64 bytes, height is positive, and the escrow-owner secp256k1 signature verifies against `SignBytes`.
-5. Run stateful validation through the app state client. On success this returns `ExpiresAt`; the server computes `pruneAt = max(ExpiresAt, creation_timestamp + ShardRetention)`, so shards are kept for at least the locally configured retention (default 4h) and are never pruned while the promise is still valid.
+5. Run stateful validation through the app state client. On success this returns `ExpiresAt` and `ShardRetention` (the `x/fibre` on-chain, governance-changeable parameter, default 4h); the server computes `pruneAt = max(ExpiresAt, creation_timestamp + ShardRetention)`, so shards are kept for at least the configured retention and are never pruned while the promise is still valid.
 6. Compute the payment-promise hash.
 7. Fetch the validator set at `promise.height`.
 8. Fetch this server's validator consensus public key from the signer and find it in the validator set.
@@ -190,7 +190,7 @@ Pebble metadata keys are:
 
 ## Pruning
 
-The only background worker in the server is the prune loop. It runs once per minute and calls `Store.PruneBefore(time.Now())`, deleting shards whose `pruneAt` has passed. `pruneAt` is `max(ExpiresAt, creation_timestamp + ShardRetention)`, where `ShardRetention` is a local server setting (`shard_retention`, default 4h) independent of the chain's `PaymentPromiseTimeout`. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits `MsgPaymentPromiseTimeout`.
+The only background worker in the server is the prune loop. It runs once per minute and calls `Store.PruneBefore(time.Now())`, deleting shards whose `pruneAt` has passed. `pruneAt` is `max(ExpiresAt, creation_timestamp + ShardRetention)`, where `ShardRetention` is the `x/fibre` on-chain, governance-changeable parameter (default 4h) independent of the chain's `PaymentPromiseTimeout`. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits `MsgPaymentPromiseTimeout`.
 
 ## Error Mapping
 

@@ -15,6 +15,9 @@ type PaymentPromise = types.PaymentPromise
 type VerifiedPromise struct {
 	// ExpiresAt is the time at which the payment promise expires.
 	ExpiresAt time.Time
+	// ShardRetention is the on-chain minimum local retention for the uploaded shard.
+	// The server computes pruneAt = max(ExpiresAt, CreationTimestamp + ShardRetention).
+	ShardRetention time.Duration
 }
 
 // Client encapsulates everything the fibre server and client depend on from app/core node.

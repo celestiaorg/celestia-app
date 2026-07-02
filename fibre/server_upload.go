@@ -152,7 +152,7 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
 	}
 
-	pruneAt := shardPruneAt(promise.CreationTimestamp, verifyResult.ExpiresAt, s.Config.shardRetention)
+	pruneAt := shardPruneAt(promise.CreationTimestamp, verifyResult.ExpiresAt, verifyResult.ShardRetention)
 	return promise, blobCfg, promiseHash, pruneAt, nil
 }
 

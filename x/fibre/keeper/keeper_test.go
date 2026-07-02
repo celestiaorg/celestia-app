@@ -71,6 +71,7 @@ func (suite *KeeperTestSuite) TestSetGetParams() {
 			2*time.Hour,  // PaymentPromiseTimeout
 			48*time.Hour, // PaymentPromiseRetentionWindow
 			2000,         // PaymentPromiseHeightWindow
+			8*time.Hour,  // ShardRetention
 		)
 		suite.keeper.SetParams(suite.ctx, want)
 		got := suite.keeper.GetParams(suite.ctx)
@@ -677,6 +678,18 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
 
 		_, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
 		suite.NoError(err)
+	})
+}
+
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryReturnsShardRetention() {
+	suite.T().Run("valid promise response carries the on-chain shard retention", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+
+		resp, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: paymentPromise})
+		suite.NoError(err)
+		suite.True(resp.IsValid)
+		suite.Equal(suite.keeper.GetParams(suite.ctx).ShardRetention, resp.ShardRetention)
 	})
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
@@ -93,7 +94,9 @@ func (m *mockStateClient) VerifyPromise(_ context.Context, promise *state.Paymen
 		return state.VerifiedPromise{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v",
 			promise.CreationTimestamp, 1*time.Hour, expirationTime)
 	}
-	return state.VerifiedPromise{ExpiresAt: expirationTime}, nil
+	// ShardRetention mirrors the on-chain x/fibre parameter the real ValidatePaymentPromise
+	// returns; use the module default so tests match production defaults.
+	return state.VerifiedPromise{ExpiresAt: expirationTime, ShardRetention: fibretypes.DefaultShardRetention}, nil
 }
 
 // testPrivValidator is a simple mock PrivValidator for testing.

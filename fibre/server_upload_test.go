@@ -184,7 +184,7 @@ func TestServerUploadShard(t *testing.T) {
 	}
 }
 
-// TestServerUploadShardRetention proves uploaded shards are retained for the local
+// TestServerUploadShardRetention proves uploaded shards are retained for the on-chain
 // ShardRetention floor (default 4h) rather than the 1h payment-promise timeout: a shard
 // survives a prune cutoff at creation+90m (which the old creation+1h behavior would have
 // pruned) and is removed only past the 4h floor.

@@ -106,5 +106,6 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 	return &types.QueryValidatePaymentPromiseResponse{
 		IsValid:        true,
 		ExpirationTime: &expirationTime,
+		ShardRetention: k.GetParams(ctx).ShardRetention,
 	}, nil
 }

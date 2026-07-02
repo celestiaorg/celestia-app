@@ -429,10 +429,10 @@ func shardKey(commitment Commitment, promiseHash []byte) []byte {
 // pruneKey is keyed by pruneAt so [Store.PruneBefore] scans in timestamp
 // order. Re-puts of the same (commit, promiseHash) are idempotent because
 // pruneAt = CreationTimestamp + max(PaymentPromiseTimeout, ShardRetention)
-// (see shardPruneAt) and CreationTimestamp is part of the hash; ShardRetention
-// is a stable local setting, so only a governance change to PaymentPromiseTimeout
-// large enough to exceed ShardRetention, landing between two re-puts, would split
-// the key, and that case self-corrects when the stale entry fires.
+// (see shardPruneAt) and CreationTimestamp is part of the hash. Both
+// PaymentPromiseTimeout and ShardRetention are on-chain governance parameters,
+// so only a governance change landing between two re-puts would split the key,
+// and that case self-corrects when the stale entry fires.
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) []byte {
 	return fmt.Appendf(nil, "/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash))
 }
