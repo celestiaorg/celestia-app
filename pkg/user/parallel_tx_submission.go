@@ -5,15 +5,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
+	"time"
 
 	"cosmossdk.io/x/feegrant"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	bank "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // SubmissionJob represents a transaction submission task for parallel processing
@@ -53,7 +57,47 @@ type txWorker struct {
 
 const (
 	defaultParallelQueueSize = 100
+
+	// workerAccountQueryRetries is the number of times to query a freshly
+	// funded worker account before giving up. ConfirmTx can report a funding
+	// transaction as committed before the committed account state is queryable,
+	// so the new account may briefly appear as "not found".
+	workerAccountQueryRetries = 8
+	// workerAccountQueryRetryDelay is the delay between worker account query
+	// attempts.
+	workerAccountQueryRetryDelay = 500 * time.Millisecond
 )
+
+// isAccountNotFound reports whether err indicates that an account does not (yet)
+// exist on chain.
+func isAccountNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if status.Code(err) == codes.NotFound {
+		return true
+	}
+	return strings.Contains(err.Error(), "not found")
+}
+
+// queryAccountWithRetry calls query, retrying while the account is reported as
+// not found. This tolerates the window after a funding transaction is confirmed
+// but before the committed account state is queryable. It returns immediately on
+// success or on any error that is not "account not found", and gives up after
+// attempts tries.
+func queryAccountWithRetry(ctx context.Context, attempts int, delay time.Duration, query func() (accNum, seqNum uint64, err error)) (accNum, seqNum uint64, err error) {
+	for attempt := 0; ; attempt++ {
+		accNum, seqNum, err = query()
+		if err == nil || !isAccountNotFound(err) || attempt >= attempts-1 {
+			return accNum, seqNum, err
+		}
+		select {
+		case <-ctx.Done():
+			return 0, 0, ctx.Err()
+		case <-time.After(delay):
+		}
+	}
+}
 
 func newTxQueue(client *TxClient, numWorkers int) *txQueue {
 	pool := &txQueue{
@@ -461,8 +505,12 @@ func (client *TxClient) fundAndGrantWorkerAccounts(ctx context.Context, workers 
 			return fmt.Errorf("failed to get address for worker account %s: %w", worker.accountName, err)
 		}
 
-		// Query the account info from chain
-		accNum, seqNum, err := QueryAccount(ctx, client.conns[0], client.registry, workerAddress)
+		// Query the account info from chain. The funding transaction is
+		// confirmed at this point, but the committed account state can briefly
+		// lag behind, so retry while the account is reported as not found.
+		accNum, seqNum, err := queryAccountWithRetry(ctx, workerAccountQueryRetries, workerAccountQueryRetryDelay, func() (uint64, uint64, error) {
+			return QueryAccount(ctx, client.conns[0], client.registry, workerAddress)
+		})
 		if err != nil {
 			return fmt.Errorf("failed to query worker account %s on chain: %w", worker.accountName, err)
 		}

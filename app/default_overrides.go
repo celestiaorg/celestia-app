@@ -8,10 +8,10 @@ import (
 	"cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	"github.com/celestiaorg/celestia-app/v9/app/params"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/x/mint"
-	minttypes "github.com/celestiaorg/celestia-app/v9/x/mint/types"
+	"github.com/celestiaorg/celestia-app/v10/app/params"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/x/mint"
+	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
@@ -264,7 +264,7 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.RPC.MaxBodyBytes = appconsts.MempoolSize + (mebibyte * 32)
 	cfg.RPC.GRPCListenAddress = "tcp://127.0.0.1:9098"
 	// Used to initialise privval gRPC in core
-	cfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
+	cfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26669"
 
 	cfg.Mempool.TTLNumBlocks = 36
 	cfg.Mempool.TTLDuration = 0 * time.Second

@@ -7,9 +7,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/filecoin-project/go-clock"
@@ -129,7 +129,7 @@ func (g *HostRegistry) getHost(ctx context.Context, val *core.Validator) (valida
 
 // PullAll pulls all active fibre providers from the query client and caches them, overwriting any existing cached hosts.
 func (g *HostRegistry) PullAll(ctx context.Context) error {
-	resp, err := g.queryClient.AllFibreProviders(ctx, &types.QueryAllFibreProvidersRequest{})
+	resp, err := g.queryClient.AllBondedFibreProviders(ctx, &types.QueryAllBondedFibreProvidersRequest{})
 	if err != nil {
 		return err
 	}

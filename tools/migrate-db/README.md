@@ -4,12 +4,43 @@ A tool to migrate Celestia App databases from LevelDB to PebbleDB.
 
 ## Overview
 
-This tool migrates all celestia-app databases from LevelDB to PebbleDB format:
+This tool migrates all of a node's databases from LevelDB to PebbleDB and then
+flips the node's configured backend. It is:
 
 - **Resumable**: If interrupted (Ctrl-C, crash, reboot), re-run to continue from where it left off
-- **Idempotent**: Running it again after completion is a no-op
-- **Storage-efficient**: Source data is deleted incrementally as it's migrated (default)
+- **Verified**: Every destination database is reopened and fully read back (PebbleDB's own consistency check + a content comparison) **before** the source is destroyed or swapped into place
+- **Crash-safe**: The swap moves the old database aside (not delete) and only removes it after the new database is verified in place and the config is updated; a failure rolls back
+- **Storage-efficient**: By default, source data is deleted incrementally as it is migrated, but only after each chunk is durably written and validated in the destination
 - **Parallel**: Migrate multiple databases concurrently with `--parallel`
+
+### Databases migrated
+
+The tool resolves each database's real location from your node configuration:
+
+| Database              | Location                         | Backend setting  |
+|-----------------------|----------------------------------|------------------|
+| `application.db`      | `<home>/data`                    | `app-db-backend` |
+| `snapshots/metadata.db` | `<home>/data/snapshots`        | `app-db-backend` |
+| `blockstore.db`       | `cfg.DBDir()` (config `db_dir`)  | `db_backend`     |
+| `state.db`            | `cfg.DBDir()` (config `db_dir`)  | `db_backend`     |
+| `tx_index.db`         | `cfg.DBDir()` (config `db_dir`)  | `db_backend`     |
+| `evidence.db`         | `cfg.DBDir()` (config `db_dir`)  | `db_backend`     |
+
+> **Important — two backend settings.** The app layer reads `app-db-backend`
+> from `app.toml` first, falling back to `db_backend` in `config.toml`. The
+> consensus layer reads `db_backend`. The tool detects the *effective* backend
+> using the same precedence and, on swap, updates **both** `app-db-backend`
+> (in `app.toml`, if present) and `db_backend` (in `config.toml`) so the app and
+> consensus layers agree.
+>
+> **Custom `db_dir`.** If your `config.toml` sets a custom `db_dir`, the four
+> consensus databases live there (possibly on a different disk) and the tool
+> migrates them in place. `application.db` and `snapshots/` always live under
+> `<home>/data`.
+
+Files NOT migrated (remain unchanged): `cs.wal`, `priv_validator_state.json`,
+`traces/`, and the snapshot *chunk* files under `snapshots/` (only
+`snapshots/metadata.db` is migrated).
 
 ## Installation
 
@@ -20,43 +51,52 @@ go build -o migrate-db
 
 ## Usage
 
-### Basic Migration
+### Basic migration
 
 ```bash
 ./migrate-db
 ```
 
-This will:
+This will, for every database:
 
-1. Create a `data_pebble` directory in `~/.celestia-app/`
-2. Migrate all databases to PebbleDB format, deleting source data incrementally
-3. Auto-swap PebbleDB files into `data/` and update `config.toml`
+1. Copy it into a staging directory (`.pebble-migrate/`) **next to its source**
+   (so the final swap is an atomic same-filesystem rename, even with a custom `db_dir`),
+   deleting source data incrementally to save disk (default).
+2. Reopen and verify the destination (consistency + full read-back).
+3. Move the old database aside, move the new one into place, fsync, and re-verify in place.
+4. Update `app-db-backend` (app.toml) and `db_backend` (config.toml) to `pebbledb`.
 
 ### Options
 
 | Flag                   | Default           | Description                                            |
 |------------------------|-------------------|--------------------------------------------------------|
 | `--home <path>`        | `~/.celestia-app` | Node home directory                                    |
-| `--dry-run`            | `false`           | Test without making changes                            |
-| `--backup`             | `false`           | Keep source LevelDB data after migration               |
+| `--dry-run`            | `false`           | Show what would be migrated without making changes     |
+| `--backup`             | `false`           | Keep source LevelDB data after migration (preserved through swap) |
 | `--batch-size <MB>`    | `64`              | Write batch size in MB                                 |
 | `--delete-chunk <MB>`  | `1024`            | Delete source keys every N MB migrated (no-backup mode)|
-| `--sync-interval <MB>` | `1024`            | Fsync every N MB (0 = sync only at DB end)             |
-| `--parallel <N>`       | `3`               | Migrate N databases concurrently (capped to DB count)  |
-| `--verify`             | `false`           | Run sample verification after migration                |
-| `--db <name>`          | all               | Migrate only a specific database                       |
+| `--parallel <N>`       | `3`               | Migrate N databases concurrently                       |
+| `--db <name>`          | all               | Migrate only a specific database (disables auto-swap)  |
 | `--manual-swap`        | `false`           | Skip auto-swap; print manual instructions instead      |
 | `--skip-compact`       | `false`           | Skip post-migration PebbleDB compaction (not recommended)|
+| `--check`              | `false`           | Don't migrate; open the existing databases and verify they are consistent |
 
 ### Examples
 
-**Recommended:**
+**Recommended (safest) — keep a backup until you've confirmed the node runs:**
+
+```bash
+./migrate-db --backup
+```
+
+This migrates and auto-swaps, but preserves the old LevelDB directories as
+`<db>.db.leveldb-bak`. Once the node is confirmed healthy, delete them.
+
+**Default (delete source incrementally):**
 
 ```bash
 ./migrate-db
 ```
-
-Uses all defaults: deletes source data incrementally to save disk space, auto-swaps PebbleDB files into `data/` when done, and updates `config.toml`. No manual steps needed after completion.
 
 **Dry-run:**
 
@@ -64,82 +104,58 @@ Uses all defaults: deletes source data incrementally to save disk space, auto-sw
 ./migrate-db --dry-run
 ```
 
-**Fast migration with all resources (parallel, minimal syncing):**
+**Verify an already-migrated node opens consistently:**
 
 ```bash
-./migrate-db --parallel 5 --sync-interval 0
+./migrate-db --check
 ```
 
-**Keep source data as backup:**
+**Migrate a single database (no auto-swap):**
 
 ```bash
-./migrate-db --backup --manual-swap
+./migrate-db --db blockstore --manual-swap
 ```
 
-**Migrate a single database:**
+## Resuming interrupted migrations
 
-```bash
-./migrate-db --db blockstore
-```
+The tool is fully resumable. If interrupted for any reason, just re-run the same
+command. It will:
 
-**Migration with post-migration verification (requires --backup):**
-
-```bash
-./migrate-db --backup --verify
-```
-
-## Migrated Databases
-
-- `application.db` - Application state (usually the largest)
-- `blockstore.db` - Block storage
-- `state.db` - Consensus state
-- `tx_index.db` - Transaction index
-- `evidence.db` - Evidence storage
-
-Files NOT migrated (remain unchanged): `cs.wal`, `priv_validator_state.json`, `snapshots/`, `traces/`
-
-## Resuming Interrupted Migrations
-
-The tool is fully resumable. If a migration is interrupted for any reason:
-
-```bash
-# Just re-run the same command
-./migrate-db
-```
-
-The tool will:
-
-1. Detect the existing `data_pebble/` directory and `.migration_state.json`
+1. Detect the existing `data_pebble/.migration_state.json` and per-database staging dirs
 2. Skip databases that are already complete
-3. For in-progress databases, find the last migrated key and verify it was written correctly
-4. Continue from the next key after the verified resume point
+3. For in-progress databases, find the last migrated key (verified against the source) and continue
+4. Re-run verification before swapping/deleting
 
-Progress is tracked at two levels:
+## Complete migration process
 
-- **Per-database**: A state file tracks which databases are complete
-- **Per-key**: The last key in each PebbleDB is the durable checkpoint (no separate tracking needed)
-
-On resume, the tool verifies the last written key by comparing its value in both the source and destination databases. If the source key was already deleted (default no-backup mode), the verification is skipped.
-
-## Complete Migration Process
-
-### 1. Stop Your Node
+### 1. Stop your node
 
 ```bash
 sudo systemctl stop celestia-appd
 ```
 
-### 2. Run Migration
+### 2. Check disk space
+
+The migration plus the final compaction (and the node's first-start WAL replay)
+can transiently require up to **~2× the size of the largest single database**.
+
+```bash
+du -sh ~/.celestia-app/data
+df -h ~/.celestia-app
+```
+
+### 3. Run migration
 
 ```bash
 cd /path/to/celestia-app/tools/migrate-db
 go build -o migrate-db
-./migrate-db
+./migrate-db --backup   # recommended the first time
 ```
 
-By default, this deletes source data incrementally and auto-swaps the databases into place.
+### 4. Start and verify
 
-### 3. Start and Verify
+Start the node **manually first** (or raise the systemd `TimeoutStartSec`) so a
+slow first start isn't killed mid-way:
 
 ```bash
 sudo systemctl start celestia-appd
@@ -147,67 +163,42 @@ celestia-appd status
 journalctl -u celestia-appd -f
 ```
 
-### 4. Cleanup
+You can also run `./migrate-db --check` to confirm every database opens and
+fully reads back.
+
+### 5. Cleanup (after verification)
 
 ```bash
-rm -rf ~/.celestia-app/data_pebble
+# If you used --backup:
+rm -rf ~/.celestia-app/data/*.db.leveldb-bak
+rm -rf ~/.celestia-app/customdb/*.db.leveldb-bak   # if a custom db_dir was used
 ```
 
-## Manual Swap (--manual-swap)
+## Crash recovery
 
-If you used `--manual-swap`, follow the printed instructions to move databases and update config:
+| Scenario                          | What happens                                                          |
+|-----------------------------------|-----------------------------------------------------------------------|
+| Ctrl-C / kill during copy         | Uncommitted batch is lost. Re-run resumes from the last committed key. |
+| Power loss during copy            | At most one delete-chunk of data is re-migrated; source keys are only deleted after the destination is durably flushed and validated. |
+| Crash during swap                 | Swap is rolled back (old DB restored, new DB returned to staging). Re-run to retry. |
+| Crash after config flip           | Re-run detects the migration state and resumes the swap/verify. |
+| `data_pebble/` (state) deleted    | If `.pebble-migrate` staging dirs remain, the tool refuses to start (won't reuse stale data). Remove the `.pebble-migrate` dirs too for a clean fresh start. |
 
-```bash
-cd ~/.celestia-app
+## Verification & durability
 
-# Remove old databases (skip if source was already deleted)
-rm -rf data/application.db data/blockstore.db data/state.db data/tx_index.db data/evidence.db
-
-# Move PebbleDB files
-mv data_pebble/application.db data/application.db
-mv data_pebble/blockstore.db data/blockstore.db
-mv data_pebble/state.db data/state.db
-mv data_pebble/tx_index.db data/tx_index.db
-mv data_pebble/evidence.db data/evidence.db
-```
-
-Edit `~/.celestia-app/config/config.toml`:
-
-```toml
-db_backend = "pebbledb"
-```
-
-## Crash Recovery
-
-| Scenario                        | What Happens                                                       |
-|---------------------------------|--------------------------------------------------------------------|
-| Ctrl-C mid-batch                | Uncommitted batch is lost. Re-run resumes from last committed key. |
-| Power loss                      | At most `--sync-interval` MB of data re-migrated on restart.       |
-| Crash during source deletion    | Source keys already in PebbleDB. Re-run skips them.                |
-| `data_pebble/` manually deleted | Fresh start — no state to resume from.                             |
-| Crash while lock held           | Kernel automatically releases file lock — no stale lock possible.  |
+- During the copy, the destination is durably flushed (memtables → SSTs) and the
+  WAL is fsynced before any source keys are deleted, and each deleted chunk is
+  read back and compared against the source first.
+- After the copy, the destination is **reopened** (which runs PebbleDB's
+  `checkConsistency`) and **fully iterated** (reading every value) to surface any
+  corruption or missing SST file.
+- In `--backup` mode the full source and destination are compared by key count
+  and content hash before the swap.
 
 ## Compaction
 
-The tool performs compaction at two levels to keep disk usage efficient:
-
-- **Source LevelDB**: After each `--delete-chunk` of keys is deleted, the tool compacts the deleted key range. Without this, LevelDB tombstones would not reclaim disk space until a background compaction eventually runs.
-- **Target PebbleDB**: After all keys are copied, a full compaction is run on the destination PebbleDB. Bulk batch writes create many overlapping SST files; compaction merges them and can significantly reduce the final database size.
-
-Use `--skip-compact` to skip the post-migration PebbleDB compaction (e.g., if you plan to compact later or want faster migration at the cost of a larger destination).
-
-## Disk Space Requirements
-
-- **Default mode**: ~1x + 1GB overhead (source keys deleted incrementally every ~1GB, compacted after each chunk)
-- **`--backup` mode**: ~2x your data size (source + destination side-by-side)
-
-```bash
-du -sh ~/.celestia-app/data
-df -h ~/.celestia-app
-```
-
-## Performance Tuning
-
-- **`--parallel 5`**: Migrate all 5 databases concurrently (if I/O bandwidth allows)
-- **`--sync-interval 0`**: No intermediate fsyncs (fastest, but more re-work on crash)
-- **`--batch-size 256`**: Larger batches (uses more memory, may improve throughput)
+- **Source LevelDB**: after each `--delete-chunk` is deleted, the deleted key
+  range is compacted so disk space is reclaimed promptly.
+- **Target PebbleDB**: after all keys are copied (and flushed), a full
+  compaction over the entire key range merges the many SST files created by bulk
+  writes. Use `--skip-compact` to skip it (faster, larger result).

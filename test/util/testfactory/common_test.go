@@ -3,10 +3,10 @@ package testfactory_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	"github.com/stretchr/testify/require"
 )
 

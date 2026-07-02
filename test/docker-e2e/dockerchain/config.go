@@ -6,9 +6,9 @@ import (
 
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 )
 
 const (

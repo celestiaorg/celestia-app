@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/core/appmodule"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/client/cli"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/keeper"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/client/cli"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/keeper"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	cdctypes "github.com/cosmos/cosmos-sdk/codec/types"
@@ -25,6 +25,7 @@ var (
 	_ module.HasServices         = AppModule{}
 	_ module.HasConsensusVersion = AppModule{}
 	_ appmodule.AppModule        = AppModule{}
+	_ appmodule.HasEndBlocker    = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the valaddr module.
@@ -117,3 +118,9 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 
 // ConsensusVersion implements AppModule/ConsensusVersion.
 func (AppModule) ConsensusVersion() uint64 { return 1 }
+
+// EndBlock garbage-collects stale fibre provider entries for validators that
+// have left the active set. See keeper.RemoveStaleFibreProviders.
+func (am AppModule) EndBlock(ctx context.Context) error {
+	return am.keeper.RemoveStaleFibreProviders(ctx)
+}

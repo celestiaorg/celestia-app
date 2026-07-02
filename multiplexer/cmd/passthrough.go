@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/celestiaorg/celestia-app/v9/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
 	"github.com/spf13/cobra"
 )
 

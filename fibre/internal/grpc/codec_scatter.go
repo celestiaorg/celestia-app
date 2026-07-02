@@ -1,7 +1,7 @@
 package grpc
 
 import (
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/encoding/protowire"
 )
