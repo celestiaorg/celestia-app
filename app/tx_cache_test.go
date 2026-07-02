@@ -1,12 +1,14 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
 	"sync"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -154,6 +156,54 @@ func TestTxCache_GetBlobsHash(t *testing.T) {
 	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
 	blobsHash3 := cache.getBlobsHash(blobs2)
 	assert.NotEqual(t, blobsHash1, blobsHash3)
+}
+
+// TestTxCache_GetBlobsHashCrossVersionCollision is a regression test for the
+// collision pattern in GHSA-jv5p-xwcc-q8mf: without domain separation and
+// length prefixes, a v0 blob whose data embeds the v1 share version byte and
+// signer hashes identically to the v1 blob (when the signer ends in 0x00).
+func TestTxCache_GetBlobsHashCrossVersionCollision(t *testing.T) {
+	cache := NewTxCache()
+	ns := share.RandomNamespace()
+
+	victimData := []byte("victim payload")
+	victimSigner := append(bytes.Repeat([]byte{0xAA}, share.SignerSize-1), 0x00)
+	v1Blob, err := share.NewV1Blob(ns, victimData, victimSigner)
+	require.NoError(t, err)
+
+	attackerData := append([]byte{}, victimData...)
+	attackerData = append(attackerData, share.ShareVersionOne)
+	attackerData = append(attackerData, victimSigner[:share.SignerSize-1]...)
+	v0Blob, err := share.NewV0Blob(ns, attackerData)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, cache.getBlobsHash([]*share.Blob{v1Blob}), cache.getBlobsHash([]*share.Blob{v0Blob}),
+		"a v0 blob must not collide with a v1 blob's hash")
+}
+
+// TestTxCache_GetBlobsHashInterBlobBoundaryCollision asserts that the boundary
+// between adjacent blobs is pinned: two v0 blobs must not hash identically to
+// a single v0 blob whose data embeds the concatenation of both.
+func TestTxCache_GetBlobsHashInterBlobBoundaryCollision(t *testing.T) {
+	cache := NewTxCache()
+	ns := share.RandomNamespace()
+
+	blob1, err := share.NewV0Blob(ns, []byte("first blob"))
+	require.NoError(t, err)
+	blob2, err := share.NewV0Blob(ns, []byte("second blob"))
+	require.NoError(t, err)
+
+	// merged.data = blob1.data || v0 share version byte || ns || blob2.data, so
+	// the ambiguous concatenation produces the same byte stream as [blob1, blob2].
+	mergedData := append([]byte{}, blob1.Data()...)
+	mergedData = append(mergedData, share.ShareVersionZero)
+	mergedData = append(mergedData, ns.Bytes()...)
+	mergedData = append(mergedData, blob2.Data()...)
+	merged, err := share.NewV0Blob(ns, mergedData)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, cache.getBlobsHash([]*share.Blob{blob1, blob2}), cache.getBlobsHash([]*share.Blob{merged}),
+		"adjacent blobs must not collide with a single merged blob")
 }
 
 func TestTxCache_GetTxKeyEmptyTx(t *testing.T) {
