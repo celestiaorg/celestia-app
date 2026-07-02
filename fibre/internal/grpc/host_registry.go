@@ -141,9 +141,12 @@ func (g *HostRegistry) resolveHost(ctx context.Context, val *core.Validator) (va
 	g.mu.Lock()
 	last, resolved := g.lastRefresh[consAddr]
 	fallback, hasFallback := g.lastHosts[consAddr]
-	if hasFallback && resolved && g.clock.Since(last) < g.refreshInterval {
+	if resolved && g.clock.Since(last) < g.refreshInterval {
 		g.mu.Unlock()
-		return fallback, nil
+		if hasFallback {
+			return fallback, nil
+		}
+		return "", fmt.Errorf("no host known for validator %s within refresh window", consAddr)
 	}
 	// Open (or renew) the window now, so that once this query succeeds the
 	// subsequent dials for the same validator are served from the last known host
