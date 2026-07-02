@@ -41,8 +41,10 @@ func startFibreCmd() *cobra.Command {
 			validators := cfg.Validators[:instances]
 
 			// Build the remote command
-			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
-			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091"
+			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations.
+			// --upload-rate-limit-enabled=false disables the server upload admission controller (byte-rate
+			// limit + in-flight cap) so experiments measure full throughput unthrottled.
+			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091 --upload-rate-limit-enabled=false"
 			// Auto-enable metrics when observability nodes are configured
 			if metricsAddress == "" && len(cfg.Observability) > 0 {
 				metricsAddress = fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)
