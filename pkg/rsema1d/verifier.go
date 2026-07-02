@@ -7,9 +7,9 @@ import (
 	"math/bits"
 	"runtime"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/merkle"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 	"github.com/klauspost/reedsolomon"
 )
 
@@ -27,6 +27,11 @@ type Verifier struct {
 	rlcRoot   merkle.Root // RLC merkle root
 	rlcCoeffs rlc.Vector  // Fiat-Shamir coefficients for the current matrix.
 	rlcShards [][]byte    // Leopard-formatted 64-byte RLC shards
+
+	// The rowRoot and rowSize rlcCoeffs was built for. A VerifyShared batch must
+	// match both; one with a different row size or row root is rejected.
+	coeffsRowRoot merkle.Root
+	coeffsRowSize int
 
 	// scratch buffers for RLC root compute
 	rlcRootScratch []byte
@@ -182,7 +187,10 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 		return errors.New("commitment verification failed")
 	}
 
-	coeffs := v.coefficients(rowRoot, rowSize)
+	coeffs, err := v.coefficients(rowRoot, rowSize)
+	if err != nil {
+		return err
+	}
 
 	for i, p := range proofs {
 		rowsView[i] = p.Row
@@ -199,11 +207,19 @@ func (v *Verifier) verify(commitment Commitment, proofs []*RowProof, rowSize int
 }
 
 // coefficients lazily computes Fiat-Shamir coefficients for the current matrix.
-func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) rlc.Vector {
+// The cache only fits the rowRoot and rowSize it was built for, so a batch that
+// differs in either is rejected.
+func (v *Verifier) coefficients(rowRoot merkle.Root, rowSize int) (rlc.Vector, error) {
 	if v.rlcCoeffs == nil {
 		v.rlcCoeffs = rlc.DeriveCoefficients(rowRoot, v.config.K, v.config.N, rowSize, v.config.WorkerCount)
+		v.coeffsRowRoot = rowRoot
+		v.coeffsRowSize = rowSize
+		return v.rlcCoeffs, nil
 	}
-	return v.rlcCoeffs
+	if rowSize != v.coeffsRowSize || rowRoot != v.coeffsRowRoot {
+		return nil, fmt.Errorf("batch row size %d does not match cached row size %d", rowSize, v.coeffsRowSize)
+	}
+	return v.rlcCoeffs, nil
 }
 
 func computeRLCRoot(rlc rlc.Vector, scratch []byte, leafScratch []byte) [32]byte {

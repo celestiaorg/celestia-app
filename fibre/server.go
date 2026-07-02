@@ -2,17 +2,20 @@ package fibre
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // Server implements the Fibre gRPC service for validators.
@@ -61,14 +64,9 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
 	}
 
-	server.grpc, err = fibregrpc.NewServer(
-		cfg.ServerListenAddress,
-		server,
-		grpclib.MaxRecvMsgSize(cfg.MaxMessageSize),
-		grpclib.MaxSendMsgSize(cfg.MaxMessageSize),
-	)
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress)
 	if err != nil {
-		return nil, fmt.Errorf("creating gRPC server: %w", err)
+		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
 
 	return server, nil
@@ -103,6 +101,20 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("creating signer: %w", err)
 	}
 	s.log.Info("signer ready")
+
+	cert, err := tlsid.BuildServerCert(s.signer, s.state.ChainID())
+	if err != nil {
+		return fmt.Errorf("building TLS cert: %w", err)
+	}
+	creds := credentials.NewTLS(&tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS13,
+	})
+	s.grpc.Register(s,
+		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
+		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
+		grpclib.Creds(creds),
+	)
 
 	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {

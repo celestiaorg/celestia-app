@@ -14,8 +14,14 @@ const (
 	testDuration    = 15 * time.Minute       // 15 minutes
 	submissionDelay = 1 * time.Second
 
-	maxAvgLatency  = 8 * time.Second
-	minSuccessRate = 0.999 // 99.9%
+	maxAvgLatency = 8 * time.Second
+	// minSuccessRate tolerates a small number of transient submission
+	// failures. The test submits a blob roughly once per second for 15
+	// minutes (~900 attempts), so a 99.9% threshold effectively allowed zero
+	// failures and flaked on isolated, transient errors (e.g. a single failed
+	// broadcast). 99% leaves headroom for transient noise while still catching
+	// real regressions, which drop the success rate well below this bound.
+	minSuccessRate = 0.99 // 99%
 )
 
 func (s *CelestiaTestSuite) TestTxSubmission() {

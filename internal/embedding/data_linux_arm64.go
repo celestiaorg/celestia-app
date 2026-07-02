@@ -22,4 +22,7 @@ var (
 
 	//go:embed celestia-app_linux_v8_arm64.tar.gz
 	v8binaryCompressed []byte
+
+	//go:embed celestia-app_linux_v9_arm64.tar.gz
+	v9binaryCompressed []byte
 )

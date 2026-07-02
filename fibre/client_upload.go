@@ -8,9 +8,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
@@ -272,40 +273,46 @@ func (c *Client) uploadTo(
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
 	}()
 
-	client, err := c.clientCache.GetClient(ctx, val)
-	if err != nil {
-		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
-		return false
+	// Generating row proofs is non-trivial, so build them lazily — only once
+	// ClientCache.Request has acquired a working client. When the host can't be
+	// resolved (e.g. an invalid registration no refresh can fix) the closure
+	// never runs and we skip the work entirely. A non-nil req.Shard.Rows means
+	// they were already built on a prior attempt, so a retry against a corrected
+	// host reuses the same shard.
+	buildRows := func() error {
+		if req.Shard.Rows != nil {
+			return nil
+		}
+		blobRows := make([]types.BlobRow, len(rowIndices))
+		req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
+		i := 0
+		if err := blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
+			br := &blobRows[i]
+			br.Index = uint32(index)
+			br.Data = row
+			br.Proof = proof
+			req.Shard.Rows[i] = br
+			i++
+		}); err != nil {
+			return fmt.Errorf("generating row proofs: %w", err)
+		}
+		span.AddEvent("proofs_added")
+		return nil
 	}
-	span.AddEvent("client_acquired")
 
-	blobRows := make([]types.BlobRow, len(rowIndices))
-	req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
-	i := 0
-	err = blob.RowProofs(rowIndices, func(index int, row []byte, proof [][]byte) {
-		br := &blobRows[i]
-		br.Index = uint32(index)
-		br.Data = row
-		br.Proof = proof
-		req.Shard.Rows[i] = br
-		i++
+	var resp *types.UploadShardResponse
+	err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
+		if err := buildRows(); err != nil {
+			return err
+		}
+		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+		defer rpcCancel()
+		var err error
+		rpcStart := time.Now()
+		resp, err = client.UploadShard(rpcCtx, req)
+		c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
+		return err
 	})
-	if err != nil {
-		log.WarnContext(ctx, "failed to generate row proofs", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to generate row proofs")
-		return false
-	}
-	span.AddEvent("proofs_added")
-
-	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-	defer rpcCancel()
-
-	rpcStart := time.Now()
-	resp, err := client.UploadShard(rpcCtx, req)
-	c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 	if err != nil {
 		log.WarnContext(ctx, "failed to upload rows", "error", err)
 		span.RecordError(err)

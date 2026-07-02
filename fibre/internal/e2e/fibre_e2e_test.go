@@ -1,5 +1,3 @@
-//go:build fibre
-
 package e2e_test
 
 import (
@@ -12,16 +10,16 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	grpcfibre "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
-	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
-	valtypes "github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	grpcfibre "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/privval"
 	core "github.com/cometbft/cometbft/types"
@@ -101,7 +99,9 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	fibreAddr := s.fibreServer.ListenAddress()
 	clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
 		&fixedHostRegistry{addr: fibreAddr},
+		func() string { return s.fibreClient.ChainID() },
 		clientCfg.MaxMessageSize,
+		nil,
 	)
 
 	s.txClient = txClient
@@ -287,4 +287,8 @@ func (r *fixedHostRegistry) GetHost(_ context.Context, _ *core.Validator) (valid
 		return "", fmt.Errorf("no address configured")
 	}
 	return validator.Host(r.addr), nil
+}
+
+func (r *fixedHostRegistry) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
+	return false, false, nil
 }

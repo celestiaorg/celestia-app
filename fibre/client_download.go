@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -156,25 +157,16 @@ func (c *Client) downloadFrom(
 		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
 	}()
 
-	client, err := c.clientCache.GetClient(ctx, from.Validator)
-	if err != nil {
-		if context.Cause(ctx) == errDownloaded {
-			span.SetStatus(codes.Ok, "")
-			return err
-		}
-		log.WarnContext(ctx, "can't get grpc.FibreClient", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "can't get grpc.FibreClient")
+	var resp *types.DownloadShardResponse
+	err = c.clientCache.Request(ctx, from.Validator, func(client fibregrpc.Client) error {
+		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+		defer rpcCancel()
+		var err error
+		rpcStart := time.Now()
+		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id})
+		c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 		return err
-	}
-	span.AddEvent("client_acquired")
-
-	rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-	defer rpcCancel()
-
-	rpcStart := time.Now()
-	resp, err := client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id})
-	c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
+	})
 	if err != nil {
 		if context.Cause(ctx) == errDownloaded {
 			span.SetStatus(codes.Ok, "")

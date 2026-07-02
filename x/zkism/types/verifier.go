@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	errorsmod "cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v9/x/zkism/internal/groth16"
+	"github.com/celestiaorg/celestia-app/v10/x/zkism/internal/groth16"
 )
 
 const (

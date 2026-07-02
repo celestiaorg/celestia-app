@@ -1,5 +1,3 @@
-//go:build fibre
-
 package app_test
 
 import (
@@ -7,14 +5,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
-	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
-	fibretypes "github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"

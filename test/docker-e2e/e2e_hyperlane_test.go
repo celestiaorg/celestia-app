@@ -17,8 +17,8 @@ import (
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	forwardingtypes "github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
-	zkismtypes "github.com/celestiaorg/celestia-app/v9/x/zkism/types"
+	forwardingtypes "github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker"
 	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
@@ -82,6 +82,7 @@ func (s *HyperlaneTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
 	s.client, s.network = tastoradockertypes.Setup(s.T())
+	s.prePullBusybox(context.Background())
 
 	tag, err := dockerchain.GetCelestiaTagStrict()
 	s.Require().NoError(err)

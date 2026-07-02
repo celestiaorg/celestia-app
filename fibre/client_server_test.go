@@ -11,10 +11,11 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	grpcfibre "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	grpcfibre "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
@@ -296,7 +297,12 @@ func makeTestEnv(
 		if modifyClientConfig != nil {
 			modifyClientConfig(&clientCfg)
 		}
-		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(&testHostRegistry{addresses: addresses}, clientCfg.MaxMessageSize)
+		clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
+			&testHostRegistry{addresses: addresses},
+			func() string { return "celestia" },
+			clientCfg.MaxMessageSize,
+			nil,
+		)
 		clientCfg.StateClientFn = func() (state.Client, error) {
 			return &mockStateClient{SetGetter: valSetGetter, chainID: "celestia"}, nil
 		}
@@ -385,6 +391,10 @@ func (r *testHostRegistry) GetHost(ctx context.Context, val *core.Validator) (va
 	return validator.Host(addr), nil
 }
 
+func (r *testHostRegistry) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
+	return false, false, nil
+}
+
 // shufflingValidatorSetGetter returns deterministically shuffled validator sets based on height.
 // Each height produces a different but deterministic ordering using height as the random seed.
 type shufflingValidatorSetGetter struct {
@@ -423,4 +433,50 @@ func (g *shufflingValidatorSetGetter) setForHeight(height uint64) validator.Set 
 		ValidatorSet: core.NewValidatorSet(shuffled),
 		Height:       height,
 	}
+}
+
+// TestTLSIdentityMismatchIsRejected checks that the TLS verifier refuses to
+// accept a connection when the expected validator pubkey doesn't match the
+// one bound into the server's cert. We dial the real fibre server with a
+// fabricated *core.Validator whose Address points at the real validator but
+// whose PubKey belongs to a different identity.
+func TestTLSIdentityMismatchIsRejected(t *testing.T) {
+	validators, privKeys := makeTestValidators(t, 1)
+	valSetGetter := newShufflingValidatorSetGetter(validators, 1)
+	servers, _, addresses := makeTestServers(
+		t, validators, privKeys, fibre.DefaultProtocolParams, valSetGetter, nil,
+	)
+	t.Cleanup(func() {
+		for _, srv := range servers {
+			_ = srv.Stop(context.Background())
+		}
+	})
+
+	// Forge a validator that pretends to live at the real validator's address
+	// but carries a different consensus pubkey.
+	imposter := &core.Validator{
+		Address: validators[0].Address,
+		PubKey:  cmted25519.GenPrivKey().PubKey(),
+	}
+
+	newClient := grpcfibre.DefaultNewClientFn(
+		&testHostRegistry{addresses: addresses},
+		func() string { return "celestia" },
+		fibre.DefaultProtocolParams.MaxMessageSize(),
+		nil,
+	)
+
+	// Patch the host registry so the imposter resolves to the real server.
+	addresses[imposter.Address.String()] = servers[0].ListenAddress()
+
+	client, err := newClient(t.Context(), imposter)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// gRPC dials lazily; the TLS handshake fires on the first RPC. The imposter
+	// supplies a different expected pubkey than the one that signed the real
+	// server's endorsement, so the endorsement signature fails to verify.
+	_, err = client.DownloadShard(t.Context(), &fibretypes.DownloadShardRequest{})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "peer cert signature is invalid")
 }

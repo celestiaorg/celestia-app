@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
@@ -150,6 +150,20 @@ func TestShardMap_Verify(t *testing.T) {
 			}
 			indices[0] = 999
 			require.ErrorContains(t, shardMap.Verify(val, indices), "not assigned")
+			break
+		}
+	})
+
+	t.Run("duplicate rows", func(t *testing.T) {
+		for val, rows := range shardMap {
+			if len(rows) < 2 {
+				continue
+			}
+			indices := make([]uint32, len(rows))
+			for i := range indices {
+				indices[i] = uint32(rows[0])
+			}
+			require.ErrorContains(t, shardMap.Verify(val, indices), "duplicate row")
 			break
 		}
 	})

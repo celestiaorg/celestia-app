@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/test/util/genesis"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -291,7 +291,7 @@ func (n *Network) InitNodes(rootDir string) error {
 		cmtcfg.P2P.PersistentPeers = ""
 		// Enable the priv-validator gRPC endpoint that fibre needs to fetch
 		// the validator's public key for shard-assignment verification.
-		cmtcfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26659"
+		cmtcfg.PrivValidatorGRPCListenAddr = "127.0.0.1:26669"
 		cmtconfig.WriteConfigFile(filepath.Join(rootDir, val.Name, "config.toml"), cmtcfg)
 
 		appcfg := app.DefaultAppConfig()

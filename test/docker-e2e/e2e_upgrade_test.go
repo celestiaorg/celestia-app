@@ -11,14 +11,14 @@ import (
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v10/app"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	ibcconnectiontypes "github.com/cosmos/ibc-go/v8/modules/core/03-connection/types"
 
 	"cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	signaltypes "github.com/celestiaorg/celestia-app/v9/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
 	tastoradockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
@@ -27,11 +27,12 @@ import (
 )
 
 const (
-	AppVersionV5 uint64 = 5
-	AppVersionV6 uint64 = 6
-	AppVersionV7 uint64 = 7
-	AppVersionV8 uint64 = 8
-	AppVersionV9 uint64 = 9
+	AppVersionV5  uint64 = 5
+	AppVersionV6  uint64 = 6
+	AppVersionV7  uint64 = 7
+	AppVersionV8  uint64 = 8
+	AppVersionV9  uint64 = 9
+	AppVersionV10 uint64 = 10
 
 	InflationRateV5 = "0.0536" // 5.36%
 	InflationRateV6 = "0.0267" // 2.67%
@@ -103,6 +104,10 @@ func (s *CelestiaTestSuite) TestAllUpgrades() {
 			baseAppVersion:   8,
 			targetAppVersion: 9,
 		},
+		{
+			baseAppVersion:   9,
+			targetAppVersion: 10,
+		},
 	}
 
 	for _, tc := range tt {
@@ -126,7 +131,28 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 	)
 	cfg.Genesis = cfg.Genesis.WithAppVersion(baseAppVersion)
 
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	// Build and start the chain, retrying on Docker host-port collisions
+	// ("address already in use"). When upgrade subtests run sequentially, a
+	// prior subtest's containers may not have released their published host
+	// ports yet; rebuilding the chain allocates fresh ports. See
+	// isPortBindingError for details.
+	var chain *tastoradockertypes.Chain
+	err := retryOnPortCollision(ctx, 3, 2*time.Second, func() error {
+		built, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+		if err != nil {
+			return err
+		}
+		if err := built.Start(ctx); err != nil {
+			// Release the partially-started chain's containers and host ports
+			// before retrying so the next attempt can rebind cleanly.
+			if removeErr := built.Remove(ctx); removeErr != nil {
+				s.T().Logf("Error removing chain after failed start: %v", removeErr)
+			}
+			return err
+		}
+		chain = built
+		return nil
+	})
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {
@@ -134,9 +160,6 @@ func (s *CelestiaTestSuite) runUpgradeTest(ImageTag string, baseAppVersion, targ
 			s.T().Logf("Error stopping chain: %v", err)
 		}
 	})
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
 
 	// Sanity check: Test bank send before upgrade
 	s.T().Log("Testing bank send functionality before upgrade")

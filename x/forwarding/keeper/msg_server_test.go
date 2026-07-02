@@ -10,9 +10,9 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/x/forwarding/keeper"
-	"github.com/celestiaorg/celestia-app/v9/x/forwarding/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/x/forwarding/keeper"
+	"github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -20,7 +20,8 @@ import (
 
 // MockBankKeeper implements types.BankKeeper for testing IGP fee flows
 type MockBankKeeper struct {
-	Balances     map[string]sdk.Coins // addr -> coins
+	Balances     map[string]sdk.Coins // addr -> total coins
+	Locked       map[string]sdk.Coins // addr -> locked coins (e.g. vesting); spendable = balance - locked
 	SendCoinsErr error                // inject errors on SendCoins
 	SendCoinsFn  func(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error
 }
@@ -28,6 +29,7 @@ type MockBankKeeper struct {
 func NewMockBankKeeper() *MockBankKeeper {
 	return &MockBankKeeper{
 		Balances: make(map[string]sdk.Coins),
+		Locked:   make(map[string]sdk.Coins),
 	}
 }
 
@@ -38,6 +40,18 @@ func (m *MockBankKeeper) GetBalance(_ context.Context, addr sdk.AccAddress, deno
 		}
 	}
 	return sdk.NewCoin(denom, math.ZeroInt())
+}
+
+// SpendableCoin returns the total balance minus any locked coins for the denom,
+// mirroring the bank keeper's behavior for vesting/locked accounts.
+func (m *MockBankKeeper) SpendableCoin(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin {
+	balance := m.GetBalance(ctx, addr, denom)
+	locked := m.Locked[addr.String()].AmountOf(denom)
+	spendable := balance.Amount.Sub(locked)
+	if spendable.IsNegative() {
+		spendable = math.ZeroInt()
+	}
+	return sdk.NewCoin(denom, spendable)
 }
 
 func (m *MockBankKeeper) SendCoins(ctx context.Context, from, to sdk.AccAddress, amt sdk.Coins) error {
@@ -481,6 +495,52 @@ func TestForward_NoBalanceForBoundToken(t *testing.T) {
 	require.ErrorIs(t, err, types.ErrNoBalance)
 	require.Nil(t, resp)
 	require.Equal(t, math.NewInt(25), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, "ibc/unrelated").Amount)
+}
+
+// TestForward_LockedCoinsDoNotBlockForwarding ensures Forward sends only the spendable
+// balance when the forwarding address holds a mix of spendable and locked coins.
+func TestForward_LockedCoinsDoNotBlockForwarding(t *testing.T) {
+	s := newTestIGPSetup(t)
+
+	// The forwarding address holds 1000utia spendable plus 1utia locked.
+	lockedAmount := math.NewInt(1)
+	depositAmount := math.NewInt(1000)
+	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(
+		sdk.NewCoin(appconsts.BondDenom, lockedAmount.Add(depositAmount)),
+	)
+	s.bankKeeper.Locked[s.forwardAddr.String()] = sdk.NewCoins(
+		sdk.NewCoin(appconsts.BondDenom, lockedAmount),
+	)
+	s.hyperlaneKeeper.QuotedFee = sdk.NewCoins()
+
+	messageId, _ := util.DecodeHexAddress("0x0000000000000000000000000000000000000000000000000000000000001234")
+	s.warpKeeper.TransferMessageId = messageId
+	// Warp only ever spends the spendable amount; the bank would reject anything more.
+	s.warpKeeper.OnTransfer = func(sender string, _ sdk.Coin) {
+		senderAddr, _ := sdk.AccAddressFromBech32(sender)
+		current := s.bankKeeper.Balances[senderAddr.String()]
+		s.bankKeeper.Balances[senderAddr.String()] = current.Sub(sdk.NewCoin(appconsts.BondDenom, depositAmount))
+	}
+
+	msg := types.NewMsgForward(
+		s.signer.String(),
+		s.forwardAddr.String(),
+		s.destDomain,
+		s.destRecipient,
+		s.tokenID,
+		sdk.NewCoin(appconsts.BondDenom, math.ZeroInt()),
+	)
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// Only the spendable amount is forwarded, not the full balance.
+	require.Equal(t, depositAmount, resp.Amount)
+	require.Equal(t, appconsts.BondDenom, resp.Denom)
+
+	// The locked coins remain at the forwarding address.
+	require.Equal(t, lockedAmount, s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
 }
 
 func TestForward_AddressMismatchWhenTokenIDChanges(t *testing.T) {

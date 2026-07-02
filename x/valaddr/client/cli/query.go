@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/spf13/cobra"
@@ -22,7 +22,7 @@ func GetQueryCmd() *cobra.Command {
 
 	cmd.AddCommand(
 		CmdQueryFibreProviderInfo(),
-		CmdQueryAllFibreProviders(),
+		CmdQueryAllBondedFibreProviders(),
 	)
 
 	return cmd
@@ -61,8 +61,8 @@ func CmdQueryFibreProviderInfo() *cobra.Command {
 	return cmd
 }
 
-// CmdQueryAllFibreProviders queries all fibre providers
-func CmdQueryAllFibreProviders() *cobra.Command {
+// CmdQueryAllBondedFibreProviders queries all fibre providers
+func CmdQueryAllBondedFibreProviders() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "providers",
 		Short: "Query all fibre providers",
@@ -75,9 +75,9 @@ func CmdQueryAllFibreProviders() *cobra.Command {
 
 			queryClient := types.NewQueryClient(clientCtx)
 
-			res, err := queryClient.AllFibreProviders(
+			res, err := queryClient.AllBondedFibreProviders(
 				context.Background(),
-				&types.QueryAllFibreProvidersRequest{},
+				&types.QueryAllBondedFibreProvidersRequest{},
 			)
 			if err != nil {
 				return err

@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"cosmossdk.io/errors"
-	apperr "github.com/celestiaorg/celestia-app/v9/app/errors"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -46,6 +46,11 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		if _, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
 			return responseCheckTxWithEvents(blobtypes.ErrNoBlobs, 0, 0, []abci.Event{}, false), nil
 		}
+	}
+
+	if msgCount := len(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
 	return app.forwardCheckTx(req, sdkTx)

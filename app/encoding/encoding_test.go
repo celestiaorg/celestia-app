@@ -3,10 +3,10 @@ package encoding_test
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -29,6 +29,18 @@ func TestMakeConfig(t *testing.T) {
 
 		msgType := sdk.MsgTypeURL(msgs[0])
 		require.Equal(t, "/celestia.blob.v1.MsgPayForBlobs", msgType)
+	})
+
+	t.Run("should return an error for an empty tx", func(t *testing.T) {
+		decodedTx, err := config.TxConfig.TxDecoder()([]byte{})
+		require.ErrorIs(t, err, encoding.ErrEmptyTx)
+		require.Nil(t, decodedTx)
+	})
+
+	t.Run("should return an error for a nil tx", func(t *testing.T) {
+		decodedTx, err := config.TxConfig.TxDecoder()(nil)
+		require.ErrorIs(t, err, encoding.ErrEmptyTx)
+		require.Nil(t, decodedTx)
 	})
 }
 

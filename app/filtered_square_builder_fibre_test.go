@@ -1,5 +1,3 @@
-//go:build fibre
-
 package app
 
 import (
@@ -10,9 +8,9 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -136,7 +134,10 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 	}
 
 	normalTx := newNormalTx(t, txConfig)
-	blobTx := blobfactory.UnsignedBlobTx(t)
+	// Use a blob tx with a real MsgPayForBlobs inner SDK tx (not the nil inner
+	// tx from blobfactory.UnsignedBlobTx) so it survives the inner-tx decode in
+	// Fill, where the decoder rejects empty tx bytes.
+	blobTx := newBlobTx(t, txConfig)
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 
 	tests := []struct {

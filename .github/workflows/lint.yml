@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:
           go-version-file: "go.mod"
@@ -23,28 +23,10 @@ jobs:
       - run: go tool golangci-lint run --timeout 10m
         if: env.GIT_DIFF
 
-  golangci-lint-fibre:
-    name: golangci-lint-fibre
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
-      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
-        with:
-          go-version-file: "go.mod"
-      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
-        with:
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
-      - run: go tool golangci-lint run --timeout 10m --build-tags fibre
-        if: env.GIT_DIFF
-
   hadolint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
         with:
           PATTERNS: |
@@ -66,16 +48,31 @@ jobs:
     name: go-mod-tidy-check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:
           go-version-file: "go.mod"
       - name: Check go mod tidy
         run: |
+          # `go mod tidy -diff` exits non-zero for ANY error, including transient
+          # module download failures from the Go proxy, not only when a genuine
+          # diff exists. Retry a few times before declaring a module dirty: a
+          # network blip succeeds on retry, while a genuine diff fails every
+          # attempt and is still caught. See #7380.
           DIRTY=""
+          MAX_ATTEMPTS=3
           for moddir in $(find . -name 'go.mod' -exec dirname {} \;); do
             echo "Checking $moddir"
-            (cd "$moddir" && go mod tidy -diff) || DIRTY="$DIRTY $moddir"
+            attempt=1
+            until (cd "$moddir" && go mod tidy -diff); do
+              if [ "$attempt" -ge "$MAX_ATTEMPTS" ]; then
+                DIRTY="$DIRTY $moddir"
+                break
+              fi
+              echo "go mod tidy -diff failed for $moddir (attempt $attempt/$MAX_ATTEMPTS); retrying after backoff..."
+              sleep $((attempt * 5))
+              attempt=$((attempt + 1))
+            done
           done
           if [ -n "$DIRTY" ]; then
             echo "ERROR: go mod tidy produced changes in:$DIRTY"
@@ -86,7 +83,7 @@ jobs:
   yamllint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
       - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
         with:
           PATTERNS: |
