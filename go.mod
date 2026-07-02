@@ -27,7 +27,7 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc4.0.20260611153920-53e607aa1d60
+	github.com/celestiaorg/go-square/v4 v4.0.0-rc5
 	github.com/celestiaorg/nmt v0.24.3
 	github.com/celestiaorg/rsmt2d v0.15.2
 	github.com/cockroachdb/pebble/v2 v2.1.4
