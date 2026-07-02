@@ -136,6 +136,12 @@ func (s *IntegrationTestSuite) TestGetHostWithRegistration() {
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
+	// TestGetHostEmpty already opened the rate-limit window for this validator
+	// with a "not found" result. Advance past the window so GetHost re-queries
+	// and picks up the registration just submitted, instead of serving the
+	// cached miss.
+	s.clk.Add(2 * time.Minute)
+
 	host, err := s.hostRegistry.GetHost(s.cctx.GoContext(), s.validator)
 	require.NoError(t, err, "GetHost should now succeed")
 	require.NotEmpty(t, host.String())
