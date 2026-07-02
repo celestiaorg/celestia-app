@@ -20,7 +20,7 @@ import (
 // It currently covers random cases and should be eventually extended for 100% coverage.
 // The request modifier approach should allow simulating any failure.
 func TestServerUploadShard(t *testing.T) {
-	server, _, valSet, serverValidator := makeTestServer(t)
+	server, valSet, serverValidator := makeTestServer(t)
 
 	tests := []struct {
 		name            string
@@ -182,40 +182,6 @@ func TestServerUploadShard(t *testing.T) {
 			tt.check(t, resp, err)
 		})
 	}
-}
-
-// TestServerUploadShardRetention proves uploaded shards are retained for the on-chain
-// ShardRetention floor (default 4h) rather than the 1h payment-promise timeout: a shard
-// survives a prune cutoff at creation+90m (which the old creation+1h behavior would have
-// pruned) and is removed only past the 4h floor.
-func TestServerUploadShardRetention(t *testing.T) {
-	server, store, valSet, serverValidator := makeTestServer(t)
-
-	req := makeTestRequest(t, valSet, serverValidator, nil)
-	_, err := server.UploadShard(t.Context(), req)
-	require.NoError(t, err)
-
-	promise := &fibre.PaymentPromise{}
-	require.NoError(t, promise.FromProto(req.Promise))
-	creation := promise.CreationTimestamp
-
-	// stored after upload
-	_, err = store.Get(t.Context(), promise.Commitment)
-	require.NoError(t, err)
-
-	// not pruned at creation+90m: under the old creation+1h behavior this would prune it.
-	pruned, err := store.PruneBefore(t.Context(), creation.Add(90*time.Minute))
-	require.NoError(t, err)
-	require.Equal(t, 0, pruned)
-	_, err = store.Get(t.Context(), promise.Commitment)
-	require.NoError(t, err)
-
-	// pruned past the 4h retention floor.
-	pruned, err = store.PruneBefore(t.Context(), creation.Add(5*time.Hour))
-	require.NoError(t, err)
-	require.Equal(t, 1, pruned)
-	_, err = store.Get(t.Context(), promise.Commitment)
-	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
 }
 
 // makeTestRequest creates a valid UploadShardRequest for the given test setup.

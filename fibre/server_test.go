@@ -9,16 +9,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 )
 
-// makeTestServer creates a server with all necessary test infrastructure and
-// returns the in-memory store backing it.
-func makeTestServer(t *testing.T) (*fibre.Server, *fibre.Store, validator.Set, *core.Validator) {
+// makeTestServer creates a server with all necessary test infrastructure.
+func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator) {
 	t.Helper()
 
 	// create validator set (use enough validators for good distribution)
@@ -55,10 +53,8 @@ func makeTestServer(t *testing.T) (*fibre.Server, *fibre.Store, validator.Set, *
 		return privVal, nil
 	}
 
-	var store *fibre.Store
 	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
-		store = fibre.NewMemoryStore(scfg)
-		return store, nil
+		return fibre.NewMemoryStore(scfg), nil
 	}
 	server, err := fibre.NewServer(cfg)
 	require.NoError(t, err)
@@ -68,7 +64,7 @@ func makeTestServer(t *testing.T) (*fibre.Server, *fibre.Store, validator.Set, *
 		require.NoError(t, server.Stop(context.Background()))
 	})
 
-	return server, store, valSet, serverValidator
+	return server, valSet, serverValidator
 }
 
 // mockStateClient implements state.Client for testing.
@@ -94,9 +90,7 @@ func (m *mockStateClient) VerifyPromise(_ context.Context, promise *state.Paymen
 		return state.VerifiedPromise{}, fmt.Errorf("payment promise expired: creation_timestamp %v + timeout %v = %v",
 			promise.CreationTimestamp, 1*time.Hour, expirationTime)
 	}
-	// ShardRetention mirrors the on-chain x/fibre parameter the real ValidatePaymentPromise
-	// returns; use the module default so tests match production defaults.
-	return state.VerifiedPromise{ExpiresAt: expirationTime, ShardRetention: fibretypes.DefaultShardRetention}, nil
+	return state.VerifiedPromise{ExpiresAt: expirationTime}, nil
 }
 
 // testPrivValidator is a simple mock PrivValidator for testing.

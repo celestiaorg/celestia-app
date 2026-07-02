@@ -156,11 +156,10 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	return promise, blobCfg, promiseHash, pruneAt, nil
 }
 
-// shardPruneAt returns when an uploaded shard should be pruned: the later of the promise's
-// on-chain expiry and creationTimestamp + the local retention floor. Anchoring on
-// creationTimestamp (not time.Now) keeps re-Puts of the same shard idempotent; see pruneKey
-// in store.go. Returning at least expiresAt guarantees a shard is never pruned while its
-// payment promise is still valid.
+// shardPruneAt returns when an uploaded shard should be pruned. It anchors on
+// creationTimestamp (not time.Now) so re-Puts of the same shard stay idempotent
+// (see pruneKey in store.go) and never returns before expiresAt, so a shard is
+// not pruned while its payment promise is still valid.
 func shardPruneAt(creationTimestamp, expiresAt time.Time, retention time.Duration) time.Time {
 	floor := creationTimestamp.Add(retention)
 	if expiresAt.After(floor) {

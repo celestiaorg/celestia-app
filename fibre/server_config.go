@@ -137,7 +137,6 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
-
 	return nil
 }
 

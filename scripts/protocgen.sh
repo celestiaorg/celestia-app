@@ -15,7 +15,4 @@ cd ..
 
 # move proto files to the right places
 cp -r github.com/celestiaorg/celestia-app/* ./
-# The x/fibre protos set go_package to a
-# separate module path (celestia-app-fibre). Will be fixed in: https://github.com/celestiaorg/celestia-app/issues/7500
-cp -r github.com/celestiaorg/celestia-app-fibre/* ./
 rm -rf github.com

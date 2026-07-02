@@ -75,7 +75,7 @@ func TestServerDownloadShard(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, _, _, _ := makeTestServer(t)
+			server, _, _ := makeTestServer(t)
 
 			// create a test blob
 			blob := makeTestBlobV0(t, 256)
