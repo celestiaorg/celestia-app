@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
@@ -77,6 +77,12 @@ type mockStateClient struct {
 func (m *mockStateClient) Start(context.Context) error { return nil }
 func (m *mockStateClient) Stop(context.Context) error  { return nil }
 func (m *mockStateClient) ChainID() string             { return m.chainID }
+
+// RefreshHost reports no change so failed RPCs in tests surface their original
+// error instead of dereferencing the (often nil) embedded HostRegistry.
+func (m *mockStateClient) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
+	return false, false, nil
+}
 
 func (m *mockStateClient) VerifyPromise(_ context.Context, promise *state.PaymentPromise) (state.VerifiedPromise, error) {
 	expirationTime := promise.CreationTimestamp.Add(1 * time.Hour)

@@ -7,41 +7,49 @@ set -euo pipefail
 
 INTERVAL="${MONITOR_INTERVAL:-1}"
 OUTPUT="/root/monitor.jsonl"
-PORTS="9091 26656 26657"
-PROCESS_NAMES="celestia-appd fibre-txsim txsim"
+PORTS="${MONITOR_PORTS:-9091 26656 26657 7980 26669}"
+PROCESS_NAMES="${MONITOR_PROCESS_NAMES:-celestia-appd fibre fibre-txsim txsim latency-monitor}"
 
 # ---------- iptables accounting setup ----------
 
 setup_iptables() {
   iptables -N MONITOR_IN  2>/dev/null || true
   iptables -N MONITOR_OUT 2>/dev/null || true
+  iptables -N MONITOR_OUT_TO 2>/dev/null || true
 
   # Remove old jump rules (ignore errors if absent)
   iptables -D INPUT  -j MONITOR_IN  2>/dev/null || true
   iptables -D OUTPUT -j MONITOR_OUT 2>/dev/null || true
+  iptables -D OUTPUT -j MONITOR_OUT_TO 2>/dev/null || true
 
   # Flush any previous per-port rules
   iptables -F MONITOR_IN
   iptables -F MONITOR_OUT
+  iptables -F MONITOR_OUT_TO
 
   # Insert jump rules at the top of INPUT/OUTPUT
   iptables -I INPUT  1 -j MONITOR_IN
   iptables -I OUTPUT 1 -j MONITOR_OUT
+  iptables -I OUTPUT 1 -j MONITOR_OUT_TO
 
   # Add per-port accounting rules
   for port in $PORTS; do
     iptables -A MONITOR_IN  -p tcp --dport "$port"
     iptables -A MONITOR_OUT -p tcp --sport "$port"
+    iptables -A MONITOR_OUT_TO -p tcp --dport "$port"
   done
 }
 
 cleanup_iptables() {
   iptables -D INPUT  -j MONITOR_IN  2>/dev/null || true
   iptables -D OUTPUT -j MONITOR_OUT 2>/dev/null || true
+  iptables -D OUTPUT -j MONITOR_OUT_TO 2>/dev/null || true
   iptables -F MONITOR_IN  2>/dev/null || true
   iptables -F MONITOR_OUT 2>/dev/null || true
+  iptables -F MONITOR_OUT_TO 2>/dev/null || true
   iptables -X MONITOR_IN  2>/dev/null || true
   iptables -X MONITOR_OUT 2>/dev/null || true
+  iptables -X MONITOR_OUT_TO 2>/dev/null || true
 }
 
 trap cleanup_iptables EXIT
@@ -97,6 +105,7 @@ get_system_mem() {
 
 declare -A prev_in_bytes
 declare -A prev_out_bytes
+declare -A prev_out_to_bytes
 declare -A prev_proc_ticks
 
 # Seed network counters
@@ -107,6 +116,10 @@ done < <(read_iptables_bytes MONITOR_IN)
 while IFS=' ' read -r port bytes; do
   prev_out_bytes["$port"]="$bytes"
 done < <(read_iptables_bytes MONITOR_OUT)
+
+while IFS=' ' read -r port bytes; do
+  prev_out_to_bytes["$port"]="$bytes"
+done < <(read_iptables_bytes MONITOR_OUT_TO)
 
 # Seed CPU counters
 prev_total_ticks=$(get_total_cpu_ticks)
@@ -144,6 +157,13 @@ while true; do
     prev_out_bytes["$port"]="$bytes"
     net_json+=",\"out_${port}_bytes_sec\":${delta}"
   done < <(read_iptables_bytes MONITOR_OUT)
+
+  while IFS=' ' read -r port bytes; do
+    prev=${prev_out_to_bytes["$port"]:-0}
+    delta=$(( (bytes - prev) / INTERVAL ))
+    prev_out_to_bytes["$port"]="$bytes"
+    net_json+=",\"out_to_${port}_bytes_sec\":${delta}"
+  done < <(read_iptables_bytes MONITOR_OUT_TO)
   net_json+="}"
 
   # --- per-process CPU + memory ---

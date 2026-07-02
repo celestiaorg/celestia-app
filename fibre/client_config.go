@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"time"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel"
@@ -36,6 +36,11 @@ type ClientConfig struct {
 	// (dial + RPC). Sheds black-holed peers below the kernel's ~75s TCP SYN
 	// retry window. See [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
+
+	// HostRefreshInterval is the minimum time between on-chain host re-queries
+	// for a single validator when a request fails. Defaults to the expected
+	// block time, since registry state cannot change faster than one block.
+	HostRefreshInterval time.Duration
 
 	// StateClientFn creates a [state.Client] for communicating with a celestia-app node.
 	// If nil, [Validate] creates one from [StateAddress].
@@ -74,6 +79,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		RPCTimeout:          15 * time.Second,
+		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
 	}
 }
 
@@ -84,7 +90,11 @@ func (cfg *ClientConfig) Validate() error {
 			return fmt.Errorf("state address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log)
+			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log,
+				fibregrpc.WithClock(cfg.Clock),
+				fibregrpc.WithRefreshInterval(cfg.HostRefreshInterval),
+				fibregrpc.WithQueryTimeout(cfg.RPCTimeout),
+			)
 		}
 	}
 
@@ -99,6 +109,9 @@ func (cfg *ClientConfig) Validate() error {
 	}
 	if cfg.Clock == nil {
 		cfg.Clock = clock.New()
+	}
+	if cfg.HostRefreshInterval <= 0 {
+		cfg.HostRefreshInterval = fibregrpc.DefaultRefreshInterval
 	}
 
 	if cfg.RPCTimeout <= 0 {

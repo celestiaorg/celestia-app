@@ -25,8 +25,8 @@ func resourceMonitorCmd() *cobra.Command {
 		Use:   "resource-monitor",
 		Short: "Start network and CPU monitoring on remote validators",
 		Long: `Deploys a monitoring script to remote validators that records per-port
-network bandwidth (iptables accounting for ports 9091, 26656, 26657) and
-per-process CPU/memory usage (celestia-appd, fibre-txsim, txsim).
+network bandwidth (server-side in/out and client-side out_to counters for ports 9091, 26656, 26657, 7980, 26669 by default)
+and per-process CPU/memory usage (celestia-appd, fibre, fibre-txsim, txsim, latency-monitor).
 
 Output is written to /root/monitor.jsonl on each validator. Use
 'talis download-resources' to collect the results.`,

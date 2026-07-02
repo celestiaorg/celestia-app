@@ -6,17 +6,17 @@ import (
 	"time"
 
 	sdkmath "cosmossdk.io/math"
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	apperr "github.com/celestiaorg/celestia-app/v9/app/errors"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	testutil "github.com/celestiaorg/celestia-app/v9/test/util"
-	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v9/test/util/random"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/random"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -27,6 +27,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -264,6 +265,22 @@ func TestCheckTx(t *testing.T) {
 				return tx
 			},
 			expectedABCICode: abci.CodeTypeOK,
+		},
+		{
+			name:      "normal transaction exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[9]
+				addr := signer.Account(accounts[9]).Address()
+				msgs := make([]sdk.Msg, appconsts.MaxSDKMessages+1)
+				for i := range msgs {
+					msgs[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+				}
+				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 	}
 

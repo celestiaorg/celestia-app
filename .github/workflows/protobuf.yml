@@ -20,7 +20,7 @@ jobs:
     outputs:
       proto: ${{ steps.filter.outputs.proto }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d #v4.0.1
         id: filter
         with:
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bufbuild/buf-setup-action@v1.50.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -47,7 +47,7 @@ jobs:
     if: needs.changes.outputs.proto == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: bufbuild/buf-setup-action@v1.50.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

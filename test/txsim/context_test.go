@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/test/txsim"
+	"github.com/celestiaorg/celestia-app/v10/test/txsim"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

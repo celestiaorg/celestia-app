@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/test/util"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testfactory"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
-	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/test/util"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -120,16 +120,14 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"celestia1vlthgax23ca9syk7xgaz347xmf4nunefkz88ka": true,
 			"celestia1yl6hdjhmkf37639730gffanpzndzdpmhl48edw": true,
 		}
-		for _, name := range app.FibreModuleAccountNames() {
-			want[authtypes.NewModuleAddress(name).String()] = true
-		}
+		want[authtypes.NewModuleAddress("fibre").String()] = true
 		assert.Equal(t, want, got)
 	})
 	t.Run("should be able to rederive the module account addresses from the module names", func(t *testing.T) {
 		testApp := getTestApp()
 		got := testApp.ModuleAccountAddrs()
 
-		moduleNames := append([]string{ //nolint:prealloc
+		moduleNames := []string{
 			"fee_collector",
 			"distribution",
 			"gov",
@@ -141,7 +139,8 @@ func TestModuleAccountAddrs(t *testing.T) {
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}, app.FibreModuleAccountNames()...)
+			"fibre",
+		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)
@@ -159,7 +158,7 @@ func TestBlockedAddresses(t *testing.T) {
 		assert.NotContains(t, got, govAddress)
 	})
 	t.Run("blocked addresses should contain all the other module addresses", func(t *testing.T) {
-		moduleNames := append([]string{ //nolint:prealloc
+		moduleNames := []string{
 			"fee_collector",
 			"distribution",
 			"mint",
@@ -170,7 +169,8 @@ func TestBlockedAddresses(t *testing.T) {
 			"hyperlane",
 			"warp",
 			"forwarding",
-		}, app.FibreModuleAccountNames()...)
+			"fibre",
+		}
 		for _, moduleName := range moduleNames {
 			address := authtypes.NewModuleAddress(moduleName).String()
 			assert.Contains(t, got, address)

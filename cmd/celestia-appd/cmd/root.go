@@ -6,7 +6,7 @@ import (
 
 	"cosmossdk.io/log"
 	confixcmd "cosmossdk.io/tools/confix/cmd"
-	"github.com/celestiaorg/celestia-app/v9/app"
+	"github.com/celestiaorg/celestia-app/v10/app"
 	tmcli "github.com/cometbft/cometbft/libs/cli"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -135,7 +135,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, overridePrivValidatorGRPCConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
+	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -181,6 +181,10 @@ func replaceLogger(cmd *cobra.Command) error {
 	}
 
 	sctx := server.GetServerContextFromCmd(cmd)
+	// Disable colored output when logging to a file so that the log file does
+	// not contain ANSI color escape codes (e.g. [90m). See
+	// https://github.com/celestiaorg/celestia-app/issues/4966
+	sctx.Viper.Set(flags.FlagLogNoColor, true)
 	sctx.Logger, err = server.CreateSDKLogger(sctx, kitlog.NewSyncWriter(file))
 	if err != nil {
 		return fmt.Errorf("failed to create logger: %w", err)

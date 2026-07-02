@@ -7,11 +7,11 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v9/app/ante"
-	apperr "github.com/celestiaorg/celestia-app/v9/app/errors"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/pkg/da"
-	blobtypes "github.com/celestiaorg/celestia-app/v9/x/blob/types"
+	"github.com/celestiaorg/celestia-app/v10/app/ante"
+	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
@@ -58,7 +58,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
-		maxPFF          = maxPayForFibreMessages()
+		maxPFF          = appconsts.MaxPayForFibreMessages
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -92,8 +92,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// Handle non-blob transactions. When fibre build tag is enabled, this also
-		// validates MsgPayForFibre txs (plain SDK txs, not wrapped in BlobTx).
+		// Handle non-blob transactions. This also validates MsgPayForFibre txs
+		// (plain SDK txs, not wrapped in BlobTx).
 		if !isBlobTx {
 			msgs := sdkTx.GetMsgs()
 
@@ -104,7 +104,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// When fibre build tag is enabled, validate MsgPayForFibre constraints.
+			// Validate MsgPayForFibre constraints.
 			pffCount := countMsgPayForFibre(sdkTx)
 			if pffCount > 1 || (pffCount == 1 && len(msgs) != 1) {
 				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 )
 
 // ErrNotEnoughRows is returned when reconstruction is attempted before K

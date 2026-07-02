@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 )
 
@@ -36,6 +36,10 @@ func (m *mockClient) GetByHeight(_ context.Context, h uint64) (validator.Set, er
 
 func (m *mockClient) GetHost(_ context.Context, _ *core.Validator) (validator.Host, error) {
 	return "", nil
+}
+
+func (m *mockClient) RefreshHost(_ context.Context, _ *core.Validator) (bool, bool, error) {
+	return false, false, nil
 }
 
 func (m *mockClient) ChainID() string { return "test" }

@@ -7,7 +7,7 @@ import (
 	"math"
 	"sort"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	cmtclient "github.com/cometbft/cometbft/rpc/client"
 	"github.com/cometbft/cometbft/types"
@@ -139,7 +139,7 @@ func (s *gasEstimatorServer) estimateGasPrice(ctx context.Context, priority TxPr
 		// Return the maximum of the default min gas price and network min gas price
 		return math.Max(appconsts.DefaultMinGasPrice, minGasPrice), nil
 	}
-	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(appconsts.DefaultUpperBoundMaxBytes))
+	gasPrices, err := SortAndExtractGasPrices(s.txDecoder, txsResp.Txs, int64(govMaxSquareBytes))
 	if err != nil {
 		return 0, err
 	}

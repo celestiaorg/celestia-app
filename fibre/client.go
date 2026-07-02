@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel/trace"
@@ -85,7 +85,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		tracer:      cfg.Tracer,
 		metrics:     metrics,
 		clock:       cfg.Clock,
-		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
+		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, stateClient, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
 	}, nil
 }
 

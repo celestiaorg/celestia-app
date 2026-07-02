@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	"github.com/cometbft/cometbft/crypto"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
@@ -83,12 +83,12 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 
 	// shuffle all totalRows indices with Fisher-Yates algorithm
 	// NOTE: std library Shuffle implements Fisher-Yates algorithm
-	rowsIndicies := make([]int, totalRows)
+	rowsIndices := make([]int, totalRows)
 	for i := range totalRows {
-		rowsIndicies[i] = i
+		rowsIndices[i] = i
 	}
 	rng.Shuffle(totalRows, func(i, j int) {
-		rowsIndicies[i], rowsIndicies[j] = rowsIndicies[j], rowsIndicies[i]
+		rowsIndices[i], rowsIndices[j] = rowsIndices[j], rowsIndices[i]
 	})
 
 	// assign rows to validators, wrapping around with modulo if total assigned exceeds totalRows
@@ -98,7 +98,7 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 		rows := make([]int, rowsPerValidator[i])
 		for j := range rows {
 			// modulo ensures wrap-around when minRows causes over-assignment
-			rows[j] = rowsIndicies[(offset+j)%totalRows]
+			rows[j] = rowsIndices[(offset+j)%totalRows]
 		}
 		shardMap[validator] = rows
 		offset += rowsPerValidator[i]
@@ -175,8 +175,10 @@ func shuffleByStake(selected []SelectedValidator, rng *rand.Rand) {
 }
 
 // Verify checks if all given row indices are assigned to [core.Validator].
-// Returns error if validator is not in the map, count doesn't match, or any row is not assigned.
-// This method builds a temporary set for O(r + n) complexity instead of O(n × r).
+// Returns error if validator is not in the map, count doesn't match, any
+//
+//	row is not assigned or row indices are duplicate. This method builds
+//	a temporary set for O(r + n) complexity instead of O(n × r).
 func (sm ShardMap) Verify(val *core.Validator, rowIndices []uint32) error {
 	rows, ok := sm[val]
 	if !ok {
@@ -188,15 +190,21 @@ func (sm ShardMap) Verify(val *core.Validator, rowIndices []uint32) error {
 		return fmt.Errorf("expected %d rows, got %d", len(rows), len(rowIndices))
 	}
 
-	assignedSet := make(map[int]struct{}, len(rows))
+	// Map each assigned row to whether it has been seen, reject duplicates.
+	assigned := make(map[uint32]bool, len(rows))
 	for _, idx := range rows {
-		assignedSet[idx] = struct{}{}
+		assigned[uint32(idx)] = false
 	}
 
 	for _, rowIdx := range rowIndices {
-		if _, ok := assignedSet[int(rowIdx)]; !ok {
+		seen, ok := assigned[rowIdx]
+		if !ok {
 			return fmt.Errorf("row %d not assigned to validator", rowIdx)
 		}
+		if seen {
+			return fmt.Errorf("duplicate row %d", rowIdx)
+		}
+		assigned[rowIdx] = true
 	}
 	return nil
 }
