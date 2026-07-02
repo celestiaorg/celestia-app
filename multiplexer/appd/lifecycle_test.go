@@ -8,42 +8,65 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestExitErrorOnFailure verifies that when an embedded process exits with a
-// non-zero status on its own, the Appd reports it as stopped, records the
-// exit error, and reports that the stop was not operator-initiated.
-func TestExitErrorOnFailure(t *testing.T) {
+// TestExitedDeliversFailure verifies that when an embedded process exits with
+// a non-zero status on its own, Exited delivers the exit error and the Appd
+// reports itself stopped.
+func TestExitedDeliversFailure(t *testing.T) {
 	bin := writeMockExecutable(t, "exit 1")
 	a := &Appd{path: bin, stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr}
 
 	require.NoError(t, a.Start())
-	require.Eventually(t, a.IsStopped, 2*time.Second, 10*time.Millisecond, "process should exit on its own")
-	require.False(t, a.StopInitiated(), "exit was not operator-initiated")
-	require.Error(t, a.ExitError(), "a non-zero exit should be reported as an error")
+
+	select {
+	case err := <-a.Exited():
+		require.Error(t, err, "a non-zero exit should be delivered as an error")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the process exit to be delivered")
+	}
+	require.True(t, a.IsStopped())
 }
 
-// TestExitErrorOnCleanExit verifies that a process which exits cleanly on its
-// own reports a nil exit error.
-func TestExitErrorOnCleanExit(t *testing.T) {
+// TestExitedDeliversCleanExit verifies that a process which exits cleanly on
+// its own delivers a nil error on Exited.
+func TestExitedDeliversCleanExit(t *testing.T) {
 	bin := writeMockExecutable(t, "exit 0")
 	a := &Appd{path: bin, stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr}
 
 	require.NoError(t, a.Start())
-	require.Eventually(t, a.IsStopped, 2*time.Second, 10*time.Millisecond, "process should exit on its own")
-	require.False(t, a.StopInitiated())
-	require.NoError(t, a.ExitError())
+
+	select {
+	case err := <-a.Exited():
+		require.NoError(t, err, "a clean exit should deliver a nil error")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the process exit to be delivered")
+	}
+	require.True(t, a.IsStopped())
 }
 
-// TestStopInitiated verifies that StopInitiated reports false until Stop is
-// called and true afterwards.
-func TestStopInitiated(t *testing.T) {
+// TestExitedFiresAfterStop verifies that Stop terminates the process and that
+// Exited fires afterwards, so a watcher blocked on it always unblocks.
+func TestExitedFiresAfterStop(t *testing.T) {
 	bin := writeMockExecutable(t, "sleep 10")
 	a := &Appd{path: bin, stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr}
 
 	require.NoError(t, a.Start())
-	require.False(t, a.StopInitiated(), "stop has not been requested yet")
+	require.True(t, a.IsRunning())
 
 	require.NoError(t, a.Stop())
-	require.True(t, a.StopInitiated(), "stop has been requested")
+	require.True(t, a.IsStopped())
+
+	select {
+	case <-a.Exited():
+	case <-time.After(2 * time.Second):
+		t.Fatal("Exited should fire after Stop")
+	}
+}
+
+// TestExitedNilBeforeStart verifies that Exited returns a nil channel (which
+// never delivers) when the process was never started.
+func TestExitedNilBeforeStart(t *testing.T) {
+	a := &Appd{path: "/non/existent/binary", stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr}
+	require.Nil(t, a.Exited())
 	require.True(t, a.IsStopped())
 }
 
