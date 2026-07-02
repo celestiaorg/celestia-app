@@ -184,12 +184,12 @@ func TestEscrowLedgerReconcilePropagatesQueryError(t *testing.T) {
 	require.Error(t, l.reconcile(t.Context()))
 }
 
-func TestEscrowLedgerMaybeRefillDepositsToHighWatermark(t *testing.T) {
+func TestEscrowLedgerRefillDepositsToHighWatermark(t *testing.T) {
 	d := newMockDepositor()
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
 	l.chainBal = math.NewInt(500) // below LowWatermark (1000)
 
-	require.NoError(t, l.maybeRefill(t.Context()))
+	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
 	count, total := d.deposits()
 	require.Equal(t, 1, count)
 	// deposits up to HighWatermark: 10_000 - 500 = 9_500
@@ -197,23 +197,23 @@ func TestEscrowLedgerMaybeRefillDepositsToHighWatermark(t *testing.T) {
 	require.Equal(t, int64(10_000), l.available().Int64())
 
 	// above LowWatermark now: no further deposit
-	require.NoError(t, l.maybeRefill(t.Context()))
+	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
 	count, _ = d.deposits()
 	require.Equal(t, 1, count)
 }
 
-func TestEscrowLedgerMaybeRefillDisabled(t *testing.T) {
+func TestEscrowLedgerRefillDisabled(t *testing.T) {
 	d := newMockDepositor()
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
 	l.cfg.AutoFund = false
 	l.chainBal = math.NewInt(0)
 
-	require.NoError(t, l.maybeRefill(t.Context()))
+	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
 	count, _ := d.deposits()
 	require.Equal(t, 0, count)
 }
 
-func TestEscrowLedgerMaybeRefillSingleFlight(t *testing.T) {
+func TestEscrowLedgerRefillSingleFlight(t *testing.T) {
 	d := newMockDepositor()
 	d.block = make(chan struct{})
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
@@ -221,11 +221,11 @@ func TestEscrowLedgerMaybeRefillSingleFlight(t *testing.T) {
 
 	// first refill enters DepositToEscrow and blocks, holding refillMu
 	done := make(chan error, 1)
-	go func() { done <- l.maybeRefill(t.Context()) }()
+	go func() { done <- l.refill(t.Context(), l.cfg.LowWatermark) }()
 	<-d.entered // ensure the first deposit is in progress
 
 	// concurrent refill must be skipped (TryLock fails), not stacked
-	require.NoError(t, l.maybeRefill(t.Context()))
+	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
 	count, _ := d.deposits()
 	require.Equal(t, 0, count) // first one hasn't completed yet, second skipped
 
@@ -244,6 +244,25 @@ func TestEscrowLedgerWaitForBudgetUnblocksAfterRefill(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
 	// amount fits within HighWatermark, so the triggered refill unblocks it
+	require.NoError(t, l.waitForBudget(ctx, "a", math.NewInt(5_000)))
+	require.Equal(t, int64(5_000), l.reserved.Int64())
+	count, _ := d.deposits()
+	require.GreaterOrEqual(t, count, 1)
+}
+
+// A payment larger than LowWatermark (but within HighWatermark) must not spin:
+// waitForBudget refills toward the payment amount, not just the low watermark.
+// With avail above LowWatermark, the background refill gate would never fire.
+func TestEscrowLedgerWaitForBudgetRefillsAboveLowWatermark(t *testing.T) {
+	d := newMockDepositor()
+	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
+	// avail (2_000) is above LowWatermark (1_000) but below the requested amount
+	// (5_000) — the window a LowWatermark-gated refill would skip, spinning
+	// until ctx expired.
+	l.chainBal = math.NewInt(2_000)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
 	require.NoError(t, l.waitForBudget(ctx, "a", math.NewInt(5_000)))
 	require.Equal(t, int64(5_000), l.reserved.Int64())
 	count, _ := d.deposits()

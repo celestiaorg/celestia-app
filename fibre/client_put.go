@@ -31,9 +31,10 @@ type PutResult struct {
 // escrowReservation is a single Put's handle on its escrow admission. The zero
 // value (returned when AutoFund is disabled) makes settle/release no-ops.
 type escrowReservation struct {
-	ledger  *escrowLedger
-	hash    string
-	settled bool
+	ledger    *escrowLedger
+	hash      string
+	settled   bool
+	broadcast bool
 }
 
 // admitEscrow reserves blob's settlement cost against txClient's escrow before
@@ -71,10 +72,12 @@ func (r *escrowReservation) settle() {
 	}
 }
 
-// release returns the budget for a reservation that was never settled (an error
-// aborted the Put before the PFF landed). Safe to defer unconditionally.
+// release returns the budget for a reservation that was aborted before the PFF
+// was broadcast (encoding/upload/broadcast failed, so the funds were never
+// spent). Safe to defer unconditionally: it is a no-op once the reservation is
+// settled or the PFF has been broadcast (uncertain outcome, left for reconcile).
 func (r *escrowReservation) release() {
-	if r.ledger != nil && !r.settled {
+	if r.ledger != nil && !r.settled && !r.broadcast {
 		r.ledger.releaseUnsettled(r.hash)
 	}
 }
@@ -154,6 +157,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	span.AddEvent("pff_broadcasted", trace.WithAttributes(
 		attribute.String("pff_hash", broadcastResp.TxHash),
 	))
+	reservation.broadcast = true
 
 	// confirm transaction inclusion
 	txResp, err := txClient.ConfirmTx(ctx, broadcastResp.TxHash)

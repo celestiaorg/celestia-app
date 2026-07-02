@@ -204,18 +204,20 @@ func (l *escrowLedger) reconcile(ctx context.Context) error {
 		}
 	}
 	l.chainBal = bal
-	// Signal to any in-flight maybeRefill that chainBal was just overwritten from
+	// Signal to any in-flight refill that chainBal was just overwritten from
 	// chain, so it must not additively re-apply its deposit (which this read may
-	// already include) and double-count it. See maybeRefill.
+	// already include) and double-count it. See refill.
 	l.reconcileGen++
 	return nil
 }
 
-// maybeRefill deposits up to HighWatermark when available has fallen below
-// LowWatermark. It is a no-op when AutoFund is off, when already above the low
-// watermark, or when another refill is in flight (single-flighted via the
-// refilling flag), so concurrent callers never stack deposits.
-func (l *escrowLedger) maybeRefill(ctx context.Context) error {
+// refill deposits up to HighWatermark when available has fallen below trigger.
+// It is a no-op when AutoFund is off, when already at/above trigger, or when
+// another refill is in flight (single-flighted via the refilling flag), so
+// concurrent callers never stack deposits. Background upkeep passes LowWatermark;
+// waitForBudget passes the payment amount, so a single payment between the
+// watermarks still triggers a refill instead of spinning.
+func (l *escrowLedger) refill(ctx context.Context, trigger math.Int) error {
 	if !l.cfg.AutoFund {
 		return nil
 	}
@@ -230,7 +232,7 @@ func (l *escrowLedger) maybeRefill(ctx context.Context) error {
 	genBefore := l.reconcileGen
 	l.mu.Unlock()
 
-	if avail.GTE(l.cfg.LowWatermark) || !deposit.IsPositive() {
+	if avail.GTE(trigger) || !deposit.IsPositive() {
 		return nil
 	}
 
@@ -270,7 +272,10 @@ func (l *escrowLedger) waitForBudget(ctx context.Context, hash string, amount ma
 		if l.reserve(hash, amount) {
 			return nil
 		}
-		if err := l.maybeRefill(ctx); err != nil {
+		// Refill toward the payment amount, not just the LowWatermark: a payment
+		// larger than LowWatermark (e.g. a low custom watermark) would otherwise
+		// never trip the background refill gate and spin until ctx expires.
+		if err := l.refill(ctx, amount); err != nil {
 			return err
 		}
 		if l.reserve(hash, amount) {
@@ -332,7 +337,7 @@ func (l *escrowLedger) ensureSeeded(ctx context.Context) error {
 // claiming the due slot below — so concurrent Puts don't stack redundant work
 // and no dedicated maintenance lock is needed.
 func (l *escrowLedger) maintain(ctx context.Context) {
-	if err := l.maybeRefill(ctx); err != nil && l.log != nil {
+	if err := l.refill(ctx, l.cfg.LowWatermark); err != nil && l.log != nil {
 		l.log.Warn("escrow refill failed", "signer", l.signer, "err", err)
 	}
 

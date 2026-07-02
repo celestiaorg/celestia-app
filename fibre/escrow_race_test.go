@@ -11,7 +11,7 @@ import (
 // TestEscrowLedgerRefillReconcileDoubleCount is a regression guard for the
 // refill/reconcile double-count. It deterministically forces the interleaving:
 //
-//	A: maybeRefill computes deposit, broadcasts+confirms it (funds now on-chain)
+//	A: refill computes deposit, broadcasts+confirms it (funds now on-chain)
 //	B: reconcile reads the post-deposit balance and sets chainBal = balance
 //	A: resumes to apply the deposit
 //
@@ -30,7 +30,7 @@ func TestEscrowLedgerRefillReconcileDoubleCount(t *testing.T) {
 
 	// A: start the refill; it will block inside DepositToEscrow.
 	done := make(chan error, 1)
-	go func() { done <- l.maybeRefill(t.Context()) }()
+	go func() { done <- l.refill(t.Context(), l.cfg.LowWatermark) }()
 	<-d.entered // A is now inside DepositToEscrow, holding refillMu
 
 	// Simulate the deposit landing on-chain: the queried balance now reflects it.
@@ -41,7 +41,7 @@ func TestEscrowLedgerRefillReconcileDoubleCount(t *testing.T) {
 	require.NoError(t, l.reconcile(t.Context()))
 	require.Equal(t, deposit, l.chainBal.Int64(), "reconcile should have set chainBal to the true on-chain balance")
 
-	// A: let the deposit return; maybeRefill now adds `deposit` on top.
+	// A: let the deposit return; refill now adds `deposit` on top.
 	close(d.block)
 	require.NoError(t, <-done)
 

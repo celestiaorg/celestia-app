@@ -59,7 +59,7 @@ type Client struct {
 	closeWg sync.WaitGroup
 	// started indicates whether Start() has been called.
 	started atomic.Bool
-	// closed indicates whether Close() has been called.
+	// closed indicates whether Stop has been called.
 	closed atomic.Bool
 }
 
