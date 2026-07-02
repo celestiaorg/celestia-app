@@ -7,7 +7,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,6 +105,11 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 
 // FuzzShardCodecRoundTrip builds a structurally valid BlobShard from each
 // fuzz seed, round-trips it through write/read, and asserts equality.
+//
+// WARNING: This fuzzer is a defense line against fibre shard-codec bugs and runs
+// nightly in CI via scripts/test_fuzz.sh. Do NOT delete it, and if you rename it
+// update the matching -fuzz line in scripts/test_fuzz.sh in lockstep. See
+// https://github.com/celestiaorg/celestia-app/issues/7392.
 func FuzzShardCodecRoundTrip(f *testing.F) {
 	f.Add([]byte{0x01, 0x02, 0x03, 0x04})
 	f.Add(bytes.Repeat([]byte{0xff}, 128))
@@ -134,6 +139,11 @@ func FuzzShardCodecRoundTrip(f *testing.F) {
 // FuzzShardCodecReadNoPanic feeds arbitrary bytes to the reader. Length caps
 // keep allocations bounded, so the only outcomes are a parse (rare) or an
 // error — never a panic.
+//
+// WARNING: This fuzzer is a defense line against fibre shard-codec bugs and runs
+// nightly in CI via scripts/test_fuzz.sh. Do NOT delete it, and if you rename it
+// update the matching -fuzz line in scripts/test_fuzz.sh in lockstep. See
+// https://github.com/celestiaorg/celestia-app/issues/7392.
 func FuzzShardCodecReadNoPanic(f *testing.F) {
 	f.Add([]byte{})
 	f.Add([]byte{0x00, 0x00, 0x00, 0x01})

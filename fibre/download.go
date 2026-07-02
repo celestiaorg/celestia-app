@@ -7,9 +7,9 @@ import (
 	"iter"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 )
 
 // download is the per-download session/state for fetching and reconstructing a blob.
@@ -130,6 +130,13 @@ func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.
 	}
 	if len(novel) > 0 {
 		rowLn := len(novel[0].Row)
+		// Reject rows larger than the reader's configured maximum before they
+		// reach the DataPool, which is sized for MaxRowSize and would otherwise
+		// panic. A malicious or custom uploader can serve an oversized row whose
+		// proof still verifies against the (attacker-chosen) commitment.
+		if s.cfg.MaxRowSize > 0 && rowLn > s.cfg.MaxRowSize {
+			return fmt.Errorf("row size %d exceeds maximum %d", rowLn, s.cfg.MaxRowSize)
+		}
 		s.acquireSlab(rowLn)
 		s.store(novel)
 	}

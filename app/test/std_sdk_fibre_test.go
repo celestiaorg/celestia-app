@@ -1,14 +1,12 @@
-//go:build fibre
-
 package app_test
 
 import (
 	"slices"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
-	valaddrtypes "github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +43,7 @@ func (s *StandardSDKIntegrationTestSuite) TestFibreProviderTxAndQuery() {
 		require.Equal(abci.CodeTypeOK, res.Code)
 
 		queryClient := valaddrtypes.NewQueryClient(s.cctx.GRPCClient)
-		allProvidersResp, err := queryClient.AllFibreProviders(s.cctx.GoContext(), &valaddrtypes.QueryAllFibreProvidersRequest{})
+		allProvidersResp, err := queryClient.AllBondedFibreProviders(s.cctx.GoContext(), &valaddrtypes.QueryAllBondedFibreProvidersRequest{})
 		require.NoError(err)
 		require.NotNil(allProvidersResp)
 		require.Equal(0, slices.IndexFunc(allProvidersResp.Providers, func(provider valaddrtypes.FibreProvider) bool {

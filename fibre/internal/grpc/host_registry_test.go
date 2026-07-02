@@ -7,12 +7,14 @@ import (
 	"log/slog"
 	"sync"
 	"testing"
+	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	clock "github.com/filecoin-project/go-clock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	grpc2 "google.golang.org/grpc"
@@ -20,7 +22,7 @@ import (
 
 type mockQueryClient struct {
 	fibreProviderInfoFn func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error)
-	allFibreProvidersFn func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error)
+	allFibreProvidersFn func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error)
 }
 
 func (m *mockQueryClient) FibreProviderInfo(ctx context.Context, in *types.QueryFibreProviderInfoRequest, opts ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
@@ -30,7 +32,7 @@ func (m *mockQueryClient) FibreProviderInfo(ctx context.Context, in *types.Query
 	return nil, errors.New("not implemented")
 }
 
-func (m *mockQueryClient) AllFibreProviders(ctx context.Context, in *types.QueryAllFibreProvidersRequest, opts ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
+func (m *mockQueryClient) AllBondedFibreProviders(ctx context.Context, in *types.QueryAllBondedFibreProvidersRequest, opts ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
 	if m.allFibreProvidersFn != nil {
 		return m.allFibreProvidersFn(ctx, in, opts...)
 	}
@@ -87,8 +89,8 @@ func TestGetHost(t *testing.T) {
 		{
 			name: "cached",
 			mock: &mockQueryClient{
-				allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
-					return &types.QueryAllFibreProvidersResponse{
+				allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+					return &types.QueryAllBondedFibreProvidersResponse{
 						Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: expectedHost}}},
 					}, nil
 				},
@@ -99,8 +101,8 @@ func TestGetHost(t *testing.T) {
 		{
 			name: "not cached pull success",
 			mock: &mockQueryClient{
-				allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
-					return &types.QueryAllFibreProvidersResponse{
+				allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+					return &types.QueryAllBondedFibreProvidersResponse{
 						Providers: []types.FibreProvider{{ValidatorConsensusAddress: "other", Info: types.FibreProviderInfo{Host: "other.com"}}},
 					}, nil
 				},
@@ -114,8 +116,8 @@ func TestGetHost(t *testing.T) {
 		{
 			name: "not cached pull fail",
 			mock: &mockQueryClient{
-				allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
-					return &types.QueryAllFibreProvidersResponse{
+				allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+					return &types.QueryAllBondedFibreProvidersResponse{
 						Providers: []types.FibreProvider{{ValidatorConsensusAddress: "other", Info: types.FibreProviderInfo{Host: "other.com"}}},
 					}, nil
 				},
@@ -209,8 +211,8 @@ func TestPullAll(t *testing.T) {
 		{
 			name: "success",
 			mock: &mockQueryClient{
-				allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
-					return &types.QueryAllFibreProvidersResponse{
+				allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+					return &types.QueryAllBondedFibreProvidersResponse{
 						Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: expectedHost}}},
 					}, nil
 				},
@@ -219,7 +221,7 @@ func TestPullAll(t *testing.T) {
 		{
 			name: "error",
 			mock: &mockQueryClient{
-				allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
+				allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
 					return nil, errors.New("grpc error")
 				},
 			},
@@ -242,86 +244,60 @@ func TestPullAll(t *testing.T) {
 	}
 }
 
-func TestPullHost(t *testing.T) {
-	val := createTestValidator(nil)
-	expectedHost := "validator1.example.com:9090"
-
-	tests := []struct {
-		name    string
-		mock    *mockQueryClient
-		want    string
-		wantErr string
-	}{
-		{
-			name: "success",
-			mock: &mockQueryClient{
-				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-					return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: expectedHost}, Found: true}, nil
-				},
-			},
-			want: expectedHost,
-		},
-		{
-			name: "not found",
-			mock: &mockQueryClient{
-				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-					return &types.QueryFibreProviderInfoResponse{Found: false}, nil
-				},
-			},
-			wantErr: "host not found",
-		},
-		{
-			name: "error",
-			mock: &mockQueryClient{
-				fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
-					return nil, errors.New("grpc error")
-				},
-			},
-			wantErr: "grpc error",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			host, err := grpc.NewHostRegistry(tt.mock, slog.Default()).PullHost(context.Background(), val)
-			if tt.wantErr != "" {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want, host.String())
-			}
-		})
-	}
-}
-
-func TestPullHost_OverwritesCache(t *testing.T) {
+// TestGetHost_RequeriesAfterInterval verifies GetHost serves the warmed host
+// within the rate-limit window and re-queries for the freshest host once the
+// window elapses.
+func TestGetHost_RequeriesAfterInterval(t *testing.T) {
 	val := createTestValidator(nil)
 	consAddr := getConsAddrString(val)
-	firstHost := "validator1.example.com:9090"
-	secondHost := "validator1.example.com:9091"
+	const (
+		firstHost  = "validator1.example.com:9090"
+		secondHost = "validator1.example.com:9091"
+	)
 
-	registry := grpc.NewHostRegistry(&mockQueryClient{
-		allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
-			return &types.QueryAllFibreProvidersResponse{
+	infoCalls := 0
+	mock := &mockQueryClient{
+		allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+			return &types.QueryAllBondedFibreProvidersResponse{
 				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: firstHost}}},
 			}, nil
 		},
 		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			infoCalls++
 			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: secondHost}, Found: true}, nil
 		},
-	}, slog.Default())
-	err := registry.Start(t.Context())
+	}
+
+	mockClock := clock.NewMock()
+	const interval = time.Minute
+	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(mockClock), grpc.WithRefreshInterval(interval))
+	require.NoError(t, registry.Start(t.Context())) // warms firstHost via PullAll
+
+	// Within the window: served from the warmed host, no per-validator query.
+	host, err := registry.GetHost(t.Context(), val)
 	require.NoError(t, err)
-
-	host, _ := registry.GetHost(context.Background(), val)
 	assert.Equal(t, firstHost, host.String())
+	assert.Equal(t, 0, infoCalls, "a warm host must be served without a query")
 
-	host, _ = registry.PullHost(context.Background(), val)
-	assert.Equal(t, secondHost, host.String())
+	// Still within the window after a small advance: still served warm.
+	mockClock.Add(interval / 2)
+	host, err = registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
+	assert.Equal(t, firstHost, host.String())
+	assert.Equal(t, 0, infoCalls)
 
-	host, _ = registry.GetHost(context.Background(), val)
+	// Past the window: re-queries and returns the freshest host.
+	mockClock.Add(interval)
+	host, err = registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
 	assert.Equal(t, secondHost, host.String())
+	assert.Equal(t, 1, infoCalls, "an elapsed window must trigger exactly one re-query")
+
+	// The re-queried host is now cached and served within the new window.
+	host, err = registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
+	assert.Equal(t, secondHost, host.String())
+	assert.Equal(t, 1, infoCalls)
 }
 
 func TestHostRegistry_ConcurrentAccess(t *testing.T) {
@@ -332,11 +308,11 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 	var callCount int
 	var mu sync.Mutex
 	registry := grpc.NewHostRegistry(&mockQueryClient{
-		allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
+		allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
 			mu.Lock()
 			callCount++
 			mu.Unlock()
-			return &types.QueryAllFibreProvidersResponse{
+			return &types.QueryAllBondedFibreProvidersResponse{
 				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: expectedHost}}},
 			}, nil
 		},
@@ -359,6 +335,93 @@ func TestHostRegistry_ConcurrentAccess(t *testing.T) {
 	assert.LessOrEqual(t, callCount, 5)
 }
 
+// TestGetHost_ServesLastKnownOnQueryError verifies that once the window elapses,
+// a transient query failure falls back to the last known host rather than
+// failing the caller.
+func TestGetHost_ServesLastKnownOnQueryError(t *testing.T) {
+	val := createTestValidator(nil)
+	consAddr := getConsAddrString(val)
+	const warmHost = "validator1.example.com:9090"
+
+	fail := false
+	mock := &mockQueryClient{
+		allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+			return &types.QueryAllBondedFibreProvidersResponse{
+				Providers: []types.FibreProvider{{ValidatorConsensusAddress: consAddr, Info: types.FibreProviderInfo{Host: warmHost}}},
+			}, nil
+		},
+		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			if fail {
+				return nil, errors.New("boom")
+			}
+			return &types.QueryFibreProviderInfoResponse{Info: &types.FibreProviderInfo{Host: warmHost}, Found: true}, nil
+		},
+	}
+
+	mockClock := clock.NewMock()
+	const interval = time.Minute
+	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithClock(mockClock), grpc.WithRefreshInterval(interval))
+	require.NoError(t, registry.Start(t.Context())) // warms warmHost via PullAll
+
+	// Force a re-query past the window, but make the query fail.
+	mockClock.Add(interval * 2)
+	fail = true
+	host, err := registry.GetHost(t.Context(), val)
+	require.NoError(t, err)
+	assert.Equal(t, warmHost, host.String(), "a transient query failure should serve the last known host")
+}
+
+// TestGetHost_QueryError verifies that a query failure with no previously known
+// host surfaces the error.
+func TestGetHost_QueryError(t *testing.T) {
+	val := createTestValidator(nil)
+
+	var infoCall int
+	mock := &mockQueryClient{
+		fibreProviderInfoFn: func(context.Context, *types.QueryFibreProviderInfoRequest, ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			infoCall++
+			return nil, errors.New("boom")
+		},
+	}
+	registry := grpc.NewHostRegistry(mock, slog.Default())
+
+	_, err := registry.GetHost(t.Context(), val)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "boom")
+	assert.Equal(t, 1, infoCall)
+}
+
+// TestGetHost_QueryTimeout verifies the on-chain query is bounded by the
+// configured timeout, so a hanging state node can't stall the caller.
+func TestGetHost_QueryTimeout(t *testing.T) {
+	val := createTestValidator(nil)
+
+	mock := &mockQueryClient{
+		fibreProviderInfoFn: func(ctx context.Context, _ *types.QueryFibreProviderInfoRequest, _ ...grpc2.CallOption) (*types.QueryFibreProviderInfoResponse, error) {
+			<-ctx.Done() // hang until the query context is cancelled by the timeout
+			return nil, ctx.Err()
+		},
+	}
+
+	registry := grpc.NewHostRegistry(mock, slog.Default(), grpc.WithQueryTimeout(50*time.Millisecond))
+
+	done := make(chan struct{})
+	var err error
+	go func() {
+		_, err = registry.GetHost(context.Background(), val)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("GetHost did not return; query timeout was not enforced")
+	}
+
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
 func TestGetHost_MultipleValidators(t *testing.T) {
 	vals := make([]*core.Validator, 0, 5)
 	providers := make([]types.FibreProvider, 0, 5)
@@ -373,8 +436,8 @@ func TestGetHost_MultipleValidators(t *testing.T) {
 	}
 
 	registry := grpc.NewHostRegistry(&mockQueryClient{
-		allFibreProvidersFn: func(context.Context, *types.QueryAllFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllFibreProvidersResponse, error) {
-			return &types.QueryAllFibreProvidersResponse{Providers: providers}, nil
+		allFibreProvidersFn: func(context.Context, *types.QueryAllBondedFibreProvidersRequest, ...grpc2.CallOption) (*types.QueryAllBondedFibreProvidersResponse, error) {
+			return &types.QueryAllBondedFibreProvidersResponse{Providers: providers}, nil
 		},
 	}, slog.Default())
 	err := registry.Start(t.Context())

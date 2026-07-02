@@ -7,9 +7,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
-	valtypes "github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	grpclib "google.golang.org/grpc"
@@ -33,7 +33,8 @@ type AppClient struct {
 // NewAppClient creates an [AppClient] connected to the given address.
 // The underlying gRPC connection is lazy — no network I/O happens until the first RPC.
 // Call [Start] to auto-detect the chain ID from the node.
-func NewAppClient(addr string, log *slog.Logger) (*AppClient, error) {
+// hostOpts are forwarded to the embedded [HostRegistry].
+func NewAppClient(addr string, log *slog.Logger, hostOpts ...HostRegistryOption) (*AppClient, error) {
 	conn, err := grpclib.NewClient(
 		addr,
 		grpclib.WithTransportCredentials(insecure.NewCredentials()),
@@ -44,7 +45,7 @@ func NewAppClient(addr string, log *slog.Logger) (*AppClient, error) {
 
 	return &AppClient{
 		SetGetter:    NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
-		HostRegistry: NewHostRegistry(valtypes.NewQueryClient(conn), log),
+		HostRegistry: NewHostRegistry(valtypes.NewQueryClient(conn), log, hostOpts...),
 		conn:         conn,
 		queryClient:  types.NewQueryClient(conn),
 		log:          log,

@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
-	"github.com/celestiaorg/celestia-app/v9/test/util/random"
+	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

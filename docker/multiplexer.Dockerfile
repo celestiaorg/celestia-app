@@ -24,6 +24,7 @@ ARG CELESTIA_VERSION_V5="v5.0.12"
 ARG CELESTIA_VERSION_V6="v6.4.4"
 ARG CELESTIA_VERSION_V7="v7.0.2-mocha"
 ARG CELESTIA_VERSION_V8="v8.0.8"
+ARG CELESTIA_VERSION_V9="v9.0.4"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
@@ -42,6 +43,9 @@ FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V7} AS base-v7
 
 # Stage 1f: this base image contains already released v8 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V8} AS base-v8
+
+# Stage 1g: this base image contains already released v9 binaries which can be embedded in the multiplexer.
+FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V9} AS base-v9
 
 # Stage 2: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -107,6 +111,11 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v7_${TARGETARCH}.tar.g
 COPY --from=base-v8 /bin/celestia-appd /tmp/celestia-appd-v8
 RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v8_${TARGETARCH}.tar.gz /tmp/celestia-appd-v8 \
     && rm /tmp/celestia-appd-v8
+
+# Copy v9 binary from base-v9 and compress it
+COPY --from=base-v9 /bin/celestia-appd /tmp/celestia-appd-v9
+RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v9_${TARGETARCH}.tar.gz /tmp/celestia-appd-v9 \
+    && rm /tmp/celestia-appd-v9
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \

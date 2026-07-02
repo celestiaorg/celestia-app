@@ -8,8 +8,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel/trace"
@@ -85,13 +86,26 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		tracer:      cfg.Tracer,
 		metrics:     metrics,
 		clock:       cfg.Clock,
-		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount),
+		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
 	}, nil
 }
 
 // ChainID returns the chain ID resolved during [Start].
 func (c *Client) ChainID() string {
 	return c.state.ChainID()
+}
+
+// validatorSet fetches the validator set bounded by [ClientConfig.RPCTimeout]
+// so a hung app node cannot stall an Upload/Download before any shard is
+// exchanged. A height of 0 returns the head set; a non-zero height returns the
+// set at that height.
+func (c *Client) validatorSet(ctx context.Context, height uint64) (validator.Set, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+	defer cancel()
+	if height > 0 {
+		return c.state.GetByHeight(ctx, height)
+	}
+	return c.state.Head(ctx)
 }
 
 // Await waits for all ongoing [Client.Upload]/[Client.Download] operations to complete.

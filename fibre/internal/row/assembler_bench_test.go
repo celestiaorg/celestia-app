@@ -3,7 +3,7 @@ package row
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 )
 
 // BenchmarkAssemblyReleased measures the hot read path. During upload each

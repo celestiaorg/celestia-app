@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -131,6 +131,19 @@ func TestServerUploadShard(t *testing.T) {
 			},
 		},
 		{
+			name: "NilShard",
+			requestModifier: func(req *types.UploadShardRequest) {
+				// omit the entire Shard message (a peer can send UploadShard
+				// with the Shard field unset). The handler must reject this
+				// gracefully rather than panicking on a nil dereference.
+				req.Shard = nil
+			},
+			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
+				require.Error(t, err)
+				require.Nil(t, resp)
+			},
+		},
+		{
 			name: "InvalidUploadSize",
 			requestModifier: func(req *types.UploadShardRequest) {
 				// set wrong upload size
@@ -139,6 +152,25 @@ func TestServerUploadShard(t *testing.T) {
 			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "upload size mismatch")
+			},
+		},
+		{
+			name: "OversizedRow",
+			requestModifier: func(req *types.UploadShardRequest) {
+				// craft rows one chunk larger than the protocol maximum. The
+				// handler must reject these before they are signed/stored, since
+				// the read-side row pool is sized for MaxRowSize.
+				blobCfg, _ := fibre.BlobConfigForVersion(uint8(req.Promise.BlobVersion))
+				oversized := blobCfg.MaxRowSize + 64
+				for i := range req.Shard.Rows {
+					req.Shard.Rows[i].Data = make([]byte, oversized)
+				}
+				req.Promise.BlobSize = uint32(oversized * blobCfg.OriginalRows)
+			},
+			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "exceeds maximum")
+				require.Nil(t, resp)
 			},
 		},
 	}

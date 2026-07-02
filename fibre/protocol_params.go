@@ -6,7 +6,7 @@ import (
 	"math"
 	"math/bits"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 )
 

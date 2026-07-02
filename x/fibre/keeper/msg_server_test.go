@@ -11,10 +11,10 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/keeper"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -553,6 +553,146 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		suite.Error(err)
 		suite.Nil(resp)
 		suite.Contains(err.Error(), "insufficient balance")
+	})
+}
+
+// moduleTransfer records a SendCoinsFromModuleToModule call.
+type moduleTransfer struct {
+	from string
+	to   string
+	amt  sdk.Coins
+}
+
+// recordModuleTransfers wires the bank mock to capture module-to-module
+// transfers and returns a pointer to the captured slice.
+func (suite *MsgServerTestSuite) recordModuleTransfers() *[]moduleTransfer {
+	var transfers []moduleTransfer
+	suite.bankKeeper.SendCoinsFromModuleToModuleFn = func(_ context.Context, from, to string, amt sdk.Coins) error {
+		transfers = append(transfers, moduleTransfer{from: from, to: to, amt: amt})
+		return nil
+	}
+	return &transfers
+}
+
+// TestSettlementRoutesPaymentToFeeCollector verifies that settling a payment
+// moves the charged amount out of the fibre module account into the fee
+// collector (where x/distribution pays it out), rather than leaving it stranded
+// in the module account.
+func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
+	suite.setupValidatorSet()
+
+	suite.T().Run("PayForFibre routes the full payment to the fee collector", func(t *testing.T) {
+		privKey := secp256k1.GenPrivKey()
+		signerPubKey := *privKey.PubKey().(*secp256k1.PubKey)
+		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+		promise := suite.createPaymentPromise(signerPubKey, privKey)
+
+		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
+
+		transfers := suite.recordModuleTransfers()
+		defer func() { suite.bankKeeper.SendCoinsFromModuleToModuleFn = nil }()
+
+		_, err := suite.msgServer.PayForFibre(suite.ctx, &types.MsgPayForFibre{
+			Signer:              signer,
+			PaymentPromise:      promise,
+			ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+		})
+		suite.NoError(err)
+		suite.Require().Len(*transfers, 1)
+		suite.Equal(types.ModuleName, (*transfers)[0].from)
+		suite.Equal(authtypes.FeeCollectorName, (*transfers)[0].to)
+		suite.Equal(sdk.NewCoins(payment), (*transfers)[0].amt)
+	})
+
+	suite.T().Run("PaymentPromiseTimeout routes the full payment to the fee collector", func(t *testing.T) {
+		privKey := secp256k1.GenPrivKey()
+		signerPubKey := *privKey.PubKey().(*secp256k1.PubKey)
+		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+		params := suite.keeper.GetParams(suite.ctx)
+		oldTime := suite.ctx.BlockTime().Add(-params.PaymentPromiseTimeout).Add(-time.Hour)
+		promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
+
+		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
+
+		transfers := suite.recordModuleTransfers()
+		defer func() { suite.bankKeeper.SendCoinsFromModuleToModuleFn = nil }()
+
+		processor := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+		_, err := suite.msgServer.PaymentPromiseTimeout(suite.ctx, &types.MsgPaymentPromiseTimeout{
+			Signer:         processor,
+			PaymentPromise: promise,
+		})
+		suite.NoError(err)
+		suite.Require().Len(*transfers, 1)
+		suite.Equal(types.ModuleName, (*transfers)[0].from)
+		suite.Equal(authtypes.FeeCollectorName, (*transfers)[0].to)
+		suite.Equal(sdk.NewCoins(payment), (*transfers)[0].amt)
+	})
+
+	suite.T().Run("full payment is routed even when partly covered by pending withdrawals", func(t *testing.T) {
+		privKey := secp256k1.GenPrivKey()
+		signerPubKey := *privKey.PubKey().(*secp256k1.PubKey)
+		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+		promise := suite.createPaymentPromise(signerPubKey, privKey)
+
+		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+		// AvailableBalance is zero: the whole payment is a shortfall covered by a
+		// pending withdrawal. The full payment must still leave the module account.
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           signer,
+			Balance:          payment,
+			AvailableBalance: sdk.NewInt64Coin(appconsts.BondDenom, 0),
+		})
+		suite.keeper.SetWithdrawal(suite.ctx, types.Withdrawal{
+			Signer:             signer,
+			Amount:             payment,
+			RequestedTimestamp: suite.ctx.BlockTime(),
+			AvailableTimestamp: suite.ctx.BlockTime().Add(time.Hour),
+		})
+
+		transfers := suite.recordModuleTransfers()
+		defer func() { suite.bankKeeper.SendCoinsFromModuleToModuleFn = nil }()
+
+		_, err := suite.msgServer.PayForFibre(suite.ctx, &types.MsgPayForFibre{
+			Signer:              signer,
+			PaymentPromise:      promise,
+			ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+		})
+		suite.NoError(err)
+		suite.Require().Len(*transfers, 1)
+		suite.Equal(sdk.NewCoins(payment), (*transfers)[0].amt)
+	})
+
+	suite.T().Run("a failed fee-collector transfer fails the settlement", func(t *testing.T) {
+		privKey := secp256k1.GenPrivKey()
+		signerPubKey := *privKey.PubKey().(*secp256k1.PubKey)
+		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+		promise := suite.createPaymentPromise(signerPubKey, privKey)
+
+		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
+
+		suite.bankKeeper.SendCoinsFromModuleToModuleFn = func(_ context.Context, _, _ string, _ sdk.Coins) error {
+			return sdkerrors.ErrInsufficientFunds
+		}
+		defer func() { suite.bankKeeper.SendCoinsFromModuleToModuleFn = nil }()
+
+		resp, err := suite.msgServer.PayForFibre(suite.ctx, &types.MsgPayForFibre{
+			Signer:              signer,
+			PaymentPromise:      promise,
+			ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+		})
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "fee collector")
 	})
 }
 

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"cosmossdk.io/errors"
-	"github.com/celestiaorg/celestia-app/v9/app/params"
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/app/params"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"

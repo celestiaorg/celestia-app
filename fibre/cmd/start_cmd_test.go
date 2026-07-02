@@ -5,9 +5,9 @@ import (
 	"io"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/fibre"
-	"github.com/celestiaorg/celestia-app/v9/fibre/state"
-	"github.com/celestiaorg/celestia-app/v9/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -176,7 +176,7 @@ func TestStartCmdGRPCSignerFlags(t *testing.T) {
 	}{
 		{
 			name:            "default: gRPC signer flag is set",
-			wantGRPCAddress: "127.0.0.1:26659",
+			wantGRPCAddress: "127.0.0.1:26669",
 		},
 		{
 			name:            "flag overrides default",

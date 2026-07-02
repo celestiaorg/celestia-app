@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cockroachdb/pebble/v2/vfs"
 	gogoproto "github.com/cosmos/gogoproto/proto"
@@ -131,15 +131,20 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 	return s, nil
 }
 
-// Put stores a [PaymentPromise] and [types.BlobShard] using a stage → commit
-// → publish pattern: write tmp under staging/, commit pebble metadata, then
-// rename into shards/<commit>-<hash>. A crash between commit and rename
+// Put stores a [PaymentPromise] and [types.BlobShard] using a stage → publish
+// → commit pattern: write tmp under staging/, rename into shards/<commit>-<hash>,
+// then commit pebble metadata. A crash between rename and commit
 // leaves a phantom marker that [Store.Get] cleans lazily and [PruneBefore]
 // sweeps at pruneAt.
-//
 // Puts for the same commitment but different promises are stored independently
 // without deduplication.
-func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
+func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
+	// Respect a client that has already gone away: skip the staging write
+	// entirely rather than doing work whose result nobody is waiting for.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("aborting store put: %w", err)
+	}
+
 	promiseHash, err := promise.Hash()
 	if err != nil {
 		return fmt.Errorf("getting promise hash: %w", err)
@@ -149,17 +154,17 @@ func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.Blo
 	if err != nil {
 		return fmt.Errorf("writing shard tmp: %w", err)
 	}
-	if err := s.commitAndPublish(promise, promiseHash, tmp, pruneAt); err != nil {
+	if err := s.commitAndPublish(ctx, promise, promiseHash, tmp, pruneAt); err != nil {
 		_ = s.fs.Remove(tmp)
 		return err
 	}
 	return nil
 }
 
-// commitAndPublish writes pebble metadata for the staged shard at tmp, then
-// renames tmp into the canonical shards/ path. On any error tmp is left in
+// commitAndPublish renames tmp into the canonical shards/ path, then writes
+// pebble metadata for the published shard. On any error tmp is left in
 // place for the caller to remove.
-func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tmp string, pruneAt time.Time) error {
+func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, promiseHash []byte, tmp string, pruneAt time.Time) error {
 	promiseProto, err := promise.ToProto()
 	if err != nil {
 		return fmt.Errorf("converting payment promise to proto: %w", err)
@@ -181,13 +186,24 @@ func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tm
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)
 	}
+
+	// Last safe point to honor a client cancellation: the batch is still only
+	// staged in memory and the tmp file is still unpublished, so we can drop
+	// both cleanly. Past the Rename+Commit below the write is durable and
+	// cannot be undone.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("aborting store commit: %w", err)
+	}
+
+	// Publish the file, then commit the marker that makes it discoverable.
+	shardPath := s.shardFilePath(promise.Commitment, promiseHash)
+	if err := s.fs.Rename(tmp, shardPath); err != nil {
+		return fmt.Errorf("renaming shard tmp to final: %w", err)
+	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		return fmt.Errorf("committing metadata: %w", err)
 	}
 
-	if err := s.fs.Rename(tmp, s.shardFilePath(promise.Commitment, promiseHash)); err != nil {
-		return fmt.Errorf("renaming shard tmp to final: %w", err)
-	}
 	return nil
 }
 

@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
-	"github.com/celestiaorg/celestia-app/v9/x/fibre/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -36,6 +36,17 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 	uploadSize = int64(promise.UploadSize)
 	log := s.log.With("blob_commitment", promise.Commitment.String(), "promise_height", promise.Height)
+
+	// validate request shape before verifyAssignment/verifyShard dereference
+	// the shard. A peer can send UploadShard with the Shard field omitted,
+	// which would otherwise cause a nil-pointer panic in the handler.
+	if req.Shard == nil {
+		err := errors.New("shard is required")
+		log.WarnContext(ctx, "missing shard in upload request", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "missing shard in upload request")
+		return nil, status.Error(grpccodes.InvalidArgument, err.Error())
+	}
 
 	span.AddEvent("promise_verified", trace.WithAttributes(
 		attribute.String("promise_hash", hex.EncodeToString(promiseHash)),
@@ -70,6 +81,16 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
 		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+		// A cancelled/expired client context means the store deliberately
+		// skipped the commit; report it as such rather than as an Internal
+		// error so the caller (and metrics) can tell it apart from a real
+		// storage failure.
+		if ctxErr := context.Cause(ctx); ctxErr != nil {
+			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "store upload aborted")
+			return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+		}
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
@@ -103,6 +124,15 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	return &types.UploadShardResponse{
 		ValidatorSignature: signature,
 	}, nil
+}
+
+// cancellationCode maps a context cancellation cause to the matching gRPC
+// status code so a deadline and an explicit cancel are reported distinctly.
+func cancellationCode(cause error) grpccodes.Code {
+	if errors.Is(cause, context.DeadlineExceeded) {
+		return grpccodes.DeadlineExceeded
+	}
+	return grpccodes.Canceled
 }
 
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
@@ -182,6 +212,12 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	rowSize, err := parseRowSize(shard.Rows)
 	if err != nil {
 		return err
+	}
+
+	// reject oversized rows: a row larger than MaxRowSize cannot be backed by
+	// the protocol's row pool on the read side and must never be signed/stored.
+	if blobCfg.MaxRowSize > 0 && rowSize > blobCfg.MaxRowSize {
+		return fmt.Errorf("row size %d exceeds maximum %d", rowSize, blobCfg.MaxRowSize)
 	}
 
 	// validate upload size matches the row size

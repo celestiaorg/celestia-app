@@ -22,7 +22,7 @@ jobs:
     steps:
       - name: Checkout code
         if: ${{ inputs.tag == '' }}
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - name: Generate image tag
         id: tag
@@ -59,7 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - name: Build latency-monitor Docker image
         run: >-
@@ -94,13 +94,20 @@ jobs:
           - test: TestSyncToTipMocha
             max-attempts: 3
           - test: TestAllUpgrades
+          # TestTxSubmission asserts a wall-clock average tx-inclusion latency
+          # bound. On shared GitHub-hosted runners a single run can occasionally
+          # see sustained CPU contention that inflates latency well above the
+          # threshold (e.g. 17s avg vs the usual ~4.6s). A genuine latency
+          # regression shifts the whole distribution and fails every attempt,
+          # so a retry de-flakes transient runner noise without masking it.
           - test: TestTxSubmission
+            max-attempts: 2
             extra-image: true
           - test: TestArabicaLoad
             extra-image: true
     steps:
       - name: Checkout code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - name: Set up Go
         uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
@@ -149,7 +156,7 @@ jobs:
   test-race:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:
@@ -158,10 +165,14 @@ jobs:
       - name: Run tests in race mode
         run: make test-race
 
+  # WARNING: Required job — a defense line against codec / wire-format bugs,
+  # including the fibre scatter codec. The fuzz targets live in
+  # scripts/test_fuzz.sh. Do NOT remove or disable this job; doing so re-opens
+  # https://github.com/celestiaorg/celestia-app/issues/7392.
   test-fuzz:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 #v6.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 #v6.0.0
         with:

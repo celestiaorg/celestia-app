@@ -4,8 +4,8 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/field"
-	"github.com/celestiaorg/celestia-app/v9/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 )
 
 // TestComputeMatchesScalar verifies the vectorized SIMD kernel produces the

@@ -1,5 +1,3 @@
-//go:build fibre
-
 package grpc_test
 
 import (
@@ -7,16 +5,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v9/app"
-	"github.com/celestiaorg/celestia-app/v9/app/encoding"
-	"github.com/celestiaorg/celestia-app/v9/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v9/pkg/user"
-	"github.com/celestiaorg/celestia-app/v9/test/util/testnode"
-	"github.com/celestiaorg/celestia-app/v9/x/valaddr/types"
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	"github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	clock "github.com/filecoin-project/go-clock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -34,6 +33,7 @@ type IntegrationTestSuite struct {
 	ecfg         encoding.Config
 	cctx         testnode.Context
 	hostRegistry *grpc.HostRegistry
+	clk          *clock.Mock
 	validator    *core.Validator
 }
 
@@ -46,7 +46,11 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	s.hostRegistry = grpc.NewHostRegistry(types.NewQueryClient(s.cctx.GRPCClient), slog.Default())
+	// Use a mock clock so the rate-limit window can be advanced deterministically
+	// below to force GetHost to re-query.
+	s.clk = clock.NewMock()
+	s.hostRegistry = grpc.NewHostRegistry(types.NewQueryClient(s.cctx.GRPCClient), slog.Default(),
+		grpc.WithClock(s.clk), grpc.WithRefreshInterval(time.Minute))
 	err := s.hostRegistry.Start(t.Context())
 	require.NoError(t, err)
 
@@ -132,6 +136,12 @@ func (s *IntegrationTestSuite) TestGetHostWithRegistration() {
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
+	// TestGetHostEmpty already opened the rate-limit window for this validator
+	// with a "not found" result. Advance past the window so GetHost re-queries
+	// and picks up the registration just submitted, instead of serving the
+	// cached miss.
+	s.clk.Add(2 * time.Minute)
+
 	host, err := s.hostRegistry.GetHost(s.cctx.GoContext(), s.validator)
 	require.NoError(t, err, "GetHost should now succeed")
 	require.NotEmpty(t, host.String())
@@ -151,13 +161,17 @@ func (s *IntegrationTestSuite) TestGetHostWithRegistration() {
 
 	require.NoError(t, s.cctx.WaitForNextBlock())
 
+	// Within the rate-limit window the previously resolved host is still served,
+	// even though the on-chain host has already changed.
 	host, err = s.hostRegistry.GetHost(s.cctx.GoContext(), s.validator)
 	require.NoError(t, err)
 	require.NotEmpty(t, host.String())
-	require.Equal(t, testHost, host.String(), "host should match what we registered")
+	require.Equal(t, testHost, host.String(), "within the window the cached host should be served")
 
-	host, err = s.hostRegistry.PullHost(s.cctx.GoContext(), s.validator)
+	// Past the window GetHost re-queries and returns the updated host.
+	s.clk.Add(2 * time.Minute)
+	host, err = s.hostRegistry.GetHost(s.cctx.GoContext(), s.validator)
 	require.NoError(t, err)
 	require.NotEmpty(t, host.String())
-	require.Equal(t, testHost2, host.String(), "host should match what we registered")
+	require.Equal(t, testHost2, host.String(), "past the window the freshest host should be resolved")
 }

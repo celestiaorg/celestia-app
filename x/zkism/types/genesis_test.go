@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
-	"github.com/celestiaorg/celestia-app/v9/x/zkism/types"
+	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/stretchr/testify/require"
 )
