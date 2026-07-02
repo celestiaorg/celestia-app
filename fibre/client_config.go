@@ -33,8 +33,11 @@ type ClientConfig struct {
 	MaxMessageSize int
 
 	// RPCTimeout bounds a single UploadShard/DownloadShard call to one peer
-	// (dial + RPC). Sheds black-holed peers below the kernel's ~75s TCP SYN
-	// retry window. See [DefaultClientConfig] for the default value.
+	// (dial + RPC), and also the initial validator-set lookup against the
+	// celestia-app node (state.Head / state.GetByHeight), so a hung app node
+	// cannot stall an Upload/Download before any shard is exchanged. Sheds
+	// black-holed peers below the kernel's ~75s TCP SYN retry window. See
+	// [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
 	// HostRefreshInterval is the minimum time between on-chain host re-queries
