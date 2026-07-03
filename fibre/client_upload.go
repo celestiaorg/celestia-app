@@ -86,7 +86,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	defer func() { uploadDone(err) }()
 
 	// 1) get validator set
-	valSet, err := c.state.Head(ctx)
+	valSet, err := c.validatorSet(ctx, 0)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get validator set")
