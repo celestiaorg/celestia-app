@@ -17,9 +17,10 @@ import (
 // still admits against the local balance but never deposits.
 type EscrowConfig struct {
 	// AutoFund enables client-side escrow admission control plus background
-	// top-ups of the escrow account. It defaults to true via
-	// [defaultEscrowConfig]; note a zero-value [EscrowConfig] (AutoFund false)
-	// disables auto-funding, so build configs with the constructors.
+	// top-ups of the escrow account. It is opt-in and defaults to false (both via
+	// [defaultEscrowConfig] and for a zero-value [EscrowConfig]), since enabling
+	// it broadcasts on-chain deposit transactions; set it explicitly to turn
+	// auto-funding on.
 	AutoFund bool
 	// LowWatermark is the local-balance threshold below which a refill is
 	// triggered. Sized to cover peak throughput during a deposit's confirmation.
@@ -34,8 +35,9 @@ type EscrowConfig struct {
 // EscrowQuerier reads on-chain escrow state for a signer. It wraps the
 // x/fibre Query RPCs.
 type EscrowQuerier interface {
-	// EscrowBalance returns the total escrow Balance for the signer. It returns
-	// a zero balance (not an error) when the escrow account does not exist yet.
+	// EscrowBalance returns the signer's available escrow balance — the on-chain
+	// balance minus funds locked by pending withdrawals. It returns a zero
+	// balance (not an error) when the escrow account does not exist yet.
 	EscrowBalance(ctx context.Context, signer string) (math.Int, error)
 }
 

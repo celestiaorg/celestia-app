@@ -122,15 +122,20 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	}
 	defer reservation.abort()
 
-	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(txClient.DefaultAccountName()))
+	// Commit the reservation the moment the promise is client-signed and about to
+	// be dispatched (via the beforeFanout hook), not after Upload returns: once a
+	// validator can hold the signed promise it may land on-chain through the
+	// timeout path even if the fanout errors, so crediting the budget back on
+	// such an error would let a later Put overspend the escrow.
+	signedPromise, err := c.Upload(ctx, ns, blob,
+		WithKeyName(txClient.DefaultAccountName()),
+		withBeforeDispatch(func() { reservation.signed = true }),
+	)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")
 		return result, err
 	}
-	// The promise is signed: its settlement cost is now committed on-chain (the
-	// PFF below, or the timeout path if it never lands), so the debit is final.
-	reservation.signed = true
 	span.AddEvent("blob_uploaded", trace.WithAttributes(
 		attribute.Int("sigs_amount", len(signedPromise.ValidatorSignatures)),
 	))

@@ -29,7 +29,7 @@ func TestEscrowConfigValidateRejectsBadWatermarks(t *testing.T) {
 
 func TestDefaultEscrowConfigWatermarksOrdered(t *testing.T) {
 	d := defaultEscrowConfig(DefaultProtocolParams)
-	require.True(t, d.AutoFund)
+	require.False(t, d.AutoFund) // opt-in: off by default
 	require.True(t, d.LowWatermark.IsPositive())
 	require.True(t, d.HighWatermark.GT(d.LowWatermark))
 	require.Positive(t, d.RefillCheckInterval)

@@ -77,7 +77,9 @@ type ClientConfig struct {
 func defaultEscrowConfig(p ProtocolParams) EscrowConfig {
 	maxBlobPayment := fibretypes.PaymentAmount(uint32(p.MaxBlobSize)).Amount
 	return EscrowConfig{
-		AutoFund:            true,
+		// Opt-in: auto-funding broadcasts on-chain MsgDepositToEscrow txs, so it
+		// stays off by default until a caller explicitly enables it.
+		AutoFund:            false,
 		LowWatermark:        maxBlobPayment.MulRaw(2),
 		HighWatermark:       maxBlobPayment.MulRaw(10),
 		RefillCheckInterval: time.Second,

@@ -19,11 +19,7 @@ func (d txDepositor) DepositToEscrow(ctx context.Context, signer string, amount 
 		Signer: signer,
 		Amount: sdk.NewCoin(appconsts.BondDenom, amount),
 	}
-	resp, err := d.tx.BroadcastTx(ctx, []sdk.Msg{msg})
-	if err != nil {
-		return err
-	}
-	if _, err := d.tx.ConfirmTx(ctx, resp.TxHash); err != nil {
+	if _, err := d.tx.SubmitTx(ctx, []sdk.Msg{msg}); err != nil {
 		return err
 	}
 	return nil
@@ -47,7 +43,10 @@ func (e txEscrowQuerier) EscrowBalance(ctx context.Context, signer string) (math
 	if !resp.Found || resp.EscrowAccount == nil {
 		return math.ZeroInt(), nil
 	}
-	if bal := resp.EscrowAccount.Balance.Amount; !bal.IsNil() {
+	// Seed from AvailableBalance, not Balance: the former already excludes funds
+	// locked by pending withdrawals, so the local ledger never admits against
+	// money that is on its way out of the escrow.
+	if bal := resp.EscrowAccount.AvailableBalance.Amount; !bal.IsNil() {
 		return bal, nil
 	}
 	return math.ZeroInt(), nil
