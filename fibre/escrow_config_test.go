@@ -2,7 +2,6 @@ package fibre
 
 import (
 	"testing"
-	"time"
 
 	"cosmossdk.io/math"
 	"github.com/stretchr/testify/require"
@@ -16,8 +15,6 @@ func TestEscrowConfigValidateFillsDefaults(t *testing.T) {
 	require.True(t, e.LowWatermark.Equal(d.LowWatermark))
 	require.True(t, e.HighWatermark.Equal(d.HighWatermark))
 	require.Equal(t, d.RefillCheckInterval, e.RefillCheckInterval)
-	require.Equal(t, d.ReconcileInterval, e.ReconcileInterval)
-	require.Equal(t, d.ReservationTTL, e.ReservationTTL)
 }
 
 func TestEscrowConfigValidateRejectsBadWatermarks(t *testing.T) {
@@ -35,5 +32,5 @@ func TestDefaultEscrowConfigWatermarksOrdered(t *testing.T) {
 	require.True(t, d.AutoFund)
 	require.True(t, d.LowWatermark.IsPositive())
 	require.True(t, d.HighWatermark.GT(d.LowWatermark))
-	require.Greater(t, d.ReservationTTL, time.Hour) // > module PaymentPromiseTimeout
+	require.Positive(t, d.RefillCheckInterval)
 }

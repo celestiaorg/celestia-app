@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"sync"
 	"sync/atomic"
 
@@ -44,14 +43,10 @@ type Client struct {
 	clientCache *fibregrpc.ClientCache
 
 	// escrowLedgers holds one client-side escrow accountant per signer address,
-	// created lazily on first use. It guards local reservation and auto-funding
+	// created lazily on first use. It guards local admission and auto-funding
 	// so uploads don't fail on an underfunded escrow. See [escrowLedger].
 	escrowMu      sync.Mutex
 	escrowLedgers map[string]*escrowLedger
-	// escrowSeq makes each escrow reservation key unique. The blob ID alone is
-	// content-addressed, so two uploads of identical data would otherwise collide
-	// on one (idempotent) reservation while settling two on-chain payments.
-	escrowSeq atomic.Uint64
 
 	// closeWg tracks subroutines spawned by Upload/Download operations.
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
@@ -98,7 +93,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		tracer:        cfg.Tracer,
 		metrics:       metrics,
 		clock:         cfg.Clock,
-		clientCache:   fibregrpc.NewClientCache(cfg.NewClientFn, stateClient, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
+		clientCache:   fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
 		escrowLedgers: make(map[string]*escrowLedger),
 	}, nil
 }
@@ -119,29 +114,22 @@ func (c *Client) escrowLedgerFor(txClient *user.TxClient) *escrowLedger {
 	return l
 }
 
-// newEscrowReservationKey returns a process-unique key identifying one upload's
-// escrow reservation. A [BlobID] is content-addressed (identical data yields an
-// identical BlobID), so it cannot key the reservation on its own: two uploads of
-// the same bytes would share one idempotent reservation while each still settles
-// its own on-chain payment (overcommit). A monotonic sequence guarantees
-// uniqueness; the BlobID prefix carries no semantics beyond making the key
-// legible in logs and traces, and the "#" merely separates the two parts.
-func (c *Client) newEscrowReservationKey(blobID BlobID) string {
-	return blobID.String() + "#" + strconv.FormatUint(c.escrowSeq.Add(1), 10)
-}
-
-// maintainEscrowAsync runs ledger upkeep (refill + reconcile) off the Put hot
-// path, tracked by closeWg so Close waits for in-flight deposits. It is a no-op
-// once the client is closed.
-func (c *Client) maintainEscrowAsync(ledger *escrowLedger) {
+// refillAsync tops up the ledger's escrow off the Put hot path as a best-effort
+// proactive top-up. The deposit is single-flighted inside [escrowLedger.refill],
+// so calling this on every low-budget admit never stacks concurrent deposits. It
+// is not tracked by closeWg: the only side effect is a MsgDepositToEscrow into
+// the client's own escrow, so a deposit still in flight when Stop closes the
+// connection simply fails and is retried on the next low admit — nothing to wait
+// for. The closed check just avoids spawning obviously-doomed work.
+func (c *Client) refillAsync(ledger *escrowLedger) {
 	if c.closed.Load() {
 		return
 	}
-	c.closeWg.Go(func() {
+	go func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 2*c.Config.RPCTimeout)
 		defer cancel()
-		ledger.maintain(ctx)
-	})
+		ledger.refill(ctx)
+	}()
 }
 
 // ChainID returns the chain ID resolved during [Start].

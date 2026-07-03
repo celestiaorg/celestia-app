@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -29,56 +30,52 @@ type PutResult struct {
 }
 
 // escrowReservation is a single Put's handle on its escrow admission. The zero
-// value (returned when AutoFund is disabled) makes settle/release no-ops.
+// value (returned when AutoFund is disabled) makes abort a no-op.
 type escrowReservation struct {
-	ledger    *escrowLedger
-	hash      string
-	settled   bool
-	broadcast bool
+	ledger *escrowLedger
+	amount math.Int
+	signed bool
 }
 
-// admitEscrow reserves blob's settlement cost against txClient's escrow before
-// signing/uploading, so concurrent in-flight promises can never collectively
-// overcommit the account (the failure mode neither the server's per-promise
-// check nor a fixed upfront deposit prevents). It blocks — auto-funding as
-// needed — until the budget is available, then kicks off background upkeep off
-// the hot path. Returns the zero reservation when AutoFund is disabled.
+// admitEscrow debits blob's settlement cost from txClient's local escrow budget
+// before signing/uploading, so concurrent in-flight promises can never
+// collectively overcommit the account (the failure mode neither the server's
+// per-promise check nor a fixed upfront deposit prevents). It blocks —
+// auto-funding as needed — until the budget is available, kicking a refill off
+// the hot path whenever the budget dips low. Returns the zero reservation when
+// AutoFund is disabled.
 func (c *Client) admitEscrow(ctx context.Context, txClient *user.TxClient, blob *Blob) (escrowReservation, error) {
 	if !c.Config.Escrow.AutoFund {
 		return escrowReservation{}, nil
 	}
 	ledger := c.escrowLedgerFor(txClient)
-	hash := c.newEscrowReservationKey(blob.ID())
 	amount := types.PaymentAmount(uint32(blob.UploadSize())).Amount
 	if err := ledger.ensureSeeded(ctx); err != nil {
 		return escrowReservation{}, fmt.Errorf("seeding escrow ledger: %w", err)
 	}
-	if !ledger.reserve(hash, amount) {
-		if err := ledger.waitForBudget(ctx, hash, amount); err != nil {
+	ok, low := ledger.admit(amount)
+	if !ok {
+		// Blocked path: refill synchronously — this Put is already waiting for
+		// budget, so a deposit inline (bounded by ctx) needs no extra goroutine.
+		if err := ledger.waitForBudget(ctx, func() { ledger.refill(ctx) }, amount); err != nil {
 			return escrowReservation{}, fmt.Errorf("waiting for escrow budget: %w", err)
 		}
+	} else if low {
+		// Admitted but low: kick a best-effort proactive top-up off the hot path
+		// so the next Put is unlikely to block.
+		c.refillAsync(ledger)
 	}
-	c.maintainEscrowAsync(ledger)
-	return escrowReservation{ledger: ledger, hash: hash}, nil
+	return escrowReservation{ledger: ledger, amount: amount}, nil
 }
 
-// settle marks the reservation paid on-chain (the PFF was confirmed): the escrow
-// was debited, so the reservation shrinks both the reserved total and the
-// tracked balance.
-func (r *escrowReservation) settle() {
-	if r.ledger != nil {
-		r.ledger.releaseSettled(r.hash)
-		r.settled = true
-	}
-}
-
-// release returns the budget for a reservation that was aborted before the PFF
-// was broadcast (encoding/upload/broadcast failed, so the funds were never
-// spent). Safe to defer unconditionally: it is a no-op once the reservation is
-// settled or the PFF has been broadcast (uncertain outcome, left for reconcile).
-func (r *escrowReservation) release() {
-	if r.ledger != nil && !r.settled && !r.broadcast {
-		r.ledger.releaseUnsettled(r.hash)
+// abort returns the debited budget for a Put that failed before its promise was
+// signed (encoding/upload failed, so the funds were never committed). Safe to
+// defer unconditionally: it is a no-op once the promise is signed, since from
+// that point the escrow is committed — the settle or timeout path debits it on
+// chain regardless of whether this Put's broadcast/confirm succeeds.
+func (r *escrowReservation) abort() {
+	if r.ledger != nil && !r.signed {
+		r.ledger.credit(r.amount)
 	}
 }
 
@@ -113,16 +110,17 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
-	// Escrow admission: reserve this promise's settlement cost before signing and
-	// uploading. Released as settled once the PFF is confirmed, or unsettled (via
-	// the deferred release) on any earlier error. No-op when AutoFund is disabled.
+	// Escrow admission: debit this promise's settlement cost before signing and
+	// uploading. Credited back (via the deferred abort) on any error before the
+	// promise is signed; once signed the funds are committed and stay debited.
+	// No-op when AutoFund is disabled.
 	reservation, err := c.admitEscrow(ctx, txClient, blob)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "escrow admission failed")
 		return result, err
 	}
-	defer reservation.release()
+	defer reservation.abort()
 
 	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(txClient.DefaultAccountName()))
 	if err != nil {
@@ -130,6 +128,9 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		span.SetStatus(codes.Error, "failed to upload blob")
 		return result, err
 	}
+	// The promise is signed: its settlement cost is now committed on-chain (the
+	// PFF below, or the timeout path if it never lands), so the debit is final.
+	reservation.signed = true
 	span.AddEvent("blob_uploaded", trace.WithAttributes(
 		attribute.Int("sigs_amount", len(signedPromise.ValidatorSignatures)),
 	))
@@ -157,7 +158,6 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	span.AddEvent("pff_broadcasted", trace.WithAttributes(
 		attribute.String("pff_hash", broadcastResp.TxHash),
 	))
-	reservation.broadcast = true
 
 	// confirm transaction inclusion
 	txResp, err := txClient.ConfirmTx(ctx, broadcastResp.TxHash)
@@ -169,9 +169,6 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	span.AddEvent("pff_confirmed", trace.WithAttributes(
 		attribute.Int64("height", txResp.Height),
 	))
-
-	// The PFF is on-chain: the escrow was debited, so settle the reservation.
-	reservation.settle()
 
 	span.SetStatus(codes.Ok, "")
 	return PutResult{

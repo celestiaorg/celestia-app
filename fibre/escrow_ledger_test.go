@@ -14,26 +14,10 @@ import (
 
 // mockQuerier returns a balance the test controls and counts queries.
 type mockQuerier struct {
-	mu      sync.Mutex
-	bal     math.Int
-	err     error
-	count   int
-	timeout time.Duration // chain PaymentPromiseTimeout; 0 means "report 1h"
-}
-
-func (m *mockQuerier) PaymentPromiseTimeout(_ context.Context) (time.Duration, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.timeout == 0 {
-		return time.Hour, nil
-	}
-	return m.timeout, nil
-}
-
-func (m *mockQuerier) set(bal math.Int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.bal = bal
+	mu    sync.Mutex
+	bal   math.Int
+	err   error
+	count int
 }
 
 func (m *mockQuerier) queries() int {
@@ -59,7 +43,7 @@ type mockDepositor struct {
 	total     math.Int
 	err       error
 	block     chan struct{} // if non-nil, DepositToEscrow waits on it
-	entered   chan struct{} // closed-style signal each entry
+	entered   chan struct{} // signal each entry
 	onDeposit func(amount math.Int)
 }
 
@@ -100,8 +84,6 @@ func testEscrowConfig() EscrowConfig {
 		LowWatermark:        math.NewInt(1_000),
 		HighWatermark:       math.NewInt(10_000),
 		RefillCheckInterval: 5 * time.Millisecond,
-		ReconcileInterval:   time.Second,
-		ReservationTTL:      time.Hour,
 	}
 }
 
@@ -110,94 +92,73 @@ func newTestLedger(t *testing.T, clk clock.Clock, q EscrowQuerier, d Depositor) 
 	return newEscrowLedger("signer1", testEscrowConfig(), clk, q, d, nil)
 }
 
-func TestEscrowLedgerReserveUntilExhausted(t *testing.T) {
-	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
-	l.chainBal = math.NewInt(100) // seed directly for the unit
+// seedBalance sets the local balance directly, standing in for a completed
+// ensureSeeded in tests that exercise admit/credit in isolation.
+func seedBalance(l *escrowLedger, v int64) {
+	l.mu.Lock()
+	l.balance = math.NewInt(v)
+	l.mu.Unlock()
+}
 
-	require.True(t, l.reserve("a", math.NewInt(60)))
-	require.True(t, l.reserve("b", math.NewInt(40)))
-	require.Equal(t, int64(0), l.available().Int64())
+func TestEscrowLedgerAdmitUntilExhausted(t *testing.T) {
+	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
+	seedBalance(l, 100)
+
+	ok, _ := l.admit(math.NewInt(60))
+	require.True(t, ok)
+	ok, _ = l.admit(math.NewInt(40))
+	require.True(t, ok)
+	require.Equal(t, int64(0), l.balanceOf().Int64())
 	// no budget left
-	require.False(t, l.reserve("c", math.NewInt(1)))
+	ok, _ = l.admit(math.NewInt(1))
+	require.False(t, ok)
 }
 
-func TestEscrowLedgerReserveIdempotent(t *testing.T) {
+func TestEscrowLedgerAdmitReportsLowWatermark(t *testing.T) {
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
-	l.chainBal = math.NewInt(100)
+	seedBalance(l, 1_050) // just above LowWatermark (1_000)
 
-	require.True(t, l.reserve("a", math.NewInt(60)))
-	require.True(t, l.reserve("a", math.NewInt(60))) // same hash, no double charge
-	require.Equal(t, int64(40), l.available().Int64())
+	// admit drops balance to 1_000, still not < LowWatermark
+	ok, low := l.admit(math.NewInt(50))
+	require.True(t, ok)
+	require.False(t, low)
+
+	// next admit crosses below LowWatermark
+	ok, low = l.admit(math.NewInt(1))
+	require.True(t, ok)
+	require.True(t, low)
+
+	// a failed admit still reports the low balance so the caller refills
+	ok, low = l.admit(math.NewInt(10_000))
+	require.False(t, ok)
+	require.True(t, low)
 }
 
-func TestEscrowLedgerReleaseUnsettledReturnsBudget(t *testing.T) {
+func TestEscrowLedgerCreditReturnsBudget(t *testing.T) {
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
-	l.chainBal = math.NewInt(100)
+	seedBalance(l, 100)
 
-	require.True(t, l.reserve("a", math.NewInt(60)))
-	l.releaseUnsettled("a")
-	require.Equal(t, int64(100), l.available().Int64()) // budget fully returned
-	// idempotent / unknown hash is a no-op
-	l.releaseUnsettled("a")
-	l.releaseUnsettled("missing")
-	require.Equal(t, int64(100), l.available().Int64())
-}
-
-func TestEscrowLedgerReleaseSettledShrinksBoth(t *testing.T) {
-	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
-	l.chainBal = math.NewInt(100)
-
-	require.True(t, l.reserve("a", math.NewInt(60)))
-	require.Equal(t, int64(40), l.available().Int64())
-	l.releaseSettled("a") // paid: funds left escrow
-	// available is unchanged (the budget was already committed)...
-	require.Equal(t, int64(40), l.available().Int64())
-	// ...because chainBal dropped by the payment too.
-	require.Equal(t, int64(40), l.chainBal.Int64())
-	require.Equal(t, int64(0), l.reserved.Int64())
-}
-
-func TestEscrowLedgerReconcileSyncsBalanceAndExpiresTTL(t *testing.T) {
-	mock := clock.NewMock()
-	q := &mockQuerier{bal: math.NewInt(500)}
-	l := newTestLedger(t, mock, q, newMockDepositor())
-
-	// initial reconcile sets chainBal from chain
-	require.NoError(t, l.reconcile(t.Context()))
-	require.Equal(t, int64(500), l.chainBal.Int64())
-
-	require.True(t, l.reserve("old", math.NewInt(100)))
-	require.Equal(t, int64(400), l.available().Int64())
-
-	// advance past the TTL; reconcile should drop the stale reservation
-	mock.Add(l.cfg.ReservationTTL + time.Minute)
-	q.set(math.NewInt(450)) // e.g. some unrelated settlement happened
-	require.NoError(t, l.reconcile(t.Context()))
-	require.Equal(t, int64(450), l.chainBal.Int64())
-	require.Equal(t, int64(0), l.reserved.Int64())
-	require.Equal(t, int64(450), l.available().Int64())
-}
-
-func TestEscrowLedgerReconcilePropagatesQueryError(t *testing.T) {
-	q := &mockQuerier{err: errors.New("rpc down")}
-	l := newTestLedger(t, clock.New(), q, newMockDepositor())
-	require.Error(t, l.reconcile(t.Context()))
+	ok, _ := l.admit(math.NewInt(60))
+	require.True(t, ok)
+	require.Equal(t, int64(40), l.balanceOf().Int64())
+	l.credit(math.NewInt(60))
+	require.Equal(t, int64(100), l.balanceOf().Int64()) // budget fully returned
 }
 
 func TestEscrowLedgerRefillDepositsToHighWatermark(t *testing.T) {
 	d := newMockDepositor()
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
-	l.chainBal = math.NewInt(500) // below LowWatermark (1000)
+	seedBalance(l, 500) // below LowWatermark (1000)
 
-	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
+	l.refill(t.Context())
 	count, total := d.deposits()
 	require.Equal(t, 1, count)
 	// deposits up to HighWatermark: 10_000 - 500 = 9_500
 	require.Equal(t, int64(9_500), total.Int64())
-	require.Equal(t, int64(10_000), l.available().Int64())
+	require.Equal(t, int64(10_000), l.balanceOf().Int64())
 
-	// above LowWatermark now: no further deposit
-	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
+	// at HighWatermark now: no further deposit
+	l.refill(t.Context())
 	count, _ = d.deposits()
 	require.Equal(t, 1, count)
 }
@@ -206,65 +167,74 @@ func TestEscrowLedgerRefillDisabled(t *testing.T) {
 	d := newMockDepositor()
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
 	l.cfg.AutoFund = false
-	l.chainBal = math.NewInt(0)
+	seedBalance(l, 0)
 
-	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
+	l.refill(t.Context())
 	count, _ := d.deposits()
 	require.Equal(t, 0, count)
+}
+
+func TestEscrowLedgerRefillDepositErrorLeavesBalance(t *testing.T) {
+	d := newMockDepositor()
+	d.err = errors.New("broadcast failed")
+	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
+	seedBalance(l, 0)
+
+	l.refill(t.Context())
+	// deposit failed: balance must not be credited (never overstate).
+	require.Equal(t, int64(0), l.balanceOf().Int64())
 }
 
 func TestEscrowLedgerRefillSingleFlight(t *testing.T) {
 	d := newMockDepositor()
 	d.block = make(chan struct{})
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
-	l.chainBal = math.NewInt(0)
+	seedBalance(l, 0)
 
-	// first refill enters DepositToEscrow and blocks, holding refillMu
-	done := make(chan error, 1)
-	go func() { done <- l.refill(t.Context(), l.cfg.LowWatermark) }()
+	// first refill enters DepositToEscrow and blocks, holding the refilling flag
+	done := make(chan struct{})
+	go func() { l.refill(t.Context()); close(done) }()
 	<-d.entered // ensure the first deposit is in progress
 
-	// concurrent refill must be skipped (TryLock fails), not stacked
-	require.NoError(t, l.refill(t.Context(), l.cfg.LowWatermark))
+	// concurrent refill must be skipped (CAS fails), not stacked
+	l.refill(t.Context())
 	count, _ := d.deposits()
 	require.Equal(t, 0, count) // first one hasn't completed yet, second skipped
 
 	close(d.block)
-	require.NoError(t, <-done)
+	<-done
 	count, _ = d.deposits()
 	require.Equal(t, 1, count) // exactly one deposit total
 }
 
 func TestEscrowLedgerWaitForBudgetUnblocksAfterRefill(t *testing.T) {
 	d := newMockDepositor()
-	q := &mockQuerier{}
-	l := newTestLedger(t, clock.New(), q, d)
-	l.chainBal = math.NewInt(0) // nothing available, below LowWatermark
+	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
+	seedBalance(l, 0) // nothing available, below LowWatermark
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
+	refill := func() { l.refill(ctx) }
 	// amount fits within HighWatermark, so the triggered refill unblocks it
-	require.NoError(t, l.waitForBudget(ctx, "a", math.NewInt(5_000)))
-	require.Equal(t, int64(5_000), l.reserved.Int64())
+	require.NoError(t, l.waitForBudget(ctx, refill, math.NewInt(5_000)))
+	require.Equal(t, int64(5_000), l.balanceOf().Int64()) // 10_000 refilled − 5_000 admitted
 	count, _ := d.deposits()
 	require.GreaterOrEqual(t, count, 1)
 }
 
-// A payment larger than LowWatermark (but within HighWatermark) must not spin:
-// waitForBudget refills toward the payment amount, not just the low watermark.
-// With avail above LowWatermark, the background refill gate would never fire.
+// A payment larger than LowWatermark but within HighWatermark must not spin:
+// waitForBudget refills up to HighWatermark, which covers it.
 func TestEscrowLedgerWaitForBudgetRefillsAboveLowWatermark(t *testing.T) {
 	d := newMockDepositor()
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
-	// avail (2_000) is above LowWatermark (1_000) but below the requested amount
-	// (5_000) — the window a LowWatermark-gated refill would skip, spinning
-	// until ctx expired.
-	l.chainBal = math.NewInt(2_000)
+	// balance (2_000) is above LowWatermark (1_000) but below the requested
+	// amount (5_000) — admit fails, and the refill tops up to HighWatermark.
+	seedBalance(l, 2_000)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer cancel()
-	require.NoError(t, l.waitForBudget(ctx, "a", math.NewInt(5_000)))
-	require.Equal(t, int64(5_000), l.reserved.Int64())
+	refill := func() { l.refill(ctx) }
+	require.NoError(t, l.waitForBudget(ctx, refill, math.NewInt(5_000)))
 	count, _ := d.deposits()
 	require.GreaterOrEqual(t, count, 1)
 }
@@ -272,71 +242,47 @@ func TestEscrowLedgerWaitForBudgetRefillsAboveLowWatermark(t *testing.T) {
 func TestEscrowLedgerWaitForBudgetRespectsContext(t *testing.T) {
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
 	l.cfg.AutoFund = false // no refills, so budget never appears
-	l.chainBal = math.NewInt(0)
+	seedBalance(l, 0)
 
 	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Millisecond)
 	defer cancel()
-	err := l.waitForBudget(ctx, "a", math.NewInt(100))
+	err := l.waitForBudget(ctx, func() {}, math.NewInt(100))
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestEscrowLedgerWaitForBudgetFailsFastOnOversizedPayment(t *testing.T) {
 	d := newMockDepositor()
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, d)
-	l.chainBal = math.NewInt(0)
+	seedBalance(l, 0)
 
 	// amount exceeds HighWatermark (10_000): auto-funding can never satisfy it,
 	// so waitForBudget must fail immediately rather than spin until ctx expires.
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
-	err := l.waitForBudget(ctx, "big", math.NewInt(10_001))
+	err := l.waitForBudget(ctx, func() { l.refill(ctx) }, math.NewInt(10_001))
 	require.Error(t, err)
 	require.NotErrorIs(t, err, context.DeadlineExceeded)
 	count, _ := d.deposits()
 	require.Equal(t, 0, count) // no pointless deposits
 }
 
-func TestEscrowLedgerEnsureSeededBumpsTTLFromChain(t *testing.T) {
-	q := &mockQuerier{bal: math.NewInt(0), timeout: 2 * time.Hour}
-	l := newTestLedger(t, clock.New(), q, newMockDepositor())
-	require.Equal(t, time.Hour, l.ttl) // configured TTL before seeding
-
-	require.NoError(t, l.ensureSeeded(t.Context()))
-	// chain timeout (2h) + margin exceeds the configured 1h, so the ledger adopts it.
-	require.Equal(t, 2*time.Hour+reservationTTLMargin, l.ttl)
-}
-
-func TestEscrowLedgerEnsureSeededKeepsConfiguredTTLWhenChainLower(t *testing.T) {
-	q := &mockQuerier{bal: math.NewInt(0), timeout: time.Minute}
-	l := newTestLedger(t, clock.New(), q, newMockDepositor())
-
-	require.NoError(t, l.ensureSeeded(t.Context()))
-	// chain timeout (1m) + margin is below the configured 1h, so keep the config.
-	require.Equal(t, time.Hour, l.ttl)
-}
-
-func TestEscrowLedgerConcurrentReserveRelease(t *testing.T) {
+func TestEscrowLedgerConcurrentAdmitCredit(t *testing.T) {
 	l := newTestLedger(t, clock.New(), &mockQuerier{}, newMockDepositor())
-	l.chainBal = math.NewInt(1_000_000)
+	seedBalance(l, 1_000_000)
 
 	var wg sync.WaitGroup
 	for i := range 200 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			hash := string(rune('a'+i%26)) + string(rune('0'+i/26))
-			if l.reserve(hash, math.NewInt(10)) {
-				if i%2 == 0 {
-					l.releaseSettled(hash)
-				} else {
-					l.releaseUnsettled(hash)
-				}
+			if ok, _ := l.admit(math.NewInt(10)); ok && i%2 == 0 {
+				l.credit(math.NewInt(10)) // half abort before sign, half stay committed
 			}
 		}(i)
 	}
 	wg.Wait()
-	// after all settled/unsettled, no reservation should leak
-	_, reserved, _, inflight := l.snapshot()
-	require.Equal(t, 0, inflight)
-	require.Equal(t, int64(0), reserved.Int64())
+	// 200 admits of 10, 100 credited back: balance = 1_000_000 − 100*10 = 999_000.
+	require.Equal(t, int64(999_000), l.balanceOf().Int64())
+	// balance never went negative (structurally guaranteed by admit).
+	require.False(t, l.balanceOf().IsNegative())
 }

@@ -72,9 +72,8 @@ type ClientConfig struct {
 
 // defaultEscrowConfig derives escrow auto-funding defaults from the protocol
 // params. Watermarks are sized as multiples of the maximum single-blob payment
-// so a burst of in-flight max-size blobs can never overcommit the escrow, and
-// the reservation TTL outlasts the module's payment-promise timeout (the point
-// by which a promise is necessarily settled or dead).
+// so that even a max-size blob is always admissible and a burst of in-flight
+// max-size blobs is comfortably covered before a refill lands.
 func defaultEscrowConfig(p ProtocolParams) EscrowConfig {
 	maxBlobPayment := fibretypes.PaymentAmount(uint32(p.MaxBlobSize)).Amount
 	return EscrowConfig{
@@ -82,8 +81,6 @@ func defaultEscrowConfig(p ProtocolParams) EscrowConfig {
 		LowWatermark:        maxBlobPayment.MulRaw(2),
 		HighWatermark:       maxBlobPayment.MulRaw(10),
 		RefillCheckInterval: time.Second,
-		ReconcileInterval:   5 * time.Second,
-		ReservationTTL:      fibretypes.DefaultPaymentPromiseTimeout + 10*time.Minute,
 	}
 }
 
@@ -151,9 +148,9 @@ func (cfg *ClientConfig) Validate() error {
 }
 
 // Validate fills unset fields with defaults and rejects invalid combinations.
-// Watermarks and intervals are sanitized whether or not AutoFund is set, since
-// the ledger uses them (RefillCheckInterval, ReservationTTL) even when funding
-// is disabled.
+// Watermarks and the check interval are sanitized whether or not AutoFund is
+// set, since the ledger uses them (RefillCheckInterval) even when funding is
+// disabled.
 func (e *EscrowConfig) Validate() error {
 	d := defaultEscrowConfig(DefaultProtocolParams)
 	if e.LowWatermark.IsNil() {
@@ -164,12 +161,6 @@ func (e *EscrowConfig) Validate() error {
 	}
 	if e.RefillCheckInterval <= 0 {
 		e.RefillCheckInterval = d.RefillCheckInterval
-	}
-	if e.ReconcileInterval <= 0 {
-		e.ReconcileInterval = d.ReconcileInterval
-	}
-	if e.ReservationTTL <= 0 {
-		e.ReservationTTL = d.ReservationTTL
 	}
 	if !e.LowWatermark.IsPositive() {
 		return fmt.Errorf("low_watermark must be > 0, got %s", e.LowWatermark)

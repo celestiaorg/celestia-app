@@ -434,11 +434,13 @@ Callers that need deposits, withdrawals, escrow queries, or PFF transaction subm
 
 ### Escrow ledger accounting safety
 
-When escrow auto-funding is enabled, the per-signer ledger admits uploads against a locally tracked balance (`chainBal`) minus the sum of in-flight, signed-but-unsettled reservations. `chainBal` is updated from two sources: additively when a background deposit (`Msg.DepositToEscrow`) confirms, and by overwrite when `reconcile` re-reads the on-chain balance as ground truth.
+When escrow auto-funding is enabled, each signer has a client-side ledger holding a single number, `balance`: the on-chain escrow balance minus the funds already committed to signed-but-not-yet-settled promises. `balance` is seeded once from chain (`Query.EscrowAccount`) on first use.
 
-These two sources can race: if a `reconcile` reads the post-deposit balance while a deposit is still in flight and the deposit is then also added on top, `chainBal` double-counts it — overstating available budget and risking an escrow overcommit, the one invariant the ledger must never break. To prevent this, `reconcile` bumps a generation counter whenever it overwrites `chainBal`, and a completing deposit applies its additive delta only if that counter is unchanged since the deposit was snapshotted. If a reconcile intervened, the additive is skipped and the ledger relies on the reconciled ground truth.
+An upload is admitted only when `balance` covers its payment, at which point `balance` is decremented. The decrement is credited back only if the upload fails *before* its promise is signed — once signed, the funds are committed (the `Msg.PayForFibre` settlement, or `Msg.PaymentPromiseTimeout` if the PFF never lands, debits the escrow on chain regardless of this client), so the decrement is final. When `balance` dips below `LowWatermark`, a background deposit (`Msg.DepositToEscrow`, single-flighted) tops it up to `HighWatermark`, applied as an additive delta once confirmed.
 
-The accounting is deliberately one-sided: skipping the additive can briefly *understate* the balance (which only refuses budget, never overcommits), and the next reconcile restores ground truth. It never overstates.
+The safety invariant is that `balance` is never *overstated*: it is only ever credited by a real confirmed deposit or by an abort-before-sign (whose funds were never committed), never by a phantom amount. Because no chain re-read overwrites `balance` during operation, the additive deposit delta can never double-count a concurrent reconcile, so the additive is unconditionally correct. A never-overstated balance means concurrent uploads can never collectively overcommit the escrow.
+
+The trade-off is one-sided and deliberate: a long-running, never-idle client cannot re-anchor `balance` to on-chain ground truth, so it may *understate* over time (from aborted-before-sign uploads and promises that expire without a timeout settlement). Understating only refuses budget or tops up slightly more often than strictly needed — the excess stays in the escrow and is withdrawable — it never overcommits.
 
 ## 12) Errors
 
