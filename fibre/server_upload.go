@@ -137,7 +137,7 @@ func cancellationCode(cause error) grpccodes.Code {
 
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
 // It does both stateless and stateful verification.
-// Returns the BlobConfig for the blob version and pruneAt time based on the expiration time from chain state.
+// Returns the BlobConfig for the blob version and the pruneAt time computed by shardPruneAt.
 func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, []byte, time.Time, error) {
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
@@ -171,7 +171,20 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
 	}
 
-	return promise, blobCfg, promiseHash, verifyResult.ExpiresAt, nil
+	pruneAt := shardPruneAt(promise.CreationTimestamp, verifyResult.ExpiresAt, verifyResult.ShardRetention)
+	return promise, blobCfg, promiseHash, pruneAt, nil
+}
+
+// shardPruneAt returns when an uploaded shard should be pruned. It anchors on
+// creationTimestamp (not time.Now) so re-Puts of the same shard stay idempotent
+// (see pruneKey in store.go) and never returns before expiresAt, so a shard is
+// not pruned while its payment promise is still valid.
+func shardPruneAt(creationTimestamp, expiresAt time.Time, retention time.Duration) time.Time {
+	floor := creationTimestamp.Add(retention)
+	if expiresAt.After(floor) {
+		return expiresAt
+	}
+	return floor
 }
 
 // verifyAssignment verifies that the [types.BlobShard] in the request is assigned to this validator.
