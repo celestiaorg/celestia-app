@@ -85,12 +85,7 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 	// Prefer the exact validator set at height when provided; otherwise fall
 	// back to the head set — stakes are stable enough that this only affects
 	// the number of validators contacted, not correctness.
-	var valSet validator.Set
-	if opt.height > 0 {
-		valSet, err = c.state.GetByHeight(ctx, opt.height)
-	} else {
-		valSet, err = c.state.Head(ctx)
-	}
+	valSet, err := c.validatorSet(ctx, opt.height)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get validator set")

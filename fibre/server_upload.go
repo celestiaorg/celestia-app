@@ -81,6 +81,16 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
 		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+		// A cancelled/expired client context means the store deliberately
+		// skipped the commit; report it as such rather than as an Internal
+		// error so the caller (and metrics) can tell it apart from a real
+		// storage failure.
+		if ctxErr := context.Cause(ctx); ctxErr != nil {
+			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "store upload aborted")
+			return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+		}
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
@@ -114,6 +124,15 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	return &types.UploadShardResponse{
 		ValidatorSignature: signature,
 	}, nil
+}
+
+// cancellationCode maps a context cancellation cause to the matching gRPC
+// status code so a deadline and an explicit cancel are reported distinctly.
+func cancellationCode(cause error) grpccodes.Code {
+	if errors.Is(cause, context.DeadlineExceeded) {
+		return grpccodes.DeadlineExceeded
+	}
+	return grpccodes.Canceled
 }
 
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.

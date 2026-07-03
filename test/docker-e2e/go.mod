@@ -7,7 +7,7 @@ require (
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/celestia-app/v10 v10.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
-	github.com/celestiaorg/go-square/v4 v4.0.0-rc4
+	github.com/celestiaorg/go-square/v4 v4.0.0-rc5
 	github.com/celestiaorg/tastora v0.20.0
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cosmos/cosmos-sdk v0.50.13

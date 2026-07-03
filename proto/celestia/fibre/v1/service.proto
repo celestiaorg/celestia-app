@@ -3,7 +3,7 @@ package celestia.fibre.v1;
 
 import "celestia/fibre/v1/fibre.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 
 // BlobRow represents a row of data in a Fibre blob.
 message BlobRow {
