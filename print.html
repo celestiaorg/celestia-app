@@ -5189,7 +5189,7 @@ upload_verify_workers = runtime.GOMAXPROCS(0)
 <li>Check that <code>promise.chain_id</code> matches the connected app chain ID.</li>
 <li>Check that <code>promise.blob_version</code> is supported.</li>
 <li>Run stateless promise validation: signer public key exists and is 33 bytes, chain ID is non-empty and at most 20 bytes, upload size is positive, creation timestamp is nonzero, escrow-owner signature is 64 bytes, height is positive, and the escrow-owner secp256k1 signature verifies against <code>SignBytes</code>.</li>
-<li>Run stateful validation through the app state client. On success this returns <code>ExpiresAt</code>; the server uses that time as <code>pruneAt</code>.</li>
+<li>Run stateful validation through the app state client. On success this returns <code>ExpiresAt</code> and <code>ShardRetention</code> (the <code>x/fibre</code> on-chain, governance-changeable parameter, default 4h); the server computes <code>pruneAt = max(ExpiresAt, creation_timestamp + ShardRetention)</code>, so shards are kept for at least the configured retention and are never pruned while the promise is still valid.</li>
 <li>Compute the payment-promise hash.</li>
 <li>Fetch the validator set at <code>promise.height</code>.</li>
 <li>Fetch this server's validator consensus public key from the signer and find it in the validator set.</li>
@@ -5220,7 +5220,7 @@ staging/&lt;random&gt;                            temporary in-flight write
 </code></pre>
 <p><code>Store.Put</code> writes the shard to a random staging file, writes metadata, then renames the staging file to the canonical shard file. Puts for the same commitment but different payment promises are stored independently by promise hash. <code>Store.Get(commitment)</code> iterates <code>/shard/&lt;commitment&gt;/</code> and returns the first readable shard file. If it finds an orphan marker whose shard file is missing, it deletes the marker lazily. <code>Store.PruneBefore</code> iterates the ordered <code>/prune/</code> index and deletes shard files, shard markers, payment promises, and prune entries whose prune timestamp is older than the cutoff.</p>
 <h2 id="pruning"><a class="header" href="#pruning">Pruning</a></h2>
-<p>The only background worker in the server is the prune loop. It runs once per minute and calls <code>Store.PruneBefore(time.Now())</code>. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits <code>MsgPaymentPromiseTimeout</code>.</p>
+<p>The only background worker in the server is the prune loop. It runs once per minute and calls <code>Store.PruneBefore(time.Now())</code>, deleting shards whose <code>pruneAt</code> has passed. <code>pruneAt</code> is <code>max(ExpiresAt, creation_timestamp + ShardRetention)</code>, where <code>ShardRetention</code> is the <code>x/fibre</code> on-chain, governance-changeable parameter (default 4h) independent of the chain's <code>PaymentPromiseTimeout</code>. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits <code>MsgPaymentPromiseTimeout</code>.</p>
 <h2 id="error-mapping"><a class="header" href="#error-mapping">Error Mapping</a></h2>
 <p>Current gRPC status behavior is intentionally simple:</p>
 <div class="table-wrapper"><table><thead><tr><th>RPC</th><th>Condition</th><th>Status</th></tr></thead><tbody>

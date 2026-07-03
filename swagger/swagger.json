@@ -5674,6 +5674,9 @@
         "paymentPromiseHeightWindow": {
           "type": "string",
           "format": "uint64"
+        },
+        "shardRetention": {
+          "type": "string"
         }
       },
       "description": "Params defines the parameters for the fibre module."
@@ -5780,6 +5783,10 @@
         "expirationTime": {
           "type": "string",
           "format": "date-time"
+        },
+        "shardRetention": {
+          "type": "string",
+          "description": "shard_retention is the on-chain local retention floor for uploaded shards;\nthe server computes pruneAt = max(expiration_time, creation_timestamp + shard_retention)."
         }
       },
       "description": "QueryValidatePaymentPromiseResponse is the response type for the Query/ValidatePaymentPromise RPC method."
