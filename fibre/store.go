@@ -138,7 +138,13 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 // sweeps at pruneAt.
 // Puts for the same commitment but different promises are stored independently
 // without deduplication.
-func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
+func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
+	// Respect a client that has already gone away: skip the staging write
+	// entirely rather than doing work whose result nobody is waiting for.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("aborting store put: %w", err)
+	}
+
 	promiseHash, err := promise.Hash()
 	if err != nil {
 		return fmt.Errorf("getting promise hash: %w", err)
@@ -148,7 +154,7 @@ func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.Blo
 	if err != nil {
 		return fmt.Errorf("writing shard tmp: %w", err)
 	}
-	if err := s.commitAndPublish(promise, promiseHash, tmp, pruneAt); err != nil {
+	if err := s.commitAndPublish(ctx, promise, promiseHash, tmp, pruneAt); err != nil {
 		_ = s.fs.Remove(tmp)
 		return err
 	}
@@ -158,7 +164,7 @@ func (s *Store) Put(_ context.Context, promise *PaymentPromise, shard *types.Blo
 // commitAndPublish renames tmp into the canonical shards/ path, then writes
 // pebble metadata for the published shard. On any error tmp is left in
 // place for the caller to remove.
-func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tmp string, pruneAt time.Time) error {
+func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, promiseHash []byte, tmp string, pruneAt time.Time) error {
 	promiseProto, err := promise.ToProto()
 	if err != nil {
 		return fmt.Errorf("converting payment promise to proto: %w", err)
@@ -179,6 +185,14 @@ func (s *Store) commitAndPublish(promise *PaymentPromise, promiseHash []byte, tm
 	}
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)
+	}
+
+	// Last safe point to honor a client cancellation: the batch is still only
+	// staged in memory and the tmp file is still unpublished, so we can drop
+	// both cleanly. Past the Rename+Commit below the write is durable and
+	// cannot be undone.
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("aborting store commit: %w", err)
 	}
 
 	// Publish the file, then commit the marker that makes it discoverable.
@@ -426,12 +440,10 @@ func shardKey(commitment Commitment, promiseHash []byte) []byte {
 	return fmt.Appendf(nil, "/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash))
 }
 
-// pruneKey is keyed by pruneAt so [Store.PruneBefore] scans in timestamp
-// order. Re-puts of the same (commit, promiseHash) are idempotent because
-// pruneAt = CreationTimestamp + PaymentPromiseTimeout and CreationTimestamp
-// is part of the hash; only a governance change to PaymentPromiseTimeout
-// between two re-puts would split the key, and that case self-corrects when
-// the stale entry fires.
+// pruneKey is keyed by the pruneAt computed during upload (see shardPruneAt)
+// so [Store.PruneBefore] scans in timestamp order. Re-puts of the same
+// (commit, promiseHash) are idempotent because pruneAt is deterministic given
+// CreationTimestamp, which is part of the hash.
 func pruneKey(pruneAt time.Time, commitment Commitment, promiseHash []byte) []byte {
 	return fmt.Appendf(nil, "/prune/%s/%s/%s", formatTimestamp(pruneAt.UTC()), commitment.String(), hex.EncodeToString(promiseHash))
 }

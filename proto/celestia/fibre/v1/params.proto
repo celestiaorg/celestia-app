@@ -4,7 +4,7 @@ package celestia.fibre.v1;
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 
 // Params defines the parameters for the fibre module.
 message Params {
@@ -26,4 +26,9 @@ message Params {
     (gogoproto.nullable) = false
   ];
   uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
+  google.protobuf.Duration shard_retention = 6 [
+    (gogoproto.moretags) = "yaml:\"shard_retention\"",
+    (gogoproto.stdduration) = true,
+    (gogoproto.nullable) = false
+  ];
 }

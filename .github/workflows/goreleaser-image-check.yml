@@ -1,0 +1,16 @@
+name: goreleaser-image-check
+
+# Verifies that the goreleaser-cross Docker image pinned via GOLANG_CROSS_VERSION
+# in the Makefile actually exists. goreleaser-cross does not publish an image for
+# every Go patch version, so a bad bump would otherwise only surface at release
+# time as a silent failure that ships no binaries (see #7356).
+on:
+  workflow_call:
+
+jobs:
+  goreleaser-image-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - name: Verify the goreleaser-cross image exists
+        run: make check-goreleaser-image

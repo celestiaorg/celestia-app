@@ -105,7 +105,10 @@ func (c *AppClient) VerifyPromise(ctx context.Context, promise *state.PaymentPro
 	if resp.ExpirationTime == nil {
 		return state.VerifiedPromise{}, fmt.Errorf("expiration time not provided in validation response")
 	}
-	return state.VerifiedPromise{ExpiresAt: *resp.ExpirationTime}, nil
+	return state.VerifiedPromise{
+		ExpiresAt:      *resp.ExpirationTime,
+		ShardRetention: resp.ShardRetention,
+	}, nil
 }
 
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {

@@ -81,6 +81,16 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
 		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+		// A cancelled/expired client context means the store deliberately
+		// skipped the commit; report it as such rather than as an Internal
+		// error so the caller (and metrics) can tell it apart from a real
+		// storage failure.
+		if ctxErr := context.Cause(ctx); ctxErr != nil {
+			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "store upload aborted")
+			return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+		}
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
@@ -116,9 +126,18 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	}, nil
 }
 
+// cancellationCode maps a context cancellation cause to the matching gRPC
+// status code so a deadline and an explicit cancel are reported distinctly.
+func cancellationCode(cause error) grpccodes.Code {
+	if errors.Is(cause, context.DeadlineExceeded) {
+		return grpccodes.DeadlineExceeded
+	}
+	return grpccodes.Canceled
+}
+
 // verifyPromise verifies given proto of [PaymentPromise] and returns unmarshaled form with its hash.
 // It does both stateless and stateful verification.
-// Returns the BlobConfig for the blob version and pruneAt time based on the expiration time from chain state.
+// Returns the BlobConfig for the blob version and the pruneAt time computed by shardPruneAt.
 func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, []byte, time.Time, error) {
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
@@ -152,7 +171,20 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("computing payment promise hash: %w", err)
 	}
 
-	return promise, blobCfg, promiseHash, verifyResult.ExpiresAt, nil
+	pruneAt := shardPruneAt(promise.CreationTimestamp, verifyResult.ExpiresAt, verifyResult.ShardRetention)
+	return promise, blobCfg, promiseHash, pruneAt, nil
+}
+
+// shardPruneAt returns when an uploaded shard should be pruned. It anchors on
+// creationTimestamp (not time.Now) so re-Puts of the same shard stay idempotent
+// (see pruneKey in store.go) and never returns before expiresAt, so a shard is
+// not pruned while its payment promise is still valid.
+func shardPruneAt(creationTimestamp, expiresAt time.Time, retention time.Duration) time.Time {
+	floor := creationTimestamp.Add(retention)
+	if expiresAt.After(floor) {
+		return expiresAt
+	}
+	return floor
 }
 
 // verifyAssignment verifies that the [types.BlobShard] in the request is assigned to this validator.

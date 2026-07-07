@@ -4,11 +4,12 @@ package celestia.fibre.v1;
 import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 import "cosmos/base/query/v1beta1/pagination.proto";
 import "celestia/fibre/v1/params.proto";
 import "celestia/fibre/v1/fibre.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app-fibre/x/fibre/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 
 // Query defines the gRPC query service.
 service Query {
@@ -94,4 +95,10 @@ message QueryValidatePaymentPromiseRequest {
 message QueryValidatePaymentPromiseResponse {
   bool is_valid = 1;
   google.protobuf.Timestamp expiration_time = 2 [(gogoproto.stdtime) = true];
+  // shard_retention is the on-chain local retention floor for uploaded shards;
+  // the server computes pruneAt = max(expiration_time, creation_timestamp + shard_retention).
+  google.protobuf.Duration shard_retention = 3 [
+    (gogoproto.stdduration) = true,
+    (gogoproto.nullable) = false
+  ];
 }

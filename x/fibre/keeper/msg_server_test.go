@@ -705,6 +705,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 			3*time.Hour,  // PaymentPromiseTimeout
 			96*time.Hour, // PaymentPromiseRetentionWindow
 			2000,         // PaymentPromiseHeightWindow
+			8*time.Hour,  // ShardRetention
 		)
 
 		msg := &types.MsgUpdateFibreParams{
@@ -739,7 +740,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero GasPerBlobByte", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(0, 24*time.Hour, time.Hour, 24*time.Hour, 1000),
+			Params:    types.NewParams(0, 24*time.Hour, time.Hour, 24*time.Hour, 1000, 4*time.Hour),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -750,7 +751,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero WithdrawalDelay", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 0, time.Hour, 24*time.Hour, 1000),
+			Params:    types.NewParams(1, 0, time.Hour, 24*time.Hour, 1000, 4*time.Hour),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -761,7 +762,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero PaymentPromiseTimeout", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, 0, 24*time.Hour, 1000),
+			Params:    types.NewParams(1, 24*time.Hour, 0, 24*time.Hour, 1000, 4*time.Hour),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -772,7 +773,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero PaymentPromiseRetentionWindow", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 0, 1000),
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 0, 1000, 4*time.Hour),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -783,7 +784,18 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero PaymentPromiseHeightWindow", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 24*time.Hour, 0),
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 24*time.Hour, 0, 4*time.Hour),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+
+	suite.T().Run("invalid params zero ShardRetention", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 24*time.Hour, 1000, 0),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)

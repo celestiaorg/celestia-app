@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +25,7 @@ func TestClientCache(t *testing.T) {
 			Address: []byte("validator-2"),
 		},
 	}
-	cache := grpc.NewClientCache(mockClientFn(false), stubHostRegistry{}, len(validators))
+	cache := grpc.NewClientCache(mockClientFn(false), len(validators))
 
 	clients := make([]types.FibreClient, numGoroutines)
 	errors := make([]error, numGoroutines)
@@ -80,7 +79,7 @@ func TestClientCache(t *testing.T) {
 // without holding the entry lock, racing with GetClient's write inside Do.
 func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
 	const numGoroutines = 50
-	cache := grpc.NewClientCache(mockClientFn(false), stubHostRegistry{}, 1)
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
 	var wg sync.WaitGroup
@@ -101,29 +100,29 @@ func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
 	wg.Wait()
 }
 
-// TestClientCacheRequest_EvictsStaleClient verifies that when a host change
-// forces eviction, the stale client is closed and a fresh one is dialed.
+// TestClientCacheRequest_EvictsStaleClient verifies that an unreachable peer
+// forces eviction: the stale client is closed and a fresh one is dialed.
 func TestClientCacheRequest_EvictsStaleClient(t *testing.T) {
-	cache := grpc.NewClientCache(mockClientFn(false), refreshes(true, true, nil), 1)
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
 	var stale, fresh grpc.Client
 	err := cache.Request(t.Context(), val, func(c grpc.Client) error {
 		if stale == nil {
 			stale = c
-			return errUnreachable // stale host triggers refresh + eviction
+			return errUnreachable // unreachable peer triggers eviction + re-dial
 		}
 		fresh = c
-		return nil // corrected host
+		return nil // re-resolved host
 	})
 	require.NoError(t, err)
 	assert.True(t, stale.(*mockFibreClientCloser).closed, "evicted client should be closed")
 	assert.NotSame(t, stale, fresh, "a fresh client should be dialed after eviction")
 }
 
-// TestClientCacheRequest_ClearsCachedDialError verifies that eviction (here
-// driven by a host change) clears a cached dial error so the next call
-// re-dials — the recovery path for a corrected host.
+// TestClientCacheRequest_ClearsCachedDialError verifies that eviction clears a
+// cached dial error so the next call re-dials — the recovery path for a
+// corrected host.
 func TestClientCacheRequest_ClearsCachedDialError(t *testing.T) {
 	var calls int
 	fn := func(_ context.Context, val *core.Validator) (grpc.Client, error) {
@@ -133,7 +132,7 @@ func TestClientCacheRequest_ClearsCachedDialError(t *testing.T) {
 		}
 		return &mockFibreClientCloser{id: val.Address.String()}, nil
 	}
-	cache := grpc.NewClientCache(fn, refreshes(true, true, nil), 1)
+	cache := grpc.NewClientCache(fn, 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
 	// The first two GetClient calls cache and reuse the dial error.
@@ -143,10 +142,10 @@ func TestClientCacheRequest_ClearsCachedDialError(t *testing.T) {
 	require.Error(t, err)
 	require.Equal(t, 1, calls, "error should be cached, not re-dialed")
 
-	// A request whose host changed evicts the entry, clearing the cached error
+	// A request whose dial failed evicts the entry, clearing the cached error
 	// and allowing a re-dial.
 	require.NoError(t, cache.Request(t.Context(), val, func(grpc.Client) error { return nil }))
-	require.Equal(t, 2, calls, "host change should clear the cached error and allow a re-dial")
+	require.Equal(t, 2, calls, "dial failure should clear the cached error and allow a re-dial")
 }
 
 // mockFibreClientCloser is a mock implementation for testing
@@ -173,34 +172,6 @@ func mockClientFn(shouldErr bool) grpc.NewClientFn {
 	}
 }
 
-// stubHostRegistry is a configurable validator.HostRegistry for cache tests.
-// refresh, when set, backs RefreshHost; otherwise RefreshHost reports no change.
-type stubHostRegistry struct {
-	refresh func() (changed, valid bool, err error)
-}
-
-func (stubHostRegistry) GetHost(context.Context, *core.Validator) (validator.Host, error) {
-	return "", nil
-}
-
-func (s stubHostRegistry) RefreshHost(context.Context, *core.Validator) (bool, bool, error) {
-	if s.refresh != nil {
-		return s.refresh()
-	}
-	return false, false, nil
-}
-
-// refreshes returns a stubHostRegistry whose RefreshHost reports (changed,
-// valid) and records into called whether it ran.
-func refreshes(changed, valid bool, called *bool) stubHostRegistry {
-	return stubHostRegistry{refresh: func() (bool, bool, error) {
-		if called != nil {
-			*called = true
-		}
-		return changed, valid, nil
-	}}
-}
-
 // errUnreachable is a transport-level error, as a request fn would see from an
 // unreachable peer.
 var errUnreachable = status.Error(grpccodes.Unavailable, "rpc failed")
@@ -208,8 +179,10 @@ var errUnreachable = status.Error(grpccodes.Unavailable, "rpc failed")
 // requestVal is an arbitrary validator; Request tests don't depend on its identity.
 var requestVal = &core.Validator{Address: []byte("v1")}
 
-func TestClientCacheRequest_RetriesAfterHostChange(t *testing.T) {
-	cache := grpc.NewClientCache(mockClientFn(false), refreshes(true, true, nil), 1)
+// TestClientCacheRequest_RetriesAfterUnreachable verifies an unreachable peer
+// triggers exactly one re-dial and retry of fn.
+func TestClientCacheRequest_RetriesAfterUnreachable(t *testing.T) {
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
 
 	calls := 0
 	err := cache.Request(t.Context(), requestVal, func(grpc.Client) error {
@@ -217,41 +190,39 @@ func TestClientCacheRequest_RetriesAfterHostChange(t *testing.T) {
 		if calls == 1 {
 			return errUnreachable // stale host
 		}
-		return nil // corrected host
+		return nil // re-resolved host
 	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, calls, "fn should be retried once against the re-dialed client")
 }
 
-func TestClientCacheRequest_UnchangedReturnsOriginalError(t *testing.T) {
-	cache := grpc.NewClientCache(mockClientFn(false), refreshes(false, false, nil), 1)
-
-	err := cache.Request(t.Context(), requestVal, func(grpc.Client) error { return errUnreachable })
-	assert.Equal(t, grpccodes.Unavailable, status.Code(err))
-}
-
-func TestClientCacheRequest_ChangedButInvalidReturnsOriginalError(t *testing.T) {
-	refreshed := false
-	cache := grpc.NewClientCache(mockClientFn(false), refreshes(true, false, &refreshed), 1)
+// TestClientCacheRequest_RetryFailureReturnsError verifies that when the retry
+// still fails, the retry's error is returned and fn is not attempted a third
+// time.
+func TestClientCacheRequest_RetryFailureReturnsError(t *testing.T) {
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
 
 	calls := 0
 	err := cache.Request(t.Context(), requestVal, func(grpc.Client) error { calls++; return errUnreachable })
-	assert.Equal(t, grpccodes.Unavailable, status.Code(err), "should not retry into a known-invalid host")
-	assert.True(t, refreshed)
-	assert.Equal(t, 1, calls, "fn must not be retried into an invalid host")
+	assert.Equal(t, grpccodes.Unavailable, status.Code(err))
+	assert.Equal(t, 2, calls, "fn is attempted once, then retried once")
 }
 
-func TestClientCacheRequest_AppErrorSkipsRefresh(t *testing.T) {
-	refreshed := false
-	cache := grpc.NewClientCache(mockClientFn(false), refreshes(true, true, &refreshed), 1)
+// TestClientCacheRequest_AppErrorSkipsRetry verifies that an application-level
+// error from a reachable server is returned as-is without a re-dial.
+func TestClientCacheRequest_AppErrorSkipsRetry(t *testing.T) {
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
 
 	appErr := status.Error(grpccodes.NotFound, "blob not found")
-	err := cache.Request(t.Context(), requestVal, func(grpc.Client) error { return appErr })
+	calls := 0
+	err := cache.Request(t.Context(), requestVal, func(grpc.Client) error { calls++; return appErr })
 	assert.Equal(t, grpccodes.NotFound, status.Code(err))
-	assert.False(t, refreshed, "application errors must not trigger a host refresh")
+	assert.Equal(t, 1, calls, "application errors must not trigger a re-dial")
 }
 
-func TestClientCacheRequest_DialFailureTriggersRefresh(t *testing.T) {
+// TestClientCacheRequest_DialFailureTriggersRedial verifies a failed dial (before
+// any RPC) triggers a re-dial.
+func TestClientCacheRequest_DialFailureTriggersRedial(t *testing.T) {
 	dials := 0
 	dial := func(context.Context, *core.Validator) (grpc.Client, error) {
 		dials++
@@ -260,22 +231,25 @@ func TestClientCacheRequest_DialFailureTriggersRefresh(t *testing.T) {
 		}
 		return &mockFibreClientCloser{}, nil
 	}
-	cache := grpc.NewClientCache(dial, refreshes(true, true, nil), 1)
+	cache := grpc.NewClientCache(dial, 1)
 
 	calls := 0
 	err := cache.Request(t.Context(), requestVal, func(grpc.Client) error { calls++; return nil })
 	require.NoError(t, err)
 	assert.Equal(t, 1, calls, "fn runs once, against the re-dialed client")
+	assert.Equal(t, 2, dials, "the failed dial should be retried once")
 }
 
-func TestClientCacheRequest_SkipsRefreshOnCancelledContext(t *testing.T) {
-	refreshed := false
-	cache := grpc.NewClientCache(mockClientFn(false), refreshes(true, true, &refreshed), 1)
+// TestClientCacheRequest_SkipsRetryOnCancelledContext verifies a cancelled
+// context short-circuits the retry path.
+func TestClientCacheRequest_SkipsRetryOnCancelledContext(t *testing.T) {
+	cache := grpc.NewClientCache(mockClientFn(false), 1)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	err := cache.Request(ctx, requestVal, func(grpc.Client) error { return errUnreachable })
+	calls := 0
+	err := cache.Request(ctx, requestVal, func(grpc.Client) error { calls++; return errUnreachable })
 	require.Error(t, err)
-	assert.False(t, refreshed, "a cancelled context must not trigger a refresh")
+	assert.Equal(t, 1, calls, "a cancelled context must not trigger a re-dial")
 }

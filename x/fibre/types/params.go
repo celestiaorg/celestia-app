@@ -16,6 +16,7 @@ var (
 	KeyPaymentPromiseTimeout         = []byte("PaymentPromiseTimeout")
 	KeyPaymentPromiseRetentionWindow = []byte("PaymentPromiseRetentionWindow")
 	KeyPaymentPromiseHeightWindow    = []byte("PaymentPromiseHeightWindow")
+	KeyShardRetention                = []byte("ShardRetention")
 
 	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
 	// TODO: should this param be removed? The PFF gas formula is now standalone
@@ -29,6 +30,9 @@ var (
 	DefaultPaymentPromiseRetentionWindow = 24 * time.Hour
 	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window parameter.
 	DefaultPaymentPromiseHeightWindow uint64 = 1000
+	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
+	// minimum local duration validators keep uploaded shards, decoupled from PaymentPromiseTimeout.
+	DefaultShardRetention = 4 * time.Hour
 )
 
 // ParamKeyTable returns the param key table for the fibre module
@@ -37,19 +41,20 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, paymentPromiseRetentionWindow time.Duration, paymentPromiseHeightWindow uint64) Params {
+func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, paymentPromiseRetentionWindow time.Duration, paymentPromiseHeightWindow uint64, shardRetention time.Duration) Params {
 	return Params{
 		GasPerBlobByte:                gasPerBlobByte,
 		WithdrawalDelay:               withdrawalDelay,
 		PaymentPromiseTimeout:         paymentPromiseTimeout,
 		PaymentPromiseRetentionWindow: paymentPromiseRetentionWindow,
 		PaymentPromiseHeightWindow:    paymentPromiseHeightWindow,
+		ShardRetention:                shardRetention,
 	}
 }
 
 // DefaultParams returns a default set of parameters
 func DefaultParams() Params {
-	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseRetentionWindow, DefaultPaymentPromiseHeightWindow)
+	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseRetentionWindow, DefaultPaymentPromiseHeightWindow, DefaultShardRetention)
 }
 
 // ParamSetPairs gets the list of param key-value pairs
@@ -60,6 +65,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyPaymentPromiseTimeout, &p.PaymentPromiseTimeout, validatePaymentPromiseTimeout),
 		paramtypes.NewParamSetPair(KeyPaymentPromiseRetentionWindow, &p.PaymentPromiseRetentionWindow, validatePaymentPromiseRetentionWindow),
 		paramtypes.NewParamSetPair(KeyPaymentPromiseHeightWindow, &p.PaymentPromiseHeightWindow, validatePaymentPromiseHeightWindow),
+		paramtypes.NewParamSetPair(KeyShardRetention, &p.ShardRetention, validateShardRetention),
 	}
 }
 
@@ -78,6 +84,9 @@ func (p Params) Validate() error {
 		return err
 	}
 	if err := validatePaymentPromiseHeightWindow(p.PaymentPromiseHeightWindow); err != nil {
+		return err
+	}
+	if err := validateShardRetention(&p.ShardRetention); err != nil {
 		return err
 	}
 	return nil
@@ -166,6 +175,24 @@ func validatePaymentPromiseHeightWindow(v any) error {
 
 	if heightWindow == 0 {
 		return fmt.Errorf("payment promise height window cannot be 0")
+	}
+
+	return nil
+}
+
+// validateShardRetention validates the ShardRetention param
+func validateShardRetention(v any) error {
+	duration, ok := v.(*time.Duration)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", v)
+	}
+
+	if duration == nil {
+		return fmt.Errorf("shard retention cannot be nil")
+	}
+
+	if *duration <= 0 {
+		return fmt.Errorf("shard retention must be positive: %s", *duration)
 	}
 
 	return nil

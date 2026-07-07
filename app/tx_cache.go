@@ -49,13 +49,13 @@ func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 	c.cache.Store(key, blobsHash)
 }
 
+// getBlobsHash hashes the domain-separated, length-prefixed hash of each blob.
+// Since each blob contributes a fixed-size digest, the boundaries between
+// adjacent blobs are unambiguous.
 func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
 	h := sha256.New()
 	for _, blob := range blobs {
-		h.Write(blob.Namespace().Bytes())
-		h.Write(blob.Data())
-		h.Write([]byte{blob.ShareVersion()})
-		h.Write(blob.Signer())
+		h.Write(blob.Hash())
 	}
 	sum := h.Sum(nil)
 	return string(sum)
