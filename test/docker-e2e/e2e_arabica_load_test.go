@@ -84,7 +84,15 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	require.NoError(t, err, "failed to create RPC client")
 
 	status, err := rpcClient.Status(ctx)
-	require.NoError(t, err, "failed to query Arabica status")
+	if err != nil {
+		// Arabica is an external, best-effort public devnet. When its RPC
+		// endpoint is transiently unavailable (e.g. HTTP 503) this initial
+		// status query fails before any celestia-app behavior is exercised, so
+		// treat it as an infrastructure skip rather than a test failure. Real
+		// regressions still surface in the block-time assertions below, which
+		// only run once the network is reachable.
+		t.Skipf("skipping Arabica load test: Arabica endpoint %s unavailable: %v", arabicaCfg.RPCs[0], err)
+	}
 	startHeight := status.SyncInfo.LatestBlockHeight
 	t.Logf("Connected to Arabica at height %d", startHeight)
 
