@@ -23,6 +23,9 @@ jobs:
   markdown-linter:
     uses: ./.github/workflows/markdown-linter.yml
 
+  goreleaser-image-check:
+    uses: ./.github/workflows/goreleaser-image-check.yml
+
   build:
     uses: ./.github/workflows/build.yml
 
