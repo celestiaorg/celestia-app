@@ -509,6 +509,11 @@ adr-gen:
 	@curl -sSL https://raw.githubusercontent.com/celestiaorg/.github/main/adr-template.md > docs/architecture/adr-template.md
 .PHONY: adr-gen
 
+## check-goreleaser-image: Verify the pinned goreleaser-cross Docker image exists so releases don't silently ship without binaries.
+check-goreleaser-image:
+	@./scripts/check-goreleaser-image.sh ${GOLANG_CROSS_VERSION}
+.PHONY: check-goreleaser-image
+
 ## goreleaser-check: Check the .goreleaser.yaml config file.
 goreleaser-check:
 	@if [ ! -f ".release-env" ]; then \
