@@ -46,6 +46,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 
 	fsb, err := app.NewFilteredSquareBuilder(
 		handler,
+		a.MsgServiceRouter(),
 		a.GetEncodingConfig().TxConfig,
 		a.MaxEffectiveSquareSize(sdkCtx),
 		appconsts.SubtreeRootThreshold,

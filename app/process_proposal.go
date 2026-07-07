@@ -134,6 +134,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
+			// Unlike prepare, a failing tx isn't dropped: FinalizeBlock commits
+			// it (failed result, fee paid), so keep the ante effects and
+			// continue. MsgPayForFibre txs aren't executed, matching prepare.
+			if pffCount == 0 {
+				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+					app.Logger().Debug("proposal tx failed message execution", "index", idx, "err", execErr)
+				}
+			}
+
 			// we do not need to perform further checks on this transaction,
 			// since it has no PFB
 			continue

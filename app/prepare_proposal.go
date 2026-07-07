@@ -35,6 +35,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 
 	fsb, err := NewFilteredSquareBuilder(
 		handler,
+		app.MsgServiceRouter(),
 		app.encodingConfig.TxConfig,
 		app.MaxEffectiveSquareSize(ctx),
 		appconsts.SubtreeRootThreshold,

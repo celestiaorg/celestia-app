@@ -7,8 +7,10 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/app/params"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
@@ -370,6 +372,118 @@ func TestProcessProposal_ProposalWithInconsistentBlobTxFails(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status, "ProcessProposal should accept original blob")
 	})
+}
+
+// TestProcessProposalRejectsUnderfundedBlobTx is a regression test for the
+// paid-DA bypass: a proposal where an earlier MsgSend drains the account
+// paying for a later blob tx must be rejected, since the blob tx's fee
+// deduction fails once the send is executed against the same intra-block state
+// FinalizeBlock uses. Prepare proposal filters this block; this test asserts
+// that validators reject it even if a malicious proposer builds it anyway.
+func TestProcessProposalRejectsUnderfundedBlobTx(t *testing.T) {
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	balance := testApp.BankKeeper.GetBalance(testApp.NewContext(true), testfactory.GetAddress(kr, accounts[0]), params.BondDenom).Amount.Uint64()
+	sendTx, blobTx := buildDrainSendAndBlobTx(t, testApp, kr, accounts[0], accounts[1], balance-drainSendFee)
+
+	txs := [][]byte{sendTx, blobTx}
+	res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       testApp.LastBlockHeight() + 1,
+		Time:         time.Now(),
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   2,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status)
+}
+
+// TestProcessProposalRejectsUnderfundedSecondBlobTx asserts the PFB-only case:
+// two blob txs from the same payer where the first spends the whole balance on
+// its fee. Fee deduction accumulates across blob txs (ante runs on shared
+// state), so the second can no longer pay and the block is rejected — no
+// normal tx is required to trigger this.
+func TestProcessProposalRejectsUnderfundedSecondBlobTx(t *testing.T) {
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	balance := testApp.BankKeeper.GetBalance(testApp.NewContext(true), testfactory.GetAddress(kr, accounts[0]), params.BondDenom).Amount.Uint64()
+	firstBlobTx, secondBlobTx := buildTwoBlobTxs(t, testApp, kr, accounts[0], balance)
+
+	txs := [][]byte{firstBlobTx, secondBlobTx}
+	res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       testApp.LastBlockHeight() + 1,
+		Time:         time.Now(),
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   2,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status)
+}
+
+// TestProcessProposalToleratesFailingNormalTx asserts that a normal tx which
+// pays its fee but fails message execution is not grounds for rejecting the
+// block. FinalizeBlock commits such a tx with a failed result and its fee
+// deducted, so process proposal must accept it to stay consistent.
+func TestProcessProposalToleratesFailingNormalTx(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	// A MsgSend of the full balance: the ante handler still deducts the fee,
+	// but message execution then fails with insufficient funds.
+	payerAddr := testfactory.GetAddress(kr, accounts[0])
+	payerAcc := testutil.DirectQueryAccount(testApp, payerAddr)
+	balance := testApp.BankKeeper.GetBalance(testApp.NewContext(true), payerAddr, params.BondDenom).Amount.Uint64()
+	sendSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(accounts[0], payerAcc.GetAccountNumber(), payerAcc.GetSequence()))
+	require.NoError(t, err)
+	sendMsg := banktypes.NewMsgSend(payerAddr, testfactory.GetAddress(kr, accounts[1]),
+		sdk.NewCoins(sdk.NewCoin(params.BondDenom, sdkmath.NewIntFromUint64(balance))))
+	sendTx, _, err := sendSigner.CreateTx([]sdk.Msg{sendMsg}, user.SetGasLimit(1_000_000), user.SetFee(drainSendFee))
+	require.NoError(t, err)
+
+	// An unrelated, well-funded blob tx follows it in the block.
+	blobberAddr := testfactory.GetAddress(kr, accounts[2])
+	blobberAcc := testutil.DirectQueryAccount(testApp, blobberAddr)
+	blobSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(accounts[2], blobberAcc.GetAccountNumber(), blobberAcc.GetSequence()))
+	require.NoError(t, err)
+	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte("x"))
+	require.NoError(t, err)
+	blobTx, _, err := blobSigner.CreatePayForBlobs(accounts[2], []*share.Blob{blob}, user.SetGasLimit(500_000), user.SetFee(drainBlobFee))
+	require.NoError(t, err)
+
+	txs := [][]byte{sendTx, blobTx}
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	squareSize, err := dataSquare.Size()
+	require.NoError(t, err)
+
+	height := testApp.LastBlockHeight() + 1
+	blockTime := time.Now()
+	res, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       height,
+		Time:         blockTime,
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   uint64(squareSize),
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, res.Status)
+
+	// FinalizeBlock parity: the send fails, the blob tx succeeds.
+	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Height: height,
+		Time:   blockTime,
+		Txs:    txs,
+	})
+	require.NoError(t, err)
+	require.Len(t, finalizeResp.TxResults, 2)
+	require.NotEqualValues(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code)
+	require.EqualValues(t, abci.CodeTypeOK, finalizeResp.TxResults[1].Code)
 }
 
 func TestProcessProposalCappingNumberOfMessages(t *testing.T) {

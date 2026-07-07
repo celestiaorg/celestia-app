@@ -6,8 +6,10 @@ import (
 	"testing"
 	"time"
 
+	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/app/params"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
@@ -235,6 +237,19 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// 3 transactions over MaxTxSize limit
 	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, enc.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
+	// a MsgSend draining accounts[3] followed by a blob tx from the same
+	// account. The blob tx can no longer pay its fee once the send executes,
+	// so it must be pruned (a raw blob tx staying in the square would get DA
+	// for free).
+	drainPayerBalance := testApp.BankKeeper.GetBalance(testApp.NewContext(true), testfactory.GetAddress(kr, accounts[3]), params.BondDenom).Amount.Uint64()
+	drainSendTx, underfundedBlobTx := buildDrainSendAndBlobTx(t, testApp, kr, accounts[3], accounts[0], drainPayerBalance-drainSendFee)
+
+	// two blob txs from accounts[4]: the first spends the whole balance on its
+	// fee, so the second can no longer pay its fee. No normal tx is involved,
+	// so this exercises fee deduction accumulating across blob txs alone.
+	blobPayerBalance := testApp.BankKeeper.GetBalance(testApp.NewContext(true), testfactory.GetAddress(kr, accounts[4]), params.BondDenom).Amount.Uint64()
+	firstBlobTx, underfundedSecondBlobTx := buildTwoBlobTxs(t, testApp, kr, accounts[4], blobPayerBalance)
+
 	type test struct {
 		name      string
 		txs       func() [][]byte
@@ -292,6 +307,20 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				return largeTxs // All txs are over MaxTxSize limit
 			},
 			prunedTxs: largeTxs,
+		},
+		{
+			name: "blob tx underfunded by a preceding send is pruned",
+			txs: func() [][]byte {
+				return [][]byte{drainSendTx, underfundedBlobTx}
+			},
+			prunedTxs: [][]byte{underfundedBlobTx},
+		},
+		{
+			name: "second blob tx from the same payer is pruned when it cannot pay its fee",
+			txs: func() [][]byte {
+				return [][]byte{firstBlobTx, underfundedSecondBlobTx}
+			},
+			prunedTxs: [][]byte{underfundedSecondBlobTx},
 		},
 	}
 
@@ -476,4 +505,65 @@ func repeat[T any](n int, val T) []T {
 		result[i] = val
 	}
 	return result
+}
+
+const (
+	drainSendFee uint64 = 10_000
+	drainBlobFee uint64 = 10_000
+)
+
+// buildDrainSendAndBlobTx returns a MsgSend transferring sendAmount from payer
+// to receiver at the payer's current sequence, followed by a blob tx from the
+// same payer at the next sequence. It is used to reproduce the paid-DA bypass
+// where an earlier send drains the account paying for a later blob tx.
+func buildDrainSendAndBlobTx(t *testing.T, testApp *app.App, kr keyring.Keyring, payer, receiver string, sendAmount uint64) (sendTxBz, blobTxBz []byte) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	payerAddr := testfactory.GetAddress(kr, payer)
+	receiverAddr := testfactory.GetAddress(kr, receiver)
+	payerAcc := testutil.DirectQueryAccount(testApp, payerAddr)
+
+	sendSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(payer, payerAcc.GetAccountNumber(), payerAcc.GetSequence()))
+	require.NoError(t, err)
+	sendMsg := banktypes.NewMsgSend(payerAddr, receiverAddr,
+		sdk.NewCoins(sdk.NewCoin(params.BondDenom, sdkmath.NewIntFromUint64(sendAmount))))
+	sendTxBz, _, err = sendSigner.CreateTx([]sdk.Msg{sendMsg}, user.SetGasLimit(1_000_000), user.SetFee(drainSendFee))
+	require.NoError(t, err)
+
+	blobSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(payer, payerAcc.GetAccountNumber(), payerAcc.GetSequence()+1))
+	require.NoError(t, err)
+	blob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte("x"))
+	require.NoError(t, err)
+	blobTxBz, _, err = blobSigner.CreatePayForBlobs(payer, []*share.Blob{blob}, user.SetGasLimit(500_000), user.SetFee(drainBlobFee))
+	require.NoError(t, err)
+
+	return sendTxBz, blobTxBz
+}
+
+// buildTwoBlobTxs returns two blob txs from the same payer at consecutive
+// sequences. The first pays firstFee (used to spend the whole balance), the
+// second pays drainBlobFee, so the second cannot pay its fee once the first is
+// deducted.
+func buildTwoBlobTxs(t *testing.T, testApp *app.App, kr keyring.Keyring, payer string, firstFee uint64) (firstTxBz, secondTxBz []byte) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	payerAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, payer))
+
+	firstSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(payer, payerAcc.GetAccountNumber(), payerAcc.GetSequence()))
+	require.NoError(t, err)
+	firstBlob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte("x"))
+	require.NoError(t, err)
+	firstTxBz, _, err = firstSigner.CreatePayForBlobs(payer, []*share.Blob{firstBlob}, user.SetGasLimit(500_000), user.SetFee(firstFee))
+	require.NoError(t, err)
+
+	secondSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(payer, payerAcc.GetAccountNumber(), payerAcc.GetSequence()+1))
+	require.NoError(t, err)
+	secondBlob, err := share.NewV0Blob(share.RandomBlobNamespace(), []byte("x"))
+	require.NoError(t, err)
+	secondTxBz, _, err = secondSigner.CreatePayForBlobs(payer, []*share.Blob{secondBlob}, user.SetGasLimit(500_000), user.SetFee(drainBlobFee))
+	require.NoError(t, err)
+
+	return firstTxBz, secondTxBz
 }

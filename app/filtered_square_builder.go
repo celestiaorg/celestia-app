@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -17,12 +18,14 @@ import (
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
 	handler  sdk.AnteHandler
+	router   baseapp.MessageRouter
 	txConfig client.TxConfig
 	builder  *square.Builder
 }
 
 func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
+	router baseapp.MessageRouter,
 	txConfig client.TxConfig,
 	maxSquareSize,
 	subtreeRootThreshold int,
@@ -33,6 +36,7 @@ func NewFilteredSquareBuilder(
 	}
 	return &FilteredSquareBuilder{
 		handler:  handler,
+		router:   router,
 		txConfig: txConfig,
 		builder:  builder,
 	}, nil
@@ -88,9 +92,6 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		// Set the tx size on the context before calling the AnteHandler
-		ctx = ctx.WithTxBytes(tx)
-
 		msgTypes := msgTypes(sdkTx)
 		if sdkMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
@@ -102,7 +103,13 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		// Branch the state per tx so that a dropped tx leaves no partial
+		// writes behind for the txs that follow it.
+		txCtx, commit := ctx.CacheContext()
+		// Set the tx size on the context before calling the AnteHandler
+		txCtx = txCtx.WithTxBytes(tx)
+
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
@@ -120,6 +127,23 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			}
 			continue
 		}
+
+		// Drop the tx if its messages fail; its branch is discarded, so no
+		// writes leak to later txs.
+		if err := executeTxMsgs(txCtx, sdkTx, fsb.router); err != nil {
+			logger.Error(
+				"filtering transaction that failed message execution",
+				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
+				"error", err,
+				"msgs", msgTypes,
+			)
+			telemetry.IncrCounter(1, "prepare_proposal", "exec_failed_std_txs")
+			if err := fsb.builder.RevertLastTx(); err != nil {
+				logger.Error("reverting last transaction", "error", err)
+			}
+			continue
+		}
+		commit()
 
 		sdkMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx

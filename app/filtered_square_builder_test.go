@@ -246,7 +246,7 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 	// configured block max bytes.
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fsb, err := NewFilteredSquareBuilder(alwaysPass, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 			require.NoError(t, err)
 
 			db := dbm.NewMemDB()

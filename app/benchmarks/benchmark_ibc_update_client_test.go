@@ -162,6 +162,7 @@ func benchmarkIBCPrepareProposalUpdateClient(b *testing.B, numberOfValidators, c
 	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
 		Height: testApp.LastBlockHeight() + 1,
+		Time:   time.Now(),
 	}
 
 	b.ResetTimer()
@@ -211,6 +212,7 @@ func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, c
 	prepareProposalReq := types.RequestPrepareProposal{
 		Txs:    rawTxs,
 		Height: testApp.LastBlockHeight() + 1,
+		Time:   time.Now(),
 	}
 
 	prepareProposalResp, err := testApp.PrepareProposal(&prepareProposalReq)
@@ -220,6 +222,7 @@ func benchmarkIBCProcessProposalUpdateClient(b *testing.B, numberOfValidators, c
 	processProposalReq := types.RequestProcessProposal{
 		Txs:          prepareProposalResp.Txs,
 		Height:       testApp.LastBlockHeight() + 1,
+		Time:         prepareProposalReq.Time,
 		DataRootHash: prepareProposalResp.DataRootHash,
 		SquareSize:   prepareProposalResp.SquareSize,
 	}
@@ -272,7 +275,7 @@ func generateIBCUpdateClientTransaction(b *testing.B, numberOfValidators, number
 		require.NoError(b, err)
 		rawTxs = append(rawTxs, rawTx)
 		accountSequence++
-		err = signer.SetSequence(account, accountSequence)
+		err = signer.SetSequence(account, accountSequence+uint64(offsetAccountSequence))
 		require.NoError(b, err)
 	}
 
