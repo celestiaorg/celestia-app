@@ -1,6 +1,7 @@
 VERSION := $(shell \
-	if [ $$(git tag --points-at HEAD | wc -l) -gt 1 ]; then \
-		git describe --tags --always --match "v*" | cut -d'-' -f1 | sed 's/^v//'; \
+	checked_out=$$(git reflog -1 --format='%gs' 2>/dev/null | sed -nE 's,^checkout: moving from .* to (refs/)?(tags/)?(.+),\3,p'); \
+	if [ -n "$$checked_out" ] && git tag --points-at HEAD | grep -qxF "$$checked_out"; then \
+		echo "$$checked_out" | sed 's/^v//'; \
 	else \
 		git describe --tags --always --match "v*" | sed 's/^v//'; \
 	fi \
