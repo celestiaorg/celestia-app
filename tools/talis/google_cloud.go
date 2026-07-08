@@ -20,7 +20,7 @@ const (
 	GCDefaultValidatorMachineType     = "c3d-highcpu-16"
 	GCDefaultEncoderMachineType       = "c3d-highcpu-8"
 	GCDefaultReaderMachineType        = "c3d-highcpu-8"
-	GCDefaultObservabilityMachineType = "e2-medium"
+	GCDefaultObservabilityMachineType = "e2-highmem-4"
 	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
 	GCDefaultDiskSizeGB               = 400
 )
