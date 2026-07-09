@@ -239,7 +239,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	forwardingService := s.ConfigureForwardRelayer(ctx, chain)
+	forwardingService := s.ConfigureForwardRelayer(ctx, chain, nil)
 
 	// Compute the forwarding address on celestia for recipient on reth1 destination chain
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
@@ -268,12 +268,14 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
 }
 
-func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain) *hyperlane.ForwardRelayer {
+// ConfigureForwardRelayer starts the forwarding-relayer backend + relayer. extraEnv is
+// appended to the relayer container's environment (e.g. CUSTOM_IGP_HOOK=<igp>).
+func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain, extraEnv []string) *hyperlane.ForwardRelayer {
 	backendCfg := hyperlane.ForwardRelayerConfig{
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           ForwardingRelayerImage,
+		Image:           forwardingRelayerImage(),
 		Settings: hyperlane.ForwardRelayerSettings{
 			Port: "8080",
 		},
@@ -310,11 +312,12 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           ForwardingRelayerImage,
+		Image:           forwardingRelayerImage(),
 		Settings: hyperlane.ForwardRelayerSettings{
 			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
 			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),
 			PrivateKeyHex: fmt.Sprintf("0x%x", privKey.Bytes()),
+			Env:           extraEnv,
 		},
 	}
 
