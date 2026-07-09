@@ -67,6 +67,10 @@ func (k Keeper) BankDenomForToken(token warptypes.HypToken) (string, error) {
 // ExecuteWarpTransfer executes a Hyperlane warp transfer using the pre-computed IGP fee.
 // The quotedFee must be provided by the caller (collected from the relayer in msg_server).
 // This ensures only relayer-provided funds are used for IGP fees (no module-paid fallback).
+// customHookId optionally overrides the post-dispatch hook (e.g. an alternative
+// IGP) used for this transfer; nil selects the mailbox default hook (unchanged
+// behavior). The hook only determines which hook handles the dispatch payment —
+// it cannot redirect the transferred funds, which always go to destRecipient.
 func (k Keeper) ExecuteWarpTransfer(
 	ctx sdk.Context,
 	token warptypes.HypToken,
@@ -75,6 +79,8 @@ func (k Keeper) ExecuteWarpTransfer(
 	destRecipient util.HexAddress,
 	amount math.Int,
 	quotedFee sdk.Coin,
+	customHookId *util.HexAddress,
+	customHookMetadata []byte,
 ) (util.HexAddress, error) {
 	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
 	if err != nil {
@@ -84,26 +90,34 @@ func (k Keeper) ExecuteWarpTransfer(
 
 	switch token.TokenType {
 	case warptypes.HYP_TOKEN_TYPE_SYNTHETIC:
-		return k.warpKeeper.RemoteTransferSynthetic(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, quotedFee, nil)
+		return k.warpKeeper.RemoteTransferSynthetic(ctx, token, sender, destDomain, destRecipient, amount, customHookId, gasLimit, quotedFee, customHookMetadata)
 	case warptypes.HYP_TOKEN_TYPE_COLLATERAL:
-		return k.warpKeeper.RemoteTransferCollateral(ctx, token, sender, destDomain, destRecipient, amount, nil, gasLimit, quotedFee, nil)
+		return k.warpKeeper.RemoteTransferCollateral(ctx, token, sender, destDomain, destRecipient, amount, customHookId, gasLimit, quotedFee, customHookMetadata)
 	default:
 		return util.HexAddress{}, types.ErrUnsupportedToken
 	}
 }
 
 // QuoteIgpFeeForToken returns the IGP fee required for a warp transfer of a specific token.
-func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32) (sdk.Coin, error) {
+// customHookId must match the hook that will be used for the actual transfer so the
+// quoted fee (and the relayer's max_igp_fee check) reflects the hook that gets charged.
+func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32, customHookId *util.HexAddress) (sdk.Coin, error) {
 	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
 	if err != nil {
 		return sdk.Coin{}, fmt.Errorf("no router for domain %d: %w", destDomain, err)
 	}
 	gasLimit := router.Gas
 
+	// nil customHookId => mailbox default hook (zero address), preserving prior behavior.
+	hookId := util.NewZeroAddress()
+	if customHookId != nil {
+		hookId = *customHookId
+	}
+
 	metadata := util.StandardHookMetadata{GasLimit: gasLimit}
 	message := util.HyperlaneMessage{Destination: destDomain}
 
-	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, util.NewZeroAddress(), metadata, message)
+	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, hookId, metadata, message)
 	if err != nil {
 		return sdk.Coin{}, fmt.Errorf("failed to quote dispatch: %w", err)
 	}

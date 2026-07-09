@@ -86,7 +86,9 @@ func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuo
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
 	}
 
-	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain)
+	// nil hook: quote against the mailbox default hook. (A relayer routing through
+	// a custom IGP knows that IGP's price directly and sets max_igp_fee accordingly.)
+	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, nil)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "failed to quote IGP fee: %v", err)
 	}

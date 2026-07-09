@@ -69,7 +69,26 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, types.ErrNoBalance
 	}
 
-	messageID, err := m.forwardToken(ctx, forwardAddr, signerAddr, hypToken, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee)
+	// Optional custom post-dispatch hook (e.g. an alternative IGP). Empty =>
+	// mailbox default hook. The hook only steers which hook is paid for delivery;
+	// it cannot change where the tokens land (still destRecipient).
+	var customHookId *util.HexAddress
+	if msg.CustomHookId != "" {
+		h, err := util.DecodeHexAddress(msg.CustomHookId)
+		if err != nil {
+			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
+		}
+		customHookId = &h
+	}
+	var customHookMetadata []byte
+	if msg.CustomHookMetadata != "" {
+		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)
+		if err != nil {
+			return nil, fmt.Errorf("invalid custom_hook_metadata hex: %w", err)
+		}
+	}
+
+	messageID, err := m.forwardToken(ctx, forwardAddr, signerAddr, hypToken, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee, customHookId, customHookMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s:%s (%s)", types.ErrForwardFailed, balance.Denom, balance.Amount.String(), err)
 	}
@@ -91,6 +110,8 @@ func (m msgServer) forwardToken(
 	destDomain uint32,
 	destRecipient util.HexAddress,
 	maxIgpFee sdk.Coin,
+	customHookId *util.HexAddress,
+	customHookMetadata []byte,
 ) (util.HexAddress, error) {
 	hasRoute, err := m.k.HasEnrolledRouter(ctx, hypToken.Id, destDomain)
 	if err != nil {
@@ -100,8 +121,9 @@ func (m msgServer) forwardToken(
 		return util.HexAddress{}, types.ErrNoWarpRoute
 	}
 
-	// Quote IGP fee for this token transfer
-	quotedFee, err := m.k.QuoteIgpFeeForToken(ctx, hypToken, destDomain)
+	// Quote IGP fee for this token transfer, against the same hook that will be
+	// charged, so the max_igp_fee check below reflects the actual cost.
+	quotedFee, err := m.k.QuoteIgpFeeForToken(ctx, hypToken, destDomain, customHookId)
 	if err != nil {
 		return util.HexAddress{}, fmt.Errorf("failed to quote IGP fee: %w", err)
 	}
@@ -131,7 +153,7 @@ func (m msgServer) forwardToken(
 
 	// Execute warp transfer with forwardAddr as sender. If this returns an error,
 	// Forward propagates it and the enclosing tx rollback discards these state changes.
-	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee)
+	messageId, err := m.k.ExecuteWarpTransfer(ctx, hypToken, forwardAddr.String(), destDomain, destRecipient, balance.Amount, quotedFee, customHookId, customHookMetadata)
 	if err != nil {
 		return util.HexAddress{}, fmt.Errorf("warp transfer failed: %w", err)
 	}
