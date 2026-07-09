@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/x/forwarding/keeper"
@@ -143,4 +144,57 @@ func TestQueryQuoteForwardingFeeRequiresExplicitToken(t *testing.T) {
 	})
 	require.Error(t, err)
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+}
+
+// TestQueryQuoteForwardingFeeRoutesCustomHook asserts the quote is taken against the
+// hook the forward will actually use: a custom_hook_id makes the query quote that hook
+// (so a relayer routing through a custom IGP learns its real price), while an empty
+// custom_hook_id falls back to the mailbox default (zero) hook. Without this, a relayer
+// under-quotes to the default hook's fee and MsgForward rejects the forward as
+// ErrInsufficientIgpFee.
+func TestQueryQuoteForwardingFeeRoutesCustomHook(t *testing.T) {
+	ctx := createTestContext()
+	bankKeeper := NewMockBankKeeper()
+	warpKeeper := NewMockWarpKeeper()
+	hyperlaneKeeper := NewMockHyperlaneKeeper()
+	hyperlaneKeeper.QuotedFee = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(55)))
+
+	token := createTestHypToken(3, appconsts.BondDenom, warptypes.HYP_TOKEN_TYPE_COLLATERAL)
+	warpKeeper.Tokens = append(warpKeeper.Tokens, token)
+	warpKeeper.EnrolledRouters[3] = map[uint32]warptypes.RemoteRouter{
+		888: {Gas: math.NewInt(123456)},
+	}
+
+	queryServer := keeper.NewQueryServerImpl(keeper.NewKeeper(bankKeeper, warpKeeper, hyperlaneKeeper))
+
+	customHook := "0x000000000000000000000000000000000000000000000000000000000000abcd"
+	expected, err := util.DecodeHexAddress(customHook)
+	require.NoError(t, err)
+
+	// With custom_hook_id: the quote must be taken against the chosen hook.
+	resp, err := queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
+		DestDomain:   888,
+		TokenId:      token.Id.String(),
+		CustomHookId: customHook,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "55", resp.Fee.Amount.String())
+	require.Equal(t, expected, hyperlaneKeeper.CapturedHook, "quote must route through the custom hook")
+
+	// Without custom_hook_id: the quote falls back to the mailbox default (zero) hook.
+	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
+		DestDomain: 888,
+		TokenId:    token.Id.String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, util.NewZeroAddress(), hyperlaneKeeper.CapturedHook, "empty custom_hook_id must quote the default hook")
+
+	// Invalid custom_hook_id => InvalidArgument.
+	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
+		DestDomain:   888,
+		TokenId:      token.Id.String(),
+		CustomHookId: "0xnothex",
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
 }

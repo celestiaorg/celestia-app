@@ -86,9 +86,19 @@ func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuo
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
 	}
 
-	// nil hook: quote against the mailbox default hook. (A relayer routing through
-	// a custom IGP knows that IGP's price directly and sets max_igp_fee accordingly.)
-	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, nil)
+	// Quote against the same post-dispatch hook the forward will use, so the
+	// returned fee matches what MsgForward will charge. Empty custom_hook_id =>
+	// nil => the mailbox default hook (unchanged behavior).
+	var customHookId *util.HexAddress
+	if req.CustomHookId != "" {
+		h, err := util.DecodeHexAddress(req.CustomHookId)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_id hex %q: %v", req.CustomHookId, err)
+		}
+		customHookId = &h
+	}
+
+	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, customHookId)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "failed to quote IGP fee: %v", err)
 	}
