@@ -102,10 +102,19 @@ Example:
 				return fmt.Errorf("invalid dest_domain: %w", err)
 			}
 
+			// Optional custom post-dispatch hook so the quote matches the fee
+			// MsgForward will charge when the same --custom-hook-id is used.
+			// Empty quotes against the mailbox default hook.
+			customHookID, err := cmd.Flags().GetString("custom-hook-id")
+			if err != nil {
+				return err
+			}
+
 			queryClient := types.NewQueryClient(clientCtx)
 			res, err := queryClient.QuoteForwardingFee(cmd.Context(), &types.QueryQuoteForwardingFeeRequest{
-				DestDomain: uint32(destDomain),
-				TokenId:    tokenID,
+				DestDomain:   uint32(destDomain),
+				TokenId:      tokenID,
+				CustomHookId: customHookID,
 			})
 			if err != nil {
 				return err
@@ -115,6 +124,7 @@ Example:
 		},
 	}
 
+	cmd.Flags().String("custom-hook-id", "", "Optional post-dispatch hook id to quote against (must match the --custom-hook-id used in tx forward); empty = mailbox default hook")
 	flags.AddQueryFlagsToCmd(cmd)
 
 	return cmd
