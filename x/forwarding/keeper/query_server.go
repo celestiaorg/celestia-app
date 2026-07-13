@@ -95,7 +95,11 @@ func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuo
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_id hex %q: %v", req.CustomHookId, err)
 		}
-		customHookId = &h
+		// The zero address is the sentinel for "mailbox default hook"; treat it as
+		// unset so the quote matches what MsgForward will charge (see msg_server.go).
+		if !h.IsZeroAddress() {
+			customHookId = &h
+		}
 	}
 
 	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, customHookId)

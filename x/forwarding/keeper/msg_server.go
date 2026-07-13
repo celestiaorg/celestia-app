@@ -78,7 +78,14 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		if err != nil {
 			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
 		}
-		customHookId = &h
+		// The zero address is the sentinel for "mailbox default hook". Leave
+		// customHookId nil so the quote and dispatch paths agree: QuoteDispatch
+		// substitutes the default hook on IsZeroAddress, but DispatchMessage only
+		// does so when the pointer is nil, so a non-nil zero address would be
+		// quoted against the default hook yet revert at dispatch.
+		if !h.IsZeroAddress() {
+			customHookId = &h
+		}
 	}
 	var customHookMetadata []byte
 	if msg.CustomHookMetadata != "" {

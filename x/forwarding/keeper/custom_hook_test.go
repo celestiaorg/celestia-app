@@ -110,6 +110,29 @@ func TestForward_NoCustomHook_UsesDefault(t *testing.T) {
 	require.Nil(t, s.warpKeeper.CapturedHookId, "empty custom hook must pass nil to the warp transfer (mailbox default)")
 }
 
+// An explicit zero-address custom_hook_id is the sentinel for "mailbox default
+// hook" and must behave exactly like an unset hook: quoted against the default
+// (zero) hook and passed as nil to the warp transfer. Otherwise the quote would
+// price the default hook while dispatch routed a non-nil zero address to the
+// noop handler and reverted.
+func TestForward_ZeroAddressCustomHook_UsesDefault(t *testing.T) {
+	s := newTestIGPSetup(t)
+	setupSuccessfulForward(s)
+
+	msg := types.NewMsgForward(
+		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
+		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
+	)
+	msg.CustomHookId = util.NewZeroAddress().String()
+
+	resp, err := s.msgServer.Forward(s.ctx, msg)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	require.Equal(t, util.NewZeroAddress(), s.hyperlaneKeeper.CapturedHook, "zero-address custom hook must quote against the default (zero) hook")
+	require.Nil(t, s.warpKeeper.CapturedHookId, "zero-address custom hook must pass nil to the warp transfer (mailbox default)")
+}
+
 // An invalid custom_hook_id is rejected before any funds move.
 func TestForward_InvalidCustomHookId_Rejected(t *testing.T) {
 	s := newTestIGPSetup(t)
