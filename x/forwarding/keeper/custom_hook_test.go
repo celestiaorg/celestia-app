@@ -76,6 +76,7 @@ func TestForward_CustomHookId_RoutesToChosenHook(t *testing.T) {
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
 	)
 	msg.CustomHookId = customHookID
+	msg.CustomHookMetadata = "0xabcdef"
 
 	resp, err := s.msgServer.Forward(s.ctx, msg)
 	require.NoError(t, err)
@@ -83,12 +84,18 @@ func TestForward_CustomHookId_RoutesToChosenHook(t *testing.T) {
 
 	want, err := util.DecodeHexAddress(customHookID)
 	require.NoError(t, err)
+	wantMeta, err := util.DecodeEthHex("0xabcdef")
+	require.NoError(t, err)
 
 	// Fee was quoted against our hook (not the default zero hook).
 	require.Equal(t, want, s.hyperlaneKeeper.CapturedHook, "fee must be quoted against the custom hook")
-	// The warp transfer dispatched through our hook.
+	// Fee was quoted against the same metadata the dispatch will use, so hooks
+	// that price off metadata are charged what the relayer's max_igp_fee covers.
+	require.Equal(t, wantMeta, s.hyperlaneKeeper.CapturedQuoteMeta, "fee must be quoted against the custom hook metadata")
+	// The warp transfer dispatched through our hook and metadata.
 	require.NotNil(t, s.warpKeeper.CapturedHookId, "custom hook id must be passed to the warp transfer")
 	require.Equal(t, want, *s.warpKeeper.CapturedHookId, "warp transfer must use the custom hook")
+	require.Equal(t, wantMeta, s.warpKeeper.CapturedHookMeta, "warp transfer must use the custom hook metadata")
 }
 
 // Without custom_hook_id, behavior is unchanged: default (zero) hook, nil to warp.

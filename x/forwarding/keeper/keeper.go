@@ -99,9 +99,11 @@ func (k Keeper) ExecuteWarpTransfer(
 }
 
 // QuoteIgpFeeForToken returns the IGP fee required for a warp transfer of a specific token.
-// customHookId must match the hook that will be used for the actual transfer so the
-// quoted fee (and the relayer's max_igp_fee check) reflects the hook that gets charged.
-func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32, customHookId *util.HexAddress) (sdk.Coin, error) {
+// customHookId and customHookMetadata must match the hook and metadata that will be used for
+// the actual transfer so the quoted fee (and the relayer's max_igp_fee check) reflects the
+// hook that gets charged. Some hooks price the dispatch off the metadata; hooks that don't
+// (e.g. the default IGP) ignore it.
+func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, destDomain uint32, customHookId *util.HexAddress, customHookMetadata []byte) (sdk.Coin, error) {
 	router, err := k.GetEnrolledRouter(ctx, token.Id, destDomain)
 	if err != nil {
 		return sdk.Coin{}, fmt.Errorf("no router for domain %d: %w", destDomain, err)
@@ -114,7 +116,7 @@ func (k Keeper) QuoteIgpFeeForToken(ctx sdk.Context, token warptypes.HypToken, d
 		hookId = *customHookId
 	}
 
-	metadata := util.StandardHookMetadata{GasLimit: gasLimit}
+	metadata := util.StandardHookMetadata{GasLimit: gasLimit, CustomHookMetadata: customHookMetadata}
 	message := util.HyperlaneMessage{Destination: destDomain}
 
 	quotedFee, err := k.hyperlaneKeeper.QuoteDispatch(ctx, token.OriginMailbox, hookId, metadata, message)

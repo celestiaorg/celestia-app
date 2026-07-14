@@ -125,8 +125,8 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 By default the warp dispatch routes its gas payment through the mailbox's default post-dispatch hook. `MsgForward` optionally overrides this so the fee is routed through a chosen hook (e.g. an alternative IGP) instead.
 
 - `custom_hook_id`: hex-encoded post-dispatch hook address. Empty selects the mailbox default hook (prior behavior is unchanged). A zero address is treated as empty.
-- `custom_hook_metadata`: hex-encoded metadata passed to the custom hook. Only meaningful alongside a `custom_hook_id`.
-- The same hook must be used when quoting and when forwarding: `QuoteForwardingFee` accepts `custom_hook_id` so the estimate matches the fee `MsgForward` will charge against that hook. Quoting the default hook then forwarding through a more expensive custom hook can under-set `max_igp_fee` and fail with `ErrInsufficientIgpFee`.
+- `custom_hook_metadata`: hex-encoded metadata passed to the custom hook. Some hooks price the dispatch off this metadata; hooks that don't (e.g. the default IGP) ignore it.
+- The same hook **and metadata** must be used when quoting and when forwarding. `QuoteForwardingFee` accepts both `custom_hook_id` and `custom_hook_metadata` and quotes the dispatch exactly as `MsgForward` will, so the estimate matches the fee that will be charged. Quoting the default hook (or omitting metadata a hook prices off) then forwarding through a more expensive path can under-set `max_igp_fee` and fail with `ErrInsufficientIgpFee`.
 
 ## Queries
 
@@ -146,11 +146,12 @@ Returns the estimated IGP fee for forwarding the specified token to a destinatio
 celestia-appd query forwarding quote-fee 0x<token-id> 42161
 ```
 
-To estimate the fee against a custom post-dispatch hook, pass the same hook id you intend to use in `tx forwarding forward`:
+To estimate the fee against a custom post-dispatch hook, pass the same hook id (and metadata, if any) you intend to use in `tx forwarding forward`:
 
 ```bash
 celestia-appd query forwarding quote-fee 0x<token-id> 42161 \
-  --custom-hook-id 0x<hook-id>
+  --custom-hook-id 0x<hook-id> \
+  --custom-hook-metadata 0x<metadata>
 ```
 
 ## CLI Usage

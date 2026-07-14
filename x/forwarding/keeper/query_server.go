@@ -102,7 +102,17 @@ func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuo
 		}
 	}
 
-	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, customHookId)
+	// Decode the same metadata MsgForward will pass, so hooks that price the
+	// dispatch off metadata are quoted against the fee that will be charged.
+	var customHookMetadata []byte
+	if req.CustomHookMetadata != "" {
+		customHookMetadata, err = util.DecodeEthHex(req.CustomHookMetadata)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_metadata hex %q: %v", req.CustomHookMetadata, err)
+		}
+	}
+
+	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, customHookId, customHookMetadata)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "failed to quote IGP fee: %v", err)
 	}

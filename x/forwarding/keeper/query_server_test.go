@@ -171,15 +171,30 @@ func TestQueryQuoteForwardingFeeRoutesCustomHook(t *testing.T) {
 	expected, err := util.DecodeHexAddress(customHook)
 	require.NoError(t, err)
 
-	// With custom_hook_id: the quote must be taken against the chosen hook.
+	// With custom_hook_id and metadata: the quote must be taken against the chosen
+	// hook and the same metadata MsgForward will dispatch with, so hooks that price
+	// off metadata are quoted the fee they will actually charge.
 	resp, err := queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
-		DestDomain:   888,
-		TokenId:      token.Id.String(),
-		CustomHookId: customHook,
+		DestDomain:         888,
+		TokenId:            token.Id.String(),
+		CustomHookId:       customHook,
+		CustomHookMetadata: "0xabcdef",
 	})
 	require.NoError(t, err)
 	require.Equal(t, "55", resp.Fee.Amount.String())
 	require.Equal(t, expected, hyperlaneKeeper.CapturedHook, "quote must route through the custom hook")
+	expectedMeta, err := util.DecodeEthHex("0xabcdef")
+	require.NoError(t, err)
+	require.Equal(t, expectedMeta, hyperlaneKeeper.CapturedQuoteMeta, "quote must use the custom hook metadata")
+
+	// Invalid custom_hook_metadata => InvalidArgument.
+	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
+		DestDomain:         888,
+		TokenId:            token.Id.String(),
+		CustomHookMetadata: "0xnothex",
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "custom_hook_metadata")
 
 	// Without custom_hook_id: the quote falls back to the mailbox default (zero) hook.
 	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{

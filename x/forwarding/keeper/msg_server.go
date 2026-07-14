@@ -128,9 +128,9 @@ func (m msgServer) forwardToken(
 		return util.HexAddress{}, types.ErrNoWarpRoute
 	}
 
-	// Quote IGP fee for this token transfer, against the same hook that will be
-	// charged, so the max_igp_fee check below reflects the actual cost.
-	quotedFee, err := m.k.QuoteIgpFeeForToken(ctx, hypToken, destDomain, customHookId)
+	// Quote IGP fee for this token transfer, against the same hook and metadata that
+	// will be charged, so the max_igp_fee check below reflects the actual cost.
+	quotedFee, err := m.k.QuoteIgpFeeForToken(ctx, hypToken, destDomain, customHookId, customHookMetadata)
 	if err != nil {
 		return util.HexAddress{}, fmt.Errorf("failed to quote IGP fee: %w", err)
 	}

@@ -172,6 +172,8 @@ type MockHyperlaneKeeper struct {
 	QuoteErr  error
 	// CapturedHook records the hook id the keeper quoted against.
 	CapturedHook util.HexAddress
+	// CapturedQuoteMeta records the custom hook metadata the keeper quoted against.
+	CapturedQuoteMeta []byte
 }
 
 func NewMockHyperlaneKeeper() *MockHyperlaneKeeper {
@@ -182,10 +184,11 @@ func (m *MockHyperlaneKeeper) QuoteDispatch(
 	_ context.Context,
 	_ util.HexAddress,
 	hookId util.HexAddress,
-	_ util.StandardHookMetadata,
+	metadata util.StandardHookMetadata,
 	_ util.HyperlaneMessage,
 ) (sdk.Coins, error) {
 	m.CapturedHook = hookId
+	m.CapturedQuoteMeta = metadata.CustomHookMetadata
 	if m.QuoteErr != nil {
 		return nil, m.QuoteErr
 	}
