@@ -9,6 +9,7 @@ import (
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
+	fibremodule "github.com/celestiaorg/celestia-app/v10/x/fibre"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -17,6 +18,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/module"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -56,6 +58,46 @@ func (suite *ABCITestSuite) SetupTest() {
 	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, mockStakingKeeper, authority)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
+}
+
+// TestModuleManagerDispatchesBeginBlock checks that the real module.Manager
+// actually dispatches fibre's BeginBlock. The manager skips modules whose
+// BeginBlock has the wrong signature, which would leave the withdrawal below
+// unreleased.
+func (suite *ABCITestSuite) TestModuleManagerDispatchesBeginBlock() {
+	manager := module.NewManager(fibremodule.NewAppModule(suite.cdc, *suite.keeper))
+
+	privKey := secp256k1.GenPrivKey()
+	signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+
+	depositAmount := sdk.NewCoin("utia", math.NewInt(1000000))
+	_, err := suite.msgServer.DepositToEscrow(suite.ctx, &types.MsgDepositToEscrow{
+		Signer: signer,
+		Amount: depositAmount,
+	})
+	suite.NoError(err)
+
+	withdrawalAmount := sdk.NewCoin("utia", math.NewInt(500000))
+	_, err = suite.msgServer.RequestWithdrawal(suite.ctx, &types.MsgRequestWithdrawal{
+		Signer: signer,
+		Amount: withdrawalAmount,
+	})
+	suite.NoError(err)
+
+	// Advance past the withdrawal delay so the withdrawal is mature.
+	params := suite.keeper.GetParams(suite.ctx)
+	suite.ctx = suite.ctx.WithBlockTime(suite.ctx.BlockTime().Add(params.WithdrawalDelay))
+
+	// Dispatch through the real module manager, exactly as the app does.
+	_, err = manager.BeginBlock(suite.ctx)
+	suite.NoError(err)
+
+	// The mature withdrawal must have been released; if fibre was skipped it
+	// would still be pending.
+	escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.Balance)
+	suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer))
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_ProcessAvailableWithdrawals() {

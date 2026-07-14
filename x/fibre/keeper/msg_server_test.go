@@ -63,7 +63,7 @@ func (suite *MsgServerTestSuite) SetupTest() {
 	suite.bankKeeper = &MockBankKeeper{}
 	suite.stakingKeeper = &MockStakingKeeper{}
 	suite.authority = authtypes.NewModuleAddress("gov").String()
-	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{Time: time.Now().UTC(), Height: 100}, false, nil)
+	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
@@ -554,6 +554,38 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		suite.Nil(resp)
 		suite.Contains(err.Error(), "insufficient balance")
 	})
+
+	suite.T().Run("rejects payment promise signed for a different chain", func(t *testing.T) {
+		foreignPrivKey := secp256k1.GenPrivKey()
+		foreignPubKey := *foreignPrivKey.PubKey().(*secp256k1.PubKey)
+		foreignSigner := sdk.AccAddress(foreignPrivKey.PubKey().Address()).String()
+
+		// A promise validly signed for another chain, timed out, with funded
+		// escrow on the executing chain. Every other check passes, so only the
+		// chain-binding check can reject it.
+		foreignPromise := suite.createPaymentPromiseWithChainID(foreignPubKey, foreignPrivKey, oldTime, "other-chain")
+
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           foreignSigner,
+			Balance:          requiredAmount,
+			AvailableBalance: requiredAmount,
+		})
+
+		msg := &types.MsgPaymentPromiseTimeout{
+			Signer:         processor,
+			PaymentPromise: foreignPromise,
+		}
+
+		resp, err := suite.msgServer.PaymentPromiseTimeout(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "does not match executing chain")
+
+		// Escrow must be untouched.
+		escrow, found := suite.keeper.GetEscrowAccount(suite.ctx, foreignSigner)
+		suite.True(found)
+		suite.Equal(requiredAmount, escrow.Balance)
+	})
 }
 
 // moduleTransfer records a SendCoinsFromModuleToModule call.
@@ -895,6 +927,24 @@ func (suite *MsgServerTestSuite) createPaymentPromiseWithTime(signerPubKey secp2
 	signBytes, err := pp.SignBytes()
 	suite.NoError(err)
 
+	signature, err := privKey.Sign(signBytes)
+	suite.NoError(err)
+	paymentPromise.Signature = signature
+
+	return paymentPromise
+}
+
+// createPaymentPromiseWithChainID builds a validly signed promise stamped with
+// an arbitrary chain_id. The signature covers chain_id, so the promise is
+// re-signed after the field is overridden.
+func (suite *MsgServerTestSuite) createPaymentPromiseWithChainID(signerPubKey secp256k1.PubKey, privKey *secp256k1.PrivKey, creationTime time.Time, chainID string) types.PaymentPromise {
+	paymentPromise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creationTime)
+	paymentPromise.ChainId = chainID
+
+	pp := fibre.PaymentPromise{}
+	suite.NoError(pp.FromProto(&paymentPromise))
+	signBytes, err := pp.SignBytes()
+	suite.NoError(err)
 	signature, err := privKey.Sign(signBytes)
 	suite.NoError(err)
 	paymentPromise.Signature = signature
