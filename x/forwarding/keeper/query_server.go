@@ -86,7 +86,33 @@ func (q queryServer) QuoteForwardingFee(ctx context.Context, req *types.QueryQuo
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
 	}
 
-	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain)
+	// Quote against the same post-dispatch hook the forward will use, so the
+	// returned fee matches what MsgForward will charge. Empty custom_hook_id =>
+	// nil => the mailbox default hook (unchanged behavior).
+	var customHookId *util.HexAddress
+	if req.CustomHookId != "" {
+		h, err := util.DecodeHexAddress(req.CustomHookId)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_id hex %q: %v", req.CustomHookId, err)
+		}
+		// The zero address is the sentinel for "mailbox default hook"; treat it as
+		// unset so the quote matches what MsgForward will charge (see msg_server.go).
+		if !h.IsZeroAddress() {
+			customHookId = &h
+		}
+	}
+
+	// Decode the same metadata MsgForward will pass, so hooks that price the
+	// dispatch off metadata are quoted against the fee that will be charged.
+	var customHookMetadata []byte
+	if req.CustomHookMetadata != "" {
+		customHookMetadata, err = util.DecodeEthHex(req.CustomHookMetadata)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_metadata hex %q: %v", req.CustomHookMetadata, err)
+		}
+	}
+
+	fee, err := q.k.QuoteIgpFeeForToken(sdk.UnwrapSDKContext(ctx), token, req.DestDomain, customHookId, customHookMetadata)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "failed to quote IGP fee: %v", err)
 	}

@@ -82,11 +82,27 @@ Example:
 				maxIgpFee,
 			)
 
+			// Optional custom post-dispatch hook (e.g. an alternative IGP) so the
+			// forward's gas payment is routed to a chosen hook instead of the
+			// mailbox default. Empty leaves prior behavior unchanged.
+			customHookID, err := cmd.Flags().GetString("custom-hook-id")
+			if err != nil {
+				return err
+			}
+			msg.CustomHookId = customHookID
+			customHookMetadata, err := cmd.Flags().GetString("custom-hook-metadata")
+			if err != nil {
+				return err
+			}
+			msg.CustomHookMetadata = customHookMetadata
+
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 
 	cmd.Flags().String("max-igp-fee", "1000000utia", "Maximum IGP fee to pay for the bound token (default: 1000000utia)")
+	cmd.Flags().String("custom-hook-id", "", "Optional post-dispatch hook id (e.g. an alternative IGP) to route the gas payment through; empty = mailbox default hook")
+	cmd.Flags().String("custom-hook-metadata", "", "Optional hex-encoded metadata passed to the custom hook")
 	flags.AddTxFlagsToCmd(cmd)
 
 	return cmd

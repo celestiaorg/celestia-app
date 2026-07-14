@@ -64,6 +64,8 @@ message MsgForward {
   string dest_recipient = 4; // Recipient on destination (32 bytes, hex)
   string token_id = 5;      // Hyperlane token identifier bound to this address
   Coin max_igp_fee = 6;     // Max IGP fee relayer will pay
+  string custom_hook_id = 7;       // Optional post-dispatch hook (empty = mailbox default)
+  string custom_hook_metadata = 8; // Optional hex-encoded metadata for the custom hook
 }
 
 message MsgForwardResponse {
@@ -118,6 +120,14 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 
 **Fee on failure:** If the warp transfer fails, the token remains at `forwardAddr`, and the relayer is not charged the IGP fee for the failed attempt.
 
+### Custom Post-Dispatch Hook
+
+By default the warp dispatch routes its gas payment through the mailbox's default post-dispatch hook. `MsgForward` optionally overrides this so the fee is routed through a chosen hook (e.g. an alternative IGP) instead.
+
+- `custom_hook_id`: hex-encoded post-dispatch hook address. Empty selects the mailbox default hook (prior behavior is unchanged). A zero address is treated as empty.
+- `custom_hook_metadata`: hex-encoded metadata passed to the custom hook. Some hooks price the dispatch off this metadata; hooks that don't (e.g. the default IGP) ignore it.
+- The same hook **and metadata** must be used when quoting and when forwarding. `QuoteForwardingFee` accepts both `custom_hook_id` and `custom_hook_metadata` and quotes the dispatch exactly as `MsgForward` will, so the estimate matches the fee that will be charged. Quoting the default hook (or omitting metadata a hook prices off) then forwarding through a more expensive path can under-set `max_igp_fee` and fail with `ErrInsufficientIgpFee`.
+
 ## Queries
 
 ### DeriveForwardingAddress
@@ -134,6 +144,14 @@ Returns the estimated IGP fee for forwarding the specified token to a destinatio
 
 ```bash
 celestia-appd query forwarding quote-fee 0x<token-id> 42161
+```
+
+To estimate the fee against a custom post-dispatch hook, pass the same hook id (and metadata, if any) you intend to use in `tx forwarding forward`:
+
+```bash
+celestia-appd query forwarding quote-fee 0x<token-id> 42161 \
+  --custom-hook-id 0x<hook-id> \
+  --custom-hook-metadata 0x<metadata>
 ```
 
 ## CLI Usage
@@ -158,6 +176,16 @@ celestia-appd tx forwarding forward <forward-addr> \
   42161 \
   0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
   --max-igp-fee 1000utia --from relayer
+
+# Execute forwarding through a custom post-dispatch hook
+celestia-appd tx forwarding forward <forward-addr> \
+  0x726f757465725f61707000000000000000000000000000010000000000000000 \
+  42161 \
+  0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef \
+  --max-igp-fee 1000utia \
+  --custom-hook-id 0x<hook-id> \
+  --custom-hook-metadata 0x<metadata> \
+  --from relayer
 ```
 
 **Parameter Formats:**
@@ -166,6 +194,8 @@ celestia-appd tx forwarding forward <forward-addr> \
 - `dest-recipient`: 32-byte hex-encoded address with `0x` prefix. For EVM chains, use the 20-byte address left-padded with 12 zero bytes (e.g., `0x000000000000000000000000<20-byte-eth-address>`)
 - `token-id`: 32-byte Hyperlane token identifier in hex form
 - `max-igp-fee`: Maximum IGP fee to pay for the bound token (e.g., `1000utia`)
+- `custom-hook-id` (optional): hex-encoded post-dispatch hook address to route the gas payment through; empty selects the mailbox default hook
+- `custom-hook-metadata` (optional): hex-encoded metadata passed to the custom hook
 
 ## Error Codes
 

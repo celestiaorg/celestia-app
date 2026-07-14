@@ -84,6 +84,9 @@ type MockWarpKeeper struct {
 	// OnTransfer is called during transfer to simulate side effects (like IGP consumption)
 	// Parameters: sender address, maxFee provided
 	OnTransfer func(sender string, maxFee sdk.Coin)
+	// Captured*: record what the keeper forwarded so tests can assert the hook is threaded through.
+	CapturedHookId   *util.HexAddress
+	CapturedHookMeta []byte
 }
 
 func NewMockWarpKeeper() *MockWarpKeeper {
@@ -121,11 +124,13 @@ func (m *MockWarpKeeper) RemoteTransferCollateral(
 	_ uint32,
 	_ util.HexAddress,
 	_ math.Int,
-	_ *util.HexAddress,
+	customHookId *util.HexAddress,
 	_ math.Int,
 	maxFee sdk.Coin,
-	_ []byte,
+	customHookMeta []byte,
 ) (util.HexAddress, error) {
+	m.CapturedHookId = customHookId
+	m.CapturedHookMeta = customHookMeta
 	if m.TransferErr != nil {
 		return util.HexAddress{}, m.TransferErr
 	}
@@ -165,6 +170,10 @@ func (m *MockWarpKeeper) GetEnrolledRouter(_ context.Context, tokenId uint64, do
 type MockHyperlaneKeeper struct {
 	QuotedFee sdk.Coins
 	QuoteErr  error
+	// CapturedHook records the hook id the keeper quoted against.
+	CapturedHook util.HexAddress
+	// CapturedQuoteMeta records the custom hook metadata the keeper quoted against.
+	CapturedQuoteMeta []byte
 }
 
 func NewMockHyperlaneKeeper() *MockHyperlaneKeeper {
@@ -174,10 +183,12 @@ func NewMockHyperlaneKeeper() *MockHyperlaneKeeper {
 func (m *MockHyperlaneKeeper) QuoteDispatch(
 	_ context.Context,
 	_ util.HexAddress,
-	_ util.HexAddress,
-	_ util.StandardHookMetadata,
+	hookId util.HexAddress,
+	metadata util.StandardHookMetadata,
 	_ util.HyperlaneMessage,
 ) (sdk.Coins, error) {
+	m.CapturedHook = hookId
+	m.CapturedQuoteMeta = metadata.CustomHookMetadata
 	if m.QuoteErr != nil {
 		return nil, m.QuoteErr
 	}
