@@ -540,6 +540,20 @@
             "required": true,
             "type": "integer",
             "format": "int64"
+          },
+          {
+            "name": "customHookId",
+            "description": "custom_hook_id optionally selects the post-dispatch hook (e.g. an alternative\nIGP) the forward will be routed through, so the quote reflects that hook's\nprice rather than the mailbox default. Hex-encoded (0x prefix optional).\nEmpty => quote against the mailbox default hook (unchanged behavior).",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "customHookMetadata",
+            "description": "custom_hook_metadata is optional hex-encoded metadata passed to the custom\nhook. Some hooks price the dispatch off this metadata, so it must match the\ncustom_hook_metadata used in MsgForward for the quote to reflect the fee that\nwill actually be charged. Ignored by hooks that do not price off metadata\n(e.g. the default IGP).",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
