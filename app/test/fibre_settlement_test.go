@@ -28,7 +28,9 @@ func TestFibreSettlementRoutesToFeeCollector(t *testing.T) {
 	funder := testfactory.GenerateAccounts(1)[0]
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), funder)
 
-	ctx := testApp.NewContext(true).WithBlockTime(time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC))
+	ctx := testApp.NewContext(true).
+		WithBlockTime(time.Date(2026, 6, 23, 12, 0, 0, 0, time.UTC)).
+		WithChainID("test-chain")
 
 	moduleAddr := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
 	feeCollectorAddr := testApp.AccountKeeper.GetModuleAddress(authtypes.FeeCollectorName)
