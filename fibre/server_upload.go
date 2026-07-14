@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -238,6 +239,13 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	if int(promise.UploadSize) != expectedUploadSize {
 		return fmt.Errorf("upload size mismatch: promise has %d, but row size %d * %d original rows = %d",
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
+	}
+
+	// v0 requires exactly one GF128 value per original row. byte length is fixed and
+	// known up front. 
+	expectedRLCBytes := blobCfg.OriginalRows * field.GF128Size
+	if len(shard.GetRlcs()) != expectedRLCBytes {
+		return fmt.Errorf("expected %d RLC bytes, got %d", expectedRLCBytes, len(shard.GetRlcs()))
 	}
 
 	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
