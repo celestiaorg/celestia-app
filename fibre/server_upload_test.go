@@ -2,7 +2,6 @@ package fibre_test
 
 import (
 	"crypto/ed25519"
-	"fmt"
 	"testing"
 	"time"
 
