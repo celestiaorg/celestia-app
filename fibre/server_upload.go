@@ -242,7 +242,7 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 	}
 
 	// v0 requires exactly one GF128 value per original row. byte length is fixed and
-	// known up front. 
+	// known up front.
 	expectedRLCBytes := blobCfg.OriginalRows * field.GF128Size
 	if len(shard.GetRlcs()) != expectedRLCBytes {
 		return fmt.Errorf("expected %d RLC bytes, got %d", expectedRLCBytes, len(shard.GetRlcs()))
