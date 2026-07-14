@@ -8,7 +8,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/row"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
@@ -77,6 +79,20 @@ func newTestDownload(t *testing.T, expected ...int) (*download, []*rsema1d.RowPr
 	require.NoError(t, err)
 	t.Cleanup(d.freeSlab)
 	return d, proofs, rlc
+}
+
+// TestParseShardRejectsOversizedRLCs checks that parseShard rejects a
+// wrong-sized RLC field on byte length before decoding it, mirroring the
+// server upload check. v0 requires exactly one GF128 value per original row.
+func TestParseShardRejectsOversizedRLCs(t *testing.T) {
+	shard := &types.BlobShard{
+		Rows: []*types.BlobRow{{}},                  // one row so the earlier row checks pass
+		Rlcs: make([]byte, 2*testK*field.GF128Size), // twice the expected size, still 16-byte aligned
+	}
+
+	_, _, err := parseShard(shard, testK)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "RLC bytes, got")
 }
 
 // A malicious/custom uploader can serve a shard whose row size exceeds the
