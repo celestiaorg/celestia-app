@@ -53,6 +53,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// Required because the data square can be configured larger than
 	// block.MaxBytes.
 	//
+	// Size each tx by its protobuf-framed length (tag + length prefix + bytes),
+	// matching how CometBFT validates the returned list. Raw len(tx) under-counts
+	// the framing, so a list that fits here could still be rejected by Core. The
+	// kept list is a subset of what's admitted here, so the bound carries over.
+	//
 	// A non-positive maxTxBytes means "no limit" — CometBFT always sets a
 	// positive value in production, but some tests construct requests
 	// directly and leave it at zero.
@@ -61,11 +66,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		var currentTxBytes int64
 		filteredByMaxBytes = make([][]byte, 0, len(txs))
 		for _, tx := range txs {
-			if currentTxBytes+int64(len(tx)) > maxTxBytes {
+			txProtoSize := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
+			if currentTxBytes+txProtoSize > maxTxBytes {
 				logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 				continue
 			}
-			currentTxBytes += int64(len(tx))
+			currentTxBytes += txProtoSize
 			filteredByMaxBytes = append(filteredByMaxBytes, tx)
 		}
 	}
