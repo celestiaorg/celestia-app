@@ -173,6 +173,20 @@ func TestServerUploadShard(t *testing.T) {
 				require.Nil(t, resp)
 			},
 		},
+		{
+			name: "OversizedRLCs",
+			requestModifier: func(req *types.UploadShardRequest) {
+				// increase the RLC field to a larger 16-byte-aligned size. The
+				// handler must reject it on length before decoding it into a
+				// vector, since v0 requires exactly one GF128 value per row.
+				req.Shard.Rlcs = make([]byte, len(req.Shard.Rlcs)*2)
+			},
+			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), "RLC bytes, got")
+				require.Nil(t, resp)
+			},
+		},
 	}
 
 	for _, tt := range tests {

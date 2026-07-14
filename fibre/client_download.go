@@ -9,6 +9,7 @@ import (
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -173,7 +174,7 @@ func (c *Client) downloadFrom(
 		return err
 	}
 
-	proofs, rlc, err := parseShard(resp.GetShard())
+	proofs, rlc, err := parseShard(resp.GetShard(), state.cfg.OriginalRows)
 	if err != nil {
 		log.WarnContext(ctx, "failed to parse shard", "error", err)
 		span.RecordError(err)
@@ -243,7 +244,7 @@ var errDownloaded = errors.New("downloaded")
 
 // parseShard extracts row proofs and the parsed RLC vector from a BlobShard
 // response.
-func parseShard(shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error) {
+func parseShard(shard *types.BlobShard, originalRows int) ([]*rsema1d.RowProof, rlc.Vector, error) {
 	if shard == nil {
 		return nil, nil, fmt.Errorf("shard response is nil")
 	}
@@ -265,12 +266,16 @@ func parseShard(shard *types.BlobShard) ([]*rsema1d.RowProof, rlc.Vector, error)
 		}
 	}
 
+	// reject an RLC field of the wrong size before decoding, mirroring the
+	// server upload check: v0 has exactly one GF128 value per original row.
+	expectedRLCBytes := originalRows * field.GF128Size
+	if len(shard.GetRlcs()) != expectedRLCBytes {
+		return nil, nil, fmt.Errorf("expected %d RLC bytes, got %d", expectedRLCBytes, len(shard.GetRlcs()))
+	}
+
 	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
 	if err != nil {
 		return nil, nil, err
-	}
-	if len(rlcs) == 0 {
-		return nil, nil, errors.New("validator returned no RLCs")
 	}
 
 	return proofs, rlcs, nil

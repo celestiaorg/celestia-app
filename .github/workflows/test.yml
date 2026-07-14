@@ -149,6 +149,9 @@ jobs:
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneForwarding
             entrypoint: TestHyperlaneTestSuite
+          - testcase: TestHyperlaneForwardingCustomHook
+            entrypoint: TestHyperlaneTestSuite
+            forwarding_relayer_image: ghcr.io/celestiaorg/forwarding-relayer:custom-igp-hook
           - testcase: TestHyperlaneZKIsmStateTransition
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateMembership
@@ -176,6 +179,9 @@ jobs:
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
+          # Only set for the custom-hook case; empty elsewhere so the test falls
+          # back to the default forwarding-relayer image.
+          FORWARDING_RELAYER_IMAGE: ${{ matrix.forwarding_relayer_image }}
         run: |
           if [ -n "${{ matrix.entrypoint }}" ]; then
             make test-docker-e2e test=${{ matrix.testcase }} entrypoint=${{ matrix.entrypoint }}
