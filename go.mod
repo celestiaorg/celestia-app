@@ -19,10 +19,10 @@ require (
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
 	github.com/aws/aws-sdk-go-v2 v1.42.1
-	github.com/aws/aws-sdk-go-v2/config v1.32.27
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.26
+	github.com/aws/aws-sdk-go-v2/config v1.32.28
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.27
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.13
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.312.0
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.316.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.2
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
@@ -80,9 +80,9 @@ require (
 	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.46.0
 	golang.org/x/term v0.44.0
-	google.golang.org/api v0.287.0
+	google.golang.org/api v0.288.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
-	google.golang.org/grpc v1.81.1
+	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -117,7 +117,7 @@ require (
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/Djarvur/go-err113 v0.1.1 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.31.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.32.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
@@ -147,10 +147,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.23 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.31 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.2.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.31.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.43.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.3.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.32.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.37.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.44.0 // indirect
 	github.com/aws/smithy-go v1.27.3 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -421,7 +421,7 @@ require (
 	go.etcd.io/bbolt v1.4.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/contrib/detectors/gcp v1.42.0 // indirect
+	go.opentelemetry.io/contrib/detectors/gcp v1.43.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.43.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.43.0 // indirect
@@ -438,7 +438,7 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260622175928-b703f567277d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	honnef.co/go/tools v0.6.1 // indirect

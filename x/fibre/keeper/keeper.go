@@ -312,6 +312,10 @@ func (k Keeper) ParseProcessedPaymentsByTimeKey(key []byte) (processedAt time.Ti
 // The isTimeout parameter indicates whether this is being called for timeout processing,
 // which skips expiration and height validation to allow processing older promises.
 func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise *types.PaymentPromise, isTimeout bool) (time.Time, error) {
+	if promise.ChainId != ctx.ChainID() {
+		return time.Time{}, fmt.Errorf("payment promise chain_id %q does not match executing chain %q", promise.ChainId, ctx.ChainID())
+	}
+
 	params := k.GetParams(ctx)
 	currentTime := ctx.BlockTime()
 	creationTime := promise.CreationTimestamp

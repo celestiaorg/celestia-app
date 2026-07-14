@@ -52,7 +52,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 
 	mockBankKeeper := &MockBankKeeper{}
 	authority := authtypes.NewModuleAddress("gov").String()
-	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{Time: time.Now().UTC(), Height: 100}, false, nil)
+	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	mockStakingKeeper := &MockStakingKeeper{}
 	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
