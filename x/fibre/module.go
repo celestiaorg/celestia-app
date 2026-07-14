@@ -25,7 +25,8 @@ var (
 	_ module.HasName             = AppModule{}
 	_ module.HasServices         = AppModule{}
 
-	_ appmodule.AppModule = AppModule{}
+	_ appmodule.AppModule       = AppModule{}
+	_ appmodule.HasBeginBlocker = AppModule{}
 )
 
 // AppModule implements the AppModule interface for the fibre module.
@@ -118,6 +119,6 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
 // BeginBlock executes all ABCI BeginBlock logic for the fibre module.
-func (am AppModule) BeginBlock(ctx sdk.Context) error {
-	return am.keeper.BeginBlocker(ctx)
+func (am AppModule) BeginBlock(ctx context.Context) error {
+	return am.keeper.BeginBlocker(sdk.UnwrapSDKContext(ctx))
 }
