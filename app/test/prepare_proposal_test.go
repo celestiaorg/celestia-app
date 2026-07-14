@@ -316,6 +316,48 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	}
 }
 
+func TestPrepareProposalRespectsCoreProtoByteBudget(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(6)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	// several valid MsgSend txs, each from a distinct account.
+	sendTxs := coretypes.Txs(testutil.SendTxsWithAccounts(
+		t, testApp, enc.TxConfig, kr, 1000, accounts[0], accounts[1:], testutil.ChainID,
+	)).ToSliceOfBytes()
+
+	framedSize := func(txs [][]byte) int64 {
+		return coretypes.ComputeProtoSizeForTxs(coretypes.ToTxs(txs))
+	}
+
+	// Give the proposer a budget equal to the raw byte total of all candidates.
+	// This is the trap: raw len(tx) accounting sees the whole list fitting
+	// exactly, but the framed size is larger, so the full list does NOT fit and
+	// the proposer must drop at least one tx.
+	budget := int64(0)
+	for _, tx := range sendTxs {
+		budget += int64(len(tx))
+	}
+	require.Greater(t, framedSize(sendTxs), budget, "framed size of all txs should exceed the raw budget")
+
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:        sendTxs,
+		Height:     testApp.LastBlockHeight() + 1,
+		Time:       time.Now(),
+		MaxTxBytes: budget,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Txs)
+
+	// The observable effect of the fix: the proposer dropped at least one tx to
+	// stay within the framed budget. Raw-byte accounting kept the whole list.
+	require.Less(t, len(resp.Txs), len(sendTxs), "proposer should drop a tx to fit the framed budget")
+
+	// And what it did return fits the framed budget, so Core accepts it instead
+	// of rejecting with "transaction data size exceeds maximum".
+	require.LessOrEqual(t, framedSize(resp.Txs), budget)
+}
+
 func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping prepare proposal capping number of transactions test in short mode.")
