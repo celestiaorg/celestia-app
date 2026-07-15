@@ -83,6 +83,10 @@ func defaultEscrowConfig(p ProtocolParams) EscrowConfig {
 		LowWatermark:        maxBlobPayment.MulRaw(2),
 		HighWatermark:       maxBlobPayment.MulRaw(10),
 		RefillCheckInterval: time.Second,
+		// Disabled by default (seed immediately). Set to at least the chain's
+		// `DefaultPaymentPromiseTimeout` to make a restart safe against
+		// over-signing while pre-crash promises are still unsettled.
+		StartupGracePeriod: 0,
 	}
 }
 

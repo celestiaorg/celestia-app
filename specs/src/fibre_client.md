@@ -442,6 +442,8 @@ The safety invariant is that `balance` is never *overstated*: it is only ever cr
 
 The trade-off is one-sided and deliberate: a long-running, never-idle client cannot re-anchor `balance` to on-chain ground truth, so it may *understate* over time (from aborted-before-sign uploads and promises that expire without a timeout settlement). Understating only refuses budget or tops up slightly more often than strictly needed — the excess stays in the escrow and is withdrawable — it never overcommits.
 
+Because the ledger is in-memory only, a client that restarts loses `balance` and re-seeds from chain. `Query.EscrowAccount` reports the on-chain `AvailableBalance`, which does not subtract promises the crashed client had signed but that had not yet settled — so a naive re-seed would *overstate* `balance` and could over-sign. `EscrowConfig.StartupGracePeriod` guards against this: within that window after the ledger starts it seeds nothing, admits nothing, and deposits nothing, and `waitForBudget` fails fast with an explicit error. By the time the window passes, any promise signed before the crash has settled or timed out on chain, so the first seed is exact. It is disabled by default (seed immediately, preserving the behavior above); operators who require crash-safety set it to at least the chain's `PaymentPromiseTimeout`. The alternative — durable local persistence of `balance` — would remove the startup window entirely at the cost of a synchronous disk write on the signing hot path, and is intentionally out of scope here.
+
 ## 12) Errors
 
 Important client-side errors include:
