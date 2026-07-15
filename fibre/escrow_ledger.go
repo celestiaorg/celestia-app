@@ -30,6 +30,16 @@ type EscrowConfig struct {
 	// RefillCheckInterval is how often waitForBudget re-checks the balance while
 	// blocked waiting for a refill to land. Default 1s.
 	RefillCheckInterval time.Duration
+	// StartupGracePeriod delays trusting on-chain escrow state after the ledger
+	// starts. The local balance is in-memory only, so a client that crashed while
+	// promises it signed were still unsettled would, on restart, re-seed from a
+	// chain balance that still counts those committed funds as available and
+	// could over-sign. Within this window the ledger seeds nothing, admits
+	// nothing, and deposits nothing; once it passes, any pre-crash promise has
+	// settled or timed out on chain, so the seed is exact. Set it to at least the
+	// chain's PaymentPromiseTimeout to close that gap. Zero (the default) disables
+	// the grace and seeds immediately, preserving the prior behavior.
+	StartupGracePeriod time.Duration
 }
 
 // EscrowQuerier reads on-chain escrow state for a signer. It wraps the
@@ -68,6 +78,7 @@ type escrowLedger struct {
 	querier   EscrowQuerier
 	depositor Depositor
 	log       *slog.Logger
+	createdAt time.Time // ledger start; gates the StartupGracePeriod window
 
 	mu      sync.Mutex
 	balance math.Int // = on-chain escrow − committed (signed) promises
@@ -87,8 +98,20 @@ func newEscrowLedger(signer string, cfg EscrowConfig, clk clock.Clock, q EscrowQ
 		querier:   q,
 		depositor: d,
 		log:       log,
+		createdAt: clk.Now(),
 		balance:   math.ZeroInt(),
 	}
+}
+
+// inStartupGrace reports whether the ledger is still within its post-start grace
+// window, during which chain escrow state can't be trusted (see ensureSeeded and
+// EscrowConfig.StartupGracePeriod). Always false when StartupGracePeriod is zero,
+// which preserves immediate seeding.
+func (l *escrowLedger) inStartupGrace() bool {
+	if l.cfg.StartupGracePeriod <= 0 {
+		return false
+	}
+	return l.clk.Now().Before(l.createdAt.Add(l.cfg.StartupGracePeriod))
 }
 
 // ensureSeeded initializes balance from the chain exactly once (the first time
@@ -97,6 +120,14 @@ func newEscrowLedger(signer string, cfg EscrowConfig, clk clock.Clock, q EscrowQ
 // cheap no-op.
 func (l *escrowLedger) ensureSeeded(ctx context.Context) error {
 	if l.seeded.Load() {
+		return nil
+	}
+	// Hold off seeding until the startup grace window passes: a balance queried
+	// before then could still count promises signed just before a crash (not yet
+	// settled on chain) as available and let us over-sign. balance stays zero
+	// meanwhile, so admit refuses and no commitment is made. See
+	// EscrowConfig.StartupGracePeriod.
+	if l.inStartupGrace() {
 		return nil
 	}
 	l.seedMu.Lock()
@@ -161,6 +192,12 @@ func (l *escrowLedger) refill(ctx context.Context) {
 	if !l.cfg.AutoFund {
 		return
 	}
+	// During the startup grace window the balance is deliberately unseeded (zero),
+	// so a deposit here would top up against an untrusted baseline. Hold off; the
+	// first refill after the window works off the freshly seeded balance.
+	if l.inStartupGrace() {
+		return
+	}
 	if !l.refilling.CompareAndSwap(false, true) {
 		return // another refill is already running
 	}
@@ -197,6 +234,13 @@ func (l *escrowLedger) waitForBudget(ctx context.Context, refill func(), amount 
 	// spin until ctx expires. Surface the misconfiguration immediately instead.
 	if l.cfg.AutoFund && l.cfg.HighWatermark.LT(amount) {
 		return fmt.Errorf("escrow payment %s exceeds high_watermark %s: raise HighWatermark to admit blobs this large", amount, l.cfg.HighWatermark)
+	}
+	// Within the startup grace window admit can never succeed (seeding is
+	// deferred and refill is suppressed), so polling would just spin until ctx
+	// expires. Fail fast with an actionable message instead. See
+	// EscrowConfig.StartupGracePeriod.
+	if l.inStartupGrace() {
+		return fmt.Errorf("escrow ledger in startup grace period; admission deferred to avoid over-signing after a restart (see EscrowConfig.StartupGracePeriod)")
 	}
 	for {
 		if ok, _ := l.admit(amount); ok {

@@ -29,6 +29,44 @@ func TestEscrowLedgerEnsureSeededUsesExistingBalance(t *testing.T) {
 	require.Equal(t, 0, count) // existing balance covered it; no deposit
 }
 
+// TestEscrowLedgerStartupGraceDefersSeeding is the crash-restart regression: a
+// ledger that starts within its StartupGracePeriod must not seed from, admit
+// against, or deposit toward chain state — otherwise a client that restarted
+// while promises it signed were still unsettled would re-seed from a balance
+// that omits them and over-sign. After the window (by when any pre-crash promise
+// has settled or timed out) seeding and admission resume normally.
+func TestEscrowLedgerStartupGraceDefersSeeding(t *testing.T) {
+	clk := clock.NewMock()
+	d := newMockDepositor()
+	q := &mockQuerier{bal: math.NewInt(50_000)}
+	cfg := testEscrowConfig()
+	cfg.StartupGracePeriod = time.Hour
+	l := newEscrowLedger("signer1", cfg, clk, q, d, nil)
+
+	// Within the grace window: no query, no admission, no deposit.
+	require.NoError(t, l.ensureSeeded(t.Context()))
+	require.Equal(t, 0, q.queries())
+	require.Equal(t, int64(0), l.balanceOf().Int64())
+	ok, _ := l.admit(math.NewInt(1))
+	require.False(t, ok)
+	l.refill(t.Context())
+	count, _ := d.deposits()
+	require.Equal(t, 0, count)
+
+	// waitForBudget fails fast with an explicit error (not a ctx timeout) while
+	// in the grace window, since admit can never succeed there.
+	err := l.waitForBudget(t.Context(), func() { l.refill(t.Context()) }, math.NewInt(1))
+	require.ErrorContains(t, err, "startup grace period")
+
+	// After the window: seed from chain and admit normally.
+	clk.Add(time.Hour)
+	require.NoError(t, l.ensureSeeded(t.Context()))
+	require.Equal(t, 1, q.queries())
+	require.Equal(t, int64(50_000), l.balanceOf().Int64())
+	ok, _ = l.admit(math.NewInt(1_000))
+	require.True(t, ok)
+}
+
 // TestEscrowLedgerFundedBurstNeverOvercommits is the core property: under a
 // concurrent burst of admissions that together far exceed the starting balance,
 // auto-funding lets every upload through while the local balance never goes
