@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -26,6 +27,56 @@ type PutResult struct {
 	TxHash string
 	// Height is the block height where the [types.MsgPayForFibre] transaction was included.
 	Height uint64
+}
+
+// escrowReservation is a single Put's handle on its escrow admission. The zero
+// value (returned when AutoFund is disabled) makes abort a no-op.
+type escrowReservation struct {
+	ledger *escrowLedger
+	amount math.Int
+	signed bool
+}
+
+// admitEscrow debits blob's settlement cost from txClient's local escrow budget
+// before signing/uploading, so concurrent in-flight promises can never
+// collectively overcommit the account (the failure mode neither the server's
+// per-promise check nor a fixed upfront deposit prevents). It blocks —
+// auto-funding as needed — until the budget is available, kicking a refill off
+// the hot path whenever the budget dips low. Returns the zero reservation when
+// AutoFund is disabled.
+func (c *Client) admitEscrow(ctx context.Context, txClient *user.TxClient, blob *Blob) (escrowReservation, error) {
+	if !c.Config.Escrow.AutoFund {
+		return escrowReservation{}, nil
+	}
+	ledger := c.escrowLedgerFor(txClient)
+	amount := types.PaymentAmount(uint32(blob.UploadSize())).Amount
+	if err := ledger.ensureSeeded(ctx); err != nil {
+		return escrowReservation{}, fmt.Errorf("seeding escrow ledger: %w", err)
+	}
+	ok, low := ledger.admit(amount)
+	if !ok {
+		// Blocked path: refill synchronously — this Put is already waiting for
+		// budget, so a deposit inline (bounded by ctx) needs no extra goroutine.
+		if err := ledger.waitForBudget(ctx, func() { ledger.refill(ctx) }, amount); err != nil {
+			return escrowReservation{}, fmt.Errorf("waiting for escrow budget: %w", err)
+		}
+	} else if low {
+		// Admitted but low: kick a best-effort proactive top-up off the hot path
+		// so the next Put is unlikely to block.
+		c.refillAsync(ledger)
+	}
+	return escrowReservation{ledger: ledger, amount: amount}, nil
+}
+
+// abort returns the debited budget for a Put that failed before its promise was
+// signed (encoding/upload failed, so the funds were never committed). Safe to
+// defer unconditionally: it is a no-op once the promise is signed, since from
+// that point the escrow is committed — the settle or timeout path debits it on
+// chain regardless of whether this Put's broadcast/confirm succeeds.
+func (r *escrowReservation) abort() {
+	if r.ledger != nil && !r.signed {
+		r.ledger.credit(r.amount)
+	}
 }
 
 // Put uploads given data to the Fibre network.
@@ -59,7 +110,27 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		attribute.Int("row_size", blob.RowSize()),
 	))
 
-	signedPromise, err := c.Upload(ctx, ns, blob, WithKeyName(txClient.DefaultAccountName()))
+	// Escrow admission: debit this promise's settlement cost before signing and
+	// uploading. Credited back (via the deferred abort) on any error before the
+	// promise is signed; once signed the funds are committed and stay debited.
+	// No-op when AutoFund is disabled.
+	reservation, err := c.admitEscrow(ctx, txClient, blob)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "escrow admission failed")
+		return result, err
+	}
+	defer reservation.abort()
+
+	// Commit the reservation the moment the promise is client-signed and about to
+	// be dispatched (via the beforeFanout hook), not after Upload returns: once a
+	// validator can hold the signed promise it may land on-chain through the
+	// timeout path even if the fanout errors, so crediting the budget back on
+	// such an error would let a later Put overspend the escrow.
+	signedPromise, err := c.Upload(ctx, ns, blob,
+		WithKeyName(txClient.DefaultAccountName()),
+		withBeforeDispatch(func() { reservation.signed = true }),
+	)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")

@@ -432,6 +432,16 @@ Escrow state and transactions are available through the app's `x/fibre` query an
 
 Callers that need deposits, withdrawals, escrow queries, or PFF transaction submission use the normal app gRPC query clients and transaction clients.
 
+### Escrow ledger accounting safety
+
+When escrow auto-funding is enabled, each signer has a client-side ledger holding a single number, `balance`: the on-chain escrow balance minus the funds already committed to signed-but-not-yet-settled promises. `balance` is seeded once from chain (`Query.EscrowAccount`) on first use.
+
+An upload is admitted only when `balance` covers its payment, at which point `balance` is decremented. The decrement is credited back only if the upload fails *before* its promise is signed — once signed, the funds are committed (the `Msg.PayForFibre` settlement, or `Msg.PaymentPromiseTimeout` if the PFF never lands, debits the escrow on chain regardless of this client), so the decrement is final. When `balance` dips below `LowWatermark`, a background deposit (`Msg.DepositToEscrow`, single-flighted) tops it up to `HighWatermark`, applied as an additive delta once confirmed.
+
+The safety invariant is that `balance` is never *overstated*: it is only ever credited by a real confirmed deposit or by an abort-before-sign (whose funds were never committed), never by a phantom amount. Because no chain re-read overwrites `balance` during operation, the additive deposit delta can never double-count a concurrent reconcile, so the additive is unconditionally correct. A never-overstated balance means concurrent uploads can never collectively overcommit the escrow.
+
+The trade-off is one-sided and deliberate: a long-running, never-idle client cannot re-anchor `balance` to on-chain ground truth, so it may *understate* over time (from aborted-before-sign uploads and promises that expire without a timeout settlement). Understating only refuses budget or tops up slightly more often than strictly needed — the excess stays in the escrow and is withdrawable — it never overcommits.
+
 ## 12) Errors
 
 Important client-side errors include:
