@@ -33,10 +33,10 @@ func TestValidateGroth16Vkey(t *testing.T) {
 	t.Run("inflated CommitmentKeys length is rejected", func(t *testing.T) {
 		malicious := make([]byte, types.Groth16VkeySize)
 		copy(malicious, validVK)
-		// Set CommitmentKeys length at offset 388 to 0xFFFFFFFF.
+		// Set CommitmentKeys length at offset 484 to 0xFFFFFFFF.
 		// This passes the size and G1.K checks but would cause gnark to
 		// call make([]pedersen.VerifyingKey, 0xFFFFFFFF) and OOM.
-		binary.BigEndian.PutUint32(malicious[388:392], 0xFFFFFFFF)
+		binary.BigEndian.PutUint32(malicious[484:488], 0xFFFFFFFF)
 		err := types.ValidateGroth16Vkey(malicious)
 		assert.ErrorContains(t, err, "CommitmentKeys length must be 0")
 	})
@@ -44,8 +44,8 @@ func TestValidateGroth16Vkey(t *testing.T) {
 	t.Run("inflated PublicAndCommitmentCommitted length is rejected", func(t *testing.T) {
 		malicious := make([]byte, types.Groth16VkeySize)
 		copy(malicious, validVK)
-		// Set PublicAndCommitmentCommitted length at offset 392 to 0xFFFFFFFF.
-		binary.BigEndian.PutUint32(malicious[392:396], 0xFFFFFFFF)
+		// Set PublicAndCommitmentCommitted length at offset 488 to 0xFFFFFFFF.
+		binary.BigEndian.PutUint32(malicious[488:492], 0xFFFFFFFF)
 		err := types.ValidateGroth16Vkey(malicious)
 		assert.ErrorContains(t, err, "PublicAndCommitmentCommitted length must be 0")
 	})
@@ -53,7 +53,7 @@ func TestValidateGroth16Vkey(t *testing.T) {
 	t.Run("non-zero CommitmentKeys length is rejected even if small", func(t *testing.T) {
 		malicious := make([]byte, types.Groth16VkeySize)
 		copy(malicious, validVK)
-		binary.BigEndian.PutUint32(malicious[388:392], 1)
+		binary.BigEndian.PutUint32(malicious[484:488], 1)
 		err := types.ValidateGroth16Vkey(malicious)
 		assert.ErrorContains(t, err, "CommitmentKeys length must be 0, got 1")
 	})
@@ -61,7 +61,7 @@ func TestValidateGroth16Vkey(t *testing.T) {
 	t.Run("non-zero PublicAndCommitmentCommitted length is rejected even if small", func(t *testing.T) {
 		malicious := make([]byte, types.Groth16VkeySize)
 		copy(malicious, validVK)
-		binary.BigEndian.PutUint32(malicious[392:396], 1)
+		binary.BigEndian.PutUint32(malicious[488:492], 1)
 		err := types.ValidateGroth16Vkey(malicious)
 		assert.ErrorContains(t, err, "PublicAndCommitmentCommitted length must be 0, got 1")
 	})

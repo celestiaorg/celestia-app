@@ -79,9 +79,9 @@ func TestGenesisStateValidate(t *testing.T) {
 			expErr: types.ErrInvalidVerifyingKey,
 		},
 		{
-			name: "396-byte vkey with inflated G1.K length bypasses size check",
+			name: "492-byte vkey with inflated G1.K length bypasses size check",
 			malleate: func(gs *types.GenesisState) {
-				// Craft a payload that is exactly Groth16VkeySize (396 bytes)
+				// Craft a payload that is exactly Groth16VkeySize (492 bytes)
 				// so it passes the length check, but set the G1.K length prefix
 				// at bytes 288-291 to 0xFFFFFFFF. This tests whether the
 				// inflated internal length can trigger a huge allocation in
