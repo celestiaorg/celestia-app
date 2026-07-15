@@ -780,9 +780,9 @@ func (s *HyperlaneTestSuite) CreateZKIsmWithTrustedState(ctx context.Context, ch
 	s.T().Helper()
 
 	var (
-		stateVkeyHash     = "0x0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
-		messageVkeyHash   = "0x004959d5fb2c3d5bc1f98e032188dd94fbb5c6b6152df356c7c20be23be824a2"
-		merkleTreeAddress = "fcb1d485ef46344029d9e8a7925925e146b3430e000000000000000000000000"
+		stateVkeyHash     = "0x004ac29c473e811dece0f8dd76c8eda80f886d263efb393ec81f54173e54f160"
+		messageVkeyHash   = "0x00982fb21526d096c8bf58eda36b5e293ee9ea0f36df441f6a996a974f8feb63"
+		merkleTreeAddress = "0000000000000000000000006007ce81d2fd7b9b7f22e71ce9896e00d6017ba8"
 	)
 
 	groth16Vkey := readGroth16Vkey(s.T())
