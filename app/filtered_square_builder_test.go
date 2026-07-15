@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -154,13 +155,19 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 		return ctx, nil
 	}
 
+	// Fill budgets each tx by its protobuf-encoded size (the same figure Core
+	// validates against), not raw len(tx), so the boundaries below use that.
+	framedSize := func(tx []byte) int64 {
+		return coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
+	}
+
 	// Three txs of identical size for cumulative max tx bytes tests.
 	tx1 := newNormalTx(t, txConfig)
 	tx2 := newNormalTx(t, txConfig)
 	tx3 := newNormalTx(t, txConfig)
 	require.Equal(t, len(tx1), len(tx2))
 	require.Equal(t, len(tx1), len(tx3))
-	normalTxSize := int64(len(tx1))
+	normalTxSize := framedSize(tx1)
 
 	// A small and a larger tx for the "continue, not break" test: a high-priority
 	// tx that exceeds max tx bytes should be skipped, but a smaller subsequent
@@ -169,14 +176,14 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 	largeTx := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 1024))
 	require.Less(t, len(smallTx), len(largeTx))
 
-	// A blob tx — the full marshaled size (inner tx + blob data) must be the
+	// A blob tx — the full encoded size (inner tx + blob data) must be the
 	// number used for the byte budget, not just the inner tx size.
 	blobTx := blobfactory.UnsignedBlobTx(t)
-	blobTxSize := int64(len(blobTx))
+	blobTxSize := framedSize(blobTx)
 
 	// A blob tx with a real MsgPayForBlobs inside (non-nil inner SDK tx).
 	signedBlobTx := newBlobTx(t, txConfig)
-	signedBlobTxSize := int64(len(signedBlobTx))
+	signedBlobTxSize := framedSize(signedBlobTx)
 
 	tests := []struct {
 		name       string
@@ -211,7 +218,7 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 		{
 			name:       "smaller later tx fits after larger one is skipped",
 			txs:        [][]byte{largeTx, smallTx},
-			maxTxBytes: int64(len(smallTx)),
+			maxTxBytes: framedSize(smallTx),
 			wantKept:   1,
 		},
 		{
