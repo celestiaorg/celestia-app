@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -268,6 +269,43 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 
 	kept := fsb.Fill(ctx, pffTxs, math.MaxInt64)
 	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
+}
+
+// TestFilteredSquareBuilderFillDropsIndexWrappedFibreTx ensures an
+// IndexWrapper-encoded MsgPayForFibre is dropped rather than crashing the
+// builder. separateTxs classifies it as a fibre tx (the unwrapping decoder sees
+// the inner MsgPayForFibre), but TryParseFibreTx parses the raw wrapper bytes to
+// nil; without the nil guard this panics in AppendFibreTx and halts the chain.
+func TestFilteredSquareBuilderFillDropsIndexWrappedFibreTx(t *testing.T) {
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := encConf.TxConfig
+
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+
+	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
+	wrapped, err := coretypes.MarshalIndexWrapper(payForFibreTx, 0)
+	require.NoError(t, err)
+
+	// The wrapper is classified as a fibre tx, which is what feeds the crash path.
+	_, _, payForFibreTxs := separateTxs(log.NewNopLogger(), txConfig, [][]byte{wrapped})
+	require.Len(t, payForFibreTxs, 1)
+
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, txConfig, 64, 64)
+	require.NoError(t, err)
+
+	db := dbm.NewMemDB()
+	ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
+	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
+
+	// Must not panic; the wrapped tx is dropped and no fibre shares are produced.
+	kept := fsb.Fill(ctx, [][]byte{wrapped}, math.MaxInt64)
+	require.Empty(t, kept)
+
+	sq, err := fsb.Build()
+	require.NoError(t, err)
+	require.True(t, share.GetShareRangeForNamespace(sq, share.PayForFibreNamespace).IsEmpty())
 }
 
 // newMultiPayForFibreTx creates an unsigned SDK tx containing two MsgPayForFibre messages for testing.
