@@ -293,9 +293,10 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
 			continue
 		}
-		// separateTxs unwraps an IndexWrapper and calls it a fibre tx, but
-		// TryParseFibreTx doesn't unwrap, so it hands back nil here. Drop it before
-		// AppendFibreTx dereferences the nil.
+		// The SDK TxDecoder (called inside separateTxs) transparently unwraps an
+		// IndexWrapper and sees the inner MsgPayForFibre, so the raw wrapped bytes
+		// end up classified as a fibre tx. TryParseFibreTx doesn't unwrap, so it
+		// returns nil here. Drop it before AppendFibreTx dereferences the nil.
 		if fibreTx == nil {
 			logger.Error("skipping fibre tx that parsed to nil", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
 			continue
