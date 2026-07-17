@@ -3,6 +3,7 @@ package merkle_test
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
@@ -274,6 +275,16 @@ func TestRootFromProof(t *testing.T) {
 		wrongRoot, _ = merkle.RootFromProof(wrongLeaf, i, proof)
 		if bytes.Equal(expectedRoot[:], wrongRoot[:]) {
 			t.Errorf("Index %d: proof should fail with wrong leaf", i)
+		}
+
+		// A sibling padded past NodeSize must be rejected, not silently
+		// truncated back to a valid 32-byte prefix.
+		padded := make([][]byte, len(proof))
+		copy(padded, proof)
+		padded[0] = append(append([]byte(nil), proof[0]...), 0xAA, 0xBB)
+		_, err = merkle.RootFromProof(leaves[i], i, padded)
+		if err == nil || !strings.Contains(err.Error(), "proof sibling must be 32 bytes, got 34") {
+			t.Errorf("Index %d: expected oversized-sibling error, got %v", i, err)
 		}
 	}
 }
