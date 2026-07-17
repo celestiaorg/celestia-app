@@ -283,7 +283,7 @@ func TestRootFromProof(t *testing.T) {
 		copy(padded, proof)
 		padded[0] = append(append([]byte(nil), proof[0]...), 0xAA, 0xBB)
 		_, err = merkle.RootFromProof(leaves[i], i, padded)
-		if err == nil || !strings.Contains(err.Error(), "proof sibling must be 32 bytes, got 34") {
+		if err == nil || !strings.Contains(err.Error(), fmt.Sprintf("proof sibling must be %d bytes, got %d", merkle.NodeSize, merkle.NodeSize+2)) {
 			t.Errorf("Index %d: expected oversized-sibling error, got %v", i, err)
 		}
 	}
