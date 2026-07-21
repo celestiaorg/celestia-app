@@ -11,9 +11,12 @@ import (
 )
 
 const (
-	stateTransitionProgramVkHex = "0017bc91d53b93c46eb842d7f9020a94ea13d8877a21608b34b71fcc4da64f29"
-	stateMembershipProgramVkHex = "004959d5fb2c3d5bc1f98e032188dd94fbb5c6b6152df356c7c20be23be824a2"
+	stateTransitionProgramVkHex = "004ac29c473e811dece0f8dd76c8eda80f886d263efb393ec81f54173e54f160"
+	stateMembershipProgramVkHex = "00982fb21526d096c8bf58eda36b5e293ee9ea0f36df441f6a996a974f8feb63"
 	proofPrefixLen              = 4
+	// proofMetadataLen is the SP1 v6 metadata between the vkey-hash prefix and
+	// the gnark proof: exit_code(32) + vk_root(32) + proof_nonce(32).
+	proofMetadataLen = 96
 )
 
 func BenchmarkGroth16VerifyProof(b *testing.B) {
@@ -24,11 +27,16 @@ func BenchmarkGroth16VerifyProof(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	if len(proofBytes) < proofPrefixLen {
+	if len(proofBytes) < proofPrefixLen+proofMetadataLen {
 		b.Fatalf("proof bytes too short: %d", len(proofBytes))
 	}
 
-	proof, err := groth16.UnmarshalProof(proofBytes[proofPrefixLen:])
+	// SP1 v6 layout: prefix(4) | exit_code(32) | vk_root(32) | proof_nonce(32) | gnark proof.
+	exitCode := proofBytes[proofPrefixLen : proofPrefixLen+32]
+	vkRoot := proofBytes[proofPrefixLen+32 : proofPrefixLen+64]
+	proofNonce := proofBytes[proofPrefixLen+64 : proofPrefixLen+96]
+
+	proof, err := groth16.UnmarshalProof(proofBytes[proofPrefixLen+proofMetadataLen:])
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -38,11 +46,13 @@ func BenchmarkGroth16VerifyProof(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	vkCommitment := new(big.Int).SetBytes(programVk)
-	vkElement := groth16.NewBN254FrElement(vkCommitment)
+	vkElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(programVk))
 	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(valuesBytes))
+	exitCodeElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(exitCode))
+	vkRootElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(vkRoot))
+	proofNonceElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(proofNonce))
 
-	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
+	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement, exitCodeElement, vkRootElement, proofNonceElement)
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -68,11 +78,16 @@ func BenchmarkGroth16VerifyProofStateMembership(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	if len(proofBytes) < proofPrefixLen {
+	if len(proofBytes) < proofPrefixLen+proofMetadataLen {
 		b.Fatalf("proof bytes too short: %d", len(proofBytes))
 	}
 
-	proof, err := groth16.UnmarshalProof(proofBytes[proofPrefixLen:])
+	// SP1 v6 layout: prefix(4) | exit_code(32) | vk_root(32) | proof_nonce(32) | gnark proof.
+	exitCode := proofBytes[proofPrefixLen : proofPrefixLen+32]
+	vkRoot := proofBytes[proofPrefixLen+32 : proofPrefixLen+64]
+	proofNonce := proofBytes[proofPrefixLen+64 : proofPrefixLen+96]
+
+	proof, err := groth16.UnmarshalProof(proofBytes[proofPrefixLen+proofMetadataLen:])
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -82,11 +97,13 @@ func BenchmarkGroth16VerifyProofStateMembership(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	vkCommitment := new(big.Int).SetBytes(programVk)
-	vkElement := groth16.NewBN254FrElement(vkCommitment)
+	vkElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(programVk))
 	inputsElement := groth16.NewBN254FrElement(groth16.HashBN254(valuesBytes))
+	exitCodeElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(exitCode))
+	vkRootElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(vkRoot))
+	proofNonceElement := groth16.NewBN254FrElement(new(big.Int).SetBytes(proofNonce))
 
-	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement)
+	pubWitness, err := groth16.NewPublicWitness(vkElement, inputsElement, exitCodeElement, vkRootElement, proofNonceElement)
 	if err != nil {
 		b.Fatal(err)
 	}

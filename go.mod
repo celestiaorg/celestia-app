@@ -20,7 +20,7 @@ require (
 	cosmossdk.io/x/upgrade v0.1.4
 	github.com/aws/aws-sdk-go-v2 v1.42.1
 	github.com/aws/aws-sdk-go-v2/config v1.32.28
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.27
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.28
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.2.13
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.316.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.105.0
@@ -44,14 +44,14 @@ require (
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
 	github.com/cosmos/ibc-go/v8 v8.7.0
-	github.com/digitalocean/godo v1.197.0
+	github.com/digitalocean/godo v1.199.0
 	github.com/filecoin-project/go-clock v0.1.0
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.0
 	github.com/golang/protobuf v1.5.4
 	github.com/google/pprof v0.0.0-20260202012954-cb029daf43ef
 	github.com/grafana/otel-profiling-go v0.6.0
-	github.com/grafana/pyroscope-go v1.4.0
+	github.com/grafana/pyroscope-go v1.4.1
 	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	github.com/hashicorp/go-metrics v0.6.0
 	github.com/joho/godotenv v1.5.1
@@ -77,10 +77,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0
 	golang.org/x/crypto v0.53.0
 	golang.org/x/oauth2 v0.36.0
-	golang.org/x/sync v0.21.0
-	golang.org/x/sys v0.46.0
-	golang.org/x/term v0.44.0
-	google.golang.org/api v0.287.0
+	golang.org/x/sync v0.22.0
+	golang.org/x/sys v0.47.0
+	golang.org/x/term v0.45.0
+	google.golang.org/api v0.288.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
 	google.golang.org/grpc v1.82.0
 	google.golang.org/protobuf v1.36.11
@@ -147,7 +147,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.23 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.30 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.31 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.3.0 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.4.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.32.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.37.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.44.0 // indirect
@@ -438,7 +438,7 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
 	google.golang.org/genproto v0.0.0-20260319201613-d00831a3d3e7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260622175928-b703f567277d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260630182238-925bb5da69e7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	honnef.co/go/tools v0.6.1 // indirect

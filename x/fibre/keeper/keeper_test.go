@@ -52,7 +52,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 
 	mockBankKeeper := &MockBankKeeper{}
 	authority := authtypes.NewModuleAddress("gov").String()
-	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{Time: time.Now().UTC(), Height: 100}, false, nil)
+	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	mockStakingKeeper := &MockStakingKeeper{}
 	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
@@ -584,18 +584,31 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
-	suite.T().Run("payment promise with future creation timestamp should be accepted", func(t *testing.T) {
+	suite.T().Run("payment promise within clock-skew tolerance should be accepted", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		suite.createEscrowAccount(paymentPromise)
 
-		// Set creation timestamp to the future
-		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Hour)
+		// A timestamp slightly in the future (within skew) is accepted to absorb clock drift.
+		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Minute)
 
-		// Validate should fail because creation timestamp is in the future
 		expirationTime, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
 		suite.NoError(err)
 		wantTime := paymentPromise.CreationTimestamp.Add(suite.keeper.GetParams(suite.ctx).PaymentPromiseTimeout)
 		suite.Equal(wantTime, expirationTime)
+	})
+
+	suite.T().Run("payment promise dated beyond clock-skew tolerance should be rejected", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+
+		// A far-future timestamp would slide the timeout window past the
+		// withdrawal-execution point, so it must be rejected.
+		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Hour)
+
+		_, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
+		suite.Error(err)
+		suite.Contains(err.Error(), "creation_timestamp")
+		suite.Contains(err.Error(), "must not be after")
 	})
 
 	suite.T().Run("payment promise with timestamp before withdrawal delay should be rejected", func(t *testing.T) {
@@ -709,6 +722,19 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseStatefulForTimeout() {
 		// ValidatePaymentPromiseStatefulForTimeout should accept it (height validation is skipped)
 		_, err := suite.keeper.ValidatePaymentPromiseStatefulForTimeout(suite.ctx, &paymentPromise)
 		suite.NoError(err)
+	})
+
+	suite.T().Run("timeout mechanism should reject a future-dated promise", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+
+		// The future-timestamp upper bound applies on the timeout path too, so a
+		// future-dated promise cannot be settled via timeout either.
+		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Hour)
+
+		_, err := suite.keeper.ValidatePaymentPromiseStatefulForTimeout(suite.ctx, &paymentPromise)
+		suite.Error(err)
+		suite.Contains(err.Error(), "must not be after")
 	})
 }
 

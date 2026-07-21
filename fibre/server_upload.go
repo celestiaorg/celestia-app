@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -240,6 +242,13 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 			promise.UploadSize, rowSize, blobCfg.OriginalRows, expectedUploadSize)
 	}
 
+	// v0 requires exactly one GF128 value per original row. byte length is fixed and
+	// known up front.
+	expectedRLCBytes := blobCfg.OriginalRows * field.GF128Size
+	if len(shard.GetRlcs()) != expectedRLCBytes {
+		return fmt.Errorf("expected %d RLC bytes, got %d", expectedRLCBytes, len(shard.GetRlcs()))
+	}
+
 	rlcs, err := rlc.Unmarshal(shard.GetRlcs())
 	if err != nil {
 		return err
@@ -336,6 +345,13 @@ func parseRow(row *types.BlobRow) (*rsema1d.RowProof, error) {
 	}
 	if len(row.Data) == 0 {
 		return nil, fmt.Errorf("row %d missing data", row.Index)
+	}
+	// Reject non canonical segment lengths so padding past the required
+	// NodeSize prefix can't be persisted and served.
+	for i, seg := range row.Proof {
+		if len(seg) != merkle.NodeSize {
+			return nil, fmt.Errorf("row %d proof segment %d must be %d bytes, got %d", row.Index, i, merkle.NodeSize, len(seg))
+		}
 	}
 
 	return &rsema1d.RowProof{

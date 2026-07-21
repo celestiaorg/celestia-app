@@ -11,6 +11,7 @@ import (
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	clock "github.com/filecoin-project/go-clock"
 	"go.opentelemetry.io/otel/trace"
@@ -41,13 +42,19 @@ type Client struct {
 
 	clientCache *fibregrpc.ClientCache
 
+	// escrowLedgers holds one client-side escrow accountant per signer address,
+	// created lazily on first use. It guards local admission and auto-funding
+	// so uploads don't fail on an underfunded escrow. See [escrowLedger].
+	escrowMu      sync.Mutex
+	escrowLedgers map[string]*escrowLedger
+
 	// closeWg tracks subroutines spawned by Upload/Download operations.
 	// Close() waits for this WaitGroup to ensure all operations complete before releasing resources.
 	// Upload/Download operations don't wait for their spawned goroutines, allowing them to return early for low latency.
 	closeWg sync.WaitGroup
 	// started indicates whether Start() has been called.
 	started atomic.Bool
-	// closed indicates whether Close() has been called.
+	// closed indicates whether Stop has been called.
 	closed atomic.Bool
 }
 
@@ -79,15 +86,50 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 	}
 
 	return &Client{
-		Config:      cfg,
-		keyring:     kr,
-		state:       stateClient,
-		log:         cfg.Log,
-		tracer:      cfg.Tracer,
-		metrics:     metrics,
-		clock:       cfg.Clock,
-		clientCache: fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
+		Config:        cfg,
+		keyring:       kr,
+		state:         stateClient,
+		log:           cfg.Log,
+		tracer:        cfg.Tracer,
+		metrics:       metrics,
+		clock:         cfg.Clock,
+		clientCache:   fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
+		escrowLedgers: make(map[string]*escrowLedger),
 	}, nil
+}
+
+// escrowLedgerFor returns the escrow ledger for the account behind txClient,
+// creating it (and its deposit/query adapters) on first use. The signer is the
+// tx client's default address — the escrow owner that signs PaymentPromises.
+func (c *Client) escrowLedgerFor(txClient *user.TxClient) *escrowLedger {
+	signer := txClient.DefaultAddress().String()
+	c.escrowMu.Lock()
+	defer c.escrowMu.Unlock()
+	if l, ok := c.escrowLedgers[signer]; ok {
+		return l
+	}
+	l := newEscrowLedger(signer, c.Config.Escrow, c.clock,
+		newTxEscrowQuerier(txClient), txDepositor{tx: txClient}, c.log)
+	c.escrowLedgers[signer] = l
+	return l
+}
+
+// refillAsync tops up the ledger's escrow off the Put hot path as a best-effort
+// proactive top-up. The deposit is single-flighted inside [escrowLedger.refill],
+// so calling this on every low-budget admit never stacks concurrent deposits. It
+// is not tracked by closeWg: the only side effect is a MsgDepositToEscrow into
+// the client's own escrow, so a deposit still in flight when Stop closes the
+// connection simply fails and is retried on the next low admit — nothing to wait
+// for. The closed check just avoids spawning obviously-doomed work.
+func (c *Client) refillAsync(ledger *escrowLedger) {
+	if c.closed.Load() {
+		return
+	}
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*c.Config.RPCTimeout)
+		defer cancel()
+		ledger.refill(ctx)
+	}()
 }
 
 // ChainID returns the chain ID resolved during [Start].

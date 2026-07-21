@@ -14,6 +14,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// maxPromiseClockSkew is how far a promise's creation_timestamp may lead block
+// time. Absorbs clock drift only, so it must stay well under
+// WithdrawalDelay - PaymentPromiseTimeout.
+const maxPromiseClockSkew = 10 * time.Minute
+
 // Keeper handles all the state changes for the fibre module.
 type Keeper struct {
 	cdc           codec.Codec
@@ -312,6 +317,10 @@ func (k Keeper) ParseProcessedPaymentsByTimeKey(key []byte) (processedAt time.Ti
 // The isTimeout parameter indicates whether this is being called for timeout processing,
 // which skips expiration and height validation to allow processing older promises.
 func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise *types.PaymentPromise, isTimeout bool) (time.Time, error) {
+	if promise.ChainId != ctx.ChainID() {
+		return time.Time{}, fmt.Errorf("payment promise chain_id %q does not match executing chain %q", promise.ChainId, ctx.ChainID())
+	}
+
 	params := k.GetParams(ctx)
 	currentTime := ctx.BlockTime()
 	creationTime := promise.CreationTimestamp
@@ -320,6 +329,13 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	minAllowedTime := currentTime.Add(-params.WithdrawalDelay)
 	if !creationTime.After(minAllowedTime) {
 		return time.Time{}, fmt.Errorf("creation_timestamp %v must be greater than %v (current_time - withdrawal_delay)", creationTime, minAllowedTime)
+	}
+
+	// Reject a future-dated creation_timestamp (beyond clock skew) on both paths;
+	// see maxPromiseClockSkew for why.
+	maxAllowedTime := currentTime.Add(maxPromiseClockSkew)
+	if creationTime.After(maxAllowedTime) {
+		return time.Time{}, fmt.Errorf("creation_timestamp %v must not be after %v (current_time + max_clock_skew)", creationTime, maxAllowedTime)
 	}
 
 	expirationTime := creationTime.Add(params.PaymentPromiseTimeout)
