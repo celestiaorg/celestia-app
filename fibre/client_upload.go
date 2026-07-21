@@ -26,8 +26,21 @@ import (
 type UploadOption func(*uploadOptions)
 
 type uploadOptions struct {
-	keyName  string
-	awaitAll bool
+	keyName        string
+	awaitAll       bool
+	beforeDispatch func()
+}
+
+// withBeforeDispatch registers a hook invoked once the payment promise is
+// client-signed and about to be dispatched to validators — the first point at
+// which the promise can leave the process and land on-chain via the timeout
+// path even if the dispatch fails. Used internally by [Put] to commit its
+// escrow reservation before that point so a partially-dispatched promise can
+// never be credited back and later overspend the escrow.
+func withBeforeDispatch(fn func()) UploadOption {
+	return func(o *uploadOptions) {
+		o.beforeDispatch = fn
+	}
 }
 
 // WithKeyName sets the key name used for signing the payment promise.
@@ -146,6 +159,14 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		"blob_commitment", promise.Commitment.String(),
 		"validators", len(requests),
 	)
+
+	// The promise is now client-signed and about to leave the process. From here
+	// a validator can push it on-chain via the timeout path even if the fanout
+	// below fails, so commit any escrow reservation before dispatching — after
+	// this point the funds are spent regardless of the fanout's outcome.
+	if opt.beforeDispatch != nil {
+		opt.beforeDispatch()
+	}
 
 	// 3) upload data
 	if err = c.uploadShards(ctx, shardMap, requests, blob, sigSet); err != nil {

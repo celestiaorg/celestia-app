@@ -47,6 +47,19 @@ message QueryQuoteForwardingFeeRequest {
 
   // token_id is the Hyperlane token identifier to quote fees for.
   string token_id = 2;
+
+  // custom_hook_id optionally selects the post-dispatch hook (e.g. an alternative
+  // IGP) the forward will be routed through, so the quote reflects that hook's
+  // price rather than the mailbox default. Hex-encoded (0x prefix optional).
+  // Empty => quote against the mailbox default hook (unchanged behavior).
+  string custom_hook_id = 3;
+
+  // custom_hook_metadata is optional hex-encoded metadata passed to the custom
+  // hook. Some hooks price the dispatch off this metadata, so it must match the
+  // custom_hook_metadata used in MsgForward for the quote to reflect the fee that
+  // will actually be charged. Ignored by hooks that do not price off metadata
+  // (e.g. the default IGP).
+  string custom_hook_metadata = 4;
 }
 
 // QueryQuoteForwardingFeeResponse is the response for QuoteForwardingFee.

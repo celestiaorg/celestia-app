@@ -432,6 +432,18 @@ Escrow state and transactions are available through the app's `x/fibre` query an
 
 Callers that need deposits, withdrawals, escrow queries, or PFF transaction submission use the normal app gRPC query clients and transaction clients.
 
+### Escrow ledger accounting safety
+
+When escrow auto-funding is enabled, each signer has a client-side ledger holding a single number, `balance`: the on-chain escrow balance minus the funds already committed to signed-but-not-yet-settled promises. `balance` is seeded once from chain (`Query.EscrowAccount`) on first use.
+
+An upload is admitted only when `balance` covers its payment, at which point `balance` is decremented. The decrement is credited back only if the upload fails *before* its promise is signed — once signed, the funds are committed (the `Msg.PayForFibre` settlement, or `Msg.PaymentPromiseTimeout` if the PFF never lands, debits the escrow on chain regardless of this client), so the decrement is final. When `balance` dips below `LowWatermark`, a background deposit (`Msg.DepositToEscrow`, single-flighted) tops it up to `HighWatermark`, applied as an additive delta once confirmed.
+
+The safety invariant is that `balance` is never *overstated*: it is only ever credited by a real confirmed deposit or by an abort-before-sign (whose funds were never committed), never by a phantom amount. Because no chain re-read overwrites `balance` during operation, the additive deposit delta can never double-count a concurrent reconcile, so the additive is unconditionally correct. A never-overstated balance means concurrent uploads can never collectively overcommit the escrow.
+
+The trade-off is one-sided and deliberate: a long-running, never-idle client cannot re-anchor `balance` to on-chain ground truth, so it may *understate* over time (from aborted-before-sign uploads and promises that expire without a timeout settlement). Understating only refuses budget or tops up slightly more often than strictly needed — the excess stays in the escrow and is withdrawable — it never overcommits.
+
+Because the ledger is in-memory only, a client that restarts loses `balance` and re-seeds from chain. `Query.EscrowAccount` reports the on-chain `AvailableBalance`, which does not subtract promises the crashed client had signed but that had not yet settled — so a naive re-seed would *overstate* `balance` and could over-sign. `EscrowConfig.StartupGracePeriod` guards against this: within that window after the ledger starts it seeds nothing, admits nothing, and deposits nothing, and `waitForBudget` fails fast with an explicit error. By the time the window passes, any promise signed before the crash has settled or timed out on chain, so the first seed is exact. It is disabled by default (seed immediately, preserving the behavior above); operators who require crash-safety set it to at least the chain's `PaymentPromiseTimeout`. The alternative — durable local persistence of `balance` — would remove the startup window entirely at the cost of a synchronous disk write on the signing hot path, and is intentionally out of scope here.
+
 ## 12) Errors
 
 Important client-side errors include:
