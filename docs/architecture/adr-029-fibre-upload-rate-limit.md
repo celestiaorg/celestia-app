@@ -17,9 +17,10 @@ shard and writes it to local disk. The only ingress that grows that store is
 reconcile only delete.
 
 Nothing bounds upload throughput or disk growth today. The existing limits are
-per-message size (`fibre/server.go:114-115`) and a GOMAXPROCS verifier pool
-(`fibre/server_upload.go:281`); no `MaxConcurrentStreams` is set
-(`fibre/internal/grpc/server.go:41`), so receive-buffer memory is effectively
+per-message size (`fibre/server.go:114-115`) and a configurable verifier pool
+(`ServerConfig.UploadVerifyWorkers`, default `GOMAXPROCS`; wired at
+`fibre/server.go:64`); no `MaxConcurrentStreams` is set on the `grpc.NewServer`
+call (`fibre/internal/grpc/server.go:43`), so receive-buffer memory is effectively
 unbounded.
 
 Shards expire. `pruneAt = max(creation + ShardRetention, ExpiresAt)`
@@ -123,8 +124,14 @@ The limiter guards `UploadShard`, configured on `ServerConfig` (TOML + CLI flags
   as above.
 - **Charge point.** After `verifyPromise`/`verifyAssignment`/`verifyShard`
   (`fibre/server_upload.go:142`, `:194`, `:225`), and only if the shard is not
-  already stored — a replay of an accepted promise/shard must not drain the bucket
-  (needs a cheap store presence check; relates to ADR-025). Account against server
+  already stored — a replay of an accepted promise/shard must not drain the bucket.
+  The bucket is charged strictly *after* a passing store-presence check, so the
+  ordering is fixed: presence check → (miss) → charge → `store.Put`; a hit returns OK
+  and never touches the bucket. This presence check is a prerequisite for this ADR's
+  implementation. It relates to ADR-025 but does not depend on it: if ADR-025's
+  promise cache lands, the store check may be served from it; if not, a direct cheap
+  store lookup suffices. Either way the charge is gated on the same check, so a replay
+  cannot drain the bucket regardless of which cache is present. Account against server
   time, never the client's `CreationTimestamp`.
 - **Reject-fast.** `ResourceExhausted` plus a retry-after (a gRPC `RetryInfo`
   detail); no parked handlers.
@@ -138,7 +145,7 @@ The byte-rate limiter bounds disk, not memory. gRPC buffers each full `UploadSha
 message (up to `MaxMessageSize ≈ 132 MiB`) before the handler runs, so a rejected
 upload has already been received; receive memory is bounded only at the transport
 layer, by `MaxRecvMsgSize × concurrent_streams × connections`, and today none of those
-factors is capped (`fibre/internal/grpc/server.go:41` sets no such options). This work
+factors is capped (`fibre/internal/grpc/server.go:43` sets no such options). This work
 adds, as gRPC server options and listener wrapping:
 
 - **`MaxConcurrentStreams`** — cap in-flight RPCs per connection.
@@ -162,6 +169,14 @@ network value, not a free per-operator setting — raising the network limit is 
 coordinated change. The override asymmetry matters: disabling locally is safe for
 quorum (it only risks that node's own disk), but a rate set *lower* than peers
 throttles blobs others accept and can deny the `>2/3` quorum.
+
+**Required invariant — `burst ≥ MaxBlobSize`.** `golang.org/x/time/rate` silently
+fails any `ReserveN(n)`/`AllowN(n)` where `n > burst` (`OK()` is false), so a `burst`
+configured below `MaxBlobSize` (128 MiB) would *permanently reject every max-size blob*
+rather than rate-limit it — a hard breakage with no runtime error. `ServerConfig`
+validation (`fibre/server_config.go`) must enforce `burst ≥ MaxBlobSize` at startup and
+reject the config otherwise, alongside the existing `rate ≥ 0` / `UploadVerifyWorkers ≥ 1`
+checks.
 
 ### Optional per-signer sub-limit (Model 4)
 
