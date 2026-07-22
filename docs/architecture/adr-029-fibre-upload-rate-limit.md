@@ -130,7 +130,7 @@ The consensus-critical kind of limiter, inside `PrepareProposal` / `ProcessPropo
 
 ## Alternative Approaches
 
-The chosen design is Model 1 as the base, optional Model 4 for fairness, reject-fast with a short bounded queue.
+The chosen design is Model 1 as the base, optional Model 4 for fairness, and reject-fast rejection (with a bounded queue deferred as a possible refinement).
 
 **Model 1 — global throughput (chosen base).** One flat `UploadSize` bucket per validator. Bounds per-node disk automatically and stake-proportionally, keeps admission uniform (no partial quorum), simplest to build and remove. Downsides: no client isolation on its own, and low-stake validators are metered by full blob size though they store less.
 
