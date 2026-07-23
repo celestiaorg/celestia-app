@@ -53,7 +53,7 @@ Three facts about Fibre shape the design.
 - **R1** — Bound each node's disk to a budget we can derive, not guess, over the retention window.
 - **R2** — New clients or heavier usage must not break correctness or force a redesign. Fairness between clients is nice to have, but separate.
 - **R3** — Keep the `2/3` quorum reachable while the limiter is throttling.
-- **R4** — Keep it simple: config-gated, tunable, removable, no protocol change.
+- **R4** — Keep it simple: config-gated, tunable, removable.
 
 ### Out of scope
 
@@ -132,8 +132,8 @@ The rate limiter bounds disk, not memory. gRPC reads a whole `UploadShard` messa
 This work adds three transport caps, as gRPC server options and a wrapped listener:
 
 - **`MaxConcurrentStreams`** — limit in-flight RPCs per connection.
-- **Max connections** — a limiting listener caps total connections, so a peer cannot dodge the per-connection stream cap by opening many connections.
-- **Keepalive** (`KeepaliveEnforcementPolicy`, `KeepaliveParams`) — drop idle or abusive connections and blunt slow-read holding.
+- **MaxConnections** — a limiting listener caps total connections, so a peer cannot dodge the per-connection stream cap by opening many connections.
+- **KeepAlive** (`KeepaliveEnforcementPolicy`, `KeepaliveParams`) — drop idle or abusive connections and blunt slow-read holding.
 
 Together these bound receive memory and connection load. With them plus the verifier pool, the application-level in-flight cap from the draft PR (#7481) is not needed here and is dropped. These are fixed, protocol-sane values, not derived from the disk budget.
 
@@ -162,7 +162,7 @@ A worked rate. Take a disk budget of 1 TiB. The target burst dominates the floor
 
 All five models run off-chain. The limiter lives in the Fibre server, outside the ABCI state machine, and only decides which uploads a validator accepts and signs. It does not touch block validity or determinism: validators with different settings still agree on every block and differ only in what they choose to sign. Two things do interact with consensus.
 
-- **Quorum.** `MsgPayForFibre` is settled on-chain against signatures covering at least `2/3` of voting power, i.e. stake, not validator count. The check is `votingPower >= floor(2/3 × total)` (`fibre/validator/signature_set.go`, thresholding `val.Tokens`), so it is `>=`, not a strict `>`. The limiter does not change that rule, but throttling can stop a client from reaching the threshold and fail its settlement. That is why the rate must be the same for every validator: if some run a lower rate, they reject blobs others accept, and the client loses quorum through no fault of its own.
+- **Quorum.** `MsgPayForFibre` is settled on-chain against signatures meeting the voting-power threshold (`votingPower >= floor(2/3 × total)` in `fibre/validator/signature_set.go`, summing `val.VotingPower`), not validator count. The check is `>=`, not a strict `>`. The limiter does not change that rule, but throttling can stop a client from reaching the threshold and fail its settlement. That is why the rate must be the same for every validator: if some run a lower rate, they reject blobs others accept, and the client loses quorum through no fault of its own.
 - **The rate as a governance parameter.** Because uniformity is a quorum requirement, the rate belongs in governance. An `x/fibre` module parameter makes every validator read the same value by construction, instead of trusting operators to coordinate local config. Promoting it is a normal versioned-upgrade change, not a fork, and enforcement still lives in the off-chain server. Routine tuning is not urgent, and the emergency path (turning the limiter off locally) stays local and is quorum-safe. The recommendation is to make the rate a gov parameter from v1; coordinated local config is acceptable only as a ramp-up bridge, with a commitment to promote it.
 
 The kind of limiter that *is* consensus-critical, one inside `PrepareProposal` / `ProcessProposal` that must be deterministic across validators, is out of scope.
@@ -201,7 +201,7 @@ The chosen design is Model 1 as the base, optional Model 4 for fairness, and rej
 - Sizing does not depend on the model.
 - Per-node disk scales with stake, which is intended: more stake, more commission.
 - `upload_shard.admitted_bytes` (charged) and `upload_shard.bytes` (stored shard rows) measure different things.
-- No proto or consensus change; the limit is raised or disabled by config.
+- The limit is changed via governance and can be disabled by config
 
 ### Negative
 
