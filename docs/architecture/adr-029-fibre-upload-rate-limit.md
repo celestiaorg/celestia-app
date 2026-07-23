@@ -52,7 +52,7 @@ Three facts about Fibre shape the design.
 
 - **R1** — Bound each node's disk to a budget we can derive, not guess, over the retention window.
 - **R2** — New clients or heavier usage must not break correctness or force a redesign. Fairness between clients is nice to have, but separate.
-- **R3** — Keep the `>2/3` quorum reachable while the limiter is throttling.
+- **R3** — Keep the `2/3` quorum reachable while the limiter is throttling.
 - **R4** — Keep it simple: config-gated, tunable, removable, no protocol change.
 
 ### Out of scope
@@ -69,7 +69,7 @@ Start with the bucket. Over any period `T` it admits at most `burst + rate × T`
 
 > `peak = burst + rate × window`
 
-Smaller validators hold a stake-weighted fraction of that. These are charged bytes (`UploadSize`). We want the peak to equal a target we call the budget, also in charged bytes, which fixes the rate:
+Smaller validators hold a stake-weighted fraction of that, though the `MinRowsPerValidator` floor means the smallest hold somewhat more than a pure stake-proportional share. These are charged bytes (`UploadSize`). We want the peak to equal a target we call the budget, also in charged bytes, which fixes the rate:
 
 > `rate = (budget − burst) / window`
 
@@ -141,7 +141,7 @@ Together these bound receive memory and connection load. With them plus the veri
 
 The disk budget and the enable flag are the config inputs (`ServerConfig`, TOML and CLI). Rate and burst are derived from the budget (see Sizing), not set on their own. The limit can be raised as usage grows or turned off entirely, with no protocol change.
 
-The rate is meant to be a governance parameter, not free per-operator config, so that every validator uses the same value (see Consensus impact). Locally, an operator can still turn the limiter off, which only risks that node's own disk. What an operator must not do is set a lower rate than peers: that throttles blobs others accept and can deny the `>2/3` quorum.
+The rate is meant to be a governance parameter, not free per-operator config, so that every validator uses the same value (see Consensus impact). Locally, an operator can still turn the limiter off, which only risks that node's own disk. What an operator must not do is set a lower rate than peers: that throttles blobs others accept and can deny the `2/3` quorum.
 
 One invariant matters: `burst ≥ MaxBlobSize`. Since burst is derived, with `MaxBlobSize` as its floor, it holds automatically today. Add a validation assertion anyway, as a guard for the day a `burst` override is exposed: `golang.org/x/time/rate` fails silently when a single draw exceeds the burst, so a too-small burst would reject every full-size blob with no error at startup.
 
