@@ -520,7 +520,6 @@ func TestPrepareProposalDropsIndexWrappedTxs(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Empty(t, resp.Txs)
-
 }
 
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
