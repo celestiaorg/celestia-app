@@ -53,7 +53,7 @@ Three facts about Fibre shape the design.
 - **R1** — Bound each node's disk to a budget we can derive, not guess, over the retention window.
 - **R2** — New clients or heavier usage must not break correctness or force a redesign. Fairness between clients is nice to have, but separate.
 - **R3** — Keep the `2/3` quorum reachable while the limiter is throttling.
-- **R4** — Keep it simple: config-gated, tunable, removable.
+- **R4** — Keep it simple: governance values, tunable, and can be removed via a CLI flag.
 
 ### Out of scope
 
@@ -123,7 +123,7 @@ The charge sits between the replay check and a successful store. A replay never 
 - **Rejection.** `ResourceExhausted` plus a retry-after delay in a gRPC `RetryInfo` detail.
 - **Refund on store failure.** Tokens are reserved, not spent outright. If `store.Put` fails, the reservation is cancelled (`rate.Reservation.Cancel`) so a shard that never reached disk does not stay charged.
 - **Metrics.** Add two counters under the existing `fibre.server.upload_shard.` namespace (`fibre/server_metrics.go`): `rate_limited` (labeled by reason) and `admitted_bytes`. The existing `fibre.server.upload_shard.bytes` counts stored shard-row bytes on the success path, which is not the same as the charged `UploadSize`.
-- **Off switch.** A no-op when disabled or when the derived rate is not positive.
+- **Off switch.** Disabled via a CLI flag. Also a no-op when the derived rate is not positive.
 
 ### Transport-level limits
 
@@ -139,9 +139,7 @@ Together these bound receive memory and connection load. With them plus the veri
 
 ### Configuration and tuning
 
-The disk budget and the enable flag are the config inputs (`ServerConfig`, TOML and CLI). Rate and burst are derived from the budget (see Sizing), not set on their own. The limit can be raised as usage grows or turned off entirely, with no protocol change.
-
-The rate is meant to be a governance parameter, not free per-operator config, so that every validator uses the same value (see Consensus impact). Locally, an operator can still turn the limiter off, which only risks that node's own disk. What an operator must not do is set a lower rate than peers: that throttles blobs others accept and can deny the `2/3` quorum.
+The limiter's parameters live on-chain. The disk budget, and the rate and burst derived from it (see Sizing), are governance values or derived from them, so every validator uses the same numbers(can be disabled via a CLI flag).
 
 One invariant matters: `burst ≥ MaxBlobSize`. Since burst is derived, with `MaxBlobSize` as its floor, it holds automatically today. Add a validation assertion anyway, as a guard for the day a `burst` override is exposed: `golang.org/x/time/rate` fails silently when a single draw exceeds the burst, so a too-small burst would reject every full-size blob with no error at startup.
 
@@ -163,7 +161,7 @@ A worked rate. Take a disk budget of 1 TiB. The target burst dominates the floor
 All five models run off-chain. The limiter lives in the Fibre server, outside the ABCI state machine, and only decides which uploads a validator accepts and signs. It does not touch block validity or determinism: validators with different settings still agree on every block and differ only in what they choose to sign. Two things do interact with consensus.
 
 - **Quorum.** `MsgPayForFibre` is settled on-chain against signatures meeting the voting-power threshold (`votingPower >= floor(2/3 × total)` in `fibre/validator/signature_set.go`, summing `val.VotingPower`), not validator count. The check is `>=`, not a strict `>`. The limiter does not change that rule, but throttling can stop a client from reaching the threshold and fail its settlement. That is why the rate must be the same for every validator: if some run a lower rate, they reject blobs others accept, and the client loses quorum through no fault of its own.
-- **The rate as a governance parameter.** Because uniformity is a quorum requirement, the rate belongs in governance. An `x/fibre` module parameter makes every validator read the same value by construction, instead of trusting operators to coordinate local config. Promoting it is a normal versioned-upgrade change, not a fork, and enforcement still lives in the off-chain server. Routine tuning is not urgent, and the emergency path (turning the limiter off locally) stays local and is quorum-safe. The recommendation is to make the rate a gov parameter from v1; coordinated local config is acceptable only as a ramp-up bridge, with a commitment to promote it.
+- **The rate as a governance parameter.** Because uniformity is a quorum requirement, the rate belongs in governance. An `x/fibre` module parameter makes every validator read the same value by construction, instead of trusting operators to coordinate local config. Promoting it is a normal versioned-upgrade change, not a fork, and enforcement still lives in the off-chain server.
 
 The kind of limiter that *is* consensus-critical, one inside `PrepareProposal` / `ProcessProposal` that must be deterministic across validators, is out of scope.
 
@@ -201,7 +199,9 @@ The chosen design is Model 1 as the base, optional Model 4 for fairness, and rej
 - Sizing does not depend on the model.
 - Per-node disk scales with stake, which is intended: more stake, more commission.
 - `upload_shard.admitted_bytes` (charged) and `upload_shard.bytes` (stored shard rows) measure different things.
-- The limit is changed via governance and can be disabled by config
+- The limit is changed via governance and can be disabled per node via a CLI flag.
+- The token bucket is in-memory, so a restart resets it and budgets are accounted incorrectly for a short time(This is expected).
+- When many clients hit an empty bucket at once they may retry in sync; jittering the retry-after hint is a possible refinement.
 
 ### Negative
 
