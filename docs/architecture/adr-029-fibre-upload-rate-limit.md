@@ -14,7 +14,7 @@ The Fibre server writes every uploaded shard to disk. Nothing today caps how fas
 
 The limiter is one token bucket per validator. Each upload spends tokens equal to the blob size. When the bucket runs dry, the server rejects the upload and tells the client when to retry.
 
-Shards are pruned after a fixed retention window (4h by default). So capping the fill rate caps the disk: `disk ≈ rate × window`. We do not pick the rate by hand. We pick a disk budget, and the rate follows from it.
+Shards are pruned after a fixed retention window (4h by default). So a validator holds at most one window of admitted uploads, `burst + rate × window` bytes, and we hold that to a disk budget. We do not pick the rate by hand. We pick the budget, and the rate follows from it.
 
 A few transport-level caps (concurrent streams, connections, keepalive) bound memory alongside the disk bound.
 
@@ -26,7 +26,7 @@ The only operation that grows this store is the `UploadShard` RPC (`fibre/server
 
 There are limits today, but none of them bound throughput. A per-message size cap bounds a single request. A pool of verification workers (`ServerConfig.UploadVerifyWorkers`, default `GOMAXPROCS`) bounds CPU. The `grpc.NewServer` call (`fibre/internal/grpc/server.go`) sets no `MaxConcurrentStreams`, so a peer can open many streams at once and pin a large amount of receive memory. None of this caps total bytes to disk.
 
-What saves us is that shards expire. Each one is pruned after a retention window. By default that window is 4h, and governance can change it. (The exact deadline is `pruneAt = max(creation + ShardRetention, ExpiresAt)`, with `ShardRetention` of 4h and `ExpiresAt` one hour after creation; the 4h term wins, so effective retention is 4h. A once-a-minute loop in `fibre/server_prune.go` enforces it.) Uploads flow in at some rate and flow out one window later, so the store settles at about `rate × window` bytes. That is the lever. Bound the rate and you bound the disk.
+What saves us is that shards expire. Each one is pruned after a retention window. By default that window is 4h, and governance can change it. (The exact deadline is `pruneAt = max(creation + ShardRetention, ExpiresAt)`, with `ShardRetention` of 4h and `ExpiresAt` one hour after creation by default (`PaymentPromiseTimeout`, a parameter). At the defaults the 4h term wins, so effective retention is 4h. A once-a-minute loop in `fibre/server_prune.go` enforces it.) Uploads flow in and are pruned one window later, so the store holds at most one window's worth of admitted uploads. That is the lever. Bound admission and you bound the disk.
 
 We want this for two reasons. In the near term it lets us run Fibre on mainnet during the 2026 ramp-up without a surprise in disk usage. In the long term validators run on fixed hardware and do not autoscale, so a disk bound is always useful. This is a permanent mechanism, not a throwaway guard.
 
@@ -44,9 +44,9 @@ Choosing the actual number is a separate question, handled in Sizing.
 
 Three facts about Fibre shape the design.
 
-- **Assignment is stake-weighted.** A validator with stake fraction `s` is assigned about `3s` of the rows (clamped to a minimum and to the full set; see `Set.Assign` in `fibre/validator/set.go`). Bigger validators store more per blob. Disk already scales with voting power, before any limiter.
-- **The charge is the blob size.** `UploadSize` (`fibre/blob.go`) is the padded blob size, the same for every validator. It counts only the blob's rows. A validator stores a little more than its share of that: it also keeps per-row proofs, the RLC vector, and row indices. So its disk per blob is roughly `min(1, 3s) × MaxShardSize`, at most one full shard.
-- **A client needs a quorum.** A client uploads to every validator and needs signatures from more than `2/3` of stake to settle on-chain. Its client library (`ClientCache.Request` in `fibre/internal/grpc/client_cache.go`) does not retry application errors. So a rejection must not silently cost the client its quorum.
+- **Assignment is stake-weighted.** A validator with stake fraction `s` is assigned about `3s` of the original rows (a fraction of `OriginalRows`, clamped to a minimum and to the full set; see `Set.Assign` in `fibre/validator/set.go`). Bigger validators store more per blob. Disk already scales with voting power, before any limiter.
+- **The charge is the blob size.** `UploadSize` (`fibre/blob.go`) is the padded blob size, the same for every validator. It counts only the blob's rows. A validator stores a little more than its share of that: it also keeps per-row proofs, the RLC vector, and row indices. So its disk per blob is roughly `min(1, 3s) × MaxShardSize`, with a `MinRowsPerValidator` floor for small validators, and at most one full shard.
+- **A client needs a quorum.** A client uploads to every validator and needs signatures covering at least `2/3` of stake to settle on-chain. Its client library (`ClientCache.Request` in `fibre/internal/grpc/client_cache.go`) does not retry application errors. So a rejection must not silently cost the client its quorum.
 
 ### Requirements
 
@@ -69,7 +69,7 @@ Start with the bucket. Over any period `T` it admits at most `burst + rate × T`
 
 > `peak = burst + rate × window`
 
-Smaller validators hold a stake-weighted fraction of that. We want the peak to equal the disk budget, which fixes the rate:
+Smaller validators hold a stake-weighted fraction of that. These are charged bytes (`UploadSize`). We want the peak to equal a target we call the budget, also in charged bytes, which fixes the rate:
 
 > `rate = (budget − burst) / window`
 
@@ -82,9 +82,9 @@ That leaves `burst`: how much the bucket lets through at once, before the steady
 
 When the target dominates, solving the two equations together gives `rate = 2 × budget / (3 × window)` and `burst = budget / 3`.
 
-One caveat for provisioning. The bucket counts blob bytes (`UploadSize`), but a stored shard is about 1.4% larger, because it also holds proofs, the RLC vector, and indices. So provision about `budget × 1.014`, plus headroom.
+The budget is in charged bytes, but a stored shard is about 1.4% larger, because it also holds proofs, the RLC vector, and indices. So actual disk is about `budget × 1.014`. An operator with `D` bytes of disk for its stake share sets `budget = D / 1.014`, minus headroom.
 
-Operators pick only the disk budget for their stake share. Rate and burst follow. The rate is the same for every validator; Consensus impact explains why it has to be.
+Operators pick only the budget. Rate and burst follow. The rate is the same for every validator; Consensus impact explains why it has to be.
 
 ### Model — global now, per-signer maybe later
 
@@ -110,10 +110,10 @@ For each `UploadShard` request the server:
 
 1. Verifies the payment promise, the assignment, and the shard rows (`verifyPromise`, `verifyAssignment`, `verifyShard` in `fibre/server_upload.go`). A failure here returns an error, unchanged from today.
 2. Checks whether the shard is already stored. If it is (a replay), the server returns OK and stops. It does not spend tokens.
-3. Otherwise, takes `UploadSize` tokens from the bucket. If there are not enough, it rejects with `ResourceExhausted` and a retry-after hint.
-4. Stores the shard and signs.
+3. Otherwise, reserves `UploadSize` tokens from the bucket. If there are not enough, it rejects with `ResourceExhausted` and a retry-after hint.
+4. Stores the shard and signs. If the store fails, it refunds the reserved tokens (`rate.Reservation.Cancel`) and returns the error.
 
-The token charge sits between step 2 and step 4, so a replay never drains the bucket, and only shards that actually reach disk are charged.
+The charge sits between the replay check and a successful store. A replay never reaches it, and a failed store refunds it, so a shard that does not reach disk does not stay charged. Two caveats. Refund is best-effort (the limiter returns the tokens as far as intervening reservations allow), which is enough: store failures are rare, so a retry under I/O failure cannot meaningfully drain the bucket. And the presence check and `store.Put` are not atomic, so two identical uploads racing through the check could both charge for a single stored shard (`store.Put` is idempotent, so the disk bound still holds); a single-flight guard on the check-then-store window closes that, or it can be accepted as a rare over-charge.
 
 ### The limiter
 
@@ -121,7 +121,8 @@ The token charge sits between step 2 and step 4, so a replay never drains the bu
 - **Charge against server time.** The limiter uses the server's clock, never the client's `CreationTimestamp`, which a client controls.
 - **Replay check.** The charge is gated on a store-presence check, so a replay of an accepted shard cannot drain the bucket. There is no such check today (`fibre/store.go` has `Put` and `Get`, no `Has`), so a cheap presence lookup has to be added. This relates to ADR-025's promise cache but does not depend on it: if that cache lands, the check can read from it; if not, a direct store lookup is enough.
 - **Rejection.** `ResourceExhausted` plus a retry-after delay in a gRPC `RetryInfo` detail.
-- **Metrics.** Add two counters under the existing `fibre.server.upload_shard.` namespace (`fibre/server_metrics.go`): `rate_limited` (labeled by reason) and `admitted_bytes`. The existing `fibre.server.upload_shard.bytes` counts received bytes, which is not the same as the charged `UploadSize`.
+- **Refund on store failure.** Tokens are reserved, not spent outright. If `store.Put` fails, the reservation is cancelled (`rate.Reservation.Cancel`) so a shard that never reached disk does not stay charged.
+- **Metrics.** Add two counters under the existing `fibre.server.upload_shard.` namespace (`fibre/server_metrics.go`): `rate_limited` (labeled by reason) and `admitted_bytes`. The existing `fibre.server.upload_shard.bytes` counts stored shard-row bytes on the success path, which is not the same as the charged `UploadSize`.
 - **Off switch.** A no-op when disabled or when the derived rate is not positive.
 
 ### Transport-level limits
@@ -134,7 +135,7 @@ This work adds three transport caps, as gRPC server options and a wrapped listen
 - **Max connections** — a limiting listener caps total connections, so a peer cannot dodge the per-connection stream cap by opening many connections.
 - **Keepalive** (`KeepaliveEnforcementPolicy`, `KeepaliveParams`) — drop idle or abusive connections and blunt slow-read holding.
 
-Together these bound receive memory and connection load. With them plus the verifier pool, the old application-level in-flight cap is no longer needed and is dropped. These are fixed, protocol-sane values, not derived from the disk budget.
+Together these bound receive memory and connection load. With them plus the verifier pool, the application-level in-flight cap from the draft PR (#7481) is not needed here and is dropped. These are fixed, protocol-sane values, not derived from the disk budget.
 
 ### Configuration and tuning
 
@@ -142,7 +143,7 @@ The disk budget and the enable flag are the config inputs (`ServerConfig`, TOML 
 
 The rate is meant to be a governance parameter, not free per-operator config, so that every validator uses the same value (see Consensus impact). Locally, an operator can still turn the limiter off, which only risks that node's own disk. What an operator must not do is set a lower rate than peers: that throttles blobs others accept and can deny the `>2/3` quorum.
 
-There is one invariant to enforce at startup: `burst ≥ MaxBlobSize`. The derivation already guarantees it (it is the floor in `burst = max(MaxBlobSize, rate × window / 2)`), but a manual override could break it, and `golang.org/x/time/rate` fails silently when a single draw exceeds the burst. So `ServerConfig` validation should reject a config where `burst < MaxBlobSize`, alongside the existing checks.
+One invariant matters: `burst ≥ MaxBlobSize`. Since burst is derived, with `MaxBlobSize` as its floor, it holds automatically today. Add a validation assertion anyway, as a guard for the day a `burst` override is exposed: `golang.org/x/time/rate` fails silently when a single draw exceeds the burst, so a too-small burst would reject every full-size blob with no error at startup.
 
 ### Per-signer sub-limit (Model 4)
 
@@ -161,7 +162,7 @@ A worked rate. Take a disk budget of 1 TiB. The target burst dominates the floor
 
 All five models run off-chain. The limiter lives in the Fibre server, outside the ABCI state machine, and only decides which uploads a validator accepts and signs. It does not touch block validity or determinism: validators with different settings still agree on every block and differ only in what they choose to sign. Two things do interact with consensus.
 
-- **Quorum.** `MsgPayForFibre` is settled on-chain against signatures from more than `2/3` of validators (`x/fibre/keeper/msg_server.go`). The limiter does not change that rule, but throttling can stop a client from reaching `2/3` and fail its settlement. That is why the rate must be the same for every validator: if some run a lower rate, they reject blobs others accept, and the client loses quorum through no fault of its own.
+- **Quorum.** `MsgPayForFibre` is settled on-chain against signatures covering at least `2/3` of voting power, i.e. stake, not validator count. The check is `votingPower >= floor(2/3 × total)` (`fibre/validator/signature_set.go`, thresholding `val.Tokens`), so it is `>=`, not a strict `>`. The limiter does not change that rule, but throttling can stop a client from reaching the threshold and fail its settlement. That is why the rate must be the same for every validator: if some run a lower rate, they reject blobs others accept, and the client loses quorum through no fault of its own.
 - **The rate as a governance parameter.** Because uniformity is a quorum requirement, the rate belongs in governance. An `x/fibre` module parameter makes every validator read the same value by construction, instead of trusting operators to coordinate local config. Promoting it is a normal versioned-upgrade change, not a fork, and enforcement still lives in the off-chain server. Routine tuning is not urgent, and the emergency path (turning the limiter off locally) stays local and is quorum-safe. The recommendation is to make the rate a gov parameter from v1; coordinated local config is acceptable only as a ramp-up bridge, with a commitment to promote it.
 
 The kind of limiter that *is* consensus-critical, one inside `PrepareProposal` / `ProcessProposal` that must be deterministic across validators, is out of scope.
@@ -180,7 +181,7 @@ The chosen design is Model 1 as the base, optional Model 4 for fairness, and rej
 
 **Model 5 — occupancy gating.** Admit based on current store size versus budget. The most direct disk enforcement, since a token bucket refills even when nothing is stored, but it needs live occupancy tracking and back-pressure and is burstier near the cap. A possible later refinement.
 
-**Rejection — reject-fast (chosen) vs block-and-wait vs hybrid.** Block-and-wait needs no client change today but adds head-of-line blocking, unpredictable latency, and a contract that is breaking to change later. Reject-fast avoids that, at the cost of turning an over-budget upload into a reroute that can cascade across busy nodes. A hybrid, a short queue that blocks while the wait stays under the reroute cost and then rejects, would recover the near-boundary latency. It is deferred: the half-window burst already smooths spikes, so the queue would rarely fire, and a blocked request holds its full ~132 MiB message and a stream slot, so the queue would re-introduce the in-flight cap this design drops. Revisit it if a small burst is chosen or the small-request case shows up in practice.
+**Rejection — reject-fast (chosen) vs block-and-wait vs hybrid.** Block-and-wait needs no client change today but adds head-of-line blocking, unpredictable latency, and a contract that is breaking to change later. Reject-fast avoids that, at the cost of turning an over-budget upload into a reroute that can cascade across busy nodes. A hybrid, a short queue that blocks while the wait stays under the reroute cost and then rejects, would recover the near-boundary latency. It is deferred for the reasons in the Rejection section (the burst already smooths spikes, and a blocked handler would re-introduce the dropped in-flight cap). Revisit it if a small burst is chosen or the small-request case shows up in practice.
 
 **Temporary hardcoded guard.** Rejected. The limiter is permanent, so a throwaway fixed rate (say a placeholder 10 MiB/s) is wasted work and starves easily. A conservative Model 1 setting covers the ramp-up just as well.
 
@@ -193,13 +194,13 @@ The chosen design is Model 1 as the base, optional Model 4 for fairness, and rej
 - A uniform charge keeps admission predictable and quorum-safe.
 - Per-signer fairness can be added later without a redesign.
 - The replay-drain hole is closed.
-- Transport caps bound receive memory, which was unbounded, and remove the need for the old in-flight cap.
+- Transport caps bound receive memory, which was unbounded, and remove the need for the draft PR's in-flight cap.
 
 ### Neutral
 
 - Sizing does not depend on the model.
 - Per-node disk scales with stake, which is intended: more stake, more commission.
-- `upload_shard.admitted_bytes` (charged) and `upload_shard.bytes` (received) measure different things.
+- `upload_shard.admitted_bytes` (charged) and `upload_shard.bytes` (stored shard rows) measure different things.
 - No proto or consensus change; the limit is raised or disabled by config.
 
 ### Negative
@@ -212,7 +213,8 @@ The chosen design is Model 1 as the base, optional Model 4 for fairness, and rej
 
 ## References
 
-- PROTOCO-1547 — tracking issue.
+- PROTOCO-2122 — this ADR.
+- PROTOCO-1547 — rate-limiter tracking issue.
 - PR #7481 — draft upload admission controller (not merged); the design discussion behind this ADR.
 - PR #7489 — pruning window reduced to 4h.
 - `x/fibre/types/params.go` — `ShardRetention` (4h), `PaymentPromiseTimeout` (1h).
