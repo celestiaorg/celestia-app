@@ -18,7 +18,8 @@ func indexWrapperDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {
 			return nil, err
 		}
 		msgs := sdkTx.GetMsgs()
-		// rule from x/blob/types/blob_tx.go:75-83
+		// IndexWrapper txs must contain exactly one MsgPayForBlobs (mirrors the
+		// invariant enforced by ValidateBlobTxSkipCommitment in x/blob/types/blob_tx.go).
 		if len(msgs) != 1 {
 			return nil, apperr.ErrNonPFBIndexWrapper
 		}
