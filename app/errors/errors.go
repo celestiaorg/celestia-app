@@ -15,4 +15,8 @@ var (
 
 	// ErrTxExceedsMaxSDKMessages is returned when an SDK tx contains more messages than a single block may ever include.
 	ErrTxExceedsMaxSDKMessages = errors.Register(AppErrorsCodespace, 11143, "transaction exceeds maximum allowed SDK message count")
+
+	// ErrNonPFBIndexWrapper is returned when an IndexWrapper encoded tx wraps
+	// anything other than a tx containing a single MsgPayForBlobs.
+	ErrNonPFBIndexWrapper = errors.Register(AppErrorsCodespace, 11144, "index wrapper txs must contain exactly one MsgPayForBlobs")
 )
