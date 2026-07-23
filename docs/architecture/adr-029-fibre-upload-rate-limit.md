@@ -96,11 +96,11 @@ Model 1 gives no fairness between clients. That is fine now: there is one client
 
 ### Rejection — reject-fast
 
-When the bucket is empty, the server rejects the upload right away. It returns `ResourceExhausted` with a retry-after hint, and the client waits or tries another validator. It does not hold the request open waiting for tokens.
+When the bucket is empty, the server rejects the upload right away. It returns `ResourceExhausted` with a retry-after hint, and the client waits and retries. It does not hold the request open waiting for tokens.
 
 Blocking would be worse: it ties up server handlers, spreads unpredictable latency across validators, and lets one client stall others. Reject-fast avoids all of that. It does need a client change (the client must honor the hint and keep its quorum), and we make that change now, while Fibre has no production users. It is harmless today and would be breaking once clients rely on the server absorbing the wait.
 
-Rejecting has one cost: an over-budget reject sends the client off to reroute, which can pile up if the next node is also busy (Wondertan raised this on the PR). A short queue that blocks briefly instead of rejecting would smooth that out near the boundary. We leave it as a possible later refinement, for two reasons. First, the burst already smooths spikes: with a half-window burst the bucket rarely empties, so the queue would seldom fire, and under real overload it degrades to rejecting anyway. Second, since the charge happens after verification, a blocked request is a live handler holding its full message (~132 MiB) and a stream slot, so a queue would need a dedicated size bound, the very in-flight cap this design otherwise drops. See Alternative Approaches.
+Rejecting has one cost: an over-budget reject forces the client to retry later, which can pile up if many validators are also busy (Wondertan raised this on the PR). A short queue that blocks briefly instead of rejecting would smooth that out near the boundary. We leave it as a possible later refinement, for two reasons. First, the burst already smooths spikes: with a half-window burst the bucket rarely empties, so the queue would seldom fire, and under real overload it degrades to rejecting anyway. Second, since the charge happens after verification, a blocked request is a live handler holding its full message (~132 MiB) and a stream slot, so a queue would need a dedicated size bound, the very in-flight cap this design otherwise drops. See Alternative Approaches.
 
 ## Detailed Design
 
@@ -139,7 +139,7 @@ Together these bound receive memory and connection load. With them plus the veri
 
 ### Configuration and tuning
 
-The limiter's parameters live on-chain. The disk budget, and the rate and burst derived from it (see Sizing), are governance values or derived from them, so every validator uses the same numbers(can be disabled via a CLI flag).
+The limiter's parameters live on-chain. The disk budget, and the rate and burst derived from it (see Sizing), are governance values or derived from them, so every validator uses the same numbers (can be disabled via a CLI flag).
 
 One invariant matters: `burst ≥ MaxBlobSize`. Since burst is derived, with `MaxBlobSize` as its floor, it holds automatically today. Add a validation assertion anyway, as a guard for the day a `burst` override is exposed: `golang.org/x/time/rate` fails silently when a single draw exceeds the burst, so a too-small burst would reject every full-size blob with no error at startup.
 
