@@ -18,5 +18,5 @@ var (
 
 	// ErrNonPFBIndexWrapper is returned when an IndexWrapper encoded tx wraps
 	// anything other than a tx containing a single MsgPayForBlobs.
-	ErrNonPFBIndexWrapper = errors.Register(AppErrorsCodespace, 11144, "index wrapper txs must contain exactly one MsgPayForBlobs")
+	ErrNonPFBIndexWrapper = errors.Register(AppErrorsCodespace, 11144, "index wrapper transactions must contain exactly one MsgPayForBlobs message")
 )
