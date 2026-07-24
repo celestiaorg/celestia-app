@@ -291,6 +291,19 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrNonPFBIndexWrapper.ABCICode(),
 		},
 		{
+			name:      "index wrapped multi msg tx is rejected",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				addr := testnode.RandomAddress().(sdk.AccAddress)
+				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+				rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, sendMsg, sendMsg)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(rawTx, 0)
+				require.NoError(t, err)
+				return wrappedTx
+			},
+			expectedABCICode: apperr.ErrMultiMsgIndexWrapper.ABCICode(),
+		},
+		{
 			name:      "index wrapped PFB tx without blobs is rejected",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {

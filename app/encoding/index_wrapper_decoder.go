@@ -20,7 +20,7 @@ func indexWrapperDecoder(decoder sdk.TxDecoder) sdk.TxDecoder {
 		msgs := sdkTx.GetMsgs()
 		// rule from x/blob/types/blob_tx.go:75-83
 		if len(msgs) != 1 {
-			return nil, apperr.ErrNonPFBIndexWrapper
+			return nil, apperr.ErrMultiMsgIndexWrapper
 		}
 		if _, ok := msgs[0].(*blobtypes.MsgPayForBlobs); !ok {
 			return nil, apperr.ErrNonPFBIndexWrapper
