@@ -267,6 +267,59 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: abci.CodeTypeOK,
 		},
 		{
+			name:      "index wrapped PayForFibre tx is rejected",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, newMsgPayForFibre(t))
+				wrappedTx, err := coretypes.MarshalIndexWrapper(rawTx, 0)
+				require.NoError(t, err)
+				return wrappedTx
+			},
+			expectedABCICode: apperr.ErrNonPFBIndexWrapper.ABCICode(),
+		},
+		{
+			name:      "index wrapped normal sdk tx is rejected",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				addr := testnode.RandomAddress().(sdk.AccAddress)
+				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+				rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, sendMsg)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(rawTx, 0)
+				require.NoError(t, err)
+				return wrappedTx
+			},
+			expectedABCICode: apperr.ErrNonPFBIndexWrapper.ABCICode(),
+		},
+		{
+			name:      "index wrapped multi msg tx is rejected",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				addr := testnode.RandomAddress().(sdk.AccAddress)
+				sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+				rawTx := newUnsignedMultiMsgTx(t, encodingConfig.TxConfig, sendMsg, sendMsg)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(rawTx, 0)
+				require.NoError(t, err)
+				return wrappedTx
+			},
+			expectedABCICode: apperr.ErrMultiMsgIndexWrapper.ABCICode(),
+		},
+		{
+			name:      "index wrapped PFB tx without blobs is rejected",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[2],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				dtx, _ := coretypes.UnmarshalBlobTx(btx)
+				wrappedTx, err := coretypes.MarshalIndexWrapper(dtx.Tx, 0)
+				require.NoError(t, err)
+				return wrappedTx
+			},
+			expectedABCICode: blobtypes.ErrNoBlobs.ABCICode(),
+		},
+		{
 			name:      "normal transaction exceeding max SDK messages, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {

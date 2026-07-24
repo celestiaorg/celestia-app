@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
+	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -204,6 +205,36 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
 	}
+}
+
+func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
+	require.NoError(t, err)
+
+	wrappedTx, err := coretypes.MarshalIndexWrapper(newSignedPayForFibreTx(t, signer, accounts[0]), 0)
+	require.NoError(t, err)
+	txs := [][]byte{wrappedTx}
+
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	squareSize, err := dataSquare.Size()
+	require.NoError(t, err)
+
+	resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       testApp.LastBlockHeight() + 1,
+		Time:         time.Now(),
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   uint64(squareSize),
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 }
 
 // newMsgPayForFibre creates a MsgPayForFibre with a random signer for testing.
