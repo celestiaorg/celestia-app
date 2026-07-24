@@ -498,7 +498,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	}
 }
 
-func TestPrepareProposalDropsIndexWrappedTxs(t *testing.T) {
+func TestPrepareProposalDropsNonPFBIndexWrappedTxs(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
