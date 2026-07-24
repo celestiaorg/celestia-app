@@ -7,6 +7,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -53,7 +54,28 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
-	return app.forwardCheckTx(req, sdkTx)
+	var payForFibre *fibretypes.MsgPayForFibre
+	if len(sdkTx.GetMsgs()) == 1 {
+		payForFibre, _ = sdkTx.GetMsgs()[0].(*fibretypes.MsgPayForFibre)
+	}
+	if payForFibre != nil {
+		if !app.hasPayForFibreSignatures(tx) {
+			checkCtx, ok := app.CheckState()
+			if !ok {
+				err := fmt.Errorf("check state is not initialized")
+				return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+			}
+			if err := app.FibreKeeper.ValidatePayForFibreSignatures(checkCtx, payForFibre); err != nil {
+				return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+			}
+		}
+	}
+
+	res, err := app.forwardCheckTx(req, sdkTx)
+	if err == nil && res.Code == abci.CodeTypeOK && payForFibre != nil {
+		app.cachePayForFibreSignatures(tx)
+	}
+	return res, err
 }
 
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {

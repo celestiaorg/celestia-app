@@ -141,16 +141,6 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise stateful verification failed: %s", err)
 	}
 
-	// Validate validator signatures
-	signBytes, err := pp.SignBytes()
-	if err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
-	}
-
-	if err := ms.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
-	}
-
 	promiseHash, err := pp.Hash()
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
@@ -187,6 +177,26 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	return &types.MsgPayForFibreResponse{}, nil
+}
+
+// ValidatePayForFibreSignatures verifies the payment-promise and validator
+// signatures before proposal handling adds Fibre metadata to the square.
+func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPayForFibre) error {
+	pp := fibre.PaymentPromise{}
+	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
+	}
+	if err := pp.Validate(); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
+	}
+	signBytes, err := pp.SignBytes()
+	if err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
+	}
+	if err := k.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
+	}
+	return nil
 }
 
 // PaymentPromiseTimeout processes a payment promise after the timeout period
@@ -337,9 +347,9 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 }
 
 // validateValidatorSignatures validates validator signatures using the existing SignatureSet infrastructure
-func (ms msgServer) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
+func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
 	// Get historical validator set at the height
-	historicalInfo, err := ms.stakingKeeper.GetHistoricalInfo(ctx, height)
+	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
 	if err != nil {
 		return errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
 	}

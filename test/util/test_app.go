@@ -43,6 +43,12 @@ var (
 	)
 )
 
+// GenesisValidatorPrivateKey returns the deterministic consensus key used by
+// GenesisStateWithSingleValidator.
+func GenesisValidatorPrivateKey() ed25519.PrivKey {
+	return ed25519.GenPrivKeyFromSecret([]byte("celestia-app test genesis validator"))
+}
+
 // Get flags every time the simulator is run
 func init() {
 	simulationcli.GetSimulatorFlags()
@@ -161,7 +167,7 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 // validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
 	// create validator set with single validator
-	validatorPubKey := ed25519.PubKey([]byte("12345678901234567890123456789012"))
+	validatorPubKey := GenesisValidatorPrivateKey().PubKey()
 	validator := tmtypes.NewValidator(validatorPubKey, 1)
 	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{validator})
 

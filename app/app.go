@@ -212,6 +212,9 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
+	// pffSignatureCache records PayForFibre transactions whose validator
+	// signatures were verified in CheckTx or proposal processing.
+	pffSignatureCache sync.Map
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -602,6 +605,7 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
+		app.pffSignatureCache.Delete(pffSignatureCacheKey(tx))
 	}
 
 	return res, nil
