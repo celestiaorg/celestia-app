@@ -9,6 +9,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -344,6 +345,13 @@ func parseRow(row *types.BlobRow) (*rsema1d.RowProof, error) {
 	}
 	if len(row.Data) == 0 {
 		return nil, fmt.Errorf("row %d missing data", row.Index)
+	}
+	// Reject non canonical segment lengths so padding past the required
+	// NodeSize prefix can't be persisted and served.
+	for i, seg := range row.Proof {
+		if len(seg) != merkle.NodeSize {
+			return nil, fmt.Errorf("row %d proof segment %d must be %d bytes, got %d", row.Index, i, merkle.NodeSize, len(seg))
+		}
 	}
 
 	return &rsema1d.RowProof{
