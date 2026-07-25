@@ -21,7 +21,10 @@ tar -xvf fibre_Linux_x86_64.tar.gz
 ./fibre version
 ```
 
-Like `celestia-appd`, the Linux archives are dynamically linked against glibc.
+The Linux archives are dynamically linked and require **glibc >= 2.34**, so
+Ubuntu 22.04 and Debian 12 work. This is lower than the **glibc >= 2.38** floor
+of the multiplexer `celestia-appd` build, which comes from its embedded binaries;
+fibre embeds none.
 
 ### Build from source
 
