@@ -40,7 +40,7 @@ BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_M
 # binary when git metadata is unavailable, e.g. building from an exported source
 # tree with no .git: an empty -X value blanks the field out rather than leaving
 # the default in place.
-COMMIT_DATE := $(shell git log -1 --format=%cI)
+COMMIT_DATE := $(shell git log -1 --format=%cI 2>/dev/null)
 LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown)
 BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
 

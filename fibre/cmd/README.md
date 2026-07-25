@@ -29,8 +29,10 @@ Like `celestia-appd`, the Linux archives are dynamically linked against glibc.
 make build-fibre-server
 ```
 
-The binary is output to `build/fibre`, stamped with the same version and commit
-that a release build reports.
+The binary is output to `build/fibre`, stamped with the version from
+`git describe` and the short commit hash, so `fibre version` reports something
+real rather than `dev`. A release build stamps the release tag and the full
+commit hash instead.
 
 ## Usage
 
