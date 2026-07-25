@@ -11,6 +11,7 @@ import (
 // MockBankKeeper implements the expected BankKeeper interface for testing
 type MockBankKeeper struct {
 	SendCoinsFromAccountToModuleFn func(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
+	SendCoinsFromModuleToAccountFn func(ctx context.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromModuleToModuleFn  func(ctx context.Context, senderModule, recipientModule string, amt sdk.Coins) error
 }
 
@@ -22,6 +23,9 @@ func (m *MockBankKeeper) SendCoinsFromAccountToModule(ctx context.Context, sende
 }
 
 func (m *MockBankKeeper) SendCoinsFromModuleToAccount(ctx context.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error {
+	if m.SendCoinsFromModuleToAccountFn != nil {
+		return m.SendCoinsFromModuleToAccountFn(ctx, senderModule, recipientAddr, amt)
+	}
 	return nil
 }
 

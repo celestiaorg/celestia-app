@@ -1,6 +1,8 @@
 package keeper_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -167,6 +169,65 @@ func (suite *ABCITestSuite) TestBeginBlocker_ProcessAvailableWithdrawals() {
 	// Verify withdrawal was deleted from store
 	withdrawals := suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
 	suite.Empty(withdrawals)
+}
+
+func (suite *ABCITestSuite) TestBeginBlocker_BankSendFailureDoesNotMutateEscrow() {
+	// BeginBlocker continues on bank-send errors. Escrow state must not be
+	// persisted before the send, or a failed transfer leaves a pending withdrawal
+	// with a reduced balance and retries corrupt state further.
+
+	privKey := secp256k1.GenPrivKey()
+	signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+
+	depositAmount := sdk.NewCoin("utia", math.NewInt(1000000))
+	_, err := suite.msgServer.DepositToEscrow(suite.ctx, &types.MsgDepositToEscrow{
+		Signer: signer,
+		Amount: depositAmount,
+	})
+	suite.NoError(err)
+
+	withdrawalAmount := sdk.NewCoin("utia", math.NewInt(500000))
+	_, err = suite.msgServer.RequestWithdrawal(suite.ctx, &types.MsgRequestWithdrawal{
+		Signer: signer,
+		Amount: withdrawalAmount,
+	})
+	suite.NoError(err)
+
+	params := suite.keeper.GetParams(suite.ctx)
+	suite.ctx = suite.ctx.WithBlockTime(suite.ctx.BlockTime().Add(params.WithdrawalDelay))
+
+	suite.bankKeeper.SendCoinsFromModuleToAccountFn = func(_ context.Context, _ string, _ sdk.AccAddress, _ sdk.Coins) error {
+		return errors.New("injected bank send failure")
+	}
+
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+
+	escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount, escrowAccount.Balance, "balance must not change when bank send fails")
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.AvailableBalance)
+	withdrawals := suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
+	suite.Len(withdrawals, 1, "withdrawal must remain queued for retry")
+	suite.Equal(withdrawalAmount, withdrawals[0].Amount)
+
+	// A second failed BeginBlock must still leave state unchanged (no double-deduct).
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+	escrowAccount, found = suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount, escrowAccount.Balance)
+	suite.Len(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer), 1)
+
+	suite.bankKeeper.SendCoinsFromModuleToAccountFn = nil
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+
+	escrowAccount, found = suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.Balance)
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.AvailableBalance)
+	suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer))
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_ProcessMultipleWithdrawals() {
