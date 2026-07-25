@@ -109,7 +109,7 @@ Payments are validated against and deducted from total `balance`, not only `avai
 
 ### Withdrawal
 
-Withdrawal requests are stored in two indexes. The signer index key is `0x03 || signer || "/" || sdk.FormatTimeBytes(requested_timestamp)` and the availability index key is `0x04 || sdk.FormatTimeBytes(available_timestamp) || "/" || signer`.
+Withdrawal requests are stored in two indexes. The signer index key is `0x03 || signer || "/" || sdk.FormatTimeBytes(requested_timestamp)` and the availability index key is `0x04 || sdk.FormatTimeBytes(available_timestamp) || "/" || sdk.FormatTimeBytes(requested_timestamp) || "/" || signer`. The requested timestamp is included in the availability key so two requests from the same signer that share an `available_timestamp` after a `withdrawal_delay` parameter change do not overwrite each other.
 
 ```proto
 message Withdrawal {
