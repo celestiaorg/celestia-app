@@ -31,13 +31,17 @@ LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version
 BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
 BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
-# The fibre server keeps its version metadata in package main. These are the
-# same values goreleaser injects for release builds, so `fibre version` reports
-# a real version regardless of whether the binary came from a release or from
-# source. The commit date is used instead of the wall clock so builds of the
-# same commit are reproducible.
+# The fibre server keeps its version metadata in package main, so that a binary
+# built from source reports a real version rather than "dev". These mirror the
+# values goreleaser injects for release builds, except that the commit is the
+# short hash here, the same way LDFLAGS_COMMON stamps celestia-appd. The commit
+# date is used instead of the wall clock so builds of the same commit are
+# reproducible. Each value falls back to the default already compiled into the
+# binary when git metadata is unavailable, e.g. building from an exported source
+# tree with no .git: an empty -X value blanks the field out rather than leaving
+# the default in place.
 COMMIT_DATE := $(shell git log -1 --format=%cI)
-LDFLAGS_FIBRE := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(COMMIT_DATE)
+LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown)
 BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
 
 # NOTE: This version must be updated at the same time as the version in:

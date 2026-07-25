@@ -368,8 +368,6 @@ archives:
       - fibre-linux-amd64
       - fibre-linux-arm64
     formats: ['tar.gz']
-    # this name template makes the OS and Arch compatible with the results of
-    # uname.
     name_template: >-
       fibre_
       {{- title .Os }}_

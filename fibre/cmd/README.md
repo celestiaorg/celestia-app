@@ -9,10 +9,13 @@ Standalone binary for the Fibre data availability server.
 Every celestia-app release attaches a `fibre` archive for Linux and macOS on both
 `amd64` and `arm64`. The version matches the celestia-app release it ships with.
 
+The archives are named `fibre_{Linux,Darwin}_{x86_64,arm64}.tar.gz`. Note that a
+Linux arm64 host reports `aarch64` from `uname -m`, but the archive is `arm64`.
+
 ```sh
-# pick the archive matching `uname -s` and `uname -m`
 curl -LO https://github.com/celestiaorg/celestia-app/releases/latest/download/fibre_Linux_x86_64.tar.gz
 curl -LO https://github.com/celestiaorg/celestia-app/releases/latest/download/checksums.txt
+# on macOS: shasum -a 256 --ignore-missing --check checksums.txt
 sha256sum --ignore-missing --check checksums.txt
 tar -xvf fibre_Linux_x86_64.tar.gz
 ./fibre version
