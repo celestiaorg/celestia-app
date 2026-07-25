@@ -2,13 +2,32 @@
 
 Standalone binary for the Fibre data availability server.
 
-## Build
+## Install
+
+### Prebuilt binary
+
+Every celestia-app release attaches a `fibre` archive for Linux and macOS on both
+`amd64` and `arm64`. The version matches the celestia-app release it ships with.
+
+```sh
+# pick the archive matching `uname -s` and `uname -m`
+curl -LO https://github.com/celestiaorg/celestia-app/releases/latest/download/fibre_Linux_x86_64.tar.gz
+curl -LO https://github.com/celestiaorg/celestia-app/releases/latest/download/checksums.txt
+sha256sum --ignore-missing --check checksums.txt
+tar -xvf fibre_Linux_x86_64.tar.gz
+./fibre version
+```
+
+Like `celestia-appd`, the Linux archives are dynamically linked against glibc.
+
+### Build from source
 
 ```sh
 make build-fibre-server
 ```
 
-The binary is output to `build/fibre`.
+The binary is output to `build/fibre`, stamped with the same version and commit
+that a release build reports.
 
 ## Usage
 

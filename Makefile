@@ -31,6 +31,15 @@ LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version
 BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
 BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
+# The fibre server keeps its version metadata in package main. These are the
+# same values goreleaser injects for release builds, so `fibre version` reports
+# a real version regardless of whether the binary came from a release or from
+# source. The commit date is used instead of the wall clock so builds of the
+# same commit are reproducible.
+COMMIT_DATE := $(shell git log -1 --format=%cI)
+LDFLAGS_FIBRE := -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildDate=$(COMMIT_DATE)
+BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
+
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
 # .goreleaser.yaml
@@ -411,13 +420,13 @@ test-fuzz:
 build-fibre-server:
 	@mkdir -p build/
 	@echo "--> Building build/fibre"
-	@go build -o build/fibre ./fibre/cmd
+	@go build $(BUILD_FLAGS_FIBRE) -o build/fibre ./fibre/cmd
 .PHONY: build-fibre-server
 
 ## install-fibre-server: Build and install the fibre server binary into the $GOPATH/bin directory.
 install-fibre-server:
 	@echo "--> Installing fibre server"
-	@go build -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
+	@go build $(BUILD_FLAGS_FIBRE) -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
 .PHONY: install-fibre-server
 
 ## txsim-install: Install the tx simulator.

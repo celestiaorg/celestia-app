@@ -249,6 +249,86 @@ builds:
       - -X "{{ .Env.SDKPath }}.AppName=celestia-appd"
       - -X "{{ .Env.SDKPath }}.Version={{ .Version }}"
       - -X "{{ .Env.SDKPath }}.Commit={{ .FullCommit }}"
+  # The fibre server is a separate binary that validators run alongside
+  # celestia-appd. It has no cgo dependencies of its own, but it is built with
+  # CGO_ENABLED=1 to match celestia-appd: the two binaries then have the same
+  # linking profile and the same libc requirements on a given platform.
+  - id: fibre-darwin-amd64
+    main: ./fibre/cmd
+    binary: fibre
+    env:
+      - CGO_ENABLED=1
+      - CC=o64-clang
+      - CXX=o64-clang++
+    goarch:
+      - amd64
+    goos:
+      - darwin
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .FullCommit }}
+      - -X main.buildDate={{ .CommitDate }}
+  - id: fibre-darwin-arm64
+    main: ./fibre/cmd
+    binary: fibre
+    env:
+      - CGO_ENABLED=1
+      - CC=oa64-clang
+      - CXX=oa64-clang++
+    goarch:
+      - arm64
+    goos:
+      - darwin
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .FullCommit }}
+      - -X main.buildDate={{ .CommitDate }}
+  - id: fibre-linux-amd64
+    main: ./fibre/cmd
+    binary: fibre
+    env:
+      - CGO_ENABLED=1
+      - CC=x86_64-linux-gnu-gcc
+      - CXX=x86_64-linux-gnu-g++
+    goarch:
+      - amd64
+    goos:
+      - linux
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .FullCommit }}
+      - -X main.buildDate={{ .CommitDate }}
+  - id: fibre-linux-arm64
+    main: ./fibre/cmd
+    binary: fibre
+    env:
+      - CGO_ENABLED=1
+      - CC=aarch64-linux-gnu-gcc
+      - CXX=aarch64-linux-gnu-g++
+    goarch:
+      - arm64
+    goos:
+      - linux
+    flags:
+      - -trimpath
+    ldflags:
+      - -s
+      - -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .FullCommit }}
+      - -X main.buildDate={{ .CommitDate }}
 dist: ./build/goreleaser
 archives:
   - id: multiplexer
@@ -276,6 +356,22 @@ archives:
     # uname.
     name_template: >-
       {{ .ProjectName }}-standalone_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+  - id: fibre
+    ids:
+      - fibre-darwin-amd64
+      - fibre-darwin-arm64
+      - fibre-linux-amd64
+      - fibre-linux-arm64
+    formats: ['tar.gz']
+    # this name template makes the OS and Arch compatible with the results of
+    # uname.
+    name_template: >-
+      fibre_
       {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
