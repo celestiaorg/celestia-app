@@ -23,8 +23,11 @@ func (k Keeper) InitGenesis(ctx context.Context, genState types.GenesisState) er
 // ExportGenesis returns the minfee module's exported genesis.
 func (k Keeper) ExportGenesis(ctx context.Context) *types.GenesisState {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	genesis := types.DefaultGenesis()
-	// TODO: genesis should hold params not this field.
-	genesis.NetworkMinGasPrice = k.GetParams(sdkCtx).NetworkMinGasPrice
-	return genesis
+	params := k.GetParams(sdkCtx)
+	return &types.GenesisState{
+		Params: params,
+		// The deprecated top-level field must stay populated and in sync with
+		// params: ValidateGenesis rejects a zero value.
+		NetworkMinGasPrice: params.NetworkMinGasPrice,
+	}
 }
