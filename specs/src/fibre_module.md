@@ -75,13 +75,14 @@ sequenceDiagram
 
     B->>M: processAvailableWithdrawals()
     M->>M: Iterate withdrawals available at block time
-    M->>M: Subtract amount from total balance and store escrow
+    M->>M: Check total balance covers withdrawal
     M->>Bank: Send coins from fibre module account to signer
     alt bank send succeeds
+        M->>M: Subtract amount from total balance and store escrow
         M->>M: Delete withdrawal from both indexes
         M-->>C: EventWithdrawFromEscrowExecuted
     else bank send fails
-        M->>M: Log error and leave withdrawal record
+        M->>M: Log error and leave escrow state and withdrawal unchanged
     end
 
     B->>M: pruneProcessedPayments()
@@ -339,7 +340,7 @@ The destination is independent of which validators signed the PaymentPromise. Th
 
 `BeginBlocker` runs `processAvailableWithdrawals` first and `pruneProcessedPayments` second.
 
-`processAvailableWithdrawals` iterates the withdrawals-by-available-time index in time order, stops when it reaches a future `available_timestamp`, parses the signer from the key, loads the withdrawal, loads the escrow account, subtracts the withdrawal amount from total `balance`, stores the escrow account, sends coins from the `fibre` module account to the signer account, deletes the withdrawal from both indexes after a successful send, and emits `EventWithdrawFromEscrowExecuted`. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the escrow balance is stored before the bank send and the withdrawal is deleted only after a successful send.
+`processAvailableWithdrawals` iterates the withdrawals-by-available-time index in time order, stops when it reaches a future `available_timestamp`, parses the signer from the key, loads the withdrawal, loads the escrow account, checks that total `balance` covers the withdrawal, sends coins from the `fibre` module account to the signer account, and only after a successful send subtracts the withdrawal amount from total `balance`, stores the escrow account, deletes the withdrawal from both indexes, and emits `EventWithdrawFromEscrowExecuted`. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the bank send runs before escrow state is updated so a failed send leaves the escrow account and the pending withdrawal unchanged for a safe retry.
 
 `pruneProcessedPayments` computes `cutoff_time = block_time - payment_promise_retention_window`, iterates the processed-payments-by-time index in time order, stops when `processed_at` is after the cutoff, deletes each pruned processed payment from both indexes, and emits `EventProcessedPaymentPruned`.
 

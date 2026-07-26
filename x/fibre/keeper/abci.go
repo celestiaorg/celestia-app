@@ -56,7 +56,7 @@ func (k Keeper) processAvailableWithdrawals(ctx sdk.Context) error {
 			continue
 		}
 
-		// Update escrow account balance (decrease total balance)
+		// Load escrow and verify sufficient balance
 		escrowAccount, found := k.GetEscrowAccount(ctx, signer)
 		if !found {
 			// This shouldn't happen, but log and continue
@@ -68,16 +68,20 @@ func (k Keeper) processAvailableWithdrawals(ctx sdk.Context) error {
 			k.Logger(ctx).Error("escrow account balance is less than withdrawal amount", "signer", signer, "balance", escrowAccount.Balance, "amount", amount)
 			continue
 		}
-		escrowAccount.Balance = escrowAccount.Balance.Sub(amount)
-		k.SetEscrowAccount(ctx, escrowAccount)
 
-		// Process withdrawal: transfer from module to user account
+		// Transfer before updating escrow state: BeginBlocker continues on bank
+		// errors, so persisting Balance first would leave a pending withdrawal
+		// with a reduced balance and corrupt further on retry.
 		err = k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, signerAddr, sdk.NewCoins(amount))
 		if err != nil {
 			// Log error but continue processing other withdrawals
 			k.Logger(ctx).Error("failed to process withdrawal", "error", err, "signer", signer)
 			continue
 		}
+
+		// Decrease total escrow balance
+		escrowAccount.Balance = escrowAccount.Balance.Sub(amount)
+		k.SetEscrowAccount(ctx, escrowAccount)
 
 		// Remove from both withdrawal indexes
 		k.DeleteWithdrawal(ctx, withdrawal)
