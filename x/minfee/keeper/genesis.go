@@ -27,7 +27,7 @@ func (k Keeper) ExportGenesis(ctx context.Context) *types.GenesisState {
 	return &types.GenesisState{
 		Params: params,
 		// The deprecated top-level field must stay populated and in sync with
-		// params: ValidateGenesis rejects a zero value.
+		// params because ValidateGenesis rejects a zero value.
 		NetworkMinGasPrice: params.NetworkMinGasPrice,
 	}
 }
