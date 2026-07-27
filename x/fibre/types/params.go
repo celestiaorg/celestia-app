@@ -27,13 +27,20 @@ var (
 	// DefaultPaymentPromiseTimeout is the initial value of the payment promise timeout parameter.
 	DefaultPaymentPromiseTimeout = 1 * time.Hour
 	// DefaultPaymentPromiseRetentionWindow is the initial value of the payment promise retention window parameter.
-	DefaultPaymentPromiseRetentionWindow = 24 * time.Hour
+	// It exceeds DefaultWithdrawalDelay by more than MaxPromiseClockSkew so that
+	// the replay invariant enforced by Validate holds for the defaults.
+	DefaultPaymentPromiseRetentionWindow = 25 * time.Hour
 	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window parameter.
 	DefaultPaymentPromiseHeightWindow uint64 = 1000
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
 	// minimum local duration validators keep uploaded shards, decoupled from PaymentPromiseTimeout.
 	DefaultShardRetention = 4 * time.Hour
 )
+
+// MaxPromiseClockSkew is how far a promise's creation_timestamp may lead block
+// time. Absorbs clock drift only, so it must stay well under
+// WithdrawalDelay - PaymentPromiseTimeout.
+const MaxPromiseClockSkew = 10 * time.Minute
 
 // ParamKeyTable returns the param key table for the fibre module
 func ParamKeyTable() paramtypes.KeyTable {
@@ -88,6 +95,22 @@ func (p Params) Validate() error {
 	}
 	if err := validateShardRetention(&p.ShardRetention); err != nil {
 		return err
+	}
+	// A promise stays settleable until creation_timestamp + withdrawal_delay,
+	// which is the freshness check both the normal and the timeout settlement
+	// path apply. Its processed payment record, the only thing that stops a
+	// second settlement, is pruned payment_promise_retention_window after the
+	// first one. If the record is pruned while the promise is still fresh, the
+	// promise can be settled again through MsgPaymentPromiseTimeout, which skips
+	// the expiry and height-window checks, and the escrow owner is charged twice
+	// for one blob.
+	//
+	// The record is anchored to the settlement block time, which may precede the
+	// creation_timestamp by as much as MaxPromiseClockSkew, so the retention
+	// window has to cover the freshness window plus that skew.
+	minRetentionWindow := p.WithdrawalDelay + MaxPromiseClockSkew
+	if p.PaymentPromiseRetentionWindow < minRetentionWindow {
+		return fmt.Errorf("payment promise retention window %s must be at least %s (withdrawal delay %s plus max promise clock skew %s), otherwise a settled promise can be replayed once its processed payment record is pruned", p.PaymentPromiseRetentionWindow, minRetentionWindow, p.WithdrawalDelay, MaxPromiseClockSkew)
 	}
 	return nil
 }

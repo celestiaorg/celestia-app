@@ -443,8 +443,10 @@ message Params {
 | `gas_per_blob_byte` | `1` | Must be nonzero | Stored and exposed as a parameter, but not used by the current PayForFibre payment formula |
 | `withdrawal_delay` | `24h` | Must be positive | Sets withdrawal availability and the oldest accepted payment-promise creation time |
 | `payment_promise_timeout` | `1h` | Must be positive | Defines normal promise expiration and when timeout processing becomes valid |
-| `payment_promise_retention_window` | `24h` | Must be positive | Defines when processed-payment replay records are pruned |
+| `payment_promise_retention_window` | `25h` | Must be positive and at least `withdrawal_delay` plus `10m` | Defines when processed-payment replay records are pruned |
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
+
+`payment_promise_retention_window` must be at least `withdrawal_delay + 10m`, where `10m` is the maximum clock skew a promise's `creation_timestamp` may lead block time by. A promise stays settleable until `creation_timestamp + withdrawal_delay`, which is the freshness check applied on both the normal and the timeout settlement path, while its processed-payment record is anchored to the settlement block time and pruned `payment_promise_retention_window` later. Because the settlement block time can precede the `creation_timestamp` by up to the clock skew, the record can prune that much earlier than the promise stops being fresh. If the record is pruned while the promise is still fresh, the promise can be settled a second time through `MsgPaymentPromiseTimeout`, which skips the expiry and height-window checks, and the escrow owner is charged twice for one blob. The default retention window exceeds the default `withdrawal_delay` by an hour to satisfy this with margin.
 
 ## CLI
 

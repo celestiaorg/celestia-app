@@ -834,6 +834,144 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 		suite.Nil(resp)
 		suite.Contains(err.Error(), "invalid parameters")
 	})
+
+	suite.T().Run("invalid params PaymentPromiseRetentionWindow shorter than WithdrawalDelay", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, time.Hour, 1000, 4*time.Hour),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+}
+
+// TestRetentionWindowShorterThanWithdrawalDelayAllowsReplay pins down why
+// Params.Validate rejects a payment_promise_retention_window shorter than the
+// withdrawal_delay. Under such a configuration the replay record is pruned
+// while the promise is still fresh enough to settle again, so the escrow owner
+// is charged twice for a single blob.
+func (suite *MsgServerTestSuite) TestRetentionWindowShorterThanWithdrawalDelayAllowsReplay() {
+	const (
+		withdrawalDelay = 24 * time.Hour
+		promiseTimeout  = time.Hour
+		// Shorter than withdrawalDelay, which is what opens the replay window.
+		retentionWindow = time.Hour
+	)
+
+	// SetParams does not run Params.Validate, standing in for a chain that
+	// installed this configuration before the invariant was enforced.
+	suite.keeper.SetParams(suite.ctx, types.NewParams(
+		types.DefaultGasPerBlobByte,
+		withdrawalDelay,
+		promiseTimeout,
+		retentionWindow,
+		types.DefaultPaymentPromiseHeightWindow,
+		types.DefaultShardRetention,
+	))
+
+	suite.setupValidatorSet()
+	signerPubKey, privKey, signer := suite.newSigner()
+	promise := suite.createPaymentPromise(signerPubKey, privKey)
+
+	// Fund the escrow for two settlements so the replay is not stopped by balance.
+	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+		Signer:           signer,
+		Balance:          balance,
+		AvailableBalance: balance,
+	})
+
+	_, err := suite.msgServer.PayForFibre(suite.ctx, &types.MsgPayForFibre{
+		Signer:              signer,
+		PaymentPromise:      promise,
+		ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+	})
+	suite.Require().NoError(err)
+
+	// Move past the retention window so BeginBlocker prunes the replay record.
+	// The promise is still well within withdrawal_delay of its creation time.
+	suite.ctx = suite.ctx.WithBlockTime(promise.CreationTimestamp.Add(retentionWindow).Add(time.Minute))
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+
+	pp := fibre.PaymentPromise{}
+	suite.Require().NoError(pp.FromProto(&promise))
+	promiseHash, err := pp.Hash()
+	suite.Require().NoError(err)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	suite.Require().False(found, "replay record should have been pruned")
+
+	// The timeout path skips the expiry and height-window checks, so the
+	// withdrawal_delay freshness check and the now-pruned replay record were the
+	// only things standing between this promise and a second settlement.
+	_, err = suite.msgServer.PaymentPromiseTimeout(suite.ctx, &types.MsgPaymentPromiseTimeout{
+		Signer:         sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String(),
+		PaymentPromise: promise,
+	})
+	suite.NoError(err, "the same promise settled a second time")
+
+	account, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(balance.Sub(payment).Sub(payment).String(), account.Balance.String(), "escrow was charged twice for one promise")
+}
+
+// TestFutureDatedPromiseCannotBeReplayedAfterPruning covers the clock-skew edge
+// of the same invariant. A promise may carry a creation_timestamp up to
+// types.MaxPromiseClockSkew ahead of block time, so its replay record is
+// anchored that much earlier than the promise itself and prunes that much
+// sooner. The default retention window has to cover the withdrawal delay plus
+// that skew, otherwise a client with a fast clock can be charged twice.
+func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPruning() {
+	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
+	suite.setupValidatorSet()
+
+	signerPubKey, privKey, signer := suite.newSigner()
+	// The client's clock runs fast by the full allowance.
+	creation := suite.ctx.BlockTime().Add(types.MaxPromiseClockSkew)
+	promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creation)
+
+	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+		Signer:           signer,
+		Balance:          balance,
+		AvailableBalance: balance,
+	})
+
+	_, err := suite.msgServer.PayForFibre(suite.ctx, &types.MsgPayForFibre{
+		Signer:              signer,
+		PaymentPromise:      promise,
+		ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+	})
+	suite.Require().NoError(err)
+
+	// Just before the promise stops being fresh, which is where the replay
+	// window used to sit when the retention window only matched the withdrawal
+	// delay.
+	params := suite.keeper.GetParams(suite.ctx)
+	suite.ctx = suite.ctx.WithBlockTime(creation.Add(params.WithdrawalDelay).Add(-5 * time.Minute))
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+
+	pp := fibre.PaymentPromise{}
+	suite.Require().NoError(pp.FromProto(&promise))
+	promiseHash, err := pp.Hash()
+	suite.Require().NoError(err)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	suite.True(found, "replay record must outlive the promise freshness window")
+
+	_, err = suite.msgServer.PaymentPromiseTimeout(suite.ctx, &types.MsgPaymentPromiseTimeout{
+		Signer:         sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String(),
+		PaymentPromise: promise,
+	})
+	suite.Error(err, "the promise must not settle a second time")
+
+	account, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(balance.Sub(payment).String(), account.Balance.String(), "escrow was charged exactly once")
 }
 
 // TestPayForFibreWithPendingWithdrawals tests that PayForFibre reduces pending withdrawals
