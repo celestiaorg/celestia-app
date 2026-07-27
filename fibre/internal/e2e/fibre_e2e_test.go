@@ -284,7 +284,6 @@ func (s *FibreE2ETestSuite) Test03Put() {
 }
 
 func (s *FibreE2ETestSuite) Test04Download() {
-	t := s.T()
 	ctx := s.cctx.GoContext()
 
 	cases := []struct {
@@ -298,6 +297,7 @@ func (s *FibreE2ETestSuite) Test04Download() {
 
 	for _, tc := range cases {
 		s.Run(tc.name, func() {
+			t := s.T()
 			// wait for a fresh block to avoid clock skew with the payment promise.
 			require.NoError(t, s.cctx.WaitForNextBlock())
 
@@ -313,6 +313,7 @@ func (s *FibreE2ETestSuite) Test04Download() {
 			downloaded, err := s.fibreClient.Download(ctx, result.BlobID, fibre.WithHeight(result.Height))
 			require.NoError(t, err)
 			require.NotNil(t, downloaded)
+			defer downloaded.Free()
 			require.Equal(t, data, downloaded.Data(), "downloaded blob must byte-match the submitted data")
 
 			// Charged on the padded upload size the promise commits to, not len(data).
@@ -361,10 +362,10 @@ func (s *FibreE2ETestSuite) Test05InsufficientEscrow() {
 }
 
 func (s *FibreE2ETestSuite) Test06DownloadFailures() {
-	t := s.T()
 	ctx := s.cctx.GoContext()
 
 	s.Run("NotFound", func() {
+		t := s.T()
 		var c fibre.Commitment
 		_, err := rand.Read(c[:])
 		require.NoError(t, err)
@@ -375,6 +376,7 @@ func (s *FibreE2ETestSuite) Test06DownloadFailures() {
 	})
 
 	s.Run("MalformedID", func() {
+		t := s.T()
 		_, err := s.fibreClient.Download(ctx, fibre.BlobID{0x00})
 		require.Error(t, err, "download of a malformed blob ID must fail")
 		require.ErrorContains(t, err, "blob ID")
