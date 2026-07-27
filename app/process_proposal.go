@@ -142,8 +142,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// we do not need to perform further checks on this transaction,
-			// since it has no PFB
+			if err := app.validateAndApplyFibreProposalTx(ctx, rawTx, sdkTx); err != nil {
+				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre validation failed %d", idx), err)
+				return reject(), nil
+			}
+
+			// We do not need to perform further checks on this transaction,
+			// since it has no PFB.
 			continue
 		}
 

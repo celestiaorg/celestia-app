@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
@@ -16,9 +17,11 @@ import (
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -42,13 +45,14 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 		require.NoError(t, err)
 		signers = append(signers, signer)
+		seedFibreEscrow(t, testApp, addr, 1_000_000)
 		_ = index
 	}
 
 	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
 	pffTxs := make([][]byte, 0, numPFFs)
 	for i := range numPFFs {
-		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i]))
+		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
 	}
 
 	type testCase struct {
@@ -108,7 +112,16 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
 		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(t, err)
-	validPFFTx := newSignedPayForFibreTx(t, signer, accounts[0])
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+	validPFFTx := newSignedPayForFibreTx(t, signer, accounts[0], true)
+	invalidValidatorSignatureTx := newSignedPayForFibreTx(t, signer, accounts[0], false)
+
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: validPFFTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	checkResp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: invalidValidatorSignatureTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, checkResp.Code)
 
 	blobSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
 		user.NewAccount(accounts[1], infos[1].AccountNum, infos[1].Sequence))
@@ -133,6 +146,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 					Time:   time.Now(),
 				})
 				require.NoError(t, err)
+				require.Len(t, resp.Txs, 1)
 				return resp.Txs
 			},
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
@@ -146,9 +160,17 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 					Time:   time.Now(),
 				})
 				require.NoError(t, err)
+				require.Len(t, resp.Txs, 2)
 				return resp.Txs
 			},
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name: "reject pay-for-fibre with invalid validator signatures",
+			txs: func() [][]byte {
+				return [][]byte{invalidValidatorSignatureTx}
+			},
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
 		},
 		{
 			name: "reject block with garbage bytes",
@@ -223,12 +245,50 @@ func newUnsignedMultiMsgTx(t *testing.T, txConfig client.TxConfig, msgs ...sdk.M
 	return txBytes
 }
 
-// newSignedPayForFibreTx creates a signed MsgPayForFibre transaction.
-func newSignedPayForFibreTx(t *testing.T, signer *user.Signer, account string) []byte {
+// newSignedPayForFibreTx creates an SDK-signed MsgPayForFibre transaction with
+// a valid owner signature and optionally valid validator signatures.
+func newSignedPayForFibreTx(
+	t *testing.T,
+	signer *user.Signer,
+	account string,
+	validValidatorSignatures bool,
+) []byte {
 	t.Helper()
 	acc := signer.Account(account)
 	msg := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
-	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(1))
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	msg.PaymentPromise.Signature, _, err = signer.Keyring().Sign(account, signBytes, signing.SignMode_SIGN_MODE_DIRECT)
+	require.NoError(t, err)
+
+	if validValidatorSignatures {
+		validatorSignature, err := testutil.GenesisValidatorPrivateKey().Sign(signBytes)
+		require.NoError(t, err)
+		msg.ValidatorSignatures = [][]byte{validatorSignature}
+	} else {
+		msg.ValidatorSignatures = [][]byte{{0x01}}
+	}
+
+	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
 	require.NoError(t, err)
 	return txBytes
+}
+
+func seedFibreEscrow(t *testing.T, testApp *app.App, owner sdk.AccAddress, amount int64) {
+	t.Helper()
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{
+		ChainID: testutil.ChainID,
+		Height:  testApp.LastBlockHeight(),
+		Time:    time.Now(),
+	})
+	coins := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, amount))
+	require.NoError(t, testApp.BankKeeper.SendCoinsFromAccountToModule(ctx, owner, fibretypes.ModuleName, coins))
+	testApp.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{
+		Signer:           owner.String(),
+		Balance:          coins[0],
+		AvailableBalance: coins[0],
+	})
 }

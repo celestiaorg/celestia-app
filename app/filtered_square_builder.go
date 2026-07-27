@@ -16,13 +16,17 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
-	handler  sdk.AnteHandler
-	txConfig client.TxConfig
-	builder  *square.Builder
+	handler           sdk.AnteHandler
+	proposalTxHandler ProposalTxHandler
+	txConfig          client.TxConfig
+	builder           *square.Builder
 }
+
+type ProposalTxHandler func(ctx sdk.Context, rawTx []byte, tx sdk.Tx) error
 
 func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
+	proposalTxHandler ProposalTxHandler,
 	txConfig client.TxConfig,
 	maxSquareSize,
 	subtreeRootThreshold int,
@@ -32,9 +36,10 @@ func NewFilteredSquareBuilder(
 		return nil, err
 	}
 	return &FilteredSquareBuilder{
-		handler:  handler,
-		txConfig: txConfig,
-		builder:  builder,
+		handler:           handler,
+		proposalTxHandler: proposalTxHandler,
+		txConfig:          txConfig,
+		builder:           builder,
 	}, nil
 }
 
@@ -94,9 +99,6 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		// Set the tx size on the context before calling the AnteHandler
-		ctx = ctx.WithTxBytes(tx)
-
 		msgTypes := msgTypes(sdkTx)
 		if sdkMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
@@ -108,7 +110,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		txCtx, write := ctx.CacheContext()
+		txCtx = txCtx.WithTxBytes(tx)
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		if err == nil && fsb.proposalTxHandler != nil {
+			err = fsb.proposalTxHandler(txCtx, tx, sdkTx)
+		}
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
@@ -126,6 +133,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			}
 			continue
 		}
+		write()
 
 		sdkMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx
@@ -288,10 +296,13 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 
 	for _, rawTx := range payForFibreTxs {
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
-		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so fibreTx is always non-nil.
 		fibreTx, err := tx.TryParseFibreTx(rawTx)
 		if err != nil {
 			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			continue
+		}
+		if fibreTx == nil {
+			logger.Error("synthesizing fibre tx returned nil", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
 			continue
 		}
 
@@ -306,8 +317,6 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		ctx = ctx.WithTxBytes(rawTx)
-
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
 			logger.Error("appending pay-for-fibre transaction to builder", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
@@ -318,7 +327,12 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		txCtx, write := ctx.CacheContext()
+		txCtx = txCtx.WithTxBytes(rawTx)
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		if err == nil && fsb.proposalTxHandler != nil {
+			err = fsb.proposalTxHandler(txCtx, rawTx, sdkTx)
+		}
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
@@ -332,6 +346,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			}
 			continue
 		}
+		write()
 
 		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)
