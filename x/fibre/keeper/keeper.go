@@ -14,6 +14,11 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// maxPromiseClockSkew is how far a promise's creation_timestamp may lead block
+// time. Absorbs clock drift only, so it must stay well under
+// WithdrawalDelay - PaymentPromiseTimeout.
+const maxPromiseClockSkew = 10 * time.Minute
+
 // Keeper handles all the state changes for the fibre module.
 type Keeper struct {
 	cdc           codec.Codec
@@ -109,7 +114,7 @@ func (k Keeper) GetWithdrawal(ctx sdk.Context, signer string, requestedTimestamp
 
 // SetWithdrawal saves a withdrawal to both indexes:
 // 1. Primary index: withdrawals_by_signer/{signer}/{requested_timestamp}
-// 2. Secondary index: withdrawals_by_available/{available_timestamp}/{signer}
+// 2. Secondary index: withdrawals_by_available/{available_timestamp}/{requested_timestamp}/{signer}
 func (k Keeper) SetWithdrawal(ctx sdk.Context, withdrawal types.Withdrawal) {
 	store := ctx.KVStore(k.storeKey)
 	bz := k.cdc.MustMarshal(&withdrawal)
@@ -119,7 +124,7 @@ func (k Keeper) SetWithdrawal(ctx sdk.Context, withdrawal types.Withdrawal) {
 	store.Set(primaryKey, bz)
 
 	// Store in secondary index
-	secondaryKey := types.WithdrawalsByAvailableKey(withdrawal.AvailableTimestamp, withdrawal.Signer)
+	secondaryKey := types.WithdrawalsByAvailableKey(withdrawal.AvailableTimestamp, withdrawal.RequestedTimestamp, withdrawal.Signer)
 	store.Set(secondaryKey, bz)
 }
 
@@ -133,7 +138,7 @@ func (k Keeper) DeleteWithdrawal(ctx sdk.Context, withdrawal types.Withdrawal) {
 	store.Delete(primaryKey)
 
 	// Delete from secondary index
-	secondaryKey := types.WithdrawalsByAvailableKey(withdrawal.AvailableTimestamp, withdrawal.Signer)
+	secondaryKey := types.WithdrawalsByAvailableKey(withdrawal.AvailableTimestamp, withdrawal.RequestedTimestamp, withdrawal.Signer)
 	store.Delete(secondaryKey)
 }
 
@@ -164,17 +169,19 @@ func (k Keeper) GetWithdrawalsByAvailableIterator(ctx sdk.Context, upToTime time
 	return store.Iterator(start, end)
 }
 
-// ParseWithdrawalsByAvailableKey parses the available_at timestamp and signer from the key
-func (k Keeper) ParseWithdrawalsByAvailableKey(key []byte) (available time.Time, signer string, err error) {
+// ParseWithdrawalsByAvailableKey parses available_at, requested_at, and signer from the key.
+// Key layout: 0x04 || available || "/" || requested || "/" || signer
+func (k Keeper) ParseWithdrawalsByAvailableKey(key []byte) (available, requested time.Time, signer string, err error) {
 	// Remove the prefix
 	key = key[len(types.WithdrawalsByAvailableKeyPrefix):]
 
-	// Parse the timestamp (first 29 bytes as per SDK's FormatTimeBytes)
-	timestampBytes := key[:29]
-
-	available, err = sdk.ParseTimeBytes(timestampBytes)
+	// Parse available timestamp (first 29 bytes as per SDK's FormatTimeBytes)
+	if len(key) < 29 {
+		return time.Time{}, time.Time{}, "", fmt.Errorf("key too short for available timestamp")
+	}
+	available, err = sdk.ParseTimeBytes(key[:29])
 	if err != nil {
-		return time.Time{}, "", fmt.Errorf("failed to parse timestamp: %w", err)
+		return time.Time{}, time.Time{}, "", fmt.Errorf("failed to parse available timestamp: %w", err)
 	}
 
 	// Skip the separator "/"
@@ -183,9 +190,23 @@ func (k Keeper) ParseWithdrawalsByAvailableKey(key []byte) (available time.Time,
 		key = key[1:]
 	}
 
-	// The rest is the signer address
+	// Parse requested timestamp (next 29 bytes)
+	if len(key) < 29 {
+		return time.Time{}, time.Time{}, "", fmt.Errorf("key too short for requested timestamp")
+	}
+	requested, err = sdk.ParseTimeBytes(key[:29])
+	if err != nil {
+		return time.Time{}, time.Time{}, "", fmt.Errorf("failed to parse requested timestamp: %w", err)
+	}
+
+	// Skip the separator "/"
+	key = key[29:]
+	if len(key) > 0 && key[0] == '/' {
+		key = key[1:]
+	}
+
 	signer = string(key)
-	return available, signer, nil
+	return available, requested, signer, nil
 }
 
 // GetProcessedPayment retrieves a processed payment by promiseHash
@@ -324,6 +345,13 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	minAllowedTime := currentTime.Add(-params.WithdrawalDelay)
 	if !creationTime.After(minAllowedTime) {
 		return time.Time{}, fmt.Errorf("creation_timestamp %v must be greater than %v (current_time - withdrawal_delay)", creationTime, minAllowedTime)
+	}
+
+	// Reject a future-dated creation_timestamp (beyond clock skew) on both paths;
+	// see maxPromiseClockSkew for why.
+	maxAllowedTime := currentTime.Add(maxPromiseClockSkew)
+	if creationTime.After(maxAllowedTime) {
+		return time.Time{}, fmt.Errorf("creation_timestamp %v must not be after %v (current_time + max_clock_skew)", creationTime, maxAllowedTime)
 	}
 
 	expirationTime := creationTime.Add(params.PaymentPromiseTimeout)

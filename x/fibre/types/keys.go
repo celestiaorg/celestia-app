@@ -51,12 +51,14 @@ func WithdrawalsBySignerPrefix(signer string) []byte {
 	return append(WithdrawalsBySignerKeyPrefix, []byte(signer)...)
 }
 
-// WithdrawalsByAvailableKey returns the store key for a withdrawal indexed by available time
-// This index is used for efficient time-ordered iteration in BeginBlocker
-func WithdrawalsByAvailableKey(availableAt time.Time, signer string) []byte {
+// WithdrawalsByAvailableKey returns the store key for a withdrawal indexed by available time.
+// Layout: 0x04 || available || "/" || requested || "/" || signer.
+// The requested timestamp keeps the key unique per request after a WithdrawalDelay change.
+func WithdrawalsByAvailableKey(availableAt, requestedAt time.Time, signer string) []byte {
 	key := WithdrawalsByAvailableKeyPrefix
-	timestampBytes := sdk.FormatTimeBytes(availableAt)
-	key = append(key, timestampBytes...)
+	key = append(key, sdk.FormatTimeBytes(availableAt)...)
+	key = append(key, []byte("/")...)
+	key = append(key, sdk.FormatTimeBytes(requestedAt)...)
 	key = append(key, []byte("/")...)
 	return append(key, []byte(signer)...)
 }

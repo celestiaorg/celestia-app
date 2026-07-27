@@ -498,6 +498,30 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	}
 }
 
+func TestPrepareProposalDropsNonPFBIndexWrappedTxs(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	wrappedPFF, err := coretypes.MarshalIndexWrapper(
+		newUnsignedMultiMsgTx(t, enc.TxConfig, newMsgPayForFibre(t)), 0)
+	require.NoError(t, err)
+
+	addr := testnode.RandomAddress().(sdk.AccAddress)
+	sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	wrappedSend, err := coretypes.MarshalIndexWrapper(
+		newUnsignedMultiMsgTx(t, enc.TxConfig, sendMsg), 0)
+	require.NoError(t, err)
+
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{wrappedPFF, wrappedSend},
+		Height: testApp.LastBlockHeight() + 1,
+		Time:   time.Now(),
+	})
+	require.NoError(t, err)
+	require.Empty(t, resp.Txs)
+}
+
 func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfactory.AccountInfo {
 	infos := make([]blobfactory.AccountInfo, len(accs))
 	for i, acc := range accs {

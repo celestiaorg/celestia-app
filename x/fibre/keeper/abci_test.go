@@ -1,6 +1,8 @@
 package keeper_test
 
 import (
+	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -167,6 +169,65 @@ func (suite *ABCITestSuite) TestBeginBlocker_ProcessAvailableWithdrawals() {
 	// Verify withdrawal was deleted from store
 	withdrawals := suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
 	suite.Empty(withdrawals)
+}
+
+func (suite *ABCITestSuite) TestBeginBlocker_BankSendFailureDoesNotMutateEscrow() {
+	// BeginBlocker continues on bank-send errors. Escrow state must not be
+	// persisted before the send, or a failed transfer leaves a pending withdrawal
+	// with a reduced balance and retries corrupt state further.
+
+	privKey := secp256k1.GenPrivKey()
+	signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+
+	depositAmount := sdk.NewCoin("utia", math.NewInt(1000000))
+	_, err := suite.msgServer.DepositToEscrow(suite.ctx, &types.MsgDepositToEscrow{
+		Signer: signer,
+		Amount: depositAmount,
+	})
+	suite.NoError(err)
+
+	withdrawalAmount := sdk.NewCoin("utia", math.NewInt(500000))
+	_, err = suite.msgServer.RequestWithdrawal(suite.ctx, &types.MsgRequestWithdrawal{
+		Signer: signer,
+		Amount: withdrawalAmount,
+	})
+	suite.NoError(err)
+
+	params := suite.keeper.GetParams(suite.ctx)
+	suite.ctx = suite.ctx.WithBlockTime(suite.ctx.BlockTime().Add(params.WithdrawalDelay))
+
+	suite.bankKeeper.SendCoinsFromModuleToAccountFn = func(_ context.Context, _ string, _ sdk.AccAddress, _ sdk.Coins) error {
+		return errors.New("injected bank send failure")
+	}
+
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+
+	escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount, escrowAccount.Balance, "balance must not change when bank send fails")
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.AvailableBalance)
+	withdrawals := suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
+	suite.Len(withdrawals, 1, "withdrawal must remain queued for retry")
+	suite.Equal(withdrawalAmount, withdrawals[0].Amount)
+
+	// A second failed BeginBlock must still leave state unchanged (no double-deduct).
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+	escrowAccount, found = suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount, escrowAccount.Balance)
+	suite.Len(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer), 1)
+
+	suite.bankKeeper.SendCoinsFromModuleToAccountFn = nil
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+
+	escrowAccount, found = suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.Balance)
+	suite.Equal(depositAmount.Sub(withdrawalAmount), escrowAccount.AvailableBalance)
+	suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer))
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_ProcessMultipleWithdrawals() {
@@ -386,6 +447,84 @@ func (suite *ABCITestSuite) TestBeginBlocker_WithdrawalDelayParamChange() {
 	// Verify all withdrawals processed
 	withdrawals = suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
 	suite.Empty(withdrawals, "all withdrawals should be processed")
+}
+
+func (suite *ABCITestSuite) TestBeginBlocker_ShortenedDelayKeepsDistinctAvailableIndexEntries() {
+	// Shortening WithdrawalDelay can make two requests from the same signer share
+	// the same available_timestamp. The available-index key must include
+	// requested_timestamp so the later request does not overwrite the earlier
+	// secondary-index entry and leave it unprocessable by BeginBlocker.
+
+	privKey := secp256k1.GenPrivKey()
+	signer := sdk.AccAddress(privKey.PubKey().Address()).String()
+
+	depositAmount := sdk.NewCoin("utia", math.NewInt(2000000))
+	_, err := suite.msgServer.DepositToEscrow(suite.ctx, &types.MsgDepositToEscrow{
+		Signer: signer,
+		Amount: depositAmount,
+	})
+	suite.NoError(err)
+
+	params := suite.keeper.GetParams(suite.ctx)
+	suite.Equal(24*time.Hour, params.WithdrawalDelay)
+
+	withdrawal1Amount := sdk.NewCoin("utia", math.NewInt(500000))
+	time1 := suite.ctx.BlockTime()
+	_, err = suite.msgServer.RequestWithdrawal(suite.ctx, &types.MsgRequestWithdrawal{
+		Signer: signer,
+		Amount: withdrawal1Amount,
+	})
+	suite.NoError(err)
+
+	// Shorten delay by 1h so a request made 1h later shares the same available time.
+	params.WithdrawalDelay = 23 * time.Hour
+	suite.keeper.SetParams(suite.ctx, params)
+
+	suite.ctx = suite.ctx.WithBlockTime(time1.Add(1 * time.Hour))
+	withdrawal2Amount := sdk.NewCoin("utia", math.NewInt(700000))
+	time2 := suite.ctx.BlockTime()
+	_, err = suite.msgServer.RequestWithdrawal(suite.ctx, &types.MsgRequestWithdrawal{
+		Signer: signer,
+		Amount: withdrawal2Amount,
+	})
+	suite.NoError(err)
+
+	withdrawals := suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer)
+	suite.Len(withdrawals, 2)
+	suite.Equal(time1.Add(24*time.Hour), withdrawals[0].AvailableTimestamp)
+	suite.Equal(time2.Add(23*time.Hour), withdrawals[1].AvailableTimestamp)
+	suite.Equal(withdrawals[0].AvailableTimestamp, withdrawals[1].AvailableTimestamp,
+		"both withdrawals must share the same available timestamp for this collision case")
+
+	// Both secondary-index entries must exist (distinct keys despite same available time).
+	availableAt := withdrawals[0].AvailableTimestamp
+	iterator := suite.keeper.GetWithdrawalsByAvailableIterator(suite.ctx, availableAt)
+	defer iterator.Close()
+
+	var indexed []types.Withdrawal
+	for ; iterator.Valid(); iterator.Next() {
+		availableFromKey, requestedFromKey, signerFromKey, parseErr := suite.keeper.ParseWithdrawalsByAvailableKey(iterator.Key())
+		suite.NoError(parseErr)
+		if signerFromKey != signer || !availableFromKey.Equal(availableAt) {
+			continue
+		}
+		var w types.Withdrawal
+		suite.cdc.MustUnmarshal(iterator.Value(), &w)
+		suite.Equal(requestedFromKey, w.RequestedTimestamp)
+		indexed = append(indexed, w)
+	}
+	suite.Len(indexed, 2, "available index must retain both withdrawals when available times collide")
+
+	// Advance to the shared available time and process both.
+	suite.ctx = suite.ctx.WithBlockTime(availableAt)
+	err = suite.keeper.BeginBlocker(suite.ctx)
+	suite.NoError(err)
+
+	escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.True(found)
+	suite.Equal(depositAmount.Sub(withdrawal1Amount).Sub(withdrawal2Amount), escrowAccount.Balance)
+	suite.Equal(depositAmount.Sub(withdrawal1Amount).Sub(withdrawal2Amount), escrowAccount.AvailableBalance)
+	suite.Empty(suite.keeper.GetWithdrawalsBySigner(suite.ctx, signer), "both withdrawals must be processed")
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_InsufficientEscrowBalanceForSecondWithdrawal() {

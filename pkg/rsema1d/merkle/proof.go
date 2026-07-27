@@ -59,6 +59,9 @@ func RootFromProof(leaf []byte, index int, proof [][]byte) (Root, error) {
 
 	pos := index
 	for _, siblingBytes := range proof {
+		if len(siblingBytes) != NodeSize {
+			return Root{}, fmt.Errorf("proof sibling must be %d bytes, got %d", NodeSize, len(siblingBytes))
+		}
 		var sibling Root
 		copy(sibling[:], siblingBytes)
 

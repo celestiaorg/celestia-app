@@ -165,32 +165,41 @@ func (suite *KeeperTestSuite) TestWithdrawal() {
 
 	suite.T().Run("keeper should parse withdrawals by available key", func(t *testing.T) {
 		testSigner := "celestia15drmhzw5kwgenvemy30rqqqgq52axf5wwrruf7"
+		testRequestedAt := testTime.Add(1 * time.Hour)
 		testAvailableAt := testTime.Add(10 * time.Hour)
 
 		// Create a key using the types function
-		key := types.WithdrawalsByAvailableKey(testAvailableAt, testSigner)
+		key := types.WithdrawalsByAvailableKey(testAvailableAt, testRequestedAt, testSigner)
 
 		// Parse it back
-		parsedTime, parsedSigner, err := suite.keeper.ParseWithdrawalsByAvailableKey(key)
+		parsedAvailable, parsedRequested, parsedSigner, err := suite.keeper.ParseWithdrawalsByAvailableKey(key)
 		suite.NoError(err)
 
 		// Verify parsed values match original
-		suite.Equal(testAvailableAt, parsedTime, "parsed time should match original")
+		suite.Equal(testAvailableAt, parsedAvailable, "parsed available time should match original")
+		suite.Equal(testRequestedAt, parsedRequested, "parsed requested time should match original")
 		suite.Equal(testSigner, parsedSigner, "parsed signer should match original")
 
 		// Test with different signer (different length)
 		testSigner2 := "celestia1abcdefghijklmnopqrstuvwxyz12345678901234"
+		testRequestedAt2 := testTime.Add(2 * time.Hour)
 		testAvailableAt2 := testTime.Add(20 * time.Hour)
 
-		key2 := types.WithdrawalsByAvailableKey(testAvailableAt2, testSigner2)
-		parsedTime2, parsedSigner2, err2 := suite.keeper.ParseWithdrawalsByAvailableKey(key2)
+		key2 := types.WithdrawalsByAvailableKey(testAvailableAt2, testRequestedAt2, testSigner2)
+		parsedAvailable2, parsedRequested2, parsedSigner2, err2 := suite.keeper.ParseWithdrawalsByAvailableKey(key2)
 		suite.NoError(err2)
-		suite.Equal(testAvailableAt2, parsedTime2, "parsed time should match original")
+		suite.Equal(testAvailableAt2, parsedAvailable2, "parsed available time should match original")
+		suite.Equal(testRequestedAt2, parsedRequested2, "parsed requested time should match original")
 		suite.Equal(testSigner2, parsedSigner2, "parsed signer should match original")
 
-		// Test that we can distinguish between different times
-		suite.NotEqual(parsedTime, parsedTime2, "different times should parse differently")
+		// Test that we can distinguish between different times and signers
+		suite.NotEqual(parsedAvailable, parsedAvailable2, "different available times should parse differently")
+		suite.NotEqual(parsedRequested, parsedRequested2, "different requested times should parse differently")
 		suite.NotEqual(parsedSigner, parsedSigner2, "different signers should parse differently")
+
+		// Same available+signer but different requested must produce distinct keys
+		keySameAvailable := types.WithdrawalsByAvailableKey(testAvailableAt, testRequestedAt2, testSigner)
+		suite.NotEqual(key, keySameAvailable, "requested timestamp must uniquify the available-index key")
 	})
 
 	suite.T().Run("keeper should get withdrawals by available timestamp", func(t *testing.T) {
@@ -235,7 +244,7 @@ func (suite *KeeperTestSuite) TestWithdrawal() {
 		// Should find withdrawal1 and withdrawal2, but not withdrawal3
 		var foundWithdrawals []types.Withdrawal
 		for ; iterator.Valid(); iterator.Next() {
-			availableAt, signerFromKey, err := suite.keeper.ParseWithdrawalsByAvailableKey(iterator.Key())
+			availableAt, requestedAt, signerFromKey, err := suite.keeper.ParseWithdrawalsByAvailableKey(iterator.Key())
 			suite.NoError(err)
 
 			// Skip if not one of our test withdrawals (from previous tests)
@@ -248,6 +257,7 @@ func (suite *KeeperTestSuite) TestWithdrawal() {
 			var withdrawal types.Withdrawal
 			suite.cdc.MustUnmarshal(iterator.Value(), &withdrawal)
 			suite.Equal(signerFromKey, withdrawal.Signer, "signer from key should match withdrawal signer")
+			suite.Equal(requestedAt, withdrawal.RequestedTimestamp, "requested time from key should match withdrawal")
 			foundWithdrawals = append(foundWithdrawals, withdrawal)
 		}
 
@@ -584,18 +594,31 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
-	suite.T().Run("payment promise with future creation timestamp should be accepted", func(t *testing.T) {
+	suite.T().Run("payment promise within clock-skew tolerance should be accepted", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		suite.createEscrowAccount(paymentPromise)
 
-		// Set creation timestamp to the future
-		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Hour)
+		// A timestamp slightly in the future (within skew) is accepted to absorb clock drift.
+		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Minute)
 
-		// Validate should fail because creation timestamp is in the future
 		expirationTime, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
 		suite.NoError(err)
 		wantTime := paymentPromise.CreationTimestamp.Add(suite.keeper.GetParams(suite.ctx).PaymentPromiseTimeout)
 		suite.Equal(wantTime, expirationTime)
+	})
+
+	suite.T().Run("payment promise dated beyond clock-skew tolerance should be rejected", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+
+		// A far-future timestamp would slide the timeout window past the
+		// withdrawal-execution point, so it must be rejected.
+		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Hour)
+
+		_, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
+		suite.Error(err)
+		suite.Contains(err.Error(), "creation_timestamp")
+		suite.Contains(err.Error(), "must not be after")
 	})
 
 	suite.T().Run("payment promise with timestamp before withdrawal delay should be rejected", func(t *testing.T) {
@@ -709,6 +732,19 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseStatefulForTimeout() {
 		// ValidatePaymentPromiseStatefulForTimeout should accept it (height validation is skipped)
 		_, err := suite.keeper.ValidatePaymentPromiseStatefulForTimeout(suite.ctx, &paymentPromise)
 		suite.NoError(err)
+	})
+
+	suite.T().Run("timeout mechanism should reject a future-dated promise", func(t *testing.T) {
+		paymentPromise := suite.createPaymentPromise()
+		suite.createEscrowAccount(paymentPromise)
+
+		// The future-timestamp upper bound applies on the timeout path too, so a
+		// future-dated promise cannot be settled via timeout either.
+		paymentPromise.CreationTimestamp = suite.ctx.BlockTime().Add(1 * time.Hour)
+
+		_, err := suite.keeper.ValidatePaymentPromiseStatefulForTimeout(suite.ctx, &paymentPromise)
+		suite.Error(err)
+		suite.Contains(err.Error(), "must not be after")
 	})
 }
 
