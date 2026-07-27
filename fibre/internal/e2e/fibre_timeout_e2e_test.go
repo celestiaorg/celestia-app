@@ -116,7 +116,10 @@ func (s *FibreTimeoutTestSuite) TestTimeoutSettlement() {
 	require.Error(t, err, "timeout settlement must be refused before the promise expires")
 	require.ErrorContains(t, err, "timed out")
 
-	time.Sleep(promiseTimeout + 2*time.Second)
+	expiration := promiseProto.CreationTimestamp.Add(promiseTimeout)
+	for time.Now().Before(expiration) {
+		require.NoError(t, s.cctx.WaitForNextBlock())
+	}
 	require.NoError(t, s.cctx.WaitForNextBlock())
 	require.NoError(t, submit(), "timeout settlement should succeed once the promise has expired")
 
