@@ -2,6 +2,7 @@ package ante
 
 import (
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
@@ -10,7 +11,8 @@ import (
 var _ sdk.AnteDecorator = MsgExecDecorator{}
 
 // MsgExecDecorator ensures that the tx does not contain a MsgExec with a
-// nested MsgExec or MsgPayForBlobs.
+// nested MsgExec or a message whose special transaction-level validation
+// cannot be preserved through authz.
 type MsgExecDecorator struct{}
 
 func NewMsgExecDecorator() *MsgExecDecorator {
@@ -30,6 +32,9 @@ func (mgk MsgExecDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 				}
 				if _, ok := nestedMsg.(*blobtypes.MsgPayForBlobs); ok {
 					return ctx, sdkerrors.ErrNotSupported.Wrapf("MsgPayForBlobs inside MsgExec is not supported")
+				}
+				if _, ok := nestedMsg.(*fibretypes.MsgPayForFibre); ok {
+					return ctx, sdkerrors.ErrNotSupported.Wrapf("MsgPayForFibre inside MsgExec is not supported")
 				}
 			}
 		}

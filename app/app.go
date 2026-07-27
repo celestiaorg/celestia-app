@@ -212,6 +212,9 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
+	// pffSignatureVerificationCache records successful PayForFibre validator
+	// signature-verification results, keyed by transaction hash.
+	pffSignatureVerificationCache sync.Map
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -546,6 +549,9 @@ func New(
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
+		app.FibreKeeper,
+		app.IsPayForFibreSignatureVerificationCached,
+		app.CachePayForFibreSignatureVerification,
 	))
 
 	protoFiles, err := proto.MergedRegistry()
@@ -602,6 +608,7 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
+		app.pffSignatureVerificationCache.Delete(pffSignatureVerificationCacheKey(tx))
 	}
 
 	return res, nil

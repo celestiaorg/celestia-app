@@ -6,6 +6,8 @@ import (
 	txsigning "cosmossdk.io/x/tx/signing"
 	blobante "github.com/celestiaorg/celestia-app/v10/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
+	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v10/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -25,6 +27,9 @@ func NewAnteHandler(
 	minfeeKeeper *minfeekeeper.Keeper,
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
+	fibreKeeper *fibrekeeper.Keeper,
+	isPFFSignatureVerificationCached func(tx []byte) bool,
+	cachePFFSignatureVerification func(tx []byte),
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -72,6 +77,13 @@ func NewAnteHandler(
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
+		// Verify the validator signatures of MsgPayForFibre messages, cached
+		// by tx hash so verification runs once per tx across ABCI phases.
+		fibreante.NewFibreSignatureDecorator(
+			fibreKeeper,
+			isPFFSignatureVerificationCached,
+			cachePFFSignatureVerification,
+		),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.

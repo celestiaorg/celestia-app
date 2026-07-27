@@ -42,6 +42,9 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.MinFeeKeeper,
 		&a.CircuitKeeper,
 		a.GovParamFilters(),
+		a.FibreKeeper,
+		a.IsPayForFibreSignatureVerificationCached,
+		a.CachePayForFibreSignatureVerification,
 	)
 
 	fsb, err := app.NewFilteredSquareBuilder(

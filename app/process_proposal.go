@@ -51,6 +51,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
+		app.FibreKeeper,
+		app.IsPayForFibreSignatureVerificationCached,
+		app.CachePayForFibreSignatureVerification,
 	)
 	blockHeader := ctx.BlockHeader()
 
@@ -105,16 +108,21 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 
 			// Validate MsgPayForFibre constraints.
-			pffCount := countMsgPayForFibre(sdkTx)
-			if pffCount > 1 || (pffCount == 1 && len(msgs) != 1) {
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))
+			payForFibre, err := extractPayForFibre(sdkTx)
+			if err != nil {
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d: %s", idx, err))
 				return reject(), nil
 			}
 
-			if pffCount == 1 {
+			if payForFibre != nil {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
+					return reject(), nil
+				}
+
+				if _, err := app.FibreKeeper.ValidatePaymentPromiseStateful(ctx, &payForFibre.PaymentPromise); err != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre validation failed %d", idx), err)
 					return reject(), nil
 				}
 			} else {

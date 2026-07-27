@@ -31,6 +31,9 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
+		app.FibreKeeper,
+		app.IsPayForFibreSignatureVerificationCached,
+		app.CachePayForFibreSignatureVerification,
 	)
 
 	fsb, err := NewFilteredSquareBuilder(

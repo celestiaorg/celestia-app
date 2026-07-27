@@ -53,6 +53,13 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
+	// A MsgPayForFibre mixed with other messages can never be included in a
+	// valid block. Its validator signatures are verified by the fibre ante
+	// decorator during forwardCheckTx.
+	if _, err := extractPayForFibre(sdkTx); err != nil {
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+
 	return app.forwardCheckTx(req, sdkTx)
 }
 
