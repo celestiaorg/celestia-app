@@ -308,8 +308,15 @@ func dropLocalhostClient(cdc codec.Codec, genState map[string]json.RawMessage) e
 			metadata = append(metadata, entry)
 		}
 	}
+	consensus := make(ibcclienttypes.ClientsConsensusStates, 0, len(ibcGenesis.ClientGenesis.ClientsConsensus))
+	for _, entry := range ibcGenesis.ClientGenesis.ClientsConsensus {
+		if entry.ClientId != ibcexported.LocalhostClientID {
+			consensus = append(consensus, entry)
+		}
+	}
 	ibcGenesis.ClientGenesis.Clients = clients
 	ibcGenesis.ClientGenesis.ClientsMetadata = metadata
+	ibcGenesis.ClientGenesis.ClientsConsensus = consensus
 
 	updated, err := cdc.MarshalJSON(&ibcGenesis)
 	if err != nil {

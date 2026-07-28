@@ -17,6 +17,11 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	commitmenttypes "github.com/cosmos/ibc-go/v8/modules/core/23-commitment/types"
+	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
+	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
+	ibctm "github.com/cosmos/ibc-go/v8/modules/light-clients/07-tendermint"
 	"github.com/stretchr/testify/require"
 )
 
@@ -219,6 +224,45 @@ func TestExportedGenesisStartsANewChain(t *testing.T) {
 	// InitChain's writes only reach the committed store once a block finalizes them.
 	execBlock(t, newChain, func(sdk.Context) {})
 	require.Equal(t, int64(1), newChain.LastBlockHeight())
+}
+
+func TestExportDropsAllLocalhostClientState(t *testing.T) {
+	testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+
+	// Localhost normally has no consensus states. Add one to cover exported
+	// states from versions that did persist them and ensure that removing the
+	// client cannot leave an invalid, orphaned consensus-state entry.
+	execBlock(t, testApp, func(ctx sdk.Context) {
+		testApp.IBCKeeper.ClientKeeper.SetClientConsensusState(
+			ctx,
+			ibcexported.LocalhostClientID,
+			ibcclienttypes.NewHeight(0, 1),
+			ibctm.NewConsensusState(
+				util.GenesisTime,
+				commitmenttypes.NewMerkleRoot(bytes.Repeat([]byte{1}, 32)),
+				bytes.Repeat([]byte{2}, 32),
+			),
+		)
+	})
+
+	exported, err := testApp.ExportAppStateAndValidators(true, nil, nil)
+	require.NoError(t, err)
+
+	var appState map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(exported.AppState, &appState))
+	var ibcGenesis ibctypes.GenesisState
+	testApp.AppCodec().MustUnmarshalJSON(appState[ibcexported.ModuleName], &ibcGenesis)
+
+	for _, client := range ibcGenesis.ClientGenesis.Clients {
+		require.NotEqual(t, ibcexported.LocalhostClientID, client.ClientId)
+	}
+	for _, metadata := range ibcGenesis.ClientGenesis.ClientsMetadata {
+		require.NotEqual(t, ibcexported.LocalhostClientID, metadata.ClientId)
+	}
+	for _, consensus := range ibcGenesis.ClientGenesis.ClientsConsensus {
+		require.NotEqual(t, ibcexported.LocalhostClientID, consensus.ClientId)
+	}
+	require.NoError(t, ibcGenesis.ClientGenesis.Validate())
 }
 
 // TestExportForZeroHeightCreditsRewardsToAccounts asserts where the rewards owed
