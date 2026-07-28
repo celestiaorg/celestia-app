@@ -31,6 +31,20 @@ LDFLAGS_MULTIPLEXER := $(LDFLAGS_COMMON) -X github.com/cosmos/cosmos-sdk/version
 BUILD_FLAGS_STANDALONE := -tags=$(BUILD_TAGS_STANDALONE) -ldflags '$(LDFLAGS_STANDALONE)'
 BUILD_FLAGS_MULTIPLEXER := -tags=$(BUILD_TAGS_MULTIPLEXER) -ldflags '$(LDFLAGS_MULTIPLEXER)'
 
+# The fibre server keeps its version metadata in package main, so that a binary
+# built from source reports a real version rather than "dev". These mirror the
+# values goreleaser injects for release builds, except that the commit is the
+# short hash here, the same way LDFLAGS_COMMON stamps celestia-appd. The date is
+# the commit date rather than the wall clock, so builds of the same commit are
+# reproducible, formatted in UTC to match goreleaser's .CommitDate exactly. Each
+# value falls back to the default already compiled into the binary when git
+# metadata is unavailable, e.g. building from an exported source tree with no
+# .git: an empty -X value blanks the field out rather than leaving the default in
+# place.
+COMMIT_DATE := $(shell TZ=UTC git log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd 2>/dev/null)
+LDFLAGS_FIBRE := -X main.version=$(or $(VERSION),dev) -X main.commit=$(or $(COMMIT),unknown) -X main.buildDate=$(or $(COMMIT_DATE),unknown)
+BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
+
 # NOTE: This version must be updated at the same time as the version in:
 # internal/embedding/data.go
 # .goreleaser.yaml
@@ -411,13 +425,13 @@ test-fuzz:
 build-fibre-server:
 	@mkdir -p build/
 	@echo "--> Building build/fibre"
-	@go build -o build/fibre ./fibre/cmd
+	@go build $(BUILD_FLAGS_FIBRE) -o build/fibre ./fibre/cmd
 .PHONY: build-fibre-server
 
 ## install-fibre-server: Build and install the fibre server binary into the $GOPATH/bin directory.
 install-fibre-server:
 	@echo "--> Installing fibre server"
-	@go build -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
+	@go build $(BUILD_FLAGS_FIBRE) -o $(shell go env GOPATH)/bin/fibre ./fibre/cmd
 .PHONY: install-fibre-server
 
 ## txsim-install: Install the tx simulator.

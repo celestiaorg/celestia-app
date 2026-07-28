@@ -31,7 +31,7 @@ func (k Keeper) processAvailableWithdrawals(ctx sdk.Context) error {
 
 	for ; iterator.Valid(); iterator.Next() {
 		// Parse key to extract available_at timestamp and signer address
-		availableTime, signer, err := k.ParseWithdrawalsByAvailableKey(iterator.Key())
+		availableTime, _, signer, err := k.ParseWithdrawalsByAvailableKey(iterator.Key())
 		if err != nil {
 			// Log error but continue processing other withdrawals
 			k.Logger(ctx).Error("failed to parse withdrawals-by-available key", "error", err)
