@@ -112,18 +112,9 @@ func (p Params) Validate() error {
 	if err := validateShardRetention(&p.ShardRetention); err != nil {
 		return err
 	}
-	// A promise stays settleable until creation_timestamp + withdrawal_delay,
-	// which is the freshness check both the normal and the timeout settlement
-	// path apply. Its processed payment record, the only thing that stops a
-	// second settlement, is pruned payment_promise_retention_window after the
-	// first one. If the record is pruned while the promise is still fresh, the
-	// promise can be settled again through MsgPaymentPromiseTimeout, which skips
-	// the expiry and height-window checks, and the escrow owner is charged twice
-	// for one blob.
-	//
-	// The record is anchored to the settlement block time, which may precede the
-	// creation_timestamp by as much as MaxPromiseClockSkew, so the retention
-	// window has to cover the freshness window plus that skew.
+	// A promise stays settleable until creation_timestamp + MaxPromiseClockSkew + withdrawal_delay.
+	// if the retention window is smaller, then a PP can be processed twice because the first PP
+	// record was pruned from state.
 	minRetentionWindow := p.WithdrawalDelay + MaxPromiseClockSkew
 	if p.PaymentPromiseRetentionWindow < minRetentionWindow {
 		return fmt.Errorf("payment promise retention window %s must be at least %s (withdrawal delay %s plus max promise clock skew %s), otherwise a settled promise can be replayed once its processed payment record is pruned", p.PaymentPromiseRetentionWindow, minRetentionWindow, p.WithdrawalDelay, MaxPromiseClockSkew)
