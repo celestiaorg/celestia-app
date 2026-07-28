@@ -251,11 +251,11 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 
 	iter.Close()
 
-	// At height zero, so that validators this unbonds record an unbonding height of
-	// zero rather than the exported chain's height. Staking rebuilds the unbonding
-	// queue from that field on import and only matures entries whose height has been
-	// reached, so a stale height would leave them unbonding until the new chain
-	// caught up with the old one.
+	// Run the validator-set update at height zero so that any validators unbonded
+	// by this call receive an unbonding height of zero instead of the exported
+	// chain's height. On import, staking rebuilds the unbonding queue from this
+	// height. Retaining the old height would keep those validators unbonding until
+	// the restarted chain reached the exported chain's height.
 	_, err = app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx.WithBlockHeight(0))
 	if err != nil {
 		log.Fatal(err)
