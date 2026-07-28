@@ -5594,16 +5594,19 @@ message EventProcessedPaymentPruned {
   google.protobuf.Duration payment_promise_timeout = 3 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_timeout\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   google.protobuf.Duration payment_promise_retention_window = 4 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_retention_window\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_height_window\&quot;&quot;];
+  google.protobuf.Duration shard_retention = 6 [(gogoproto.moretags) = &quot;yaml:\&quot;shard_retention\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
 }
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Validation</th><th>Current use</th></tr></thead><tbody>
 <tr><td><code>gas_per_blob_byte</code></td><td><code>1</code></td><td>Must be nonzero</td><td>Stored and exposed as a parameter, but not used by the current PayForFibre payment formula</td></tr>
 <tr><td><code>withdrawal_delay</code></td><td><code>24h</code></td><td>Must be positive</td><td>Sets withdrawal availability and the oldest accepted payment-promise creation time</td></tr>
-<tr><td><code>payment_promise_timeout</code></td><td><code>1h</code></td><td>Must be positive</td><td>Defines normal promise expiration and when timeout processing becomes valid</td></tr>
+<tr><td><code>payment_promise_timeout</code></td><td><code>1h</code></td><td>Must be between <code>10m</code> and <code>12h</code></td><td>Defines normal promise expiration and when timeout processing becomes valid</td></tr>
 <tr><td><code>payment_promise_retention_window</code></td><td><code>25h</code></td><td>Must be positive and at least <code>withdrawal_delay</code> plus <code>10m</code></td><td>Defines when processed-payment replay records are pruned</td></tr>
 <tr><td><code>payment_promise_height_window</code></td><td><code>1000</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
+<tr><td><code>shard_retention</code></td><td><code>4h</code></td><td>Must be between <code>10m</code> and <code>168h</code></td><td>Sets the local retention floor validators apply to uploaded shards</td></tr>
 </tbody></table>
 </div>
+<p><code>payment_promise_timeout</code> is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside both the <code>withdrawal_delay</code> window gating its <code>creation_timestamp</code> and the <code>payment_promise_retention_window</code> record that prevents double settlement. <code>shard_retention</code> is bounded below so shards outlive the window in which a client fetches them back, and above to cap the local storage obligation it places on assigned validators.</p>
 <p><code>payment_promise_retention_window</code> must be at least <code>withdrawal_delay + 10m</code>, where <code>10m</code> is the maximum clock skew a promise's <code>creation_timestamp</code> may lead block time by. A promise stays settleable until <code>creation_timestamp + withdrawal_delay</code>, which is the freshness check applied on both the normal and the timeout settlement path, while its processed-payment record is anchored to the settlement block time and pruned <code>payment_promise_retention_window</code> later. Because the settlement block time can precede the <code>creation_timestamp</code> by up to the clock skew, the record can prune that much earlier than the promise stops being fresh. If the record is pruned while the promise is still fresh, the promise can be settled a second time through <code>MsgPaymentPromiseTimeout</code>, which skips the expiry and height-window checks, and the escrow owner is charged twice for one blob. The default retention window exceeds the default <code>withdrawal_delay</code> by an hour to satisfy this with margin.</p>
 <h2 id="cli"><a class="header" href="#cli">CLI</a></h2>
 <p>The transaction CLI exposes:</p>
