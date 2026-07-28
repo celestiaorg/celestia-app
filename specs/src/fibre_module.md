@@ -435,6 +435,7 @@ message Params {
   google.protobuf.Duration payment_promise_timeout = 3 [(gogoproto.moretags) = "yaml:\"payment_promise_timeout\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   google.protobuf.Duration payment_promise_retention_window = 4 [(gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
+  google.protobuf.Duration shard_retention = 6 [(gogoproto.moretags) = "yaml:\"shard_retention\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
 }
 ```
 
@@ -442,9 +443,12 @@ message Params {
 | --- | --- | --- | --- |
 | `gas_per_blob_byte` | `1` | Must be nonzero | Stored and exposed as a parameter, but not used by the current PayForFibre payment formula |
 | `withdrawal_delay` | `24h` | Must be positive | Sets withdrawal availability and the oldest accepted payment-promise creation time |
-| `payment_promise_timeout` | `1h` | Must be positive | Defines normal promise expiration and when timeout processing becomes valid |
+| `payment_promise_timeout` | `1h` | Must be between `10m` and `12h` | Defines normal promise expiration and when timeout processing becomes valid |
 | `payment_promise_retention_window` | `24h` | Must be positive | Defines when processed-payment replay records are pruned |
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
+| `shard_retention` | `4h` | Must be between `10m` and `168h` | Sets the local retention floor validators apply to uploaded shards |
+
+`payment_promise_timeout` is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside both the `withdrawal_delay` window gating its `creation_timestamp` and the `payment_promise_retention_window` record that prevents double settlement. `shard_retention` is bounded below so shards outlive the window in which a client fetches them back, and above to cap the local storage obligation it places on assigned validators.
 
 ## CLI
 
