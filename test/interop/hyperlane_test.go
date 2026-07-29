@@ -433,9 +433,12 @@ func (s *HyperlaneTestSuite) CreateSyntheticToken(chain *ibctesting.TestChain, i
 }
 
 func (s *HyperlaneTestSuite) EnrollRemoteRouter(chain *ibctesting.TestChain, tokenID util.HexAddress, domain uint32, recvContract string) {
+	receiverContract, err := util.DecodeHexAddress(recvContract)
+	s.Require().NoError(err)
+
 	remoteRouter := &warptypes.RemoteRouter{
 		ReceiverDomain:   domain,
-		ReceiverContract: recvContract,
+		ReceiverContract: receiverContract,
 		Gas:              math.ZeroInt(),
 	}
 
