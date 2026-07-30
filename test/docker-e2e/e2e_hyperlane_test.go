@@ -573,7 +573,7 @@ func (s *HyperlaneTestSuite) EnrollRemoteRouters(ctx context.Context, chain *cos
 
 	evmDomain := s.GetDomainForChain(ctx, chainName, deployer)
 	remoteTokenRouter := evm.PadAddress(tokenRouter) // leftpad to bytes32
-	err = deployer.EnrollRemoteRouterOnCosmos(ctx, broadcaster, signer, tokenID, evmDomain, remoteTokenRouter.String())
+	err = deployer.EnrollRemoteRouterOnCosmos(ctx, broadcaster, signer, tokenID, evmDomain, remoteTokenRouter)
 	s.Require().NoError(err)
 }
 
