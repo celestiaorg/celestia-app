@@ -35,6 +35,22 @@ var (
 	DefaultShardRetention = 4 * time.Hour
 )
 
+const (
+	// MinPaymentPromiseTimeout is the lower bound of the payment promise timeout
+	// parameter. A promise has to stay valid long enough for the client to upload
+	// its shards to the assigned validators, collect their signatures, and get
+	// MsgPayForFibre included in a block.
+	MinPaymentPromiseTimeout = 10 * time.Minute
+	// MaxPaymentPromiseTimeout is the upper bound of the payment promise timeout
+	// parameter.
+	MaxPaymentPromiseTimeout = 12 * time.Hour
+
+	// MinShardRetention is the lower bound of the shard retention parameter.
+	MinShardRetention = 10 * time.Minute
+	// MaxShardRetention is the upper bound of the shard retention parameter.
+	MaxShardRetention = 7 * 24 * time.Hour
+)
+
 // ParamKeyTable returns the param key table for the fibre module
 func ParamKeyTable() paramtypes.KeyTable {
 	return paramtypes.NewKeyTable().RegisterParamSet(&Params{})
@@ -141,8 +157,12 @@ func validatePaymentPromiseTimeout(v any) error {
 		return fmt.Errorf("payment promise timeout cannot be nil")
 	}
 
-	if *duration <= 0 {
-		return fmt.Errorf("payment promise timeout must be positive: %s", *duration)
+	if *duration < MinPaymentPromiseTimeout {
+		return fmt.Errorf("payment promise timeout must be at least %s: %s", MinPaymentPromiseTimeout, *duration)
+	}
+
+	if *duration > MaxPaymentPromiseTimeout {
+		return fmt.Errorf("payment promise timeout must be at most %s: %s", MaxPaymentPromiseTimeout, *duration)
 	}
 
 	return nil
@@ -191,8 +211,12 @@ func validateShardRetention(v any) error {
 		return fmt.Errorf("shard retention cannot be nil")
 	}
 
-	if *duration <= 0 {
-		return fmt.Errorf("shard retention must be positive: %s", *duration)
+	if *duration < MinShardRetention {
+		return fmt.Errorf("shard retention must be at least %s: %s", MinShardRetention, *duration)
+	}
+
+	if *duration > MaxShardRetention {
+		return fmt.Errorf("shard retention must be at most %s: %s", MaxShardRetention, *duration)
 	}
 
 	return nil
