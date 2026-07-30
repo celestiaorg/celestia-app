@@ -12,7 +12,7 @@ Proposed
 
 The Fibre server writes every uploaded shard to disk. Nothing today caps how full that disk gets, so a busy or hostile client can grow it without limit. This ADR adds an admission limit to the upload path.
 
-The limit is occupancy-based. Each validator tracks how many bytes of shards it currently holds and refuses new uploads once that reaches a disk budget the operator sets. An over-budget upload is rejected right away with a retry-after hint. Because shards are pruned after a retention window (4h by default), occupancy falls as old shards age out, so the budget is a moving ceiling rather than a permanent wall.
+The limit is occupancy-based. Each validator tracks how many bytes of shards it currently holds and refuses new uploads once that reaches a disk budget. The budget is not set per operator: one governance parameter fixes the storage a full-stake validator should hold, and each server derives its own budget from that and its stake. An over-budget upload is rejected right away with a retry-after hint. Because shards are pruned after a retention window (4h by default), occupancy falls as old shards age out, so the budget is a moving ceiling rather than a permanent wall.
 
 The bound is enforced by measuring the disk directly, not by translating a byte rate into a disk figure. A few transport-level caps (concurrent streams, connections, keepalive) bound memory alongside it.
 
@@ -46,10 +46,10 @@ Three facts about Fibre shape the design.
 
 ### Requirements
 
-- **R1** — Bound each node's disk to a budget the operator sets, directly and at all times.
+- **R1** — Bound each node's disk to a budget, directly and at all times, without relying on operators to set it correctly.
 - **R2** — New clients or heavier usage must not break correctness or force a redesign. Fairness between clients is nice to have, but separate.
 - **R3** — Keep the `2/3` quorum reachable while the limiter is throttling.
-- **R4** — Keep it simple: an operator-set budget, tunable, removable via a CLI flag.
+- **R4** — Keep it simple: one governance parameter, derived per node, with a CLI flag to disable.
 
 ### Out of scope
 
@@ -57,21 +57,27 @@ Two nearby things are excluded. The first is limiting throughput inside block pr
 
 ## Decision
 
-### Sizing — the budget is the cap
+### Sizing — derive the budget from stake
 
-We choose how much disk a validator spends on Fibre, and that number is the limit directly. There is no rate to derive. Occupancy counts real stored bytes — rows plus proofs, the RLC vector, and indices — so the budget is plain disk bytes, with no charged-to-stored translation: an operator with `D` bytes of disk for its stake share sets `budget = D − headroom`.
+The budget is the cap directly; there is no rate to derive. We do not ask each operator to set it, because a validator with plenty of disk that never updates its local number would throttle, or even deny quorum for the whole network. Instead one governance parameter, `FullStakeStorageBudget`, fixes the shard storage a 100%-stake validator should hold, and each server derives its own budget from that and its stake.
+
+Storage is already stake-weighted: a validator at stake `s` is assigned an `assignmentFraction` of the rows (about `min(1, 3s)`, with the `MinRowsPerValidator` floor for the smallest; `Set.Assign`), so it stores that fraction of a full shard per blob. The budget follows the same fraction:
+
+> `budget(v) = min(FullStakeStorageBudget × assignmentFraction(v), localDisk − headroom)`
+
+The first term is network-consistent: every server computes it the same way from on-chain stake. The `localDisk` clamp is a safety floor so a node never targets more than it physically has. Normally the first term governs, so admission is coordinated across validators; an under-provisioned node runs at its real disk limit instead and should alert that it is below the requirement its stake implies. Occupancy counts real stored bytes, so `FullStakeStorageBudget` is in plain disk bytes, with no charged-to-stored translation.
+
+Deriving from stake also matches where data lands. A small validator's disk rarely fills: a PFF needs signatures covering `2/3` of stake, so if the large validators are full, the blob is rejected network-wide and the small validator's spare disk goes unused anyway. Sizing its budget down costs nothing and spares small operators from provisioning disk that would not pay off.
 
 The retention window still matters, but only for how fast space frees up, not for the cap. Without pruning, occupancy would only rise and the store would sit permanently at budget. Because each shard prunes after the window, occupancy falls as shards age out, so the store retreats below the budget instead of settling at it. Steady-state throughput is then whatever prunes out per unit time; the network self-regulates without a set rate.
 
-Because the budget is each node's own disk, and disks differ, it is not a network-wide value. Consensus impact covers what that costs.
-
 ### Model — occupancy now, per-signer maybe later
 
-We use **Model 5**: each validator admits an upload only while its current store size is below the budget it sets locally.
+We use **Model 5**: each validator admits an upload only while its current store size is below its budget (derived from stake as in Sizing).
 
-Occupancy meters disk directly: the budget is the cap, with no rate to derive and no window assumption behind the bound. Because occupancy is read from the store, not held in memory, a restart or crash cannot lose it — the node re-reads its real disk use on startup and keeps the same ceiling.
+Occupancy meters disk directly: the budget is the cap, with no rate to derive and no window assumption behind the bound. Because occupancy is read from the store, not held in memory, a restart or crash cannot lose it: the node re-reads its real disk use on startup and keeps the same ceiling.
 
-The cost is that admission is no longer uniform. Each node caps by its own disk, so near the budget one validator can admit a blob that another, momentarily fuller, rejects — the model's main weakness, though it does not put the `2/3` quorum at serious risk (see Consensus impact). Models 2 and 3 are worse: they charge structurally different amounts for the same blob, so admission diverges at any occupancy, not only near the cap. A global token bucket (Model 1) avoids divergence but bounds disk only indirectly. We take occupancy because a direct, restart-proof disk ceiling outweighs the soft near-cap divergence.
+The cost is that admission is not uniform the way a token bucket's is. Occupancy is per-node state, so near the budget one node can admit a blob another momentarily rejects. Stake-derived budgets keep this mild: fill fractions equalize, so it is mostly timing jitter and does not put the `2/3` quorum at serious risk (see Consensus impact). Models 2 and 3 are worse: they charge structurally different amounts for the same blob, so admission diverges at any occupancy, not only near the cap. A global token bucket (Model 1) avoids divergence but bounds disk only indirectly. We take occupancy because a direct, restart-proof disk ceiling outweighs the soft near-cap divergence.
 
 Model 5 gives no fairness between clients. That is fine now: there is one client, and the budget bounds disk no matter how many clients appear. **Model 4**, a per-signer sub-limit under the same budget, is left for later, when there is real contention to manage. It can be added without breaking anything, because clients see the same rejection either way. If contested multi-client use is expected early, it can ship in v1 instead.
 
@@ -83,9 +89,9 @@ When the store is at budget, the server rejects the upload right away with `Reso
 
 The retry-after hint is coarser than a rate limiter's. A token bucket refills at a known rate and can say exactly when enough returns; occupancy only falls when shards prune, in once-a-minute batches, so the server estimates — the prune interval, or the time until the oldest shards expire, is a reasonable hint.
 
-Blocking would be worse: it ties up server handlers, spreads unpredictable latency across validators, and lets one client stall others. Reject-fast avoids all of that. It does need a client change — the client must honor the hint and keep its quorum — and we make that change now, while Fibre has no production users; it is harmless today and breaking once clients rely on the server absorbing the wait.
+Blocking would be worse: it ties up server handlers, spreads unpredictable latency across validators, and lets one client stall others. Reject-fast avoids all of that. It does need a client change (the client must honor the hint and keep its quorum), and we make it now, while Fibre has no production users: harmless today, breaking once clients rely on the server absorbing the wait.
 
-Rejecting has one cost: an over-budget reject sends the client off to retry, which can pile up if the next node is also full. A short queue that blocks briefly instead of rejecting would smooth that out near the boundary. We defer it for two reasons. The operator leaves headroom below the budget, so the store usually has room and rejection is rare. And when it does reject, freeing space waits on the next prune — up to the prune interval away, too long to park a live handler holding its full message (~132 MiB) and a stream slot, which is the very in-flight cap this design otherwise drops. See Alternative Approaches.
+Rejecting has one cost: an over-budget reject sends the client off to retry, which can pile up if the next node is also full. A short queue that blocks briefly instead of rejecting would smooth that out near the boundary. We defer it for two reasons. The budget normally has headroom, so the store usually has room and rejection is rare. And when it does reject, freeing space waits on the next prune — up to the prune interval away, too long to park a live handler holding its full message (~132 MiB) and a stream slot, which is the very in-flight cap this design otherwise drops. See Alternative Approaches.
 
 ## Detailed Design
 
@@ -110,6 +116,7 @@ Because occupancy is a concrete number, a validator can expose it: a capacity en
 
 ### The limiter
 
+- **Budget.** Derived per node from the `FullStakeStorageBudget` governance parameter and the validator's stake (see Sizing), clamped to local disk minus headroom, and recomputed when stake changes. There is no operator-set budget.
 - **Occupancy counter.** An in-memory byte count of stored shards, seeded from the store's actual on-disk size at startup. Each admitted upload adds its stored size; each prune's bytes come off at the next resync.
 - **Seed on startup.** Occupancy is read from the store directory at startup, so a restart resumes at the real disk use, never at zero. There is no in-memory state to lose across a restart or crash — the store on disk is the source of truth.
 - **Authoritative resync.** On every prune tick (once a minute, `fibre/server_prune.go`) the counter is reset to the store's real on-disk size, which picks up the prune's deletions and corrects any estimation drift or post-crash discrepancy. Admissions are counted the moment they are reserved, so the counter never sits below true occupancy — the safe direction.
@@ -133,9 +140,9 @@ Together these bound receive memory and connection load. With them plus the veri
 
 ### Configuration and tuning
 
-The budget is local operator config, not a governance value: it is the disk each operator allots to Fibre, and disks differ, so there is no network-wide number that must match. Under occupancy each node protects its own disk, and the network's effective Fibre capacity is set by how many validators, by stake, have headroom at a given moment. The limiter is disabled per node via a CLI flag.
+The only tunable is the `FullStakeStorageBudget` governance parameter; every per-node budget is derived from it. Making it governance-changeable, rather than local config, removes the failure mode where a validator has the disk but never updates a local number and quietly throttles the network. Because it is normalized to full stake and scaled per node, one on-chain value fits validators with different disks and stakes. The only local control is a CLI flag to disable the limiter, an emergency off-switch; there is no local budget to misconfigure.
 
-One invariant matters: `budget ≥ MaxShardSize`. A node whose budget is below a single shard would reject every upload, so a startup assertion should fail loudly rather than silently refusing all traffic.
+One invariant matters: a node's budget must cover at least one of its own shards, or it rejects everything. Each server checks its derived budget against its own maximum shard at startup and on any stake or parameter change, and fails loudly otherwise. At the governance level this means `FullStakeStorageBudget ≥ MaxShardSize` (a full-stake shard); the per-node check is what actually guarantees it, since the smallest validators also carry a fixed RLC component that does not shrink with stake.
 
 ### Per-signer sub-limit (Model 4)
 
@@ -148,22 +155,22 @@ Using the defaults (`fibre/protocol_params.go`, `x/fibre/types/params.go`): `Row
 - Max blob: `MaxBlobSize = 4096 × 32 KiB = 128 MiB`.
 - Max stored shard: `MaxShardSize = 129.83 MiB`, the 128 MiB of rows plus ~1.83 MiB of per-shard overhead (proofs `4096 × 448 B`, RLC `4096 × 16 B`, indices `4096 × 4 B`; `MaxShardSize` in `protocol_params.go`).
 
-A worked budget. An operator allots 1 TiB of disk to Fibre for its stake share and leaves ~5% headroom, so it sets `budget ≈ 970 GiB`. The node admits uploads until its shard store reaches that, then rejects until pruning drops it back below. Peak disk is the budget by construction — there is no rate or burst to compute. How fast the store fills and drains depends on load and the 4h window, but the ceiling does not move. No budget is fixed yet, so the exact number is still open.
+A worked budget. Say governance sets `FullStakeStorageBudget = 1 TiB`, the disk a 100%-stake validator devotes to Fibre. A validator at 10% stake has `assignmentFraction = min(1, 0.3) = 0.3`, so its derived budget is `≈ 307 GiB`; a validator at or above `1/3` stake gets the full `1 TiB`. Each then clamps to its own disk minus headroom. The node admits uploads until its store reaches that budget, then rejects until pruning drops it back below. Peak disk is the budget by construction — there is no rate or burst to compute. No value is fixed yet, so `FullStakeStorageBudget` is still open.
 
 ### Consensus impact
 
 All five models run off-chain. The limiter lives in the Fibre server, outside the ABCI state machine, and only decides which uploads a validator accepts and signs. It does not touch block validity or determinism: validators with different settings still agree on every block and differ only in what they choose to sign. Two things interact with consensus.
 
-- **Quorum.** `MsgPayForFibre` settles against the voting-power threshold (`votingPower >= TotalVotingPower × 2/3` in `fibre/validator/signature_set.go`, summing `val.VotingPower` with integer division, so the check is `>=` a floored threshold), not validator count. A validator that rejects does not sign, so throttling can stop a client from reaching the threshold. Under occupancy this is where uniformity is softest: admission depends on each node's local disk, which diverges near the budget. Two things keep it tolerable. First, the workload is shared — every client uploads to every validator, each stores its stake-proportional slice, all on the same retention window — so occupancy tracks closely across the set and diverges only near the cap. Second, the `MinRowsPerValidator` floor makes small validators fill proportionally faster, so the nodes that saturate first are low-stake; the `2/3` threshold stays reachable unless the network is genuinely at budget across most of its stake, which is real overload where any limiter would reject. The sharper risk is not the floor but the local budget: quorum needs signatures covering `2/3` of stake, so a high-stake validator that saturates early — not from load but from too small a budget — has outsized impact, where a small one does not. On a stake-concentrated network (a handful of validators past `1/3`) this matters most. It is inherent to per-node budgets, and the mitigation is the same discipline operators already apply to disk: size the budget to assigned load, which scales with stake.
-- **The budget as local config.** A token bucket's rate would have to be a governance value so every validator throttled identically. Occupancy has no such value, because the budget is each node's own disk and disks differ, so it stays local operator config plus a CLI off-switch. The tradeoff is explicit: we give up guaranteed-uniform admission for a direct, per-node disk bound. Enforcement lives entirely in the off-chain server either way.
+- **Quorum.** `MsgPayForFibre` settles against the voting-power threshold (`votingPower >= TotalVotingPower × 2/3` in `fibre/validator/signature_set.go`, summing `val.VotingPower` with integer division, so the check is `>=` a floored threshold), not validator count. A validator that rejects does not sign, so throttling can stop a client from reaching the threshold. Deriving the budget from stake keeps this mild: a validator's storage and its budget scale by the same `assignmentFraction`, so every node's fill fraction is about `load / FullStakeStorageBudget` under shared traffic. Validators saturate together rather than one admitting what another rejects, so what is left near the cap is timing jitter, not structural divergence. The residual risk is physical: a high-stake validator whose disk sits below its derived budget runs at the clamped, lower value and can saturate early, and quorum needs `2/3` of stake. Governance makes that an explicit on-chain requirement (provision `FullStakeStorageBudget` times your stake) rather than a silent misconfiguration, so it is visible and alertable, though it cannot force operators to have the disk.
+- **The budget as a governance parameter.** A single on-chain value, `FullStakeStorageBudget`, normalized to full stake, and each server derives its own budget from it and its stake. One value fits validators with different disks and stakes, so the *requirement* is uniform by construction while the *per-node* budget still scales. This is why occupancy can use governance where a raw disk number could not: the parameter is normalized, not a physical disk figure. Enforcement stays entirely in the off-chain server; only the parameter lives on-chain.
 
-The kind of limiter that *is* consensus-critical — one inside `PrepareProposal` / `ProcessProposal` that must be deterministic across validators — is out of scope.
+The kind of limiter that *is* consensus-critical (one inside `PrepareProposal` / `ProcessProposal`, which must be deterministic across validators) is out of scope.
 
 ## Alternative Approaches
 
 The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, and reject-fast rejection with a bounded queue left as a possible refinement. A global token bucket (Model 1) is the main runner-up.
 
-**Model 5 — occupancy gating (chosen).** Admit while the store is below a disk budget. The most direct disk enforcement, since a token bucket refills even when nothing is stored; restart-proof, because occupancy is read from disk rather than held in memory; and cheap to build — a counter seeded from the store size, moved up on admission and resynced to the real size on each prune. Sizing is trivial: the budget is the cap. Weaknesses: no rate pacing, so it admits as fast as the network allows until the cap and then rejects until pruning frees space; a coarser retry-after; and admission that diverges near the cap. We accept these because the goal is a disk ceiling, which occupancy enforces exactly.
+**Model 5 — occupancy gating (chosen).** Admit while the store is below a disk budget. The most direct disk enforcement, since a token bucket refills even when nothing is stored; restart-proof, because occupancy is read from disk rather than held in memory; and cheap to build — a counter seeded from the store size, moved up on admission and resynced to the real size on each prune. Sizing is one governance parameter, derived per node from stake. Weaknesses: no rate pacing, so it admits as fast as the network allows until the cap and then rejects until pruning frees space; a coarser retry-after; and some near-cap admission jitter. We accept these because the goal is a disk ceiling, which occupancy enforces exactly.
 
 **Model 1 — global token bucket (main alternative).** One flat `UploadSize` bucket per validator, sized from the budget by `rate = (budget − burst) / window` and `burst = max(128 MiB, rate × window / 2)`. Its strengths mirror Model 5's weaknesses: it paces ingestion to a steady rate, gives an exact retry-after, and keeps admission uniform by construction (flat charge, flat rate, shared input), degrading under overload to "reject everywhere, retry later" rather than a split. Its weaknesses are why we did not choose it: it bounds disk only indirectly, through the assumption that a shard lives exactly one window, and its in-memory tokens reset on restart, so a restarted node can admit a fresh burst on top of shards already on disk and transiently exceed the budget by up to `burst` (`budget / 3`). Closing that hole means reading occupancy from disk on startup anyway — at which point occupancy is doing the load-bearing work and Model 5 is the more direct mechanism. Model 1 becomes the right choice if a steady ingestion rate and clean back-pressure turn into requirements.
 
@@ -182,8 +189,8 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 ### Positive
 
 - The disk bound is direct and exact: the store never knowingly exceeds the budget, and the bound does not rest on a window assumption or a hand-picked rate.
-- Restart-proof by construction — occupancy is read from the store, so a crash or restart cannot lose the accounting or overshoot the budget.
-- Sizing is trivial: the budget is the cap, in the same bytes as the disk.
+- Restart-proof by construction: occupancy is read from the store, so a crash or restart cannot lose the accounting or overshoot the budget.
+- Sizing is one governance parameter; each node derives its budget from stake, so operators have nothing to set and cannot misconfigure it.
 - Simpler to build and remove than a rate limiter: a counter with an authoritative resync, no rate/burst derivation and no reservation library beyond a one-shard in-flight guard.
 - A capacity number falls out naturally, so a client can be told or can query how much room a validator has.
 - The replay double-count hole is closed.
@@ -191,10 +198,10 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 
 ### Neutral
 
-- The budget is local operator config, not a governance value, because disks differ; there is no network-wide number to coordinate.
+- The budget comes from one governance parameter, normalized to full stake and scaled per node, so a single on-chain value fits different disks and stakes.
 - Per-node disk scales with stake, which is intended: more stake, more commission.
 - Two different meters: the new `occupancy_bytes` is the current store level, while the existing `upload_shard.bytes` is a cumulative sum of per-upload stored row bytes.
-- The limit is an operator-set budget and can be disabled per node via a CLI flag.
+- The limit is governance-set and derived per node; only a CLI flag to disable it is local.
 - The counter is in-memory but seeded from disk on startup and resynced from disk each prune, so drift is bounded and self-healing.
 - When many clients hit a full store at once they may retry in sync; jittering the retry-after hint is a possible refinement.
 
@@ -202,8 +209,8 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 
 - No rate pacing: near the cap the store fills as fast as the network allows and then rejects until pruning frees space. If steady ingestion becomes a requirement, a token bucket (Model 1) layered on top would add it.
 - The retry-after hint is coarser than a rate limiter's, because space frees in once-a-minute prune batches rather than continuously.
-- Admission diverges near the cap; a global token bucket would avoid this by construction.
-- Because budgets are local and uncoordinated, quorum reachability depends on high-stake validators provisioning enough disk; an under-provisioned large validator can deny quorum on a stake-concentrated network.
+- Admission can still diverge near the cap from timing jitter; a global token bucket avoids even that by construction.
+- Quorum reachability still depends on high-stake validators physically provisioning their derived budget; an under-provisioned large validator can saturate early. Deriving from governance makes this an explicit, on-chain-visible requirement rather than a silent local misconfiguration, but it cannot force operators to have the disk.
 - Reject-fast needs a client change before clients depend on the limiter.
 - Model 5 alone has no client fairness; that waits on the per-signer layer.
 - The download path stays unthrottled (out of scope).
@@ -214,7 +221,7 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 - PROTOCO-1547 — rate-limiter tracking issue.
 - PR #7481 — draft upload admission controller (not merged); the design discussion behind this ADR.
 - PR #7489 — pruning window reduced to 4h.
-- `x/fibre/types/params.go` — `ShardRetention` (4h), `PaymentPromiseTimeout` (1h).
+- `x/fibre/types/params.go` — `ShardRetention` (4h), `PaymentPromiseTimeout` (1h), `FullStakeStorageBudget` (new; disk a 100%-stake validator devotes to Fibre).
 - ADR-025 — Fibre local promise cache (per-signer accounting, replay mitigation).
 - ADR-027 — single-sequencer BFT ordering on Fibre.
 - `fibre/validator/set.go` — stake-weighted row assignment.
