@@ -1,6 +1,7 @@
 package networks
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -11,8 +12,8 @@ type Config struct {
 	Name    string
 	ChainID string
 	RPCs    []string
-	GRPCs []string
-	Seeds string
+	GRPCs   []string
+	Seeds   string
 }
 
 // NewMochaConfig returns a Config for the mocha testnet
@@ -36,19 +37,24 @@ func NewMochaConfig() *Config {
 	}
 }
 
-// NewArabicaConfig returns a Config for the arabica devnet.
-// RPCs can be overridden via ARABICA_RPC env var.
-func NewArabicaConfig() *Config {
-	cfg := &Config{
-		Name:    "arabica",
-		ChainID: appconsts.ArabicaChainID,
-		RPCs:    []string{"https://rpc.celestia-arabica-11.com:443"},
-		GRPCs:   []string{"rpc.celestia-arabica-11.com:9090"},
+// NewCortoConfig returns a Config for the Corto internal testnet. Corto has
+// no public endpoints, so the RPC and gRPC endpoints must be provided via the
+// CORTO_RPC and CORTO_GRPC env vars.
+func NewCortoConfig() (*Config, error) {
+	rpc := os.Getenv("CORTO_RPC")
+	if rpc == "" {
+		return nil, fmt.Errorf("CORTO_RPC environment variable must be set")
 	}
-	if rpc := os.Getenv("ARABICA_RPC"); rpc != "" {
-		cfg.RPCs = []string{rpc}
+	grpc := os.Getenv("CORTO_GRPC")
+	if grpc == "" {
+		return nil, fmt.Errorf("CORTO_GRPC environment variable must be set")
 	}
-	return cfg
+	return &Config{
+		Name:    "corto",
+		ChainID: appconsts.CortoChainID,
+		RPCs:    []string{rpc},
+		GRPCs:   []string{grpc},
+	}, nil
 }
 
 // TODO: add additional config for mainnet

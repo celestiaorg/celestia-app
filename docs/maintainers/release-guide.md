@@ -71,7 +71,7 @@ These requirements apply to release candidates, testnet releases, and mainnet re
 
 Follow the [creating a release candidate](#creating-a-release-candidate) section with the following considerations:
 
-- The version tag should not include the `-rc` suffix. Instead append the release with `-arabica` or `-mocha` depending on the target network.
+- The version tag should not include the `-rc` suffix. Instead append the release with `-corto` or `-mocha` depending on the target network. The `-corto` suffix targets the internal `corto-1` testnet; the `-mocha` suffix targets the public Mocha testnet.
 - The release notes should contain an **Upgrade Notice** section with notable changes for node operators or library consumers.
 - The release notes section should contain a link to <https://github.com/celestiaorg/celestia-app/blob/main/docs/release-notes/release-notes.md> where we capture breaking changes
 - The release notes should contain a **Supported operating systems** section per the [Release notes content](#release-notes-content) guide.
@@ -85,7 +85,7 @@ Follow the [creating a release candidate](#creating-a-release-candidate) section
 
 Follow the [creating a release candidate](#creating-a-release-candidate) section with the following considerations:
 
-- The version tag should not include the `-rc`, `-arabica`, or `-mocha` suffix.
+- The version tag should not include the `-rc`, `-corto`, or `-mocha` suffix.
 - Toggle off the **Set as a pre-release** checkbox.
 - Toggle on the **Set as the latest release** checkbox.
 - The release notes should contain a **Supported operating systems** section per the [Release notes content](#release-notes-content) guide.

@@ -22,8 +22,8 @@ func GetUpgradeHeightDelay(chainID string) int64 {
 	if chainID == TestChainID {
 		return TestUpgradeHeightDelay
 	}
-	if chainID == ArabicaChainID {
-		return ArabicaUpgradeHeightDelay
+	if chainID == CortoChainID {
+		return CortoUpgradeHeightDelay
 	}
 	if chainID == MochaChainID {
 		return MochaUpgradeHeightDelay

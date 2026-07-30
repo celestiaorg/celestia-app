@@ -16,17 +16,11 @@ const (
 	// the output from the blocktime tool.
 	blockTime = 11.75 // seconds between blocks on Mainnet Beta.
 
-	// exampleArabicaRPC is an example node RPC endpoint for the Arabica testnet.
-	exampleArabicaRPC = "https://rpc.celestia-arabica-11.com:443"
-
 	// exampleMochaRPC is an example node RPC endpoint for the Mocha testnet.
 	exampleMochaRPC = "https://celestia-mocha-rpc.publicnode.com:443"
 
 	// exampleMainnetRPC is an example node RPC endpoint for Mainnet Beta.
 	exampleMainnetRPC = "https://celestia-rpc.publicnode.com:443"
-
-	// exampleArabicaTime is an example target time for the block height prediction.
-	exampleArabicaTime = "2024-08-19T14:00:00"
 
 	// exampleMochaTime is an example target time for the block height prediction.
 	exampleMochaTime = "2024-08-28T14:00:00"
@@ -47,7 +41,6 @@ func main() {
 func Run() error {
 	if len(os.Args) < 3 {
 		fmt.Printf("Usage: %s <node_rpc> <target_time>\n", os.Args[0])
-		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleArabicaRPC, exampleArabicaTime)
 		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleMochaRPC, exampleMochaTime)
 		fmt.Printf("Example: %s %s %s\n", os.Args[0], exampleMainnetRPC, exampleMainnetTime)
 		return nil

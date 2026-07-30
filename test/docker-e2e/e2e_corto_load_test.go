@@ -16,16 +16,16 @@ import (
 
 const (
 	// Default load: 5 MiB blobs every 250 ms (sequential, no workers).
-	defaultArabicaBlobSize        = 5 * 1024 * 1024        // 5 MiB per blob
-	defaultArabicaSubmissionDelay = 250 * time.Millisecond // 4 blobs/s × 5 MiB
-	defaultArabicaTestDuration    = 10 * time.Minute
+	defaultCortoBlobSize        = 5 * 1024 * 1024        // 5 MiB per blob
+	defaultCortoSubmissionDelay = 250 * time.Millisecond // 4 blobs/s × 5 MiB
+	defaultCortoTestDuration    = 10 * time.Minute
 
 	// Parallel worker accounts. 1 = sequential submission (broadcast only, no
 	// per-tx confirmation wait on the critical path). Values >1 enable parallel
 	// workers, but each worker then blocks until its tx is committed, so the
 	// submission ceiling becomes workers / confirmation_time. Worker accounts
 	// are auto-created, funded, and fee-granted from the master account.
-	defaultArabicaWorkers = 1
+	defaultCortoWorkers = 1
 
 	// Assertions: both the average and the worst single inter-block interval
 	// must stay ≤ 4 s while the network processes 20 MiB of blobs per second.
@@ -33,43 +33,50 @@ const (
 	maxSingleBlockTime = 4 * time.Second
 )
 
-// TestArabicaLoad connects to the Arabica devnet, submits blobs via the
+// TestCortoLoad connects to the Corto internal testnet, submits blobs via the
 // latency-monitor at a configurable rate, and checks whether block times
 // degrade under load.
 //
-// Required env var:
-//	ARABICA_PRIV_KEY    – hex-encoded private key for a funded Arabica account
+// Required env vars:
+//
+//	CORTO_PRIV_KEY – hex-encoded private key for a funded Corto account
+//	CORTO_RPC      – RPC endpoint
+//	CORTO_GRPC     – gRPC endpoint
 //
 // Optional env vars (with defaults):
 //
-//	ARABICA_RPC              – RPC endpoint      (default: https://rpc.celestia-arabica-11.com:443)
-//	ARABICA_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
-//	ARABICA_SUBMISSION_DELAY – delay between blobs (default: 250ms)
-//	ARABICA_TEST_DURATION    – total duration      (default: 10m)
-//	ARABICA_WORKERS          – parallel worker accounts (default: 1 = sequential)
-func (s *CelestiaTestSuite) TestArabicaLoad() {
+//	CORTO_KEYRING_DIR      – keyring directory (alternative to CORTO_PRIV_KEY)
+//	CORTO_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
+//	CORTO_SUBMISSION_DELAY – delay between blobs (default: 250ms)
+//	CORTO_TEST_DURATION    – total duration      (default: 10m)
+//	CORTO_WORKERS          – parallel worker accounts (default: 1 = sequential)
+func (s *CelestiaTestSuite) TestCortoLoad() {
 	t := s.T()
 	if testing.Short() {
-		t.Skip("skipping Arabica load test in short mode")
+		t.Skip("skipping Corto load test in short mode")
 	}
 
-	privKeyHex := os.Getenv("ARABICA_PRIV_KEY")
-	keyringDir := os.Getenv("ARABICA_KEYRING_DIR")
+	privKeyHex := os.Getenv("CORTO_PRIV_KEY")
+	keyringDir := os.Getenv("CORTO_KEYRING_DIR")
 	if privKeyHex == "" && keyringDir == "" {
-		t.Skip("ARABICA_PRIV_KEY or ARABICA_KEYRING_DIR not set, skipping Arabica load test")
+		t.Skip("CORTO_PRIV_KEY or CORTO_KEYRING_DIR not set, skipping Corto load test")
+	}
+	if os.Getenv("CORTO_RPC") == "" || os.Getenv("CORTO_GRPC") == "" {
+		t.Skip("CORTO_RPC or CORTO_GRPC not set, skipping Corto load test")
 	}
 
 	// Parse configurable parameters.
-	blobSize := envIntOr("ARABICA_BLOB_SIZE", defaultArabicaBlobSize)
-	submissionDelay := envDurationOr("ARABICA_SUBMISSION_DELAY", defaultArabicaSubmissionDelay)
-	testDuration := envDurationOr("ARABICA_TEST_DURATION", defaultArabicaTestDuration)
-	workers := envIntOr("ARABICA_WORKERS", defaultArabicaWorkers)
+	blobSize := envIntOr("CORTO_BLOB_SIZE", defaultCortoBlobSize)
+	submissionDelay := envDurationOr("CORTO_SUBMISSION_DELAY", defaultCortoSubmissionDelay)
+	testDuration := envDurationOr("CORTO_TEST_DURATION", defaultCortoTestDuration)
+	workers := envIntOr("CORTO_WORKERS", defaultCortoWorkers)
 
-	arabicaCfg := networks.NewArabicaConfig()
+	cortoCfg, err := networks.NewCortoConfig()
+	require.NoError(t, err, "failed to build Corto config")
 
-	t.Logf("Arabica Load Test Configuration:")
-	t.Logf("  RPC:              %s", arabicaCfg.RPCs[0])
-	t.Logf("  gRPC:             %s", arabicaCfg.GRPCs[0])
+	t.Logf("Corto Load Test Configuration:")
+	t.Logf("  RPC:              %s", cortoCfg.RPCs[0])
+	t.Logf("  gRPC:             %s", cortoCfg.GRPCs[0])
 	t.Logf("  Blob size:        %d bytes", blobSize)
 	t.Logf("  Submission delay: %v", submissionDelay)
 	t.Logf("  Workers:          %d", workers)
@@ -79,25 +86,19 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 
 	ctx := context.Background()
 
-	// --- 1. Connect to Arabica RPC for block time monitoring ---
-	rpcClient, err := rpchttp.New(arabicaCfg.RPCs[0], "/websocket")
+	// --- 1. Connect to Corto RPC for block time monitoring ---
+	rpcClient, err := rpchttp.New(cortoCfg.RPCs[0], "/websocket")
 	require.NoError(t, err, "failed to create RPC client")
 
+	// Corto is an internal testnet: when the test is configured to run against
+	// it, an unreachable endpoint is a real failure, not a reason to skip.
 	status, err := rpcClient.Status(ctx)
-	if err != nil {
-		// Arabica is an external, best-effort public devnet. When its RPC
-		// endpoint is transiently unavailable (e.g. HTTP 503) this initial
-		// status query fails before any celestia-app behavior is exercised, so
-		// treat it as an infrastructure skip rather than a test failure. Real
-		// regressions still surface in the block-time assertions below, which
-		// only run once the network is reachable.
-		t.Skipf("skipping Arabica load test: Arabica endpoint %s unavailable: %v", arabicaCfg.RPCs[0], err)
-	}
+	require.NoError(t, err, "Corto endpoint %s unavailable", cortoCfg.RPCs[0])
 	startHeight := status.SyncInfo.LatestBlockHeight
-	t.Logf("Connected to Arabica at height %d", startHeight)
+	t.Logf("Connected to Corto at height %d", startHeight)
 
-	// --- 2. Deploy latency-monitor against Arabica ---
-	container, err := s.DeployLatencyMonitorForNetwork(ctx, arabicaCfg.GRPCs[0], LatencyMonitorConfig{
+	// --- 2. Deploy latency-monitor against Corto ---
+	container, err := s.DeployLatencyMonitorForNetwork(ctx, cortoCfg.GRPCs[0], LatencyMonitorConfig{
 		BlobSize:        blobSize,
 		MinBlobSize:     blobSize,
 		SubmissionDelay: submissionDelay,
@@ -133,7 +134,7 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 
 	// --- 7. Report ---
 	t.Logf("")
-	t.Logf("=== Arabica Load Test Results ===")
+	t.Logf("=== Corto Load Test Results ===")
 	t.Logf("")
 	t.Logf("Block Time Statistics (%d blocks):", len(blockTimes))
 	t.Logf("  Average: %v", avgBT)
@@ -152,7 +153,7 @@ func (s *CelestiaTestSuite) TestArabicaLoad() {
 	require.LessOrEqual(t, maxBT, maxSingleBlockTime,
 		"max block time %v exceeds %v under 20 MiB/s blob load", maxBT, maxSingleBlockTime)
 
-	t.Log("Arabica load test passed")
+	t.Log("Corto load test passed")
 }
 
 // fetchBlockTimes retrieves block timestamps between startHeight and endHeight

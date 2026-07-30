@@ -27,7 +27,7 @@ import (
 
 const (
 	txsimImage = "ghcr.io/celestiaorg/txsim"
-	txSimTag   = "v4.0.10-arabica"
+	txSimTag   = "v9.0.4"
 
 	// Liveness check constants
 	defaultBlocksPerValidator = 3 // Minimum blocks each validator should propose for liveness validation
