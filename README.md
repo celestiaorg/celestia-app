@@ -105,6 +105,8 @@ The [GitHub Releases](https://github.com/celestiaorg/celestia-app/releases) page
 
 Linux binaries built with the multiplexer require **glibc >= 2.38** (Ubuntu 24.04 or equivalent). See [Prerequisites](#prerequisites) for details.
 
+Each release also ships the Fibre server as its own archive (`fibre_Linux_x86_64.tar.gz`, `fibre_Darwin_arm64.tar.gz`, etc.) for the same four platforms, built the same way and versioned in lockstep with `celestia-appd`. See [fibre/cmd/README.md](fibre/cmd/README.md) for usage.
+
 ### Known incompatibilities
 
 - **Windows**: the `celestia-appd` binary does not support signing with Ledger hardware wallets.

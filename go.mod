@@ -22,7 +22,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.31
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.30
 	github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager v0.3.4
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.316.1
+	github.com/aws/aws-sdk-go-v2/service/ec2 v1.317.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.106.0
 	github.com/bcp-innovations/hyperlane-cosmos v1.1.0
 	github.com/celestiaorg/go-square/v2 v2.3.3
@@ -44,7 +44,7 @@ require (
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
 	github.com/cosmos/ibc-go/v8 v8.7.0
-	github.com/digitalocean/godo v1.199.0
+	github.com/digitalocean/godo v1.201.0
 	github.com/filecoin-project/go-clock v0.1.0
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.0

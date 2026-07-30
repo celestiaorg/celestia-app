@@ -2,13 +2,40 @@
 
 Standalone binary for the Fibre data availability server.
 
-## Build
+## Install
+
+### Prebuilt binary
+
+Every celestia-app release attaches a `fibre` archive for Linux and macOS on both
+`amd64` and `arm64`. The version matches the celestia-app release it ships with.
+
+The archives are named `fibre_{Linux,Darwin}_{x86_64,arm64}.tar.gz`. Note that a
+Linux arm64 host reports `aarch64` from `uname -m`, but the archive is `arm64`.
+
+```sh
+curl -LO https://github.com/celestiaorg/celestia-app/releases/latest/download/fibre_Linux_x86_64.tar.gz
+curl -LO https://github.com/celestiaorg/celestia-app/releases/latest/download/checksums.txt
+# on macOS: shasum -a 256 --ignore-missing --check checksums.txt
+sha256sum --ignore-missing --check checksums.txt
+tar -xvf fibre_Linux_x86_64.tar.gz
+./fibre version
+```
+
+The Linux archives are dynamically linked and require **glibc >= 2.34**, so
+Ubuntu 22.04 and Debian 12 work. This is lower than the **glibc >= 2.38** floor
+of the multiplexer `celestia-appd` build, which comes from its embedded binaries;
+fibre embeds none.
+
+### Build from source
 
 ```sh
 make build-fibre-server
 ```
 
-The binary is output to `build/fibre`.
+The binary is output to `build/fibre`, stamped with the version from
+`git describe` and the short commit hash, so `fibre version` reports something
+real rather than `dev`. A release build stamps the release tag and the full
+commit hash instead.
 
 ## Usage
 
