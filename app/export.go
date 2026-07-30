@@ -6,6 +6,7 @@ import (
 	"log"
 
 	storetypes "cosmossdk.io/store/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
@@ -18,8 +19,18 @@ import (
 func (app *App) ExportAppStateAndValidators(
 	forZeroHeight bool, jailAllowedAddrs []string, _ []string,
 ) (servertypes.ExportedApp, error) {
-	// as if they could withdraw from the start of the next block
-	ctx := app.NewContext(true)
+	// As if they could withdraw from the start of the next block.
+	//
+	// The context must carry the last committed height. app.NewContext builds
+	// its context from an empty header, so ctx.BlockHeight() would be 0, and
+	// CalculateDelegationRewards only applies a validator's slash events when
+	// ctx.BlockHeight() > starting_info.height. At height 0 no slash is ever
+	// applied, so the accumulated stake stays at its pre-slash value, ends up
+	// larger than TokensFromShares, exceeds the tolerance in the sanity check
+	// there and panics. prepForZeroHeightGenesis below also relies on a real
+	// height: it deliberately drops to height 0 to re-initialize delegations
+	// and then restores this one.
+	ctx := app.NewContextLegacy(true, cmtproto.Header{Height: app.LastBlockHeight()})
 
 	// We export at last height + 1, because that's the height at which
 	// Tendermint will start InitChain.

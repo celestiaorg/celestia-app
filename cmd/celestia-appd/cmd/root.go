@@ -116,6 +116,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 
 	rootCommand.AddCommand(
 		InitCmd(capp),
+		hardspoonCmd(capp),
 		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
