@@ -27,7 +27,7 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 func (s *Server) prune(ctx context.Context) {
 	start := time.Now()
 
-	pruned, err := s.store.PruneBefore(ctx, start)
+	pruned, _, err := s.store.PruneBefore(ctx, start) //TODO(@vgonkivs): update after adding metric
 	s.metrics.observePrune(ctx, start, pruned, err)
 	if err != nil {
 		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())

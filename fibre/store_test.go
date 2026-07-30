@@ -36,6 +36,9 @@ func TestStore(t *testing.T) {
 		{"PruneBefore_PreservesOtherPromiseShard", testStorePruneBeforePreservesOtherPromiseShard},
 		{"PruneBefore_NonUTCCutoff_DoesNotPruneUnexpired", testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired},
 		{"PruneBefore_IdenticalPruneAt", testStorePruneBeforeIdenticalPruneAt},
+		{"Has_PresentAbsentOrphan", testStoreHas},
+		{"Size_EmptyAndSum", testStoreSize},
+		{"PruneBefore_ReturnsFreedBytes", testStorePruneBeforeReturnsFreedBytes},
 	}
 
 	for _, tt := range tests {
@@ -221,7 +224,7 @@ func testStorePruneBeforeRemovesShardAndPromise(t *testing.T, store *fibre.Store
 	require.NoError(t, err)
 
 	// prune
-	pruned, err := store.PruneBefore(ctx, cutoffTime)
+	pruned, _, err := store.PruneBefore(ctx, cutoffTime)
 	require.NoError(t, err)
 	require.Equal(t, 1, pruned)
 
@@ -256,7 +259,7 @@ func testStorePruneBeforePreservesOtherPromiseShard(t *testing.T, store *fibre.S
 	newHash, _ := newPromise.Hash()
 
 	// prune old
-	pruned, err := store.PruneBefore(ctx, cutoffTime)
+	pruned, _, err := store.PruneBefore(ctx, cutoffTime)
 	require.NoError(t, err)
 	require.Equal(t, 1, pruned)
 
@@ -294,7 +297,7 @@ func testStorePruneBeforeNonUTCCutoffDoesNotPruneUnexpired(t *testing.T, store *
 	utcPlusOne := time.FixedZone("UTC+1", 60*60)
 	cutoff := time.Date(2025, 1, 1, 19, 11, 0, 0, utcPlusOne)
 
-	pruned, err := store.PruneBefore(ctx, cutoff)
+	pruned, _, err := store.PruneBefore(ctx, cutoff)
 	require.NoError(t, err)
 	require.Equal(t, 0, pruned)
 
@@ -312,7 +315,7 @@ func testStorePruneBeforeIdenticalPruneAt(t *testing.T, store *fibre.Store, _ st
 		p := makeTestPaymentPromise(height, blob.ID())
 		require.NoError(t, store.Put(ctx, p, makeShardFrom(t, blob, 0, 1), pruneAt))
 	}
-	pruned, err := store.PruneBefore(ctx, pruneAt.Add(time.Hour))
+	pruned, _, err := store.PruneBefore(ctx, pruneAt.Add(time.Hour))
 	require.NoError(t, err)
 	require.Equal(t, 2, pruned)
 
@@ -464,6 +467,95 @@ func testStoreGetAllOrphans(t *testing.T, store *fibre.Store, path string) {
 	}
 	_, err := store.Get(t.Context(), blob.ID().Commitment())
 	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
+}
+
+// Has reports present for a stored shard, absent for an unknown promise, and
+// absent (not an error) for an orphan marker whose file is gone.
+func testStoreHas(t *testing.T, store *fibre.Store, path string) {
+	ctx := t.Context()
+	blob := makeTestBlobV0(t, 256)
+	promise := makeTestPaymentPromise(100, blob.ID())
+	require.NoError(t, store.Put(ctx, promise, makeShardFrom(t, blob, 0, 1), promise.CreationTimestamp))
+
+	commitment := blob.ID().Commitment()
+	promiseHash, err := promise.Hash()
+	require.NoError(t, err)
+
+	// present
+	has, err := store.Has(ctx, commitment, promiseHash)
+	require.NoError(t, err)
+	require.True(t, has)
+
+	// unknown promise for the same commitment
+	otherHash, err := makeTestPaymentPromise(200, blob.ID()).Hash()
+	require.NoError(t, err)
+	has, err = store.Has(ctx, commitment, otherHash)
+	require.NoError(t, err)
+	require.False(t, has)
+
+	// orphan: marker present, file gone -> absent, no error
+	require.NoError(t, os.Remove(filepath.Join(path, "shards",
+		commitment.String()+"-"+hex.EncodeToString(promiseHash))))
+	has, err = store.Has(ctx, commitment, promiseHash)
+	require.NoError(t, err)
+	require.False(t, has, "orphan marker without a file must report absent, not error")
+}
+
+// Size is 0 for an empty store and the sum of on-disk shard file sizes otherwise.
+func testStoreSize(t *testing.T, store *fibre.Store, path string) {
+	ctx := t.Context()
+
+	size, err := store.Size()
+	require.NoError(t, err)
+	require.Zero(t, size, "empty store must report 0, not an error")
+
+	blob := makeTestBlobV0(t, 256)
+	commitment := blob.ID().Commitment()
+	var want int64
+	for i, rows := range [][]int{{0, 1}, {2, 3}} {
+		p := makeTestPaymentPromise(uint64(100+i), blob.ID())
+		require.NoError(t, store.Put(ctx, p, makeShardFrom(t, blob, rows...), p.CreationTimestamp))
+		h, err := p.Hash()
+		require.NoError(t, err)
+		info, err := os.Stat(filepath.Join(path, "shards", commitment.String()+"-"+hex.EncodeToString(h)))
+		require.NoError(t, err)
+		want += info.Size()
+	}
+
+	size, err = store.Size()
+	require.NoError(t, err)
+	require.Equal(t, want, size)
+}
+
+// PruneBefore reports the total on-disk bytes it freed.
+func testStorePruneBeforeReturnsFreedBytes(t *testing.T, store *fibre.Store, path string) {
+	ctx := t.Context()
+	blob := makeTestBlobV0(t, 256)
+	commitment := blob.ID().Commitment()
+
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	cutoffTime := time.Date(2025, 1, 1, 12, 0, 0, 0, time.UTC)
+
+	var want int64
+	for i, rows := range [][]int{{0, 1}, {2, 3}} {
+		p := makeTestPaymentPromise(uint64(100+i), blob.ID())
+		require.NoError(t, store.Put(ctx, p, makeShardFrom(t, blob, rows...), pruneAt))
+		h, err := p.Hash()
+		require.NoError(t, err)
+		info, err := os.Stat(filepath.Join(path, "shards", commitment.String()+"-"+hex.EncodeToString(h)))
+		require.NoError(t, err)
+		want += info.Size()
+	}
+
+	pruned, freed, err := store.PruneBefore(ctx, cutoffTime)
+	require.NoError(t, err)
+	require.Equal(t, 2, pruned)
+	require.Equal(t, want, freed)
+
+	// everything pruned -> store empty
+	size, err := store.Size()
+	require.NoError(t, err)
+	require.Zero(t, size)
 }
 
 func makeTestStore(t *testing.T) (*fibre.Store, string) {
