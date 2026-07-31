@@ -5710,7 +5710,7 @@
       "properties": {
         "chainId": {
           "type": "string",
-          "description": "chain_id is the chain ID that this payment promise is valid for.\nExample: arabica-11, mocha-4, or celestia."
+          "description": "chain_id is the chain ID that this payment promise is valid for.\nExample: corto-1, mocha-4, or celestia."
         },
         "height": {
           "type": "string",
