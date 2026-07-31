@@ -17,6 +17,7 @@ var (
 	KeyPaymentPromiseRetentionWindow = []byte("PaymentPromiseRetentionWindow")
 	KeyPaymentPromiseHeightWindow    = []byte("PaymentPromiseHeightWindow")
 	KeyShardRetention                = []byte("ShardRetention")
+	KeyFullStakeStorageBudget        = []byte("FullStakeStorageBudget")
 
 	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
 	// TODO: should this param be removed? The PFF gas formula is now standalone
@@ -35,6 +36,10 @@ var (
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
 	// minimum local duration validators keep uploaded shards, decoupled from PaymentPromiseTimeout.
 	DefaultShardRetention = 4 * time.Hour
+	// DefaultFullStakeStorageBudget is a conservative placeholder for the ramp-up.
+	// The real value is a governance decision (see PROTOCO tracking issue); it caps
+	// the Fibre disk of a 100%-stake validator over one ShardRetention window.
+	DefaultFullStakeStorageBudget uint64 = 256 << 30 // 256 GiB (~18 MiB/s full-stake)
 )
 
 const (
@@ -87,7 +92,7 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, paymentPromiseRetentionWindow time.Duration, paymentPromiseHeightWindow uint64, shardRetention time.Duration) Params {
+func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, paymentPromiseRetentionWindow time.Duration, paymentPromiseHeightWindow uint64, shardRetention time.Duration, storageBudget uint64) Params {
 	return Params{
 		GasPerBlobByte:                gasPerBlobByte,
 		WithdrawalDelay:               withdrawalDelay,
@@ -95,12 +100,13 @@ func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, pa
 		PaymentPromiseRetentionWindow: paymentPromiseRetentionWindow,
 		PaymentPromiseHeightWindow:    paymentPromiseHeightWindow,
 		ShardRetention:                shardRetention,
+		FullStakeStorageBudget:        storageBudget,
 	}
 }
 
 // DefaultParams returns a default set of parameters
 func DefaultParams() Params {
-	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseRetentionWindow, DefaultPaymentPromiseHeightWindow, DefaultShardRetention)
+	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseRetentionWindow, DefaultPaymentPromiseHeightWindow, DefaultShardRetention, DefaultFullStakeStorageBudget)
 }
 
 // ParamSetPairs gets the list of param key-value pairs
@@ -112,6 +118,7 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyPaymentPromiseRetentionWindow, &p.PaymentPromiseRetentionWindow, validatePaymentPromiseRetentionWindow),
 		paramtypes.NewParamSetPair(KeyPaymentPromiseHeightWindow, &p.PaymentPromiseHeightWindow, validatePaymentPromiseHeightWindow),
 		paramtypes.NewParamSetPair(KeyShardRetention, &p.ShardRetention, validateShardRetention),
+		paramtypes.NewParamSetPair(KeyFullStakeStorageBudget, &p.FullStakeStorageBudget, validateFullStakeStorageBudget),
 	}
 }
 
@@ -260,5 +267,13 @@ func validateShardRetention(v any) error {
 		return fmt.Errorf("shard retention must be at most %s: %s", MaxShardRetention, *duration)
 	}
 
+	return nil
+}
+
+func validateFullStakeStorageBudget(v any) error {
+	_, ok := v.(uint64)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", v)
+	}
 	return nil
 }

@@ -126,3 +126,11 @@ func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error
 	}
 	return chainID, nil
 }
+
+func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
+	resp, err := c.queryClient.Params(ctx, &types.QueryParamsRequest{})
+	if err != nil {
+		return 0, err
+	}
+	return int64(resp.Params.FullStakeStorageBudget), nil
+}

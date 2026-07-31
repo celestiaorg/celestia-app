@@ -95,7 +95,7 @@ func newTestStartCmd(t *testing.T, home string) (*cobra.Command, *fibre.ServerCo
 	t.Helper()
 
 	got := new(fibre.ServerConfig)
-	cmd := newStartCmd(func(_ context.Context, cfg fibre.ServerConfig) error {
+	cmd := newStartCmd(func(_ context.Context, cfg fibre.ServerConfig, _ bool) error {
 		*got = cfg
 		return nil
 	})
@@ -113,7 +113,7 @@ func TestStartCmdNilLog(t *testing.T) {
 	home := t.TempDir()
 	mockPV := core.NewMockPV()
 
-	cmd := newStartCmd(func(ctx context.Context, cfg fibre.ServerConfig) error {
+	cmd := newStartCmd(func(ctx context.Context, cfg fibre.ServerConfig, _ bool) error {
 		// cfg.Log is nil here, exactly like production.
 		require.Nil(t, cfg.Log, "command must not set Log — Validate handles it")
 
@@ -127,7 +127,7 @@ func TestStartCmdNilLog(t *testing.T) {
 		cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
 			return fibre.NewMemoryStore(scfg), nil
 		}
-		return startServer(ctx, cfg)
+		return startServer(ctx, cfg, true)
 	})
 	cmd.Flags().String(flagHome, home, "")
 	cmd.SetOut(io.Discard)

@@ -10,6 +10,9 @@ import (
 	"syscall"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // initServerConfig creates the home directory and writes a default config file
@@ -35,7 +38,24 @@ func initServerConfig(home string) error {
 
 // startServer creates, starts, and runs the fibre server until the context
 // is cancelled, then gracefully shuts it down.
-func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
+func startServer(ctx context.Context, cfg fibre.ServerConfig, unlimitedBudget bool) error {
+	if !unlimitedBudget {
+		conn, err := grpc.NewClient(cfg.AppGRPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			return fmt.Errorf("dialing app for storage budget: %w", err)
+		}
+		defer conn.Close()
+
+		qc := types.NewQueryClient(conn)
+		cfg.FullStakeStorageBudgetFn = func(ctx context.Context) (int64, error) {
+			resp, err := qc.Params(ctx, &types.QueryParamsRequest{})
+			if err != nil {
+				return 0, err
+			}
+			return int64(resp.Params.FullStakeStorageBudget), nil
+		}
+	}
+
 	server, err := fibre.NewServer(cfg)
 	if err != nil {
 		return fmt.Errorf("creating server: %w", err)

@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -44,6 +45,8 @@ type ServerConfig struct {
 	// MinRowsPerValidator is the minimum number of rows each validator must receive
 	// for unique decodability security.
 	MinRowsPerValidator int `toml:"-"`
+	// OriginalRows
+	OriginalRows int `toml:"-"`
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int `toml:"-"`
 
@@ -58,6 +61,7 @@ type ServerConfig struct {
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
+	FullStakeStorageBudgetFn func(ctx context.Context) (int64, error) `toml:"-"`
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`
@@ -84,6 +88,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
+		OriginalRows:        p.Rows,
 		MaxMessageSize:      p.MaxMessageSize(),
 		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
 	}
@@ -131,6 +136,12 @@ func (cfg *ServerConfig) Validate() error {
 		}
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
 			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
+		}
+	}
+
+	if cfg.FullStakeStorageBudgetFn == nil {
+		cfg.FullStakeStorageBudgetFn = func(ctx context.Context) (int64, error) {
+			return 0, nil // no budget
 		}
 	}
 

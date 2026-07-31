@@ -13,13 +13,15 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerGRPCAddress   = "signer-grpc-address"
+	flagUnlimitedBudget     = "unlimited-budget"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
 // RunE after config resolution; passing it as a parameter keeps the command
 // testable without global state.
-func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.Command {
+func newStartCmd(start func(context.Context, fibre.ServerConfig, bool) error) *cobra.Command {
 	cfg := fibre.DefaultServerConfig()
+	var unlimitedBudget bool
 
 	cmd := &cobra.Command{
 		Use:   "start",
@@ -58,7 +60,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 			}
 
 			cfg.Path = home
-			return start(cmd.Context(), cfg)
+			return start(cmd.Context(), cfg, unlimitedBudget)
 		},
 	}
 
@@ -68,6 +70,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
+	cmd.Flags().BoolVar(&unlimitedBudget, flagUnlimitedBudget, false, "run without a storage budget, disabling the Fibre upload limiter")
 
 	return cmd
 }

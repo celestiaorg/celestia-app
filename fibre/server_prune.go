@@ -20,6 +20,7 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			s.prune(ctx)
+			s.recomputeBudget(ctx)
 		}
 	}
 }

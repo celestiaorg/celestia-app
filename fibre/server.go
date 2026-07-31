@@ -34,6 +34,8 @@ type Server struct {
 
 	verifiers chan *rsema1d.Verifier // caps concurrent verifications
 
+	occ occupancy
+
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
 }
@@ -116,6 +118,8 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.Creds(creds),
 	)
 
+	s.recomputeBudget(ctx)
+
 	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
@@ -167,4 +171,39 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 		}
 	}
 	return err
+}
+
+func (s *Server) recomputeBudget(ctx context.Context) {
+	if s.Config.FullStakeStorageBudgetFn == nil {
+		return
+	}
+
+	fullStake, err := s.Config.FullStakeStorageBudgetFn(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
+		return
+	}
+
+	valSet, err := s.state.Head(ctx)
+	if err != nil {
+		s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
+		return
+	}
+
+	key, err := s.signer.GetPubKey()
+	if err != nil {
+		s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
+		return
+	}
+
+	ourVal, found := valSet.GetByAddress(key.Address())
+	if !found {
+		// not in active set
+		s.occ.setBudget(0)
+		return
+	}
+
+	assignedRows := valSet.AssignedRows(ourVal, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
+	budget := fullStake * int64(assignedRows) / int64(s.Config.OriginalRows)
+	s.occ.setBudget(budget)
 }
