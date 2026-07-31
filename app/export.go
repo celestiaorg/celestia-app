@@ -3,21 +3,15 @@ package app
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 
 	storetypes "cosmossdk.io/store/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cosmos/cosmos-sdk/codec"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	distributiontypes "github.com/cosmos/cosmos-sdk/x/distribution/types"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	"github.com/cosmos/cosmos-sdk/x/staking"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
-	ibcclienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
-	ibcexported "github.com/cosmos/ibc-go/v8/modules/core/exported"
-	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 )
 
 // ExportAppStateAndValidators exports the state of the application for a genesis
@@ -38,9 +32,6 @@ func (app *App) ExportAppStateAndValidators(
 
 	genState, err := app.ModuleManager.ExportGenesis(ctx, app.AppCodec())
 	if err != nil {
-		return servertypes.ExportedApp{}, err
-	}
-	if err := dropLocalhostClient(app.AppCodec(), genState); err != nil {
 		return servertypes.ExportedApp{}, err
 	}
 	appState, err := json.MarshalIndent(genState, "", "  ")
@@ -82,13 +73,7 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		if err != nil {
 			panic(err)
 		}
-		// Commission left unwithdrawn stays in the validator's outstanding rewards,
-		// which the scraps donation below hands to the community pool instead of the
-		// operator. Having nothing to withdraw is the only acceptable failure.
-		_, err = app.DistrKeeper.WithdrawValidatorCommission(ctx, valBz)
-		if err != nil && !errors.Is(err, distributiontypes.ErrNoValidatorCommission) {
-			panic(fmt.Errorf("withdrawing commission for validator %s: %w", val.GetOperator(), err))
-		}
+		_, _ = app.DistrKeeper.WithdrawValidatorCommission(ctx, valBz)
 		return false
 	})
 	if err != nil {
@@ -111,13 +96,7 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		if err != nil {
 			panic(err)
 		}
-		// As with commission above: rewards that fail to withdraw here are donated to
-		// the community pool a few lines down, so a delegator would silently lose them.
-		// Fail the export instead of exporting a genesis that misallocates funds.
-		if _, err := app.DistrKeeper.WithdrawDelegationRewards(ctx, delAddr, valAddr); err != nil {
-			panic(fmt.Errorf("withdrawing rewards for delegator %s from validator %s: %w",
-				delegation.DelegatorAddress, delegation.ValidatorAddress, err))
-		}
+		_, _ = app.DistrKeeper.WithdrawDelegationRewards(ctx, delAddr, valAddr)
 	}
 
 	// clear validator slash events
@@ -228,8 +207,7 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		}
 
 		validator.UnbondingHeight = 0
-		jail := applyAllowedAddrs && !allowedAddrsMap[addr.String()]
-		if jail {
+		if applyAllowedAddrs && !allowedAddrsMap[addr.String()] {
 			validator.Jailed = true
 		}
 
@@ -237,26 +215,12 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 		if err != nil {
 			panic(errors.New("couldn't set validator"))
 		}
-
-		// A jailed validator must not be left in the power index:
-		// ApplyAndReturnValidatorSetUpdates below panics on any jailed validator it
-		// finds there. This mirrors what staking's own jailValidator does.
-		if jail {
-			if err := app.StakingKeeper.DeleteValidatorByPowerIndex(ctx, validator); err != nil {
-				panic(err)
-			}
-		}
 		counter++
 	}
 
 	iter.Close()
 
-	// Run the validator-set update at height zero so that any validators unbonded
-	// by this call receive an unbonding height of zero instead of the exported
-	// chain's height. On import, staking rebuilds the unbonding queue from this
-	// height. Retaining the old height would keep those validators unbonding until
-	// the restarted chain reached the exported chain's height.
-	_, err = app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx.WithBlockHeight(0))
+	_, err = app.StakingKeeper.ApplyAndReturnValidatorSetUpdates(ctx)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -278,51 +242,4 @@ func (app *App) prepForZeroHeightGenesis(ctx sdk.Context, jailAllowedAddrs []str
 	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-// dropLocalhostClient removes the 09-localhost IBC client from an exported
-// genesis. The client is per-chain runtime state that ibc's own InitGenesis
-// recreates at the height the importing chain starts from, and celestia does not
-// list 09-localhost in allowed_clients (see DefaultGenesis in default_overrides.go),
-// so leaving it in produces a genesis file that panics on import.
-func dropLocalhostClient(cdc codec.Codec, genState map[string]json.RawMessage) error {
-	raw, ok := genState[ibcexported.ModuleName]
-	if !ok {
-		return nil
-	}
-
-	var ibcGenesis ibctypes.GenesisState
-	if err := cdc.UnmarshalJSON(raw, &ibcGenesis); err != nil {
-		return err
-	}
-
-	clients := make([]ibcclienttypes.IdentifiedClientState, 0, len(ibcGenesis.ClientGenesis.Clients))
-	for _, client := range ibcGenesis.ClientGenesis.Clients {
-		if client.ClientId != ibcexported.LocalhostClientID {
-			clients = append(clients, client)
-		}
-	}
-	metadata := make([]ibcclienttypes.IdentifiedGenesisMetadata, 0, len(ibcGenesis.ClientGenesis.ClientsMetadata))
-	for _, entry := range ibcGenesis.ClientGenesis.ClientsMetadata {
-		if entry.ClientId != ibcexported.LocalhostClientID {
-			metadata = append(metadata, entry)
-		}
-	}
-	consensus := make(ibcclienttypes.ClientsConsensusStates, 0, len(ibcGenesis.ClientGenesis.ClientsConsensus))
-	for _, entry := range ibcGenesis.ClientGenesis.ClientsConsensus {
-		if entry.ClientId != ibcexported.LocalhostClientID {
-			consensus = append(consensus, entry)
-		}
-	}
-	ibcGenesis.ClientGenesis.Clients = clients
-	ibcGenesis.ClientGenesis.ClientsMetadata = metadata
-	ibcGenesis.ClientGenesis.ClientsConsensus = consensus
-
-	updated, err := cdc.MarshalJSON(&ibcGenesis)
-	if err != nil {
-		return err
-	}
-	genState[ibcexported.ModuleName] = updated
-
-	return nil
 }
