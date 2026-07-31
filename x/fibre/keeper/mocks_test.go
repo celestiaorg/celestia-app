@@ -38,11 +38,15 @@ func (m *MockBankKeeper) SendCoinsFromModuleToModule(ctx context.Context, sender
 
 // MockStakingKeeper implements the expected StakingKeeper interface for testing
 type MockStakingKeeper struct {
-	historicalInfo map[int64]stakingtypes.HistoricalInfo
-	validatorKeys  map[int64]ed25519.PrivKey
+	GetHistoricalInfoFn func(ctx context.Context, height int64) (stakingtypes.HistoricalInfo, error)
+	historicalInfo      map[int64]stakingtypes.HistoricalInfo
+	validatorKeys       map[int64]ed25519.PrivKey
 }
 
 func (m *MockStakingKeeper) GetHistoricalInfo(ctx context.Context, height int64) (stakingtypes.HistoricalInfo, error) {
+	if m.GetHistoricalInfoFn != nil {
+		return m.GetHistoricalInfoFn(ctx, height)
+	}
 	if m.historicalInfo != nil {
 		if info, ok := m.historicalInfo[height]; ok {
 			return info, nil
