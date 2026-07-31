@@ -43,6 +43,18 @@ const (
 	// WithdrawalDelay - PaymentPromiseTimeout.
 	MaxPromiseClockSkew = 10 * time.Minute
 
+	// MinWithdrawalDelay is the lower bound of the withdrawal delay parameter.
+	// The delay is also how long a promise stays settleable after its
+	// creation_timestamp, so it must cover the longest allowed
+	// payment_promise_timeout or a promise could go stale before its own
+	// normal-path expiry.
+	MinWithdrawalDelay = MaxPaymentPromiseTimeout
+	// MaxWithdrawalDelay is the upper bound of the withdrawal delay parameter. It
+	// caps how long escrowed funds stay locked after a withdrawal request, and it
+	// keeps the retention window floor (withdrawal_delay + MaxPromiseClockSkew)
+	// computed in Validate far from overflowing time.Duration.
+	MaxWithdrawalDelay = 7 * 24 * time.Hour
+
 	// MinPaymentPromiseTimeout is the lower bound of the payment promise timeout
 	// parameter. A promise has to stay valid long enough for the client to upload
 	// its shards to the assigned validators, collect their signatures, and get
@@ -153,8 +165,12 @@ func validateWithdrawalDelay(v any) error {
 		return fmt.Errorf("withdrawal delay cannot be nil")
 	}
 
-	if *duration <= 0 {
-		return fmt.Errorf("withdrawal delay must be positive: %s", *duration)
+	if *duration < MinWithdrawalDelay {
+		return fmt.Errorf("withdrawal delay must be at least %s: %s", MinWithdrawalDelay, *duration)
+	}
+
+	if *duration > MaxWithdrawalDelay {
+		return fmt.Errorf("withdrawal delay must be at most %s: %s", MaxWithdrawalDelay, *duration)
 	}
 
 	return nil

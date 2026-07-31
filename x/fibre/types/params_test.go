@@ -1,12 +1,87 @@
 package types
 
 import (
+	"math"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_validateWithdrawalDelay(t *testing.T) {
+	type test struct {
+		name      string
+		input     any
+		expectErr bool
+	}
+	tests := []test{
+		{
+			name:      "default",
+			input:     &DefaultWithdrawalDelay,
+			expectErr: false,
+		},
+		{
+			name:      "wrong type",
+			input:     DefaultWithdrawalDelay,
+			expectErr: true,
+		},
+		{
+			name:      "nil",
+			input:     (*time.Duration)(nil),
+			expectErr: true,
+		},
+		{
+			name:      "zero",
+			input:     new(time.Duration(0)),
+			expectErr: true,
+		},
+		{
+			name:      "negative",
+			input:     new(-time.Hour),
+			expectErr: true,
+		},
+		{
+			name:      "below the lower bound",
+			input:     new(MinWithdrawalDelay - time.Nanosecond),
+			expectErr: true,
+		},
+		{
+			name:      "exactly at the lower bound",
+			input:     new(MinWithdrawalDelay),
+			expectErr: false,
+		},
+		{
+			name:      "above the upper bound",
+			input:     new(MaxWithdrawalDelay + time.Nanosecond),
+			expectErr: true,
+		},
+		{
+			name:      "exactly at the upper bound",
+			input:     new(MaxWithdrawalDelay),
+			expectErr: false,
+		},
+		{
+			// Guards the replay invariant in Validate: an unbounded delay this
+			// close to the maximum duration makes withdrawal_delay +
+			// MaxPromiseClockSkew overflow negative, silently accepting retention
+			// windows shorter than the freshness window.
+			name:      "maximum duration",
+			input:     new(time.Duration(math.MaxInt64)),
+			expectErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateWithdrawalDelay(tt.input)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
 
 func Test_validatePaymentPromiseTimeout(t *testing.T) {
 	type test struct {
@@ -211,6 +286,18 @@ func TestParamsValidateReplayInvariant(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParamsValidateRejectsOverflowingWithdrawalDelay is a regression test for
+// the replay invariant being bypassed by overflow. Before withdrawal_delay was
+// bounded, a delay within MaxPromiseClockSkew of the maximum duration made
+// withdrawal_delay + MaxPromiseClockSkew wrap to a negative floor, so Validate
+// accepted a retention window far shorter than the freshness window and a
+// settled promise could be replayed once its record was pruned.
+func TestParamsValidateRejectsOverflowingWithdrawalDelay(t *testing.T) {
+	params := DefaultParams()
+	params.WithdrawalDelay = time.Duration(math.MaxInt64)
+	require.Error(t, params.Validate())
 }
 
 func TestDefaultParamsAreValid(t *testing.T) {
