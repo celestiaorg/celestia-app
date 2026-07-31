@@ -104,7 +104,7 @@ func (s *CelestiaTestSuite) DeployLatencyMonitor(
 }
 
 // DeployLatencyMonitorForNetwork starts a latency-monitor container that connects to
-// an external network (e.g., Arabica) using the given gRPC endpoint. If cfg.PrivKeyHex
+// an external network using the given gRPC endpoint. If cfg.PrivKeyHex
 // is set, a test keyring is created on disk from the private key and bind-mounted into
 // the container. Unlike DeployLatencyMonitor, this does not require a local Docker chain.
 func (s *CelestiaTestSuite) DeployLatencyMonitorForNetwork(

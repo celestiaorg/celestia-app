@@ -2,7 +2,7 @@ name: Buf Release
 
 on:
   release:
-    types: [ published ]
+    types: [published]
 
 permissions:
   contents: read

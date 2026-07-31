@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Start a consensus node and block sync from genesis to tip for Celestia networks (Arabica, Mocha, Mainnet)
-# Usage: ./scripts/block-sync.sh --network <Arabica | Mocha | Mainnet>
+# Start a consensus node and block sync from genesis to tip for Celestia networks (Mocha, Mainnet)
+# Usage: ./scripts/block-sync.sh --network <Mocha | Mainnet>
 
 set -o errexit
 set -o nounset
@@ -10,7 +10,7 @@ set -o nounset
 NODE_NAME="${NODE_NAME:-node-name}"
 
 usage() {
-  echo "Usage: $0 --network <arabica|mocha|mainnet>"
+  echo "Usage: $0 --network <mocha|mainnet>"
   exit 1
 }
 
@@ -23,11 +23,6 @@ else
 fi
 
 case "$NETWORK" in
-  arabica)
-    CHAIN_ID="arabica-11"
-    SEEDS="827583022cc6ce65cf762115642258f937c954cd@validator-1.celestia-arabica-11.com:26656,74e42b39f512f844492ff09e30af23d54579b7bc@validator-2.celestia-arabica-11.com:26656,00d577159b2eb1f524ef9c37cb389c020a2c38d2@validator-3.celestia-arabica-11.com:26656,b2871b6dc2e18916d07264af0e87c456c2bba04f@validator-4.celestia-arabica-11.com:26656"
-    PEERS=""
-    ;;
   mocha)
     CHAIN_ID="mocha-4"
     SEEDS="b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656"

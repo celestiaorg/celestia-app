@@ -141,7 +141,6 @@ jobs:
           - testcase: TestICA
             entrypoint: TestIBCTestSuite
           - testcase: TestStateSyncWithAppUpgrade
-          - testcase: TestMinorVersionCompatibility
           - testcase: TestUpgradeLatest
           - testcase: TestPFMMultiHop
             entrypoint: TestPFMTestSuite

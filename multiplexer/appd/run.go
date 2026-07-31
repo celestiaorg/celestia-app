@@ -19,7 +19,7 @@ import (
 // Appd represents a celestia-appd binary.
 type Appd struct {
 	// version is the version of the celestia-appd binary.
-	// Example: "v3.10.0-arabica"
+	// Example: "v9.0.4"
 	version string
 	// path is the path to the celestia-appd binary.
 	path   string

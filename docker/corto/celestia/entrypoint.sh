@@ -1,17 +1,20 @@
 #!/bin/bash
 
-# Entrypoint script for an Arabica consensus node with state sync.
+# Entrypoint script for a Corto consensus node with state sync.
 # This script is idempotent: on restart it skips init/config and goes straight
 # to starting the node.
+#
+# WARNING: SEEDS and RPC are placeholders. They must be set to the internal
+# Corto network endpoints before this setup can be used.
 
 set -o errexit
 set -o nounset
 set -o pipefail
 
-CHAIN_ID="arabica-11"
-NODE_NAME="arabica-node"
-SEEDS="ae7a366fd79f598b8135f9edef0f2cf875a3d3ba@validator-1.celestia-arabica-11.com:26656,4e38c37e88dcbf7809f6636120a7226621a684dd@validator-2.celestia-arabica-11.com:26656,365b07692fdc8dd996063f970cf6788ef608ddb1@validator-3.celestia-arabica-11.com:26656,4a52f45cf5518aa776f8d7462ab2e593fceb7154@validator-4.celestia-arabica-11.com:26656"
-RPC="https://rpc.celestia-arabica-11.com:443"
+CHAIN_ID="corto-1"
+NODE_NAME="corto-node"
+SEEDS="TBD"
+RPC="TBD"
 
 CELESTIA_APP_HOME="/home/celestia/.celestia-app"
 
