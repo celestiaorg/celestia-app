@@ -15,6 +15,7 @@ type serverMetrics struct {
 	uploadShardInFlight metric.Int64UpDownCounter
 	uploadShardDuration metric.Float64Histogram
 	uploadShardBytes    metric.Int64Counter
+	uploadShardRejected metric.Int64Counter
 
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
@@ -33,7 +34,7 @@ type serverMetrics struct {
 	pruneDuration metric.Float64Histogram
 }
 
-func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
+func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	var (
 		sm  serverMetrics
 		err error
@@ -62,6 +63,35 @@ func newServerMetrics(m metric.Meter) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard bytes counter: %w", err)
+	}
+
+	sm.uploadShardRejected, err = m.Int64Counter("fibre.server.upload_shard.rejected",
+		metric.WithDescription("UploadShard RPCs rejected by the storage limiter, by reason"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard rejected counter: %w", err)
+	}
+
+	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.occupancy_bytes",
+		metric.WithDescription("Current stored shard bytes tracked by the storage limiter"),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			o.Observe(occ.usage())
+			return nil
+		}),
+	); err != nil {
+		return nil, fmt.Errorf("creating upload_shard occupancy_bytes gauge: %w", err)
+	}
+
+	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.budget_bytes",
+		metric.WithDescription("Current per-node storage budget of the limiter"),
+		metric.WithUnit("By"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			o.Observe(occ.budgetBytes())
+			return nil
+		}),
+	); err != nil {
+		return nil, fmt.Errorf("creating upload_shard budget_bytes gauge: %w", err)
 	}
 
 	// DownloadShard RPC metrics

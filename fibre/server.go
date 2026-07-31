@@ -34,7 +34,7 @@ type Server struct {
 
 	verifiers chan *rsema1d.Verifier // caps concurrent verifications
 
-	occ occupancy
+	occ *occupancy
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -52,7 +52,9 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		return nil, err
 	}
 
-	metrics, err := newServerMetrics(cfg.Meter)
+	occ := newOccupancy(0)
+
+	metrics, err := newServerMetrics(cfg.Meter, occ)
 	if err != nil {
 		return nil, fmt.Errorf("creating metrics: %w", err)
 	}
@@ -64,6 +66,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		tracer:    cfg.Tracer,
 		metrics:   metrics,
 		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
+		occ:       occ,
 	}
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress)

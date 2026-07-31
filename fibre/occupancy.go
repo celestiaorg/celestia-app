@@ -28,6 +28,11 @@ func (o *occupancy) usage() int64 {
 	return o.used.Load()
 }
 
+// budgetBytes returns the current per-node budget in bytes (<= 0 means no limit).
+func (o *occupancy) budgetBytes() int64 {
+	return o.budget.Load()
+}
+
 // seed sets the initial store usage. Should be called at
 // startup before the server accepts uploads.
 func (o *occupancy) seed(n int64) {

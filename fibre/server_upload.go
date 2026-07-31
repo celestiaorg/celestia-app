@@ -16,6 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -90,6 +91,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		size := shardBinarySize(req.Shard)
 		reserved := s.occ.reserve(size)
 		if !reserved {
+			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
 			st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
 			st, _ = st.WithDetails(&errdetails.RetryInfo{
 				RetryDelay: durationpb.New(pruneInterval),
