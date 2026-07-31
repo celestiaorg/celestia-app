@@ -39,6 +39,7 @@ func TestStore(t *testing.T) {
 		{"Has_PresentAbsentOrphan", testStoreHas},
 		{"Size_EmptyAndSum", testStoreSize},
 		{"PruneBefore_ReturnsFreedBytes", testStorePruneBeforeReturnsFreedBytes},
+		{"DiskAvailable_Positive", testStoreDiskAvailable},
 	}
 
 	for _, tt := range tests {
@@ -556,6 +557,13 @@ func testStorePruneBeforeReturnsFreedBytes(t *testing.T, store *fibre.Store, pat
 	size, err := store.Size()
 	require.NoError(t, err)
 	require.Zero(t, size)
+}
+
+// DiskAvailable reports the free bytes on the store's filesystem.
+func testStoreDiskAvailable(t *testing.T, store *fibre.Store, _ string) {
+	avail, err := store.DiskAvailable()
+	require.NoError(t, err)
+	require.Positive(t, avail)
 }
 
 func makeTestStore(t *testing.T) (*fibre.Store, string) {

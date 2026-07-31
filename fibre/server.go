@@ -121,8 +121,6 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.Creds(creds),
 	)
 
-	s.recomputeBudget(ctx)
-
 	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
@@ -133,6 +131,8 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("getting store size: %w", err)
 	}
 	s.occ.seed(size)
+
+	s.recomputeBudget(ctx)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
@@ -218,5 +218,20 @@ func (s *Server) recomputeBudget(ctx context.Context) {
 
 	assignedRows := valSet.AssignedRows(ourVal, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
 	budget := fullStake * int64(assignedRows) / int64(s.Config.OriginalRows)
+
+	if fullStake > 0 && fullStake < int64(s.Config.MaxShardSize) {
+		s.log.ErrorContext(ctx, "FullStakeStorageBudget is below one shard; the limiter will reject every upload",
+			"full_stake_budget", fullStake, "max_shard_size", s.Config.MaxShardSize)
+	}
+	if budget > 0 && s.store != nil {
+		if avail, err := s.store.DiskAvailable(); err == nil && avail < budget {
+			s.log.WarnContext(ctx, "available disk is below the storage budget; provision more or the disk will fill",
+				"available_bytes", avail, "budget_bytes", budget)
+		}
+	}
+
+	// apply even a flagged budget. A too-small one rejects every upload
+	// which is safer than leaving a fresh node at the unlimited budget==0
+	// default.
 	s.occ.setBudget(budget)
 }

@@ -47,6 +47,9 @@ type ServerConfig struct {
 	MinRowsPerValidator int `toml:"-"`
 	// OriginalRows
 	OriginalRows int `toml:"-"`
+	// MaxShardSize is the maximum on-disk size of a single shard, used by the
+	// storage limiter's startup provisioning checks.
+	MaxShardSize int `toml:"-"`
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int `toml:"-"`
 
@@ -89,6 +92,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		OriginalRows:        p.Rows,
+		MaxShardSize:        p.MaxShardSize(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
 	}

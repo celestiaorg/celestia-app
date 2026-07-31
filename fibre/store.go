@@ -346,6 +346,15 @@ func (s *Store) Size() (int64, error) {
 	return totalSize, nil
 }
 
+// DiskAvailable returns the free bytes on the filesystem backing the store.
+func (s *Store) DiskAvailable() (int64, error) {
+	du, err := s.fs.GetDiskUsage(s.cfg.Path)
+	if err != nil {
+		return 0, fmt.Errorf("getting disk usage: %w", err)
+	}
+	return int64(du.AvailBytes), nil
+}
+
 // GetPaymentPromise retrieves a [PaymentPromise] by its hash.
 func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*PaymentPromise, error) {
 	data, closer, err := s.db.Get(promiseKey(promiseHash))
