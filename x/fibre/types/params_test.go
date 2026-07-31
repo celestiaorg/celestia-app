@@ -300,6 +300,18 @@ func TestParamsValidateRejectsOverflowingWithdrawalDelay(t *testing.T) {
 	require.Error(t, params.Validate())
 }
 
+// TestTimeoutSettlementWindowIsNeverEmpty pins the relationship between the
+// withdrawal delay and the payment promise timeout bounds. MsgPaymentPromiseTimeout
+// is only accepted between creation_timestamp + payment_promise_timeout and
+// creation_timestamp + withdrawal_delay, so if the worst-case timeout could reach
+// the smallest allowed delay that window would close and an expired promise could
+// never be claimed. The per-param bounds alone have to rule that out.
+func TestTimeoutSettlementWindowIsNeverEmpty(t *testing.T) {
+	worstCase := MinWithdrawalDelay - MaxPaymentPromiseTimeout
+	assert.GreaterOrEqual(t, worstCase, MinTimeoutSettlementWindow,
+		"the narrowest valid withdrawal delay must exceed the widest valid promise timeout by at least MinTimeoutSettlementWindow")
+}
+
 func TestDefaultParamsAreValid(t *testing.T) {
 	assert.NoError(t, DefaultParams().Validate())
 }

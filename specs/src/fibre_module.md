@@ -442,7 +442,7 @@ message Params {
 | Parameter | Default | Validation | Current use |
 | --- | --- | --- | --- |
 | `gas_per_blob_byte` | `1` | Must be nonzero | Stored and exposed as a parameter, but not used by the current PayForFibre payment formula |
-| `withdrawal_delay` | `24h` | Must be between `12h` and `168h` | Sets withdrawal availability and the oldest accepted payment-promise creation time |
+| `withdrawal_delay` | `24h` | Must be between `12h10m` and `168h` | Sets withdrawal availability and the oldest accepted payment-promise creation time |
 | `payment_promise_timeout` | `1h` | Must be between `10m` and `12h` | Defines normal promise expiration and when timeout processing becomes valid |
 | `payment_promise_retention_window` | `25h` | Must be positive and at least `withdrawal_delay` plus `10m` | Defines when processed-payment replay records are pruned |
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
@@ -452,7 +452,9 @@ message Params {
 
 `shard_retention` is bounded below so shards outlive the window in which a client fetches them back, and above to cap the local storage obligation it places on assigned validators.
 
-`withdrawal_delay` is bounded below by the maximum `payment_promise_timeout` so a promise never goes stale before its own normal-path expiry, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the retention floor `withdrawal_delay + 10m` far from overflowing the duration type.
+`withdrawal_delay` is bounded below by the maximum `payment_promise_timeout` plus `10m`, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the retention floor `withdrawal_delay + 10m` far from overflowing the duration type.
+
+The lower bound has to clear the maximum `payment_promise_timeout` so a promise never goes stale before its own normal-path expiry. The extra `10m` keeps the timeout settlement path usable. `MsgPaymentPromiseTimeout` is accepted only from `creation_timestamp + payment_promise_timeout` until the promise stops being settleable at `creation_timestamp + withdrawal_delay`; if the two could meet, that window would be empty and an expired promise could never be claimed. Because the floor already covers the widest allowed timeout plus the margin, every valid combination of the two parameters leaves at least `10m` to submit the message, so no cross-parameter check is needed.
 
 payment_promise_retention_window must be at least withdrawal_delay + 10m. A promise can be timestamped up to 10 minutes ahead of the block that settles it, so it may remain valid after its processed-payment record is pruned. Without that record, the promise could be settled again and escrow charged twice. The default 25h retention safely covers the 24h withdrawal delay.
 
