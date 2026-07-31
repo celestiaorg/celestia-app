@@ -17,6 +17,12 @@ import (
 
 // makeTestServer creates a server with all necessary test infrastructure.
 func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator) {
+	return makeTestServerWithConfig(t, nil)
+}
+
+// makeTestServerWithConfig is makeTestServer with an optional hook to tweak the
+// ServerConfig before construction (e.g. to set FullStakeStorageBudgetFn).
+func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*fibre.Server, validator.Set, *core.Validator) {
 	t.Helper()
 
 	// create validator set (use enough validators for good distribution)
@@ -55,6 +61,9 @@ func makeTestServer(t *testing.T) (*fibre.Server, validator.Set, *core.Validator
 
 	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
+	}
+	if modify != nil {
+		modify(&cfg)
 	}
 	server, err := fibre.NewServer(cfg)
 	require.NoError(t, err)

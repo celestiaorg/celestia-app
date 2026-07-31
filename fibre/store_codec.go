@@ -87,6 +87,21 @@ func writeShardBinary(w io.Writer, shard *types.BlobShard) error {
 	return nil
 }
 
+// shardBinarySize returns the exact number of bytes writeShardBinary produces
+// for shard, without serializing it.
+func shardBinarySize(shard *types.BlobShard) int64 {
+	// version + rlcs-len prefix + rlcs + rows-count prefix
+	size := int64(4 + 4 + len(shard.Rlcs) + 4)
+	for _, row := range shard.Rows {
+		// index + data-len prefix + data + proof-count prefix
+		size += int64(4 + 4 + len(row.Data) + 4)
+		for _, seg := range row.Proof {
+			size += int64(4 + len(seg)) // seg-len prefix + seg
+		}
+	}
+	return size
+}
+
 // Caps used to reject corrupt files cheaply, before allocating.
 const (
 	shardLengthLimit    = 1 << 30 // any single byte-length prefix

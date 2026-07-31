@@ -125,6 +125,12 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("opening store: %w", err)
 	}
 
+	size, err := s.store.Size()
+	if err != nil {
+		return fmt.Errorf("getting store size: %w", err)
+	}
+	s.occ.seed(size)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
@@ -173,6 +179,9 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 	return err
 }
 
+// recomputeBudget derives this node's occupancy budget from the governance
+// parameter and its current stake (FullStakeStorageBudget * assignedRows /
+// OriginalRows) and applies it to the counter.
 func (s *Server) recomputeBudget(ctx context.Context) {
 	if s.Config.FullStakeStorageBudgetFn == nil {
 		return
@@ -198,8 +207,9 @@ func (s *Server) recomputeBudget(ctx context.Context) {
 
 	ourVal, found := valSet.GetByAddress(key.Address())
 	if !found {
-		// not in active set
-		s.occ.setBudget(0)
+		// Not in the active set: no new assignments, but promises for past
+		// heights we were assigned to can still arrive, so keep the previous
+		// budget rather than dropping to an unlimited (budget == 0) state.
 		return
 	}
 

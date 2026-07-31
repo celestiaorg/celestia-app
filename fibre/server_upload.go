@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
@@ -79,27 +81,45 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		attribute.Int("rows_count", len(req.Shard.Rows)),
 	))
 
-	// store payment promise and shard with RLC roots
-	storePutStart := time.Now()
-	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
-		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
-		// A cancelled/expired client context means the store deliberately
-		// skipped the commit; report it as such rather than as an Internal
-		// error so the caller (and metrics) can tell it apart from a real
-		// storage failure.
-		if ctxErr := context.Cause(ctx); ctxErr != nil {
-			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "store upload aborted")
-			return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
-		}
-		log.ErrorContext(ctx, "failed to store upload data", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to store upload data")
-		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if store has the commitment: %w", err)
 	}
-	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
-	span.AddEvent("shard_stored")
+
+	if !has {
+		size := shardBinarySize(req.Shard)
+		reserved := s.occ.reserve(size)
+		if !reserved {
+			st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
+			st, _ = st.WithDetails(&errdetails.RetryInfo{
+				RetryDelay: durationpb.New(pruneInterval),
+			})
+			return nil, st.Err()
+		}
+
+		// store payment promise and shard with RLC roots
+		storePutStart := time.Now()
+		if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
+			s.occ.release(size)
+			s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+			// A cancelled/expired client context means the store deliberately
+			// skipped the commit; report it as such rather than as an Internal
+			// error so the caller (and metrics) can tell it apart from a real
+			// storage failure.
+			if ctxErr := context.Cause(ctx); ctxErr != nil {
+				log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "store upload aborted")
+				return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+			}
+			log.ErrorContext(ctx, "failed to store upload data", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to store upload data")
+			return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+		}
+		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
+		span.AddEvent("shard_stored")
+	}
 
 	// sign the payment promise
 	signStart := time.Now()
