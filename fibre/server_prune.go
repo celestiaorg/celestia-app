@@ -20,7 +20,12 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			s.prune(ctx)
-			s.recomputeBudget(ctx)
+			// A transient failure here is non-fatal: the previously derived
+			// budget (established at startup) is retained rather than dropping
+			// to unlimited.
+			if err := s.recomputeBudget(ctx); err != nil {
+				s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
+			}
 		}
 	}
 }

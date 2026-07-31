@@ -143,12 +143,6 @@ func (cfg *ServerConfig) Validate() error {
 		}
 	}
 
-	if cfg.FullStakeStorageBudgetFn == nil {
-		cfg.FullStakeStorageBudgetFn = func(ctx context.Context) (int64, error) {
-			return 0, nil // no budget
-		}
-	}
-
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}

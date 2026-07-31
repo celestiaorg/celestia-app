@@ -3,10 +3,11 @@
 ## Changelog
 
 - 2026-07-21: Initial draft
+- 2026-07-31: Implemented
 
 ## Status
 
-Proposed
+Implemented
 
 ## Summary
 
@@ -123,7 +124,7 @@ Because occupancy is a concrete number, a validator can expose it: a capacity en
 - **Reserve and release.** A pending upload's bytes are added at the admission check and removed if the store fails, so concurrent uploads cannot jointly exceed the budget by more than one shard between resyncs.
 - **Presence check.** The admission check is gated on a store-presence lookup so a replay of an accepted shard is not counted twice. `fibre/store.go` today has `Put` and `Get` but no `Has` and no size query, so both the presence lookup and the startup/resync size read are small additions. This relates to ADR-025's promise cache but does not depend on it: if that cache lands, the presence check can read from it; if not, a direct store lookup is enough.
 - **Rejection.** `ResourceExhausted` plus a coarse retry-after (prune interval, or time to the oldest shard's expiry) in a gRPC `RetryInfo` detail.
-- **Metrics.** Add instruments under the existing `fibre.server.upload_shard.` namespace (`fibre/server_metrics.go`): a `rejected` counter (labeled by reason) and an `occupancy_bytes` up/down counter for the current store size against the budget. These are distinct from the existing `fibre.server.upload_shard.bytes`, which sums per-upload stored shard-row bytes (`len(rows) × row size`) on the success path.
+- **Metrics.** Add instruments under the existing `fibre.server.upload_shard.` namespace (`fibre/server_metrics.go`): a `rejected` counter (labeled by reason), plus `occupancy_bytes` and `budget_bytes` observable gauges reporting the current store size and the derived per-node budget. Gauges (not an up/down counter) because occupancy is read from the limiter's live counter on collection, so the reported value cannot drift from a missed increment. These are distinct from the existing `fibre.server.upload_shard.bytes`, which sums per-upload stored shard-row bytes (`len(rows) × row size`) on the success path.
 - **Off switch.** Disabled via a CLI flag. Also a no-op when the budget is not positive.
 
 ### Transport-level limits
@@ -200,7 +201,7 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 
 - The budget comes from one governance parameter, normalized to full stake and scaled per node, so a single on-chain value covers validators of any stake.
 - Per-node disk scales with stake, which is intended: more stake, more commission.
-- Two different meters: the new `occupancy_bytes` is the current store level, while the existing `upload_shard.bytes` is a cumulative sum of per-upload stored row bytes.
+- Two different meters: the new `occupancy_bytes` gauge is the current store level, while the existing `upload_shard.bytes` counter is a cumulative sum of per-upload stored row bytes.
 - The limit is governance-set and derived per node; only a CLI flag to disable it is local.
 - The counter is in-memory but seeded from disk on startup and resynced from disk each prune, so drift is bounded and self-healing.
 - When many clients hit a full store at once they may retry in sync; jittering the retry-after hint is a possible refinement.

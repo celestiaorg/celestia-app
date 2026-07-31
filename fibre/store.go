@@ -201,6 +201,14 @@ func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, p
 		return fmt.Errorf("renaming shard tmp to final: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
+		// The file was renamed into shards/ but its markers never committed, so
+		// no index references it: Get can't find it, PruneBefore never visits
+		// it, and reconcile only sweeps staging/. It would sit on disk forever.
+		// Remove it so a failed Put leaves nothing behind.
+		if rmErr := s.fs.Remove(shardPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+			s.log.Warn("failed to remove orphaned shard after commit failure",
+				"commitment", promise.Commitment.String(), "error", rmErr)
+		}
 		return fmt.Errorf("committing metadata: %w", err)
 	}
 

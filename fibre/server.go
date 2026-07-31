@@ -132,7 +132,17 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.occ.seed(size)
 
-	s.recomputeBudget(ctx)
+	// Derive the budget once at startup and fail rather than silently run
+	// unlimited: an enabled limiter (FullStakeStorageBudgetFn set;
+	// --unlimited-budget leaves it nil) must resolve to a positive budget.
+	if err := s.recomputeBudget(ctx); err != nil {
+		return fmt.Errorf("deriving initial storage budget: %w", err)
+	}
+	if s.Config.FullStakeStorageBudgetFn != nil && s.occ.budgetBytes() <= 0 {
+		return errors.New("storage limiter is enabled but the derived budget is 0 " +
+			"(FullStakeStorageBudget unset/zero, or validator not in the active set); " +
+			"pass --unlimited-budget to run without the limiter")
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
@@ -185,27 +195,31 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 // recomputeBudget derives this node's occupancy budget from the governance
 // parameter and its current stake (FullStakeStorageBudget * assignedRows /
 // OriginalRows) and applies it to the counter.
-func (s *Server) recomputeBudget(ctx context.Context) {
+func (s *Server) recomputeBudget(ctx context.Context) error {
 	if s.Config.FullStakeStorageBudgetFn == nil {
-		return
+		return nil
 	}
 
 	fullStake, err := s.Config.FullStakeStorageBudgetFn(ctx)
 	if err != nil {
-		s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
-		return
+		return fmt.Errorf("querying full-stake storage budget: %w", err)
+	}
+
+	// Non-positive budget means the limiter is disabled; nothing to derive, and
+	// no need to reach the validator set or signer.
+	if fullStake <= 0 {
+		s.occ.setBudget(0)
+		return nil
 	}
 
 	valSet, err := s.state.Head(ctx)
 	if err != nil {
-		s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
-		return
+		return fmt.Errorf("fetching head validator set: %w", err)
 	}
 
 	key, err := s.signer.GetPubKey()
 	if err != nil {
-		s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
-		return
+		return fmt.Errorf("getting validator public key: %w", err)
 	}
 
 	ourVal, found := valSet.GetByAddress(key.Address())
@@ -213,14 +227,14 @@ func (s *Server) recomputeBudget(ctx context.Context) {
 		// Not in the active set: no new assignments, but promises for past
 		// heights we were assigned to can still arrive, so keep the previous
 		// budget rather than dropping to an unlimited (budget == 0) state.
-		return
+		return nil
 	}
 
 	assignedRows := valSet.AssignedRows(ourVal, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
 	budget := fullStake * int64(assignedRows) / int64(s.Config.OriginalRows)
 
-	if fullStake > 0 && fullStake < int64(s.Config.MaxShardSize) {
-		s.log.ErrorContext(ctx, "FullStakeStorageBudget is below one shard; the limiter will reject every upload",
+	if fullStake < int64(s.Config.MaxShardSize) {
+		s.log.WarnContext(ctx, "FullStakeStorageBudget is below one maximum shard; uploads near the maximum blob size will be rejected",
 			"full_stake_budget", fullStake, "max_shard_size", s.Config.MaxShardSize)
 	}
 	if budget > 0 && s.store != nil {
@@ -234,4 +248,5 @@ func (s *Server) recomputeBudget(ctx context.Context) {
 	// which is safer than leaving a fresh node at the unlimited budget==0
 	// default.
 	s.occ.setBudget(budget)
+	return nil
 }

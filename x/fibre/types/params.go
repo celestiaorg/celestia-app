@@ -149,6 +149,9 @@ func (p Params) Validate() error {
 	if p.PaymentPromiseRetentionWindow < minRetentionWindow {
 		return fmt.Errorf("payment promise retention window %s must be at least %s (withdrawal delay %s plus max promise clock skew %s), otherwise a settled promise can be replayed once its processed payment record is pruned", p.PaymentPromiseRetentionWindow, minRetentionWindow, p.WithdrawalDelay, MaxPromiseClockSkew)
 	}
+	if err := validateFullStakeStorageBudget(p.FullStakeStorageBudget); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -271,9 +274,14 @@ func validateShardRetention(v any) error {
 }
 
 func validateFullStakeStorageBudget(v any) error {
-	_, ok := v.(uint64)
+	budget, ok := v.(uint64)
 	if !ok {
 		return fmt.Errorf("invalid parameter type: %T", v)
 	}
+
+	if budget == 0 {
+		return fmt.Errorf("full stake storage budget must be positive; disable the limiter locally with the server --unlimited-budget flag instead")
+	}
+
 	return nil
 }

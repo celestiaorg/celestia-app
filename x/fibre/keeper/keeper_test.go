@@ -72,6 +72,7 @@ func (suite *KeeperTestSuite) TestSetGetParams() {
 			48*time.Hour, // PaymentPromiseRetentionWindow
 			2000,         // PaymentPromiseHeightWindow
 			8*time.Hour,  // ShardRetention
+			512<<30,      // FullStakeStorageBudget
 		)
 		suite.keeper.SetParams(suite.ctx, want)
 		got := suite.keeper.GetParams(suite.ctx)

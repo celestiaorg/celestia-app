@@ -5,8 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"google.golang.org/genproto/googleapis/rpc/errdetails"
-	"google.golang.org/protobuf/types/known/durationpb"
+	"math/rand/v2"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
@@ -18,8 +17,10 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // UploadShard handles the [types.FibreServer.UploadShard] RPC call.
@@ -94,7 +95,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
 			st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
 			st, _ = st.WithDetails(&errdetails.RetryInfo{
-				RetryDelay: durationpb.New(pruneInterval),
+				RetryDelay: durationpb.New(retryAfterHint()),
 			})
 			return nil, st.Err()
 		}
@@ -148,6 +149,14 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	return &types.UploadShardResponse{
 		ValidatorSignature: signature,
 	}, nil
+}
+
+// retryAfterHint returns how long a rejected client should wait before retrying.
+// Space frees only on prune ticks, so it waits at least one full prune interval,
+// plus up to half an interval of jitter to spread the synchronized retries of
+// many clients that hit a full store at the same time.
+func retryAfterHint() time.Duration {
+	return pruneInterval + time.Duration(rand.Int64N(int64(pruneInterval/2)))
 }
 
 // cancellationCode maps a context cancellation cause to the matching gRPC
