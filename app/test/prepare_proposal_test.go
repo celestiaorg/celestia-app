@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"crypto/rand"
 	"strings"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -542,4 +544,39 @@ func repeat[T any](n int, val T) []T {
 		result[i] = val
 	}
 	return result
+}
+
+// TestPrepareProposalFiltersPayForFibre verifies that PrepareProposal drops
+// MsgPayForFibre txs with invalid validator signatures or too little gas.
+func TestPrepareProposalFiltersPayForFibre(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signers := make([]*user.Signer, len(accounts))
+	for i, account := range accounts {
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+			user.NewAccount(account, infos[i].AccountNum, infos[i].Sequence))
+		require.NoError(t, err)
+		signers[i] = signer
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	validTx := newSignedPayForFibreTx(t, signers[0], accounts[0], true)
+	invalidSigTx := newSignedPayForFibreTx(t, signers[1], accounts[1], false)
+	// One below the deterministic verification gas: the fibre charge alone
+	// cannot fit in the limit, so the tx must be filtered out.
+	lowGasLimit := fibretypes.EstimateGasForPayForFibreSignatureVerification(1) - 1
+	lowGasTx := newSignedPayForFibreTxWithOpts(t, signers[2], accounts[2], true,
+		user.SetGasLimit(lowGasLimit), user.SetFee(4_000))
+
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{validTx, invalidSigTx, lowGasTx},
+		Height: testApp.LastBlockHeight() + 1,
+		Time:   time.Now(),
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Txs, 1)
+	require.True(t, bytes.Equal(validTx, resp.Txs[0]))
 }

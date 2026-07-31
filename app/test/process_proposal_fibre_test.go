@@ -284,9 +284,25 @@ func newSignedPayForFibreTx(
 	account string,
 	validValidatorSignatures bool,
 ) []byte {
+	return newSignedPayForFibreTxWithOpts(t, signer, account, validValidatorSignatures,
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+}
+
+// newSignedPayForFibreTxWithOpts is newSignedPayForFibreTx with caller-provided
+// tx options (gas limit, fee).
+func newSignedPayForFibreTxWithOpts(
+	t *testing.T,
+	signer *user.Signer,
+	account string,
+	validValidatorSignatures bool,
+	opts ...user.TxOption,
+) []byte {
 	t.Helper()
 	acc := signer.Account(account)
 	msg := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
+	// Drop the nanoseconds so every tx encodes to the same size and pays the
+	// same tx-size gas; the gas parity tests rely on this.
+	msg.PaymentPromise.CreationTimestamp = msg.PaymentPromise.CreationTimestamp.Truncate(time.Second)
 
 	pp := fibre.PaymentPromise{}
 	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
@@ -303,7 +319,7 @@ func newSignedPayForFibreTx(
 		msg.ValidatorSignatures = [][]byte{{0x01}}
 	}
 
-	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
+	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
 	return txBytes
 }
@@ -322,4 +338,113 @@ func seedFibreEscrow(t *testing.T, testApp *app.App, owner sdk.AccAddress, amoun
 		Balance:          coins[0],
 		AvailableBalance: coins[0],
 	})
+}
+
+// Reject proposals containing a MsgPayForFibre that fails stateful payment
+// promise validation, even when all signatures are valid.
+func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signers := make([]*user.Signer, len(accounts))
+	for i, account := range accounts {
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+			user.NewAccount(account, infos[i].AccountNum, infos[i].Sequence))
+		require.NoError(t, err)
+		signers[i] = signer
+	}
+
+	// accounts[0] has no escrow account; accounts[1] has an underfunded one.
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 1)
+
+	tests := []struct {
+		name string
+		tx   []byte
+	}{
+		{
+			name: "reject pay-for-fibre without an escrow account",
+			tx:   newSignedPayForFibreTx(t, signers[0], accounts[0], true),
+		},
+		{
+			name: "reject pay-for-fibre with insufficient escrow balance",
+			tx:   newSignedPayForFibreTx(t, signers[1], accounts[1], true),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{tc.tx}))
+			require.NoError(t, err)
+			require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
+		})
+	}
+}
+
+// TestProcessProposalChargesTxSizeGas verifies that ProcessProposal charges
+// the same ante gas as CheckTx: a gas limit one below the CheckTx-measured
+// cost is rejected, exactly at it is accepted.
+func TestProcessProposalChargesTxSizeGas(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := func(index int) *user.Signer {
+		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+			user.NewAccount(accounts[index], infos[index].AccountNum, infos[index].Sequence))
+		require.NoError(t, err)
+		return signer
+	}
+	for _, account := range accounts {
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	// Measure the full ante gas of a valid PayForFibre tx. The reference tx and
+	// the boundary txs below are identically sized, so their ante gas is equal.
+	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	anteGas := uint64(checkResp.GasUsed)
+
+	// Both cases build an otherwise-valid proposal (correct square and data
+	// root), so the gas limit is the only thing deciding accept vs reject.
+	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
+		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+			user.SetGasLimit(anteGas-1), user.SetFee(4_000))
+		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
+
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
+	})
+
+	t.Run("accept gas limit at exactly the ante cost", func(t *testing.T) {
+		exactTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
+			user.SetGasLimit(anteGas), user.SetFee(4_000))
+		require.Len(t, exactTx, len(referenceTx), "boundary tx must match the reference tx size")
+
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{exactTx}))
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+	})
+}
+
+// processProposalRequest builds a ProcessProposal request with a valid square
+// and data root, so only tx-level validity can cause a reject.
+func processProposalRequest(t *testing.T, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
+	t.Helper()
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	squareSize, err := dataSquare.Size()
+	require.NoError(t, err)
+	return &abci.RequestProcessProposal{
+		Height:       testApp.LastBlockHeight() + 1,
+		Time:         time.Now(),
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   uint64(squareSize),
+	}
 }
