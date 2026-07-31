@@ -550,8 +550,8 @@ func New(
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 		app.FibreKeeper,
-		app.IsPayForFibreSignatureVerificationCached,
-		app.CachePayForFibreSignatureVerification,
+		app.isPFFSigCached,
+		app.cachePFFSig,
 	))
 
 	protoFiles, err := proto.MergedRegistry()
@@ -608,7 +608,7 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
-		app.pffSignatureVerificationCache.Delete(pffSignatureVerificationCacheKey(tx))
+		app.pffSignatureVerificationCache.Delete(pffSigCacheKey(tx))
 	}
 
 	return res, nil

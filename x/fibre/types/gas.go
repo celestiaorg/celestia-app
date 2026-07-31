@@ -25,6 +25,14 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 	return appconsts.PFBFibreGasFixedCost + appconsts.PFBFibreGasPerChunk*chunks
 }
 
+// EstimateGasForPayForFibreSignatureVerification returns the deterministic ante
+// gas charged for MsgPayForFibre validation, including ProcessProposal stateful
+// checks and validator signature verification.
+func EstimateGasForPayForFibreSignatureVerification(validatorSignatureCount uint64) uint64 {
+	return appconsts.PFBFibreTxGasFixedCost +
+		validatorSignatureCount*appconsts.PFBFibreSignatureGasPerValidatorSignature
+}
+
 // PaymentAmount returns the escrow payment charged for settling a Fibre blob of the
 // given size. It mirrors the keeper's calculatePaymentAmount: 1 utia per gas in
 // appconsts.BondDenom. Clients use this to size escrow reservations and deposits

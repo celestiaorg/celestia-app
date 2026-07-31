@@ -28,8 +28,8 @@ func NewAnteHandler(
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
-	isPFFSignatureVerificationCached func(tx []byte) bool,
-	cachePFFSignatureVerification func(tx []byte),
+	isPFFSigCached func(tx []byte) bool,
+	cachePFFSig func(tx []byte),
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -70,6 +70,9 @@ func NewAnteHandler(
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
+		// Charge deterministic MsgPayForFibre validation gas on every ante path.
+		// Side effect: consumes gas from the gas meter.
+		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
@@ -79,10 +82,10 @@ func NewAnteHandler(
 		blobante.NewBlobShareDecorator(blobKeeper),
 		// Verify the validator signatures of MsgPayForFibre messages, cached
 		// by tx hash so verification runs once per tx across ABCI phases.
-		fibreante.NewFibreSignatureDecorator(
+		fibreante.NewFibreSignatureVerificationDecorator(
 			fibreKeeper,
-			isPFFSignatureVerificationCached,
-			cachePFFSignatureVerification,
+			isPFFSigCached,
+			cachePFFSig,
 		),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),

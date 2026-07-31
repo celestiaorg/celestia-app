@@ -16,17 +16,13 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
-	handler           sdk.AnteHandler
-	proposalTxHandler ProposalTxHandler
-	txConfig          client.TxConfig
-	builder           *square.Builder
+	handler  sdk.AnteHandler
+	txConfig client.TxConfig
+	builder  *square.Builder
 }
-
-type ProposalTxHandler func(ctx sdk.Context, rawTx []byte, tx sdk.Tx) error
 
 func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
-	proposalTxHandler ProposalTxHandler,
 	txConfig client.TxConfig,
 	maxSquareSize,
 	subtreeRootThreshold int,
@@ -36,10 +32,9 @@ func NewFilteredSquareBuilder(
 		return nil, err
 	}
 	return &FilteredSquareBuilder{
-		handler:           handler,
-		proposalTxHandler: proposalTxHandler,
-		txConfig:          txConfig,
-		builder:           builder,
+		handler:  handler,
+		txConfig: txConfig,
+		builder:  builder,
 	}, nil
 }
 
@@ -113,9 +108,6 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		txCtx, write := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(tx)
 		txCtx, err = fsb.handler(txCtx, sdkTx, false)
-		if err == nil && fsb.proposalTxHandler != nil {
-			err = fsb.proposalTxHandler(txCtx, tx, sdkTx)
-		}
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
@@ -330,9 +322,6 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		txCtx, write := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
 		txCtx, err = fsb.handler(txCtx, sdkTx, false)
-		if err == nil && fsb.proposalTxHandler != nil {
-			err = fsb.proposalTxHandler(txCtx, rawTx, sdkTx)
-		}
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",

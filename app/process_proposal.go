@@ -52,8 +52,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 		app.FibreKeeper,
-		app.IsPayForFibreSignatureVerificationCached,
-		app.CachePayForFibreSignatureVerification,
+		app.isPFFSigCached,
+		app.cachePFFSig,
 	)
 	blockHeader := ctx.BlockHeader()
 
@@ -142,13 +142,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			if err := app.validateAndApplyFibreProposalTx(ctx, rawTx, sdkTx); err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre validation failed %d", idx), err)
-				return reject(), nil
-			}
-
-			// We do not need to perform further checks on this transaction,
-			// since it has no PFB.
+			// The non-blob path is complete; blob-specific checks below do not apply.
 			continue
 		}
 

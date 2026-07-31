@@ -9,10 +9,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// extractPayForFibre returns the tx's MsgPayForFibre, or nil if the tx
-// contains none. It errors if a PFF is mixed with other messages or
-// duplicated — the same rule ProcessProposal enforces — since such a tx can
-// never be included in a valid block.
+// extractPayForFibre returns the tx's only MsgPayForFibre, if present.
 func extractPayForFibre(tx sdk.Tx) (*fibretypes.MsgPayForFibre, error) {
 	msgs := tx.GetMsgs()
 	if len(msgs) == 0 {
@@ -32,16 +29,15 @@ func extractPayForFibre(tx sdk.Tx) (*fibretypes.MsgPayForFibre, error) {
 	return pff, nil
 }
 
-func pffSignatureVerificationCacheKey(tx []byte) [sha256.Size]byte {
+func pffSigCacheKey(tx []byte) [sha256.Size]byte {
 	return sha256.Sum256(tx)
 }
 
-func (app *App) IsPayForFibreSignatureVerificationCached(tx []byte) bool {
-	_, ok := app.pffSignatureVerificationCache.Load(pffSignatureVerificationCacheKey(tx))
+func (app *App) isPFFSigCached(tx []byte) bool {
+	_, ok := app.pffSignatureVerificationCache.Load(pffSigCacheKey(tx))
 	return ok
 }
 
-func (app *App) CachePayForFibreSignatureVerification(tx []byte) {
-	app.pffSignatureVerificationCache.Store(pffSignatureVerificationCacheKey(tx), struct{}{})
+func (app *App) cachePFFSig(tx []byte) {
+	app.pffSignatureVerificationCache.Store(pffSigCacheKey(tx), struct{}{})
 }
-

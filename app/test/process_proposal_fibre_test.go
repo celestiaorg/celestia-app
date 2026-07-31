@@ -239,7 +239,7 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
 	require.NoError(t, err)
 
-	wrappedTx, err := coretypes.MarshalIndexWrapper(newSignedPayForFibreTx(t, signer, accounts[0]), 0)
+	wrappedTx, err := coretypes.MarshalIndexWrapper(newSignedPayForFibreTx(t, signer, accounts[0], true), 0)
 	require.NoError(t, err)
 	txs := [][]byte{wrappedTx}
 

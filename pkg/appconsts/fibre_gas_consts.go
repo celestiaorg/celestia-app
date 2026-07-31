@@ -13,4 +13,14 @@ const (
 
 	// PFBFibreChunkSize is the chunk size (256 KiB) used for gas calculation in PayForFibre.
 	PFBFibreChunkSize uint32 = 262_144
+
+	// PFBFibreTxGasFixedCost is the fixed gas cost for MsgPayForFibre tx
+	// validation overhead.
+	// WARN: placeholder value, needs to be benchmarked and tuned.
+	PFBFibreTxGasFixedCost uint64 = 75_000
+
+	// PFBFibreSignatureGasPerValidatorSignature is the gas cost per supplied
+	// validator signature in MsgPayForFibre.
+	// WARN: placeholder value, needs to be benchmarked and tuned.
+	PFBFibreSignatureGasPerValidatorSignature uint64 = 1_000
 )

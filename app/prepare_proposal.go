@@ -32,13 +32,12 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 		app.FibreKeeper,
-		app.IsPayForFibreSignatureVerificationCached,
-		app.CachePayForFibreSignatureVerification,
+		app.isPFFSigCached,
+		app.cachePFFSig,
 	)
 
 	fsb, err := NewFilteredSquareBuilder(
 		handler,
-		app.validateAndApplyFibreProposalTx,
 		app.encodingConfig.TxConfig,
 		app.MaxEffectiveSquareSize(ctx),
 		appconsts.SubtreeRootThreshold,

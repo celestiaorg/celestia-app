@@ -28,6 +28,37 @@ func TestEstimateGasForPayForFibre(t *testing.T) {
 	}
 }
 
+func TestEstimateGasForPayForFibreSignatureVerification(t *testing.T) {
+	tests := []struct {
+		name                    string
+		validatorSignatureCount uint64
+		want                    uint64
+	}{
+		{
+			name:                    "zero signatures is fixed cost only",
+			validatorSignatureCount: 0,
+			want:                    appconsts.PFBFibreTxGasFixedCost,
+		},
+		{
+			name:                    "one signature",
+			validatorSignatureCount: 1,
+			want: appconsts.PFBFibreTxGasFixedCost +
+				appconsts.PFBFibreSignatureGasPerValidatorSignature,
+		},
+		{
+			name:                    "many signatures",
+			validatorSignatureCount: 67,
+			want: appconsts.PFBFibreTxGasFixedCost +
+				67*appconsts.PFBFibreSignatureGasPerValidatorSignature,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, types.EstimateGasForPayForFibreSignatureVerification(tt.validatorSignatureCount))
+		})
+	}
+}
+
 func TestPaymentAmount(t *testing.T) {
 	const blobSize = 5 * appconsts.PFBFibreChunkSize
 	amount := types.PaymentAmount(blobSize)
