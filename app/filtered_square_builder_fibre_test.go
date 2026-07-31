@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/celestiaorg/go-square/v4/share"
+	sqtx "github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -242,6 +243,39 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFilteredSquareBuilderFillSetsTxBytesOnContext(t *testing.T) {
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := encConf.TxConfig
+
+	normalTx := newNormalTx(t, txConfig)
+	blobTx := newBlobTx(t, txConfig)
+	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
+
+	// The blob path hands the ante handler the unwrapped SDK tx bytes.
+	unwrappedBlobTx, isBlob, err := sqtx.UnmarshalBlobTx(blobTx)
+	require.NoError(t, err)
+	require.True(t, isBlob)
+
+	var seen [][]byte
+	recorder := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		seen = append(seen, ctx.TxBytes())
+		return ctx, nil
+	}
+
+	fsb, err := NewFilteredSquareBuilder(recorder, txConfig, 64, 64)
+	require.NoError(t, err)
+
+	db := dbm.NewMemDB()
+	ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
+	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
+
+	kept := fsb.Fill(ctx, [][]byte{normalTx, blobTx, payForFibreTx}, math.MaxInt64)
+	require.Len(t, kept, 3)
+
+	// Fill runs normal txs, then blob txs, then pay-for-fibre txs.
+	require.Equal(t, [][]byte{normalTx, unwrappedBlobTx.Tx, payForFibreTx}, seen)
 }
 
 func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
