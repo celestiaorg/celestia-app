@@ -219,8 +219,8 @@ func Test_validateShardRetention(t *testing.T) {
 // enforces between the payment promise retention window and the withdrawal
 // delay. A retention window shorter than the withdrawal delay lets a settled
 // promise be replayed once its processed payment record is pruned; see
-// TestRetentionWindowShorterThanWithdrawalDelayAllowsReplay in the keeper
-// package for the settlement that this rules out.
+// TestFutureDatedPromiseCannotBeReplayedAfterPruning in the keeper package for
+// the settlement that this rules out.
 func TestParamsValidateReplayInvariant(t *testing.T) {
 	params := func(withdrawalDelay, retentionWindow time.Duration) Params {
 		return NewParams(
