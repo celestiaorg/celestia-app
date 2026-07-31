@@ -7,6 +7,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -136,4 +137,24 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	}
 
 	return sigs[0].PubKey.Address().Bytes(), sigs[0].Sequence, nil
+}
+
+// extractPayForFibre returns the tx's only MsgPayForFibre, if present.
+func extractPayForFibre(tx sdk.Tx) (*fibretypes.MsgPayForFibre, error) {
+	msgs := tx.GetMsgs()
+	if len(msgs) == 0 {
+		return nil, nil
+	}
+
+	var pff *fibretypes.MsgPayForFibre
+	for _, msg := range msgs {
+		if m, ok := msg.(*fibretypes.MsgPayForFibre); ok {
+			pff = m
+		}
+	}
+
+	if pff != nil && len(msgs) != 1 {
+		return nil, errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
+	}
+	return pff, nil
 }
