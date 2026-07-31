@@ -454,7 +454,8 @@ message Params {
 
 `withdrawal_delay` is bounded below by the maximum `payment_promise_timeout` so a promise never goes stale before its own normal-path expiry, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the retention floor `withdrawal_delay + 10m` far from overflowing the duration type.
 
-`payment_promise_retention_window` must be at least `withdrawal_delay + 10m`, where `10m` is the maximum clock skew a promise's `creation_timestamp` may lead block time by. A promise stays settleable until `creation_timestamp + withdrawal_delay`, which is the freshness check applied on both the normal and the timeout settlement path, while its processed-payment record is anchored to the settlement block time and pruned `payment_promise_retention_window` later. Because the settlement block time can precede the `creation_timestamp` by up to the clock skew, the record can prune that much earlier than the promise stops being fresh. If the record is pruned while the promise is still fresh, the promise can be settled a second time through `MsgPaymentPromiseTimeout`, which skips the expiry and height-window checks, and the escrow owner is charged twice for one blob. The default retention window exceeds the default `withdrawal_delay` by an hour to satisfy this with margin.
+payment_promise_retention_window must be at least withdrawal_delay + 10m. A promise can be timestamped up to 10 minutes ahead of the block that settles it, so it may remain valid after its processed-payment record is
+pruned. Without that record, the promise could be settled again and escrow charged twice. The default 25h retention safely covers the 24h withdrawal delay.
 
 ## CLI
 
