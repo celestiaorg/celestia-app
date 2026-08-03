@@ -212,8 +212,7 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
-	// pffSignatureVerificationCache records successful PayForFibre validator
-	// signature-verification results, keyed by transaction hash.
+	// pffSignatureVerificationCache tracks successful MsgPayForFibre signature checks by tx hash.
 	pffSignatureVerificationCache sync.Map
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool

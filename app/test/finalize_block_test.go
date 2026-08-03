@@ -5,8 +5,10 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
@@ -17,23 +19,26 @@ import (
 
 const pffTestEscrowAmount = 10_000_000
 
-// Verifies that a cached and uncached tx have identical gas usage
+// TestPayForFibreReplayGasParity verifies cached and uncached txs use the same gas.
 func TestPayForFibreReplayGasParity(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
-	testApp, valSet, kr, newSigner := setupPayForFibreABCITestApp(t, accounts)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	sendTx, pffTxs := buildGasParityTxs(t, testApp, kr, newSigner, accounts)
 
-	// Put first PFF tx in cache by checking it
+	// Cache the first PFF tx through CheckTx.
 	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: pffTxs[0], Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 
 	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:               time.Now(),
-		Height:             testApp.LastBlockHeight() + 1,
-		Hash:               testApp.LastCommitID().Hash,
-		NextValidatorsHash: valSet.Hash(),
-		Txs:                [][]byte{sendTx, pffTxs[0], pffTxs[1]},
+		Time:   time.Now(),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    [][]byte{sendTx, pffTxs[0], pffTxs[1]},
 	})
 	require.NoError(t, err)
 	require.Len(t, finalizeResp.TxResults, 3)
@@ -44,7 +49,7 @@ func TestPayForFibreReplayGasParity(t *testing.T) {
 		"cached and uncached signature verification must consume identical gas")
 }
 
-// Returns a MsgSend tx and two identically sized MsgPayForFibre txs.
+// buildGasParityTxs returns a MsgSend tx and two same-sized MsgPayForFibre txs.
 func buildGasParityTxs(t *testing.T, testApp *app.App, kr keyring.Keyring, newSigner func(int) *user.Signer, accounts []string) ([]byte, [][]byte) {
 	t.Helper()
 	require.Len(t, accounts, 3)

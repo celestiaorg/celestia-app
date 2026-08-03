@@ -253,7 +253,7 @@ func TestFilteredSquareBuilderFillSetsTxBytesOnContext(t *testing.T) {
 	blobTx := newBlobTx(t, txConfig)
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 
-	// The blob path hands the ante handler the unwrapped SDK tx bytes.
+	// BlobTxs pass unwrapped SDK tx bytes to ante.
 	unwrappedBlobTx, isBlob, err := sqtx.UnmarshalBlobTx(blobTx)
 	require.NoError(t, err)
 	require.True(t, isBlob)
@@ -274,7 +274,7 @@ func TestFilteredSquareBuilderFillSetsTxBytesOnContext(t *testing.T) {
 	kept := fsb.Fill(ctx, [][]byte{normalTx, blobTx, payForFibreTx}, math.MaxInt64)
 	require.Len(t, kept, 3)
 
-	// Fill runs normal txs, then blob txs, then pay-for-fibre txs.
+	// Fill processes normal txs, then blob txs, then pay-for-fibre txs.
 	require.Equal(t, [][]byte{normalTx, unwrappedBlobTx.Tx, payForFibreTx}, seen)
 }
 

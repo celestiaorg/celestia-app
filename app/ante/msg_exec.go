@@ -10,9 +10,7 @@ import (
 
 var _ sdk.AnteDecorator = MsgExecDecorator{}
 
-// MsgExecDecorator ensures that the tx does not contain a MsgExec with a
-// nested MsgExec or a message whose special transaction-level validation
-// cannot be preserved through authz.
+// MsgExecDecorator rejects nested MsgExec, MsgPayForBlobs, and MsgPayForFibre messages.
 type MsgExecDecorator struct{}
 
 func NewMsgExecDecorator() *MsgExecDecorator {

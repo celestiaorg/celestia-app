@@ -24,6 +24,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -537,6 +538,17 @@ func queryAccountInfo(capp *app.App, accs []string, kr keyring.Keyring) []blobfa
 	return infos
 }
 
+// newSignerFactory returns signers for the indexed test accounts.
+func newSignerFactory(t *testing.T, kr keyring.Keyring, txConfig client.TxConfig, accounts []string, infos []blobfactory.AccountInfo) func(int) *user.Signer {
+	return func(index int) *user.Signer {
+		t.Helper()
+		signer, err := user.NewSigner(kr, txConfig, testutil.ChainID,
+			user.NewAccount(accounts[index], infos[index].AccountNum, infos[index].Sequence))
+		require.NoError(t, err)
+		return signer
+	}
+}
+
 // repeat returns a slice of length n with each element set to val.
 func repeat[T any](n int, val T) []T {
 	result := make([]T, n)
@@ -546,27 +558,23 @@ func repeat[T any](n int, val T) []T {
 	return result
 }
 
-// TestPrepareProposalFiltersPayForFibre verifies that PrepareProposal drops
-// MsgPayForFibre txs with invalid validator signatures or too little gas.
+// TestPrepareProposalFiltersPayForFibre checks invalid signatures and low gas.
 func TestPrepareProposalFiltersPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	signers := make([]*user.Signer, len(accounts))
 	for i, account := range accounts {
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-			user.NewAccount(account, infos[i].AccountNum, infos[i].Sequence))
-		require.NoError(t, err)
-		signers[i] = signer
+		signers[i] = newSigner(i)
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
 	validTx := newSignedPayForFibreTx(t, signers[0], accounts[0], true)
 	invalidSigTx := newSignedPayForFibreTx(t, signers[1], accounts[1], false)
-	// One below the deterministic verification gas: the fibre charge alone
-	// cannot fit in the limit, so the tx must be filtered out.
+	// Below the fixed verification gas, the tx must be filtered.
 	lowGasLimit := fibretypes.EstimateGasForPayForFibreSignatureVerification(1) - 1
 	lowGasTx := newSignedPayForFibreTxWithOpts(t, signers[2], accounts[2], true,
 		user.SetGasLimit(lowGasLimit), user.SetFee(4_000))

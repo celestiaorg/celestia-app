@@ -70,8 +70,7 @@ func NewAnteHandler(
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
-		// Charge deterministic MsgPayForFibre validation gas on every ante path.
-		// Side effect: consumes gas from the gas meter.
+		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
@@ -80,8 +79,7 @@ func NewAnteHandler(
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
-		// Verify the validator signatures of MsgPayForFibre messages, cached
-		// by tx hash so verification runs once per tx across ABCI phases.
+		// Verify MsgPayForFibre validator signatures either through cache or full verification.
 		fibreante.NewFibreSignatureVerificationDecorator(
 			fibreKeeper,
 			isPFFSigCached,

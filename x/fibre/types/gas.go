@@ -25,9 +25,7 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 	return appconsts.PFBFibreGasFixedCost + appconsts.PFBFibreGasPerChunk*chunks
 }
 
-// EstimateGasForPayForFibreSignatureVerification returns the deterministic ante
-// gas charged for MsgPayForFibre validation, including ProcessProposal stateful
-// checks and validator signature verification.
+// EstimateGasForPayForFibreSignatureVerification returns fixed plus per signature ante gas.
 func EstimateGasForPayForFibreSignatureVerification(validatorSignatureCount uint64) uint64 {
 	return appconsts.PFBFibreTxGasFixedCost +
 		validatorSignatureCount*appconsts.PFBFibreSignatureGasPerValidatorSignature

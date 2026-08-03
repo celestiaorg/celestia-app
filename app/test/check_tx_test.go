@@ -423,21 +423,14 @@ func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc clie
 	return signer
 }
 
-// TestCheckTxPayForFibre verifies CheckTx handling of MsgPayForFibre: gas
-// charging, rejection below the deterministic gas cost, no caching of failed
-// verifications, and rejection of multi-message txs.
+// TestCheckTxPayForFibre covers gas, caching, and invalid tx shapes.
 func TestCheckTxPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(4)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
-	newSigner := func(index int) *user.Signer {
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-			user.NewAccount(accounts[index], infos[index].AccountNum, infos[index].Sequence))
-		require.NoError(t, err)
-		return signer
-	}
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	for _, account := range accounts {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
@@ -463,8 +456,7 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 
 	t.Run("resubmitting a tx with invalid validator signatures is rejected again", func(t *testing.T) {
-		// Failed verifications must not be cached: resubmission has to fail
-		// verification again instead of hitting the cache.
+		// Failed verifications must not be cached.
 		txBytes := newSignedPayForFibreTx(t, newSigner(3), accounts[3], false)
 
 		first, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})

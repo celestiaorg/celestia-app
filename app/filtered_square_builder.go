@@ -287,7 +287,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 
 	for _, rawTx := range payForFibreTxs {
-		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
+		// Build the Fibre tx and system blob.
 		fibreTx, err := tx.TryParseFibreTx(rawTx)
 		if err != nil {
 			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)

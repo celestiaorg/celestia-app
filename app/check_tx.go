@@ -54,9 +54,8 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
-	// A MsgPayForFibre mixed with other messages can never be included in a
-	// valid block.
-	if _, err := extractPayForFibre(sdkTx); err != nil {
+	// MsgPayForFibre must be the only message in its tx.
+	if err := validatePayForFibreTxShape(sdkTx); err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
@@ -138,22 +137,23 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	return sigs[0].PubKey.Address().Bytes(), sigs[0].Sequence, nil
 }
 
-// extractPayForFibre returns the tx's only MsgPayForFibre, if present.
-func extractPayForFibre(tx sdk.Tx) (*fibretypes.MsgPayForFibre, error) {
+// validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other messages.
+func validatePayForFibreTxShape(tx sdk.Tx) error {
 	msgs := tx.GetMsgs()
-	if len(msgs) == 0 {
-		return nil, nil
-	}
-
-	var pff *fibretypes.MsgPayForFibre
 	for _, msg := range msgs {
-		if m, ok := msg.(*fibretypes.MsgPayForFibre); ok {
-			pff = m
+		if _, isPFF := msg.(*fibretypes.MsgPayForFibre); isPFF && len(msgs) > 1 {
+			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
 		}
 	}
+	return nil
+}
 
-	if pff != nil && len(msgs) != 1 {
-		return nil, errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
+// payForFibreMsg returns the MsgPayForFibre from a single-message tx.
+func payForFibreMsg(tx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
+	msgs := tx.GetMsgs()
+	if len(msgs) != 1 {
+		return nil, false
 	}
-	return pff, nil
+	pff, ok := msgs[0].(*fibretypes.MsgPayForFibre)
+	return pff, ok
 }

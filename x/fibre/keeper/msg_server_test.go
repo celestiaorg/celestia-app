@@ -447,8 +447,7 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 	})
 
 	suite.T().Run("signature index exceeds validator count", func(t *testing.T) {
-		// The first (empty) signature is skipped, so the valid signature lands
-		// on index 1 which has no corresponding validator.
+		// Index 0 is skipped, so the valid signature maps to missing validator 1.
 		msg := &types.MsgPayForFibre{
 			PaymentPromise:      paymentPromise,
 			ValidatorSignatures: [][]byte{{}, validSignatures[0]},

@@ -43,8 +43,7 @@ var (
 	)
 )
 
-// GenesisValidatorPrivateKey returns the deterministic consensus key used by
-// GenesisStateWithSingleValidator.
+// GenesisValidatorPrivateKey returns the deterministic genesis validator key.
 func GenesisValidatorPrivateKey() ed25519.PrivKey {
 	return ed25519.GenPrivKeyFromSecret([]byte("celestia-app test genesis validator"))
 }

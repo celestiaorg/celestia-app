@@ -39,15 +39,12 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	signers := make([]*user.Signer, 0, numberOfAccounts)
 	for index, account := range accounts {
-		addr := testfactory.GetAddress(kr, account)
-		acc := testutil.DirectQueryAccount(testApp, addr)
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
-		require.NoError(t, err)
-		signers = append(signers, signer)
-		seedFibreEscrow(t, testApp, addr, 1_000_000)
-		_ = index
+		signers = append(signers, newSigner(index))
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
 	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
@@ -101,18 +98,15 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 	}
 }
 
-// TestProcessProposalWithPayForFibre verifies that ProcessProposal correctly
-// handles PayForFibre transactions: accept/reject round-trips, rejection of
-// multi-PFF txs, mixed PFF+MsgSend txs, and garbage bytes.
+// TestProcessProposalWithPayForFibre covers valid PFF blocks and invalid tx shapes.
 func TestProcessProposalWithPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(2)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
-	require.NoError(t, err)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	signer := newSigner(0)
 	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
 	validPFFTx := newSignedPayForFibreTx(t, signer, accounts[0], true)
 	invalidValidatorSignatureTx := newSignedPayForFibreTx(t, signer, accounts[0], false)
@@ -124,9 +118,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, abci.CodeTypeOK, checkResp.Code)
 
-	blobSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-		user.NewAccount(accounts[1], infos[1].AccountNum, infos[1].Sequence))
-	require.NoError(t, err)
+	blobSigner := newSigner(1)
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x02}, share.NamespaceVersionZeroIDSize))
 	blob, err := share.NewBlob(ns, bytes.Repeat([]byte{0x01}, 100), share.ShareVersionZero, nil)
 	require.NoError(t, err)
@@ -235,9 +227,7 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
-	require.NoError(t, err)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
 
 	wrappedTx, err := coretypes.MarshalIndexWrapper(newSignedPayForFibreTx(t, signer, accounts[0], true), 0)
 	require.NoError(t, err)
@@ -259,7 +249,7 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 }
 
-// newMsgPayForFibre creates a MsgPayForFibre with a random signer for testing.
+// newMsgPayForFibre creates a MsgPayForFibre with a random signer.
 func newMsgPayForFibre(t *testing.T) *fibretypes.MsgPayForFibre {
 	t.Helper()
 	privKey := secp256k1.GenPrivKey()
@@ -276,8 +266,7 @@ func newUnsignedMultiMsgTx(t *testing.T, txConfig client.TxConfig, msgs ...sdk.M
 	return txBytes
 }
 
-// newSignedPayForFibreTx creates an SDK-signed MsgPayForFibre transaction with
-// a valid owner signature and optionally valid validator signatures.
+// newSignedPayForFibreTx creates a signed MsgPayForFibre tx.
 func newSignedPayForFibreTx(
 	t *testing.T,
 	signer *user.Signer,
@@ -288,8 +277,7 @@ func newSignedPayForFibreTx(
 		user.SetGasLimit(1_000_000), user.SetFee(4_000))
 }
 
-// newSignedPayForFibreTxWithOpts is newSignedPayForFibreTx with caller-provided
-// tx options (gas limit, fee).
+// newSignedPayForFibreTxWithOpts creates a signed MsgPayForFibre tx with options.
 func newSignedPayForFibreTxWithOpts(
 	t *testing.T,
 	signer *user.Signer,
@@ -300,8 +288,7 @@ func newSignedPayForFibreTxWithOpts(
 	t.Helper()
 	acc := signer.Account(account)
 	msg := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
-	// Drop the nanoseconds so every tx encodes to the same size and pays the
-	// same tx-size gas; the gas parity tests rely on this.
+	// Keep tx size stable for gas parity tests.
 	msg.PaymentPromise.CreationTimestamp = msg.PaymentPromise.CreationTimestamp.Truncate(time.Second)
 
 	pp := fibre.PaymentPromise{}
@@ -340,20 +327,17 @@ func seedFibreEscrow(t *testing.T, testApp *app.App, owner sdk.AccAddress, amoun
 	})
 }
 
-// Reject proposals containing a MsgPayForFibre that fails stateful payment
-// promise validation, even when all signatures are valid.
+// TestProcessProposalPayForFibreStatefulChecks rejects txs that fail stateful checks.
 func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(2)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	signers := make([]*user.Signer, len(accounts))
-	for i, account := range accounts {
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-			user.NewAccount(account, infos[i].AccountNum, infos[i].Sequence))
-		require.NoError(t, err)
-		signers[i] = signer
+	for i := range accounts {
+		signers[i] = newSigner(i)
 	}
 
 	// accounts[0] has no escrow account; accounts[1] has an underfunded one.
@@ -382,35 +366,26 @@ func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
 	}
 }
 
-// TestProcessProposalChargesTxSizeGas verifies that ProcessProposal charges
-// the same ante gas as CheckTx: a gas limit one below the CheckTx-measured
-// cost is rejected, exactly at it is accepted.
+// TestProcessProposalChargesTxSizeGas checks the ProcessProposal gas boundary.
 func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
-	newSigner := func(index int) *user.Signer {
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-			user.NewAccount(accounts[index], infos[index].AccountNum, infos[index].Sequence))
-		require.NoError(t, err)
-		return signer
-	}
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	for _, account := range accounts {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
-	// Measure the full ante gas of a valid PayForFibre tx. The reference tx and
-	// the boundary txs below are identically sized, so their ante gas is equal.
+	// Measure the full ante gas for a same-sized reference tx.
 	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
 	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	anteGas := uint64(checkResp.GasUsed)
 
-	// Both cases build an otherwise-valid proposal (correct square and data
-	// root), so the gas limit is the only thing deciding accept vs reject.
+	// The proposal is otherwise valid, so only the gas limit decides the result.
 	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
 		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
 			user.SetGasLimit(anteGas-1), user.SetFee(4_000))
@@ -432,8 +407,7 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 	})
 }
 
-// processProposalRequest builds a ProcessProposal request with a valid square
-// and data root, so only tx-level validity can cause a reject.
+// processProposalRequest builds a valid ProcessProposal request for the txs.
 func processProposalRequest(t *testing.T, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
 	t.Helper()
 	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)

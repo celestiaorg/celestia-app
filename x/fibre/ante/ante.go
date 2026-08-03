@@ -12,7 +12,7 @@ var (
 	_ sdk.AnteDecorator = FibreSignatureVerificationDecorator{}
 )
 
-// FibreSignatureGasDecorator charges deterministic MsgPayForFibre validation gas.
+// FibreSignatureGasDecorator charges gas for MsgPayForFibre signature checks.
 type FibreSignatureGasDecorator struct{}
 
 func NewFibreSignatureGasDecorator() FibreSignatureGasDecorator {
@@ -33,7 +33,7 @@ func consumeDeterministicFibreSignatureGas(ctx sdk.Context, msg *fibretypes.MsgP
 	)
 }
 
-// FibreSignatureVerificationDecorator verifies uncached MsgPayForFibre validator signatures.
+// FibreSignatureVerificationDecorator verifies uncached MsgPayForFibre signatures.
 type FibreSignatureVerificationDecorator struct {
 	verifySignatures     func(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
 	isVerificationCached func(tx []byte) bool
@@ -59,7 +59,7 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 	}
 
 	rawTx := ctx.TxBytes()
-	// Empty tx bytes are not a valid cache key.
+	// Empty tx bytes are not cacheable.
 	if len(rawTx) > 0 && d.isVerificationCached(rawTx) {
 		return next(ctx, tx, simulate)
 	}

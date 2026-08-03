@@ -108,13 +108,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 
 			// Validate MsgPayForFibre constraints.
-			payForFibre, err := extractPayForFibre(sdkTx)
-			if err != nil {
+			if err := validatePayForFibreTxShape(sdkTx); err != nil {
 				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d: %s", idx, err))
 				return reject(), nil
 			}
 
-			if payForFibre != nil {
+			if payForFibre, ok := payForFibreMsg(sdkTx); ok {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))

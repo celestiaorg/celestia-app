@@ -7,37 +7,126 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 
-func TestExtractPayForFibre(t *testing.T) {
+func TestValidatePayForFibreTxShape(t *testing.T) {
 	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
 	txConfig := enc.TxConfig
 
-	normalTx := decodeTxForPayForFibreTest(t, txConfig, newNormalTx(t, txConfig))
-	pffTx := decodeTxForPayForFibreTest(t, txConfig, blobfactory.UnsignedPayForFibreTx(t, txConfig))
-	mixedTx := decodeTxForPayForFibreTest(t, txConfig, newMixedPayForFibreTx(t, txConfig))
-	multiTx := decodeTxForPayForFibreTest(t, txConfig, newMultiPayForFibreTx(t, txConfig))
+	tests := []struct {
+		name    string
+		txBytes []byte
+		wantErr error
+	}{
+		{
+			name:    "normal tx is valid",
+			txBytes: newNormalTx(t, txConfig),
+		},
+		{
+			name:    "two-message SDK tx without pay-for-fibre is valid",
+			txBytes: newMultiMsgSendTx(t, txConfig, 2),
+		},
+		{
+			name:    "ten-message SDK tx without pay-for-fibre is valid",
+			txBytes: newMultiMsgSendTx(t, txConfig, 10),
+		},
+		{
+			name:    "single pay-for-fibre tx is valid",
+			txBytes: blobfactory.UnsignedPayForFibreTx(t, txConfig),
+		},
+		{
+			name:    "pay-for-fibre mixed with MsgSend is invalid",
+			txBytes: newMixedPayForFibreTx(t, txConfig),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name:    "two pay-for-fibre messages are invalid",
+			txBytes: newMultiPayForFibreTx(t, txConfig),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+	}
 
-	got, err := extractPayForFibre(normalTx)
-	require.NoError(t, err)
-	require.Nil(t, got)
-
-	got, err = extractPayForFibre(pffTx)
-	require.NoError(t, err)
-	require.NotNil(t, got)
-
-	_, err = extractPayForFibre(mixedTx)
-	require.ErrorIs(t, err, apperr.ErrInvalidPayForFibreTx)
-
-	_, err = extractPayForFibre(multiTx)
-	require.ErrorIs(t, err, apperr.ErrInvalidPayForFibreTx)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validatePayForFibreTxShape(decodeTx(t, txConfig, tc.txBytes))
+			if tc.wantErr != nil {
+				require.ErrorIs(t, err, tc.wantErr)
+				return
+			}
+			require.NoError(t, err)
+		})
+	}
 }
 
-func decodeTxForPayForFibreTest(t *testing.T, txConfig client.TxConfig, txBytes []byte) sdk.Tx {
+func TestPayForFibreMsg(t *testing.T) {
+	enc := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := enc.TxConfig
+
+	tests := []struct {
+		name    string
+		txBytes []byte
+		wantOK  bool
+	}{
+		{
+			name:    "single pay-for-fibre tx",
+			txBytes: blobfactory.UnsignedPayForFibreTx(t, txConfig),
+			wantOK:  true,
+		},
+		{
+			name:    "normal tx",
+			txBytes: newNormalTx(t, txConfig),
+			wantOK:  false,
+		},
+		{
+			name:    "multi-message SDK tx",
+			txBytes: newMultiMsgSendTx(t, txConfig, 3),
+			wantOK:  false,
+		},
+		{
+			name:    "two pay-for-fibre messages",
+			txBytes: newMultiPayForFibreTx(t, txConfig),
+			wantOK:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			pff, ok := payForFibreMsg(decodeTx(t, txConfig, tc.txBytes))
+			require.Equal(t, tc.wantOK, ok)
+			if tc.wantOK {
+				require.NotNil(t, pff)
+			}
+		})
+	}
+}
+
+func decodeTx(t *testing.T, txConfig client.TxConfig, txBytes []byte) sdk.Tx {
 	t.Helper()
 	tx, err := txConfig.TxDecoder()(txBytes)
 	require.NoError(t, err)
 	return tx
+}
+
+// newMultiMsgSendTx creates an unsigned tx with msgCount MsgSend messages.
+func newMultiMsgSendTx(t *testing.T, txConfig client.TxConfig, msgCount int) []byte {
+	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	addr := sdk.AccAddress(privKey.PubKey().Address())
+	msgs := make([]sdk.Msg, msgCount)
+	for i := range msgs {
+		msgs[i] = &banktypes.MsgSend{
+			FromAddress: addr.String(),
+			ToAddress:   addr.String(),
+			Amount:      sdk.NewCoins(sdk.NewInt64Coin("utia", 1)),
+		}
+	}
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msgs...))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
 }

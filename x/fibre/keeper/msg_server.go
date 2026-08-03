@@ -179,8 +179,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	return &types.MsgPayForFibreResponse{}, nil
 }
 
-// ValidatePayForFibreSignatures verifies the payment-promise and validator
-// signatures before proposal handling adds Fibre metadata to the square.
+// ValidatePayForFibreSignatures verifies the payment promise and validator signatures.
 func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPayForFibre) error {
 	pp := fibre.PaymentPromise{}
 	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
@@ -346,9 +345,8 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 	return types.EstimateGasForPayForFibre(blobSize)
 }
 
-// validateValidatorSignatures validates validator signatures using the existing SignatureSet infrastructure
+// validateValidatorSignatures checks signatures against the validator set at height.
 func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
-	// Get historical validator set at the height
 	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
 	if err != nil {
 		return errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
