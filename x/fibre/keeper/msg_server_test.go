@@ -839,7 +839,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params PaymentPromiseRetentionWindow shorter than WithdrawalDelay", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, time.Hour, 1000, 4*time.Hour),
+			Params:    types.NewParams(1, 24*time.Hour, time.Hour, time.Hour, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
