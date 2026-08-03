@@ -32,6 +32,9 @@ type Client interface {
 	// VerifyPromise verifies a payment promise against on-chain state
 	// and returns the verification result.
 	VerifyPromise(context.Context, *PaymentPromise) (VerifiedPromise, error)
+	// FullStakeStorageBudget returns the FullStakeStorageBudget governance
+	// parameter in bytes.
+	FullStakeStorageBudget(context.Context) (int64, error)
 
 	// Start initializes the client (e.g. detects chain ID).
 	Start(context.Context) error

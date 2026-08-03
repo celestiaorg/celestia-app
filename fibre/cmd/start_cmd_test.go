@@ -95,7 +95,7 @@ func newTestStartCmd(t *testing.T, home string) (*cobra.Command, *fibre.ServerCo
 	t.Helper()
 
 	got := new(fibre.ServerConfig)
-	cmd := newStartCmd(func(_ context.Context, cfg fibre.ServerConfig, _ bool) error {
+	cmd := newStartCmd(func(_ context.Context, cfg fibre.ServerConfig) error {
 		*got = cfg
 		return nil
 	})
@@ -113,11 +113,12 @@ func TestStartCmdNilLog(t *testing.T) {
 	home := t.TempDir()
 	mockPV := core.NewMockPV()
 
-	cmd := newStartCmd(func(ctx context.Context, cfg fibre.ServerConfig, _ bool) error {
+	cmd := newStartCmd(func(ctx context.Context, cfg fibre.ServerConfig) error {
 		// cfg.Log is nil here, exactly like production.
 		require.Nil(t, cfg.Log, "command must not set Log — Validate handles it")
 
 		cfg.ServerListenAddress = "127.0.0.1:0"
+		cfg.UnlimitedBudget = true
 		cfg.StateClientFn = func() (state.Client, error) {
 			return &stubStateClient{chainID: "test"}, nil
 		}
@@ -127,7 +128,7 @@ func TestStartCmdNilLog(t *testing.T) {
 		cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
 			return fibre.NewMemoryStore(scfg), nil
 		}
-		return startServer(ctx, cfg, true)
+		return startServer(ctx, cfg)
 	})
 	cmd.Flags().String(flagHome, home, "")
 	cmd.SetOut(io.Discard)
@@ -168,6 +169,10 @@ func (s *stubStateClient) VerifyPromise(context.Context, *state.PaymentPromise) 
 	return state.VerifiedPromise{}, nil
 }
 
+func (s *stubStateClient) FullStakeStorageBudget(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func TestStartCmdGRPCSignerFlags(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -195,6 +200,30 @@ func TestStartCmdGRPCSignerFlags(t *testing.T) {
 			assert.Equal(t, tc.wantGRPCAddress, got.SignerGRPCAddress)
 		})
 	}
+}
+
+func TestStartCmdUnlimitedBudget(t *testing.T) {
+	t.Run("config file value is respected", func(t *testing.T) {
+		home := t.TempDir()
+		cfg := fibre.DefaultServerConfig()
+		cfg.UnlimitedBudget = true
+		require.NoError(t, cfg.Save(fibre.DefaultConfigPath(home)))
+
+		cmd, got := newTestStartCmd(t, home)
+		cmd.SetArgs(nil)
+		require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+		require.True(t, got.UnlimitedBudget, "unlimited_budget from the config file must reach the server config")
+	})
+
+	t.Run("flag enables the off switch", func(t *testing.T) {
+		home := t.TempDir()
+		cmd, got := newTestStartCmd(t, home)
+		cmd.SetArgs([]string{"--" + flagUnlimitedBudget})
+		require.NoError(t, cmd.ExecuteContext(context.Background()))
+
+		require.True(t, got.UnlimitedBudget, "--unlimited-budget must set the off switch")
+	})
 }
 
 func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress, signerGRPCAddress string) {

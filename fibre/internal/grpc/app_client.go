@@ -111,6 +111,14 @@ func (c *AppClient) VerifyPromise(ctx context.Context, promise *state.PaymentPro
 	}, nil
 }
 
+func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
+	resp, err := c.queryClient.Params(ctx, &types.QueryParamsRequest{})
+	if err != nil {
+		return 0, err
+	}
+	return int64(resp.Params.FullStakeStorageBudget), nil
+}
+
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {
 	resp, err := tmservice.NewServiceClient(conn).GetNodeInfo(ctx, &tmservice.GetNodeInfoRequest{})
 	if err != nil {
@@ -125,12 +133,4 @@ func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error
 		return "", fmt.Errorf("empty chain ID in node info response")
 	}
 	return chainID, nil
-}
-
-func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
-	resp, err := c.queryClient.Params(ctx, &types.QueryParamsRequest{})
-	if err != nil {
-		return 0, err
-	}
-	return int64(resp.Params.FullStakeStorageBudget), nil
 }

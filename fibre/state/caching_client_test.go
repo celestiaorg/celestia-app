@@ -44,6 +44,10 @@ func (m *mockClient) VerifyPromise(context.Context, *state.PaymentPromise) (stat
 	return state.VerifiedPromise{}, nil
 }
 
+func (m *mockClient) FullStakeStorageBudget(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (m *mockClient) Start(context.Context) error { return nil }
 func (m *mockClient) Stop(context.Context) error  { return nil }
 

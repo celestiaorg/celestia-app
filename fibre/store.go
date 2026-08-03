@@ -201,13 +201,11 @@ func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, p
 		return fmt.Errorf("renaming shard tmp to final: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		// The file was renamed into shards/ but its markers never committed, so
-		// no index references it: Get can't find it, PruneBefore never visits
-		// it, and reconcile only sweeps staging/. It would sit on disk forever.
-		// Remove it so a failed Put leaves nothing behind.
-		if rmErr := s.fs.Remove(shardPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
-			s.log.Warn("failed to remove orphaned shard after commit failure",
-				"commitment", promise.Commitment.String(), "error", rmErr)
+		if !s.hasShardMarker(promise.Commitment, promiseHash) {
+			if rmErr := s.fs.Remove(shardPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+				s.log.Warn("failed to remove orphaned shard after commit failure",
+					"commitment", promise.Commitment.String(), "error", rmErr)
+			}
 		}
 		return fmt.Errorf("committing metadata: %w", err)
 	}
@@ -330,6 +328,19 @@ func (s *Store) Has(_ context.Context, commitment Commitment, promiseHash []byte
 		return false, fmt.Errorf("stat shard file: %w", err)
 	}
 	return true, nil
+}
+
+// hasShardMarker reports whether a committed shard marker exists by
+// checking only the pebble metadata. It is used on
+// the Put commit-failure path to avoid deleting a shard file that a concurrent
+// Put of the same key has already published and committed.
+func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
+	_, closer, err := s.db.Get(shardKey(commit, promiseHash))
+	if err != nil {
+		return false
+	}
+	_ = closer.Close()
+	return true
 }
 
 // Size returns the total on-disk bytes of stored shard files.

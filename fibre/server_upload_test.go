@@ -1,7 +1,6 @@
 package fibre_test
 
 import (
-	"context"
 	"crypto/ed25519"
 	"testing"
 	"time"
@@ -205,11 +204,7 @@ func TestServerUploadShard(t *testing.T) {
 func TestServerUploadShardBudgetExceeded(t *testing.T) {
 	// Full-stake budget = OriginalRows, so the derived per-node budget is
 	// assignedRows bytes — orders of magnitude below one shard, forcing a reject.
-	server, valSet, serverValidator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
-		cfg.FullStakeStorageBudgetFn = func(context.Context) (int64, error) {
-			return int64(fibre.DefaultProtocolParams.Rows), nil
-		}
-	})
+	server, valSet, serverValidator := makeTestServerWithConfig(t, withStateBudget(int64(fibre.DefaultProtocolParams.Rows)))
 
 	req := makeTestRequest(t, valSet, serverValidator, nil)
 	resp, err := server.UploadShard(t.Context(), req)

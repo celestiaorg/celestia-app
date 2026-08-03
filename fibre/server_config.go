@@ -1,7 +1,6 @@
 package fibre
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -64,7 +63,10 @@ type ServerConfig struct {
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
-	FullStakeStorageBudgetFn func(ctx context.Context) (int64, error) `toml:"-"`
+	// UnlimitedBudget disables the storage limiter: an emergency off switch. When
+	// false, the server derives its per-node budget from the
+	// FullStakeStorageBudget governance parameter via the state client.
+	UnlimitedBudget bool `toml:"unlimited_budget"`
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`

@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
@@ -53,6 +54,9 @@ func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*
 		return &mockStateClient{
 			chainID:   "celestia",
 			SetGetter: valSetGetter,
+			// Large default budget so the limiter is on but never rejects; budget
+			// tests wrap StateClientFn to set a small budget.
+			budget: int64(types.DefaultFullStakeStorageBudget),
 		}, nil
 	}
 	cfg.SignerFn = func(_ string) (core.PrivValidator, error) {
@@ -81,11 +85,36 @@ type mockStateClient struct {
 	validator.SetGetter
 	validator.HostRegistry
 	chainID string
+	// budget is returned by FullStakeStorageBudget; zero means the limiter is
+	// disabled (unlimited), matching the on-chain semantics.
+	budget int64
 }
 
 func (m *mockStateClient) Start(context.Context) error { return nil }
 func (m *mockStateClient) Stop(context.Context) error  { return nil }
 func (m *mockStateClient) ChainID() string             { return m.chainID }
+
+func (m *mockStateClient) FullStakeStorageBudget(context.Context) (int64, error) {
+	return m.budget, nil
+}
+
+// withStateBudget returns a ServerConfig hook that sets the storage budget the
+// server derives. It wraps the harness's default StateClientFn — which already
+// wires the validator-set getter — and overrides only the mock's budget, so the
+// limiter is exercised with a specific FullStakeStorageBudget.
+func withStateBudget(budget int64) func(*fibre.ServerConfig) {
+	return func(cfg *fibre.ServerConfig) {
+		inner := cfg.StateClientFn
+		cfg.StateClientFn = func() (state.Client, error) {
+			c, err := inner()
+			if err != nil {
+				return nil, err
+			}
+			c.(*mockStateClient).budget = budget
+			return c, nil
+		}
+	}
+}
 
 func (m *mockStateClient) VerifyPromise(_ context.Context, promise *state.PaymentPromise) (state.VerifiedPromise, error) {
 	expirationTime := promise.CreationTimestamp.Add(1 * time.Hour)

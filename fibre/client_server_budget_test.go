@@ -41,8 +41,9 @@ func TestClientServerStorageBudget(t *testing.T) {
 	}
 
 	t.Run("unlimited budget stores the shard", func(t *testing.T) {
-		// Default config leaves FullStakeStorageBudget unset (0 == unlimited).
-		env := makeTestEnv(t, 1, 1, nil, nil)
+		env := makeTestEnv(t, 1, 1, nil, func(cfg *fibre.ServerConfig) {
+			cfg.UnlimitedBudget = true
+		})
 		defer env.Close()
 
 		id, err := uploadRandom(t, t.Context(), env.clients[0])
@@ -54,13 +55,9 @@ func TestClientServerStorageBudget(t *testing.T) {
 	})
 
 	t.Run("tiny budget rejects and stores nothing", func(t *testing.T) {
-		env := makeTestEnv(t, 1, 1, nil, func(cfg *fibre.ServerConfig) {
-			// A full-stake budget of OriginalRows bytes is orders of magnitude
-			// below one shard, so every upload is rejected.
-			cfg.FullStakeStorageBudgetFn = func(context.Context) (int64, error) {
-				return int64(fibre.DefaultProtocolParams.Rows), nil
-			}
-		})
+		// A full-stake budget of OriginalRows bytes is orders of magnitude below
+		// one shard, so every upload is rejected.
+		env := makeTestEnv(t, 1, 1, nil, withStateBudget(int64(fibre.DefaultProtocolParams.Rows)))
 		defer env.Close()
 
 		// The reject carries a RetryInfo hint of one prune interval; bound the
@@ -97,11 +94,7 @@ func TestClientServerStorageBudget(t *testing.T) {
 		}()
 
 		// Budget = exactly one shard: the first upload fits, the second exceeds it.
-		env := makeTestEnv(t, 1, 1, nil, func(cfg *fibre.ServerConfig) {
-			cfg.FullStakeStorageBudgetFn = func(context.Context) (int64, error) {
-				return shardSize, nil
-			}
-		})
+		env := makeTestEnv(t, 1, 1, nil, withStateBudget(shardSize))
 		defer env.Close()
 
 		_, err := uploadRandom(t, t.Context(), env.clients[0])
