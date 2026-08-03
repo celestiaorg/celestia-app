@@ -26,12 +26,11 @@
 
 Blocks are the top-level data structure of the Celestia blockchain.
 
-| name                  | type                                        | description                                                           |
-|-----------------------|---------------------------------------------|-----------------------------------------------------------------------|
-| `header`              | [Header](#header)                           | Block header. Contains primarily identification info and commitments. |
-| `availableDataHeader` | [AvailableDataHeader](#availabledataheader) | Header of available data. Contains commitments to erasure-coded data. |
-| `availableData`       | [AvailableData](#availabledata)             | Data that is erasure-coded for availability.                          |
-| `lastCommit`          | [Commit](#commit)                           | Previous block's Tendermint commit.                                   |
+| name         | type              | description                                                           |
+|--------------|-------------------|-----------------------------------------------------------------------|
+| `header`     | [Header](#header) | Block header. Contains primarily identification info and commitments. |
+| `data`       | [Data](#data)     | Block data that is erasure-coded for data availability.               |
+| `lastCommit` | [Commit](#commit) | Previous block's Tendermint commit.                                   |
 
 ### Header
 
@@ -62,15 +61,17 @@ The header hash is the [hash](#hashing) of the [serialized](#serialization) head
 | `rowRoots` | [HashDigest](#hashdigest)`[]` | Commitments to all erasure-coded data. |
 | `colRoots` | [HashDigest](#hashdigest)`[]` | Commitments to all erasure-coded data. |
 
+The available data header is not a field of the [block](#block). It is computed from the block's [data](#data) and is committed to in the [header](#header) via `availableDataRoot`.
+
 The number of row/column roots of the original data [shares](data_structures.md#share) in [square layout](#arranging-available-data-into-shares) for this block. The `availableDataRoot` of the [header](#header) is computed using the compact row and column roots as described [in the 2D Reed-Solomon encoding scheme](#2d-reed-solomon-encoding-scheme).
 
 The number of row and column roots is each `availableDataOriginalSquareSize * 2`, and must be a power of 2. Note that the minimum `availableDataOriginalSquareSize` is 1 (not 0), therefore the number of row and column roots are each at least 2.
 
 Implementations can prune rows containing only [tail padding](./consensus.md#reserved-namespace-ids) as they are implicitly available.
 
-### AvailableData
+### Data
 
-Data that is [erasure-coded](#erasure-coding) for [data availability checks](https://arxiv.org/abs/1809.09044).
+Block data that is [erasure-coded](#erasure-coding) for [data availability checks](https://arxiv.org/abs/1809.09044).
 
 | name             | type                              | description                                                                                                           |
 |------------------|-----------------------------------|-----------------------------------------------------------------------------------------------------------------------|
