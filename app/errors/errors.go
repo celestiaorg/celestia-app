@@ -16,12 +16,14 @@ var (
 	// ErrTxExceedsMaxSDKMessages is returned when an SDK tx contains more messages than a single block may ever include.
 	ErrTxExceedsMaxSDKMessages = errors.Register(AppErrorsCodespace, 11143, "transaction exceeds maximum allowed SDK message count")
 
+	// ErrNonPFBIndexWrapper is returned when an IndexWrapper encoded tx wraps
+	// a tx whose message is not a MsgPayForBlobs.
+	ErrNonPFBIndexWrapper = errors.Register(AppErrorsCodespace, 11144, "index wrapper txs must contain a MsgPayForBlobs")
+
+	// ErrMultiMsgIndexWrapper is returned when an IndexWrapper encoded tx wraps
+	// a tx containing more or fewer than one message.
+	ErrMultiMsgIndexWrapper = errors.Register(AppErrorsCodespace, 11145, "index wrapper txs must contain exactly one message")
+
 	// ErrInvalidPayForFibreTx is returned when MsgPayForFibre is not the only tx message.
-	ErrInvalidPayForFibreTx = errors.Register(AppErrorsCodespace, 11144, "MsgPayForFibre must be the only message in a transaction")
-
-	// ErrMultiMsgIndexWrapper is returned when an IndexWrapper does not contain exactly one SDK message.
-	ErrMultiMsgIndexWrapper = errors.Register(AppErrorsCodespace, 11145, "IndexWrapper must contain a single SDK message")
-
-	// ErrNonPFBIndexWrapper is returned when an IndexWrapper contains a message other than MsgPayForBlobs.
-	ErrNonPFBIndexWrapper = errors.Register(AppErrorsCodespace, 11146, "IndexWrapper must contain MsgPayForBlobs")
+	ErrInvalidPayForFibreTx = errors.Register(AppErrorsCodespace, 11146, "MsgPayForFibre must be the only message in a transaction")
 )
