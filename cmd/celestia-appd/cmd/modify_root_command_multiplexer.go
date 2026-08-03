@@ -17,7 +17,6 @@ import (
 
 // v2UpgradeHeight is the block height at which the v2 upgrade occurred.
 // this can be overridden at build time using ldflags:
-// -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=1751707'" for arabica
 // -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=2585031'" for mocha
 // -ldflags="-X 'github.com/celestiaorg/celestia-app/v10/cmd/celestia-appd/cmd.v2UpgradeHeight=2371495'" for mainnet
 var v2UpgradeHeight = ""

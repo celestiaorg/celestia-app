@@ -44,8 +44,8 @@ func TestConsts(t *testing.T) {
 	t.Run("TestUpgradeHeightDelay should be 3", func(t *testing.T) {
 		require.Equal(t, int64(3), TestUpgradeHeightDelay)
 	})
-	t.Run("ArabicaUpgradeHeightDelay should be 1 day of ~2.6 second blocks", func(t *testing.T) {
-		require.Equal(t, int64(33_231), ArabicaUpgradeHeightDelay)
+	t.Run("CortoUpgradeHeightDelay should be 1 day of ~2.6 second blocks", func(t *testing.T) {
+		require.Equal(t, int64(33_231), CortoUpgradeHeightDelay)
 	})
 	t.Run("MochaUpgradeHeightDelay should be 2 days of ~2.6 second blocks", func(t *testing.T) {
 		require.Equal(t, int64(66_462), MochaUpgradeHeightDelay)

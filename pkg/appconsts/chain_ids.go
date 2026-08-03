@@ -1,7 +1,7 @@
 package appconsts
 
 const (
-	ArabicaChainID = "arabica-11"
+	CortoChainID   = "corto-1"
 	MochaChainID   = "mocha-4"
 	MainnetChainID = "celestia"
 	// TestChainID is the chain ID used for testing.
@@ -9,4 +9,4 @@ const (
 	TalisChainID = "talis"
 )
 
-var PublicNetworks = []string{ArabicaChainID, MochaChainID, MainnetChainID}
+var PublicNetworks = []string{MochaChainID, MainnetChainID}

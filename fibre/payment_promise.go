@@ -192,7 +192,7 @@ const (
 	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8 + 15
 
 	// maxChainIDSize is the maximum allowed chain ID length.
-	// Examples: "celestia" (8), "mocha-4" (7), "arabica-11" (10)
+	// Examples: "celestia" (8), "mocha-4" (7), "corto-1" (7)
 	maxChainIDSize = 20
 
 	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)

@@ -22,7 +22,7 @@ go run ./tools/check-eds-construction [command]
 ./check-eds-construction --rpc <node_rpc> check <height>
 ```
 
-- `--rpc`: CometBFT HTTP RPC endpoint (e.g., `http://localhost:26657` or `https://rpc.celestia-arabica-11.com:443`)
+- `--rpc`: CometBFT HTTP RPC endpoint (e.g., `http://localhost:26657` or `https://celestia-mocha-rpc.publicnode.com:443`)
 - `<height>`: Height of the block to verify
 
 #### Check random blocks
@@ -39,16 +39,16 @@ go run ./tools/check-eds-construction [command]
 
 ```bash
 # Check a specific block
-$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 check 5165052
-Connected to https://rpc.celestia-arabica-11.com:443 on chain arabica-11
+$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 check 5165052
+Connected to https://celestia-mocha-rpc.publicnode.com:443 on chain mocha-4
 Got data root: 3C7F...ABCD
 Computed data root: 3C7F...ABCD
 Computed data root (with pool): 3C7F...ABCD
 All roots match!
 
 # Check 20 random blocks with default 100ms delay
-$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random 20
-Connected to https://rpc.celestia-arabica-11.com:443 on chain arabica-11
+$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 random 20
+Connected to https://celestia-mocha-rpc.publicnode.com:443 on chain mocha-4
 Latest block height: 5165100
 
 Checking 20 random blocks with 100ms delay between checks...
@@ -64,10 +64,10 @@ Block 4932156 passed
 ...
 
 # Check 10 random blocks (default) with custom 500ms delay
-$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random --delay 500
+$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 random --delay 500
 
 # Check 10 random blocks with no delay
-$ go run ./tools/check-eds-construction --rpc https://rpc.celestia-arabica-11.com:443 random --delay 0
+$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 random --delay 0
 ```
 
 ### Help
