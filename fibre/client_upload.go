@@ -352,6 +352,8 @@ func (c *Client) uploadTo(
 		select {
 		case <-ctx.Done():
 			return false
+		case <-c.stopCh:
+			return false
 		case <-time.After(delay):
 		}
 	}
@@ -382,14 +384,18 @@ func (c *Client) uploadTo(
 	return hasEnough
 }
 
-// ResourceExhausted rejection carries no RetryInfo hint.
 const (
 	// maxUploadRetries bounds how many times uploadTo retries a rate-limited
-	// validator before giving up on its signatureю
+	// validator before giving up on its signature.
 	maxUploadRetries = 3
-	// defaultRetryDelay is used when a ResourceExhausted error
-	// received without RetryInfo
+	// defaultRetryDelay is used when a ResourceExhausted error is received
+	// without a RetryInfo hint.
 	defaultRetryDelay = time.Second
+	// maxRetryDelay caps the server-supplied RetryInfo hint so a Byzantine
+	// validator cannot pin a retrying goroutine (and the blob it holds) for an
+	// arbitrarily long time. It sits comfortably above the honest hint
+	// (pruneInterval plus jitter).
+	maxRetryDelay = 2 * time.Minute
 )
 
 func retryAfter(err error) time.Duration {
@@ -400,7 +406,7 @@ func retryAfter(err error) time.Duration {
 	for _, d := range st.Details() {
 		if ri, ok := d.(*errdetails.RetryInfo); ok {
 			if delay := ri.GetRetryDelay().AsDuration(); delay > 0 {
-				return delay
+				return min(delay, maxRetryDelay)
 			}
 		}
 	}

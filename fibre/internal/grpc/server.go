@@ -16,9 +16,11 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// TODO(review): confirm these numbers. 16*16*~132 MiB is ~33 GiB worst-case,
-// which depends on the validator's RAM. Decide whether to lower them or move
-// them to ServerConfig so operators can tune to their hardware.
+// Connection and stream caps bound receive memory: gRPC buffers a full
+// UploadShard message (~132 MiB) before the handler runs, so the worst case is
+// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~33 GiB). The values
+// are intentionally conservative for a 32 GiB-RAM validator. Tying them to
+// staking power, or adding a per-peer connection policy, are possible follow-ups.
 const (
 	maxConnections       = 16
 	maxConcurrentStreams = 16

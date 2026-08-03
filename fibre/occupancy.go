@@ -5,8 +5,10 @@ import "sync/atomic"
 // occupancy tracks how many bytes of shards a validator holds against its disk
 // budget.
 type occupancy struct {
-	used   atomic.Int64 // on-disk plus in-flight bytes
-	budget atomic.Int64 // per-node cap. Can be <=0
+	used atomic.Int64 // on-disk plus in-flight bytes
+	// budget is the per-node cap in bytes. A non-positive value (<=0) disables
+	// the limiter.
+	budget atomic.Int64
 }
 
 // newOccupancy returns a counter with the given per-node budget in bytes.

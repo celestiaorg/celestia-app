@@ -83,9 +83,18 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		attribute.Int("rows_count", len(req.Shard.Rows)),
 	))
 
+	// Serialize identical uploads so concurrent duplicates can't each reserve
+	// occupancy for a single stored shard.
+	mu := s.uploadLock(promiseHash)
+	mu.Lock()
+	defer mu.Unlock()
+
 	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if store has the commitment: %w", err)
+		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "store presence check failed")
+		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
 	}
 
 	if !has {

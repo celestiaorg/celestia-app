@@ -105,7 +105,7 @@ For each `UploadShard` request the server:
 3. Otherwise checks occupancy: if the current store size plus this shard's bytes would exceed the budget, it rejects with `ResourceExhausted` and a retry-after hint. If there is room, it reserves the space by adding the shard's bytes to the count.
 4. Stores the shard and signs. If the store fails, it releases the reserved bytes and returns the error.
 
-The check sits between the replay check and a successful store. A replay never reaches it, and a failed store releases the reservation, so space that never reaches disk is not held. Reserving at the check, rather than counting only after the store, keeps two concurrent uploads from both passing and overshooting the budget by more than a single shard. The periodic resync (see below) corrects any residual drift.
+The check sits between the replay check and a successful store. A replay never reaches it, and a failed store releases the reservation, so space that never reaches disk is not held. Reserving at the check, rather than counting only after the store, keeps two concurrent uploads from both passing and overshooting the budget by more than a single shard. The counter is seeded from disk at startup and updated by exact byte deltas thereafter (see below), so it stays aligned with real disk use.
 
 ### Payment on a rejection
 
@@ -118,11 +118,11 @@ Because occupancy is a concrete number, a validator can expose it: a capacity en
 ### The limiter
 
 - **Budget.** Derived per node from the `FullStakeStorageBudget` governance parameter and the validator's stake (see Sizing), recomputed when stake changes. There is no operator-set budget; the validator's job is to provision at least this much disk.
-- **Occupancy counter.** An in-memory byte count of stored shards, seeded from the store's actual on-disk size at startup. Each admitted upload adds its stored size; each prune's bytes come off at the next resync.
+- **Occupancy counter.** An in-memory byte count of stored shards, seeded from the store's actual on-disk size at startup. Each admitted upload adds its stored size; each prune subtracts the exact bytes it freed.
 - **Seed on startup.** Occupancy is read from the store directory at startup, so a restart resumes at the real disk use, never at zero. There is no in-memory state to lose across a restart or crash — the store on disk is the source of truth.
-- **Authoritative resync.** On every prune tick (once a minute, `fibre/server_prune.go`) the counter is reset to the store's real on-disk size, which picks up the prune's deletions and corrects any estimation drift or post-crash discrepancy. Admissions are counted the moment they are reserved, so the counter never sits below true occupancy — the safe direction.
-- **Reserve and release.** A pending upload's bytes are added at the admission check and removed if the store fails, so concurrent uploads cannot jointly exceed the budget by more than one shard between resyncs.
-- **Presence check.** The admission check is gated on a store-presence lookup so a replay of an accepted shard is not counted twice. `fibre/store.go` today has `Put` and `Get` but no `Has` and no size query, so both the presence lookup and the startup/resync size read are small additions. This relates to ADR-025's promise cache but does not depend on it: if that cache lands, the presence check can read from it; if not, a direct store lookup is enough.
+- **Exact delta accounting.** Rather than periodically resyncing the counter to the store size, it is kept aligned by exact deltas: seeded from disk at startup, moved up by each admission's reserved size and down by the exact bytes each prune frees. A store write that fails after publishing its file removes that file (guarded against a concurrent Put of the same shard), so bytes that never become durable are never left counted or left on disk. Admissions are counted the moment they are reserved, so the counter never sits below true occupancy — the safe direction.
+- **Reserve and release.** A pending upload's bytes are added at the admission check and removed if the store fails, so concurrent uploads cannot jointly exceed the budget by more than one shard.
+- **Presence check.** The admission check is gated on a store-presence lookup so a replay of an accepted shard is not counted twice. `fibre/store.go` today has `Put` and `Get` but no `Has` and no size query, so both the presence lookup and the startup size read are small additions. This relates to ADR-025's promise cache but does not depend on it: if that cache lands, the presence check can read from it; if not, a direct store lookup is enough.
 - **Rejection.** `ResourceExhausted` plus a coarse retry-after (prune interval, or time to the oldest shard's expiry) in a gRPC `RetryInfo` detail.
 - **Metrics.** Add instruments under the existing `fibre.server.upload_shard.` namespace (`fibre/server_metrics.go`): a `rejected` counter (labeled by reason), plus `occupancy_bytes` and `budget_bytes` observable gauges reporting the current store size and the derived per-node budget. Gauges (not an up/down counter) because occupancy is read from the limiter's live counter on collection, so the reported value cannot drift from a missed increment. These are distinct from the existing `fibre.server.upload_shard.bytes`, which sums per-upload stored shard-row bytes (`len(rows) × row size`) on the success path.
 - **Off switch.** Disabled via a CLI flag. Also a no-op when the budget is not positive.
@@ -171,7 +171,7 @@ The kind of limiter that *is* consensus-critical (one inside `PrepareProposal` /
 
 The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, and reject-fast rejection with a bounded queue left as a possible refinement. A global token bucket (Model 1) is the main runner-up.
 
-**Model 5 — occupancy gating (chosen).** Admit while the store is below a disk budget. The most direct disk enforcement, since a token bucket refills even when nothing is stored; restart-proof, because occupancy is read from disk rather than held in memory; and cheap to build — a counter seeded from the store size, moved up on admission and resynced to the real size on each prune. Sizing is one governance parameter, derived per node from stake. Weaknesses: no rate pacing, so it admits as fast as the network allows until the cap and then rejects until pruning frees space; a coarser retry-after; and some near-cap admission jitter. We accept these because the goal is a disk ceiling, which occupancy enforces exactly.
+**Model 5 — occupancy gating (chosen).** Admit while the store is below a disk budget. The most direct disk enforcement, since a token bucket refills even when nothing is stored; restart-proof, because occupancy is read from disk rather than held in memory; and cheap to build — a counter seeded from the store size, moved up on admission and down by the exact bytes freed on each prune. Sizing is one governance parameter, derived per node from stake. Weaknesses: no rate pacing, so it admits as fast as the network allows until the cap and then rejects until pruning frees space; a coarser retry-after; and some near-cap admission jitter. We accept these because the goal is a disk ceiling, which occupancy enforces exactly.
 
 **Model 1 — global token bucket (main alternative).** One flat `UploadSize` bucket per validator, sized from the budget by `rate = (budget − burst) / window` and `burst = max(128 MiB, rate × window / 2)`. Its strengths mirror Model 5's weaknesses: it paces ingestion to a steady rate, gives an exact retry-after, and keeps admission uniform by construction (flat charge, flat rate, shared input), degrading under overload to "reject everywhere, retry later" rather than a split. Its weaknesses are why we did not choose it: it bounds disk only indirectly, through the assumption that a shard lives exactly one window, and its in-memory tokens reset on restart, so a restarted node can admit a fresh burst on top of shards already on disk and transiently exceed the budget by up to `burst` (`budget / 3`). Closing that hole means reading occupancy from disk on startup anyway — at which point occupancy is doing the load-bearing work and Model 5 is the more direct mechanism. Model 1 becomes the right choice if a steady ingestion rate and clean back-pressure turn into requirements.
 
@@ -192,7 +192,7 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 - The disk bound is direct and exact: the store never knowingly exceeds the budget, and the bound does not rest on a window assumption or a hand-picked rate.
 - Restart-proof by construction: occupancy is read from the store, so a crash or restart cannot lose the accounting or overshoot the budget.
 - Sizing is one governance parameter; each node derives its budget from stake, so operators have nothing to set and cannot misconfigure it.
-- Simpler to build and remove than a rate limiter: a counter with an authoritative resync, no rate/burst derivation and no reservation library beyond a one-shard in-flight guard.
+- Simpler to build and remove than a rate limiter: a counter seeded from disk with exact delta accounting, no rate/burst derivation and no reservation library beyond a one-shard in-flight guard.
 - A capacity number falls out naturally, so a client can be told or can query how much room a validator has.
 - The replay double-count hole is closed.
 - Transport caps bound receive memory, which was unbounded, and remove the need for the draft PR's in-flight cap.
@@ -203,8 +203,8 @@ The chosen design is Model 5 (occupancy gating), optional Model 4 for fairness, 
 - Per-node disk scales with stake, which is intended: more stake, more commission.
 - Two different meters: the new `occupancy_bytes` gauge is the current store level, while the existing `upload_shard.bytes` counter is a cumulative sum of per-upload stored row bytes.
 - The limit is governance-set and derived per node; only a CLI flag to disable it is local.
-- The counter is in-memory but seeded from disk on startup and resynced from disk each prune, so drift is bounded and self-healing.
-- When many clients hit a full store at once they may retry in sync; jittering the retry-after hint is a possible refinement.
+- The counter is in-memory but seeded from disk on startup and updated by exact byte deltas on admission and prune, so a restart cannot lose the accounting.
+- When many clients hit a full store at once they could retry in sync, so the server jitters the retry-after hint to spread them.
 
 ### Negative
 

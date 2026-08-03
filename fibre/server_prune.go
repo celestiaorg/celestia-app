@@ -35,12 +35,15 @@ func (s *Server) prune(ctx context.Context) {
 
 	pruned, freed, err := s.store.PruneBefore(ctx, start)
 	s.metrics.observePrune(ctx, start, pruned, err)
+
+	if freed > 0 {
+		s.occ.release(freed)
+	}
 	if err != nil {
 		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
 		return
 	}
 	if pruned > 0 {
-		s.occ.release(freed)
 		s.log.InfoContext(ctx, "pruned expired entries", "pruned", pruned, "elapsed (ms)", time.Since(start).Milliseconds())
 	}
 }

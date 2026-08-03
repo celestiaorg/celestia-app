@@ -56,6 +56,9 @@ type Client struct {
 	started atomic.Bool
 	// closed indicates whether Stop has been called.
 	closed atomic.Bool
+	// stopCh is closed by Stop to release background upload goroutines that are
+	// waiting out a retry delay.
+	stopCh chan struct{}
 }
 
 // NewClient creates a new [Client] with the provided dependencies.
@@ -95,6 +98,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		clock:         cfg.Clock,
 		clientCache:   fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
 		escrowLedgers: make(map[string]*escrowLedger),
+		stopCh:        make(chan struct{}),
 	}, nil
 }
 
@@ -180,6 +184,8 @@ func (c *Client) Stop(ctx context.Context) error {
 	if !c.closed.CompareAndSwap(false, true) {
 		return nil
 	}
+
+	close(c.stopCh)
 
 	c.log.Info("stopping client")
 	done := make(chan struct{})

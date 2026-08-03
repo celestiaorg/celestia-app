@@ -68,7 +68,7 @@ func TestClientServerStorageBudget(t *testing.T) {
 		_, err := uploadRandom(t, ctx, env.clients[0])
 		require.Error(t, err, "upload must fail: the only validator rejects, so quorum is unreachable")
 
-		size, err := env.stores[0].Size()
+		size, err := env.stores[0].Size(t.Context())
 		require.NoError(t, err)
 		require.Zero(t, size, "a rejected upload must store nothing")
 	})
@@ -88,7 +88,7 @@ func TestClientServerStorageBudget(t *testing.T) {
 			_, err = env.stores[0].Get(t.Context(), id.Commitment())
 			require.NoError(t, err)
 
-			shardSize, err = env.stores[0].Size()
+			shardSize, err = env.stores[0].Size(t.Context())
 			require.NoError(t, err)
 			require.Positive(t, shardSize)
 		}()
@@ -106,7 +106,7 @@ func TestClientServerStorageBudget(t *testing.T) {
 		_, err = uploadRandom(t, ctx, env.clients[0])
 		require.Error(t, err, "the second shard exceeds the budget and is rejected")
 
-		size, err := env.stores[0].Size()
+		size, err := env.stores[0].Size(t.Context())
 		require.NoError(t, err)
 		require.Equal(t, shardSize, size, "only the first shard is stored")
 	})

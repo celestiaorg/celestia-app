@@ -330,21 +330,21 @@ func (s *Store) Has(_ context.Context, commitment Commitment, promiseHash []byte
 	return true, nil
 }
 
-// hasShardMarker reports whether a committed shard marker exists by
-// checking only the pebble metadata. It is used on
-// the Put commit-failure path to avoid deleting a shard file that a concurrent
-// Put of the same key has already published and committed.
+// hasShardMarker reports whether a committed shard marker exists,
+// checking only the pebble metadata.
 func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
 	_, closer, err := s.db.Get(shardKey(commit, promiseHash))
-	if err != nil {
+	switch {
+	case errors.Is(err, pebbledb.ErrNotFound):
 		return false
+	case err == nil:
+		_ = closer.Close()
 	}
-	_ = closer.Close()
 	return true
 }
 
 // Size returns the total on-disk bytes of stored shard files.
-func (s *Store) Size() (int64, error) {
+func (s *Store) Size(ctx context.Context) (int64, error) {
 	dir := filepath.Join(s.cfg.Path, shardsSubdir)
 	list, err := s.fs.List(dir)
 	if err != nil {
@@ -359,6 +359,8 @@ func (s *Store) Size() (int64, error) {
 			continue // pruned concurrently between List and Stat
 		case err != nil:
 			return 0, fmt.Errorf("stat shard file %s: %w", name, err)
+		case ctx.Err() != nil:
+			return 0, err
 		}
 		totalSize += info.Size()
 	}
@@ -396,7 +398,7 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 }
 
 // PruneBefore deletes all shards and payment promises with pruneAt before the given time
-// and returns the number of pruned entries+freed bytes.
+// and returns the number of pruned entries and the freed bytes.
 //
 // It works by iterating over the ordered prune index and deleting each entry until the given time,
 // so it iterates exactly over the entries that need to be pruned. The order is guaranteed by the

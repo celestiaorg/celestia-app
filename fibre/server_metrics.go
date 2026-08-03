@@ -73,7 +73,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	}
 
 	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.occupancy_bytes",
-		metric.WithDescription("Current stored shard bytes tracked by the storage limiter"),
+		metric.WithDescription("Shard bytes tracked by the storage limiter: on-disk plus in-flight reserved"),
 		metric.WithUnit("By"),
 		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
 			o.Observe(occ.usage())

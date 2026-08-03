@@ -506,7 +506,7 @@ func testStoreHas(t *testing.T, store *fibre.Store, path string) {
 func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 	ctx := t.Context()
 
-	size, err := store.Size()
+	size, err := store.Size(ctx)
 	require.NoError(t, err)
 	require.Zero(t, size, "empty store must report 0, not an error")
 
@@ -523,7 +523,7 @@ func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 		want += info.Size()
 	}
 
-	size, err = store.Size()
+	size, err = store.Size(ctx)
 	require.NoError(t, err)
 	require.Equal(t, want, size)
 }
@@ -554,7 +554,7 @@ func testStorePruneBeforeReturnsFreedBytes(t *testing.T, store *fibre.Store, pat
 	require.Equal(t, want, freed)
 
 	// everything pruned -> store empty
-	size, err := store.Size()
+	size, err := store.Size(ctx)
 	require.NoError(t, err)
 	require.Zero(t, size)
 }

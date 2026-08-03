@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 
@@ -116,7 +117,12 @@ func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return int64(resp.Params.FullStakeStorageBudget), nil
+
+	budget := resp.Params.FullStakeStorageBudget
+	if budget > math.MaxInt64 {
+		return math.MaxInt64, nil
+	}
+	return int64(budget), nil
 }
 
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {
