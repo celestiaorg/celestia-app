@@ -335,12 +335,15 @@ func (s *Store) Has(_ context.Context, commitment Commitment, promiseHash []byte
 func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
 	_, closer, err := s.db.Get(shardKey(commit, promiseHash))
 	switch {
-	case errors.Is(err, pebbledb.ErrNotFound):
-		return false
 	case err == nil:
 		_ = closer.Close()
+		return true
+	case errors.Is(err, pebbledb.ErrNotFound):
+		return false
+	default:
+		s.log.Warn("failed to check shard marker", "commitment", commit.String(), "error", err)
+		return false
 	}
-	return true
 }
 
 // Size returns the total on-disk bytes of stored shard files.

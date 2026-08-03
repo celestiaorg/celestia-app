@@ -223,11 +223,11 @@ func (s *Server) recomputeBudget(ctx context.Context) error {
 		return fmt.Errorf("querying full-stake storage budget: %w", err)
 	}
 
-	// A non-positive governance budget disables the limiter; nothing to derive,
-	// and no need to reach the validator set or signer.
+	// FullStakeStorageBudget must be positive when the limiter is enabled. Treat a
+	// non-positive value as an error so we keep the previous budget (or fail
+	// startup) rather than silently running unlimited.
 	if fullStake <= 0 {
-		s.occ.setBudget(0)
-		return nil
+		return fmt.Errorf("full-stake storage budget must be positive (got %d); pass --unlimited-budget to disable the limiter", fullStake)
 	}
 
 	valSet, err := s.state.Head(ctx)
