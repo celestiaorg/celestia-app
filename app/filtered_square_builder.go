@@ -321,7 +321,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 
 		txCtx, write := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
-		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		_, err = fsb.handler(txCtx, sdkTx, false)
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
