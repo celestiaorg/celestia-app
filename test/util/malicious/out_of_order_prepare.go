@@ -43,9 +43,6 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		&a.CircuitKeeper,
 		a.GovParamFilters(),
 		a.FibreKeeper,
-		// Skip the PFF signature cache so each pass verifies signatures.
-		func([]byte) bool { return false },
-		func([]byte) {},
 	)
 
 	fsb, err := app.NewFilteredSquareBuilder(

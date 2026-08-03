@@ -2,7 +2,6 @@ package ante
 
 import (
 	storetypes "cosmossdk.io/store/types"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -35,21 +34,19 @@ func consumeDeterministicFibreSignatureGas(ctx sdk.Context, msg *fibretypes.MsgP
 
 // FibreSignatureVerificationDecorator verifies uncached MsgPayForFibre signatures.
 type FibreSignatureVerificationDecorator struct {
-	verifySignatures     func(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
-	isVerificationCached func(tx []byte) bool
-	cacheVerification    func(tx []byte)
+	k FibreKeeper
 }
 
-func NewFibreSignatureVerificationDecorator(
-	keeper *fibrekeeper.Keeper,
-	isVerificationCached func(tx []byte) bool,
-	cacheVerification func(tx []byte),
+type FibreKeeper interface {
+	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
+	IsPffSigVerificationCached(tx []byte) bool
+	CachePffSigVerification(tx []byte)
+}
+
+func NewFibreSigVerificationDecorator(
+	k FibreKeeper,
 ) FibreSignatureVerificationDecorator {
-	return FibreSignatureVerificationDecorator{
-		verifySignatures:     keeper.ValidatePayForFibreSignatures,
-		isVerificationCached: isVerificationCached,
-		cacheVerification:    cacheVerification,
-	}
+	return FibreSignatureVerificationDecorator{k: k}
 }
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
@@ -60,16 +57,16 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 
 	rawTx := ctx.TxBytes()
 	// Empty tx bytes are not cacheable.
-	if len(rawTx) > 0 && d.isVerificationCached(rawTx) {
+	if len(rawTx) > 0 && d.k.IsPffSigVerificationCached(rawTx) {
 		return next(ctx, tx, simulate)
 	}
 
 	verificationCtx := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-	if err := d.verifySignatures(verificationCtx, msg); err != nil {
+	if err := d.k.ValidatePayForFibreSignatures(verificationCtx, msg); err != nil {
 		return ctx, err
 	}
 	if len(rawTx) > 0 {
-		d.cacheVerification(rawTx)
+		d.k.CachePffSigVerification(rawTx)
 	}
 	return next(ctx, tx, simulate)
 }

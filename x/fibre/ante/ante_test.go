@@ -51,16 +51,13 @@ func TestFibreSignatureGasDecoratorSkipsNonSinglePFFTx(t *testing.T) {
 
 func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	verifier := new(fakeFibreSignatureVerifier)
+	keeper := &fakeFibreSignatureKeeper{
+		t:                 t,
+		failOnCacheLookup: true,
+		failOnCacheWrite:  true,
+	}
 	decorator := FibreSignatureVerificationDecorator{
-		verifySignatures: verifier.ValidatePayForFibreSignatures,
-		isVerificationCached: func([]byte) bool {
-			t.Fatal("cache lookup should be skipped in simulation")
-			return false
-		},
-		cacheVerification: func([]byte) {
-			t.Fatal("cache write should be skipped in simulation")
-		},
+		k: keeper,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -69,24 +66,20 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 	gotCtx, err := decorator.AnteHandle(ctx, tx, true, nextNoop)
 
 	require.NoError(t, err)
-	require.Zero(t, verifier.calls)
+	require.Zero(t, keeper.calls)
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	verifier := new(fakeFibreSignatureVerifier)
-	cacheLookups := 0
+	keeper := &fakeFibreSignatureKeeper{
+		t:                t,
+		cacheHit:         true,
+		wantTx:           []byte{0x01},
+		failOnCacheWrite: true,
+	}
 	decorator := FibreSignatureVerificationDecorator{
-		verifySignatures: verifier.ValidatePayForFibreSignatures,
-		isVerificationCached: func(tx []byte) bool {
-			cacheLookups++
-			require.Equal(t, []byte{0x01}, tx)
-			return true
-		},
-		cacheVerification: func([]byte) {
-			t.Fatal("cache write should be skipped on cache hit")
-		},
+		k: keeper,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -95,26 +88,21 @@ func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing
 	gotCtx, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, cacheLookups)
-	require.Zero(t, verifier.calls)
+	require.Equal(t, 1, keeper.cacheLookups)
+	require.Zero(t, keeper.calls)
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
 func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *testing.T) {
 	txBytes := []byte{0x01, 0x02, 0x03}
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(2)}}
-	verifier := &fakeFibreSignatureVerifier{gasToConsume: 1_000_000}
-	cachedTxs := 0
+	keeper := &fakeFibreSignatureKeeper{
+		t:            t,
+		wantTx:       txBytes,
+		gasToConsume: 1_000_000,
+	}
 	decorator := FibreSignatureVerificationDecorator{
-		verifySignatures: verifier.ValidatePayForFibreSignatures,
-		isVerificationCached: func(tx []byte) bool {
-			require.Equal(t, txBytes, tx)
-			return false
-		},
-		cacheVerification: func(tx []byte) {
-			cachedTxs++
-			require.Equal(t, txBytes, tx)
-		},
+		k: keeper,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -123,25 +111,18 @@ func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *
 	gotCtx, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, verifier.calls)
-	require.Equal(t, 1, verifier.infiniteGasCalls)
-	require.Equal(t, 1, cachedTxs)
+	require.Equal(t, 1, keeper.calls)
+	require.Equal(t, 1, keeper.infiniteGasCalls)
+	require.Equal(t, 1, keeper.cachedTxs)
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
 func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	expectedErr := errors.New("invalid signature")
-	verifier := &fakeFibreSignatureVerifier{err: expectedErr}
+	keeper := &fakeFibreSignatureKeeper{err: expectedErr}
 	nextCalled := false
-	cachedTxs := 0
 	decorator := FibreSignatureVerificationDecorator{
-		verifySignatures: verifier.ValidatePayForFibreSignatures,
-		isVerificationCached: func([]byte) bool {
-			return false
-		},
-		cacheVerification: func([]byte) {
-			cachedTxs++
-		},
+		k: keeper,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -153,19 +134,26 @@ func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	})
 
 	require.ErrorIs(t, err, expectedErr)
-	require.Equal(t, 1, verifier.calls)
+	require.Equal(t, 1, keeper.calls)
 	require.False(t, nextCalled)
-	require.Zero(t, cachedTxs)
+	require.Zero(t, keeper.cachedTxs)
 }
 
-type fakeFibreSignatureVerifier struct {
-	calls            int
-	infiniteGasCalls int
-	gasToConsume     uint64
-	err              error
+type fakeFibreSignatureKeeper struct {
+	t                 *testing.T
+	calls             int
+	infiniteGasCalls  int
+	cacheLookups      int
+	cachedTxs         int
+	gasToConsume      uint64
+	cacheHit          bool
+	wantTx            []byte
+	failOnCacheLookup bool
+	failOnCacheWrite  bool
+	err               error
 }
 
-func (f *fakeFibreSignatureVerifier) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
+func (f *fakeFibreSignatureKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
 	f.calls++
 	if ctx.GasMeter().Limit() == ^uint64(0) {
 		f.infiniteGasCalls++
@@ -174,6 +162,29 @@ func (f *fakeFibreSignatureVerifier) ValidatePayForFibreSignatures(ctx sdk.Conte
 		ctx.GasMeter().ConsumeGas(f.gasToConsume, "fake verification")
 	}
 	return f.err
+}
+
+func (f *fakeFibreSignatureKeeper) IsPffSigVerificationCached(tx []byte) bool {
+	if f.failOnCacheLookup {
+		f.t.Fatal("cache lookup should be skipped")
+	}
+	f.cacheLookups++
+	f.requireTx(tx)
+	return f.cacheHit
+}
+
+func (f *fakeFibreSignatureKeeper) CachePffSigVerification(tx []byte) {
+	if f.failOnCacheWrite {
+		f.t.Fatal("cache write should be skipped")
+	}
+	f.cachedTxs++
+	f.requireTx(tx)
+}
+
+func (f *fakeFibreSignatureKeeper) requireTx(tx []byte) {
+	if f.t != nil && f.wantTx != nil {
+		require.Equal(f.t, f.wantTx, tx)
+	}
 }
 
 type mockTx struct {
