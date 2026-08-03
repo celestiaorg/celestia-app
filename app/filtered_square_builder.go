@@ -107,7 +107,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 		txCtx, write := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(tx)
-		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		_, err = fsb.handler(txCtx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
@@ -321,7 +321,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 
 		txCtx, write := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
-		txCtx, err = fsb.handler(txCtx, sdkTx, false)
+		_, err = fsb.handler(txCtx, sdkTx, false)
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
