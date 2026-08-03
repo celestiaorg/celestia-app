@@ -27,7 +27,9 @@ var (
 	// DefaultPaymentPromiseTimeout is the initial value of the payment promise timeout parameter.
 	DefaultPaymentPromiseTimeout = 1 * time.Hour
 	// DefaultPaymentPromiseRetentionWindow is the initial value of the payment promise retention window parameter.
-	DefaultPaymentPromiseRetentionWindow = 24 * time.Hour
+	// It exceeds DefaultWithdrawalDelay by more than MaxPromiseClockSkew so that
+	// the replay invariant enforced by Validate holds for the defaults.
+	DefaultPaymentPromiseRetentionWindow = 25 * time.Hour
 	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window parameter.
 	DefaultPaymentPromiseHeightWindow uint64 = 1000
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
@@ -36,6 +38,34 @@ var (
 )
 
 const (
+	// MaxPromiseClockSkew is how far a promise's creation_timestamp may lead block
+	// time. Absorbs clock drift only, so it must stay well under
+	// WithdrawalDelay - PaymentPromiseTimeout.
+	MaxPromiseClockSkew = 10 * time.Minute
+
+	// MinTimeoutSettlementWindow is how long the timeout settlement path is
+	// guaranteed to stay open. MsgPaymentPromiseTimeout is accepted from
+	// creation_timestamp + payment_promise_timeout until the promise stops being
+	// settleable at creation_timestamp + withdrawal_delay, so the delay has to
+	// exceed the timeout by at least this much for a processor to submit the
+	// message and get it into a block. Were the two allowed to meet, the window
+	// would be empty and an expired promise could never be claimed.
+	MinTimeoutSettlementWindow = 10 * time.Minute
+
+	// MinWithdrawalDelay is the lower bound of the withdrawal delay parameter.
+	// The delay is also how long a promise stays settleable after its
+	// creation_timestamp, so it must cover the longest allowed
+	// payment_promise_timeout or a promise could go stale before its own
+	// normal-path expiry. It adds MinTimeoutSettlementWindow on top so that
+	// every valid combination of the two params leaves a usable timeout
+	// settlement window, without needing a cross-param check.
+	MinWithdrawalDelay = MaxPaymentPromiseTimeout + MinTimeoutSettlementWindow
+	// MaxWithdrawalDelay is the upper bound of the withdrawal delay parameter. It
+	// caps how long escrowed funds stay locked after a withdrawal request, and it
+	// keeps the retention window floor (withdrawal_delay + MaxPromiseClockSkew)
+	// computed in Validate far from overflowing time.Duration.
+	MaxWithdrawalDelay = 7 * 24 * time.Hour
+
 	// MinPaymentPromiseTimeout is the lower bound of the payment promise timeout
 	// parameter. A promise has to stay valid long enough for the client to upload
 	// its shards to the assigned validators, collect their signatures, and get
@@ -105,6 +135,13 @@ func (p Params) Validate() error {
 	if err := validateShardRetention(&p.ShardRetention); err != nil {
 		return err
 	}
+	// A promise stays settleable until creation_timestamp + MaxPromiseClockSkew + withdrawal_delay.
+	// if the retention window is smaller, then a PP can be processed twice because the first PP
+	// record was pruned from state.
+	minRetentionWindow := p.WithdrawalDelay + MaxPromiseClockSkew
+	if p.PaymentPromiseRetentionWindow < minRetentionWindow {
+		return fmt.Errorf("payment promise retention window %s must be at least %s (withdrawal delay %s plus max promise clock skew %s), otherwise a settled promise can be replayed once its processed payment record is pruned", p.PaymentPromiseRetentionWindow, minRetentionWindow, p.WithdrawalDelay, MaxPromiseClockSkew)
+	}
 	return nil
 }
 
@@ -139,8 +176,12 @@ func validateWithdrawalDelay(v any) error {
 		return fmt.Errorf("withdrawal delay cannot be nil")
 	}
 
-	if *duration <= 0 {
-		return fmt.Errorf("withdrawal delay must be positive: %s", *duration)
+	if *duration < MinWithdrawalDelay {
+		return fmt.Errorf("withdrawal delay must be at least %s: %s", MinWithdrawalDelay, *duration)
+	}
+
+	if *duration > MaxWithdrawalDelay {
+		return fmt.Errorf("withdrawal delay must be at most %s: %s", MaxWithdrawalDelay, *duration)
 	}
 
 	return nil
