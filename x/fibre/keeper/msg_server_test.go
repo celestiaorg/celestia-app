@@ -904,6 +904,88 @@ func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPrun
 	suite.Equal(balance.Sub(payment).String(), account.Balance.String(), "escrow was charged exactly once")
 }
 
+// TestRetentionWindowIncreaseCannotReplayPrunedPromise reproduces issue #7606.
+//
+// Governance raising WithdrawalDelay moves the freshness lower bound
+// (current_time - withdrawal_delay) backward in real time. Each parameter pair on
+// its own satisfies the retention >= withdrawal_delay + MaxPromiseClockSkew
+// invariant, so Params.Validate cannot catch the transition. Without the monotonic
+// freshness floor, a promise that was already settled and whose processed-payment
+// record was pruned under the previous (compliant) parameters would pass the
+// freshness check again and be replayed via MsgPaymentPromiseTimeout, double-charging
+// the escrow. The floor makes the lower bound non-decreasing, closing the window.
+func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPromise() {
+	suite.setupValidatorSet()
+
+	// Initial compliant params: short withdrawal delay, retention just covering it.
+	initialParams := types.DefaultParams()
+	initialParams.WithdrawalDelay = 13 * time.Hour
+	initialParams.PaymentPromiseTimeout = 12 * time.Hour
+	initialParams.PaymentPromiseRetentionWindow = 13*time.Hour + types.MaxPromiseClockSkew
+	suite.Require().NoError(initialParams.Validate(), "initial params must be individually valid")
+	suite.keeper.SetParams(suite.ctx, initialParams)
+
+	signerPubKey, privKey, signer := suite.newSigner()
+	creation := suite.ctx.BlockTime()
+	promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creation)
+
+	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+		Signer:           signer,
+		Balance:          balance,
+		AvailableBalance: balance,
+	})
+
+	// Legitimate settlement under the initial params.
+	_, err := suite.msgServer.PayForFibre(suite.ctx, &types.MsgPayForFibre{
+		Signer:              signer,
+		PaymentPromise:      promise,
+		ValidatorSignatures: suite.generateValidatorSignatures(&promise),
+	})
+	suite.Require().NoError(err)
+
+	pp := fibre.PaymentPromise{}
+	suite.Require().NoError(pp.FromProto(&promise))
+	promiseHash, err := pp.Hash()
+	suite.Require().NoError(err)
+	_, found := suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	suite.Require().True(found, "settlement must record a replay-protection entry")
+
+	// Advance just past the retention window so BeginBlocker prunes the record.
+	// The old delay is still in effect, so the freshness floor advances to
+	// block_time - 13h and the pruning is safe under the old invariant.
+	pruneTime := creation.Add(initialParams.PaymentPromiseRetentionWindow).Add(time.Minute)
+	suite.ctx = suite.ctx.WithBlockTime(pruneTime)
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+
+	_, found = suite.keeper.GetProcessedPayment(suite.ctx, promiseHash)
+	suite.Require().False(found, "processed record must be pruned once past the retention window")
+
+	// Governance raises both params. The new pair is itself valid, but the freshness
+	// lower bound current_time - 48h now reaches back before the promise's creation.
+	increasedParams := initialParams
+	increasedParams.WithdrawalDelay = 48 * time.Hour
+	increasedParams.PaymentPromiseRetentionWindow = 48*time.Hour + types.MaxPromiseClockSkew
+	suite.Require().NoError(increasedParams.Validate(), "increased params must be individually valid")
+	suite.keeper.SetParams(suite.ctx, increasedParams)
+
+	// A subsequent block under the new params must not lower the freshness floor.
+	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
+
+	// The attacker replays the pruned, long-expired promise via the timeout path.
+	_, err = suite.msgServer.PaymentPromiseTimeout(suite.ctx, &types.MsgPaymentPromiseTimeout{
+		Signer:         sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String(),
+		PaymentPromise: promise,
+	})
+	suite.Require().Error(err, "a WithdrawalDelay increase must not resurrect a pruned promise")
+
+	account, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+	suite.Require().True(found)
+	suite.Equal(balance.Sub(payment).String(), account.Balance.String(), "escrow was charged exactly once")
+}
+
 // TestPayForFibreWithPendingWithdrawals tests that PayForFibre reduces pending withdrawals
 // when AvailableBalance is insufficient but Balance covers the payment (issue #6842).
 func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {

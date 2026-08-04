@@ -7,6 +7,12 @@ import (
 
 // BeginBlocker processes automatic state transitions at the beginning of each block
 func (k Keeper) BeginBlocker(ctx sdk.Context) error {
+	// Move the freshness floor forward before any promise is validated this block, so a
+	// WithdrawalDelay increase can never make an already-pruned promise look fresh again.
+	if err := k.updatePromiseFreshnessFloor(ctx); err != nil {
+		return err
+	}
+
 	// Process available withdrawals first (affects escrow balances)
 	if err := k.processAvailableWithdrawals(ctx); err != nil {
 		return err
@@ -17,6 +23,27 @@ func (k Keeper) BeginBlocker(ctx sdk.Context) error {
 		return err
 	}
 
+	return nil
+}
+
+// updatePromiseFreshnessFloor nudges the freshness floor forward to the newest
+// block_time - WithdrawalDelay, keeping whichever value is higher. Run every block, the
+// floor rises steadily with chain time; but when WithdrawalDelay later grows, the new
+// (older) candidate loses to the stored floor and nothing moves, so promises that already
+// aged out cannot come back. See validatePaymentPromiseStatefulInternal and issue #7606.
+func (k Keeper) updatePromiseFreshnessFloor(ctx sdk.Context) error {
+	params := k.GetParams(ctx)
+	candidate := ctx.BlockTime().Add(-params.WithdrawalDelay)
+	current, err := k.GetPromiseFreshnessFloor(ctx)
+	if err != nil {
+		return err
+	}
+
+	// An unset floor is the zero time, so on the very first block the candidate always
+	// wins and initializes it.
+	if candidate.After(current) {
+		k.SetPromiseFreshnessFloor(ctx, candidate)
+	}
 	return nil
 }
 

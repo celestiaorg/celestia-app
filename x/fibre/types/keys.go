@@ -31,6 +31,10 @@ var (
 	ProcessedPaymentsByHashKeyPrefix = []byte{0x05}
 	// ProcessedPaymentsByTimeKeyPrefix is the prefix for processed payment keys indexed by processed time
 	ProcessedPaymentsByTimeKeyPrefix = []byte{0x06}
+	// PromiseFreshnessFloorKey holds a single timestamp: the oldest creation_timestamp we
+	// still treat as fresh. It only ever moves forward, which is what stops a settled,
+	// already-pruned promise from being replayed after governance raises WithdrawalDelay.
+	PromiseFreshnessFloorKey = []byte{0x07}
 )
 
 // EscrowAccountKey returns the store key for an escrow account

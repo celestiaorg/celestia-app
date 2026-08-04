@@ -717,6 +717,81 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneWithCustomRetentionWindow() {
 	suite.True(found, "payment2 should NOT be pruned (30 minutes old with 1h retention)")
 }
 
+func (suite *ABCITestSuite) TestBeginBlocker_FreshnessFloorMonotonicOnDelayIncrease() {
+	// The freshness floor tracks block_time - WithdrawalDelay under constant or
+	// shrinking delay, but must never decrease when the delay grows. Otherwise a
+	// WithdrawalDelay increase would reopen the freshness window for already-pruned
+	// promises (issue #7606).
+
+	params := suite.keeper.GetParams(suite.ctx)
+	params.WithdrawalDelay = 13 * time.Hour
+	suite.keeper.SetParams(suite.ctx, params)
+
+	// No floor before the first BeginBlock (zero time, no error).
+	floor, err := suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.True(floor.IsZero())
+
+	// First block sets the floor to block_time - WithdrawalDelay.
+	t0 := suite.ctx.BlockTime()
+	suite.NoError(suite.keeper.BeginBlocker(suite.ctx))
+	floor, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.Equal(t0.Add(-13*time.Hour), floor)
+
+	// Advancing time under the same delay advances the floor.
+	suite.ctx = suite.ctx.WithBlockTime(t0.Add(2 * time.Hour))
+	suite.NoError(suite.keeper.BeginBlocker(suite.ctx))
+	floor, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.Equal(t0.Add(2*time.Hour).Add(-13*time.Hour), floor)
+
+	// Raising the delay drops block_time - WithdrawalDelay below the stored floor,
+	// so the floor must be held.
+	held := floor
+	params.WithdrawalDelay = 48 * time.Hour
+	suite.keeper.SetParams(suite.ctx, params)
+	suite.ctx = suite.ctx.WithBlockTime(t0.Add(3 * time.Hour))
+	suite.NoError(suite.keeper.BeginBlocker(suite.ctx))
+	floor, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.Equal(held, floor, "floor must not decrease when WithdrawalDelay increases")
+
+	// Once enough real time passes, block_time - WithdrawalDelay overtakes the held
+	// floor and it advances again.
+	suite.ctx = suite.ctx.WithBlockTime(held.Add(48 * time.Hour).Add(time.Hour))
+	suite.NoError(suite.keeper.BeginBlocker(suite.ctx))
+	floor, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.True(floor.After(held), "floor resumes advancing once the wider window catches up")
+}
+
+func (suite *ABCITestSuite) TestGenesisRoundTripPreservesFreshnessFloor() {
+	// Exported genesis must carry the freshness floor so replay protection survives
+	// an export/import migration.
+	suite.NoError(suite.keeper.BeginBlocker(suite.ctx))
+	want, err := suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.Require().NoError(err)
+	suite.Require().False(want.IsZero())
+
+	exported := suite.keeper.ExportGenesis(suite.ctx)
+	suite.Equal(want, exported.PromiseFreshnessFloor)
+
+	// Re-import into a fresh keeper and confirm the floor is restored.
+	suite.SetupTest()
+	suite.keeper.InitGenesis(suite.ctx, *exported)
+	got, err := suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.Equal(want, got)
+
+	// A default (zero) floor stays unset so it can be re-derived on the first block.
+	suite.SetupTest()
+	suite.keeper.InitGenesis(suite.ctx, *types.DefaultGenesis())
+	got, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
+	suite.NoError(err)
+	suite.True(got.IsZero(), "a zero exported floor must remain unset after import")
+}
+
 func (suite *ABCITestSuite) TestBeginBlocker_PruneEmptyState() {
 	// Test that pruning works correctly when there are no processed payments
 
