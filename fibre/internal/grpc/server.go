@@ -25,6 +25,10 @@ const (
 	maxConnections       = 16
 	maxConcurrentStreams = 16
 
+	// connectionTimeout overwritesbounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
+	// LimitListener slot with a stalled handshake for the 120s gRPC default.
+	connectionTimeout = 15 * time.Second
+
 	// KeepAlive drops idle or abusive connections.
 	keepAliveMinTime     = 10 * time.Second // reject clients that ping more often
 	keepAliveMaxConnIdle = 5 * time.Minute  // close idle connections
@@ -64,6 +68,7 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
 		grpc.MaxConcurrentStreams(maxConcurrentStreams),
+		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: keepAliveMinTime,
 		}),
