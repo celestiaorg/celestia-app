@@ -146,16 +146,13 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.occ.seed(size)
 
-	// Derive the budget once at startup and fail rather than silently run
-	// unlimited: unless the limiter is explicitly disabled (UnlimitedBudget), the
-	// derived budget must resolve to a positive value.
+	// Derive the budget once at startup.
 	if err := s.recomputeBudget(ctx); err != nil {
 		return fmt.Errorf("deriving initial storage budget: %w", err)
 	}
 	if !s.Config.UnlimitedBudget && s.occ.budgetBytes() <= 0 {
-		return errors.New("storage limiter is enabled but the derived budget is 0 " +
-			"(FullStakeStorageBudget unset/zero, or validator not in the active set); " +
-			"pass --unlimited-budget to run without the limiter")
+		s.log.Warn("derived storage budget is 0 (validator not in the active set?); " +
+			"running without a storage limit until it is re-derived")
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
