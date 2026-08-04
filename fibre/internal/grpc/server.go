@@ -25,7 +25,7 @@ const (
 	maxConnections       = 16
 	maxConcurrentStreams = 16
 
-	// connectionTimeout overwritesbounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
+	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.
 	connectionTimeout = 15 * time.Second
 
