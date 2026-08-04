@@ -88,11 +88,11 @@ func (s *FibrePruningTestSuite) TestPruneExpiredShard() {
 	defer downloaded.Free()
 	require.Equal(t, data, downloaded.Data())
 
-	pruned, err := s.fibreServer.Store().PruneBefore(ctx, time.Now())
+	pruned, _, err := s.fibreServer.Store().PruneBefore(ctx, time.Now())
 	require.NoError(t, err)
 	require.Zero(t, pruned, "shard must not be pruned before its retention deadline")
 
-	pruned, err = s.fibreServer.Store().PruneBefore(ctx, time.Now().Add(2*time.Minute))
+	pruned, _, err = s.fibreServer.Store().PruneBefore(ctx, time.Now().Add(2*time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 1, pruned, "the expired shard should be pruned")
 

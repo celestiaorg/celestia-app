@@ -60,7 +60,7 @@ func benchmarkPruneBefore(b *testing.B, totalEntries, prunePercent int) {
 		}
 		b.StartTimer()
 
-		pruned, err := store.PruneBefore(b.Context(), cutoffTime)
+		pruned, _, err := store.PruneBefore(b.Context(), cutoffTime)
 		require.NoError(b, err)
 
 		b.StopTimer()

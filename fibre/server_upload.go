@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/rand/v2"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
@@ -14,9 +15,12 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // UploadShard handles the [types.FibreServer.UploadShard] RPC call.
@@ -79,27 +83,55 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		attribute.Int("rows_count", len(req.Shard.Rows)),
 	))
 
-	// store payment promise and shard with RLC roots
-	storePutStart := time.Now()
-	if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
-		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
-		// A cancelled/expired client context means the store deliberately
-		// skipped the commit; report it as such rather than as an Internal
-		// error so the caller (and metrics) can tell it apart from a real
-		// storage failure.
-		if ctxErr := context.Cause(ctx); ctxErr != nil {
-			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "store upload aborted")
-			return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
-		}
-		log.ErrorContext(ctx, "failed to store upload data", "error", err)
+	// Serialize identical uploads so concurrent duplicates can't each reserve
+	// occupancy for a single stored shard.
+	mu := s.uploadLock(promiseHash)
+	mu.Lock()
+	defer mu.Unlock()
+
+	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	if err != nil {
+		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to store upload data")
-		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+		span.SetStatus(codes.Error, "store presence check failed")
+		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
 	}
-	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
-	span.AddEvent("shard_stored")
+
+	if !has {
+		size := shardBinarySize(req.Shard)
+		reserved := s.occ.reserve(size)
+		if !reserved {
+			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
+			st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
+			st, _ = st.WithDetails(&errdetails.RetryInfo{
+				RetryDelay: durationpb.New(retryAfterHint()),
+			})
+			return nil, st.Err()
+		}
+
+		// store payment promise and shard with RLC roots
+		storePutStart := time.Now()
+		if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
+			s.occ.release(size)
+			s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+			// A cancelled/expired client context means the store deliberately
+			// skipped the commit; report it as such rather than as an Internal
+			// error so the caller (and metrics) can tell it apart from a real
+			// storage failure.
+			if ctxErr := context.Cause(ctx); ctxErr != nil {
+				log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+				span.RecordError(err)
+				span.SetStatus(codes.Error, "store upload aborted")
+				return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+			}
+			log.ErrorContext(ctx, "failed to store upload data", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to store upload data")
+			return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+		}
+		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
+		span.AddEvent("shard_stored")
+	}
 
 	// sign the payment promise
 	signStart := time.Now()
@@ -126,6 +158,14 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	return &types.UploadShardResponse{
 		ValidatorSignature: signature,
 	}, nil
+}
+
+// retryAfterHint returns how long a rejected client should wait before retrying.
+// Space frees only on prune ticks, so it waits at least one full prune interval,
+// plus up to half an interval of jitter to spread the synchronized retries of
+// many clients that hit a full store at the same time.
+func retryAfterHint() time.Duration {
+	return pruneInterval + time.Duration(rand.Int64N(int64(pruneInterval/2)))
 }
 
 // cancellationCode maps a context cancellation cause to the matching gRPC

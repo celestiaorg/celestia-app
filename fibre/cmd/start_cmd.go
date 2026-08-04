@@ -13,6 +13,7 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerGRPCAddress   = "signer-grpc-address"
+	flagUnlimitedBudget     = "unlimited-budget"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -68,6 +69,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
+	cmd.Flags().BoolVar(&cfg.UnlimitedBudget, flagUnlimitedBudget, cfg.UnlimitedBudget, "run without a storage budget, disabling the Fibre upload limiter")
 
 	return cmd
 }

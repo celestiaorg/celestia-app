@@ -6,11 +6,34 @@ import (
 	"log/slog"
 	"net"
 	"runtime/debug"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
+)
+
+// Connection and stream caps bound receive memory: gRPC buffers a full
+// UploadShard message (~132 MiB) before the handler runs, so the worst case is
+// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~33 GiB). The values
+// are intentionally conservative for a 32 GiB-RAM validator. Tying them to
+// staking power, or adding a per-peer connection policy, are possible follow-ups.
+const (
+	maxConnections       = 16
+	maxConcurrentStreams = 16
+
+	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
+	// LimitListener slot with a stalled handshake for the 120s gRPC default.
+	connectionTimeout = 15 * time.Second
+
+	// KeepAlive drops idle or abusive connections.
+	keepAliveMinTime     = 10 * time.Second // reject clients that ping more often
+	keepAliveMaxConnIdle = 5 * time.Minute  // close idle connections
+	keepAlivePingTime    = 2 * time.Minute  // ping interval to detect dead peers
+	keepAlivePingTimeout = 20 * time.Second // ping ack deadline before drop
 )
 
 // Server wraps a [grpc.Server] with TCP listener and lifecycle management.
@@ -29,6 +52,9 @@ func Listen(listenAddr string) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
+	// Cap total connections so a peer cannot dodge the per-connection stream cap
+	// by opening many connections.
+	listener = netutil.LimitListener(listener, maxConnections)
 	return &Server{listener: listener}, nil
 }
 
@@ -39,7 +65,19 @@ func Listen(listenAddr string) (*Server, error) {
 // panic in any handler (e.g. a malformed request that slips past validation)
 // is converted into an Internal gRPC error instead of crashing the process.
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
-	opts = append(opts, grpc.ChainUnaryInterceptor(recoverUnaryInterceptor))
+	opts = append(opts,
+		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
+		grpc.MaxConcurrentStreams(maxConcurrentStreams),
+		grpc.ConnectionTimeout(connectionTimeout),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime: keepAliveMinTime,
+		}),
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			MaxConnectionIdle: keepAliveMaxConnIdle,
+			Time:              keepAlivePingTime,
+			Timeout:           keepAlivePingTimeout,
+		}),
+	)
 	s.server = grpc.NewServer(opts...)
 	types.RegisterFibreServer(s.server, service)
 }

@@ -31,4 +31,5 @@ message Params {
     (gogoproto.stdduration) = true,
     (gogoproto.nullable) = false
   ];
+  uint64 full_stake_storage_budget = 7 [(gogoproto.moretags) = "yaml:\"full_stake_storage_budget\""];
 }

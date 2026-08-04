@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"strings"
 	"sync"
 
@@ -109,6 +110,19 @@ func (c *AppClient) VerifyPromise(ctx context.Context, promise *state.PaymentPro
 		ExpiresAt:      *resp.ExpirationTime,
 		ShardRetention: resp.ShardRetention,
 	}, nil
+}
+
+func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
+	resp, err := c.queryClient.Params(ctx, &types.QueryParamsRequest{})
+	if err != nil {
+		return 0, err
+	}
+
+	budget := resp.Params.FullStakeStorageBudget
+	if budget > math.MaxInt64 {
+		return math.MaxInt64, nil
+	}
+	return int64(budget), nil
 }
 
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {

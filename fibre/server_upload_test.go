@@ -14,6 +14,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TestServerUploadShard unit tests the [Server.UploadShard].
@@ -196,6 +199,29 @@ func TestServerUploadShard(t *testing.T) {
 			tt.check(t, resp, err)
 		})
 	}
+}
+
+func TestServerUploadShardBudgetExceeded(t *testing.T) {
+	// Full-stake budget = OriginalRows, so the derived per-node budget is
+	// assignedRows bytes — orders of magnitude below one shard, forcing a reject.
+	server, valSet, serverValidator := makeTestServerWithConfig(t, withStateBudget(int64(fibre.DefaultProtocolParams.Rows)))
+
+	req := makeTestRequest(t, valSet, serverValidator, nil)
+	resp, err := server.UploadShard(t.Context(), req)
+
+	require.Nil(t, resp)
+	st, ok := status.FromError(err)
+	require.True(t, ok, "expected a gRPC status error")
+	require.Equal(t, codes.ResourceExhausted, st.Code())
+
+	var retryInfo *errdetails.RetryInfo
+	for _, d := range st.Details() {
+		if ri, ok := d.(*errdetails.RetryInfo); ok {
+			retryInfo = ri
+		}
+	}
+	require.NotNil(t, retryInfo, "rejection must carry a RetryInfo detail")
+	require.Positive(t, retryInfo.GetRetryDelay().AsDuration())
 }
 
 // makeTestRequest creates a valid UploadShardRequest for the given test setup.

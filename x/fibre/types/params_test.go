@@ -230,6 +230,7 @@ func TestParamsValidateReplayInvariant(t *testing.T) {
 			retentionWindow,
 			DefaultPaymentPromiseHeightWindow,
 			DefaultShardRetention,
+			DefaultFullStakeStorageBudget,
 		)
 	}
 

@@ -20,6 +20,12 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 			return
 		case <-ticker.C:
 			s.prune(ctx)
+			// A transient failure here is non-fatal: the previously derived
+			// budget (established at startup) is retained rather than dropping
+			// to unlimited.
+			if err := s.recomputeBudget(ctx); err != nil {
+				s.log.WarnContext(ctx, "budget recompute failed; keeping previous budget", "error", err)
+			}
 		}
 	}
 }
@@ -27,13 +33,16 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 func (s *Server) prune(ctx context.Context) {
 	start := time.Now()
 
-	pruned, err := s.store.PruneBefore(ctx, start)
+	pruned, freed, err := s.store.PruneBefore(ctx, start)
 	s.metrics.observePrune(ctx, start, pruned, err)
+
+	if freed > 0 {
+		s.occ.release(freed)
+	}
 	if err != nil {
 		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
 		return
 	}
-
 	if pruned > 0 {
 		s.log.InfoContext(ctx, "pruned expired entries", "pruned", pruned, "elapsed (ms)", time.Since(start).Milliseconds())
 	}

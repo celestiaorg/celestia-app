@@ -345,6 +345,9 @@ func makeTestServers(
 			return &mockStateClient{
 				chainID:   "celestia",
 				SetGetter: valSetGetter,
+				// Large default budget so the limiter is on but never rejects;
+				// budget tests wrap StateClientFn to set a small budget.
+				budget: int64(fibretypes.DefaultFullStakeStorageBudget),
 			}, nil
 		}
 		serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) {
