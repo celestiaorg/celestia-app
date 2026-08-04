@@ -58,6 +58,9 @@ talis start-fibre
 | `--ssh-key-path`    | *(from env/config)* | Path to SSH private key                                       |
 | `--instances`       | `0` (all)           | Number of validators to start fibre on                        |
 | `--otel-endpoint`   | *(auto)*            | OTLP HTTP endpoint for metrics/traces (auto-enabled with observability) |
+| `--storage-limit`   | `false`             | Enable the Fibre storage limiter (off by default so experiments run at full throughput) |
+
+The storage limiter is disabled by default: `start-fibre` passes `--unlimited-budget` to the fibre server so uploads are never rejected on budget and experiments measure full throughput. Pass `--storage-limit` to run the limiter instead (e.g. to reproduce the ADR-029 storage-budget behaviour), in which case set the budget via the genesis flags in section 0.
 
 The fibre server delegates signing to the colocated validator node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26669`). Override with `--signer-grpc-address` if needed. Metrics and traces are auto-enabled via OTLP when observability nodes are configured.
 
