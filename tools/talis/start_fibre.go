@@ -17,6 +17,7 @@ func startFibreCmd() *cobra.Command {
 		instances         int
 		metricsAddress    string
 		pyroscopeEndpoint string
+		storageLimit      bool
 	)
 
 	cmd := &cobra.Command{
@@ -43,6 +44,11 @@ func startFibreCmd() *cobra.Command {
 			// Build the remote command
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091"
+			// Disable the storage limiter by default so experiments run at full
+			// throughput; pass --storage-limit to exercise the limiter instead.
+			if !storageLimit {
+				remoteCmd += " --unlimited-budget"
+			}
 			// Auto-enable metrics when observability nodes are configured
 			if metricsAddress == "" && len(cfg.Observability) > 0 {
 				metricsAddress = fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)
@@ -86,6 +92,7 @@ func startFibreCmd() *cobra.Command {
 	cmd.Flags().IntVar(&instances, "instances", 0, "number of validators to start fibre on (default all)")
 	cmd.Flags().StringVar(&metricsAddress, "otel-endpoint", "", "OTLP HTTP endpoint for metrics/traces (e.g. http://host:4318; empty = disabled)")
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
+	cmd.Flags().BoolVar(&storageLimit, "storage-limit", false, "enable the Fibre storage limiter (default: disabled so experiments run at full throughput)")
 
 	return cmd
 }

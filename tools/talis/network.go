@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
@@ -69,6 +71,20 @@ func NewNetwork(chainID string, squareSize int, mods ...genesis.Modifier) (*Netw
 		validators: make(map[string]NodeInfo),
 		ecfg:       codec,
 	}, nil
+}
+
+// fibreParamsModifier returns a genesis modifier that overrides fibre params.
+// A zero value for either field leaves that param at its module default.
+func fibreParamsModifier(fullStakeStorageBudget uint64, shardRetention time.Duration) genesis.Modifier {
+	c := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	params := fibretypes.DefaultParams()
+	if fullStakeStorageBudget > 0 {
+		params.FullStakeStorageBudget = fullStakeStorageBudget
+	}
+	if shardRetention > 0 {
+		params.ShardRetention = shardRetention
+	}
+	return genesis.SetFibreParams(c.Codec, params)
 }
 
 func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
