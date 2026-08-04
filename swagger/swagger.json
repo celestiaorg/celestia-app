@@ -5691,6 +5691,10 @@
         },
         "shardRetention": {
           "type": "string"
+        },
+        "fullStakeStorageBudget": {
+          "type": "string",
+          "format": "uint64"
         }
       },
       "description": "Params defines the parameters for the fibre module."
