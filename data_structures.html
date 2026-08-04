@@ -159,8 +159,7 @@
 <p>Blocks are the top-level data structure of the Celestia blockchain.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>header</code></td><td><a href="#header">Header</a></td><td>Block header. Contains primarily identification info and commitments.</td></tr>
-<tr><td><code>availableDataHeader</code></td><td><a href="#availabledataheader">AvailableDataHeader</a></td><td>Header of available data. Contains commitments to erasure-coded data.</td></tr>
-<tr><td><code>availableData</code></td><td><a href="#availabledata">AvailableData</a></td><td>Data that is erasure-coded for availability.</td></tr>
+<tr><td><code>data</code></td><td><a href="#data">Data</a></td><td>Block data that is erasure-coded for data availability.</td></tr>
 <tr><td><code>lastCommit</code></td><td><a href="#commit">Commit</a></td><td>Previous block's Tendermint commit.</td></tr>
 </tbody></table>
 </div>
@@ -188,11 +187,12 @@
 <tr><td><code>colRoots</code></td><td><a href="#hashdigest">HashDigest</a><code>[]</code></td><td>Commitments to all erasure-coded data.</td></tr>
 </tbody></table>
 </div>
+<p>The available data header is not a field of the <a href="#block">block</a>. It is computed from the block's <a href="#data">data</a> and is committed to in the <a href="#header">header</a> via <code>availableDataRoot</code>.</p>
 <p>The number of row/column roots of the original data <a href="data_structures.html#share">shares</a> in <a href="#arranging-available-data-into-shares">square layout</a> for this block. The <code>availableDataRoot</code> of the <a href="#header">header</a> is computed using the compact row and column roots as described <a href="#2d-reed-solomon-encoding-scheme">in the 2D Reed-Solomon encoding scheme</a>.</p>
 <p>The number of row and column roots is each <code>availableDataOriginalSquareSize * 2</code>, and must be a power of 2. Note that the minimum <code>availableDataOriginalSquareSize</code> is 1 (not 0), therefore the number of row and column roots are each at least 2.</p>
 <p>Implementations can prune rows containing only <a href="./consensus.html#reserved-namespace-ids">tail padding</a> as they are implicitly available.</p>
-<h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
-<p>Data that is <a href="#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
+<h3 id="data"><a class="header" href="#data">Data</a></h3>
+<p>Block data that is <a href="#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>transactions</code></td><td><a href="#transaction">Transaction</a></td><td>Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances.</td></tr>
 <tr><td><code>payForBlobData</code></td><td><a href="#payforblobdata">PayForBlobData</a></td><td>PayForBlob data. Transactions that pay for blobs to be included.</td></tr>

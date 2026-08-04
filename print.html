@@ -160,8 +160,7 @@
 <p>Blocks are the top-level data structure of the Celestia blockchain.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>header</code></td><td><a href="data_structures.html#header">Header</a></td><td>Block header. Contains primarily identification info and commitments.</td></tr>
-<tr><td><code>availableDataHeader</code></td><td><a href="data_structures.html#availabledataheader">AvailableDataHeader</a></td><td>Header of available data. Contains commitments to erasure-coded data.</td></tr>
-<tr><td><code>availableData</code></td><td><a href="data_structures.html#availabledata">AvailableData</a></td><td>Data that is erasure-coded for availability.</td></tr>
+<tr><td><code>data</code></td><td><a href="data_structures.html#data">Data</a></td><td>Block data that is erasure-coded for data availability.</td></tr>
 <tr><td><code>lastCommit</code></td><td><a href="data_structures.html#commit">Commit</a></td><td>Previous block's Tendermint commit.</td></tr>
 </tbody></table>
 </div>
@@ -189,11 +188,12 @@
 <tr><td><code>colRoots</code></td><td><a href="data_structures.html#hashdigest">HashDigest</a><code>[]</code></td><td>Commitments to all erasure-coded data.</td></tr>
 </tbody></table>
 </div>
+<p>The available data header is not a field of the <a href="data_structures.html#block">block</a>. It is computed from the block's <a href="data_structures.html#data">data</a> and is committed to in the <a href="data_structures.html#header">header</a> via <code>availableDataRoot</code>.</p>
 <p>The number of row/column roots of the original data <a href="data_structures.html#share">shares</a> in <a href="data_structures.html#arranging-available-data-into-shares">square layout</a> for this block. The <code>availableDataRoot</code> of the <a href="data_structures.html#header">header</a> is computed using the compact row and column roots as described <a href="data_structures.html#2d-reed-solomon-encoding-scheme">in the 2D Reed-Solomon encoding scheme</a>.</p>
 <p>The number of row and column roots is each <code>availableDataOriginalSquareSize * 2</code>, and must be a power of 2. Note that the minimum <code>availableDataOriginalSquareSize</code> is 1 (not 0), therefore the number of row and column roots are each at least 2.</p>
 <p>Implementations can prune rows containing only <a href="./consensus.html#reserved-namespace-ids">tail padding</a> as they are implicitly available.</p>
-<h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
-<p>Data that is <a href="data_structures.html#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
+<h3 id="data"><a class="header" href="#data">Data</a></h3>
+<p>Block data that is <a href="data_structures.html#erasure-coding">erasure-coded</a> for <a href="https://arxiv.org/abs/1809.09044">data availability checks</a>.</p>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>transactions</code></td><td><a href="data_structures.html#transaction">Transaction</a></td><td>Transactions are ordinary Cosmos SDK transactions. For example: they may modify the validator set and token balances.</td></tr>
 <tr><td><code>payForBlobData</code></td><td><a href="data_structures.html#payforblobdata">PayForBlobData</a></td><td>PayForBlob data. Transactions that pay for blobs to be included.</td></tr>
@@ -694,10 +694,9 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <p>The following block fields are acquired from the network and parsed (i.e. <a href="./data_structures.html#serialization">deserialized</a>). If they cannot be parsed, the block is ignored but is not explicitly considered invalid by consensus rules. Further implications of ignoring a block are found in the <a href="./networking.html">networking spec</a>.</p>
 <ol>
 <li><a href="./data_structures.html#header">block.header</a></li>
-<li><a href="./data_structures.html#availabledataheader">block.availableDataHeader</a></li>
 <li><a href="./data_structures.html#commit">block.lastCommit</a></li>
 </ol>
-<p>If the above fields are parsed successfully, the available data <code>block.availableData</code> is acquired in erasure-coded form as <a href="./networking.html#availabledata">a list of share rows</a>, then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.</p>
+<p>If the above fields are parsed successfully, the block data <code>block.data</code> is acquired in erasure-coded form as <a href="./networking.html#availabledata">a list of share rows</a>, then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.</p>
 <h3 id="blockheader"><a class="header" href="#blockheader"><code>block.header</code></a></h3>
 <p>The <a href="./data_structures.html#header">block header</a> <code>block.header</code> (<code>header</code> for short) is the first thing that is downloaded from the new block, and commits to everything inside the block in some way. For previous block <code>prev</code> (if <code>prev</code> is not known, then the block is ignored), and previous block header <code>prev.header</code>, the following checks must be <code>true</code>:</p>
 <p><code>availableDataOriginalSquareSize</code> is computed as described <a href="./data_structures.html#header">in the header section</a>.</p>
@@ -709,16 +708,9 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <li><code>header.consensusHash</code> == the value computed <a href="./data_structures.html#consensus-parameters">using consensus parameters</a>.</li>
 <li><code>header.stateCommitment</code> == the root of the state, computed <a href="consensus.html#state-transitions">with the application of all state transitions in this block</a>.</li>
 <li><code>availableDataOriginalSquareSize</code> &lt;= <a href="consensus.html#constants"><code>AVAILABLE_DATA_ORIGINAL_SQUARE_MAX</code></a>.</li>
-<li><code>header.availableDataRoot</code> == the <a href="./data_structures.html#binary-merkle-tree">Merkle root</a> of the tree with the row and column roots of <code>block.availableDataHeader</code> as leaves.</li>
 <li><code>header.proposerAddress</code> == the <a href="consensus.html#leader-selection">leader</a> for <code>header.height</code>.</li>
 </ol>
-<h3 id="blockavailabledataheader"><a class="header" href="#blockavailabledataheader"><code>block.availableDataHeader</code></a></h3>
-<p>The <a href="./data_structures.html#availabledataheader">available data header</a> <code>block.availableDataHeader</code> (<code>availableDataHeader</code> for short) is then processed. This commits to the available data, which is only downloaded after the <a href="consensus.html#blocklastcommit">consensus commit</a> is processed. The following checks must be <code>true</code>:</p>
-<ol>
-<li>Length of <code>availableDataHeader.rowRoots</code> == <code>availableDataOriginalSquareSize * 2</code>.</li>
-<li>Length of <code>availableDataHeader.colRoots</code> == <code>availableDataOriginalSquareSize * 2</code>.</li>
-<li>The length of each element in <code>availableDataHeader.rowRoots</code> and <code>availableDataHeader.colRoots</code> must be <a href="./data_structures.html#hashing"><code>32</code></a>.</li>
-</ol>
+<p>Note that <code>header.availableDataRoot</code> commits to the block data, which is only downloaded after the <a href="consensus.html#blocklastcommit">consensus commit</a> is processed, so it is verified <a href="consensus.html#blockdata">as part of <code>block.data</code></a>.</p>
 <h3 id="blocklastcommit"><a class="header" href="#blocklastcommit"><code>block.lastCommit</code></a></h3>
 <p>The last <a href="./data_structures.html#commit">commit</a> <code>block.lastCommit</code> (<code>lastCommit</code> for short) is processed next. This is the Tendermint commit (i.e. polka of votes) <em>for the previous block</em>. For previous block <code>prev</code> and previous block header <code>prev.header</code>, the following checks must be <code>true</code>:</p>
 <ol>
@@ -729,12 +721,15 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <li>Each of <code>lastCommit.signatures</code> must be a valid <a href="./data_structures.html#commitsig">CommitSig</a></li>
 <li>The sum of the votes for <code>prev</code> in <code>lastCommit</code> must be at least 2/3 (rounded up) of the voting power of <code>prev</code>'s next validator set.</li>
 </ol>
-<h3 id="blockavailabledata"><a class="header" href="#blockavailabledata"><code>block.availableData</code></a></h3>
-<p>The block's <a href="./data_structures.html#availabledata">available data</a> (analogous to transactions in contemporary blockchain designs) <code>block.availableData</code> (<code>availableData</code> for short) is finally processed. The <a href="./networking.html#availabledata">list of share rows</a> is parsed into the <a href="./data_structures.html#availabledata">actual data structures</a> using the reverse of <a href="./data_structures.html#arranging-available-data-into-shares">the process to encode available data into shares</a>; if parsing fails here, the block is invalid.</p>
-<p>Once parsed, the following checks must be <code>true</code>:</p>
+<h3 id="blockdata"><a class="header" href="#blockdata"><code>block.data</code></a></h3>
+<p>The block's <a href="./data_structures.html#data">data</a> (analogous to transactions in contemporary blockchain designs) <code>block.data</code> (<code>data</code> for short) is finally processed. The <a href="./networking.html#availabledata">list of share rows</a> is parsed into the <a href="./data_structures.html#data">actual data structures</a> using the reverse of <a href="./data_structures.html#arranging-available-data-into-shares">the process to encode available data into shares</a>; if parsing fails here, the block is invalid.</p>
+<p>Once parsed, the <a href="./data_structures.html#availabledataheader">available data header</a> <code>availableDataHeader</code> is computed from the <a href="./data_structures.html#2d-reed-solomon-encoding-scheme">erasure-coded extended</a> <code>data</code>, and the following checks must be <code>true</code>:</p>
 <ol>
-<li>The commitments of the <a href="./data_structures.html#2d-reed-solomon-encoding-scheme">erasure-coded extended</a> <code>availableData</code> must match those in <code>header.availableDataHeader</code>. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a <a href="data_structures.html#namespace-merkle-tree">Namespace Merkle Tree</a>.</li>
-<li>Length of <code>availableData.intermediateStateRootData</code> == length of <code>availableData.transactionData</code> + length of <code>availableData.payForBlobData</code> + 2. (Two additional state transitions are the <a href="consensus.html#begin-block">begin</a> and <a href="consensus.html#end-block">end block</a> implicit transitions.)</li>
+<li>Length of <code>availableDataHeader.rowRoots</code> == <code>availableDataOriginalSquareSize * 2</code>.</li>
+<li>Length of <code>availableDataHeader.colRoots</code> == <code>availableDataOriginalSquareSize * 2</code>.</li>
+<li>The length of each element in <code>availableDataHeader.rowRoots</code> and <code>availableDataHeader.colRoots</code> must be <a href="./data_structures.html#hashing"><code>32</code></a>.</li>
+<li><code>header.availableDataRoot</code> == the <a href="./data_structures.html#binary-merkle-tree">Merkle root</a> of the tree with the row and column roots of <code>availableDataHeader</code> as leaves. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a <a href="data_structures.html#namespace-merkle-tree">Namespace Merkle Tree</a>.</li>
+<li>Length of <code>data.intermediateStateRootData</code> == length of <code>data.transactionData</code> + length of <code>data.payForBlobData</code> + 2. (Two additional state transitions are the <a href="consensus.html#begin-block">begin</a> and <a href="consensus.html#end-block">end block</a> implicit transitions.)</li>
 </ol>
 <h2 id="state-transitions"><a class="header" href="#state-transitions">State Transitions</a></h2>
 <p>Once the basic structure of the block <a href="consensus.html#block-structure">has been validated</a>, state transitions must be applied to compute the new state and state root.</p>
@@ -742,12 +737,12 @@ A namespace padding share acts as padding between blobs so that the subsequent b
 <p>State transitions are applied in the following order:</p>
 <ol>
 <li><a href="consensus.html#begin-block">Begin block</a>.</li>
-<li><a href="consensus.html#blockavailabledatatransactiondata">Transactions</a>.</li>
+<li><a href="consensus.html#blockdatatransactiondata">Transactions</a>.</li>
 <li><a href="consensus.html#end-block">End block</a>.</li>
 </ol>
-<h3 id="blockavailabledatatransactiondata"><a class="header" href="#blockavailabledatatransactiondata"><code>block.availableData.transactionData</code></a></h3>
+<h3 id="blockdatatransactiondata"><a class="header" href="#blockdatatransactiondata"><code>block.data.transactionData</code></a></h3>
 <p>Transactions are applied to the state. Note that <em>transactions</em> mutate the state (essentially, the validator set and minimal balances), while <em>blobs</em> do not.</p>
-<p><code>block.availableData.transactionData</code> is simply a list of <a href="./data_structures.html#wrappedtransaction">WrappedTransaction</a>s. For each wrapped transaction in this list, <code>wrappedTransaction</code>, with index <code>i</code> (starting from <code>0</code>), the following checks must be <code>true</code>:</p>
+<p><code>block.data.transactionData</code> is simply a list of <a href="./data_structures.html#wrappedtransaction">WrappedTransaction</a>s. For each wrapped transaction in this list, <code>wrappedTransaction</code>, with index <code>i</code> (starting from <code>0</code>), the following checks must be <code>true</code>:</p>
 <ol>
 <li><code>wrappedTransaction.index</code> == <code>i</code>.</li>
 </ol>
@@ -1245,7 +1240,7 @@ else if account.status == AccountStatus.ValidatorBonded
 </code></pre>
 <p>At the end of a block, the top <code>MAX_VALIDATORS</code> validators by voting power with voting power <em>greater than</em> zero are or become active (bonded). For newly-bonded validators, the entire validator object is moved to the active validators subtree and their status is changed to bonded. For previously-bonded validators that are no longer in the top <code>MAX_VALIDATORS</code> validators begin unbonding.</p>
 <p>Bonding validators is simply setting their status to <code>AccountStatus.ValidatorBonded</code>. The logic for validator unbonding is found <a href="consensus.html#signedtransactiondatabeginunbondingvalidator">in the BeginUnbondingValidator section</a>, minus transaction sender updates (nonce, balance, and fee).</p>
-<p>This end block implicit state transition is a single state transition, and <a href="consensus.html#blockavailabledata">only has a single intermediate state root</a> associated with it.</p>
+<p>This end block implicit state transition is a single state transition, and <a href="consensus.html#blockdata">only has a single intermediate state root</a> associated with it.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="content-addressable-transaction-pool-specification"><a class="header" href="#content-addressable-transaction-pool-specification">Content Addressable Transaction Pool Specification</a></h1>
 <ul>
 <li>01.12.2022 | Initial specification (@cmwaters)</li>
@@ -1732,7 +1727,7 @@ there are example implementations that can be found in
 <div style="break-before: page; page-break-before: always;"></div><h1 id="networking"><a class="header" href="#networking">Networking</a></h1>
 <!-- toc -->
 <h2 id="wire-format"><a class="header" href="#wire-format">Wire Format</a></h2>
-<h3 id="availabledata-1"><a class="header" href="#availabledata-1">AvailableData</a></h3>
+<h3 id="availabledata"><a class="header" href="#availabledata">AvailableData</a></h3>
 <div class="table-wrapper"><table><thead><tr><th>name</th><th>type</th><th>description</th></tr></thead><tbody>
 <tr><td><code>availableDataRows</code></td><td><a href="networking.html#availabledatarow">AvailableDataRow</a><code>[]</code></td><td>List of rows.</td></tr>
 </tbody></table>
