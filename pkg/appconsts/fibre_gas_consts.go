@@ -13,4 +13,12 @@ const (
 
 	// PFBFibreChunkSize is the chunk size (256 KiB) used for gas calculation in PayForFibre.
 	PFBFibreChunkSize uint32 = 262_144
+
+	// PFFibreTxGasFixedCost is the fixed gas for MsgPayForFibre validation.
+	// TODO: benchmark and tune.
+	PFFibreTxGasFixedCost uint64 = 75_000
+
+	// PFFibreGasPerValidatorSignature is the gas per validator signature.
+	// TODO: benchmark and tune.
+	PFFibreGasPerValidatorSignature uint64 = 1_000
 )

@@ -66,6 +66,29 @@ func (k Keeper) SetParams(ctx sdk.Context, params types.Params) {
 	store.Set([]byte(types.ParamsKey), bz)
 }
 
+// GetPromiseFreshnessFloor returns the freshness floor: the oldest creation_timestamp
+// still accepted, tracked as the highest block_time - WithdrawalDelay seen so far.
+// A zero time means it has not been set yet (a fresh chain, before the first block) and
+// imposes no lower bound. A non-nil error means the stored value could not be decoded.
+func (k Keeper) GetPromiseFreshnessFloor(ctx sdk.Context) (time.Time, error) {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.PromiseFreshnessFloorKey)
+	if len(bz) == 0 {
+		return time.Time{}, nil
+	}
+	floor, err := sdk.ParseTimeBytes(bz)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("failed to parse promise freshness floor: %w", err)
+	}
+	return floor, nil
+}
+
+// SetPromiseFreshnessFloor persists the payment-promise freshness floor.
+func (k Keeper) SetPromiseFreshnessFloor(ctx sdk.Context, floor time.Time) {
+	store := ctx.KVStore(k.storeKey)
+	store.Set(types.PromiseFreshnessFloorKey, sdk.FormatTimeBytes(floor))
+}
+
 // GetEscrowAccount retrieves an escrow account by signer address.
 func (k Keeper) GetEscrowAccount(ctx sdk.Context, signer string) (account types.EscrowAccount, isFound bool) {
 	store := ctx.KVStore(k.storeKey)
@@ -336,10 +359,26 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	currentTime := ctx.BlockTime()
 	creationTime := promise.CreationTimestamp
 
-	// Check creation_timestamp is not too old (must be greater than header_timestamp - withdrawal_delay)
+	// A promise is only fresh if it was created after the cutoff. Normally the cutoff is
+	// current_time - withdrawal_delay, but we never let it slide further back than the
+	// freshness floor.
+	//
+	// Here is why the floor is needed. After a promise settles we keep a record of it for
+	// the retention window and then prune it. If governance later raises withdrawal_delay
+	// (say from 1h to 48h), the plain cutoff current_time - withdrawal_delay jumps ~47h
+	// further into the past, so a long-since-pruned promise looks fresh again - and with
+	// its record gone, nothing stops it from settling a second time. The floor only ever
+	// moves forward, so a larger withdrawal_delay can no longer reopen that gap (#7606).
 	minAllowedTime := currentTime.Add(-params.WithdrawalDelay)
+	floor, err := k.GetPromiseFreshnessFloor(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if floor.After(minAllowedTime) {
+		minAllowedTime = floor
+	}
 	if !creationTime.After(minAllowedTime) {
-		return time.Time{}, fmt.Errorf("creation_timestamp %v must be greater than %v (current_time - withdrawal_delay)", creationTime, minAllowedTime)
+		return time.Time{}, fmt.Errorf("creation_timestamp %v is too old; it must be after the freshness cutoff %v", creationTime, minAllowedTime)
 	}
 
 	// Reject a future-dated creation_timestamp (beyond clock skew) on both paths;

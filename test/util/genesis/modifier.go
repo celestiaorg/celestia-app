@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app/params"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,6 +30,16 @@ func SetBlobParams(codec codec.Codec, params blobtypes.Params) Modifier {
 		blobGenState := blobtypes.DefaultGenesis()
 		blobGenState.Params = params
 		state[blobtypes.ModuleName] = codec.MustMarshalJSON(blobGenState)
+		return state
+	}
+}
+
+// SetFibreParams will set the provided fibre params as genesis state.
+func SetFibreParams(codec codec.Codec, params fibretypes.Params) Modifier {
+	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
+		fibreGenState := fibretypes.DefaultGenesis()
+		fibreGenState.Params = params
+		state[fibretypes.ModuleName] = codec.MustMarshalJSON(fibreGenState)
 		return state
 	}
 }
