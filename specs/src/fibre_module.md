@@ -214,7 +214,7 @@ gas = 650000 + 45000 * ceil(blob_size / 262144)
 amount = gas utia
 ```
 
-If `EstimateGasForPayForFibre` is called with `blob_size == 0`, it returns only the fixed cost of `650000`, although valid payment promises require a positive blob size. This payment formula does not use `gas_per_blob_byte` or `GasPerCelestiaByte`; `gas_per_blob_byte` still exists as a positive module parameter but is currently not part of Fibre payment calculation.
+If `EstimateGasForPayForFibre` is called with `blob_size == 0`, it returns only the fixed cost of `650000`, although valid payment promises require a positive blob size. This payment formula is standalone and does not depend on any per-byte gas parameter.
 
 ## Messages
 
@@ -430,33 +430,33 @@ On success, `ValidatePaymentPromise` returns `is_valid = true` and `expiration_t
 
 ```proto
 message Params {
-  uint32 gas_per_blob_byte = 1 [(gogoproto.moretags) = "yaml:\"gas_per_blob_byte\""];
-  google.protobuf.Duration withdrawal_delay = 2 [(gogoproto.moretags) = "yaml:\"withdrawal_delay\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
-  google.protobuf.Duration payment_promise_timeout = 3 [(gogoproto.moretags) = "yaml:\"payment_promise_timeout\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
-  google.protobuf.Duration payment_promise_retention_window = 4 [(gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
-  uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
-  google.protobuf.Duration shard_retention = 6 [(gogoproto.moretags) = "yaml:\"shard_retention\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  google.protobuf.Duration withdrawal_delay = 1 [(gogoproto.moretags) = "yaml:\"withdrawal_delay\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  google.protobuf.Duration payment_promise_timeout = 2 [(gogoproto.moretags) = "yaml:\"payment_promise_timeout\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  uint64 payment_promise_height_window = 3 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
+  google.protobuf.Duration shard_retention = 4 [(gogoproto.moretags) = "yaml:\"shard_retention\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = "yaml:\"full_stake_storage_budget\""];
 }
 ```
 
 | Parameter | Default | Validation | Current use |
 | --- | --- | --- | --- |
-| `gas_per_blob_byte` | `1` | Must be nonzero | Stored and exposed as a parameter, but not used by the current PayForFibre payment formula |
 | `withdrawal_delay` | `24h` | Must be between `12h10m` and `168h` | Sets withdrawal availability and the oldest accepted payment-promise creation time |
 | `payment_promise_timeout` | `1h` | Must be between `10m` and `12h` | Defines normal promise expiration and when timeout processing becomes valid |
-| `payment_promise_retention_window` | `25h` | Must be positive and at least `withdrawal_delay` plus `10m` | Defines when processed-payment replay records are pruned |
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
 | `shard_retention` | `4h` | Must be between `10m` and `168h` | Sets the local retention floor validators apply to uploaded shards |
+| `full_stake_storage_budget` | `256GiB` | Must be positive | Caps the Fibre disk a 100%-stake validator uses over one `shard_retention` window; each node derives its own budget from its assigned stake share |
 
-`payment_promise_timeout` is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside both the `withdrawal_delay` window gating its `creation_timestamp` and the `payment_promise_retention_window` record that prevents double settlement.
+The processed-payment retention window is not a governance parameter; it is derived as `withdrawal_delay + 10m` and exposed by `Params.PaymentPromiseRetentionWindow()` (see the last paragraph for why).
+
+`payment_promise_timeout` is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside the `withdrawal_delay` window gating its `creation_timestamp`.
 
 `shard_retention` is bounded below so shards outlive the window in which a client fetches them back, and above to cap the local storage obligation it places on assigned validators.
 
-`withdrawal_delay` is bounded below by the maximum `payment_promise_timeout` plus `10m`, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the retention floor `withdrawal_delay + 10m` far from overflowing the duration type.
+`withdrawal_delay` is bounded below by the maximum `payment_promise_timeout` plus `10m`, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the derived retention window `withdrawal_delay + 10m` far from overflowing the duration type.
 
 The lower bound has to clear the maximum `payment_promise_timeout` so a promise never goes stale before its own normal-path expiry. The extra `10m` keeps the timeout settlement path usable. `MsgPaymentPromiseTimeout` is accepted only from `creation_timestamp + payment_promise_timeout` until the promise stops being settleable at `creation_timestamp + withdrawal_delay`; if the two could meet, that window would be empty and an expired promise could never be claimed. Because the floor already covers the widest allowed timeout plus the margin, every valid combination of the two parameters leaves at least `10m` to submit the message, so no cross-parameter check is needed.
 
-payment_promise_retention_window must be at least withdrawal_delay + 10m. A promise can be timestamped up to 10 minutes ahead of the block that settles it, so it may remain valid after its processed-payment record is pruned. Without that record, the promise could be settled again and escrow charged twice. The default 25h retention safely covers the 24h withdrawal delay.
+A promise can be timestamped up to 10 minutes ahead of the block that settles it, so it may remain settleable that much longer than `withdrawal_delay`. Deriving the retention window as `withdrawal_delay + 10m` guarantees the processed-payment record always outlives the promise's settleable span, so a settled promise can never be replayed after its record is pruned. No separate parameter or cross-field validation is needed.
 
 ## CLI
 
