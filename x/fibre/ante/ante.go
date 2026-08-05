@@ -34,19 +34,27 @@ func consumeDeterministicFibreSignatureGas(ctx sdk.Context, msg *fibretypes.MsgP
 
 // FibreSignatureVerificationDecorator verifies uncached MsgPayForFibre signatures.
 type FibreSignatureVerificationDecorator struct {
-	k FibreKeeper
+	k           FibreKeeper
+	pffSigCache PffSigCache
 }
 
+// FibreKeeper verifies PFF signatures.
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
-	IsPffSigVerificationCached(tx []byte) bool
-	CachePffSigVerification(tx []byte)
 }
 
+// PffSigCache tracks txs whose PFF signatures were already checked.
+type PffSigCache interface {
+	IsCached(tx []byte) bool
+	Cache(tx []byte)
+}
+
+// NewFibreSigVerificationDecorator returns a PFF signature verification decorator.
 func NewFibreSigVerificationDecorator(
 	k FibreKeeper,
+	pffSigCache PffSigCache,
 ) FibreSignatureVerificationDecorator {
-	return FibreSignatureVerificationDecorator{k: k}
+	return FibreSignatureVerificationDecorator{k: k, pffSigCache: pffSigCache}
 }
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
@@ -57,7 +65,7 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 
 	rawTx := ctx.TxBytes()
 	// Empty tx bytes are not cacheable.
-	if len(rawTx) > 0 && d.k.IsPffSigVerificationCached(rawTx) {
+	if len(rawTx) > 0 && d.pffSigCache.IsCached(rawTx) {
 		return next(ctx, tx, simulate)
 	}
 
@@ -66,7 +74,7 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return ctx, err
 	}
 	if len(rawTx) > 0 {
-		d.k.CachePffSigVerification(rawTx)
+		d.pffSigCache.Cache(rawTx)
 	}
 	return next(ctx, tx, simulate)
 }

@@ -28,6 +28,7 @@ func NewAnteHandler(
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
+	pffSigCache fibreante.PffSigCache,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -78,7 +79,7 @@ func NewAnteHandler(
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
 		// Verify uncached MsgPayForFibre validator signatures.
-		fibreante.NewFibreSigVerificationDecorator(fibreKeeper),
+		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, pffSigCache),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.

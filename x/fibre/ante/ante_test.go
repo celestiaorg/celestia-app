@@ -51,13 +51,15 @@ func TestFibreSignatureGasDecoratorSkipsNonSinglePFFTx(t *testing.T) {
 
 func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	keeper := &fakeFibreSignatureKeeper{
+	keeper := &fakeFibreSignatureKeeper{}
+	cache := &fakeSigCache{
 		t:                 t,
 		failOnCacheLookup: true,
 		failOnCacheWrite:  true,
 	}
 	decorator := FibreSignatureVerificationDecorator{
-		k: keeper,
+		k:           keeper,
+		pffSigCache: cache,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -72,14 +74,16 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	keeper := &fakeFibreSignatureKeeper{
+	keeper := &fakeFibreSignatureKeeper{}
+	cache := &fakeSigCache{
 		t:                t,
 		cacheHit:         true,
 		wantTx:           []byte{0x01},
 		failOnCacheWrite: true,
 	}
 	decorator := FibreSignatureVerificationDecorator{
-		k: keeper,
+		k:           keeper,
+		pffSigCache: cache,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -88,7 +92,7 @@ func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing
 	gotCtx, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
 
 	require.NoError(t, err)
-	require.Equal(t, 1, keeper.cacheLookups)
+	require.Equal(t, 1, cache.cacheLookups)
 	require.Zero(t, keeper.calls)
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
@@ -97,12 +101,15 @@ func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *
 	txBytes := []byte{0x01, 0x02, 0x03}
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(2)}}
 	keeper := &fakeFibreSignatureKeeper{
-		t:            t,
-		wantTx:       txBytes,
 		gasToConsume: 1_000_000,
 	}
+	cache := &fakeSigCache{
+		t:      t,
+		wantTx: txBytes,
+	}
 	decorator := FibreSignatureVerificationDecorator{
-		k: keeper,
+		k:           keeper,
+		pffSigCache: cache,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -113,16 +120,18 @@ func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *
 	require.NoError(t, err)
 	require.Equal(t, 1, keeper.calls)
 	require.Equal(t, 1, keeper.infiniteGasCalls)
-	require.Equal(t, 1, keeper.cachedTxs)
+	require.Equal(t, 1, cache.cachedTxs)
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
 func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	expectedErr := errors.New("invalid signature")
 	keeper := &fakeFibreSignatureKeeper{err: expectedErr}
+	cache := &fakeSigCache{t: t}
 	nextCalled := false
 	decorator := FibreSignatureVerificationDecorator{
-		k: keeper,
+		k:           keeper,
+		pffSigCache: cache,
 	}
 	ctx := sdk.Context{}.
 		WithGasMeter(storetypes.NewGasMeter(1)).
@@ -136,21 +145,14 @@ func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, 1, keeper.calls)
 	require.False(t, nextCalled)
-	require.Zero(t, keeper.cachedTxs)
+	require.Zero(t, cache.cachedTxs)
 }
 
 type fakeFibreSignatureKeeper struct {
-	t                 *testing.T
-	calls             int
-	infiniteGasCalls  int
-	cacheLookups      int
-	cachedTxs         int
-	gasToConsume      uint64
-	cacheHit          bool
-	wantTx            []byte
-	failOnCacheLookup bool
-	failOnCacheWrite  bool
-	err               error
+	calls            int
+	infiniteGasCalls int
+	gasToConsume     uint64
+	err              error
 }
 
 func (f *fakeFibreSignatureKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
@@ -164,7 +166,17 @@ func (f *fakeFibreSignatureKeeper) ValidatePayForFibreSignatures(ctx sdk.Context
 	return f.err
 }
 
-func (f *fakeFibreSignatureKeeper) IsPffSigVerificationCached(tx []byte) bool {
+type fakeSigCache struct {
+	t                 *testing.T
+	cacheLookups      int
+	cachedTxs         int
+	cacheHit          bool
+	wantTx            []byte
+	failOnCacheLookup bool
+	failOnCacheWrite  bool
+}
+
+func (f *fakeSigCache) IsCached(tx []byte) bool {
 	if f.failOnCacheLookup {
 		f.t.Fatal("cache lookup should be skipped")
 	}
@@ -173,7 +185,7 @@ func (f *fakeFibreSignatureKeeper) IsPffSigVerificationCached(tx []byte) bool {
 	return f.cacheHit
 }
 
-func (f *fakeFibreSignatureKeeper) CachePffSigVerification(tx []byte) {
+func (f *fakeSigCache) Cache(tx []byte) {
 	if f.failOnCacheWrite {
 		f.t.Fatal("cache write should be skipped")
 	}
@@ -181,7 +193,7 @@ func (f *fakeFibreSignatureKeeper) CachePffSigVerification(tx []byte) {
 	f.requireTx(tx)
 }
 
-func (f *fakeFibreSignatureKeeper) requireTx(tx []byte) {
+func (f *fakeSigCache) requireTx(tx []byte) {
 	if f.t != nil && f.wantTx != nil {
 		require.Equal(f.t, f.wantTx, tx)
 	}

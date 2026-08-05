@@ -21,11 +21,10 @@ const maxPromiseClockSkew = 10 * time.Minute
 
 // Keeper handles all the state changes for the fibre module.
 type Keeper struct {
-	cdc                     codec.Codec
-	storeKey                storetypes.StoreKey
-	bankKeeper              types.BankKeeper
-	stakingKeeper           types.StakingKeeper
-	pffSigVerificationCache *sigVerificationCache
+	cdc           codec.Codec
+	storeKey      storetypes.StoreKey
+	bankKeeper    types.BankKeeper
+	stakingKeeper types.StakingKeeper
 	// authority is the address that has the authority to update module parameters.
 	// This is typically the governance module address.
 	authority string
@@ -34,12 +33,11 @@ type Keeper struct {
 // NewKeeper creates a new fibre Keeper instance
 func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string) *Keeper {
 	return &Keeper{
-		cdc:                     cdc,
-		storeKey:                storeKey,
-		bankKeeper:              bankKeeper,
-		stakingKeeper:           stakingKeeper,
-		pffSigVerificationCache: newSigVerificationCache(),
-		authority:               authority,
+		cdc:           cdc,
+		storeKey:      storeKey,
+		bankKeeper:    bankKeeper,
+		stakingKeeper: stakingKeeper,
+		authority:     authority,
 	}
 }
 
