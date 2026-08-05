@@ -30,7 +30,7 @@ import (
 )
 
 // RegisterUpgradeHandlers is used for registering any on-chain upgrades.
-func (app *App) RegisterUpgradeHandlers() {
+func (app App) RegisterUpgradeHandlers() {
 	for _, subspace := range app.ParamsKeeper.GetSubspaces() {
 		var keyTable paramstypes.KeyTable
 		var set bool
