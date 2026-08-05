@@ -387,6 +387,92 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	})
 }
 
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	validSignatures := suite.generateValidatorSignatures(&paymentPromise)
+
+	suite.T().Run("valid signatures", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		suite.NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	})
+
+	suite.T().Run("malformed payment promise", func(t *testing.T) {
+		malformed := paymentPromise
+		malformed.Namespace = []byte{0x01}
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      malformed,
+			ValidatorSignatures: validSignatures,
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "failed to convert payment promise")
+	})
+
+	suite.T().Run("invalid payment promise signature", func(t *testing.T) {
+		invalidPromise := paymentPromise
+		invalidPromise.Signature = make([]byte, 64)
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      invalidPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "payment promise validation failed")
+	})
+
+	suite.T().Run("invalid validator signature", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "validator signature validation failed")
+		suite.Contains(err.Error(), "invalid signature at index 0")
+	})
+
+	suite.T().Run("no validator signatures does not meet threshold", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "validator signature validation failed")
+	})
+
+	suite.T().Run("signature index exceeds validator count", func(t *testing.T) {
+		// Index 0 is skipped, so the valid signature maps to missing validator 1.
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{{}, validSignatures[0]},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "exceeds validator count")
+	})
+
+	suite.T().Run("missing historical info", func(t *testing.T) {
+		suite.stakingKeeper.GetHistoricalInfoFn = func(ctx context.Context, height int64) (stakingtypes.HistoricalInfo, error) {
+			return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo
+		}
+		defer func() { suite.stakingKeeper.GetHistoricalInfoFn = nil }()
+
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "failed to get historical validator set")
+	})
+}
+
 // TestPaymentPromiseTimeout tests the PaymentPromiseTimeout message handler
 func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	privKey := secp256k1.GenPrivKey()

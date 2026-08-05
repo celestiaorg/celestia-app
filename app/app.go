@@ -212,6 +212,9 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
+	// pffSigCache skips repeat PFF signature checks across ante passes.
+	// It is in memory only.
+	pffSigCache *PffSigVerificationCache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -262,6 +265,7 @@ func New(
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
+		pffSigCache:             NewPffSigVerificationCache(),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
@@ -546,6 +550,8 @@ func New(
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
+		app.FibreKeeper,
+		app.pffSigCache,
 	))
 
 	protoFiles, err := proto.MergedRegistry()
@@ -602,6 +608,7 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
+		app.pffSigCache.Delete(tx)
 	}
 
 	return res, nil

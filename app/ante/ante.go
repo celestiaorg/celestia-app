@@ -6,6 +6,8 @@ import (
 	txsigning "cosmossdk.io/x/tx/signing"
 	blobante "github.com/celestiaorg/celestia-app/v10/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
+	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v10/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -25,6 +27,8 @@ func NewAnteHandler(
 	minfeeKeeper *minfeekeeper.Keeper,
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
+	fibreKeeper *fibrekeeper.Keeper,
+	pffSigCache fibreante.PffSigCache,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -65,6 +69,8 @@ func NewAnteHandler(
 		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
 		// or MsgPayForBlobs.
 		NewMsgExecDecorator(),
+		// Charge deterministic gas for MsgPayForFibre checks.
+		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
@@ -72,6 +78,8 @@ func NewAnteHandler(
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
+		// Verify uncached MsgPayForFibre validator signatures.
+		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, pffSigCache),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.

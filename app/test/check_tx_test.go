@@ -17,12 +17,14 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -419,4 +421,67 @@ func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc clie
 	signer, err := user.NewSigner(kr, enc, testutil.ChainID, user.NewAccount(accountName, accNum, 0))
 	require.NoError(t, err)
 	return signer
+}
+
+// TestCheckTxPayForFibre covers gas, caching, and invalid tx shapes.
+func TestCheckTxPayForFibre(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(4)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	for _, account := range accounts {
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	t.Run("valid tx charges deterministic signature verification gas", func(t *testing.T) {
+		txBytes := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+		require.GreaterOrEqual(t, uint64(resp.GasUsed), fibretypes.EstimateGasForPayForFibreSignatureVerification(1))
+	})
+
+	t.Run("tx with gas limit below the deterministic validation gas is rejected", func(t *testing.T) {
+		gasLimitBelow := fibretypes.EstimateGasForPayForFibreSignatureVerification(1) - 1
+		txBytes := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+			user.SetGasLimit(gasLimitBelow), user.SetFee(4_000))
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+		require.Contains(t, resp.Log, "out of gas")
+	})
+
+	t.Run("resubmitting a tx with invalid validator signatures is rejected again", func(t *testing.T) {
+		// Failed verifications must not be cached.
+		txBytes := newSignedPayForFibreTx(t, newSigner(3), accounts[3], false)
+
+		first, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.NotEqual(t, abci.CodeTypeOK, first.Code)
+		require.Contains(t, first.Log, "validator signature validation failed")
+
+		second, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.NotEqual(t, abci.CodeTypeOK, second.Code)
+		require.Equal(t, first.Code, second.Code)
+		require.Contains(t, second.Log, "validator signature validation failed")
+	})
+
+	t.Run("tx mixing MsgPayForFibre with other messages is rejected", func(t *testing.T) {
+		signer := newSigner(2)
+		acc := signer.Account(accounts[2])
+		addr := testfactory.GetAddress(kr, accounts[2])
+		pff := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
+		send := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+		txBytes, _, err := signer.CreateTx([]sdk.Msg{pff, send}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
+		require.NoError(t, err)
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
+	})
 }
