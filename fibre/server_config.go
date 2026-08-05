@@ -161,8 +161,8 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.MaxMessageSize < 1 {
 		return fmt.Errorf("max message size must be at least 1, got %d", cfg.MaxMessageSize)
 	}
-	if cfg.LivenessThreshold.Denominator == 0 {
-		return fmt.Errorf("liveness threshold denominator must be positive")
+	if err := validateFraction(cfg.LivenessThreshold); err != nil {
+		return fmt.Errorf("liveness threshold: %w", err)
 	}
 	return nil
 }

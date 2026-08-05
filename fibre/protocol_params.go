@@ -2,6 +2,7 @@ package fibre
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"math"
 	"math/bits"
@@ -89,14 +90,14 @@ func (p ProtocolParams) Validate() error {
 	if p.UniqueDecodingSecurityBits <= 0 {
 		return fmt.Errorf("unique decoding security bits must be positive: %d", p.UniqueDecodingSecurityBits)
 	}
-	if err := validateFraction("safety threshold", p.SafetyThreshold); err != nil {
-		return err
+	if err := validateFraction(p.SafetyThreshold); err != nil {
+		return fmt.Errorf("safety threshold: %w", err)
 	}
 	if p.SafetyThreshold.Numerator >= p.SafetyThreshold.Denominator {
 		return fmt.Errorf("safety threshold must be below 1: %d/%d", p.SafetyThreshold.Numerator, p.SafetyThreshold.Denominator)
 	}
-	if err := validateFraction("liveness threshold", p.LivenessThreshold); err != nil {
-		return err
+	if err := validateFraction(p.LivenessThreshold); err != nil {
+		return fmt.Errorf("liveness threshold: %w", err)
 	}
 
 	livenessRatio := float64(p.LivenessThreshold.Numerator) / float64(p.LivenessThreshold.Denominator)
@@ -114,12 +115,12 @@ func (p ProtocolParams) Validate() error {
 
 // validateFraction rejects a fraction that would divide by zero or contribute a
 // zero numerator to the row-count math.
-func validateFraction(name string, f cmtmath.Fraction) error {
+func validateFraction(f cmtmath.Fraction) error {
 	if f.Denominator == 0 {
-		return fmt.Errorf("%s denominator must be positive", name)
+		return errors.New("denominator must be positive")
 	}
 	if f.Numerator == 0 {
-		return fmt.Errorf("%s numerator must be positive", name)
+		return errors.New("numerator must be positive")
 	}
 	return nil
 }
