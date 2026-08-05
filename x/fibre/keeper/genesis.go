@@ -21,6 +21,12 @@ func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 	for _, entry := range genesisState.ProcessedPayments {
 		k.SetProcessedPayment(ctx, entry)
 	}
+
+	// Restore the payment-promise freshness floor. A zero value means it was never set,
+	// so we leave it unset and let the first block derive it.
+	if floor := genesisState.PromiseFreshnessFloor; !floor.IsZero() {
+		k.SetPromiseFreshnessFloor(ctx, floor)
+	}
 }
 
 // ExportGenesis returns the module's exported genesis
@@ -42,6 +48,15 @@ func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 		genesis.ProcessedPayments = append(genesis.ProcessedPayments, entry)
 		return false
 	})
+
+	// Carry the freshness floor into the exported state so replay protection survives an
+	// export/import. It stays zero when unset. A decode error means the stored value is
+	// corrupt, which we cannot paper over at export time.
+	floor, err := k.GetPromiseFreshnessFloor(ctx)
+	if err != nil {
+		panic(err)
+	}
+	genesis.PromiseFreshnessFloor = floor
 
 	return genesis
 }

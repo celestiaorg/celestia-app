@@ -637,8 +637,8 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
 		_, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
 		suite.Error(err)
 		suite.Contains(err.Error(), "creation_timestamp")
-		suite.Contains(err.Error(), "must be greater than")
-		suite.Contains(err.Error(), "current_time - withdrawal_delay")
+		suite.Contains(err.Error(), "too old")
+		suite.Contains(err.Error(), "freshness cutoff")
 	})
 
 	suite.T().Run("payment promise with height within window should be accepted", func(t *testing.T) {
