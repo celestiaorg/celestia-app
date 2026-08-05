@@ -27,8 +27,8 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 
 // EstimateGasForPayForFibreSignatureVerification returns fixed plus per signature ante gas.
 func EstimateGasForPayForFibreSignatureVerification(validatorSignatureCount uint64) uint64 {
-	return appconsts.PFBFibreTxGasFixedCost +
-		validatorSignatureCount*appconsts.PFBFibreSignatureGasPerValidatorSignature
+	return appconsts.PFFibreTxGasFixedCost +
+		validatorSignatureCount*appconsts.PFFibreGasPerValidatorSignature
 }
 
 // PaymentAmount returns the escrow payment charged for settling a Fibre blob of the

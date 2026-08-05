@@ -37,19 +37,19 @@ func TestEstimateGasForPayForFibreSignatureVerification(t *testing.T) {
 		{
 			name:                    "zero signatures is fixed cost only",
 			validatorSignatureCount: 0,
-			want:                    appconsts.PFBFibreTxGasFixedCost,
+			want:                    appconsts.PFFibreTxGasFixedCost,
 		},
 		{
 			name:                    "one signature",
 			validatorSignatureCount: 1,
-			want: appconsts.PFBFibreTxGasFixedCost +
-				appconsts.PFBFibreSignatureGasPerValidatorSignature,
+			want: appconsts.PFFibreTxGasFixedCost +
+				appconsts.PFFibreGasPerValidatorSignature,
 		},
 		{
 			name:                    "many signatures",
 			validatorSignatureCount: 67,
-			want: appconsts.PFBFibreTxGasFixedCost +
-				67*appconsts.PFBFibreSignatureGasPerValidatorSignature,
+			want: appconsts.PFFibreTxGasFixedCost +
+				67*appconsts.PFFibreGasPerValidatorSignature,
 		},
 	}
 	for _, tt := range tests {
