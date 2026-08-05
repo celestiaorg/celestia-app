@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd -l -m -d ${CELESTIA_APP_HOME} -s /sbin/nologin -u ${UID} -g ${UID} ${USER_NAME}
 
 COPY --from=builder /src/build/celestia-appd /bin/celestia-appd
-COPY --chown=${USER_NAME}:${USER_NAME} docker/arabica/celestia/entrypoint.sh /opt/entrypoint.sh
+COPY --chown=${USER_NAME}:${USER_NAME} docker/corto/celestia/entrypoint.sh /opt/entrypoint.sh
 RUN chmod +x /opt/entrypoint.sh
 
 USER ${USER_NAME}

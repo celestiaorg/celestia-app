@@ -15,7 +15,7 @@ func Test_isKnownChainID(t *testing.T) {
 	testCases := []testCase{
 		{appconsts.MainnetChainID, true},
 		{appconsts.MochaChainID, true},
-		{"arabica-10", true},
+		{appconsts.CortoChainID, true},
 		{"foo", false},
 	}
 

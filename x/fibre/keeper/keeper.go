@@ -14,11 +14,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// maxPromiseClockSkew is how far a promise's creation_timestamp may lead block
-// time. Absorbs clock drift only, so it must stay well under
-// WithdrawalDelay - PaymentPromiseTimeout.
-const maxPromiseClockSkew = 10 * time.Minute
-
 // Keeper handles all the state changes for the fibre module.
 type Keeper struct {
 	cdc           codec.Codec
@@ -348,8 +343,8 @@ func (k Keeper) validatePaymentPromiseStatefulInternal(ctx sdk.Context, promise 
 	}
 
 	// Reject a future-dated creation_timestamp (beyond clock skew) on both paths;
-	// see maxPromiseClockSkew for why.
-	maxAllowedTime := currentTime.Add(maxPromiseClockSkew)
+	// see types.MaxPromiseClockSkew for why.
+	maxAllowedTime := currentTime.Add(types.MaxPromiseClockSkew)
 	if creationTime.After(maxAllowedTime) {
 		return time.Time{}, fmt.Errorf("creation_timestamp %v must not be after %v (current_time + max_clock_skew)", creationTime, maxAllowedTime)
 	}

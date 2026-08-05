@@ -45,7 +45,7 @@ func TestScatterMarshalWireParity(t *testing.T) {
 			name: "many_rows_many_proof_segments",
 			req: &types.UploadShardRequest{
 				Promise: &types.PaymentPromise{
-					ChainId:           "arabica-11",
+					ChainId:           "celestia",
 					Height:            1234567,
 					Namespace:         mkBytes(rng, 29),
 					BlobSize:          1 << 20,

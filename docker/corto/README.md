@@ -1,8 +1,11 @@
-# Arabica Consensus Node
+# Corto Consensus Node
 
-Docker Compose setup for running an [Arabica testnet](https://docs.celestia.org/how-to-guides/arabica-devnet) consensus node with Prometheus and Grafana monitoring.
+Docker Compose setup for running a Corto (internal testnet) consensus node with Prometheus and Grafana monitoring.
 
 Unlike the Mocha setup which downloads a pre-built binary, this setup builds `celestia-appd` from source (standalone) using the local repository.
+
+> **Warning**
+> The `SEEDS` and `RPC` values in `celestia/entrypoint.sh` are placeholders (`TBD`). They must be configured with the internal Corto network endpoints before this setup can be used.
 
 ## Prerequisites
 
@@ -11,7 +14,7 @@ Unlike the Mocha setup which downloads a pre-built binary, this setup builds `ce
 ## Quick Start
 
 ```bash
-cd docker/arabica
+cd docker/corto
 docker compose up -d
 ```
 
@@ -21,7 +24,7 @@ The node uses state sync to quickly catch up to the current chain height rather 
 
 | Service | Description | URL |
 | --- | --- | --- |
-| celestia-appd | Arabica consensus node | <http://localhost:26657> (RPC) |
+| celestia-appd | Corto consensus node | <http://localhost:26657> (RPC) |
 | prometheus | Metrics collection | <http://localhost:9090> |
 | grafana | Metrics dashboards | <http://localhost:3000> |
 

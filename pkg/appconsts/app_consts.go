@@ -52,10 +52,10 @@ const (
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
 	TestUpgradeHeightDelay = int64(3)
-	// ArabicaUpgradeHeightDelay is the number of blocks that Arabica waits
+	// CortoUpgradeHeightDelay is the number of blocks that Corto waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
 	// interval of ~2.6 seconds, this is 1 day.
-	ArabicaUpgradeHeightDelay = int64(33_231)
+	CortoUpgradeHeightDelay = int64(33_231)
 	// MochaUpgradeHeightDelay is the number of blocks that Mocha waits
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
 	// interval of ~2.6 seconds, this is 2 days.

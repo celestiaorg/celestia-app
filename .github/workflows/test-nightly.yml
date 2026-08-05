@@ -103,7 +103,7 @@ jobs:
           - test: TestTxSubmission
             max-attempts: 2
             extra-image: true
-          - test: TestArabicaLoad
+          - test: TestCortoLoad
             extra-image: true
     steps:
       - name: Checkout code
@@ -136,6 +136,25 @@ jobs:
         if: ${{ matrix.extra-image }}
         run: docker load < /tmp/latency-monitor-image.tar.gz
 
+      # TestCortoLoad skips itself when its env vars are absent so it can be
+      # run selectively in local development. In the nightly that skip would
+      # silently disable the load test, so fail fast if the secrets are unset.
+      - name: Verify Corto secrets are set
+        if: ${{ matrix.test == 'TestCortoLoad' }}
+        env:
+          CORTO_PRIV_KEY: ${{ secrets.CORTO_PRIV_KEY }}
+          CORTO_RPC: ${{ secrets.CORTO_RPC }}
+          CORTO_GRPC: ${{ secrets.CORTO_GRPC }}
+        run: |
+          missing=""
+          [ -z "$CORTO_PRIV_KEY" ] && missing="$missing CORTO_PRIV_KEY"
+          [ -z "$CORTO_RPC" ] && missing="$missing CORTO_RPC"
+          [ -z "$CORTO_GRPC" ] && missing="$missing CORTO_GRPC"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required secrets for TestCortoLoad:$missing"
+            exit 1
+          fi
+
       - name: Run ${{ matrix.test }}
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         with:
@@ -147,7 +166,9 @@ jobs:
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
           CELESTIA_TAG: ${{ needs.build-e2e-image.outputs.tag }}
-          ARABICA_PRIV_KEY: ${{ secrets.ARABICA_PRIV_KEY }}
+          CORTO_PRIV_KEY: ${{ secrets.CORTO_PRIV_KEY }}
+          CORTO_RPC: ${{ secrets.CORTO_RPC }}
+          CORTO_GRPC: ${{ secrets.CORTO_GRPC }}
           CELESTIA_APP_VERSION: ${{ needs.build-e2e-image.outputs.tag }}
           PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
           PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}

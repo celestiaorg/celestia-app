@@ -103,7 +103,7 @@ func (m *EscrowAccount) GetAvailableBalance() types.Coin {
 // commitment and payment details for the fibre blob.
 type PaymentPromise struct {
 	// chain_id is the chain ID that this payment promise is valid for.
-	// Example: arabica-11, mocha-4, or celestia.
+	// Example: corto-1, mocha-4, or celestia.
 	ChainId string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
 	// height is the height that is used to determine the validator set that is used
 	Height int64 `protobuf:"varint,2,opt,name=height,proto3" json:"height,omitempty"`

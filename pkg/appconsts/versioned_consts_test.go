@@ -19,9 +19,9 @@ func TestGetUpgradeHeightDelay(t *testing.T) {
 			expectedUpgradeHeightDelay: appconsts.TestUpgradeHeightDelay,
 		},
 		{
-			name:                       "the upgrade delay for arabica",
-			chainID:                    appconsts.ArabicaChainID,
-			expectedUpgradeHeightDelay: appconsts.ArabicaUpgradeHeightDelay,
+			name:                       "the upgrade delay for corto",
+			chainID:                    appconsts.CortoChainID,
+			expectedUpgradeHeightDelay: appconsts.CortoUpgradeHeightDelay,
 		},
 		{
 			name:                       "the upgrade delay for mocha",

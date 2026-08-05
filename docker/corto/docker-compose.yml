@@ -1,12 +1,12 @@
-# Docker Compose for an Arabica consensus node with Prometheus + Grafana.
-name: arabica
+# Docker Compose for a Corto consensus node with Prometheus + Grafana.
+name: corto
 
 services:
   celestia-appd:
-    container_name: arabica-celestia-appd
+    container_name: corto-celestia-appd
     build:
       context: ../..
-      dockerfile: docker/arabica/celestia/Dockerfile
+      dockerfile: docker/corto/celestia/Dockerfile
     volumes:
       - celestia-data:/home/celestia/.celestia-app
     ports:
@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   disk-exporter:
-    container_name: arabica-disk-exporter
+    container_name: corto-disk-exporter
     build:
       context: ./disk-exporter
     volumes:
@@ -24,7 +24,7 @@ services:
     restart: unless-stopped
 
   prometheus:
-    container_name: arabica-prometheus
+    container_name: corto-prometheus
     image: prom/prometheus:v3.8.1
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   grafana:
-    container_name: arabica-grafana
+    container_name: corto-grafana
     image: grafana/grafana:12.3.1
     ports:
       - "3000:3000"
