@@ -44,6 +44,11 @@ type ServerConfig struct {
 	// MinRowsPerValidator is the minimum number of rows each validator must receive
 	// for unique decodability security.
 	MinRowsPerValidator int `toml:"-"`
+	// OriginalRows
+	OriginalRows int `toml:"-"`
+	// MaxShardSize is the maximum on-disk size of a single shard, used by the
+	// storage limiter's startup provisioning checks.
+	MaxShardSize int `toml:"-"`
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int `toml:"-"`
 
@@ -58,6 +63,10 @@ type ServerConfig struct {
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
+	// UnlimitedBudget disables the storage limiter: an emergency off switch. When
+	// false, the server derives its per-node budget from the
+	// FullStakeStorageBudget governance parameter via the state client.
+	UnlimitedBudget bool `toml:"unlimited_budget"`
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`
@@ -84,6 +93,8 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		StoreConfig:         DefaultStoreConfig(),
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
+		OriginalRows:        p.Rows,
+		MaxShardSize:        p.MaxShardSize(),
 		MaxMessageSize:      p.MaxMessageSize(),
 		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
 	}

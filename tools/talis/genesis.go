@@ -5,6 +5,9 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
@@ -32,6 +35,9 @@ func generateCmd() *cobra.Command {
 		fibreReaderBinaryPath         string
 		observabilityDirPath          string
 		useMainnetStakingDistribution bool
+		stakingWeightsCSV             string
+		fibreBudgetGiB                int
+		fibreShardRetention           time.Duration
 		fibreAccounts                 int
 		encoderFibreAccounts          int
 	)
@@ -61,7 +67,17 @@ func generateCmd() *cobra.Command {
 				return fmt.Errorf("failed to remove old reader-payload directory: %w", err)
 			}
 
-			err = createPayload(cfg.Validators, cfg.Encoders, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, fibreAccounts, encoderFibreAccounts)
+			stakingWeights, err := parseStakingWeights(stakingWeightsCSV, len(cfg.Validators))
+			if err != nil {
+				return err
+			}
+
+			var fibreMods []genesis.Modifier
+			if fibreBudgetGiB > 0 || fibreShardRetention > 0 {
+				fibreMods = append(fibreMods, fibreParamsModifier(uint64(fibreBudgetGiB)<<30, fibreShardRetention))
+			}
+
+			err = createPayload(cfg.Validators, cfg.Encoders, cfg.ChainID, payloadDir, squareSize, useMainnetStakingDistribution, stakingWeights, fibreAccounts, encoderFibreAccounts, fibreMods...)
 			if err != nil {
 				log.Fatalf("Failed to create payload: %v", err)
 			}
@@ -177,6 +193,9 @@ func generateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&fibreReaderBinaryPath, "fibre-reader-binary", filepath.Join(gopath, "fibre-reader"), "fibre-reader binary to include in the reader payload")
 	cmd.Flags().StringVar(&observabilityDirPath, "observability-dir", "", "path to observability directory containing docker-compose, Prometheus config, and scripts (required if observability nodes are configured)")
 	cmd.Flags().BoolVarP(&useMainnetStakingDistribution, "mainnet-staking-distribution", "m", false, "replace the default uniform staking distribution with the actual mainnet distribution")
+	cmd.Flags().StringVar(&stakingWeightsCSV, "staking-weights", "", "comma-separated per-validator staking weights, e.g. 50,25,13,12; overrides the uniform/mainnet distribution (count must match the number of validators)")
+	cmd.Flags().IntVar(&fibreBudgetGiB, "fibre-full-stake-budget-gib", 0, "override the fibre FullStakeStorageBudget genesis param, in GiB (0 = module default)")
+	cmd.Flags().DurationVar(&fibreShardRetention, "fibre-shard-retention", 0, "override the fibre ShardRetention genesis param, e.g. 10m (0 = module default)")
 	cmd.Flags().IntVar(&fibreAccounts, "fibre-accounts", 1, "number of pre-funded fibre accounts to create per validator")
 	cmd.Flags().IntVar(&encoderFibreAccounts, "encoder-fibre-accounts", 1, "number of pre-funded fibre accounts to create per encoder instance")
 
@@ -185,7 +204,7 @@ func generateCmd() *cobra.Command {
 
 // createPayload takes ips created by pulumi and the path to the payload directory
 // to create the payload required for the experiment.
-func createPayload(ips, encoders []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, fibreAccounts, encoderFibreAccounts int, mods ...genesis.Modifier) error {
+func createPayload(ips, encoders []Instance, chainID, ppath string, squareSize int, useMainnetDistribution bool, stakingWeights []int64, fibreAccounts, encoderFibreAccounts int, mods ...genesis.Modifier) error {
 	n, err := NewNetwork(chainID, squareSize, mods...)
 	if err != nil {
 		return err
@@ -193,7 +212,12 @@ func createPayload(ips, encoders []Instance, chainID, ppath string, squareSize i
 
 	stake := int64(genesis.DefaultInitialBalance) / 2
 	for index, info := range ips {
-		if useMainnetDistribution {
+		switch {
+		case len(stakingWeights) > 0:
+			// Scale so weight 100 equals the uniform default stake; the ratios
+			// between validators are exactly the given weights.
+			stake = int64(genesis.DefaultInitialBalance) / 200 * stakingWeights[index]
+		case useMainnetDistribution:
 			stake = getMainnetStake(index)
 		}
 		err = n.AddValidator(
@@ -239,6 +263,28 @@ func createPayload(ips, encoders []Instance, chainID, ppath string, squareSize i
 	}
 
 	return nil
+}
+
+// parseStakingWeights parses a comma-separated list of positive per-validator
+// staking weights (e.g. "50,25,13,12"). An empty string returns nil, leaving the
+// uniform or mainnet distribution in effect. The count must match numValidators.
+func parseStakingWeights(csv string, numValidators int) ([]int64, error) {
+	if csv == "" {
+		return nil, nil
+	}
+	parts := strings.Split(csv, ",")
+	weights := make([]int64, 0, len(parts))
+	for _, p := range parts {
+		w, err := strconv.ParseInt(strings.TrimSpace(p), 10, 64)
+		if err != nil || w <= 0 {
+			return nil, fmt.Errorf("invalid staking weight %q: must be a positive integer", p)
+		}
+		weights = append(weights, w)
+	}
+	if len(weights) != numValidators {
+		return nil, fmt.Errorf("staking-weights has %d entries but there are %d validators", len(weights), numValidators)
+	}
+	return weights, nil
 }
 
 // mainnetVotingPowers contains the current Celestia mainnet staking distribution for more realistic tests.

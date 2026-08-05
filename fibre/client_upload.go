@@ -20,6 +20,9 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
+	grpccodes "google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // UploadOption configures the behavior of [Client.Upload].
@@ -322,23 +325,37 @@ func (c *Client) uploadTo(
 	}
 
 	var resp *types.UploadShardResponse
-	err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
-		if err := buildRows(); err != nil {
+	for attempt := 0; ; attempt++ {
+		err := c.clientCache.Request(ctx, val, func(client fibregrpc.Client) error {
+			if err := buildRows(); err != nil {
+				return err
+			}
+			rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
+			defer rpcCancel()
+			var err error
+			rpcStart := time.Now()
+			resp, err = client.UploadShard(rpcCtx, req)
+			c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 			return err
+		})
+		if err == nil {
+			break
 		}
-		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
-		defer rpcCancel()
-		var err error
-		rpcStart := time.Now()
-		resp, err = client.UploadShard(rpcCtx, req)
-		c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
-		return err
-	})
-	if err != nil {
-		log.WarnContext(ctx, "failed to upload rows", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to upload rows")
-		return false
+
+		delay := retryAfter(err)
+		if delay <= 0 || attempt >= maxUploadRetries {
+			log.WarnContext(ctx, "failed to upload rows", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to upload rows")
+			return false
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-c.stopCh:
+			return false
+		case <-time.After(delay):
+		}
 	}
 	span.AddEvent("rows_uploaded")
 
@@ -365,6 +382,35 @@ func (c *Client) uploadTo(
 	span.AddEvent("signature_verified")
 	span.SetStatus(codes.Ok, "")
 	return hasEnough
+}
+
+const (
+	// maxUploadRetries bounds how many times uploadTo retries a rate-limited
+	// validator before giving up on its signature.
+	maxUploadRetries = 3
+	// defaultRetryDelay is used when a ResourceExhausted error is received
+	// without a RetryInfo hint.
+	defaultRetryDelay = time.Second
+	// maxRetryDelay caps the server-supplied RetryInfo hint so a Byzantine
+	// validator cannot pin a retrying goroutine (and the blob it holds) for an
+	// arbitrarily long time. It sits comfortably above the honest hint
+	// (pruneInterval plus jitter).
+	maxRetryDelay = 2 * time.Minute
+)
+
+func retryAfter(err error) time.Duration {
+	st, ok := status.FromError(err)
+	if !ok || st.Code() != grpccodes.ResourceExhausted {
+		return 0
+	}
+	for _, d := range st.Details() {
+		if ri, ok := d.(*errdetails.RetryInfo); ok {
+			if delay := ri.GetRetryDelay().AsDuration(); delay > 0 {
+				return min(delay, maxRetryDelay)
+			}
+		}
+	}
+	return defaultRetryDelay
 }
 
 // uploadShards fans out shard requests to all validators and returns when

@@ -14,6 +14,7 @@ message GenesisState {
   repeated EscrowAccount escrow_accounts = 2 [(gogoproto.nullable) = false];
   repeated Withdrawal withdrawals = 3 [(gogoproto.nullable) = false];
   repeated ProcessedPayment processed_payments = 4 [(gogoproto.nullable) = false];
+  google.protobuf.Timestamp promise_freshness_floor = 5 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 
 // ProcessedPayment represents a PaymentPromise that has been processed and

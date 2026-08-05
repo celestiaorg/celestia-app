@@ -37,6 +37,31 @@ func TestShardCodecRoundTrip(t *testing.T) {
 	}
 }
 
+func TestShardBinarySize(t *testing.T) {
+	cases := map[string]*types.BlobShard{
+		"empty": {},
+		"rlcs only": {
+			Rlcs: bytes.Repeat([]byte{0xcd}, 64),
+		},
+		"rows with proofs": {
+			Rlcs: bytes.Repeat([]byte{0xcd}, 64),
+			Rows: []*types.BlobRow{
+				{Index: 0, Data: bytes.Repeat([]byte{0x01}, 1024), Proof: [][]byte{[]byte("seg-a"), []byte("seg-b")}},
+				{Index: 7, Data: bytes.Repeat([]byte{0x02}, 2048), Proof: nil},
+			},
+		},
+	}
+
+	for name, shard := range cases {
+		t.Run(name, func(t *testing.T) {
+			var buf bytes.Buffer
+			require.NoError(t, writeShardBinary(&buf, shard))
+			require.Equal(t, int64(buf.Len()), shardBinarySize(shard),
+				"shardBinarySize must equal the bytes writeShardBinary produces")
+		})
+	}
+}
+
 func TestShardCodecRejectsBomb(t *testing.T) {
 	tests := []struct {
 		name      string

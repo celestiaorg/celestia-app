@@ -37,10 +37,7 @@ type SelectedValidator struct {
 func (s Set) rowsPerValidator(originalRows, minRows int, livenessThreshold cmtmath.Fraction) []int {
 	rowsPerValidator := make([]int, len(s.Validators))
 	for i, v := range s.Validators {
-		num := int64(originalRows) * v.VotingPower * int64(livenessThreshold.Denominator)
-		den := s.TotalVotingPower() * int64(livenessThreshold.Numerator)
-		rows := int((num + den - 1) / den) // ceil division
-		rowsPerValidator[i] = min(max(rows, minRows), originalRows)
+		rowsPerValidator[i] = s.AssignedRows(v, originalRows, minRows, livenessThreshold)
 	}
 	return rowsPerValidator
 }
@@ -105,6 +102,14 @@ func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minR
 	}
 
 	return shardMap
+}
+
+// AssignedRows returns the rows assigned to val
+func (s Set) AssignedRows(val *core.Validator, originalRows, minRows int, lt cmtmath.Fraction) int {
+	num := int64(originalRows) * val.VotingPower * int64(lt.Denominator)
+	den := s.TotalVotingPower() * int64(lt.Numerator)
+	rows := int((num + den - 1) / den) // ceil
+	return min(max(rows, minRows), originalRows)
 }
 
 // Select returns validators to download shards from, shuffled by stake for load balancing.

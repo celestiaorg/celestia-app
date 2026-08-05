@@ -7,6 +7,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -50,6 +51,11 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	if msgCount := len(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
+	}
+
+	// MsgPayForFibre must be the only message in its tx.
+	if err := validatePayForFibreTxShape(sdkTx); err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
@@ -129,4 +135,25 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	}
 
 	return sigs[0].PubKey.Address().Bytes(), sigs[0].Sequence, nil
+}
+
+// validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other messages.
+func validatePayForFibreTxShape(tx sdk.Tx) error {
+	msgs := tx.GetMsgs()
+	for _, msg := range msgs {
+		if _, isPFF := msg.(*fibretypes.MsgPayForFibre); isPFF && len(msgs) > 1 {
+			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
+		}
+	}
+	return nil
+}
+
+// payForFibreMsg returns the MsgPayForFibre from a single-message tx.
+func payForFibreMsg(tx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
+	msgs := tx.GetMsgs()
+	if len(msgs) != 1 {
+		return nil, false
+	}
+	pff, ok := msgs[0].(*fibretypes.MsgPayForFibre)
+	return pff, ok
 }

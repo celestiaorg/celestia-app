@@ -72,10 +72,9 @@ Before executing [state transitions](#state-transitions), the structure of the [
 The following block fields are acquired from the network and parsed (i.e. [deserialized](./data_structures.md#serialization)). If they cannot be parsed, the block is ignored but is not explicitly considered invalid by consensus rules. Further implications of ignoring a block are found in the [networking spec](./networking.md).
 
 1. [block.header](./data_structures.md#header)
-1. [block.availableDataHeader](./data_structures.md#availabledataheader)
 1. [block.lastCommit](./data_structures.md#commit)
 
-If the above fields are parsed successfully, the available data `block.availableData` is acquired in erasure-coded form as [a list of share rows](./networking.md#availabledata), then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.
+If the above fields are parsed successfully, the block data `block.data` is acquired in erasure-coded form as [a list of share rows](./networking.md#availabledata), then parsed. If it cannot be parsed, the block is ignored but not explicitly invalid, as above.
 
 ### `block.header`
 
@@ -90,16 +89,9 @@ The [block header](./data_structures.md#header) `block.header` (`header` for sho
 1. `header.consensusHash` == the value computed [using consensus parameters](./data_structures.md#consensus-parameters).
 1. `header.stateCommitment` == the root of the state, computed [with the application of all state transitions in this block](#state-transitions).
 1. `availableDataOriginalSquareSize` <= [`AVAILABLE_DATA_ORIGINAL_SQUARE_MAX`](#constants).
-1. `header.availableDataRoot` == the [Merkle root](./data_structures.md#binary-merkle-tree) of the tree with the row and column roots of `block.availableDataHeader` as leaves.
 1. `header.proposerAddress` == the [leader](#leader-selection) for `header.height`.
 
-### `block.availableDataHeader`
-
-The [available data header](./data_structures.md#availabledataheader) `block.availableDataHeader` (`availableDataHeader` for short) is then processed. This commits to the available data, which is only downloaded after the [consensus commit](#blocklastcommit) is processed. The following checks must be `true`:
-
-1. Length of `availableDataHeader.rowRoots` == `availableDataOriginalSquareSize * 2`.
-1. Length of `availableDataHeader.colRoots` == `availableDataOriginalSquareSize * 2`.
-1. The length of each element in `availableDataHeader.rowRoots` and `availableDataHeader.colRoots` must be [`32`](./data_structures.md#hashing).
+Note that `header.availableDataRoot` commits to the block data, which is only downloaded after the [consensus commit](#blocklastcommit) is processed, so it is verified [as part of `block.data`](#blockdata).
 
 ### `block.lastCommit`
 
@@ -112,14 +104,17 @@ The last [commit](./data_structures.md#commit) `block.lastCommit` (`lastCommit` 
 1. Each of `lastCommit.signatures` must be a valid [CommitSig](./data_structures.md#commitsig)
 1. The sum of the votes for `prev` in `lastCommit` must be at least 2/3 (rounded up) of the voting power of `prev`'s next validator set.
 
-### `block.availableData`
+### `block.data`
 
-The block's [available data](./data_structures.md#availabledata) (analogous to transactions in contemporary blockchain designs) `block.availableData` (`availableData` for short) is finally processed. The [list of share rows](./networking.md#availabledata) is parsed into the [actual data structures](./data_structures.md#availabledata) using the reverse of [the process to encode available data into shares](./data_structures.md#arranging-available-data-into-shares); if parsing fails here, the block is invalid.
+The block's [data](./data_structures.md#data) (analogous to transactions in contemporary blockchain designs) `block.data` (`data` for short) is finally processed. The [list of share rows](./networking.md#availabledata) is parsed into the [actual data structures](./data_structures.md#data) using the reverse of [the process to encode available data into shares](./data_structures.md#arranging-available-data-into-shares); if parsing fails here, the block is invalid.
 
-Once parsed, the following checks must be `true`:
+Once parsed, the [available data header](./data_structures.md#availabledataheader) `availableDataHeader` is computed from the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `data`, and the following checks must be `true`:
 
-1. The commitments of the [erasure-coded extended](./data_structures.md#2d-reed-solomon-encoding-scheme) `availableData` must match those in `header.availableDataHeader`. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
-1. Length of `availableData.intermediateStateRootData` == length of `availableData.transactionData` + length of `availableData.payForBlobData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
+1. Length of `availableDataHeader.rowRoots` == `availableDataOriginalSquareSize * 2`.
+1. Length of `availableDataHeader.colRoots` == `availableDataOriginalSquareSize * 2`.
+1. The length of each element in `availableDataHeader.rowRoots` and `availableDataHeader.colRoots` must be [`32`](./data_structures.md#hashing).
+1. `header.availableDataRoot` == the [Merkle root](./data_structures.md#binary-merkle-tree) of the tree with the row and column roots of `availableDataHeader` as leaves. Implicitly, this means that both rows and columns must be ordered lexicographically by namespace since they are committed to in a [Namespace Merkle Tree](data_structures.md#namespace-merkle-tree).
+1. Length of `data.intermediateStateRootData` == length of `data.transactionData` + length of `data.payForBlobData` + 2. (Two additional state transitions are the [begin](#begin-block) and [end block](#end-block) implicit transitions.)
 
 ## State Transitions
 
@@ -130,14 +125,14 @@ For this section, the variable `state` represents the [state tree](./data_struct
 State transitions are applied in the following order:
 
 1. [Begin block](#begin-block).
-1. [Transactions](#blockavailabledatatransactiondata).
+1. [Transactions](#blockdatatransactiondata).
 1. [End block](#end-block).
 
-### `block.availableData.transactionData`
+### `block.data.transactionData`
 
 Transactions are applied to the state. Note that _transactions_ mutate the state (essentially, the validator set and minimal balances), while _blobs_ do not.
 
-`block.availableData.transactionData` is simply a list of [WrappedTransaction](./data_structures.md#wrappedtransaction)s. For each wrapped transaction in this list, `wrappedTransaction`, with index `i` (starting from `0`), the following checks must be `true`:
+`block.data.transactionData` is simply a list of [WrappedTransaction](./data_structures.md#wrappedtransaction)s. For each wrapped transaction in this list, `wrappedTransaction`, with index `i` (starting from `0`), the following checks must be `true`:
 
 1. `wrappedTransaction.index` == `i`.
 
@@ -715,4 +710,4 @@ At the end of a block, the top `MAX_VALIDATORS` validators by voting power with 
 
 Bonding validators is simply setting their status to `AccountStatus.ValidatorBonded`. The logic for validator unbonding is found [in the BeginUnbondingValidator section](#signedtransactiondatabeginunbondingvalidator), minus transaction sender updates (nonce, balance, and fee).
 
-This end block implicit state transition is a single state transition, and [only has a single intermediate state root](#blockavailabledata) associated with it.
+This end block implicit state transition is a single state transition, and [only has a single intermediate state root](#blockdata) associated with it.

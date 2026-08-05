@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
@@ -16,10 +17,12 @@ import (
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -36,20 +39,18 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 	signers := make([]*user.Signer, 0, numberOfAccounts)
 	for index, account := range accounts {
-		addr := testfactory.GetAddress(kr, account)
-		acc := testutil.DirectQueryAccount(testApp, addr)
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
-		require.NoError(t, err)
-		signers = append(signers, signer)
-		_ = index
+		signers = append(signers, newSigner(index))
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
 	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
 	pffTxs := make([][]byte, 0, numPFFs)
 	for i := range numPFFs {
-		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i]))
+		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
 	}
 
 	type testCase struct {
@@ -97,23 +98,27 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 	}
 }
 
-// TestProcessProposalWithPayForFibre verifies that ProcessProposal correctly
-// handles PayForFibre transactions: accept/reject round-trips, rejection of
-// multi-PFF txs, mixed PFF+MsgSend txs, and garbage bytes.
+// TestProcessProposalWithPayForFibre covers valid PFF blocks and invalid tx shapes.
 func TestProcessProposalWithPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(2)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
-	require.NoError(t, err)
-	validPFFTx := newSignedPayForFibreTx(t, signer, accounts[0])
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	signer := newSigner(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+	validPFFTx := newSignedPayForFibreTx(t, signer, accounts[0], true)
+	invalidValidatorSignatureTx := newSignedPayForFibreTx(t, signer, accounts[0], false)
 
-	blobSigner, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-		user.NewAccount(accounts[1], infos[1].AccountNum, infos[1].Sequence))
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: validPFFTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	checkResp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: invalidValidatorSignatureTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, checkResp.Code)
+
+	blobSigner := newSigner(1)
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x02}, share.NamespaceVersionZeroIDSize))
 	blob, err := share.NewBlob(ns, bytes.Repeat([]byte{0x01}, 100), share.ShareVersionZero, nil)
 	require.NoError(t, err)
@@ -134,6 +139,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 					Time:   time.Now(),
 				})
 				require.NoError(t, err)
+				require.Len(t, resp.Txs, 1)
 				return resp.Txs
 			},
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
@@ -147,9 +153,17 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 					Time:   time.Now(),
 				})
 				require.NoError(t, err)
+				require.Len(t, resp.Txs, 2)
 				return resp.Txs
 			},
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name: "reject pay-for-fibre with invalid validator signatures",
+			txs: func() [][]byte {
+				return [][]byte{invalidValidatorSignatureTx}
+			},
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
 		},
 		{
 			name: "reject block with garbage bytes",
@@ -213,11 +227,9 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
-	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
-		user.NewAccount(accounts[0], infos[0].AccountNum, infos[0].Sequence))
-	require.NoError(t, err)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
 
-	wrappedTx, err := coretypes.MarshalIndexWrapper(newSignedPayForFibreTx(t, signer, accounts[0]), 0)
+	wrappedTx, err := coretypes.MarshalIndexWrapper(newSignedPayForFibreTx(t, signer, accounts[0], true), 0)
 	require.NoError(t, err)
 	txs := [][]byte{wrappedTx}
 
@@ -237,7 +249,7 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 	require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 }
 
-// newMsgPayForFibre creates a MsgPayForFibre with a random signer for testing.
+// newMsgPayForFibre creates a MsgPayForFibre with a random signer.
 func newMsgPayForFibre(t *testing.T) *fibretypes.MsgPayForFibre {
 	t.Helper()
 	privKey := secp256k1.GenPrivKey()
@@ -254,12 +266,159 @@ func newUnsignedMultiMsgTx(t *testing.T, txConfig client.TxConfig, msgs ...sdk.M
 	return txBytes
 }
 
-// newSignedPayForFibreTx creates a signed MsgPayForFibre transaction.
-func newSignedPayForFibreTx(t *testing.T, signer *user.Signer, account string) []byte {
+// newSignedPayForFibreTx creates a signed MsgPayForFibre tx.
+func newSignedPayForFibreTx(
+	t *testing.T,
+	signer *user.Signer,
+	account string,
+	validValidatorSignatures bool,
+) []byte {
+	return newSignedPayForFibreTxWithOpts(t, signer, account, validValidatorSignatures,
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+}
+
+// newSignedPayForFibreTxWithOpts creates a signed MsgPayForFibre tx with options.
+func newSignedPayForFibreTxWithOpts(
+	t *testing.T,
+	signer *user.Signer,
+	account string,
+	validValidatorSignatures bool,
+	opts ...user.TxOption,
+) []byte {
 	t.Helper()
 	acc := signer.Account(account)
 	msg := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
-	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(1))
+	// Keep tx size stable for gas parity tests.
+	msg.PaymentPromise.CreationTimestamp = msg.PaymentPromise.CreationTimestamp.Truncate(time.Second)
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	msg.PaymentPromise.Signature, _, err = signer.Keyring().Sign(account, signBytes, signing.SignMode_SIGN_MODE_DIRECT)
+	require.NoError(t, err)
+
+	if validValidatorSignatures {
+		validatorSignature, err := testutil.GenesisValidatorPrivateKey().Sign(signBytes)
+		require.NoError(t, err)
+		msg.ValidatorSignatures = [][]byte{validatorSignature}
+	} else {
+		msg.ValidatorSignatures = [][]byte{{0x01}}
+	}
+
+	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)
 	require.NoError(t, err)
 	return txBytes
+}
+
+func seedFibreEscrow(t *testing.T, testApp *app.App, owner sdk.AccAddress, amount int64) {
+	t.Helper()
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{
+		ChainID: testutil.ChainID,
+		Height:  testApp.LastBlockHeight(),
+		Time:    time.Now(),
+	})
+	coins := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, amount))
+	require.NoError(t, testApp.BankKeeper.SendCoinsFromAccountToModule(ctx, owner, fibretypes.ModuleName, coins))
+	testApp.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{
+		Signer:           owner.String(),
+		Balance:          coins[0],
+		AvailableBalance: coins[0],
+	})
+}
+
+// TestProcessProposalPayForFibreStatefulChecks rejects txs that fail stateful checks.
+func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	signers := make([]*user.Signer, len(accounts))
+	for i := range accounts {
+		signers[i] = newSigner(i)
+	}
+
+	// accounts[0] has no escrow account; accounts[1] has an underfunded one.
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 1)
+
+	tests := []struct {
+		name string
+		tx   []byte
+	}{
+		{
+			name: "reject pay-for-fibre without an escrow account",
+			tx:   newSignedPayForFibreTx(t, signers[0], accounts[0], true),
+		},
+		{
+			name: "reject pay-for-fibre with insufficient escrow balance",
+			tx:   newSignedPayForFibreTx(t, signers[1], accounts[1], true),
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{tc.tx}))
+			require.NoError(t, err)
+			require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
+		})
+	}
+}
+
+// TestProcessProposalChargesTxSizeGas checks the ProcessProposal gas boundary.
+func TestProcessProposalChargesTxSizeGas(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	for _, account := range accounts {
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	// Measure the full ante gas for a same-sized reference tx.
+	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	anteGas := uint64(checkResp.GasUsed)
+
+	// The proposal is otherwise valid, so only the gas limit decides the result.
+	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
+		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+			user.SetGasLimit(anteGas-1), user.SetFee(4_000))
+		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
+
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
+	})
+
+	t.Run("accept gas limit at exactly the ante cost", func(t *testing.T) {
+		exactTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
+			user.SetGasLimit(anteGas), user.SetFee(4_000))
+		require.Len(t, exactTx, len(referenceTx), "boundary tx must match the reference tx size")
+
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{exactTx}))
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+	})
+}
+
+// processProposalRequest builds a valid ProcessProposal request for the txs.
+func processProposalRequest(t *testing.T, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
+	t.Helper()
+	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	squareSize, err := dataSquare.Size()
+	require.NoError(t, err)
+	return &abci.RequestProcessProposal{
+		Height:       testApp.LastBlockHeight() + 1,
+		Time:         time.Now(),
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   uint64(squareSize),
+	}
 }

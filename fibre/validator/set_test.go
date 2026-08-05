@@ -115,6 +115,26 @@ func TestSet_Assign(t *testing.T) {
 	})
 }
 
+func TestSet_AssignedRows(t *testing.T) {
+	const totalRows = 4 * testOriginalRows
+	for _, stakes := range [][]int64{
+		{1, 2, 3},
+		{1, 1, 1, 1, 1},
+		{100, 1, 1},
+	} {
+		t.Run(fmt.Sprint(stakes), func(t *testing.T) {
+			valSet := makeValidatorSetWithStakes(stakes)
+			shardMap := valSet.Assign(testCommitment, totalRows, testOriginalRows, testMinRows, testLivenessThreshold)
+			for _, val := range valSet.Validators {
+				got := valSet.AssignedRows(val, testOriginalRows, testMinRows, testLivenessThreshold)
+				require.Equal(t, len(shardMap[val]), got, "VP=%d must match its assigned row count", val.VotingPower)
+				require.LessOrEqual(t, got, testOriginalRows)
+				require.GreaterOrEqual(t, got, testMinRows)
+			}
+		})
+	}
+}
+
 func TestShardMap_Verify(t *testing.T) {
 	valSet := makeValidatorSet(3)
 	shardMap := valSet.Assign(testCommitment, 12, 4, 1, testLivenessThreshold)

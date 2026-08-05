@@ -72,6 +72,7 @@ func (suite *KeeperTestSuite) TestSetGetParams() {
 			48*time.Hour, // PaymentPromiseRetentionWindow
 			2000,         // PaymentPromiseHeightWindow
 			8*time.Hour,  // ShardRetention
+			512<<30,      // FullStakeStorageBudget
 		)
 		suite.keeper.SetParams(suite.ctx, want)
 		got := suite.keeper.GetParams(suite.ctx)
@@ -636,8 +637,8 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
 		_, err := suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &paymentPromise)
 		suite.Error(err)
 		suite.Contains(err.Error(), "creation_timestamp")
-		suite.Contains(err.Error(), "must be greater than")
-		suite.Contains(err.Error(), "current_time - withdrawal_delay")
+		suite.Contains(err.Error(), "too old")
+		suite.Contains(err.Error(), "freshness cutoff")
 	})
 
 	suite.T().Run("payment promise with height within window should be accepted", func(t *testing.T) {
