@@ -222,9 +222,16 @@ mod-verify: mod
 .PHONY: mod-verify
 
 BUF_VERSION=v1.50.0
+# COSMOS_PROTO_VERSION and GOGOPROTO_VERSION should match the
+# github.com/cosmos/cosmos-proto and github.com/cosmos/gogoproto versions in
+# go.mod. protoc-gen-gocosmos emits the .pb.go files, so an unpinned version
+# here would make `make proto-gen` output depend on when it was run.
+COSMOS_PROTO_VERSION=v1.0.0-beta.5
+GOGOPROTO_VERSION=v1.7.2
 GOLANG_PROTOBUF_VERSION=1.28.1
 GRPC_GATEWAY_VERSION=1.16.0
 GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
+PROTOC_GEN_GO_GRPC_VERSION=v1.6.2
 
 ## proto-all: Format, lint and generate Protobuf files
 proto-all: proto-deps proto-format proto-lint proto-gen
@@ -234,12 +241,12 @@ proto-all: proto-deps proto-format proto-lint proto-gen
 proto-deps:
 	@echo "Installing proto deps"
 	@go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
-	@go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest
-	@go install github.com/cosmos/gogoproto/protoc-gen-gocosmos@latest
-	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@latest
+	@go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@$(COSMOS_PROTO_VERSION)
+	@go install github.com/cosmos/gogoproto/protoc-gen-gocosmos@$(GOGOPROTO_VERSION)
+	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@$(GOGOPROTO_VERSION)
 	@go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION)
 	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
-	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@$(PROTOC_GEN_GO_GRPC_VERSION)
 	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
 .PHONY: proto-deps
 
