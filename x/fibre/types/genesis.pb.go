@@ -29,15 +29,11 @@ const _ = proto.GoGoProtoPackageIsVersion3 // please upgrade the proto package
 
 // GenesisState defines the fibre module's genesis state.
 type GenesisState struct {
-	Params            Params             `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
-	EscrowAccounts    []EscrowAccount    `protobuf:"bytes,2,rep,name=escrow_accounts,json=escrowAccounts,proto3" json:"escrow_accounts"`
-	Withdrawals       []Withdrawal       `protobuf:"bytes,3,rep,name=withdrawals,proto3" json:"withdrawals"`
-	ProcessedPayments []ProcessedPayment `protobuf:"bytes,4,rep,name=processed_payments,json=processedPayments,proto3" json:"processed_payments"`
-	// promise_freshness_floor is the monotonic lower bound on acceptable payment-promise
-	// creation_timestamps (the greatest block_time - WithdrawalDelay observed so far).
-	// Persisting it preserves replay protection across genesis export/import. A zero value
-	// means "unset"; it is re-derived on the first BeginBlock.
-	PromiseFreshnessFloor time.Time `protobuf:"bytes,5,opt,name=promise_freshness_floor,json=promiseFreshnessFloor,proto3,stdtime" json:"promise_freshness_floor"`
+	Params                Params             `protobuf:"bytes,1,opt,name=params,proto3" json:"params"`
+	EscrowAccounts        []EscrowAccount    `protobuf:"bytes,2,rep,name=escrow_accounts,json=escrowAccounts,proto3" json:"escrow_accounts"`
+	Withdrawals           []Withdrawal       `protobuf:"bytes,3,rep,name=withdrawals,proto3" json:"withdrawals"`
+	ProcessedPayments     []ProcessedPayment `protobuf:"bytes,4,rep,name=processed_payments,json=processedPayments,proto3" json:"processed_payments"`
+	PromiseFreshnessFloor time.Time          `protobuf:"bytes,5,opt,name=promise_freshness_floor,json=promiseFreshnessFloor,proto3,stdtime" json:"promise_freshness_floor"`
 }
 
 func (m *GenesisState) Reset()         { *m = GenesisState{} }
