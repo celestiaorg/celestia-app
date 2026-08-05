@@ -471,7 +471,7 @@ func TestMsgUpdateFibreParamsValidateBasic(t *testing.T) {
 	authority := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
 	params := DefaultParams()
 	invalidParams := DefaultParams()
-	invalidParams.GasPerBlobByte = 0
+	invalidParams.WithdrawalDelay = 0
 
 	tests := []struct {
 		name    string

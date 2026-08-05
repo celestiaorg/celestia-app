@@ -70,11 +70,58 @@ var DefaultProtocolParams = ProtocolParams{
 }
 
 func init() {
-	p := DefaultProtocolParams
+	if err := DefaultProtocolParams.Validate(); err != nil {
+		panic(fmt.Sprintf("invalid DefaultProtocolParams: %v", err))
+	}
+}
+
+// Validate checks the protocol parameters are internally consistent.
+func (p ProtocolParams) Validate() error {
+	if p.Rows <= 0 {
+		return fmt.Errorf("rows must be positive: %d", p.Rows)
+	}
+	if p.EncodingRatio <= 0 || p.EncodingRatio >= 1 {
+		return fmt.Errorf("encoding ratio must be in (0, 1): %v", p.EncodingRatio)
+	}
+	if p.MaxValidatorCount <= 0 {
+		return fmt.Errorf("max validator count must be positive: %d", p.MaxValidatorCount)
+	}
+	if p.UniqueDecodingSecurityBits <= 0 {
+		return fmt.Errorf("unique decoding security bits must be positive: %d", p.UniqueDecodingSecurityBits)
+	}
+	if err := validateFraction("safety threshold", p.SafetyThreshold); err != nil {
+		return err
+	}
+	if p.SafetyThreshold.Numerator >= p.SafetyThreshold.Denominator {
+		return fmt.Errorf("safety threshold must be below 1: %d/%d", p.SafetyThreshold.Numerator, p.SafetyThreshold.Denominator)
+	}
+	if err := validateFraction("liveness threshold", p.LivenessThreshold); err != nil {
+		return err
+	}
+
 	livenessRatio := float64(p.LivenessThreshold.Numerator) / float64(p.LivenessThreshold.Denominator)
 	if livenessRatio < p.EncodingRatio {
-		panic("LivenessThreshold must always be bigger than EncodingRatio as we cannot disperse samples without overlap")
+		return fmt.Errorf("liveness threshold %v must be at least the encoding ratio %v", livenessRatio, p.EncodingRatio)
 	}
+	if p.MaxBlobSize <= 0 {
+		return fmt.Errorf("max blob size must be positive: %d", p.MaxBlobSize)
+	}
+	if p.MinRowSize <= 0 {
+		return fmt.Errorf("min row size must be positive: %d", p.MinRowSize)
+	}
+	return nil
+}
+
+// validateFraction rejects a fraction that would divide by zero or contribute a
+// zero numerator to the row-count math.
+func validateFraction(name string, f cmtmath.Fraction) error {
+	if f.Denominator == 0 {
+		return fmt.Errorf("%s denominator must be positive", name)
+	}
+	if f.Numerator == 0 {
+		return fmt.Errorf("%s numerator must be positive", name)
+	}
+	return nil
 }
 
 // TotalRows returns the total number of rows (K + N).

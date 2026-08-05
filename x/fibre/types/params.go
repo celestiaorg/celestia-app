@@ -11,26 +11,16 @@ import (
 var _ paramtypes.ParamSet = (*Params)(nil)
 
 var (
-	KeyGasPerBlobByte                = []byte("GasPerBlobByte")
-	KeyWithdrawalDelay               = []byte("WithdrawalDelay")
-	KeyPaymentPromiseTimeout         = []byte("PaymentPromiseTimeout")
-	KeyPaymentPromiseRetentionWindow = []byte("PaymentPromiseRetentionWindow")
-	KeyPaymentPromiseHeightWindow    = []byte("PaymentPromiseHeightWindow")
-	KeyShardRetention                = []byte("ShardRetention")
-	KeyFullStakeStorageBudget        = []byte("FullStakeStorageBudget")
+	KeyWithdrawalDelay            = []byte("WithdrawalDelay")
+	KeyPaymentPromiseTimeout      = []byte("PaymentPromiseTimeout")
+	KeyPaymentPromiseHeightWindow = []byte("PaymentPromiseHeightWindow")
+	KeyShardRetention             = []byte("ShardRetention")
+	KeyFullStakeStorageBudget     = []byte("FullStakeStorageBudget")
 
-	// DefaultGasPerBlobByte is the initial value of the gas per blob byte parameter.
-	// TODO: should this param be removed? The PFF gas formula is now standalone
-	// (EstimateGasForPayForFibre) and does not depend on GasPerBlobByte.
-	DefaultGasPerBlobByte uint32 = 1
 	// DefaultWithdrawalDelay is the initial value of the withdrawal delay parameter.
 	DefaultWithdrawalDelay = 24 * time.Hour
 	// DefaultPaymentPromiseTimeout is the initial value of the payment promise timeout parameter.
 	DefaultPaymentPromiseTimeout = 1 * time.Hour
-	// DefaultPaymentPromiseRetentionWindow is the initial value of the payment promise retention window parameter.
-	// It exceeds DefaultWithdrawalDelay by more than MaxPromiseClockSkew so that
-	// the replay invariant enforced by Validate holds for the defaults.
-	DefaultPaymentPromiseRetentionWindow = 25 * time.Hour
 	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window parameter.
 	DefaultPaymentPromiseHeightWindow uint64 = 1000
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
@@ -92,48 +82,47 @@ func ParamKeyTable() paramtypes.KeyTable {
 }
 
 // NewParams creates a new Params instance
-func NewParams(gasPerBlobByte uint32, withdrawalDelay, paymentPromiseTimeout, paymentPromiseRetentionWindow time.Duration, paymentPromiseHeightWindow uint64, shardRetention time.Duration, storageBudget uint64) Params {
+func NewParams(withdrawalDelay, paymentPromiseTimeout time.Duration, paymentPromiseHeightWindow uint64, shardRetention time.Duration, storageBudget uint64) Params {
 	return Params{
-		GasPerBlobByte:                gasPerBlobByte,
-		WithdrawalDelay:               withdrawalDelay,
-		PaymentPromiseTimeout:         paymentPromiseTimeout,
-		PaymentPromiseRetentionWindow: paymentPromiseRetentionWindow,
-		PaymentPromiseHeightWindow:    paymentPromiseHeightWindow,
-		ShardRetention:                shardRetention,
-		FullStakeStorageBudget:        storageBudget,
+		WithdrawalDelay:            withdrawalDelay,
+		PaymentPromiseTimeout:      paymentPromiseTimeout,
+		PaymentPromiseHeightWindow: paymentPromiseHeightWindow,
+		ShardRetention:             shardRetention,
+		FullStakeStorageBudget:     storageBudget,
 	}
 }
 
 // DefaultParams returns a default set of parameters
 func DefaultParams() Params {
-	return NewParams(DefaultGasPerBlobByte, DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseRetentionWindow, DefaultPaymentPromiseHeightWindow, DefaultShardRetention, DefaultFullStakeStorageBudget)
+	return NewParams(DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseHeightWindow, DefaultShardRetention, DefaultFullStakeStorageBudget)
+}
+
+// PaymentPromiseRetentionWindow is how long a processed-payment record is kept
+// before pruning. It is derived, not configured: a promise stays settleable for
+// WithdrawalDelay + MaxPromiseClockSkew after creation, so the record must
+// outlive that span or a pruned promise could be replayed.
+func (p Params) PaymentPromiseRetentionWindow() time.Duration {
+	return p.WithdrawalDelay + MaxPromiseClockSkew
 }
 
 // ParamSetPairs gets the list of param key-value pairs
 func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 	return paramtypes.ParamSetPairs{
-		paramtypes.NewParamSetPair(KeyGasPerBlobByte, &p.GasPerBlobByte, validateGasPerBlobByte),
 		paramtypes.NewParamSetPair(KeyWithdrawalDelay, &p.WithdrawalDelay, validateWithdrawalDelay),
 		paramtypes.NewParamSetPair(KeyPaymentPromiseTimeout, &p.PaymentPromiseTimeout, validatePaymentPromiseTimeout),
-		paramtypes.NewParamSetPair(KeyPaymentPromiseRetentionWindow, &p.PaymentPromiseRetentionWindow, validatePaymentPromiseRetentionWindow),
 		paramtypes.NewParamSetPair(KeyPaymentPromiseHeightWindow, &p.PaymentPromiseHeightWindow, validatePaymentPromiseHeightWindow),
 		paramtypes.NewParamSetPair(KeyShardRetention, &p.ShardRetention, validateShardRetention),
 		paramtypes.NewParamSetPair(KeyFullStakeStorageBudget, &p.FullStakeStorageBudget, validateFullStakeStorageBudget),
 	}
 }
 
-// Validate validates the set of params
+// Validate validates the set of params. PaymentPromiseRetentionWindow is derived
+// from WithdrawalDelay, not stored, so there is nothing to validate for it.
 func (p Params) Validate() error {
-	if err := validateGasPerBlobByte(p.GasPerBlobByte); err != nil {
-		return err
-	}
 	if err := validateWithdrawalDelay(&p.WithdrawalDelay); err != nil {
 		return err
 	}
 	if err := validatePaymentPromiseTimeout(&p.PaymentPromiseTimeout); err != nil {
-		return err
-	}
-	if err := validatePaymentPromiseRetentionWindow(&p.PaymentPromiseRetentionWindow); err != nil {
 		return err
 	}
 	if err := validatePaymentPromiseHeightWindow(p.PaymentPromiseHeightWindow); err != nil {
@@ -141,13 +130,6 @@ func (p Params) Validate() error {
 	}
 	if err := validateShardRetention(&p.ShardRetention); err != nil {
 		return err
-	}
-	// A promise stays settleable until creation_timestamp + MaxPromiseClockSkew + withdrawal_delay.
-	// if the retention window is smaller, then a PP can be processed twice because the first PP
-	// record was pruned from state.
-	minRetentionWindow := p.WithdrawalDelay + MaxPromiseClockSkew
-	if p.PaymentPromiseRetentionWindow < minRetentionWindow {
-		return fmt.Errorf("payment promise retention window %s must be at least %s (withdrawal delay %s plus max promise clock skew %s), otherwise a settled promise can be replayed once its processed payment record is pruned", p.PaymentPromiseRetentionWindow, minRetentionWindow, p.WithdrawalDelay, MaxPromiseClockSkew)
 	}
 	if err := validateFullStakeStorageBudget(p.FullStakeStorageBudget); err != nil {
 		return err
@@ -159,20 +141,6 @@ func (p Params) Validate() error {
 func (p Params) String() string {
 	out, _ := yaml.Marshal(p)
 	return string(out)
-}
-
-// validateGasPerBlobByte validates the GasPerBlobByte param
-func validateGasPerBlobByte(v any) error {
-	gasPerBlobByte, ok := v.(uint32)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", v)
-	}
-
-	if gasPerBlobByte == 0 {
-		return fmt.Errorf("gas per blob byte cannot be 0")
-	}
-
-	return nil
 }
 
 // validateWithdrawalDelay validates the WithdrawalDelay param
@@ -214,24 +182,6 @@ func validatePaymentPromiseTimeout(v any) error {
 
 	if *duration > MaxPaymentPromiseTimeout {
 		return fmt.Errorf("payment promise timeout must be at most %s: %s", MaxPaymentPromiseTimeout, *duration)
-	}
-
-	return nil
-}
-
-// validatePaymentPromiseRetentionWindow validates the PaymentPromiseRetentionWindow param
-func validatePaymentPromiseRetentionWindow(v any) error {
-	duration, ok := v.(*time.Duration)
-	if !ok {
-		return fmt.Errorf("invalid parameter type: %T", v)
-	}
-
-	if duration == nil {
-		return fmt.Errorf("payment promise retention window cannot be nil")
-	}
-
-	if *duration <= 0 {
-		return fmt.Errorf("payment promise retention window must be positive: %s", *duration)
 	}
 
 	return nil
@@ -283,5 +233,7 @@ func validateFullStakeStorageBudget(v any) error {
 		return fmt.Errorf("full stake storage budget must be positive; disable the limiter locally with the server --unlimited-budget flag instead")
 	}
 
+	// No upper bound: any positive budget is a valid governance choice; the
+	// per-node budget derivation is overflow-safe on its own.
 	return nil
 }
