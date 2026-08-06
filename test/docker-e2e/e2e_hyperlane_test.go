@@ -76,6 +76,9 @@ type ForwardingRequest struct {
 	DestDomain    uint32 `json:"dest_domain"`
 	DestRecipient string `json:"dest_recipient"`
 	TokenId       string `json:"token_id"`
+	// CustomHookId must match the hook the address was derived with; the backend
+	// re-derives the address and rejects the request otherwise.
+	CustomHookId string `json:"custom_hook_id,omitempty"`
 }
 
 func (s *HyperlaneTestSuite) SetupSuite() {
@@ -331,6 +334,12 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 }
 
 func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient string) {
+	s.SendForwardingRequestWithHook(ctx, forwardingService, forwardAddr, tokenId, destDomain, destRecipient, "")
+}
+
+// SendForwardingRequestWithHook registers a forwarding request whose address is bound to
+// customHookID. The hook must match the one used to derive forwardAddr.
+func (s *HyperlaneTestSuite) SendForwardingRequestWithHook(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient, customHookID string) {
 	s.T().Helper()
 
 	networkInfo, err := forwardingService.GetNetworkInfo(ctx)
@@ -343,6 +352,7 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardi
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
 		TokenId:       tokenId,
+		CustomHookId:  customHookID,
 	}
 
 	reqBz, err := json.Marshal(forwardReq)
