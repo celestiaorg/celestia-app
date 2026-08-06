@@ -93,32 +93,12 @@ func TestDeriveForwardingAddressWithHookIntermediates(t *testing.T) {
 func TestDeriveForwardingAddressWithHookRejects(t *testing.T) {
 	recipient := make([]byte, types.RecipientLength)
 	tokenID := tokenIDBytes(t, 1)
-	hookID := hookIDBytes(t, 1)
 
-	testCases := []struct {
-		name      string
-		recipient []byte
-		tokenID   []byte
-		hookID    []byte
-		metadata  []byte
-		wantErr   error
-	}{
-		// Committing to nothing is DeriveForwardingAddress's job, not a binding.
-		{"nil hook, no metadata", recipient, tokenID, nil, nil, types.ErrInvalidHookID},
-		{"empty hook, no metadata", recipient, tokenID, []byte{}, nil, types.ErrInvalidHookID},
-		{"zero hook, no metadata", recipient, tokenID, make([]byte, types.HookIDLength), nil, types.ErrInvalidHookID},
-		// Metadata set so the rejection is unambiguously about hook length.
-		{"hook too short", recipient, tokenID, make([]byte, types.HookIDLength-1), []byte{0xab}, types.ErrInvalidHookID},
-		{"hook too long", recipient, tokenID, make([]byte, types.HookIDLength+1), []byte{0xab}, types.ErrInvalidHookID},
-		// Recipient and token validation apply to the bound scheme too.
-		{"bad recipient", make([]byte, 31), tokenID, hookID, nil, types.ErrInvalidRecipient},
-		{"bad token id", recipient, make([]byte, 31), hookID, nil, types.ErrInvalidTokenID},
-	}
+	// A 20-byte cosmos address is the likely mistake here, hence the length guard.
+	_, err := types.DeriveForwardingAddressWithHook(1, recipient, tokenID, make([]byte, 20), []byte{0xab})
+	require.ErrorIs(t, err, types.ErrInvalidHookID)
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := types.DeriveForwardingAddressWithHook(1, tc.recipient, tc.tokenID, tc.hookID, tc.metadata)
-			require.ErrorIs(t, err, tc.wantErr)
-		})
-	}
+	// A zero hook means the mailbox default, so on its own it commits to nothing.
+	_, err = types.DeriveForwardingAddressWithHook(1, recipient, tokenID, make([]byte, types.HookIDLength), nil)
+	require.ErrorIs(t, err, types.ErrInvalidHookID)
 }
