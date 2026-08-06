@@ -131,7 +131,7 @@ func (k Keeper) pruneProcessedPayments(ctx sdk.Context) error {
 	params := k.GetParams(ctx)
 
 	// Calculate the cutoff time: anything processed before this should be pruned
-	cutoffTime := currentTime.Add(-params.PaymentPromiseRetentionWindow)
+	cutoffTime := currentTime.Add(-params.PaymentPromiseRetentionWindow())
 
 	// Iterate over processed payments by time, starting from earliest
 	iterator := k.GetProcessedPaymentsByTimeIterator(ctx, cutoffTime)
