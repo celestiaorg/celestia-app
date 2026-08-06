@@ -70,16 +70,11 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 
 	// A forward carrying either field must target an address derived with that exact pair,
 	// so a caller cannot substitute one on someone else's deposit.
-	var expectedAddr []byte
-	if customHookId != nil || len(customHookMetadata) > 0 {
-		var hookBytes []byte
-		if customHookId != nil {
-			hookBytes = customHookId.Bytes()
-		}
-		expectedAddr, err = types.DeriveForwardingAddressWithHook(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
-	} else {
-		expectedAddr, err = types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
+	var hookBytes []byte
+	if customHookId != nil {
+		hookBytes = customHookId.Bytes()
 	}
+	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive forwarding address: %w", err)
 	}

@@ -63,9 +63,9 @@ the digest preimage change together:
   `ErrAddressMismatch`.
 
 An absent `hookId` normalises to the zero address, which is the sentinel for "mailbox default
-hook". So metadata alone is a valid binding — it means the default hook with that exact metadata.
-Committing to neither is not a binding: `DeriveForwardingAddressWithHook` rejects it with
-`ErrInvalidHookID`, since `DeriveForwardingAddress` is the call for that case.
+hook". So metadata alone is a valid binding — it means the default hook with that exact metadata —
+while committing to neither yields the `0x01` address. A single `DeriveForwardingAddress` covers
+both schemes, taking the hook and metadata as optional arguments.
 
 ## State
 

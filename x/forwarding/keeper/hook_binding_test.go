@@ -43,7 +43,7 @@ func forwardMsg(s *testIGPSetup, hook, metadata string) *types.MsgForward {
 // These cases cover the three ways Forward can pick a derivation: either field supplied
 // selects the bound scheme, neither selects the default one. That a *different* pair lands on
 // a different address is the derivation's contract, covered by
-// TestDeriveForwardingAddressWithHookIsDistinct rather than re-tested here.
+// TestDeriveForwardingAddressBindingIsDistinct rather than re-tested here.
 func TestForward_BindingMismatchRejected(t *testing.T) {
 	const meta = "0xabcdef"
 

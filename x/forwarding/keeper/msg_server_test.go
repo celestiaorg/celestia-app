@@ -222,7 +222,7 @@ func (s *testIGPSetup) useHookBoundAddressWithMetadata(t *testing.T, hookID, met
 		require.NoError(t, err)
 	}
 
-	addrBytes, err := types.DeriveForwardingAddressWithHook(s.destDomain, destRecipient.Bytes(), token.Bytes(), hookBytes, metadata)
+	addrBytes, err := types.DeriveForwardingAddress(s.destDomain, destRecipient.Bytes(), token.Bytes(), hookBytes, metadata)
 	require.NoError(t, err)
 	s.forwardAddr = sdk.AccAddress(addrBytes)
 }
@@ -237,7 +237,7 @@ func deriveTestForwardAddress(destDomain uint32, destRecipientHex, tokenID strin
 	if err != nil {
 		return nil, err
 	}
-	addrBytes, err := types.DeriveForwardingAddress(destDomain, destRecipient.Bytes(), token.Bytes())
+	addrBytes, err := types.DeriveForwardingAddress(destDomain, destRecipient.Bytes(), token.Bytes(), nil, nil)
 	if err != nil {
 		return nil, err
 	}

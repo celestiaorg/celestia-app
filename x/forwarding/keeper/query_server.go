@@ -71,16 +71,11 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 		}
 	}
 
-	var forwardAddr []byte
-	if customHookId != nil || len(customHookMetadata) > 0 {
-		var hookBytes []byte
-		if customHookId != nil {
-			hookBytes = customHookId.Bytes()
-		}
-		forwardAddr, err = types.DeriveForwardingAddressWithHook(req.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
-	} else {
-		forwardAddr, err = types.DeriveForwardingAddress(req.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
+	var hookBytes []byte
+	if customHookId != nil {
+		hookBytes = customHookId.Bytes()
 	}
+	forwardAddr, err := types.DeriveForwardingAddress(req.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to derive address: %v", err)
 	}

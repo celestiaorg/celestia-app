@@ -81,14 +81,14 @@ func (s *ForwardingIntegrationTestSuite) processWarpMessage(
 }
 
 func (s *ForwardingIntegrationTestSuite) deriveForwardAddress(destDomain uint32, destRecipient []byte, tokenID util.HexAddress) sdk.AccAddress {
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(destDomain, destRecipient, tokenID.Bytes())
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(destDomain, destRecipient, tokenID.Bytes(), nil, nil)
 	s.Require().NoError(err)
 	return sdk.AccAddress(forwardAddr)
 }
 
 // deriveForwardAddressWithHook derives an address bound to a specific post-dispatch hook.
 func (s *ForwardingIntegrationTestSuite) deriveForwardAddressWithHook(destDomain uint32, destRecipient []byte, tokenID, hookID util.HexAddress) sdk.AccAddress {
-	forwardAddr, err := forwardingtypes.DeriveForwardingAddressWithHook(destDomain, destRecipient, tokenID.Bytes(), hookID.Bytes(), nil)
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddress(destDomain, destRecipient, tokenID.Bytes(), hookID.Bytes(), nil)
 	s.Require().NoError(err)
 	return sdk.AccAddress(forwardAddr)
 }

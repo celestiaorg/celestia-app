@@ -19,20 +19,20 @@ func hookIDBytes(t *testing.T, id byte) []byte {
 
 // Every distinct (hook, metadata) pair must land on a distinct address, and none may
 // collide with the default-hook address.
-func TestDeriveForwardingAddressWithHookIsDistinct(t *testing.T) {
+func TestDeriveForwardingAddressBindingIsDistinct(t *testing.T) {
 	recipient := make([]byte, types.RecipientLength)
 	tokenID := tokenIDBytes(t, 7)
 	hookA, hookB := hookIDBytes(t, 1), hookIDBytes(t, 2)
 	metaA, metaB := []byte{0xab, 0xcd}, []byte{0xde, 0xad}
 
 	derive := func(hook, meta []byte) []byte {
-		addr, err := types.DeriveForwardingAddressWithHook(42161, recipient, tokenID, hook, meta)
+		addr, err := types.DeriveForwardingAddress(42161, recipient, tokenID, hook, meta)
 		require.NoError(t, err)
 		require.Len(t, addr, types.CosmosAddressLen)
 		return addr
 	}
 
-	base, err := types.DeriveForwardingAddress(42161, recipient, tokenID)
+	base, err := types.DeriveForwardingAddress(42161, recipient, tokenID, nil, nil)
 	require.NoError(t, err)
 
 	variants := map[string][]byte{
@@ -55,11 +55,14 @@ func TestDeriveForwardingAddressWithHookIsDistinct(t *testing.T) {
 
 	// An absent hook normalises to the zero address, so passing it explicitly is equivalent.
 	require.Equal(t, variants["metaA only"], derive(make([]byte, types.HookIDLength), metaA))
+
+	// With no metadata either, a zero hook commits to nothing and yields the default address.
+	require.Equal(t, base, derive(make([]byte, types.HookIDLength), nil))
 }
 
 // Pins the exact preimage so clients can reimplement it and a change to the scheme fails
 // here rather than sending deposits to an unforwardable address.
-func TestDeriveForwardingAddressWithHookIntermediates(t *testing.T) {
+func TestDeriveForwardingAddressBoundIntermediates(t *testing.T) {
 	destDomain := uint32(42161)
 	destRecipient := make([]byte, types.RecipientLength)
 	destRecipient[31] = 0xEF
@@ -85,20 +88,13 @@ func TestDeriveForwardingAddressWithHookIntermediates(t *testing.T) {
 
 	want := address.Module(types.ModuleName, salt)[:types.CosmosAddressLen]
 
-	got, err := types.DeriveForwardingAddressWithHook(destDomain, destRecipient, tokenID, hookID, metadata)
+	got, err := types.DeriveForwardingAddress(destDomain, destRecipient, tokenID, hookID, metadata)
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
 
-func TestDeriveForwardingAddressWithHookRejects(t *testing.T) {
-	recipient := make([]byte, types.RecipientLength)
-	tokenID := tokenIDBytes(t, 1)
-
+func TestDeriveForwardingAddressRejectsBadHookLength(t *testing.T) {
 	// A 20-byte cosmos address is the likely mistake here, hence the length guard.
-	_, err := types.DeriveForwardingAddressWithHook(1, recipient, tokenID, make([]byte, 20), []byte{0xab})
-	require.ErrorIs(t, err, types.ErrInvalidHookID)
-
-	// A zero hook means the mailbox default, so on its own it commits to nothing.
-	_, err = types.DeriveForwardingAddressWithHook(1, recipient, tokenID, make([]byte, types.HookIDLength), nil)
+	_, err := types.DeriveForwardingAddress(1, make([]byte, types.RecipientLength), tokenIDBytes(t, 1), make([]byte, 20), nil)
 	require.ErrorIs(t, err, types.ErrInvalidHookID)
 }
