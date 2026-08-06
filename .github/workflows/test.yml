@@ -150,7 +150,12 @@ jobs:
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneForwardingCustomHook
             entrypoint: TestHyperlaneTestSuite
-            forwarding_relayer_image: ghcr.io/celestiaorg/forwarding-relayer:custom-igp-hook
+            # Pinned by digest to a linux/amd64 build of forwarding-relayer
+            # jonas/hook-in-derivation, which carries the matching
+            # custom_hook_id/custom_hook_metadata address derivation. Built by hand
+            # because the relayer image cannot currently be built in CI. Replace with
+            # a ghcr.io/celestiaorg image once that branch merges and CI can publish.
+            forwarding_relayer_image: docker.io/tiajonas/forwarding-relayer@sha256:7a8dada9afb589d1d0caa983bb7733d7093a1a4e6158c3bc92f858a4cb3590c9
           - testcase: TestHyperlaneZKIsmStateTransition
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateMembership
