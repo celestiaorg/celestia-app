@@ -245,7 +245,7 @@ signature verification outside that query.</p>
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 </code></pre>
-<p><code>MsgPayForFibre</code> and <code>MsgPaymentPromiseTimeout</code> both compute the internal payment-promise hash and store a <code>ProcessedPayment</code> at the current block time. BeginBlock prunes processed payments whose <code>processed_at</code> is outside the <code>payment_promise_retention_window</code>.</p>
+<p><code>MsgPayForFibre</code> and <code>MsgPaymentPromiseTimeout</code> both compute the internal payment-promise hash and store a <code>ProcessedPayment</code> at the current block time. BeginBlock prunes processed payments whose <code>processed_at</code> is outside the processed-payment retention window (<code>Params.PaymentPromiseRetentionWindow()</code>).</p>
 <h3 id="genesisstate"><a class="header" href="#genesisstate">GenesisState</a></h3>
 <p>Genesis contains params, escrow accounts, withdrawals, and processed payments.</p>
 <pre><code class="language-proto">message GenesisState {
@@ -395,7 +395,7 @@ Stateful Processing:</p>
 <h2 id="automatic-state-transitions"><a class="header" href="#automatic-state-transitions">Automatic State Transitions</a></h2>
 <p><code>BeginBlocker</code> runs <code>processAvailableWithdrawals</code> first and <code>pruneProcessedPayments</code> second.</p>
 <p><code>processAvailableWithdrawals</code> iterates the withdrawals-by-available-time index in time order, stops when it reaches a future <code>available_timestamp</code>, parses the signer from the key, loads the withdrawal, loads the escrow account, checks that total <code>balance</code> covers the withdrawal, sends coins from the <code>fibre</code> module account to the signer account, and only after a successful send subtracts the withdrawal amount from total <code>balance</code>, stores the escrow account, deletes the withdrawal from both indexes, and emits <code>EventWithdrawFromEscrowExecuted</code>. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the bank send runs before escrow state is updated so a failed send leaves the escrow account and the pending withdrawal unchanged for a safe retry.</p>
-<p><code>pruneProcessedPayments</code> computes <code>cutoff_time = block_time - payment_promise_retention_window</code>, iterates the processed-payments-by-time index in time order, stops when <code>processed_at</code> is after the cutoff, deletes each pruned processed payment from both indexes, and emits <code>EventProcessedPaymentPruned</code>.</p>
+<p><code>pruneProcessedPayments</code> computes <code>cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()</code>, iterates the processed-payments-by-time index in time order, stops when <code>processed_at</code> is after the cutoff, deletes each pruned processed payment from both indexes, and emits <code>EventProcessedPaymentPruned</code>.</p>
 <h2 id="events"><a class="header" href="#events">Events</a></h2>
 <pre><code class="language-proto">message EventDepositToEscrow {
   string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
