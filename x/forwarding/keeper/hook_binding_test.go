@@ -11,9 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// otherHookID is a second valid hook id, distinct from customHookID.
-const otherHookID = "0x726f757465725f706f73745f6469737061746368000000040000000000000011"
-
 // bindAddress binds the setup's address to (hook, metadata); both empty leaves it default.
 func bindAddress(t *testing.T, s *testIGPSetup, hook, metadata string) {
 	t.Helper()
@@ -42,6 +39,11 @@ func forwardMsg(s *testIGPSetup, hook, metadata string) *types.MsgForward {
 // A deposit can only be forwarded with the exact (hook, metadata) pair its address commits
 // to. This is what stops a caller routing someone else's deposit through a hook of their
 // choosing, e.g. a free one that funds no delivery.
+//
+// These cases cover the three ways Forward can pick a derivation: either field supplied
+// selects the bound scheme, neither selects the default one. That a *different* pair lands on
+// a different address is the derivation's contract, covered by
+// TestDeriveForwardingAddressWithHookIsDistinct rather than re-tested here.
 func TestForward_BindingMismatchRejected(t *testing.T) {
 	const meta = "0xabcdef"
 
@@ -52,13 +54,9 @@ func TestForward_BindingMismatchRejected(t *testing.T) {
 		sendHook     string
 		sendMetadata string
 	}{
-		{"custom hook on default address", "", "", customHookID, ""},
-		{"metadata on default address", "", "", "", meta},
-		{"wrong hook on hook-bound address", customHookID, "", otherHookID, ""},
-		{"omitted hook on hook-bound address", customHookID, "", "", ""},
-		{"wrong metadata on hook+metadata address", customHookID, meta, customHookID, "0xdeadbeef"},
-		{"omitted metadata on metadata-only address", "", meta, "", ""},
-		{"hook added to metadata-only address", "", meta, customHookID, meta},
+		{"hook supplied for a default address", "", "", customHookID, ""},
+		{"metadata supplied for a default address", "", "", "", meta},
+		{"binding omitted for a bound address", customHookID, meta, "", ""},
 	}
 
 	for _, tc := range testCases {
