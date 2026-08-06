@@ -43,15 +43,12 @@ message MsgForward {
   // Required: relayer must provide sufficient fee for the transfer.
   cosmos.base.v1beta1.Coin max_igp_fee = 6 [(gogoproto.nullable) = false];
 
-  // custom_hook_id optionally selects the post-dispatch hook (e.g. an alternative
-  // IGP) that handles the interchain gas payment for this forward. Hex-encoded
-  // (0x prefix optional). Empty => the mailbox default hook (unchanged behavior).
-  // The hook only steers which hook is paid; it cannot change the transfer's
-  // recipient, which stays bound to the derived forwarding address.
+  // custom_hook_id must be empty. It is retained for wire compatibility.
+  // Forwarding always uses the mailbox default hook, which only the mailbox owner
+  // may configure.
   string custom_hook_id = 7;
 
-  // custom_hook_metadata is optional metadata passed to the custom hook
-  // (hex-encoded). Empty => none.
+  // custom_hook_metadata must be empty.
   string custom_hook_metadata = 8;
 }
 

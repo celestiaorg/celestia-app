@@ -269,13 +269,13 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwarding() {
 }
 
 // ConfigureForwardRelayer starts the forwarding-relayer backend + relayer. extraEnv is
-// appended to the relayer container's environment (e.g. CUSTOM_IGP_HOOK=<igp>).
+// appended to the relayer container's environment.
 func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain *cosmos.Chain, extraEnv []string) *hyperlane.ForwardRelayer {
 	backendCfg := hyperlane.ForwardRelayerConfig{
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           forwardingRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			Port: "8080",
 		},
@@ -312,7 +312,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           forwardingRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
 			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),

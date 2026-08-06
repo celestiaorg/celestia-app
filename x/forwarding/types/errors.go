@@ -6,12 +6,13 @@ import (
 
 // Forwarding module sentinel errors
 var (
-	ErrAddressMismatch    = errors.Register(ModuleName, 2, "derived address does not match provided address")
-	ErrNoBalance          = errors.Register(ModuleName, 3, "no balance at forwarding address")
-	ErrUnsupportedToken   = errors.Register(ModuleName, 4, "unsupported token denom")
-	ErrInvalidRecipient   = errors.Register(ModuleName, 5, "invalid recipient length")
-	ErrNoWarpRoute        = errors.Register(ModuleName, 6, "no warp route to destination domain")
-	ErrInsufficientIgpFee = errors.Register(ModuleName, 7, "IGP fee provided is less than required")
-	ErrForwardFailed      = errors.Register(ModuleName, 8, "token forward failed")
-	ErrInvalidTokenID     = errors.Register(ModuleName, 9, "invalid token identifier")
+	ErrAddressMismatch      = errors.Register(ModuleName, 2, "derived address does not match provided address")
+	ErrNoBalance            = errors.Register(ModuleName, 3, "no balance at forwarding address")
+	ErrUnsupportedToken     = errors.Register(ModuleName, 4, "unsupported token denom")
+	ErrInvalidRecipient     = errors.Register(ModuleName, 5, "invalid recipient length")
+	ErrNoWarpRoute          = errors.Register(ModuleName, 6, "no warp route to destination domain")
+	ErrInsufficientIgpFee   = errors.Register(ModuleName, 7, "IGP fee provided is less than required")
+	ErrForwardFailed        = errors.Register(ModuleName, 8, "token forward failed")
+	ErrInvalidTokenID       = errors.Register(ModuleName, 9, "invalid token identifier")
+	ErrCustomHookNotAllowed = errors.Register(ModuleName, 10, "custom post-dispatch hook is not allowed; the mailbox default hook is always used")
 )

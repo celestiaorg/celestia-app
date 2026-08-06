@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
@@ -75,6 +76,69 @@ func TestMsgForwardValidateBasic(t *testing.T) {
 				MaxIgpFee:     validMaxIgpFee,
 			},
 			expectError: false,
+		},
+		{
+			// The zero address is Hyperlane's sentinel for the mailbox default hook,
+			// which is what forwarding uses anyway, but the field is unused so setting
+			// it is an error rather than a silent no-op.
+			name: "zero-address custom_hook_id",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
+				MaxIgpFee:     validMaxIgpFee,
+				CustomHookId:  util.NewZeroAddress().String(),
+			},
+			expectError: true,
+			errorMsg:    types.ErrCustomHookNotAllowed.Error(),
+		},
+		{
+			// Rejected in CheckTx so a caller cannot pick who is paid to deliver a
+			// deposit they do not own. See types.ValidateCustomHook.
+			name: "custom_hook_id set",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
+				MaxIgpFee:     validMaxIgpFee,
+				CustomHookId:  "0x726f757465725f706f73745f6469737061746368000000000000000000000001",
+			},
+			expectError: true,
+			errorMsg:    types.ErrCustomHookNotAllowed.Error(),
+		},
+		{
+			name: "custom_hook_metadata set",
+			msg: &types.MsgForward{
+				Signer:             validSigner,
+				ForwardAddr:        validForwardAddr,
+				DestDomain:         1,
+				DestRecipient:      validDestRecipient,
+				TokenId:            validTokenID,
+				MaxIgpFee:          validMaxIgpFee,
+				CustomHookMetadata: "0xabcdef",
+			},
+			expectError: true,
+			errorMsg:    types.ErrCustomHookNotAllowed.Error(),
+		},
+		{
+			// The field is never parsed, so malformed input is rejected by the same
+			// rule rather than by a hex-decoding error.
+			name: "malformed custom_hook_id",
+			msg: &types.MsgForward{
+				Signer:        validSigner,
+				ForwardAddr:   validForwardAddr,
+				DestDomain:    1,
+				DestRecipient: validDestRecipient,
+				TokenId:       validTokenID,
+				MaxIgpFee:     validMaxIgpFee,
+				CustomHookId:  "not-a-valid-hex-hook",
+			},
+			expectError: true,
+			errorMsg:    types.ErrCustomHookNotAllowed.Error(),
 		},
 		{
 			name: "valid message with max domain",

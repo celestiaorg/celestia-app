@@ -11,12 +11,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// customHookID is an arbitrary valid Hyperlane hook id used as the "our IGP" target.
-const customHookID = "0x726f757465725f706f73745f6469737061746368000000040000000000000009"
+// nonDefaultHookID is a valid non-default Hyperlane hook ID.
+const nonDefaultHookID = "0x726f757465725f706f73745f6469737061746368000000040000000000000009"
 
-// Validates the hand-written protobuf marshal/unmarshal for the new fields so the
-// hook actually survives the wire (this is what a real on-chain tx exercises).
-func TestMsgForward_ProtoRoundTrip(t *testing.T) {
+// freeHookID is a valid hook ID that charges no fee.
+const freeHookID = "0x726f757465725f706f73745f6469737061746368000000000000000000000001"
+
+// TestMsgForwardPreservesHookFieldsDuringProtobufRoundTrip verifies that hook
+// fields are not dropped during serialization.
+func TestMsgForwardPreservesHookFieldsDuringProtobufRoundTrip(t *testing.T) {
 	m := &types.MsgForward{
 		Signer:             "celestia1v8e83xs4nlflpq5vuetruxvvmtz2ll24x5hv97",
 		ForwardAddr:        "celestia1mvde39xwh9c4ykzrnqfwa2trnfxu3ugczmd3t3",
@@ -24,7 +27,7 @@ func TestMsgForward_ProtoRoundTrip(t *testing.T) {
 		DestRecipient:      "0x00000000000000000000000000000000000000000000000000000000deadbeef",
 		TokenId:            "0x726f757465725f61707000000000000000000000000000010000000000000009",
 		MaxIgpFee:          sdk.NewCoin(appconsts.BondDenom, math.NewInt(10000)),
-		CustomHookId:       customHookID,
+		CustomHookId:       nonDefaultHookID,
 		CustomHookMetadata: "0xabcdef",
 	}
 	bz, err := m.Marshal()
@@ -39,7 +42,7 @@ func TestMsgForward_ProtoRoundTrip(t *testing.T) {
 	require.Equal(t, m.TokenId, out.TokenId)
 	require.Equal(t, m.DestDomain, out.DestDomain)
 
-	// Backward compatible: a message without the new fields still round-trips, empty.
+	// Messages without hook fields still round-trip.
 	old := &types.MsgForward{Signer: "a", DestDomain: 1, MaxIgpFee: sdk.NewCoin(appconsts.BondDenom, math.NewInt(1))}
 	obz, err := old.Marshal()
 	require.NoError(t, err)
@@ -49,7 +52,7 @@ func TestMsgForward_ProtoRoundTrip(t *testing.T) {
 	require.Empty(t, oout.CustomHookMetadata)
 }
 
-// fund + wire a forward that will succeed, consuming the forwarded amount + part of the fee.
+// setupSuccessfulForward configures a valid, funded forward.
 func setupSuccessfulForward(s *testIGPSetup) {
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(200)))
@@ -65,9 +68,80 @@ func setupSuccessfulForward(s *testIGPSetup) {
 	}
 }
 
-// With custom_hook_id set, both the fee quote and the warp transfer must use that
-// exact hook — this is what routes the payment to our IGP (and thus our relayer).
-func TestForward_CustomHookId_RoutesToChosenHook(t *testing.T) {
+// TestForwardRejectsCallerSuppliedHookFieldsBeforeMovingFunds verifies that any
+// caller-supplied hook ID or metadata rejects the forward without moving funds.
+func TestForwardRejectsCallerSuppliedHookFieldsBeforeMovingFunds(t *testing.T) {
+	testCases := []struct {
+		name         string
+		hookID       string
+		hookMetadata string
+		wantErr      error
+	}{
+		{
+			name:         "rejects non-default hook ID and metadata",
+			hookID:       nonDefaultHookID,
+			hookMetadata: "0xabcdef",
+			wantErr:      types.ErrCustomHookNotAllowed,
+		},
+		{
+			// A free hook could dispatch without funding delivery.
+			name:    "rejects free hook ID",
+			hookID:  freeHookID,
+			wantErr: types.ErrCustomHookNotAllowed,
+		},
+		{
+			// Metadata can change a hook's fee even without a hook ID.
+			name:         "rejects metadata when hook ID is empty",
+			hookMetadata: "0xabcdef",
+			wantErr:      types.ErrCustomHookNotAllowed,
+		},
+		{
+			name:    "rejects zero-address hook ID",
+			hookID:  util.NewZeroAddress().String(),
+			wantErr: types.ErrCustomHookNotAllowed,
+		},
+		{
+			// Hook fields are rejected before parsing.
+			name:    "rejects malformed hook ID",
+			hookID:  "not-a-valid-hex-hook",
+			wantErr: types.ErrCustomHookNotAllowed,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newTestIGPSetup(t)
+			setupSuccessfulForward(s)
+
+			// Record whether the warp transfer is reached.
+			transferred := false
+			s.warpKeeper.OnTransfer = func(string, sdk.Coin) { transferred = true }
+			principalBefore := s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount
+			signerBefore := s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount
+
+			msg := types.NewMsgForward(
+				s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
+				sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
+			)
+			msg.CustomHookId = tc.hookID
+			msg.CustomHookMetadata = tc.hookMetadata
+
+			resp, err := s.msgServer.Forward(s.ctx, msg)
+			require.Nil(t, resp)
+			require.ErrorIs(t, err, tc.wantErr)
+
+			require.False(t, transferred, "no warp transfer may be attempted")
+			require.Equal(t, principalBefore, s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount,
+				"the deposit must stay at the forwarding address")
+			require.Equal(t, signerBefore, s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount,
+				"no IGP fee may be collected from the relayer")
+		})
+	}
+}
+
+// TestForwardWithEmptyHookFieldsUsesMailboxDefaultHook verifies that forwarding
+// uses the mailbox default hook when the caller leaves both hook fields empty.
+func TestForwardWithEmptyHookFieldsUsesMailboxDefaultHook(t *testing.T) {
 	s := newTestIGPSetup(t)
 	setupSuccessfulForward(s)
 
@@ -75,88 +149,13 @@ func TestForward_CustomHookId_RoutesToChosenHook(t *testing.T) {
 		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
 		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
 	)
-	msg.CustomHookId = customHookID
-	msg.CustomHookMetadata = "0xabcdef"
 
 	resp, err := s.msgServer.Forward(s.ctx, msg)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 
-	want, err := util.DecodeHexAddress(customHookID)
-	require.NoError(t, err)
-	wantMeta, err := util.DecodeEthHex("0xabcdef")
-	require.NoError(t, err)
-
-	// Fee was quoted against our hook (not the default zero hook).
-	require.Equal(t, want, s.hyperlaneKeeper.CapturedHook, "fee must be quoted against the custom hook")
-	// Fee was quoted against the same metadata the dispatch will use, so hooks
-	// that price off metadata are charged what the relayer's max_igp_fee covers.
-	require.Equal(t, wantMeta, s.hyperlaneKeeper.CapturedQuoteMeta, "fee must be quoted against the custom hook metadata")
-	// The warp transfer dispatched through our hook and metadata.
-	require.NotNil(t, s.warpKeeper.CapturedHookId, "custom hook id must be passed to the warp transfer")
-	require.Equal(t, want, *s.warpKeeper.CapturedHookId, "warp transfer must use the custom hook")
-	require.Equal(t, wantMeta, s.warpKeeper.CapturedHookMeta, "warp transfer must use the custom hook metadata")
-}
-
-// Without custom_hook_id, behavior is unchanged: default (zero) hook, nil to warp.
-func TestForward_NoCustomHook_UsesDefault(t *testing.T) {
-	s := newTestIGPSetup(t)
-	setupSuccessfulForward(s)
-
-	msg := types.NewMsgForward(
-		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-	// CustomHookId intentionally left empty.
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	require.Equal(t, util.NewZeroAddress(), s.hyperlaneKeeper.CapturedHook, "empty custom hook must quote against the default (zero) hook")
-	require.Nil(t, s.warpKeeper.CapturedHookId, "empty custom hook must pass nil to the warp transfer (mailbox default)")
-}
-
-// An explicit zero-address custom_hook_id is the sentinel for "mailbox default
-// hook" and must behave exactly like an unset hook: quoted against the default
-// (zero) hook and passed as nil to the warp transfer. Otherwise the quote would
-// price the default hook while dispatch routed a non-nil zero address to the
-// noop handler and reverted.
-func TestForward_ZeroAddressCustomHook_UsesDefault(t *testing.T) {
-	s := newTestIGPSetup(t)
-	setupSuccessfulForward(s)
-
-	msg := types.NewMsgForward(
-		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-	msg.CustomHookId = util.NewZeroAddress().String()
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-
-	require.Equal(t, util.NewZeroAddress(), s.hyperlaneKeeper.CapturedHook, "zero-address custom hook must quote against the default (zero) hook")
-	require.Nil(t, s.warpKeeper.CapturedHookId, "zero-address custom hook must pass nil to the warp transfer (mailbox default)")
-}
-
-// An invalid custom_hook_id is rejected before any funds move.
-func TestForward_InvalidCustomHookId_Rejected(t *testing.T) {
-	s := newTestIGPSetup(t)
-	setupSuccessfulForward(s)
-	signerBefore := s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount
-
-	msg := types.NewMsgForward(
-		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-	msg.CustomHookId = "not-a-valid-hex-hook"
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-	require.Error(t, err)
-	require.Nil(t, resp)
-	require.ErrorContains(t, err, "custom_hook_id")
-	// No funds moved and no warp transfer attempted (rejected during parsing).
-	require.Equal(t, signerBefore, s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	require.Nil(t, s.warpKeeper.CapturedHookId, "no warp transfer should have been attempted")
+	require.Equal(t, util.NewZeroAddress(), s.hyperlaneKeeper.CapturedHook, "must quote against the mailbox default hook")
+	require.Empty(t, s.hyperlaneKeeper.CapturedQuoteMeta, "no caller metadata may reach the hook")
+	require.Nil(t, s.warpKeeper.CapturedHookId, "must pass nil to the warp transfer")
+	require.Empty(t, s.warpKeeper.CapturedHookMeta, "must pass no hook metadata to the warp transfer")
 }

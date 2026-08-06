@@ -4,11 +4,13 @@ import (
 	"cosmossdk.io/math"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	hooktypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
+	coretypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
 	"github.com/celestiaorg/celestia-app/v10/app/params"
 	forwardingtypes "github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/gogoproto/proto"
+	ibctesting "github.com/cosmos/ibc-go/v8/testing"
 )
 
 // createIGP creates an Interchain Gas Paymaster owned by the chain's sender.
@@ -56,55 +58,98 @@ func extractGasPayment(events []abci.Event) *hooktypes.EventGasPayment {
 	return nil
 }
 
-// TestMsgForwardCustomHookRoutesToChosenIGP proves the x/forwarding custom_hook_id
-// change: a forward carrying custom_hook_id pays the chosen IGP, while an otherwise
-// identical forward without it uses the mailbox default hook (here a free noop hook)
-// and pays no IGP. Same route, same token — only the hook differs.
-func (s *ForwardingIntegrationTestSuite) TestMsgForwardCustomHookRoutesToChosenIGP() {
-	celestiaApp := s.GetCelestiaApp(s.celestia)
+// createNoopHook creates a post-dispatch hook that charges no fee.
+func (s *ForwardingIntegrationTestSuite) createNoopHook(chain *ibctesting.TestChain) util.HexAddress {
+	msg := &hooktypes.MsgCreateNoopHook{
+		Owner: chain.SenderAccount.GetAddress().String(),
+	}
+	res, err := chain.SendMsgs(msg)
+	s.Require().NoError(err)
+	var resp hooktypes.MsgCreateNoopHookResponse
+	s.Require().NoError(unmarshalMsgResponses(chain.Codec, res.GetData(), &resp))
+	return resp.Id
+}
 
-	// Warp route: collateral(utia) on Celestia -> synthetic on chainA.
+// setupMailboxWithDefaultHook creates a mailbox with the given default hook.
+func (s *ForwardingIntegrationTestSuite) setupMailboxWithDefaultHook(chain *ibctesting.TestChain, ismID, defaultHook util.HexAddress, domain uint32) util.HexAddress {
+	requiredHook := s.createNoopHook(chain)
+	msg := &coretypes.MsgCreateMailbox{
+		Owner:        chain.SenderAccount.GetAddress().String(),
+		LocalDomain:  domain,
+		DefaultIsm:   ismID,
+		DefaultHook:  &defaultHook,
+		RequiredHook: &requiredHook,
+	}
+	res, err := chain.SendMsgs(msg)
+	s.Require().NoError(err)
+	var resp coretypes.MsgCreateMailboxResponse
+	s.Require().NoError(unmarshalMsgResponses(chain.Codec, res.GetData(), &resp))
+	return resp.Id
+}
+
+// setupPaidRoute creates a route whose mailbox default IGP charges a fee.
+func (s *ForwardingIntegrationTestSuite) setupPaidRoute() (token, igp util.HexAddress) {
+	igp = s.createIGP(params.BondDenom)
+	// fee = gasOverhead * gasPrice * exchangeRate / 1e10 = 200000 * 1e10 * 1 / 1e10.
+	s.setIGPGas(igp, TestChainADomainID, math.NewInt(200000))
+
 	ismCel := s.SetupNoopISM(s.celestia)
-	mailboxCel := s.SetupMailBox(s.celestia, ismCel, TestCelestiaDomainID)
-	collatToken := s.CreateCollateralToken(s.celestia, ismCel, mailboxCel, params.BondDenom)
+	mailboxCel := s.setupMailboxWithDefaultHook(s.celestia, ismCel, igp, TestCelestiaDomainID)
+	token = s.CreateCollateralToken(s.celestia, ismCel, mailboxCel, params.BondDenom)
+
 	ismA := s.SetupNoopISM(s.chainA)
 	_ = s.SetupMailBox(s.chainA, ismA, TestChainADomainID)
 	synToken := s.CreateSyntheticToken(s.chainA, ismA, mailboxCel)
-	s.EnrollRemoteRouter(s.celestia, collatToken, TestChainADomainID, synToken.String())
+	s.EnrollRemoteRouter(s.celestia, token, TestChainADomainID, synToken.String())
+	return token, igp
+}
 
-	// Our IGP with a positive quoted fee for the destination domain.
-	ourIGP := s.createIGP(params.BondDenom)
-	s.setIGPGas(ourIGP, TestChainADomainID, math.NewInt(200000)) // fee = 200000 * 1e10 * 1 / 1e10 = 200000 utia
-	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
+// newFundedForward creates and funds a valid forwarding request.
+func (s *ForwardingIntegrationTestSuite) newFundedForward(token util.HexAddress, recipient []byte, deposit, maxIgpFee math.Int) (sdk.AccAddress, *forwardingtypes.MsgForward) {
+	addr := s.deriveForwardAddress(TestChainADomainID, recipient, token)
+	s.fundAddress(s.celestia, addr, sdk.NewCoin(params.BondDenom, deposit))
 
-	// --- Case A: forward WITH custom_hook_id = our IGP ---
-	fwdA := s.deriveForwardAddress(TestChainADomainID, destRecipient, collatToken)
-	s.fundAddress(s.celestia, fwdA, sdk.NewCoin(params.BondDenom, math.NewInt(1000)))
-	msgA := forwardingtypes.NewMsgForward(
-		s.celestia.SenderAccount.GetAddress().String(), fwdA.String(),
-		TestChainADomainID, RecipientToHex(destRecipient).String(), collatToken.String(),
-		sdk.NewCoin(params.BondDenom, math.NewInt(500000)),
+	msg := forwardingtypes.NewMsgForward(
+		s.celestia.SenderAccount.GetAddress().String(), addr.String(),
+		TestChainADomainID, RecipientToHex(recipient).String(), token.String(),
+		sdk.NewCoin(params.BondDenom, maxIgpFee),
 	)
-	msgA.CustomHookId = ourIGP.String()
-	resA, err := s.celestia.SendMsgs(msgA)
-	s.Require().NoError(err)
+	return addr, msg
+}
 
-	gpA := extractGasPayment(resA.Events)
-	s.Require().NotNil(gpA, "custom-hook forward must emit a gas payment")
-	s.Equal(ourIGP.String(), gpA.IgpId.String(), "fee must be paid to the custom IGP")
-	s.Equal(TestChainADomainID, gpA.Destination)
-	s.NotEmpty(gpA.Payment, "payment must be non-zero")
+// TestMsgForwardUsesOnlyMailboxDefaultHook verifies that forwarding pays the
+// mailbox default IGP and rejects a caller-supplied hook before moving the deposit.
+func (s *ForwardingIntegrationTestSuite) TestMsgForwardUsesOnlyMailboxDefaultHook() {
+	bank := s.GetCelestiaApp(s.celestia).BankKeeper
+	token, defaultIGP := s.setupPaidRoute()
+	deposit := math.NewInt(1000)
 
-	// --- Case B: identical forward WITHOUT custom_hook_id -> default (noop) hook, no IGP payment ---
-	destRecipientB := MakeRecipient32(s.celestia.SenderAccount.GetAddress())
-	fwdB := s.deriveForwardAddress(TestChainADomainID, destRecipientB, collatToken)
-	s.fundAddress(s.celestia, fwdB, sdk.NewCoin(params.BondDenom, math.NewInt(1000)))
-	msgB := s.newForwardMsg(fwdB, TestChainADomainID, destRecipientB, collatToken)
-	resB, err := s.celestia.SendMsgs(msgB)
-	s.Require().NoError(err)
-	s.Require().Nil(extractGasPayment(resB.Events), "default-hook forward must not pay any IGP")
+	s.Run("empty hook fields pay the mailbox default IGP", func() {
+		recipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
+		fwd, msg := s.newFundedForward(token, recipient, deposit, math.NewInt(500000))
 
-	// Sanity: both forwards actually dispatched and drained their addresses.
-	s.True(celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), fwdA, params.BondDenom).IsZero())
-	s.True(celestiaApp.BankKeeper.GetBalance(s.celestia.GetContext(), fwdB, params.BondDenom).IsZero())
+		res, err := s.celestia.SendMsgs(msg)
+		s.Require().NoError(err)
+
+		gasPayment := extractGasPayment(res.Events)
+		s.Require().NotNil(gasPayment, "a forward must pay for its delivery")
+		s.Equal(defaultIGP.String(), gasPayment.IgpId.String(), "the fee must reach the mailbox default IGP")
+		s.Equal(TestChainADomainID, gasPayment.Destination)
+		s.NotEmpty(gasPayment.Payment, "the payment must be non-zero")
+		s.True(bank.GetBalance(s.celestia.GetContext(), fwd, params.BondDenom).IsZero(),
+			"the deposit must be dispatched")
+	})
+
+	s.Run("caller-supplied free hook is rejected without moving the deposit", func() {
+		// A free hook could dispatch without funding delivery.
+		recipient := MakeRecipient32(s.celestia.SenderAccount.GetAddress())
+		fwd, msg := s.newFundedForward(token, recipient, deposit, math.ZeroInt())
+		msg.CustomHookId = s.createNoopHook(s.celestia).String()
+
+		_, err := s.celestia.SendMsgs(msg)
+		// ABCI errors do not preserve Go error chains.
+		s.Require().ErrorContains(err, forwardingtypes.ErrCustomHookNotAllowed.Error())
+		s.Equal(deposit, bank.GetBalance(s.celestia.GetContext(), fwd, params.BondDenom).Amount,
+			"a rejected forward must leave the deposit untouched")
+	})
 }

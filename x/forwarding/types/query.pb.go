@@ -147,16 +147,10 @@ type QueryQuoteForwardingFeeRequest struct {
 	DestDomain uint32 `protobuf:"varint,1,opt,name=dest_domain,json=destDomain,proto3" json:"dest_domain,omitempty"`
 	// token_id is the Hyperlane token identifier to quote fees for.
 	TokenId string `protobuf:"bytes,2,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
-	// custom_hook_id optionally selects the post-dispatch hook (e.g. an alternative
-	// IGP) the forward will be routed through, so the quote reflects that hook's
-	// price rather than the mailbox default. Hex-encoded (0x prefix optional).
-	// Empty => quote against the mailbox default hook (unchanged behavior).
+	// custom_hook_id must be empty. It is retained for wire compatibility.
+	// Quotes always use the mailbox default hook.
 	CustomHookId string `protobuf:"bytes,3,opt,name=custom_hook_id,json=customHookId,proto3" json:"custom_hook_id,omitempty"`
-	// custom_hook_metadata is optional hex-encoded metadata passed to the custom
-	// hook. Some hooks price the dispatch off this metadata, so it must match the
-	// custom_hook_metadata used in MsgForward for the quote to reflect the fee that
-	// will actually be charged. Ignored by hooks that do not price off metadata
-	// (e.g. the default IGP).
+	// custom_hook_metadata must be empty.
 	CustomHookMetadata string `protobuf:"bytes,4,opt,name=custom_hook_metadata,json=customHookMetadata,proto3" json:"custom_hook_metadata,omitempty"`
 }
 

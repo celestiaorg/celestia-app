@@ -50,14 +50,11 @@ type MsgForward struct {
 	// The actual fee charged is the lesser of max_igp_fee and the quoted fee.
 	// Required: relayer must provide sufficient fee for the transfer.
 	MaxIgpFee types.Coin `protobuf:"bytes,6,opt,name=max_igp_fee,json=maxIgpFee,proto3" json:"max_igp_fee"`
-	// custom_hook_id optionally selects the post-dispatch hook (e.g. an alternative
-	// IGP) that handles the interchain gas payment for this forward. Hex-encoded
-	// (0x prefix optional). Empty => the mailbox default hook (unchanged behavior).
-	// The hook only steers which hook is paid; it cannot change the transfer's
-	// recipient, which stays bound to the derived forwarding address.
+	// custom_hook_id must be empty. It is retained for wire compatibility.
+	// Forwarding always uses the mailbox default hook, which only the mailbox owner
+	// may configure.
 	CustomHookId string `protobuf:"bytes,7,opt,name=custom_hook_id,json=customHookId,proto3" json:"custom_hook_id,omitempty"`
-	// custom_hook_metadata is optional metadata passed to the custom hook
-	// (hex-encoded). Empty => none.
+	// custom_hook_metadata must be empty.
 	CustomHookMetadata string `protobuf:"bytes,8,opt,name=custom_hook_metadata,json=customHookMetadata,proto3" json:"custom_hook_metadata,omitempty"`
 }
 

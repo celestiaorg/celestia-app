@@ -48,5 +48,24 @@ func (msg *MsgForward) ValidateBasic() error {
 		return errors.Wrap(err, "invalid max_igp_fee")
 	}
 
+	if err := ValidateCustomHook(msg.CustomHookId, msg.CustomHookMetadata); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ValidateCustomHook rejects any caller-supplied post-dispatch hook or metadata.
+// Forwarding always uses the mailbox default hook, so these fields are unused and
+// must be left empty rather than silently ignored.
+//
+// Do not relax this: MsgForward is permissionless and the forwarding address does
+// not commit to a hook, so a caller-chosen hook would let anyone decide who is paid
+// to deliver someone else's deposit. See Keeper.ExecuteWarpTransfer.
+func ValidateCustomHook(customHookID, customHookMetadata string) error {
+	if customHookID != "" || customHookMetadata != "" {
+		return errors.Wrap(ErrCustomHookNotAllowed, "custom_hook_id and custom_hook_metadata must be empty")
+	}
+
 	return nil
 }

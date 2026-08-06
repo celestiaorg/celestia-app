@@ -146,13 +146,9 @@ func TestQueryQuoteForwardingFeeRequiresExplicitToken(t *testing.T) {
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
 }
 
-// TestQueryQuoteForwardingFeeRoutesCustomHook asserts the quote is taken against the
-// hook the forward will actually use: a custom_hook_id makes the query quote that hook
-// (so a relayer routing through a custom IGP learns its real price), while an empty
-// custom_hook_id falls back to the mailbox default (zero) hook. Without this, a relayer
-// under-quotes to the default hook's fee and MsgForward rejects the forward as
-// ErrInsufficientIgpFee.
-func TestQueryQuoteForwardingFeeRoutesCustomHook(t *testing.T) {
+// TestQuoteForwardingFeeRejectsCallerSuppliedHookFields verifies that fee quotes
+// cannot override the mailbox default hook.
+func TestQuoteForwardingFeeRejectsCallerSuppliedHookFields(t *testing.T) {
 	ctx := createTestContext()
 	bankKeeper := NewMockBankKeeper()
 	warpKeeper := NewMockWarpKeeper()
@@ -167,36 +163,26 @@ func TestQueryQuoteForwardingFeeRoutesCustomHook(t *testing.T) {
 
 	queryServer := keeper.NewQueryServerImpl(keeper.NewKeeper(bankKeeper, warpKeeper, hyperlaneKeeper))
 
-	customHook := "0x000000000000000000000000000000000000000000000000000000000000abcd"
-	expected, err := util.DecodeHexAddress(customHook)
-	require.NoError(t, err)
+	nonDefaultHookID := "0x000000000000000000000000000000000000000000000000000000000000abcd"
 
-	// With custom_hook_id and metadata: the quote must be taken against the chosen
-	// hook and the same metadata MsgForward will dispatch with, so hooks that price
-	// off metadata are quoted the fee they will actually charge.
-	resp, err := queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
+	// Reject a non-default hook ID and metadata.
+	_, err := queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
 		DestDomain:         888,
 		TokenId:            token.Id.String(),
-		CustomHookId:       customHook,
+		CustomHookId:       nonDefaultHookID,
 		CustomHookMetadata: "0xabcdef",
 	})
-	require.NoError(t, err)
-	require.Equal(t, "55", resp.Fee.Amount.String())
-	require.Equal(t, expected, hyperlaneKeeper.CapturedHook, "quote must route through the custom hook")
-	expectedMeta, err := util.DecodeEthHex("0xabcdef")
-	require.NoError(t, err)
-	require.Equal(t, expectedMeta, hyperlaneKeeper.CapturedQuoteMeta, "quote must use the custom hook metadata")
+	require.ErrorContains(t, err, types.ErrCustomHookNotAllowed.Error())
 
-	// Invalid custom_hook_metadata => InvalidArgument.
+	// Reject metadata even when the hook ID is empty.
 	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
 		DestDomain:         888,
 		TokenId:            token.Id.String(),
-		CustomHookMetadata: "0xnothex",
+		CustomHookMetadata: "0xabcdef",
 	})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "custom_hook_metadata")
+	require.ErrorContains(t, err, types.ErrCustomHookNotAllowed.Error())
 
-	// Without custom_hook_id: the quote falls back to the mailbox default (zero) hook.
+	// Empty hook fields quote the mailbox default hook.
 	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
 		DestDomain: 888,
 		TokenId:    token.Id.String(),
@@ -204,7 +190,7 @@ func TestQueryQuoteForwardingFeeRoutesCustomHook(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, util.NewZeroAddress(), hyperlaneKeeper.CapturedHook, "empty custom_hook_id must quote the default hook")
 
-	// Invalid custom_hook_id => InvalidArgument.
+	// Reject malformed hook IDs as overrides.
 	_, err = queryServer.QuoteForwardingFee(ctx, &types.QueryQuoteForwardingFeeRequest{
 		DestDomain:   888,
 		TokenId:      token.Id.String(),
