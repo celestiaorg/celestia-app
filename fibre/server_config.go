@@ -148,22 +148,6 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
-
-	if cfg.OriginalRows < 1 {
-		return fmt.Errorf("original rows must be at least 1, got %d", cfg.OriginalRows)
-	}
-	if cfg.MinRowsPerValidator < 1 {
-		return fmt.Errorf("min rows per validator must be at least 1, got %d", cfg.MinRowsPerValidator)
-	}
-	if cfg.MaxShardSize < 1 {
-		return fmt.Errorf("max shard size must be at least 1, got %d", cfg.MaxShardSize)
-	}
-	if cfg.MaxMessageSize < 1 {
-		return fmt.Errorf("max message size must be at least 1, got %d", cfg.MaxMessageSize)
-	}
-	if err := validateFraction(cfg.LivenessThreshold); err != nil {
-		return fmt.Errorf("liveness threshold: %w", err)
-	}
 	return nil
 }
 
