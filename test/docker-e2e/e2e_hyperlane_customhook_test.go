@@ -36,7 +36,7 @@ func forwardingRelayerImage() container.Image {
 
 // TestHyperlaneForwardingCustomHook is the real-relaying proof of the x/forwarding
 // custom_hook_id change: a forward routed through the patched forwarding-relayer
-// (configured with CUSTOM_IGP_HOOK = our IGP) pays OUR IGP on Celestia — not the
+// (configured with CUSTOM_IGP_HOOK = the custom IGP) pays the custom IGP on Celestia — not the
 // mailbox default hook — and is still delivered on the destination EVM chain by the
 // Hyperlane relayer agent. Requires the patched celestia image (CELESTIA_TAG) and the
 // patched forwarding-relayer image (FORWARDING_RELAYER_IMAGE).
@@ -89,9 +89,9 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 
 	destDomain := s.GetDomainForChain(ctx, reth1.HyperlaneChainName(), hyp)
 
-	// Deploy OUR IGP on Celestia and price it for the destination domain so a forward
+	// Deploy the custom IGP on Celestia and price it for the destination domain so a forward
 	// routed through it quotes (and pays) a positive fee to this IGP.
-	ourIGP := s.createCustomIGP(ctx, chain, destDomain)
+	customIGP := s.createCustomIGP(ctx, chain, destDomain)
 
 	// Initial deposit celestia -> reth0 to seed the collateral on the EVM side.
 	initialDeposit := sdkmath.NewInt(1000)
@@ -100,13 +100,15 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 	s.SendTransferRemoteTx(ctx, chain, config.TokenID, domain0, recipient, initialDeposit)
 	s.AssertERC20Balance(ctx, reth0, tokenRouter, recipient, initialDeposit.BigInt())
 
-	// The forwarding-relayer is configured to attach our IGP as the forward's hook.
+	// The forwarding-relayer is configured to attach the custom IGP as the forward's hook.
 	forwardingService := s.ConfigureForwardRelayer(ctx, chain, []string{
-		fmt.Sprintf("CUSTOM_IGP_HOOK=%s", ourIGP.String()),
+		fmt.Sprintf("CUSTOM_IGP_HOOK=%s", customIGP.String()),
 	})
 
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
-	forwardAddress := s.QueryForwardingAddress(ctx, chain, config.TokenID.String(), destDomain, destRecipient)
+	// The address must commit to the custom IGP: that binding is what authorizes the relayer to
+	// route this forward through it. A default-hook address would fail ErrAddressMismatch.
+	forwardAddress := s.QueryForwardingAddressWithHook(ctx, chain, config.TokenID.String(), destDomain, destRecipient, customIGP.String())
 	s.SendForwardingRequest(ctx, forwardingService, forwardAddress, config.TokenID.String(), destDomain, destRecipient)
 
 	forwardAddrBytes32, err := bech32ToBytes(forwardAddress)
@@ -121,18 +123,18 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 	expForwardBalance := beforeForwardBalance.Add(amount)
 	s.AssertBankBalance(ctx, chain, forwardAddress, chain.Config.Denom, expForwardBalance)
 
-	// Delivery on reth1 by the real relayer agent (the forward paid OUR IGP, so a relayer
+	// Delivery on reth1 by the real relayer agent (the forward paid the custom IGP, so a relayer
 	// watching it delivers). Same assertion as the baseline forwarding test.
 	destRecipientAddress := ethcommon.HexToAddress(destRecipient)
 	balanceBefore := s.QueryERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress)
 	expectedBalance := new(big.Int).Add(balanceBefore, amount.BigInt())
 	s.AssertERC20Balance(ctx, reth1, tokenRouter, destRecipientAddress, expectedBalance)
 
-	// The decisive assertion: the forward's interchain gas payment landed in OUR IGP,
+	// The decisive assertion: the forward's interchain gas payment landed in the custom IGP,
 	// proving custom_hook_id routed the fee to the chosen hook rather than the default.
-	claimable := s.queryIgpClaimable(ctx, chain, ourIGP)
-	s.Require().Falsef(claimable.Empty(), "custom IGP %s should have collected the forward's gas payment", ourIGP.String())
-	s.T().Logf("custom IGP %s collected fees: %s", ourIGP.String(), claimable.String())
+	claimable := s.queryIgpClaimable(ctx, chain, customIGP)
+	s.Require().Falsef(claimable.Empty(), "custom IGP %s should have collected the forward's gas payment", customIGP.String())
+	s.T().Logf("custom IGP %s collected fees: %s", customIGP.String(), claimable.String())
 }
 
 // createCustomIGP creates an IGP owned by the chain faucet and prices it for destDomain.

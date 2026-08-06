@@ -201,6 +201,23 @@ func createTestContext() sdk.Context {
 }
 
 // deriveTestForwardAddress derives a forwarding address from the given destDomain, destRecipient, and token.
+// useHookBoundAddress re-derives the setup's forwarding address so that it commits to
+// hookID. Must be called before funding the address: a deposit only reaches a forward
+// through the hook its address was derived with.
+func (s *testIGPSetup) useHookBoundAddress(t *testing.T, hookID string) {
+	t.Helper()
+	destRecipient, err := util.DecodeHexAddress(s.destRecipient)
+	require.NoError(t, err)
+	token, err := util.DecodeHexAddress(s.tokenID)
+	require.NoError(t, err)
+	hook, err := util.DecodeHexAddress(hookID)
+	require.NoError(t, err)
+
+	addrBytes, err := types.DeriveForwardingAddressWithHook(s.destDomain, destRecipient.Bytes(), token.Bytes(), hook.Bytes())
+	require.NoError(t, err)
+	s.forwardAddr = sdk.AccAddress(addrBytes)
+}
+
 func deriveTestForwardAddress(destDomain uint32, destRecipientHex, tokenID string) (sdk.AccAddress, error) {
 	destRecipient, err := util.DecodeHexAddress(destRecipientHex)
 	if err != nil {

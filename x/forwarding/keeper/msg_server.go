@@ -40,7 +40,38 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("invalid token_id hex: %w", err)
 	}
 
-	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
+	// Optional custom post-dispatch hook (e.g. an alternative IGP). Empty or the zero
+	// address => mailbox default hook. This is decoded before the address derivation
+	// below because the hook is part of what the forwarding address commits to: the
+	// depositor picks the hook when they derive the address, not whoever submits this
+	// message. The hook only steers which hook is paid for delivery; it cannot change
+	// where the tokens land (still destRecipient).
+	var customHookId *util.HexAddress
+	if msg.CustomHookId != "" {
+		h, err := util.DecodeHexAddress(msg.CustomHookId)
+		if err != nil {
+			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
+		}
+		// The zero address is the sentinel for "mailbox default hook". Leave
+		// customHookId nil so the quote and dispatch paths agree: QuoteDispatch
+		// substitutes the default hook on IsZeroAddress, but DispatchMessage only
+		// does so when the pointer is nil, so a non-nil zero address would be
+		// quoted against the default hook yet revert at dispatch.
+		if !h.IsZeroAddress() {
+			customHookId = &h
+		}
+	}
+
+	// A forward through a custom hook must target an address derived with that hook.
+	// Addresses derived without one can only ever be forwarded through the mailbox
+	// default hook, so a caller cannot substitute a hook of their choosing on someone
+	// else's deposit -- the derivation below would not match.
+	var expectedAddr []byte
+	if customHookId != nil {
+		expectedAddr, err = types.DeriveForwardingAddressWithHook(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), customHookId.Bytes())
+	} else {
+		expectedAddr, err = types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive forwarding address: %w", err)
 	}
@@ -69,24 +100,6 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, types.ErrNoBalance
 	}
 
-	// Optional custom post-dispatch hook (e.g. an alternative IGP). Empty =>
-	// mailbox default hook. The hook only steers which hook is paid for delivery;
-	// it cannot change where the tokens land (still destRecipient).
-	var customHookId *util.HexAddress
-	if msg.CustomHookId != "" {
-		h, err := util.DecodeHexAddress(msg.CustomHookId)
-		if err != nil {
-			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
-		}
-		// The zero address is the sentinel for "mailbox default hook". Leave
-		// customHookId nil so the quote and dispatch paths agree: QuoteDispatch
-		// substitutes the default hook on IsZeroAddress, but DispatchMessage only
-		// does so when the pointer is nil, so a non-nil zero address would be
-		// quoted against the default hook yet revert at dispatch.
-		if !h.IsZeroAddress() {
-			customHookId = &h
-		}
-	}
 	var customHookMetadata []byte
 	if msg.CustomHookMetadata != "" {
 		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)

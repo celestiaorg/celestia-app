@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// customHookID is an arbitrary valid Hyperlane hook id used as the "our IGP" target.
+// customHookID is an arbitrary valid Hyperlane hook id used as the custom IGP target.
 const customHookID = "0x726f757465725f706f73745f6469737061746368000000040000000000000009"
 
 // Validates the hand-written protobuf marshal/unmarshal for the new fields so the
@@ -66,9 +66,12 @@ func setupSuccessfulForward(s *testIGPSetup) {
 }
 
 // With custom_hook_id set, both the fee quote and the warp transfer must use that
-// exact hook — this is what routes the payment to our IGP (and thus our relayer).
+// exact hook — this is what routes the payment to the custom IGP (and thus its relayer).
 func TestForward_CustomHookId_RoutesToChosenHook(t *testing.T) {
 	s := newTestIGPSetup(t)
+	// The deposit must sit at an address that commits to this hook, otherwise the
+	// derivation check rejects the forward.
+	s.useHookBoundAddress(t, customHookID)
 	setupSuccessfulForward(s)
 
 	msg := types.NewMsgForward(

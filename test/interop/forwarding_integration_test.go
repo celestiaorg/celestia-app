@@ -86,6 +86,14 @@ func (s *ForwardingIntegrationTestSuite) deriveForwardAddress(destDomain uint32,
 	return sdk.AccAddress(forwardAddr)
 }
 
+// deriveForwardAddressWithHook derives an address bound to a specific post-dispatch hook.
+// A deposit at this address can only be forwarded through that hook.
+func (s *ForwardingIntegrationTestSuite) deriveForwardAddressWithHook(destDomain uint32, destRecipient []byte, tokenID, hookID util.HexAddress) sdk.AccAddress {
+	forwardAddr, err := forwardingtypes.DeriveForwardingAddressWithHook(destDomain, destRecipient, tokenID.Bytes(), hookID.Bytes())
+	s.Require().NoError(err)
+	return sdk.AccAddress(forwardAddr)
+}
+
 func (s *ForwardingIntegrationTestSuite) bankDenomForToken(chain *ibctesting.TestChain, tokenID util.HexAddress) string {
 	app := s.GetCelestiaApp(chain)
 	token, err := app.WarpKeeper.HypTokens.Get(chain.GetContext(), tokenID.GetInternalId())

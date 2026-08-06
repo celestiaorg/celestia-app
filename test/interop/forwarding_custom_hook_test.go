@@ -73,25 +73,27 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardCustomHookRoutesToChosenI
 	s.EnrollRemoteRouter(s.celestia, collatToken, TestChainADomainID, synToken.String())
 
 	// Our IGP with a positive quoted fee for the destination domain.
-	ourIGP := s.createIGP(params.BondDenom)
-	s.setIGPGas(ourIGP, TestChainADomainID, math.NewInt(200000)) // fee = 200000 * 1e10 * 1 / 1e10 = 200000 utia
+	customIGP := s.createIGP(params.BondDenom)
+	s.setIGPGas(customIGP, TestChainADomainID, math.NewInt(200000)) // fee = 200000 * 1e10 * 1 / 1e10 = 200000 utia
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 
-	// --- Case A: forward WITH custom_hook_id = our IGP ---
-	fwdA := s.deriveForwardAddress(TestChainADomainID, destRecipient, collatToken)
+	// --- Case A: forward WITH custom_hook_id = the custom IGP ---
+	// The address commits to the custom IGP, which is what authorizes the forward to route
+	// through it. A default-hook address would be rejected as ErrAddressMismatch.
+	fwdA := s.deriveForwardAddressWithHook(TestChainADomainID, destRecipient, collatToken, customIGP)
 	s.fundAddress(s.celestia, fwdA, sdk.NewCoin(params.BondDenom, math.NewInt(1000)))
 	msgA := forwardingtypes.NewMsgForward(
 		s.celestia.SenderAccount.GetAddress().String(), fwdA.String(),
 		TestChainADomainID, RecipientToHex(destRecipient).String(), collatToken.String(),
 		sdk.NewCoin(params.BondDenom, math.NewInt(500000)),
 	)
-	msgA.CustomHookId = ourIGP.String()
+	msgA.CustomHookId = customIGP.String()
 	resA, err := s.celestia.SendMsgs(msgA)
 	s.Require().NoError(err)
 
 	gpA := extractGasPayment(resA.Events)
 	s.Require().NotNil(gpA, "custom-hook forward must emit a gas payment")
-	s.Equal(ourIGP.String(), gpA.IgpId.String(), "fee must be paid to the custom IGP")
+	s.Equal(customIGP.String(), gpA.IgpId.String(), "fee must be paid to the custom IGP")
 	s.Equal(TestChainADomainID, gpA.Destination)
 	s.NotEmpty(gpA.Payment, "payment must be non-zero")
 

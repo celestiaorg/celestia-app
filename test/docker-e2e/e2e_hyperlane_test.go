@@ -608,6 +608,13 @@ func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *Evol
 }
 
 func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient string) string {
+	return s.QueryForwardingAddressWithHook(ctx, chain, tokenId, domain, recipient, "")
+}
+
+// QueryForwardingAddressWithHook derives the forwarding address bound to customHookID.
+// An empty customHookID derives the mailbox-default-hook address. The hook is part of the
+// derivation, so a forward routed through a hook must target the address derived with it.
+func (s *HyperlaneTestSuite) QueryForwardingAddressWithHook(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient, customHookID string) string {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -623,6 +630,7 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 		TokenId:       tokenId,
 		DestDomain:    domain,
 		DestRecipient: recipient,
+		CustomHookId:  customHookID,
 	}
 
 	client := forwardingtypes.NewQueryClient(grpcConn)
