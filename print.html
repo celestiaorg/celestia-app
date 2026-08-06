@@ -5360,7 +5360,7 @@ signature verification outside that query.</p>
   google.protobuf.Timestamp processed_at = 2 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 </code></pre>
-<p><code>MsgPayForFibre</code> and <code>MsgPaymentPromiseTimeout</code> both compute the internal payment-promise hash and store a <code>ProcessedPayment</code> at the current block time. BeginBlock prunes processed payments whose <code>processed_at</code> is outside the <code>payment_promise_retention_window</code>.</p>
+<p><code>MsgPayForFibre</code> and <code>MsgPaymentPromiseTimeout</code> both compute the internal payment-promise hash and store a <code>ProcessedPayment</code> at the current block time. BeginBlock prunes processed payments whose <code>processed_at</code> is outside the processed-payment retention window (<code>Params.PaymentPromiseRetentionWindow()</code>).</p>
 <h3 id="genesisstate"><a class="header" href="#genesisstate">GenesisState</a></h3>
 <p>Genesis contains params, escrow accounts, withdrawals, and processed payments.</p>
 <pre><code class="language-proto">message GenesisState {
@@ -5412,7 +5412,7 @@ signature verification outside that query.</p>
 <pre><code class="language-text">gas = 650000 + 45000 * ceil(blob_size / 262144)
 amount = gas utia
 </code></pre>
-<p>If <code>EstimateGasForPayForFibre</code> is called with <code>blob_size == 0</code>, it returns only the fixed cost of <code>650000</code>, although valid payment promises require a positive blob size. This payment formula does not use <code>gas_per_blob_byte</code> or <code>GasPerCelestiaByte</code>; <code>gas_per_blob_byte</code> still exists as a positive module parameter but is currently not part of Fibre payment calculation.</p>
+<p>If <code>EstimateGasForPayForFibre</code> is called with <code>blob_size == 0</code>, it returns only the fixed cost of <code>650000</code>, although valid payment promises require a positive blob size. This payment formula is standalone and does not depend on any per-byte gas parameter.</p>
 <h2 id="messages-1"><a class="header" href="#messages-1">Messages</a></h2>
 <h3 id="msgdeposittoescrow"><a class="header" href="#msgdeposittoescrow">MsgDepositToEscrow</a></h3>
 <pre><code class="language-proto">message MsgDepositToEscrow {
@@ -5510,7 +5510,7 @@ Stateful Processing:</p>
 <h2 id="automatic-state-transitions"><a class="header" href="#automatic-state-transitions">Automatic State Transitions</a></h2>
 <p><code>BeginBlocker</code> runs <code>processAvailableWithdrawals</code> first and <code>pruneProcessedPayments</code> second.</p>
 <p><code>processAvailableWithdrawals</code> iterates the withdrawals-by-available-time index in time order, stops when it reaches a future <code>available_timestamp</code>, parses the signer from the key, loads the withdrawal, loads the escrow account, checks that total <code>balance</code> covers the withdrawal, sends coins from the <code>fibre</code> module account to the signer account, and only after a successful send subtracts the withdrawal amount from total <code>balance</code>, stores the escrow account, deletes the withdrawal from both indexes, and emits <code>EventWithdrawFromEscrowExecuted</code>. If key parsing, signer parsing, escrow lookup, balance sufficiency, bank send, or event emission fails, the implementation logs the error and continues; the bank send runs before escrow state is updated so a failed send leaves the escrow account and the pending withdrawal unchanged for a safe retry.</p>
-<p><code>pruneProcessedPayments</code> computes <code>cutoff_time = block_time - payment_promise_retention_window</code>, iterates the processed-payments-by-time index in time order, stops when <code>processed_at</code> is after the cutoff, deletes each pruned processed payment from both indexes, and emits <code>EventProcessedPaymentPruned</code>.</p>
+<p><code>pruneProcessedPayments</code> computes <code>cutoff_time = block_time - Params.PaymentPromiseRetentionWindow()</code>, iterates the processed-payments-by-time index in time order, stops when <code>processed_at</code> is after the cutoff, deletes each pruned processed payment from both indexes, and emits <code>EventProcessedPaymentPruned</code>.</p>
 <h2 id="events-6"><a class="header" href="#events-6">Events</a></h2>
 <pre><code class="language-proto">message EventDepositToEscrow {
   string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
@@ -5584,28 +5584,27 @@ message EventProcessedPaymentPruned {
 <p>On success, <code>ValidatePaymentPromise</code> returns <code>is_valid = true</code> and <code>expiration_time = creation_timestamp + payment_promise_timeout</code>.</p>
 <h2 id="parameters-2"><a class="header" href="#parameters-2">Parameters</a></h2>
 <pre><code class="language-proto">message Params {
-  uint32 gas_per_blob_byte = 1 [(gogoproto.moretags) = &quot;yaml:\&quot;gas_per_blob_byte\&quot;&quot;];
-  google.protobuf.Duration withdrawal_delay = 2 [(gogoproto.moretags) = &quot;yaml:\&quot;withdrawal_delay\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
-  google.protobuf.Duration payment_promise_timeout = 3 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_timeout\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
-  google.protobuf.Duration payment_promise_retention_window = 4 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_retention_window\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
-  uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_height_window\&quot;&quot;];
-  google.protobuf.Duration shard_retention = 6 [(gogoproto.moretags) = &quot;yaml:\&quot;shard_retention\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  google.protobuf.Duration withdrawal_delay = 1 [(gogoproto.moretags) = &quot;yaml:\&quot;withdrawal_delay\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  google.protobuf.Duration payment_promise_timeout = 2 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_timeout\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  uint64 payment_promise_height_window = 3 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_height_window\&quot;&quot;];
+  google.protobuf.Duration shard_retention = 4 [(gogoproto.moretags) = &quot;yaml:\&quot;shard_retention\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+  uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = &quot;yaml:\&quot;full_stake_storage_budget\&quot;&quot;];
 }
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Validation</th><th>Current use</th></tr></thead><tbody>
-<tr><td><code>gas_per_blob_byte</code></td><td><code>1</code></td><td>Must be nonzero</td><td>Stored and exposed as a parameter, but not used by the current PayForFibre payment formula</td></tr>
 <tr><td><code>withdrawal_delay</code></td><td><code>24h</code></td><td>Must be between <code>12h10m</code> and <code>168h</code></td><td>Sets withdrawal availability and the oldest accepted payment-promise creation time</td></tr>
 <tr><td><code>payment_promise_timeout</code></td><td><code>1h</code></td><td>Must be between <code>10m</code> and <code>12h</code></td><td>Defines normal promise expiration and when timeout processing becomes valid</td></tr>
-<tr><td><code>payment_promise_retention_window</code></td><td><code>25h</code></td><td>Must be positive and at least <code>withdrawal_delay</code> plus <code>10m</code></td><td>Defines when processed-payment replay records are pruned</td></tr>
 <tr><td><code>payment_promise_height_window</code></td><td><code>1000</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
 <tr><td><code>shard_retention</code></td><td><code>4h</code></td><td>Must be between <code>10m</code> and <code>168h</code></td><td>Sets the local retention floor validators apply to uploaded shards</td></tr>
+<tr><td><code>full_stake_storage_budget</code></td><td><code>256GiB</code></td><td>Must be positive</td><td>Caps the Fibre disk a 100%-stake validator uses over one <code>shard_retention</code> window; each node derives its own budget from its assigned stake share</td></tr>
 </tbody></table>
 </div>
-<p><code>payment_promise_timeout</code> is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside both the <code>withdrawal_delay</code> window gating its <code>creation_timestamp</code> and the <code>payment_promise_retention_window</code> record that prevents double settlement.</p>
+<p>The processed-payment retention window is not a governance parameter; it is derived as <code>withdrawal_delay + 10m</code> and exposed by <code>Params.PaymentPromiseRetentionWindow()</code> (see the last paragraph for why).</p>
+<p><code>payment_promise_timeout</code> is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside the <code>withdrawal_delay</code> window gating its <code>creation_timestamp</code>.</p>
 <p><code>shard_retention</code> is bounded below so shards outlive the window in which a client fetches them back, and above to cap the local storage obligation it places on assigned validators.</p>
-<p><code>withdrawal_delay</code> is bounded below by the maximum <code>payment_promise_timeout</code> plus <code>10m</code>, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the retention floor <code>withdrawal_delay + 10m</code> far from overflowing the duration type.</p>
+<p><code>withdrawal_delay</code> is bounded below by the maximum <code>payment_promise_timeout</code> plus <code>10m</code>, and bounded above to cap how long escrowed funds stay locked after a withdrawal request and to keep the derived retention window <code>withdrawal_delay + 10m</code> far from overflowing the duration type.</p>
 <p>The lower bound has to clear the maximum <code>payment_promise_timeout</code> so a promise never goes stale before its own normal-path expiry. The extra <code>10m</code> keeps the timeout settlement path usable. <code>MsgPaymentPromiseTimeout</code> is accepted only from <code>creation_timestamp + payment_promise_timeout</code> until the promise stops being settleable at <code>creation_timestamp + withdrawal_delay</code>; if the two could meet, that window would be empty and an expired promise could never be claimed. Because the floor already covers the widest allowed timeout plus the margin, every valid combination of the two parameters leaves at least <code>10m</code> to submit the message, so no cross-parameter check is needed.</p>
-<p>payment_promise_retention_window must be at least withdrawal_delay + 10m. A promise can be timestamped up to 10 minutes ahead of the block that settles it, so it may remain valid after its processed-payment record is pruned. Without that record, the promise could be settled again and escrow charged twice. The default 25h retention safely covers the 24h withdrawal delay.</p>
+<p>A promise can be timestamped up to 10 minutes ahead of the block that settles it, so it may remain settleable that much longer than <code>withdrawal_delay</code>. Deriving the retention window as <code>withdrawal_delay + 10m</code> guarantees the processed-payment record always outlives the promise's settleable span, so a settled promise can never be replayed after its record is pruned. No separate parameter or cross-field validation is needed.</p>
 <h2 id="cli"><a class="header" href="#cli">CLI</a></h2>
 <p>The transaction CLI exposes:</p>
 <pre><code class="language-text">celestia-appd tx fibre deposit-to-escrow [amount]

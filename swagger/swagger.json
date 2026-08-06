@@ -5672,17 +5672,10 @@
     "fibrev1Params": {
       "type": "object",
       "properties": {
-        "gasPerBlobByte": {
-          "type": "integer",
-          "format": "int64"
-        },
         "withdrawalDelay": {
           "type": "string"
         },
         "paymentPromiseTimeout": {
-          "type": "string"
-        },
-        "paymentPromiseRetentionWindow": {
           "type": "string"
         },
         "paymentPromiseHeightWindow": {
