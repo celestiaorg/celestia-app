@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"fmt"
@@ -33,6 +34,10 @@ const (
 	// CosmosAddressLen is the standard Cosmos SDK address length (20 bytes).
 	CosmosAddressLen = 20
 )
+
+// zeroHookID is the "mailbox default hook" sentinel; binding an address to it is rejected
+// because the default-hook scheme already covers that case.
+var zeroHookID [HookIDLength]byte
 
 // DeriveForwardingAddress computes a deterministic forwarding address from destination parameters.
 // Each address is bound to a single token for a given (destDomain, destRecipient, tokenID) tuple.
@@ -67,7 +72,7 @@ func DeriveForwardingAddressWithHook(destDomain uint32, destRecipient, tokenID, 
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidHookID, HookIDLength, len(hookID))
 	}
 
-	if isZeroBytes(hookID) {
+	if bytes.Equal(hookID, zeroHookID[:]) {
 		return nil, fmt.Errorf("%w: zero hook id means the mailbox default hook, use DeriveForwardingAddress", ErrInvalidHookID)
 	}
 
@@ -110,13 +115,4 @@ func deriveForwardingAddress(version uint8, destDomain uint32, destRecipient, to
 	addr := address.Module(ModuleName, salt)
 
 	return addr[:CosmosAddressLen], nil
-}
-
-func isZeroBytes(b []byte) bool {
-	for _, v := range b {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
 }

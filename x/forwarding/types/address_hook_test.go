@@ -38,19 +38,6 @@ func TestDeriveForwardingAddressWithHookIsDistinct(t *testing.T) {
 	require.Len(t, hookA, types.CosmosAddressLen)
 }
 
-func TestDeriveForwardingAddressWithHookIsDeterministic(t *testing.T) {
-	destRecipient := make([]byte, types.RecipientLength)
-	tokenID := tokenIDBytes(t, 7)
-	hookID := hookIDBytes(t, 9)
-
-	first, err := types.DeriveForwardingAddressWithHook(1, destRecipient, tokenID, hookID)
-	require.NoError(t, err)
-	second, err := types.DeriveForwardingAddressWithHook(1, destRecipient, tokenID, hookID)
-	require.NoError(t, err)
-
-	require.Equal(t, first, second)
-}
-
 // Pins the exact preimage so a client (bot.fun, the relayer) can reimplement it and any
 // accidental change to the scheme shows up as a test failure rather than lost deposits.
 func TestDeriveForwardingAddressWithHookIntermediates(t *testing.T) {

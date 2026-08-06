@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/math"
-	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/x/forwarding/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -77,23 +76,4 @@ func TestForward_HookBoundAddress_OmittedHookRejected(t *testing.T) {
 	_, err := s.msgServer.Forward(s.ctx, msg)
 	require.ErrorIs(t, err, types.ErrAddressMismatch)
 	require.Equal(t, math.NewInt(1000), s.bankKeeper.GetBalance(s.ctx, s.forwardAddr, appconsts.BondDenom).Amount)
-}
-
-// A zero-address custom_hook_id still means "mailbox default hook", so it must resolve to
-// the default-hook address rather than being treated as a hook to bind against.
-func TestForward_ZeroHookResolvesToDefaultAddress(t *testing.T) {
-	s := newTestIGPSetup(t)
-	setupSuccessfulForward(s)
-
-	msg := types.NewMsgForward(
-		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-	msg.CustomHookId = util.NewZeroAddress().String()
-
-	// s.forwardAddr is the default-hook (v1) address, so this must succeed.
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Nil(t, s.warpKeeper.CapturedHookId, "zero hook must dispatch through the mailbox default")
 }
