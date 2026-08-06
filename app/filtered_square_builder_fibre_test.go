@@ -208,7 +208,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fsb, err := NewFilteredSquareBuilder(tc.anteHandler, txConfig, 64, 64)
+			fsb, err := NewFilteredSquareBuilder(tc.anteHandler, nil, txConfig, 64, 64)
 			require.NoError(t, err)
 
 			db := dbm.NewMemDB()
@@ -259,7 +259,7 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	}
 
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 
 	db := dbm.NewMemDB()
