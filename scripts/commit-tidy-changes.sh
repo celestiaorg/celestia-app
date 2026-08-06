@@ -13,7 +13,12 @@
 
 set -euo pipefail
 
-changed=$(git diff --name-only)
+# Use `status --porcelain` rather than `diff --name-only` so that a go.sum being
+# created for the first time -- a module with no external deps has none until
+# `go mod tidy` gives it one -- is seen as well. --untracked-files=all keeps git
+# from collapsing a new directory into a single entry, which would hide whatever
+# else is inside it from the check below. Column 4 onwards is the path.
+changed=$(git status --porcelain --untracked-files=all | cut -c4-)
 
 if [ -z "${changed}" ]; then
     echo "All modules already tidy; nothing to commit."
@@ -36,8 +41,9 @@ printf '%s\n' "${changed}"
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-# --update stages exactly the tracked modifications validated above.
-git add --update
+# Safe because every path reported above was validated as a go.mod or go.sum,
+# and --all sees exactly that same set (both respect .gitignore).
+git add --all
 git commit --quiet -m "chore: run make mod to tidy all modules"
 git push
 

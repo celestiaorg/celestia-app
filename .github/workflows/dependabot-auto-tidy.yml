@@ -31,15 +31,18 @@ jobs:
     timeout-minutes: 15
     env:
       # The `secrets` context is not available in `if:` conditions, so surface
-      # whether the credentials exist through `env`, which is.
+      # whether the credentials exist through `env`, which is. Both are checked:
+      # minting a token with one of the two missing fails the job instead of
+      # skipping it.
       APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
     steps:
       - name: Check that app credentials are configured
         id: creds
         run: |
-          if [ -z "${APP_ID}" ]; then
+          if [ -z "${APP_ID}" ] || [ -z "${APP_PRIVATE_KEY}" ]; then
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::RELEASE_APP_ID is not available as a Dependabot secret; skipping auto-tidy. See #7641."
+            echo "::warning::RELEASE_APP_ID and RELEASE_APP_PRIVATE_KEY must both be available as Dependabot secrets; skipping auto-tidy. See #7641."
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
