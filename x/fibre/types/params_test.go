@@ -126,8 +126,6 @@ func Test_validatePaymentPromiseTimeout(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			// Beyond this a promise outlives the withdrawal delay window and the
-			// processed payment retention window that prevents double settlement.
 			name:      "above the upper bound",
 			input:     new(MaxPaymentPromiseTimeout + time.Nanosecond),
 			expectErr: true,
@@ -215,86 +213,24 @@ func Test_validateShardRetention(t *testing.T) {
 	}
 }
 
-// TestParamsValidateReplayInvariant covers the relationship Params.Validate
-// enforces between the payment promise retention window and the withdrawal
-// delay. A retention window shorter than the withdrawal delay lets a settled
-// promise be replayed once its processed payment record is pruned; see
-// TestFutureDatedPromiseCannotBeReplayedAfterPruning in the keeper package for
-// the settlement that this rules out.
-func TestParamsValidateReplayInvariant(t *testing.T) {
-	params := func(withdrawalDelay, retentionWindow time.Duration) Params {
-		return NewParams(
-			DefaultGasPerBlobByte,
-			withdrawalDelay,
-			DefaultPaymentPromiseTimeout,
-			retentionWindow,
-			DefaultPaymentPromiseHeightWindow,
-			DefaultShardRetention,
-			DefaultFullStakeStorageBudget,
-		)
-	}
-
-	tests := []struct {
-		name            string
-		withdrawalDelay time.Duration
-		retentionWindow time.Duration
-		expectErr       bool
-	}{
-		{
-			name:            "retention window comfortably above the floor",
-			withdrawalDelay: 24 * time.Hour,
-			retentionWindow: 48 * time.Hour,
-			expectErr:       false,
-		},
-		{
-			// The record is pruned no earlier than the promise stops being fresh,
-			// so there is no window in which a replay can land.
-			name:            "retention window exactly at the floor",
-			withdrawalDelay: 24 * time.Hour,
-			retentionWindow: 24*time.Hour + MaxPromiseClockSkew,
-			expectErr:       false,
-		},
-		{
-			name:            "retention window one nanosecond below the floor",
-			withdrawalDelay: 24 * time.Hour,
-			retentionWindow: 24*time.Hour + MaxPromiseClockSkew - time.Nanosecond,
-			expectErr:       true,
-		},
-		{
-			// Equal to the withdrawal delay is not enough: a promise settled with a
-			// creation_timestamp up to MaxPromiseClockSkew ahead of block time has
-			// its record pruned that much before it stops being fresh.
-			name:            "retention window equal to withdrawal delay",
-			withdrawalDelay: 24 * time.Hour,
-			retentionWindow: 24 * time.Hour,
-			expectErr:       true,
-		},
-		{
-			name:            "retention window far shorter than withdrawal delay",
-			withdrawalDelay: 24 * time.Hour,
-			retentionWindow: time.Hour,
-			expectErr:       true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := params(tt.withdrawalDelay, tt.retentionWindow).Validate()
-			if tt.expectErr {
-				require.Error(t, err)
-				assert.Contains(t, err.Error(), "payment promise retention window")
-			} else {
-				assert.NoError(t, err)
-			}
-		})
+// TestPaymentPromiseRetentionWindowDerivation checks the retention window is
+// derived as withdrawal_delay + MaxPromiseClockSkew for every valid delay.
+func TestPaymentPromiseRetentionWindowDerivation(t *testing.T) {
+	for _, withdrawalDelay := range []time.Duration{
+		MinWithdrawalDelay,
+		DefaultWithdrawalDelay,
+		MaxWithdrawalDelay,
+	} {
+		params := DefaultParams()
+		params.WithdrawalDelay = withdrawalDelay
+		require.NoError(t, params.Validate())
+		assert.Equal(t, withdrawalDelay+MaxPromiseClockSkew, params.PaymentPromiseRetentionWindow())
 	}
 }
 
-// TestParamsValidateRejectsOverflowingWithdrawalDelay is a regression test for
-// the replay invariant being bypassed by overflow. Before withdrawal_delay was
-// bounded, a delay within MaxPromiseClockSkew of the maximum duration made
-// withdrawal_delay + MaxPromiseClockSkew wrap to a negative floor, so Validate
-// accepted a retention window far shorter than the freshness window and a
-// settled promise could be replayed once its record was pruned.
+// TestParamsValidateRejectsOverflowingWithdrawalDelay guards the derived
+// retention window: a near-maximum delay would overflow
+// withdrawal_delay + MaxPromiseClockSkew, but the upper bound rejects it first.
 func TestParamsValidateRejectsOverflowingWithdrawalDelay(t *testing.T) {
 	params := DefaultParams()
 	params.WithdrawalDelay = time.Duration(math.MaxInt64)
