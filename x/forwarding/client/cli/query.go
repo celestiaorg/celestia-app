@@ -70,13 +70,18 @@ Example:
 			if err != nil {
 				return err
 			}
+			customHookMetadata, err := cmd.Flags().GetString("custom-hook-metadata")
+			if err != nil {
+				return err
+			}
 
 			queryClient := types.NewQueryClient(clientCtx)
 			res, err := queryClient.DeriveForwardingAddress(cmd.Context(), &types.QueryDeriveForwardingAddressRequest{
-				DestDomain:    uint32(destDomain),
-				DestRecipient: destRecipient,
-				TokenId:       tokenID,
-				CustomHookId:  customHookID,
+				DestDomain:         uint32(destDomain),
+				DestRecipient:      destRecipient,
+				TokenId:            tokenID,
+				CustomHookId:       customHookID,
+				CustomHookMetadata: customHookMetadata,
 			})
 			if err != nil {
 				return err
@@ -87,6 +92,7 @@ Example:
 	}
 
 	cmd.Flags().String("custom-hook-id", "", "Optional post-dispatch hook id to bind the address to; the address can then only be forwarded through that hook. Empty = mailbox default hook")
+	cmd.Flags().String("custom-hook-metadata", "", "Optional hex-encoded hook metadata to bind the address to; committed alongside --custom-hook-id and must match at forward time")
 	flags.AddQueryFlagsToCmd(cmd)
 
 	return cmd

@@ -146,10 +146,36 @@ func TestQueryDeriveForwardingAddressBindsCustomHook(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, base.Address, zero.Address, "zero hook id must derive the default-hook address")
 
+	// Metadata is committed alongside the hook, so it must move the address too, and it
+	// must be bindable on its own (default hook with that metadata).
+	hookAndMeta, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookId:       "0x726f757465725f706f73745f6469737061746368000000040000000000000009",
+		CustomHookMetadata: "0xabcdef",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, hooked.Address, hookAndMeta.Address, "metadata must change the address")
+
+	metaOnly, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookMetadata: "0xabcdef",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, base.Address, metaOnly.Address, "a metadata-only binding must differ from the default")
+	require.NotEqual(t, hookAndMeta.Address, metaOnly.Address)
+
 	// Malformed hook id => InvalidArgument.
 	_, err = queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
 		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
 		CustomHookId: "0xnothex",
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+
+	// Malformed metadata => InvalidArgument.
+	_, err = queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookMetadata: "0xnothex",
 	})
 	require.Error(t, err)
 	require.Equal(t, codes.InvalidArgument, status.Code(err))

@@ -27,10 +27,10 @@ func TestDeriveForwardingAddressWithHookIsDistinct(t *testing.T) {
 	base, err := types.DeriveForwardingAddress(42161, destRecipient, tokenID)
 	require.NoError(t, err)
 
-	hookA, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookIDBytes(t, 1))
+	hookA, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookIDBytes(t, 1), nil)
 	require.NoError(t, err)
 
-	hookB, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookIDBytes(t, 2))
+	hookB, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookIDBytes(t, 2), nil)
 	require.NoError(t, err)
 
 	require.NotEqual(t, base, hookA, "hook-bound address must differ from the default-hook address")
@@ -64,7 +64,7 @@ func TestDeriveForwardingAddressWithHookIntermediates(t *testing.T) {
 
 	want := address.Module(types.ModuleName, salt)[:types.CosmosAddressLen]
 
-	got, err := types.DeriveForwardingAddressWithHook(destDomain, destRecipient, tokenID, hookID)
+	got, err := types.DeriveForwardingAddressWithHook(destDomain, destRecipient, tokenID, hookID, nil)
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
@@ -77,17 +77,15 @@ func TestDeriveForwardingAddressWithHookRejectsBadHookID(t *testing.T) {
 		name   string
 		hookID []byte
 	}{
-		{"empty", []byte{}},
 		{"too_short", make([]byte, types.HookIDLength-1)},
 		{"too_long", make([]byte, types.HookIDLength+1)},
-		// The zero hook id is the sentinel for "mailbox default hook"; binding to it
-		// would create a second address for a destination that already has one.
-		{"zero_hook", make([]byte, types.HookIDLength)},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := types.DeriveForwardingAddressWithHook(1, destRecipient, tokenID, tc.hookID)
+			// Metadata is set so the rejection is unambiguously about the hook length
+			// rather than the "nothing committed" case.
+			_, err := types.DeriveForwardingAddressWithHook(1, destRecipient, tokenID, tc.hookID, []byte{0xab})
 			require.ErrorIs(t, err, types.ErrInvalidHookID)
 		})
 	}
@@ -97,9 +95,62 @@ func TestDeriveForwardingAddressWithHookRejectsBadHookID(t *testing.T) {
 func TestDeriveForwardingAddressWithHookValidatesOtherFields(t *testing.T) {
 	hookID := hookIDBytes(t, 1)
 
-	_, err := types.DeriveForwardingAddressWithHook(1, make([]byte, 31), tokenIDBytes(t, 1), hookID)
+	_, err := types.DeriveForwardingAddressWithHook(1, make([]byte, 31), tokenIDBytes(t, 1), hookID, nil)
 	require.ErrorIs(t, err, types.ErrInvalidRecipient)
 
-	_, err = types.DeriveForwardingAddressWithHook(1, make([]byte, types.RecipientLength), make([]byte, 31), hookID)
+	_, err = types.DeriveForwardingAddressWithHook(1, make([]byte, types.RecipientLength), make([]byte, 31), hookID, nil)
 	require.ErrorIs(t, err, types.ErrInvalidTokenID)
+}
+
+// Metadata is part of the commitment, so it must move the address independently of the
+// hook, and a metadata-only binding must be reachable (hook absent => mailbox default).
+func TestDeriveForwardingAddressWithHookCommitsMetadata(t *testing.T) {
+	destRecipient := make([]byte, types.RecipientLength)
+	tokenID := tokenIDBytes(t, 7)
+	hookID := hookIDBytes(t, 1)
+
+	base, err := types.DeriveForwardingAddress(42161, destRecipient, tokenID)
+	require.NoError(t, err)
+
+	hookOnly, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookID, nil)
+	require.NoError(t, err)
+
+	hookMetaA, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookID, []byte{0xab, 0xcd})
+	require.NoError(t, err)
+
+	hookMetaB, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, hookID, []byte{0xde, 0xad})
+	require.NoError(t, err)
+
+	metaOnly, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, nil, []byte{0xab, 0xcd})
+	require.NoError(t, err)
+
+	require.NotEqual(t, hookOnly, hookMetaA, "adding metadata must change the address")
+	require.NotEqual(t, hookMetaA, hookMetaB, "different metadata must derive different addresses")
+	require.NotEqual(t, base, metaOnly, "a metadata-only binding must differ from the default address")
+	require.NotEqual(t, hookMetaA, metaOnly, "same metadata under a different hook must differ")
+
+	// An absent hook normalises to the zero address, so passing it explicitly is equivalent.
+	explicitZero, err := types.DeriveForwardingAddressWithHook(42161, destRecipient, tokenID, make([]byte, types.HookIDLength), []byte{0xab, 0xcd})
+	require.NoError(t, err)
+	require.Equal(t, metaOnly, explicitZero)
+}
+
+// Committing nothing is not a binding: that is what DeriveForwardingAddress is for.
+func TestDeriveForwardingAddressWithHookRequiresSomething(t *testing.T) {
+	destRecipient := make([]byte, types.RecipientLength)
+	tokenID := tokenIDBytes(t, 1)
+
+	for _, tc := range []struct {
+		name   string
+		hookID []byte
+	}{
+		{"nil_hook", nil},
+		{"empty_hook", []byte{}},
+		{"zero_hook", make([]byte, types.HookIDLength)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := types.DeriveForwardingAddressWithHook(1, destRecipient, tokenID, tc.hookID, nil)
+			require.ErrorIs(t, err, types.ErrInvalidHookID)
+		})
+	}
 }

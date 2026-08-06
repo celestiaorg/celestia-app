@@ -206,14 +206,32 @@ func createTestContext() sdk.Context {
 // through the hook its address was derived with.
 func (s *testIGPSetup) useHookBoundAddress(t *testing.T, hookID string) {
 	t.Helper()
+	s.useHookBoundAddressWithMetadata(t, hookID, "")
+}
+
+// useHookBoundAddressWithMetadata binds the setup's address to a (hook, metadata) pair.
+// Either may be empty, but not both. metadataHex is decoded before being committed.
+func (s *testIGPSetup) useHookBoundAddressWithMetadata(t *testing.T, hookID, metadataHex string) {
+	t.Helper()
 	destRecipient, err := util.DecodeHexAddress(s.destRecipient)
 	require.NoError(t, err)
 	token, err := util.DecodeHexAddress(s.tokenID)
 	require.NoError(t, err)
-	hook, err := util.DecodeHexAddress(hookID)
-	require.NoError(t, err)
 
-	addrBytes, err := types.DeriveForwardingAddressWithHook(s.destDomain, destRecipient.Bytes(), token.Bytes(), hook.Bytes())
+	var hookBytes []byte
+	if hookID != "" {
+		hook, err := util.DecodeHexAddress(hookID)
+		require.NoError(t, err)
+		hookBytes = hook.Bytes()
+	}
+
+	var metadata []byte
+	if metadataHex != "" {
+		metadata, err = util.DecodeEthHex(metadataHex)
+		require.NoError(t, err)
+	}
+
+	addrBytes, err := types.DeriveForwardingAddressWithHook(s.destDomain, destRecipient.Bytes(), token.Bytes(), hookBytes, metadata)
 	require.NoError(t, err)
 	s.forwardAddr = sdk.AccAddress(addrBytes)
 }

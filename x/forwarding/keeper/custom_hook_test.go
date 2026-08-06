@@ -69,9 +69,9 @@ func setupSuccessfulForward(s *testIGPSetup) {
 // exact hook — this is what routes the payment to the custom IGP (and thus its relayer).
 func TestForward_CustomHookId_RoutesToChosenHook(t *testing.T) {
 	s := newTestIGPSetup(t)
-	// The deposit must sit at an address that commits to this hook, otherwise the
-	// derivation check rejects the forward.
-	s.useHookBoundAddress(t, customHookID)
+	// The deposit must sit at an address that commits to this hook *and* metadata,
+	// otherwise the derivation check rejects the forward.
+	s.useHookBoundAddressWithMetadata(t, customHookID, "0xabcdef")
 	setupSuccessfulForward(s)
 
 	msg := types.NewMsgForward(

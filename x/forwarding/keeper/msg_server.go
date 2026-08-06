@@ -62,13 +62,28 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		}
 	}
 
-	// A forward through a custom hook must target an address derived with that hook.
-	// Addresses derived without one can only ever be forwarded through the mailbox
-	// default hook, so a caller cannot substitute a hook of their choosing on someone
-	// else's deposit -- the derivation below would not match.
+	// Metadata is committed alongside the hook, so it must also be decoded before the
+	// derivation. The decoded bytes are what the address commits to, so equivalent hex
+	// encodings resolve to the same address.
+	var customHookMetadata []byte
+	if msg.CustomHookMetadata != "" {
+		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)
+		if err != nil {
+			return nil, fmt.Errorf("invalid custom_hook_metadata hex: %w", err)
+		}
+	}
+
+	// A forward carrying a hook or metadata must target an address derived with exactly
+	// that pair. Addresses derived with neither can only ever be forwarded through the
+	// mailbox default hook with no metadata, so a caller cannot substitute either field
+	// on someone else's deposit -- the derivation below would not match.
 	var expectedAddr []byte
-	if customHookId != nil {
-		expectedAddr, err = types.DeriveForwardingAddressWithHook(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), customHookId.Bytes())
+	if customHookId != nil || len(customHookMetadata) > 0 {
+		var hookBytes []byte
+		if customHookId != nil {
+			hookBytes = customHookId.Bytes()
+		}
+		expectedAddr, err = types.DeriveForwardingAddressWithHook(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
 	} else {
 		expectedAddr, err = types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
 	}
@@ -98,14 +113,6 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	balance := m.k.bankKeeper.SpendableCoin(ctx, forwardAddr, denom)
 	if !balance.IsPositive() {
 		return nil, types.ErrNoBalance
-	}
-
-	var customHookMetadata []byte
-	if msg.CustomHookMetadata != "" {
-		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)
-		if err != nil {
-			return nil, fmt.Errorf("invalid custom_hook_metadata hex: %w", err)
-		}
 	}
 
 	messageID, err := m.forwardToken(ctx, forwardAddr, signerAddr, hypToken, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee, customHookId, customHookMetadata)

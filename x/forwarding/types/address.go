@@ -52,37 +52,57 @@ var zeroHookID [HookIDLength]byte
 // Returns ErrInvalidRecipient if destRecipient is not exactly RecipientLength (32) bytes,
 // and ErrInvalidTokenID if tokenID is not exactly TokenIDLength (32) bytes.
 func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID []byte) ([]byte, error) {
-	return deriveForwardingAddress(ForwardVersion, destDomain, destRecipient, tokenID, nil)
+	return deriveForwardingAddress(ForwardVersion, destDomain, destRecipient, tokenID, nil, nil)
 }
 
 // DeriveForwardingAddressWithHook computes a forwarding address that additionally commits to a
-// specific post-dispatch hook. This makes the hook part of the depositor's intent rather than a
-// parameter the submitter of MsgForward chooses: forwarding through any other hook derives a
-// different address and is rejected with ErrAddressMismatch.
+// post-dispatch hook and its metadata. This makes both part of the depositor's intent rather than
+// parameters the submitter of MsgForward chooses: forwarding with any other hook or metadata
+// derives a different address and is rejected with ErrAddressMismatch.
 //
-// Algorithm (identical to DeriveForwardingAddress except for the hook and the version byte):
-//  1. callDigest = sha256(destDomain_32bytes || destRecipient || tokenID || hookID)
+// The commitment is all-or-nothing. An address derived here can only be forwarded with exactly
+// the hook and metadata it was derived with -- not with the default hook, and not with a
+// different pair. Conversely an address from DeriveForwardingAddress, which commits to neither,
+// can only be forwarded through the mailbox default hook with no metadata.
+//
+// Algorithm (identical to DeriveForwardingAddress except for the extra fields and version byte):
+//  1. callDigest = sha256(destDomain_32bytes || destRecipient || tokenID || hookID || hookMetadata)
 //  2. salt = sha256(ForwardVersionHook || callDigest)
 //  3. address = address.Module("forwarding", salt)[:CosmosAddressLen]
 //
-// hookID must be exactly HookIDLength (32) bytes and must not be the zero address; the zero
-// address means "mailbox default hook", which is what DeriveForwardingAddress already covers.
-func DeriveForwardingAddressWithHook(destDomain uint32, destRecipient, tokenID, hookID []byte) ([]byte, error) {
-	if len(hookID) != HookIDLength {
+// hookID is fixed width and hookMetadata is the terminal field, so the concatenation is
+// unambiguous without a length prefix.
+//
+// At least one of hookID or hookMetadata must be set; if both are empty the address commits to
+// nothing and DeriveForwardingAddress is the correct call. hookID must be exactly HookIDLength
+// (32) bytes when supplied, and may be the zero address only when hookMetadata is non-empty --
+// a zero hook means "mailbox default hook", so it is a valid pairing with metadata but not a
+// binding on its own. hookMetadata is the decoded bytes, not its hex encoding, so that
+// equivalent encodings derive the same address.
+func DeriveForwardingAddressWithHook(destDomain uint32, destRecipient, tokenID, hookID, hookMetadata []byte) ([]byte, error) {
+	if len(hookID) != 0 && len(hookID) != HookIDLength {
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidHookID, HookIDLength, len(hookID))
 	}
 
-	if bytes.Equal(hookID, zeroHookID[:]) {
-		return nil, fmt.Errorf("%w: zero hook id means the mailbox default hook, use DeriveForwardingAddress", ErrInvalidHookID)
+	hookIsSet := len(hookID) != 0 && !bytes.Equal(hookID, zeroHookID[:])
+	if !hookIsSet && len(hookMetadata) == 0 {
+		return nil, fmt.Errorf("%w: neither hook nor metadata set, use DeriveForwardingAddress", ErrInvalidHookID)
 	}
 
-	return deriveForwardingAddress(ForwardVersionHook, destDomain, destRecipient, tokenID, hookID)
+	// Normalise an absent hook to the zero address so the field keeps its fixed width and a
+	// metadata-only binding cannot collide with a hook-bearing one.
+	hook := hookID
+	if len(hook) == 0 {
+		hook = zeroHookID[:]
+	}
+
+	return deriveForwardingAddress(ForwardVersionHook, destDomain, destRecipient, tokenID, hook, hookMetadata)
 }
 
-// deriveForwardingAddress is the shared derivation. hookID is appended to the digest only when
-// non-nil, so the version byte and the digest preimage move together and the two schemes cannot
-// collide.
-func deriveForwardingAddress(version uint8, destDomain uint32, destRecipient, tokenID, hookID []byte) ([]byte, error) {
+// deriveForwardingAddress is the shared derivation. The hook and metadata are appended to the
+// digest only for the hook-bound version, so the version byte and the digest preimage move
+// together and the two schemes cannot collide.
+func deriveForwardingAddress(version uint8, destDomain uint32, destRecipient, tokenID, hookID, hookMetadata []byte) ([]byte, error) {
 	if len(destRecipient) != RecipientLength {
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidRecipient, RecipientLength, len(destRecipient))
 	}
@@ -95,13 +115,14 @@ func deriveForwardingAddress(version uint8, destDomain uint32, destRecipient, to
 	destDomainBytes := make([]byte, DomainEncodingSize)
 	binary.BigEndian.PutUint32(destDomainBytes[DomainOffset:], destDomain)
 
-	// Step 2: callDigest = sha256(destDomain || destRecipient || tokenID [|| hookID])
+	// Step 2: callDigest = sha256(destDomain || destRecipient || tokenID [|| hookID || hookMetadata])
 	h := sha256.New()
 	h.Write(destDomainBytes)
 	h.Write(destRecipient)
 	h.Write(tokenID)
 	if hookID != nil {
 		h.Write(hookID)
+		h.Write(hookMetadata)
 	}
 	callDigest := h.Sum(nil)
 
