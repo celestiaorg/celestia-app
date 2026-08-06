@@ -41,30 +41,25 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	}
 
 	// Optional custom post-dispatch hook (e.g. an alternative IGP). Empty or the zero
-	// address => mailbox default hook. This is decoded before the address derivation
-	// below because the hook is part of what the forwarding address commits to: the
-	// depositor picks the hook when they derive the address, not whoever submits this
-	// message. The hook only steers which hook is paid for delivery; it cannot change
-	// where the tokens land (still destRecipient).
+	// address => mailbox default hook. Decoded before the derivation below because the
+	// address commits to it. The hook only steers which hook is paid for delivery; it
+	// cannot change where the tokens land (still destRecipient).
 	var customHookId *util.HexAddress
 	if msg.CustomHookId != "" {
 		h, err := util.DecodeHexAddress(msg.CustomHookId)
 		if err != nil {
 			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
 		}
-		// The zero address is the sentinel for "mailbox default hook". Leave
-		// customHookId nil so the quote and dispatch paths agree: QuoteDispatch
-		// substitutes the default hook on IsZeroAddress, but DispatchMessage only
-		// does so when the pointer is nil, so a non-nil zero address would be
+		// Leave nil for the zero address so the quote and dispatch paths agree:
+		// QuoteDispatch substitutes the default hook on IsZeroAddress, but
+		// DispatchMessage only does so on a nil pointer, so a non-nil zero would be
 		// quoted against the default hook yet revert at dispatch.
 		if !h.IsZeroAddress() {
 			customHookId = &h
 		}
 	}
 
-	// Metadata is committed alongside the hook, so it must also be decoded before the
-	// derivation. The decoded bytes are what the address commits to, so equivalent hex
-	// encodings resolve to the same address.
+	// Committed alongside the hook, as decoded bytes, so equivalent hex encodings agree.
 	var customHookMetadata []byte
 	if msg.CustomHookMetadata != "" {
 		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)
@@ -73,10 +68,8 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		}
 	}
 
-	// A forward carrying a hook or metadata must target an address derived with exactly
-	// that pair. Addresses derived with neither can only ever be forwarded through the
-	// mailbox default hook with no metadata, so a caller cannot substitute either field
-	// on someone else's deposit -- the derivation below would not match.
+	// A forward carrying either field must target an address derived with that exact pair,
+	// so a caller cannot substitute one on someone else's deposit.
 	var expectedAddr []byte
 	if customHookId != nil || len(customHookMetadata) > 0 {
 		var hookBytes []byte

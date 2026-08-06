@@ -11,12 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// otherHookID is a second valid hook id, distinct from customHookID, used to check that
-// an address bound to one hook cannot be forwarded through another.
+// otherHookID is a second valid hook id, distinct from customHookID.
 const otherHookID = "0x726f757465725f706f73745f6469737061746368000000040000000000000011"
 
-// bindAddress points the setup's forwarding address at the given (hook, metadata) binding.
-// Both empty leaves it as the default-hook address.
+// bindAddress binds the setup's address to (hook, metadata); both empty leaves it default.
 func bindAddress(t *testing.T, s *testIGPSetup, hook, metadata string) {
 	t.Helper()
 	if hook != "" || metadata != "" {
@@ -24,8 +22,7 @@ func bindAddress(t *testing.T, s *testIGPSetup, hook, metadata string) {
 	}
 }
 
-// fundForwardAddr puts a deposit at the setup's forwarding address and gives the signer
-// enough to cover the IGP fee, without asserting anything about the outcome.
+// fundForwardAddr puts a deposit at the forwarding address and funds the signer's IGP fee.
 func fundForwardAddr(s *testIGPSetup) {
 	s.bankKeeper.Balances[s.forwardAddr.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(1000)))
 	s.bankKeeper.Balances[s.signer.String()] = sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, math.NewInt(500)))
@@ -42,10 +39,9 @@ func forwardMsg(s *testIGPSetup, hook, metadata string) *types.MsgForward {
 	return msg
 }
 
-// The binding is all-or-nothing in both directions: a deposit can only be forwarded with
-// exactly the (hook, metadata) pair its address commits to. Every other combination is
-// rejected before any funds move, which is what stops a caller routing someone else's
-// deposit through a hook of their choosing (e.g. a free one that funds no delivery).
+// A deposit can only be forwarded with the exact (hook, metadata) pair its address commits
+// to. This is what stops a caller routing someone else's deposit through a hook of their
+// choosing, e.g. a free one that funds no delivery.
 func TestForward_BindingMismatchRejected(t *testing.T) {
 	const meta = "0xabcdef"
 
@@ -81,10 +77,9 @@ func TestForward_BindingMismatchRejected(t *testing.T) {
 	}
 }
 
-// Matching the committed binding forwards, and dispatches through the committed hook. A
-// metadata-only binding means the mailbox default hook with that metadata, so it must still
-// dispatch with a nil hook. (hook+metadata is covered by
-// TestForward_CustomHookId_RoutesToChosenHook.)
+// Matching the binding forwards and dispatches through the committed hook. Metadata-only
+// means the default hook, so it dispatches nil. hook+metadata is covered by
+// TestForward_CustomHookId_RoutesToChosenHook.
 func TestForward_BindingMatchAccepted(t *testing.T) {
 	testCases := []struct {
 		name             string

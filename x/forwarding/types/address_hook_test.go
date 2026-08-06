@@ -17,8 +17,8 @@ func hookIDBytes(t *testing.T, id byte) []byte {
 	return h
 }
 
-// The binding is only meaningful if every distinct (hook, metadata) pair lands on a
-// distinct address, and if none of them collide with the default-hook address.
+// Every distinct (hook, metadata) pair must land on a distinct address, and none may
+// collide with the default-hook address.
 func TestDeriveForwardingAddressWithHookIsDistinct(t *testing.T) {
 	recipient := make([]byte, types.RecipientLength)
 	tokenID := tokenIDBytes(t, 7)
@@ -57,8 +57,8 @@ func TestDeriveForwardingAddressWithHookIsDistinct(t *testing.T) {
 	require.Equal(t, variants["metaA only"], derive(make([]byte, types.HookIDLength), metaA))
 }
 
-// Pins the exact preimage so a client (bot.fun, the relayer) can reimplement it and any
-// accidental change to the scheme shows up as a test failure rather than lost deposits.
+// Pins the exact preimage so clients can reimplement it and a change to the scheme fails
+// here rather than sending deposits to an unforwardable address.
 func TestDeriveForwardingAddressWithHookIntermediates(t *testing.T) {
 	destDomain := uint32(42161)
 	destRecipient := make([]byte, types.RecipientLength)
@@ -103,14 +103,14 @@ func TestDeriveForwardingAddressWithHookRejects(t *testing.T) {
 		metadata  []byte
 		wantErr   error
 	}{
-		// Committing to nothing is not a binding; DeriveForwardingAddress is that call.
+		// Committing to nothing is DeriveForwardingAddress's job, not a binding.
 		{"nil hook, no metadata", recipient, tokenID, nil, nil, types.ErrInvalidHookID},
 		{"empty hook, no metadata", recipient, tokenID, []byte{}, nil, types.ErrInvalidHookID},
 		{"zero hook, no metadata", recipient, tokenID, make([]byte, types.HookIDLength), nil, types.ErrInvalidHookID},
-		// Metadata is set in the length cases so the rejection is unambiguously about length.
+		// Metadata set so the rejection is unambiguously about hook length.
 		{"hook too short", recipient, tokenID, make([]byte, types.HookIDLength-1), []byte{0xab}, types.ErrInvalidHookID},
 		{"hook too long", recipient, tokenID, make([]byte, types.HookIDLength+1), []byte{0xab}, types.ErrInvalidHookID},
-		// Recipient and token validation must apply to the bound scheme too.
+		// Recipient and token validation apply to the bound scheme too.
 		{"bad recipient", make([]byte, 31), tokenID, hookID, nil, types.ErrInvalidRecipient},
 		{"bad token id", recipient, make([]byte, 31), hookID, nil, types.ErrInvalidTokenID},
 	}

@@ -76,8 +76,7 @@ type ForwardingRequest struct {
 	DestDomain    uint32 `json:"dest_domain"`
 	DestRecipient string `json:"dest_recipient"`
 	TokenId       string `json:"token_id"`
-	// CustomHookId must match the hook the address was derived with; the backend
-	// re-derives the address and rejects the request otherwise.
+	// Must match the hook the address was derived with; the backend re-derives and validates.
 	CustomHookId string `json:"custom_hook_id,omitempty"`
 }
 
@@ -337,8 +336,7 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardi
 	s.SendForwardingRequestWithHook(ctx, forwardingService, forwardAddr, tokenId, destDomain, destRecipient, "")
 }
 
-// SendForwardingRequestWithHook registers a forwarding request whose address is bound to
-// customHookID. The hook must match the one used to derive forwardAddr.
+// SendForwardingRequestWithHook registers a request whose address is bound to customHookID.
 func (s *HyperlaneTestSuite) SendForwardingRequestWithHook(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient, customHookID string) {
 	s.T().Helper()
 
@@ -621,9 +619,8 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 	return s.QueryForwardingAddressWithHook(ctx, chain, tokenId, domain, recipient, "")
 }
 
-// QueryForwardingAddressWithHook derives the forwarding address bound to customHookID.
-// An empty customHookID derives the mailbox-default-hook address. The hook is part of the
-// derivation, so a forward routed through a hook must target the address derived with it.
+// QueryForwardingAddressWithHook derives the address bound to customHookID; empty derives
+// the mailbox-default-hook address.
 func (s *HyperlaneTestSuite) QueryForwardingAddressWithHook(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient, customHookID string) string {
 	s.T().Helper()
 

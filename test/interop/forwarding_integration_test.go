@@ -87,7 +87,6 @@ func (s *ForwardingIntegrationTestSuite) deriveForwardAddress(destDomain uint32,
 }
 
 // deriveForwardAddressWithHook derives an address bound to a specific post-dispatch hook.
-// A deposit at this address can only be forwarded through that hook.
 func (s *ForwardingIntegrationTestSuite) deriveForwardAddressWithHook(destDomain uint32, destRecipient []byte, tokenID, hookID util.HexAddress) sdk.AccAddress {
 	forwardAddr, err := forwardingtypes.DeriveForwardingAddressWithHook(destDomain, destRecipient, tokenID.Bytes(), hookID.Bytes(), nil)
 	s.Require().NoError(err)

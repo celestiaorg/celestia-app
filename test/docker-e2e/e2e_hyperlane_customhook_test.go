@@ -106,8 +106,7 @@ func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 	})
 
 	destRecipient := "0x0000000000000000000000004A60C46F671A3B86D78E9C0B793235C2D502D44E"
-	// The address must commit to the custom IGP: that binding is what authorizes the relayer to
-	// route this forward through it. A default-hook address would fail ErrAddressMismatch.
+	// The address must commit to the IGP; a default-hook address is ErrAddressMismatch.
 	forwardAddress := s.QueryForwardingAddressWithHook(ctx, chain, config.TokenID.String(), destDomain, destRecipient, customIGP.String())
 	s.SendForwardingRequestWithHook(ctx, forwardingService, forwardAddress, config.TokenID.String(), destDomain, destRecipient, customIGP.String())
 

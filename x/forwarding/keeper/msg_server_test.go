@@ -200,10 +200,8 @@ func createTestContext() sdk.Context {
 	return testutil.DefaultContext(storetypes.NewKVStoreKey("testkv"), storetypes.NewTransientStoreKey("testtransient"))
 }
 
-// useHookBoundAddressWithMetadata re-derives the setup's forwarding address so that it
-// commits to a (hook, metadata) pair. Either may be empty, but not both, and metadataHex is
-// decoded before being committed. Must be called before funding the address: a deposit only
-// reaches a forward carrying the binding its address was derived with.
+// useHookBoundAddressWithMetadata re-derives the setup's address to commit to a
+// (hook, metadata) pair. Either may be empty, but not both. Call before funding.
 func (s *testIGPSetup) useHookBoundAddressWithMetadata(t *testing.T, hookID, metadataHex string) {
 	t.Helper()
 	destRecipient, err := util.DecodeHexAddress(s.destRecipient)

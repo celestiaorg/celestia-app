@@ -78,8 +78,7 @@ func (s *ForwardingIntegrationTestSuite) TestMsgForwardCustomHookRoutesToChosenI
 	destRecipient := MakeRecipient32(s.chainA.SenderAccount.GetAddress())
 
 	// --- Case A: forward WITH custom_hook_id = the custom IGP ---
-	// The address commits to the custom IGP, which is what authorizes the forward to route
-	// through it. A default-hook address would be rejected as ErrAddressMismatch.
+	// The address must commit to the IGP; a default-hook address is ErrAddressMismatch.
 	fwdA := s.deriveForwardAddressWithHook(TestChainADomainID, destRecipient, collatToken, customIGP)
 	s.fundAddress(s.celestia, fwdA, sdk.NewCoin(params.BondDenom, math.NewInt(1000)))
 	msgA := forwardingtypes.NewMsgForward(

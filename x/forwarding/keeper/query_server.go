@@ -51,8 +51,7 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
 	}
 
-	// custom_hook_id and custom_hook_metadata bind the address to that exact pair: only a
-	// forward carrying both will match. Neither set derives the default-hook address.
+	// The address binds to this exact pair; neither set derives the default-hook address.
 	var customHookId *util.HexAddress
 	if req.CustomHookId != "" {
 		h, err := util.DecodeHexAddress(req.CustomHookId)
