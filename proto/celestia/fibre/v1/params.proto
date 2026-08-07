@@ -9,27 +9,21 @@ option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 // Params defines the parameters for the fibre module.
 message Params {
   option (gogoproto.goproto_stringer) = false;
-  uint32 gas_per_blob_byte = 1 [(gogoproto.moretags) = "yaml:\"gas_per_blob_byte\""];
-  google.protobuf.Duration withdrawal_delay = 2 [
+  google.protobuf.Duration withdrawal_delay = 1 [
     (gogoproto.moretags) = "yaml:\"withdrawal_delay\"",
     (gogoproto.stdduration) = true,
     (gogoproto.nullable) = false
   ];
-  google.protobuf.Duration payment_promise_timeout = 3 [
+  google.protobuf.Duration payment_promise_timeout = 2 [
     (gogoproto.moretags) = "yaml:\"payment_promise_timeout\"",
     (gogoproto.stdduration) = true,
     (gogoproto.nullable) = false
   ];
-  google.protobuf.Duration payment_promise_retention_window = 4 [
-    (gogoproto.moretags) = "yaml:\"payment_promise_retention_window\"",
-    (gogoproto.stdduration) = true,
-    (gogoproto.nullable) = false
-  ];
-  uint64 payment_promise_height_window = 5 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
-  google.protobuf.Duration shard_retention = 6 [
+  uint64 payment_promise_height_window = 3 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
+  google.protobuf.Duration shard_retention = 4 [
     (gogoproto.moretags) = "yaml:\"shard_retention\"",
     (gogoproto.stdduration) = true,
     (gogoproto.nullable) = false
   ];
-  uint64 full_stake_storage_budget = 7 [(gogoproto.moretags) = "yaml:\"full_stake_storage_budget\""];
+  uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = "yaml:\"full_stake_storage_budget\""];
 }

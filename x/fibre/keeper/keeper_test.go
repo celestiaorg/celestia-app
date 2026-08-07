@@ -66,10 +66,8 @@ func (suite *KeeperTestSuite) TestSetGetParams() {
 
 	suite.T().Run("keeper should set and get params", func(t *testing.T) {
 		want := types.NewParams(
-			2,            // GasPerBlobByte
 			48*time.Hour, // WithdrawalDelay
 			2*time.Hour,  // PaymentPromiseTimeout
-			48*time.Hour, // PaymentPromiseRetentionWindow
 			2000,         // PaymentPromiseHeightWindow
 			8*time.Hour,  // ShardRetention
 			512<<30,      // FullStakeStorageBudget

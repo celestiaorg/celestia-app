@@ -222,8 +222,6 @@ mod-verify: mod
 .PHONY: mod-verify
 
 BUF_VERSION=v1.50.0
-GOLANG_PROTOBUF_VERSION=1.28.1
-GRPC_GATEWAY_VERSION=1.16.0
 GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION=2.20.0
 
 ## proto-all: Format, lint and generate Protobuf files
@@ -231,16 +229,23 @@ proto-all: proto-deps proto-format proto-lint proto-gen
 .PHONY: proto-all
 
 ## proto-deps: Install Protobuf local dependencies
+#
+# protoc-gen-gocosmos and protoc-gen-grpc-gateway are the two plugins that
+# buf.gen.gogo.yaml invokes, so their versions determine the contents of the
+# generated .pb.go files. They are declared as `tool` directives in go.mod
+# (like golangci-lint), which means `go install` without a version suffix
+# builds the version recorded there. That keeps codegen reproducible and lets
+# dependabot bump the plugins along with the rest of the module graph.
+#
+# buf and protoc-gen-openapiv2 stay pinned here rather than as tool directives:
+# adding them to the module graph would drag in large, unrelated dependency
+# upgrades (buf alone adds ~120 go.sum lines and bumps docker/otel deps).
 proto-deps:
 	@echo "Installing proto deps"
 	@go install github.com/bufbuild/buf/cmd/buf@$(BUF_VERSION)
-	@go install github.com/cosmos/cosmos-proto/cmd/protoc-gen-go-pulsar@latest
-	@go install github.com/cosmos/gogoproto/protoc-gen-gocosmos@latest
-	@go install github.com/cosmos/gogoproto/protoc-gen-gogo@latest
-	@go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway@v$(GRPC_GATEWAY_VERSION)
+	@go install github.com/cosmos/gogoproto/protoc-gen-gocosmos
+	@go install github.com/grpc-ecosystem/grpc-gateway/protoc-gen-grpc-gateway
 	@go install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2@v$(GRPC_GATEWAY_PROTOC_GEN_OPENAPIV2_VERSION)
-	@go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	@go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(GOLANG_PROTOBUF_VERSION)
 .PHONY: proto-deps
 
 ## proto-gen: Generate Protobuf files.
