@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,13 +17,15 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
-	handler  sdk.AnteHandler
-	txConfig client.TxConfig
-	builder  *square.Builder
+	handler   sdk.AnteHandler
+	msgRouter baseapp.MessageRouter
+	txConfig  client.TxConfig
+	builder   *square.Builder
 }
 
 func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
+	msgRouter baseapp.MessageRouter,
 	txConfig client.TxConfig,
 	maxSquareSize,
 	subtreeRootThreshold int,
@@ -32,9 +35,10 @@ func NewFilteredSquareBuilder(
 		return nil, err
 	}
 	return &FilteredSquareBuilder{
-		handler:  handler,
-		txConfig: txConfig,
-		builder:  builder,
+		handler:   handler,
+		msgRouter: msgRouter,
+		txConfig:  txConfig,
+		builder:   builder,
 	}, nil
 }
 
@@ -306,7 +310,10 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		ctx = ctx.WithTxBytes(rawTx)
+		// Branch the state per tx so a dropped tx leaves no partial writes
+		// behind for the txs that follow it.
+		txCtx, commit := ctx.CacheContext()
+		txCtx = txCtx.WithTxBytes(rawTx)
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
@@ -318,7 +325,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
@@ -332,6 +339,25 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			}
 			continue
 		}
+
+		// Settle the promise on the branch so later fibre txs are validated
+		// against the escrow debit and processed-payment record it leaves
+		// behind. A promise that cannot settle (overdraw, duplicate, out of
+		// gas) would commit its blob to the square without payment in
+		// FinalizeBlock, so drop the tx.
+		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
+			logger.Error(
+				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
+				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
+				"error", err,
+			)
+			telemetry.IncrCounter(1, "prepare_proposal", "unsettleable_pay_for_fibre_txs")
+			if revertErr := fsb.builder.RevertLastPayForFibreTx(); revertErr != nil {
+				logger.Error("reverting last pay-for-fibre transaction", "error", revertErr)
+			}
+			continue
+		}
+		commit()
 
 		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)

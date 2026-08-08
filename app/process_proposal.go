@@ -112,15 +112,20 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			if payForFibre, ok := payForFibreMsg(sdkTx); ok {
+			_, isPFF := payForFibreMsg(sdkTx)
+			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 					return reject(), nil
 				}
-
-				if _, err := app.FibreKeeper.ValidatePaymentPromiseStateful(ctx, &payForFibre.PaymentPromise); err != nil {
-					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre validation failed %d", idx), err)
+				// Settle MsgPayForFibre on the proposal state so promises later in
+				// the block are validated against the escrow debit and
+				// processed-payment record this one leaves behind, not the static
+				// pre-block state. A promise that cannot settle would commit its
+				// blob to the square without payment in FinalizeBlock, so reject.
+				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}
 			} else {
