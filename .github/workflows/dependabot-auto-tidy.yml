@@ -1,0 +1,80 @@
+name: dependabot-auto-tidy
+
+# test/docker-e2e is a separate Go module that pins the root module by relative
+# path (github.com/celestiaorg/celestia-app/v10 => ../..), so its indirect
+# requirements are a derived artifact of the root go.mod. A Dependabot bump to a
+# root dependency can leave test/docker-e2e untidy and turn go-mod-tidy-check
+# red, which a maintainer then has to fix by hand. Regenerate and push the result
+# so those pull requests stay green on their own. See #7641.
+#
+# The push uses DEPENDABOT_AUTO_TIDY_TOKEN, a personal access token that needs
+# only Contents: write on this repository. It is deliberately not granted
+# Workflows: write -- scripts/commit-tidy-changes.sh refuses to commit anything
+# other than go.mod/go.sum, so the token never needs to touch .github/workflows.
+on:
+  pull_request:
+    paths:
+      - "go.mod"
+      - "go.sum"
+      - "test/docker-e2e/go.mod"
+      - "test/docker-e2e/go.sum"
+
+permissions:
+  contents: read
+
+# Dependabot force-pushes when it rebases. Cancel an in-flight run rather than
+# let it race, because its push at the end would be rejected anyway.
+concurrency:
+  group: dependabot-auto-tidy-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-tidy:
+    name: auto-tidy
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # The `secrets` context is not available in `if:` conditions, so surface
+      # whether the token exists through `env`, which is.
+      TIDY_TOKEN: ${{ secrets.DEPENDABOT_AUTO_TIDY_TOKEN }}
+    steps:
+      - name: Check that the push token is configured
+        id: creds
+        run: |
+          if [ -z "${TIDY_TOKEN}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::DEPENDABOT_AUTO_TIDY_TOKEN is not available as a Dependabot secret; skipping auto-tidy. See #7641."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+        if: steps.creds.outputs.configured == 'true'
+        with:
+          # Check out the branch itself rather than the detached merge commit,
+          # so the tidy commit can be pushed back to the pull request.
+          ref: ${{ github.event.pull_request.head.ref }}
+          # Passing the token here is what makes the push work. A push made with
+          # the default GITHUB_TOKEN does not retrigger workflows, so
+          # go-mod-tidy-check would never re-run and the pull request would stay
+          # red. Note that checkout persists whatever token it is given into
+          # local git config as an http.extraheader, which takes precedence over
+          # any credential helper -- configuring a token any other way leaves
+          # GITHUB_TOKEN in place and silently reintroduces that failure.
+          token: ${{ secrets.DEPENDABOT_AUTO_TIDY_TOKEN }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        if: steps.creds.outputs.configured == 'true'
+        with:
+          go-version-file: "go.mod"
+
+      - name: Tidy all modules
+        if: steps.creds.outputs.configured == 'true'
+        run: make mod
+
+      # A no-op when everything is already tidy, so the rerun triggered by the
+      # push below terminates instead of looping.
+      - name: Commit and push any changes
+        if: steps.creds.outputs.configured == 'true'
+        run: ./scripts/commit-tidy-changes.sh
