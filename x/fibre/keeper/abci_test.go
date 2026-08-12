@@ -670,13 +670,13 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneProcessedPayments() {
 	suite.False(found, "payment2 should be pruned after advancing time")
 }
 
-func (suite *ABCITestSuite) TestBeginBlocker_PruneWithCustomRetentionWindow() {
-	// Test pruning with a custom retention window
-
-	// Set custom retention window to 1 hour
+func (suite *ABCITestSuite) TestBeginBlocker_PruneWithDerivedRetentionWindow() {
+	// The retention window is derived from WithdrawalDelay, so set a known delay
+	// and place payments on either side of the resulting window.
 	params := suite.keeper.GetParams(suite.ctx)
-	params.PaymentPromiseRetentionWindow = 1 * time.Hour
+	params.WithdrawalDelay = 24 * time.Hour
 	suite.keeper.SetParams(suite.ctx, params)
+	retention := params.PaymentPromiseRetentionWindow()
 
 	baseTime := suite.ctx.BlockTime()
 
@@ -684,17 +684,17 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneWithCustomRetentionWindow() {
 	payment1Hash := []byte("payment-hash-1")
 	payment2Hash := []byte("payment-hash-2")
 
-	// Payment 1: processed 2 hours ago (should be pruned with 1h retention)
+	// Payment 1: processed just outside the retention window (should be pruned)
 	payment1 := types.ProcessedPayment{
 		PaymentPromiseHash: payment1Hash,
-		ProcessedAt:        baseTime.Add(-2 * time.Hour),
+		ProcessedAt:        baseTime.Add(-retention - time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment1)
 
-	// Payment 2: processed 30 minutes ago (should NOT be pruned with 1h retention)
+	// Payment 2: processed inside the retention window (should NOT be pruned)
 	payment2 := types.ProcessedPayment{
 		PaymentPromiseHash: payment2Hash,
-		ProcessedAt:        baseTime.Add(-30 * time.Minute),
+		ProcessedAt:        baseTime.Add(-retention + time.Hour),
 	}
 	suite.keeper.SetProcessedPayment(suite.ctx, payment2)
 
@@ -710,11 +710,11 @@ func (suite *ABCITestSuite) TestBeginBlocker_PruneWithCustomRetentionWindow() {
 
 	// Verify payment1 was pruned
 	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment1Hash)
-	suite.False(found, "payment1 should be pruned (2 hours old with 1h retention)")
+	suite.False(found, "payment1 should be pruned (processed before the retention window)")
 
 	// Verify payment2 was NOT pruned
 	_, found = suite.keeper.GetProcessedPayment(suite.ctx, payment2Hash)
-	suite.True(found, "payment2 should NOT be pruned (30 minutes old with 1h retention)")
+	suite.True(found, "payment2 should NOT be pruned (processed within the retention window)")
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_FreshnessFloorMonotonicOnDelayIncrease() {

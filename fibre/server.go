@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/bits"
 	"sync"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
@@ -248,7 +249,7 @@ func (s *Server) recomputeBudget(ctx context.Context) error {
 	}
 
 	assignedRows := valSet.AssignedRows(ourVal, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
-	budget := fullStake * int64(assignedRows) / int64(s.Config.OriginalRows)
+	budget := deriveBudget(fullStake, assignedRows, s.Config.OriginalRows)
 
 	if fullStake < int64(s.Config.MaxShardSize) {
 		s.log.WarnContext(ctx, "FullStakeStorageBudget is below one maximum shard; uploads near the maximum blob size will be rejected",
@@ -263,4 +264,17 @@ func (s *Server) recomputeBudget(ctx context.Context) error {
 
 	s.occ.setBudget(budget)
 	return nil
+}
+
+// deriveBudget returns fullStake * assignedRows / originalRows in bytes. The
+// product can exceed int64 for a large fullStake, so it is computed in 128 bits;
+// with assignedRows <= originalRows the result stays within [0, fullStake].
+// Non-positive inputs yield 0, which disables the limiter.
+func deriveBudget(fullStake int64, assignedRows, originalRows int) int64 {
+	if fullStake <= 0 || assignedRows <= 0 || originalRows <= 0 {
+		return 0
+	}
+	hi, lo := bits.Mul64(uint64(fullStake), uint64(assignedRows))
+	quo, _ := bits.Div64(hi, lo, uint64(originalRows))
+	return int64(quo)
 }

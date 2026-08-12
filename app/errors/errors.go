@@ -23,4 +23,7 @@ var (
 	// ErrMultiMsgIndexWrapper is returned when an IndexWrapper encoded tx wraps
 	// a tx containing more or fewer than one message.
 	ErrMultiMsgIndexWrapper = errors.Register(AppErrorsCodespace, 11145, "index wrapper txs must contain exactly one message")
+
+	// ErrInvalidPayForFibreTx is returned when MsgPayForFibre is not the only tx message.
+	ErrInvalidPayForFibreTx = errors.Register(AppErrorsCodespace, 11146, "MsgPayForFibre must be the only message in a transaction")
 )

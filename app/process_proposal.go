@@ -51,6 +51,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		app.MinFeeKeeper,
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
+		app.FibreKeeper,
+		app.pffSigCache,
 	)
 	blockHeader := ctx.BlockHeader()
 
@@ -105,16 +107,20 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 
 			// Validate MsgPayForFibre constraints.
-			pffCount := countMsgPayForFibre(sdkTx)
-			if pffCount > 1 || (pffCount == 1 && len(msgs) != 1) {
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d contains %d MsgPayForFibre and %d total messages, expected exactly 1 MsgPayForFibre and no other messages", idx, pffCount, len(msgs)))
+			if err := validatePayForFibreTxShape(sdkTx); err != nil {
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d: %s", idx, err))
 				return reject(), nil
 			}
 
-			if pffCount == 1 {
+			if payForFibre, ok := payForFibreMsg(sdkTx); ok {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
+					return reject(), nil
+				}
+
+				if _, err := app.FibreKeeper.ValidatePaymentPromiseStateful(ctx, &payForFibre.PaymentPromise); err != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre validation failed %d", idx), err)
 					return reject(), nil
 				}
 			} else {
@@ -134,8 +140,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// we do not need to perform further checks on this transaction,
-			// since it has no PFB
+			// The non-blob path is complete; blob-specific checks below do not apply.
 			continue
 		}
 
@@ -179,8 +184,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return reject(), nil
 	}
 
-	// Assert that the square size stated by the proposer is correct
-	if uint64(eds.Width()) != req.SquareSize*2 {
+	// Assert that the square size stated by the proposer is correct. Compare
+	// the halved EDS width rather than the doubled proposer value: doubling an
+	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
+	// otherwise be indistinguishable.
+	if uint64(eds.Width())/2 != req.SquareSize {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
 		return reject(), nil
 	}

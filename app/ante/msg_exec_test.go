@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -19,6 +20,7 @@ func TestMsgExecDecorator(t *testing.T) {
 	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}})
 	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
 	nestedMsgPayForBlobs := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&blobtypes.MsgPayForBlobs{}})
+	nestedMsgPayForFibre := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&fibretypes.MsgPayForFibre{}})
 
 	tests := []struct {
 		name    string
@@ -38,6 +40,11 @@ func TestMsgExecDecorator(t *testing.T) {
 		{
 			name:    "Reject nestedMsgPayForBlobs",
 			msg:     &nestedMsgPayForBlobs,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject nestedMsgPayForFibre",
+			msg:     &nestedMsgPayForFibre,
 			wantErr: sdkerrors.ErrNotSupported,
 		},
 	}

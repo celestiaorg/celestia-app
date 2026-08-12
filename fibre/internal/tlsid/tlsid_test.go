@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/big"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,6 +21,12 @@ import (
 )
 
 const testChainID = "test-chain"
+
+// identityExtensionOID is an independent copy of the production extension OID
+// (Celestia IANA PEN 66463). It is deliberately not shared with the tlsid
+// package: the OID is a wire-level protocol constant, and a change to it must
+// fail these tests loudly rather than propagate silently.
+var identityExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 66463, 1, 1}
 
 func TestBuildAndVerify_RoundTrip(t *testing.T) {
 	pv := core.NewMockPV()
@@ -33,6 +40,30 @@ func TestBuildAndVerify_RoundTrip(t *testing.T) {
 
 	verify := tlsid.VerifyPeer(expectedPub, testChainID)
 	require.NoError(t, verify(cert.Certificate, nil))
+}
+
+// TestBuildServerCert_ExtensionOID pins the identity extension to the
+// Celestia-registered OID (IANA PEN 66463) and proves the retired placeholder
+// arc (PEN 32473, RFC 5612 example space) is gone. The OID is a wire-level
+// protocol constant: changing it breaks handshakes against every deployed
+// peer, so a change must be deliberate and fail this test.
+func TestBuildServerCert_ExtensionOID(t *testing.T) {
+	cert, err := tlsid.BuildServerCert(core.NewMockPV(), testChainID)
+	require.NoError(t, err)
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+
+	var found bool
+	for _, ext := range parsed.Extensions {
+		if ext.Id.Equal(identityExtensionOID) {
+			found = true
+			continue
+		}
+		require.False(t, strings.HasPrefix(ext.Id.String(), "1.3.6.1.4.1.32473."),
+			"certificate carries extension under placeholder PEN arc: %s", ext.Id)
+	}
+	require.True(t, found, "certificate is missing identity extension %s", identityExtensionOID)
 }
 
 func TestVerify_RejectsWrongValidator(t *testing.T) {
@@ -219,7 +250,7 @@ func tamperIdentityExtension(t *testing.T, src *x509.Certificate) []byte {
 	t.Helper()
 	var ext pkix.Extension
 	for _, e := range src.Extensions {
-		if e.Id.Equal(asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 32473, 1, 1}) {
+		if e.Id.Equal(identityExtensionOID) {
 			ext = e
 			break
 		}

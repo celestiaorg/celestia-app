@@ -387,6 +387,92 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	})
 }
 
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	validSignatures := suite.generateValidatorSignatures(&paymentPromise)
+
+	suite.T().Run("valid signatures", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		suite.NoError(suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg))
+	})
+
+	suite.T().Run("malformed payment promise", func(t *testing.T) {
+		malformed := paymentPromise
+		malformed.Namespace = []byte{0x01}
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      malformed,
+			ValidatorSignatures: validSignatures,
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "failed to convert payment promise")
+	})
+
+	suite.T().Run("invalid payment promise signature", func(t *testing.T) {
+		invalidPromise := paymentPromise
+		invalidPromise.Signature = make([]byte, 64)
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      invalidPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "payment promise validation failed")
+	})
+
+	suite.T().Run("invalid validator signature", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "validator signature validation failed")
+		suite.Contains(err.Error(), "invalid signature at index 0")
+	})
+
+	suite.T().Run("no validator signatures does not meet threshold", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "validator signature validation failed")
+	})
+
+	suite.T().Run("signature index exceeds validator count", func(t *testing.T) {
+		// Index 0 is skipped, so the valid signature maps to missing validator 1.
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{{}, validSignatures[0]},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "exceeds validator count")
+	})
+
+	suite.T().Run("missing historical info", func(t *testing.T) {
+		suite.stakingKeeper.GetHistoricalInfoFn = func(ctx context.Context, height int64) (stakingtypes.HistoricalInfo, error) {
+			return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo
+		}
+		defer func() { suite.stakingKeeper.GetHistoricalInfoFn = nil }()
+
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "failed to get historical validator set")
+	})
+}
+
 // TestPaymentPromiseTimeout tests the PaymentPromiseTimeout message handler
 func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	privKey := secp256k1.GenPrivKey()
@@ -732,10 +818,8 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("successful params update", func(t *testing.T) {
 		newParams := types.NewParams(
-			5,            // GasPerBlobByte
 			72*time.Hour, // WithdrawalDelay
 			3*time.Hour,  // PaymentPromiseTimeout
-			96*time.Hour, // PaymentPromiseRetentionWindow
 			2000,         // PaymentPromiseHeightWindow
 			8*time.Hour,  // ShardRetention
 			512<<30,      // FullStakeStorageBudget
@@ -770,21 +854,10 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 		suite.Contains(err.Error(), "invalid authority")
 	})
 
-	suite.T().Run("invalid params zero GasPerBlobByte", func(t *testing.T) {
-		msg := &types.MsgUpdateFibreParams{
-			Authority: suite.authority,
-			Params:    types.NewParams(0, 24*time.Hour, time.Hour, 24*time.Hour, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
-		}
-		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
-		suite.Error(err)
-		suite.Nil(resp)
-		suite.Contains(err.Error(), "invalid parameters")
-	})
-
 	suite.T().Run("invalid params zero WithdrawalDelay", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 0, time.Hour, 24*time.Hour, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
+			Params:    types.NewParams(0, time.Hour, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -795,18 +868,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero PaymentPromiseTimeout", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, 0, 24*time.Hour, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
-		}
-		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
-		suite.Error(err)
-		suite.Nil(resp)
-		suite.Contains(err.Error(), "invalid parameters")
-	})
-
-	suite.T().Run("invalid params zero PaymentPromiseRetentionWindow", func(t *testing.T) {
-		msg := &types.MsgUpdateFibreParams{
-			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 0, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
+			Params:    types.NewParams(24*time.Hour, 0, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -817,7 +879,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero PaymentPromiseHeightWindow", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 24*time.Hour, 0, 4*time.Hour, types.DefaultFullStakeStorageBudget),
+			Params:    types.NewParams(24*time.Hour, time.Hour, 0, 4*time.Hour, types.DefaultFullStakeStorageBudget),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -828,7 +890,7 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 	suite.T().Run("invalid params zero ShardRetention", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, 24*time.Hour, 1000, 0, types.DefaultFullStakeStorageBudget),
+			Params:    types.NewParams(24*time.Hour, time.Hour, 1000, 0, types.DefaultFullStakeStorageBudget),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -836,10 +898,10 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 		suite.Contains(err.Error(), "invalid parameters")
 	})
 
-	suite.T().Run("invalid params PaymentPromiseRetentionWindow shorter than WithdrawalDelay", func(t *testing.T) {
+	suite.T().Run("invalid params zero FullStakeStorageBudget", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
-			Params:    types.NewParams(1, 24*time.Hour, time.Hour, time.Hour, 1000, 4*time.Hour, types.DefaultFullStakeStorageBudget),
+			Params:    types.NewParams(24*time.Hour, time.Hour, 1000, 4*time.Hour, 0),
 		}
 		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
 		suite.Error(err)
@@ -907,9 +969,9 @@ func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPrun
 // TestRetentionWindowIncreaseCannotReplayPrunedPromise reproduces issue #7606.
 //
 // Governance raising WithdrawalDelay moves the freshness lower bound
-// (current_time - withdrawal_delay) backward in real time. Each parameter pair on
-// its own satisfies the retention >= withdrawal_delay + MaxPromiseClockSkew
-// invariant, so Params.Validate cannot catch the transition. Without the monotonic
+// (current_time - withdrawal_delay) backward in real time. Each parameter set is
+// individually valid (the retention window is derived from withdrawal_delay), so
+// Params.Validate cannot catch the transition. Without the monotonic
 // freshness floor, a promise that was already settled and whose processed-payment
 // record was pruned under the previous (compliant) parameters would pass the
 // freshness check again and be replayed via MsgPaymentPromiseTimeout, double-charging
@@ -917,11 +979,11 @@ func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPrun
 func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPromise() {
 	suite.setupValidatorSet()
 
-	// Initial compliant params: short withdrawal delay, retention just covering it.
+	// Initial compliant params: short withdrawal delay. The retention window is
+	// derived as withdrawal_delay + MaxPromiseClockSkew, so it just covers it.
 	initialParams := types.DefaultParams()
 	initialParams.WithdrawalDelay = 13 * time.Hour
 	initialParams.PaymentPromiseTimeout = 12 * time.Hour
-	initialParams.PaymentPromiseRetentionWindow = 13*time.Hour + types.MaxPromiseClockSkew
 	suite.Require().NoError(initialParams.Validate(), "initial params must be individually valid")
 	suite.keeper.SetParams(suite.ctx, initialParams)
 
@@ -956,7 +1018,7 @@ func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPr
 	// Advance just past the retention window so BeginBlocker prunes the record.
 	// The old delay is still in effect, so the freshness floor advances to
 	// block_time - 13h and the pruning is safe under the old invariant.
-	pruneTime := creation.Add(initialParams.PaymentPromiseRetentionWindow).Add(time.Minute)
+	pruneTime := creation.Add(initialParams.PaymentPromiseRetentionWindow()).Add(time.Minute)
 	suite.ctx = suite.ctx.WithBlockTime(pruneTime)
 	suite.Require().NoError(suite.keeper.BeginBlocker(suite.ctx))
 
@@ -967,7 +1029,6 @@ func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPr
 	// lower bound current_time - 48h now reaches back before the promise's creation.
 	increasedParams := initialParams
 	increasedParams.WithdrawalDelay = 48 * time.Hour
-	increasedParams.PaymentPromiseRetentionWindow = 48*time.Hour + types.MaxPromiseClockSkew
 	suite.Require().NoError(increasedParams.Validate(), "increased params must be individually valid")
 	suite.keeper.SetParams(suite.ctx, increasedParams)
 
