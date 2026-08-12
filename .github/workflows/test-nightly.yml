@@ -30,16 +30,23 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           if [ -n "$INPUT_TAG" ]; then
-            # Restrict the tag to the Docker tag charset. Without this a value
-            # containing a newline could smuggle extra lines into
-            # $GITHUB_OUTPUT, and shell metacharacters could reach the steps
-            # that consume the tag. No legitimate image tag is rejected.
+            # Validate against Docker's tag grammar,
+            # [A-Za-z0-9_][A-Za-z0-9._-]{0,127}. This keeps shell
+            # metacharacters out of the steps that consume the tag and stops a
+            # newline from smuggling extra lines into $GITHUB_OUTPUT. Checking
+            # the full grammar (not just the charset) also fails here with a
+            # clear message, rather than later on an opaque "invalid reference
+            # format" from docker build.
             case "$INPUT_TAG" in
-              *[!A-Za-z0-9._-]*)
-                echo "::error::Invalid tag '$INPUT_TAG': expected only A-Za-z0-9 . _ -"
+              [!A-Za-z0-9_]* | *[!A-Za-z0-9._-]*)
+                echo "::error::Invalid tag '$INPUT_TAG': must match [A-Za-z0-9_][A-Za-z0-9._-]{0,127}"
                 exit 1
                 ;;
             esac
+            if [ "${#INPUT_TAG}" -gt 128 ]; then
+              echo "::error::Invalid tag '$INPUT_TAG': ${#INPUT_TAG} characters, max 128"
+              exit 1
+            fi
             echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
             echo "value=$(echo "$GITHUB_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
