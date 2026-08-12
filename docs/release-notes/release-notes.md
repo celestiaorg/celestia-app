@@ -2,6 +2,21 @@
 
 This guide provides notes for major version releases. These notes may be helpful for users when upgrading from previous major versions.
 
+## v10.0.0
+
+### Node Operators (v10.0.0)
+
+#### Key Management Systems (KMS)
+
+The horcrux deprecation announced in the v7 release notes is superseded. Any KMS infrastructure may be used, provided it meets both requirements:
+
+- **Arbitrary-byte signing**: the KMS must support the privval `SignRawBytes` message, which is required for fibre payment-promise endorsements and the fibre TLS identity.
+- **Signing latency**: median signing latency must stay at or below 10ms. Nodes using a remote signer expose `cometbft_privval_signing_latency_*` Prometheus metrics and log a warning when the median latency of the last 50 signatures exceeds 10ms. Validators should monitor these metrics and keep their setup (e.g. via colocation) within the threshold.
+
+Horcrux is currently under-maintained. Additionally, a couple of slashing incidents have occurred due to misconfigured horcrux setups. Validators who choose to run horcrux accept these risks.
+
+As a reminder, KMS are third-party software and validators are responsible for ensuring their own KMS setup is correctly configured. An incorrect setup may result in double signing, which can lead to slashing. Validators choosing to run a KMS do so at their own risk.
+
 ## v9.0.0
 
 ### Node Operators (v9.0.0)
@@ -83,6 +98,8 @@ No manual action is required, but validators should be aware of this change.
 #### Horcrux Deprecation
 
 Horcrux is deprecated starting in v7. Future upgrades will require validator keys for fibre, which demands very low signing latency. Horcrux adds signing latency due to threshold signing and network round trips between cosigner nodes, which may be incompatible with upcoming latency requirements. Validators using horcrux should plan to migrate to a local signing setup.
+
+**Superseded in v10**: horcrux is no longer deprecated. See the [v10 KMS section](#key-management-systems-kms) for the current policy and its requirements.
 
 #### Config Changes
 
