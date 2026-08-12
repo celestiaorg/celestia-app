@@ -110,13 +110,12 @@ const MaxCertValidity = CertValidity + 2*clockSkew
 // signedIDExtensionOID identifies the custom certificate extension carrying the
 // fibre identity endorsement.
 //
-// TODO(PROTOCO-1808): this is the placeholder IANA PEN 32473, which RFC 5612
-// reserves for documentation/example use (so it is unassigned to any real
-// organization, unlike the previous 56843 = KASSEX s.r.o.). Replace the
-// enterprise number with the Celestia-allocated PEN once registered
-// (https://linear.app/celestia/issue/PROTOCO-1808). Bumping this OID is a
-// protocol-level break.
-var signedIDExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 32473, 1, 1}
+// 66463 is the Celestia-registered IANA Private Enterprise Number
+// (https://www.iana.org/assignments/enterprise-numbers/?q=66463). Within that
+// arc, .1 is allocated to fibre and .1.1 to this TLS signed-identity
+// extension; see the OID allocations note in specs/src/fibre_server.md.
+// Bumping this OID is a protocol-level break.
+var signedIDExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 66463, 1, 1}
 
 // signedIdentity is the ASN.1 payload of the custom extension.
 type signedIdentity struct {

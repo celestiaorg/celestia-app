@@ -161,9 +161,9 @@ Why the scheme looks the way it does:
   chain-ID-enforcing remote signers and HSM policy remain compatible.
 - **Endorsement carried in a custom DER X.509 extension.** The endorsement
   signature must reach the client at handshake time, so it rides in the cert. DER
-  is canonical (friendly to non-Go verifiers like lumina). The extension OID will
-  live under a Celestia-owned IANA PEN; it is a documented placeholder until the
-  PEN is registered (PROTOCO-1808).
+  is canonical (friendly to non-Go verifiers like lumina). The extension OID is
+  `1.3.6.1.4.1.66463.1.1`, under the Celestia-registered IANA PEN 66463; see the
+  OID allocations table in `specs/src/fibre_server.md`.
 
 ## Observability
 
