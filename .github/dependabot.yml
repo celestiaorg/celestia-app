@@ -1,20 +1,49 @@
 version: 2
+
+# Dependabot cannot combine updates across package-ecosystem/directory entries,
+# so the floor is one pull request per entry below. Each entry groups its
+# minor and patch bumps into a single weekly pull request to keep the review
+# queue small; major bumps are deliberately left ungrouped so a breaking change
+# gets its own pull request rather than being buried in a batch.
+#
+# Every entry runs on Monday so the batches land together instead of trickling
+# in across the week.
 updates:
   # Docker
   - package-ecosystem: docker
     directory: "/docker"
     schedule:
       interval: weekly
+      day: monday
     open-pull-requests-limit: 10
+    groups:
+      docker:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     labels:
       - dependencies
 
   # Github Actions
+  #
+  # Grouping also keeps github/codeql-action/init and github/codeql-action/analyze
+  # in the same pull request. Bumped separately they disagree on version, which
+  # fails the `Analyze (go)` job until both land.
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
     open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     labels:
       - dependencies
 
@@ -23,13 +52,29 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
     open-pull-requests-limit: 10
+    groups:
+      go-deps:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     labels:
       - dependencies
   - package-ecosystem: gomod
     directory: "test/docker-e2e"
     schedule:
       interval: weekly
+      day: monday
     open-pull-requests-limit: 10
+    groups:
+      go-deps-docker-e2e:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
     labels:
       - dependencies
