@@ -99,8 +99,6 @@ No manual action is required, but validators should be aware of this change.
 
 Horcrux is deprecated starting in v7. Future upgrades will require validator keys for fibre, which demands very low signing latency. Horcrux adds signing latency due to threshold signing and network round trips between cosigner nodes, which may be incompatible with upcoming latency requirements. Validators using horcrux should plan to migrate to a local signing setup.
 
-**Superseded in v10**: horcrux is no longer deprecated. See the [v10 KMS section](#key-management-systems-kms) for the current policy and its requirements.
-
 #### Config Changes
 
 ##### `min-retain-blocks`
