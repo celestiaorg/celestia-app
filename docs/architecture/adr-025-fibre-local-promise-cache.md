@@ -151,7 +151,7 @@ The three layers cover different parts of the problem:
 
 Two limits live in the same per-signer `SignerBudget` record from Option A. They share its map and its per-signer mutex, so no new locking is added.
 
-1. **Validation rate limit.** A per-signer token bucket over promise value per time window (value, not count, so the bound lines up with the `min(B, R*T)` analysis below). It bounds how fast a signer can pile up unsettled promises against one instance.
+1. **Validation rate limit.** A per-signer token bucket over promise value per time window (value, not count, so the bound lines up with the `min(B, C + R*T)` analysis below). The bucket initializes empty and its capacity (maximum stored burst) is the separate `PromiseValidationBurst` parameter `C`, not unbounded: a standard bucket left to fill to capacity `C` can release a burst of `C` at once, so leaving `C` undefined would let one instance validate more than `R*T` after any idle period or at startup. It bounds how fast a signer can pile up unsettled promises against one instance.
 2. **Sweep rate limit.** The limit already described under Option A ("Rate-Limiting Sweeps"). A signer that fails with zero or insufficient balance is re-swept at most once per block, which protects the state store from sweep amplification.
 
 A rejected query returns gRPC `ResourceExhausted` with `RetryInfo`, the same contract the admission controller in ADR-029 uses. This reuse is a dependency on ADR-029 rather than a standalone guarantee: it assumes the ADR-029 admission controller has shipped and that clients already honor `RetryInfo` with a bounded backoff. Where that holds, the client needs no new code.
@@ -160,14 +160,14 @@ A rejected query returns gRPC `ResourceExhausted` with `RetryInfo`, the same con
 
 Option C bounds the aggregate multi-node double-spend but does not close it. The cache and the rate limiter both live in per-process memory, so `M` counts independent processes, not validators: it is the validator count multiplied by the sentry/replica fan-out that can each serve the query path. There is no shared state between these `M` authorizers. Each reads the same committed balance, and that balance is stale until a settlement lands on-chain, so each authorizes on its own.
 
-With reduced timeout `T` and validation rate `R`, the worst case is:
+With reduced timeout `T`, validation rate `R`, and bucket burst capacity `C`, the worst case is:
 
 ```text
-per-instance loss:  min(B, R*T)
-aggregate:          M * min(B, R*T)
+per-instance loss:  min(B, C + R*T)
+aggregate:          M * min(B, C + R*T)
 ```
 
-For example, a signer with balance `B = 100` facing `R*T = 30` loses at most 30 per instance instead of the full 100. The rate limit sets the `R*T` term, and the reduced timeout sets `T`. Here `R` is a rate in value per unit time: normalize `PromiseValidationRate` over `PromiseValidationWindow` before multiplying by `T`, so `R*T` is a value and not a value×window product.
+The `C` term is the stored burst a full bucket releases at once; the `R*T` term is what refills over the settlement window. `C` cannot be driven to zero because a single legitimate upload has to fit in one burst, so it is at least one maximum-size promise; keep it small relative to `R*T` so the burst does not dominate the bound. For example, a signer with balance `B = 100`, `C = 5`, and `R*T = 30` loses at most 35 per instance instead of the full 100. Here `R` is a rate in value per unit time: normalize `PromiseValidationRate` over `PromiseValidationWindow` before multiplying by `T`, so `R*T` is a value and not a value×window product.
 
 Three existing bounds clamp the residual aggregate, though none of them refund the loss:
 
@@ -175,14 +175,15 @@ Three existing bounds clamp the residual aggregate, though none of them refund t
 - `ShardRetention` bounds how long unpaid shards stay before pruning.
 - A signer whose promises keep failing to settle is visible on-chain. A later reputation or ban layer could act on that pattern.
 
-Tune `R` and `T` so that `M * min(B, R*T)`, for a realistic `M` (validator count plus sentry fan-out), stays below the cost of running the attack.
+Tune `R`, `T`, and `C` so that `M * min(B, C + R*T)`, for a realistic `M` (validator count plus sentry fan-out), stays below the cost of running the attack.
 
 #### New Parameters
 
-- `PromiseValidationRate`. Token-bucket rate (promise value per window) for the validation rate limit.
+- `PromiseValidationRate`. Token-bucket refill rate (promise value per window) for the validation rate limit.
+- `PromiseValidationBurst`. Token-bucket capacity `C`, the maximum stored burst. Must be at least one maximum-size promise so a single upload fits, and kept small relative to `R*T` so it does not dominate the residual bound. The bucket starts empty.
 - `PromiseValidationWindow`. The window the rate is measured over.
 - `SweepRateLimit`. Maximum sweeps per block for failing signers, default once per block.
-- `PaymentPromiseTimeout`. Reduced default from Option B. Option B quotes a 5–10 minute range, but the enforced floor is `MinPaymentPromiseTimeout` = 10 minutes, so 10 minutes is the effective setting Option C adopts. Going lower requires lowering that floor, which interacts with `MinWithdrawalDelay = MaxPaymentPromiseTimeout + MinTimeoutSettlementWindow` and removes the upload-path headroom the floor protects.
+- `PaymentPromiseTimeout`. Reduced default from Option B. Option B quotes a 5–10 minute range, but the enforced floor is `MinPaymentPromiseTimeout` = 10 minutes, so 10 minutes is the effective setting Option C adopts. Going lower requires lowering that floor, which removes the upload-path headroom it protects: a promise has to stay valid long enough for the client to upload its shards, collect validator signatures, and get `MsgPayForFibre` into a block.
 
 Because Option A evicts idle signers at `PaymentPromiseTimeout + 1h`, the reduced timeout also shortens the eviction horizon (to roughly 1h10m). This only changes when idle cache entries are reclaimed, not correctness.
 
@@ -250,7 +251,7 @@ Two variants trade completeness against fibre latency.
 
 **Negative:**
 
-- Does not close the aggregate multi-node double-spend. It bounds per-instance loss to `min(B, R*T)`.
+- Does not close the aggregate multi-node double-spend. It bounds per-instance loss to `min(B, C + R*T)`.
 - Adds governance parameters that have to be tuned against real validator and sentry topology.
 
 ### Option D
@@ -270,5 +271,5 @@ Two variants trade completeness against fibre latency.
 The four options range from cheap with a bounded residual to complete with a real cost.
 
 - **Options A and B** are building blocks, not full answers on their own. A alone leaves the multi-node gap. B alone only shrinks the window.
-- **Option C** is recommended for v1. It runs A, B, and rate limiting as one query-path mechanism. It breaks no protocol, adds no upload latency, closes the in-process double-spend exactly in steady state (with the post-restart gap and the `Balance`-vs-`AvailableBalance` reconciliation called out above), and holds each instance's residual loss to `min(B, R*T)` with no cross-node coordination. The aggregate multi-node case it leaves open is bounded (though not refunded) by the ADR-029 occupancy limiter (disk accumulation, not serving cost), `ShardRetention` (duration), and on-chain detectability, which makes it a bounded cost rather than an open hole.
+- **Option C** is recommended for v1. It runs A, B, and rate limiting as one query-path mechanism. It breaks no protocol, adds no upload latency, closes the in-process double-spend exactly in steady state (with the post-restart gap and the `Balance`-vs-`AvailableBalance` reconciliation called out above), and holds each instance's residual loss to `min(B, C + R*T)` with no cross-node coordination. The aggregate multi-node case it leaves open is bounded (though not refunded) by the ADR-029 occupancy limiter (disk accumulation, not serving cost), `ShardRetention` (duration), and on-chain detectability, which makes it a bounded cost rather than an open hole.
 - **Option D** is the only design that closes the aggregate multi-node double-spend, because a reservation in consensus state is shared by every authorizer. D-strict pays for that with a consensus round-trip on every upload, which defeats fibre's purpose. D-amortized keeps the speed but needs a bond-backed payment channel with fraud proofs and slashing.
