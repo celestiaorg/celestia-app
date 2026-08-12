@@ -30,18 +30,32 @@ jobs:
           INPUT_TAG: ${{ inputs.tag }}
         run: |
           if [ -n "$INPUT_TAG" ]; then
-            echo "value=${INPUT_TAG}" >> $GITHUB_OUTPUT
+            # Restrict the tag to the Docker tag charset. Without this a value
+            # containing a newline could smuggle extra lines into
+            # $GITHUB_OUTPUT, and shell metacharacters could reach the steps
+            # that consume the tag. No legitimate image tag is rejected.
+            case "$INPUT_TAG" in
+              *[!A-Za-z0-9._-]*)
+                echo "::error::Invalid tag '$INPUT_TAG': expected only A-Za-z0-9 . _ -"
+                exit 1
+                ;;
+            esac
+            echo "value=${INPUT_TAG}" >> "$GITHUB_OUTPUT"
           else
-            echo "value=$(echo $GITHUB_SHA | cut -c1-8)" >> $GITHUB_OUTPUT
+            echo "value=$(echo "$GITHUB_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Build Docker image
         if: ${{ inputs.tag == '' }}
-        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" . -f docker/multiplexer.Dockerfile
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: docker build -t "ghcr.io/celestiaorg/celestia-app:${TAG}" . -f docker/multiplexer.Dockerfile
 
       - name: Save Docker image as artifact
         if: ${{ inputs.tag == '' }}
-        run: docker save "ghcr.io/celestiaorg/celestia-app:${{ steps.tag.outputs.value }}" | gzip > /tmp/e2e-image.tar.gz
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: docker save "ghcr.io/celestiaorg/celestia-app:${TAG}" | gzip > /tmp/e2e-image.tar.gz
 
       - name: Upload Docker image artifact
         if: ${{ inputs.tag == '' }}
@@ -64,13 +78,17 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       - name: Build latency-monitor Docker image
+        env:
+          TAG: ${{ needs.build-e2e-image.outputs.tag }}
         run: >-
           docker build
-          -t "ghcr.io/celestiaorg/latency-monitor:${{ needs.build-e2e-image.outputs.tag }}"
+          -t "ghcr.io/celestiaorg/latency-monitor:${TAG}"
           -f docker/latency-monitor/Dockerfile .
 
       - name: Save Docker image as artifact
-        run: docker save "ghcr.io/celestiaorg/latency-monitor:${{ needs.build-e2e-image.outputs.tag }}" | gzip > /tmp/latency-monitor-image.tar.gz
+        env:
+          TAG: ${{ needs.build-e2e-image.outputs.tag }}
+        run: docker save "ghcr.io/celestiaorg/latency-monitor:${TAG}" | gzip > /tmp/latency-monitor-image.tar.gz
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a #v7.0.1
