@@ -289,8 +289,8 @@ func newSignedPayForFibreTxWithOpts(
 	return newSignedPayForFibreTxAt(t, signer, account, validValidatorSignatures, time.Now(), opts...)
 }
 
-// newSignedPayForFibreTxAt creates a signed PayForFibre tx whose promise uses
-// creationTime. Equal timestamps create duplicate promises.
+// newSignedPayForFibreTxAt creates a signed PayForFibre tx with the given
+// promise creation time. Equal times produce duplicate promises.
 func newSignedPayForFibreTxAt(
 	t *testing.T,
 	signer *user.Signer,
@@ -381,7 +381,7 @@ func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
 }
 
 // newPayForFibreTxPair creates two PayForFibre txs with sequential nonces and
-// the supplied promise creation times.
+// the given promise creation times.
 func newPayForFibreTxPair(t *testing.T, signer *user.Signer, account string, first, second time.Time) [][]byte {
 	t.Helper()
 	firstTx := newSignedPayForFibreTxAt(t, signer, account, true, first,
@@ -399,11 +399,10 @@ func TestProcessProposalPayForFibreDoubleSpend(t *testing.T) {
 	infos := queryAccountInfo(testApp, accounts, kr)
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 
-	// The blobfactory promise uses BlobSize=100, so every settlement costs the
-	// same payment amount.
+	// Every factory promise has BlobSize=100 and costs the same amount.
 	payment := fibretypes.PaymentAmount(100).Amount.Int64()
 
-	// accounts[0] can afford one payment; accounts[1] and accounts[2] can afford two.
+	// The first account can afford one payment; the others can afford two.
 	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), payment)
 	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 2*payment)
 	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[2]), 2*payment)
@@ -456,12 +455,24 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
-	// Measure the full ante gas for a same-sized reference tx.
+	// Measure ante-only and full execution gas. Neither call commits state.
 	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
 	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	anteGas := uint64(checkResp.GasUsed)
+
+	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:   time.Now(),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    [][]byte{referenceTx},
+	})
+	require.NoError(t, err)
+	require.Len(t, finalizeResp.TxResults, 1)
+	require.Equal(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code, finalizeResp.TxResults[0].Log)
+	finalizeGas := uint64(finalizeResp.TxResults[0].GasUsed)
+	require.Greater(t, finalizeGas, anteGas, "executing the payment must consume gas beyond ante")
 
 	// The proposal is otherwise valid, so only the gas limit decides the result.
 	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
@@ -474,22 +485,23 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
 
-	t.Run("reject gas limit at exactly the ante cost", func(t *testing.T) {
-		// Settlement executes during proposal validation, so a limit that only
-		// covers ante gas runs out while the promise settles — the same tx
-		// would fail in FinalizeBlock with its blob already in the square.
-		exactTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
-			user.SetGasLimit(anteGas), user.SetFee(4_000))
-		require.Len(t, exactTx, len(referenceTx), "boundary tx must match the reference tx size")
+	t.Run("reject gas limit one below the FinalizeBlock cost", func(t *testing.T) {
+		// Reject a tx without enough gas to execute its payment.
+		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+			user.SetGasLimit(finalizeGas-1), user.SetFee(4_000))
+		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{exactTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
 
-	t.Run("accept gas limit covering ante and settlement", func(t *testing.T) {
+	t.Run("accept gas limit just above the FinalizeBlock cost", func(t *testing.T) {
+		// Store value sizes make gas vary slightly by account. This small margin
+		// allows that variation while keeping the boundary tight.
 		coveredTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
-			user.SetGasLimit(anteGas+100_000), user.SetFee(4_000))
+			user.SetGasLimit(finalizeGas+2_000), user.SetFee(4_000))
+		require.Len(t, coveredTx, len(referenceTx), "boundary tx must match the reference tx size")
 
 		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{coveredTx}))
 		require.NoError(t, err)
