@@ -19,7 +19,7 @@ This is a double-spend window at the validator level. A signer with 100 utia ava
 
 ## Prerequisites
 
-- [celestiaorg/celestia-app#6898](https://github.com/celestiaorg/celestia-app/pull/6898). This ADR assumes #6898 is merged. That PR allows payments to reduce pending withdrawals when `AvailableBalance` is insufficient. Withdrawals take 24 hours to execute. If a user initiates a withdrawal and then continues sending payment promises, the payments are deducted from the pending withdrawal amounts (oldest first). The user should avoid sending payment promises after initiating a withdrawal, but if they do, the withdrawal amount is reduced rather than the payment failing.
+- [celestiaorg/celestia-app#6898](https://github.com/celestiaorg/celestia-app/pull/6898). This ADR relies on the `AvailableBalance` accounting #6898 added: `AvailableBalance` is `Balance` minus the funds locked in withdrawals pending inside the 24-hour withdrawal delay. #6898 also made payments senior to withdrawals, so a payment whose amount exceeds `AvailableBalance` claws back pending withdrawals (oldest first) to cover the shortfall. This ADR reverses that seniority: it makes `AvailableBalance` the authority for both validation and settlement and protects queued withdrawals from being cannibalized. See Balance Authority for the reconciliation.
 
 ## Decision
 
@@ -33,6 +33,21 @@ Four options are presented. Options A and B are the two building blocks. Option 
 See the Conclusion for the recommendation. Decision: TBD
 
 ## Detailed Design
+
+### Balance Authority
+
+The reservation, the on-chain validation, and settlement all budget against `AvailableBalance`. `AvailableBalance` is `Balance` minus the funds locked in withdrawals that are pending inside the withdrawal delay window. A queued withdrawal is a committed obligation to the escrow owner. Its funds stay off-limits to payment promises until the withdrawal is cancelled or executed.
+
+This settles a discrepancy in the current code. `ValidatePaymentPromiseStateful` checks total `Balance`, which still counts funds already earmarked for pending withdrawals, and `deductPaymentFromEscrow` backstops any settlement shortfall by clawing those withdrawals back through `ReduceWithdrawalsForPayment`. That path spends the same funds twice: once toward the withdrawal, once toward the payment. The sweep in Option A already budgets against `AvailableBalance`, so leaving the on-chain path on `Balance` would make the cache and consensus disagree on what "sufficient" means, and the cache would reject uploads that consensus accepts.
+
+The reconciliation is:
+
+- `ValidatePaymentPromiseStateful` checks `AvailableBalance` instead of `Balance`. The consensus check in `process_proposal` and the `MsgPayForFibre` handler inherit the change because they call the same function.
+- Settlement stops reducing pending withdrawals to cover a payment. `deductPaymentFromEscrow` requires `AvailableBalance >= paymentAmount` and fails otherwise, so the `ReduceWithdrawalsForPayment` shortfall branch becomes unreachable and is removed. Queued withdrawals are never cannibalized.
+
+A settlement shortfall can still occur when two unreserved promises race, which is the double-spend window this ADR exists to bound. With withdrawals protected, that race fails the later payment on-chain rather than eating a withdrawal, and the residual is bounded by the cache and rate limiter in Option C.
+
+Example: an escrow account holds `Balance = 100` with an `80` withdrawal pending inside the delay window, so `AvailableBalance = 20`. A `50` promise arrives. It is rejected on the query path, in the cache, and on-chain, because `50 > 20`. Under the old total-`Balance` behavior the same promise passed validation and settlement clawed `30` back from the pending withdrawal.
 
 ### Option A: Sweep-Based Cache
 
@@ -143,7 +158,7 @@ Options A and B are layers of the same defense, not competing choices. Option C 
 
 The three layers cover different parts of the problem:
 
-- **A (local cache)** closes the double-spend window inside a single process, exactly, in steady state. Two caveats bound the word "exact." After a restart the cache starts empty and rebuilds lazily on the first sweep per signer, so the in-process guarantee has a gap until then (see Option A, Restart Behavior). And the cache must reserve against the same balance the on-chain path spends: today the query path checks total `Balance` (which includes funds locked in pending withdrawals), while the sweep in Option A budgets against `AvailableBalance`. Which balance is authoritative for the reservation must be settled before implementation, or the cache and consensus disagree on what "sufficient" means.
+- **A (local cache)** closes the double-spend window inside a single process, exactly, in steady state. One caveat bounds the word "exact": after a restart the cache starts empty and rebuilds lazily on the first sweep per signer, so the in-process guarantee has a gap until then (see Option A, Restart Behavior). The cache and the on-chain path reserve against the same balance, `AvailableBalance`, per Balance Authority, so they agree on what "sufficient" means.
 - **B (reduced timeout)** shrinks the window in which unsettled promises pile up. Settlements lower the committed balance sooner, so later validations start failing sooner.
 - **Rate limiting** caps how much one signer can get validated per time window, per process. It lowers each instance's worst-case loss and protects the state store from a sweep or query flood.
 
@@ -271,5 +286,5 @@ Two variants trade completeness against fibre latency.
 The four options range from cheap with a bounded residual to complete with a real cost.
 
 - **Options A and B** are building blocks, not full answers on their own. A alone leaves the multi-node gap. B alone only shrinks the window.
-- **Option C** is recommended for v1. It runs A, B, and rate limiting as one query-path mechanism. It breaks no protocol, adds no upload latency, closes the in-process double-spend exactly in steady state (with the post-restart gap and the `Balance`-vs-`AvailableBalance` reconciliation called out above), and holds each instance's residual loss to `min(B, C + R*T)` with no cross-node coordination. The aggregate multi-node case it leaves open is bounded (though not refunded) by the ADR-029 occupancy limiter (disk accumulation, not serving cost), `ShardRetention` (duration), and on-chain detectability, which makes it a bounded cost rather than an open hole.
+- **Option C** is recommended for v1. It runs A, B, and rate limiting as one query-path mechanism. It breaks no protocol, adds no upload latency, closes the in-process double-spend exactly in steady state (with the post-restart gap called out above, and reserving against `AvailableBalance` per Balance Authority), and holds each instance's residual loss to `min(B, C + R*T)` with no cross-node coordination. The aggregate multi-node case it leaves open is bounded (though not refunded) by the ADR-029 occupancy limiter (disk accumulation, not serving cost), `ShardRetention` (duration), and on-chain detectability, which makes it a bounded cost rather than an open hole.
 - **Option D** is the only design that closes the aggregate multi-node double-spend, because a reservation in consensus state is shared by every authorizer. D-strict pays for that with a consensus round-trip on every upload, which defeats fibre's purpose. D-amortized keeps the speed but needs a bond-backed payment channel with fraud proofs and slashing.
