@@ -107,6 +107,7 @@ All branches use forked cosmos-sdk and celestia-core:
 - Touch the bare minimum of lines needed, in code or docs.
 - Don't reformat files. Don't rewrite unrelated lines.
 - Don't touch what you weren't asked to touch.
+- Never include context specific to this conversation in comments.
 
 ### Implementing Code
 
