@@ -286,10 +286,24 @@ func newSignedPayForFibreTxWithOpts(
 	opts ...user.TxOption,
 ) []byte {
 	t.Helper()
+	return newSignedPayForFibreTxAt(t, signer, account, validValidatorSignatures, time.Now(), opts...)
+}
+
+// newSignedPayForFibreTxAt creates a signed PayForFibre tx with the given
+// promise creation time. Equal times produce duplicate promises.
+func newSignedPayForFibreTxAt(
+	t *testing.T,
+	signer *user.Signer,
+	account string,
+	validValidatorSignatures bool,
+	creationTime time.Time,
+	opts ...user.TxOption,
+) []byte {
+	t.Helper()
 	acc := signer.Account(account)
 	msg := blobfactory.NewMsgPayForFibre(t, acc.PubKey().(*secp256k1.PubKey), testutil.ChainID)
 	// Keep tx size stable for gas parity tests.
-	msg.PaymentPromise.CreationTimestamp = msg.PaymentPromise.CreationTimestamp.Truncate(time.Second)
+	msg.PaymentPromise.CreationTimestamp = creationTime.Truncate(time.Second)
 
 	pp := fibre.PaymentPromise{}
 	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
@@ -366,6 +380,69 @@ func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
 	}
 }
 
+// newPayForFibreTxPair creates two PayForFibre txs with sequential nonces and
+// the given promise creation times.
+func newPayForFibreTxPair(t *testing.T, signer *user.Signer, account string, first, second time.Time) [][]byte {
+	t.Helper()
+	firstTx := newSignedPayForFibreTxAt(t, signer, account, true, first,
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+	require.NoError(t, signer.IncrementSequence(account))
+	secondTx := newSignedPayForFibreTxAt(t, signer, account, true, second,
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+	return [][]byte{firstTx, secondTx}
+}
+
+func TestProcessProposalPayForFibreDoubleSpend(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	// Every factory promise has BlobSize=100 and costs the same amount.
+	payment := fibretypes.PaymentAmount(100).Amount.Int64()
+
+	// The first account can afford one payment; the others can afford two.
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), payment)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 2*payment)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[2]), 2*payment)
+
+	base := time.Now()
+	overdrawTxs := newPayForFibreTxPair(t, newSigner(0), accounts[0], base.Add(-2*time.Second), base.Add(-time.Second))
+	duplicateTxs := newPayForFibreTxPair(t, newSigner(1), accounts[1], base, base)
+	affordableTxs := newPayForFibreTxPair(t, newSigner(2), accounts[2], base.Add(-2*time.Second), base.Add(-time.Second))
+
+	tests := []struct {
+		name           string
+		txs            [][]byte
+		expectedStatus abci.ResponseProcessProposal_ProposalStatus
+	}{
+		{
+			name:           "reject two promises that collectively overdraw one escrow",
+			txs:            overdrawTxs,
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "reject duplicate promise within one block",
+			txs:            duplicateTxs,
+			expectedStatus: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:           "accept two promises the escrow can cover",
+			txs:            affordableTxs,
+			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, tc.txs))
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedStatus, resp.Status)
+		})
+	}
+}
+
 // TestProcessProposalChargesTxSizeGas checks the ProcessProposal gas boundary.
 func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -378,12 +455,24 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
-	// Measure the full ante gas for a same-sized reference tx.
+	// Measure ante-only and full execution gas. Neither call commits state.
 	referenceTx := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
 	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: referenceTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	anteGas := uint64(checkResp.GasUsed)
+
+	finalizeResp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:   time.Now(),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    [][]byte{referenceTx},
+	})
+	require.NoError(t, err)
+	require.Len(t, finalizeResp.TxResults, 1)
+	require.Equal(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code, finalizeResp.TxResults[0].Log)
+	finalizeGas := uint64(finalizeResp.TxResults[0].GasUsed)
+	require.Greater(t, finalizeGas, anteGas, "executing the payment must consume gas beyond ante")
 
 	// The proposal is otherwise valid, so only the gas limit decides the result.
 	t.Run("reject gas limit one below the ante cost", func(t *testing.T) {
@@ -396,12 +485,25 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
 	})
 
-	t.Run("accept gas limit at exactly the ante cost", func(t *testing.T) {
-		exactTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
-			user.SetGasLimit(anteGas), user.SetFee(4_000))
-		require.Len(t, exactTx, len(referenceTx), "boundary tx must match the reference tx size")
+	t.Run("reject gas limit one below the FinalizeBlock cost", func(t *testing.T) {
+		// Reject a tx without enough gas to execute its payment.
+		underTx := newSignedPayForFibreTxWithOpts(t, newSigner(1), accounts[1], true,
+			user.SetGasLimit(finalizeGas-1), user.SetFee(4_000))
+		require.Len(t, underTx, len(referenceTx), "boundary tx must match the reference tx size")
 
-		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{exactTx}))
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{underTx}))
+		require.NoError(t, err)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, resp.Status)
+	})
+
+	t.Run("accept gas limit just above the FinalizeBlock cost", func(t *testing.T) {
+		// Store value sizes make gas vary slightly by account. This small margin
+		// allows that variation while keeping the boundary tight.
+		coveredTx := newSignedPayForFibreTxWithOpts(t, newSigner(2), accounts[2], true,
+			user.SetGasLimit(finalizeGas+2_000), user.SetFee(4_000))
+		require.Len(t, coveredTx, len(referenceTx), "boundary tx must match the reference tx size")
+
+		resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{coveredTx}))
 		require.NoError(t, err)
 		require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 	})
