@@ -15,16 +15,15 @@ import (
 // block.
 const acquireTimeout = 5 * time.Second
 
-// newShareWithNamespaceID returns a share in version 0 namespace id.
 func newShareWithNamespaceID(id byte) []byte {
 	s := make([]byte, share.ShareSize)
 	s[share.NamespaceSize-1] = id
 	return s
 }
 
-// descendingNamespaceSquare returns a 2x2 original data square whose first row
-// has descending namespaces, so computing its row root fails inside nmt.Push
-// and rsmt2d abandons the tree without calling Root.
+// descendingNamespaceSquare returns a 2x2 square whose first row has descending
+// namespaces, so its row root fails inside nmt.Push and rsmt2d abandons the
+// tree without calling Root.
 func descendingNamespaceSquare() [][]byte {
 	return [][]byte{
 		newShareWithNamespaceID(0x05), newShareWithNamespaceID(0x01),
@@ -32,7 +31,6 @@ func descendingNamespaceSquare() [][]byte {
 	}
 }
 
-// ascendingNamespaceSquare returns a valid 2x2 original data square.
 func ascendingNamespaceSquare() [][]byte {
 	return [][]byte{
 		newShareWithNamespaceID(0x01), newShareWithNamespaceID(0x02),
@@ -40,8 +38,6 @@ func ascendingNamespaceSquare() [][]byte {
 	}
 }
 
-// ascendingNamespaceShares returns a valid originalSize x originalSize original
-// data square whose namespaces ascend along every row and column.
 func ascendingNamespaceShares(originalSize int) [][]byte {
 	shares := make([][]byte, 0, originalSize*originalSize)
 	for i := range originalSize * originalSize {
@@ -50,9 +46,8 @@ func ascendingNamespaceShares(originalSize int) [][]byte {
 	return shares
 }
 
-// computeRoots extends the square using the pool and computes its roots, like
-// PrepareProposal and ProcessProposal do. finished is false if the computation
-// blocked for longer than acquireTimeout.
+// computeRoots extends the square and computes its roots, like the proposal
+// handlers do. finished is false if it blocked for longer than acquireTimeout.
 func computeRoots(shares [][]byte, pool *TreePool) (finished bool, err error) {
 	done := make(chan error, 1)
 	go func() {
@@ -77,8 +72,6 @@ func computeRoots(shares [][]byte, pool *TreePool) (finished bool, err error) {
 	}
 }
 
-// TestTreePoolAcquireDoesNotBlockWhenEmpty asserts that acquire allocates a tree
-// instead of blocking when the pool is empty.
 func TestTreePoolAcquireDoesNotBlockWhenEmpty(t *testing.T) {
 	poolSize := 2
 	pool, err := NewTreePool(2, poolSize)
@@ -96,7 +89,6 @@ func TestTreePoolAcquireDoesNotBlockWhenEmpty(t *testing.T) {
 	select {
 	case tree := <-acquired:
 		require.NotNil(t, tree)
-		// The freshly allocated tree refills the pool once it is released.
 		pool.release(tree)
 		require.Len(t, pool.availableNMTs, 1)
 	case <-time.After(acquireTimeout):
@@ -104,8 +96,6 @@ func TestTreePoolAcquireDoesNotBlockWhenEmpty(t *testing.T) {
 	}
 }
 
-// TestTreePoolReleaseDoesNotBlockWhenFull asserts that release drops a tree
-// instead of blocking when the pool is full.
 func TestTreePoolReleaseDoesNotBlockWhenFull(t *testing.T) {
 	pool, err := NewTreePool(2, 1)
 	require.NoError(t, err)
@@ -129,8 +119,8 @@ func TestTreePoolReleaseDoesNotBlockWhenFull(t *testing.T) {
 	}
 }
 
-// countingPool wraps a TreePool and records how many trees rsmt2d holds at
-// once, plus how many distinct trees it is ever handed.
+// countingPool records how many trees rsmt2d holds at once and how many
+// distinct trees it is handed.
 type countingPool struct {
 	*TreePool
 
@@ -176,14 +166,13 @@ func (t countingTree) Root() ([]byte, error) {
 	return t.tree.Root()
 }
 
-// TestTreePoolBoundsLiveTreesUnderConcurrency asserts that the pool still caps
-// live trees at poolSize when rsmt2d drives it. rsmt2d limits its root
-// computation errgroup to TreeCount(), so it never asks for more trees than the
-// pool holds and acquire never reaches its allocation path.
+// TestTreePoolBoundsLiveTreesUnderConcurrency asserts that acquire's allocation
+// path does not uncap memory: rsmt2d limits its root computation errgroup to
+// TreeCount(), so it never asks for more trees than the pool holds.
 func TestTreePoolBoundsLiveTreesUnderConcurrency(t *testing.T) {
 	const (
 		poolSize     = 4
-		originalSize = 8 // 8x8 original data square, so rsmt2d computes 32 roots
+		originalSize = 8 // 8x8 square, so rsmt2d computes 32 roots
 	)
 	pool, err := NewTreePool(originalSize, poolSize)
 	require.NoError(t, err)
@@ -202,9 +191,8 @@ func TestTreePoolBoundsLiveTreesUnderConcurrency(t *testing.T) {
 	require.LessOrEqual(t, len(counting.distinct), poolSize, "the pool handed out more distinct trees than the pool size")
 }
 
-// TestTreePoolSurvivesFailedRootComputations asserts that a valid square can
-// still be processed after more failed root computations than the pool holds
-// trees, because each failure abandons a tree.
+// TestTreePoolSurvivesFailedRootComputations drives more failed root
+// computations than the pool holds trees, each of which abandons a tree.
 func TestTreePoolSurvivesFailedRootComputations(t *testing.T) {
 	poolSize := 4
 	pool, err := NewTreePool(2, poolSize)

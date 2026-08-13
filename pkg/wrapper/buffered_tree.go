@@ -14,8 +14,7 @@ import (
 type TreePool struct {
 	availableNMTs chan *resizeableBufferTree
 	poolSize      int
-	// squareSize and opts are retained so acquire can allocate a replacement
-	// tree when the pool is empty.
+	// squareSize and opts let acquire allocate a replacement tree.
 	squareSize uint
 	opts       []nmt.Option
 }
@@ -50,15 +49,9 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 }
 
 // acquire retrieves a resizeableBufferTree from the pool, allocating a new one
-// if the pool is empty. Only Root returns a tree to the pool, and rsmt2d
-// abandons the tree whenever a root computation fails, so waiting for a release
-// could block forever inside an ABCI call.
-//
-// Allocating does not uncap memory: rsmt2d limits its root computation to
-// TreeCount() concurrent goroutines, so it holds at most poolSize trees at
-// once. The allocation path only runs after a failed root computation has
-// abandoned a tree, and it replaces that tree rather than adding to the live
-// set.
+// if the pool is empty. rsmt2d abandons a tree whenever a root computation
+// fails, so waiting for a release could block forever inside an ABCI call.
+// Memory stays capped because rsmt2d holds at most TreeCount() trees at once.
 func (p *TreePool) acquire() *resizeableBufferTree {
 	select {
 	case tree := <-p.availableNMTs:
@@ -68,8 +61,8 @@ func (p *TreePool) acquire() *resizeableBufferTree {
 
 	tree, err := newResizeableBufferTree(p.squareSize, 0, p, p.opts...)
 	if err != nil {
-		// Unreachable: NewTreePool already built poolSize trees from the same
-		// square size and options. Wait rather than hand rsmt2d a nil tree.
+		// Unreachable: NewTreePool built trees from the same arguments. Wait
+		// rather than hand rsmt2d a nil tree.
 		return <-p.availableNMTs
 	}
 	return tree
