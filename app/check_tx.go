@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -137,13 +138,43 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	return sigs[0].PubKey.Address().Bytes(), sigs[0].Sequence, nil
 }
 
-// validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other messages.
+// validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other
+// messages, and txs whose payment promise names a namespace that cannot hold a
+// blob.
 func validatePayForFibreTxShape(tx sdk.Tx) error {
 	msgs := tx.GetMsgs()
 	for _, msg := range msgs {
-		if _, isPFF := msg.(*fibretypes.MsgPayForFibre); isPFF && len(msgs) > 1 {
+		pff, isPFF := msg.(*fibretypes.MsgPayForFibre)
+		if !isPFF {
+			continue
+		}
+		if len(msgs) > 1 {
 			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
 		}
+		if err := validatePayForFibreNamespace(pff.PaymentPromise.Namespace); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validatePayForFibreNamespace rejects a payment promise namespace that a blob
+// may not occupy.
+//
+// The square builder synthesizes a system blob in this namespace without
+// validating it, and places it in the blob region, which follows the reserved
+// namespaces. A reserved namespace there leaves the square's namespaces out of
+// order, so the square builds but its data root cannot be computed. This check
+// has to live here rather than rely on MsgPayForFibre.ValidateBasic, because
+// ProcessProposal invokes the ante handler directly and so never runs the
+// message level validation that baseapp performs in CheckTx and DeliverTx.
+func validatePayForFibreNamespace(namespace []byte) error {
+	ns, err := share.NewNamespaceFromBytes(namespace)
+	if err != nil {
+		return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise namespace: %s", err)
+	}
+	if err := ns.ValidateForBlob(); err != nil {
+		return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise namespace: %s", err)
 	}
 	return nil
 }
