@@ -159,9 +159,7 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 }
 
 // validatePayForFibreNamespace rejects a payment promise namespace that a blob
-// may not occupy. It lives here rather than in MsgPayForFibre.ValidateBasic
-// because ProcessProposal invokes the ante handler directly, skipping the
-// message level validation baseapp runs in CheckTx and DeliverTx.
+// may not occupy.
 func validatePayForFibreNamespace(namespace []byte) error {
 	ns, err := share.NewNamespaceFromBytes(namespace)
 	if err != nil {
