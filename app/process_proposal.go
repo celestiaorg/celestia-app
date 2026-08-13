@@ -179,8 +179,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return reject(), nil
 	}
 
-	// Assert that the square size stated by the proposer is correct
-	if uint64(eds.Width()) != req.SquareSize*2 {
+	// Assert that the square size stated by the proposer is correct. Compare
+	// the halved EDS width rather than the doubled proposer value: doubling an
+	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
+	// otherwise be indistinguishable.
+	if uint64(eds.Width())/2 != req.SquareSize {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
 		return reject(), nil
 	}
