@@ -159,15 +159,9 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 }
 
 // validatePayForFibreNamespace rejects a payment promise namespace that a blob
-// may not occupy.
-//
-// The square builder synthesizes a system blob in this namespace without
-// validating it, and places it in the blob region, which follows the reserved
-// namespaces. A reserved namespace there leaves the square's namespaces out of
-// order, so the square builds but its data root cannot be computed. This check
-// has to live here rather than rely on MsgPayForFibre.ValidateBasic, because
-// ProcessProposal invokes the ante handler directly and so never runs the
-// message level validation that baseapp performs in CheckTx and DeliverTx.
+// may not occupy. It lives here rather than in MsgPayForFibre.ValidateBasic
+// because ProcessProposal invokes the ante handler directly, skipping the
+// message level validation baseapp runs in CheckTx and DeliverTx.
 func validatePayForFibreNamespace(namespace []byte) error {
 	ns, err := share.NewNamespaceFromBytes(namespace)
 	if err != nil {
