@@ -159,6 +159,24 @@ func TestExtendShares(t *testing.T) {
 			expectedErr: true,
 			shares:      generateShares(5),
 		},
+		// Share counts that are powers of two but not perfect squares get past
+		// the IsPowerOfTwo check both functions start with, so rejecting them is
+		// left to rsmt2d. Assert both functions still agree.
+		{
+			name:        "two shares is not a perfect square",
+			expectedErr: true,
+			shares:      generateShares(2),
+		},
+		{
+			name:        "eight shares is not a perfect square",
+			expectedErr: true,
+			shares:      generateShares(8),
+		},
+		{
+			name:        "thirty two shares is not a perfect square",
+			expectedErr: true,
+			shares:      generateShares(32),
+		},
 	}
 
 	for _, tt := range tests {
