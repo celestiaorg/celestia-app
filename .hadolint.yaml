@@ -1,0 +1,9 @@
+ignored:
+  # DL3066 (non-numeric user-id) fires on `USER ${USER_NAME}` in our Dockerfiles
+  # because hadolint cannot resolve a user supplied via ARG. This is an upstream
+  # false positive that was fixed in hadolint v2.15.1:
+  # https://github.com/hadolint/hadolint/pull/1226
+  #
+  # CI lints via hadolint/hadolint-action@v3.4.0, which still ships hadolint
+  # v2.15.0. Remove this entry once the action ships hadolint v2.15.1 or newer.
+  - DL3066
