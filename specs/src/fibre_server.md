@@ -130,23 +130,7 @@ upload_verify_workers = runtime.GOMAXPROCS(0)
 
 The Fibre server-to-client gRPC link is TLS-only. On startup the server generates an ephemeral TLS keypair and uses the validator consensus signer to endorse that TLS public key. Clients verify the presented TLS key against the expected validator consensus public key and chain ID. There is no client certificate requirement and no mTLS. `DownloadShard` is public to any reachable client that can complete the server-authenticated TLS handshake.
 
-The endorsement travels in a custom, non-critical X.509 extension identified by OID `1.3.6.1.4.1.66463.1.1`. The extension value is the DER encoding of:
-
-```text
-SignedIdentity ::= SEQUENCE {
-    payload   OCTET STRING,  -- DER of BindingPayload (the exact signed bytes)
-    signature OCTET STRING   -- consensus-key signature over the payload
-}
-
-BindingPayload ::= SEQUENCE {
-    version    INTEGER,      -- schema version (currently 1)
-    notBefore  INTEGER,      -- unix seconds; equals the cert NotBefore
-    notAfter   INTEGER,      -- unix seconds; equals the cert NotAfter
-    tlsPubKey  OCTET STRING  -- DER SubjectPublicKeyInfo of the TLS key
-}
-```
-
-The signature is a CometBFT `SignRawBytes` signature over `"celestia-fibre-tls:" || BindingPayload-DER`, with unique ID `celestia-fibre-tls-v1` and the runtime chain ID in the signing envelope. The full verifier rules (payload byte-equality, validity-window and extended-key-usage checks, size caps) are documented in the `fibre/internal/tlsid` package.
+The endorsement travels in a custom, non-critical X.509 extension identified by OID `1.3.6.1.4.1.66463.1.1`, carrying a consensus-key signature over the TLS public key and validity window. The wire format, exact signed bytes, verifier rules, and golden test vectors are specified in [Fibre TLS Identity](./fibre_tls_identity.md).
 
 ### OID allocations
 
