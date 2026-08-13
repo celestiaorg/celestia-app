@@ -36,7 +36,6 @@ const (
 	EnvVarDOSpacesBucket          = "DO_SPACES_BUCKET"
 	EnvVarDOSpacesEndpoint        = "DO_SPACES_ENDPOINT"
 	EnvVarChainID                 = "CHAIN_ID"
-	mebibyte                      = 1_048_576
 )
 
 func initCmd() *cobra.Command {
@@ -198,12 +197,13 @@ func initCmd() *cobra.Command {
 }
 
 func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string, enablePrometheus bool) *cmtconfig.Config {
+	// Most mainnet nodes run goleveldb (the historical default), so talis
+	// experiments use it too instead of celestia-core's pebbledb default.
+	cfg.DBBackend = "goleveldb"
 	cfg.Instrumentation.TracingTables = strings.Join(tables, ",")
 	cfg.Instrumentation.TraceType = "local"
 	cfg.Instrumentation.Prometheus = enablePrometheus
 	cfg.Instrumentation.PrometheusListenAddr = ":26660"
-	cfg.P2P.SendRate = 100 * mebibyte
-	cfg.P2P.RecvRate = 110 * mebibyte
 	cfg.RPC.ListenAddress = "tcp://0.0.0.0:26657"
 	cfg.RPC.GRPCListenAddress = "tcp://0.0.0.0:9090"
 	return cfg
