@@ -53,6 +53,12 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 // if the pool is empty. Only Root returns a tree to the pool, and rsmt2d
 // abandons the tree whenever a root computation fails, so waiting for a release
 // could block forever inside an ABCI call.
+//
+// Allocating does not uncap memory: rsmt2d limits its root computation to
+// TreeCount() concurrent goroutines, so it holds at most poolSize trees at
+// once. The allocation path only runs after a failed root computation has
+// abandoned a tree, and it replaces that tree rather than adding to the live
+// set.
 func (p *TreePool) acquire() *resizeableBufferTree {
 	select {
 	case tree := <-p.availableNMTs:

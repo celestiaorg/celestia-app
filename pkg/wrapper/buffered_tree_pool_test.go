@@ -1,6 +1,7 @@
 package wrapper
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -37,6 +38,16 @@ func ascendingNamespaceSquare() [][]byte {
 		newShareWithNamespaceID(0x01), newShareWithNamespaceID(0x02),
 		newShareWithNamespaceID(0x03), newShareWithNamespaceID(0x04),
 	}
+}
+
+// ascendingNamespaceShares returns a valid originalSize x originalSize original
+// data square whose namespaces ascend along every row and column.
+func ascendingNamespaceShares(originalSize int) [][]byte {
+	shares := make([][]byte, 0, originalSize*originalSize)
+	for i := range originalSize * originalSize {
+		shares = append(shares, newShareWithNamespaceID(byte(i)))
+	}
+	return shares
 }
 
 // computeRoots extends the square using the pool and computes its roots, like
@@ -116,6 +127,79 @@ func TestTreePoolReleaseDoesNotBlockWhenFull(t *testing.T) {
 	case <-time.After(acquireTimeout):
 		t.Fatal("release blocked on a full pool")
 	}
+}
+
+// countingPool wraps a TreePool and records how many trees rsmt2d holds at
+// once, plus how many distinct trees it is ever handed.
+type countingPool struct {
+	*TreePool
+
+	mu       sync.Mutex
+	live     map[*resizeableBufferTree]struct{}
+	peakLive int
+	distinct map[*resizeableBufferTree]struct{}
+}
+
+func newCountingPool(pool *TreePool) *countingPool {
+	return &countingPool{
+		TreePool: pool,
+		live:     make(map[*resizeableBufferTree]struct{}),
+		distinct: make(map[*resizeableBufferTree]struct{}),
+	}
+}
+
+func (c *countingPool) NewConstructor(squareSize uint) rsmt2d.TreeConstructorFn {
+	construct := c.TreePool.NewConstructor(squareSize)
+	return func(axis rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
+		tree := construct(axis, axisIndex).(*resizeableBufferTree)
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		c.live[tree] = struct{}{}
+		c.distinct[tree] = struct{}{}
+		c.peakLive = max(c.peakLive, len(c.live))
+		return countingTree{tree: tree, pool: c}
+	}
+}
+
+// countingTree marks its tree as no longer live once rsmt2d takes its root.
+type countingTree struct {
+	tree *resizeableBufferTree
+	pool *countingPool
+}
+
+func (t countingTree) Push(data []byte) error { return t.tree.Push(data) }
+
+func (t countingTree) Root() ([]byte, error) {
+	t.pool.mu.Lock()
+	delete(t.pool.live, t.tree)
+	t.pool.mu.Unlock()
+	return t.tree.Root()
+}
+
+// TestTreePoolBoundsLiveTreesUnderConcurrency asserts that the pool still caps
+// live trees at poolSize when rsmt2d drives it. rsmt2d limits its root
+// computation errgroup to TreeCount(), so it never asks for more trees than the
+// pool holds and acquire never reaches its allocation path.
+func TestTreePoolBoundsLiveTreesUnderConcurrency(t *testing.T) {
+	const (
+		poolSize     = 4
+		originalSize = 8 // 8x8 original data square, so rsmt2d computes 32 roots
+	)
+	pool, err := NewTreePool(originalSize, poolSize)
+	require.NoError(t, err)
+	counting := newCountingPool(pool)
+
+	eds, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(ascendingNamespaceShares(originalSize), appconsts.DefaultCodec(), counting)
+	require.NoError(t, err)
+	_, err = eds.RowRoots()
+	require.NoError(t, err)
+	_, err = eds.ColRoots()
+	require.NoError(t, err)
+
+	counting.mu.Lock()
+	defer counting.mu.Unlock()
+	require.LessOrEqual(t, counting.peakLive, poolSize, "rsmt2d held more trees at once than the pool size")
+	require.LessOrEqual(t, len(counting.distinct), poolSize, "the pool handed out more distinct trees than the pool size")
 }
 
 // TestTreePoolSurvivesFailedRootComputations asserts that a valid square can
