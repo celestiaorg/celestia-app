@@ -14,6 +14,10 @@ import (
 type TreePool struct {
 	availableNMTs chan *resizeableBufferTree
 	poolSize      int
+	// squareSize and opts are retained so that acquire can allocate a
+	// replacement tree when the pool is empty.
+	squareSize uint
+	opts       []nmt.Option
 }
 
 // DefaultPreallocatedTreePool creates a new TreePool with a default pool size
@@ -29,6 +33,8 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 	pool := &TreePool{
 		availableNMTs: make(chan *resizeableBufferTree, poolSize),
 		poolSize:      poolSize,
+		squareSize:    initSquareSize,
+		opts:          opts,
 	}
 
 	// initialize the pool with trees configured for initSquareSize
@@ -43,14 +49,41 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 	return pool, nil
 }
 
-// acquire retrieves a resizeableBufferTree from the pool.
+// acquire retrieves a resizeableBufferTree from the pool, allocating a new one
+// if the pool is empty.
+//
+// A tree is only returned to the pool by Root, but rsmt2d abandons the tree it
+// was handed whenever a root computation returns early, for example when a
+// share is pushed out of namespace order. Waiting for a release would therefore
+// stall the caller indefinitely inside the ABCI PrepareProposal or
+// ProcessProposal call once enough trees have been abandoned. Allocating
+// instead keeps the caller moving, and release restores the pool to its
+// configured size on the next successful root computation.
 func (p *TreePool) acquire() *resizeableBufferTree {
-	return <-p.availableNMTs
+	select {
+	case tree := <-p.availableNMTs:
+		return tree
+	default:
+	}
+
+	tree, err := newResizeableBufferTree(p.squareSize, 0, p, p.opts...)
+	if err != nil {
+		// Unreachable: NewTreePool already built poolSize trees from this same
+		// square size and these same options. Wait for a release rather than
+		// hand rsmt2d a nil tree.
+		return <-p.availableNMTs
+	}
+	return tree
 }
 
-// release returns a resizeableBufferTree to the pool for reuse.
+// release returns a resizeableBufferTree to the pool for reuse. A tree that
+// acquire allocated while the pool was empty can arrive when the pool is
+// already at capacity; drop it for the garbage collector rather than block.
 func (p *TreePool) release(tree *resizeableBufferTree) {
-	p.availableNMTs <- tree
+	select {
+	case p.availableNMTs <- tree:
+	default:
+	}
 }
 
 // TreeCount returns the number of trees in the pool.
