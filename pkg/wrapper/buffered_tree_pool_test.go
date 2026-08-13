@@ -10,22 +10,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// acquireTimeout bounds how long a test waits for a pool operation that must
-// not block.
+// acquireTimeout bounds how long a test waits for an operation that must not
+// block.
 const acquireTimeout = 5 * time.Second
 
-// newShareWithNamespaceID returns a share whose namespace is version 0 with the
-// provided last byte of the namespace ID.
+// newShareWithNamespaceID returns a share in version 0 namespace id.
 func newShareWithNamespaceID(id byte) []byte {
 	s := make([]byte, share.ShareSize)
 	s[share.NamespaceSize-1] = id
 	return s
 }
 
-// descendingNamespaceSquare returns the four shares of a 2x2 original data
-// square whose first row has descending namespaces. Computing the root of row 0
-// therefore fails inside nmt.Push, which is the error path that returns to
-// rsmt2d without ever calling Root.
+// descendingNamespaceSquare returns a 2x2 original data square whose first row
+// has descending namespaces, so computing its row root fails inside nmt.Push
+// and rsmt2d abandons the tree without calling Root.
 func descendingNamespaceSquare() [][]byte {
 	return [][]byte{
 		newShareWithNamespaceID(0x05), newShareWithNamespaceID(0x01),
@@ -33,8 +31,7 @@ func descendingNamespaceSquare() [][]byte {
 	}
 }
 
-// ascendingNamespaceSquare returns the four shares of a valid 2x2 original data
-// square.
+// ascendingNamespaceSquare returns a valid 2x2 original data square.
 func ascendingNamespaceSquare() [][]byte {
 	return [][]byte{
 		newShareWithNamespaceID(0x01), newShareWithNamespaceID(0x02),
@@ -42,10 +39,10 @@ func ascendingNamespaceSquare() [][]byte {
 	}
 }
 
-// computeRoots extends the square using the pool and computes its roots, the
-// same pair of calls that PrepareProposal and ProcessProposal run. It reports
-// false if the computation did not finish within acquireTimeout.
-func computeRoots(shares [][]byte, pool *TreePool) (err error, finished bool) {
+// computeRoots extends the square using the pool and computes its roots, like
+// PrepareProposal and ProcessProposal do. finished is false if the computation
+// blocked for longer than acquireTimeout.
+func computeRoots(shares [][]byte, pool *TreePool) (finished bool, err error) {
 	done := make(chan error, 1)
 	go func() {
 		eds, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(shares, appconsts.DefaultCodec(), pool)
@@ -63,21 +60,20 @@ func computeRoots(shares [][]byte, pool *TreePool) (err error, finished bool) {
 
 	select {
 	case err := <-done:
-		return err, true
+		return true, err
 	case <-time.After(acquireTimeout):
-		return nil, false
+		return false, nil
 	}
 }
 
-// TestTreePoolAcquireDoesNotBlockWhenEmpty asserts that acquiring from a drained
-// pool allocates a tree instead of blocking. rsmt2d abandons a tree whenever a
-// root computation returns early, so the pool has to tolerate losing trees.
+// TestTreePoolAcquireDoesNotBlockWhenEmpty asserts that acquire allocates a tree
+// instead of blocking when the pool is empty.
 func TestTreePoolAcquireDoesNotBlockWhenEmpty(t *testing.T) {
 	poolSize := 2
 	pool, err := NewTreePool(2, poolSize)
 	require.NoError(t, err)
 
-	// Drop every tree on the floor, the way an abandoned tree is lost.
+	// Drop every tree on the floor, the way rsmt2d abandons one.
 	for range poolSize {
 		require.NotNil(t, pool.acquire())
 	}
@@ -97,8 +93,8 @@ func TestTreePoolAcquireDoesNotBlockWhenEmpty(t *testing.T) {
 	}
 }
 
-// TestTreePoolReleaseDoesNotBlockWhenFull asserts that releasing a tree the pool
-// has no room for drops it rather than blocking the caller.
+// TestTreePoolReleaseDoesNotBlockWhenFull asserts that release drops a tree
+// instead of blocking when the pool is full.
 func TestTreePoolReleaseDoesNotBlockWhenFull(t *testing.T) {
 	pool, err := NewTreePool(2, 1)
 	require.NoError(t, err)
@@ -124,20 +120,19 @@ func TestTreePoolReleaseDoesNotBlockWhenFull(t *testing.T) {
 
 // TestTreePoolSurvivesFailedRootComputations asserts that a valid square can
 // still be processed after more failed root computations than the pool holds
-// trees. Each failure abandons a tree, so a pool that neither reclaims nor
-// replaces them would block here forever, inside the ABCI call.
+// trees, because each failure abandons a tree.
 func TestTreePoolSurvivesFailedRootComputations(t *testing.T) {
 	poolSize := 4
 	pool, err := NewTreePool(2, poolSize)
 	require.NoError(t, err)
 
 	for i := range poolSize + 1 {
-		err, finished := computeRoots(descendingNamespaceSquare(), pool)
+		finished, err := computeRoots(descendingNamespaceSquare(), pool)
 		require.True(t, finished, "failed root computation %d did not return", i+1)
 		require.Error(t, err)
 	}
 
-	err, finished := computeRoots(ascendingNamespaceSquare(), pool)
+	finished, err := computeRoots(ascendingNamespaceSquare(), pool)
 	require.True(t, finished, "computing the roots of a valid square blocked forever")
 	require.NoError(t, err)
 }
