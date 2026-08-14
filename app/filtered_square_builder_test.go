@@ -32,6 +32,11 @@ func TestSeparateTxs(t *testing.T) {
 	normalTx := newNormalTx(t, txConfig)
 	blobTx := blobfactory.UnsignedBlobTx(t)
 
+	// dupFieldTx duplicates the top-level body_bytes (field 1) field by
+	// prepending a second occurrence to an otherwise honest tx.
+	dupFieldTx := appendBytesField(nil, 1, []byte("extra"))
+	dupFieldTx = append(dupFieldTx, normalTx...)
+
 	tests := []struct {
 		name     string
 		rawTxs   [][]byte
@@ -63,6 +68,13 @@ func TestSeparateTxs(t *testing.T) {
 		{
 			name:     "undecodable tx is dropped",
 			rawTxs:   [][]byte{[]byte("garbage")},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
+		{
+			name:     "duplicate TxRaw field tx is dropped",
+			rawTxs:   [][]byte{dupFieldTx},
 			wantNorm: 0,
 			wantBlob: 0,
 			wantPFF:  0,

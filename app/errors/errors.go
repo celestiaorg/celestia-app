@@ -15,4 +15,7 @@ var (
 
 	// ErrTxExceedsMaxSDKMessages is returned when an SDK tx contains more messages than a single block may ever include.
 	ErrTxExceedsMaxSDKMessages = errors.Register(AppErrorsCodespace, 11143, "transaction exceeds maximum allowed SDK message count")
+
+	// ErrDuplicateTxRawField is returned when a transaction duplicates a top-level TxRaw field that ADR-027 requires to be unique.
+	ErrDuplicateTxRawField = errors.Register(AppErrorsCodespace, 11144, "transaction contains a duplicate TxRaw field")
 )

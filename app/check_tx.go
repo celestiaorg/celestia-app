@@ -33,6 +33,17 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
+	// Reject transactions that duplicate a top-level TxRaw field. The SDK
+	// decoder and go-square parse these bytes with schemas that disagree about
+	// duplicated fields, so keep the ambiguous encoding out of the mempool.
+	sdkTxBytes := tx
+	if isBlob {
+		sdkTxBytes = btx.Tx
+	}
+	if hasDuplicateTxRawField(sdkTxBytes) {
+		return responseCheckTxWithEvents(apperr.ErrDuplicateTxRawField, 0, 0, []abci.Event{}, false), apperr.ErrDuplicateTxRawField
+	}
+
 	if isBlob {
 		return app.handleBlobCheckTx(req, btx)
 	}
