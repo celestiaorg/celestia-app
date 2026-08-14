@@ -13,14 +13,22 @@ import (
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/stretchr/testify/require"
 )
 
-func TestMsgExecDecorator(t *testing.T) {
+func TestNestedMsgDecorator(t *testing.T) {
 	msgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&banktypes.MsgSend{}})
 	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
 	nestedMsgPayForBlobs := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&blobtypes.MsgPayForBlobs{}})
 	nestedMsgPayForFibre := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&fibretypes.MsgPayForFibre{}})
+
+	proposalWithMsgSend := newMsgSubmitProposal(t, &banktypes.MsgSend{})
+	proposalWithMsgExec := newMsgSubmitProposal(t, &msgExec)
+	proposalWithNestedProposal := newMsgSubmitProposal(t, newMsgSubmitProposal(t, &banktypes.MsgSend{}))
+	proposalWithPayForBlobs := newMsgSubmitProposal(t, &blobtypes.MsgPayForBlobs{})
+	proposalWithPayForFibre := newMsgSubmitProposal(t, &fibretypes.MsgPayForFibre{})
+	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
 		name    string
@@ -47,9 +55,49 @@ func TestMsgExecDecorator(t *testing.T) {
 			msg:     &nestedMsgPayForFibre,
 			wantErr: sdkerrors.ErrNotSupported,
 		},
+		{
+			name:    "Accept top-level MsgPayForBlobs",
+			msg:     &blobtypes.MsgPayForBlobs{},
+			wantErr: nil,
+		},
+		{
+			name:    "Accept top-level MsgPayForFibre",
+			msg:     &fibretypes.MsgPayForFibre{},
+			wantErr: nil,
+		},
+		{
+			name:    "Accept proposal with MsgSend",
+			msg:     proposalWithMsgSend,
+			wantErr: nil,
+		},
+		{
+			name:    "Reject proposal with MsgPayForBlobs",
+			msg:     proposalWithPayForBlobs,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with MsgPayForFibre",
+			msg:     proposalWithPayForFibre,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with MsgExec",
+			msg:     proposalWithMsgExec,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with nested proposal",
+			msg:     proposalWithNestedProposal,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject MsgExec with proposal",
+			msg:     &msgExecWithProposal,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
 	}
 
-	decorator := ante.NewMsgExecDecorator()
+	decorator := ante.NewNestedMsgDecorator()
 	cdc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	anteHandler := sdk.ChainAnteDecorators(decorator)
 
@@ -70,4 +118,12 @@ func TestMsgExecDecorator(t *testing.T) {
 			}
 		})
 	}
+}
+
+// newMsgSubmitProposal creates a proposal from msgs.
+func newMsgSubmitProposal(t *testing.T, msgs ...sdk.Msg) *govv1.MsgSubmitProposal {
+	t.Helper()
+	proposal := &govv1.MsgSubmitProposal{}
+	require.NoError(t, proposal.SetMsgs(msgs))
+	return proposal
 }
