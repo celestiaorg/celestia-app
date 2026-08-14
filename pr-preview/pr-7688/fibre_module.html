@@ -481,7 +481,7 @@ message EventProcessedPaymentPruned {
 <tr><td><code>payment_promise_timeout</code></td><td><code>1h</code></td><td>Must be between <code>10m</code> and <code>12h</code></td><td>Defines normal promise expiration and when timeout processing becomes valid</td></tr>
 <tr><td><code>payment_promise_height_window</code></td><td><code>1000</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
 <tr><td><code>shard_retention</code></td><td><code>4h</code></td><td>Must be between <code>10m</code> and <code>168h</code></td><td>Sets the local retention floor validators apply to uploaded shards</td></tr>
-<tr><td><code>full_stake_storage_budget</code></td><td><code>256GiB</code></td><td>Must be positive</td><td>Caps the Fibre disk a 100%-stake validator uses over one <code>shard_retention</code> window; each node derives its own budget from its assigned stake share</td></tr>
+<tr><td><code>full_stake_storage_budget</code></td><td><code>2TiB</code></td><td>Must be positive</td><td>Caps the Fibre disk a 100%-stake validator uses over one <code>shard_retention</code> window; each node derives its own budget from its assigned stake share</td></tr>
 </tbody></table>
 </div>
 <p>The processed-payment retention window is not a governance parameter; it is derived as <code>withdrawal_delay + 10m</code> and exposed by <code>Params.PaymentPromiseRetentionWindow()</code> (see the last paragraph for why).</p>

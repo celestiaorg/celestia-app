@@ -187,7 +187,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>fibre.PaymentPromiseTimeout</td><td>1h</td><td>Age at which an unsettled fibre payment promise becomes settleable via <code>MsgPaymentPromiseTimeout</code>. Bounded to [10m, 12h].</td><td>True</td></tr>
 <tr><td>fibre.PaymentPromiseHeightWindow</td><td>1000</td><td>Maximum age in blocks of the validator-set height referenced by a fibre payment promise.</td><td>True</td></tr>
 <tr><td>fibre.ShardRetention</td><td>4h</td><td>Minimum duration fibre servers keep uploaded shards before pruning. Bounded to [10m, 168h].</td><td>True</td></tr>
-<tr><td>fibre.FullStakeStorageBudget</td><td>274877906944 (256 GiB)</td><td>Caps the fibre disk usage of a hypothetical 100%-stake validator over one shard retention window; each server derives its own stake-proportional budget from it.</td><td>True</td></tr>
+<tr><td>fibre.FullStakeStorageBudget</td><td>2199023255552 (2 TiB)</td><td>Caps the fibre disk usage of a hypothetical 100%-stake validator over one shard retention window; each server derives its own stake-proportional budget from it.</td><td>True</td></tr>
 <tr><td>gov.MaxDepositPeriod</td><td>604800000000000 (1 week)</td><td>Maximum period for token holders to deposit on a proposal in nanoseconds.</td><td>True</td></tr>
 <tr><td>gov.MinDeposit</td><td>10_000_000_000 utia (10,000 TIA)</td><td>Minimum deposit for a proposal to enter voting period.</td><td>True</td></tr>
 <tr><td>gov.Quorum</td><td>0.334 (33.4%)</td><td>Minimum percentage of total stake needed to vote for a result to be considered valid.</td><td>True</td></tr>
