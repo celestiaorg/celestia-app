@@ -7,7 +7,7 @@ has to be — some nodes skip verification via the cache, and gas must be the
 same for everyone). So instead of metering the work, the chain charges a flat
 fee, from `pkg/appconsts/fibre_gas_consts.go`:
 
-```
+```text
 gas = 75_000 + 1_000 per validator signature
 ```
 
@@ -32,7 +32,7 @@ take totals at several n and work out the base fee and the rate.
 Draw the best straight line through those four points
 (`TestPFFGasConstantsVsMeasuredCost` does this):
 
-```
+```text
 time(n) ≈ 69 µs  +  20.7 µs × n
           base      per signature
 ```
