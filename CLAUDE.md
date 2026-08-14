@@ -98,7 +98,7 @@ All branches use forked cosmos-sdk and celestia-core:
 
 ### Documentation
 
-- Aim for simplicity. Short sentences, never long ones.
+- Aim for simplicity. Prefer short sentences.
 - No unnecessary calculations unless specified.
 - No unnecessary explanations unless requested.
 
