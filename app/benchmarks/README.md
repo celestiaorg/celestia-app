@@ -5,6 +5,7 @@ This package contains benchmarks for the ABCI methods with the following transac
 - Message send
 - IBC update client
 - PayForBlobs
+- PayForFibre (see [results_fibre.md](results_fibre.md) for the fibre gas constant calibration)
 
 ## How to Run
 
