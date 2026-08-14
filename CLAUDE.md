@@ -88,7 +88,7 @@ All branches use forked cosmos-sdk and celestia-core:
 ### PRs
 
 - PR titles follow [conventional commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `chore:`, `feat!:`).
-- PR descriptions are as simple as possible. Omitting unnecessary details is a rule that is always followed.
+- PR descriptions are as simple as possible. Omit unnecessary details.
 - Keep PRs under 700 lines of code. If more is needed, propose a split into separate PRs that can each be implemented, tested, and reviewed independently.
 
 ### Issues
