@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -30,6 +31,10 @@ func TestSeparateTxsFibre(t *testing.T) {
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	multiPayForFibreTx := newMultiPayForFibreTx(t, txConfig)
 	mixedPayForFibreTx := newMixedPayForFibreTx(t, txConfig)
+	reservedNamespacePayForFibreTx := newPayForFibreTxWithNamespace(t, txConfig, share.TxNamespace.Bytes())
+	unsupportedBlobVersionPayForFibreTx := newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+		msg.PaymentPromise.BlobVersion = 999
+	})
 
 	tests := []struct {
 		name     string
@@ -69,6 +74,20 @@ func TestSeparateTxsFibre(t *testing.T) {
 		{
 			name:     "tx with MsgPayForFibre mixed with MsgSend is dropped",
 			rawTxs:   [][]byte{mixedPayForFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
+		{
+			name:     "tx promising a reserved namespace is dropped",
+			rawTxs:   [][]byte{reservedNamespacePayForFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
+		{
+			name:     "tx promising an unsupported blob version is dropped",
+			rawTxs:   [][]byte{unsupportedBlobVersionPayForFibreTx},
 			wantNorm: 0,
 			wantBlob: 0,
 			wantPFF:  0,

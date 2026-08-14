@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -139,8 +138,9 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 }
 
 // validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other
-// messages, and txs whose payment promise names a namespace that cannot hold a
-// blob.
+// messages, and txs whose payment promise fails stateless validation. Both
+// CheckTx and ProcessProposal call this, so a promise that would fail
+// ValidateBasic in FinalizeBlock never reaches the square.
 func validatePayForFibreTxShape(tx sdk.Tx) error {
 	msgs := tx.GetMsgs()
 	for _, msg := range msgs {
@@ -151,22 +151,9 @@ func validatePayForFibreTxShape(tx sdk.Tx) error {
 		if len(msgs) > 1 {
 			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
 		}
-		if err := validatePayForFibreNamespace(pff.PaymentPromise.Namespace); err != nil {
-			return err
+		if err := pff.PaymentPromise.ValidateBasic(); err != nil {
+			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise: %s", err)
 		}
-	}
-	return nil
-}
-
-// validatePayForFibreNamespace rejects a payment promise namespace that a blob
-// may not occupy.
-func validatePayForFibreNamespace(namespace []byte) error {
-	ns, err := share.NewNamespaceFromBytes(namespace)
-	if err != nil {
-		return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise namespace: %s", err)
-	}
-	if err := ns.ValidateForBlob(); err != nil {
-		return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise namespace: %s", err)
 	}
 	return nil
 }
