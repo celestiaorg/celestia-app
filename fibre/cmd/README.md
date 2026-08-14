@@ -2,6 +2,17 @@
 
 Standalone binary for the Fibre data availability server.
 
+## Prerequisites
+
+Before starting, make sure:
+
+- [ ] A `celestia-appd` node runs on the same host (or a trusted host-local network). The server's app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected — see [Transport security](#transport-security-tls).
+- [ ] The chain is on **app version 10 or later**. The `x/fibre` and `x/valaddr` modules the server depends on do not exist in earlier versions.
+- [ ] The node's application gRPC endpoint is enabled (default `127.0.0.1:9090`).
+- [ ] The node's privval gRPC endpoint is enabled — see [Signing](#signing). If the consensus key lives in an external KMS, the KMS must support the privval `SignRawBytes` message; see the [release notes](../../docs/release-notes/release-notes.md) for the KMS policy.
+- [ ] The fibre listen port (default `7980`) is reachable by clients from outside your network.
+- [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set gets no budget and no traffic.
+
 ## Install
 
 ### Prebuilt binary
@@ -100,6 +111,31 @@ To verify or override, check `config.toml`:
 ```toml
 priv_validator_grpc_laddr = "127.0.0.1:26669"
 ```
+
+## Registration
+
+A running server alone receives no traffic: fibre clients discover servers through the on-chain [`x/valaddr`](../../x/valaddr/README.md) registry and only dial hosts registered there. Once the server is up, register its publicly reachable address, signing with your validator's account key:
+
+```sh
+celestia-appd tx valaddr set-host 203.0.113.7:7980 --from <validator-account-key>
+```
+
+The host must be in `host:port` form — an IP literal or a DNS name both work (TLS identity is bound to your consensus key, not the network address; see [Transport security](#transport-security-tls)). Port range is [1, 65535], the whole string is capped at 100 characters, and schemes (`http://`, `dns:///`) or URL paths are rejected.
+
+Verify the registration (your consensus address is printed by `celestia-appd comet show-address`):
+
+```sh
+celestia-appd query valaddr provider <celestiavalcons-address>
+```
+
+`celestia-appd query valaddr providers` lists the registered hosts of all currently bonded validators — yours should appear there once you are bonded.
+
+### When to register
+
+- `set-host` is only accepted once the chain runs app version 10; before the v10 upgrade activates, the `x/valaddr` module does not exist and the transaction is rejected.
+- Prepare everything else — install the binary, configure the signer links, verify the KMS supports `SignRawBytes` — before the upgrade, then start the server and register once v10 is live.
+- Start the server **before** registering: a registered-but-unreachable host makes clients dial and time out against you.
+- Registration is persistent. Re-run `set-host` only when the address changes. The entry is garbage-collected automatically if your validator permanently leaves the set (removed from staking, or jailed and unbonded for over 7 days) — after coming back, register again.
 
 ## Transport security (TLS)
 
@@ -285,6 +321,32 @@ fibre start \
 ```
 
 Profiles are tagged with `version` and `hostname` for filtering in the Grafana UI.
+
+## Troubleshooting
+
+### `starting server: creating signer: ...`
+
+The server could not reach the node's privval gRPC endpoint at startup and exits. Check that the node is running, that `priv_validator_grpc_laddr` is set in the node's `config.toml`, and that `--signer-grpc-address` (or `signer_grpc_address` in `server_config.toml`) points at it.
+
+### Warning: `derived storage budget is 0 (validator not in the active set?)`
+
+The server started, but the app node reports no stake for your validator. Either the validator is not bonded, or `--app-grpc-address` points at a node that is still syncing (or at the wrong network). The server keeps running without a storage limit and re-derives the budget periodically.
+
+### Server runs but no uploads arrive
+
+Clients only dial registered, bonded validators. In order:
+
+1. `celestia-appd query valaddr provider <celestiavalcons-address>` — if `found: false`, [register](#registration).
+2. Check the registered `host:port` actually routes to this server's `server_listen_address` port through your firewall — from an outside machine, a TCP connect to it must succeed.
+3. Confirm the validator is bonded: unbonded validators are omitted from `query valaddr providers`, so clients never see them.
+
+### Clients report TLS identity verification failures
+
+Clients verify that the server's certificate is endorsed by the consensus key of the validator they picked from the registry. A mismatch means the privval endpoint the server signs through does not hold the consensus key the chain knows for your validator — typical after pointing `--signer-grpc-address` at the wrong node (e.g. a sentry with its own key). The certificate is minted once at startup, so restart the server after any signer change.
+
+### Uploads rejected with `payment promise verification failed`
+
+The server validates every upload's payment promise against the app node. A chain-ID mismatch means `--app-grpc-address` points at a different network than the client used. Other causes sit on the submitter's side — an underfunded escrow account or a stale promise height — and resolve there, not on the server.
 
 ## Signals
 
