@@ -26,10 +26,9 @@ var (
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
 	// minimum local duration validators keep uploaded shards, decoupled from PaymentPromiseTimeout.
 	DefaultShardRetention = 4 * time.Hour
-	// DefaultFullStakeStorageBudget is a conservative placeholder for the ramp-up.
-	// The real value is a governance decision (see PROTOCO tracking issue); it caps
-	// the Fibre disk of a 100%-stake validator over one ShardRetention window.
-	DefaultFullStakeStorageBudget uint64 = 256 << 30 // 256 GiB (~18 MiB/s full-stake)
+	// DefaultFullStakeStorageBudget caps the Fibre disk of a 100%-stake validator
+	// over one ShardRetention window.
+	DefaultFullStakeStorageBudget uint64 = 2 << 40 // 2 TiB (~146 MiB/s full-stake)
 )
 
 const (
