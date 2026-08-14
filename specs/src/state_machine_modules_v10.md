@@ -5,10 +5,12 @@ The modules used in app version 10 are:
 ## `celestia-app` modules
 
 - [blob](https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/x/blob/README.md)
+- [fibre](https://github.com/celestiaorg/celestia-app/blob/main/x/fibre/README.md)
 - [forwarding](https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/x/forwarding/README.md)
 - [minfee](https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/x/minfee/README.md)
 - [mint](https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/x/mint/README.md)
 - [signal](https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/x/signal/README.md)
+- [valaddr](https://github.com/celestiaorg/celestia-app/blob/main/x/valaddr/README.md)
 - [zkism](https://github.com/celestiaorg/celestia-app/blob/6c0c859444c0b2d7f22051a5c9058b43d466d2a0/x/zkism/README.md)
 
 ## `cosmos-sdk` modules
