@@ -137,3 +137,5 @@ All branches use forked cosmos-sdk and celestia-core:
 
 - Never hallucinate an answer. Find the definitive answer or ask the user for more information.
 - For internet searches, always actually search and show the links used to find the information.
+4. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
+5. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
