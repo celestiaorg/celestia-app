@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -23,6 +24,16 @@ const (
 	GCDefaultObservabilityMachineType = "e2-highmem-4"
 	GCDefaultImage                    = "projects/ubuntu-os-cloud/global/images/family/ubuntu-2404-lts-amd64"
 	GCDefaultDiskSizeGB               = 400
+	// GCDefaultDiskType hyperdisk-balanced is GCP's gp3 equivalent: IOPS and throughput are
+	// provisioned independently of disk size. Match the AWS provisioning
+	// (16k IOPS / 1000 MB/s) so the disk doesn't bottleneck fibre's shard
+	// store. c3d-highcpu-16 allows up to 75k IOPS / 1200 MiB/s per
+	// instance; c3d-highcpu-8 caps at 50k IOPS / 800 MiB/s, so shapes with
+	// fewer than 16 vCPUs clamp throughput to 800.
+	GCDefaultDiskType                    = "hyperdisk-balanced"
+	GCDefaultProvisionedIops             = int64(16000)
+	GCDefaultProvisionedThroughputMBs    = int64(1000)
+	GCSmallShapeProvisionedThroughputMBs = int64(800)
 )
 
 var (
@@ -461,6 +472,39 @@ func CreateGCInstances(ctx context.Context, project string, insts []Instance, ss
 	return created, nil
 }
 
+// gcDiskInitializeParams returns the boot-disk parameters for an instance.
+// C3D shapes get a hyperdisk-balanced disk provisioned to match the AWS gp3
+// defaults; other machine families (e.g. the e2 observability node) don't
+// support hyperdisk and keep the API's default disk type.
+func gcDiskInitializeParams(inst Instance, zone string) *computepb.AttachedDiskInitializeParams {
+	params := &computepb.AttachedDiskInitializeParams{
+		SourceImage: new(GCDefaultImage),
+		DiskSizeGb:  &diskSizeGB,
+	}
+
+	if !strings.HasPrefix(inst.Slug, "c3d-") {
+		return params
+	}
+
+	params.DiskType = new(fmt.Sprintf("zones/%s/diskTypes/%s", zone, GCDefaultDiskType))
+	params.ProvisionedIops = new(GCDefaultProvisionedIops)
+	params.ProvisionedThroughput = new(gcProvisionedThroughputMBs(inst.Slug))
+	return params
+}
+
+// gcProvisionedThroughputMBs picks the provisioned throughput for a C3D
+// machine type: shapes with 16+ vCPUs allow the full 1000 MiB/s, smaller
+// shapes are capped at 800 MiB/s by GCE. Falls back to the conservative
+// value when the vCPU count can't be parsed from the slug.
+func gcProvisionedThroughputMBs(slug string) int64 {
+	parts := strings.Split(slug, "-")
+	vcpus, err := strconv.Atoi(parts[len(parts)-1])
+	if err != nil || vcpus < 16 {
+		return GCSmallShapeProvisionedThroughputMBs
+	}
+	return GCDefaultProvisionedThroughputMBs
+}
+
 func createGCInstance(ctx context.Context, project string, inst Instance, zone string, sshKey string, opts []option.ClientOption) (string, string, error) {
 	client, err := compute.NewInstancesRESTClient(ctx, opts...)
 	if err != nil {
@@ -477,7 +521,6 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 	sshKeyMetadata := fmt.Sprintf("%s:%s", username, strings.TrimSpace(sshKey))
 
 	machineType := fmt.Sprintf("zones/%s/machineTypes/%s", zone, inst.Slug)
-	sourceImage := GCDefaultImage
 
 	req := &computepb.InsertInstanceRequest{
 		Project: project,
@@ -491,12 +534,9 @@ func createGCInstance(ctx context.Context, project string, inst Instance, zone s
 			},
 			Disks: []*computepb.AttachedDisk{
 				{
-					Boot:       &boolTrue,
-					AutoDelete: &boolTrue,
-					InitializeParams: &computepb.AttachedDiskInitializeParams{
-						SourceImage: &sourceImage,
-						DiskSizeGb:  &diskSizeGB,
-					},
+					Boot:             &boolTrue,
+					AutoDelete:       &boolTrue,
+					InitializeParams: gcDiskInitializeParams(inst, zone),
 				},
 			},
 			NetworkInterfaces: []*computepb.NetworkInterface{

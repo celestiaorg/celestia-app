@@ -66,9 +66,9 @@ func NewAnteHandler(
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
 		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
-		// Ensure that the tx does not contain a MsgExec with a nested MsgExec
-		// or MsgPayForBlobs.
-		NewMsgExecDecorator(),
+		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
+		// wrapped inside a MsgExec or MsgSubmitProposal.
+		NewNestedMsgDecorator(),
 		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).

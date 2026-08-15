@@ -358,7 +358,7 @@ service Fibre {
 
 `BlobShard.rlcs` contains the serialized full original-row RLC vector, not only coefficients for the returned rows.
 
-The default Fibre gRPC client resolves a validator host from the state client's host registry and uses TLS with validator consensus-key identity verification.
+The default Fibre gRPC client resolves a validator host from the state client's host registry and uses TLS with validator consensus-key identity verification, as specified in [Fibre TLS Identity](./fibre_tls_identity.md).
 
 ## 8) Upload Flow
 

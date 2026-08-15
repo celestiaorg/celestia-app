@@ -63,4 +63,5 @@ Celestia App Specifications
   - [Fibre Module](./fibre_module.md)
   - [Fibre Registry Module](./fibre_registry_module.md)
   - [Fibre Encoding](./fibre_encoding.md)
+  - [Fibre TLS Identity](./fibre_tls_identity.md)
 - [REST API Reference](./rest_api.md)

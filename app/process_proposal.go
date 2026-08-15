@@ -112,15 +112,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			if payForFibre, ok := payForFibreMsg(sdkTx); ok {
+			_, isPFF := payForFibreMsg(sdkTx)
+			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
-					return reject(), nil
-				}
-
-				if _, err := app.FibreKeeper.ValidatePaymentPromiseStateful(ctx, &payForFibre.PaymentPromise); err != nil {
-					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre validation failed %d", idx), err)
 					return reject(), nil
 				}
 			} else {
@@ -138,6 +134,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, "failure to increment sequence", err)
 				return reject(), nil
+			}
+
+			// Settle after ante so later promises see the updated state and the tx
+			// pays the same gas it would in FinalizeBlock.
+			if isPFF {
+				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
+					return reject(), nil
+				}
 			}
 
 			// The non-blob path is complete; blob-specific checks below do not apply.

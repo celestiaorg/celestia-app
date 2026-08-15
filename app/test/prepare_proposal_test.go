@@ -588,3 +588,70 @@ func TestPrepareProposalFiltersPayForFibre(t *testing.T) {
 	require.Len(t, resp.Txs, 1)
 	require.True(t, bytes.Equal(validTx, resp.Txs[0]))
 }
+
+func TestPrepareProposalPayForFibreDoubleSpend(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	payment := fibretypes.PaymentAmount(100).Amount.Int64()
+
+	// accounts[0] affords one payment, accounts[1] and accounts[2] afford two.
+	// Funding the duplicate pair's account for both payments makes its second
+	// tx fail on the processed-payment record rather than the balance.
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), payment)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 2*payment)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[2]), 2*payment)
+
+	base := time.Now()
+	tests := []struct {
+		name     string
+		txs      [][]byte
+		wantKept int
+	}{
+		{
+			name:     "drops second promise that would overdraw the escrow",
+			txs:      newPayForFibreTxPair(t, newSigner(0), accounts[0], base.Add(-2*time.Second), base.Add(-time.Second)),
+			wantKept: 1,
+		},
+		{
+			name:     "drops second tx carrying a duplicate promise",
+			txs:      newPayForFibreTxPair(t, newSigner(1), accounts[1], base, base),
+			wantKept: 1,
+		},
+		{
+			name:     "keeps both promises the escrow can cover",
+			txs:      newPayForFibreTxPair(t, newSigner(2), accounts[2], base.Add(-2*time.Second), base.Add(-time.Second)),
+			wantKept: 2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Prepare and process must see the same block time: promise
+			// freshness and expiry are judged against it.
+			now := time.Now()
+			height := testApp.LastBlockHeight() + 1
+
+			prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    tc.txs,
+				Height: height,
+				Time:   now,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.txs[:tc.wantKept], prepareResp.Txs)
+
+			processResp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+				Height:       height,
+				Time:         now,
+				Txs:          prepareResp.Txs,
+				DataRootHash: prepareResp.DataRootHash,
+				SquareSize:   prepareResp.SquareSize,
+			})
+			require.NoError(t, err)
+			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status, "prepared block must pass process")
+		})
+	}
+}
