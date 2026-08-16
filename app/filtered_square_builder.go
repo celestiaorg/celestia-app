@@ -218,6 +218,7 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 //   - transactions that fail SDK decoding
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
+//   - transactions whose payment promise fails stateless validation
 func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
@@ -253,15 +254,14 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 			continue
 		}
 
-		// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
-		// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
-		pffCount := countMsgPayForFibre(sdkTx)
-		if pffCount == 1 && len(sdkTx.GetMsgs()) == 1 {
+		if countMsgPayForFibre(sdkTx) > 0 {
+			// Reuse the predicate ProcessProposal enforces so a proposer never
+			// builds a block its own ProcessProposal would reject.
+			if err := validatePayForFibreTxShape(sdkTx); err != nil {
+				logger.Debug("dropping invalid pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
+				continue
+			}
 			payForFibreTxs = append(payForFibreTxs, rawTx)
-			continue
-		}
-		if pffCount > 0 {
-			// Drop invalid txs: multiple MsgPayForFibre or mixed with other messages.
 			continue
 		}
 
