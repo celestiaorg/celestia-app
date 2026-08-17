@@ -10,16 +10,22 @@ Scope: celestia-app only. Networking and consensus internals (peer channels, rea
 
 **Why:** Any divergence causes app hash mismatches, which halt the chain.
 
-**Concrete rules:**
+**Concrete rules:** A state transition may depend only on committed state and the block being executed. Anything else is a determinism bug. Common sources:
 
 - No iteration over Go maps where order affects state, events, or gas consumption. Sort keys first.
-- No `time.Now()` in state transitions. Use the block time from the context.
-- No randomness, floats, or goroutine timing in state transitions.
+- No `time.Now()` or other wall-clock reads. Use the block time from the context.
+- No randomness: `math/rand`, `crypto/rand`, or `select` over multiple ready channels.
+- No floating point arithmetic. Use integers or the SDK math types.
+- No goroutines or concurrency whose scheduling can affect state.
+- No external inputs: no network calls (RPC, HTTP APIs), no filesystem access outside the store, no external databases, no invoking external processes or containers (e.g. docker).
 - No node-local configuration or environment values influencing state transitions.
+- No non-deterministic serialization in state or hashes: no marshaling Go maps to JSON, no protobuf map fields (cosmos-sdk ADR-027).
+- No per-process values in state, events, or gas: memory addresses, pointer formatting, PIDs.
+- Beware platform- and version-dependent behavior: architecture-dependent integer sizes, library functions whose output is unspecified.
 
 **Where it bites:** `x/*/keeper`, `app/ante/`, `app/prepare_proposal.go`, `app/process_proposal.go`, `app/upgrades.go`, state migrations.
 
-**How to verify:** Scan the diff for map iteration, `time.Now`, `rand`, and float arithmetic in ABCI-reachable code. Trace each hit to confirm whether it can affect state, events, or gas.
+**How to verify:** Scan the diff for map iteration, `time.Now`, `rand`, float arithmetic, goroutines, `net/http` or RPC clients, `os` filesystem access, `exec.Command`, JSON marshaling of maps, and config or environment reads in ABCI-reachable code. Trace each hit to confirm whether it can affect state, events, or gas. Then ask: does any changed state transition depend on something other than committed state and the block?
 
 ## INV-2: All input is adversarial
 
