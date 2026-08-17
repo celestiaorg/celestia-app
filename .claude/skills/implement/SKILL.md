@@ -1,0 +1,46 @@
+---
+name: implement
+description: Implement a celestia-app code change with the safety workflow - triage, align, implement, invariant review loop, verify. Use for any feature or bug fix task.
+---
+
+# /implement — safe code generation workflow
+
+Implement the requested change by following these phases in order. Read `docs/ai/invariants.md` before anything else.
+
+## Phase 0 — Triage
+
+Determine the risk tier from the files the change will touch:
+
+- **Risky**: anything under `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/`.
+- **Light**: docs, test-only changes, scripts, tooling, `.github/`.
+
+When in doubt, treat as risky. Light tier: skip Phase 1 and run a single review pass in Phase 3 instead of the loop.
+
+## Phase 1 — Align (risky only, hard gate)
+
+1. Explore the code involved. Answer every question the codebase can answer before asking the engineer.
+2. Interview the engineer about every unclear or under-defined aspect. Give a recommended answer for each question.
+3. Write an assumptions note to `docs/plans/<task>.md`: goal, stated assumptions, invariants in play (by INV number), design decisions, open questions. Never commit this file.
+4. Present the note and wait for explicit confirmation. Do not write code before the engineer confirms.
+
+## Phase 2 — Implement
+
+- Write the smallest diff that solves the problem. Follow existing patterns in the repo.
+- Run `make build` after Go changes.
+- For bug fixes: write the reproducing test first, watch it fail, then fix.
+
+## Phase 3 — Review loop
+
+1. Get the full diff (`git diff` plus untracked files) and spawn these agents from `.claude/agents/` in parallel on it: `determinism-reviewer`, `adversarial-input-reviewer`, `consensus-reviewer`, `compat-reviewer`, `simplicity-reviewer`. Give each the diff and the path to the assumptions note if one exists.
+2. For every finding, spawn a `finding-verifier` agent to try to refute it. Discard refuted findings.
+3. Fix all confirmed findings, then run the reviewers again.
+4. Stop when two consecutive rounds produce zero confirmed findings, or after three rounds total. Escalate any still-open findings to the engineer — never silently drop them.
+
+## Phase 4 — Verify
+
+- `make lint` and `make test-short` must pass.
+- Run the tests covering the changed behavior; add tests where behavior changed.
+
+## Phase 5 — Report
+
+Summarize for the engineer: what changed and why, assumptions honored, findings fixed vs escalated, and a one-line status per invariant (respected or not applicable).
