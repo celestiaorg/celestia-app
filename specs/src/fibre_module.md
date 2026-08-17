@@ -444,7 +444,7 @@ message Params {
 | `payment_promise_timeout` | `1h` | Must be between `10m` and `12h` | Defines normal promise expiration and when timeout processing becomes valid |
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
 | `shard_retention` | `4h` | Must be between `10m` and `168h` | Sets the local retention floor validators apply to uploaded shards |
-| `full_stake_storage_budget` | `256GiB` | Must be positive | Caps the Fibre disk a 100%-stake validator uses over one `shard_retention` window; each node derives its own budget from its assigned stake share |
+| `full_stake_storage_budget` | `2TiB` | Must be positive | Caps the Fibre disk a 100%-stake validator uses over one `shard_retention` window; each node derives its own budget from its assigned stake share |
 
 The processed-payment retention window is not a governance parameter; it is derived as `withdrawal_delay + 10m` and exposed by `Params.PaymentPromiseRetentionWindow()` (see the last paragraph for why).
 
