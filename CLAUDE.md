@@ -84,6 +84,19 @@ All branches use forked cosmos-sdk and celestia-core:
 4. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
 5. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
 
+## AI Safety Invariants
+
+@docs/ai/invariants.md
+
+Every code change must respect the invariants imported above. If a task cannot be done without violating one, stop and ask the engineer.
+
+## AI Workflow
+
+- **Risk tiers**: changes touching `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/` are risky; docs, test-only changes, scripts, tooling, and `.github/` are light. When in doubt, treat as risky.
+- **Risky changes**: state assumptions and get engineer confirmation before writing code. Before declaring the work done, run at least one review pass with the invariant reviewer agents in `.claude/agents/`, even outside the `/implement` skill.
+- **Structured work**: use the `/implement` skill (triage → align → implement → review loop → verify).
+- **Assumptions notes** live in `docs/plans/` and are never committed.
+
 ## Simplicity Rules
 
 ### PRs
