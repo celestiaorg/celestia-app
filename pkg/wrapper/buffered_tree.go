@@ -3,6 +3,7 @@ package wrapper
 import (
 	"fmt"
 	"runtime"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -14,6 +15,9 @@ import (
 type TreePool struct {
 	availableNMTs chan *resizeableBufferTree
 	poolSize      int
+	// opts is the fully resolved nmt option list, built once in NewTreePool so
+	// concurrent acquires can share it safely.
+	opts []nmt.Option
 }
 
 // DefaultPreallocatedTreePool creates a new TreePool with a default pool size
@@ -26,34 +30,51 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 	if poolSize <= 0 {
 		return nil, fmt.Errorf("pool size must be positive: %d", poolSize)
 	}
+	if initSquareSize == 0 {
+		return nil, fmt.Errorf("square size must be positive: %d", initSquareSize)
+	}
 	pool := &TreePool{
 		availableNMTs: make(chan *resizeableBufferTree, poolSize),
 		poolSize:      poolSize,
+		opts: append(slices.Clone(opts), nmt.NamespaceIDSize(share.NamespaceSize),
+			nmt.IgnoreMaxNamespace(true), nmt.ReuseBuffers(true)),
 	}
 
 	// initialize the pool with trees configured for initSquareSize
 	for range poolSize {
-		tree, err := newResizeableBufferTree(initSquareSize, 0, pool, opts...)
-		if err != nil {
-			return nil, err
-		}
-		pool.availableNMTs <- tree
+		pool.availableNMTs <- pool.newTree(initSquareSize)
 	}
 
 	return pool, nil
 }
 
-// acquire retrieves a resizeableBufferTree from the pool.
-func (p *TreePool) acquire() *resizeableBufferTree {
-	return <-p.availableNMTs
+// acquire retrieves a resizeableBufferTree from the pool, allocating a new one
+// for squareSize if the pool is empty. rsmt2d abandons a tree whenever a root
+// computation fails, so waiting for a release could block forever inside an
+// ABCI call. ComputeExtendedDataSquareWithBuffer caps rsmt2d's root-computation
+// concurrency at TreeCount(), which bounds allocations on that path; other
+// rsmt2d entry points do not set that limit.
+func (p *TreePool) acquire(squareSize uint) *resizeableBufferTree {
+	select {
+	case tree := <-p.availableNMTs:
+		return tree
+	default:
+		return p.newTree(squareSize)
+	}
 }
 
-// release returns a resizeableBufferTree to the pool for reuse.
+// release returns a resizeableBufferTree to the pool for reuse, dropping it if
+// the pool is already full.
 func (p *TreePool) release(tree *resizeableBufferTree) {
-	p.availableNMTs <- tree
+	select {
+	case p.availableNMTs <- tree:
+	default:
+	}
 }
 
-// TreeCount returns the number of trees in the pool.
+// TreeCount returns how many trees the pool retains. It is also the
+// root-computation concurrency limit rsmt2d applies in
+// ComputeExtendedDataSquareWithBuffer.
 func (p *TreePool) TreeCount() int {
 	return p.poolSize
 }
@@ -61,7 +82,7 @@ func (p *TreePool) TreeCount() int {
 // NewConstructor returns a tree constructor function that uses the pool with the specified square size.
 func (p *TreePool) NewConstructor(squareSize uint) rsmt2d.TreeConstructorFn {
 	return func(_ rsmt2d.Axis, axisIndex uint) rsmt2d.Tree {
-		tree := p.acquire()
+		tree := p.acquire(squareSize)
 		tree.resize(squareSize)
 		tree.reset(axisIndex)
 
@@ -93,32 +114,20 @@ type resizeableBufferTree struct {
 	bufferEntrySize int
 }
 
-// newResizeableBufferTree creates a new resizeableBufferTree with pre-allocated buffer and pool reference.
-func newResizeableBufferTree(maxSquareSize uint, axisIndex uint, pool *TreePool, options ...nmt.Option) (*resizeableBufferTree, error) {
-	// this should never happen (we also check this with tests), because this is a private
-	if maxSquareSize == 0 {
-		return nil, fmt.Errorf("cannot create a resizeableBufferTree of maxSquareSize == 0")
-	}
-	if pool == nil {
-		return nil, fmt.Errorf("cannot create a resizeableBufferTree of pool == nil")
-	}
-	options = append(options, nmt.NamespaceIDSize(share.NamespaceSize))
-	options = append(options, nmt.IgnoreMaxNamespace(true), nmt.ReuseBuffers(true))
-	tree := nmt.New(appconsts.NewBaseHashFunc(), options...)
-	namespaceSize := share.NamespaceSize
-	entrySize := share.ShareSize + namespaceSize
+// newTree creates a resizeableBufferTree sized for squareSize. NewTreePool
+// validates all inputs, so construction cannot fail.
+func (p *TreePool) newTree(squareSize uint) *resizeableBufferTree {
+	entrySize := share.ShareSize + share.NamespaceSize
 	return &resizeableBufferTree{
-		squareSize:      maxSquareSize,
-		maxSquareSize:   maxSquareSize,
-		tree:            tree,
-		pool:            pool,
+		squareSize:      squareSize,
+		maxSquareSize:   squareSize,
+		tree:            nmt.New(appconsts.NewBaseHashFunc(), p.opts...),
+		pool:            p,
 		bufferEntrySize: entrySize,
-		namespaceSize:   namespaceSize,
+		namespaceSize:   share.NamespaceSize,
 		parityNamespace: share.ParitySharesNamespace.Bytes(),
-		axisIndex:       axisIndex,
-		buffer:          make([]byte, 2*maxSquareSize*uint(entrySize)),
-		shareIndex:      0,
-	}, nil
+		buffer:          make([]byte, 2*squareSize*uint(entrySize)),
+	}
 }
 
 // Push adds share data to the tree using the pre-allocated buffer to avoid memory allocation.
