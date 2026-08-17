@@ -190,6 +190,15 @@ If you are running celestia-app in tests, you may want to override the `delayed_
 celestia-appd start --delayed-precommit-timeout 1s
 ```
 
+## Fibre
+
+Fibre (available from app v10) is Celestia's data availability protocol served by validator-operated fibre servers: blobs are erasure-coded and disseminated across the validator set instead of riding the data square. Depending on your role:
+
+- **Run a fibre server (validators)**: [fibre/cmd/README.md](fibre/cmd/README.md) — setup, on-chain host registration, and troubleshooting.
+- **Publish and retrieve blobs (Go)**: [fibre/README.md](fibre/README.md) — client quickstart.
+- **Payment module reference**: [x/fibre/README.md](x/fibre/README.md) — escrow, payment promises, CLI.
+- **Protocol specification**: [specs/src/fibre.md](specs/src/fibre.md).
+
 ## Server Architecture
 
 celestia-app and celestia-core start multiple servers to handle different types of network communication and requests. Here's an overview of each server and their default addresses:
