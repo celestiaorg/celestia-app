@@ -20,7 +20,7 @@ When in doubt, treat as risky. Light tier: skip Phase 1 and run a single review 
 
 1. Explore the code involved. Answer every question the codebase can answer before asking the engineer.
 2. Interview the engineer about every unclear or under-defined aspect. Give a recommended answer for each question.
-3. Write an assumptions note to `docs/plans/<task>.md`: goal, stated assumptions, invariants in play (by INV number), design decisions, open questions. Never commit this file.
+3. Write an assumptions note to `docs/plans/<task>.md`: goal, stated assumptions, invariants in play (by INV number), design decisions, open questions, and an implementation plan (ordered steps, files to touch, tests to add — as short as the task allows). Never commit this file.
 4. Present the note and wait for explicit confirmation. Do not write code before the engineer confirms.
 
 ## Phase 2 — Implement
