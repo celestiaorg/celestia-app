@@ -226,6 +226,18 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 		}
 
 		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
+
+		// Drop txs that duplicate a top-level TxRaw field. CheckTx should have
+		// rejected these, but filter here too so a proposal never includes an
+		// encoding that the SDK decoder and go-square classify differently.
+		sdkTxBytes := rawTx
+		if isBlob && err == nil {
+			sdkTxBytes = bTx.Tx
+		}
+		if hasDuplicateTxRawField(sdkTxBytes) {
+			continue
+		}
+
 		if isBlob {
 			if err != nil {
 				// Drop malformed blob txs. Matches ProcessProposalHandler.

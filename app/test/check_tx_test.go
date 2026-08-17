@@ -30,6 +30,7 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // Here we only need to check the functionality that is added to CheckTx. We
@@ -281,6 +282,23 @@ func TestCheckTx(t *testing.T) {
 				return tx
 			},
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
+			name:      "transaction with duplicate TxRaw field, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[10]
+				addr := signer.Account(accounts[10]).Address()
+				msg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+				txBz, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				// Prepend a second body_bytes (field 1) to make the encoding
+				// ambiguous between the SDK decoder and go-square.
+				dup := protowire.AppendTag(nil, 1, protowire.BytesType)
+				dup = protowire.AppendBytes(dup, []byte("extra"))
+				return append(dup, txBz...)
+			},
+			expectedABCICode: apperr.ErrDuplicateTxRawField.ABCICode(),
 		},
 	}
 
