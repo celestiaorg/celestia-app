@@ -92,7 +92,7 @@ Every code change must respect the invariants imported above. If a task cannot b
 
 ## AI Workflow
 
-- **Risk tiers**: changes touching `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/` are risky; docs, test-only changes, scripts, tooling, and `.github/` are light. When in doubt, treat as risky.
+- **Risk tiers**: changes touching `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/` are risky; docs, test-only changes, scripts, tooling, and `.github/` are light; risky changes that modify a state transition reachable from ABCI are consensus-critical and also get an `adversarial-reviewer` deep review. When in doubt, treat as the higher tier.
 - **Risky changes**: state assumptions and get engineer confirmation before writing code. Before declaring the work done, run at least one review pass with the invariant reviewer agents in `.claude/agents/`, even outside the `/implement` skill.
 - **Structured work**: use the `/implement` skill (triage → align → implement → review loop → verify).
 - **Assumptions notes** live in `docs/plans/` and are never committed.
