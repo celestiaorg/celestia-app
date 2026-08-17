@@ -13,8 +13,9 @@ Determine the risk tier from the files the change will touch:
 
 - **Risky**: anything under `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/`.
 - **Light**: docs, test-only changes, scripts, tooling, `.github/`.
+- **Consensus-critical**: risky, and the diff changes a state transition reachable from ABCI — message servers in `x/*/keeper`, ante decorators, `PrepareProposal`/`ProcessProposal`/`FinalizeBlock` logic, square construction, migrations, upgrade handling.
 
-When in doubt, treat as risky. Light tier: skip Phase 1 and run a single review pass in Phase 3 instead of the loop.
+When in doubt, treat as the higher tier. Light tier: skip Phase 1 and run a single review pass in Phase 3 instead of the loop.
 
 ## Phase 1 — Align (risky only, hard gate)
 
@@ -32,9 +33,10 @@ When in doubt, treat as risky. Light tier: skip Phase 1 and run a single review 
 ## Phase 3 — Review loop
 
 1. Get the full diff (`git diff` plus untracked files) and spawn these agents from `.claude/agents/` in parallel on it: `determinism-reviewer`, `adversarial-input-reviewer`, `consensus-reviewer`, `compat-reviewer`, `simplicity-reviewer`. Give each the diff and the path to the assumptions note if one exists.
-2. For every finding, spawn a `finding-verifier` agent to try to refute it. Discard refuted findings.
-3. Fix all confirmed findings, then run the reviewers again.
-4. Stop when two consecutive rounds produce zero confirmed findings, or after three rounds total. Escalate any still-open findings to the engineer — never silently drop them.
+2. Consensus-critical tier: also spawn `adversarial-reviewer` in the first round. In later rounds, re-run it only on state transitions whose code changed during fixes. The engineer can request it for any change or skip it for a provably trivial one; record a skip in the report.
+3. For every finding, spawn a `finding-verifier` agent to try to refute it. Discard refuted findings.
+4. Fix all confirmed findings, then run the reviewers again.
+5. Stop when two consecutive rounds produce zero confirmed findings, or after three rounds total. Escalate any still-open findings to the engineer — never silently drop them.
 
 ## Phase 4 — Verify
 
