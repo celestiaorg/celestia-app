@@ -173,6 +173,7 @@ defer client.Stop(ctx)
     MinRowsPerValidator int
     MaxMessageSize      int
     RPCTimeout          time.Duration
+    HostRefreshInterval time.Duration
 
     StateClientFn func() (state.Client, error)
     NewClientFn   fibregrpc.NewClientFn
@@ -181,8 +182,11 @@ defer client.Stop(ctx)
     Tracer trace.Tracer
     Meter  metric.Meter
     Clock  clock.Clock
+
+    Escrow EscrowConfig
 }
 </code></pre>
+<p><code>HostRefreshInterval</code> throttles how often the default state client re-queries a validator's on-chain fibre host (defaults to the expected block time). <code>Escrow</code> configures the client-side escrow auto-funding described in section 11.</p>
 <p>Defaults come from <code>DefaultProtocolParams</code>:</p>
 <ul>
 <li><code>DefaultKeyName = &quot;default-fibre&quot;</code></li>
@@ -367,6 +371,7 @@ rows = min(max(rows, minRows), originalRows)
 
     ChainID() string
     VerifyPromise(context.Context, *types.PaymentPromise) (VerifiedPromise, error)
+    FullStakeStorageBudget(context.Context) (int64, error)
 
     Start(context.Context) error
     Stop(context.Context) error
