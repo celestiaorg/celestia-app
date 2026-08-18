@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -106,7 +107,9 @@ func TestMaliciousTestNode(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, block.Block.DataHash.Bytes(), dah.Hash())
 
-	correctSquare, err := square.Construct(block.Block.Txs.ToSliceOfBytes(),
+	classifiedTxs, err := fibretypes.ClassifyTxs(block.Block.Txs.ToSliceOfBytes())
+	require.NoError(t, err)
+	correctSquare, err := square.Construct(classifiedTxs,
 		appconsts.SquareSizeUpperBound,
 		appconsts.SubtreeRootThreshold,
 	)

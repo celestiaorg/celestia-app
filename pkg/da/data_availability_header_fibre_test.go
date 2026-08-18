@@ -8,7 +8,6 @@ import (
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	sh "github.com/celestiaorg/go-square/v4/share"
-	gotx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cosmos/btcutil/bech32"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
@@ -38,7 +37,9 @@ func TestConstructEDS_WithFibreTx(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Verify that the data square contains PayForFibre namespace shares.
-			square, err := squarev4.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
+			require.NoError(t, err)
+			square, err := squarev4.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 			require.NoError(t, err)
 			pffRange := sh.GetShareRangeForNamespace(square, sh.PayForFibreNamespace)
 			require.False(t, pffRange.IsEmpty(), "expected PayForFibreNamespace shares in square")
@@ -79,7 +80,7 @@ func buildMsgPayForFibreTxBytes(t *testing.T) []byte {
 
 	anyMsg, err := codectypes.NewAnyWithValue(msg)
 	require.NoError(t, err)
-	require.Equal(t, gotx.MsgPayForFibreTypeURL, anyMsg.TypeUrl,
+	require.Equal(t, fibretypes.MsgPayForFibreTypeURL, anyMsg.TypeUrl,
 		"cosmos-sdk TypeURL must match the constant that TryParseFibreTx checks")
 
 	body := &cosmostx.TxBody{

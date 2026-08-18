@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
@@ -23,7 +24,11 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 		return ShareProof{}, fmt.Errorf("txIndex %d out of bounds", txIndex)
 	}
 
-	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, txs...)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	if err != nil {
+		return ShareProof{}, err
+	}
+	builder, err := square.NewBuilder(appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold, classifiedTxs...)
 	if err != nil {
 		return ShareProof{}, err
 	}
