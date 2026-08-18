@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
@@ -464,7 +464,7 @@ func pffGasStats(records []pffGasTrace) (minGas, medianGas, meanGas, maxGas int6
 		gas[i] = r.GasUsed
 		sum += r.GasUsed
 	}
-	sort.Slice(gas, func(i, j int) bool { return gas[i] < gas[j] })
+	slices.Sort(gas)
 	return gas[0], gas[len(gas)/2], sum / int64(len(gas)), gas[len(gas)-1]
 }
 
@@ -500,7 +500,7 @@ func printPFFGasSummary(all []pffGasTrace) {
 	for n := range bySigs {
 		sigCounts = append(sigCounts, n)
 	}
-	sort.Ints(sigCounts)
+	slices.Sort(sigCounts)
 
 	for _, n := range sigCounts {
 		minGas, medianGas, meanGas, maxGas := pffGasStats(bySigs[n])
