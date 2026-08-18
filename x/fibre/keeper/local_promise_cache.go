@@ -16,9 +16,9 @@ const (
 	// unrefreshed, with at least one reservation since the last sweep, before a
 	// sweep is forced on the next reservation.
 	promiseCacheStaleAfter = time.Hour
-	// promiseCacheEvictBuffer is added to the maximum promise lifetime to decide
-	// when an idle signer entry may be evicted, i.e. once every promise has had
-	// time to either settle or be submitted by the timeout agent.
+	// promiseCacheEvictBuffer is added to the maximum settleability window to
+	// decide when an idle signer entry may be evicted, i.e. once every promise it
+	// could hold has certainly stopped being settleable on-chain.
 	promiseCacheEvictBuffer = time.Hour
 	// promiseCacheEvictInterval is how often the background eviction loop runs.
 	promiseCacheEvictInterval = 10 * time.Minute
@@ -29,6 +29,7 @@ const (
 type promiseStateReader interface {
 	GetEscrowAccount(ctx sdk.Context, signer string) (types.EscrowAccount, bool)
 	IsPaymentProcessedByHash(ctx sdk.Context, promiseHash []byte) bool
+	GetParams(ctx sdk.Context) types.Params
 }
 
 // LocalPromiseCache is a validator-local, in-memory reservation cache for fibre
@@ -73,6 +74,10 @@ type signerBudget struct {
 type pendingPromise struct {
 	signer   string
 	blobSize uint32
+	// creationTimestamp is the promise's declared creation time. A sweep drops the
+	// reservation once creationTimestamp+WithdrawalDelay has passed, since the
+	// promise can no longer settle on-chain past its freshness window.
+	creationTimestamp time.Time
 }
 
 // NewLocalPromiseCache creates an empty cache backed by the given state reader.
@@ -91,7 +96,7 @@ func NewLocalPromiseCache(reader promiseStateReader) *LocalPromiseCache {
 // Callers MUST have already run stateless (signature) and stateful validation.
 // The gRPC endpoint is adversarial (INV-2), so signature verification must
 // precede any cache mutation to prevent budget poisoning.
-func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash []byte, blobSize uint32) error {
+func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash []byte, blobSize uint32, creationTimestamp time.Time) error {
 	key := hex.EncodeToString(promiseHash)
 	required := requiredAmount(blobSize)
 
@@ -110,7 +115,7 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	}
 
 	if b.remaining.GTE(required) {
-		c.reserve(b, signer, key, blobSize, required)
+		c.reserve(b, signer, key, blobSize, required, creationTimestamp)
 		return nil
 	}
 
@@ -121,7 +126,7 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 		c.sweep(ctx, signer)
 		b.lastFailSweepH = ctx.BlockHeight()
 		if b.remaining.GTE(required) {
-			c.reserve(b, signer, key, blobSize, required)
+			c.reserve(b, signer, key, blobSize, required, creationTimestamp)
 			return nil
 		}
 	}
@@ -130,18 +135,19 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 }
 
 // reserve commits a reservation to the given budget. Callers must hold c.mu.
-func (c *LocalPromiseCache) reserve(b *signerBudget, signer, key string, blobSize uint32, required math.Int) {
+func (c *LocalPromiseCache) reserve(b *signerBudget, signer, key string, blobSize uint32, required math.Int, creationTimestamp time.Time) {
 	b.remaining = b.remaining.Sub(required)
 	b.opsSinceSweep++
 	b.lastActivity = time.Now()
 	b.hashes[key] = struct{}{}
-	c.pending[key] = pendingPromise{signer: signer, blobSize: blobSize}
+	c.pending[key] = pendingPromise{signer: signer, blobSize: blobSize, creationTimestamp: creationTimestamp}
 }
 
 // sweep reconciles a signer's cached budget against committed chain state: it
-// re-reads AvailableBalance, drops any locally pending promise already settled
-// on-chain, and recomputes the remaining budget. It creates the entry if absent
-// and returns it. Callers must hold c.mu.
+// re-reads AvailableBalance, drops any locally pending promise that has already
+// settled on-chain or that can no longer settle (past its freshness window), and
+// recomputes the remaining budget. It creates the entry if absent and returns it.
+// Callers must hold c.mu.
 func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget {
 	b, ok := c.budgets[signer]
 	if !ok {
@@ -154,10 +160,17 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget 
 		available = acc.AvailableBalance.Amount
 	}
 
+	// A promise stops being settleable on-chain once its creation_timestamp falls
+	// before current_time - WithdrawalDelay (see validatePaymentPromiseStatefulInternal).
+	// Past that cutoff its reservation can never settle, so drop it to free the
+	// budget rather than leaking it until eviction. Using WithdrawalDelay directly is
+	// conservative: the on-chain freshness floor only ever shortens this window.
+	staleBefore := ctx.BlockTime().Add(-c.reader.GetParams(ctx).WithdrawalDelay)
+
 	committed := math.ZeroInt()
 	for key := range b.hashes {
 		hash, err := hex.DecodeString(key)
-		if err != nil || c.reader.IsPaymentProcessedByHash(ctx, hash) {
+		if err != nil || c.reader.IsPaymentProcessedByHash(ctx, hash) || !c.pending[key].creationTimestamp.After(staleBefore) {
 			delete(b.hashes, key)
 			delete(c.pending, key)
 			continue
@@ -186,11 +199,14 @@ func (c *LocalPromiseCache) evictLoop() {
 }
 
 // evictIdle removes signer entries with no activity for longer than the maximum
-// promise lifetime plus a buffer, by when all of a signer's promises have settled
-// or been submitted by the timeout agent. Evicted signers are rebuilt lazily on
-// their next validation.
+// settleability window (MaxWithdrawalDelay) plus a buffer, by when any promise the
+// entry could hold has certainly stopped being settleable on-chain. Bounding on
+// MaxWithdrawalDelay (not MaxPaymentPromiseTimeout) is required: a promise stays
+// settleable via the timeout path until creation_timestamp+WithdrawalDelay, so a
+// shorter threshold could evict a still-live reservation and reopen the
+// double-spend window. Evicted signers are rebuilt lazily on their next validation.
 func (c *LocalPromiseCache) evictIdle() {
-	threshold := types.MaxPaymentPromiseTimeout + promiseCacheEvictBuffer
+	threshold := types.MaxWithdrawalDelay + promiseCacheEvictBuffer
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	for signer, b := range c.budgets {

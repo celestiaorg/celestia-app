@@ -15,9 +15,10 @@ import (
 // fakeStateReader is an in-memory promiseStateReader for cache tests. It ignores
 // the sdk.Context; the cache only uses it for block height.
 type fakeStateReader struct {
-	available  map[string]math.Int // signer -> AvailableBalance amount
-	processed  map[string]bool     // hex(hash) -> processed on-chain
-	escrowGets int                 // counts GetEscrowAccount calls (sweeps)
+	available       map[string]math.Int // signer -> AvailableBalance amount
+	processed       map[string]bool     // hex(hash) -> processed on-chain
+	escrowGets      int                 // counts GetEscrowAccount calls (sweeps)
+	withdrawalDelay time.Duration       // params.WithdrawalDelay; defaults if zero
 }
 
 func (f *fakeStateReader) GetEscrowAccount(_ sdk.Context, signer string) (types.EscrowAccount, bool) {
@@ -36,16 +37,28 @@ func (f *fakeStateReader) IsPaymentProcessedByHash(_ sdk.Context, hash []byte) b
 	return f.processed[hex.EncodeToString(hash)]
 }
 
+func (f *fakeStateReader) GetParams(_ sdk.Context) types.Params {
+	delay := f.withdrawalDelay
+	if delay == 0 {
+		delay = types.DefaultWithdrawalDelay
+	}
+	return types.Params{WithdrawalDelay: delay}
+}
+
 // gas for a zero-size blob; used to size test balances.
 var zeroBlobGas = math.NewIntFromUint64(EstimateGasForPayForFibre(0))
 
 func ctxAtHeight(h int64) sdk.Context { return sdk.Context{}.WithBlockHeight(h) }
 
+// promiseTS is a fixed, fresh promise creation time. The test contexts use a zero
+// block time, so any real timestamp stays within the settleability window.
+var promiseTS = time.Unix(1_000_000, 0).UTC()
+
 func TestReserveWithinBudget(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)}}
 	c := NewLocalPromiseCache(r)
 
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
 }
 
@@ -53,8 +66,8 @@ func TestReserveDoubleSpendRejected(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas}}
 	c := NewLocalPromiseCache(r)
 
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
-	err := c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0)
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
+	err := c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0, promiseTS)
 	require.ErrorContains(t, err, "insufficient available balance")
 	require.True(t, c.budgets["a"].remaining.IsZero())
 }
@@ -63,8 +76,8 @@ func TestReserveIdempotent(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)}}
 	c := NewLocalPromiseCache(r)
 
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	// Budget is decremented once despite two identical submissions.
 	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
 }
@@ -76,7 +89,7 @@ func TestSweepDropsProcessed(t *testing.T) {
 	}
 	c := NewLocalPromiseCache(r)
 
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
 
 	// The promise settles on-chain; a sweep should drop it and free its budget.
@@ -95,15 +108,15 @@ func TestFailingSweepsRateLimited(t *testing.T) {
 
 	// First failing reservation at height 1: initial sweep + one rate-limited
 	// retry sweep = 2 reads.
-	require.Error(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
+	require.Error(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	require.Equal(t, 2, r.escrowGets)
 
 	// Second failing reservation in the same block: no further sweep.
-	require.Error(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0))
+	require.Error(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x02}, 0, promiseTS))
 	require.Equal(t, 2, r.escrowGets)
 
 	// New block: one more retry sweep is allowed.
-	require.Error(t, c.Reserve(ctxAtHeight(2), "a", []byte{0x03}, 0))
+	require.Error(t, c.Reserve(ctxAtHeight(2), "a", []byte{0x03}, 0, promiseTS))
 	require.Equal(t, 3, r.escrowGets)
 }
 
@@ -116,7 +129,7 @@ func TestConcurrentReserveNoOversubscribe(t *testing.T) {
 	results := make(chan error, promises)
 	for i := range promises {
 		go func(i int) {
-			results <- c.Reserve(ctxAtHeight(1), "a", []byte{byte(i)}, 0)
+			results <- c.Reserve(ctxAtHeight(1), "a", []byte{byte(i)}, 0, promiseTS)
 		}(i)
 	}
 
@@ -135,12 +148,38 @@ func TestEvictIdle(t *testing.T) {
 	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)}}
 	c := NewLocalPromiseCache(r)
 
-	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0))
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 
 	// Backdate activity beyond the eviction threshold.
-	c.budgets["a"].lastActivity = time.Now().Add(-(types.MaxPaymentPromiseTimeout + 2*time.Hour))
+	c.budgets["a"].lastActivity = time.Now().Add(-(types.MaxWithdrawalDelay + 2*time.Hour))
 	c.evictIdle()
 
 	require.Empty(t, c.budgets)
+	require.Empty(t, c.pending)
+}
+
+// TestSweepDropsExpired verifies that a sweep frees a reservation once the promise
+// can no longer settle on-chain (past creation_timestamp+WithdrawalDelay), even
+// though it never settled. This prevents an abandoned promise from permanently
+// shrinking a signer's cached budget.
+func TestSweepDropsExpired(t *testing.T) {
+	r := &fakeStateReader{
+		available:       map[string]math.Int{"a": zeroBlobGas.MulRaw(2)},
+		withdrawalDelay: 24 * time.Hour,
+	}
+	c := NewLocalPromiseCache(r)
+
+	created := time.Unix(1_000_000, 0).UTC()
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, created))
+	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
+
+	// A block whose time is past the promise's settleability window; the reservation
+	// can never settle, so the sweep must drop it and restore the full budget.
+	ctx := ctxAtHeight(2).WithBlockTime(created.Add(25 * time.Hour))
+	c.mu.Lock()
+	c.sweep(ctx, "a")
+	c.mu.Unlock()
+
+	require.Equal(t, zeroBlobGas.MulRaw(2), c.budgets["a"].remaining)
 	require.Empty(t, c.pending)
 }

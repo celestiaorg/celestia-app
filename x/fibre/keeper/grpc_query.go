@@ -117,7 +117,7 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
 		signer := sdk.AccAddress(req.Promise.SignerPublicKey.Address()).String()
-		if err := k.promiseCache.Reserve(ctx, signer, hash, req.Promise.BlobSize); err != nil {
+		if err := k.promiseCache.Reserve(ctx, signer, hash, req.Promise.BlobSize, req.Promise.CreationTimestamp); err != nil {
 			return nil, status.Error(codes.ResourceExhausted, err.Error())
 		}
 	}
