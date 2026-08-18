@@ -18,12 +18,12 @@ import (
 
 // Connection and stream caps bound receive memory: gRPC buffers a full
 // UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~33 GiB). The values
+// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The values
 // are intentionally conservative for a 32 GiB-RAM validator. Tying them to
 // staking power, or adding a per-peer connection policy, are possible follow-ups.
 const (
 	maxConnections       = 16
-	maxConcurrentStreams = 16
+	maxConcurrentStreams = 13
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.
