@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	DODropletLimit = 100
+	DODropletLimit = 110 // had to increase as other DO droplets unrelated to talis are accounted for in the limit.
 )
 
 type Client interface {
