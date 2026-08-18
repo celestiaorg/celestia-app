@@ -284,17 +284,11 @@ func (k Keeper) DeleteProcessedPayment(ctx sdk.Context, payment types.ProcessedP
 
 // IsPaymentPromiseProcessed returns true if a payment has been processed for the given promise.
 func (k Keeper) IsPaymentPromiseProcessed(ctx sdk.Context, promise *types.PaymentPromise) bool {
-	store := ctx.KVStore(k.storeKey)
-	pp := fibre.PaymentPromise{}
-	if err := pp.FromProto(promise); err != nil {
-		return false
-	}
-	hash, err := pp.Hash()
+	hash, err := promiseHash(promise)
 	if err != nil {
 		return false
 	}
-	key := types.ProcessedPaymentsByHashKey(hash)
-	return store.Has(key)
+	return k.IsPaymentProcessedByHash(ctx, hash)
 }
 
 // promiseHash returns the canonical hash of a payment promise.
