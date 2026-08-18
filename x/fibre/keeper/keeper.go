@@ -23,6 +23,19 @@ type Keeper struct {
 	// authority is the address that has the authority to update module parameters.
 	// This is typically the governance module address.
 	authority string
+	// promiseCache, when non-nil, reserves escrow budget for accepted promises on
+	// the ValidatePaymentPromise query path to close the validator-local
+	// double-spend window. It is nil in consensus-only setups and unit tests and
+	// is never consulted from the ABCI path. See local_promise_cache.go.
+	promiseCache *LocalPromiseCache
+}
+
+// EnablePromiseCache attaches and starts the validator-local promise cache. It is
+// wired at app construction. The cache is a non-consensus, query-path-only
+// dependency, so enabling it must not affect state transitions.
+func (k *Keeper) EnablePromiseCache() {
+	k.promiseCache = NewLocalPromiseCache(k)
+	go k.promiseCache.evictLoop()
 }
 
 // NewKeeper creates a new fibre Keeper instance
@@ -282,6 +295,15 @@ func (k Keeper) IsPaymentPromiseProcessed(ctx sdk.Context, promise *types.Paymen
 	}
 	key := types.ProcessedPaymentsByHashKey(hash)
 	return store.Has(key)
+}
+
+// promiseHash returns the canonical hash of a payment promise.
+func promiseHash(promise *types.PaymentPromise) ([]byte, error) {
+	pp := fibre.PaymentPromise{}
+	if err := pp.FromProto(promise); err != nil {
+		return nil, err
+	}
+	return pp.Hash()
 }
 
 // IsPaymentProcessedByHash returns true if a payment has been processed for the given promise hash.

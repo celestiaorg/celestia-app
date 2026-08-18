@@ -23,6 +23,8 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type KeeperTestSuite struct {
@@ -713,6 +715,66 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseQueryReturnsShardRetenti
 		suite.True(resp.IsValid)
 		suite.Equal(suite.keeper.GetParams(suite.ctx).ShardRetention, resp.ShardRetention)
 	})
+}
+
+// twoPromisesFundedForOne returns two distinct promises from the same signer
+// whose escrow account is funded for exactly one of them, i.e. the second
+// promise is a double-spend attempt.
+func (suite *KeeperTestSuite) twoPromisesFundedForOne() (types.PaymentPromise, types.PaymentPromise) {
+	privKey := secp256k1.GenPrivKey()
+	pubKey := *privKey.PubKey().(*secp256k1.PubKey)
+
+	newPromise := func(commitmentByte byte) types.PaymentPromise {
+		p := types.PaymentPromise{
+			ChainId:           "test-chain",
+			Height:            suite.ctx.BlockHeight(),
+			Namespace:         share.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, share.NamespaceVersionZeroIDSize)).Bytes(),
+			BlobSize:          uint32(1000),
+			BlobVersion:       0,
+			Commitment:        bytes.Repeat([]byte{commitmentByte}, 32),
+			CreationTimestamp: time.Now().UTC().Truncate(time.Second),
+			SignerPublicKey:   pubKey,
+			Signature:         make([]byte, 64),
+		}
+		return *suite.signPaymentPromise(&p, privKey)
+	}
+
+	promise1 := newPromise(0x01)
+	promise2 := newPromise(0x02)
+	suite.createEscrowAccount(promise1)
+	return promise1, promise2
+}
+
+// TestValidatePaymentPromiseWithoutCacheAllowsDoubleSpend is a negative control:
+// it documents the double-spend window that the cache exists to close. Without
+// the cache, two promises from a signer funded for only one both pass validation.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseWithoutCacheAllowsDoubleSpend() {
+	promise1, promise2 := suite.twoPromisesFundedForOne()
+
+	_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
+
+	// The second promise also passes: neither validation reserved the balance.
+	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
+	suite.NoError(err)
+}
+
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend() {
+	suite.keeper.EnablePromiseCache()
+
+	promise1, promise2 := suite.twoPromisesFundedForOne()
+
+	_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
+
+	// A second concurrent promise from the same signer exceeds the reserved budget.
+	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
+	suite.Error(err)
+	suite.Equal(codes.ResourceExhausted, status.Code(err))
+
+	// Re-submitting the first promise is idempotent (already reserved).
+	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStatefulForTimeout() {

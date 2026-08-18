@@ -462,6 +462,9 @@ func New(
 		app.StakingKeeper,
 		govModuleAddr,
 	)
+	// Enable the validator-local promise cache used by the ValidatePaymentPromise
+	// query to close the double-spend window. Non-consensus, query-path only.
+	app.FibreKeeper.EnablePromiseCache()
 
 	/****  Module Options ****/
 
