@@ -107,8 +107,8 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 	// Reserve the promise against the validator-local budget to close the
 	// double-spend window between this validation and on-chain settlement.
 	if k.promiseCache != nil {
-		// The gRPC endpoint is adversarial (INV-2): verify the signature before
-		// mutating the cache so a forged promise cannot poison a signer's budget.
+		// The gRPC endpoint is adversarial: verify the signature before mutating the
+		// cache so a forged promise cannot poison a signer's budget.
 		if err := k.ValidatePaymentPromiseStateless(ctx, &req.Promise); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}

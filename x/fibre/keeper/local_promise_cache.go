@@ -42,8 +42,7 @@ type promiseStateReader interface {
 // (PrepareProposal, ProcessProposal, FinalizeBlock, message servers). It is used
 // only from the ValidatePaymentPromise gRPC query. It intentionally relies on
 // wall-clock time, goroutines, and map iteration, none of which are permitted in
-// state transitions (docs/ai/invariants.md, INV-1); wiring it into a consensus
-// path would violate determinism.
+// state transitions; wiring it into a consensus path would violate determinism.
 type LocalPromiseCache struct {
 	reader promiseStateReader
 
@@ -94,8 +93,8 @@ func NewLocalPromiseCache(reader promiseStateReader) *LocalPromiseCache {
 // Reservations are idempotent by promise hash.
 //
 // Callers MUST have already run stateless (signature) and stateful validation.
-// The gRPC endpoint is adversarial (INV-2), so signature verification must
-// precede any cache mutation to prevent budget poisoning.
+// The gRPC endpoint is adversarial, so signature verification must precede any
+// cache mutation to prevent budget poisoning.
 func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash []byte, blobSize uint32, creationTimestamp time.Time) error {
 	key := hex.EncodeToString(promiseHash)
 	required := requiredAmount(blobSize)
@@ -121,7 +120,7 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 
 	// Insufficient budget: re-sweep at most once per block for a failing signer to
 	// reconcile with any settlements, then retry. This bounds state reads under
-	// repeated failing submissions (INV-4).
+	// repeated failing submissions.
 	if b.lastFailSweepH < ctx.BlockHeight() {
 		c.sweep(ctx, signer)
 		b.lastFailSweepH = ctx.BlockHeight()
