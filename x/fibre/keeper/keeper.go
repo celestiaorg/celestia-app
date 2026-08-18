@@ -30,23 +30,25 @@ type Keeper struct {
 	promiseCache *LocalPromiseCache
 }
 
-// EnablePromiseCache attaches and starts the validator-local promise cache. It is
-// wired at app construction. The cache is a non-consensus, query-path-only
-// dependency, so enabling it must not affect state transitions.
-func (k *Keeper) EnablePromiseCache() {
-	k.promiseCache = NewLocalPromiseCache(k)
-	go k.promiseCache.evictLoop()
-}
-
-// NewKeeper creates a new fibre Keeper instance
-func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string) *Keeper {
-	return &Keeper{
+// NewKeeper creates a new fibre Keeper instance. When enableCache is true the
+// validator-local promise cache is attached and started here, so the field is set
+// before the keeper is ever copied by value (e.g. into the module's gRPC query
+// server); this keeps the double-spend protection from silently depending on call
+// order. The cache is a non-consensus, query-path-only dependency and is never
+// consulted from the ABCI path.
+func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool) *Keeper {
+	k := &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
 		bankKeeper:    bankKeeper,
 		stakingKeeper: stakingKeeper,
 		authority:     authority,
 	}
+	if enableCache {
+		k.promiseCache = NewLocalPromiseCache(k)
+		go k.promiseCache.evictLoop()
+	}
+	return k
 }
 
 // GetAuthority returns the fibre module's authority.

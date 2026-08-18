@@ -33,6 +33,13 @@ type KeeperTestSuite struct {
 	ctx    sdk.Context
 	keeper *keeper.Keeper
 	cdc    codec.Codec
+
+	// constructor inputs, retained so a test can rebuild the keeper with the
+	// promise cache enabled.
+	storeKey      storetypes.StoreKey
+	bankKeeper    types.BankKeeper
+	stakingKeeper types.StakingKeeper
+	authority     string
 }
 
 func TestKeeperTestSuite(t *testing.T) {
@@ -56,7 +63,8 @@ func (suite *KeeperTestSuite) SetupTest() {
 	authority := authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	mockStakingKeeper := &MockStakingKeeper{}
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority)
+	suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority = storeKey, mockBankKeeper, mockStakingKeeper, authority
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority, false)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 }
 
@@ -760,7 +768,8 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseWithoutCacheAllowsDouble
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend() {
-	suite.keeper.EnablePromiseCache()
+	// Rebuild the keeper with the promise cache enabled; it shares the same store.
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true)
 
 	promise1, promise2 := suite.twoPromisesFundedForOne()
 

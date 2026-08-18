@@ -64,7 +64,7 @@ func (suite *MsgServerTestSuite) SetupTest() {
 	suite.stakingKeeper = &MockStakingKeeper{}
 	suite.authority = authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
 }

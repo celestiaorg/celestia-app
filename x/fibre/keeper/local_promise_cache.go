@@ -46,6 +46,10 @@ type promiseStateReader interface {
 type LocalPromiseCache struct {
 	reader promiseStateReader
 
+	// budgets and pending are best-effort validator-local memory with no global cap.
+	// Per signer they are bounded by the escrow budget (every reservation costs at
+	// least the fixed PayForFibre gas), and idle signers are reclaimed by evictIdle,
+	// so total memory scales only with the number of funded escrow accounts seen.
 	mu      sync.Mutex
 	budgets map[string]*signerBudget
 	pending map[string]pendingPromise // key: hex(promiseHash)
@@ -71,7 +75,6 @@ type signerBudget struct {
 
 // pendingPromise is a reservation that has not yet settled on-chain.
 type pendingPromise struct {
-	signer   string
 	blobSize uint32
 	// creationTimestamp is the promise's declared creation time. A sweep drops the
 	// reservation once creationTimestamp+WithdrawalDelay has passed, since the
@@ -114,7 +117,7 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	}
 
 	if b.remaining.GTE(required) {
-		c.reserve(b, signer, key, blobSize, required, creationTimestamp)
+		c.reserve(b, key, blobSize, required, creationTimestamp)
 		return nil
 	}
 
@@ -125,7 +128,7 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 		c.sweep(ctx, signer)
 		b.lastFailSweepH = ctx.BlockHeight()
 		if b.remaining.GTE(required) {
-			c.reserve(b, signer, key, blobSize, required, creationTimestamp)
+			c.reserve(b, key, blobSize, required, creationTimestamp)
 			return nil
 		}
 	}
@@ -134,12 +137,12 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 }
 
 // reserve commits a reservation to the given budget. Callers must hold c.mu.
-func (c *LocalPromiseCache) reserve(b *signerBudget, signer, key string, blobSize uint32, required math.Int, creationTimestamp time.Time) {
+func (c *LocalPromiseCache) reserve(b *signerBudget, key string, blobSize uint32, required math.Int, creationTimestamp time.Time) {
 	b.remaining = b.remaining.Sub(required)
 	b.opsSinceSweep++
 	b.lastActivity = time.Now()
 	b.hashes[key] = struct{}{}
-	c.pending[key] = pendingPromise{signer: signer, blobSize: blobSize, creationTimestamp: creationTimestamp}
+	c.pending[key] = pendingPromise{blobSize: blobSize, creationTimestamp: creationTimestamp}
 }
 
 // sweep reconciles a signer's cached budget against committed chain state: it
@@ -154,6 +157,12 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget 
 		c.budgets[signer] = b
 	}
 
+	// Reserve against AvailableBalance, not the total Balance the on-chain gate uses
+	// (validatePaymentPromiseStatefulInternal, which may settle by cancelling pending
+	// withdrawals). AvailableBalance <= Balance, so the cache is deliberately stricter
+	// than the chain: it can never admit more promises than can settle, keeping the
+	// double-spend window closed. The accepted cost is that a signer withdrawing most
+	// of its balance may be rejected here even though on-chain settlement would succeed.
 	available := math.ZeroInt()
 	if acc, found := c.reader.GetEscrowAccount(ctx, signer); found {
 		available = acc.AvailableBalance.Amount
