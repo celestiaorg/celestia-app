@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bytes"
 	"fmt"
 
 	"cosmossdk.io/errors"
@@ -89,21 +88,6 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 	}
 
 	return app.forwardCheckTx(baseReq, sdkTx)
-}
-
-// blobTxIsCanonical reports whether raw is the canonical protobuf encoding of
-// btx. UnmarshalBlobTx accepts non-canonical encodings (unknown fields, or
-// repeated singular fields where the last value wins) and silently drops the
-// extra bytes, so re-marshaling the decoded blob tx yields the canonical form.
-// Raw bytes that differ carry padding that never reaches the block, yet would
-// inflate the mempool, gossip, and the proposal byte budget without being paid
-// for. Requiring canonical encoding closes that gap.
-func blobTxIsCanonical(raw []byte, btx *blobtx.BlobTx) bool {
-	canonical, err := blobtx.MarshalBlobTx(btx.Tx, btx.Blobs...)
-	if err != nil {
-		return false
-	}
-	return bytes.Equal(raw, canonical)
 }
 
 func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {

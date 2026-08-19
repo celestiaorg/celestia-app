@@ -81,7 +81,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
+	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
 
 	var (
 		sdkMessageCount = 0
@@ -136,7 +136,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		n++
 	}
 
-	for _, tx := range blobTxs {
+	for i, tx := range blobTxs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -178,7 +178,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
-		blobTxs[m] = tx
+		rawBlobTxs[m] = rawBlobTxs[i]
 		m++
 	}
 
@@ -186,7 +186,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
-	kept = append(kept, encodeBlobTxs(blobTxs[:m])...)
+	// separateTxs only keeps canonically encoded blob txs, so the raw bytes
+	// are identical to re-marshaling the decoded blob txs and can be reused.
+	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
 	return kept
 }
@@ -200,18 +202,6 @@ func msgTypes(sdkTx sdk.Tx) []string {
 	return msgNames
 }
 
-func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
-	txs := make([][]byte, len(blobTxs))
-	var err error
-	for i, blobTx := range blobTxs {
-		txs[i], err = tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return txs
-}
-
 // separateTxs decodes raw tendermint txs into normal, blob, and pay-for-fibre txs.
 // This function filters out:
 //   - transactions that exceed MaxTxSize
@@ -219,9 +209,10 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
-func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
+func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
+	rawBlobTxs = make([][]byte, 0, len(rawTxs))
 	payForFibreTxs = make([][]byte, 0, len(rawTxs))
 	dec := txConfig.TxDecoder()
 
@@ -252,6 +243,7 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 				continue
 			}
 			blobTxs = append(blobTxs, bTx)
+			rawBlobTxs = append(rawBlobTxs, rawTx)
 			continue
 		}
 
@@ -275,7 +267,7 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 
 		normalTxs = append(normalTxs, rawTx)
 	}
-	return normalTxs, blobTxs, payForFibreTxs
+	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
