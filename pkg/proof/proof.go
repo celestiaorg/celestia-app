@@ -47,12 +47,15 @@ func NewTxInclusionProof(txs [][]byte, txIndex, _ uint64) (ShareProof, error) {
 		return ShareProof{}, err
 	}
 
-	namespace := getTxNamespace(txs[txIndex])
+	namespace := getTxNamespace(classifiedTxs[txIndex])
 	return NewShareInclusionProof(dataSquare, namespace, shareRange)
 }
 
-func getTxNamespace(tx []byte) (ns share.Namespace) {
-	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx)
+func getTxNamespace(tx square.ClassifiedTx) (ns share.Namespace) {
+	if tx.FibreTx != nil {
+		return share.PayForFibreNamespace
+	}
+	_, isBlobTx, _ := blobtx.UnmarshalBlobTx(tx.Bytes)
 	if isBlobTx {
 		return share.PayForBlobNamespace
 	}

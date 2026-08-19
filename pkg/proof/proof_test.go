@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
@@ -29,7 +31,11 @@ func TestNewTxInclusionProof(t *testing.T) {
 	require.NoError(t, err)
 
 	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(signer, random.New(), 50, 1, 500).ToSliceOfBytes()...)
-	require.Len(t, blockTxs, 100)
+
+	// The square orders fibre txs after normal and blob txs.
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	blockTxs = append(blockTxs, blobfactory.UnsignedPayForFibreTx(t, txConfig))
+	require.Len(t, blockTxs, 101)
 
 	type test struct {
 		name      string
@@ -69,9 +75,15 @@ func TestNewTxInclusionProof(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "txIndex 100 of block data returns error because only 100 txs",
+			name:      "fibre tx of block data",
 			txs:       blockTxs,
 			txIndex:   100,
+			expectErr: false,
+		},
+		{
+			name:      "txIndex 101 of block data returns error because only 101 txs",
+			txs:       blockTxs,
+			txIndex:   101,
 			expectErr: true,
 		},
 	}
