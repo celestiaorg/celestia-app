@@ -518,9 +518,9 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 }
 
-// appendUnknownProtoField appends a length-delimited unknown protobuf field
-// (field 100, wire type 2) of padLen zero bytes. proto.Unmarshal accepts it but
-// MarshalBlobTx drops it, yielding a valid-but-non-canonical blob tx encoding.
+// appendUnknownProtoField appends an unknown protobuf field (field 100, wire
+// type 2) of padLen zero bytes: proto.Unmarshal accepts it but MarshalBlobTx
+// drops it, yielding a valid-but-non-canonical blob tx encoding.
 func appendUnknownProtoField(raw []byte, padLen int) []byte {
 	varint := func(v uint64) []byte {
 		var out []byte

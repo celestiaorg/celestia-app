@@ -48,11 +48,9 @@ func TestSeparateTxsDropsNonCanonicalBlobTx(t *testing.T) {
 	require.Empty(t, rawBlobTxs, "a non-canonically encoded blob tx must be dropped")
 }
 
-// TestBlobTxCanonicalEncodingGolden pins the canonical encoding of a fixed
-// blob tx to a golden value. The canonical predicate compares raw bytes
-// against MarshalBlobTx output, so any change to the wire format produced by
-// go-square or the protobuf library (e.g. after a dependency bump) is
-// consensus breaking and must fail this test.
+// TestBlobTxCanonicalEncodingGolden pins the canonical encoding of a fixed blob
+// tx so a wire-format change (e.g. a go-square or protobuf bump), which would be
+// consensus breaking, fails this test.
 func TestBlobTxCanonicalEncodingGolden(t *testing.T) {
 	namespace := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
 	blob, err := share.NewBlob(namespace, []byte("data"), share.ShareVersionZero, nil)
@@ -73,10 +71,9 @@ func TestBlobTxCanonicalEncodingGolden(t *testing.T) {
 	require.Equal(t, blob, bTx.Blobs[0])
 }
 
-// appendUnknownProtoField appends a length-delimited unknown protobuf field
-// (field number 100, wire type 2) whose value is padLen zero bytes.
-// proto.Unmarshal accepts it, but MarshalBlobTx drops it, so the result decodes
-// to the same blob tx while being a distinct, non-canonical encoding.
+// appendUnknownProtoField appends an unknown protobuf field (field 100, wire
+// type 2) of padLen zero bytes: proto.Unmarshal accepts it but MarshalBlobTx
+// drops it, yielding a distinct, non-canonical encoding of the same blob tx.
 func appendUnknownProtoField(raw []byte, padLen int) []byte {
 	tag := protoVarint(uint64(100)<<3 | 2)
 	length := protoVarint(uint64(padLen))
