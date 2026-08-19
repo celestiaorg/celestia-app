@@ -175,7 +175,7 @@ Parameters that are governance modifiables can be modified via a
 <tr><td>consensus.block.MaxGas</td><td>-1</td><td>Maximum gas allowed per block (-1 is infinite).</td><td>True</td></tr>
 <tr><td>consensus.block.TimeIotaMs</td><td>1000</td><td>Minimum time added to the time in the header each block.</td><td>False</td></tr>
 <tr><td>consensus.evidence.MaxAgeDuration</td><td>337 hours</td><td>The maximum age of evidence before it is considered invalid in nanoseconds. This value should be identical to the unbonding period.</td><td>True</td></tr>
-<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>559,940</td><td>The maximum number of blocks before evidence is considered invalid. Scaled from 242,640 to preserve ~16.85 days at ~2.6s block times. See CIP-048.</td><td>True</td></tr>
+<tr><td>consensus.evidence.MaxAgeNumBlocks</td><td>404,400</td><td>The maximum number of blocks before evidence is considered invalid. Set to UnbondingTime / 3s so the evidence window stays within the unbonding period at block times up to 3s.</td><td>True</td></tr>
 <tr><td>consensus.evidence.MaxBytes</td><td>1 MiB</td><td>Maximum size in bytes used by evidence in a given block.</td><td>True</td></tr>
 <tr><td>consensus.validator.PubKeyTypes</td><td>Ed25519</td><td>The type of public key used by validators.</td><td>False</td></tr>
 <tr><td>consensus.Version.AppVersion</td><td>10</td><td>Determines protocol rules used for a given height. Incremented by the application upon an upgrade.</td><td>True</td></tr>
