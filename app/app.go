@@ -396,9 +396,11 @@ func New(
 		packetforwardkeeper.DefaultForwardTransferPacketTimeoutTimestamp, // forward timeout
 	)
 
-	// create evidence keeper with router
+	// create evidence keeper with router. The staking keeper is wrapped so that
+	// evidence naming a deleted validator is ignored rather than halting the
+	// chain. See evidenceStakingKeeper.
 	evidenceKeeper := evidencekeeper.NewKeeper(
-		encodingConfig.Codec, runtime.NewKVStoreService(keys[evidencetypes.StoreKey]), app.StakingKeeper, app.SlashingKeeper, app.AccountKeeper.AddressCodec(), runtime.ProvideCometInfoService(),
+		encodingConfig.Codec, runtime.NewKVStoreService(keys[evidencetypes.StoreKey]), evidenceStakingKeeper{app.StakingKeeper}, app.SlashingKeeper, app.AccountKeeper.AddressCodec(), runtime.ProvideCometInfoService(),
 	)
 	app.EvidenceKeeper = *evidenceKeeper
 
