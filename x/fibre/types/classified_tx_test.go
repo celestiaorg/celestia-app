@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cosmos/btcutil/bech32"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -172,20 +175,22 @@ func TestClassifyTxs(t *testing.T) {
 }
 
 // TestTryParseFibreTxSDKParity asserts that classification agrees with the
-// Cosmos SDK's TxRaw-based decoding for transactions with duplicate body
-// fields. The SDK decodes the outer TxRaw first, where body_bytes is a scalar
-// and a repeated occurrence resolves to the last one; decoding into the
-// embedded-message cosmostx.Tx instead merges duplicate bodies, which would
-// make classification disagree with the SDK.
+// app's actual SDK tx decoder: a decodable tx is classified as fibre exactly
+// when it contains a single MsgPayForFibre message. The decoder reads the
+// outer TxRaw, where body_bytes is a scalar and a repeated occurrence
+// resolves to the last one; classification decoding into the embedded-message
+// cosmostx.Tx instead would merge duplicate bodies and disagree with the SDK.
 func TestTryParseFibreTxSDKParity(t *testing.T) {
+	decoder := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()
+
 	signer, err := bech32.EncodeFromBase256("celestia", testSignerRaw)
 	require.NoError(t, err)
 
-	fibreBody := marshalTxBody(t, fibreMsgAny(t, signer, testNamespace.Bytes(), testCommitment))
-	normalBody := marshalTxBody(t, &codectypes.Any{
-		TypeUrl: "/cosmos.bank.v1beta1.MsgSend",
-		Value:   []byte("some-value"),
-	})
+	fibreAny := fibreMsgAny(t, signer, testNamespace.Bytes(), testCommitment)
+	sendAny, err := codectypes.NewAnyWithValue(&banktypes.MsgSend{FromAddress: signer, ToAddress: signer})
+	require.NoError(t, err)
+	fibreBody := marshalTxBody(t, fibreAny)
+	normalBody := marshalTxBody(t, sendAny)
 
 	tests := []struct {
 		name    string
@@ -193,32 +198,23 @@ func TestTryParseFibreTxSDKParity(t *testing.T) {
 	}{
 		{"single fibre body", bodyField(t, fibreBody)},
 		{"single normal body", bodyField(t, normalBody)},
+		{"fibre and normal messages in one body", marshalTx(t, fibreAny, sendAny)},
 		{"duplicate bodies [fibre, normal]", append(bodyField(t, fibreBody), bodyField(t, normalBody)...)},
 		{"duplicate bodies [normal, fibre]", append(bodyField(t, normalBody), bodyField(t, fibreBody)...)},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			sdkTx, err := decoder(tc.txBytes)
+			require.NoError(t, err, "every vector must be decodable so the parity check is not vacuous")
+			msgs := sdkTx.GetMsgs()
+			_, firstIsPFF := msgs[0].(*fibretypes.MsgPayForFibre)
+			wantFibre := len(msgs) == 1 && firstIsPFF
+
 			_, isFibreTx, err := fibretypes.TryParseFibreTx(tc.txBytes)
 			require.NoError(t, err)
-			require.Equal(t, sdkClassifiesAsFibre(t, tc.txBytes), isFibreTx)
+			require.Equal(t, wantFibre, isFibreTx)
 		})
 	}
-}
-
-// sdkClassifiesAsFibre mirrors the SDK's tx decoding: decode the outer TxRaw
-// (body_bytes is a scalar so the last occurrence wins), then the body, then
-// check whether the first message is a MsgPayForFibre.
-func sdkClassifiesAsFibre(t *testing.T, txBytes []byte) bool {
-	t.Helper()
-	var raw cosmostx.TxRaw
-	if err := raw.Unmarshal(txBytes); err != nil || len(raw.BodyBytes) == 0 {
-		return false
-	}
-	var body cosmostx.TxBody
-	if err := body.Unmarshal(raw.BodyBytes); err != nil || len(body.Messages) == 0 {
-		return false
-	}
-	return body.Messages[0].TypeUrl == fibretypes.MsgPayForFibreTypeURL
 }
 
 // bodyField encodes body as protobuf field 1 (body/body_bytes) with wire type
