@@ -101,7 +101,7 @@ func TestTryParseFibreTx(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fibreTx, err := fibretypes.TryParseFibreTx(tc.txBytes)
+			fibreTx, isFibreTx, err := fibretypes.TryParseFibreTx(tc.txBytes)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
@@ -109,8 +109,11 @@ func TestTryParseFibreTx(t *testing.T) {
 			}
 			if tc.wantNil {
 				require.Nil(t, fibreTx)
+				// Malformed fibre txs are still detected as fibre txs.
+				require.Equal(t, tc.wantErr, isFibreTx)
 				return
 			}
+			require.True(t, isFibreTx)
 			require.NotNil(t, fibreTx)
 			require.Equal(t, tc.txBytes, fibreTx.Tx)
 			require.Equal(t, testNamespace, fibreTx.SystemBlob.Namespace())

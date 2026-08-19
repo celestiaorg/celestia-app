@@ -20,11 +20,11 @@ const MsgPayForFibreTypeURL = "/celestia.fibre.v1.MsgPayForFibre"
 func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 	classified := make([]square.ClassifiedTx, len(txs))
 	for i, rawTx := range txs {
-		fibreTx, err := TryParseFibreTx(rawTx)
+		fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
 		if err != nil {
 			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
 		}
-		if fibreTx == nil {
+		if !isFibreTx {
 			classified[i] = square.NewClassifiedTx(rawTx)
 			continue
 		}
@@ -40,39 +40,39 @@ func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 // Cosmos SDK Tx bytes and synthesize the corresponding FibreTx.
 //
 // Returns:
-//   - (nil, nil): txBytes do not contain a MsgPayForFibre (not a fibre tx).
-//   - (nil, err): txBytes contain a MsgPayForFibre but it is malformed.
-//   - (ft, nil): successfully parsed and synthesized a FibreTx.
-func TryParseFibreTx(txBytes []byte) (*squaretx.FibreTx, error) {
+//   - (nil, false, nil): txBytes do not contain a MsgPayForFibre (not a fibre tx).
+//   - (nil, true, err): txBytes contain a MsgPayForFibre but it is malformed.
+//   - (ft, true, nil): successfully parsed and synthesized a FibreTx.
+func TryParseFibreTx(txBytes []byte) (fibreTx *squaretx.FibreTx, isFibreTx bool, err error) {
 	var sdkTx cosmostx.Tx
 	// Not returning an error here because BlobTx bytes fail to unmarshal into
 	// cosmos.tx.v1beta1.Tx and callers pass BlobTx bytes through here.
 	if err := sdkTx.Unmarshal(txBytes); err != nil {
-		return nil, nil
+		return nil, false, nil
 	}
 	if sdkTx.Body == nil || len(sdkTx.Body.Messages) == 0 {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	anyMsg := sdkTx.Body.Messages[0]
 	if anyMsg.TypeUrl != MsgPayForFibreTypeURL {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	var msg MsgPayForFibre
 	if err := msg.Unmarshal(anyMsg.Value); err != nil {
-		return nil, fmt.Errorf("unmarshalling MsgPayForFibre: %w", err)
+		return nil, true, fmt.Errorf("unmarshalling MsgPayForFibre: %w", err)
 	}
 
 	systemBlob, err := msg.SystemBlob()
 	if err != nil {
-		return nil, err
+		return nil, true, err
 	}
 
 	return &squaretx.FibreTx{
 		Tx:         txBytes,
 		SystemBlob: systemBlob,
-	}, nil
+	}, true, nil
 }
 
 // SystemBlob synthesizes the share version two system blob that represents
