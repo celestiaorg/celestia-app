@@ -93,6 +93,14 @@ func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.Re
 		return res, err
 	}
 
+	// BaseApp.CheckTx reports a failed tx via the response code with a nil
+	// error. A failed tx may be malformed in ways that make signerDataFromTx
+	// panic (e.g. a SignerInfo with an unset ModeInfo oneof), so skip it and
+	// return the failure as-is.
+	if res.Code != abci.CodeTypeOK {
+		return res, nil
+	}
+
 	signerAddr, signerSeq, err := signerDataFromTx(sdkTx)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
