@@ -77,6 +77,28 @@ func TestTryParseFibreTx(t *testing.T) {
 			wantNil: true,
 		},
 		{
+			name: "BlobTx wrapping a TxBody with MsgPayForFibre",
+			txBytes: func() []byte {
+				blob, err := share.NewV0Blob(testNamespace, []byte("data"))
+				require.NoError(t, err)
+				innerBody := marshalTxBody(t, fibreMsgAny(t, signer, testNamespace.Bytes(), testCommitment))
+				blobTxBytes, err := squaretx.MarshalBlobTx(innerBody, blob)
+				require.NoError(t, err)
+				return blobTxBytes
+			}(),
+			wantNil: true,
+		},
+		{
+			name: "MsgPayForFibre with additional message",
+			txBytes: marshalTx(t,
+				fibreMsgAny(t, signer, testNamespace.Bytes(), testCommitment),
+				&codectypes.Any{
+					TypeUrl: "/cosmos.bank.v1beta1.MsgSend",
+					Value:   []byte("some-value"),
+				}),
+			wantNil: true,
+		},
+		{
 			name: "MsgPayForFibre with corrupted inner message",
 			txBytes: marshalTx(t, &codectypes.Any{
 				TypeUrl: fibretypes.MsgPayForFibreTypeURL,
