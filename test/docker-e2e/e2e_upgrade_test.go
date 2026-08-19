@@ -51,8 +51,9 @@ const (
 
 	EvidenceMaxAgeV5Blocks = 120960
 	EvidenceMaxAgeV6Blocks = 242640
-	EvidenceMaxAgeV8Blocks = 242640
-	EvidenceMaxAgeV9Blocks = 559940
+	EvidenceMaxAgeV8Blocks  = 242640
+	EvidenceMaxAgeV9Blocks  = 559940
+	EvidenceMaxAgeV10Blocks = 404400
 
 	// CIP-048 IBC MaxExpectedTimePerBlock for v9 (in nanoseconds)
 	MaxExpectedTimePerBlockV9Ns = uint64(13 * time.Second)
@@ -411,8 +412,8 @@ func (s *CelestiaTestSuite) ValidatePostUpgrade(ctx context.Context, chain tasto
 
 	// CIP-048: Consensus timeout parameters
 	s.validateTimeoutInfo(ctx, node)
-	// CIP-048: Evidence params (MaxAgeNumBlocks scaled for 2.6s blocks)
-	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV9Blocks, appVersion)
+	// Evidence params: MaxAgeNumBlocks bounded to the unbonding period.
+	s.validateEvidenceParams(ctx, node, EvidenceMaxAgeV6Hours, EvidenceMaxAgeV10Blocks, appVersion)
 	// CIP-048: IBC MaxExpectedTimePerBlock corrected to 13s
 	s.validateMaxExpectedTimePerBlock(ctx, node)
 	// Block params: max_bytes = 32 MiB

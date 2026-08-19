@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -30,6 +31,21 @@ func TestUpgrades(t *testing.T) {
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v9"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v10"))
 	})
+}
+
+func TestSetEvidenceParams(t *testing.T) {
+	consensusParams := app.DefaultConsensusParams()
+	// Start from a stale value to prove the migration overwrites it.
+	consensusParams.Evidence.MaxAgeNumBlocks = 559_940
+	testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+	ctx := testApp.NewContext(false)
+
+	require.NoError(t, testApp.SetEvidenceParams(ctx))
+
+	got, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.Evidence.MaxAgeNumBlocks)
+	require.Equal(t, appconsts.MaxAgeDuration, got.Evidence.MaxAgeDuration)
 }
 
 // createValidatorWithCommission creates a validator with specific commission
