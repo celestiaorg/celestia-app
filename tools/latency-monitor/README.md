@@ -37,7 +37,7 @@ A tool for monitoring and measuring transaction latency in Celestia networks. Th
 | `--namespace`        | `-n`      | `test`            | Namespace for blob submission                                                             |
 | `--disable-metrics`  | `-m`      | `false`           | Disable metrics collection                                                                |
 | `--tls`              |           | `false`           | Use TLS for the gRPC connection (required for TLS-terminating endpoints, e.g. port 443)   |
-| `--auth-token`       |           | `$AUTH_TOKEN`     | Auth token attached to every RPC as an `x-token` header                                   |
+| `--auth-token`       |           | `$AUTH_TOKEN`     | Auth token attached to every RPC as an `x-token` header (requires `--tls`)                |
 
 ### Example
 

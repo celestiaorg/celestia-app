@@ -116,6 +116,12 @@ func (s *CelestiaTestSuite) DeployLatencyMonitorForNetwork(
 ) (*tastoracontainertypes.Container, error) {
 	t := s.T()
 
+	// Fail here rather than minutes later in the monitor: a token on a
+	// plaintext connection would be sent unencrypted.
+	if cfg.AuthToken != "" && !cfg.TLS {
+		return nil, fmt.Errorf("AuthToken is set but TLS is disabled: refusing to send the token over plaintext")
+	}
+
 	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
 	if err != nil {
 		return nil, err

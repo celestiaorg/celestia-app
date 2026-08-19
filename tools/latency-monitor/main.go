@@ -59,9 +59,9 @@ func (t tokenCreds) GetRequestMetadata(context.Context, ...string) (map[string]s
 	return map[string]string{"x-token": string(t)}, nil
 }
 
-// RequireTransportSecurity returns false so a token can also be sent over
-// plaintext connections (e.g. local networks without a TLS proxy).
-func (t tokenCreds) RequireTransportSecurity() bool { return false }
+// RequireTransportSecurity returns true so gRPC refuses to send the token
+// over a plaintext connection, where it could be intercepted and reused.
+func (t tokenCreds) RequireTransportSecurity() bool { return true }
 
 type txResult struct {
 	submitTime time.Time
@@ -118,7 +118,7 @@ between submission and commitment, providing detailed latency statistics.`,
 	cmd.Flags().IntVar(&observabilityPort, "observability-port", defaultObservabilityPort, "Port for Prometheus observability HTTP server")
 	cmd.Flags().IntVarP(&numWorkers, "workers", "w", 1, "Number of parallel worker accounts for submission (1 = sequential, >1 = parallel)")
 	cmd.Flags().BoolVar(&useTLS, "tls", false, "Use TLS for the gRPC connection (required for TLS-terminating endpoints, e.g. port 443)")
-	cmd.Flags().StringVar(&authToken, "auth-token", os.Getenv("AUTH_TOKEN"), "Auth token attached to every RPC as an x-token header (defaults to the AUTH_TOKEN env var)")
+	cmd.Flags().StringVar(&authToken, "auth-token", os.Getenv("AUTH_TOKEN"), "Auth token attached to every RPC as an x-token header (requires --tls; defaults to the AUTH_TOKEN env var)")
 
 	return cmd
 }
@@ -143,6 +143,9 @@ func monitorLatency(
 	}
 	if blobSize < blobMinSize {
 		return fmt.Errorf("maximum blob size (%d) must be greater than or equal to minimum blob size (%d)", blobSize, blobMinSize)
+	}
+	if authToken != "" && !useTLS {
+		return fmt.Errorf("an auth token is set but --tls is disabled: refusing to send the token over plaintext")
 	}
 
 	fmt.Printf("Monitoring latency with min blob size: %d bytes, max blob size: %d bytes, submission delay: %s, namespace: %s\n",
