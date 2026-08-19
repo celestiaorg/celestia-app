@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -45,7 +47,21 @@ var (
 	submissionDelay      time.Duration
 	observabilityPort    int
 	numWorkers           int
+	useTLS               bool
+	authToken            string
 )
+
+// tokenCreds implements credentials.PerRPCCredentials, attaching a static
+// x-token header to every RPC on the connection.
+type tokenCreds string
+
+func (t tokenCreds) GetRequestMetadata(context.Context, ...string) (map[string]string, error) {
+	return map[string]string{"x-token": string(t)}, nil
+}
+
+// RequireTransportSecurity returns false so a token can also be sent over
+// plaintext connections (e.g. local networks without a TLS proxy).
+func (t tokenCreds) RequireTransportSecurity() bool { return false }
 
 type txResult struct {
 	submitTime time.Time
@@ -87,7 +103,7 @@ between submission and commitment, providing detailed latency statistics.`,
 				cancel()
 			}()
 
-			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableObservability, submissionDelay, observabilityPort, numWorkers)
+			return monitorLatency(ctx, endpoint, keyringDir, accountName, blobSize, minBlobSize, namespaceStr, disableObservability, submissionDelay, observabilityPort, numWorkers, useTLS, authToken)
 		},
 	}
 
@@ -101,6 +117,8 @@ between submission and commitment, providing detailed latency statistics.`,
 	cmd.Flags().DurationVarP(&submissionDelay, "submission-delay", "d", defaultSubmissionDelay, "Delay between transaction submissions")
 	cmd.Flags().IntVar(&observabilityPort, "observability-port", defaultObservabilityPort, "Port for Prometheus observability HTTP server")
 	cmd.Flags().IntVarP(&numWorkers, "workers", "w", 1, "Number of parallel worker accounts for submission (1 = sequential, >1 = parallel)")
+	cmd.Flags().BoolVar(&useTLS, "tls", false, "Use TLS for the gRPC connection (required for TLS-terminating endpoints, e.g. port 443)")
+	cmd.Flags().StringVar(&authToken, "auth-token", os.Getenv("AUTH_TOKEN"), "Auth token attached to every RPC as an x-token header (defaults to the AUTH_TOKEN env var)")
 
 	return cmd
 }
@@ -117,6 +135,8 @@ func monitorLatency(
 	submissionDelay time.Duration,
 	observabilityPort int,
 	numWorkers int,
+	useTLS bool,
+	authToken string,
 ) error {
 	if blobMinSize < 1 {
 		return fmt.Errorf("minimum blob size must be at least 1 byte (got %d)", blobMinSize)
@@ -152,16 +172,26 @@ func monitorLatency(
 		return fmt.Errorf("failed to initialize keyring: %w", err)
 	}
 
-	fmt.Printf("Connecting to gRPC endpoint: %s (insecure)\n", endpoint)
+	transportCreds := insecure.NewCredentials()
+	transportDesc := "insecure"
+	if useTLS {
+		transportCreds = credentials.NewTLS(&tls.Config{MinVersion: tls.VersionTLS12})
+		transportDesc = "tls"
+	}
+	fmt.Printf("Connecting to gRPC endpoint: %s (%s, auth=%v)\n", endpoint, transportDesc, authToken != "")
 
-	grpcConn, err := grpc.NewClient(
-		endpoint,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	dialOpts := []grpc.DialOption{
+		grpc.WithTransportCredentials(transportCreds),
 		grpc.WithDefaultCallOptions(
 			grpc.MaxCallSendMsgSize(math.MaxInt32),
 			grpc.MaxCallRecvMsgSize(math.MaxInt32),
 		),
-	)
+	}
+	if authToken != "" {
+		dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(tokenCreds(authToken)))
+	}
+
+	grpcConn, err := grpc.NewClient(endpoint, dialOpts...)
 	if err != nil {
 		return fmt.Errorf("failed to create gRPC connection to %s: %w (note: this tool requires a gRPC endpoint, not REST)", endpoint, err)
 	}

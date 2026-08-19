@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,6 +46,7 @@ const (
 //
 // Optional env vars (with defaults):
 //
+//	CORTO_GRPC_TOKEN       – auth token sent as an x-token header on gRPC calls
 //	CORTO_KEYRING_DIR      – keyring directory (alternative to CORTO_PRIV_KEY)
 //	CORTO_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
 //	CORTO_SUBMISSION_DELAY – delay between blobs (default: 250ms)
@@ -74,9 +76,13 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	cortoCfg, err := networks.NewCortoConfig()
 	require.NoError(t, err, "failed to build Corto config")
 
+	// Endpoints on port 443 sit behind a TLS-terminating proxy (e.g.
+	// grpc.celestia-corto.com:443), so dial them with TLS.
+	useTLS := strings.HasSuffix(cortoCfg.GRPCs[0], ":443")
+
 	t.Logf("Corto Load Test Configuration:")
 	t.Logf("  RPC:              %s", cortoCfg.RPCs[0])
-	t.Logf("  gRPC:             %s", cortoCfg.GRPCs[0])
+	t.Logf("  gRPC:             %s (tls=%v, auth=%v)", cortoCfg.GRPCs[0], useTLS, cortoCfg.GRPCToken != "")
 	t.Logf("  Blob size:        %d bytes", blobSize)
 	t.Logf("  Submission delay: %v", submissionDelay)
 	t.Logf("  Workers:          %d", workers)
@@ -105,6 +111,8 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 		Workers:         workers,
 		PrivKeyHex:      privKeyHex,
 		KeyringDir:      keyringDir,
+		TLS:             useTLS,
+		AuthToken:       cortoCfg.GRPCToken,
 	})
 	require.NoError(t, err, "failed to deploy latency-monitor")
 

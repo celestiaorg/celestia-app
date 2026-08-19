@@ -39,6 +39,8 @@ type LatencyMonitorConfig struct {
 	Workers         int    // parallel worker accounts (0 or 1 = sequential)
 	PrivKeyHex      string // if set, creates a keyring from hex-encoded private key
 	KeyringDir      string // if set, bind-mounts this existing keyring directory
+	TLS             bool   // if set, the monitor dials the gRPC endpoint with TLS
+	AuthToken       string // if set, attached as an x-token header to every gRPC call
 }
 
 type LatencyMonitorResult struct {
@@ -151,12 +153,23 @@ func (s *CelestiaTestSuite) DeployLatencyMonitorForNetwork(
 	if cfg.Workers > 1 {
 		args = append(args, "--workers", strconv.Itoa(cfg.Workers))
 	}
+	if cfg.TLS {
+		args = append(args, "--tls")
+	}
+
+	// The auth token goes through the container environment rather than argv
+	// so it never appears in the logged args.
+	var env []string
+	if cfg.AuthToken != "" {
+		env = append(env, "AUTH_TOKEN="+cfg.AuthToken)
+	}
 
 	t.Logf("Starting latency-monitor for external network with args: %v", args)
 
 	container, err := image.Start(ctx, args, tastoracontainertypes.Options{
 		User:  "0:0",
 		Binds: []string{keyringDir + ":/celestia-home"},
+		Env:   env,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to start latency-monitor: %w", err)
