@@ -44,17 +44,27 @@ func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 //   - (nil, true, err): txBytes contain a MsgPayForFibre but it is malformed.
 //   - (ft, true, nil): successfully parsed and synthesized a FibreTx.
 func TryParseFibreTx(txBytes []byte) (fibreTx *squaretx.FibreTx, isFibreTx bool, err error) {
-	var sdkTx cosmostx.Tx
-	// Not returning an error here because BlobTx bytes fail to unmarshal into
-	// cosmos.tx.v1beta1.Tx and callers pass BlobTx bytes through here.
-	if err := sdkTx.Unmarshal(txBytes); err != nil {
+	// Decode the way the SDK's tx decoder does: the outer TxRaw carries
+	// body_bytes as an opaque scalar (a repeated occurrence resolves to the
+	// last one), which is then unmarshalled into a TxBody. Decoding into the
+	// embedded-message cosmostx.Tx instead would merge duplicate body fields
+	// and could disagree with the SDK about what a transaction contains.
+	//
+	// Not returning an error on unmarshal failures because BlobTx bytes fail
+	// to unmarshal and callers pass BlobTx bytes through here.
+	var raw cosmostx.TxRaw
+	if err := raw.Unmarshal(txBytes); err != nil {
 		return nil, false, nil
 	}
-	if sdkTx.Body == nil || len(sdkTx.Body.Messages) == 0 {
+	var body cosmostx.TxBody
+	if err := body.Unmarshal(raw.BodyBytes); err != nil {
+		return nil, false, nil
+	}
+	if len(body.Messages) == 0 {
 		return nil, false, nil
 	}
 
-	anyMsg := sdkTx.Body.Messages[0]
+	anyMsg := body.Messages[0]
 	if anyMsg.TypeUrl != MsgPayForFibreTypeURL {
 		return nil, false, nil
 	}
