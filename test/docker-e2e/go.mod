@@ -59,24 +59,24 @@ require (
 	github.com/RaduBerinde/axisds v0.1.0 // indirect
 	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/avast/retry-go/v4 v4.6.1 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.43.5 // indirect
-	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.17 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.32.36 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.19.35 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.36 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.36 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.36 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.37 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.16 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.29 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.36 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.37 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.5.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.33.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.45.5 // indirect
-	github.com/aws/smithy-go v1.27.7 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.43.6 // indirect
+	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.18 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.32.37 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.19.36 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.37 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.37 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.37 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.38 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.17 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.30 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.37 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.38 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.2 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.5.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.33.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.38.6 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.45.6 // indirect
+	github.com/aws/smithy-go v1.27.8 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bgentry/go-netrc v0.0.0-20140422174119-9fd32a8b3d3d // indirect
 	github.com/bgentry/speakeasy v0.2.0 // indirect
@@ -294,7 +294,7 @@ replace (
 	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.1
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
-	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.2.0
+	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
 	github.com/celestiaorg/celestia-app/v10 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.8
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.10

@@ -77,6 +77,10 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
 
+			if err := app.SetEvidenceParams(ctx); err != nil {
+				return nil, err
+			}
+
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
@@ -93,4 +97,19 @@ func (app App) RegisterUpgradeHandlers() {
 		// configure store loader that checks if version == upgradeHeight and applies store upgrades
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
 	}
+}
+
+// SetEvidenceParams writes the evidence params from appconsts into the
+// consensus param store. Evidence params are not modifiable by governance, so
+// applying a new value to a running chain requires this upgrade migration.
+func (app App) SetEvidenceParams(ctx context.Context) error {
+	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
+	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+
+	return app.ConsensusKeeper.ParamsStore.Set(ctx, params)
 }
