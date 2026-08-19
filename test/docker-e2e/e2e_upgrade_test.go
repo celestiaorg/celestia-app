@@ -49,8 +49,8 @@ const (
 	EvidenceMaxAgeV5Hours = 504
 	EvidenceMaxAgeV6Hours = 337
 
-	EvidenceMaxAgeV5Blocks = 120960
-	EvidenceMaxAgeV6Blocks = 242640
+	EvidenceMaxAgeV5Blocks  = 120960
+	EvidenceMaxAgeV6Blocks  = 242640
 	EvidenceMaxAgeV8Blocks  = 242640
 	EvidenceMaxAgeV9Blocks  = 559940
 	EvidenceMaxAgeV10Blocks = 404400
