@@ -123,11 +123,20 @@ func responseCheckTxWithEvents(err error, gw, gu uint64, events []abci.Event, de
 	}
 }
 
-func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
+func signerDataFromTx(tx sdk.Tx) (addr []byte, seq uint64, err error) {
 	sigTx, ok := tx.(authsigning.SigVerifiableTx)
 	if !ok {
 		return nil, 0, fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
 	}
+
+	// GetSignaturesV2 panics on a malformed SignerInfo (e.g. an unset ModeInfo
+	// oneof). Recover so a bad tx returns an error rather than crashing the
+	// process, which is not always running under a recover (e.g. the mempool).
+	defer func() {
+		if r := recover(); r != nil {
+			addr, seq, err = nil, 0, fmt.Errorf("failed to get signer data: %v", r)
+		}
+	}()
 
 	sigs, err := sigTx.GetSignaturesV2()
 	if err != nil {
