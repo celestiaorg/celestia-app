@@ -15,31 +15,39 @@ import (
 // CELESTIA-267. Equivocation evidence naming a consensus address that is not in
 // staking state (e.g. a validator that fully unbonded and was removed) must be
 // ignored rather than propagating an error out of FinalizeBlock, which would
-// halt the chain. See evidenceStakingKeeper.
+// halt the chain. See evidenceStakingKeeper. Both misbehavior types route
+// through the same handler, so both are covered.
 func TestFinalizeBlockIgnoresEvidenceForUnknownValidator(t *testing.T) {
-	accounts := testfactory.GenerateAccounts(1)
-	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
-
 	// A consensus address that was never (or is no longer) a validator.
 	unknownConsAddr := make([]byte, 20)
 	for i := range unknownConsAddr {
 		unknownConsAddr[i] = byte(i + 1)
 	}
 
-	misbehavior := abci.Misbehavior{
-		Type:             abci.MisbehaviorType_DUPLICATE_VOTE,
-		Validator:        abci.Validator{Address: unknownConsAddr, Power: 100},
-		Height:           1,
-		Time:             time.Now(),
-		TotalVotingPower: 100,
-	}
+	for _, misbehaviorType := range []abci.MisbehaviorType{
+		abci.MisbehaviorType_DUPLICATE_VOTE,
+		abci.MisbehaviorType_LIGHT_CLIENT_ATTACK,
+	} {
+		t.Run(misbehaviorType.String(), func(t *testing.T) {
+			accounts := testfactory.GenerateAccounts(1)
+			testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
-	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:        time.Now(),
-		Height:      testApp.LastBlockHeight() + 1,
-		Hash:        testApp.LastCommitID().Hash,
-		Misbehavior: []abci.Misbehavior{misbehavior},
-	})
-	require.NoError(t, err, "evidence for an unknown validator must not halt FinalizeBlock")
-	require.NotNil(t, resp)
+			misbehavior := abci.Misbehavior{
+				Type:             misbehaviorType,
+				Validator:        abci.Validator{Address: unknownConsAddr, Power: 100},
+				Height:           1,
+				Time:             time.Now(),
+				TotalVotingPower: 100,
+			}
+
+			resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+				Time:        time.Now(),
+				Height:      testApp.LastBlockHeight() + 1,
+				Hash:        testApp.LastCommitID().Hash,
+				Misbehavior: []abci.Misbehavior{misbehavior},
+			})
+			require.NoError(t, err, "evidence for an unknown validator must not halt FinalizeBlock")
+			require.NotNil(t, resp)
+		})
+	}
 }
