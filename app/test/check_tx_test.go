@@ -417,11 +417,9 @@ func TestCheckTx_UnknownRequestType(t *testing.T) {
 	}
 }
 
-// TestCheckTxMalformedModeInfoDoesNotPanic verifies that a transaction whose
-// single SignerInfo has a ModeInfo present with its oneof (Sum) unset is
-// rejected without panicking. Such a ModeInfo decodes cleanly but makes
-// GetSignaturesV2 panic, and CheckTx must not propagate that panic (it runs on
-// an unrecovered mempool goroutine, so a panic here crashes the node).
+// TestCheckTxMalformedModeInfoDoesNotPanic verifies that a tx with a SignerInfo
+// whose ModeInfo oneof is unset is rejected without panicking. Such a ModeInfo
+// decodes cleanly but makes GetSignaturesV2 panic.
 func TestCheckTxMalformedModeInfoDoesNotPanic(t *testing.T) {
 	accounts := []string{"a"}
 	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
