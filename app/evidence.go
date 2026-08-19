@@ -9,16 +9,10 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
-// evidenceStakingKeeper wraps the staking keeper used by the evidence module so
-// that equivocation evidence naming a validator whose record no longer exists
-// is ignored instead of halting the chain.
-//
-// The evidence handler treats a non-nil error from ValidatorByConsAddr as fatal
-// and returns it, which propagates out of FinalizeBlock with nothing to recover
-// it. ValidatorByConsAddr returns ErrNoValidatorFound once the validator's
-// consensus-address index entry has been deleted, so the handler's own
-// defensive "validator == nil" branch is never reached. Translating that error
-// into (nil, nil) restores the intended defensive behavior.
+// evidenceStakingKeeper wraps the staking keeper so that equivocation evidence
+// naming a deleted validator is ignored instead of halting the chain: it maps
+// ErrNoValidatorFound to (nil, nil), which the evidence handler skips instead
+// of returning an error from FinalizeBlock.
 type evidenceStakingKeeper struct {
 	evidencetypes.StakingKeeper
 }

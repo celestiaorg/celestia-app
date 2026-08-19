@@ -12,11 +12,8 @@ import (
 )
 
 // TestFinalizeBlockIgnoresEvidenceForUnknownValidator is a regression test for
-// CELESTIA-267. Equivocation evidence naming a consensus address that is not in
-// staking state (e.g. a validator that fully unbonded and was removed) must be
-// ignored rather than propagating an error out of FinalizeBlock, which would
-// halt the chain. See evidenceStakingKeeper. Both misbehavior types route
-// through the same handler, so both are covered.
+// CELESTIA-267: evidence naming a validator that is not in staking state must
+// be ignored rather than halting FinalizeBlock. See evidenceStakingKeeper.
 func TestFinalizeBlockIgnoresEvidenceForUnknownValidator(t *testing.T) {
 	// A consensus address that was never (or is no longer) a validator.
 	unknownConsAddr := make([]byte, 20)
