@@ -352,6 +352,23 @@ func TestCheckTx(t *testing.T) {
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
 		},
+		{
+			name:      "blob tx with repeated singular protobuf field, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				// Repeat the singular type_id field (field 3, wire type 2,
+				// value "BLOB"). proto.Unmarshal keeps the last value so it
+				// decodes to the same blob tx, but the encoding is not
+				// canonical, so CheckTx must reject it.
+				return append(btx, 0x1a, 0x04, 'B', 'L', 'O', 'B')
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
 	}
 
 	for _, tt := range tests {
