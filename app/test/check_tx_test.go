@@ -22,8 +22,10 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -376,6 +378,38 @@ func TestCheckTx_UnknownRequestType(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestCheckTxMalformedModeInfoDoesNotPanic verifies that a tx with a SignerInfo
+// whose ModeInfo oneof is unset is rejected without panicking. Such a ModeInfo
+// decodes cleanly but makes GetSignaturesV2 panic.
+func TestCheckTxMalformedModeInfoDoesNotPanic(t *testing.T) {
+	accounts := []string{"a"}
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	addr := testnode.RandomAddress().(sdk.AccAddress)
+	sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+	msgAny, err := codectypes.NewAnyWithValue(sendMsg)
+	require.NoError(t, err)
+
+	rawTx := &txtypes.Tx{
+		Body: &txtypes.TxBody{Messages: []*codectypes.Any{msgAny}},
+		AuthInfo: &txtypes.AuthInfo{
+			SignerInfos: []*txtypes.SignerInfo{{
+				ModeInfo: &txtypes.ModeInfo{}, // present but oneof (Sum) unset
+				Sequence: 0,
+			}},
+			Fee: &txtypes.Fee{},
+		},
+		Signatures: [][]byte{{}},
+	}
+	txBz, err := rawTx.Marshal()
+	require.NoError(t, err)
+
+	require.NotPanics(t, func() {
+		resp, _ := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: txBz})
+		require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	})
 }
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
