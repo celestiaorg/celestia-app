@@ -13,7 +13,7 @@ import (
 
 // TestFinalizeBlockIgnoresEvidenceForUnknownValidator is a regression test for
 // CELESTIA-267: evidence naming a validator that is not in staking state must
-// be ignored rather than halting FinalizeBlock.
+// be ignored rather than returning an error from FinalizeBlock.
 func TestFinalizeBlockIgnoresEvidenceForUnknownValidator(t *testing.T) {
 	// A consensus address that was never (or is no longer) a validator.
 	unknownConsAddr := make([]byte, 20)
@@ -43,7 +43,7 @@ func TestFinalizeBlockIgnoresEvidenceForUnknownValidator(t *testing.T) {
 				Hash:        testApp.LastCommitID().Hash,
 				Misbehavior: []abci.Misbehavior{misbehavior},
 			})
-			require.NoError(t, err, "evidence for an unknown validator must not halt FinalizeBlock")
+			require.NoError(t, err, "evidence for an unknown validator must not cause FinalizeBlock to return an error")
 			require.NotNil(t, resp)
 		})
 	}

@@ -459,8 +459,8 @@ replace (
 	// does not have this fix.
 	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.1
 	// Pin to the celestia fork's x/evidence to ignore equivocation evidence
-	// for a deleted validator instead of halting the chain. See
-	// celestiaorg/cosmos-sdk#749.
+	// for a deleted validator instead of returning an error from FinalizeBlock.
+	// See celestiaorg/cosmos-sdk#749.
 	cosmossdk.io/x/evidence => github.com/celestiaorg/cosmos-sdk/x/evidence v0.1.2-celestia
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
