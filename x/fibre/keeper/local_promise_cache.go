@@ -20,7 +20,8 @@ const (
 	// decide when an idle signer entry may be evicted, i.e. once every promise it
 	// could hold has certainly stopped being settleable on-chain.
 	promiseCacheEvictBuffer = time.Hour
-	// promiseCacheEvictInterval is how often the background eviction loop runs.
+	// promiseCacheEvictInterval is the minimum time between lazy idle-entry sweeps
+	// on the query path.
 	promiseCacheEvictInterval = 10 * time.Minute
 )
 
@@ -41,18 +42,21 @@ type promiseStateReader interface {
 // INVARIANT: this cache must never be reachable from the ABCI/consensus path
 // (PrepareProposal, ProcessProposal, FinalizeBlock, message servers). It is used
 // only from the ValidatePaymentPromise gRPC query. It intentionally relies on
-// wall-clock time, goroutines, and map iteration, none of which are permitted in
-// state transitions; wiring it into a consensus path would violate determinism.
+// wall-clock time and map iteration, neither of which is permitted in state
+// transitions; wiring it into a consensus path would violate determinism.
 type LocalPromiseCache struct {
 	reader promiseStateReader
 
 	// budgets and pending are best-effort validator-local memory with no global cap.
 	// Per signer they are bounded by the escrow budget (every reservation costs at
-	// least the fixed PayForFibre gas), and idle signers are reclaimed by evictIdle,
+	// least the fixed PayForFibre gas), and idle signers are reclaimed by eviction,
 	// so total memory scales only with the number of funded escrow accounts seen.
 	mu      sync.Mutex
 	budgets map[string]*signerBudget
 	pending map[string]pendingPromise // key: hex(promiseHash)
+	// lastEvict is when idle entries were last swept; eviction runs lazily on the
+	// query path at most once per promiseCacheEvictInterval.
+	lastEvict time.Time
 }
 
 // signerBudget is the cached budget state for a single escrow account.
@@ -104,6 +108,12 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	// Reclaim idle entries lazily on the query path, at most once per interval.
+	if time.Since(c.lastEvict) > promiseCacheEvictInterval {
+		c.evictIdleLocked()
+		c.lastEvict = time.Now()
+	}
 
 	if _, ok := c.pending[key]; ok {
 		return nil // idempotent: already reserved
@@ -197,26 +207,16 @@ func (c *LocalPromiseCache) sweep(ctx sdk.Context, signer string) *signerBudget 
 	return b
 }
 
-// evictLoop periodically removes idle signer entries for the life of the process.
-func (c *LocalPromiseCache) evictLoop() {
-	ticker := time.NewTicker(promiseCacheEvictInterval)
-	defer ticker.Stop()
-	for range ticker.C {
-		c.evictIdle()
-	}
-}
-
-// evictIdle removes signer entries with no activity for longer than the maximum
-// settleability window (MaxWithdrawalDelay) plus a buffer, by when any promise the
-// entry could hold has certainly stopped being settleable on-chain. Bounding on
-// MaxWithdrawalDelay (not MaxPaymentPromiseTimeout) is required: a promise stays
-// settleable via the timeout path until creation_timestamp+WithdrawalDelay, so a
-// shorter threshold could evict a still-live reservation and reopen the
-// double-spend window. Evicted signers are rebuilt lazily on their next validation.
-func (c *LocalPromiseCache) evictIdle() {
+// evictIdleLocked removes signer entries with no activity for longer than the
+// maximum settleability window (MaxWithdrawalDelay) plus a buffer, by when any
+// promise the entry could hold has certainly stopped being settleable on-chain.
+// Bounding on MaxWithdrawalDelay (not MaxPaymentPromiseTimeout) is required: a
+// promise stays settleable via the timeout path until creation_timestamp+
+// WithdrawalDelay, so a shorter threshold could evict a still-live reservation and
+// reopen the double-spend window. Evicted signers are rebuilt lazily on their next
+// validation. Callers must hold c.mu.
+func (c *LocalPromiseCache) evictIdleLocked() {
 	threshold := types.MaxWithdrawalDelay + promiseCacheEvictBuffer
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	for signer, b := range c.budgets {
 		if time.Since(b.lastActivity) > threshold {
 			for key := range b.hashes {

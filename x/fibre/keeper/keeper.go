@@ -31,11 +31,11 @@ type Keeper struct {
 }
 
 // NewKeeper creates a new fibre Keeper instance. When enableCache is true the
-// validator-local promise cache is attached and started here, so the field is set
-// before the keeper is ever copied by value (e.g. into the module's gRPC query
-// server); this keeps the double-spend protection from silently depending on call
-// order. The cache is a non-consensus, query-path-only dependency and is never
-// consulted from the ABCI path.
+// validator-local promise cache is attached here, so the field is set before the
+// keeper is ever copied by value (e.g. into the module's gRPC query server); this
+// keeps the double-spend protection from silently depending on call order. The
+// cache is a non-consensus, query-path-only dependency and is never consulted from
+// the ABCI path.
 func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool) *Keeper {
 	k := &Keeper{
 		cdc:           cdc,
@@ -46,7 +46,6 @@ func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.B
 	}
 	if enableCache {
 		k.promiseCache = NewLocalPromiseCache(k)
-		go k.promiseCache.evictLoop()
 	}
 	return k
 }

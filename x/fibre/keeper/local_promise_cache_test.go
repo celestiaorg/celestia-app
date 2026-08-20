@@ -152,7 +152,7 @@ func TestEvictIdle(t *testing.T) {
 
 	// Backdate activity beyond the eviction threshold.
 	c.budgets["a"].lastActivity = time.Now().Add(-(types.MaxWithdrawalDelay + 2*time.Hour))
-	c.evictIdle()
+	c.evictIdleLocked()
 
 	require.Empty(t, c.budgets)
 	require.Empty(t, c.pending)
