@@ -3,6 +3,7 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -10,8 +11,8 @@ import (
 	"time"
 
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
-
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	jsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -46,7 +47,8 @@ const (
 //
 // Optional env vars (with defaults):
 //
-//	CORTO_GRPC_TOKEN       – auth token sent as an x-token header on gRPC calls
+//	CORTO_AUTH_TOKEN       – auth token sent as an x-token header on gRPC calls
+//	                         and as an Authorization Bearer header on RPC requests
 //	CORTO_KEYRING_DIR      – keyring directory (alternative to CORTO_PRIV_KEY)
 //	CORTO_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
 //	CORTO_SUBMISSION_DELAY – delay between blobs (default: 250ms)
@@ -79,11 +81,11 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	// A configured token implies a TLS-terminating auth proxy, whatever the
 	// port. Unauthenticated endpoints on port 443 (e.g.
 	// grpc.celestia-corto.com:443) are also dialed with TLS.
-	useTLS := cortoCfg.GRPCToken != "" || strings.HasSuffix(cortoCfg.GRPCs[0], ":443")
+	useTLS := cortoCfg.AuthToken != "" || strings.HasSuffix(cortoCfg.GRPCs[0], ":443")
 
 	t.Logf("Corto Load Test Configuration:")
-	t.Logf("  RPC:              %s", cortoCfg.RPCs[0])
-	t.Logf("  gRPC:             %s (tls=%v, auth=%v)", cortoCfg.GRPCs[0], useTLS, cortoCfg.GRPCToken != "")
+	t.Logf("  RPC:              %s (auth=%v)", cortoCfg.RPCs[0], cortoCfg.AuthToken != "")
+	t.Logf("  gRPC:             %s (tls=%v, auth=%v)", cortoCfg.GRPCs[0], useTLS, cortoCfg.AuthToken != "")
 	t.Logf("  Blob size:        %d bytes", blobSize)
 	t.Logf("  Submission delay: %v", submissionDelay)
 	t.Logf("  Workers:          %d", workers)
@@ -94,7 +96,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	ctx := context.Background()
 
 	// --- 1. Connect to Corto RPC for block time monitoring ---
-	rpcClient, err := rpchttp.New(cortoCfg.RPCs[0], "/websocket")
+	rpcClient, err := newAuthedRPCClient(cortoCfg.RPCs[0], cortoCfg.AuthToken)
 	require.NoError(t, err, "failed to create RPC client")
 
 	// Corto is an internal testnet: when the test is configured to run against
@@ -113,7 +115,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 		PrivKeyHex:      privKeyHex,
 		KeyringDir:      keyringDir,
 		TLS:             useTLS,
-		AuthToken:       cortoCfg.GRPCToken,
+		AuthToken:       cortoCfg.AuthToken,
 	})
 	require.NoError(t, err, "failed to deploy latency-monitor")
 
@@ -163,6 +165,31 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 		"max block time %v exceeds %v under 20 MiB/s blob load", maxBT, maxSingleBlockTime)
 
 	t.Log("Corto load test passed")
+}
+
+// newAuthedRPCClient returns an RPC client for the given endpoint that
+// attaches the token as an Authorization Bearer header when set.
+func newAuthedRPCClient(remote, token string) (*rpchttp.HTTP, error) {
+	httpClient, err := jsonrpcclient.DefaultHTTPClient(remote)
+	if err != nil {
+		return nil, err
+	}
+	if token != "" {
+		httpClient.Transport = &bearerRoundTripper{token: token, base: httpClient.Transport}
+	}
+	return rpchttp.NewWithClient(remote, "/websocket", httpClient)
+}
+
+// bearerRoundTripper attaches an Authorization Bearer header to every request.
+type bearerRoundTripper struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (b *bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header.Set("Authorization", "Bearer "+b.token)
+	return b.base.RoundTrip(clone)
 }
 
 // fetchBlockTimes retrieves block timestamps between startHeight and endHeight
