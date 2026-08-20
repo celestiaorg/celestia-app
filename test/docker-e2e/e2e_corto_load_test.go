@@ -170,6 +170,9 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 // newAuthedRPCClient returns an RPC client for the given endpoint that
 // attaches the token as an Authorization Bearer header when set.
 func newAuthedRPCClient(remote, token string) (*rpchttp.HTTP, error) {
+	if token != "" && !strings.HasPrefix(remote, "https://") {
+		return nil, fmt.Errorf("an auth token is set but RPC endpoint %s is not https: refusing to send the token over plaintext", remote)
+	}
 	httpClient, err := jsonrpcclient.DefaultHTTPClient(remote)
 	if err != nil {
 		return nil, err
