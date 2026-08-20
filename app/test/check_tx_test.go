@@ -339,6 +339,38 @@ func TestCheckTx(t *testing.T) {
 			},
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
+		{
+			name:      "non-canonically encoded blob tx, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				// Append an unknown protobuf field. UnmarshalBlobTx accepts it
+				// but it is not the canonical encoding, so CheckTx must reject it.
+				return appendUnknownProtoField(btx, 4096)
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "blob tx with repeated singular protobuf field, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				// Repeat the singular type_id field (field 3, wire type 2,
+				// value "BLOB"). proto.Unmarshal keeps the last value so it
+				// decodes to the same blob tx, but the encoding is not
+				// canonical, so CheckTx must reject it.
+				return append(btx, 0x1a, 0x04, 'B', 'L', 'O', 'B')
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
 	}
 
 	for _, tt := range tests {
@@ -518,4 +550,24 @@ func TestCheckTxPayForFibre(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
 	})
+}
+
+// appendUnknownProtoField appends an unknown protobuf field (field 100, wire
+// type 2) of padLen zero bytes: proto.Unmarshal accepts it but MarshalBlobTx
+// drops it, yielding a valid-but-non-canonical blob tx encoding.
+func appendUnknownProtoField(raw []byte, padLen int) []byte {
+	varint := func(v uint64) []byte {
+		var out []byte
+		for v >= 0x80 {
+			out = append(out, byte(v)|0x80)
+			v >>= 7
+		}
+		return append(out, byte(v))
+	}
+	out := make([]byte, 0, len(raw)+padLen+8)
+	out = append(out, raw...)
+	out = append(out, varint(uint64(100)<<3|2)...)
+	out = append(out, varint(uint64(padLen))...)
+	out = append(out, make([]byte, padLen)...)
+	return out
 }

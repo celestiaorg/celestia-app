@@ -35,6 +35,9 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	}
 
 	if isBlob {
+		if !blobTxIsCanonical(tx, btx) {
+			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
+		}
 		return app.handleBlobCheckTx(req, btx)
 	}
 
