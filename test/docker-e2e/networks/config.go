@@ -13,7 +13,11 @@ type Config struct {
 	ChainID string
 	RPCs    []string
 	GRPCs   []string
-	Seeds   string
+	// AuthToken, if set, authenticates both connections: it is attached as an
+	// x-token header on gRPC calls and as an Authorization Bearer header on
+	// RPC requests.
+	AuthToken string
+	Seeds     string
 }
 
 // NewMochaConfig returns a Config for the mocha testnet
@@ -39,7 +43,8 @@ func NewMochaConfig() *Config {
 
 // NewCortoConfig returns a Config for the Corto internal testnet. Corto has
 // no public endpoints, so the RPC and gRPC endpoints must be provided via the
-// CORTO_RPC and CORTO_GRPC env vars.
+// CORTO_RPC and CORTO_GRPC env vars. If the endpoints require authentication,
+// the token is provided via the optional CORTO_AUTH_TOKEN env var.
 func NewCortoConfig() (*Config, error) {
 	rpc := os.Getenv("CORTO_RPC")
 	if rpc == "" {
@@ -50,10 +55,11 @@ func NewCortoConfig() (*Config, error) {
 		return nil, fmt.Errorf("CORTO_GRPC environment variable must be set")
 	}
 	return &Config{
-		Name:    "corto",
-		ChainID: appconsts.CortoChainID,
-		RPCs:    []string{rpc},
-		GRPCs:   []string{grpc},
+		Name:      "corto",
+		ChainID:   appconsts.CortoChainID,
+		RPCs:      []string{rpc},
+		GRPCs:     []string{grpc},
+		AuthToken: os.Getenv("CORTO_AUTH_TOKEN"),
 	}, nil
 }
 
