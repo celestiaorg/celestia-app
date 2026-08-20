@@ -238,6 +238,10 @@ func TestPrepareProposalFiltering(t *testing.T) {
 	// 3 transactions over MaxTxSize limit
 	largeTxs := coretypes.Txs(testutil.SendTxsWithAccounts(t, testApp, enc.TxConfig, kr, 1000, accounts[0], accounts[:3], testutil.ChainID, user.SetMemo(largeString))).ToSliceOfBytes()
 
+	// a valid blob tx padded with an unknown protobuf field, making its
+	// encoding non-canonical
+	nonCanonicalBlobTx := appendUnknownProtoField(blobTxs[0], 4096)
+
 	type test struct {
 		name      string
 		txs       func() [][]byte
@@ -295,6 +299,13 @@ func TestPrepareProposalFiltering(t *testing.T) {
 				return largeTxs // All txs are over MaxTxSize limit
 			},
 			prunedTxs: largeTxs,
+		},
+		{
+			name: "non-canonically encoded blob tx",
+			txs: func() [][]byte {
+				return [][]byte{nonCanonicalBlobTx}
+			},
+			prunedTxs: [][]byte{nonCanonicalBlobTx},
 		},
 	}
 

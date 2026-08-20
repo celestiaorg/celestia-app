@@ -83,6 +83,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
 				return reject(), nil
 			}
+			if !blobTxIsCanonical(rawTx, blobTx) {
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("blob tx %d is not canonically encoded", idx))
+				return reject(), nil
+			}
 			sdkTxBytes = blobTx.Tx
 		}
 

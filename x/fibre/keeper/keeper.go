@@ -23,17 +23,31 @@ type Keeper struct {
 	// authority is the address that has the authority to update module parameters.
 	// This is typically the governance module address.
 	authority string
+	// promiseCache, when non-nil, reserves escrow budget for accepted promises on
+	// the ValidatePaymentPromise query path to close the validator-local
+	// double-spend window. It is nil in consensus-only setups and unit tests and
+	// is never consulted from the ABCI path. See local_promise_cache.go.
+	promiseCache *LocalPromiseCache
 }
 
-// NewKeeper creates a new fibre Keeper instance
-func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string) *Keeper {
-	return &Keeper{
+// NewKeeper creates a new fibre Keeper instance. When enableCache is true the
+// validator-local promise cache is attached here, so the field is set before the
+// keeper is ever copied by value (e.g. into the module's gRPC query server); this
+// keeps the double-spend protection from silently depending on call order. The
+// cache is a non-consensus, query-path-only dependency and is never consulted from
+// the ABCI path.
+func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool) *Keeper {
+	k := &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
 		bankKeeper:    bankKeeper,
 		stakingKeeper: stakingKeeper,
 		authority:     authority,
 	}
+	if enableCache {
+		k.promiseCache = NewLocalPromiseCache(k)
+	}
+	return k
 }
 
 // GetAuthority returns the fibre module's authority.
@@ -271,17 +285,20 @@ func (k Keeper) DeleteProcessedPayment(ctx sdk.Context, payment types.ProcessedP
 
 // IsPaymentPromiseProcessed returns true if a payment has been processed for the given promise.
 func (k Keeper) IsPaymentPromiseProcessed(ctx sdk.Context, promise *types.PaymentPromise) bool {
-	store := ctx.KVStore(k.storeKey)
-	pp := fibre.PaymentPromise{}
-	if err := pp.FromProto(promise); err != nil {
-		return false
-	}
-	hash, err := pp.Hash()
+	hash, err := promiseHash(promise)
 	if err != nil {
 		return false
 	}
-	key := types.ProcessedPaymentsByHashKey(hash)
-	return store.Has(key)
+	return k.IsPaymentProcessedByHash(ctx, hash)
+}
+
+// promiseHash returns the canonical hash of a payment promise.
+func promiseHash(promise *types.PaymentPromise) ([]byte, error) {
+	pp := fibre.PaymentPromise{}
+	if err := pp.FromProto(promise); err != nil {
+		return nil, err
+	}
+	return pp.Hash()
 }
 
 // IsPaymentProcessedByHash returns true if a payment has been processed for the given promise hash.

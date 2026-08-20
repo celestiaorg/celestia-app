@@ -264,6 +264,17 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:  "non-canonically encoded blob tx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				// Append an unknown protobuf field to an otherwise valid blob
+				// tx. It decodes to the same tx but is a distinct, larger
+				// encoding whose padding never reaches the block.
+				d.Txs[0] = appendUnknownProtoField(d.Txs[0], 4096)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:  "tx size exceeds max tx size limit",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
