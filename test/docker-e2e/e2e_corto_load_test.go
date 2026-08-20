@@ -76,9 +76,10 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	cortoCfg, err := networks.NewCortoConfig()
 	require.NoError(t, err, "failed to build Corto config")
 
-	// Endpoints on port 443 sit behind a TLS-terminating proxy (e.g.
-	// grpc.celestia-corto.com:443), so dial them with TLS.
-	useTLS := strings.HasSuffix(cortoCfg.GRPCs[0], ":443")
+	// A configured token implies a TLS-terminating auth proxy, whatever the
+	// port. Unauthenticated endpoints on port 443 (e.g.
+	// grpc.celestia-corto.com:443) are also dialed with TLS.
+	useTLS := cortoCfg.GRPCToken != "" || strings.HasSuffix(cortoCfg.GRPCs[0], ":443")
 
 	t.Logf("Corto Load Test Configuration:")
 	t.Logf("  RPC:              %s", cortoCfg.RPCs[0])
