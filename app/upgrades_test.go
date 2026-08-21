@@ -84,7 +84,7 @@ func TestV10UpgradeConvertsPrefundedFibreBaseAccount(t *testing.T) {
 
 func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
 	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
-	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: 1})
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
 
 	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
 	require.Nil(t, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
@@ -97,6 +97,21 @@ func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
 	moduleAccount, ok := testApp.AccountKeeper.GetAccount(ctx, fibreAddress).(sdk.ModuleAccountI)
 	require.True(t, ok)
 	require.Equal(t, fibretypes.ModuleName, moduleAccount.GetName())
+}
+
+func TestSetEvidenceParams(t *testing.T) {
+	consensusParams := app.DefaultConsensusParams()
+	// Start from a stale value to prove the migration overwrites it.
+	consensusParams.Evidence.MaxAgeNumBlocks = 559_940
+	testApp, _, _ := util.NewTestAppWithGenesisSet(consensusParams)
+	ctx := testApp.NewContext(false)
+
+	require.NoError(t, testApp.SetEvidenceParams(ctx))
+
+	got, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+	require.NoError(t, err)
+	require.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.Evidence.MaxAgeNumBlocks)
+	require.Equal(t, appconsts.MaxAgeDuration, got.Evidence.MaxAgeDuration)
 }
 
 // createValidatorWithCommission creates a validator with specific commission

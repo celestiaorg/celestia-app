@@ -77,6 +77,9 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
 
+			if err := app.SetEvidenceParams(ctx); err != nil {
+				return nil, err
+			}
 			if err := app.ensureFibreModuleAccount(ctx); err != nil {
 				return nil, err
 			}
@@ -119,4 +122,19 @@ func (app App) ensureFibreModuleAccount(ctx context.Context) error {
 	default:
 		return fmt.Errorf("unexpected account type %T at fibre module address %s", account, address)
 	}
+}
+
+// SetEvidenceParams writes the evidence params from appconsts into the
+// consensus param store. Evidence params are not modifiable by governance, so
+// applying a new value to a running chain requires this upgrade migration.
+func (app App) SetEvidenceParams(ctx context.Context) error {
+	params, err := app.ConsensusKeeper.ParamsStore.Get(ctx)
+	if err != nil {
+		return err
+	}
+
+	params.Evidence.MaxAgeDuration = appconsts.MaxAgeDuration
+	params.Evidence.MaxAgeNumBlocks = appconsts.MaxAgeNumBlocks
+
+	return app.ConsensusKeeper.ParamsStore.Set(ctx, params)
 }

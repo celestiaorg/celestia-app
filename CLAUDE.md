@@ -99,6 +99,7 @@ All branches use forked cosmos-sdk and celestia-core:
 ### Documentation
 
 - Aim for simplicity. Prefer short sentences.
+- Keep godoc comments short and easy to understand: one or two plain-language sentences saying what the thing does. Avoid big blocks of text — they are hard to read and reason about.
 - No unnecessary calculations unless specified.
 - No unnecessary explanations unless requested.
 
