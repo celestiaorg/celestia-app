@@ -172,11 +172,13 @@ jobs:
           CORTO_PRIV_KEY: ${{ secrets.CORTO_PRIV_KEY }}
           CORTO_RPC: ${{ secrets.CORTO_RPC }}
           CORTO_GRPC: ${{ secrets.CORTO_GRPC }}
+          CORTO_AUTH_TOKEN: ${{ secrets.CORTO_AUTH_TOKEN }}
         run: |
           missing=""
           [ -z "$CORTO_PRIV_KEY" ] && missing="$missing CORTO_PRIV_KEY"
           [ -z "$CORTO_RPC" ] && missing="$missing CORTO_RPC"
           [ -z "$CORTO_GRPC" ] && missing="$missing CORTO_GRPC"
+          [ -z "$CORTO_AUTH_TOKEN" ] && missing="$missing CORTO_AUTH_TOKEN"
           if [ -n "$missing" ]; then
             echo "::error::Missing required secrets for TestCortoLoad:$missing"
             exit 1
@@ -196,6 +198,7 @@ jobs:
           CORTO_PRIV_KEY: ${{ secrets.CORTO_PRIV_KEY }}
           CORTO_RPC: ${{ secrets.CORTO_RPC }}
           CORTO_GRPC: ${{ secrets.CORTO_GRPC }}
+          CORTO_AUTH_TOKEN: ${{ secrets.CORTO_AUTH_TOKEN }}
           CELESTIA_APP_VERSION: ${{ needs.build-e2e-image.outputs.tag }}
           PUSHGATEWAY_URL: ${{ secrets.PUSHGATEWAY_URL }}
           PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}

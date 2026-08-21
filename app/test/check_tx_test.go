@@ -23,9 +23,11 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -337,6 +339,38 @@ func TestCheckTx(t *testing.T) {
 			},
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
+		{
+			name:      "non-canonically encoded blob tx, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				// Append an unknown protobuf field. UnmarshalBlobTx accepts it
+				// but it is not the canonical encoding, so CheckTx must reject it.
+				return appendUnknownProtoField(btx, 4096)
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "blob tx with repeated singular protobuf field, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				btx := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				// Repeat the singular type_id field (field 3, wire type 2,
+				// value "BLOB"). proto.Unmarshal keeps the last value so it
+				// decodes to the same blob tx, but the encoding is not
+				// canonical, so CheckTx must reject it.
+				return append(btx, 0x1a, 0x04, 'B', 'L', 'O', 'B')
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
 	}
 
 	for _, tt := range tests {
@@ -415,6 +449,38 @@ func TestCheckTx_UnknownRequestType(t *testing.T) {
 	}
 }
 
+// TestCheckTxMalformedModeInfoDoesNotPanic verifies that a tx with a SignerInfo
+// whose ModeInfo oneof is unset is rejected without panicking. Such a ModeInfo
+// decodes cleanly but makes GetSignaturesV2 panic.
+func TestCheckTxMalformedModeInfoDoesNotPanic(t *testing.T) {
+	accounts := []string{"a"}
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	addr := testnode.RandomAddress().(sdk.AccAddress)
+	sendMsg := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+	msgAny, err := codectypes.NewAnyWithValue(sendMsg)
+	require.NoError(t, err)
+
+	rawTx := &txtypes.Tx{
+		Body: &txtypes.TxBody{Messages: []*codectypes.Any{msgAny}},
+		AuthInfo: &txtypes.AuthInfo{
+			SignerInfos: []*txtypes.SignerInfo{{
+				ModeInfo: &txtypes.ModeInfo{}, // present but oneof (Sum) unset
+				Sequence: 0,
+			}},
+			Fee: &txtypes.Fee{},
+		},
+		Signatures: [][]byte{{}},
+	}
+	txBz, err := rawTx.Marshal()
+	require.NoError(t, err)
+
+	require.NotPanics(t, func() {
+		resp, _ := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: txBz})
+		require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	})
+}
+
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	t.Helper()
 
@@ -484,4 +550,24 @@ func TestCheckTxPayForFibre(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
 	})
+}
+
+// appendUnknownProtoField appends an unknown protobuf field (field 100, wire
+// type 2) of padLen zero bytes: proto.Unmarshal accepts it but MarshalBlobTx
+// drops it, yielding a valid-but-non-canonical blob tx encoding.
+func appendUnknownProtoField(raw []byte, padLen int) []byte {
+	varint := func(v uint64) []byte {
+		var out []byte
+		for v >= 0x80 {
+			out = append(out, byte(v)|0x80)
+			v >>= 7
+		}
+		return append(out, byte(v))
+	}
+	out := make([]byte, 0, len(raw)+padLen+8)
+	out = append(out, raw...)
+	out = append(out, varint(uint64(100)<<3|2)...)
+	out = append(out, varint(uint64(padLen))...)
+	out = append(out, make([]byte, padLen)...)
+	return out
 }

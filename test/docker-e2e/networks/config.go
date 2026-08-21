@@ -13,7 +13,11 @@ type Config struct {
 	ChainID string
 	RPCs    []string
 	GRPCs   []string
-	Seeds   string
+	// AuthToken, if set, authenticates both connections: it is attached as an
+	// x-token header on gRPC calls and as an Authorization Bearer header on
+	// RPC requests.
+	AuthToken string
+	Seeds     string
 }
 
 // NewMochaConfig returns a Config for the mocha testnet
@@ -24,22 +28,23 @@ func NewMochaConfig() *Config {
 		// State sync requires >= 2 RPC servers to cross-verify the app hash
 		// header. These must be distinct providers: listing one host twice
 		// gives no redundancy, so a single slow/unavailable provider stalls
-		// state sync. Keep these in sync with the live mocha-4 testnet.
+		// state sync. Keep these in sync with the live mocha-5 testnet.
 		RPCs: []string{
-			"https://celestia-testnet-rpc.itrocket.net:443",
 			"https://rpc-mocha.pops.one:443",
-			"https://full.consensus.mocha-4.celestia-mocha.com:443",
+			"https://celestia-testnet-rpc.itrocket.net:443",
 		},
 		// seeds provide dynamic peer discovery — the node contacts a seed,
 		// gets a fresh list of currently-alive peers, and connects. This is
 		// more resilient than hardcoded persistent peers which go stale.
-		Seeds: "b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656,ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@seed-mocha.pops.one:26656",
+		// Keep in sync with https://github.com/celestiaorg/networks/blob/main/mocha-5/seeds.txt
+		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656",
 	}
 }
 
 // NewCortoConfig returns a Config for the Corto internal testnet. Corto has
 // no public endpoints, so the RPC and gRPC endpoints must be provided via the
-// CORTO_RPC and CORTO_GRPC env vars.
+// CORTO_RPC and CORTO_GRPC env vars. If the endpoints require authentication,
+// the token is provided via the optional CORTO_AUTH_TOKEN env var.
 func NewCortoConfig() (*Config, error) {
 	rpc := os.Getenv("CORTO_RPC")
 	if rpc == "" {
@@ -50,10 +55,11 @@ func NewCortoConfig() (*Config, error) {
 		return nil, fmt.Errorf("CORTO_GRPC environment variable must be set")
 	}
 	return &Config{
-		Name:    "corto",
-		ChainID: appconsts.CortoChainID,
-		RPCs:    []string{rpc},
-		GRPCs:   []string{grpc},
+		Name:      "corto",
+		ChainID:   appconsts.CortoChainID,
+		RPCs:      []string{rpc},
+		GRPCs:     []string{grpc},
+		AuthToken: os.Getenv("CORTO_AUTH_TOKEN"),
 	}, nil
 }
 
