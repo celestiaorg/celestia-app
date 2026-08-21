@@ -2,7 +2,7 @@ package appconsts
 
 const (
 	ArabicaChainID = "arabica-11"
-	MochaChainID   = "mocha-4"
+	MochaChainID   = "mocha-5"
 	MainnetChainID = "celestia"
 	// TestChainID is the chain ID used for testing.
 	TestChainID  = "test"
