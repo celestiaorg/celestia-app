@@ -7,12 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
@@ -36,6 +38,18 @@ type blockTrace struct {
 	PFBThroughputMBs float64 `json:"pfb_throughput_mbs"`
 }
 
+// pffGasTrace records the gas accounting of a single PFF transaction, taken
+// from the block results at its tx index.
+type pffGasTrace struct {
+	Height    int64  `json:"height"`
+	TxIndex   int    `json:"tx_index"`
+	NumSigs   int    `json:"num_sigs"`
+	BlobSize  uint32 `json:"blob_size"`
+	Code      uint32 `json:"code"`
+	GasWanted int64  `json:"gas_wanted"`
+	GasUsed   int64  `json:"gas_used"`
+}
+
 // blockResult holds the decoded per-block tallies produced concurrently by a
 // worker. Only small scalar fields are retained; the (potentially 32MB+) block
 // is decoded and discarded inside fetchAndDecodeBlock.
@@ -49,6 +63,7 @@ type blockResult struct {
 	pffBytes   int64
 	pfbCount   int
 	pfbBytes   int64
+	pffGas     []pffGasTrace
 	err        error
 }
 
@@ -60,6 +75,7 @@ func fibreThroughputCmd() *cobra.Command {
 		maxRetries   int
 		duration     time.Duration
 		withTraces   bool
+		withGas      bool
 		tracesDir    string
 		startHeight  int64
 	)
@@ -158,6 +174,24 @@ func fibreThroughputCmd() *cobra.Command {
 				fmt.Printf("Writing traces to %s\n", traceFileName)
 			}
 
+			var gasEncoder *json.Encoder
+			var gasFile *os.File
+			if withTraces && withGas {
+				gasFileName := filepath.Join(tracesDir, fmt.Sprintf("pff_gas_%s.jsonl", time.Now().Format(time.RFC3339)))
+				gasFile, err = os.Create(gasFileName)
+				if err != nil {
+					return fmt.Errorf("failed to create gas trace file: %w", err)
+				}
+				defer gasFile.Close()
+				gasEncoder = json.NewEncoder(gasFile)
+				fmt.Printf("Writing per-PFF gas traces to %s\n", gasFileName)
+			}
+
+			// Per-PFF gas records accumulated across the whole run for the
+			// end-of-run summary. At the 200 PFF/block cap this is ~20k small
+			// structs per 100 blocks, so keeping them all is cheap.
+			var allPFFGas []pffGasTrace
+
 			ticker := time.NewTicker(time.Second)
 			defer ticker.Stop()
 
@@ -188,7 +222,7 @@ func fibreThroughputCmd() *cobra.Command {
 						endHeight = nextHeight + maxBlocksPerTick - 1
 					}
 
-					results := fetchBlocksConcurrent(ctx, clients, nextHeight, endHeight, concurrency, maxRetries, txDecoder)
+					results := fetchBlocksConcurrent(ctx, clients, nextHeight, endHeight, concurrency, maxRetries, txDecoder, withGas)
 
 					for _, res := range results {
 						if ctx.Err() != nil {
@@ -215,12 +249,28 @@ func fibreThroughputCmd() *cobra.Command {
 						fmt.Printf("height=%d pff_txs=%d pfb_txs=%d pff_bytes=%dMB pfb_bytes=%dMB block_time=%.2fs pff_throughput=%.2fMB/s pfb_throughput=%.2fMB/s\n",
 							res.height, res.pffCount, res.pfbCount, res.pffBytes/(1024*1024), res.pfbBytes/(1024*1024), blockTimeDelta, pffThroughputMBs, pfbThroughputMBs)
 
+						if withGas && len(res.pffGas) > 0 {
+							minGas, medianGas, meanGas, maxGas := pffGasStats(res.pffGas)
+							fmt.Printf("  pff gas: n=%d min=%d median=%d mean=%d max=%d\n", len(res.pffGas), minGas, medianGas, meanGas, maxGas)
+						}
+
 						if res.attempts > 1 {
 							fmt.Printf("  note: block %d fetched after %d attempt(s)\n", res.height, res.attempts)
 						}
 
 						if res.decodeErrs > 0 {
 							fmt.Printf("  warning: %d/%d tx(s) in block %d failed to decode and were skipped\n", res.decodeErrs, res.numTxs, res.height)
+						}
+
+						if withGas {
+							allPFFGas = append(allPFFGas, res.pffGas...)
+							if gasEncoder != nil {
+								for _, g := range res.pffGas {
+									if err := gasEncoder.Encode(g); err != nil {
+										fmt.Printf("error writing gas trace: %v\n", err)
+									}
+								}
+							}
 						}
 
 						if traceEncoder != nil {
@@ -269,6 +319,10 @@ func fibreThroughputCmd() *cobra.Command {
 				fmt.Printf("Avg PFB throughput: %.2f MB/s\n", float64(totalPFBBytes)/totalSeconds/(1024*1024))
 			}
 
+			if withGas {
+				printPFFGasSummary(allPFFGas)
+			}
+
 			return nil
 		},
 	}
@@ -279,6 +333,7 @@ func fibreThroughputCmd() *cobra.Command {
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 5, "number of times to retry a failed block fetch (rotating across endpoints, with backoff) before skipping it")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until Ctrl+C)")
 	cmd.Flags().BoolVar(&withTraces, "with-traces", false, "enable JSONL trace file output")
+	cmd.Flags().BoolVar(&withGas, "with-gas", false, "record per-PFF gas usage from block results (adds one block_results RPC per block)")
 	cmd.Flags().StringVar(&tracesDir, "traces-dir", "./data/monitoring/throughput", "directory for trace files")
 	cmd.Flags().Int64Var(&startHeight, "start-height", 0, "block height to start from (0 = latest + 1)")
 
@@ -290,7 +345,7 @@ func fibreThroughputCmd() *cobra.Command {
 // Results are returned in ascending height order; a per-block fetch failure
 // (after retries) is recorded in that block's result rather than aborting the
 // batch.
-func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to int64, concurrency, maxRetries int, txDecoder sdk.TxDecoder) []blockResult {
+func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to int64, concurrency, maxRetries int, txDecoder sdk.TxDecoder, withGas bool) []blockResult {
 	n := int(to - from + 1)
 	results := make([]blockResult, n)
 
@@ -301,7 +356,7 @@ func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to i
 		g.Go(func() error {
 			// startIdx=i preserves the round-robin distribution of first
 			// attempts; retries rotate to subsequent endpoints from there.
-			results[i] = fetchAndDecodeBlock(gctx, clients, i, height, maxRetries, txDecoder)
+			results[i] = fetchAndDecodeBlock(gctx, clients, i, height, maxRetries, txDecoder, withGas)
 			return nil
 		})
 	}
@@ -318,7 +373,7 @@ func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to i
 // single unhealthy node fails over to another. It is safe to call
 // concurrently: the tx decoder only reads from the interface registry, which
 // is fully populated before any worker starts.
-func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int, height int64, maxRetries int, txDecoder sdk.TxDecoder) blockResult {
+func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int, height int64, maxRetries int, txDecoder sdk.TxDecoder, withGas bool) blockResult {
 	res := blockResult{height: height}
 	h := height
 
@@ -333,12 +388,24 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 		// Rotate endpoints across attempts so a flaky node fails over.
 		client := clients[(startIdx+attempt)%len(clients)]
 		block, err := client.Block(ctx, &h)
+		// Per-tx gas lives in block_results, indexed in the same order as
+		// block.Txs. Fetch it from the same endpoint so both views agree; a
+		// failure retries the whole attempt like a block fetch failure.
+		var txsResults []*abci.ExecTxResult
+		if err == nil && withGas {
+			blockResults, brErr := client.BlockResults(ctx, &h)
+			if brErr != nil {
+				err = brErr
+			} else {
+				txsResults = blockResults.TxsResults
+			}
+		}
 		if err == nil {
 			res.attempts = attempt + 1
 			res.blockTime = block.Block.Time
 			res.numTxs = len(block.Block.Txs)
 
-			for _, rawTx := range block.Block.Txs {
+			for txIdx, rawTx := range block.Block.Txs {
 				sdkTx, decErr := txDecoder(rawTx)
 				if decErr != nil {
 					res.decodeErrs++
@@ -348,6 +415,18 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 					if pff, ok := msg.(*fibretypes.MsgPayForFibre); ok {
 						res.pffCount++
 						res.pffBytes += int64(pff.PaymentPromise.BlobSize)
+						if txIdx < len(txsResults) {
+							txRes := txsResults[txIdx]
+							res.pffGas = append(res.pffGas, pffGasTrace{
+								Height:    height,
+								TxIndex:   txIdx,
+								NumSigs:   len(pff.ValidatorSignatures),
+								BlobSize:  pff.PaymentPromise.BlobSize,
+								Code:      txRes.Code,
+								GasWanted: txRes.GasWanted,
+								GasUsed:   txRes.GasUsed,
+							})
+						}
 						continue
 					}
 					if pfb, ok := msg.(*blobtypes.MsgPayForBlobs); ok {
@@ -374,6 +453,63 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 			return res
 		}
 	}
+}
+
+// pffGasStats returns min/median/mean/max of gas_used over the given records.
+// Callers must pass a non-empty slice.
+func pffGasStats(records []pffGasTrace) (minGas, medianGas, meanGas, maxGas int64) {
+	gas := make([]int64, len(records))
+	var sum int64
+	for i, r := range records {
+		gas[i] = r.GasUsed
+		sum += r.GasUsed
+	}
+	slices.Sort(gas)
+	return gas[0], gas[len(gas)/2], sum / int64(len(gas)), gas[len(gas)-1]
+}
+
+// printPFFGasSummary prints run-wide gas_used stats grouped by validator
+// signature count. Failed txs (code != 0) abort execution early, so their gas
+// doesn't reflect the full PFF cost; they are counted but excluded from stats.
+func printPFFGasSummary(all []pffGasTrace) {
+	fmt.Printf("\n--- PFF gas summary ---\n")
+	if len(all) == 0 {
+		fmt.Println("No PFF gas records collected.")
+		return
+	}
+
+	var ok []pffGasTrace
+	var failed int
+	for _, g := range all {
+		if g.Code == abci.CodeTypeOK {
+			ok = append(ok, g)
+		} else {
+			failed++
+		}
+	}
+	fmt.Printf("PFFs recorded: %d (%d failed, excluded from stats)\n", len(all), failed)
+	if len(ok) == 0 {
+		return
+	}
+
+	bySigs := make(map[int][]pffGasTrace)
+	for _, g := range ok {
+		bySigs[g.NumSigs] = append(bySigs[g.NumSigs], g)
+	}
+	sigCounts := make([]int, 0, len(bySigs))
+	for n := range bySigs {
+		sigCounts = append(sigCounts, n)
+	}
+	slices.Sort(sigCounts)
+
+	for _, n := range sigCounts {
+		minGas, medianGas, meanGas, maxGas := pffGasStats(bySigs[n])
+		fmt.Printf("sigs=%-3d n=%-6d min=%-8d median=%-8d mean=%-8d max=%-8d\n",
+			n, len(bySigs[n]), minGas, medianGas, meanGas, maxGas)
+	}
+	minGas, medianGas, meanGas, maxGas := pffGasStats(ok)
+	fmt.Printf("overall  n=%-6d min=%-8d median=%-8d mean=%-8d max=%-8d\n",
+		len(ok), minGas, medianGas, meanGas, maxGas)
 }
 
 // sleepCtx sleeps for d, or returns false early if ctx is cancelled first.
