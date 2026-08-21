@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/inclusion"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -53,7 +54,11 @@ func Build(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Squa
 // square. This mimics the functionality of the normal Construct function, but
 // acts maliciously by not following some of the block validity rules.
 func Construct(txs [][]byte, _ uint64, maxSquareSize int, efn ExportFn) (square.Square, error) {
-	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, txs...)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	if err != nil {
+		return nil, err
+	}
+	builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, classifiedTxs...)
 	if err != nil {
 		return nil, err
 	}

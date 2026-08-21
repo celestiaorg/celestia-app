@@ -9,6 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts/v5"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	daproto "github.com/celestiaorg/celestia-app/v10/proto/celestia/core/v1/da"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev2 "github.com/celestiaorg/go-square/v2"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	squarev3 "github.com/celestiaorg/go-square/v3"
@@ -94,7 +95,11 @@ func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.E
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
 		}
-		square, err := squarev4.Construct(txs, maxSquareSize, appconsts.SubtreeRootThreshold)
+		classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+		if err != nil {
+			return nil, err
+		}
+		square, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 		if err != nil {
 			return nil, err
 		}
@@ -132,7 +137,11 @@ func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
 		}
-		square, err := squarev4.Construct(txs, maxSquareSize, appconsts.SubtreeRootThreshold)
+		classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+		if err != nil {
+			return nil, err
+		}
+		square, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 		if err != nil {
 			return nil, err
 		}

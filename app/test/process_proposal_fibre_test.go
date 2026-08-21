@@ -77,7 +77,9 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 			var dataRootHash []byte
 			var squareSize uint64
 			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
-				dataSquare, err := square.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
+				require.NoError(t, err)
+				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				dataRootHash = calculateNewDataHash(t, tc.txs)
 				ss, err := dataSquare.Size()
@@ -201,7 +203,9 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 			var squareSize uint64
 			if tc.expectedStatus == abci.ResponseProcessProposal_ACCEPT {
 				dataRootHash = calculateNewDataHash(t, txs)
-				dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+				require.NoError(t, err)
+				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				ss, err := dataSquare.Size()
 				require.NoError(t, err)
@@ -233,7 +237,9 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 	require.NoError(t, err)
 	txs := [][]byte{wrappedTx}
 
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	squareSize, err := dataSquare.Size()
 	require.NoError(t, err)
@@ -512,7 +518,9 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 // processProposalRequest builds a valid ProcessProposal request for the txs.
 func processProposalRequest(t *testing.T, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
 	t.Helper()
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	squareSize, err := dataSquare.Size()
 	require.NoError(t, err)

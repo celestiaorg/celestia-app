@@ -485,7 +485,7 @@ func generateSquareRoutine(
 			return err
 		}
 
-		builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, tx)
+		builder, err := square.NewBuilder(maxSquareSize, appconsts.SubtreeRootThreshold, square.NewClassifiedTx(tx))
 		if err != nil {
 			return err
 		}
