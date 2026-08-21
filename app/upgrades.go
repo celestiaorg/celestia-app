@@ -77,6 +77,10 @@ func (app App) RegisterUpgradeHandlers() {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
 			sdkCtx.Logger().Info("running upgrade handler", "upgrade-name", upgradeName)
 
+			if err := app.ensureFibreModuleAccount(ctx); err != nil {
+				return nil, err
+			}
+
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
@@ -92,5 +96,27 @@ func (app App) RegisterUpgradeHandlers() {
 		}
 		// configure store loader that checks if version == upgradeHeight and applies store upgrades
 		app.SetStoreLoader(upgradetypes.UpgradeStoreLoader(upgradeInfo.Height, &storeUpgrades))
+	}
+}
+
+// ensureFibreModuleAccount makes sure Fibre's address is a module account.
+func (app App) ensureFibreModuleAccount(ctx context.Context) error {
+	address, permissions := app.AccountKeeper.GetModuleAddressAndPermissions(fibretypes.ModuleName)
+	account := app.AccountKeeper.GetAccount(ctx, address)
+
+	switch account := account.(type) {
+	case nil:
+		app.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
+		return nil
+	case *authtypes.BaseAccount:
+		moduleAccount := authtypes.NewModuleAccount(account, fibretypes.ModuleName, permissions...)
+		app.AccountKeeper.SetModuleAccount(ctx, moduleAccount)
+		return nil
+	case sdk.ModuleAccountI:
+		// technically should not be reached because fibre module address should not
+		// exist yet, but adding for extra caution.
+		return nil
+	default:
+		return fmt.Errorf("unexpected account type %T at fibre module address %s", account, address)
 	}
 }

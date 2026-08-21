@@ -6,12 +6,18 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
@@ -30,6 +36,67 @@ func TestUpgrades(t *testing.T) {
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v9"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v10"))
 	})
+}
+
+func TestV10UpgradeConvertsPrefundedFibreBaseAccount(t *testing.T) {
+	funder := testfactory.GenerateAccounts(1)[0]
+	testApp, keyring := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), funder)
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1})
+
+	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	fibreModuleAccount := testApp.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
+	existingBaseAccount := fibreModuleAccount.(*authtypes.ModuleAccount).BaseAccount
+	existingAccountNumber := existingBaseAccount.GetAccountNumber()
+
+	// Simulate v9 state: a bank send to Fibre's future address created a
+	// BaseAccount and deposited a small balance before Fibre was enabled.
+	testApp.AccountKeeper.SetAccount(ctx, existingBaseAccount)
+	prefund := sdk.NewInt64Coin(appconsts.BondDenom, 1)
+	funderAddress := testfactory.GetAddress(keyring, funder)
+	require.NoError(t, testApp.BankKeeper.SendCoins(ctx, funderAddress, fibreAddress, sdk.NewCoins(prefund)))
+	require.IsType(t, &authtypes.BaseAccount{}, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v10",
+		Height: ctx.BlockHeight(),
+	}))
+
+	convertedAccount := testApp.AccountKeeper.GetAccount(ctx, fibreAddress)
+	convertedModuleAccount, ok := convertedAccount.(sdk.ModuleAccountI)
+	require.True(t, ok)
+	require.Equal(t, fibretypes.ModuleName, convertedModuleAccount.GetName())
+	require.Equal(t, existingAccountNumber, convertedModuleAccount.GetAccountNumber())
+	require.Equal(t, prefund, testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
+
+	deposit := sdk.NewInt64Coin(appconsts.BondDenom, 1_000_000)
+	msgServer := fibrekeeper.NewMsgServerImpl(*testApp.FibreKeeper)
+	_, err := msgServer.DepositToEscrow(ctx, &fibretypes.MsgDepositToEscrow{
+		Signer: funderAddress.String(),
+		Amount: deposit,
+	})
+	require.NoError(t, err)
+
+	escrowAccount, found := testApp.FibreKeeper.GetEscrowAccount(ctx, funderAddress.String())
+	require.True(t, found)
+	require.Equal(t, deposit, escrowAccount.Balance)
+	require.Equal(t, prefund.Add(deposit), testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
+}
+
+func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: 1})
+
+	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	require.Nil(t, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v10",
+		Height: 1,
+	}))
+
+	moduleAccount, ok := testApp.AccountKeeper.GetAccount(ctx, fibreAddress).(sdk.ModuleAccountI)
+	require.True(t, ok)
+	require.Equal(t, fibretypes.ModuleName, moduleAccount.GetName())
 }
 
 // createValidatorWithCommission creates a validator with specific commission
