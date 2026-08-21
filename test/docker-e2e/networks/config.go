@@ -39,7 +39,7 @@ func NewMochaConfig() *Config {
 		// gets a fresh list of currently-alive peers, and connects. This is
 		// more resilient than hardcoded persistent peers which go stale.
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/main/mocha-5/seeds.txt
-		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656",
+		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656",
 	}
 }
 
