@@ -363,7 +363,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 		case err != nil:
 			return 0, fmt.Errorf("stat shard file %s: %w", name, err)
 		case ctx.Err() != nil:
-			return 0, err
+			return 0, ctx.Err()
 		}
 		totalSize += info.Size()
 	}
