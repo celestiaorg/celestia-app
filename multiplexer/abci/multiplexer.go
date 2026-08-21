@@ -8,9 +8,11 @@ import (
 	"math"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app/observability"
@@ -81,6 +83,10 @@ type Multiplexer struct {
 	ctx context.Context
 	// g is the errgroup to which the gRPC server, API server, block event listener, and signal handler are added to.
 	g *errgroup.Group
+	// cancelEmbeddedAppWatcher cancels the watcher goroutine of the currently
+	// running embedded app, marking its upcoming exit as operator-initiated.
+	// stopEmbeddedApp calls it before interrupting the child process.
+	cancelEmbeddedAppWatcher context.CancelFunc
 	// traceWriter is the trace writer for the multiplexer.
 	traceWriter io.WriteCloser
 	// metrics caches the telemetry.Metrics instance to prevent duplicate
@@ -126,7 +132,7 @@ func (m *Multiplexer) isGrpcOnly() bool {
 }
 
 func (m *Multiplexer) Start() error {
-	m.g, m.ctx = getCtx(m.svrCtx, true)
+	m.g, m.ctx = getCtx(m.svrCtx)
 
 	emitServerInfoMetrics()
 
@@ -155,7 +161,7 @@ func (m *Multiplexer) Start() error {
 	}
 
 	// wait for signal capture and gracefully return
-	// we are guaranteed to be waiting for the "ListenForQuitSignals" goroutine.
+	// we are guaranteed to be waiting for the quit-signal listener goroutine.
 	return m.g.Wait()
 }
 
@@ -233,9 +239,41 @@ func (m *Multiplexer) startApp() error {
 
 		m.started = true
 		m.activeVersion = currentVersion
+		m.watchEmbeddedApp(currentVersion.AppVersion, currentVersion.Appd.Exited())
 	}
 
 	return m.initRemoteGrpcConn()
+}
+
+// watchEmbeddedApp watches a just-started embedded app and surfaces an
+// unexpected exit as an error on the multiplexer's errgroup, so the parent
+// process exits instead of hanging silently. Exits that are part of an
+// operator-initiated stop (a version switch or a graceful shutdown) are not
+// errors: stopEmbeddedApp cancels the watcher before interrupting the child,
+// and an OS quit signal cancels m.ctx, which the watch context is derived
+// from.
+func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
+	watchCtx, cancel := context.WithCancel(m.ctx)
+	m.cancelEmbeddedAppWatcher = cancel
+
+	m.g.Go(func() error {
+		select {
+		case err := <-exited:
+			// The watch context may have been cancelled concurrently with the
+			// exit being delivered; if so, the exit is expected.
+			select {
+			case <-watchCtx.Done():
+				return nil
+			default:
+			}
+			if err != nil {
+				return fmt.Errorf("embedded app for version %d exited unexpectedly: %w", appVersion, err)
+			}
+			return fmt.Errorf("embedded app for version %d exited unexpectedly", appVersion)
+		case <-watchCtx.Done():
+			return nil
+		}
+	})
 }
 
 // removeStart removes the first argument (the binary name) and the start argument from args.
@@ -508,6 +546,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 
 		m.activeVersion = version
 		m.started = true
+		m.watchEmbeddedApp(version.AppVersion, version.Appd.Exited())
 	}
 	return nil
 }
@@ -597,6 +636,13 @@ func (m *Multiplexer) stopNativeApp() error {
 
 // stopEmbeddedApp stops any embedded app versions if they are currently running.
 func (m *Multiplexer) stopEmbeddedApp() error {
+	// Mark any upcoming exit as expected before interrupting the child so the
+	// embedded app watcher doesn't report the stop as a crash.
+	if m.cancelEmbeddedAppWatcher != nil {
+		m.cancelEmbeddedAppWatcher()
+		m.cancelEmbeddedAppWatcher = nil
+	}
+
 	if !m.embeddedVersionRunning() {
 		return nil
 	}
@@ -665,10 +711,31 @@ func emitServerInfoMetrics() {
 	telemetry.SetGaugeWithLabels([]string{"server", "info"}, 1, ls)
 }
 
-func getCtx(svrCtx *server.Context, block bool) (*errgroup.Group, context.Context) {
+// getCtx returns an errgroup whose context is cancelled either by an OS quit
+// signal or by any goroutine in the group returning an error.
+//
+// It intentionally does not use server.ListenForQuitSignals: that helper's
+// goroutine blocks until a signal arrives without ever observing the group's
+// context, which would keep g.Wait from returning when another goroutine in
+// the group fails (e.g. the embedded app watcher).
+func getCtx(svrCtx *server.Context) (*errgroup.Group, context.Context) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
+
 	// listen for quit signals so the calling parent process can gracefully exit
-	server.ListenForQuitSignals(g, block, cancelFn, svrCtx.Logger)
+	g.Go(func() error {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sigCh)
+
+		select {
+		case sig := <-sigCh:
+			svrCtx.Logger.Info("caught signal", "signal", sig.String())
+			cancelFn()
+		case <-ctx.Done():
+		}
+		return nil
+	})
+
 	return g, ctx
 }
