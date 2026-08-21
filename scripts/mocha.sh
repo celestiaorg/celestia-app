@@ -8,8 +8,8 @@ set -o nounset # Stop script execution if an undefined variable is used
 
 CHAIN_ID="mocha-5"
 NODE_NAME="node-name"
-SEEDS="ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656"
-PEERS=""
+SEEDS="ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656"
+PEERS="daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656"
 RPC="https://rpc-mocha.pops.one:443"
 
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
