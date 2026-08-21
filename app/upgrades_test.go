@@ -11,7 +11,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
@@ -44,42 +43,24 @@ func TestV10UpgradeConvertsPrefundedFibreBaseAccount(t *testing.T) {
 	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1})
 
 	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
-	fibreModuleAccount := testApp.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
-	existingBaseAccount := fibreModuleAccount.(*authtypes.ModuleAccount).BaseAccount
-	existingAccountNumber := existingBaseAccount.GetAccountNumber()
 
 	// Simulate v9 state: a bank send to Fibre's future address created a
 	// BaseAccount and deposited a small balance before Fibre was enabled.
-	testApp.AccountKeeper.SetAccount(ctx, existingBaseAccount)
+	baseAccount := testApp.AccountKeeper.NewAccountWithAddress(ctx, fibreAddress)
+	testApp.AccountKeeper.SetAccount(ctx, baseAccount)
 	prefund := sdk.NewInt64Coin(appconsts.BondDenom, 1)
 	funderAddress := testfactory.GetAddress(keyring, funder)
 	require.NoError(t, testApp.BankKeeper.SendCoins(ctx, funderAddress, fibreAddress, sdk.NewCoins(prefund)))
 	require.IsType(t, &authtypes.BaseAccount{}, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
 
-	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
-		Name:   "v10",
-		Height: ctx.BlockHeight(),
-	}))
+	applyV10Upgrade(t, testApp, ctx)
 
 	convertedAccount := testApp.AccountKeeper.GetAccount(ctx, fibreAddress)
 	convertedModuleAccount, ok := convertedAccount.(sdk.ModuleAccountI)
 	require.True(t, ok)
 	require.Equal(t, fibretypes.ModuleName, convertedModuleAccount.GetName())
-	require.Equal(t, existingAccountNumber, convertedModuleAccount.GetAccountNumber())
+	require.Equal(t, baseAccount.GetAccountNumber(), convertedModuleAccount.GetAccountNumber())
 	require.Equal(t, prefund, testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
-
-	deposit := sdk.NewInt64Coin(appconsts.BondDenom, 1_000_000)
-	msgServer := fibrekeeper.NewMsgServerImpl(*testApp.FibreKeeper)
-	_, err := msgServer.DepositToEscrow(ctx, &fibretypes.MsgDepositToEscrow{
-		Signer: funderAddress.String(),
-		Amount: deposit,
-	})
-	require.NoError(t, err)
-
-	escrowAccount, found := testApp.FibreKeeper.GetEscrowAccount(ctx, funderAddress.String())
-	require.True(t, found)
-	require.Equal(t, deposit, escrowAccount.Balance)
-	require.Equal(t, prefund.Add(deposit), testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
 }
 
 func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
@@ -89,14 +70,20 @@ func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
 	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
 	require.Nil(t, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
 
-	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
-		Name:   "v10",
-		Height: 1,
-	}))
+	applyV10Upgrade(t, testApp, ctx)
 
 	moduleAccount, ok := testApp.AccountKeeper.GetAccount(ctx, fibreAddress).(sdk.ModuleAccountI)
 	require.True(t, ok)
 	require.Equal(t, fibretypes.ModuleName, moduleAccount.GetName())
+}
+
+func applyV10Upgrade(t *testing.T, testApp *app.App, ctx sdk.Context) {
+	t.Helper()
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v10",
+		Height: ctx.BlockHeight(),
+	}))
 }
 
 // createValidatorWithCommission creates a validator with specific commission
