@@ -6,13 +6,17 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	upgradetypes "cosmossdk.io/x/upgrade/types"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	tmdb "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
@@ -31,6 +35,55 @@ func TestUpgrades(t *testing.T) {
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v9"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v10"))
 	})
+}
+
+func TestV10UpgradeConvertsPrefundedFibreBaseAccount(t *testing.T) {
+	funder := testfactory.GenerateAccounts(1)[0]
+	testApp, keyring := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), funder)
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1})
+
+	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+
+	// Simulate v9 state: a bank send to Fibre's future address created a
+	// BaseAccount and deposited a small balance before Fibre was enabled.
+	baseAccount := testApp.AccountKeeper.NewAccountWithAddress(ctx, fibreAddress)
+	testApp.AccountKeeper.SetAccount(ctx, baseAccount)
+	prefund := sdk.NewInt64Coin(appconsts.BondDenom, 1)
+	funderAddress := testfactory.GetAddress(keyring, funder)
+	require.NoError(t, testApp.BankKeeper.SendCoins(ctx, funderAddress, fibreAddress, sdk.NewCoins(prefund)))
+	require.IsType(t, &authtypes.BaseAccount{}, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
+
+	applyV10Upgrade(t, testApp, ctx)
+
+	convertedAccount := testApp.AccountKeeper.GetAccount(ctx, fibreAddress)
+	convertedModuleAccount, ok := convertedAccount.(sdk.ModuleAccountI)
+	require.True(t, ok)
+	require.Equal(t, fibretypes.ModuleName, convertedModuleAccount.GetName())
+	require.Equal(t, baseAccount.GetAccountNumber(), convertedModuleAccount.GetAccountNumber())
+	require.Equal(t, prefund, testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
+}
+
+func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+
+	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	require.Nil(t, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
+
+	applyV10Upgrade(t, testApp, ctx)
+
+	moduleAccount, ok := testApp.AccountKeeper.GetAccount(ctx, fibreAddress).(sdk.ModuleAccountI)
+	require.True(t, ok)
+	require.Equal(t, fibretypes.ModuleName, moduleAccount.GetName())
+}
+
+func applyV10Upgrade(t *testing.T, testApp *app.App, ctx sdk.Context) {
+	t.Helper()
+
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{
+		Name:   "v10",
+		Height: ctx.BlockHeight(),
+	}))
 }
 
 func TestSetEvidenceParams(t *testing.T) {
