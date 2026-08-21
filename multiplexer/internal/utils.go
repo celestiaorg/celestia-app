@@ -5,10 +5,6 @@ import (
 	"errors"
 	"os"
 
-<<<<<<< HEAD
-	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
-=======
->>>>>>> 3d1ddece (chore!: replace mocha-4 with mocha-5 (#7709))
 	cmtcfg "github.com/cometbft/cometbft/config"
 	cmttypes "github.com/cometbft/cometbft/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
