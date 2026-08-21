@@ -73,12 +73,15 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 }
 
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
-	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
+	msg := newPayForFibreMsgWithSignatures(1)
+	tx := mockTx{msgs: []sdk.Msg{msg}}
+	wantKey, err := pffSigCacheKey(msg)
+	require.NoError(t, err)
 	keeper := &fakeFibreSignatureKeeper{}
 	cache := &fakeSigCache{
 		t:                t,
 		cacheHit:         true,
-		wantTx:           []byte{0x01},
+		wantKey:          wantKey,
 		failOnCacheWrite: true,
 	}
 	decorator := FibreSignatureVerificationDecorator{
@@ -99,13 +102,16 @@ func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing
 
 func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *testing.T) {
 	txBytes := []byte{0x01, 0x02, 0x03}
-	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(2)}}
+	msg := newPayForFibreMsgWithSignatures(2)
+	tx := mockTx{msgs: []sdk.Msg{msg}}
+	wantKey, err := pffSigCacheKey(msg)
+	require.NoError(t, err)
 	keeper := &fakeFibreSignatureKeeper{
 		gasToConsume: 1_000_000,
 	}
 	cache := &fakeSigCache{
-		t:      t,
-		wantTx: txBytes,
+		t:       t,
+		wantKey: wantKey,
 	}
 	decorator := FibreSignatureVerificationDecorator{
 		k:           keeper,
@@ -148,6 +154,108 @@ func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	require.Zero(t, cache.cachedTxs)
 }
 
+func TestPffSigCacheKeyIgnoresOuterSigner(t *testing.T) {
+	first := newPayForFibreMsgWithSignatures(2)
+	first.Signer = "relayer-one"
+	second := newPayForFibreMsgWithSignatures(2)
+	second.Signer = "relayer-two"
+
+	firstKey, err := pffSigCacheKey(first)
+	require.NoError(t, err)
+	secondKey, err := pffSigCacheKey(second)
+	require.NoError(t, err)
+
+	require.Equal(t, firstKey, secondKey)
+}
+
+func TestPffSigCacheKeyIncludesCompleteCertificate(t *testing.T) {
+	tests := map[string]func(*fibretypes.MsgPayForFibre){
+		"payment promise": func(msg *fibretypes.MsgPayForFibre) {
+			msg.PaymentPromise.BlobSize++
+		},
+		"payment promise signature": func(msg *fibretypes.MsgPayForFibre) {
+			msg.PaymentPromise.Signature = []byte("different-promise-signature")
+		},
+		"validator signature": func(msg *fibretypes.MsgPayForFibre) {
+			msg.ValidatorSignatures[0] = []byte("different-validator-signature")
+		},
+		"validator signature order": func(msg *fibretypes.MsgPayForFibre) {
+			msg.ValidatorSignatures[0], msg.ValidatorSignatures[1] = msg.ValidatorSignatures[1], msg.ValidatorSignatures[0]
+		},
+	}
+
+	base := newPayForFibreMsgWithSignatures(2)
+	base.PaymentPromise.Signature = []byte("promise-signature")
+	baseKey, err := pffSigCacheKey(base)
+	require.NoError(t, err)
+
+	for name, mutate := range tests {
+		t.Run(name, func(t *testing.T) {
+			candidate := newPayForFibreMsgWithSignatures(2)
+			candidate.PaymentPromise.Signature = []byte("promise-signature")
+			mutate(candidate)
+			candidateKey, err := pffSigCacheKey(candidate)
+			require.NoError(t, err)
+			require.NotEqual(t, baseKey, candidateKey)
+		})
+	}
+}
+
+func TestPffSigCacheKeyLengthFramesSignatures(t *testing.T) {
+	first := &fibretypes.MsgPayForFibre{ValidatorSignatures: [][]byte{{1}, {2}}}
+	second := &fibretypes.MsgPayForFibre{ValidatorSignatures: [][]byte{{1, 2}}}
+
+	firstKey, err := pffSigCacheKey(first)
+	require.NoError(t, err)
+	secondKey, err := pffSigCacheKey(second)
+	require.NoError(t, err)
+
+	require.NotEqual(t, firstKey, secondKey)
+}
+
+func TestFibreSignatureVerificationDecoratorCoalescesOuterTxVariants(t *testing.T) {
+	keeper := &fakeFibreSignatureKeeper{}
+	cache := newMemorySigCache()
+	decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+	first := newPayForFibreMsgWithSignatures(2)
+	first.Signer = "relayer-one"
+	second := newPayForFibreMsgWithSignatures(2)
+	second.Signer = "relayer-two"
+
+	_, err := decorator.AnteHandle(
+		sdk.Context{}.WithTxBytes([]byte("first-outer-tx")),
+		mockTx{msgs: []sdk.Msg{first}},
+		false,
+		nextNoop,
+	)
+	require.NoError(t, err)
+	_, err = decorator.AnteHandle(
+		sdk.Context{}.WithTxBytes([]byte("second-outer-tx")),
+		mockTx{msgs: []sdk.Msg{second}},
+		false,
+		nextNoop,
+	)
+	require.NoError(t, err)
+
+	require.Equal(t, 1, keeper.calls)
+}
+
+func TestFibreSignatureVerificationDecoratorRechecksChangedCertificate(t *testing.T) {
+	keeper := &fakeFibreSignatureKeeper{}
+	cache := newMemorySigCache()
+	decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+	first := newPayForFibreMsgWithSignatures(2)
+	second := newPayForFibreMsgWithSignatures(2)
+	second.ValidatorSignatures[0] = []byte("different")
+
+	_, err := decorator.AnteHandle(sdk.Context{}, mockTx{msgs: []sdk.Msg{first}}, false, nextNoop)
+	require.NoError(t, err)
+	_, err = decorator.AnteHandle(sdk.Context{}, mockTx{msgs: []sdk.Msg{second}}, false, nextNoop)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, keeper.calls)
+}
+
 type fakeFibreSignatureKeeper struct {
 	calls            int
 	infiniteGasCalls int
@@ -171,31 +279,48 @@ type fakeSigCache struct {
 	cacheLookups      int
 	cachedTxs         int
 	cacheHit          bool
-	wantTx            []byte
+	wantKey           PffSigCacheKey
 	failOnCacheLookup bool
 	failOnCacheWrite  bool
 }
 
-func (f *fakeSigCache) IsCached(tx []byte) bool {
+type memorySigCache struct {
+	entries map[PffSigCacheKey]struct{}
+}
+
+func newMemorySigCache() *memorySigCache {
+	return &memorySigCache{entries: make(map[PffSigCacheKey]struct{})}
+}
+
+func (c *memorySigCache) IsCached(key PffSigCacheKey) bool {
+	_, ok := c.entries[key]
+	return ok
+}
+
+func (c *memorySigCache) Cache(key PffSigCacheKey) {
+	c.entries[key] = struct{}{}
+}
+
+func (f *fakeSigCache) IsCached(key PffSigCacheKey) bool {
 	if f.failOnCacheLookup {
 		f.t.Fatal("cache lookup should be skipped")
 	}
 	f.cacheLookups++
-	f.requireTx(tx)
+	f.requireKey(key)
 	return f.cacheHit
 }
 
-func (f *fakeSigCache) Cache(tx []byte) {
+func (f *fakeSigCache) Cache(key PffSigCacheKey) {
 	if f.failOnCacheWrite {
 		f.t.Fatal("cache write should be skipped")
 	}
 	f.cachedTxs++
-	f.requireTx(tx)
+	f.requireKey(key)
 }
 
-func (f *fakeSigCache) requireTx(tx []byte) {
-	if f.t != nil && f.wantTx != nil {
-		require.Equal(f.t, f.wantTx, tx)
+func (f *fakeSigCache) requireKey(key PffSigCacheKey) {
+	if f.t != nil && f.wantKey != (PffSigCacheKey{}) {
+		require.Equal(f.t, f.wantKey, key)
 	}
 }
 

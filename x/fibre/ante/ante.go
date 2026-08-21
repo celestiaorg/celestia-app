@@ -1,6 +1,9 @@
 package ante
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+
 	storetypes "cosmossdk.io/store/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -43,10 +46,13 @@ type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
 }
 
-// PffSigCache tracks txs whose PFF signatures were already checked.
+// PffSigCacheKey identifies all inputs to PFF signature verification.
+type PffSigCacheKey [sha256.Size]byte
+
+// PffSigCache tracks PFF certificates whose signatures were already checked.
 type PffSigCache interface {
-	IsCached(tx []byte) bool
-	Cache(tx []byte)
+	IsCached(key PffSigCacheKey) bool
+	Cache(key PffSigCacheKey)
 }
 
 // NewFibreSigVerificationDecorator returns a PFF signature verification decorator.
@@ -63,20 +69,50 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return next(ctx, tx, simulate)
 	}
 
-	rawTx := ctx.TxBytes()
-	// Empty tx bytes are not cacheable.
-	if len(rawTx) > 0 && d.pffSigCache.IsCached(rawTx) {
+	cacheKey, err := pffSigCacheKey(msg)
+	if err != nil {
+		return ctx, err
+	}
+	if d.pffSigCache.IsCached(cacheKey) {
 		return next(ctx, tx, simulate)
 	}
 
 	verificationCtx := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-	if err := d.k.ValidatePayForFibreSignatures(verificationCtx, msg); err != nil {
+	if err = d.k.ValidatePayForFibreSignatures(verificationCtx, msg); err != nil {
 		return ctx, err
 	}
-	if len(rawTx) > 0 {
-		d.pffSigCache.Cache(rawTx)
-	}
+	d.pffSigCache.Cache(cacheKey)
 	return next(ctx, tx, simulate)
+}
+
+func pffSigCacheKey(msg *fibretypes.MsgPayForFibre) (PffSigCacheKey, error) {
+	hasher := sha256.New()
+	promise, err := msg.PaymentPromise.Marshal()
+	if err != nil {
+		return PffSigCacheKey{}, err
+	}
+	writeLengthPrefixed(hasher, promise)
+	var count [8]byte
+	binary.BigEndian.PutUint64(count[:], uint64(len(msg.ValidatorSignatures)))
+	_, _ = hasher.Write(count[:])
+	for _, signature := range msg.ValidatorSignatures {
+		writeLengthPrefixed(hasher, signature)
+	}
+
+	var key PffSigCacheKey
+	copy(key[:], hasher.Sum(nil))
+	return key, nil
+}
+
+type byteWriter interface {
+	Write([]byte) (int, error)
+}
+
+func writeLengthPrefixed(writer byteWriter, value []byte) {
+	var length [8]byte
+	binary.BigEndian.PutUint64(length[:], uint64(len(value)))
+	_, _ = writer.Write(length[:])
+	_, _ = writer.Write(value)
 }
 
 func payForFibreMessage(tx sdk.Tx) *fibretypes.MsgPayForFibre {
