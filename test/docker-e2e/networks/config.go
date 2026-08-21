@@ -26,14 +26,12 @@ func NewMochaConfig() *Config {
 		Name:    "mocha",
 		ChainID: appconsts.MochaChainID,
 		// State sync requires >= 2 RPC servers to cross-verify the app hash
-		// header. These should be distinct providers: listing one host twice
+		// header. These must be distinct providers: listing one host twice
 		// gives no redundancy, so a single slow/unavailable provider stalls
 		// state sync. Keep these in sync with the live mocha-5 testnet.
-		// TODO: replace the duplicate entry with a second distinct provider
-		// once more RPC providers serve mocha-5.
 		RPCs: []string{
 			"https://rpc-mocha.pops.one:443",
-			"https://rpc-mocha.pops.one:443",
+			"https://celestia-testnet-rpc.itrocket.net:443",
 		},
 		// seeds provide dynamic peer discovery — the node contacts a seed,
 		// gets a fresh list of currently-alive peers, and connects. This is
