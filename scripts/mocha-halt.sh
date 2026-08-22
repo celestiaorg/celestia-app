@@ -7,7 +7,7 @@ set -o nounset
 
 NODE_NAME="node-name"
 CHAIN_ID="mocha-5"
-SEEDS="ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656"
+SEEDS="ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656"
 
 CELESTIA_APP_HOME="${HOME}/.celestia-app"
 CELESTIA_APP_VERSION=$(celestia-appd version 2>&1)
