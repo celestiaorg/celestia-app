@@ -19,7 +19,7 @@ import (
 // Add the chain-id and hash to this map.
 var chainIDToSha256 = map[string]string{
 	appconsts.MainnetChainID: "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
-	appconsts.MochaChainID:   "0846b99099271b240b638a94e17a6301423b5e4047f6558df543d6e91db7e575",
+	appconsts.MochaChainID:   "82db3ac5ab8485e4784054bd10457533a64563f055c0d234a3134603a9c85d33",
 	appconsts.CortoChainID:   "5bfa9ef731c54e0a5f382988bb12fbbeac14de3f72e4bb2f2e04f16818a01ac3",
 }
 

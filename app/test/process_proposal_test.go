@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
@@ -203,7 +204,9 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				classifiedTxs, err := fibretypes.ClassifyTxs(d.Txs)
+				require.NoError(t, err)
+				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 
 				b := dataSquare[1].ToBytes()
@@ -323,7 +326,9 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)
@@ -474,7 +479,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			var dataRootHash []byte
 			var squareSize uint64
 			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
-				dataSquare, err := square.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
+				require.NoError(t, err)
+				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				dataRootHash = calculateNewDataHash(t, tc.txs)
 				ss, err := dataSquare.Size()

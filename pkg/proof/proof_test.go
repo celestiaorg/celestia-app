@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
@@ -12,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -28,7 +31,11 @@ func TestNewTxInclusionProof(t *testing.T) {
 	require.NoError(t, err)
 
 	blockTxs = append(blockTxs, blobfactory.RandBlobTxs(signer, random.New(), 50, 1, 500).ToSliceOfBytes()...)
-	require.Len(t, blockTxs, 100)
+
+	// The square orders fibre txs after normal and blob txs.
+	txConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig
+	blockTxs = append(blockTxs, blobfactory.UnsignedPayForFibreTx(t, txConfig))
+	require.Len(t, blockTxs, 101)
 
 	type test struct {
 		name      string
@@ -68,9 +75,15 @@ func TestNewTxInclusionProof(t *testing.T) {
 			expectErr: false,
 		},
 		{
-			name:      "txIndex 100 of block data returns error because only 100 txs",
+			name:      "fibre tx of block data",
 			txs:       blockTxs,
 			txIndex:   100,
+			expectErr: false,
+		},
+		{
+			name:      "txIndex 101 of block data returns error because only 101 txs",
+			txs:       blockTxs,
+			txIndex:   101,
 			expectErr: true,
 		},
 	}
@@ -103,7 +116,9 @@ func TestNewShareInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(50, 500)
 	txs = append(txs, blobTxs...)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs.ToSliceOfBytes())
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		panic(err)
 	}
@@ -238,7 +253,9 @@ func TestNewShareInclusionProof(t *testing.T) {
 func TestAllSharesInclusionProof(t *testing.T) {
 	txs := testfactory.GenerateRandomTxs(243, 500)
 
-	dataSquare, err := square.Construct(txs.ToSliceOfBytes(), appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs.ToSliceOfBytes())
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	assert.Equal(t, 256, len(dataSquare))
 

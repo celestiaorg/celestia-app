@@ -21,11 +21,12 @@ func TestBlobTxIsCanonical(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, blobTxIsCanonical(canonical, bTx), "a freshly marshaled blob tx is canonical")
 
+	// Since go-square v4.0.0-rc7, UnmarshalBlobTx itself rejects unknown
+	// protobuf fields as non-canonical.
 	padded := appendUnknownProtoField(canonical, 4096)
-	paddedTx, isBlob, err := blobtx.UnmarshalBlobTx(padded)
+	_, isBlob, err = blobtx.UnmarshalBlobTx(padded)
 	require.True(t, isBlob)
-	require.NoError(t, err, "unknown protobuf fields decode without error")
-	require.False(t, blobTxIsCanonical(padded, paddedTx), "a padded blob tx is not canonical")
+	require.ErrorIs(t, err, blobtx.ErrNonCanonicalBlobTx, "unknown protobuf fields are rejected as non-canonical")
 
 	// Repeat the singular type_id field (field 3, wire type 2, value "BLOB").
 	// proto.Unmarshal keeps the last value, so it decodes to the same blob tx,
