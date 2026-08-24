@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -33,33 +34,18 @@ func downloadGenesisCommand() *cobra.Command {
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			chainID := getChainIDOrDefault(args)
-			if !isKnownChainID(chainID) {
+			knownHash, ok := chainIDToSha256[chainID]
+			if !ok {
 				return fmt.Errorf("unknown chain-id: %s. Must be: %s", chainID, chainIDs())
 			}
 			outputFile := server.GetServerContextFromCmd(cmd).Config.GenesisFile()
 			fmt.Printf("Downloading genesis file for %s to %s\n", chainID, outputFile)
 
 			url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
-			if err := downloadFile(outputFile, url); err != nil {
+			if err := downloadFile(outputFile, url, knownHash); err != nil {
 				return fmt.Errorf("error downloading / persisting the genesis file: %s", err)
 			}
 			fmt.Printf("Downloaded genesis file for %s to %s\n", chainID, outputFile)
-
-			// Compute SHA-256 hash of the downloaded file
-			hash, err := computeSha256(outputFile)
-			if err != nil {
-				return fmt.Errorf("error computing sha256 hash: %s", err)
-			}
-
-			// Compare computed hash against known hash
-			knownHash, ok := chainIDToSha256[chainID]
-			if !ok {
-				return fmt.Errorf("unknown chain-id: %s", chainID)
-			}
-
-			if hash != knownHash {
-				return fmt.Errorf("sha256 hash mismatch: got %s, expected %s", hash, knownHash)
-			}
 
 			fmt.Printf("SHA-256 hash verified for %s\n", chainID)
 			return nil
@@ -88,8 +74,8 @@ func chainIDs() string {
 	return strings.Join(getKeys(chainIDToSha256), ", ")
 }
 
-// downloadFile will download a URL to a local file.
-func downloadFile(filepath, url string) error {
+// downloadFile downloads and verifies a URL before replacing the destination.
+func downloadFile(destination, url, expectedHash string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return err
@@ -100,14 +86,32 @@ func downloadFile(filepath, url string) error {
 		return fmt.Errorf("unexpected HTTP status: %s", resp.Status)
 	}
 
-	out, err := os.Create(filepath)
+	out, err := os.CreateTemp(filepath.Dir(destination), ".genesis-*")
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	temporary := out.Name()
+	defer os.Remove(temporary)
 
-	_, err = io.Copy(out, resp.Body)
-	return err
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		out.Close()
+		return err
+	}
+	if err := out.Close(); err != nil {
+		return err
+	}
+
+	hash, err := computeSha256(temporary)
+	if err != nil {
+		return err
+	}
+	if hash != expectedHash {
+		return fmt.Errorf("sha256 hash mismatch: got %s, expected %s", hash, expectedHash)
+	}
+	if err := os.Chmod(temporary, 0o644); err != nil {
+		return err
+	}
+	return os.Rename(temporary, destination)
 }
 
 // computeSha256 computes the SHA-256 hash of a file.
