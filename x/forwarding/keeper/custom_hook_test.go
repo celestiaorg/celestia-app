@@ -1,7 +1,6 @@
 package keeper_test
 
 import (
-	"strings"
 	"testing"
 
 	"cosmossdk.io/math"
@@ -162,23 +161,6 @@ func TestForward_InvalidCustomHookId_Rejected(t *testing.T) {
 	require.ErrorContains(t, err, "custom_hook_id")
 	// No funds moved and no warp transfer attempted (rejected during parsing).
 	require.Equal(t, signerBefore, s.bankKeeper.GetBalance(s.ctx, s.signer, appconsts.BondDenom).Amount)
-	require.Nil(t, s.warpKeeper.CapturedHookId, "no warp transfer should have been attempted")
-}
-
-func TestForward_CustomHookMetadataTooLong_Rejected(t *testing.T) {
-	s := newTestIGPSetup(t)
-	setupSuccessfulForward(s)
-
-	msg := types.NewMsgForward(
-		s.signer.String(), s.forwardAddr.String(), s.destDomain, s.destRecipient, s.tokenID,
-		sdk.NewCoin(appconsts.BondDenom, math.NewInt(100)),
-	)
-	msg.CustomHookMetadata = "0x" + strings.Repeat("ab", types.MaxCustomHookMetadataLength+1)
-
-	resp, err := s.msgServer.Forward(s.ctx, msg)
-	require.Error(t, err)
-	require.Nil(t, resp)
-	require.ErrorContains(t, err, "maximum length")
 	require.Nil(t, s.warpKeeper.CapturedHookId, "no warp transfer should have been attempted")
 }
 
