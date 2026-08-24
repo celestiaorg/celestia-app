@@ -381,15 +381,15 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 	twoThirds := cmtmath.Fraction{Numerator: 2, Denominator: 3}
 	sigSet := valSet.NewSignatureSet(twoThirds, signBytes)
 
+	// The list is positional over the validator set, so more entries than
+	// validators is malformed. Rejecting up front also guarantees every index is
+	// in range, so the quorum short-circuit below cannot skip a trailing entry.
+	if len(signatures) > len(cmtValidators) {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(cmtValidators))
+	}
+
 	// Add all provided signatures to the signature set
 	for i, signature := range signatures {
-		// Bound the index before skipping empties: the list is positional over
-		// the validator set, so an out-of-range index is always invalid and an
-		// empty entry must not slip past this check.
-		if i >= len(cmtValidators) {
-			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature index %d exceeds validator count %d", i, len(cmtValidators))
-		}
-
 		if len(signature) == 0 {
 			continue // Skip empty signatures
 		}
