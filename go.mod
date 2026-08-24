@@ -457,7 +457,7 @@ replace (
 	// from celestiaorg/cosmos-sdk#705, which closes a data race between
 	// BaseApp.LastBlockHeight and concurrent Commits. Upstream store/v1.1.2
 	// does not have this fix.
-	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.1
+	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.2
 	// Pin to the celestia fork's x/evidence to ignore equivocation evidence
 	// for a deleted validator instead of returning an error from FinalizeBlock.
 	// See celestiaorg/cosmos-sdk#749.
