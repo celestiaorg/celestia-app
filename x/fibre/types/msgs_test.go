@@ -15,7 +15,9 @@ import (
 )
 
 func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
-	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	// Derive the address at runtime so the test works regardless of whether
+	// another test file in this binary sets the global bech32 prefix.
+	signer := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20)).String()
 	oneCoin := sdk.NewCoin("utia", math.NewInt(1))
 	zeroCoin := sdk.NewCoin("utia", math.NewInt(0))
 	// negativeCoin does not use sdk.NewCoin because sdk.NewCoin panics if the amount is negative.
@@ -83,7 +85,9 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 }
 
 func TestMsgRequestWithdrawalValidateBasic(t *testing.T) {
-	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	// Derive the address at runtime so the test works regardless of whether
+	// another test file in this binary sets the global bech32 prefix.
+	signer := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20)).String()
 	oneCoin := sdk.NewCoin("utia", math.NewInt(1))
 	zeroCoin := sdk.NewCoin("utia", math.NewInt(0))
 	// negativeCoin does not use sdk.NewCoin because sdk.NewCoin panics if the amount is negative.
@@ -355,7 +359,9 @@ func TestPaymentPromiseValidateBasic(t *testing.T) {
 }
 
 func TestMsgPayForFibreValidateBasic(t *testing.T) {
-	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	// Derive the address at runtime so the test works regardless of whether
+	// another test file in this binary sets the global bech32 prefix.
+	signer := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20)).String()
 	paymentPromise := generatePaymentPromise(t)
 	validatorSignatures := [][]byte{[]byte("sig1"), []byte("sig2")}
 
@@ -416,7 +422,9 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 }
 
 func TestMsgPaymentPromiseTimeoutValidateBasic(t *testing.T) {
-	signer := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	// Derive the address at runtime so the test works regardless of whether
+	// another test file in this binary sets the global bech32 prefix.
+	signer := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20)).String()
 	paymentPromise := generatePaymentPromise(t)
 	invalidPaymentPromise := generatePaymentPromise(t)
 	invalidPaymentPromise.Signature = []byte{}
@@ -468,7 +476,9 @@ func TestMsgPaymentPromiseTimeoutValidateBasic(t *testing.T) {
 }
 
 func TestMsgUpdateFibreParamsValidateBasic(t *testing.T) {
-	authority := "cosmos1qypqxpq9qcrsszg2pvxq6rs0zqg3yyc5lzv7xu"
+	// Derive the address at runtime so the test works regardless of whether
+	// another test file in this binary sets the global bech32 prefix.
+	authority := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20)).String()
 	params := DefaultParams()
 	invalidParams := DefaultParams()
 	invalidParams.WithdrawalDelay = 0

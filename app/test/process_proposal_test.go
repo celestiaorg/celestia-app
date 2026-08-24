@@ -18,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
@@ -203,7 +204,9 @@ func TestProcessProposal(t *testing.T) {
 				Txs: coretypes.Txs(sendTxs).ToSliceOfBytes(),
 			},
 			mutator: func(d *tmproto.Data) {
-				dataSquare, err := square.Construct(d.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				classifiedTxs, err := fibretypes.ClassifyTxs(d.Txs)
+				require.NoError(t, err)
+				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 
 				b := dataSquare[1].ToBytes()
@@ -261,6 +264,17 @@ func TestProcessProposal(t *testing.T) {
 			expectedResult: abci.ResponseProcessProposal_REJECT,
 		},
 		{
+			name:  "non-canonically encoded blob tx",
+			input: validData(),
+			mutator: func(d *tmproto.Data) {
+				// Append an unknown protobuf field to an otherwise valid blob
+				// tx. It decodes to the same tx but is a distinct, larger
+				// encoding whose padding never reaches the block.
+				d.Txs[0] = appendUnknownProtoField(d.Txs[0], 4096)
+			},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+		},
+		{
 			name:  "tx size exceeds max tx size limit",
 			input: validData(),
 			mutator: func(d *tmproto.Data) {
@@ -312,7 +326,9 @@ func TestProcessProposal(t *testing.T) {
 }
 
 func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
-	dataSquare, err := square.Construct(txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	eds, err := da.ExtendShares(share.ToBytes(dataSquare))
 	require.NoError(t, err)
@@ -463,7 +479,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			var dataRootHash []byte
 			var squareSize uint64
 			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
-				dataSquare, err := square.Construct(tc.txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+				classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
+				require.NoError(t, err)
+				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 				require.NoError(t, err)
 				dataRootHash = calculateNewDataHash(t, tc.txs)
 				ss, err := dataSquare.Size()

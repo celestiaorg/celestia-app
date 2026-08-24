@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -206,7 +207,9 @@ func (s *IntegrationTestSuite) TestShareInclusionProof() {
 		require.True(t, isBlobTx)
 
 		// get the blob shares
-		shareRange, err := square.BlobShareRange(blockRes.Block.Txs.ToSliceOfBytes(), int(txResp.Index), 0,
+		classifiedTxs, err := fibretypes.ClassifyTxs(blockRes.Block.Txs.ToSliceOfBytes())
+		require.NoError(t, err)
+		shareRange, err := square.BlobShareRange(classifiedTxs, int(txResp.Index), 0,
 			appconsts.SquareSizeUpperBound,
 			appconsts.SubtreeRootThreshold,
 		)

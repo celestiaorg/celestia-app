@@ -27,4 +27,8 @@ var (
 	// ErrInvalidPayForFibreTx is returned when MsgPayForFibre is not the only tx
 	// message or its payment promise fails stateless validation.
 	ErrInvalidPayForFibreTx = errors.Register(AppErrorsCodespace, 11146, "invalid MsgPayForFibre transaction")
+
+	// ErrNonCanonicalBlobTx is returned when a blob tx is not canonically
+	// encoded (e.g. unknown or repeated protobuf fields used as padding).
+	ErrNonCanonicalBlobTx = errors.Register(AppErrorsCodespace, 11147, "blob tx is not canonically encoded")
 )

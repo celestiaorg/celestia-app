@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
@@ -80,6 +81,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+				return reject(), nil
+			}
+			if !blobTxIsCanonical(rawTx, blobTx) {
+				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("blob tx %d is not canonically encoded", idx))
 				return reject(), nil
 			}
 			sdkTxBytes = blobTx.Tx
@@ -176,8 +181,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	// Use squarev4.Construct which natively handles BlobTx (and FibreTx when enabled).
-	dataSquare, err := squarev4.Construct(req.Txs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	// Classify txs (marking pay-for-fibre txs and synthesizing their system
+	// blobs) before constructing the square; go-square no longer decodes
+	// Cosmos SDK transactions itself.
+	classifiedTxs, err := fibretypes.ClassifyTxs(req.Txs)
+	if err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
+		return reject(), nil
+	}
+	dataSquare, err := squarev4.Construct(classifiedTxs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
 		return reject(), nil
