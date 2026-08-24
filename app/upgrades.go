@@ -80,9 +80,7 @@ func (app App) RegisterUpgradeHandlers() {
 			if err := app.SetEvidenceParams(ctx); err != nil {
 				return nil, err
 			}
-			if err := app.ensureFibreModuleAccount(ctx); err != nil {
-				return nil, err
-			}
+			app.ensureFibreModuleAccount(ctx)
 
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
@@ -102,26 +100,16 @@ func (app App) RegisterUpgradeHandlers() {
 	}
 }
 
-// ensureFibreModuleAccount makes sure Fibre's address is a module account.
-func (app App) ensureFibreModuleAccount(ctx context.Context) error {
-	address, permissions := app.AccountKeeper.GetModuleAddressAndPermissions(fibretypes.ModuleName)
-	account := app.AccountKeeper.GetAccount(ctx, address)
-
-	switch account := account.(type) {
-	case nil:
-		app.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
-		return nil
-	case *authtypes.BaseAccount:
-		moduleAccount := authtypes.NewModuleAccount(account, fibretypes.ModuleName, permissions...)
-		app.AccountKeeper.SetModuleAccount(ctx, moduleAccount)
-		return nil
-	case sdk.ModuleAccountI:
-		// technically should not be reached because fibre module address should not
-		// exist yet, but adding for extra caution.
-		return nil
-	default:
-		return fmt.Errorf("unexpected account type %T at fibre module address %s", account, address)
+// ensureFibreModuleAccount replaces any account at Fibre's address with the
+// registered Fibre module account. Balances are stored separately by x/bank
+// and remain at the same address when the x/auth account is replaced.
+func (app App) ensureFibreModuleAccount(ctx context.Context) {
+	address := app.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	if account := app.AccountKeeper.GetAccount(ctx, address); account != nil {
+		app.AccountKeeper.RemoveAccount(ctx, account)
 	}
+
+	app.AccountKeeper.GetModuleAccount(ctx, fibretypes.ModuleName)
 }
 
 // SetEvidenceParams writes the evidence params from appconsts into the

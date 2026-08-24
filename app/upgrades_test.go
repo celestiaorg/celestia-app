@@ -17,6 +17,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
@@ -37,30 +38,69 @@ func TestUpgrades(t *testing.T) {
 	})
 }
 
-func TestV10UpgradeConvertsPrefundedFibreBaseAccount(t *testing.T) {
-	funder := testfactory.GenerateAccounts(1)[0]
-	testApp, keyring := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), funder)
-	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1})
+func TestV10UpgradeReplacesPrefundedFibreAccount(t *testing.T) {
+	prefundCoins := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1))
+	tests := []struct {
+		name       string
+		newAccount func(*authtypes.BaseAccount) (sdk.AccountI, error)
+	}{
+		{
+			name: "base",
+			newAccount: func(baseAccount *authtypes.BaseAccount) (sdk.AccountI, error) {
+				return baseAccount, nil
+			},
+		},
+		{
+			name: "continuous",
+			newAccount: func(baseAccount *authtypes.BaseAccount) (sdk.AccountI, error) {
+				return vestingtypes.NewContinuousVestingAccount(baseAccount, prefundCoins, 1, 2)
+			},
+		},
+		{
+			name: "delayed",
+			newAccount: func(baseAccount *authtypes.BaseAccount) (sdk.AccountI, error) {
+				return vestingtypes.NewDelayedVestingAccount(baseAccount, prefundCoins, 2)
+			},
+		},
+		{
+			name: "periodic",
+			newAccount: func(baseAccount *authtypes.BaseAccount) (sdk.AccountI, error) {
+				periods := vestingtypes.Periods{{Length: 1, Amount: prefundCoins}}
+				return vestingtypes.NewPeriodicVestingAccount(baseAccount, prefundCoins, 1, periods)
+			},
+		},
+		{
+			name: "permanently locked",
+			newAccount: func(baseAccount *authtypes.BaseAccount) (sdk.AccountI, error) {
+				return vestingtypes.NewPermanentLockedAccount(baseAccount, prefundCoins)
+			},
+		},
+	}
 
-	fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			funder := testfactory.GenerateAccounts(1)[0]
+			testApp, keyring := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), funder)
+			ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1})
+			fibreAddress := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
 
-	// Simulate v9 state: a bank send to Fibre's future address created a
-	// BaseAccount and deposited a small balance before Fibre was enabled.
-	baseAccount := testApp.AccountKeeper.NewAccountWithAddress(ctx, fibreAddress)
-	testApp.AccountKeeper.SetAccount(ctx, baseAccount)
-	prefund := sdk.NewInt64Coin(appconsts.BondDenom, 1)
-	funderAddress := testfactory.GetAddress(keyring, funder)
-	require.NoError(t, testApp.BankKeeper.SendCoins(ctx, funderAddress, fibreAddress, sdk.NewCoins(prefund)))
-	require.IsType(t, &authtypes.BaseAccount{}, testApp.AccountKeeper.GetAccount(ctx, fibreAddress))
+			baseAccount, ok := testApp.AccountKeeper.NewAccountWithAddress(ctx, fibreAddress).(*authtypes.BaseAccount)
+			require.True(t, ok)
+			existingAccount, err := test.newAccount(baseAccount)
+			require.NoError(t, err)
+			testApp.AccountKeeper.SetAccount(ctx, existingAccount)
+			funderAddress := testfactory.GetAddress(keyring, funder)
+			require.NoError(t, testApp.BankKeeper.SendCoins(ctx, funderAddress, fibreAddress, prefundCoins))
 
-	applyV10Upgrade(t, testApp, ctx)
+			applyV10Upgrade(t, testApp, ctx)
 
-	convertedAccount := testApp.AccountKeeper.GetAccount(ctx, fibreAddress)
-	convertedModuleAccount, ok := convertedAccount.(sdk.ModuleAccountI)
-	require.True(t, ok)
-	require.Equal(t, fibretypes.ModuleName, convertedModuleAccount.GetName())
-	require.Equal(t, baseAccount.GetAccountNumber(), convertedModuleAccount.GetAccountNumber())
-	require.Equal(t, prefund, testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
+			moduleAccount, ok := testApp.AccountKeeper.GetAccount(ctx, fibreAddress).(sdk.ModuleAccountI)
+			require.True(t, ok)
+			require.Equal(t, fibretypes.ModuleName, moduleAccount.GetName())
+			require.NotEqual(t, existingAccount.GetAccountNumber(), moduleAccount.GetAccountNumber())
+			require.Equal(t, prefundCoins[0], testApp.BankKeeper.GetBalance(ctx, fibreAddress, appconsts.BondDenom))
+		})
+	}
 }
 
 func TestV10UpgradeCreatesMissingFibreModuleAccount(t *testing.T) {
