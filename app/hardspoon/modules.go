@@ -72,14 +72,23 @@ func (s *spoon) assemble(defaultGenesis map[string]json.RawMessage) (*cmttypes.G
 	// bank: parameters, denom metadata and send_enabled carried; balances
 	// rebuilt; supply recomputed. bank's InitGenesis panics if the stated supply
 	// disagrees with the sum of balances, so it has to be derived, not carried.
-	metadata, droppedMetadata := validDenomMetadata(s.bank.DenomMetadata)
+	metadata, droppedMetadata := carriedDenomMetadata(s.bank.DenomMetadata)
 	s.report.DenomMetadataDropped = droppedMetadata
+	// A send_enabled override for a dropped denom would govern coins that no
+	// longer exist, so it goes with them. mocha-4 carries none.
+	sendEnabled := make([]banktypes.SendEnabled, 0, len(s.bank.SendEnabled))
+	for _, entry := range s.bank.SendEnabled {
+		if orphanedDenom(entry.Denom) {
+			continue
+		}
+		sendEnabled = append(sendEnabled, entry)
+	}
 	bank := banktypes.GenesisState{
 		Params:        s.bank.Params,
 		Balances:      balances,
 		Supply:        supply,
 		DenomMetadata: metadata,
-		SendEnabled:   s.bank.SendEnabled,
+		SendEnabled:   sendEnabled,
 	}
 
 	// staking: parameters only. Every token that was staked or unbonding has
@@ -130,13 +139,13 @@ func (s *spoon) assemble(defaultGenesis map[string]json.RawMessage) (*cmttypes.G
 		Params:             minfeetypes.Params{NetworkMinGasPrice: s.minfee.NetworkMinGasPrice},
 	}
 
-	// transfer: parameters and denom traces carried, so existing voucher
-	// balances still render with their trace. The escrow accounting resets
-	// because the escrow balances themselves are gone.
+	// transfer: parameters only. Voucher balances are dropped as orphaned
+	// denoms, since the channels they could be redeemed through do not survive,
+	// so the traces that named them go too. The escrow accounting resets because
+	// the escrow balances themselves are gone.
 	transfer := ibctransfertypes.GenesisState{
-		PortId:      s.transfer.PortId,
-		DenomTraces: s.transfer.DenomTraces,
-		Params:      s.transfer.Params,
+		PortId: s.transfer.PortId,
+		Params: s.transfer.Params,
 	}
 
 	// interchainaccounts: parameters only. Registered accounts and active
@@ -285,18 +294,20 @@ func alignExpeditedVotingPeriod(params *govv1.Params, report *Report) (*govv1.Pa
 	return &aligned, nil
 }
 
-// validDenomMetadata drops denom metadata that bank's own validation rejects,
-// returning the surviving entries and the base denoms of the dropped ones.
+// carriedDenomMetadata drops denom metadata that bank's own validation rejects
+// or that names an orphaned denom, returning the surviving entries and the base
+// denoms of the dropped ones.
 //
 // ibc-go's SetDenomMetadata writes the trace's base denom as the first denom unit
 // while the metadata's base is the IBC hash, and Metadata.Validate requires the
 // two to match, so every voucher a chain has ever received carries an entry that
-// cannot go into a genesis file. mocha-4 has one. Metadata is display-only, so
+// cannot go into a genesis file. mocha-4 has one. Metadata for an orphaned denom
+// would label coins that no longer exist. Metadata is display-only either way, so
 // dropping it costs a label in wallets and keeps the genesis loadable.
-func validDenomMetadata(metadata []banktypes.Metadata) (kept []banktypes.Metadata, dropped []string) {
+func carriedDenomMetadata(metadata []banktypes.Metadata) (kept []banktypes.Metadata, dropped []string) {
 	kept = make([]banktypes.Metadata, 0, len(metadata))
 	for _, entry := range metadata {
-		if err := entry.Validate(); err != nil {
+		if err := entry.Validate(); err != nil || orphanedDenom(entry.Base) {
 			dropped = append(dropped, entry.Base)
 			continue
 		}

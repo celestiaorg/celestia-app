@@ -3,10 +3,12 @@ package hardspoon_test
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"cosmossdk.io/math"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v9/app"
 	"github.com/celestiaorg/celestia-app/v9/app/hardspoon"
 	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
@@ -18,6 +20,7 @@ import (
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -360,6 +363,167 @@ func TestEscrowGuardRefusesUnaccountedBalances(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "do not match transfer.total_escrowed")
 	})
+}
+
+// TestOrphanedWarpDenomsAreDropped covers the synthetic warp coins.
+//
+// The hyperlane, warp and zkism modules restart from the default genesis, so
+// the routers that could redeem these coins on their origin chains do not
+// survive the spoon, and any later Hyperlane deployment mints under fresh token
+// ids. mocha-4 carries seven such denoms across nine accounts; carrying them
+// would leave coins that are spendable but good for nothing.
+func TestOrphanedWarpDenomsAreDropped(t *testing.T) {
+	capp := testApp(t)
+	f := newFixture()
+
+	synthetic := f.addWarpToken(t, warptypes.HYP_TOKEN_TYPE_SYNTHETIC,
+		"0x726f757465725f61707000000000000000000000000000020000000000000005")
+	// A collateral token's coins are the chain's own denom, so registering one
+	// must not put any utia at risk.
+	collateral := f.addWarpToken(t, warptypes.HYP_TOKEN_TYPE_COLLATERAL,
+		"0x726f757465725f61707000000000000000000000000000010000000000000000")
+	require.Equal(t, denom, collateral)
+
+	mixed := f.addAccount("warp-and-utia", sdk.NewCoins(
+		sdk.NewInt64Coin(denom, 900), sdk.NewCoin(synthetic, math.NewInt(123)),
+	))
+	warpOnly := f.addAccount("warp-only", sdk.NewCoins(sdk.NewCoin(synthetic, math.NewInt(77))))
+
+	result, err := hardspoon.Transform(capp.AppCodec(), capp.DefaultGenesis(), f.fork(t, capp), defaultOptions())
+	require.NoError(t, err)
+
+	balances := balancesByAddress(t, capp, result)
+	require.Equal(t, "900utia", balances[mixed].String(), "only the warp coins leave")
+	require.NotContains(t, balances, warpOnly)
+	require.NotContains(t, accountsByAddress(t, capp, result), warpOnly, "left holding nothing, so pruned")
+
+	var bank banktypes.GenesisState
+	appStateOf(t, capp.AppCodec(), result, banktypes.ModuleName, &bank)
+	for _, coin := range bank.Supply {
+		require.False(t, strings.HasPrefix(coin.Denom, "hyperlane/"), "supply still carries %s", coin)
+	}
+
+	require.Len(t, result.Report.OrphanedDenoms, 1)
+	dropped := result.Report.OrphanedDenoms[0]
+	require.Equal(t, synthetic, dropped.Denom)
+	require.Equal(t, 2, dropped.Holders)
+	require.Equal(t, "200", dropped.Amount.String())
+	require.Contains(t, result.Report.String(), "orphaned denoms")
+}
+
+// TestOrphanedIBCVouchersAreDropped covers the transfer vouchers.
+//
+// The ibc module restarts from the default genesis, so every channel a voucher
+// could be redeemed through is gone with it. mocha-4 carries exactly one, a
+// transfer/channel-455/stake voucher under a single account; carrying it would
+// leave the same orphan-asset problem the warp drop solves.
+func TestOrphanedIBCVouchersAreDropped(t *testing.T) {
+	capp := testApp(t)
+	f := newFixture()
+
+	trace := ibctransfertypes.DenomTrace{Path: "transfer/channel-455", BaseDenom: "stake"}
+	f.Transfer.DenomTraces = append(f.Transfer.DenomTraces, trace)
+	voucher := trace.IBCDenom()
+
+	holder := f.addAccount("voucher-holder", sdk.NewCoins(
+		sdk.NewInt64Coin(denom, 400), sdk.NewCoin(voucher, math.NewInt(1_000_000)),
+	))
+	// Metadata that names the voucher validly has to go with it; the invalid
+	// entry ibc-go leaves behind is covered by TestInvalidDenomMetadataIsDropped.
+	f.DenomMetadata = append(f.DenomMetadata, banktypes.Metadata{
+		Base:    voucher,
+		Display: "STAKE",
+		Symbol:  "STAKE",
+		Name:    "STAKE",
+		DenomUnits: []*banktypes.DenomUnit{
+			{Denom: voucher, Exponent: 0},
+			{Denom: "STAKE", Exponent: 6},
+		},
+	})
+
+	result, err := hardspoon.Transform(capp.AppCodec(), capp.DefaultGenesis(), f.fork(t, capp), defaultOptions())
+	require.NoError(t, err)
+
+	balances := balancesByAddress(t, capp, result)
+	require.Equal(t, "400utia", balances[holder].String(), "only the voucher leaves")
+
+	var bank banktypes.GenesisState
+	appStateOf(t, capp.AppCodec(), result, banktypes.ModuleName, &bank)
+	for _, coin := range bank.Supply {
+		require.False(t, strings.HasPrefix(coin.Denom, "ibc/"), "supply still carries %s", coin)
+	}
+	require.Len(t, bank.DenomMetadata, 1, "the voucher's metadata goes with it")
+	require.Contains(t, result.Report.DenomMetadataDropped, voucher)
+
+	var transfer ibctransfertypes.GenesisState
+	appStateOf(t, capp.AppCodec(), result, ibctransfertypes.ModuleName, &transfer)
+	require.Empty(t, transfer.DenomTraces, "a trace would name a voucher that no longer exists")
+	require.Equal(t, f.Transfer.Params, transfer.Params, "parameters are still carried")
+
+	require.Len(t, result.Report.OrphanedDenoms, 1)
+	dropped := result.Report.OrphanedDenoms[0]
+	require.Equal(t, voucher, dropped.Denom)
+	require.Equal(t, 1, dropped.Holders)
+	require.Equal(t, "1000000", dropped.Amount.String())
+}
+
+// TestUnregisteredIBCVoucherIsFatal pins down the guard for vouchers: an
+// ibc/... coin that matches no denom trace the transfer module recorded means
+// the derivation is wrong, and refusing beats silently deleting funds.
+func TestUnregisteredIBCVoucherIsFatal(t *testing.T) {
+	capp := testApp(t)
+	f := newFixture()
+
+	f.addAccount("stray-voucher", sdk.NewCoins(sdk.NewCoin(
+		"ibc/0000000000000000000000000000000000000000000000000000000000000099",
+		math.NewInt(5),
+	)))
+
+	_, err := hardspoon.Transform(capp.AppCodec(), capp.DefaultGenesis(), f.fork(t, capp), defaultOptions())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "refusing to drop a denom that cannot be accounted for")
+}
+
+// TestUnregisteredWarpDenomIsFatal pins down the guard: a hyperlane/... coin
+// the exported warp genesis does not register as a synthetic token means the
+// denom derivation is wrong, and refusing beats silently deleting funds.
+func TestUnregisteredWarpDenomIsFatal(t *testing.T) {
+	capp := testApp(t)
+	f := newFixture()
+
+	f.addAccount("stray-warp", sdk.NewCoins(sdk.NewCoin(
+		"hyperlane/0x0000000000000000000000000000000000000000000000000000000000000099",
+		math.NewInt(5),
+	)))
+
+	_, err := hardspoon.Transform(capp.AppCodec(), capp.DefaultGenesis(), f.fork(t, capp), defaultOptions())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "refusing to drop a denom that cannot be accounted for")
+}
+
+// TestVestingWarpDenomIsRefused covers a schedule denominated in a dropped
+// coin. Removing the balance out from under original_vesting would corrupt the
+// lock accounting, and no such account exists on mocha-4, so it is a refusal
+// rather than a silent decision.
+func TestVestingWarpDenomIsRefused(t *testing.T) {
+	capp := testApp(t)
+	f := newFixture()
+
+	synthetic := f.addWarpToken(t, warptypes.HYP_TOKEN_TYPE_SYNTHETIC,
+		"0x726f757465725f61707000000000000000000000000000020000000000000007")
+
+	vestingAddress := address("warp-vesting")
+	base := authtypes.NewBaseAccount(sdk.MustAccAddressFromBech32(vestingAddress), nil, uint64(len(f.Accounts)), 0)
+	coins := sdk.NewCoins(sdk.NewCoin(synthetic, math.NewInt(1_000)))
+	// Ends in 2033, so flattening never makes the question moot.
+	account, err := vestingtypes.NewContinuousVestingAccount(base, coins, 1_600_000_000, 2_000_000_000)
+	require.NoError(t, err)
+	f.Accounts = append(f.Accounts, account)
+	f.Balances = append(f.Balances, banktypes.Balance{Address: vestingAddress, Coins: coins})
+
+	_, err = hardspoon.Transform(capp.AppCodec(), capp.DefaultGenesis(), f.fork(t, capp), defaultOptions())
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "would corrupt its lock accounting")
 }
 
 // TestElapsedVestingSchedulesAreFlattened covers the vesting normalization.

@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	hyperlanetypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/types"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v9/x/zkism/types"
 	cmttypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -18,6 +21,7 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	ibctransfertypes "github.com/cosmos/ibc-go/v8/modules/apps/transfer/types"
 )
 
 // Verify re-checks every invariant a spoon is supposed to establish.
@@ -150,6 +154,15 @@ func verifyAccountsAndBalances(cdc codec.Codec, appState map[string]json.RawMess
 		if balance.Coins.IsZero() {
 			note("balance for %s is zero and should have been dropped", balance.Address)
 		}
+		// The modules that could redeem bridged assets do not survive the spoon,
+		// so neither may their coins: they would be spendable but redeemable for
+		// nothing.
+		for _, coin := range balance.Coins {
+			if orphanedDenom(coin.Denom) {
+				note("balance for %s holds %s, an orphaned denom that should have been dropped",
+					balance.Address, coin)
+			}
+		}
 		supply = supply.Add(balance.Coins...)
 	}
 
@@ -159,12 +172,26 @@ func verifyAccountsAndBalances(cdc codec.Codec, appState map[string]json.RawMess
 		note("stated supply %s does not equal the sum of balances %s", bank.Supply, supply)
 	}
 
+	for _, coin := range bank.Supply {
+		if orphanedDenom(coin.Denom) {
+			note("supply carries %s, an orphaned denom that should have been dropped", coin)
+		}
+	}
+	for _, entry := range bank.SendEnabled {
+		if orphanedDenom(entry.Denom) {
+			note("send_enabled entry for orphaned denom %s should not have been carried", entry.Denom)
+		}
+	}
+
 	// Every voucher a chain has received leaves behind denom metadata that
 	// ibc-go wrote and bank's own validation rejects, so a surviving invalid
 	// entry means the whole genesis fails ValidateGenesis.
 	for _, entry := range bank.DenomMetadata {
 		if err := entry.Validate(); err != nil {
 			note("denom metadata for %s is invalid and should have been dropped: %v", entry.Base, err)
+		}
+		if orphanedDenom(entry.Base) {
+			note("denom metadata for orphaned denom %s should not have been carried", entry.Base)
 		}
 	}
 
@@ -253,6 +280,70 @@ func verifyEmptied(cdc codec.Codec, appState map[string]json.RawMessage) []error
 		if err := gov.Params.ValidateBasic(); err != nil {
 			note("gov params are invalid: %v", err)
 		}
+	}
+
+	// Dropping the hyperlane/... coins is only sound because the modules that
+	// minted them restart empty, so verify pins both sides of that.
+	var hyperlane hyperlanetypes.GenesisState
+	if err := cdc.UnmarshalJSON(appState[hyperlanetypes.ModuleName], &hyperlane); err != nil {
+		return append(problems, fmt.Errorf("reading hyperlane genesis: %w", err))
+	}
+	if n := len(hyperlane.Mailboxes); n != 0 {
+		note("hyperlane genesis has %d mailboxes", n)
+	}
+	if n := len(hyperlane.Messages); n != 0 {
+		note("hyperlane genesis has %d delivered messages", n)
+	}
+	if hyperlane.IsmSequence != 0 || hyperlane.PostDispatchSequence != 0 || hyperlane.AppSequence != 0 {
+		note("hyperlane sequences are %d/%d/%d, want 0",
+			hyperlane.IsmSequence, hyperlane.PostDispatchSequence, hyperlane.AppSequence)
+	}
+	if g := hyperlane.IsmGenesis; g != nil && len(g.Isms) != 0 {
+		note("hyperlane genesis has %d ISMs", len(g.Isms))
+	}
+	if g := hyperlane.PostDispatchGenesis; g != nil {
+		if n := len(g.Igps) + len(g.IgpGasConfigs) + len(g.MerkleTreeHooks) + len(g.NoopHooks); n != 0 {
+			note("hyperlane genesis has %d post-dispatch hooks and gas configs", n)
+		}
+	}
+
+	var warp warptypes.GenesisState
+	if err := cdc.UnmarshalJSON(appState[warptypes.ModuleName], &warp); err != nil {
+		return append(problems, fmt.Errorf("reading warp genesis: %w", err))
+	}
+	if n := len(warp.Tokens); n != 0 {
+		note("warp genesis has %d token registrations", n)
+	}
+	if n := len(warp.RemoteRouters); n != 0 {
+		note("warp genesis has %d remote routers", n)
+	}
+
+	// transfer: a carried denom trace would name a voucher that no longer
+	// exists, and escrow accounting would claim funds the dropped escrow
+	// accounts no longer hold.
+	var transfer ibctransfertypes.GenesisState
+	if err := cdc.UnmarshalJSON(appState[ibctransfertypes.ModuleName], &transfer); err != nil {
+		return append(problems, fmt.Errorf("reading transfer genesis: %w", err))
+	}
+	if n := len(transfer.DenomTraces); n != 0 {
+		note("transfer genesis has %d denom traces; vouchers do not survive the spoon", n)
+	}
+	if !transfer.TotalEscrowed.IsZero() {
+		note("transfer total_escrowed is %s, want empty", transfer.TotalEscrowed)
+	}
+
+	var zkism zkismtypes.GenesisState
+	if err := cdc.UnmarshalJSON(appState[zkismtypes.ModuleName], &zkism); err != nil {
+		return append(problems, fmt.Errorf("reading zkism genesis: %w", err))
+	}
+	if n := len(zkism.Isms); n != 0 {
+		note("zkism genesis has %d ISMs", n)
+	}
+	if n := len(zkism.Messages); n != 0 {
+		note("zkism genesis has %d authorized messages", n)
+	}
+	if n := len(zkism.Submissions); n != 0 {
+		note("zkism genesis has %d proof submissions", n)
 	}
 
 	return problems

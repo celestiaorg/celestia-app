@@ -2,8 +2,9 @@
 // `export --for-zero-height` snapshot of an old one.
 //
 // Every delegation, unbonding delegation and accrued staking reward is redeemed
-// to the owning account as liquid tokens, module-account funds and provably
-// unreachable balances are dropped, and the modules that governance can tune are
+// to the owning account as liquid tokens, module-account funds, provably
+// unreachable balances and orphaned bridged assets (synthetic warp coins, IBC
+// transfer vouchers) are dropped, and the modules that governance can tune are
 // carried across verbatim so the new chain is a parameter-level replica of the
 // old one. Everything else starts from the current binary's default genesis, so
 // wiped modules are consistent by construction and carried state is an explicit
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	minfeetypes "github.com/celestiaorg/celestia-app/v9/x/minfee/types"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
 	cmttypes "github.com/cometbft/cometbft/types"
@@ -142,6 +144,9 @@ func Transform(cdc codec.Codec, defaultGenesis map[string]json.RawMessage, fork 
 	if err := s.vaporize(); err != nil {
 		return nil, err
 	}
+	if err := s.dropOrphanedDenoms(); err != nil {
+		return nil, err
+	}
 	s.zeroVestingDelegations()
 	s.flattenVestedAccounts()
 	s.prune()
@@ -185,6 +190,7 @@ type spoon struct {
 	minfee       minfeetypes.GenesisState
 	transfer     ibctransfertypes.GenesisState
 	ica          icagenesistypes.GenesisState
+	warp         warptypes.GenesisState
 	channels     []channel
 
 	// accounts is the working account list, in the export's order.
@@ -253,6 +259,9 @@ func (s *spoon) load() error {
 		{minfeetypes.ModuleName, &s.minfee},
 		{ibctransfertypes.ModuleName, &s.transfer},
 		{icatypes.ModuleName, &s.ica},
+		// Read only to cross-check the synthetic denoms being dropped; the new
+		// chain's warp state stays at this binary's default.
+		{warptypes.ModuleName, &s.warp},
 	}
 	for _, module := range modules {
 		if err := s.unmarshal(module.name, module.into); err != nil {

@@ -25,6 +25,11 @@ type Report struct {
 	EscrowChannels int       `json:"escrow_channels"`
 	EscrowHeld     sdk.Coins `json:"escrow_held"`
 
+	// OrphanedDenoms are the bridged-asset coins dropped from balances:
+	// synthetic warp tokens whose routers, and IBC vouchers whose channels, do
+	// not survive the spoon, so the coins could no longer be redeemed.
+	OrphanedDenoms []OrphanedDenom `json:"orphaned_denoms,omitempty"`
+
 	VestingAccounts int `json:"vesting_accounts"`
 	VestingZeroed   int `json:"vesting_zeroed"`
 	// VestingFlattened counts schedules that had already elapsed at the genesis
@@ -32,7 +37,8 @@ type Report struct {
 	VestingFlattened int `json:"vesting_flattened"`
 
 	// DenomMetadataDropped lists the base denoms of metadata entries that bank's
-	// own validation rejects, which a genesis file cannot carry.
+	// own validation rejects, which a genesis file cannot carry, or that name an
+	// orphaned denom.
 	DenomMetadataDropped []string `json:"denom_metadata_dropped,omitempty"`
 
 	// GovExpeditedVotingPeriod records the expedited voting period being shortened
@@ -101,6 +107,13 @@ type Vaporized struct {
 	Coins    sdk.Coins `json:"coins"`
 }
 
+// OrphanedDenom is one bridged-asset denom dropped from every balance holding it.
+type OrphanedDenom struct {
+	Denom   string   `json:"denom"`
+	Holders int      `json:"holders"`
+	Amount  math.Int `json:"amount"`
+}
+
 // String renders the report for a terminal.
 func (r *Report) String() string {
 	var b strings.Builder
@@ -134,6 +147,14 @@ func (r *Report) String() string {
 	fmt.Fprintf(&b, "    %-28s %d\n", "transfer channels", r.EscrowChannels)
 	fmt.Fprintf(&b, "    %-28s %s (matches transfer.total_escrowed)\n", "escrowed and dropped", r.EscrowHeld)
 
+	if len(r.OrphanedDenoms) > 0 {
+		fmt.Fprintf(&b, "\n  orphaned denoms (redemption paths do not survive the spoon; dropped)\n")
+		for _, entry := range r.OrphanedDenoms {
+			fmt.Fprintf(&b, "    %s\n", entry.Denom)
+			fmt.Fprintf(&b, "    %-28s %s across %d holder(s)\n", "", entry.Amount, entry.Holders)
+		}
+	}
+
 	fmt.Fprintf(&b, "\n  accounts\n")
 	fmt.Fprintf(&b, "    %-28s %d (%d had delegation tracking cleared)\n", "vesting", r.VestingAccounts, r.VestingZeroed)
 	if r.VestingFlattened > 0 {
@@ -159,7 +180,7 @@ func (r *Report) String() string {
 
 	if len(r.DenomMetadataDropped) > 0 {
 		fmt.Fprintf(&b, "\n  bank\n")
-		fmt.Fprintf(&b, "    %-28s %d (invalid for a genesis file)\n", "denom metadata dropped", len(r.DenomMetadataDropped))
+		fmt.Fprintf(&b, "    %-28s %d (invalid for a genesis file, or orphaned)\n", "denom metadata dropped", len(r.DenomMetadataDropped))
 		for _, base := range r.DenomMetadataDropped {
 			fmt.Fprintf(&b, "    %-28s %s\n", "", base)
 		}

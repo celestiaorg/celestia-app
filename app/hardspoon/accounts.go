@@ -3,8 +3,10 @@ package hardspoon
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"cosmossdk.io/math"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
@@ -249,6 +251,109 @@ func (s *spoon) escrowAddresses() (map[string]struct{}, error) {
 	s.report.EscrowChannels = len(addresses)
 	s.report.EscrowHeld = held
 	return addresses, nil
+}
+
+// warpDenomPrefix marks the coins the warp module mints for synthetic tokens.
+// The denom is derived as "hyperlane/" + the token id (hyperlane-cosmos,
+// x/warp/keeper/msg_server.go); upstream exports no constant for it.
+const warpDenomPrefix = "hyperlane/"
+
+// voucherDenomPrefix marks IBC transfer vouchers, "ibc/" + the hash of the
+// denom trace that received them.
+const voucherDenomPrefix = ibctransfertypes.DenomPrefix + "/"
+
+// orphanedDenom reports whether a denom belongs to a bridged asset whose
+// redemption path does not survive the spoon.
+func orphanedDenom(denom string) bool {
+	return strings.HasPrefix(denom, warpDenomPrefix) || strings.HasPrefix(denom, voucherDenomPrefix)
+}
+
+// dropOrphanedDenoms removes bridged-asset coins from every balance: synthetic
+// warp tokens and IBC transfer vouchers.
+//
+// Neither kind survives the spoon in redeemable form. The hyperlane, warp and
+// zkism modules are not carried, so the routers that could redeem warp coins on
+// their origin chains are gone and any Hyperlane deployment on the new chain
+// mints under fresh token ids. The ibc module is not carried either, so every
+// channel a voucher could be sent back through is gone with it. That leaves the
+// coins spendable but good for nothing, so they are dropped rather than carried
+// as dead weight; the supply entries disappear with them because the supply is
+// recomputed from the surviving balances.
+//
+// This runs after vaporize, so the escrow reconciliation still sees every
+// balance it accounts for, and before prune, so an account left holding nothing
+// is dropped with the other empty accounts.
+func (s *spoon) dropOrphanedDenoms() error {
+	// Every prefixed denom has to be accounted for: a warp denom by a synthetic
+	// token the exported warp genesis registers (collateral tokens keep their
+	// origin denom, so nothing else in the bank looks like this), and a voucher
+	// by the hash of a denom trace the transfer module recorded when it minted
+	// it. A denom the registry cannot explain means this derivation is wrong,
+	// and refusing beats silently deleting funds.
+	registered := make(map[string]struct{}, len(s.warp.Tokens)+len(s.transfer.DenomTraces))
+	for _, token := range s.warp.Tokens {
+		if token.TokenType == warptypes.HYP_TOKEN_TYPE_SYNTHETIC {
+			registered[warpDenomPrefix+token.Id.String()] = struct{}{}
+		}
+	}
+	for _, trace := range s.transfer.DenomTraces {
+		registered[trace.IBCDenom()] = struct{}{}
+	}
+
+	// A vesting schedule denominated in a dropped coin cannot be carried
+	// coherently: removing the balance out from under original_vesting corrupts
+	// the lock accounting. No such account exists on mocha-4, so this is left as
+	// a refusal rather than silently decided here.
+	for _, account := range s.accounts {
+		base := baseVesting(account)
+		if base == nil {
+			continue
+		}
+		for _, coin := range base.OriginalVesting {
+			if orphanedDenom(coin.Denom) {
+				return fmt.Errorf(
+					"vesting account %s vests %s; dropping a denom out from under a vesting "+
+						"schedule would corrupt its lock accounting",
+					account.GetAddress(), coin,
+				)
+			}
+		}
+	}
+
+	dropped := make(map[string]*OrphanedDenom)
+	for address, coins := range s.balances {
+		kept := sdk.NewCoins()
+		for _, coin := range coins {
+			if !orphanedDenom(coin.Denom) {
+				kept = kept.Add(coin)
+				continue
+			}
+			if _, ok := registered[coin.Denom]; !ok {
+				return fmt.Errorf(
+					"balance of %s for %s matches neither a synthetic token the exported warp "+
+						"genesis registers nor a denom trace the transfer module recorded; "+
+						"refusing to drop a denom that cannot be accounted for",
+					coin, address,
+				)
+			}
+			entry, ok := dropped[coin.Denom]
+			if !ok {
+				entry = &OrphanedDenom{Denom: coin.Denom, Amount: math.ZeroInt()}
+				dropped[coin.Denom] = entry
+			}
+			entry.Holders++
+			entry.Amount = entry.Amount.Add(coin.Amount)
+		}
+		s.balances[address] = kept
+	}
+
+	for _, entry := range dropped {
+		s.report.OrphanedDenoms = append(s.report.OrphanedDenoms, *entry)
+	}
+	sort.Slice(s.report.OrphanedDenoms, func(i, j int) bool {
+		return s.report.OrphanedDenoms[i].Denom < s.report.OrphanedDenoms[j].Denom
+	})
+	return nil
 }
 
 // zeroVestingDelegations clears the delegation tracking on vesting accounts.

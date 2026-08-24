@@ -95,4 +95,19 @@ func TestRealExportTransform(t *testing.T) {
 
 	t.Logf("%s", result.Report)
 	require.LessOrEqual(t, result.Report.SizeBytes, DefaultMaxSizeBytes)
+
+	// mocha-4 carries synthetic warp coins and an IBC voucher, and neither kind
+	// survives the spoon in redeemable form. None may reach the new chain, and
+	// every denom the old supply held has to be accounted for in the report
+	// rather than quietly vanish.
+	orphaned := 0
+	for _, coin := range result.Report.In.Supply {
+		if orphanedDenom(coin.Denom) {
+			orphaned++
+		}
+	}
+	require.Len(t, result.Report.OrphanedDenoms, orphaned)
+	for _, coin := range result.Report.Out.Supply {
+		require.False(t, orphanedDenom(coin.Denom), "supply still carries %s", coin)
+	}
 }

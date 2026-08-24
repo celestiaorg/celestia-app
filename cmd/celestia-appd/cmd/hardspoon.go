@@ -31,11 +31,13 @@ func hardspoonCmd(capp *app.App) *cobra.Command {
 		Long: `Build a new chain's genesis from an "export --for-zero-height" snapshot.
 
 Delegations, unbonding delegations and accrued rewards are redeemed to the
-accounts that own them as liquid tokens. Module-account funds and provably
-unreachable balances (interchain accounts, IBC transfer escrow) are dropped, and
-the supply is recomputed from the surviving balances. Modules that governance can
-tune are carried across so the new chain is a parameter-level replica of the old
-one; everything else starts from this binary's default genesis.
+accounts that own them as liquid tokens. Module-account funds, provably
+unreachable balances (interchain accounts, IBC transfer escrow) and orphaned
+bridged assets (synthetic Hyperlane warp coins, IBC transfer vouchers), whose
+redemption paths do not survive the spoon, are dropped, and the supply is
+recomputed from the surviving balances. Modules that governance can tune are
+carried across so the new chain is a parameter-level replica of the old one;
+everything else starts from this binary's default genesis.
 
 The exported genesis must come from "export --for-zero-height". A plain export
 leaves each delegation's recorded stake stale for any validator that was later
@@ -118,8 +120,9 @@ func hardspoonVerifyCmd(capp *app.App) *cobra.Command {
 Run this on the final published genesis. Between hardspoon and publication the
 file passes through "genesis collect-gentxs" and "debug convert-genesis", both of
 which rewrite it, so this confirms the app version, bank and auth parity, the
-recomputed supply, the emptied staking, distribution, slashing and gov state, and
-the minfee parameters all survived.`,
+recomputed supply (with no orphaned denoms), the emptied staking, distribution,
+slashing, gov, hyperlane and transfer state, and the minfee parameters all
+survived.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(command *cobra.Command, args []string) error {
 			raw, err := os.ReadFile(args[0])

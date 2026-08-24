@@ -8,6 +8,8 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	warptypes "github.com/bcp-innovations/hyperlane-cosmos/x/warp/types"
 	"github.com/celestiaorg/celestia-app/v9/app"
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/app/hardspoon"
@@ -90,6 +92,7 @@ type fixture struct {
 	Transfer      ibctransfertypes.GenesisState
 	MinFee        minfeetypes.GenesisState
 	Gov           govv1.GenesisState
+	Warp          warptypes.GenesisState
 	Channels      []channelFixture
 }
 
@@ -304,6 +307,38 @@ func (f *fixture) addPermanentLocked(t *testing.T, seed string, amount int64) st
 	return address
 }
 
+// addAccount appends a funded base account and returns its address.
+func (f *fixture) addAccount(seed string, coins sdk.Coins) string {
+	address := address(seed)
+	base := authtypes.NewBaseAccount(sdk.MustAccAddressFromBech32(address), nil, uint64(len(f.Accounts)), 0)
+	f.Accounts = append(f.Accounts, base)
+	f.Balances = append(f.Balances, banktypes.Balance{Address: address, Coins: coins})
+	return address
+}
+
+// addWarpToken registers a warp token under the given 32-byte hex id and
+// returns the denom its coins carry in the bank. A synthetic token mints under
+// "hyperlane/"+id, exactly as the warp msg server derives it; a collateral
+// token escrows the chain's own denom.
+func (f *fixture) addWarpToken(t *testing.T, tokenType warptypes.HypTokenType, id string) string {
+	t.Helper()
+
+	tokenID, err := util.DecodeHexAddress(id)
+	require.NoError(t, err)
+
+	token := warptypes.HypToken{
+		Id:                tokenID,
+		TokenType:         tokenType,
+		OriginDenom:       denom,
+		CollateralBalance: math.ZeroInt(),
+	}
+	if tokenType == warptypes.HYP_TOKEN_TYPE_SYNTHETIC {
+		token.OriginDenom = "hyperlane/" + tokenID.String()
+	}
+	f.Warp.Tokens = append(f.Warp.Tokens, token)
+	return token.OriginDenom
+}
+
 // withOperator adds a funded account whose key lives in the returned keyring, so
 // that a gentx can later be signed by an account the export carried over.
 //
@@ -398,6 +433,7 @@ func (f *fixture) fork(t *testing.T, capp *app.App) *hardspoon.Fork {
 	set(minfeetypes.ModuleName, &f.MinFee)
 	set(ibctransfertypes.ModuleName, &f.Transfer)
 	set(icatypes.ModuleName, icagenesistypes.DefaultGenesis())
+	set(warptypes.ModuleName, &f.Warp)
 
 	channels, err := json.Marshal(map[string]any{
 		"channel_genesis": map[string]any{"channels": f.Channels},
