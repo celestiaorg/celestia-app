@@ -383,12 +383,15 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 
 	// Add all provided signatures to the signature set
 	for i, signature := range signatures {
-		if len(signature) == 0 {
-			continue // Skip empty signatures
-		}
-
+		// Bound the index before skipping empties: the list is positional over
+		// the validator set, so an out-of-range index is always invalid and an
+		// empty entry must not slip past this check.
 		if i >= len(cmtValidators) {
 			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature index %d exceeds validator count %d", i, len(cmtValidators))
+		}
+
+		if len(signature) == 0 {
+			continue // Skip empty signatures
 		}
 
 		// Add signature to set (this validates the signature internally)
