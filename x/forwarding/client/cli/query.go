@@ -11,6 +11,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	FlagCustomHookID       = "custom-hook-id"
+	FlagCustomHookMetadata = "custom-hook-metadata"
+)
+
 // GetQueryCmd returns the query commands for the forwarding module.
 func GetQueryCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -66,11 +71,11 @@ Example:
 				return fmt.Errorf("invalid dest_domain: %w", err)
 			}
 
-			customHookID, err := cmd.Flags().GetString("custom-hook-id")
+			customHookID, err := cmd.Flags().GetString(FlagCustomHookID)
 			if err != nil {
 				return err
 			}
-			customHookMetadata, err := cmd.Flags().GetString("custom-hook-metadata")
+			customHookMetadata, err := cmd.Flags().GetString(FlagCustomHookMetadata)
 			if err != nil {
 				return err
 			}
@@ -91,8 +96,8 @@ Example:
 		},
 	}
 
-	cmd.Flags().String("custom-hook-id", "", "Optional post-dispatch hook id to bind the address to; the address can then only be forwarded through that hook. Empty = mailbox default hook")
-	cmd.Flags().String("custom-hook-metadata", "", "Optional hex-encoded hook metadata to bind the address to; committed alongside --custom-hook-id and must match at forward time")
+	cmd.Flags().String(FlagCustomHookID, "", "Optional post-dispatch hook id to bind the address to; the address can then only be forwarded through that hook. Empty = mailbox default hook")
+	cmd.Flags().String(FlagCustomHookMetadata, "", "Optional hex-encoded hook metadata to bind the address to; committed alongside --custom-hook-id and must match at forward time")
 	flags.AddQueryFlagsToCmd(cmd)
 
 	return cmd
@@ -126,11 +131,11 @@ Example:
 			// the fee MsgForward will charge when the same --custom-hook-id and
 			// --custom-hook-metadata are used. Empty quotes against the mailbox
 			// default hook.
-			customHookID, err := cmd.Flags().GetString("custom-hook-id")
+			customHookID, err := cmd.Flags().GetString(FlagCustomHookID)
 			if err != nil {
 				return err
 			}
-			customHookMetadata, err := cmd.Flags().GetString("custom-hook-metadata")
+			customHookMetadata, err := cmd.Flags().GetString(FlagCustomHookMetadata)
 			if err != nil {
 				return err
 			}
@@ -150,8 +155,8 @@ Example:
 		},
 	}
 
-	cmd.Flags().String("custom-hook-id", "", "Optional post-dispatch hook id to quote against (must match the --custom-hook-id used in tx forward); empty = mailbox default hook")
-	cmd.Flags().String("custom-hook-metadata", "", "Optional hex-encoded metadata to quote against (must match the --custom-hook-metadata used in tx forward); relevant only for hooks that price off metadata")
+	cmd.Flags().String(FlagCustomHookID, "", "Optional post-dispatch hook id to quote against (must match the --custom-hook-id used in tx forward); empty = mailbox default hook")
+	cmd.Flags().String(FlagCustomHookMetadata, "", "Optional hex-encoded metadata to quote against (must match the --custom-hook-metadata used in tx forward); relevant only for hooks that price off metadata")
 	flags.AddQueryFlagsToCmd(cmd)
 
 	return cmd
