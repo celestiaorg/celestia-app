@@ -65,4 +65,15 @@ func TestValidateGroth16Vkey(t *testing.T) {
 		err := types.ValidateGroth16Vkey(malicious)
 		assert.ErrorContains(t, err, "PublicAndCommitmentCommitted length must be 0, got 1")
 	})
+
+	t.Run("uncompressed leading curve point is rejected", func(t *testing.T) {
+		malicious := make([]byte, types.Groth16VkeySize)
+		copy(malicious, validVK)
+		// Clear the compression-flag bits of G1.Delta's first byte (offset 192) so
+		// gnark would read it as an uncompressed 64-byte point, shifting its G1.K
+		// length read past the offset the validator checks (CELESTIA-269).
+		malicious[192] &= 0x3f
+		err := types.ValidateGroth16Vkey(malicious)
+		assert.ErrorContains(t, err, "must be compressed")
+	})
 }
