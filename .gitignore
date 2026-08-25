@@ -40,7 +40,7 @@ talis-setup/
 .gomodcache
 # Claude Code: ignore local settings, keep shared skills and agents
 .claude/*
-!.claude/skills/
+!.claude/skills
 !.claude/agents/
 # AI assumptions notes are never committed
 docs/plans/
