@@ -457,6 +457,18 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 		suite.Contains(err.Error(), "exceeds validator count")
 	})
 
+	suite.T().Run("trailing entry beyond quorum is still rejected", func(t *testing.T) {
+		// One validator: index 0 alone meets quorum, but a trailing entry at
+		// index 1 exceeds the set and must be rejected despite the early quorum.
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{validSignatures[0], {}},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "signature count 2 exceeds validator count 1")
+	})
+
 	suite.T().Run("missing historical info", func(t *testing.T) {
 		suite.stakingKeeper.GetHistoricalInfoFn = func(ctx context.Context, height int64) (stakingtypes.HistoricalInfo, error) {
 			return stakingtypes.HistoricalInfo{}, stakingtypes.ErrNoHistoricalInfo

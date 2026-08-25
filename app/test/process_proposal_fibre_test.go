@@ -323,7 +323,9 @@ func newSignedPayForFibreTxAt(
 		require.NoError(t, err)
 		msg.ValidatorSignatures = [][]byte{validatorSignature}
 	} else {
-		msg.ValidatorSignatures = [][]byte{{0x01}}
+		// A 64-byte but cryptographically invalid signature: passes stateless
+		// size validation, yet is rejected during signature verification.
+		msg.ValidatorSignatures = [][]byte{make([]byte, 64)}
 	}
 
 	txBytes, _, err := signer.CreateTx([]sdk.Msg{msg}, opts...)

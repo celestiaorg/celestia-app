@@ -2,7 +2,9 @@ package types
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -112,6 +114,16 @@ func (msg *MsgPayForFibre) ValidateBasic() error {
 
 	if len(msg.ValidatorSignatures) == 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "must have at least one validator signature")
+	}
+
+	if len(msg.ValidatorSignatures) > appconsts.MaxFibreValidatorSignatures {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "too many validator signatures: %d exceeds maximum %d", len(msg.ValidatorSignatures), appconsts.MaxFibreValidatorSignatures)
+	}
+
+	for i, sig := range msg.ValidatorSignatures {
+		if l := len(sig); l != 0 && l != ed25519.SignatureSize {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature %d must be empty or %d bytes, got %d", i, ed25519.SignatureSize, l)
+		}
 	}
 
 	return nil
