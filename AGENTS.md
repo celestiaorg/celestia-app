@@ -88,7 +88,7 @@ All branches use forked cosmos-sdk and celestia-core:
 
 @docs/ai/invariants.md
 
-Every code change must respect the invariants imported above. If a task cannot be done without violating one, stop and ask the engineer.
+Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai/invariants.md), imported above. If a task cannot be done without violating one, stop and ask the engineer.
 
 ## AI Workflow
 
