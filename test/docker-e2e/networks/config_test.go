@@ -8,12 +8,12 @@ import (
 func TestMochaConfigUpdate(t *testing.T) {
 	config := NewMochaConfig()
 
-	if !strings.Contains(config.Seeds, "14656") {
-		t.Errorf("Expected seeds to use port 14656, got: %s", config.Seeds)
+	if !strings.Contains(config.Seeds, "26656") {
+		t.Errorf("Expected seeds to use port 26656, got: %s", config.Seeds)
 	}
 
-	if !strings.HasPrefix(config.Seeds, "b402fe40") {
-		t.Errorf("Expected seeds to start with b402fe40, got: %s", config.Seeds)
+	if !strings.HasPrefix(config.Seeds, "ee9f9097") {
+		t.Errorf("Expected seeds to start with ee9f9097, got: %s", config.Seeds)
 	}
 
 	seedList := strings.Split(config.Seeds, ",")

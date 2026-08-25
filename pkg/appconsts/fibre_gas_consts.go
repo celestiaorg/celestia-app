@@ -15,10 +15,17 @@ const (
 	PFBFibreChunkSize uint32 = 262_144
 
 	// PFFibreTxGasFixedCost is the fixed gas for MsgPayForFibre validation.
-	// TODO: benchmark and tune.
-	PFFibreTxGasFixedCost uint64 = 75_000
+	// PFFibreTxGasFixedCost is the fixed gas for MsgPayForFibre validation.
+	// Set to the pre-#7599 metered cost of loading the validator set
+	// (measured on a 25/100-validator talis network: 1,378 fixed plus 828
+	// for each validator record read; signature crypto was never metered).
+	PFFibreTxGasFixedCost uint64 = 1_378
 
 	// PFFibreGasPerValidatorSignature is the gas per validator signature.
-	// TODO: benchmark and tune.
+	// 828 for state reads + crypto.
 	PFFibreGasPerValidatorSignature uint64 = 1_000
+
+	// MaxFibreValidatorSignatures is a stateless ceiling on a MsgPayForFibre's
+	// signatures; keep it >= MaxValidators (the keeper enforces the exact bound).
+	MaxFibreValidatorSignatures = 1_000
 )

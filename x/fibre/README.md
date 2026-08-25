@@ -47,6 +47,8 @@ Settles a `PaymentPromise` against the promise signer's escrow account. The mess
 1. The promise's `height` must be within `payment_promise_height_window` of the current height, its `creation_timestamp` fresh (not older than the freshness floor, not further than 10 minutes in the future), and the promise not yet expired or already processed.
 1. The escrow account must exist and its total balance cover the payment.
 
+Validator signatures (check 2) are verified in CheckTx and ProcessProposal only: a committed block already had them verified by honest validators, so FinalizeBlock skips the check and the state machine alone does not enforce it — the same trust model as blob share commitments. All other checks run at settlement on every node.
+
 In practice the promise JSON and the signatures are produced by the fibre client's upload flow — a PFF is not constructed by hand. See [specs/src/fibre_module.md](../../specs/src/fibre_module.md) for the full promise format and verification rules.
 
 ### `MsgPaymentPromiseTimeout`
@@ -81,7 +83,7 @@ The module emits typed events (the event type is the proto message name, e.g. `c
 | ShardRetention             | time.Duration   | 4h                 | [10m, 168h]             |
 | FullStakeStorageBudget     | uint64          | 2199023255552 (2 TiB) | > 0                  |
 
-All parameters are changeable by governance. `WithdrawalDelay`'s lower bound is `MaxPaymentPromiseTimeout + 10m`, which guarantees every promise leaves a usable timeout-settlement window. `ShardRetention` is how long fibre servers keep uploaded shards on disk; `FullStakeStorageBudget` caps the fibre disk usage of a hypothetical 100%-stake validator over one retention window, from which each server derives its own stake-proportional budget.
+All parameters are changeable by governance. `WithdrawalDelay`'s lower bound is `MaxPaymentPromiseTimeout + 10m`, which guarantees every promise leaves a usable timeout-settlement window. `ShardRetention` is how long fibre servers keep uploaded shards on disk; `FullStakeStorageBudget` caps the fibre disk usage of a hypothetical 100%-stake validator over one retention window, from which each server derives its own stake-proportional budget. `PaymentPromiseHeightWindow` should stay well below the staking module's `HistoricalEntries` (default 10000): a promise whose height has been pruned from historical info can no longer be signature-verified, so such PFFs fail CheckTx on nodes that have not already verified them, risk split ProcessProposal votes, and can only settle via timeout.
 
 ## Usage
 

@@ -61,6 +61,12 @@ updates:
         update-types:
           - minor
           - patch
+    # cosmos-sdk is replaced by the celestiaorg/cosmos-sdk fork, and the
+    # cosmossdk.io/* modules must stay at versions compatible with that fork.
+    # Newer upstream versions fail to compile against it.
+    ignore:
+      - dependency-name: "github.com/cosmos/cosmos-sdk"
+      - dependency-name: "cosmossdk.io/*"
     labels:
       - dependencies
   - package-ecosystem: gomod
@@ -76,5 +82,8 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: "github.com/cosmos/cosmos-sdk"
+      - dependency-name: "cosmossdk.io/*"
     labels:
       - dependencies

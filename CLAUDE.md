@@ -79,7 +79,7 @@ All branches use forked cosmos-sdk and celestia-core:
 ## Development Workflow
 
 1. **Multi-module repo**: Copy `go.work.example` to `go.work` and run `go work sync`
-2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `feat!:` for breaking changes)
+2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `feat!:` for breaking changes). Any consensus-breaking change (one that alters deterministic state-machine behavior and requires a coordinated network upgrade) must include a `!` in the PR title, e.g. `fix!:`.
 3. **Validate inputs** in message handlers; be cautious with arithmetic overflow and gas consumption
 4. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
 5. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
@@ -99,6 +99,7 @@ All branches use forked cosmos-sdk and celestia-core:
 ### Documentation
 
 - Aim for simplicity. Prefer short sentences.
+- Keep godoc comments short and easy to understand: one or two plain-language sentences saying what the thing does. Avoid big blocks of text — they are hard to read and reason about.
 - No unnecessary calculations unless specified.
 - No unnecessary explanations unless requested.
 

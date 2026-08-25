@@ -34,7 +34,11 @@ func consumeDeterministicFibreSignatureGas(ctx sdk.Context, msg *fibretypes.MsgP
 	)
 }
 
-// FibreSignatureVerificationDecorator verifies uncached MsgPayForFibre signatures.
+// FibreSignatureVerificationDecorator verifies uncached MsgPayForFibre
+// signatures in CheckTx and ProcessProposal. FinalizeBlock always skips:
+// a committed block already had its PFF signatures verified by honest
+// validators in ProcessProposal, and the outcome must not depend on the
+// node-local cache.
 type FibreSignatureVerificationDecorator struct {
 	k           FibreKeeper
 	pffSigCache PffSigCache
@@ -64,7 +68,7 @@ func NewFibreSigVerificationDecorator(
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	msg := PayForFibreMessage(tx)
-	if msg == nil || simulate {
+	if msg == nil || simulate || ctx.ExecMode() == sdk.ExecModeFinalize {
 		return next(ctx, tx, simulate)
 	}
 
