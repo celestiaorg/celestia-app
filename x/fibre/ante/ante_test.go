@@ -72,6 +72,30 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
+func TestFibreSignatureVerificationDecoratorFinalizeModeSkipsVerification(t *testing.T) {
+	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
+	keeper := &fakeFibreSignatureKeeper{err: errors.New("verification must not run in finalize mode")}
+	cache := &fakeSigCache{
+		t:                 t,
+		failOnCacheLookup: true,
+		failOnCacheWrite:  true,
+	}
+	decorator := FibreSignatureVerificationDecorator{
+		k:           keeper,
+		pffSigCache: cache,
+	}
+	ctx := sdk.Context{}.
+		WithGasMeter(storetypes.NewGasMeter(1)).
+		WithTxBytes([]byte{0x01}).
+		WithExecMode(sdk.ExecModeFinalize)
+
+	gotCtx, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
+
+	require.NoError(t, err)
+	require.Zero(t, keeper.calls)
+	require.Zero(t, gotCtx.GasMeter().GasConsumed())
+}
+
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
 	keeper := &fakeFibreSignatureKeeper{}

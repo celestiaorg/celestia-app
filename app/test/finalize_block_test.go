@@ -11,6 +11,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -47,6 +48,58 @@ func TestPayForFibreReplayGasParity(t *testing.T) {
 	}
 	require.Equal(t, finalizeResp.TxResults[1].GasUsed, finalizeResp.TxResults[2].GasUsed,
 		"cached and uncached signature verification must consume identical gas")
+}
+
+// TestPayForFibreFinalizeBlockColdCacheWithPrunedHistory replays a committed
+// PFF tx on a node whose signature cache is cold (as after state sync or a
+// restart) once the promise height's historical info has been pruned. The
+// result must match the live network, which settled the tx with a warm cache.
+func TestPayForFibreFinalizeBlockColdCacheWithPrunedHistory(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), pffTestEscrowAmount)
+
+	// Keep only the two most recent historical entries so the promise height
+	// (1) gets pruned while still inside PaymentPromiseHeightWindow.
+	setHistoricalEntries(t, testApp, 2)
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	_, err := testApp.StakingKeeper.GetHistoricalInfo(uncachedContext(testApp), 1)
+	require.Error(t, err, "promise height must be pruned for this test")
+
+	// The tx never went through CheckTx or ProcessProposal on this node, so
+	// the signature cache is cold.
+	pffTx := newSignedPayForFibreTx(t, signer, accounts[0], true)
+	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:   time.Now(),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    [][]byte{pffTx},
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.TxResults, 1)
+	require.Equal(t, abci.CodeTypeOK, resp.TxResults[0].Code, resp.TxResults[0].Log)
+}
+
+func uncachedContext(testApp *app.App) sdk.Context {
+	return testApp.NewUncachedContext(false, cmtproto.Header{
+		ChainID: testutil.ChainID,
+		Height:  testApp.LastBlockHeight(),
+		Time:    time.Now(),
+	})
+}
+
+func setHistoricalEntries(t *testing.T, testApp *app.App, entries uint32) {
+	t.Helper()
+	ctx := uncachedContext(testApp)
+	params, err := testApp.StakingKeeper.GetParams(ctx)
+	require.NoError(t, err)
+	params.HistoricalEntries = entries
+	require.NoError(t, testApp.StakingKeeper.SetParams(ctx, params))
 }
 
 // buildGasParityTxs returns a MsgSend tx and two same-sized MsgPayForFibre txs.
