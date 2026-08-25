@@ -143,6 +143,25 @@ func TestValidateTxFee(t *testing.T) {
 			expErr:      false,
 			minGasPrice: "0utia",
 		},
+		{
+			name: "bad tx; fee contains a non-utia denom",
+			fee: sdk.NewCoins(
+				sdk.NewInt64Coin(appconsts.BondDenom, feeAmount),
+				sdk.NewInt64Coin("ibc/FEED", 1),
+			),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			isCheckTx:   false,
+			expErr:      true,
+			minGasPrice: validatorMinGasPriceCoin,
+		},
+		{
+			name:        "bad tx; fee is denominated only in a non-utia denom",
+			fee:         sdk.NewCoins(sdk.NewInt64Coin("ibc/FEED", feeAmount)),
+			gasLimit:    uint64(float64(feeAmount) / appconsts.DefaultNetworkMinGasPrice),
+			isCheckTx:   false,
+			expErr:      true,
+			minGasPrice: validatorMinGasPriceCoin,
+		},
 	}
 
 	for _, tc := range testCases {

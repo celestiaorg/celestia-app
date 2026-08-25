@@ -36,6 +36,15 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 		return nil, 0, errors.Wrap(sdkerror.ErrTxDecode, "Tx must be a FeeTx")
 	}
 
+	// Fees may only be paid in utia. Only the utia component is checked against
+	// the minimum gas price, so any other denom would be deducted unchecked.
+	for _, coin := range feeTx.GetFee() {
+		if coin.Denom != appconsts.BondDenom {
+			return nil, 0, errors.Wrapf(sdkerror.ErrInvalidCoins,
+				"fee must be denominated in %s, got %s", appconsts.BondDenom, coin.Denom)
+		}
+	}
+
 	fee := feeTx.GetFee().AmountOf(appconsts.BondDenom)
 	gas := feeTx.GetGas()
 
