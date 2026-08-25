@@ -142,7 +142,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 
 			// Settle after ante so later promises see the updated state and the tx
-			// pays the same gas it would in FinalizeBlock.
+			// pays the same gas it would in FinalizeBlock. This ante pass is also
+			// the consensus enforcement point for PFF validator signatures:
+			// FinalizeBlock never re-verifies them (see
+			// FibreSignatureVerificationDecorator), so removing it would let a
+			// proposer settle promises without a validator quorum.
 			if isPFF {
 				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)

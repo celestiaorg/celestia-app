@@ -120,7 +120,11 @@ jobs:
           # tests default to a single attempt so real failures aren't masked.
           - test: TestSyncToTipMocha
             max-attempts: 3
+          # TestAllUpgrades starts a fresh chain per upgrade step; on shared
+          # runners an older-version chain occasionally misses the startup
+          # deadline, so retry once before failing the nightly.
           - test: TestAllUpgrades
+            max-attempts: 2
           # TestTxSubmission asserts a wall-clock average tx-inclusion latency
           # bound. On shared GitHub-hosted runners a single run can occasionally
           # see sustained CPU contention that inflates latency well above the

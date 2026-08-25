@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cosmossdk.io/math"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -363,7 +364,7 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 	// another test file in this binary sets the global bech32 prefix.
 	signer := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20)).String()
 	paymentPromise := generatePaymentPromise(t)
-	validatorSignatures := [][]byte{[]byte("sig1"), []byte("sig2")}
+	validatorSignatures := [][]byte{bytes.Repeat([]byte{0x01}, 64), bytes.Repeat([]byte{0x02}, 64)}
 
 	type testCase struct {
 		name    string
@@ -402,9 +403,27 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 			msg: &MsgPayForFibre{
 				Signer:              signer,
 				PaymentPromise:      paymentPromise,
-				ValidatorSignatures: [][]byte{[]byte("sig1"), {}},
+				ValidatorSignatures: [][]byte{bytes.Repeat([]byte{0x01}, 64), {}},
 			},
 			wantErr: nil,
+		},
+		{
+			name: "too many validator signatures",
+			msg: &MsgPayForFibre{
+				Signer:              signer,
+				PaymentPromise:      paymentPromise,
+				ValidatorSignatures: make([][]byte, appconsts.MaxFibreValidatorSignatures+1),
+			},
+			wantErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "validator signature of wrong size",
+			msg: &MsgPayForFibre{
+				Signer:              signer,
+				PaymentPromise:      paymentPromise,
+				ValidatorSignatures: [][]byte{bytes.Repeat([]byte{0x01}, 32)},
+			},
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 	}
 

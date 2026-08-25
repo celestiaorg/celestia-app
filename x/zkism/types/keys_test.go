@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"encoding/binary"
+	"fmt"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
@@ -65,4 +66,17 @@ func TestValidateGroth16Vkey(t *testing.T) {
 		err := types.ValidateGroth16Vkey(malicious)
 		assert.ErrorContains(t, err, "PublicAndCommitmentCommitted length must be 0, got 1")
 	})
+
+	// Clearing the compression-flag bits of any leading curve point's first byte makes gnark
+	// read it as an uncompressed point, shifting its length-prefix reads past the offsets the
+	// validator checks (CELESTIA-269). Every leading point must be rejected.
+	for _, offset := range []int{0, 32, 64, 128, 192, 224} {
+		t.Run(fmt.Sprintf("uncompressed leading curve point at offset %d is rejected", offset), func(t *testing.T) {
+			malicious := make([]byte, types.Groth16VkeySize)
+			copy(malicious, validVK)
+			malicious[offset] &= 0x3f
+			err := types.ValidateGroth16Vkey(malicious)
+			assert.ErrorContains(t, err, "must be compressed")
+		})
+	}
 }
