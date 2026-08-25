@@ -127,6 +127,7 @@ require (
 	github.com/MirrexOne/unqueryvet v1.5.3 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
+	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/RaduBerinde/axisds v0.1.0 // indirect
 	github.com/RaduBerinde/btreemap v0.0.0-20250419174037-3d62b7205d54 // indirect
 	github.com/Workiva/go-datastructures v1.0.53 // indirect
@@ -466,7 +467,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.8
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.10
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.11
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453
