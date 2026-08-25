@@ -44,6 +44,11 @@ const (
 	// G1.Delta (32) + G2.Delta (64) = 288 bytes.
 	groth16VkeyCurvePointsSize = 288
 
+	// groth16PointCompressionMask isolates the two most significant bits of a
+	// serialized BN254 curve point, which encode whether the point is
+	// compressed. Uncompressed points have both bits clear.
+	groth16PointCompressionMask = 0b11 << 6
+
 	// Groth16VkeyG1KLength is the expected number of G1.K elements in the
 	// verifying key. For the SP1 v6 scheme with 5 public inputs (vkey_hash,
 	// committed_values_digest, exit_code, vk_root, proof_nonce) this is
@@ -76,6 +81,12 @@ var (
 	IsmsKeyPrefix               = collections.NewPrefix(0)
 	MessageKeyPrefix            = collections.NewPrefix(1)
 	MessageProofSubmittedPrefix = collections.NewPrefix(2)
+
+	// groth16VkeyPointOffsets are the byte offsets of the six leading curve
+	// points (G1.Alpha, G1.Beta, G2.Beta, G2.Gamma, G1.Delta, G2.Delta) in a
+	// serialized compressed BN254 verifying key. G1 points are 32 bytes and G2
+	// points are 64 bytes.
+	groth16VkeyPointOffsets = []int{0, 32, 64, 128, 192, 224}
 )
 
 // ValidateGroth16Vkey checks that a serialized Groth16 verifying key has the
@@ -86,6 +97,17 @@ var (
 func ValidateGroth16Vkey(vkey []byte) error {
 	if len(vkey) != Groth16VkeySize {
 		return fmt.Errorf("groth16 vkey must be exactly %d bytes, got %d", Groth16VkeySize, len(vkey))
+	}
+
+	// The length-prefix offsets below are only correct when every leading curve
+	// point uses the compressed encoding. gnark derives each point's width from
+	// its own compression-flag byte, so an uncompressed leading point would shift
+	// gnark's length reads past these fixed offsets, letting an inflated length
+	// slip through and trigger an unbounded allocation during deserialization.
+	for _, offset := range groth16VkeyPointOffsets {
+		if vkey[offset]&groth16PointCompressionMask == 0 {
+			return fmt.Errorf("groth16 vkey curve point at offset %d must be compressed", offset)
+		}
 	}
 
 	g1kLen := binary.BigEndian.Uint32(vkey[groth16VkeyCurvePointsSize : groth16VkeyCurvePointsSize+4])
