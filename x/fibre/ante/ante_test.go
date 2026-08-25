@@ -73,12 +73,13 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 }
 
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
-	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
+	msg := newPayForFibreMsgWithSignatures(1)
+	tx := mockTx{msgs: []sdk.Msg{msg}}
 	keeper := &fakeFibreSignatureKeeper{}
 	cache := &fakeSigCache{
 		t:                t,
 		cacheHit:         true,
-		wantTx:           []byte{0x01},
+		wantKey:          mustPffSigCacheKey(t, msg),
 		failOnCacheWrite: true,
 	}
 	decorator := FibreSignatureVerificationDecorator{
@@ -99,13 +100,14 @@ func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing
 
 func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *testing.T) {
 	txBytes := []byte{0x01, 0x02, 0x03}
-	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(2)}}
+	msg := newPayForFibreMsgWithSignatures(2)
+	tx := mockTx{msgs: []sdk.Msg{msg}}
 	keeper := &fakeFibreSignatureKeeper{
 		gasToConsume: 1_000_000,
 	}
 	cache := &fakeSigCache{
-		t:      t,
-		wantTx: txBytes,
+		t:       t,
+		wantKey: mustPffSigCacheKey(t, msg),
 	}
 	decorator := FibreSignatureVerificationDecorator{
 		k:           keeper,
@@ -148,6 +150,100 @@ func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	require.Zero(t, cache.cachedTxs)
 }
 
+func TestPffSigCacheKey(t *testing.T) {
+	tests := map[string]struct {
+		mutate      func(*fibretypes.MsgPayForFibre)
+		wantSameKey bool
+	}{
+		"outer signer is not part of the key": {
+			mutate:      func(msg *fibretypes.MsgPayForFibre) { msg.Signer = "another-relayer" },
+			wantSameKey: true,
+		},
+		"payment promise changes the key": {
+			mutate:      func(msg *fibretypes.MsgPayForFibre) { msg.PaymentPromise.BlobSize++ },
+			wantSameKey: false,
+		},
+		"payment promise signature changes the key": {
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.Signature = []byte("different-promise-signature")
+			},
+			wantSameKey: false,
+		},
+		"validator signature changes the key": {
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.ValidatorSignatures[0] = []byte("different-validator-signature")
+			},
+			wantSameKey: false,
+		},
+		"validator signature order changes the key": {
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.ValidatorSignatures[0], msg.ValidatorSignatures[1] = msg.ValidatorSignatures[1], msg.ValidatorSignatures[0]
+			},
+			wantSameKey: false,
+		},
+		"concatenated signatures with identical bytes change the key": {
+			// Signatures {1}, {2} must not collide with the single signature {1, 2}.
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.ValidatorSignatures = [][]byte{{1, 2}}
+			},
+			wantSameKey: false,
+		},
+	}
+
+	baseKey := mustPffSigCacheKey(t, keyTestMsg())
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			candidate := keyTestMsg()
+			tc.mutate(candidate)
+			if tc.wantSameKey {
+				require.Equal(t, baseKey, mustPffSigCacheKey(t, candidate))
+			} else {
+				require.NotEqual(t, baseKey, mustPffSigCacheKey(t, candidate))
+			}
+		})
+	}
+}
+
+func TestFibreSignatureVerificationDecoratorVerifiesOncePerCertificate(t *testing.T) {
+	// Fee bumps, memo edits, new sequence numbers, and re-signed envelopes all
+	// surface as different raw tx bytes, so every case submits the second tx
+	// with different tx bytes than the first.
+	tests := map[string]struct {
+		mutate    func(*fibretypes.MsgPayForFibre)
+		wantCalls int
+	}{
+		"identical certificate resubmitted verifies once": {
+			mutate:    func(*fibretypes.MsgPayForFibre) {},
+			wantCalls: 1,
+		},
+		"same certificate from a different message signer verifies once": {
+			mutate:    func(msg *fibretypes.MsgPayForFibre) { msg.Signer = "another-relayer" },
+			wantCalls: 1,
+		},
+		"changed certificate is verified again": {
+			mutate:    func(msg *fibretypes.MsgPayForFibre) { msg.ValidatorSignatures[0] = []byte("different") },
+			wantCalls: 2,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			keeper := &fakeFibreSignatureKeeper{}
+			decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: newMemorySigCache()}
+			second := keyTestMsg()
+			tc.mutate(second)
+
+			for i, msg := range []*fibretypes.MsgPayForFibre{keyTestMsg(), second} {
+				ctx := sdk.Context{}.WithTxBytes([]byte{byte(i)})
+				_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextNoop)
+				require.NoError(t, err)
+			}
+
+			require.Equal(t, tc.wantCalls, keeper.calls)
+		})
+	}
+}
+
 type fakeFibreSignatureKeeper struct {
 	calls            int
 	infiniteGasCalls int
@@ -171,31 +267,48 @@ type fakeSigCache struct {
 	cacheLookups      int
 	cachedTxs         int
 	cacheHit          bool
-	wantTx            []byte
+	wantKey           PffSigCacheKey
 	failOnCacheLookup bool
 	failOnCacheWrite  bool
 }
 
-func (f *fakeSigCache) IsCached(tx []byte) bool {
+type memorySigCache struct {
+	entries map[PffSigCacheKey]struct{}
+}
+
+func newMemorySigCache() *memorySigCache {
+	return &memorySigCache{entries: make(map[PffSigCacheKey]struct{})}
+}
+
+func (c *memorySigCache) IsCached(key PffSigCacheKey) bool {
+	_, ok := c.entries[key]
+	return ok
+}
+
+func (c *memorySigCache) Cache(key PffSigCacheKey) {
+	c.entries[key] = struct{}{}
+}
+
+func (f *fakeSigCache) IsCached(key PffSigCacheKey) bool {
 	if f.failOnCacheLookup {
 		f.t.Fatal("cache lookup should be skipped")
 	}
 	f.cacheLookups++
-	f.requireTx(tx)
+	f.requireKey(key)
 	return f.cacheHit
 }
 
-func (f *fakeSigCache) Cache(tx []byte) {
+func (f *fakeSigCache) Cache(key PffSigCacheKey) {
 	if f.failOnCacheWrite {
 		f.t.Fatal("cache write should be skipped")
 	}
 	f.cachedTxs++
-	f.requireTx(tx)
+	f.requireKey(key)
 }
 
-func (f *fakeSigCache) requireTx(tx []byte) {
-	if f.t != nil && f.wantTx != nil {
-		require.Equal(f.t, f.wantTx, tx)
+func (f *fakeSigCache) requireKey(key PffSigCacheKey) {
+	if f.t != nil && f.wantKey != (PffSigCacheKey{}) {
+		require.Equal(f.t, f.wantKey, key)
 	}
 }
 
@@ -217,6 +330,20 @@ func newPayForFibreMsgWithSignatures(count int) *fibretypes.MsgPayForFibre {
 		signatures[i] = []byte{byte(i + 1)}
 	}
 	return &fibretypes.MsgPayForFibre{ValidatorSignatures: signatures}
+}
+
+func keyTestMsg() *fibretypes.MsgPayForFibre {
+	msg := newPayForFibreMsgWithSignatures(2)
+	msg.Signer = "relayer"
+	msg.PaymentPromise.Signature = []byte("promise-signature")
+	return msg
+}
+
+func mustPffSigCacheKey(t *testing.T, msg *fibretypes.MsgPayForFibre) PffSigCacheKey {
+	t.Helper()
+	key, err := NewPffSigCacheKey(msg)
+	require.NoError(t, err)
+	return key
 }
 
 func nextNoop(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
