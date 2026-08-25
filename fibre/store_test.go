@@ -1,6 +1,7 @@
 package fibre_test
 
 import (
+	"context"
 	"encoding/hex"
 	"log/slog"
 	"os"
@@ -510,6 +511,12 @@ func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 	require.NoError(t, err)
 	require.Zero(t, size, "empty store must report 0, not an error")
 
+	canceledEmptyCtx, cancelEmpty := context.WithCancel(ctx)
+	cancelEmpty()
+	size, err = store.Size(canceledEmptyCtx)
+	require.Zero(t, size)
+	require.ErrorIs(t, err, context.Canceled)
+
 	blob := makeTestBlobV0(t, 256)
 	commitment := blob.ID().Commitment()
 	var want int64
@@ -526,6 +533,12 @@ func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 	size, err = store.Size(ctx)
 	require.NoError(t, err)
 	require.Equal(t, want, size)
+
+	canceledCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	size, err = store.Size(canceledCtx)
+	require.Zero(t, size)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 // PruneBefore reports the total on-disk bytes it freed.
