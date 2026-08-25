@@ -24,4 +24,8 @@ const (
 	// PFFibreGasPerValidatorSignature is the gas per validator signature.
 	// 828 for state reads + crypto.
 	PFFibreGasPerValidatorSignature uint64 = 1_000
+
+	// MaxFibreValidatorSignatures is a stateless ceiling on a MsgPayForFibre's
+	// signatures; keep it >= MaxValidators (the keeper enforces the exact bound).
+	MaxFibreValidatorSignatures = 1_000
 )
