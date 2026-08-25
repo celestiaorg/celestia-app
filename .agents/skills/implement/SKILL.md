@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Implement a celestia-app code change with the safety workflow - triage, align, implement, invariant review loop, verify. Use for any feature or bug fix task.
+description: Implement a celestia-app code change with the safety workflow - triage, align, implement, invariant review loop, verify. Use when the engineer confirms the invariant workflow at the interactive gate or invokes /implement directly.
 ---
 
 # /implement — safe code generation workflow
@@ -15,7 +15,7 @@ Determine the risk tier from the files the change will touch:
 - **Light**: docs, test-only changes, scripts, tooling, `.github/`.
 - **Consensus-critical**: risky, and the diff changes a state transition reachable from ABCI — message servers in `x/*/keeper`, ante decorators, `PrepareProposal`/`ProcessProposal`/`FinalizeBlock` logic, square construction, migrations, upgrade handling.
 
-When in doubt, treat as the higher tier. Light tier: skip Phase 1 and run a single review pass in Phase 3 instead of the loop.
+When in doubt, treat as the higher tier. Light tier: skip Phase 1 and Phase 3 entirely — implement, then run Phase 4. If the diff grows into a risky path mid-task, re-triage and ask the engineer again.
 
 ## Phase 1 — Align (risky only, hard gate)
 
