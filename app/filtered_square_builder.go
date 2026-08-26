@@ -102,7 +102,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if sdkMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxSDKMessages {
+		execMsgCount := countExecutableMsgs(sdkTx.GetMsgs())
+		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
@@ -131,7 +132,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		sdkMessageCount += len(sdkTx.GetMsgs())
+		sdkMessageCount += execMsgCount
 		normalTxs[n] = tx
 		n++
 	}

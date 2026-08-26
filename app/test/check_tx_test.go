@@ -31,6 +31,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -334,6 +335,33 @@ func TestCheckTx(t *testing.T) {
 					msgs[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
 				}
 				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e6, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
+			name:      "authz MsgExec flattening exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[11]
+				addr := signer.Account(accounts[11]).Address()
+				// Spread MaxSDKMessages+1 executable messages across MsgExec
+				// wrappers of at most 99 inner messages each (the tx decoder's
+				// per-message unpack limit). Only the wrappers are top-level
+				// messages, so this must still be rejected.
+				var msgs []sdk.Msg
+				for remaining := appconsts.MaxSDKMessages + 1; remaining > 0; {
+					n := min(99, remaining)
+					inner := make([]sdk.Msg, n)
+					for i := range inner {
+						inner[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+					}
+					exec := authz.NewMsgExec(addr, inner)
+					msgs = append(msgs, &exec)
+					remaining -= n
+				}
+				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
 				require.NoError(t, err)
 				return tx
 			},

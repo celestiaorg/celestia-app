@@ -26,6 +26,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -394,7 +395,8 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	}
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1)
+	// +2 accounts are grantees for the authz MsgExec txs built below.
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 2
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -445,10 +447,44 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
+	// Build a tx that carries totalInner executable messages spread across authz
+	// MsgExec wrappers. Each wrapper holds at most 99 inner messages to stay under
+	// the tx decoder's per-message unpack limit (MaxUnpackAnySubCalls). Only the
+	// wrappers are top-level messages, so a naive top-level count would let these
+	// bypass MaxSDKMessages.
+	buildMsgExecTx := func(accIdx, totalInner int) []byte {
+		const perExec = 99
+		var msgs []sdk.Msg
+		for remaining := totalInner; remaining > 0; {
+			n := min(perExec, remaining)
+			inner := make([]sdk.Msg, n)
+			for i := range inner {
+				inner[i] = banktypes.NewMsgSend(
+					addrs[accIdx],
+					testnode.RandomAddress().(sdk.AccAddress),
+					sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+				)
+			}
+			exec := authz.NewMsgExec(addrs[accIdx], inner)
+			msgs = append(msgs, &exec)
+			remaining -= n
+		}
+		rawTx, _, err := signers[accIdx].CreateTx(msgs, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}
+
+	msgExecExceedsTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages+1)
+	accountIndex++
+	msgExecAtLimitTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages)
+
 	type testCase struct {
 		name           string
 		txs            [][]byte
 		expectedResult abci.ResponseProcessProposal_ProposalStatus
+		// validSquare computes the real data root/size so the block is well-formed
+		// and only a message-count rule can reject it.
+		validSquare bool
 	}
 
 	testCases := []testCase{
@@ -466,11 +502,27 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			name:           "accept block at exactly MaxSDKMessages",
 			txs:            msgSendTxs[:appconsts.MaxSDKMessages],
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
 		},
 		{
 			name:           "accept block at exactly MaxPFBMessages",
 			txs:            pfbTxs[:appconsts.MaxPFBMessages],
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
+			// The block is well-formed; only the flattened count rejects it. Before
+			// flattening, the single MsgExec counted as one message and was accepted.
+			name:           "reject authz MsgExec flattening beyond MaxSDKMessages",
+			txs:            [][]byte{msgExecExceedsTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept authz MsgExec flattening to exactly MaxSDKMessages",
+			txs:            [][]byte{msgExecAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
 		},
 	}
 
@@ -478,7 +530,7 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var dataRootHash []byte
 			var squareSize uint64
-			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
+			if tc.validSquare {
 				classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
 				require.NoError(t, err)
 				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
