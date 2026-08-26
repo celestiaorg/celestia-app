@@ -131,6 +131,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
+		// Apply fibre escrow effects (e.g. MsgPaymentPromiseTimeout debit) on the
+		// proposal branch so later pay-for-fibre settlement sees the same escrow
+		// balance it would in FinalizeBlock. On message failure the tx still stays
+		// in the block (it only pays gas), so keep it and leave escrow unchanged.
+		if containsFibreStateMsg(sdkTx) {
+			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
+				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			}
+		}
+
 		sdkMessageCount += len(sdkTx.GetMsgs())
 		normalTxs[n] = tx
 		n++
