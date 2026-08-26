@@ -539,6 +539,28 @@ func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 	size, err = store.Size(canceledCtx)
 	require.Zero(t, size)
 	require.ErrorIs(t, err, context.Canceled)
+
+	// Cancelling mid-scan, after the entry guard has already passed, must also
+	// surface context.Canceled rather than a nil error and a partial total.
+	size, err = store.Size(&cancelAfterCtx{Context: ctx, live: 1})
+	require.Zero(t, size)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+// cancelAfterCtx reports a live context for its first `live` Err checks and a
+// cancelled one from then on, so a test can land the cancellation between
+// Store.Size's entry guard and its shard scan deterministically.
+type cancelAfterCtx struct {
+	context.Context
+	live int
+}
+
+func (c *cancelAfterCtx) Err() error {
+	if c.live > 0 {
+		c.live--
+		return nil
+	}
+	return context.Canceled
 }
 
 // PruneBefore reports the total on-disk bytes it freed.
