@@ -17,11 +17,7 @@ type PffSigVerificationCache struct {
 
 // NewPffSigVerificationCache returns an empty PFF signature cache.
 func NewPffSigVerificationCache() *PffSigVerificationCache {
-	return newPffSigVerificationCache(defaultPffSigVerificationCacheCapacity)
-}
-
-func newPffSigVerificationCache(capacity int) *PffSigVerificationCache {
-	entries, err := lru.New[fibreante.PffSigCacheKey, struct{}](capacity)
+	entries, err := lru.New[fibreante.PffSigCacheKey, struct{}](defaultPffSigVerificationCacheCapacity)
 	if err != nil {
 		panic(err)
 	}
@@ -37,9 +33,4 @@ func (c *PffSigVerificationCache) IsCached(key fibreante.PffSigCacheKey) bool {
 // Cache marks key as having checked PFF signatures.
 func (c *PffSigVerificationCache) Cache(key fibreante.PffSigCacheKey) {
 	c.entries.Add(key, struct{}{})
-}
-
-// Delete removes key from the PFF signature cache.
-func (c *PffSigVerificationCache) Delete(key fibreante.PffSigCacheKey) {
-	c.entries.Remove(key)
 }

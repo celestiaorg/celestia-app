@@ -41,7 +41,6 @@ import (
 	blobkeeper "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre"
-	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/celestia-app/v10/x/forwarding"
@@ -617,31 +616,9 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
-		app.evictFinalizedPffSigCacheEntry(tx)
 	}
 
 	return res, nil
-}
-
-// evictFinalizedPffSigCacheEntry frees the PFF signature cache slot held by an
-// executed transaction's certificate. Resubmitting an executed certificate
-// fails the processed-payment check regardless of the cache, and prompt
-// eviction keeps entries from outliving the historical validator set they
-// were verified against.
-func (app *App) evictFinalizedPffSigCacheEntry(rawTx []byte) {
-	sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(rawTx)
-	if err != nil {
-		return
-	}
-	msg := fibreante.PayForFibreMessage(sdkTx)
-	if msg == nil {
-		return
-	}
-	key, err := fibreante.NewPffSigCacheKey(msg)
-	if err != nil {
-		return
-	}
-	app.pffSigCache.Delete(key)
 }
 
 // PreBlocker application updates every pre block
