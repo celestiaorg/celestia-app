@@ -25,6 +25,7 @@ func TestPayForFibreReplayGasParity(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
