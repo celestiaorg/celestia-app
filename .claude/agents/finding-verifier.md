@@ -18,6 +18,7 @@ How to verify:
 Output exactly one verdict:
 
 - `REFUTED: <one-sentence reason with the code location that rules the scenario out>`
-- `CONFIRMED: <one-sentence reason>`
+- `CONFIRMED: <one-sentence reason showing the scenario follows from the code>`
+- `UNPROVEN: <one-sentence reason>` — you could neither rule the scenario out nor show it follows from the code.
 
-If after investigation you cannot rule the scenario out, return CONFIRMED — safety-critical code gets the benefit of the doubt.
+Never guess in either direction: CONFIRMED requires a demonstrated scenario, REFUTED requires evidence that rules it out. Everything else is UNPROVEN.
