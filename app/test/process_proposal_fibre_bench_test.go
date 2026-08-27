@@ -100,7 +100,7 @@ func BenchmarkProcessProposalUnderLoad(b *testing.B) {
 func benchSendTxs(tb testing.TB, signer *user.Signer, account, fromAddr string, n int) [][]byte {
 	tb.Helper()
 	txs := make([][]byte, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		msg := &banktypes.MsgSend{
 			FromAddress: fromAddr,
 			ToAddress:   fromAddr,
@@ -138,7 +138,7 @@ func seedManyMaturedWithdrawals(tb testing.TB, testApp *app.App, owner sdk.AccAd
 	// available = requested + delay stays in the past so all mature this block.
 	base := time.Now().Add(-time.Duration(n) * time.Second).Add(-25 * time.Hour)
 	delay := fibretypes.DefaultWithdrawalDelay
-	for i := 0; i < n; i++ {
+	for i := range n {
 		requested := base.Add(time.Duration(i) * time.Second)
 		testApp.FibreKeeper.SetWithdrawal(ctx, fibretypes.Withdrawal{
 			Signer:             owner.String(),
