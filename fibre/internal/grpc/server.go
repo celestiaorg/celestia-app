@@ -21,11 +21,6 @@ import (
 // maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The values
 // are intentionally conservative for a 32 GiB-RAM validator. Tying them to
 // staking power, or adding a per-peer connection policy, are possible follow-ups.
-//
-// Decoded memory is bounded separately: the fibre-proto codec caps repeated-row
-// and per-row-proof cardinality before the decoder allocates, so a compact
-// message cannot amplify into decoded memory beyond its wire size (see
-// validateUploadShardCardinality in codec_decode.go).
 const (
 	maxConnections       = 16
 	maxConcurrentStreams = 13
