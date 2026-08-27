@@ -581,7 +581,7 @@ func TestCheckTxPayForFibreReplay(t *testing.T) {
 	require.Equal(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code, finalizeResp.TxResults[0].Log)
 
 	for name, checkTxType := range map[string]abci.CheckTxType{
-		"checktx":   abci.CheckTxType_New,
+		"checktx": abci.CheckTxType_New,
 		"recheck": abci.CheckTxType_Recheck,
 	} {
 		t.Run("replayed promise is rejected on "+name, func(t *testing.T) {
