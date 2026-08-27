@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -109,7 +110,11 @@ func QueryShareInclusionProof(_ sdk.Context, path []string, req *abci.RequestQue
 	// construct the data square from the block data. As we don't have
 	// access to the application's state machine we use the upper bound
 	// square size instead of the square size dictated from governance
-	dataSquare, err := square.Construct(pbb.Data.Txs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	classifiedTxs, err := fibretypes.ClassifyTxs(pbb.Data.Txs)
+	if err != nil {
+		return nil, err
+	}
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		return nil, err
 	}

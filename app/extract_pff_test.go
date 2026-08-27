@@ -6,6 +6,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -46,6 +48,49 @@ func TestValidatePayForFibreTxShape(t *testing.T) {
 		{
 			name:    "two pay-for-fibre messages are invalid",
 			txBytes: newMultiPayForFibreTx(t, txConfig),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name:    "pay-for-fibre promising a reserved namespace is invalid",
+			txBytes: newPayForFibreTxWithNamespace(t, txConfig, share.TxNamespace.Bytes()),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name:    "pay-for-fibre promising the parity namespace is invalid",
+			txBytes: newPayForFibreTxWithNamespace(t, txConfig, share.ParitySharesNamespace.Bytes()),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name:    "pay-for-fibre promising a malformed namespace is invalid",
+			txBytes: newPayForFibreTxWithNamespace(t, txConfig, []byte{0x01, 0x02}),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name: "pay-for-fibre promising an unsupported blob version is invalid",
+			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.BlobVersion = 999
+			}),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name: "pay-for-fibre promising a zero blob size is invalid",
+			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.BlobSize = 0
+			}),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name: "pay-for-fibre promising a malformed commitment is invalid",
+			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.Commitment = []byte{0x01}
+			}),
+			wantErr: apperr.ErrInvalidPayForFibreTx,
+		},
+		{
+			name: "pay-for-fibre promising an empty chain ID is invalid",
+			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.ChainId = ""
+			}),
 			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 	}
@@ -109,6 +154,29 @@ func decodeTx(t *testing.T, txConfig client.TxConfig, txBytes []byte) sdk.Tx {
 	tx, err := txConfig.TxDecoder()(txBytes)
 	require.NoError(t, err)
 	return tx
+}
+
+// newPayForFibreTx creates an unsigned pay-for-fibre tx, applying mutate to the
+// message before encoding it.
+func newPayForFibreTx(t *testing.T, txConfig client.TxConfig, mutate func(*fibretypes.MsgPayForFibre)) []byte {
+	t.Helper()
+	privKey := secp256k1.GenPrivKey()
+	msg := blobfactory.NewMsgPayForFibre(t, privKey.PubKey().(*secp256k1.PubKey), "test")
+	mutate(msg)
+	builder := txConfig.NewTxBuilder()
+	require.NoError(t, builder.SetMsgs(msg))
+	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
+	require.NoError(t, err)
+	return txBytes
+}
+
+// newPayForFibreTxWithNamespace creates an unsigned pay-for-fibre tx whose
+// payment promise names the provided namespace.
+func newPayForFibreTxWithNamespace(t *testing.T, txConfig client.TxConfig, namespace []byte) []byte {
+	t.Helper()
+	return newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+		msg.PaymentPromise.Namespace = namespace
+	})
 }
 
 // newMultiMsgSendTx creates an unsigned tx with msgCount MsgSend messages.

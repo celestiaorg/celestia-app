@@ -130,6 +130,19 @@ upload_verify_workers = runtime.GOMAXPROCS(0)
 
 The Fibre server-to-client gRPC link is TLS-only. On startup the server generates an ephemeral TLS keypair and uses the validator consensus signer to endorse that TLS public key. Clients verify the presented TLS key against the expected validator consensus public key and chain ID. There is no client certificate requirement and no mTLS. `DownloadShard` is public to any reachable client that can complete the server-authenticated TLS handshake.
 
+The endorsement travels in a custom, non-critical X.509 extension identified by OID `1.3.6.1.4.1.66463.1.1`, carrying a consensus-key signature over the TLS public key and validity window. The wire format, exact signed bytes, verifier rules, and golden test vectors are specified in [Fibre TLS Identity](./fibre_tls_identity.md).
+
+### OID allocations
+
+`1.3.6.1.4.1.66463` is the [IANA Private Enterprise Number 66463](https://www.iana.org/assignments/enterprise-numbers/?q=66463) arc used for Celestia protocol identifiers. Allocations:
+
+| OID | Meaning |
+|-----|---------|
+| `1.3.6.1.4.1.66463.1` | Fibre |
+| `1.3.6.1.4.1.66463.1.1` | Fibre TLS signed-identity certificate extension |
+
+New allocations under this arc must be recorded in this table. The extension OID is a wire-level protocol constant: changing it breaks TLS handshakes between peers on different versions.
+
 ## State Client
 
 The server depends on `state.Client` for chain ID, validator sets, validator host lookup, and payment-promise state validation. The default implementation is `fibre/internal/grpc.AppClient`, which uses app-node gRPC. Validator sets are fetched through the CometBFT Block API `ValidatorSet` endpoint. Payment promises are checked with the app `x/fibre` `ValidatePaymentPromise` query, which returns the expiration time used for local pruning.

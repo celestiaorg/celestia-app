@@ -47,6 +47,10 @@
 // bound, so a validator may be addressed by either an IP literal or a DNS name.
 // Identity is the validator consensus key; the network location is only a
 // routing hint resolved from the on-chain host registry.
+//
+// The normative wire specification is specs/src/fibre_tls_identity.md; golden
+// vectors in testdata/identity_vectors.json pin every encoding this package
+// produces and accepts.
 package tlsid
 
 import (
@@ -110,13 +114,12 @@ const MaxCertValidity = CertValidity + 2*clockSkew
 // signedIDExtensionOID identifies the custom certificate extension carrying the
 // fibre identity endorsement.
 //
-// TODO(PROTOCO-1808): this is the placeholder IANA PEN 32473, which RFC 5612
-// reserves for documentation/example use (so it is unassigned to any real
-// organization, unlike the previous 56843 = KASSEX s.r.o.). Replace the
-// enterprise number with the Celestia-allocated PEN once registered
-// (https://linear.app/celestia/issue/PROTOCO-1808). Bumping this OID is a
-// protocol-level break.
-var signedIDExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 32473, 1, 1}
+// 66463 is the Celestia-registered IANA Private Enterprise Number
+// (https://www.iana.org/assignments/enterprise-numbers/?q=66463). Within that
+// arc, .1 is allocated to fibre and .1.1 to this TLS signed-identity
+// extension; see the OID allocations note in specs/src/fibre_server.md.
+// Bumping this OID is a protocol-level break.
+var signedIDExtensionOID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 66463, 1, 1}
 
 // signedIdentity is the ASN.1 payload of the custom extension.
 type signedIdentity struct {
@@ -156,6 +159,19 @@ func buildServerCert(signer core.PrivValidator, chainID string, now time.Time, v
 		return tls.Certificate{}, fmt.Errorf("generate TLS keypair: %w", err)
 	}
 
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("generate cert serial: %w", err)
+	}
+
+	return buildServerCertWithKey(signer, chainID, now, validity, tlsPub, tlsPriv, serial)
+}
+
+// buildServerCertWithKey is buildServerCert with the TLS keypair and serial
+// supplied by the caller — the only random inputs — and signer/chainID
+// already validated. Golden-vector tests use it to mint byte-reproducible
+// certificates through the production path.
+func buildServerCertWithKey(signer core.PrivValidator, chainID string, now time.Time, validity time.Duration, tlsPub ed25519.PublicKey, tlsPriv ed25519.PrivateKey, serial *big.Int) (tls.Certificate, error) {
 	tlsPubDER, err := x509.MarshalPKIXPublicKey(tlsPub)
 	if err != nil {
 		return tls.Certificate{}, fmt.Errorf("marshal TLS pubkey: %w", err)
@@ -186,10 +202,6 @@ func buildServerCert(signer core.PrivValidator, chainID string, now time.Time, v
 		return tls.Certificate{}, fmt.Errorf("marshal identity extension: %w", err)
 	}
 
-	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
-	if err != nil {
-		return tls.Certificate{}, fmt.Errorf("generate cert serial: %w", err)
-	}
 	tmpl := &x509.Certificate{
 		SerialNumber: serial,
 		Subject:      pkix.Name{CommonName: "celestia-fibre"},
@@ -246,6 +258,13 @@ func VerifyConnection(expected crypto.PubKey, chainID string) func(tls.Connectio
 }
 
 func verifyCert(cert *x509.Certificate, expected crypto.PubKey, chainID string) error {
+	return verifyCertAt(cert, expected, chainID, time.Now())
+}
+
+// verifyCertAt is verifyCert with an explicit verification time. The split
+// lets golden-vector tests exercise the validity-window semantics against
+// fixed instants; production callers always verify at time.Now().
+func verifyCertAt(cert *x509.Certificate, expected crypto.PubKey, chainID string, now time.Time) error {
 	if expected == nil {
 		return errors.New("no expected validator pubkey")
 	}
@@ -328,7 +347,6 @@ func verifyCert(cert *x509.Certificate, expected crypto.PubKey, chainID string) 
 		return fmt.Errorf("fibre identity validity window %s exceeds maximum %s",
 			notAfter.Sub(notBefore), MaxCertValidity)
 	}
-	now := time.Now()
 	if now.Before(notBefore.Add(-clockSkew)) || now.After(notAfter.Add(clockSkew)) {
 		return fmt.Errorf("peer fibre identity not valid at %s", now.UTC().Format(time.RFC3339))
 	}

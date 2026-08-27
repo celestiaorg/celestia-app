@@ -95,6 +95,7 @@ func deployCmd() *cobra.Command {
 		cfgPath      string
 		SSHKeyPath   string
 		directUpload bool
+		skipUpload   bool
 		ignoreFailed bool
 		workers      int
 	)
@@ -105,13 +106,15 @@ func deployCmd() *cobra.Command {
 		Long:  "Initialize the Talis network with the provided configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			tarPath := filepath.Join(rootDir, "payload.tar.gz")
-			log.Printf("Compressing payload to %s\n", tarPath)
-			tarCmd := exec.Command("tar", "-czf", tarPath, "-C", rootDir, "payload")
-			tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1") // suppress macOS ._* resource-fork files
-			if output, err := tarCmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
+			if !skipUpload {
+				log.Printf("Compressing payload to %s\n", tarPath)
+				tarCmd := exec.Command("tar", "-czf", tarPath, "-C", rootDir, "payload")
+				tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1") // suppress macOS ._* resource-fork files
+				if output, err := tarCmd.CombinedOutput(); err != nil {
+					return fmt.Errorf("failed to compress payload: %w, output: %s", err, string(output))
+				}
+				log.Printf("✅ Payload compressed to %s\n", tarPath)
 			}
-			log.Printf("✅ Payload compressed to %s\n", tarPath)
 
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
@@ -130,27 +133,27 @@ func deployCmd() *cobra.Command {
 					}
 					log.Printf("continuing despite validator deployment errors: %v", err)
 				}
-				if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
+				if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload); err != nil {
 					return err
 				}
-				if err := deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers); err != nil {
+				if err := deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload, workers); err != nil {
 					return err
 				}
-				return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
+				return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload, workers)
 			}
-			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+			if err := deployPayloadViaS3(cmd.Context(), rootDir, cfg.Validators, tarPath, SSHKeyPath, "/root", "payload/validator_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
 				if !ignoreFailed {
 					return err
 				}
 				log.Printf("continuing despite validator deployment errors: %v", err)
 			}
-			if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload); err != nil {
+			if err := deployObservabilityIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload); err != nil {
 				return err
 			}
-			if err := deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers); err != nil {
+			if err := deployEncodersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload, workers); err != nil {
 				return err
 			}
-			return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, workers)
+			return deployReadersIfConfigured(cmd.Context(), cfg, rootDir, SSHKeyPath, directUpload, skipUpload, workers)
 		},
 	}
 
@@ -163,13 +166,15 @@ func deployCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory in which to initialize")
 	cmd.Flags().StringVarP(&cfgPath, "config", "c", "config.json", "name of the config")
 	cmd.Flags().BoolVar(&directUpload, "direct-payload-upload", false, "Upload payload directly to nodes instead of using S3")
+	cmd.Flags().BoolVar(&skipUpload, "skip-payload-upload", false, "Skip compressing and uploading payloads to S3 and reuse the objects already in the bucket")
 	cmd.Flags().BoolVar(&ignoreFailed, "ignore-failed-validators", false, "Continue deploying observability monitoring even if some validators fail")
+	cmd.MarkFlagsMutuallyExclusive("direct-payload-upload", "skip-payload-upload")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 10, "number of concurrent workers for parallel operations (should be > 0)")
 
 	return cmd
 }
 
-func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool) error {
+func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload, skipUpload bool) error {
 	if len(cfg.Observability) == 0 {
 		return nil
 	}
@@ -177,20 +182,22 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 	observabilityNode := cfg.Observability[0]
 
 	observabilityTarPath := filepath.Join(rootDir, "observability-payload.tar.gz")
-	log.Printf("Compressing observability payload to %s\n", observabilityTarPath)
-	tarCmd := exec.Command("tar", "-czf", observabilityTarPath, "-C", filepath.Join(rootDir, "payload"), "observability")
-	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1") // suppress macOS ._* resource-fork files
-	if output, err := tarCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to compress observability payload: %w, output: %s", err, string(output))
+	if !skipUpload {
+		log.Printf("Compressing observability payload to %s\n", observabilityTarPath)
+		tarCmd := exec.Command("tar", "-czf", observabilityTarPath, "-C", filepath.Join(rootDir, "payload"), "observability")
+		tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1") // suppress macOS ._* resource-fork files
+		if output, err := tarCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to compress observability payload: %w, output: %s", err, string(output))
+		}
+		log.Printf("✅ Observability payload compressed to %s\n", observabilityTarPath)
 	}
-	log.Printf("✅ Observability payload compressed to %s\n", observabilityTarPath)
 
 	log.Printf("Sending observability payload to observability monitoring node...")
 	var err error
 	if directUpload {
 		err = deployObservabilityPayloadDirect(observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute)
 	} else {
-		err = deployObservabilityPayloadViaS3(ctx, rootDir, observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config)
+		err = deployObservabilityPayloadViaS3(ctx, rootDir, observabilityNode, observabilityTarPath, sshKeyPath, "/root", 15*time.Minute, cfg.S3Config, skipUpload)
 	}
 	if err != nil {
 		return err
@@ -202,22 +209,24 @@ func deployObservabilityIfConfigured(ctx context.Context, cfg Config, rootDir, s
 
 // deployEncodersIfConfigured creates a lightweight encoder-payload tar and deploys
 // it to all configured encoder instances.
-func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
+func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload, skipUpload bool, workers int) error {
 	if len(cfg.Encoders) == 0 {
 		return nil
 	}
 
-	encoderPayloadDir := filepath.Join(rootDir, "encoder-payload")
-	if _, err := os.Stat(encoderPayloadDir); os.IsNotExist(err) {
-		return fmt.Errorf("encoder-payload directory not found — run 'talis genesis' first")
-	}
-
 	encoderTarPath := filepath.Join(rootDir, "encoder-payload.tar.gz")
-	log.Printf("Compressing encoder payload to %s\n", encoderTarPath)
-	tarCmd := exec.Command("tar", "-czf", encoderTarPath, "-C", rootDir, "encoder-payload")
-	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
-	if output, err := tarCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to compress encoder payload: %w, output: %s", err, string(output))
+	if !skipUpload {
+		encoderPayloadDir := filepath.Join(rootDir, "encoder-payload")
+		if _, err := os.Stat(encoderPayloadDir); os.IsNotExist(err) {
+			return fmt.Errorf("encoder-payload directory not found — run 'talis genesis' first")
+		}
+
+		log.Printf("Compressing encoder payload to %s\n", encoderTarPath)
+		tarCmd := exec.Command("tar", "-czf", encoderTarPath, "-C", rootDir, "encoder-payload")
+		tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
+		if output, err := tarCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to compress encoder payload: %w, output: %s", err, string(output))
+		}
 	}
 	log.Printf("Sending encoder payload to %d encoder(s)...\n", len(cfg.Encoders))
 
@@ -226,7 +235,7 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 			return fmt.Errorf("encoder deployment: %w", err)
 		}
 	} else {
-		if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+		if err := deployPayloadViaS3(ctx, rootDir, cfg.Encoders, encoderTarPath, sshKeyPath, "/root", "encoder-payload/encoder_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
 			return fmt.Errorf("encoder deployment: %w", err)
 		}
 	}
@@ -239,22 +248,24 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 // it to all configured reader instances. Mirrors the encoder pattern: each reader
 // downloads the tar from S3 (or direct), extracts, and runs reader_init.sh which
 // installs the fibre-reader binary and a fibre keyring.
-func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload bool, workers int) error {
+func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload, skipUpload bool, workers int) error {
 	if len(cfg.Readers) == 0 {
 		return nil
 	}
 
-	readerPayloadDir := filepath.Join(rootDir, "reader-payload")
-	if _, err := os.Stat(readerPayloadDir); os.IsNotExist(err) {
-		return fmt.Errorf("reader-payload directory not found — run 'talis genesis' first")
-	}
-
 	readerTarPath := filepath.Join(rootDir, "reader-payload.tar.gz")
-	log.Printf("Compressing reader payload to %s\n", readerTarPath)
-	tarCmd := exec.Command("tar", "-czf", readerTarPath, "-C", rootDir, "reader-payload")
-	tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
-	if output, err := tarCmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to compress reader payload: %w, output: %s", err, string(output))
+	if !skipUpload {
+		readerPayloadDir := filepath.Join(rootDir, "reader-payload")
+		if _, err := os.Stat(readerPayloadDir); os.IsNotExist(err) {
+			return fmt.Errorf("reader-payload directory not found — run 'talis genesis' first")
+		}
+
+		log.Printf("Compressing reader payload to %s\n", readerTarPath)
+		tarCmd := exec.Command("tar", "-czf", readerTarPath, "-C", rootDir, "reader-payload")
+		tarCmd.Env = append(os.Environ(), "COPYFILE_DISABLE=1")
+		if output, err := tarCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to compress reader payload: %w, output: %s", err, string(output))
+		}
 	}
 	log.Printf("Sending reader payload to %d reader(s)...\n", len(cfg.Readers))
 
@@ -263,7 +274,7 @@ func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyP
 			return fmt.Errorf("reader deployment: %w", err)
 		}
 	} else {
-		if err := deployPayloadViaS3(ctx, rootDir, cfg.Readers, readerTarPath, sshKeyPath, "/root", "reader-payload/reader_init.sh", 7*time.Minute, cfg.S3Config, workers); err != nil {
+		if err := deployPayloadViaS3(ctx, rootDir, cfg.Readers, readerTarPath, sshKeyPath, "/root", "reader-payload/reader_init.sh", 7*time.Minute, cfg.S3Config, skipUpload, workers); err != nil {
 			return fmt.Errorf("reader deployment: %w", err)
 		}
 	}
@@ -381,6 +392,7 @@ func deployPayloadViaS3(
 	remoteScript string,
 	timeout time.Duration,
 	s3cfg S3Config,
+	skipUpload bool,
 	workers int,
 ) error {
 	cfg, err := LoadConfig(rootDir)
@@ -392,13 +404,21 @@ func deployPayloadViaS3(
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
-	log.Printf("Uploading payload to S3...\n")
-	s3URL, err := uploadToS3(ctx, s3Client, s3cfg, archivePath)
-	if err != nil {
-		return fmt.Errorf("failed to upload to S3: %w", err)
+	var s3URL string
+	if skipUpload {
+		s3URL, err = presignExistingS3Object(ctx, s3Client, s3cfg, filepath.Base(archivePath))
+		if err != nil {
+			return err
+		}
+		log.Printf("✅ Skipping upload, reusing %s already in S3\n", filepath.Base(archivePath))
+	} else {
+		log.Printf("Uploading payload to S3...\n")
+		s3URL, err = uploadToS3(ctx, s3Client, s3cfg, archivePath)
+		if err != nil {
+			return fmt.Errorf("failed to upload to S3: %w", err)
+		}
+		log.Printf("✅ Payload uploaded to S3: %s\n", s3URL)
 	}
-
-	log.Printf("✅ Payload uploaded to S3: %s\n", s3URL)
 
 	var wg sync.WaitGroup
 	errCh := make(chan error, len(ips))
@@ -522,6 +542,7 @@ func deployObservabilityPayloadViaS3(
 	remoteDir string,
 	timeout time.Duration,
 	s3cfg S3Config,
+	skipUpload bool,
 ) error {
 	cfg, err := LoadConfig(rootDir)
 	if err != nil {
@@ -532,13 +553,21 @@ func deployObservabilityPayloadViaS3(
 		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
-	log.Printf("Uploading observability payload to S3...\n")
-	s3URL, err := uploadToS3(ctx, s3Client, s3cfg, archivePath)
-	if err != nil {
-		return fmt.Errorf("failed to upload observability payload to S3: %w", err)
+	var s3URL string
+	if skipUpload {
+		s3URL, err = presignExistingS3Object(ctx, s3Client, s3cfg, filepath.Base(archivePath))
+		if err != nil {
+			return err
+		}
+		log.Printf("✅ Skipping upload, reusing %s already in S3\n", filepath.Base(archivePath))
+	} else {
+		log.Printf("Uploading observability payload to S3...\n")
+		s3URL, err = uploadToS3(ctx, s3Client, s3cfg, archivePath)
+		if err != nil {
+			return fmt.Errorf("failed to upload observability payload to S3: %w", err)
+		}
+		log.Printf("✅ Observability payload uploaded to S3: %s\n", s3URL)
 	}
-
-	log.Printf("✅ Observability payload uploaded to S3: %s\n", s3URL)
 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -588,10 +617,14 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 		return "", fmt.Errorf("failed to upload file: %w", err)
 	}
 
-	// Return a presigned GET URL valid for an hour so remote hosts can curl
-	// the object without the bucket/object needing public-read ACLs. Works
-	// for real AWS S3 (where public access is blocked by default) and for
-	// S3-compatible providers like DigitalOcean Spaces.
+	return presignS3Object(ctx, client, cfg, filename)
+}
+
+// presignS3Object returns a presigned GET URL valid for an hour so remote
+// hosts can curl the object without the bucket/object needing public-read
+// ACLs. Works for real AWS S3 (where public access is blocked by default)
+// and for S3-compatible providers like DigitalOcean Spaces.
+func presignS3Object(ctx context.Context, client *s3.Client, cfg S3Config, filename string) (string, error) {
 	presign := s3.NewPresignClient(client)
 	req, err := presign.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: &cfg.BucketName,
@@ -602,6 +635,19 @@ func uploadToS3(ctx context.Context, client *s3.Client, cfg S3Config, localPath 
 	}
 
 	return req.URL, nil
+}
+
+// presignExistingS3Object verifies the object is already in the bucket before
+// presigning, so a missing payload fails fast with a clear error instead of
+// every node curling an S3 error response and failing to untar it.
+func presignExistingS3Object(ctx context.Context, client *s3.Client, cfg S3Config, filename string) (string, error) {
+	if _, err := client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: &cfg.BucketName,
+		Key:    &filename,
+	}); err != nil {
+		return "", fmt.Errorf("%s not found in bucket %s, run deploy without --skip-payload-upload first: %w", filename, cfg.BucketName, err)
+	}
+	return presignS3Object(ctx, client, cfg, filename)
 }
 
 func downCmd() *cobra.Command {

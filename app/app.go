@@ -455,12 +455,20 @@ func New(
 		app.StakingKeeper,
 	)
 
+	// The validator-local promise cache backs the ValidatePaymentPromise query to
+	// close the double-spend window.
+	enablePromiseCache := true
+	if v := appOpts.Get("fibre-promise-cache"); v != nil {
+		enablePromiseCache = cast.ToBool(v)
+	}
+
 	app.FibreKeeper = fibrekeeper.NewKeeper(
 		encodingConfig.Codec,
 		keys[fibretypes.StoreKey],
 		app.BankKeeper,
 		app.StakingKeeper,
 		govModuleAddr,
+		enablePromiseCache,
 	)
 
 	/****  Module Options ****/
@@ -608,7 +616,6 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
-		app.pffSigCache.Delete(tx)
 	}
 
 	return res, nil

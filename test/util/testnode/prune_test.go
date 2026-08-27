@@ -12,7 +12,7 @@ import (
 // TestMinRetainBlocksPrunes is an integration test that demonstrates a node
 // configured with a small min-retain-blocks value actually prunes old blocks
 // from the CometBFT blockstore. It is the existence proof that pruning blocks
-// well within the evidence window (MaxAgeNumBlocks = 559_940) is technically
+// well within the evidence window (MaxAgeNumBlocks = 404_400) is technically
 // possible.
 //
 // See https://github.com/celestiaorg/celestia-app/issues/6954.

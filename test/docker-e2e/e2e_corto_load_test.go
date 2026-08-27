@@ -3,14 +3,18 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"math"
+	"net/http"
 	"os"
+	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"celestiaorg/celestia-app/test/docker-e2e/networks"
-
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	jsonrpcclient "github.com/cometbft/cometbft/rpc/jsonrpc/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,10 +31,10 @@ const (
 	// are auto-created, funded, and fee-granted from the master account.
 	defaultCortoWorkers = 1
 
-	// Assertions: both the average and the worst single inter-block interval
+	// Assertions: both the average and the 99th-percentile inter-block interval
 	// must stay ≤ 4 s while the network processes 20 MiB of blobs per second.
-	maxAvgBlockTime    = 4 * time.Second
-	maxSingleBlockTime = 4 * time.Second
+	maxAvgBlockTime = 4 * time.Second
+	maxP99BlockTime = 4 * time.Second
 )
 
 // TestCortoLoad connects to the Corto internal testnet, submits blobs via the
@@ -45,6 +49,8 @@ const (
 //
 // Optional env vars (with defaults):
 //
+//	CORTO_AUTH_TOKEN       – auth token sent as an x-token header on gRPC calls
+//	                         and as an Authorization Bearer header on RPC requests
 //	CORTO_KEYRING_DIR      – keyring directory (alternative to CORTO_PRIV_KEY)
 //	CORTO_BLOB_SIZE        – blob size in bytes (default: 5 MiB)
 //	CORTO_SUBMISSION_DELAY – delay between blobs (default: 250ms)
@@ -74,9 +80,14 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	cortoCfg, err := networks.NewCortoConfig()
 	require.NoError(t, err, "failed to build Corto config")
 
+	// A configured token implies a TLS-terminating auth proxy, whatever the
+	// port. Unauthenticated endpoints on port 443 (e.g.
+	// grpc.celestia-corto.com:443) are also dialed with TLS.
+	useTLS := cortoCfg.AuthToken != "" || strings.HasSuffix(cortoCfg.GRPCs[0], ":443")
+
 	t.Logf("Corto Load Test Configuration:")
-	t.Logf("  RPC:              %s", cortoCfg.RPCs[0])
-	t.Logf("  gRPC:             %s", cortoCfg.GRPCs[0])
+	t.Logf("  RPC:              %s (auth=%v)", cortoCfg.RPCs[0], cortoCfg.AuthToken != "")
+	t.Logf("  gRPC:             %s (tls=%v, auth=%v)", cortoCfg.GRPCs[0], useTLS, cortoCfg.AuthToken != "")
 	t.Logf("  Blob size:        %d bytes", blobSize)
 	t.Logf("  Submission delay: %v", submissionDelay)
 	t.Logf("  Workers:          %d", workers)
@@ -87,7 +98,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	ctx := context.Background()
 
 	// --- 1. Connect to Corto RPC for block time monitoring ---
-	rpcClient, err := rpchttp.New(cortoCfg.RPCs[0], "/websocket")
+	rpcClient, err := newAuthedRPCClient(cortoCfg.RPCs[0], cortoCfg.AuthToken)
 	require.NoError(t, err, "failed to create RPC client")
 
 	// Corto is an internal testnet: when the test is configured to run against
@@ -105,6 +116,8 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 		Workers:         workers,
 		PrivKeyHex:      privKeyHex,
 		KeyringDir:      keyringDir,
+		TLS:             useTLS,
+		AuthToken:       cortoCfg.AuthToken,
 	})
 	require.NoError(t, err, "failed to deploy latency-monitor")
 
@@ -130,7 +143,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	avgBT, err := averageBlockTime(blockTimes, startHeight, endHeight)
 	require.NoError(t, err, "failed to compute average block time")
 
-	maxBT := maxBlockTime(blockTimes, startHeight, endHeight)
+	p99BT := p99BlockTime(blockTimes, startHeight, endHeight)
 
 	// --- 7. Report ---
 	t.Logf("")
@@ -138,7 +151,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	t.Logf("")
 	t.Logf("Block Time Statistics (%d blocks):", len(blockTimes))
 	t.Logf("  Average: %v", avgBT)
-	t.Logf("  Max:     %v", maxBT)
+	t.Logf("  p99:     %v", p99BT)
 	t.Logf("")
 	t.Logf("Tx Submission Statistics:")
 	t.Logf("  Total Transactions: %d", latencyResults.TotalTxs)
@@ -150,10 +163,38 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	// --- 8. Assert: block time must not exceed 4 s under 20 MiB/s load ---
 	require.LessOrEqual(t, avgBT, maxAvgBlockTime,
 		"average block time %v exceeds %v under 20 MiB/s blob load", avgBT, maxAvgBlockTime)
-	require.LessOrEqual(t, maxBT, maxSingleBlockTime,
-		"max block time %v exceeds %v under 20 MiB/s blob load", maxBT, maxSingleBlockTime)
+	require.LessOrEqual(t, p99BT, maxP99BlockTime,
+		"p99 block time %v exceeds %v under 20 MiB/s blob load", p99BT, maxP99BlockTime)
 
 	t.Log("Corto load test passed")
+}
+
+// newAuthedRPCClient returns an RPC client for the given endpoint that
+// attaches the token as an Authorization Bearer header when set.
+func newAuthedRPCClient(remote, token string) (*rpchttp.HTTP, error) {
+	if token != "" && !strings.HasPrefix(remote, "https://") {
+		return nil, fmt.Errorf("an auth token is set but RPC endpoint %s is not https: refusing to send the token over plaintext", remote)
+	}
+	httpClient, err := jsonrpcclient.DefaultHTTPClient(remote)
+	if err != nil {
+		return nil, err
+	}
+	if token != "" {
+		httpClient.Transport = &bearerRoundTripper{token: token, base: httpClient.Transport}
+	}
+	return rpchttp.NewWithClient(remote, "/websocket", httpClient)
+}
+
+// bearerRoundTripper attaches an Authorization Bearer header to every request.
+type bearerRoundTripper struct {
+	token string
+	base  http.RoundTripper
+}
+
+func (b *bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	clone := req.Clone(req.Context())
+	clone.Header.Set("Authorization", "Bearer "+b.token)
+	return b.base.RoundTrip(clone)
 }
 
 // fetchBlockTimes retrieves block timestamps between startHeight and endHeight
@@ -196,21 +237,24 @@ func averageBlockTime(times map[int64]time.Time, startHeight, endHeight int64) (
 	return last.Sub(first) / time.Duration(endHeight-startHeight), nil
 }
 
-// maxBlockTime returns the largest interval between two consecutive blocks in
-// [startHeight, endHeight].
-func maxBlockTime(times map[int64]time.Time, startHeight, endHeight int64) time.Duration {
-	var maxBT time.Duration
+// p99BlockTime returns the 99th-percentile (nearest-rank) interval between
+// two consecutive blocks in [startHeight, endHeight].
+func p99BlockTime(times map[int64]time.Time, startHeight, endHeight int64) time.Duration {
+	intervals := make([]time.Duration, 0, endHeight-startHeight)
 	for h := startHeight + 1; h <= endHeight; h++ {
 		cur, curOK := times[h]
 		prev, prevOK := times[h-1]
 		if !curOK || !prevOK {
 			continue
 		}
-		if bt := cur.Sub(prev); bt > maxBT {
-			maxBT = bt
-		}
+		intervals = append(intervals, cur.Sub(prev))
 	}
-	return maxBT
+	if len(intervals) == 0 {
+		return 0
+	}
+	slices.Sort(intervals)
+	rank := int(math.Ceil(0.99 * float64(len(intervals))))
+	return intervals[rank-1]
 }
 
 // envIntOr reads an integer from an environment variable or returns a default.

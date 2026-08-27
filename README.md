@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.26.1
+1. [Install Go](https://go.dev/doc/install) 1.26.5
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -189,6 +189,15 @@ If you are running celestia-app in tests, you may want to override the `delayed_
 # Start celestia-appd with a one-second block time.
 celestia-appd start --delayed-precommit-timeout 1s
 ```
+
+## Fibre
+
+Fibre (available from app v10) is Celestia's data availability protocol served by validator-operated fibre servers: blobs are erasure-coded and disseminated across the validator set instead of riding the data square. Depending on your role:
+
+- **Run a fibre server (validators)**: [fibre/cmd/README.md](fibre/cmd/README.md) — setup, on-chain host registration, and troubleshooting.
+- **Publish and retrieve blobs (Go)**: [fibre/README.md](fibre/README.md) — client quickstart.
+- **Payment module reference**: [x/fibre/README.md](x/fibre/README.md) — escrow, payment promises, CLI.
+- **Protocol specification**: [specs/src/fibre.md](specs/src/fibre.md).
 
 ## Server Architecture
 

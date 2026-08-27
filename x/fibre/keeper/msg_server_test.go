@@ -64,7 +64,7 @@ func (suite *MsgServerTestSuite) SetupTest() {
 	suite.stakingKeeper = &MockStakingKeeper{}
 	suite.authority = authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
 }
@@ -455,6 +455,18 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
 		suite.Error(err)
 		suite.Contains(err.Error(), "exceeds validator count")
+	})
+
+	suite.T().Run("trailing entry beyond quorum is still rejected", func(t *testing.T) {
+		// One validator: index 0 alone meets quorum, but a trailing entry at
+		// index 1 exceeds the set and must be rejected despite the early quorum.
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{validSignatures[0], {}},
+		}
+		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
+		suite.Error(err)
+		suite.Contains(err.Error(), "signature count 2 exceeds validator count 1")
 	})
 
 	suite.T().Run("missing historical info", func(t *testing.T) {

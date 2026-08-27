@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
@@ -30,6 +31,10 @@ func TestSeparateTxsFibre(t *testing.T) {
 	payForFibreTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	multiPayForFibreTx := newMultiPayForFibreTx(t, txConfig)
 	mixedPayForFibreTx := newMixedPayForFibreTx(t, txConfig)
+	reservedNamespacePayForFibreTx := newPayForFibreTxWithNamespace(t, txConfig, share.TxNamespace.Bytes())
+	unsupportedBlobVersionPayForFibreTx := newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
+		msg.PaymentPromise.BlobVersion = 999
+	})
 
 	tests := []struct {
 		name     string
@@ -73,13 +78,28 @@ func TestSeparateTxsFibre(t *testing.T) {
 			wantBlob: 0,
 			wantPFF:  0,
 		},
+		{
+			name:     "tx promising a reserved namespace is dropped",
+			rawTxs:   [][]byte{reservedNamespacePayForFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
+		{
+			name:     "tx promising an unsupported blob version is dropped",
+			rawTxs:   [][]byte{unsupportedBlobVersionPayForFibreTx},
+			wantNorm: 0,
+			wantBlob: 0,
+			wantPFF:  0,
+		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			normalTxs, blobTxs, payForFibreTxs := separateTxs(log.NewNopLogger(), txConfig, tc.rawTxs)
+			normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(log.NewNopLogger(), txConfig, tc.rawTxs)
 			require.Len(t, normalTxs, tc.wantNorm)
 			require.Len(t, blobTxs, tc.wantBlob)
+			require.Len(t, rawBlobTxs, tc.wantBlob)
 			require.Len(t, payForFibreTxs, tc.wantPFF)
 		})
 	}
@@ -208,7 +228,7 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			fsb, err := NewFilteredSquareBuilder(tc.anteHandler, txConfig, 64, 64)
+			fsb, err := NewFilteredSquareBuilder(tc.anteHandler, nil, txConfig, 64, 64)
 			require.NoError(t, err)
 
 			db := dbm.NewMemDB()
@@ -259,7 +279,7 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	}
 
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 
 	db := dbm.NewMemDB()

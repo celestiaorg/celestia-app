@@ -45,6 +45,7 @@ type ClientConfig struct {
     MinRowsPerValidator int
     MaxMessageSize      int
     RPCTimeout          time.Duration
+    HostRefreshInterval time.Duration
 
     StateClientFn func() (state.Client, error)
     NewClientFn   fibregrpc.NewClientFn
@@ -53,8 +54,12 @@ type ClientConfig struct {
     Tracer trace.Tracer
     Meter  metric.Meter
     Clock  clock.Clock
+
+    Escrow EscrowConfig
 }
 ```
+
+`HostRefreshInterval` throttles how often the default state client re-queries a validator's on-chain fibre host (defaults to the expected block time). `Escrow` configures the client-side escrow auto-funding described in section 11.
 
 Defaults come from `DefaultProtocolParams`:
 
@@ -300,6 +305,7 @@ type Client interface {
 
     ChainID() string
     VerifyPromise(context.Context, *types.PaymentPromise) (VerifiedPromise, error)
+    FullStakeStorageBudget(context.Context) (int64, error)
 
     Start(context.Context) error
     Stop(context.Context) error
@@ -358,7 +364,7 @@ service Fibre {
 
 `BlobShard.rlcs` contains the serialized full original-row RLC vector, not only coefficients for the returned rows.
 
-The default Fibre gRPC client resolves a validator host from the state client's host registry and uses TLS with validator consensus-key identity verification.
+The default Fibre gRPC client resolves a validator host from the state client's host registry and uses TLS with validator consensus-key identity verification, as specified in [Fibre TLS Identity](./fibre_tls_identity.md).
 
 ## 8) Upload Flow
 

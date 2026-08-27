@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/tx"
 	tmbytes "github.com/cometbft/cometbft/libs/bytes"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -16,13 +17,15 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
-	handler  sdk.AnteHandler
-	txConfig client.TxConfig
-	builder  *square.Builder
+	handler   sdk.AnteHandler
+	msgRouter baseapp.MessageRouter
+	txConfig  client.TxConfig
+	builder   *square.Builder
 }
 
 func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
+	msgRouter baseapp.MessageRouter,
 	txConfig client.TxConfig,
 	maxSquareSize,
 	subtreeRootThreshold int,
@@ -32,9 +35,10 @@ func NewFilteredSquareBuilder(
 		return nil, err
 	}
 	return &FilteredSquareBuilder{
-		handler:  handler,
-		txConfig: txConfig,
-		builder:  builder,
+		handler:   handler,
+		msgRouter: msgRouter,
+		txConfig:  txConfig,
+		builder:   builder,
 	}, nil
 }
 
@@ -77,7 +81,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
+	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(logger, fsb.txConfig, filteredByMaxBytes)
 
 	var (
 		sdkMessageCount = 0
@@ -132,7 +136,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		n++
 	}
 
-	for _, tx := range blobTxs {
+	for i, tx := range blobTxs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -174,7 +178,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		}
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
-		blobTxs[m] = tx
+		rawBlobTxs[m] = rawBlobTxs[i]
 		m++
 	}
 
@@ -182,7 +186,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
-	kept = append(kept, encodeBlobTxs(blobTxs[:m])...)
+	// separateTxs only keeps canonically encoded blob txs, so the raw bytes
+	// are identical to re-marshaling the decoded blob txs and can be reused.
+	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
 	return kept
 }
@@ -196,27 +202,17 @@ func msgTypes(sdkTx sdk.Tx) []string {
 	return msgNames
 }
 
-func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
-	txs := make([][]byte, len(blobTxs))
-	var err error
-	for i, blobTx := range blobTxs {
-		txs[i], err = tx.MarshalBlobTx(blobTx.Tx, blobTx.Blobs...)
-		if err != nil {
-			panic(err)
-		}
-	}
-	return txs
-}
-
 // separateTxs decodes raw tendermint txs into normal, blob, and pay-for-fibre txs.
 // This function filters out:
 //   - transactions that exceed MaxTxSize
 //   - transactions that fail SDK decoding
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
-func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, payForFibreTxs [][]byte) {
+//   - transactions whose payment promise fails stateless validation
+func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
+	rawBlobTxs = make([][]byte, 0, len(rawTxs))
 	payForFibreTxs = make([][]byte, 0, len(rawTxs))
 	dec := txConfig.TxDecoder()
 
@@ -238,7 +234,16 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
 				continue
 			}
+			if !blobTxIsCanonical(rawTx, bTx) {
+				// Drop non-canonically encoded blob txs, matching CheckTx and
+				// ProcessProposalHandler. CheckTx already rejects these before
+				// they enter the mempool, so this is a defense-in-depth backstop.
+				logger.Error("dropping non-canonically encoded blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+				telemetry.IncrCounter(1, "prepare_proposal", "non_canonical_blob_txs")
+				continue
+			}
 			blobTxs = append(blobTxs, bTx)
+			rawBlobTxs = append(rawBlobTxs, rawTx)
 			continue
 		}
 
@@ -249,21 +254,20 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 			continue
 		}
 
-		// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
-		// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
-		pffCount := countMsgPayForFibre(sdkTx)
-		if pffCount == 1 && len(sdkTx.GetMsgs()) == 1 {
+		if countMsgPayForFibre(sdkTx) > 0 {
+			// Reuse the predicate ProcessProposal enforces so a proposer never
+			// builds a block its own ProcessProposal would reject.
+			if err := validatePayForFibreTxShape(sdkTx); err != nil {
+				logger.Debug("dropping invalid pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
+				continue
+			}
 			payForFibreTxs = append(payForFibreTxs, rawTx)
-			continue
-		}
-		if pffCount > 0 {
-			// Drop invalid txs: multiple MsgPayForFibre or mixed with other messages.
 			continue
 		}
 
 		normalTxs = append(normalTxs, rawTx)
 	}
-	return normalTxs, blobTxs, payForFibreTxs
+	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
@@ -288,10 +292,14 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 
 	for _, rawTx := range payForFibreTxs {
 		// TryParseFibreTx parses the MsgPayForFibre proto fields and builds the system blob.
-		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so fibreTx is always non-nil.
-		fibreTx, err := tx.TryParseFibreTx(rawTx)
+		// separateTxs guarantees rawTx contains exactly one MsgPayForFibre, so isFibreTx is always true.
+		fibreTx, isFibreTx, err := fibretypes.TryParseFibreTx(rawTx)
 		if err != nil {
 			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			continue
+		}
+		if !isFibreTx {
+			logger.Error("expected pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
 			continue
 		}
 
@@ -306,7 +314,10 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		ctx = ctx.WithTxBytes(rawTx)
+		// Branch the state per tx so a dropped tx leaves no partial writes
+		// behind for the txs that follow it.
+		txCtx, commit := ctx.CacheContext()
+		txCtx = txCtx.WithTxBytes(rawTx)
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
@@ -318,7 +329,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
@@ -332,6 +343,25 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			}
 			continue
 		}
+
+		// Settle the promise on the branch so later fibre txs are validated
+		// against the escrow debit and processed-payment record it leaves
+		// behind. A promise that cannot settle (overdraw, duplicate, out of
+		// gas) would commit its blob to the square without payment in
+		// FinalizeBlock, so drop the tx.
+		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
+			logger.Error(
+				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
+				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
+				"error", err,
+			)
+			telemetry.IncrCounter(1, "prepare_proposal", "unsettleable_pay_for_fibre_txs")
+			if revertErr := fsb.builder.RevertLastPayForFibreTx(); revertErr != nil {
+				logger.Error("reverting last pay-for-fibre transaction", "error", revertErr)
+			}
+			continue
+		}
+		commit()
 
 		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)

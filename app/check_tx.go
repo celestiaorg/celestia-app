@@ -31,10 +31,16 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
+		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx) {
+			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
+		}
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
 	if isBlob {
+		if !blobTxIsCanonical(tx, btx) {
+			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
+		}
 		return app.handleBlobCheckTx(req, btx)
 	}
 
@@ -93,6 +99,14 @@ func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.Re
 		return res, err
 	}
 
+	// BaseApp.CheckTx reports a failed tx via the response code with a nil
+	// error. A failed tx may be malformed in ways that make signerDataFromTx
+	// panic (e.g. a SignerInfo with an unset ModeInfo oneof), so skip it and
+	// return the failure as-is.
+	if res.Code != abci.CodeTypeOK {
+		return res, nil
+	}
+
 	signerAddr, signerSeq, err := signerDataFromTx(sdkTx)
 	if err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
@@ -115,11 +129,20 @@ func responseCheckTxWithEvents(err error, gw, gu uint64, events []abci.Event, de
 	}
 }
 
-func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
+func signerDataFromTx(tx sdk.Tx) (addr []byte, seq uint64, err error) {
 	sigTx, ok := tx.(authsigning.SigVerifiableTx)
 	if !ok {
 		return nil, 0, fmt.Errorf("tx of type %T does not implement SigVerifiableTx", tx)
 	}
+
+	// GetSignaturesV2 panics on a malformed SignerInfo (e.g. an unset ModeInfo
+	// oneof). Recover so a bad tx returns an error rather than crashing the
+	// process, which is not always running under a recover (e.g. the mempool).
+	defer func() {
+		if r := recover(); r != nil {
+			addr, seq, err = nil, 0, fmt.Errorf("failed to get signer data: %v", r)
+		}
+	}()
 
 	sigs, err := sigTx.GetSignaturesV2()
 	if err != nil {
@@ -137,12 +160,22 @@ func signerDataFromTx(tx sdk.Tx) ([]byte, uint64, error) {
 	return sigs[0].PubKey.Address().Bytes(), sigs[0].Sequence, nil
 }
 
-// validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other messages.
+// validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other
+// messages, and txs whose payment promise fails stateless validation. Both
+// CheckTx and ProcessProposal call this, so a promise that would fail
+// ValidateBasic in FinalizeBlock never reaches the square.
 func validatePayForFibreTxShape(tx sdk.Tx) error {
 	msgs := tx.GetMsgs()
 	for _, msg := range msgs {
-		if _, isPFF := msg.(*fibretypes.MsgPayForFibre); isPFF && len(msgs) > 1 {
+		pff, isPFF := msg.(*fibretypes.MsgPayForFibre)
+		if !isPFF {
+			continue
+		}
+		if len(msgs) > 1 {
 			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
+		}
+		if err := pff.PaymentPromise.ValidateBasic(); err != nil {
+			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise: %s", err)
 		}
 	}
 	return nil
