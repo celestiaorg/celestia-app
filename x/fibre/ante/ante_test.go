@@ -334,7 +334,8 @@ func TestFibreStatefulValidationDecoratorChecksEligibilityWithInfiniteGas(t *tes
 			decorator := NewFibreStatefulValidationDecorator(keeper)
 			ctx := sdk.Context{}.
 				WithGasMeter(storetypes.NewGasMeter(1)).
-				WithExecMode(execMode)
+				WithExecMode(execMode).
+				WithIsCheckTx(true)
 			nextCalled := false
 
 			gotCtx, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}, false, nextRecorder(&nextCalled))
@@ -355,7 +356,7 @@ func TestFibreStatefulValidationDecoratorRejectsIneligiblePromise(t *testing.T) 
 			expectedErr := errors.New("payment promise has already been processed")
 			keeper := &fakeFibreKeeper{err: expectedErr}
 			decorator := NewFibreStatefulValidationDecorator(keeper)
-			ctx := sdk.Context{}.WithExecMode(execMode)
+			ctx := sdk.Context{}.WithExecMode(execMode).WithIsCheckTx(true)
 			nextCalled := false
 
 			_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}, false, nextRecorder(&nextCalled))

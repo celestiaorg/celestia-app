@@ -125,7 +125,7 @@ func NewFibreStatefulValidationDecorator(k FibrePromiseKeeper) FibreStatefulVali
 
 func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	msg := PayForFibreMessage(tx)
-	if msg == nil || simulate || !isMempoolExecMode(ctx) {
+	if msg == nil || simulate || !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
 
@@ -134,12 +134,6 @@ func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx,
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
-}
-
-// isMempoolExecMode reports whether ctx executes under CheckTx or RecheckTx.
-func isMempoolExecMode(ctx sdk.Context) bool {
-	mode := ctx.ExecMode()
-	return mode == sdk.ExecModeCheck || mode == sdk.ExecModeReCheck
 }
 
 // withInfiniteGasMeter returns ctx with an unlimited gas meter so verification
