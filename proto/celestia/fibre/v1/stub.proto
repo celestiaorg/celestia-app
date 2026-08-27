@@ -3,7 +3,7 @@ package celestia.fibre.v1;
 
 import "gogoproto/gogo.proto";
 
-option go_package = "github.com/celestiaorg/celestia-app/v10/x/fibre/types";
+option go_package = "github.com/celestiaorg/celestia-app/x/fibre/types";
 
 // RowCountUploadShard protects against a shard with too many
 // empty rows in one message. It reads only the shard rows
@@ -14,6 +14,8 @@ message RowCountUploadShard {
   RowCountBlobShard shard = 2;
 }
 
+// RowCountBlobShard mirrors BlobShard but decodes rows into zero-size
+// entries so counting them does not allocate.
 message RowCountBlobShard {
   // Mirrors BlobShard.rows.
   repeated bytes rows = 1 [
@@ -22,7 +24,7 @@ message RowCountBlobShard {
   ];
 }
 
-// ProofCountUploadShard protects against a row with too many proofs in 
+// ProofCountUploadShard protects against a row with too many proofs in
 // one row, which passes the row check. It allocates one slice header
 // per row, so decode it only after RowCountUploadShard bounded the row count.
 message ProofCountUploadShard {
@@ -30,11 +32,15 @@ message ProofCountUploadShard {
   ProofCountBlobShard shard = 2;
 }
 
+// ProofCountBlobShard mirrors BlobShard but decodes each row only as its
+// proof-segment count.
 message ProofCountBlobShard {
   // Mirrors BlobShard.rows.
   repeated ProofCountBlobRow rows = 1 [(gogoproto.nullable) = false];
 }
 
+// ProofCountBlobRow mirrors BlobRow but decodes proof segments into
+// zero-size entries so counting them does not allocate.
 message ProofCountBlobRow {
   // Mirrors BlobRow.proof.
   repeated bytes proof = 3 [
