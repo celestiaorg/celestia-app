@@ -616,7 +616,6 @@ func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFin
 	// Go through all the transactions that are getting executed and prune the tx tracker
 	for _, tx := range req.Txs {
 		app.txCache.RemoveTransaction(tx)
-		app.pffSigCache.Delete(tx)
 	}
 
 	return res, nil
