@@ -516,7 +516,7 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 }
 
 // processProposalRequest builds a valid ProcessProposal request for the txs.
-func processProposalRequest(t *testing.T, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
+func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
 	t.Helper()
 	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
 	require.NoError(t, err)

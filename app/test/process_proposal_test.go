@@ -325,7 +325,7 @@ func TestProcessProposal(t *testing.T) {
 	}
 }
 
-func calculateNewDataHash(t *testing.T, txs [][]byte) []byte {
+func calculateNewDataHash(t testing.TB, txs [][]byte) []byte {
 	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
 	require.NoError(t, err)
 	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
