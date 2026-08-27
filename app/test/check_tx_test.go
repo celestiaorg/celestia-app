@@ -494,6 +494,7 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(4)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
@@ -550,6 +551,62 @@ func TestCheckTxPayForFibre(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
 	})
+}
+
+// TestCheckTxPayForFibreReplay settles a payment promise in a committed block
+// and then rejects a fresh wrapper around the same promise in CheckTx, so
+// replayed promises neither enter the mempool nor survive recheck.
+func TestCheckTxPayForFibreReplay(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	// Two envelopes with sequential nonces around the same promise.
+	promiseTime := time.Now()
+	txs := newPayForFibreTxPair(t, signer, accounts[0], promiseTime, promiseTime)
+	original, replay := txs[0], txs[1]
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: original, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Settle the promise in a committed block.
+	finalizeResp := commitBlock(t, testApp, original)
+	require.Len(t, finalizeResp.TxResults, 1)
+	require.Equal(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code, finalizeResp.TxResults[0].Log)
+
+	for name, checkTxType := range map[string]abci.CheckTxType{
+		"checktx": abci.CheckTxType_New,
+		"recheck": abci.CheckTxType_Recheck,
+	} {
+		t.Run("replayed promise is rejected on "+name, func(t *testing.T) {
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: replay, Type: checkTxType})
+			require.NoError(t, err)
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+			require.Contains(t, resp.Log, "already been processed")
+		})
+	}
+}
+
+// commitBlock finalizes and commits a block of txs stamped time.Now, so the
+// CheckTx state carries a current block time for promise freshness checks.
+func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFinalizeBlock {
+	t.Helper()
+	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:   time.Now(),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    txs,
+	})
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.NoError(t, err)
+	return resp
 }
 
 // appendUnknownProtoField appends an unknown protobuf field (field 100, wire

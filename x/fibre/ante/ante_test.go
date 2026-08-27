@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"testing"
+	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -51,7 +52,7 @@ func TestFibreSignatureGasDecoratorSkipsNonSinglePFFTx(t *testing.T) {
 
 func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	keeper := &fakeFibreSignatureKeeper{}
+	keeper := &fakeFibreKeeper{}
 	cache := &fakeSigCache{
 		t:                 t,
 		failOnCacheLookup: true,
@@ -74,7 +75,7 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 
 func TestFibreSignatureVerificationDecoratorFinalizeModeSkipsVerification(t *testing.T) {
 	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	keeper := &fakeFibreSignatureKeeper{err: errors.New("verification must not run in finalize mode")}
+	keeper := &fakeFibreKeeper{err: errors.New("verification must not run in finalize mode")}
 	cache := &fakeSigCache{
 		t:                 t,
 		failOnCacheLookup: true,
@@ -99,7 +100,7 @@ func TestFibreSignatureVerificationDecoratorFinalizeModeSkipsVerification(t *tes
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
 	msg := newPayForFibreMsgWithSignatures(1)
 	tx := mockTx{msgs: []sdk.Msg{msg}}
-	keeper := &fakeFibreSignatureKeeper{}
+	keeper := &fakeFibreKeeper{}
 	cache := &fakeSigCache{
 		t:                t,
 		cacheHit:         true,
@@ -126,7 +127,7 @@ func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *
 	txBytes := []byte{0x01, 0x02, 0x03}
 	msg := newPayForFibreMsgWithSignatures(2)
 	tx := mockTx{msgs: []sdk.Msg{msg}}
-	keeper := &fakeFibreSignatureKeeper{
+	keeper := &fakeFibreKeeper{
 		gasToConsume: 1_000_000,
 	}
 	cache := &fakeSigCache{
@@ -152,7 +153,7 @@ func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *
 
 func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 	expectedErr := errors.New("invalid signature")
-	keeper := &fakeFibreSignatureKeeper{err: expectedErr}
+	keeper := &fakeFibreKeeper{err: expectedErr}
 	cache := &fakeSigCache{t: t}
 	nextCalled := false
 	decorator := FibreSignatureVerificationDecorator{
@@ -163,10 +164,7 @@ func TestFibreSignatureVerificationDecoratorDoesNotCacheFailures(t *testing.T) {
 		WithGasMeter(storetypes.NewGasMeter(1)).
 		WithTxBytes([]byte{0x01})
 
-	_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}, false, func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
-		nextCalled = true
-		return ctx, nil
-	})
+	_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}, false, nextRecorder(&nextCalled))
 
 	require.ErrorIs(t, err, expectedErr)
 	require.Equal(t, 1, keeper.calls)
@@ -252,7 +250,7 @@ func TestFibreSignatureVerificationDecoratorVerifiesOncePerCertificate(t *testin
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			keeper := &fakeFibreSignatureKeeper{}
+			keeper := &fakeFibreKeeper{}
 			decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: newMemorySigCache()}
 			second := keyTestMsg()
 			tc.mutate(second)
@@ -268,14 +266,129 @@ func TestFibreSignatureVerificationDecoratorVerifiesOncePerCertificate(t *testin
 	}
 }
 
-type fakeFibreSignatureKeeper struct {
+// mempoolExecModes are the exec modes in which settlement eligibility runs.
+var mempoolExecModes = map[string]sdk.ExecMode{
+	"check":   sdk.ExecModeCheck,
+	"recheck": sdk.ExecModeReCheck,
+}
+
+func TestFibreStatefulValidationDecoratorSkipsIneligibleModesAndTxs(t *testing.T) {
+	pffTx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
+
+	tests := map[string]struct {
+		tx       sdk.Tx
+		simulate bool
+		execMode sdk.ExecMode
+	}{
+		"tx without messages": {
+			tx:       mockTx{},
+			execMode: sdk.ExecModeCheck,
+		},
+		"tx with a single non-PFF message": {
+			tx:       mockTx{msgs: []sdk.Msg{&fibretypes.MsgDepositToEscrow{}}},
+			execMode: sdk.ExecModeCheck,
+		},
+		"tx with multiple messages": {
+			tx:       mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1), newPayForFibreMsgWithSignatures(1)}},
+			execMode: sdk.ExecModeCheck,
+		},
+		"simulation": {
+			tx:       pffTx,
+			simulate: true,
+			execMode: sdk.ExecModeCheck,
+		},
+		"finalize mode": {
+			tx:       pffTx,
+			execMode: sdk.ExecModeFinalize,
+		},
+		"prepare proposal mode": {
+			tx:       pffTx,
+			execMode: sdk.ExecModePrepareProposal,
+		},
+		"process proposal mode": {
+			tx:       pffTx,
+			execMode: sdk.ExecModeProcessProposal,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			keeper := &fakeFibreKeeper{err: errors.New("eligibility must not run")}
+			decorator := NewFibreStatefulValidationDecorator(keeper)
+			ctx := sdk.Context{}.WithExecMode(tc.execMode)
+			nextCalled := false
+
+			_, err := decorator.AnteHandle(ctx, tc.tx, tc.simulate, nextRecorder(&nextCalled))
+
+			require.NoError(t, err)
+			require.True(t, nextCalled)
+			require.Zero(t, keeper.calls)
+		})
+	}
+}
+
+func TestFibreStatefulValidationDecoratorChecksEligibilityWithInfiniteGas(t *testing.T) {
+	for name, execMode := range mempoolExecModes {
+		t.Run(name, func(t *testing.T) {
+			keeper := &fakeFibreKeeper{gasToConsume: 1_000_000}
+			decorator := NewFibreStatefulValidationDecorator(keeper)
+			ctx := sdk.Context{}.
+				WithGasMeter(storetypes.NewGasMeter(1)).
+				WithExecMode(execMode).
+				WithIsCheckTx(true)
+			nextCalled := false
+
+			gotCtx, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}, false, nextRecorder(&nextCalled))
+
+			require.NoError(t, err)
+			require.True(t, nextCalled)
+			require.Equal(t, 1, keeper.calls)
+			require.Equal(t, 1, keeper.infiniteGasCalls)
+			// Gas consumed by the eligibility check must not count against the tx.
+			require.Zero(t, gotCtx.GasMeter().GasConsumed())
+		})
+	}
+}
+
+func TestFibreStatefulValidationDecoratorRejectsIneligiblePromise(t *testing.T) {
+	for name, execMode := range mempoolExecModes {
+		t.Run(name, func(t *testing.T) {
+			expectedErr := errors.New("payment promise has already been processed")
+			keeper := &fakeFibreKeeper{err: expectedErr}
+			decorator := NewFibreStatefulValidationDecorator(keeper)
+			ctx := sdk.Context{}.WithExecMode(execMode).WithIsCheckTx(true)
+			nextCalled := false
+
+			_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}, false, nextRecorder(&nextCalled))
+
+			require.ErrorIs(t, err, expectedErr)
+			require.False(t, nextCalled)
+			require.Equal(t, 1, keeper.calls)
+		})
+	}
+}
+
+// fakeFibreKeeper fakes both the signature and eligibility keeper interfaces.
+type fakeFibreKeeper struct {
 	calls            int
 	infiniteGasCalls int
 	gasToConsume     uint64
 	err              error
 }
 
-func (f *fakeFibreSignatureKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
+func (f *fakeFibreKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
+	f.observe(ctx)
+	return f.err
+}
+
+func (f *fakeFibreKeeper) ValidatePaymentPromiseStateful(ctx sdk.Context, _ *fibretypes.PaymentPromise) (time.Time, error) {
+	f.observe(ctx)
+	return time.Time{}, f.err
+}
+
+// observe records the call, whether it ran with infinite gas, and consumes
+// gasToConsume from the caller's meter.
+func (f *fakeFibreKeeper) observe(ctx sdk.Context) {
 	f.calls++
 	if ctx.GasMeter().Limit() == ^uint64(0) {
 		f.infiniteGasCalls++
@@ -283,7 +396,6 @@ func (f *fakeFibreSignatureKeeper) ValidatePayForFibreSignatures(ctx sdk.Context
 	if f.gasToConsume > 0 {
 		ctx.GasMeter().ConsumeGas(f.gasToConsume, "fake verification")
 	}
-	return f.err
 }
 
 type fakeSigCache struct {
@@ -372,4 +484,12 @@ func mustPffSigCacheKey(t *testing.T, msg *fibretypes.MsgPayForFibre) PffSigCach
 
 func nextNoop(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 	return ctx, nil
+}
+
+// nextRecorder returns an AnteHandler that records whether it was called.
+func nextRecorder(called *bool) sdk.AnteHandler {
+	return func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		*called = true
+		return ctx, nil
+	}
 }
