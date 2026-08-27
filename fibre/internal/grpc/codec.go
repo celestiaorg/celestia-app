@@ -70,14 +70,5 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if data.Len() == 0 {
 		return msg.Unmarshal(nil)
 	}
-	buf := data.Materialize()
-	// Bound repeated-field cardinality before the generated decoder allocates
-	// per-row and per-proof objects, so a compact malicious UploadShardRequest
-	// cannot amplify into large decoded memory. See validateUploadShardCardinality.
-	if _, ok := v.(*types.UploadShardRequest); ok {
-		if err := validateUploadShardCardinality(buf); err != nil {
-			return err
-		}
-	}
-	return msg.Unmarshal(buf)
+	return msg.Unmarshal(data.Materialize())
 }
