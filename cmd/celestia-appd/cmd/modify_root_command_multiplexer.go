@@ -26,12 +26,9 @@ var defaultArgs = []string{
 	"--transport=grpc",
 }
 
-// interBlockCacheOffArgs disables the SDK inter-block cache for embedded
-// versions v3-v8. Their cosmos-sdk forks lack the BaseApp synchronization
-// fixes (celestiaorg/cosmos-sdk#726, #740, #741), so concurrent reads through
-// the shared cache can race with block execution and, in the worst case,
-// cause an app-hash mismatch. Appended after the operator's own args, this
-// overrides an explicit --inter-block-cache=true.
+// interBlockCacheOffArgs disables the SDK inter-block cache for the embedded
+// v3-v8 apps. Appended after the operator's own args, it overrides an
+// explicit --inter-block-cache=true.
 var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defaultArgs...)
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
