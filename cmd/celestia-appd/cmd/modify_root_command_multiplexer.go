@@ -26,6 +26,14 @@ var defaultArgs = []string{
 	"--transport=grpc",
 }
 
+// interBlockCacheOffArgs disables the SDK inter-block cache for embedded
+// versions v3-v8. Their cosmos-sdk forks lack the BaseApp synchronization
+// fixes (celestiaorg/cosmos-sdk#726, #740, #741), so concurrent reads through
+// the shared cache can race with block execution and, in the worst case,
+// cause an app-hash mismatch. Appended after the operator's own args, this
+// overrides an explicit --inter-block-cache=true.
+var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defaultArgs...)
+
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
 	v3Tag, v3CompressedBinary, err := embedding.CelestiaAppV3()
@@ -98,7 +106,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	v3Args := defaultArgs
+	v3Args := interBlockCacheOffArgs
 	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
@@ -111,7 +119,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	// replaying historical blocks, so overriding is harmless.
 	legacyMinGasPricesArgs := append([]string{
 		fmt.Sprintf("--minimum-gas-prices=%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom),
-	}, defaultArgs...)
+	}, interBlockCacheOffArgs...)
 
 	versions, err := abci.NewVersions(
 		abci.Version{
@@ -133,17 +141,17 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV6,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  6,
-			StartArgs:   defaultArgs,
+			StartArgs:   interBlockCacheOffArgs,
 		}, abci.Version{
 			Appd:        appdV7,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  7,
-			StartArgs:   defaultArgs,
+			StartArgs:   interBlockCacheOffArgs,
 		}, abci.Version{
 			Appd:        appdV8,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  8,
-			StartArgs:   defaultArgs,
+			StartArgs:   interBlockCacheOffArgs,
 		}, abci.Version{
 			Appd:        appdV9,
 			ABCIVersion: abci.ABCIClientVersion2,
