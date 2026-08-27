@@ -46,11 +46,10 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
 
-	// Apply the fibre BeginBlocker on the proposal branch before filling the
-	// square. FinalizeBlock runs it (paying out matured withdrawals, advancing
-	// the freshness floor) before any tx, so pay-for-fibre settlement in Fill
-	// must see the same escrow state or an underpaid promise could keep its
-	// system blob. The branch is discarded, so these writes never commit.
+	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
+	// which pays out matured withdrawals and advances the freshness floor before
+	// any tx. Pay-for-fibre settlement in Fill must see that escrow state. The
+	// branch is discarded, so nothing commits.
 	if err := app.FibreKeeper.BeginBlocker(ctx); err != nil {
 		return nil, fmt.Errorf("failed to run fibre begin blocker on proposal branch: %w", err)
 	}

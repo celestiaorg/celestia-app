@@ -192,16 +192,15 @@ func payForFibreMsg(tx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
 }
 
 // containsFibreStateMsg reports whether the tx carries a fibre message that
-// mutates escrow / processed-payment state. These must be simulated during
-// proposal so later MsgPayForFibre settlement sees the same escrow balance it
-// would in FinalizeBlock. MsgPayForFibre is excluded: it is settled on its own
-// path.
+// lowers an escrow balance as soon as it executes, so proposal must replay it
+// before settling a later MsgPayForFibre. MsgPayForFibre (settled on its own
+// path) and MsgRequestWithdrawal (only locks funds, paid out later by the
+// BeginBlocker) are excluded.
 func containsFibreStateMsg(tx sdk.Tx) bool {
 	for _, msg := range tx.GetMsgs() {
 		switch msg.(type) {
 		case *fibretypes.MsgPaymentPromiseTimeout,
-			*fibretypes.MsgDepositToEscrow,
-			*fibretypes.MsgRequestWithdrawal:
+			*fibretypes.MsgDepositToEscrow:
 			return true
 		}
 	}
