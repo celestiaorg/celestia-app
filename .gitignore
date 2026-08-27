@@ -38,8 +38,12 @@ talis-setup/
 .gocache
 .cache
 .gomodcache
-# Claude Code
-.claude/
+# Claude Code: ignore local settings, keep shared skills and agents
+.claude/*
+!.claude/skills
+!.claude/agents/
+# AI assumptions notes are never committed
+docs/plans/
 # Swagger UI page (override **/*.html)
 !docs/swagger/index.html
 # Swagger generation artifacts
