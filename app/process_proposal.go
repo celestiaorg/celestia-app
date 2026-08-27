@@ -57,6 +57,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
+	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
+	// which pays out matured withdrawals and advances the freshness floor before
+	// any tx. Pay-for-fibre settlement below must see that escrow state. The
+	// branch is discarded, so nothing commits.
+	if err := app.FibreKeeper.BeginBlocker(ctx); err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to run fibre begin blocker on proposal branch", err)
+		return reject(), nil
+	}
+
 	var (
 		sdkMessageCount int
 		pfbMessageCount int
@@ -125,7 +134,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
-				sdkMessageCount += len(msgs)
+				sdkMessageCount += countExecutableMsgs(msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
 					return reject(), nil
@@ -151,6 +160,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
+				}
+			} else if containsFibreStateMsg(sdkTx) {
+				// Replay fibre escrow effects in block order so later settlement
+				// sees the FinalizeBlock balance. A failed message keeps the tx
+				// (gas only), so don't reject.
+				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+					app.Logger().Debug("fibre state msg did not settle in proposal; keeping tx", "idx", idx, "err", execErr)
 				}
 			}
 
