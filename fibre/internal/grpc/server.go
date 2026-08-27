@@ -21,6 +21,9 @@ import (
 // maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The values
 // are intentionally conservative for a 32 GiB-RAM validator. Tying them to
 // staking power, or adding a per-peer connection policy, are possible follow-ups.
+//
+// NewServerCodec separately limits rows and proofs before decoding allocates
+// memory for them.
 const (
 	maxConnections       = 16
 	maxConcurrentStreams = 13

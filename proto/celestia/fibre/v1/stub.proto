@@ -1,0 +1,44 @@
+syntax = "proto3";
+package celestia.fibre.v1;
+
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/v10/x/fibre/types";
+
+// RowCountUploadShard protects against a shard with too many
+// empty rows in one message. It reads only the shard rows
+// from UploadShardRequest and does not allocate per row.
+// Field numbers must match service.proto.
+message RowCountUploadShard {
+  // Mirrors UploadShardRequest.shard.
+  RowCountBlobShard shard = 2;
+}
+
+message RowCountBlobShard {
+  // Mirrors BlobShard.rows.
+  repeated bytes rows = 1 [
+    (gogoproto.customtype) = "NoField",
+    (gogoproto.nullable) = false
+  ];
+}
+
+// ProofCountUploadShard protects against a row with too many proofs in 
+// one row, which passes the row check. It allocates one slice header
+// per row, so decode it only after RowCountUploadShard bounded the row count.
+message ProofCountUploadShard {
+  // Mirrors UploadShardRequest.shard.
+  ProofCountBlobShard shard = 2;
+}
+
+message ProofCountBlobShard {
+  // Mirrors BlobShard.rows.
+  repeated ProofCountBlobRow rows = 1 [(gogoproto.nullable) = false];
+}
+
+message ProofCountBlobRow {
+  // Mirrors BlobRow.proof.
+  repeated bytes proof = 3 [
+    (gogoproto.customtype) = "NoField",
+    (gogoproto.nullable) = false
+  ];
+}

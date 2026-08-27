@@ -202,15 +202,17 @@ func (p ProtocolParams) MaxShardSize() int {
 		rlcEntrySize = 16 // uint128 RLC vector entry per row
 	)
 
-	totalRows := p.TotalRows()
 	maxRowSize := p.MaxRowSize(0) // version 0 is the only supported version
 	rlcsSize := p.Rows * rlcEntrySize
-
-	// calculate merkle tree depth for inclusion proofs: ceil(log2(totalRows))
-	treeDepth := bits.Len(uint(totalRows - 1))
-	proofSizePerRow := treeDepth * sha256.Size
+	proofSizePerRow := p.MerkleProofDepth() * sha256.Size
 
 	return rlcsSize + (p.MaxRowsPerValidator() * (rowIndexSize + maxRowSize + proofSizePerRow))
+}
+
+// MerkleProofDepth returns ceil(log2(TotalRows)), the number of sibling hashes
+// in each row proof.
+func (p ProtocolParams) MerkleProofDepth() int {
+	return bits.Len(uint(p.TotalRows() - 1))
 }
 
 // MaxMessageSize returns the maximum gRPC message size for upload requests.
