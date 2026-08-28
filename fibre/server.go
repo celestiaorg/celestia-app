@@ -133,6 +133,11 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	s.grpc.Register(s,
 		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
+		// Reject too many rows or proofs before protobuf allocates for them.
+		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
+			DefaultProtocolParams.MaxRowsPerValidator(),
+			DefaultProtocolParams.MerkleProofDepth(),
+		)),
 		grpclib.Creds(creds),
 	)
 
