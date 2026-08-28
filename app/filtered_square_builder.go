@@ -102,7 +102,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if sdkMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxSDKMessages {
+		execMsgCount := countExecutableMsgs(sdkTx.GetMsgs())
+		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
@@ -131,7 +132,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		sdkMessageCount += len(sdkTx.GetMsgs())
+		// Replay fibre escrow effects (e.g. a timeout debit) so later pay-for-fibre
+		// settlement sees the same balance it will in FinalizeBlock. A failed
+		// message keeps the tx (gas only), so ignore the error.
+		if containsFibreStateMsg(sdkTx) {
+			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
+				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			}
+		}
+
+		sdkMessageCount += execMsgCount
 		normalTxs[n] = tx
 		n++
 	}

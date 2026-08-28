@@ -31,6 +31,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -340,6 +341,33 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 		{
+			name:      "authz MsgExec flattening exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[11]
+				addr := signer.Account(accounts[11]).Address()
+				// Spread MaxSDKMessages+1 executable messages across MsgExec
+				// wrappers of at most 99 inner messages each (the tx decoder's
+				// per-message unpack limit). Only the wrappers are top-level
+				// messages, so this must still be rejected.
+				var msgs []sdk.Msg
+				for remaining := appconsts.MaxSDKMessages + 1; remaining > 0; {
+					n := min(99, remaining)
+					inner := make([]sdk.Msg, n)
+					for i := range inner {
+						inner[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+					}
+					exec := authz.NewMsgExec(addr, inner)
+					msgs = append(msgs, &exec)
+					remaining -= n
+				}
+				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
 			name:      "non-canonically encoded blob tx, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
@@ -494,6 +522,7 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(4)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
@@ -550,6 +579,62 @@ func TestCheckTxPayForFibre(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
 	})
+}
+
+// TestCheckTxPayForFibreReplay settles a payment promise in a committed block
+// and then rejects a fresh wrapper around the same promise in CheckTx, so
+// replayed promises neither enter the mempool nor survive recheck.
+func TestCheckTxPayForFibreReplay(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	// Two envelopes with sequential nonces around the same promise.
+	promiseTime := time.Now()
+	txs := newPayForFibreTxPair(t, signer, accounts[0], promiseTime, promiseTime)
+	original, replay := txs[0], txs[1]
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: original, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Settle the promise in a committed block.
+	finalizeResp := commitBlock(t, testApp, original)
+	require.Len(t, finalizeResp.TxResults, 1)
+	require.Equal(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code, finalizeResp.TxResults[0].Log)
+
+	for name, checkTxType := range map[string]abci.CheckTxType{
+		"checktx": abci.CheckTxType_New,
+		"recheck": abci.CheckTxType_Recheck,
+	} {
+		t.Run("replayed promise is rejected on "+name, func(t *testing.T) {
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: replay, Type: checkTxType})
+			require.NoError(t, err)
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+			require.Contains(t, resp.Log, "already been processed")
+		})
+	}
+}
+
+// commitBlock finalizes and commits a block of txs stamped time.Now, so the
+// CheckTx state carries a current block time for promise freshness checks.
+func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFinalizeBlock {
+	t.Helper()
+	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:   time.Now(),
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    txs,
+	})
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.NoError(t, err)
+	return resp
 }
 
 // appendUnknownProtoField appends an unknown protobuf field (field 100, wire
