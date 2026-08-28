@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -164,10 +165,13 @@ func (a *Appd) Stop() error {
 		return nil
 	}
 
+	// The Wait goroutine reaps the child as soon as it exits, so signalling a
+	// child that already exited returns os.ErrProcessDone. It is already
+	// stopped, which is what the caller asked for, so fall through to done.
 	err := a.cmd.Process.Signal(os.Interrupt)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrProcessDone) {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
-		if err := a.cmd.Process.Kill(); err != nil {
+		if err := a.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
 
@@ -191,7 +195,7 @@ func (a *Appd) Stop() error {
 		return nil
 	case <-ctx.Done():
 		log.Printf("Process did not exit within 6 seconds, force killing")
-		if err := a.cmd.Process.Kill(); err != nil {
+		if err := a.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
 		}
 

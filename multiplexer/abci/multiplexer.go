@@ -242,7 +242,16 @@ func (m *Multiplexer) startApp() error {
 		m.watchEmbeddedApp(currentVersion.AppVersion, currentVersion.Appd.Exited())
 	}
 
-	return m.initRemoteGrpcConn()
+	if err := m.initRemoteGrpcConn(); err != nil {
+		return err
+	}
+
+	// The watcher cannot close a connection that did not exist yet, so catch a
+	// child that died while the connection was being set up.
+	if currentVersion.Appd.IsStopped() {
+		return fmt.Errorf("embedded app for version %d exited while starting", currentVersion.AppVersion)
+	}
+	return nil
 }
 
 // watchEmbeddedApp watches a just-started embedded app and surfaces an
@@ -266,6 +275,18 @@ func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
 				return nil
 			default:
 			}
+
+			// Close the ABCI connection so a handshake already in flight fails
+			// instead of queueing forever against the dead child: the remote
+			// clients call with grpc.WaitForReady(true), so without this the
+			// main goroutine stays parked in startCmtNode and never observes
+			// the error below.
+			m.mu.Lock()
+			if closeErr := m.stopGRPCConnection(); closeErr != nil {
+				m.logger.Error("failed to close gRPC connection after embedded app exited", "err", closeErr)
+			}
+			m.mu.Unlock()
+
 			if err != nil {
 				return fmt.Errorf("embedded app for version %d exited unexpectedly: %w", appVersion, err)
 			}

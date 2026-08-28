@@ -84,3 +84,24 @@ func writeMockExecutable(t *testing.T, command string) string {
 
 	return f.Name()
 }
+
+// TestStopOnAlreadyExitedProcess verifies that Stop succeeds when the child has
+// already exited and been reaped. The Wait goroutine reaps the child as soon as
+// it exits, so Signal and Kill both return os.ErrProcessDone. Stop must treat
+// that as success: through the multiplexer a Stop error propagates from
+// startEmbeddedApp up through Commit and panics comet, and the window is open
+// during every version switch.
+func TestStopOnAlreadyExitedProcess(t *testing.T) {
+	bin := writeMockExecutable(t, "exit 0")
+	a := &Appd{path: bin, stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr}
+
+	require.NoError(t, a.Start())
+
+	select {
+	case <-a.Exited():
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the process to exit")
+	}
+
+	require.NoError(t, a.Stop(), "stopping an already-reaped child is not a failure")
+}

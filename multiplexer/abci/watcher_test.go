@@ -10,6 +10,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // TestWatchEmbeddedAppUnexpectedExit verifies the fix for
@@ -97,4 +100,50 @@ func waitWithTimeout(t *testing.T, g *errgroup.Group) error {
 		t.Fatal("g.Wait() did not return")
 		return nil
 	}
+}
+
+// TestWatchEmbeddedAppUnexpectedExitClosesConn verifies that the watcher closes
+// the ABCI gRPC connection when the embedded app exits unexpectedly. Without
+// this, a child that dies before comet's handshake completes leaves the main
+// goroutine parked inside startCmtNode: the remote ABCI clients call with
+// grpc.WaitForReady(true), so the RPC queues forever against the dead endpoint
+// and the watcher's error is never observed. Closing the connection fails those
+// pending calls immediately, so the handshake errors out and Start returns.
+func TestWatchEmbeddedAppUnexpectedExitClosesConn(t *testing.T) {
+	m := &Multiplexer{logger: log.NewNopLogger()}
+	m.g, m.ctx = getCtx(server.NewDefaultContext())
+
+	conn, err := grpc.NewClient("127.0.0.1:1", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	m.conn = conn
+
+	exited := make(chan error, 1)
+	m.watchEmbeddedApp(9, exited)
+	exited <- errors.New("exit status 1")
+
+	require.Error(t, waitWithTimeout(t, m.g))
+	require.Equal(t, connectivity.Shutdown, conn.GetState(),
+		"the connection must be closed so the pending wait-for-ready handshake fails")
+}
+
+// TestWatchEmbeddedAppExpectedStopKeepsConn verifies that an operator-initiated
+// stop leaves the connection alone: a version switch stops the child and then
+// reuses the connection for the next one.
+func TestWatchEmbeddedAppExpectedStopKeepsConn(t *testing.T) {
+	m := &Multiplexer{logger: log.NewNopLogger()}
+	m.g, m.ctx = errgroup.WithContext(t.Context())
+
+	conn, err := grpc.NewClient("127.0.0.1:1", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	m.conn = conn
+
+	exited := make(chan error, 1)
+	m.watchEmbeddedApp(9, exited)
+
+	m.cancelEmbeddedAppWatcher()
+	exited <- errors.New("signal: interrupt")
+
+	require.NoError(t, waitWithTimeout(t, m.g))
+	require.NotEqual(t, connectivity.Shutdown, conn.GetState())
 }
