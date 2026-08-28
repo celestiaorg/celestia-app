@@ -12,7 +12,7 @@ Agent context for `celestia-app/x/forwarding/`.
 - **Purpose**: Single-signature cross-chain transfers via Hyperlane warp routes
 - **Core invariant**: `derive(destDomain, destRecipient, tokenId[, hookId, hookMetadata]) == forwardAddr` - this IS the authorization
 - **Permissionless**: Anyone can trigger forwarding with correct params
-- **Hook is committed**: `custom_hook_id` and `custom_hook_metadata` are part of the derivation (version byte `0x02`), so the depositor picks them, not the submitter. Commit to neither and only the default hook works; commit to either and only that exact pair works. A mismatch is `ErrAddressMismatch`.
+- **Hook is committed**: `custom_hook_id` and `custom_hook_metadata` are part of the derivation, so the depositor picks them, not the submitter. Commit to neither and only the default hook works; commit to either and only that exact pair works. A mismatch is `ErrAddressMismatch`.
 
 ## Address Derivation
 

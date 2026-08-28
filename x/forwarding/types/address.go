@@ -10,14 +10,9 @@ import (
 )
 
 const (
-	// ForwardVersion is the version of the forwarding address derivation algorithm
-	// for addresses that use the mailbox default post-dispatch hook.
+	// ForwardVersion is the version of the forwarding address derivation algorithm.
 	// Incrementing this allows address scheme upgrades without collision.
 	ForwardVersion = uint8(1)
-	// ForwardVersionHook is the derivation version for addresses that commit to a
-	// specific post-dispatch hook. Addresses derived under this version can only be
-	// forwarded through the hook they were derived with.
-	ForwardVersionHook = uint8(2)
 	// RecipientLength is 32 bytes - the Hyperlane standard for cross-chain recipient addresses.
 	// EVM 20-byte addresses must be left-padded with 12 zero bytes to meet this requirement.
 	RecipientLength = 32
@@ -46,14 +41,14 @@ var zeroHookID [HookIDLength]byte
 //
 // Algorithm:
 //  1. callDigest = sha256(destDomain_32bytes || destRecipient || tokenID [|| hookID || hookMetadata])
-//  2. salt = sha256(version || callDigest)
+//  2. salt = sha256(ForwardVersion || callDigest)
 //  3. address = address.Module("forwarding", salt)[:CosmosAddressLen]
 //
 // A nil or zero hookID means "mailbox default hook". With no metadata either, the address
-// commits to neither and uses ForwardVersion; otherwise it commits to both under
-// ForwardVersionHook, with hookID normalised to the zero address when absent. hookID is fixed
-// width and hookMetadata terminal, so the concatenation needs no length prefix, and metadata is
-// committed as decoded bytes so equivalent hex encodings agree.
+// commits to neither; otherwise it commits to both, with hookID normalised to the zero address
+// when absent. hookID is fixed width and hookMetadata terminal, so the concatenation needs no
+// length prefix, and metadata is committed as decoded bytes so equivalent hex encodings agree.
+// The bound preimage is longer than the unbound one, so the two cannot collide.
 //
 // Returns ErrInvalidRecipient or ErrInvalidTokenID if those are not RecipientLength /
 // TokenIDLength bytes, and ErrInvalidHookID if a non-empty hookID is not HookIDLength bytes.
@@ -70,13 +65,8 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID, hookID, 
 		return nil, fmt.Errorf("%w: expected %d bytes, got %d", ErrInvalidHookID, HookIDLength, len(hookID))
 	}
 
-	// The version byte and the digest preimage move together, so the two schemes cannot collide.
 	hookIsSet := len(hookID) != 0 && !bytes.Equal(hookID, zeroHookID[:])
 	bound := hookIsSet || len(hookMetadata) != 0
-	version := ForwardVersion
-	if bound {
-		version = ForwardVersionHook
-	}
 
 	// Step 1: Encode destDomain as 32-byte big-endian (right-aligned, ABI uint256 encoding)
 	destDomainBytes := make([]byte, DomainEncodingSize)
@@ -99,9 +89,9 @@ func DeriveForwardingAddress(destDomain uint32, destRecipient, tokenID, hookID, 
 	}
 	callDigest := h.Sum(nil)
 
-	// Step 3: salt = sha256(version || callDigest)
+	// Step 3: salt = sha256(ForwardVersion || callDigest)
 	h.Reset()
-	h.Write([]byte{version})
+	h.Write([]byte{ForwardVersion})
 	h.Write(callDigest)
 	salt := h.Sum(nil)
 

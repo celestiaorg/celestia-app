@@ -44,7 +44,7 @@ of the depositor's intent rather than parameters chosen by whoever submits `MsgF
 
 ```text
 callDigest   = sha256(destDomain_32bytes || destRecipient || tokenId || hookId || hookMetadata)
-salt         = sha256(version_byte || callDigest)       // version_byte = 0x02
+salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
 forwardAddr  = address.Module("forwarding", salt)[:20]
 ```
 
@@ -52,19 +52,19 @@ forwardAddr  = address.Module("forwarding", salt)[:20]
 unambiguous without a length prefix. `hookMetadata` is committed as its **decoded bytes**, so
 equivalent hex encodings derive the same address.
 
-The commitment is all-or-nothing, and the two schemes cannot collide because the version byte and
-the digest preimage change together:
+The commitment is all-or-nothing, and the two schemes cannot collide because the bound preimage is
+longer than the unbound one:
 
-- An address derived committing to **neither** (`0x01`) can only be forwarded through the mailbox
+- An address derived committing to **neither** can only be forwarded through the mailbox
   default hook with no metadata. Supplying either field derives a different address and fails with
   `ErrAddressMismatch`.
-- An address derived committing to **either or both** (`0x02`) can only be forwarded with exactly
+- An address derived committing to **either or both** can only be forwarded with exactly
   that pair. A different hook, different metadata, or omitting either likewise fails with
   `ErrAddressMismatch`.
 
 An absent `hookId` normalises to the zero address, which is the sentinel for "mailbox default
 hook". So metadata alone is a valid binding — it means the default hook with that exact metadata —
-while committing to neither yields the `0x01` address. A single `DeriveForwardingAddress` covers
+while committing to neither yields the plain address. A single `DeriveForwardingAddress` covers
 both schemes, taking the hook and metadata as optional arguments.
 
 ## State

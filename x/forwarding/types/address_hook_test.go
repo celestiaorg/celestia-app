@@ -82,7 +82,7 @@ func TestDeriveForwardingAddressBoundIntermediates(t *testing.T) {
 	callDigest := h.Sum(nil)
 
 	h.Reset()
-	h.Write([]byte{types.ForwardVersionHook})
+	h.Write([]byte{types.ForwardVersion})
 	h.Write(callDigest)
 	salt := h.Sum(nil)
 
