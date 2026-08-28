@@ -150,12 +150,9 @@ jobs:
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneForwardingCustomHook
             entrypoint: TestHyperlaneTestSuite
-            # Pinned by digest to a linux/amd64 build of forwarding-relayer
-            # jonas/hook-in-derivation, which carries the matching
-            # custom_hook_id/custom_hook_metadata address derivation. Built by hand
-            # and pushed to a personal registry. Replace with a ghcr.io/celestiaorg
-            # image once CI supports building docker images for forwarding-cli.
-            forwarding_relayer_image: docker.io/tiajonas/forwarding-relayer@sha256:f45d5a574e020d8397f2ad6e80b9a56b418121012a74ebba1fa6f3a06d61feb6
+            # forwarding-relayer jonas/hook-in-derivation @ 5c65d4f, which carries the
+            # matching custom_hook_id/custom_hook_metadata address derivation.
+            forwarding_relayer_image: ghcr.io/celestiaorg/forwarding-relayer:sha-5c65d4f
           - testcase: TestHyperlaneZKIsmStateTransition
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateMembership
