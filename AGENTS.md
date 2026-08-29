@@ -96,6 +96,9 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 - **Interactive gate**: before implementing or reviewing any change, triage the tier, then ask the engineer whether to run the invariant workflow (the `/implement` skill, or the reviewer agents in `.claude/agents/` for a review). Give a 2–3 line overview — tier, paths touched, what the workflow would add — and a recommendation: run it for risky and consensus-critical changes, skip it for light ones. Skip the question when the engineer invoked `/implement` directly. In non-interactive runs, follow the recommendation.
 - **Declined workflow on a risky change**: still state assumptions and get engineer confirmation before writing code; no reviewer agents unless the engineer asks.
 - **Assumptions notes** live in `docs/plans/` and are never committed.
+- **Cheap models gather, frontier models think**: codebase exploration, log digging, and web research go to sub-agents on cheap models, which report conclusions — not transcripts — back to the frontier model; the frontier model orchestrates and keeps design, hard debugging, synthesis, and judgment calls (details in `.agents/skills/implement/SKILL.md`).
+- **Persist findings to files**: on long tasks, write durable findings into the `docs/plans/` note as they are established instead of relying on chat history.
+- **Context hygiene**: per-developer guidance in [docs/ai/context.md](docs/ai/context.md).
 
 ## Simplicity Rules
 
