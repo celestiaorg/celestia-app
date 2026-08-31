@@ -73,7 +73,7 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 		return nil, 0, err
 	}
 
-	priority := getTxPriority(fee, int64(gas))
+	priority := getTxPriority(fee, gas)
 
 	// Track actual gas price paid by users for congestion monitoring
 	gasPriceFloat := float64(fee.Int64()) / float64(gas)
@@ -113,13 +113,13 @@ func trimTrailingZeros(d math.LegacyDec) string {
 }
 
 // getTxPriority returns a naive tx priority based on the utia gas price of the
-// transaction. It returns zero if gas is not positive or the priority does not
-// fit in an int64.
-func getTxPriority(fee math.Int, gas int64) int64 {
-	if gas <= 0 {
+// transaction. It returns zero if gas is zero or the priority does not fit in
+// an int64.
+func getTxPriority(fee math.Int, gas uint64) int64 {
+	if gas == 0 {
 		return 0
 	}
-	priority := fee.Mul(math.NewInt(priorityScalingFactor)).QuoRaw(gas)
+	priority := fee.Mul(math.NewInt(priorityScalingFactor)).Quo(math.NewIntFromUint64(gas))
 	if !priority.IsInt64() {
 		return 0
 	}

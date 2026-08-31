@@ -11,7 +11,7 @@ func TestGetTxPriority(t *testing.T) {
 	cases := []struct {
 		name        string
 		fee         math.Int
-		gas         int64
+		gas         uint64
 		expectedPri int64
 	}{
 		{
@@ -55,6 +55,12 @@ func TestGetTxPriority(t *testing.T) {
 			fee:         math.NewInt(1_000),
 			gas:         0,
 			expectedPri: 0,
+		},
+		{
+			name:        "gas limit above the max int64 is not narrowed to a negative value",
+			fee:         math.NewIntFromUint64(1 << 63),
+			gas:         1 << 63,
+			expectedPri: 1_000_000,
 		},
 		{
 			name:        "priority that overflows int64 returns zero priority",
