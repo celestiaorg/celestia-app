@@ -150,7 +150,9 @@ jobs:
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneForwardingCustomHook
             entrypoint: TestHyperlaneTestSuite
-            forwarding_relayer_image: ghcr.io/celestiaorg/forwarding-relayer:custom-igp-hook
+            # forwarding-relayer jonas/hook-in-derivation @ 5c65d4f, which carries the
+            # matching custom_hook_id/custom_hook_metadata address derivation.
+            forwarding_relayer_image: ghcr.io/celestiaorg/forwarding-relayer:sha-5c65d4f
           - testcase: TestHyperlaneZKIsmStateTransition
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneZKIsmStateMembership

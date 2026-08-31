@@ -32,6 +32,19 @@ message QueryDeriveForwardingAddressRequest {
 
   // token_id is the Hyperlane token identifier to bind this forwarding address to.
   string token_id = 3;
+
+  // custom_hook_id optionally binds this forwarding address to a specific
+  // post-dispatch hook (e.g. an alternative IGP). Hex-encoded (0x prefix optional).
+  // When set, the resulting address can only be forwarded through that exact hook.
+  // Empty or the zero address => an address that uses the mailbox default hook.
+  string custom_hook_id = 4;
+
+  // custom_hook_metadata optionally binds this forwarding address to specific hook
+  // metadata. Hex-encoded (0x prefix optional). It is committed alongside
+  // custom_hook_id: an address derived with either can only be forwarded with exactly
+  // the same pair, and an address derived with neither only through the mailbox
+  // default hook with no metadata.
+  string custom_hook_metadata = 5;
 }
 
 // QueryDeriveForwardingAddressResponse is the response for DeriveForwardingAddress.

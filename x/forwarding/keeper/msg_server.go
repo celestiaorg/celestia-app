@@ -40,7 +40,41 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 		return nil, fmt.Errorf("invalid token_id hex: %w", err)
 	}
 
-	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
+	// Optional custom post-dispatch hook (e.g. an alternative IGP). Empty or the zero
+	// address => mailbox default hook. Decoded before the derivation below because the
+	// address commits to it. The hook only steers which hook is paid for delivery; it
+	// cannot change where the tokens land (still destRecipient).
+	var customHookId *util.HexAddress
+	if msg.CustomHookId != "" {
+		h, err := util.DecodeHexAddress(msg.CustomHookId)
+		if err != nil {
+			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
+		}
+		// Leave nil for the zero address so the quote and dispatch paths agree:
+		// QuoteDispatch substitutes the default hook on IsZeroAddress, but
+		// DispatchMessage only does so on a nil pointer, so a non-nil zero would be
+		// quoted against the default hook yet revert at dispatch.
+		if !h.IsZeroAddress() {
+			customHookId = &h
+		}
+	}
+
+	// Committed alongside the hook, as decoded bytes, so equivalent hex encodings agree.
+	var customHookMetadata []byte
+	if msg.CustomHookMetadata != "" {
+		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)
+		if err != nil {
+			return nil, fmt.Errorf("invalid custom_hook_metadata hex: %w", err)
+		}
+	}
+
+	// A forward carrying either field must target an address derived with that exact pair,
+	// so a caller cannot substitute one on someone else's deposit.
+	var hookBytes []byte
+	if customHookId != nil {
+		hookBytes = customHookId.Bytes()
+	}
+	expectedAddr, err := types.DeriveForwardingAddress(msg.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive forwarding address: %w", err)
 	}
@@ -67,32 +101,6 @@ func (m msgServer) Forward(goCtx context.Context, msg *types.MsgForward) (*types
 	balance := m.k.bankKeeper.SpendableCoin(ctx, forwardAddr, denom)
 	if !balance.IsPositive() {
 		return nil, types.ErrNoBalance
-	}
-
-	// Optional custom post-dispatch hook (e.g. an alternative IGP). Empty =>
-	// mailbox default hook. The hook only steers which hook is paid for delivery;
-	// it cannot change where the tokens land (still destRecipient).
-	var customHookId *util.HexAddress
-	if msg.CustomHookId != "" {
-		h, err := util.DecodeHexAddress(msg.CustomHookId)
-		if err != nil {
-			return nil, fmt.Errorf("invalid custom_hook_id hex: %w", err)
-		}
-		// The zero address is the sentinel for "mailbox default hook". Leave
-		// customHookId nil so the quote and dispatch paths agree: QuoteDispatch
-		// substitutes the default hook on IsZeroAddress, but DispatchMessage only
-		// does so when the pointer is nil, so a non-nil zero address would be
-		// quoted against the default hook yet revert at dispatch.
-		if !h.IsZeroAddress() {
-			customHookId = &h
-		}
-	}
-	var customHookMetadata []byte
-	if msg.CustomHookMetadata != "" {
-		customHookMetadata, err = util.DecodeEthHex(msg.CustomHookMetadata)
-		if err != nil {
-			return nil, fmt.Errorf("invalid custom_hook_metadata hex: %w", err)
-		}
 	}
 
 	messageID, err := m.forwardToken(ctx, forwardAddr, signerAddr, hypToken, balance, msg.DestDomain, destRecipient, msg.MaxIgpFee, customHookId, customHookMetadata)
