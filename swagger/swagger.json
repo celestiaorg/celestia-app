@@ -500,6 +500,20 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "customHookId",
+            "description": "custom_hook_id optionally binds this forwarding address to a specific\npost-dispatch hook (e.g. an alternative IGP). Hex-encoded (0x prefix optional).\nWhen set, the resulting address can only be forwarded through that exact hook.\nEmpty or the zero address => an address that uses the mailbox default hook.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "customHookMetadata",
+            "description": "custom_hook_metadata optionally binds this forwarding address to specific hook\nmetadata. Hex-encoded (0x prefix optional). It is committed alongside\ncustom_hook_id: an address derived with either can only be forwarded with exactly\nthe same pair, and an address derived with neither only through the mailbox\ndefault hook with no metadata.",
+            "in": "query",
+            "required": false,
+            "type": "string"
           }
         ],
         "tags": [
