@@ -33,6 +33,7 @@ import (
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -50,7 +51,7 @@ func TestCheckTx(t *testing.T) {
 	namespace1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"}
+	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
 	signers := make([]*user.Signer, len(accounts))
@@ -362,6 +363,25 @@ func TestCheckTx(t *testing.T) {
 					remaining -= n
 				}
 				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
+			name:      "MsgModuleQuerySafe queries exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// A single MsgModuleQuerySafe dispatches one query per request, so
+				// counting it as one message would let it bypass the limit.
+				requests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages+1)
+				for i := range requests {
+					requests[i] = &icahosttypes.QueryRequest{Path: "/cosmos.bank.v1beta1.Query/TotalSupply"}
+				}
+				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
 				require.NoError(t, err)
 				return tx
 			},

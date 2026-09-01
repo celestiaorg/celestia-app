@@ -28,6 +28,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -395,8 +396,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	}
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
-	// +2 accounts are grantees for the authz MsgExec txs built below.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 2
+	// +2 accounts are grantees for the authz MsgExec txs built below and +3 sign
+	// the MsgModuleQuerySafe txs.
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 5
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -477,6 +479,40 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	msgExecExceedsTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages+1)
 	accountIndex++
 	msgExecAtLimitTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages)
+	accountIndex++
+
+	// Build a tx with a single MsgModuleQuerySafe carrying numQueries requests.
+	// The message server dispatches one query per request, so a naive count of one
+	// message per MsgModuleQuerySafe would let these bypass MaxSDKMessages.
+	buildModuleQuerySafeTx := func(accIdx, numQueries int) []byte {
+		requests := make([]*icahosttypes.QueryRequest, numQueries)
+		for i := range requests {
+			requests[i] = &icahosttypes.QueryRequest{Path: "/cosmos.bank.v1beta1.Query/TotalSupply"}
+		}
+		msg := icahosttypes.NewMsgModuleQuerySafe(addrs[accIdx].String(), requests)
+		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}
+
+	querySafeExceedsTx := buildModuleQuerySafeTx(accountIndex, appconsts.MaxSDKMessages+1)
+	accountIndex++
+	querySafeAtLimitTx := buildModuleQuerySafeTx(accountIndex, appconsts.MaxSDKMessages)
+	accountIndex++
+
+	// A MsgModuleQuerySafe with no queries dispatches nothing, but the tx still
+	// costs a full ante pass, so it must not be weightless. Per-message
+	// ValidateBasic, which rejects an empty request list, does not run in the
+	// ante chain ProcessProposal uses.
+	emptyQuerySafeTx := func() []byte {
+		msgs := make([]sdk.Msg, appconsts.MaxSDKMessages+1)
+		for i := range msgs {
+			msgs[i] = icahosttypes.NewMsgModuleQuerySafe(addrs[accountIndex].String(), nil)
+		}
+		rawTx, _, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}()
 
 	type testCase struct {
 		name           string
@@ -522,6 +558,24 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			name:           "accept authz MsgExec flattening to exactly MaxSDKMessages",
 			txs:            [][]byte{msgExecAtLimitTx},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
+			name:           "reject MsgModuleQuerySafe queries beyond MaxSDKMessages",
+			txs:            [][]byte{querySafeExceedsTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept MsgModuleQuerySafe queries at exactly MaxSDKMessages",
+			txs:            [][]byte{querySafeAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
+			name:           "reject MsgModuleQuerySafe with no queries beyond MaxSDKMessages",
+			txs:            [][]byte{emptyQuerySafeTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
 			validSquare:    true,
 		},
 	}
