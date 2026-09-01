@@ -23,13 +23,10 @@ type channelKeeper interface {
 	GetAppVersion(ctx sdk.Context, portID, channelID string) (string, bool)
 }
 
-// countExecutableMsgs counts messages the way a block executes them. A MsgExec
-// contributes the messages authz dispatches from it, a MsgModuleQuerySafe
-// contributes the queries it dispatches, and a MsgRecvPacket bound for the ICA
-// host contributes the messages the host dispatches from its payload. This stops
-// a tx from hiding many executable messages behind a single wrapper to bypass the
-// per-block SDK message limit. Nested MsgExec is rejected by the ante handler, so
-// counting one level is enough.
+// countExecutableMsgs counts messages the way a block executes them: every
+// message costs one, plus whatever it dispatches. This stops a tx from hiding
+// many executable messages behind a single wrapper to bypass the per-block SDK
+// message limit.
 func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int {
 	// Counting filters a proposal, it does not execute the tx, so reading the
 	// channel must not draw on the gas the previous tx left on the meter.
@@ -39,14 +36,7 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 
 	count := 0
 	for _, msg := range msgs {
-		switch msg := msg.(type) {
-		case *authz.MsgExec:
-			count += countExecMsgs(ctx, ck, msg)
-		case *channeltypes.MsgRecvPacket:
-			count += 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
-		default:
-			count += msgWeight(msg)
-		}
+		count += msgWeight(ctx, ck, msg)
 		// Callers only compare the count against the limit, so stop once it is
 		// past it rather than reading a channel for every remaining packet.
 		if count > appconsts.MaxSDKMessages {
@@ -56,33 +46,41 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 	return count
 }
 
-// msgWeight returns the number of executable units in a single message that does
-// not expand further. It never returns less than one: a message with an empty
-// fan-out still costs a full ante pass, and per-message ValidateBasic does not
-// run in the ante chain that ProcessProposal uses.
-func msgWeight(msg sdk.Msg) int {
-	if querySafe, ok := msg.(*icahosttypes.MsgModuleQuerySafe); ok {
-		return max(1, len(querySafe.Requests))
+// msgWeight returns what a message costs: one for the message itself, plus the
+// messages it dispatches. A message with no fan-out, or an empty one, still
+// weighs one, since it costs a full ante pass either way.
+func msgWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+	if exec, ok := msg.(*authz.MsgExec); ok {
+		return 1 + execFanout(ctx, ck, exec)
+	}
+	return leafWeight(ctx, ck, msg)
+}
+
+// leafWeight is msgWeight for a message that is not a MsgExec.
+func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
+	switch msg := msg.(type) {
+	case *icahosttypes.MsgModuleQuerySafe:
+		return 1 + len(msg.Requests)
+	case *channeltypes.MsgRecvPacket:
+		return 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
 	}
 	return 1
 }
 
-// countExecMsgs counts the messages a MsgExec dispatches. A wrapped
-// MsgRecvPacket expands further, so it is counted like a top level one.
-func countExecMsgs(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec) int {
+// execFanout counts the messages a MsgExec dispatches, not counting the MsgExec
+// itself. It does not recurse: the ante handler rejects a nested MsgExec, and
+// counting runs before the ante handler, so recursing on attacker controlled
+// nesting could exhaust the stack in PrepareProposal, which has no recover.
+func execFanout(ctx sdk.Context, ck channelKeeper, exec *authz.MsgExec) int {
 	nested, err := exec.GetMessages()
 	if err != nil {
 		// The ante handler rejects a tx with undecodable inner messages, so
-		// count the wrappers rather than treating the MsgExec as free.
+		// count the wrappers rather than treating them as free.
 		return len(exec.Msgs)
 	}
 	count := 0
 	for _, msg := range nested {
-		if recv, ok := msg.(*channeltypes.MsgRecvPacket); ok {
-			count += 1 + countICAPacketMsgs(ctx, ck, recv.Packet)
-			continue
-		}
-		count += msgWeight(msg)
+		count += leafWeight(ctx, ck, msg)
 	}
 	return count
 }

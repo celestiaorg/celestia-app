@@ -462,27 +462,34 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
-	// Build a tx that carries totalInner executable messages spread across authz
+	// Build a tx whose messages weigh totalWeight in total, spread across authz
 	// MsgExec wrappers. Each wrapper holds at most 99 inner messages to stay under
-	// the tx decoder's per-message unpack limit (MaxUnpackAnySubCalls). Only the
-	// wrappers are top-level messages, so a naive top-level count would let these
-	// bypass MaxSDKMessages.
-	buildMsgExecTx := func(accIdx, totalInner int) []byte {
+	// the tx decoder's per-message unpack limit (MaxUnpackAnySubCalls), and weighs
+	// one more than it holds. Plain sends make up any remainder. Only the wrappers
+	// are top-level messages, so a naive top-level count would let these bypass
+	// MaxSDKMessages.
+	buildMsgExecTx := func(accIdx, totalWeight int) []byte {
 		const perExec = 99
+		send := func() sdk.Msg {
+			return banktypes.NewMsgSend(
+				addrs[accIdx],
+				testnode.RandomAddress().(sdk.AccAddress),
+				sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+			)
+		}
 		var msgs []sdk.Msg
-		for remaining := totalInner; remaining > 0; {
-			n := min(perExec, remaining)
-			inner := make([]sdk.Msg, n)
+		remaining := totalWeight
+		for remaining >= perExec+1 {
+			inner := make([]sdk.Msg, perExec)
 			for i := range inner {
-				inner[i] = banktypes.NewMsgSend(
-					addrs[accIdx],
-					testnode.RandomAddress().(sdk.AccAddress),
-					sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
-				)
+				inner[i] = send()
 			}
 			exec := authz.NewMsgExec(addrs[accIdx], inner)
 			msgs = append(msgs, &exec)
-			remaining -= n
+			remaining -= perExec + 1
+		}
+		for ; remaining > 0; remaining-- {
+			msgs = append(msgs, send())
 		}
 		rawTx, _, err := signers[accIdx].CreateTx(msgs, user.SetGasLimit(10000000), user.SetFee(10000))
 		require.NoError(t, err)
@@ -494,11 +501,12 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	msgExecAtLimitTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages)
 	accountIndex++
 
-	// Build a tx with a single MsgModuleQuerySafe carrying numQueries requests.
-	// The message server dispatches one query per request, so a naive count of one
-	// message per MsgModuleQuerySafe would let these bypass MaxSDKMessages.
-	buildModuleQuerySafeTx := func(accIdx, numQueries int) []byte {
-		requests := make([]*icahosttypes.QueryRequest, numQueries)
+	// Build a tx with a single MsgModuleQuerySafe weighing totalWeight. The
+	// message server dispatches one query per request and the message itself
+	// weighs one, so a naive count of one message per MsgModuleQuerySafe would
+	// let these bypass MaxSDKMessages.
+	buildModuleQuerySafeTx := func(accIdx, totalWeight int) []byte {
+		requests := make([]*icahosttypes.QueryRequest, totalWeight-1)
 		for i := range requests {
 			requests[i] = &icahosttypes.QueryRequest{Path: "/cosmos.bank.v1beta1.Query/TotalSupply"}
 		}
@@ -508,16 +516,16 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		return rawTx
 	}
 
-	// Build a tx carrying a single MsgRecvPacket whose ICA host payload holds
-	// totalInner messages. Only the packet is a top-level message, so a naive
-	// top-level count would let these bypass MaxSDKMessages. The packet itself
-	// counts as one, hence totalInner-1 messages in the payload.
+	// Build a tx carrying a single MsgRecvPacket weighing totalWeight. Only the
+	// packet is a top-level message, so a naive top-level count would let these
+	// bypass MaxSDKMessages. The packet itself weighs one, hence totalWeight-1
+	// messages in its payload.
 	// The counter reads the payload encoding from the channel, so the channel the
 	// packets arrive on has to exist.
 	seedICAHostChannel(t, testApp)
 
-	buildICATx := func(accIdx, totalInner int) []byte {
-		msg := icaHostRecvPacket(t, enc.Codec, addrs[accIdx], totalInner-1)
+	buildICATx := func(accIdx, totalWeight int) []byte {
+		msg := icaHostRecvPacket(t, enc.Codec, addrs[accIdx], totalWeight-1)
 		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10000000), user.SetFee(10000))
 		require.NoError(t, err)
 		return rawTx

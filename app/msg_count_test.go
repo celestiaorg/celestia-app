@@ -93,29 +93,29 @@ func TestCountExecutableMsgs(t *testing.T) {
 			expected: 3,
 		},
 		{
-			name:     "MsgExec counts its inner messages",
+			name:     "MsgExec counts its inner messages plus itself",
 			msgs:     []sdk.Msg{msgExecWith(sends(99)...)},
-			expected: 99,
+			expected: 100,
 		},
 		{
 			name:     "mix of plain and MsgExec",
 			msgs:     []sdk.Msg{msgExecWith(sends(2)...), send(), msgExecWith(sends(3)...)},
-			expected: 6,
+			expected: 8,
 		},
 		{
-			name:     "empty MsgExec counts as zero",
+			name:     "empty MsgExec counts as one",
 			msgs:     []sdk.Msg{msgExecWith()},
-			expected: 0,
+			expected: 1,
 		},
 		{
-			name:     "MsgModuleQuerySafe counts its queries",
+			name:     "MsgModuleQuerySafe counts its queries plus itself",
 			msgs:     []sdk.Msg{moduleQuerySafeWith(5)},
-			expected: 5,
+			expected: 6,
 		},
 		{
 			name:     "MsgModuleQuerySafe inside MsgExec counts its queries",
 			msgs:     []sdk.Msg{msgExecWith(moduleQuerySafeWith(5))},
-			expected: 5,
+			expected: 7,
 		},
 		{
 			name:     "MsgModuleQuerySafe with no queries still counts as one",
@@ -125,7 +125,7 @@ func TestCountExecutableMsgs(t *testing.T) {
 		{
 			name:     "mix of MsgModuleQuerySafe and plain messages",
 			msgs:     []sdk.Msg{moduleQuerySafeWith(3), send(), msgExecWith(moduleQuerySafeWith(2), send())},
-			expected: 7,
+			expected: 10,
 		},
 		{
 			name:     "proto3 ICA packet counts its payload messages plus the packet",
@@ -172,7 +172,7 @@ func TestCountExecutableMsgs(t *testing.T) {
 			name:     "ICA packet inside a MsgExec counts its payload messages",
 			msgs:     []sdk.Msg{msgExecWith(icaRecvPacket(50, icatypes.EncodingProtobuf))},
 			encoding: icatypes.EncodingProtobuf,
-			expected: 51,
+			expected: 52,
 		},
 		{
 			// An oversized identifier would panic the store, whose keys are
@@ -198,12 +198,12 @@ func TestCountExecutableMsgs(t *testing.T) {
 			expected: 1 + appconsts.MaxSDKMessages,
 		},
 		{
-			name: "undecodable message inside a MsgExec counts as one",
+			name: "undecodable message inside a MsgExec counts the wrapper and the message",
 			msgs: []sdk.Msg{&authz.MsgExec{Msgs: []*codectypes.Any{{
 				TypeUrl: sdk.MsgTypeURL(&channeltypes.MsgRecvPacket{}),
 				Value:   []byte("not a MsgRecvPacket"),
 			}}}},
-			expected: 1,
+			expected: 2,
 		},
 	}
 
