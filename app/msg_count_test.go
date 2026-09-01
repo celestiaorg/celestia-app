@@ -1,6 +1,7 @@
 package app
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
@@ -55,9 +56,14 @@ func TestCountExecutableMsgs(t *testing.T) {
 		require.NoError(t, err)
 		return bz
 	}
-	// recvPacket wraps payload in a MsgRecvPacket addressed to destPort.
-	recvPacket := func(destPort string, data []byte) sdk.Msg {
-		packet := channeltypes.NewPacket(data, 1, "icacontroller-test", "channel-0", destPort, "channel-1", clienttypes.ZeroHeight(), 0)
+	// recvPacket wraps payload in a MsgRecvPacket addressed to destPort on
+	// destChannel, defaulting to a valid channel id when none is given.
+	recvPacket := func(destPort string, data []byte, destChannel ...string) sdk.Msg {
+		channelID := "channel-1"
+		if len(destChannel) > 0 {
+			channelID = destChannel[0]
+		}
+		packet := channeltypes.NewPacket(data, 1, "icacontroller-test", "channel-0", destPort, channelID, clienttypes.ZeroHeight(), 0)
 		return channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
 	}
 	// icaRecvPacket builds a MsgRecvPacket the ICA host would execute n messages from.
@@ -167,6 +173,14 @@ func TestCountExecutableMsgs(t *testing.T) {
 			msgs:     []sdk.Msg{msgExecWith(icaRecvPacket(50, icatypes.EncodingProtobuf))},
 			encoding: icatypes.EncodingProtobuf,
 			expected: 51,
+		},
+		{
+			// An oversized identifier would panic the store, whose keys are
+			// length bounded, before ValidateBasic ever rejects the packet.
+			name:     "ICA packet with an oversized channel id counts as over the limit",
+			msgs:     []sdk.Msg{recvPacket(icatypes.HostPortID, icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: icaPayload(1, icatypes.EncodingProtobuf)}.GetBytes(), strings.Repeat("c", 200_000))},
+			encoding: icatypes.EncodingProtobuf,
+			expected: 1 + appconsts.MaxSDKMessages,
 		},
 		{
 			// Without the channel the encoding is unknown, so the payload cannot
@@ -291,4 +305,37 @@ func requireNoUndercount(t *testing.T, cdc codec.Codec, payload []byte) {
 		require.GreaterOrEqual(t, counted, len(dispatched),
 			"counted %d but the host would dispatch %d under %s", counted, len(dispatched), enc)
 	}
+}
+
+// TestCountExecutableMsgsBoundsChannelReads checks that counting stops once the
+// limit is passed. Without that, a transaction packed with ICA packets forces a
+// channel read per packet before the count is ever compared against the limit,
+// all of it before the ante handler charges any gas.
+func TestCountExecutableMsgsBoundsChannelReads(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+	payload, err := icatypes.SerializeCosmosTx(cdc, nil, icatypes.EncodingProtobuf)
+	require.NoError(t, err)
+	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
+
+	msgs := make([]sdk.Msg, 50_000)
+	for i := range msgs {
+		msgs[i] = channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
+	}
+
+	ck := &countingChannelKeeper{encoding: icatypes.EncodingProtobuf}
+	require.Greater(t, countExecutableMsgs(sdk.Context{}, ck, msgs), appconsts.MaxSDKMessages)
+	require.LessOrEqual(t, ck.reads, appconsts.MaxSDKMessages+1,
+		"counting read %d channels for %d packets", ck.reads, len(msgs))
+}
+
+// countingChannelKeeper records how many channel reads a count pass makes.
+type countingChannelKeeper struct {
+	encoding string
+	reads    int
+}
+
+func (k *countingChannelKeeper) GetAppVersion(sdk.Context, string, string) (string, bool) {
+	k.reads++
+	return string(icatypes.ModuleCdc.MustMarshalJSON(&icatypes.Metadata{Encoding: k.encoding})), true
 }

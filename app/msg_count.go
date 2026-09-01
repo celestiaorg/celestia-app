@@ -10,6 +10,7 @@ import (
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
+	host "github.com/cosmos/ibc-go/v8/modules/core/24-host"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -45,6 +46,11 @@ func countExecutableMsgs(ctx sdk.Context, ck channelKeeper, msgs []sdk.Msg) int 
 			count += 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
 		default:
 			count += msgWeight(msg)
+		}
+		// Callers only compare the count against the limit, so stop once it is
+		// past it rather than reading a channel for every remaining packet.
+		if count > appconsts.MaxSDKMessages {
+			return count
 		}
 	}
 	return count
@@ -95,6 +101,13 @@ func countICAPacketMsgs(ctx sdk.Context, ck channelKeeper, packet channeltypes.P
 	}
 	if data.Type != icatypes.EXECUTE_TX {
 		return 0
+	}
+
+	// Bound the channel identifier before it reaches the store, which panics on
+	// an oversized key. The packet is attacker controlled and MsgRecvPacket's
+	// ValidateBasic only runs later, in the ante handler.
+	if err := host.ChannelIdentifierValidator(packet.DestinationChannel); err != nil {
+		return appconsts.MaxSDKMessages
 	}
 
 	// Count with the encoding the channel negotiated, the same way the host
