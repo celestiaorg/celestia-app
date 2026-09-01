@@ -38,6 +38,32 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCheckTxICAPacketWithinLimit checks that CheckTx counts an ICA packet's
+// payload rather than falling back to the fail-closed count. Both paths reject a
+// packet over the limit with the same code, so only a packet under the limit
+// tells them apart: counted it passes the limit check, while a count that failed
+// closed would exceed it.
+func TestCheckTxICAPacketWithinLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	seedICAHostChannel(t, testApp)
+
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
+	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+	addr := signer.Account(accounts[0]).Address()
+
+	msg := icaHostRecvPacket(t, encodingConfig.Codec, addr, appconsts.MaxSDKMessages-1)
+	rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+	require.NoError(t, err)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
+	require.NoError(t, err)
+	// The packet still fails later in the ante handler, since the test only
+	// seeds the channel, but it must not fail on the message count.
+	require.NotEqual(t, apperr.ErrTxExceedsMaxSDKMessages.ABCICode(), resp.Code, resp.Log)
+}
+
 // Here we only need to check the functionality that is added to CheckTx. We
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
 func TestCheckTx(t *testing.T) {
