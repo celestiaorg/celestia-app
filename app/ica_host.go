@@ -1,6 +1,9 @@
 package app
 
 // IcaAllowMessages returns the list of messages that are allowed to be sent via ICA.
+//
+// Adding a message that dispatches further messages (e.g. MsgExec) would let one
+// ICA packet execute more messages than countExecutableMsgs counts.
 func IcaAllowMessages() []string {
 	return []string{
 		"/ibc.applications.transfer.v1.MsgTransfer",

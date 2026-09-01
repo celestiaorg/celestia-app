@@ -60,6 +60,10 @@ func TestCheckTx(t *testing.T) {
 		signers[i] = createSigner(t, kr, account, encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
 	}
 
+	// The message counter reads the payload encoding from the channel, so the
+	// channel the ICA packet below arrives on has to exist.
+	seedICAHostChannel(t, testApp)
+
 	opts := blobfactory.FeeTxOpts(1e9)
 	type test struct {
 		name             string
@@ -381,6 +385,22 @@ func TestCheckTx(t *testing.T) {
 					requests[i] = &icahosttypes.QueryRequest{Path: "/cosmos.bank.v1beta1.Query/TotalSupply"}
 				}
 				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
+			name:      "ICA packet flattening exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// The ICA host dispatches every message in the packet payload,
+				// but only the packet is a top-level message, so this must still
+				// be rejected. The packet itself counts as one.
+				msg := icaHostRecvPacket(t, encodingConfig.Codec, addr, appconsts.MaxSDKMessages)
 				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
 				require.NoError(t, err)
 				return tx

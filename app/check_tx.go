@@ -55,7 +55,12 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	if msgCount := countExecutableMsgs(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+	checkTxCtx, ok := app.CheckState()
+	if !ok {
+		err := fmt.Errorf("checkState not set")
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+	}
+	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
