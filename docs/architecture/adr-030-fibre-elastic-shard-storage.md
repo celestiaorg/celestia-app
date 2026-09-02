@@ -170,7 +170,7 @@ prefix = "fibre"
 
 Operators must create the bucket before Fibre starts. Operators will configure the bucket and object-key prefix.
 
-Fibre will derive the chain ID and validator address. Fibre will read credentials from the standard AWS environment variables.
+Fibre will derive the chain ID and validator consensus address (`celestiavalcons...`). Fibre will read credentials from the standard AWS environment variables.
 
 The implementation will use the existing AWS SDK for Go v2 dependency ([`go.mod:21`](../../go.mod#L21)).
 
@@ -179,12 +179,12 @@ The implementation will use the existing AWS SDK for Go v2 dependency ([`go.mod:
 Each object key will use this format:
 
 ```text
-<prefix>/<chain-id>/<validator-address>/shards/<commitment>-<promise-hash>
+<prefix>/<chain-id>/<validator-consensus-address>/shards/<commitment>-<promise-hash>
 ```
 
 The prefix is part of each key. The chain ID prevents collisions when one bucket contains several networks.
 
-The validator address prevents collisions when one operator uses the bucket for several validators. Each object will contain one complete validator-assigned `BlobShard`.
+The validator consensus address prevents collisions when one operator uses the bucket for several validators. Each object will contain one complete validator-assigned `BlobShard`.
 
 ### Prune flow
 
