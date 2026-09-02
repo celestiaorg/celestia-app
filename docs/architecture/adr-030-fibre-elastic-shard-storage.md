@@ -8,6 +8,7 @@
 - 2026-09-02: Record the in-memory cache follow-up
 - 2026-09-02: Recommend a 30-day object lifecycle safety net
 - 2026-09-02: Batch object deletion during pruning
+- 2026-09-02: Make conditional object writes idempotent
 
 ## Status
 
@@ -88,13 +89,15 @@ Both durable backends will use the existing shard binary codec. One payload cont
 2. `Store` calculates the exact encoded size without encoding the shard ([`fibre/store_codec.go:90`](../../fibre/store_codec.go#L90)).
 3. `Store` streams `writeShardBinary` directly into the `PutObject` request body ([`fibre/store_codec.go:33`](../../fibre/store_codec.go#L33)).
 4. The request uses `If-None-Match: *` to prevent an overwrite.
-5. `Store` waits for the object upload response.
-6. `Store` commits the Pebble metadata with the `object` backend and encoded payload size.
-7. The server signs and returns the storage promise.
+5. If `PutObject` succeeds, the object write is complete.
+6. If `PutObject` returns `PreconditionFailed` because `If-None-Match: *` found an existing object, `Store` treats the object as already written.
+7. Any other object-write error fails the upload.
+8. `Store` commits the Pebble metadata with the `object` backend and encoded payload size.
+9. The server signs and returns the storage promise.
 
 Object storage is authoritative in object mode. Object mode does not write shard payloads to local disk.
 
-If the object write fails, `Store` does not commit metadata or sign the storage promise.
+If the object write fails with an error other than `PreconditionFailed`, `Store` does not commit metadata or sign the storage promise.
 
 If the Pebble commit fails, `Store` attempts to remove the object. It returns an error after the cleanup attempt.
 
