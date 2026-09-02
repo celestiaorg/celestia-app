@@ -9,6 +9,7 @@
 - 2026-09-02: Recommend a 30-day object lifecycle safety net
 - 2026-09-02: Batch object deletion during pruning
 - 2026-09-02: Make conditional object writes idempotent
+- 2026-09-02: Define the shard-marker binary format
 
 ## Status
 
@@ -62,6 +63,29 @@ Each Pebble shard marker will contain a version, the durable backend, and an 8-b
 Existing empty marker values will mean legacy local storage. The marker lets Fibre read and prune the correct backend after an operator changes the storage mode between node starts.
 
 ## Detailed Design
+
+### Shard marker format
+
+An empty shard-marker value means legacy local storage. Fibre will get its payload size from the local file when required.
+
+Each non-empty version 1 marker will contain exactly 10 bytes:
+
+| Offset | Size | Field |
+| ---: | ---: | --- |
+| 0 | 1 byte | Version: `0x01` |
+| 1 | 1 byte | Backend: `0x01` for local or `0x02` for object |
+| 2 | 8 bytes | Unsigned encoded payload size in big-endian order |
+
+The payload size will equal the number of bytes produced by `writeShardBinary`.
+
+Marker decoding will use these validation rules:
+
+- A version 1 marker must contain exactly 10 bytes.
+- The version and backend tag must be recognised.
+- The payload size must be greater than zero and no greater than `math.MaxInt64`.
+- A truncated, overlong, malformed, or unsupported marker is an integrity error.
+
+These rules apply to `Store.Get`, `Store.Has`, `Store.Size`, and `Store.PruneBefore`. After an integrity error, these methods must not select a backend or modify stored data.
 
 ### Design overview
 
