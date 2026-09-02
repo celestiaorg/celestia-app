@@ -27,9 +27,15 @@ var defaultArgs = []string{
 }
 
 // interBlockCacheOffArgs disables the SDK inter-block cache for the embedded
-// v3-v8 apps. Appended after the operator's own args, it overrides an
+// v4-v8 apps. Appended after the operator's own args, it overrides an
 // explicit --inter-block-cache=true.
 var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defaultArgs...)
+
+// interBlockCacheOnArgs forces the inter-block cache on for the embedded v3
+// app. v3's upgrade-height Commit reloads the store mid-commit and relies on
+// the cache to preserve the upgrade block's writes; running v3 with the cache
+// disabled discards those writes and forks replay. See issue #7770.
+var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, defaultArgs...)
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
@@ -103,7 +109,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	v3Args := interBlockCacheOffArgs
+	v3Args := interBlockCacheOnArgs
 	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
