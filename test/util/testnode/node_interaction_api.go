@@ -191,7 +191,7 @@ func (c *Context) WaitForBlocks(n int64) error {
 	return err
 }
 
-func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, error) {
+func (c *Context) WaitForTx(hashHexStr string, blocks int) (*rpctypes.ResultTx, error) { //nolint:staticcheck
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 

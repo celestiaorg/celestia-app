@@ -1,6 +1,6 @@
 module celestiaorg/celestia-app/test/docker-e2e
 
-go 1.26.5
+go 1.26.6
 
 require (
 	cosmossdk.io/math v1.5.3
@@ -85,8 +85,8 @@ require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/celestiaorg/go-square/v2 v2.3.3 // indirect
 	github.com/celestiaorg/merkletree v0.0.0-20210714075610-a84dc3ddbbe4 // indirect
-	github.com/celestiaorg/nmt v0.24.3 // indirect
-	github.com/celestiaorg/rsmt2d v0.15.2 // indirect
+	github.com/celestiaorg/nmt v0.24.4 // indirect
+	github.com/celestiaorg/rsmt2d v0.15.3 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
@@ -286,7 +286,7 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.7
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
 	// from celestiaorg/cosmos-sdk#705, which closes a data race between
@@ -297,7 +297,7 @@ replace (
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
 	github.com/celestiaorg/celestia-app/v10 => ../..
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.8
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.41.0
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.11
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
