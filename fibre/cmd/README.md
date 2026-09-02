@@ -139,31 +139,19 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 ## Transport security (TLS)
 
-The Fibre server↔client link is always TLS-encrypted, and it is fully
-automatic: there are no certificates to obtain, configure, or renew.
+The Fibre server↔client link is always TLS-encrypted, and it is fully automatic: there are no certificates to obtain, configure, or renew.
 
-- On startup the server generates its own certificate and has it endorsed once
-  by your validator's consensus key (through the signer). Clients verify that
-  endorsement against the validator set, so the connection proves it belongs to
-  your validator — no certificate authority involved.
-- Identity is bound to the consensus key, not the network address, so the host
-  you register on-chain can be an IP literal or a DNS name.
-- A restart generates a fresh certificate automatically. After changing the
-  signer (`--signer-grpc-address`), restart the server so the certificate is
-  endorsed with the right key.
-- Downloads are public — any peer can read shards. Uploads are still gated by
-  the payment-promise check.
+- On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set, so the connection proves it belongs to your validator — no certificate authority involved.
+- Identity is bound to the consensus key, not the network address, so the host you register on-chain can be an IP literal or a DNS name.
+- A restart generates a fresh certificate automatically. After changing the signer (`--signer-grpc-address`), restart the server so the certificate is endorsed with the right key.
+- Downloads are public — any peer can read shards. Uploads are still gated by the payment-promise check.
 
 Two things to keep in mind:
 
-- The app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`)
-  are **not** TLS-protected. Keep them on the same host or a trusted local
-  network. If you need to run fibre on a separate server, use its private IP or a closed network connection.
-- There is no plaintext fallback, so every Fibre server and client on the
-  network must run a TLS-capable build.
+- The app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected. Keep them on the same host or a trusted local network. If you need to run fibre on a separate server, use its private IP or a closed network connection.
+- There is no plaintext fallback, so every Fibre server and client on the network must run a TLS-capable build.
 
-For the full design (endorsement scheme, certificate format, OIDs), see the
-[Fibre server spec](../../specs/src/fibre_server.md).
+For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
 
 ## Observability
 
