@@ -54,7 +54,7 @@ The governance-derived storage budget will continue to limit logical occupancy.
 
 Each Pebble shard marker will contain a version, the durable backend, and an 8-byte encoded payload size. The size lets Fibre calculate occupancy and freed capacity without object listing or metadata requests.
 
-Existing empty marker values will mean legacy local storage. The marker lets Fibre read and prune the correct backend after an operator changes the storage mode between node starts.
+The marker lets Fibre read and prune the correct backend after an operator changes the storage mode between node starts.
 
 ## Detailed Design
 
