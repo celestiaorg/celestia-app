@@ -104,21 +104,21 @@ At startup, `Store` removes incomplete local-mode staging files.
 
 ### Read flow
 
-Pebble will return the candidate shard markers for a requested commitment. Each marker records the payload's durable backend.
+Pebble will return all shard markers that match the requested commitment. Each matching shard marker records the payload's durable backend.
 
-For each candidate, `Store` will use this flow:
+For each matching shard marker, `Store` will use this flow:
 
 1. Select the durable backend from the shard marker.
 2. For a local marker, read the local flat file.
 3. For an object marker, read the object with `GetObject`.
-4. If local storage returns `NotFound`, remove the stale marker and try the next candidate.
-5. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next candidate.
-6. If another durable-storage error occurs, record it and try the next candidate.
-7. If no candidate succeeds, return the recorded error.
+4. If local storage returns `NotFound`, remove the stale marker and try the next matching shard marker.
+5. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next matching shard marker.
+6. If another durable-storage error occurs, record it and try the next matching shard marker.
+7. If no matching shard marker succeeds, return the recorded error.
 
 Every read of an object-backed shard accesses object storage.
 
-The current read flow uses Pebble markers to select candidate shard files. It removes stale markers after missing-file errors ([`fibre/store.go:265`](../../fibre/store.go#L265), [`fibre/store.go:289`](../../fibre/store.go#L289)).
+The current read flow scans all Pebble shard markers that match the requested commitment. It removes stale markers after missing-file errors ([`fibre/store.go:265`](../../fibre/store.go#L265), [`fibre/store.go:289`](../../fibre/store.go#L289)).
 
 ### Read latency concerns
 
@@ -135,7 +135,7 @@ The `Store` API will not change. Its methods will delegate shard payload operati
 | Method | Behavior |
 |---|---|
 | `Store.Put` | Call `shards.Put` before the Pebble batch commit. |
-| `Store.Get` | Get candidate markers from Pebble, then call `shards.Get` for each candidate. |
+| `Store.Get` | Get matching shard markers from Pebble, then call `shards.Get` for each matching shard marker. |
 | `Store.Has` | Read Pebble first, then call `shards.Has` for the recorded durable backend. |
 | `Store.PruneBefore` | Call `shards.Delete` before removing the Pebble entries. |
 | `Store.Size` | Sum the sizes in shard markers and stat empty legacy markers. |
