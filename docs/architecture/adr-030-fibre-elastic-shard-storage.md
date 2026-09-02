@@ -6,6 +6,7 @@
 - 2026-09-01: Stream object uploads and simplify the read path
 - 2026-09-02: Clarify Cloudflare R2 credentials
 - 2026-09-02: Record the in-memory cache follow-up
+- 2026-09-02: Recommend a 30-day object lifecycle safety net
 
 ## Status
 
@@ -205,9 +206,9 @@ If durable deletion fails, `Store` keeps the Pebble entries. A later prune cycle
 
 For a legacy empty marker, `Store` will get the size from the local file before deletion.
 
-Fibre protocol pruning will be the only authority for shard expiration. Operators must not configure provider lifecycle rules to delete Fibre shard objects.
+Fibre protocol pruning will remain responsible for normal shard expiration. Operators should configure a provider lifecycle rule that deletes objects after at least 30 days.
 
-Provider lifecycle rules cannot read Fibre promise expiration or Pebble prune markers. A provider rule can remove a promised shard too early.
+This rule will remove orphaned objects if Fibre pruning stops. It must not replace Fibre pruning because provider rules cannot read promise expiration or Pebble prune markers. Operators must increase the lifecycle period before the protocol allows a shard to remain live for 30 days or longer.
 
 ### Capacity accounting
 
@@ -277,7 +278,7 @@ This approach preserves the Pebble marker format. It adds backend requests and r
 | Request cost | Repeated downloads can create unbounded object-read charges. | Before object mode ships, define a configurable global limit for object-read requests and measure its effect on legitimate downloads. |
 | Binary downgrade | Old Fibre cannot read live object-backed shards. | Copy live objects to legacy local paths before downgrade. |
 | Disaster recovery | Loss of Pebble removes the object index. | Complete disaster recovery is outside this ADR. |
-| Provider lifecycle rules | Provider deletion can bypass promise expiration. | Keep Fibre pruning as the only expiration authority. |
+| Provider lifecycle rules | A short lifecycle can delete a promised shard. | Use at least 30 days as a safety net and review this period when protocol retention limits change. |
 
 ## FLUP
 
