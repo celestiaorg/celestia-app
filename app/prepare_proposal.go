@@ -39,6 +39,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		handler,
 		app.MsgServiceRouter(),
 		app.encodingConfig.TxConfig,
+		app.IBCKeeper.ChannelKeeper,
 		app.MaxEffectiveSquareSize(ctx),
 		appconsts.SubtreeRootThreshold,
 	)
