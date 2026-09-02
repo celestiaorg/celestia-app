@@ -286,7 +286,7 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.7
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
 	// from celestiaorg/cosmos-sdk#705, which closes a data race between

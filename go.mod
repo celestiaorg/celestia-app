@@ -28,8 +28,8 @@ require (
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.0
-	github.com/celestiaorg/nmt v0.24.3
-	github.com/celestiaorg/rsmt2d v0.15.2
+	github.com/celestiaorg/nmt v0.24.4
+	github.com/celestiaorg/rsmt2d v0.15.3
 	github.com/cockroachdb/pebble/v2 v2.1.7
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
@@ -452,7 +452,7 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.7
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
 	// from celestiaorg/cosmos-sdk#705, which closes a data race between
