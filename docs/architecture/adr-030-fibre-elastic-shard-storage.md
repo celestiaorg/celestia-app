@@ -273,7 +273,7 @@ This approach preserves the Pebble marker format. It adds backend requests and r
 | Write latency | An object upload can exceed the current upload timeout. | Measure the complete write path against the timeout. |
 | Provider availability | An outage stops new uploads and object-backed reads. | Fibre reports the provider error and keeps its Pebble markers. |
 | Read latency | Object storage adds latency to every object-backed read. | Measure object-read latency and define request limits. |
-| Request cost | Object operations create provider charges. | Use direct `GetObject` reads and marker-based routing. |
+| Request cost | Repeated downloads can create unbounded object-read charges. | Before object mode ships, define a configurable global limit for object-read requests and measure its effect on legitimate downloads. |
 | Binary downgrade | Old Fibre cannot read live object-backed shards. | Copy live objects to legacy local paths before downgrade. |
 | Disaster recovery | Loss of Pebble removes the object index. | Complete disaster recovery is outside this ADR. |
 | Provider lifecycle rules | Provider deletion can bypass promise expiration. | Keep Fibre pruning as the only expiration authority. |
