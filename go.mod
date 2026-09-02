@@ -1,6 +1,6 @@
 module github.com/celestiaorg/celestia-app/v10
 
-go 1.26.5
+go 1.26.6
 
 require (
 	cloud.google.com/go/compute v1.67.0
@@ -28,8 +28,8 @@ require (
 	github.com/celestiaorg/go-square/v2 v2.3.3
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.0.0
-	github.com/celestiaorg/nmt v0.24.3
-	github.com/celestiaorg/rsmt2d v0.15.2
+	github.com/celestiaorg/nmt v0.24.4
+	github.com/celestiaorg/rsmt2d v0.15.3
 	github.com/cockroachdb/pebble/v2 v2.1.7
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cometbft/cometbft-db v1.0.4
@@ -123,7 +123,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.33.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0 // indirect
-	github.com/Masterminds/semver/v3 v3.4.0 // indirect
+	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/MirrexOne/unqueryvet v1.5.3 // indirect
 	github.com/OpenPeeDeeP/depguard/v2 v2.2.1 // indirect
@@ -452,7 +452,7 @@ require (
 )
 
 replace (
-	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.6
+	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.7
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
 	// from celestiaorg/cosmos-sdk#705, which closes a data race between
@@ -466,7 +466,7 @@ replace (
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
-	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.8
+	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.41.0
 	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.11
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
