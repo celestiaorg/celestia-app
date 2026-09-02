@@ -5,6 +5,7 @@
 - 2026-09-01: Initial draft
 - 2026-09-01: Stream object uploads and simplify the read path
 - 2026-09-02: Clarify Cloudflare R2 credentials
+- 2026-09-02: Record the in-memory cache follow-up
 
 ## Status
 
@@ -277,6 +278,19 @@ This approach preserves the Pebble marker format. It adds backend requests and r
 | Binary downgrade | Old Fibre cannot read live object-backed shards. | Copy live objects to legacy local paths before downgrade. |
 | Disaster recovery | Loss of Pebble removes the object index. | Complete disaster recovery is outside this ADR. |
 | Provider lifecycle rules | Provider deletion can bypass promise expiration. | Keep Fibre pruning as the only expiration authority. |
+
+## FLUP
+
+### Bounded in-memory cache
+
+The first cache option to evaluate will be a bounded, write-through in-memory cache for object-backed shards. It will retain only the most recent successful shard uploads. This cache will target reads that follow shortly after an upload without adding local SSD writes.
+
+- Cache only successful new object-mode uploads.
+- Use a strict byte limit and evict the oldest uploads first.
+- Do not populate the cache after object-storage reads. This prevents arbitrary reads from displacing recent uploads.
+- Treat the cache as optional and non-durable. It will start empty after a restart.
+- Measure shard sizes, the hot-read window, cache hit rate, and memory use before selecting a default limit.
+- Keep the global object-read limit because cache misses still access object storage.
 
 ## References
 
