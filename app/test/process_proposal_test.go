@@ -25,11 +25,24 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/gogoproto/proto"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
+	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
+	clienttypes "github.com/cosmos/ibc-go/v8/modules/core/02-client/types"
+	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
 	"github.com/stretchr/testify/require"
+)
+
+const (
+	// icaChannelID and icaEncoding describe the ICA host channel the test packets
+	// arrive on. The encoding has to match how their payloads are serialized,
+	// since the counter reads it from the channel.
+	icaChannelID = "channel-1"
+	icaEncoding  = icatypes.EncodingProtobuf
 )
 
 func TestProcessProposal(t *testing.T) {
@@ -396,9 +409,9 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	}
 
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
-	// +2 accounts are grantees for the authz MsgExec txs built below and +3 sign
-	// the MsgModuleQuerySafe txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 5
+	// +2 accounts are grantees for the authz MsgExec txs built below, +3 sign the
+	// MsgModuleQuerySafe txs and +4 sign the ICA and tight-gas txs.
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 9
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -449,27 +462,34 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		accountIndex++
 	}
 
-	// Build a tx that carries totalInner executable messages spread across authz
+	// Build a tx whose messages weigh totalWeight in total, spread across authz
 	// MsgExec wrappers. Each wrapper holds at most 99 inner messages to stay under
-	// the tx decoder's per-message unpack limit (MaxUnpackAnySubCalls). Only the
-	// wrappers are top-level messages, so a naive top-level count would let these
-	// bypass MaxSDKMessages.
-	buildMsgExecTx := func(accIdx, totalInner int) []byte {
+	// the tx decoder's per-message unpack limit (MaxUnpackAnySubCalls), and weighs
+	// one more than it holds. Plain sends make up any remainder. Only the wrappers
+	// are top-level messages, so a naive top-level count would let these bypass
+	// MaxSDKMessages.
+	buildMsgExecTx := func(accIdx, totalWeight int) []byte {
 		const perExec = 99
+		send := func() sdk.Msg {
+			return banktypes.NewMsgSend(
+				addrs[accIdx],
+				testnode.RandomAddress().(sdk.AccAddress),
+				sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
+			)
+		}
 		var msgs []sdk.Msg
-		for remaining := totalInner; remaining > 0; {
-			n := min(perExec, remaining)
-			inner := make([]sdk.Msg, n)
+		remaining := totalWeight
+		for remaining >= perExec+1 {
+			inner := make([]sdk.Msg, perExec)
 			for i := range inner {
-				inner[i] = banktypes.NewMsgSend(
-					addrs[accIdx],
-					testnode.RandomAddress().(sdk.AccAddress),
-					sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
-				)
+				inner[i] = send()
 			}
 			exec := authz.NewMsgExec(addrs[accIdx], inner)
 			msgs = append(msgs, &exec)
-			remaining -= n
+			remaining -= perExec + 1
+		}
+		for ; remaining > 0; remaining-- {
+			msgs = append(msgs, send())
 		}
 		rawTx, _, err := signers[accIdx].CreateTx(msgs, user.SetGasLimit(10000000), user.SetFee(10000))
 		require.NoError(t, err)
@@ -481,15 +501,31 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	msgExecAtLimitTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages)
 	accountIndex++
 
-	// Build a tx with a single MsgModuleQuerySafe carrying numQueries requests.
-	// The message server dispatches one query per request, so a naive count of one
-	// message per MsgModuleQuerySafe would let these bypass MaxSDKMessages.
-	buildModuleQuerySafeTx := func(accIdx, numQueries int) []byte {
-		requests := make([]*icahosttypes.QueryRequest, numQueries)
+	// Build a tx with a single MsgModuleQuerySafe weighing totalWeight. The
+	// message server dispatches one query per request and the message itself
+	// weighs one, so a naive count of one message per MsgModuleQuerySafe would
+	// let these bypass MaxSDKMessages.
+	buildModuleQuerySafeTx := func(accIdx, totalWeight int) []byte {
+		requests := make([]*icahosttypes.QueryRequest, totalWeight-1)
 		for i := range requests {
 			requests[i] = &icahosttypes.QueryRequest{Path: "/cosmos.bank.v1beta1.Query/TotalSupply"}
 		}
 		msg := icahosttypes.NewMsgModuleQuerySafe(addrs[accIdx].String(), requests)
+		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}
+
+	// Build a tx carrying a single MsgRecvPacket weighing totalWeight. Only the
+	// packet is a top-level message, so a naive top-level count would let these
+	// bypass MaxSDKMessages. The packet itself weighs one, hence totalWeight-1
+	// messages in its payload.
+	// The counter reads the payload encoding from the channel, so the channel the
+	// packets arrive on has to exist.
+	seedICAHostChannel(t, testApp)
+
+	buildICATx := func(accIdx, totalWeight int) []byte {
+		msg := icaHostRecvPacket(t, enc.Codec, addrs[accIdx], totalWeight-1)
 		rawTx, _, err := signers[accIdx].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(10000000), user.SetFee(10000))
 		require.NoError(t, err)
 		return rawTx
@@ -513,6 +549,22 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		require.NoError(t, err)
 		return rawTx
 	}()
+	accountIndex++
+
+	icaExceedsTx := buildICATx(accountIndex, appconsts.MaxSDKMessages+1)
+	accountIndex++
+	icaAtLimitTx := buildICATx(accountIndex, appconsts.MaxSDKMessages)
+	accountIndex++
+
+	// A tx with a tight gas limit ahead of an ICA tx: counting reads the channel,
+	// which must not draw on the gas this tx leaves on the meter.
+	icaSmallTx := buildICATx(accountIndex, 10)
+	accountIndex++
+
+	tightGasTx, _, tightErr := signers[accountIndex].CreateTx(
+		[]sdk.Msg{banktypes.NewMsgSend(addrs[accountIndex], testnode.RandomAddress().(sdk.AccAddress), sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)))},
+		user.SetGasLimit(63000), user.SetFee(10000))
+	require.NoError(t, tightErr)
 
 	type testCase struct {
 		name           string
@@ -567,8 +619,22 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			validSquare:    true,
 		},
 		{
+			// The ICA host dispatches every message in the packet payload, so
+			// they must count against MaxSDKMessages like any other message.
+			name:           "reject ICA packet flattening beyond MaxSDKMessages",
+			txs:            [][]byte{icaExceedsTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
 			name:           "accept MsgModuleQuerySafe queries at exactly MaxSDKMessages",
 			txs:            [][]byte{querySafeAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept ICA packet flattening to exactly MaxSDKMessages",
+			txs:            [][]byte{icaAtLimitTx},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 			validSquare:    true,
 		},
@@ -576,6 +642,14 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			name:           "reject MsgModuleQuerySafe with no queries beyond MaxSDKMessages",
 			txs:            [][]byte{emptyQuerySafeTx},
 			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			// Counting must not consume the gas the preceding tx left, otherwise
+			// the channel read runs out of gas and panics.
+			name:           "accept ICA packet after a tx with a tight gas limit",
+			txs:            [][]byte{tightGasTx, icaSmallTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 			validSquare:    true,
 		},
 	}
@@ -608,4 +682,31 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 			require.Equal(t, tc.expectedResult, resp.Status)
 		})
 	}
+}
+
+// icaHostRecvPacket builds a MsgRecvPacket bound for the ICA host whose payload
+// holds numMsgs bank sends, i.e. a packet the host would dispatch numMsgs
+// messages from.
+func icaHostRecvPacket(t *testing.T, cdc codec.Codec, addr sdk.AccAddress, numMsgs int) sdk.Msg {
+	inner := make([]proto.Message, numMsgs)
+	for i := range inner {
+		inner[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+	}
+	payload, err := icatypes.SerializeCosmosTx(cdc, inner, icaEncoding)
+	require.NoError(t, err)
+
+	data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+	packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, icaChannelID, clienttypes.NewHeight(1, 1000000), 0)
+	return channeltypes.NewMsgRecvPacket(packet, []byte("proof"), clienttypes.NewHeight(1, 1), addr.String())
+}
+
+// seedICAHostChannel writes the ICA host channel the test packets arrive on, so
+// the message counter can read the encoding their payloads use.
+func seedICAHostChannel(t *testing.T, testApp *app.App) {
+	t.Helper()
+	metadata := icatypes.Metadata{Version: icatypes.Version, Encoding: icaEncoding, TxType: icatypes.TxTypeSDKMultiMsg}
+	testApp.IBCKeeper.ChannelKeeper.SetChannel(testApp.NewUncachedContext(false, tmproto.Header{}), icatypes.HostPortID, icaChannelID, channeltypes.Channel{
+		State:   channeltypes.OPEN,
+		Version: string(icatypes.ModuleCdc.MustMarshalJSON(&metadata)),
+	})
 }
