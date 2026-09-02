@@ -158,9 +158,9 @@ Two things to keep in mind:
 
 - The app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`)
   are **not** TLS-protected. Keep them on the same host or a trusted local
-  network.
+  network. If you need to run fibre on a separate server, use its private IP or a closed network connection.
 - There is no plaintext fallback, so every Fibre server and client on the
-  network must run a TLS-capable build; older plaintext peers cannot connect.
+  network must run a TLS-capable build.
 
 For the full design (endorsement scheme, certificate format, OIDs), see the
 [Fibre server spec](../../specs/src/fibre_server.md).
