@@ -4,6 +4,7 @@
 
 - 2026-09-01: Initial draft
 - 2026-09-01: Stream object uploads and simplify the read path
+- 2026-09-02: Clarify Cloudflare R2 credentials
 
 ## Status
 
@@ -170,7 +171,9 @@ prefix = "fibre"
 
 Operators must create the bucket before Fibre starts. Operators will configure the bucket and object-key prefix.
 
-Fibre will derive the chain ID and validator consensus address (`celestiavalcons...`). Fibre will read credentials from the standard AWS environment variables.
+Fibre will derive the chain ID and validator consensus address (`celestiavalcons...`).
+
+For Cloudflare R2, operators will create an R2 API token with read and write access to the selected bucket. Fibre will read its Access Key ID and Secret Access Key through the AWS SDK credential chain. This chain includes `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. These variables contain Cloudflare credentials when the endpoint is R2.
 
 The implementation will use the existing AWS SDK for Go v2 dependency ([`go.mod:21`](../../go.mod#L21)).
 
