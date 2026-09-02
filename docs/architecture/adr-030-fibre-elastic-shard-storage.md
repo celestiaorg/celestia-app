@@ -7,6 +7,7 @@
 - 2026-09-02: Clarify Cloudflare R2 credentials
 - 2026-09-02: Record the in-memory cache follow-up
 - 2026-09-02: Recommend a 30-day object lifecycle safety net
+- 2026-09-02: Batch object deletion during pruning
 
 ## Status
 
@@ -195,14 +196,14 @@ The validator consensus address prevents collisions when one operator uses the b
 
 Pebble will continue to select expired entries from its prune index ([`fibre/store.go:410`](../../fibre/store.go#L410)).
 
-For each expired entry, `Store` will use this flow:
+`Store` will group expired entries by durable backend.
 
-1. Select the durable backend from the shard marker.
-2. Read the durable payload size from the shard marker.
-3. Remove the durable payload. A missing payload counts as success.
-4. Remove the payment promise, shard marker, and prune marker from Pebble.
+1. Delete local payloads individually.
+2. Delete object payloads with `DeleteObjects` in batches of up to 1,000 keys.
+3. Treat a missing payload as a successful deletion.
+4. Remove Pebble metadata only for payloads that were deleted or already missing.
 
-If durable deletion fails, `Store` keeps the Pebble entries. A later prune cycle can retry the deletion.
+`DeleteObjects` can report errors for individual keys. `Store` will keep the corresponding Pebble entries so a later prune cycle can retry them.
 
 For a legacy empty marker, `Store` will get the size from the local file before deletion.
 
