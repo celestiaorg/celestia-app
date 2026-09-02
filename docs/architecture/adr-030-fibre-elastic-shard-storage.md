@@ -96,9 +96,9 @@ If the Pebble commit fails, `Store` attempts to remove the object. It returns an
 
 #### Local mode
 
-Local mode will keep the current stage, rename, and Pebble commit flow. The Pebble marker will record `local` and the encoded payload size.
+Local mode will keep the current stage, publish, and Pebble commit flow ([`fibre/store.go:134`](../../fibre/store.go#L134)).
 
-This design keeps the current stage, publish, and commit pattern ([`fibre/store.go:134`](../../fibre/store.go#L134)).
+The publish step atomically renames the staging file to its final path. The Pebble marker will record `local` and the encoded payload size.
 
 At startup, `Store` removes incomplete local-mode staging files.
 
