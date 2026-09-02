@@ -2,8 +2,11 @@ package app
 
 // IcaAllowMessages returns the list of messages that are allowed to be sent via ICA.
 //
-// Adding a message that dispatches further messages (e.g. MsgExec) would let one
-// ICA packet execute more messages than countExecutableMsgs counts.
+// Adding a message that dispatches further messages would let one ICA packet
+// execute more than countExecutableMsgs counts, which counts a payload's entries
+// without looking inside them. MsgModuleQuerySafe is the likeliest such message,
+// since it exists for ICA controllers to query the host, but it dispatches one
+// query per request. See TestIcaAllowMessagesExcludeFanOutMsgs.
 func IcaAllowMessages() []string {
 	return []string{
 		"/ibc.applications.transfer.v1.MsgTransfer",
