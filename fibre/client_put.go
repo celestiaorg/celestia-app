@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"cosmossdk.io/math"
@@ -154,7 +155,14 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 	}
 
-	broadcastResp, err := txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	broadcastResp, err := retryPFFBroadcast(ctx,
+		func(ctx context.Context) (*sdk.TxResponse, error) {
+			return txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+		},
+		func(ctx context.Context) (bool, error) {
+			return c.state.HasHistoricalInfo(ctx, uint64(msg.PaymentPromise.Height))
+		},
+	)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to broadcast PayForFibre transaction")
@@ -182,4 +190,67 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		TxHash:              txResp.TxHash,
 		Height:              uint64(txResp.Height),
 	}, nil
+}
+
+// pffBroadcastMaxRetries and pffBroadcastRetryDeadline bound the re-broadcast
+// of a PayForFibre rejected because the promise's signing height is not yet
+// committed app-side. pffReadinessPollInterval is how often the retry polls
+// for the signing height's historical info before re-broadcasting.
+const (
+	pffBroadcastMaxRetries    = 2
+	pffBroadcastRetryDeadline = 15 * time.Second
+	pffReadinessPollInterval  = 500 * time.Millisecond
+)
+
+// isMissingHistoricalInfo reports whether a broadcast rejection means the
+// promise's signing height is not yet committed app-side. The head is
+// observable from CometBFT's blockstore before the app finishes executing the
+// block, so this rejection is transient: the tx verifies once the app catches
+// up. See #7774.
+func isMissingHistoricalInfo(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "failed to get historical validator set")
+}
+
+// retryPFFBroadcast broadcasts a PayForFibre and, when it is rejected with the
+// transient missing-historical-info error, waits for hasInfo to report the
+// signing height committed and re-broadcasts, bounded by
+// pffBroadcastMaxRetries and pffBroadcastRetryDeadline.
+func retryPFFBroadcast(
+	ctx context.Context,
+	broadcast func(context.Context) (*sdk.TxResponse, error),
+	hasInfo func(context.Context) (bool, error),
+) (*sdk.TxResponse, error) {
+	resp, err := broadcast(ctx)
+	if err == nil || !isMissingHistoricalInfo(err) {
+		return resp, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, pffBroadcastRetryDeadline)
+	defer cancel()
+	for range pffBroadcastMaxRetries {
+		if !waitForInfo(ctx, hasInfo) {
+			return resp, err
+		}
+		if resp, err = broadcast(ctx); err == nil || !isMissingHistoricalInfo(err) {
+			return resp, err
+		}
+	}
+	return resp, err
+}
+
+// waitForInfo polls hasInfo until it reports true, returning false when ctx
+// ends first. Poll errors are treated as "not yet" and retried.
+func waitForInfo(ctx context.Context, hasInfo func(context.Context) (bool, error)) bool {
+	ticker := time.NewTicker(pffReadinessPollInterval)
+	defer ticker.Stop()
+	for {
+		if ok, err := hasInfo(ctx); err == nil && ok {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+		}
+	}
 }

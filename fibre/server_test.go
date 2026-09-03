@@ -94,6 +94,10 @@ func (m *mockStateClient) Start(context.Context) error { return nil }
 func (m *mockStateClient) Stop(context.Context) error  { return nil }
 func (m *mockStateClient) ChainID() string             { return m.chainID }
 
+func (m *mockStateClient) HasHistoricalInfo(context.Context, uint64) (bool, error) {
+	return true, nil
+}
+
 func (m *mockStateClient) FullStakeStorageBudget(context.Context) (int64, error) {
 	return m.budget, nil
 }

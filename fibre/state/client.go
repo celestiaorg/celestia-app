@@ -32,6 +32,10 @@ type Client interface {
 	// VerifyPromise verifies a payment promise against on-chain state
 	// and returns the verification result.
 	VerifyPromise(context.Context, *PaymentPromise) (VerifiedPromise, error)
+	// HasHistoricalInfo reports whether the app has committed the historical
+	// validator set for height, i.e. whether a promise signed at that height
+	// is verifiable on-chain.
+	HasHistoricalInfo(ctx context.Context, height uint64) (bool, error)
 	// FullStakeStorageBudget returns the FullStakeStorageBudget governance
 	// parameter in bytes.
 	FullStakeStorageBudget(context.Context) (int64, error)
