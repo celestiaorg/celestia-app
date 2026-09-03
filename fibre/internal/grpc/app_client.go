@@ -13,11 +13,8 @@ import (
 	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
-	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	grpclib "google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 )
 
 var _ state.Client = (*AppClient)(nil)
@@ -27,10 +24,9 @@ var _ state.Client = (*AppClient)(nil)
 type AppClient struct {
 	*SetGetter
 	*HostRegistry
-	conn          *grpclib.ClientConn
-	queryClient   types.QueryClient
-	stakingClient stakingtypes.QueryClient
-	log           *slog.Logger
+	conn        *grpclib.ClientConn
+	queryClient types.QueryClient
+	log         *slog.Logger
 
 	chainID string // resolved on Start
 }
@@ -49,26 +45,12 @@ func NewAppClient(addr string, log *slog.Logger, hostOpts ...HostRegistryOption)
 	}
 
 	return &AppClient{
-		SetGetter:     NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
-		HostRegistry:  NewHostRegistry(valtypes.NewQueryClient(conn), log, hostOpts...),
-		conn:          conn,
-		queryClient:   types.NewQueryClient(conn),
-		stakingClient: stakingtypes.NewQueryClient(conn),
-		log:           log,
+		SetGetter:    NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
+		HostRegistry: NewHostRegistry(valtypes.NewQueryClient(conn), log, hostOpts...),
+		conn:         conn,
+		queryClient:  types.NewQueryClient(conn),
+		log:          log,
 	}, nil
-}
-
-// HasHistoricalInfo reports whether the historical validator set for height
-// exists in the app's committed state.
-func (c *AppClient) HasHistoricalInfo(ctx context.Context, height uint64) (bool, error) {
-	_, err := c.stakingClient.HistoricalInfo(ctx, &stakingtypes.QueryHistoricalInfoRequest{Height: int64(height)})
-	if err == nil {
-		return true, nil
-	}
-	if status.Code(err) == codes.NotFound {
-		return false, nil
-	}
-	return false, err
 }
 
 // Start connects to the app node, resolves the chain ID and pulls

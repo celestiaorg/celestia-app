@@ -51,8 +51,6 @@ func (m *mockClient) FullStakeStorageBudget(context.Context) (int64, error) {
 func (m *mockClient) Start(context.Context) error { return nil }
 func (m *mockClient) Stop(context.Context) error  { return nil }
 
-func (m *mockClient) HasHistoricalInfo(context.Context, uint64) (bool, error) { return true, nil }
-
 func TestCachingClient_HeadCachesWithinTTL(t *testing.T) {
 	inner := newMockClient(0)
 	client := state.NewCachingClient(inner, time.Minute)
