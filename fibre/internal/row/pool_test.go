@@ -323,7 +323,7 @@ func TestPool_IdleTimerArmedAndCancelled(t *testing.T) {
 
 	b := p.Get(rc, 64)
 	defer p.Put(b)
-	// Get's cancelIdle should have stopped the timer; a redundant Stop
+	// The call to Get should have stopped the timer through cancelIdle; a redundant Stop
 	// returns false because the timer is no longer active.
 	if bk.idleTimer.Stop() {
 		t.Fatal("idle timer should already be stopped after Get")
