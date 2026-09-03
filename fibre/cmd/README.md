@@ -139,67 +139,19 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 ## Transport security (TLS)
 
-The Fibre server↔client gRPC link is **TLS-only** (TLS 1.3, always on, no
-plaintext fallback). The server presents a self-signed certificate whose
-ephemeral TLS key is endorsed by the validator's **consensus key** (signed via
-`SignRawBytes` and embedded in a custom X.509 extension). The client verifies
-that the peer's certificate is endorsed by the exact validator it intended to
-dial, using the consensus pubkey from the current validator set.
+The Fibre server↔client link is always TLS-encrypted, and it is fully automatic: there are no certificates to obtain, configure, or renew.
 
-Properties and assumptions:
+- On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set, so the connection proves it belongs to your validator — no certificate authority involved.
+- Identity is bound to the consensus key, not the network address, so the host you register on-chain can be an IP literal or a DNS name.
+- A restart generates a fresh certificate automatically. After changing the signer (`--signer-grpc-address`), restart the server so the certificate is endorsed with the right key.
+- Downloads are public — any peer can read shards. Uploads are still gated by the payment-promise check.
 
-- **Identity is the consensus key, not the network address.** Verification does
-  not inspect SNI/SAN/IP, so a validator may register either an **IP literal or
-  a DNS name** as its Fibre host — both work.
-- **Server-authenticated only.** There is no client certificate / mTLS.
-  `DownloadShard` is intentionally **public** (any reachable peer may read
-  shards); uploads remain gated by the payment-promise check. If reads must ever
-  be restricted, that requires adding client/app-layer authorization.
-- **The certificate is long-lived and re-minted on restart; there is no
-  in-process refresh or key rotation.** A Celestia validator's consensus key
-  does not rotate, and the TLS key is ephemeral (process memory only), so a
-  restart is the only re-issuance path needed.
-- **Loopback-only links.** The privval signer gRPC (`--signer-grpc-address`) and
-  the app-node gRPC (`--app-grpc-address`) are **not** TLS-protected and assume a
-  loopback/host-local endpoint. Do **not** point them at a remote host over an
-  untrusted network.
+Two things to keep in mind:
 
-### Rollout
+- The app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected. Keep them on the same host or a trusted local network. If you need to run fibre on a separate server, use its private IP or a closed network connection.
+- There is no plaintext fallback, so every Fibre server and client on the network must run a TLS-capable build.
 
-Because TLS is always on with no negotiation, a node on this build **cannot**
-speak Fibre gRPC with a plaintext (pre-TLS) peer. Roll out to all Fibre peers
-together (coordinated / greenfield cutover); a mixed-version Fibre mesh will
-partition. Plaintext tooling (`tools/fibre-txsim`, `tools/rust-fibre-txsim` /
-lumina) must be updated to the endorsed-TLS verifier before it can talk to a
-TLS-only server.
-
-### Design notes
-
-Why the scheme looks the way it does:
-
-- **Endorsement, not the consensus key as the TLS key.** TLS authentication
-  needs the private key to sign every handshake. The validator consensus key is
-  held in a separate signer (tmkms/HSM) and must not be in the TLS hot path — and
-  signers only expose `SignRawBytes`, not raw TLS signing. So the server uses a
-  disposable ephemeral TLS key and the consensus key signs it **once** (via
-  `SignRawBytes`) to authorize it. The consensus key is touched only at cert mint.
-- **Host-agnostic by design.** Verification pins the validator consensus key, not
-  the network location (no SNI/SAN/IP/DNS check). This is why the on-chain host
-  registry can use an IP literal *or* a DNS name (or `host:port`) — TLS imposes no
-  format constraint; the location is just a routing hint.
-- **Long-lived cert, re-minted on restart, no in-process refresh.** A Celestia
-  validator's consensus key cannot rotate, and the TLS key is ephemeral, so the
-  endorsed identity never changes while the server runs; a restart re-mints it.
-- **Payload is chain-ID-free; the signing envelope is not.** The certificate's
-  structured binding payload only contains the schema version, validity window,
-  and TLS public key, because the TLS layer proves "this peer is validator V".
-  The outer `SignRawBytes` envelope still uses the runtime chain ID so
-  chain-ID-enforcing remote signers and HSM policy remain compatible.
-- **Endorsement carried in a custom DER X.509 extension.** The endorsement
-  signature must reach the client at handshake time, so it rides in the cert. DER
-  is canonical (friendly to non-Go verifiers like lumina). The extension OID is
-  `1.3.6.1.4.1.66463.1.1`, under the Celestia-registered IANA PEN 66463; see the
-  OID allocations table in `specs/src/fibre_server.md`.
+For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
 
 ## Observability
 
