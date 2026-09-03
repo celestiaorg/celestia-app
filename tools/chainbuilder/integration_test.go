@@ -14,6 +14,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	dbm "github.com/cometbft/cometbft-db"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	tmlog "github.com/cometbft/cometbft/libs/log"
 	"github.com/cometbft/cometbft/node"
@@ -21,6 +22,8 @@ import (
 	"github.com/cometbft/cometbft/privval"
 	"github.com/cometbft/cometbft/proxy"
 	"github.com/cometbft/cometbft/rpc/client/local"
+	sm "github.com/cometbft/cometbft/state"
+	"github.com/cometbft/cometbft/store"
 	cmttypes "github.com/cometbft/cometbft/types"
 	tmdbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
@@ -135,6 +138,76 @@ func TestRun(t *testing.T) {
 		require.NoError(t, err)
 		return status.SyncInfo.LatestBlockHeight >= int64(numBlocks*2)
 	}, time.Second*10, time.Millisecond*100)
+}
+
+func TestRunGracefulCancellation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping chainbuilder tool test")
+	}
+
+	const stopHeight int64 = 3
+	ctx, cancel := context.WithCancel(context.Background())
+	cfg := BuilderConfig{
+		NumBlocks:     10,
+		BlockSize:     1024,
+		BlockInterval: time.Second,
+		ChainID:       random.Str(6),
+		Namespace:     defaultNamespace,
+	}
+	dir := t.TempDir()
+
+	err := run(ctx, cfg, dir, func(height int64) {
+		if height == stopHeight {
+			cancel()
+		}
+	})
+	require.NoError(t, err)
+
+	chainDir := filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
+	requireChainHeights(t, chainDir, cfg.ChainID, stopHeight)
+
+	cfg.NumBlocks = 2
+	cfg.ExistingDir = chainDir
+	require.NoError(t, Run(context.Background(), cfg, dir))
+	requireChainHeights(t, chainDir, cfg.ChainID, stopHeight+int64(cfg.NumBlocks))
+}
+
+func requireChainHeights(t *testing.T, dir, chainID string, want int64) {
+	t.Helper()
+
+	tmCfg := testnode.DefaultTendermintConfig()
+	tmCfg.SetRoot(dir)
+
+	blockDB, err := dbm.NewDB("blockstore", dbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
+	require.NoError(t, err)
+	blockHeight := store.NewBlockStore(blockDB).Height()
+	require.NoError(t, blockDB.Close())
+
+	stateDB, err := dbm.NewDB("state", dbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
+	require.NoError(t, err)
+	stateStore := sm.NewStore(stateDB, sm.StoreOptions{DiscardABCIResponses: true})
+	state, err := stateStore.Load()
+	require.NoError(t, err)
+	require.NoError(t, stateDB.Close())
+
+	appDB, err := tmdbm.NewDB("application", tmdbm.BackendType(tmCfg.DBBackend), tmCfg.DBDir())
+	require.NoError(t, err)
+	celestiaApp := app.New(
+		log.NewNopLogger(),
+		appDB,
+		nil,
+		0,
+		0,
+		util.EmptyAppOptions{},
+		baseapp.SetChainID(chainID),
+	)
+	info, err := celestiaApp.Info(&abci.RequestInfo{})
+	require.NoError(t, err)
+	require.NoError(t, appDB.Close())
+
+	require.Equal(t, want, blockHeight, "block store height")
+	require.Equal(t, want, state.LastBlockHeight, "state store height")
+	require.Equal(t, want, info.LastBlockHeight, "application height")
 }
 
 // getGenDocProvider returns a function that loads the genesis document from file.

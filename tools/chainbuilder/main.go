@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"sync"
+	"syscall"
 	"time"
 
 	"cosmossdk.io/log"
@@ -104,7 +108,10 @@ func main() {
 	rootCmd.Flags().String("chain-id", "", "Chain ID to use for the chain. Defaults to a random 6 character string")
 	rootCmd.SilenceUsage = true
 	rootCmd.SilenceErrors = true
-	if err := rootCmd.Execute(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	err := rootCmd.ExecuteContext(ctx)
+	stop()
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
@@ -122,6 +129,10 @@ type BuilderConfig struct {
 }
 
 func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
+	return run(ctx, cfg, dir, nil)
+}
+
+func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockQueued func(int64)) (rerr error) {
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
@@ -176,6 +187,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create block database: %w", err)
 	}
+	defer func() {
+		if err := blockDB.Close(); err != nil {
+			rerr = errors.Join(rerr, fmt.Errorf("failed to close block database: %w", err))
+		}
+	}()
 
 	blockStore := store.NewBlockStore(blockDB)
 
@@ -183,6 +199,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create state database: %w", err)
 	}
+	defer func() {
+		if err := stateDB.Close(); err != nil {
+			rerr = errors.Join(rerr, fmt.Errorf("failed to close state database: %w", err))
+		}
+	}()
 
 	stateStore := sm.NewStore(stateDB, sm.StoreOptions{
 		DiscardABCIResponses: true,
@@ -192,6 +213,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create application database: %w", err)
 	}
+	defer func() {
+		if err := appDB.Close(); err != nil {
+			rerr = errors.Join(rerr, fmt.Errorf("failed to close application database: %w", err))
+		}
+	}()
 
 	simApp := app.New(
 		log.NewNopLogger(),
@@ -289,10 +315,13 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	}
 
 	var (
-		errCh     = make(chan error, 2)
-		dataCh    = make(chan *tmproto.Data, 100)
-		persistCh = make(chan persistData, 100)
-		commit    = &types.Commit{}
+		dataCh        = make(chan *tmproto.Data, 100)
+		persistCh     = make(chan persistData, 100)
+		generatorDone = make(chan struct{})
+		persisterDone = make(chan struct{})
+		generatorErr  error
+		persisterErr  error
+		commit        = &types.Commit{}
 	)
 	if lastHeight > 0 {
 		commit = blockStore.LoadSeenCommit(lastHeight)
@@ -302,16 +331,48 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	defer cancel()
 
 	go func() {
-		errCh <- generateSquareRoutine(ctx, signer, cfg, dataCh)
+		defer close(dataCh)
+		defer close(generatorDone)
+		generatorErr = generateSquareRoutine(ctx, signer, cfg, dataCh)
 	}()
 
 	go func() {
-		errCh <- persistDataRoutine(ctx, stateStore, blockStore, persistCh)
+		defer close(persisterDone)
+		persisterErr = persistDataRoutine(stateStore, blockStore, persistCh)
+	}()
+
+	var shutdownOnce sync.Once
+	var shutdownErr error
+	shutdownWorkers := func() error {
+		shutdownOnce.Do(func() {
+			cancel()
+			<-generatorDone
+			close(persistCh)
+			<-persisterDone
+
+			if generatorErr != nil && !errors.Is(generatorErr, context.Canceled) {
+				shutdownErr = errors.Join(shutdownErr, fmt.Errorf("generating block data: %w", generatorErr))
+			}
+			if persisterErr != nil {
+				shutdownErr = errors.Join(shutdownErr, fmt.Errorf("persisting block data: %w", persisterErr))
+			}
+		})
+		return shutdownErr
+	}
+	defer func() {
+		shutdownErr := shutdownWorkers()
+		if shutdownErr != nil && !errors.Is(rerr, shutdownErr) {
+			rerr = errors.Join(rerr, shutdownErr)
+		}
 	}()
 
 	lastBlock := blockStore.LoadBlock(blockStore.Height())
 
 	for height := lastHeight + 1; height <= int64(cfg.NumBlocks)+lastHeight; height++ {
+		if ctx.Err() != nil {
+			fmt.Printf("Chain building stopped at height %d\n", state.LastBlockHeight)
+			return shutdownWorkers()
+		}
 		if cfg.UpToTime && lastBlock != nil && lastBlock.Time.Add(cfg.BlockInterval).After(time.Now().UTC()) {
 			fmt.Printf("blocks cannot be generated into the future, stopping at height %d\n", lastBlock.Height)
 			break
@@ -319,8 +380,18 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
-		case dataPB := <-dataCh:
+			fmt.Printf("Chain building stopped at height %d\n", state.LastBlockHeight)
+			return shutdownWorkers()
+		case <-persisterDone:
+			return shutdownWorkers()
+		case dataPB, ok := <-dataCh:
+			if !ok {
+				return shutdownWorkers()
+			}
+			if ctx.Err() != nil {
+				fmt.Printf("Chain building stopped at height %d\n", state.LastBlockHeight)
+				return shutdownWorkers()
+			}
 			data, err := types.DataFromProto(dataPB)
 			if err != nil {
 				return fmt.Errorf("failed to convert data from protobuf: %w", err)
@@ -412,7 +483,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 			state.AppHash = resp.AppHash
 			state.LastResultsHash = sm.TxResultsHash(resp.TxResults)
 			currentTime = currentTime.Add(cfg.BlockInterval)
-			persistCh <- persistData{
+			toPersist := persistData{
 				state: state.Copy(),
 				block: block,
 				seenCommit: &types.Commit{
@@ -422,33 +493,24 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 					Signatures: []types.CommitSig{commitSig},
 				},
 			}
+			select {
+			case persistCh <- toPersist:
+			case <-persisterDone:
+				return shutdownWorkers()
+			}
+			if afterBlockQueued != nil {
+				afterBlockQueued(height)
+			}
 		}
 	}
 
-	close(dataCh)
-	close(persistCh)
-
-	var firstErr error
-	for i := 0; i < cap(errCh); i++ {
-		err := <-errCh
-		if err != nil && firstErr == nil {
-			firstErr = err
-		}
-	}
-
-	if err := blockDB.Close(); err != nil {
-		return fmt.Errorf("failed to close block database: %w", err)
-	}
-	if err := stateDB.Close(); err != nil {
-		return fmt.Errorf("failed to close state database: %w", err)
-	}
-	if err := appDB.Close(); err != nil {
-		return fmt.Errorf("failed to close application database: %w", err)
+	if err := shutdownWorkers(); err != nil {
+		return err
 	}
 
 	fmt.Println("Chain built successfully", state.LastBlockHeight)
 
-	return firstErr
+	return nil
 }
 
 func generateSquareRoutine(
@@ -529,32 +591,24 @@ type persistData struct {
 }
 
 func persistDataRoutine(
-	ctx context.Context,
 	stateStore sm.Store,
 	blockStore *store.BlockStore,
 	dataCh <-chan persistData,
 ) error {
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case data, ok := <-dataCh:
-			if !ok {
-				return nil
-			}
-			blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
-			if err != nil {
-				return fmt.Errorf("failed to make block part set: %w", err)
-			}
+	for data := range dataCh {
+		blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
+		if err != nil {
+			return fmt.Errorf("failed to make block part set: %w", err)
+		}
 
-			blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
-			if blockStore.Height()%100 == 0 {
-				fmt.Println("Reached height", blockStore.Height())
-			}
+		blockStore.SaveBlock(data.block, blockParts, data.seenCommit)
+		if blockStore.Height()%100 == 0 {
+			fmt.Println("Reached height", blockStore.Height())
+		}
 
-			if err := stateStore.Save(data.state); err != nil {
-				return err
-			}
+		if err := stateStore.Save(data.state); err != nil {
+			return err
 		}
 	}
+	return nil
 }
