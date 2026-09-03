@@ -33,8 +33,10 @@ import (
 // commits through a single goroutine, which becomes the upload bottleneck at
 // concurrency. Pebble only holds the small metadata.
 const (
-	shardsSubdir      = "shards"
-	stagingSubdir     = "staging"
+	shardsSubdir  = "shards"
+	stagingSubdir = "staging"
+	// maxPruneBatchSize bounds each Pebble commit. The server drains full
+	// batches during one prune pass.
 	maxPruneBatchSize = 1000
 )
 
@@ -347,23 +349,15 @@ func (s *Store) Has(_ context.Context, commitment Commitment, promiseHash []byte
 	return true, nil
 }
 
-// hasAccountedShardMarker reports whether a versioned marker already counts
-// the shard towards occupancy. Empty legacy markers require a local payload.
-func (s *Store) hasAccountedShardMarker(commitment Commitment, promiseHash []byte) (bool, error) {
+// hasAccountedShardMarker reports whether a marker validated by [Store.Has]
+// already counts the shard towards occupancy.
+func (s *Store) hasAccountedShardMarker(commitment Commitment, promiseHash []byte) bool {
 	markerData, closer, err := s.db.Get(shardKey(commitment, promiseHash))
-	switch {
-	case errors.Is(err, pebbledb.ErrNotFound):
-		return false, nil
-	case err != nil:
-		return false, fmt.Errorf("getting shard marker: %w", err)
-	}
-
-	size, err := decodeShardMarker(markerData)
-	_ = closer.Close()
 	if err != nil {
-		return false, err
+		return false
 	}
-	return size > 0, nil
+	_ = closer.Close()
+	return len(markerData) > 0
 }
 
 // hasShardMarker reports whether a committed shard marker exists,
@@ -382,7 +376,10 @@ func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
 	}
 }
 
-// Size returns the total encoded size of stored shards.
+// Size returns the marker-accounted encoded size of stored shards. It stats
+// existing local payloads for empty legacy markers. If invalid metadata is
+// skipped, it returns the usable partial total with [ErrStoreIntegrity]. All
+// other errors return zero.
 func (s *Store) Size(ctx context.Context) (int64, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
@@ -474,8 +471,10 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 // PruneBefore deletes all shards and payment promises with pruneAt before the given time
 // and returns the number of pruned entries and the freed bytes.
 //
-// It inspects at most [maxPruneBatchSize] expired entries per call. Invalid
-// markers remain unchanged while valid entries in the batch are pruned.
+// It deletes at most [maxPruneBatchSize] expired entries per call. If invalid
+// markers are skipped, it commits valid deletions and returns their count and
+// freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
+// do not consume deletion capacity.
 func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -492,9 +491,9 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 	var pruned int
 	var prunedBytes int64
 	var integrityErr error
-	var examined int
+	var corruptMarkers int
 	beforeStr := formatTimestamp(before.UTC())
-	for valid := iter.First(); valid && examined < maxPruneBatchSize; valid = iter.Next() {
+	for valid := iter.First(); valid && pruned < maxPruneBatchSize; valid = iter.Next() {
 		key := iter.Key()
 
 		// Keys are sorted; once the timestamp reaches the cutoff we're done.
@@ -503,8 +502,6 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 		if timestampStr >= beforeStr {
 			break
 		}
-		examined++
-
 		commitment, promiseHash, ok := parsePruneKey(keyStr)
 		if !ok {
 			continue
@@ -520,7 +517,10 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 			size, err = decodeShardMarker(markerData)
 			_ = closer.Close()
 			if err != nil {
-				integrityErr = errors.Join(integrityErr, fmt.Errorf("decoding shard marker %q: %w", key, err))
+				corruptMarkers++
+				if integrityErr == nil {
+					integrityErr = fmt.Errorf("decoding shard marker %q: %w", key, err)
+				}
 				continue
 			}
 		}
@@ -562,6 +562,9 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		return pruned, prunedBytes, fmt.Errorf("committing batch: %w", err)
+	}
+	if corruptMarkers > 1 {
+		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
 	}
 	return pruned, prunedBytes, integrityErr
 }

@@ -12,6 +12,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestShardMarkerCodec(t *testing.T) {
@@ -208,18 +210,15 @@ func TestHasAccountedShardMarker(t *testing.T) {
 	commitment := generateCommitment()
 	promiseHash := []byte{1}
 
-	accounted, err := store.hasAccountedShardMarker(commitment, promiseHash)
-	require.NoError(t, err)
+	accounted := store.hasAccountedShardMarker(commitment, promiseHash)
 	require.False(t, accounted)
 	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), nil, pebbledb.NoSync))
-	accounted, err = store.hasAccountedShardMarker(commitment, promiseHash)
-	require.NoError(t, err)
+	accounted = store.hasAccountedShardMarker(commitment, promiseHash)
 	require.False(t, accounted)
 	marker, err := encodeShardMarker(1)
 	require.NoError(t, err)
 	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync))
-	accounted, err = store.hasAccountedShardMarker(commitment, promiseHash)
-	require.NoError(t, err)
+	accounted = store.hasAccountedShardMarker(commitment, promiseHash)
 	require.True(t, accounted)
 }
 
@@ -260,6 +259,8 @@ func TestPruneBeforeLimitsBatchSize(t *testing.T) {
 	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 	marker, err := encodeShardMarker(1)
 	require.NoError(t, err)
+	require.NoError(t, store.db.Set(shardKey(commitment, nil), []byte{1, 2}, pebbledb.NoSync))
+	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, nil), nil, pebbledb.NoSync))
 	for i := range maxPruneBatchSize + 1 {
 		promiseHash := binary.BigEndian.AppendUint64(nil, uint64(i))
 		require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync))
@@ -267,14 +268,59 @@ func TestPruneBeforeLimitsBatchSize(t *testing.T) {
 	}
 
 	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
 	require.Equal(t, maxPruneBatchSize, pruned)
 	require.Equal(t, int64(maxPruneBatchSize), freed)
 
 	pruned, freed, err = store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
 	require.Equal(t, 1, pruned)
 	require.Equal(t, int64(1), freed)
+}
+
+func TestServerPruneDrainsBacklog(t *testing.T) {
+	store := newMarkerTestStore(t)
+	commitment := generateCommitment()
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	marker, err := encodeShardMarker(1)
+	require.NoError(t, err)
+	require.NoError(t, store.db.Set(shardKey(commitment, nil), []byte{1, 2}, pebbledb.NoSync))
+	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, nil), nil, pebbledb.NoSync))
+	for i := range maxPruneBatchSize + 1 {
+		promiseHash := binary.BigEndian.AppendUint64(nil, uint64(i))
+		require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync))
+		require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync))
+	}
+
+	occ := newOccupancy(0)
+	occ.seed(maxPruneBatchSize + 1)
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	metrics, err := newServerMetrics(provider.Meter("prune-test"), occ)
+	require.NoError(t, err)
+	var logs strings.Builder
+	server := &Server{store: store, occ: occ, metrics: metrics, log: slog.New(slog.NewTextHandler(&logs, nil))}
+	server.prune(t.Context())
+
+	require.Zero(t, occ.usage())
+	size, err := store.Size(t.Context())
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Zero(t, size)
+	require.Contains(t, logs.String(), "prune skipped corrupt shard markers")
+	require.Contains(t, logs.String(), "pruned expired entries")
+	require.NotContains(t, logs.String(), "level=ERROR")
+
+	var collected metricdata.ResourceMetrics
+	require.NoError(t, reader.Collect(t.Context(), &collected))
+	var pruneEntries int64
+	for _, scope := range collected.ScopeMetrics {
+		for _, metric := range scope.Metrics {
+			if metric.Name == "fibre.server.prune.entries" {
+				pruneEntries = metric.Data.(metricdata.Sum[int64]).DataPoints[0].Value
+			}
+		}
+	}
+	require.Equal(t, int64(maxPruneBatchSize+1), pruneEntries)
 }
 
 func newMarkerTestStore(t *testing.T) *Store {
