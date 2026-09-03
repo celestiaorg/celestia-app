@@ -6,6 +6,7 @@ import (
 	"log"
 
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -40,11 +41,19 @@ func (app *App) ExportAppStateAndValidators(
 	}
 
 	validators, err := staking.WriteValidators(ctx, app.StakingKeeper)
+	consensusParams := app.GetConsensusParams(ctx)
+	if consensusParams.Version == nil {
+		consensusParams.Version = &cmtproto.VersionParams{}
+	}
+	if consensusParams.Version.App == 0 {
+		consensusParams.Version.App = appconsts.Version
+	}
+
 	return servertypes.ExportedApp{
 		AppState:        appState,
 		Validators:      validators,
 		Height:          height,
-		ConsensusParams: app.GetConsensusParams(ctx),
+		ConsensusParams: consensusParams,
 	}, err
 }
 

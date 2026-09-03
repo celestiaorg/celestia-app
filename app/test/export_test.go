@@ -19,11 +19,42 @@ import (
 )
 
 func TestExportAppStateAndValidators(t *testing.T) {
-	testApp, _ := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), "genesisAcc")
-	exported, err := testApp.ExportAppStateAndValidators(true, nil, nil)
-	require.NoError(t, err)
-	require.NotNil(t, exported)
-	require.Equal(t, appconsts.Version, exported.ConsensusParams.Version.App)
+	tests := []struct {
+		name        string
+		version     *cmtproto.VersionParams
+		wantVersion uint64
+	}{
+		{
+			name:        "missing version",
+			version:     nil,
+			wantVersion: appconsts.Version,
+		},
+		{
+			name:        "zero app version",
+			version:     &cmtproto.VersionParams{},
+			wantVersion: appconsts.Version,
+		},
+		{
+			name:        "existing app version",
+			version:     &cmtproto.VersionParams{App: 42},
+			wantVersion: 42,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			consensusParams := app.DefaultConsensusParams()
+			consensusParams.Version = tt.version
+			testApp, _ := util.SetupTestAppWithGenesisValSet(consensusParams, "genesisAcc")
+
+			exported, err := testApp.ExportAppStateAndValidators(true, nil, nil)
+
+			require.NoError(t, err)
+			require.NotNil(t, exported)
+			require.NotNil(t, exported.ConsensusParams.Version)
+			require.Equal(t, tt.wantVersion, exported.ConsensusParams.Version.App)
+		})
+	}
 }
 
 // TestExportForZeroHeightAfterSlashing is a regression test for a panic in
