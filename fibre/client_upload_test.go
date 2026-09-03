@@ -291,3 +291,55 @@ func (v *validatorMockClient) DownloadShard(ctx context.Context, req *types.Down
 func (v *validatorMockClient) Close() error {
 	return nil
 }
+
+// heightStampingSetGetter mirrors the real getters: GetByHeight returns the
+// validator set stamped with the requested height.
+type heightStampingSetGetter struct {
+	set validator.Set
+}
+
+func (m *heightStampingSetGetter) Head(context.Context) (validator.Set, error) {
+	return m.set, nil
+}
+
+func (m *heightStampingSetGetter) GetByHeight(_ context.Context, height uint64) (validator.Set, error) {
+	return validator.Set{ValidatorSet: m.set.ValidatorSet, Height: height}, nil
+}
+
+// TestUploadSignsAtPreviousHeight asserts promises are signed one block behind
+// the head, whose historical validator set may not exist app-side yet (#7774).
+func TestUploadSignsAtPreviousHeight(t *testing.T) {
+	tests := []struct {
+		name       string
+		headHeight uint64
+		wantHeight uint64
+	}{
+		{"signs one block behind head", 100, 99},
+		{"keeps height 1 at the chain start", 1, 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := fibre.DefaultClientConfig()
+			validators, privKeys := makeTestValidators(t, 3)
+			cfg.NewClientFn = makeMockClientFn(validators, privKeys)
+			getter := &heightStampingSetGetter{
+				set: validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: tt.headHeight},
+			}
+			cfg.StateClientFn = func() (state.Client, error) {
+				return &mockStateClient{SetGetter: getter, chainID: "celestia"}, nil
+			}
+			client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+			require.NoError(t, err)
+			require.NoError(t, client.Start(t.Context()))
+			t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+			blob := makeTestBlobV0(t, 1024)
+			defer blob.Free()
+
+			result, err := client.Upload(t.Context(), testNamespace, blob)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantHeight, result.Height)
+		})
+	}
+}

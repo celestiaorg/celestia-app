@@ -101,12 +101,24 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
 	defer func() { uploadDone(err) }()
 
-	// 1) get validator set
+	// 1) get the validator set at the signing height: one block behind head.
+	// The head is resolved from CometBFT's blockstore, which is written before
+	// the app executes the block, so the head's historical validator set may
+	// not exist app-side yet and promises signed at it can be spuriously
+	// rejected. The previous height is always fully committed. See #7774.
 	valSet, err := c.validatorSet(ctx, 0)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to get validator set")
 		return result, fmt.Errorf("fibre: getting validator set: %w", err)
+	}
+	if valSet.Height > 1 {
+		valSet, err = c.validatorSet(ctx, valSet.Height-1)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "failed to get validator set")
+			return result, fmt.Errorf("fibre: getting validator set at signing height: %w", err)
+		}
 	}
 	span.AddEvent("validator_set", trace.WithAttributes(
 		attribute.Int("validator_count", len(valSet.Validators)),
