@@ -129,10 +129,15 @@ type BuilderConfig struct {
 }
 
 func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
-	return run(ctx, cfg, dir, nil)
+	return run(ctx, cfg, dir, runHooks{})
 }
 
-func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockCommitted func(int64)) (rerr error) {
+type runHooks struct {
+	afterBlockCommitted func(int64)
+	commitApp           func() error
+}
+
+func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (rerr error) {
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
@@ -416,6 +421,7 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockCommitted
 				Signature:        nil,
 			}
 
+			previousSignState := validatorKey.LastSignState
 			if err := validatorKey.SignVote(state.ChainID, precommitVote); err != nil {
 				return fmt.Errorf("failed to sign precommit vote (%s): %w", precommitVote.String(), err)
 			}
@@ -469,6 +475,7 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockCommitted
 				}
 			}
 
+			previousState := state.Copy()
 			state.LastBlockHeight = height
 			state.LastBlockID = blockID
 			state.LastBlockTime = block.Time
@@ -503,13 +510,27 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockCommitted
 				return shutdownWorkers()
 			}
 
-			_, err = simApp.Commit()
+			if hooks.commitApp != nil {
+				err = hooks.commitApp()
+			} else {
+				_, err = simApp.Commit()
+			}
 			if err != nil {
-				return fmt.Errorf("failed to commit block: %w", err)
+				commitErr := fmt.Errorf("failed to commit block: %w", err)
+				if rollbackErr := rollbackPersistence(
+					stateStore,
+					blockStore,
+					previousState,
+					validatorKey,
+					previousSignState,
+				); rollbackErr != nil {
+					return errors.Join(commitErr, fmt.Errorf("failed to roll back persisted block: %w", rollbackErr))
+				}
+				return commitErr
 			}
 
-			if afterBlockCommitted != nil {
-				afterBlockCommitted(height)
+			if hooks.afterBlockCommitted != nil {
+				hooks.afterBlockCommitted(height)
 			}
 		}
 	}
@@ -592,6 +613,25 @@ func generateSquareRoutine(
 		}
 	}
 	return nil
+}
+
+func rollbackPersistence(
+	stateStore sm.Store,
+	blockStore *store.BlockStore,
+	previousState sm.State,
+	validatorKey *privval.FilePV,
+	previousSignState privval.FilePVLastSignState,
+) error {
+	var rollbackErr error
+	if err := blockStore.DeleteLatestBlock(); err != nil {
+		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("delete latest block: %w", err))
+	}
+	if err := stateStore.Save(previousState); err != nil {
+		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore previous state: %w", err))
+	}
+	validatorKey.LastSignState = previousSignState
+	validatorKey.LastSignState.Save()
+	return rollbackErr
 }
 
 type persistData struct {

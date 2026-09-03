@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"testing"
@@ -156,10 +157,12 @@ func TestRunGracefulCancellation(t *testing.T) {
 	}
 	dir := t.TempDir()
 
-	err := run(ctx, cfg, dir, func(height int64) {
-		if height == stopHeight {
-			cancel()
-		}
+	err := run(ctx, cfg, dir, runHooks{
+		afterBlockCommitted: func(height int64) {
+			if height == stopHeight {
+				cancel()
+			}
+		},
 	})
 	require.NoError(t, err)
 
@@ -170,6 +173,34 @@ func TestRunGracefulCancellation(t *testing.T) {
 	cfg.ExistingDir = chainDir
 	require.NoError(t, Run(context.Background(), cfg, dir))
 	requireChainHeights(t, chainDir, cfg.ChainID, stopHeight+int64(cfg.NumBlocks))
+}
+
+func TestRunRollsBackPersistenceOnAppCommitFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping chainbuilder tool test")
+	}
+
+	cfg := BuilderConfig{
+		NumBlocks:     1,
+		BlockSize:     1024,
+		BlockInterval: time.Second,
+		ChainID:       random.Str(6),
+		Namespace:     defaultNamespace,
+	}
+	dir := t.TempDir()
+	commitErr := errors.New("injected application commit failure")
+	require.NoError(t, Run(context.Background(), cfg, dir))
+
+	chainDir := filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
+	cfg.ExistingDir = chainDir
+	err := run(context.Background(), cfg, dir, runHooks{
+		commitApp: func() error { return commitErr },
+	})
+	require.ErrorIs(t, err, commitErr)
+	requireChainHeights(t, chainDir, cfg.ChainID, 1)
+
+	require.NoError(t, Run(context.Background(), cfg, dir))
+	requireChainHeights(t, chainDir, cfg.ChainID, 2)
 }
 
 func requireChainHeights(t *testing.T, dir, chainID string, want int64) {
