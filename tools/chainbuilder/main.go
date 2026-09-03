@@ -132,7 +132,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 	return run(ctx, cfg, dir, nil)
 }
 
-func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockQueued func(int64)) (rerr error) {
+func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockCommitted func(int64)) (rerr error) {
 	startTime := time.Now().Add(-1 * cfg.BlockInterval * time.Duration(cfg.NumBlocks)).UTC()
 	currentTime := startTime
 
@@ -316,7 +316,7 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockQueued fu
 
 	var (
 		dataCh        = make(chan *tmproto.Data, 100)
-		persistCh     = make(chan persistData, 100)
+		persistCh     = make(chan persistData)
 		generatorDone = make(chan struct{})
 		persisterDone = make(chan struct{})
 		generatorErr  error
@@ -469,11 +469,6 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockQueued fu
 				}
 			}
 
-			_, err = simApp.Commit()
-			if err != nil {
-				return fmt.Errorf("failed to commit block: %w", err)
-			}
-
 			state.LastBlockHeight = height
 			state.LastBlockID = blockID
 			state.LastBlockTime = block.Time
@@ -484,8 +479,9 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockQueued fu
 			state.LastResultsHash = sm.TxResultsHash(resp.TxResults)
 			currentTime = currentTime.Add(cfg.BlockInterval)
 			toPersist := persistData{
-				state: state.Copy(),
-				block: block,
+				state:  state.Copy(),
+				block:  block,
+				result: make(chan error, 1),
 				seenCommit: &types.Commit{
 					Height:     commit.Height,
 					Round:      commit.Round,
@@ -498,8 +494,22 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, afterBlockQueued fu
 			case <-persisterDone:
 				return shutdownWorkers()
 			}
-			if afterBlockQueued != nil {
-				afterBlockQueued(height)
+			select {
+			case err := <-toPersist.result:
+				if err != nil {
+					return shutdownWorkers()
+				}
+			case <-persisterDone:
+				return shutdownWorkers()
+			}
+
+			_, err = simApp.Commit()
+			if err != nil {
+				return fmt.Errorf("failed to commit block: %w", err)
+			}
+
+			if afterBlockCommitted != nil {
+				afterBlockCommitted(height)
 			}
 		}
 	}
@@ -588,6 +598,7 @@ type persistData struct {
 	state      sm.State
 	block      *types.Block
 	seenCommit *types.Commit
+	result     chan error
 }
 
 func persistDataRoutine(
@@ -598,6 +609,7 @@ func persistDataRoutine(
 	for data := range dataCh {
 		blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
 		if err != nil {
+			data.result <- err
 			return fmt.Errorf("failed to make block part set: %w", err)
 		}
 
@@ -607,8 +619,10 @@ func persistDataRoutine(
 		}
 
 		if err := stateStore.Save(data.state); err != nil {
+			data.result <- err
 			return err
 		}
+		data.result <- nil
 	}
 	return nil
 }
