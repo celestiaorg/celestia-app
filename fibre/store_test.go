@@ -355,9 +355,8 @@ func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store, _ strin
 	}
 }
 
-// Reconcile drops staging/ leftovers on open, leaves real shards alone, and
-// logs the cleanup count.
-func TestStoreReconcileStaging(t *testing.T) {
+// Reconcile drops staging leftovers and orphan shard files on open.
+func TestStoreReconcile(t *testing.T) {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
 	store, err := fibre.NewStore(cfg)
@@ -375,6 +374,10 @@ func TestStoreReconcileStaging(t *testing.T) {
 	staleB := filepath.Join(stagingDir, "bbb")
 	require.NoError(t, os.WriteFile(staleA, []byte("partial-a"), 0o644))
 	require.NoError(t, os.WriteFile(staleB, []byte("partial-b"), 0o644))
+	orphan := filepath.Join(cfg.Path, "shards", strings.Repeat("0", 64)+"-"+strings.Repeat("1", 64))
+	unknown := filepath.Join(cfg.Path, "shards", "unknown")
+	require.NoError(t, os.WriteFile(orphan, []byte("orphan"), 0o644))
+	require.NoError(t, os.WriteFile(unknown, []byte("unknown"), 0o644))
 
 	var buf strings.Builder
 	cfg.Log = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -387,6 +390,10 @@ func TestStoreReconcileStaging(t *testing.T) {
 		_, err := os.Stat(p)
 		require.True(t, os.IsNotExist(err), "%s should be removed by reconcile", p)
 	}
+	_, err = os.Stat(orphan)
+	require.True(t, os.IsNotExist(err), "%s should be removed by reconcile", orphan)
+	_, err = os.Stat(unknown)
+	require.NoError(t, err)
 	st, err := os.Stat(stagingDir)
 	require.NoError(t, err)
 	require.True(t, st.IsDir())
@@ -394,6 +401,7 @@ func TestStoreReconcileStaging(t *testing.T) {
 	out := buf.String()
 	require.Contains(t, out, "store reconcile complete")
 	require.Contains(t, out, "staging_files_removed=2")
+	require.Contains(t, out, "orphan_files_removed=1")
 
 	got, err := store.Get(t.Context(), blob.ID().Commitment())
 	require.NoError(t, err)
@@ -503,7 +511,7 @@ func testStoreHas(t *testing.T, store *fibre.Store, path string) {
 	require.False(t, has, "orphan marker without a file must report absent, not error")
 }
 
-// Size is 0 for an empty store and the sum of on-disk shard file sizes otherwise.
+// Size is 0 for an empty store and otherwise sums shard marker sizes.
 func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 	ctx := t.Context()
 
@@ -530,6 +538,14 @@ func testStoreSize(t *testing.T, store *fibre.Store, path string) {
 		want += info.Size()
 	}
 
+	size, err = store.Size(ctx)
+	require.NoError(t, err)
+	require.Equal(t, want, size)
+
+	// Versioned markers remain accounted when a local payload is missing.
+	h, err := makeTestPaymentPromise(100, blob.ID()).Hash()
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(filepath.Join(path, "shards", commitment.String()+"-"+hex.EncodeToString(h))))
 	size, err = store.Size(ctx)
 	require.NoError(t, err)
 	require.Equal(t, want, size)
@@ -563,7 +579,7 @@ func (c *cancelAfterCtx) Err() error {
 	return context.Canceled
 }
 
-// PruneBefore reports the total on-disk bytes it freed.
+// PruneBefore reports the total marker-accounted bytes it freed.
 func testStorePruneBeforeReturnsFreedBytes(t *testing.T, store *fibre.Store, path string) {
 	ctx := t.Context()
 	blob := makeTestBlobV0(t, 256)
