@@ -416,10 +416,7 @@ func (s *FibreE2ETestSuite) Test07DuplicatePayment() {
 
 	hash, err := signed.Hash()
 	require.NoError(t, err)
-	q := fibretypes.NewQueryClient(s.cctx.GRPCClient)
-	processed, err := q.IsPaymentProcessed(ctx, &fibretypes.QueryIsPaymentProcessedRequest{PromiseHash: hash})
-	require.NoError(t, err)
-	require.True(t, processed.Found, "payment promise should be recorded as processed after settlement")
+	waitForPaymentProcessed(t, s.cctx, hash)
 
 	resp, err = s.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 	if err == nil {
