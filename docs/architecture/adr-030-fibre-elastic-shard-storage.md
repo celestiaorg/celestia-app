@@ -85,7 +85,7 @@ Marker decoding will use these validation rules:
 - The payload size must be greater than zero and no greater than `math.MaxInt64`.
 - A truncated, overlong, malformed, or unsupported marker is an integrity error.
 
-These rules apply to `Store.Get`, `Store.Has`, `Store.Size`, and `Store.PruneBefore`. After an integrity error, these methods must not select a backend or modify stored data.
+These rules apply to `Store.Get`, `Store.Has`, `Store.Size`, and `Store.PruneBefore`. A method must not select a backend from an invalid marker or modify that marker's payload or metadata. `Store.PruneBefore` skips invalid entries, continues pruning valid entries, and returns integrity errors after committing the valid metadata deletions.
 
 ### Design overview
 
