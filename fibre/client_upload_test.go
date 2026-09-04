@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
 	grpclib "google.golang.org/grpc"
@@ -290,4 +291,115 @@ func (v *validatorMockClient) DownloadShard(ctx context.Context, req *types.Down
 
 func (v *validatorMockClient) Close() error {
 	return nil
+}
+
+// heightStampingSetGetter mirrors the real getters: GetByHeight returns the
+// set stamped with the requested height.
+type heightStampingSetGetter struct {
+	set validator.Set
+}
+
+func (m *heightStampingSetGetter) Head(context.Context) (validator.Set, error) {
+	return m.set, nil
+}
+
+func (m *heightStampingSetGetter) GetByHeight(_ context.Context, height uint64) (validator.Set, error) {
+	return validator.Set{ValidatorSet: m.set.ValidatorSet, Height: height}, nil
+}
+
+// TestUploadSignsAtHead pins the signing height: promises must be signed at
+// the head, whose validator set is the one the upload fans out to. Fails if
+// the signing height silently drifts (e.g. to head-1, see #7774/#7775).
+func TestUploadSignsAtHead(t *testing.T) {
+	const head = uint64(100)
+
+	cfg := fibre.DefaultClientConfig()
+	validators, privKeys := makeTestValidators(t, 3)
+	cfg.NewClientFn = makeMockClientFn(validators, privKeys)
+	cfg.StateClientFn = func() (state.Client, error) {
+		getter := &heightStampingSetGetter{
+			set: validator.Set{ValidatorSet: core.NewValidatorSet(validators), Height: head},
+		}
+		return &mockStateClient{SetGetter: getter, chainID: "celestia"}, nil
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 1024)
+	defer blob.Free()
+
+	result, err := client.Upload(t.Context(), testNamespace, blob)
+	require.NoError(t, err)
+	require.Equal(t, head, result.Height)
+}
+
+// divergentSetGetter returns different validator sets for the head and for any
+// other height, simulating a validator-set change between adjacent heights.
+type divergentSetGetter struct {
+	head  validator.Set
+	other *core.ValidatorSet
+}
+
+func (m *divergentSetGetter) Head(context.Context) (validator.Set, error) {
+	return m.head, nil
+}
+
+func (m *divergentSetGetter) GetByHeight(_ context.Context, height uint64) (validator.Set, error) {
+	if height == m.head.Height {
+		return validator.Set{ValidatorSet: m.head.ValidatorSet, Height: height}, nil
+	}
+	return validator.Set{ValidatorSet: m.other, Height: height}, nil
+}
+
+// TestUploadSignaturesVerifyAtPromiseHeight replays the on-chain check: the
+// collected signatures must verify positionally against the validator set at
+// the promise's height (x/fibre validateValidatorSignatures). Any pairing
+// drift between the set the upload fans out to and the height stamped into the
+// promise fails this test, even when the sets differ between adjacent heights
+// (the defect a caching relabel introduced in #7775).
+func TestUploadSignaturesVerifyAtPromiseHeight(t *testing.T) {
+	const head = uint64(100)
+
+	headVals, headKeys := makeTestValidators(t, 4)
+	otherVals, _ := makeTestValidators(t, 4)
+
+	getter := &divergentSetGetter{
+		head:  validator.Set{ValidatorSet: core.NewValidatorSet(headVals), Height: head},
+		other: core.NewValidatorSet(otherVals),
+	}
+
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = makeMockClientFn(headVals, headKeys)
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: getter, chainID: "celestia"}, nil
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+
+	blob := makeTestBlobV0(t, 1024)
+	defer blob.Free()
+
+	result, err := client.Upload(t.Context(), testNamespace, blob, fibre.WithAwaitAllSignatures())
+	require.NoError(t, err)
+
+	// The chain resolves the set at the promise's height; replay that here.
+	verifySet, err := getter.GetByHeight(t.Context(), result.Height)
+	require.NoError(t, err)
+	signBytes, err := result.SignBytes()
+	require.NoError(t, err)
+
+	sigSet := verifySet.NewSignatureSet(cmtmath.Fraction{Numerator: 2, Denominator: 3}, signBytes)
+	for i, sig := range result.ValidatorSignatures {
+		if len(sig) == 0 {
+			continue
+		}
+		_, err := sigSet.Add(verifySet.Validators[i], sig)
+		require.NoError(t, err, "signature %d does not verify against the set at promise height %d", i, result.Height)
+	}
+	_, err = sigSet.Signatures()
+	require.NoError(t, err, "signatures do not reach quorum against the set at promise height %d", result.Height)
 }
