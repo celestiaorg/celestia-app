@@ -1,16 +1,12 @@
 package fibre
 
 import (
-	"bufio"
 	"context"
-	"crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -21,19 +17,10 @@ import (
 	gogoproto "github.com/cosmos/gogoproto/proto"
 )
 
-// Layout under [StoreConfig.Path]:
-//
-//	shards/<commit>-<hash>  finalized shard payloads (flat files).
-//	staging/<rand>          in-flight Put writes; renamed into shards/ on
-//	                        success, dropped wholesale by [Store.reconcile]
-//	                        on next open.
-//
 // Bulk shard data is kept off pebble because pebble serializes large-value
 // commits through a single goroutine, which becomes the upload bottleneck at
 // concurrency. Pebble only holds the small metadata.
 const (
-	shardsSubdir   = "shards"
-	stagingSubdir  = "staging"
 	shardKeyPrefix = "/shard/"
 	// maxPruneBatchSize bounds each Pebble commit. The server drains full
 	// batches during one prune pass.
@@ -74,15 +61,11 @@ func (cfg *StoreConfig) Validate() error {
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
 type Store struct {
-	cfg StoreConfig
-	db  *pebbledb.DB
-	fs  vfs.FS
-	log *slog.Logger
+	db     *pebbledb.DB
+	log    *slog.Logger
+	shards shardStorage
+	local  *localBackend
 }
-
-// shardWriteCategory identifies our shard-file writes in pebble's vfs disk
-// I/O telemetry.
-const shardWriteCategory vfs.DiskWriteCategory = "fibre-shard"
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
 // [NewMemoryStore]; both pebble's files and our shards/staging subdirs live
@@ -113,10 +96,9 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 		return nil, fmt.Errorf("validating store config: %w", err)
 	}
 
-	for _, sub := range []string{shardsSubdir, stagingSubdir} {
-		if err := filesystem.MkdirAll(filepath.Join(cfg.Path, sub), 0o755); err != nil {
-			return nil, fmt.Errorf("creating %s directory: %w", sub, err)
-		}
+	local, err := newLocalBackend(cfg.Path, filesystem)
+	if err != nil {
+		return nil, fmt.Errorf("opening local shard storage: %w", err)
 	}
 
 	opts := &pebbledb.Options{FS: filesystem}
@@ -131,7 +113,7 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	s := &Store{cfg: cfg, db: db, fs: filesystem, log: cfg.Log}
+	s := &Store{db: db, log: cfg.Log, shards: local, local: local}
 	if err := s.reconcile(); err != nil {
 		_ = s.db.Close()
 		return nil, fmt.Errorf("reconciling store: %w", err)
@@ -158,21 +140,11 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	}
 
 	marker := encodeShardMarker(shardBinarySize(shard))
-	tmp, err := s.writeTmpShard(shard)
-	if err != nil {
-		return fmt.Errorf("writing shard tmp: %w", err)
-	}
-	if err := s.commitAndPublish(ctx, promise, promiseHash, tmp, marker, pruneAt); err != nil {
-		_ = s.fs.Remove(tmp)
-		return err
-	}
-	return nil
+	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
 }
 
-// commitAndPublish renames tmp into the canonical shards/ path, then writes
-// pebble metadata for the published shard. On any error tmp is left in
-// place for the caller to remove.
-func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, promiseHash []byte, tmp string, marker []byte, pruneAt time.Time) error {
+// commitAndStore writes the shard payload, then commits its Pebble metadata.
+func (s *Store) commitAndStore(ctx context.Context, promise *PaymentPromise, promiseHash []byte, shard *types.BlobShard, marker []byte, pruneAt time.Time) error {
 	promiseProto, err := promise.ToProto()
 	if err != nil {
 		return fmt.Errorf("converting payment promise to proto: %w", err)
@@ -194,22 +166,18 @@ func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, p
 		return fmt.Errorf("putting prune index: %w", err)
 	}
 
-	// Last safe point to honor a client cancellation: the batch is still only
-	// staged in memory and the tmp file is still unpublished, so we can drop
-	// both cleanly. Past the Rename+Commit below the write is durable and
-	// cannot be undone.
+	// Last safe point to honour cancellation before the durable payload write.
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("aborting store commit: %w", err)
 	}
 
-	// Publish the file, then commit the marker that makes it discoverable.
-	shardPath := s.shardFilePath(promise.Commitment, promiseHash)
-	if err := s.fs.Rename(tmp, shardPath); err != nil {
-		return fmt.Errorf("renaming shard tmp to final: %w", err)
+	created, err := s.shards.Put(ctx, promise.Commitment, promiseHash, shard)
+	if err != nil {
+		return fmt.Errorf("storing shard payload: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		if !s.hasShardMarker(promise.Commitment, promiseHash) {
-			if rmErr := s.fs.Remove(shardPath); rmErr != nil && !errors.Is(rmErr, os.ErrNotExist) {
+		if created && !s.hasShardMarker(promise.Commitment, promiseHash) {
+			if rmErr := s.shards.Delete(context.Background(), promise.Commitment, promiseHash); rmErr != nil {
 				s.log.Warn("failed to remove orphaned shard after commit failure",
 					"commitment", promise.Commitment.String(), "error", rmErr)
 			}
@@ -220,47 +188,6 @@ func (s *Store) commitAndPublish(ctx context.Context, promise *PaymentPromise, p
 	return nil
 }
 
-// writeTmpShard stages a shard under <store>/staging/ at a randomly named
-// file. Random (not canonical staging/<commit>-<hash>) because vfs.FS.Create
-// truncates on collision rather than failing — no O_EXCL — so two concurrent
-// same-key writers would clobber each other's tmp. Random per-writer names
-// sidestep that; the rename in [Store.Put] picks one winner.
-func (s *Store) writeTmpShard(shard *types.BlobShard) (string, error) {
-	var rnd [16]byte
-	if _, err := rand.Read(rnd[:]); err != nil {
-		return "", fmt.Errorf("generating tmp name: %w", err)
-	}
-	tmp := filepath.Join(s.cfg.Path, stagingSubdir, hex.EncodeToString(rnd[:]))
-
-	f, err := s.fs.Create(tmp, shardWriteCategory)
-	if err != nil {
-		return "", fmt.Errorf("creating tmp shard file: %w", err)
-	}
-	bw := bufio.NewWriterSize(f, 1<<20)
-	if err := writeShardBinary(bw, shard); err != nil {
-		f.Close()
-		_ = s.fs.Remove(tmp)
-		return "", err
-	}
-	if err := bw.Flush(); err != nil {
-		f.Close()
-		_ = s.fs.Remove(tmp)
-		return "", err
-	}
-	if err := f.Close(); err != nil {
-		_ = s.fs.Remove(tmp)
-		return "", err
-	}
-	return tmp, nil
-}
-
-// shardFilePath returns the canonical flat-file path for (commit, hash). All
-// shard files live as siblings under <store>/shards/; the (commit, hash) pair
-// is encoded in the filename as <commit-hex>-<hash-hex>.
-func (s *Store) shardFilePath(commit Commitment, promiseHash []byte) string {
-	return filepath.Join(s.cfg.Path, shardsSubdir, commit.String()+"-"+hex.EncodeToString(promiseHash))
-}
-
 // Get returns the first [types.BlobShard] found for the given [Commitment].
 // When multiple promises exist for the same commitment, returning only the
 // first prevents unbounded message sizes; pebble's deterministic key order
@@ -268,7 +195,7 @@ func (s *Store) shardFilePath(commit Commitment, promiseHash []byte) string {
 //
 // A marker with a missing payload remains until pruning so its recorded size
 // can be released from occupancy.
-func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard, error) {
+func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
 	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
@@ -292,7 +219,7 @@ func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard,
 			continue
 		}
 
-		shard, err := readShardFile(s.fs, s.shardFilePath(commitment, promiseHash))
+		shard, err := s.shards.Get(ctx, commitment, promiseHash)
 		if err == nil {
 			return shard, nil
 		}
@@ -312,13 +239,13 @@ func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard,
 }
 
 // Has verifies that shard exists without reading the whole file
-func (s *Store) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
-	has, _, err := s.shardStatus(commitment, promiseHash)
+func (s *Store) Has(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
+	has, _, err := s.shardStatus(ctx, commitment, promiseHash)
 	return has, err
 }
 
 // shardStatus reports whether the payload exists and its marker counts towards occupancy.
-func (s *Store) shardStatus(commitment Commitment, promiseHash []byte) (bool, bool, error) {
+func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, bool, error) {
 	markerData, closer, err := s.db.Get(shardKey(commitment, promiseHash))
 	var accounted bool
 	switch {
@@ -335,14 +262,11 @@ func (s *Store) shardStatus(commitment Commitment, promiseHash []byte) (bool, bo
 		}
 	}
 
-	_, err = s.fs.Stat(s.shardFilePath(commitment, promiseHash))
-	switch {
-	case errors.Is(err, os.ErrNotExist):
-		return false, accounted, nil
-	case err != nil:
-		return false, false, fmt.Errorf("stat shard file: %w", err)
+	has, err := s.shards.Has(ctx, commitment, promiseHash)
+	if err != nil {
+		return false, false, err
 	}
-	return true, accounted, nil
+	return has, accounted, nil
 }
 
 // hasShardMarker reports whether a committed shard marker exists,
@@ -409,14 +333,12 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 		}
 		if size == 0 {
 			// Empty markers predate encoded sizes, so read the local file size.
-			info, err := s.fs.Stat(s.shardFilePath(commitment, promiseHash))
-			switch {
-			case errors.Is(err, os.ErrNotExist):
-				continue
-			case err != nil:
+			size, err = s.local.size(commitment, promiseHash)
+			if err != nil {
 				return 0, fmt.Errorf("stat legacy shard file: %w", err)
-			default:
-				size = info.Size()
+			}
+			if size == 0 {
+				continue
 			}
 		}
 		if size > math.MaxInt64-totalSize {
@@ -438,11 +360,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 
 // DiskAvailable returns the free bytes on the filesystem backing the store.
 func (s *Store) DiskAvailable() (int64, error) {
-	du, err := s.fs.GetDiskUsage(s.cfg.Path)
-	if err != nil {
-		return 0, fmt.Errorf("getting disk usage: %w", err)
-	}
-	return int64(du.AvailBytes), nil
+	return s.local.diskAvailable()
 }
 
 // GetPaymentPromise retrieves a [PaymentPromise] by its hash.
@@ -473,7 +391,7 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 // markers are skipped, it commits valid deletions and returns their count and
 // freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
 // do not consume deletion capacity. Fatal errors return no uncommitted counts.
-func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, error) {
+func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
@@ -527,13 +445,9 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 
 		if size == 0 {
 			// Empty markers predate encoded sizes, so read the local file size.
-			info, err := s.fs.Stat(s.shardFilePath(commitment, promiseHash))
-			switch {
-			case errors.Is(err, os.ErrNotExist):
-			case err != nil:
+			size, err = s.local.size(commitment, promiseHash)
+			if err != nil {
 				return 0, 0, fmt.Errorf("getting shard file stats: %w", err)
-			default:
-				size = info.Size()
 			}
 		}
 		if size > math.MaxInt64-prunedBytes {
@@ -541,8 +455,8 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 		}
 
 		// Missing file is fine (orphan marker from a crashed Put).
-		if err := s.fs.Remove(s.shardFilePath(commitment, promiseHash)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return 0, 0, fmt.Errorf("removing shard file: %w", err)
+		if err := s.shards.Delete(ctx, commitment, promiseHash); err != nil {
+			return 0, 0, err
 		}
 		if err := batch.Delete(key, pebbledb.NoSync); err != nil {
 			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
@@ -577,7 +491,7 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 // rare orphan files (pebble.NoSync power loss after rename) are accepted.
 func (s *Store) reconcile() error {
 	start := time.Now()
-	stagingRemoved, err := s.resetStaging()
+	stagingRemoved, err := s.local.resetStaging()
 	if err != nil {
 		s.log.Error("store reconcile failed", "error", err, "elapsed_ms", time.Since(start).Milliseconds())
 		return err
@@ -585,23 +499,6 @@ func (s *Store) reconcile() error {
 	s.log.Info("store reconcile complete", "staging_files_removed", stagingRemoved,
 		"elapsed_ms", time.Since(start).Milliseconds())
 	return nil
-}
-
-// resetStaging removes and recreates <store>/staging/, returning the number
-// of entries that were dropped. A missing dir is treated as zero.
-func (s *Store) resetStaging() (int, error) {
-	stagingDir := filepath.Join(s.cfg.Path, stagingSubdir)
-	entries, err := s.fs.List(stagingDir)
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
-		return 0, fmt.Errorf("reading staging: %w", err)
-	}
-	if err := s.fs.RemoveAll(stagingDir); err != nil {
-		return len(entries), fmt.Errorf("removing staging: %w", err)
-	}
-	if err := s.fs.MkdirAll(stagingDir, 0o755); err != nil {
-		return len(entries), fmt.Errorf("recreating staging: %w", err)
-	}
-	return len(entries), nil
 }
 
 // Close closes the underlying pebble database. For [NewMemoryStore] the

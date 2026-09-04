@@ -89,7 +89,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	mu.Lock()
 	defer mu.Unlock()
 
-	has, accounted, err := s.store.shardStatus(promise.Commitment, promiseHash)
+	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
