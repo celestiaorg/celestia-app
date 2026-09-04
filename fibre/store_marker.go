@@ -11,22 +11,19 @@ const (
 	shardMarkerSize    = 10
 )
 
-type shardBackendTag byte
+const localBackendTag byte = 0x01
 
-const localBackendTag shardBackendTag = 0x01
-
-func encodeShardMarker(size int64) ([]byte, error) {
-	if size <= 0 {
-		return nil, fmt.Errorf("invalid shard size %d", size)
-	}
-
+// encodeShardMarker encodes a local shard size.
+func encodeShardMarker(size int64) []byte {
 	marker := make([]byte, shardMarkerSize)
 	marker[0] = shardMarkerVersion
-	marker[1] = byte(localBackendTag)
+	marker[1] = localBackendTag
 	binary.BigEndian.PutUint64(marker[2:], uint64(size))
-	return marker, nil
+	return marker
 }
 
+// decodeShardMarker returns the encoded shard size. An empty marker returns
+// zero without an error and identifies a legacy local shard.
 func decodeShardMarker(data []byte) (int64, error) {
 	if len(data) == 0 {
 		return 0, nil
@@ -37,7 +34,7 @@ func decodeShardMarker(data []byte) (int64, error) {
 	if data[0] != shardMarkerVersion {
 		return 0, fmt.Errorf("%w: unsupported shard marker version %d", ErrStoreIntegrity, data[0])
 	}
-	if shardBackendTag(data[1]) != localBackendTag {
+	if data[1] != localBackendTag {
 		return 0, fmt.Errorf("%w: unsupported shard backend tag 0x%02x", ErrStoreIntegrity, data[1])
 	}
 

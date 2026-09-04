@@ -157,14 +157,10 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
 
+	marker := encodeShardMarker(shardBinarySize(shard))
 	tmp, err := s.writeTmpShard(shard)
 	if err != nil {
 		return fmt.Errorf("writing shard tmp: %w", err)
-	}
-	marker, err := encodeShardMarker(shardBinarySize(shard))
-	if err != nil {
-		_ = s.fs.Remove(tmp)
-		return fmt.Errorf("encoding shard marker: %w", err)
 	}
 	if err := s.commitAndPublish(ctx, promise, promiseHash, tmp, marker, pruneAt); err != nil {
 		_ = s.fs.Remove(tmp)
@@ -395,8 +391,11 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 	}
 	defer iter.Close()
 
-	var totalSize int64
-	var integrityErr error
+	var (
+		totalSize      int64
+		integrityErr   error
+		invalidEntries int
+	)
 	for valid := iter.First(); valid; valid = iter.Next() {
 		if err := ctx.Err(); err != nil {
 			return 0, err
@@ -404,14 +403,19 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 
 		size, err := decodeShardMarker(iter.Value())
 		if err != nil {
-			integrityErr = errors.Join(integrityErr, fmt.Errorf("decoding shard marker %q: %w", iter.Key(), err))
+			invalidEntries++
+			if integrityErr == nil {
+				integrityErr = fmt.Errorf("decoding shard marker %q: %w", iter.Key(), err)
+			}
 			continue
 		}
 		if size == 0 {
 			commitment, promiseHash, ok := parseShardKey(string(iter.Key()))
 			if !ok {
-				integrityErr = errors.Join(integrityErr,
-					fmt.Errorf("%w: invalid shard key %q", ErrStoreIntegrity, iter.Key()))
+				invalidEntries++
+				if integrityErr == nil {
+					integrityErr = fmt.Errorf("%w: invalid shard key %q", ErrStoreIntegrity, iter.Key())
+				}
 				continue
 			}
 			info, err := s.fs.Stat(s.shardFilePath(commitment, promiseHash))
@@ -434,6 +438,9 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 	}
 	if err := ctx.Err(); err != nil {
 		return 0, ctx.Err()
+	}
+	if invalidEntries > 1 {
+		integrityErr = fmt.Errorf("%w (%d invalid shard metadata entries)", integrityErr, invalidEntries)
 	}
 	return totalSize, integrityErr
 }
@@ -488,10 +495,12 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 
 	batch := s.db.NewBatch()
 	defer batch.Close()
-	var pruned int
-	var prunedBytes int64
-	var integrityErr error
-	var corruptMarkers int
+	var (
+		pruned         int
+		prunedBytes    int64
+		integrityErr   error
+		corruptMarkers int
+	)
 	beforeStr := formatTimestamp(before.UTC())
 	for valid := iter.First(); valid && pruned < maxPruneBatchSize; valid = iter.Next() {
 		key := iter.Key()

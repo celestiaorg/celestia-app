@@ -17,8 +17,7 @@ import (
 )
 
 func TestShardMarkerCodec(t *testing.T) {
-	marker, err := encodeShardMarker(42)
-	require.NoError(t, err)
+	marker := encodeShardMarker(42)
 	require.Equal(t, []byte{1, 1, 0, 0, 0, 0, 0, 0, 0, 42}, marker)
 
 	size, err := decodeShardMarker(marker)
@@ -31,8 +30,7 @@ func TestShardMarkerCodec(t *testing.T) {
 }
 
 func TestShardMarkerRejectsInvalidData(t *testing.T) {
-	valid, err := encodeShardMarker(1)
-	require.NoError(t, err)
+	valid := encodeShardMarker(1)
 
 	overflow := append([]byte(nil), valid...)
 	binary.BigEndian.PutUint64(overflow[2:], uint64(math.MaxInt64)+1)
@@ -140,8 +138,7 @@ func TestGetSkipsInvalidMarkerAndReturnsValidShard(t *testing.T) {
 	invalidMarker := []byte{1, 2, 0, 0, 0, 0, 0, 0, 0, 1}
 	writeMarkerTestShard(t, store, commitment, invalidHash)
 	validSize := writeMarkerTestShard(t, store, commitment, validHash)
-	validMarker, err := encodeShardMarker(validSize)
-	require.NoError(t, err)
+	validMarker := encodeShardMarker(validSize)
 	require.NoError(t, store.db.Set(shardKey(commitment, invalidHash), invalidMarker, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(shardKey(commitment, validHash), validMarker, pebbledb.NoSync))
 
@@ -173,14 +170,16 @@ func TestSizeReturnsValidTotalWithInvalidMarker(t *testing.T) {
 	commitment := generateCommitment()
 	validHash := []byte{1}
 	invalidHash := []byte{2}
+	secondInvalidHash := []byte{3}
 	validSize := writeMarkerTestShard(t, store, commitment, validHash)
-	validMarker, err := encodeShardMarker(validSize)
-	require.NoError(t, err)
+	validMarker := encodeShardMarker(validSize)
 	require.NoError(t, store.db.Set(shardKey(commitment, validHash), validMarker, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(shardKey(commitment, invalidHash), []byte{1, 2}, pebbledb.NoSync))
+	require.NoError(t, store.db.Set(shardKey(commitment, secondInvalidHash), []byte{1, 2}, pebbledb.NoSync))
 
 	size, err := store.Size(t.Context())
 	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Contains(t, err.Error(), "2 invalid shard metadata entries")
 	require.Equal(t, validSize, size)
 }
 
@@ -189,8 +188,7 @@ func TestServerSeedsPartialSizeAfterIntegrityError(t *testing.T) {
 	commitment := generateCommitment()
 	validHash := []byte{1}
 	validSize := writeMarkerTestShard(t, store, commitment, validHash)
-	validMarker, err := encodeShardMarker(validSize)
-	require.NoError(t, err)
+	validMarker := encodeShardMarker(validSize)
 	require.NoError(t, store.db.Set(shardKey(commitment, validHash), validMarker, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(shardKey(commitment, []byte{2}), []byte{1, 2}, pebbledb.NoSync))
 
@@ -215,8 +213,7 @@ func TestHasAccountedShardMarker(t *testing.T) {
 	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), nil, pebbledb.NoSync))
 	accounted = store.hasAccountedShardMarker(commitment, promiseHash)
 	require.False(t, accounted)
-	marker, err := encodeShardMarker(1)
-	require.NoError(t, err)
+	marker := encodeShardMarker(1)
 	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync))
 	accounted = store.hasAccountedShardMarker(commitment, promiseHash)
 	require.True(t, accounted)
@@ -230,8 +227,7 @@ func TestPruneBeforeSkipsInvalidMarkerAndPrunesValidEntry(t *testing.T) {
 	invalidHash := []byte{2}
 	validSize := writeMarkerTestShard(t, store, commitment, validHash)
 	writeMarkerTestShard(t, store, commitment, invalidHash)
-	validMarker, err := encodeShardMarker(validSize)
-	require.NoError(t, err)
+	validMarker := encodeShardMarker(validSize)
 	require.NoError(t, store.db.Set(shardKey(commitment, validHash), validMarker, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(shardKey(commitment, invalidHash), []byte{1, 2, 0, 0, 0, 0, 0, 0, 0, 1}, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, validHash), nil, pebbledb.NoSync))
@@ -257,8 +253,7 @@ func TestPruneBeforeLimitsBatchSize(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
 	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
-	marker, err := encodeShardMarker(1)
-	require.NoError(t, err)
+	marker := encodeShardMarker(1)
 	require.NoError(t, store.db.Set(shardKey(commitment, nil), []byte{1, 2}, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, nil), nil, pebbledb.NoSync))
 	for i := range maxPruneBatchSize + 1 {
@@ -282,8 +277,7 @@ func TestServerPruneDrainsBacklog(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
 	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
-	marker, err := encodeShardMarker(1)
-	require.NoError(t, err)
+	marker := encodeShardMarker(1)
 	require.NoError(t, store.db.Set(shardKey(commitment, nil), []byte{1, 2}, pebbledb.NoSync))
 	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, nil), nil, pebbledb.NoSync))
 	for i := range maxPruneBatchSize + 1 {
