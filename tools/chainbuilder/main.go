@@ -511,12 +511,12 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 			select {
 			case err := <-toPersist.result:
 				if err != nil {
-					restoreValidatorSignState(validatorKey, previousSignState)
-					return shutdownWorkers()
+					restoreErr := restoreValidatorSignState(validatorKey, previousSignState)
+					return errors.Join(shutdownWorkers(), restoreErr)
 				}
 			case <-persisterDone:
-				restoreValidatorSignState(validatorKey, previousSignState)
-				return shutdownWorkers()
+				restoreErr := restoreValidatorSignState(validatorKey, previousSignState)
+				return errors.Join(shutdownWorkers(), restoreErr)
 			}
 
 			if hooks.commitApp != nil {
@@ -632,8 +632,7 @@ func rollbackPersistence(
 	previousSignState privval.FilePVLastSignState,
 ) error {
 	rollbackErr := rollbackStores(stateStore, blockStore, previousState)
-	restoreValidatorSignState(validatorKey, previousSignState)
-	return rollbackErr
+	return errors.Join(rollbackErr, restoreValidatorSignState(validatorKey, previousSignState))
 }
 
 func rollbackStores(stateStore sm.Store, blockStore *store.BlockStore, previousState sm.State) error {
@@ -650,9 +649,15 @@ func rollbackStores(stateStore sm.Store, blockStore *store.BlockStore, previousS
 func restoreValidatorSignState(
 	validatorKey *privval.FilePV,
 	previousSignState privval.FilePVLastSignState,
-) {
+) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("restore validator sign state: %v", recovered)
+		}
+	}()
 	validatorKey.LastSignState = previousSignState
 	validatorKey.LastSignState.Save()
+	return nil
 }
 
 type persistData struct {
