@@ -2,21 +2,28 @@ package app
 
 import (
 	"crypto/sha256"
-	"sync"
 
 	"github.com/celestiaorg/go-square/v4/share"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-// TxCache caches the transactions
+const defaultTxCacheCapacity = 10_000
+
+// TxCache remembers blob txs validated in CheckTx so ProcessProposal can skip
+// re-validating them. Its fixed capacity bounds memory use independently of
+// mempool eviction, and only txs that passed full CheckTx are admitted, so
+// invalid spam cannot evict legitimate entries.
 type TxCache struct {
-	cache sync.Map
+	entries *lru.Cache[string, string]
 }
 
 // NewTxCache creates a new transaction cache
 func NewTxCache() *TxCache {
-	return &TxCache{
-		cache: sync.Map{},
+	entries, err := lru.New[string, string](defaultTxCacheCapacity)
+	if err != nil {
+		panic(err)
 	}
+	return &TxCache{entries: entries}
 }
 
 // getTxKey generates a deterministic key for a transaction
@@ -28,13 +35,8 @@ func (c *TxCache) getTxKey(tx []byte) string {
 // Exists checks whether the Tx exists in the cache and the blobs match the cached blobs
 func (c *TxCache) Exists(tx []byte, blobs []*share.Blob) bool {
 	key := c.getTxKey(tx)
-	value, exists := c.cache.Load(key)
+	cachedBlobHash, exists := c.entries.Get(key)
 	if !exists {
-		return false
-	}
-
-	cachedBlobHash, ok := value.(string)
-	if !ok {
 		return false
 	}
 
@@ -46,7 +48,7 @@ func (c *TxCache) Exists(tx []byte, blobs []*share.Blob) bool {
 func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
 	key := c.getTxKey(tx)
 	blobsHash := c.getBlobsHash(blobs)
-	c.cache.Store(key, blobsHash)
+	c.entries.Add(key, blobsHash)
 }
 
 // getBlobsHash hashes the domain-separated, length-prefixed hash of each blob.
@@ -64,15 +66,10 @@ func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
 // RemoveTransaction removes specific transactions from the cache
 func (c *TxCache) RemoveTransaction(tx []byte) {
 	key := c.getTxKey(tx)
-	c.cache.Delete(key)
+	c.entries.Remove(key)
 }
 
 // Size returns the current number of entries in the cache
 func (c *TxCache) Size() int {
-	count := 0
-	c.cache.Range(func(key, value any) bool {
-		count++
-		return true
-	})
-	return count
+	return c.entries.Len()
 }
