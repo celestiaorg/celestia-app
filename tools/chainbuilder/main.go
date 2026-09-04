@@ -135,6 +135,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 type runHooks struct {
 	afterBlockCommitted func(int64)
 	commitApp           func() error
+	saveState           func(sm.State) error
 }
 
 func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (rerr error) {
@@ -341,9 +342,14 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 		generatorErr = generateSquareRoutine(ctx, signer, cfg, dataCh)
 	}()
 
+	saveState := stateStore.Save
+	if hooks.saveState != nil {
+		saveState = hooks.saveState
+	}
+
 	go func() {
 		defer close(persisterDone)
-		persisterErr = persistDataRoutine(stateStore, blockStore, persistCh)
+		persisterErr = persistDataRoutine(stateStore, blockStore, persistCh, saveState)
 	}()
 
 	var shutdownOnce sync.Once
@@ -486,9 +492,10 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 			state.LastResultsHash = sm.TxResultsHash(resp.TxResults)
 			currentTime = currentTime.Add(cfg.BlockInterval)
 			toPersist := persistData{
-				state:  state.Copy(),
-				block:  block,
-				result: make(chan error, 1),
+				state:         state.Copy(),
+				previousState: previousState,
+				block:         block,
+				result:        make(chan error, 1),
 				seenCommit: &types.Commit{
 					Height:     commit.Height,
 					Round:      commit.Round,
@@ -504,9 +511,11 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 			select {
 			case err := <-toPersist.result:
 				if err != nil {
+					restoreValidatorSignState(validatorKey, previousSignState)
 					return shutdownWorkers()
 				}
 			case <-persisterDone:
+				restoreValidatorSignState(validatorKey, previousSignState)
 				return shutdownWorkers()
 			}
 
@@ -622,6 +631,12 @@ func rollbackPersistence(
 	validatorKey *privval.FilePV,
 	previousSignState privval.FilePVLastSignState,
 ) error {
+	rollbackErr := rollbackStores(stateStore, blockStore, previousState)
+	restoreValidatorSignState(validatorKey, previousSignState)
+	return rollbackErr
+}
+
+func rollbackStores(stateStore sm.Store, blockStore *store.BlockStore, previousState sm.State) error {
 	var rollbackErr error
 	if err := blockStore.DeleteLatestBlock(); err != nil {
 		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("delete latest block: %w", err))
@@ -629,22 +644,30 @@ func rollbackPersistence(
 	if err := stateStore.Save(previousState); err != nil {
 		rollbackErr = errors.Join(rollbackErr, fmt.Errorf("restore previous state: %w", err))
 	}
-	validatorKey.LastSignState = previousSignState
-	validatorKey.LastSignState.Save()
 	return rollbackErr
 }
 
+func restoreValidatorSignState(
+	validatorKey *privval.FilePV,
+	previousSignState privval.FilePVLastSignState,
+) {
+	validatorKey.LastSignState = previousSignState
+	validatorKey.LastSignState.Save()
+}
+
 type persistData struct {
-	state      sm.State
-	block      *types.Block
-	seenCommit *types.Commit
-	result     chan error
+	state         sm.State
+	previousState sm.State
+	block         *types.Block
+	seenCommit    *types.Commit
+	result        chan error
 }
 
 func persistDataRoutine(
 	stateStore sm.Store,
 	blockStore *store.BlockStore,
 	dataCh <-chan persistData,
+	saveState func(sm.State) error,
 ) error {
 	for data := range dataCh {
 		blockParts, err := data.block.MakePartSet(types.BlockPartSizeBytes)
@@ -658,9 +681,13 @@ func persistDataRoutine(
 			fmt.Println("Reached height", blockStore.Height())
 		}
 
-		if err := stateStore.Save(data.state); err != nil {
-			data.result <- err
-			return err
+		if err := saveState(data.state); err != nil {
+			persistErr := fmt.Errorf("save consensus state: %w", err)
+			if rollbackErr := rollbackStores(stateStore, blockStore, data.previousState); rollbackErr != nil {
+				persistErr = errors.Join(persistErr, fmt.Errorf("roll back persisted block: %w", rollbackErr))
+			}
+			data.result <- persistErr
+			return persistErr
 		}
 		data.result <- nil
 	}

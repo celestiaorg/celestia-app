@@ -203,6 +203,34 @@ func TestRunRollsBackPersistenceOnAppCommitFailure(t *testing.T) {
 	requireChainHeights(t, chainDir, cfg.ChainID, 2)
 }
 
+func TestRunRollsBackBlockOnStateSaveFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping chainbuilder tool test")
+	}
+
+	cfg := BuilderConfig{
+		NumBlocks:     1,
+		BlockSize:     1024,
+		BlockInterval: time.Second,
+		ChainID:       random.Str(6),
+		Namespace:     defaultNamespace,
+	}
+	dir := t.TempDir()
+	saveErr := errors.New("injected consensus state save failure")
+	require.NoError(t, Run(context.Background(), cfg, dir))
+
+	chainDir := filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
+	cfg.ExistingDir = chainDir
+	err := run(context.Background(), cfg, dir, runHooks{
+		saveState: func(sm.State) error { return saveErr },
+	})
+	require.ErrorIs(t, err, saveErr)
+	requireChainHeights(t, chainDir, cfg.ChainID, 1)
+
+	require.NoError(t, Run(context.Background(), cfg, dir))
+	requireChainHeights(t, chainDir, cfg.ChainID, 2)
+}
+
 func requireChainHeights(t *testing.T, dir, chainID string, want int64) {
 	t.Helper()
 
