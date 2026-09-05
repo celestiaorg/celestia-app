@@ -89,7 +89,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	mu.Lock()
 	defer mu.Unlock()
 
-	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	has, accounted, err := s.store.shardStatus(promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
@@ -99,7 +99,6 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 	if !has {
 		size := shardBinarySize(req.Shard)
-		accounted := s.store.hasAccountedShardMarker(promise.Commitment, promiseHash)
 		newReservation := !accounted
 		if newReservation && !s.occ.reserve(size) {
 			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))

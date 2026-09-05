@@ -321,39 +321,36 @@ func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard,
 
 // Has verifies that shard exists without reading the whole file
 func (s *Store) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
+	has, _, err := s.shardStatus(commitment, promiseHash)
+	return has, err
+}
+
+// shardStatus reports whether the payload exists and its marker counts towards occupancy.
+func (s *Store) shardStatus(commitment Commitment, promiseHash []byte) (bool, bool, error) {
 	markerData, closer, err := s.db.Get(shardKey(commitment, promiseHash))
+	var accounted bool
 	switch {
 	case errors.Is(err, pebbledb.ErrNotFound):
-		return false, nil
+		return false, false, nil
 	case err != nil:
-		return false, fmt.Errorf("checking if shard exists failed: %w", err)
+		return false, false, fmt.Errorf("checking if shard exists failed: %w", err)
 	default:
+		accounted = len(markerData) > 0
 		_, err = decodeShardMarker(markerData)
 		_ = closer.Close()
 		if err != nil {
-			return false, err
+			return false, false, err
 		}
 	}
 
 	_, err = s.fs.Stat(s.shardFilePath(commitment, promiseHash))
 	switch {
 	case errors.Is(err, os.ErrNotExist):
-		return false, nil
+		return false, accounted, nil
 	case err != nil:
-		return false, fmt.Errorf("stat shard file: %w", err)
+		return false, false, fmt.Errorf("stat shard file: %w", err)
 	}
-	return true, nil
-}
-
-// hasAccountedShardMarker reports whether a marker validated by [Store.Has]
-// already counts the shard towards occupancy.
-func (s *Store) hasAccountedShardMarker(commitment Commitment, promiseHash []byte) bool {
-	markerData, closer, err := s.db.Get(shardKey(commitment, promiseHash))
-	if err != nil {
-		return false
-	}
-	_ = closer.Close()
-	return len(markerData) > 0
+	return true, accounted, nil
 }
 
 // hasShardMarker reports whether a committed shard marker exists,

@@ -203,19 +203,25 @@ func TestServerSeedsPartialSizeAfterIntegrityError(t *testing.T) {
 	require.Contains(t, logs.String(), "store size may be incorrect due to corrupt shard marker")
 }
 
-func TestHasAccountedShardMarker(t *testing.T) {
+func TestShardStatus(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
 	promiseHash := []byte{1}
 
-	accounted := store.hasAccountedShardMarker(commitment, promiseHash)
+	has, accounted, err := store.shardStatus(commitment, promiseHash)
+	require.NoError(t, err)
+	require.False(t, has)
 	require.False(t, accounted)
 	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), nil, pebbledb.NoSync))
-	accounted = store.hasAccountedShardMarker(commitment, promiseHash)
+	has, accounted, err = store.shardStatus(commitment, promiseHash)
+	require.NoError(t, err)
+	require.False(t, has)
 	require.False(t, accounted)
 	marker := encodeShardMarker(1)
 	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync))
-	accounted = store.hasAccountedShardMarker(commitment, promiseHash)
+	has, accounted, err = store.shardStatus(commitment, promiseHash)
+	require.NoError(t, err)
+	require.False(t, has)
 	require.True(t, accounted)
 }
 
