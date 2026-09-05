@@ -103,7 +103,7 @@ func NewMemoryStore(cfg StoreConfig) *Store {
 
 // NewStore opens a [Store] backed by an on-disk pebble database and flat
 // shard files at cfg.Path. On open, [Store.reconcile] drops leftover staging
-// files and shard files without markers.
+// files from a previous crash.
 func NewStore(cfg StoreConfig) (*Store, error) {
 	return openStore(cfg, vfs.Default)
 }
@@ -390,6 +390,14 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 			return 0, err
 		}
 
+		commitment, promiseHash, ok := parseShardKey(string(iter.Key()))
+		if !ok {
+			invalidEntries++
+			if integrityErr == nil {
+				integrityErr = fmt.Errorf("%w: invalid shard key %q", ErrStoreIntegrity, iter.Key())
+			}
+			continue
+		}
 		size, err := decodeShardMarker(iter.Value())
 		if err != nil {
 			// Keep one representative error and count all invalid markers.
@@ -401,14 +409,6 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 		}
 		if size == 0 {
 			// Empty markers predate encoded sizes, so read the local file size.
-			commitment, promiseHash, ok := parseShardKey(string(iter.Key()))
-			if !ok {
-				invalidEntries++
-				if integrityErr == nil {
-					integrityErr = fmt.Errorf("%w: invalid shard key %q", ErrStoreIntegrity, iter.Key())
-				}
-				continue
-			}
 			info, err := s.fs.Stat(s.shardFilePath(commitment, promiseHash))
 			switch {
 			case errors.Is(err, os.ErrNotExist):

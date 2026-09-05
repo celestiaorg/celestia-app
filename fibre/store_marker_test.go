@@ -187,6 +187,15 @@ func TestSizeReturnsValidTotalWithInvalidMarker(t *testing.T) {
 	require.Equal(t, validSize, size)
 }
 
+func TestSizeRejectsMalformedShardKeyWithValidMarker(t *testing.T) {
+	store := newMarkerTestStore(t)
+	require.NoError(t, store.db.Set([]byte(shardKeyPrefix+"malformed"), encodeShardMarker(37), pebbledb.NoSync))
+
+	size, err := store.Size(t.Context())
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Zero(t, size)
+}
+
 func TestServerSeedsPartialSizeAfterIntegrityError(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
