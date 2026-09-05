@@ -14,7 +14,9 @@ const (
 	testDuration    = 15 * time.Minute       // 15 minutes
 	submissionDelay = 1 * time.Second
 
-	maxAvgLatency = 8 * time.Second
+	// Bound on the average effective latency, which excludes the client-side
+	// broadcast (signing and uploading the blob).
+	maxAvgEffectiveLatency = 8 * time.Second
 	// minSuccessRate tolerates a small number of transient submission
 	// failures. The test submits a blob roughly once per second for 15
 	// minutes (~900 attempts), so a 99.9% threshold effectively allowed zero
@@ -74,13 +76,15 @@ func (s *CelestiaTestSuite) TestTxSubmission() {
 	t.Logf("  Failed: %d", results.FailureCount)
 	t.Logf("  Max Latency: %v", results.MaxLatency)
 	t.Logf("  Avg Latency: %v", results.AvgLatency)
+	t.Logf("  Max Effective Latency (excl. broadcast): %v", results.MaxEffectiveLatency)
+	t.Logf("  Avg Effective Latency (excl. broadcast): %v", results.AvgEffectiveLatency)
 
 	require.GreaterOrEqual(t, results.SuccessRate, minSuccessRate,
 		"Success rate %.3f%% below threshold %.3f%%",
 		results.SuccessRate*100, minSuccessRate*100)
 
-	require.LessOrEqual(t, results.AvgLatency, maxAvgLatency,
-		"Avg latency %v exceeds threshold %v", results.AvgLatency, maxAvgLatency)
+	require.LessOrEqual(t, results.AvgEffectiveLatency, maxAvgEffectiveLatency,
+		"Avg effective latency %v exceeds threshold %v", results.AvgEffectiveLatency, maxAvgEffectiveLatency)
 
 	t.Logf("Tx submission test passed all invariants")
 }

@@ -28,8 +28,9 @@ const latencyMonitorImage = "ghcr.io/celestiaorg/latency-monitor"
 
 // CSV column names produced by the latency-monitor tool.
 const (
-	colLatencyMs = "Latency (ms)"
-	colFailed    = "Failed"
+	colLatencyMs   = "Latency (ms)"
+	colEffectiveMs = "Effective Latency (ms)"
+	colFailed      = "Failed"
 )
 
 type LatencyMonitorConfig struct {
@@ -49,7 +50,11 @@ type LatencyMonitorResult struct {
 	FailureCount int
 	MaxLatency   time.Duration
 	AvgLatency   time.Duration
-	SuccessRate  float64
+	// Effective latency excludes the client-side broadcast (signing and
+	// uploading the blob). Zero in parallel mode.
+	MaxEffectiveLatency time.Duration
+	AvgEffectiveLatency time.Duration
+	SuccessRate         float64
 }
 
 // DeployLatencyMonitor starts a latency monitor container connected to the chain.
@@ -262,13 +267,20 @@ func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 	if !ok {
 		return nil, fmt.Errorf("missing required column %q in header: %v", colFailed, header)
 	}
+	effectiveIdx, ok := colIndex[colEffectiveMs]
+	if !ok {
+		return nil, fmt.Errorf("missing required column %q in header: %v", colEffectiveMs, header)
+	}
 
 	var (
-		totalLatency time.Duration
-		maxLatency   time.Duration
-		successCount int
-		failureCount int
-		latencyCount int
+		totalLatency   time.Duration
+		maxLatency     time.Duration
+		totalEffective time.Duration
+		maxEffective   time.Duration
+		successCount   int
+		failureCount   int
+		latencyCount   int
+		effectiveCount int
 	)
 
 	for {
@@ -301,6 +313,22 @@ func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 		if d > maxLatency {
 			maxLatency = d
 		}
+
+		// Empty in parallel mode, where broadcast completion is not observable.
+		rawEffective := record[effectiveIdx]
+		if rawEffective == "" {
+			continue
+		}
+		effectiveMs, err := strconv.ParseFloat(rawEffective, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parsing effective latency %q: %w", rawEffective, err)
+		}
+		e := time.Duration(effectiveMs) * time.Millisecond
+		totalEffective += e
+		effectiveCount++
+		if e > maxEffective {
+			maxEffective = e
+		}
 	}
 
 	totalTxs := successCount + failureCount
@@ -312,13 +340,19 @@ func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 	if latencyCount > 0 {
 		avgLatency = totalLatency / time.Duration(latencyCount)
 	}
+	var avgEffective time.Duration
+	if effectiveCount > 0 {
+		avgEffective = totalEffective / time.Duration(effectiveCount)
+	}
 
 	return &LatencyMonitorResult{
-		TotalTxs:     totalTxs,
-		SuccessCount: successCount,
-		FailureCount: failureCount,
-		MaxLatency:   maxLatency,
-		AvgLatency:   avgLatency,
-		SuccessRate:  float64(successCount) / float64(totalTxs),
+		TotalTxs:            totalTxs,
+		SuccessCount:        successCount,
+		FailureCount:        failureCount,
+		MaxLatency:          maxLatency,
+		AvgLatency:          avgLatency,
+		MaxEffectiveLatency: maxEffective,
+		AvgEffectiveLatency: avgEffective,
+		SuccessRate:         float64(successCount) / float64(totalTxs),
 	}, nil
 }

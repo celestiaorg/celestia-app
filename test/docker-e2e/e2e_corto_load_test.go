@@ -159,6 +159,8 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	t.Logf("  Failed: %d", latencyResults.FailureCount)
 	t.Logf("  Avg Latency: %v", latencyResults.AvgLatency)
 	t.Logf("  Max Latency: %v", latencyResults.MaxLatency)
+	t.Logf("  Avg Effective Latency (excl. broadcast): %v", latencyResults.AvgEffectiveLatency)
+	t.Logf("  Max Effective Latency (excl. broadcast): %v", latencyResults.MaxEffectiveLatency)
 
 	// --- 8. Assert: block time must not exceed 4 s under 20 MiB/s load ---
 	require.LessOrEqual(t, avgBT, maxAvgBlockTime,
