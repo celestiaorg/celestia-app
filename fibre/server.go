@@ -146,11 +146,9 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("opening store: %w", err)
 	}
 
-	size, err := s.store.Size(ctx)
-	if err != nil {
-		return fmt.Errorf("getting store size: %w", err)
+	if err := s.seedOccupancy(ctx); err != nil {
+		return err
 	}
-	s.occ.seed(size)
 
 	// Derive the budget once at startup.
 	if err := s.recomputeBudget(ctx); err != nil {
@@ -172,6 +170,18 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+	return nil
+}
+
+func (s *Server) seedOccupancy(ctx context.Context) error {
+	size, err := s.store.Size(ctx)
+	if err != nil && !errors.Is(err, ErrStoreIntegrity) {
+		return fmt.Errorf("getting store size: %w", err)
+	}
+	if err != nil {
+		s.log.Warn("store size may be incorrect due to corrupt shard marker", "error", err)
+	}
+	s.occ.seed(size)
 	return nil
 }
 
