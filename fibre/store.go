@@ -481,7 +481,7 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 // It deletes at most [maxPruneBatchSize] expired entries per call. If invalid
 // markers are skipped, it commits valid deletions and returns their count and
 // freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
-// do not consume deletion capacity.
+// do not consume deletion capacity. Fatal errors return no uncommitted counts.
 func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -521,7 +521,7 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 		switch {
 		case errors.Is(err, pebbledb.ErrNotFound):
 		case err != nil:
-			return pruned, prunedBytes, fmt.Errorf("getting shard marker: %w", err)
+			return 0, 0, fmt.Errorf("getting shard marker: %w", err)
 		default:
 			size, err = decodeShardMarker(markerData)
 			_ = closer.Close()
@@ -539,38 +539,38 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 			switch {
 			case errors.Is(err, os.ErrNotExist):
 			case err != nil:
-				return pruned, prunedBytes, fmt.Errorf("getting shard file stats: %w", err)
+				return 0, 0, fmt.Errorf("getting shard file stats: %w", err)
 			default:
 				size = info.Size()
 			}
 		}
 		if size > math.MaxInt64-prunedBytes {
-			return pruned, prunedBytes, fmt.Errorf("%w: pruned shard size overflows int64", ErrStoreIntegrity)
+			return 0, 0, errors.New("pruned shard size overflows int64")
 		}
 
 		// Missing file is fine (orphan marker from a crashed Put).
 		if err := s.fs.Remove(s.shardFilePath(commitment, promiseHash)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return pruned, prunedBytes, fmt.Errorf("removing shard file: %w", err)
+			return 0, 0, fmt.Errorf("removing shard file: %w", err)
 		}
 		if err := batch.Delete(key, pebbledb.NoSync); err != nil {
-			return pruned, prunedBytes, fmt.Errorf("deleting prune index: %w", err)
+			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
 		}
 		if err := batch.Delete(shardKey(commitment, promiseHash), pebbledb.NoSync); err != nil {
-			return pruned, prunedBytes, fmt.Errorf("deleting shard marker: %w", err)
+			return 0, 0, fmt.Errorf("deleting shard marker: %w", err)
 		}
 		if err := batch.Delete(promiseKey(promiseHash), pebbledb.NoSync); err != nil {
-			return pruned, prunedBytes, fmt.Errorf("deleting payment promise: %w", err)
+			return 0, 0, fmt.Errorf("deleting payment promise: %w", err)
 		}
 		pruned++
 		prunedBytes += size
 	}
 
 	if err := iter.Error(); err != nil {
-		return pruned, prunedBytes, fmt.Errorf("iterating prune index: %w", err)
+		return 0, 0, fmt.Errorf("iterating prune index: %w", err)
 	}
 
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return pruned, prunedBytes, fmt.Errorf("committing batch: %w", err)
+		return 0, 0, fmt.Errorf("committing batch: %w", err)
 	}
 	if corruptMarkers > 1 {
 		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)

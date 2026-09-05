@@ -33,31 +33,38 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 
 func (s *Server) prune(ctx context.Context) {
 	start := time.Now()
-	var totalPruned int
-	var pruneErr error
+	var (
+		totalPruned  int
+		integrityErr error
+	)
 
 	for {
 		pruned, freed, err := s.store.PruneBefore(ctx, start)
+		if err != nil {
+			if !errors.Is(err, ErrStoreIntegrity) {
+				s.metrics.observePrune(ctx, start, totalPruned, err)
+				s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
+				return
+			}
+			if integrityErr == nil {
+				integrityErr = err
+			}
+		}
+
 		totalPruned += pruned
 		if freed > 0 {
 			s.occ.release(freed)
 		}
-		if err != nil && (pruneErr == nil || !errors.Is(err, ErrStoreIntegrity)) {
-			pruneErr = err
-		}
-		if pruned < maxPruneBatchSize || (err != nil && !errors.Is(err, ErrStoreIntegrity)) || ctx.Err() != nil {
+		if pruned < maxPruneBatchSize || ctx.Err() != nil {
 			break
 		}
 	}
-	metricErr := pruneErr
-	if errors.Is(pruneErr, ErrStoreIntegrity) {
-		s.log.WarnContext(ctx, "prune skipped corrupt shard markers", "error", pruneErr,
+
+	if integrityErr != nil {
+		s.log.WarnContext(ctx, "prune skipped corrupt shard markers", "error", integrityErr,
 			"elapsed (ms)", time.Since(start).Milliseconds())
-		metricErr = nil
-	} else if pruneErr != nil {
-		s.log.ErrorContext(ctx, "failed to prune store", "error", pruneErr, "elapsed (ms)", time.Since(start).Milliseconds())
 	}
-	s.metrics.observePrune(ctx, start, totalPruned, metricErr)
+	s.metrics.observePrune(ctx, start, totalPruned, nil)
 
 	if totalPruned > 0 {
 		s.log.InfoContext(ctx, "pruned expired entries", "pruned", totalPruned, "elapsed (ms)", time.Since(start).Milliseconds())

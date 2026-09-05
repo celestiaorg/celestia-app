@@ -273,6 +273,23 @@ func TestPruneBeforeLimitsBatchSize(t *testing.T) {
 	require.Equal(t, int64(1), freed)
 }
 
+func TestPruneBeforeOverflowReturnsNoUncommittedCounts(t *testing.T) {
+	store := newMarkerTestStore(t)
+	commitment := generateCommitment()
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	for i, size := range []int64{math.MaxInt64, 1} {
+		promiseHash := []byte{byte(i)}
+		require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), encodeShardMarker(size), pebbledb.NoSync))
+		require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync))
+	}
+
+	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrStoreIntegrity)
+	require.Zero(t, pruned)
+	require.Zero(t, freed)
+}
+
 func TestServerPruneDrainsBacklog(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
