@@ -266,9 +266,8 @@ func (s *Store) shardFilePath(commit Commitment, promiseHash []byte) string {
 // first prevents unbounded message sizes; pebble's deterministic key order
 // makes the choice consistent across validators.
 //
-// Get may write to pebble: if a /shard/ marker is found but the backing file
-// is missing (crash leftover or pebble.NoSync power loss), the marker is
-// deleted inline so future Gets stop paying the missed lookup.
+// A marker with a missing payload remains until pruning so its recorded size
+// can be released from occupancy.
 func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard, error) {
 	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -298,13 +297,6 @@ func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard,
 			return shard, nil
 		}
 		if errors.Is(err, ErrStoreNotFound) {
-			// Orphan marker — drop it. The /prune/ entry self-cleans at TTL.
-			if delErr := s.db.Delete(shardKey(commitment, promiseHash), pebbledb.NoSync); delErr != nil {
-				s.log.Warn("failed to clean orphan shard marker",
-					"commitment", commitment.String(),
-					"error", delErr,
-				)
-			}
 			continue
 		}
 		rerr = errors.Join(rerr, fmt.Errorf("reading shard file: %w", err))

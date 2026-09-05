@@ -150,6 +150,25 @@ func TestGetSkipsInvalidMarkerAndReturnsValidShard(t *testing.T) {
 	require.NoError(t, closer.Close())
 }
 
+func TestGetMissingPayloadKeepsPruneAccounting(t *testing.T) {
+	store := newMarkerTestStore(t)
+	commitment := generateCommitment()
+	promiseHash := []byte{1}
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	size := writeMarkerTestShard(t, store, commitment, promiseHash)
+	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), encodeShardMarker(size), pebbledb.NoSync))
+	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync))
+	require.NoError(t, store.fs.Remove(store.shardFilePath(commitment, promiseHash)))
+
+	_, err := store.Get(t.Context(), commitment)
+	require.ErrorIs(t, err, ErrStoreNotFound)
+
+	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, 1, pruned)
+	require.Equal(t, size, freed)
+}
+
 func TestSizeReturnsValidTotalWithInvalidMarker(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()

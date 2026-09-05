@@ -29,7 +29,7 @@ func TestStore(t *testing.T) {
 		{"Put_ConcurrentSameKey", testStorePutConcurrentSameKey},
 		{"Get_NotFound", testStoreGetNotFound},
 		{"Get_DeterministicOrdering", testStoreGetDeterministicOrdering},
-		{"Get_CleansOrphanMarker", testStoreGetCleansOrphanMarker},
+		{"Get_SkipsMissingPayload", testStoreGetSkipsMissingPayload},
 		{"Get_SkipsOrphanToSibling", testStoreGetSkipsOrphanToSibling},
 		{"Get_AllOrphans", testStoreGetAllOrphans},
 		{"PutGet_PreservesRLCs", testStorePutGetPreservesRLCs},
@@ -400,9 +400,8 @@ func TestStoreReconcileStaging(t *testing.T) {
 	require.Len(t, got.Rows, 2)
 }
 
-// Get drops a /shard/ marker whose backing file is missing (crash between
-// pebble commit and rename) so future Gets stop paying the missed lookup.
-func testStoreGetCleansOrphanMarker(t *testing.T, store *fibre.Store, path string) {
+// Get skips a marker whose backing file is missing.
+func testStoreGetSkipsMissingPayload(t *testing.T, store *fibre.Store, path string) {
 	blob := makeTestBlobV0(t, 256)
 	shard := makeShardFrom(t, blob, 0, 1)
 	promise := makeTestPaymentPromise(100, blob.ID())
@@ -417,8 +416,7 @@ func testStoreGetCleansOrphanMarker(t *testing.T, store *fibre.Store, path strin
 	_, err = store.Get(t.Context(), blob.ID().Commitment())
 	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
 
-	// After the first Get drops the marker, a fresh Put with a different
-	// promise must be the one Get finds, proving the orphan slot is gone.
+	// A fresh Put with a different promise must still be the one Get finds.
 	promise2 := makeTestPaymentPromise(101, blob.ID())
 	shard2 := makeShardFrom(t, blob, 2, 3)
 	require.NoError(t, store.Put(t.Context(), promise2, shard2, promise2.CreationTimestamp))
@@ -456,8 +454,7 @@ func testStoreGetSkipsOrphanToSibling(t *testing.T, store *fibre.Store, path str
 	require.Equal(t, validRow, got.Rows[0].Index)
 }
 
-// All shards for a commit are orphans, so Get returns NotFound (and cleans
-// the markers along the way).
+// If all payloads for a commitment are missing, Get returns NotFound.
 func testStoreGetAllOrphans(t *testing.T, store *fibre.Store, path string) {
 	blob := makeTestBlobV0(t, 256)
 	for i := range 3 {
