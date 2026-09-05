@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -143,7 +142,7 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 // Put stores a [PaymentPromise] and [types.BlobShard] using a stage → publish
 // → commit pattern: write tmp under staging/, rename into shards/<commit>-<hash>,
 // then commit pebble metadata. A crash between rename and commit can leave an
-// orphan file that [Store.reconcile] removes on the next open.
+// orphan file.
 // Puts for the same commitment but different promises are stored independently
 // without deduplication.
 func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.BlobShard, pruneAt time.Time) error {
@@ -579,8 +578,11 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 	return pruned, prunedBytes, integrityErr
 }
 
-// reconcile drops incomplete staging files and canonical shard files without
-// markers. Markers without files self-heal in [Store.Get] and at pruneAt.
+// reconcile drops everything under <store>/staging/. Anything there at open
+// time is a leftover from a Put that crashed before the rename. Orphan
+// markers and orphan files in shards/ are intentionally not cleaned here:
+// markers self-heal in [Store.Get] and at pruneAt via [Store.PruneBefore];
+// rare orphan files (pebble.NoSync power loss after rename) are accepted.
 func (s *Store) reconcile() error {
 	start := time.Now()
 	stagingRemoved, err := s.resetStaging()
@@ -588,48 +590,9 @@ func (s *Store) reconcile() error {
 		s.log.Error("store reconcile failed", "error", err, "elapsed_ms", time.Since(start).Milliseconds())
 		return err
 	}
-	orphansRemoved, err := s.removeOrphanShards()
-	if err != nil {
-		s.log.Error("store reconcile failed", "error", err, "elapsed_ms", time.Since(start).Milliseconds())
-		return err
-	}
 	s.log.Info("store reconcile complete", "staging_files_removed", stagingRemoved,
-		"orphan_files_removed", orphansRemoved, "elapsed_ms", time.Since(start).Milliseconds())
+		"elapsed_ms", time.Since(start).Milliseconds())
 	return nil
-}
-
-// removeOrphanShards deletes canonical shard files that have no Pebble marker.
-func (s *Store) removeOrphanShards() (int, error) {
-	dir := filepath.Join(s.cfg.Path, shardsSubdir)
-	names, err := s.fs.List(dir)
-	if err != nil {
-		return 0, fmt.Errorf("listing shard files: %w", err)
-	}
-
-	var removed int
-	for _, name := range names {
-		// Ignore unrelated files; only canonical shard names are safe to remove.
-		commitmentHex, promiseHashHex, ok := strings.Cut(name, "-")
-		commitment, commitmentErr := CommitmentFromString(commitmentHex)
-		promiseHash, hashErr := hex.DecodeString(promiseHashHex)
-		if !ok || commitmentErr != nil || hashErr != nil || len(promiseHash) != sha256.Size {
-			continue
-		}
-
-		_, closer, err := s.db.Get(shardKey(commitment, promiseHash))
-		switch {
-		case err == nil:
-			_ = closer.Close()
-			continue
-		case !errors.Is(err, pebbledb.ErrNotFound):
-			return removed, fmt.Errorf("checking shard marker: %w", err)
-		}
-		if err := s.fs.Remove(filepath.Join(dir, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return removed, fmt.Errorf("removing orphan shard file: %w", err)
-		}
-		removed++
-	}
-	return removed, nil
 }
 
 // resetStaging removes and recreates <store>/staging/, returning the number

@@ -150,20 +150,6 @@ func TestGetSkipsInvalidMarkerAndReturnsValidShard(t *testing.T) {
 	require.NoError(t, closer.Close())
 }
 
-func TestRemoveOrphanShardsPreservesInvalidMarker(t *testing.T) {
-	store := newMarkerTestStore(t)
-	commitment := generateCommitment()
-	promiseHash := make([]byte, 32)
-	writeMarkerTestShard(t, store, commitment, promiseHash)
-	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), []byte{1, 2}, pebbledb.NoSync))
-
-	removed, err := store.removeOrphanShards()
-	require.NoError(t, err)
-	require.Zero(t, removed)
-	_, err = store.fs.Stat(store.shardFilePath(commitment, promiseHash))
-	require.NoError(t, err)
-}
-
 func TestSizeReturnsValidTotalWithInvalidMarker(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()

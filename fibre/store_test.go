@@ -355,8 +355,9 @@ func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store, _ strin
 	}
 }
 
-// Reconcile drops staging leftovers and orphan shard files on open.
-func TestStoreReconcile(t *testing.T) {
+// Reconcile drops staging/ leftovers on open, leaves real shards alone, and
+// logs the cleanup count.
+func TestStoreReconcileStaging(t *testing.T) {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
 	store, err := fibre.NewStore(cfg)
@@ -374,10 +375,6 @@ func TestStoreReconcile(t *testing.T) {
 	staleB := filepath.Join(stagingDir, "bbb")
 	require.NoError(t, os.WriteFile(staleA, []byte("partial-a"), 0o644))
 	require.NoError(t, os.WriteFile(staleB, []byte("partial-b"), 0o644))
-	orphan := filepath.Join(cfg.Path, "shards", strings.Repeat("0", 64)+"-"+strings.Repeat("1", 64))
-	unknown := filepath.Join(cfg.Path, "shards", "unknown")
-	require.NoError(t, os.WriteFile(orphan, []byte("orphan"), 0o644))
-	require.NoError(t, os.WriteFile(unknown, []byte("unknown"), 0o644))
 
 	var buf strings.Builder
 	cfg.Log = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
@@ -390,10 +387,6 @@ func TestStoreReconcile(t *testing.T) {
 		_, err := os.Stat(p)
 		require.True(t, os.IsNotExist(err), "%s should be removed by reconcile", p)
 	}
-	_, err = os.Stat(orphan)
-	require.True(t, os.IsNotExist(err), "%s should be removed by reconcile", orphan)
-	_, err = os.Stat(unknown)
-	require.NoError(t, err)
 	st, err := os.Stat(stagingDir)
 	require.NoError(t, err)
 	require.True(t, st.IsDir())
@@ -401,7 +394,6 @@ func TestStoreReconcile(t *testing.T) {
 	out := buf.String()
 	require.Contains(t, out, "store reconcile complete")
 	require.Contains(t, out, "staging_files_removed=2")
-	require.Contains(t, out, "orphan_files_removed=1")
 
 	got, err := store.Get(t.Context(), blob.ID().Commitment())
 	require.NoError(t, err)
