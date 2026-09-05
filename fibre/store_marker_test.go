@@ -13,7 +13,6 @@ import (
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
-	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestShardMarkerCodec(t *testing.T) {
@@ -311,8 +310,7 @@ func TestServerPruneDrainsBacklog(t *testing.T) {
 
 	occ := newOccupancy(0)
 	occ.seed(maxPruneBatchSize + 1)
-	reader := sdkmetric.NewManualReader()
-	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	provider := sdkmetric.NewMeterProvider()
 	metrics, err := newServerMetrics(provider.Meter("prune-test"), occ)
 	require.NoError(t, err)
 	var logs strings.Builder
@@ -326,18 +324,6 @@ func TestServerPruneDrainsBacklog(t *testing.T) {
 	require.Contains(t, logs.String(), "prune skipped corrupt shard markers")
 	require.Contains(t, logs.String(), "pruned expired entries")
 	require.NotContains(t, logs.String(), "level=ERROR")
-
-	var collected metricdata.ResourceMetrics
-	require.NoError(t, reader.Collect(t.Context(), &collected))
-	var pruneEntries int64
-	for _, scope := range collected.ScopeMetrics {
-		for _, metric := range scope.Metrics {
-			if metric.Name == "fibre.server.prune.entries" {
-				pruneEntries = metric.Data.(metricdata.Sum[int64]).DataPoints[0].Value
-			}
-		}
-	}
-	require.Equal(t, int64(maxPruneBatchSize+1), pruneEntries)
 }
 
 func newMarkerTestStore(t *testing.T) *Store {

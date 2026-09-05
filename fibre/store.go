@@ -33,8 +33,9 @@ import (
 // commits through a single goroutine, which becomes the upload bottleneck at
 // concurrency. Pebble only holds the small metadata.
 const (
-	shardsSubdir  = "shards"
-	stagingSubdir = "staging"
+	shardsSubdir   = "shards"
+	stagingSubdir  = "staging"
+	shardKeyPrefix = "/shard/"
 	// maxPruneBatchSize bounds each Pebble commit. The server drains full
 	// batches during one prune pass.
 	maxPruneBatchSize = 1000
@@ -270,7 +271,7 @@ func (s *Store) shardFilePath(commit Commitment, promiseHash []byte) string {
 // is missing (crash leftover or pebble.NoSync power loss), the marker is
 // deleted inline so future Gets stop paying the missed lookup.
 func (s *Store) Get(_ context.Context, commitment Commitment) (*types.BlobShard, error) {
-	prefix := fmt.Appendf(nil, "/shard/%s/", commitment.String())
+	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
 		UpperBound: prefixUpperBound(prefix),
@@ -378,7 +379,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 
-	prefix := []byte("/shard/")
+	prefix := []byte(shardKeyPrefix)
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
 		UpperBound: prefixUpperBound(prefix),
@@ -400,6 +401,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 
 		size, err := decodeShardMarker(iter.Value())
 		if err != nil {
+			// Keep one representative error and count all invalid markers.
 			invalidEntries++
 			if integrityErr == nil {
 				integrityErr = fmt.Errorf("decoding shard marker %q: %w", iter.Key(), err)
@@ -407,6 +409,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 			continue
 		}
 		if size == 0 {
+			// Empty markers predate encoded sizes, so read the local file size.
 			commitment, promiseHash, ok := parseShardKey(string(iter.Key()))
 			if !ok {
 				invalidEntries++
@@ -532,6 +535,7 @@ func (s *Store) PruneBefore(_ context.Context, before time.Time) (int, int64, er
 		}
 
 		if size == 0 {
+			// Empty markers predate encoded sizes, so read the local file size.
 			info, err := s.fs.Stat(s.shardFilePath(commitment, promiseHash))
 			switch {
 			case errors.Is(err, os.ErrNotExist):
@@ -594,6 +598,7 @@ func (s *Store) reconcile() error {
 	return nil
 }
 
+// removeOrphanShards deletes canonical shard files that have no Pebble marker.
 func (s *Store) removeOrphanShards() (int, error) {
 	dir := filepath.Join(s.cfg.Path, shardsSubdir)
 	names, err := s.fs.List(dir)
@@ -603,6 +608,7 @@ func (s *Store) removeOrphanShards() (int, error) {
 
 	var removed int
 	for _, name := range names {
+		// Ignore unrelated files; only canonical shard names are safe to remove.
 		commitmentHex, promiseHashHex, ok := strings.Cut(name, "-")
 		commitment, commitmentErr := CommitmentFromString(commitmentHex)
 		promiseHash, hashErr := hex.DecodeString(promiseHashHex)
@@ -660,20 +666,24 @@ func promiseKey(promiseHash []byte) []byte {
 }
 
 func shardKey(commitment Commitment, promiseHash []byte) []byte {
-	return fmt.Appendf(nil, "/shard/%s/%s", commitment.String(), hex.EncodeToString(promiseHash))
+	return fmt.Appendf(nil, "%s%s/%s", shardKeyPrefix, commitment.String(), hex.EncodeToString(promiseHash))
 }
 
 func parseShardKey(key string) (Commitment, []byte, bool) {
-	parts := strings.Split(key, "/")
-	if len(parts) != 4 || parts[1] != "shard" {
+	suffix, ok := strings.CutPrefix(key, shardKeyPrefix)
+	if !ok {
+		return Commitment{}, nil, false
+	}
+	parts := strings.Split(suffix, "/")
+	if len(parts) != 2 {
 		return Commitment{}, nil, false
 	}
 
-	commitment, err := CommitmentFromString(parts[2])
+	commitment, err := CommitmentFromString(parts[0])
 	if err != nil {
 		return Commitment{}, nil, false
 	}
-	promiseHash, err := hex.DecodeString(parts[3])
+	promiseHash, err := hex.DecodeString(parts[1])
 	if err != nil {
 		return Commitment{}, nil, false
 	}
