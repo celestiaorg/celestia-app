@@ -88,21 +88,9 @@ The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fib
 
 Config precedence: **flag > config file > default**.
 
-### Shard retention
-
-How long uploaded shards are kept locally before pruning is the `shard_retention` on-chain parameter of the `x/fibre` module (default `4h`), changeable by governance. It is independent of the chain's payment-promise timeout. The server reads the current value from the app node on every upload (returned by `ValidatePaymentPromise`), so there is no local setting to configure.
-
 ## Signing
 
-Fibre signs payment promises by connecting to the consensus node's PrivValidatorAPI gRPC endpoint. The node handles its own key management (local key, tmkms, etc.) — fibre just delegates signing to it.
-
-### How it works
-
-1. Fibre connects to the node's PrivValidatorAPI gRPC endpoint (default `127.0.0.1:26669`)
-2. Fibre fetches the validator's public key via `GetPubKey` RPC to identify itself in the validator set
-3. Payment promises are signed via `SignRawBytes` RPC calls for the server's lifetime
-
-### Setup
+Fibre signs payment promises by connecting to the consensus node's `PrivValidatorAPI` gRPC endpoint. The node handles its own key management (local key, tmkms, etc.) — fibre just delegates signing to it.
 
 The privval gRPC endpoint is enabled by default when running `celestia-appd init` on `127.0.0.1:26669`.
 
@@ -112,9 +100,13 @@ To verify or override, check `config.toml`:
 priv_validator_grpc_laddr = "127.0.0.1:26669"
 ```
 
+**Fibre always connects to the node, never to the KMS directly, so the fibre config is the same for every key backend.**
+
+Whatever the backend, median signing latency must stay at or below 10ms. Nodes using a remote signer expose `cometbft_privval_signing_latency_*` metrics and log a warning when the median of the last 50 signatures exceeds it.
+
 ## Registration
 
-A running server alone receives no traffic: fibre clients discover servers through the on-chain [`x/valaddr`](../../x/valaddr/README.md) registry and only dial hosts registered there. Once the server is up, register its publicly reachable address, signing with your validator's account key:
+Fibre clients discover servers through the on-chain [`x/valaddr`](../../x/valaddr/README.md) registry and only dial hosts registered there. Once the server is up, register its publicly reachable address, signing with your validator's account key:
 
 ```sh
 celestia-appd tx valaddr set-host 203.0.113.7:7980 --from <validator-account-key>
