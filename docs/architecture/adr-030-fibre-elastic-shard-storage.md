@@ -10,6 +10,7 @@
 - 2026-09-02: Batch object deletion during pruning
 - 2026-09-02: Make conditional object writes idempotent
 - 2026-09-02: Define the shard-marker binary format
+- 2026-09-07: Route shard operations through `routedStorage`
 
 ## Status
 
@@ -93,13 +94,16 @@ These rules apply to `Store.Get`, `Store.Has`, `Store.Size`, and `Store.PruneBef
 Fibre server
   └── Store
       ├── Pebble metadata and prune index
-      └── shardStorage
-          └── durable backend
-              ├── localBackend
-              └── objectBackend
+      └── routedStorage
+          ├── primary shardBackend
+          └── secondary shardBackend (optional)
 ```
 
-`Store` will continue to own Pebble metadata. `shardStorage` will own durable-backend routing.
+`localBackend` and `objectBackend` implement `shardBackend`.
+
+`Store` will own Pebble metadata and one `routedStorage`. The router will own the primary and optional secondary backends.
+
+`Store` will not hold or select a `shardBackend` directly. New writes will use the primary backend. Existing operations will use the marker tag.
 
 Fibre will write each new shard to one durable backend. Local mode will use `localBackend`, and object mode will use `objectBackend`.
 
@@ -111,27 +115,29 @@ Both durable backends will use the existing shard binary codec. One payload cont
 
 1. The server validates the upload, payment promise, assignment, and shard.
 2. `Store` calculates the exact encoded size without encoding the shard ([`fibre/store_codec.go:90`](../../fibre/store_codec.go#L90)).
-3. `Store` streams `writeShardBinary` directly into the `PutObject` request body ([`fibre/store_codec.go:33`](../../fibre/store_codec.go#L33)).
-4. The request uses `If-None-Match: *` to prevent an overwrite.
-5. If `PutObject` succeeds, the object write is complete.
-6. If `PutObject` returns `PreconditionFailed` because `If-None-Match: *` found an existing object, `Store` treats the object as already written.
-7. Any other object-write error fails the upload.
-8. `Store` commits the Pebble metadata with the `object` backend and encoded payload size.
-9. The server signs and returns the storage promise.
+3. `Store` gets a marker for the primary backend from `routedStorage`.
+4. `Store` passes the marker and shard to `routedStorage.Put`.
+5. `objectBackend` streams `writeShardBinary` into the `PutObject` request body ([`fibre/store_codec.go:33`](../../fibre/store_codec.go#L33)).
+6. The request uses `If-None-Match: *` to prevent an overwrite.
+7. If `PutObject` succeeds, the object write is complete.
+8. If `PutObject` returns `PreconditionFailed`, `objectBackend` treats the object as already written.
+9. Any other object-write error fails the upload.
+10. `Store` commits the Pebble metadata with the `object` backend and encoded payload size.
+11. The server signs and returns the storage promise.
 
 Object storage is authoritative in object mode. Object mode does not write shard payloads to local disk.
 
 If the object write fails with an error other than `PreconditionFailed`, `Store` does not commit metadata or sign the storage promise.
 
-If the Pebble commit fails, `Store` attempts to remove the object. It returns an error after the cleanup attempt.
+If the Pebble commit fails, `Store` passes the same marker to `routedStorage.Delete`. This routes cleanup to the backend that handled the write.
 
 #### Local mode
 
-Local mode will keep the current stage, publish, and Pebble commit flow ([`fibre/store.go:134`](../../fibre/store.go#L134)).
+Local mode will keep the current stage, publish, and Pebble commit flow ([`fibre/store.go:146`](../../fibre/store.go#L146)).
 
 The publish step atomically renames the staging file to its final path. The Pebble marker will record `local` and the encoded payload size.
 
-At startup, `Store` removes incomplete local-mode staging files.
+At startup, `routedStorage` removes incomplete local-mode staging files.
 
 ### Read flow
 
@@ -139,13 +145,14 @@ Pebble will return all shard markers that match the requested commitment. Each m
 
 For each matching shard marker, `Store` will use this flow:
 
-1. Select the durable backend from the shard marker.
-2. For a local marker, read the local flat file.
-3. For an object marker, read the object with `GetObject`.
-4. If local storage returns `NotFound`, keep the marker for occupancy accounting and try the next matching shard marker.
-5. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next matching shard marker.
-6. If another durable-storage error occurs, record it and try the next matching shard marker.
-7. If no matching shard marker succeeds, return the recorded error.
+1. Pass the marker to `routedStorage.Get`.
+2. `routedStorage` selects the configured backend from the marker tag.
+3. For a local marker, `localBackend` reads the local flat file.
+4. For an object marker, `objectBackend` reads the object with `GetObject`.
+5. If local storage returns `NotFound`, keep the marker for occupancy accounting and try the next matching shard marker.
+6. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next matching shard marker.
+7. If another durable-storage error occurs, record it and try the next matching shard marker.
+8. If no matching shard marker succeeds, return the recorded error.
 
 Every read of an object-backed shard accesses object storage.
 
@@ -161,7 +168,7 @@ This ADR does not define the cache design or its storage medium.
 
 ### Store integration
 
-The `Store` API will not change. Its methods will delegate shard payload operations to `shardStorage`.
+The `Store` API will not change. `Store` will contain `routedStorage` and delegate shard payload operations to it.
 
 | Method | Behavior |
 |---|---|
@@ -169,10 +176,10 @@ The `Store` API will not change. Its methods will delegate shard payload operati
 | `Store.Get` | Get matching shard markers from Pebble, then call `shards.Get` for each matching shard marker. |
 | `Store.Has` | Read Pebble first, then call `shards.Has` for the recorded durable backend. |
 | `Store.PruneBefore` | Call `shards.Delete` before removing the Pebble entries. |
-| `Store.Size` | Sum the sizes in shard markers and stat empty legacy markers. |
+| `Store.Size` | Sum the sizes returned by `shards.size`; the router stats empty legacy markers. |
 | `Store.DiskAvailable` | Report local space for Pebble, local payloads, and local staging files. |
 
-The current `Store` directly owns Pebble and its filesystem ([`fibre/store.go:68`](../../fibre/store.go#L68)). The new `shardStorage` field will replace only direct shard-payload operations.
+`Store` owns Pebble and `routedStorage` ([`fibre/store.go:63`](../../fibre/store.go#L63)). The router contains backends and hides marker routing from `Store`.
 
 ### Backend construction
 
@@ -180,12 +187,16 @@ The current `Store` directly owns Pebble and its filesystem ([`fibre/store.go:68
 
 `NewStore` will open `objectBackend` in object mode. It will also open this backend while live markers record `object`.
 
+In local mode, `routedStorage` will use `localBackend` as primary. It will use `objectBackend` as secondary when object access is configured.
+
+In object mode, `routedStorage` will use `objectBackend` as primary and `localBackend` as secondary. Startup reconciliation will still clear local staging files.
+
 The primary backend will support these values:
 
 - `local`: Store new shards in `localBackend`. This value is the default.
 - `object`: Stream new shards to `objectBackend`.
 
-Tests can inject durable backends directly. `NewMemoryStore` will use `localBackend` with the existing in-memory filesystem.
+Tests can inject `shardBackend` implementations into `routedStorage`. `NewMemoryStore` will use `localBackend` with the existing in-memory filesystem.
 
 The object backend will use provider-neutral configuration:
 
@@ -221,9 +232,9 @@ The validator consensus address prevents collisions when one operator uses the b
 
 ### Prune flow
 
-Pebble will continue to select expired entries from its prune index ([`fibre/store.go:410`](../../fibre/store.go#L410)).
+Pebble will continue to select expired entries from its prune index ([`fibre/store.go:388`](../../fibre/store.go#L388)).
 
-`Store` will group expired entries by durable backend.
+`Store` will pass expired markers to `routedStorage`. The router will group the payloads by durable backend.
 
 1. Delete local payloads individually.
 2. Delete object payloads with `DeleteObjects` in batches of up to 1,000 keys.
@@ -232,7 +243,7 @@ Pebble will continue to select expired entries from its prune index ([`fibre/sto
 
 `DeleteObjects` can report errors for individual keys. `Store` will keep the corresponding Pebble entries so a later prune cycle can retry them.
 
-For a legacy empty marker, `Store` will get the size from the local file before deletion.
+For a legacy empty marker, `routedStorage` will get the size from the local file before deletion.
 
 Fibre protocol pruning will remain responsible for normal shard expiration. Operators should configure a provider lifecycle rule that deletes objects after at least 30 days.
 
@@ -265,7 +276,7 @@ Before a downgrade, an external utility must copy each live object to its legacy
 
 ### Preserve empty Pebble marker values
 
-`shardStorage` could keep all marker values empty. It could use a primary durable backend and an optional secondary durable backend.
+A router could keep all marker values empty. It could use a primary durable backend and an optional secondary durable backend.
 
 Reads would use the primary backend. They would use the secondary backend after `NotFound` from the primary backend.
 
