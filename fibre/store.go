@@ -17,9 +17,8 @@ import (
 	gogoproto "github.com/cosmos/gogoproto/proto"
 )
 
-// Bulk shard data is kept off pebble because pebble serializes large-value
-// commits through a single goroutine, which becomes the upload bottleneck at
-// concurrency. Pebble only holds the small metadata.
+// Pebble stores promises, prune indexes, and shard markers. Each marker
+// identifies the backend and size of its shard payload; legacy markers use local storage.
 const (
 	shardKeyPrefix = "/shard/"
 	// maxPruneBatchSize bounds each Pebble commit. The server drains full
@@ -64,7 +63,6 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards shardStorage
-	local  *localBackend
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -113,7 +111,7 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	s := &Store{db: db, log: cfg.Log, shards: local, local: local}
+	s := &Store{db: db, log: cfg.Log, shards: newRoutedStorage(local, nil)}
 	if err := s.reconcile(); err != nil {
 		_ = s.db.Close()
 		return nil, fmt.Errorf("reconciling store: %w", err)
@@ -139,7 +137,7 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
 
-	marker := encodeShardMarker(shardBinarySize(shard))
+	marker := s.shards.marker(shardBinarySize(shard))
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
 }
 
@@ -171,13 +169,13 @@ func (s *Store) commitAndStore(ctx context.Context, promise *PaymentPromise, pro
 		return fmt.Errorf("aborting store commit: %w", err)
 	}
 
-	created, err := s.shards.Put(ctx, promise.Commitment, promiseHash, shard)
+	created, err := s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
 	if err != nil {
 		return fmt.Errorf("storing shard payload: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		if created && !s.hasShardMarker(promise.Commitment, promiseHash) {
-			if rmErr := s.shards.Delete(context.Background(), promise.Commitment, promiseHash); rmErr != nil {
+			if rmErr := s.shards.Delete(context.Background(), marker, promise.Commitment, promiseHash); rmErr != nil {
 				s.log.Warn("failed to remove orphaned shard after commit failure",
 					"commitment", promise.Commitment.String(), "error", rmErr)
 			}
@@ -208,10 +206,6 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 
 	var rerr error
 	for valid := iter.First(); valid; valid = iter.Next() {
-		if _, err := decodeShardMarker(iter.Value()); err != nil {
-			rerr = errors.Join(rerr, err)
-			continue
-		}
 		promiseHashHex := string(iter.Key()[len(prefix):])
 		promiseHash, err := hex.DecodeString(promiseHashHex)
 		if err != nil {
@@ -219,14 +213,14 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 			continue
 		}
 
-		shard, err := s.shards.Get(ctx, commitment, promiseHash)
+		shard, err := s.shards.Get(ctx, iter.Value(), commitment, promiseHash)
 		if err == nil {
 			return shard, nil
 		}
 		if errors.Is(err, ErrStoreNotFound) {
 			continue
 		}
-		rerr = errors.Join(rerr, fmt.Errorf("reading shard file: %w", err))
+		rerr = errors.Join(rerr, fmt.Errorf("reading shard payload: %w", err))
 	}
 
 	if err := iter.Error(); err != nil {
@@ -255,14 +249,11 @@ func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseH
 		return false, false, fmt.Errorf("checking if shard exists failed: %w", err)
 	default:
 		accounted = len(markerData) > 0
-		_, err = decodeShardMarker(markerData)
+		markerData = slices.Clone(markerData)
 		_ = closer.Close()
-		if err != nil {
-			return false, false, err
-		}
 	}
 
-	has, err := s.shards.Has(ctx, commitment, promiseHash)
+	has, err := s.shards.Has(ctx, markerData, commitment, promiseHash)
 	if err != nil {
 		return false, false, err
 	}
@@ -322,8 +313,11 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 			}
 			continue
 		}
-		size, err := decodeShardMarker(iter.Value())
+		size, err := s.shards.size(iter.Value(), commitment, promiseHash)
 		if err != nil {
+			if !errors.Is(err, ErrStoreIntegrity) {
+				return 0, fmt.Errorf("stat legacy shard file: %w", err)
+			}
 			// Keep one representative error and count all invalid markers.
 			invalidEntries++
 			if integrityErr == nil {
@@ -332,14 +326,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 			continue
 		}
 		if size == 0 {
-			// Empty markers predate encoded sizes, so read the local file size.
-			size, err = s.local.size(commitment, promiseHash)
-			if err != nil {
-				return 0, fmt.Errorf("stat legacy shard file: %w", err)
-			}
-			if size == 0 {
-				continue
-			}
+			continue
 		}
 		if size > math.MaxInt64-totalSize {
 			return 0, fmt.Errorf("%w: total shard size overflows int64", ErrStoreIntegrity)
@@ -360,7 +347,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 
 // DiskAvailable returns the free bytes on the filesystem backing the store.
 func (s *Store) DiskAvailable() (int64, error) {
-	return s.local.diskAvailable()
+	return s.shards.diskAvailable()
 }
 
 // GetPaymentPromise retrieves a [PaymentPromise] by its hash.
@@ -432,30 +419,27 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 		case err != nil:
 			return 0, 0, fmt.Errorf("getting shard marker: %w", err)
 		default:
-			size, err = decodeShardMarker(markerData)
+			markerData = slices.Clone(markerData)
 			_ = closer.Close()
-			if err != nil {
-				corruptMarkers++
-				if integrityErr == nil {
-					integrityErr = fmt.Errorf("decoding shard marker %q: %w", key, err)
-				}
-				continue
-			}
 		}
 
-		if size == 0 {
-			// Empty markers predate encoded sizes, so read the local file size.
-			size, err = s.local.size(commitment, promiseHash)
-			if err != nil {
+		size, err = s.shards.size(markerData, commitment, promiseHash)
+		if err != nil {
+			if !errors.Is(err, ErrStoreIntegrity) {
 				return 0, 0, fmt.Errorf("getting shard file stats: %w", err)
 			}
+			corruptMarkers++
+			if integrityErr == nil {
+				integrityErr = fmt.Errorf("decoding shard marker %q: %w", key, err)
+			}
+			continue
 		}
 		if size > math.MaxInt64-prunedBytes {
 			return 0, 0, errors.New("pruned shard size overflows int64")
 		}
 
 		// Missing file is fine (orphan marker from a crashed Put).
-		if err := s.shards.Delete(ctx, commitment, promiseHash); err != nil {
+		if err := s.shards.Delete(ctx, markerData, commitment, promiseHash); err != nil {
 			return 0, 0, err
 		}
 		if err := batch.Delete(key, pebbledb.NoSync); err != nil {
@@ -491,7 +475,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 // rare orphan files (pebble.NoSync power loss after rename) are accepted.
 func (s *Store) reconcile() error {
 	start := time.Now()
-	stagingRemoved, err := s.local.resetStaging()
+	stagingRemoved, err := s.shards.resetStaging()
 	if err != nil {
 		s.log.Error("store reconcile failed", "error", err, "elapsed_ms", time.Since(start).Milliseconds())
 		return err

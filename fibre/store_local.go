@@ -19,22 +19,18 @@ const (
 	stagingSubdir = "staging"
 )
 
-// shardStorage stores durable shard payloads.
-type shardStorage interface {
-	Put(context.Context, Commitment, []byte, *types.BlobShard) (bool, error)
-	Get(context.Context, Commitment, []byte) (*types.BlobShard, error)
-	Has(context.Context, Commitment, []byte) (bool, error)
-	Delete(context.Context, Commitment, []byte) error
-}
-
 // localBackend stores shard payloads as flat files.
 type localBackend struct {
 	path string
 	fs   vfs.FS
 }
 
-// shardWriteCategory identifies shard-file writes in Pebble's vfs telemetry.
-const shardWriteCategory vfs.DiskWriteCategory = "fibre-shard"
+// shardPayloadWriteCategory labels shard payload bytes in VFS disk-write metrics.
+const shardPayloadWriteCategory vfs.DiskWriteCategory = "fibre-shard"
+
+func (*localBackend) backendTag() byte {
+	return localBackendTag
+}
 
 func newLocalBackend(path string, filesystem vfs.FS) (*localBackend, error) {
 	for _, sub := range []string{shardsSubdir, stagingSubdir} {
@@ -119,7 +115,7 @@ func (b *localBackend) writeTmp(shard *types.BlobShard) (string, error) {
 	}
 	tmp := filepath.Join(b.path, stagingSubdir, hex.EncodeToString(rnd[:]))
 
-	f, err := b.fs.Create(tmp, shardWriteCategory)
+	f, err := b.fs.Create(tmp, shardPayloadWriteCategory)
 	if err != nil {
 		return "", fmt.Errorf("creating tmp shard file: %w", err)
 	}
