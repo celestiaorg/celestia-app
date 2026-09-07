@@ -573,6 +573,63 @@ func TestTallyAfterTryUpgrade(t *testing.T) {
 	require.EqualValues(t, 120, res.TotalVotingPower)
 }
 
+func TestCortoV10UpgradeHeightOverride(t *testing.T) {
+	// The v10 upgrade on corto-1 was scheduled at height 1480080 because v9
+	// used the mainnet delay. Reproduce that state and check the override.
+	const scheduledHeight = int64(1_480_080)
+	const tryUpgradeHeight = scheduledHeight - appconsts.MainnetUpgradeHeightDelay
+
+	signalAndTryUpgrade := func(t *testing.T, chainID string, height int64) (signal.Keeper, sdk.Context) {
+		upgradeKeeper, ctx, _ := setup(t)
+		ctx = ctx.WithChainID(chainID).WithHeaderInfo(header.Info{ChainID: chainID, Height: height})
+		for _, valAddr := range testutil.ValAddrs[:4] {
+			_, err := upgradeKeeper.SignalVersion(ctx, &types.MsgSignalVersion{ValidatorAddress: valAddr.String(), Version: 10})
+			require.NoError(t, err)
+		}
+		_, err := upgradeKeeper.TryUpgrade(ctx, &types.MsgTryUpgrade{})
+		require.NoError(t, err)
+		return upgradeKeeper, ctx
+	}
+
+	t.Run("override is earlier than the scheduled height", func(t *testing.T) {
+		assert.Equal(t, scheduledHeight, signal.CortoV10ScheduledUpgradeHeight)
+		assert.Less(t, signal.CortoV10UpgradeHeight, scheduledHeight)
+	})
+
+	t.Run("moves the v10 upgrade on corto-1", func(t *testing.T) {
+		upgradeKeeper, ctx := signalAndTryUpgrade(t, appconsts.CortoChainID, tryUpgradeHeight)
+
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Equal(t, uint64(10), got.Upgrade.AppVersion)
+		assert.Equal(t, signal.CortoV10UpgradeHeight, got.Upgrade.UpgradeHeight)
+
+		shouldUpgrade, _ := upgradeKeeper.ShouldUpgrade(ctx.WithBlockHeight(signal.CortoV10UpgradeHeight - 1))
+		assert.False(t, shouldUpgrade)
+
+		shouldUpgrade, upgrade := upgradeKeeper.ShouldUpgrade(ctx.WithBlockHeight(signal.CortoV10UpgradeHeight))
+		assert.True(t, shouldUpgrade)
+		assert.Equal(t, uint64(10), upgrade.AppVersion)
+		assert.Equal(t, signal.CortoV10UpgradeHeight, upgrade.UpgradeHeight)
+	})
+
+	t.Run("does not move other upgrades on corto-1", func(t *testing.T) {
+		upgradeKeeper, ctx := signalAndTryUpgrade(t, appconsts.CortoChainID, tryUpgradeHeight+1)
+
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Equal(t, scheduledHeight+1, got.Upgrade.UpgradeHeight)
+	})
+
+	t.Run("does not move the same upgrade on mainnet", func(t *testing.T) {
+		upgradeKeeper, ctx := signalAndTryUpgrade(t, appconsts.MainnetChainID, tryUpgradeHeight)
+
+		got, err := upgradeKeeper.GetUpgrade(ctx, &types.QueryGetUpgradeRequest{})
+		require.NoError(t, err)
+		assert.Equal(t, scheduledHeight, got.Upgrade.UpgradeHeight)
+	})
+}
+
 func setup(t *testing.T) (signal.Keeper, sdk.Context, *mockStakingKeeper) {
 	signalStore := storetypes.NewKVStoreKey(types.StoreKey)
 	db := dbm.NewMemDB()

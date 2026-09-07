@@ -368,7 +368,25 @@ func (k *Keeper) getUpgrade(ctx sdk.Context) (upgrade types.Upgrade, ok bool) {
 		return types.Upgrade{}, false
 	}
 	k.binaryCodec.MustUnmarshal(value, &upgrade)
-	return upgrade, true
+	return overrideCortoUpgradeHeight(ctx.ChainID(), upgrade), true
+}
+
+const (
+	// CortoV10ScheduledUpgradeHeight is the v10 upgrade height stored on
+	// corto-1. v9 computed it with the mainnet delay because it did not know
+	// corto-1.
+	CortoV10ScheduledUpgradeHeight = int64(1_480_080)
+	// CortoV10UpgradeHeight replaces CortoV10ScheduledUpgradeHeight on corto-1.
+	CortoV10UpgradeHeight = int64(1_280_695)
+)
+
+// overrideCortoUpgradeHeight moves the v10 upgrade on corto-1 to
+// CortoV10UpgradeHeight. It is a no-op on other chains and other upgrades.
+func overrideCortoUpgradeHeight(chainID string, upgrade types.Upgrade) types.Upgrade {
+	if chainID == appconsts.CortoChainID && upgrade.AppVersion == 10 && upgrade.UpgradeHeight == CortoV10ScheduledUpgradeHeight {
+		upgrade.UpgradeHeight = CortoV10UpgradeHeight
+	}
+	return upgrade
 }
 
 // setUpgrade sets the upgrade in the store.
