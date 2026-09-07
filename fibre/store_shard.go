@@ -9,23 +9,11 @@ import (
 
 // shardBackend stores shard payloads in one storage backend.
 type shardBackend interface {
-	backendTag() byte
+	backendTag() shardBackendTag
 	Put(context.Context, Commitment, []byte, *types.BlobShard) (bool, error)
 	Get(context.Context, Commitment, []byte) (*types.BlobShard, error)
 	Has(context.Context, Commitment, []byte) (bool, error)
 	Delete(context.Context, Commitment, []byte) error
-}
-
-// shardStorage stores shard payloads and routes each marker to its backend.
-type shardStorage interface {
-	marker(int64) []byte
-	Put(context.Context, []byte, Commitment, []byte, *types.BlobShard) (bool, error)
-	Get(context.Context, []byte, Commitment, []byte) (*types.BlobShard, error)
-	Has(context.Context, []byte, Commitment, []byte) (bool, error)
-	Delete(context.Context, []byte, Commitment, []byte) error
-	size([]byte, Commitment, []byte) (int64, error)
-	diskAvailable() (int64, error)
-	resetStaging() (int, error)
 }
 
 // routedStorage writes to its primary backend and routes existing markers by tag.
@@ -83,7 +71,7 @@ func (s *routedStorage) size(marker []byte, commitment Commitment, promiseHash [
 		return 0, err
 	}
 	if size > 0 {
-		return size, err
+		return size, nil
 	}
 	local, err := s.localBackend()
 	if err != nil {
@@ -100,6 +88,8 @@ func (s *routedStorage) diskAvailable() (int64, error) {
 	return local.diskAvailable()
 }
 
+// resetStaging removes incomplete local writes, including writes left before a switch to object mode.
+// Object backends do not use the local staging directory.
 func (s *routedStorage) resetStaging() (int, error) {
 	local, err := s.localBackend()
 	if err != nil {
@@ -116,7 +106,7 @@ func (s *routedStorage) backendForMarker(marker []byte) (shardBackend, error) {
 	return s.backend(tag)
 }
 
-func (s *routedStorage) backend(tag byte) (shardBackend, error) {
+func (s *routedStorage) backend(tag shardBackendTag) (shardBackend, error) {
 	if s.primary.backendTag() == tag {
 		return s.primary, nil
 	}

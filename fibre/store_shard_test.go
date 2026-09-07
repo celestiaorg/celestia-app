@@ -6,37 +6,38 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRoutedStorageBackend verifies that markers select the configured backend.
 func TestRoutedStorageBackend(t *testing.T) {
-	primary := &taggedShardBackend{tag: 1}
-	secondary := &taggedShardBackend{tag: 2}
+	primary := &taggedShardBackend{tag: localBackendTag}
+	secondary := &taggedShardBackend{tag: objectBackendTag}
 	storage := newRoutedStorage(primary, secondary)
 
 	marker := storage.marker(42)
 	tag, size, err := decodeShardMarkerBackend(marker)
 	require.NoError(t, err)
-	require.Equal(t, byte(1), tag)
+	require.Equal(t, localBackendTag, tag)
 	require.EqualValues(t, 42, size)
 
-	backend, err := storage.backend(1)
+	backend, err := storage.backend(localBackendTag)
 	require.NoError(t, err)
 	require.Same(t, primary, backend)
 
-	backend, err = storage.backend(2)
+	backend, err = storage.backend(objectBackendTag)
 	require.NoError(t, err)
 	require.Same(t, secondary, backend)
-	backend, err = storage.backendForMarker(encodeShardMarkerForBackend(2, 42))
+	backend, err = storage.backendForMarker(encodeShardMarkerForBackend(objectBackendTag, 42))
 	require.NoError(t, err)
 	require.Same(t, secondary, backend)
 
-	_, err = storage.backend(3)
+	_, err = storage.backend(shardBackendTag(3))
 	require.ErrorIs(t, err, ErrStoreIntegrity)
 }
 
 type taggedShardBackend struct {
 	shardBackend
-	tag byte
+	tag shardBackendTag
 }
 
-func (b *taggedShardBackend) backendTag() byte {
+func (b *taggedShardBackend) backendTag() shardBackendTag {
 	return b.tag
 }

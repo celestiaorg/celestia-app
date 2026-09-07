@@ -28,7 +28,7 @@ type localBackend struct {
 // shardPayloadWriteCategory labels shard payload bytes in VFS disk-write metrics.
 const shardPayloadWriteCategory vfs.DiskWriteCategory = "fibre-shard"
 
-func (*localBackend) backendTag() byte {
+func (*localBackend) backendTag() shardBackendTag {
 	return localBackendTag
 }
 

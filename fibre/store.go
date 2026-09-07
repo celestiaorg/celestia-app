@@ -18,7 +18,8 @@ import (
 )
 
 // Pebble stores promises, prune indexes, and shard markers. Each marker
-// identifies the backend and size of its shard payload; legacy markers use local storage.
+// identifies the backend (local || object) and size of its shard payload;
+// legacy markers use local storage.
 const (
 	shardKeyPrefix = "/shard/"
 	// maxPruneBatchSize bounds each Pebble commit. The server drains full
@@ -62,7 +63,7 @@ func (cfg *StoreConfig) Validate() error {
 type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
-	shards shardStorage
+	shards *routedStorage
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -142,7 +143,14 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 }
 
 // commitAndStore writes the shard payload, then commits its Pebble metadata.
-func (s *Store) commitAndStore(ctx context.Context, promise *PaymentPromise, promiseHash []byte, shard *types.BlobShard, marker []byte, pruneAt time.Time) error {
+func (s *Store) commitAndStore(
+	ctx context.Context,
+	promise *PaymentPromise,
+	promiseHash []byte,
+	shard *types.BlobShard,
+	marker []byte,
+	pruneAt time.Time,
+) error {
 	promiseProto, err := promise.ToProto()
 	if err != nil {
 		return fmt.Errorf("converting payment promise to proto: %w", err)
@@ -169,6 +177,7 @@ func (s *Store) commitAndStore(ctx context.Context, promise *PaymentPromise, pro
 		return fmt.Errorf("aborting store commit: %w", err)
 	}
 
+	// The marker routes the write and any commit-failure cleanup to the same backend.
 	created, err := s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
 	if err != nil {
 		return fmt.Errorf("storing shard payload: %w", err)
@@ -249,6 +258,7 @@ func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseH
 		return false, false, fmt.Errorf("checking if shard exists failed: %w", err)
 	default:
 		accounted = len(markerData) > 0
+		// Pebble owns markerData until the closer closes.
 		markerData = slices.Clone(markerData)
 		_ = closer.Close()
 	}
@@ -323,9 +333,6 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 			if integrityErr == nil {
 				integrityErr = fmt.Errorf("decoding shard marker %q: %w", iter.Key(), err)
 			}
-			continue
-		}
-		if size == 0 {
 			continue
 		}
 		if size > math.MaxInt64-totalSize {
@@ -419,6 +426,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 		case err != nil:
 			return 0, 0, fmt.Errorf("getting shard marker: %w", err)
 		default:
+			// Pebble owns markerData until the closer closes.
 			markerData = slices.Clone(markerData)
 			_ = closer.Close()
 		}
@@ -429,6 +437,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 				return 0, 0, fmt.Errorf("getting shard file stats: %w", err)
 			}
 			corruptMarkers++
+			// Keep the first integrity error and count every corrupt marker.
 			if integrityErr == nil {
 				integrityErr = fmt.Errorf("decoding shard marker %q: %w", key, err)
 			}
