@@ -142,14 +142,14 @@ For each matching shard marker, `Store` will use this flow:
 1. Select the durable backend from the shard marker.
 2. For a local marker, read the local flat file.
 3. For an object marker, read the object with `GetObject`.
-4. If local storage returns `NotFound`, remove the stale marker and try the next matching shard marker.
+4. If local storage returns `NotFound`, keep the marker for occupancy accounting and try the next matching shard marker.
 5. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next matching shard marker.
 6. If another durable-storage error occurs, record it and try the next matching shard marker.
 7. If no matching shard marker succeeds, return the recorded error.
 
 Every read of an object-backed shard accesses object storage.
 
-The current read flow scans all Pebble shard markers that match the requested commitment. It removes stale markers after missing-file errors ([`fibre/store.go:265`](../../fibre/store.go#L265), [`fibre/store.go:289`](../../fibre/store.go#L289)).
+The read flow keeps missing-file markers until pruning can release their recorded sizes.
 
 ### Read latency concerns
 

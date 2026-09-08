@@ -2,6 +2,7 @@ package fibre
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -32,18 +33,40 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 
 func (s *Server) prune(ctx context.Context) {
 	start := time.Now()
+	var (
+		totalPruned  int
+		integrityErr error
+	)
 
-	pruned, freed, err := s.store.PruneBefore(ctx, start)
-	s.metrics.observePrune(ctx, start, pruned, err)
+	for {
+		pruned, freed, err := s.store.PruneBefore(ctx, start)
+		if err != nil {
+			if !errors.Is(err, ErrStoreIntegrity) {
+				s.metrics.observePrune(ctx, start, totalPruned, err)
+				s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
+				return
+			}
+			if integrityErr == nil {
+				integrityErr = err
+			}
+		}
 
-	if freed > 0 {
-		s.occ.release(freed)
+		totalPruned += pruned
+		if freed > 0 {
+			s.occ.release(freed)
+		}
+		if pruned < maxPruneBatchSize || ctx.Err() != nil {
+			break
+		}
 	}
-	if err != nil {
-		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
-		return
+
+	if integrityErr != nil {
+		s.log.WarnContext(ctx, "prune skipped corrupt shard markers", "error", integrityErr,
+			"elapsed (ms)", time.Since(start).Milliseconds())
 	}
-	if pruned > 0 {
-		s.log.InfoContext(ctx, "pruned expired entries", "pruned", pruned, "elapsed (ms)", time.Since(start).Milliseconds())
+	s.metrics.observePrune(ctx, start, totalPruned, nil)
+
+	if totalPruned > 0 {
+		s.log.InfoContext(ctx, "pruned expired entries", "pruned", totalPruned, "elapsed (ms)", time.Since(start).Milliseconds())
 	}
 }
