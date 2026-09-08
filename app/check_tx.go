@@ -81,8 +81,6 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}
-		// Cache the tx, so ProcessProposal will skip the validation step
-		app.txCache.Set(btx.Tx, btx.Blobs)
 	case abci.CheckTxType_Recheck:
 		// no need to re-validate a blob
 	default:
@@ -95,7 +93,18 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
-	return app.forwardCheckTx(baseReq, sdkTx)
+	res, err := app.forwardCheckTx(baseReq, sdkTx)
+	if err != nil || res.Code != abci.CodeTypeOK {
+		return res, err
+	}
+
+	// Cache only txs that passed full CheckTx, so ProcessProposal skips
+	// re-validation and invalid spam cannot evict legitimate entries.
+	if req.Type == abci.CheckTxType_New {
+		app.txCache.Set(btx.Tx, btx.Blobs)
+	}
+
+	return res, nil
 }
 
 func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {

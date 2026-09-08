@@ -575,6 +575,43 @@ func TestCheckTxMalformedModeInfoDoesNotPanic(t *testing.T) {
 	})
 }
 
+// TestCheckTxBlobTxCacheAdmission verifies that only blob txs passing full
+// CheckTx are admitted to the cache consulted by ProcessProposal.
+func TestCheckTxBlobTxCacheAdmission(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	fromCacheAfterCheckTx := func(rawTx []byte) bool {
+		blobTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
+		require.True(t, isBlob)
+		require.NoError(t, err)
+		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
+		require.NoError(t, err)
+		return fromCache
+	}
+
+	// A blob tx signed with a wrong account number passes stateless blob
+	// validation but fails the stateful ante pass; it must not be cached.
+	badSigner := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber()+1)
+	invalidTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(badSigner, []share.Namespace{namespace}, []int{100})[0]
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: invalidTx})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	assert.False(t, fromCacheAfterCheckTx(invalidTx), "a blob tx failing CheckTx must not be cached")
+
+	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+	validTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []share.Namespace{namespace}, []int{100})[0]
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: validTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	assert.True(t, fromCacheAfterCheckTx(validTx), "a blob tx passing CheckTx must be cached")
+}
+
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	t.Helper()
 

@@ -128,6 +128,35 @@ func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
 	assert.True(t, exists)
 }
 
+func TestTxCache_Eviction(t *testing.T) {
+	cache := NewTxCache()
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100)
+
+	for i := range defaultTxCacheCapacity + 1 {
+		cache.Set(fmt.Appendf(nil, "tx-%d", i), blobs)
+	}
+
+	assert.Equal(t, defaultTxCacheCapacity, cache.Size())
+	assert.False(t, cache.Exists([]byte("tx-0"), blobs), "oldest entry must be evicted")
+	assert.True(t, cache.Exists(fmt.Appendf(nil, "tx-%d", defaultTxCacheCapacity), blobs))
+}
+
+func TestTxCache_EvictionRecency(t *testing.T) {
+	cache := NewTxCache()
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100)
+
+	for i := range defaultTxCacheCapacity {
+		cache.Set(fmt.Appendf(nil, "tx-%d", i), blobs)
+	}
+
+	// touch the oldest entry so the next insert evicts tx-1 instead
+	require.True(t, cache.Exists([]byte("tx-0"), blobs))
+	cache.Set([]byte("one more"), blobs)
+
+	assert.True(t, cache.Exists([]byte("tx-0"), blobs))
+	assert.False(t, cache.Exists([]byte("tx-1"), blobs))
+}
+
 func TestTxCache_GetTxKey(t *testing.T) {
 	cache := NewTxCache()
 	tx := []byte("test transaction")
