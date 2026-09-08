@@ -89,7 +89,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	mu.Lock()
 	defer mu.Unlock()
 
-	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	has, accounted, err := s.store.shardStatus(promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
@@ -99,8 +99,8 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 	if !has {
 		size := shardBinarySize(req.Shard)
-		reserved := s.occ.reserve(size)
-		if !reserved {
+		newReservation := !accounted
+		if newReservation && !s.occ.reserve(size) {
 			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
 			st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
 			st, _ = st.WithDetails(&errdetails.RetryInfo{
@@ -112,7 +112,9 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		// store payment promise and shard with RLC roots
 		storePutStart := time.Now()
 		if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
-			s.occ.release(size)
+			if newReservation {
+				s.occ.release(size)
+			}
 			s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
 			// A cancelled/expired client context means the store deliberately
 			// skipped the commit; report it as such rather than as an Internal
