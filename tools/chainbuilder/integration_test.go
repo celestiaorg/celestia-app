@@ -232,6 +232,35 @@ func TestRunRecoversPersistenceInterruptedBeforeAppCommit(t *testing.T) {
 	requireChainHeights(t, chainDir, cfg.ChainID, 2)
 }
 
+func TestRunRecoversPersistenceInterruptedBeforeSaveBlock(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping chainbuilder tool test")
+	}
+
+	cfg := BuilderConfig{
+		NumBlocks:     1,
+		BlockSize:     1024,
+		BlockInterval: time.Second,
+		ChainID:       random.Str(6),
+		Namespace:     defaultNamespace,
+	}
+	dir := t.TempDir()
+	require.NoError(t, Run(context.Background(), cfg, dir))
+
+	chainDir := filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
+	cfg.ExistingDir = chainDir
+	interrupted := errors.New("simulated process interruption before save block")
+	err := run(context.Background(), cfg, dir, runHooks{
+		afterPersistenceMarked: func(int64) error { return interrupted },
+	})
+	require.ErrorIs(t, err, interrupted)
+
+	// Recovery must restore FilePV's sign state as well as clear the marker;
+	// otherwise the next attempt at this height is rejected as conflicting data.
+	require.NoError(t, Run(context.Background(), cfg, dir))
+	requireChainHeights(t, chainDir, cfg.ChainID, 2)
+}
+
 func TestRunRollsBackBlockOnStateSaveFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping chainbuilder tool test")

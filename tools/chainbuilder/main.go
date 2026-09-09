@@ -137,10 +137,11 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 }
 
 type runHooks struct {
-	afterBlockCommitted func(int64)
-	afterBlockPersisted func(int64) error
-	commitApp           func() error
-	saveState           func(sm.State) error
+	afterBlockCommitted    func(int64)
+	afterPersistenceMarked func(int64) error
+	afterBlockPersisted    func(int64) error
+	commitApp              func() error
+	saveState              func(sm.State) error
 }
 
 func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (rerr error) {
@@ -515,6 +516,11 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 			if err := writePendingPersistence(pendingPath, height, previousState, previousSignState); err != nil {
 				return fmt.Errorf("record pending persistence: %w", err)
 			}
+			if hooks.afterPersistenceMarked != nil {
+				if err := hooks.afterPersistenceMarked(height); err != nil {
+					return fmt.Errorf("after persistence marked: %w", err)
+				}
+			}
 			select {
 			case persistCh <- toPersist:
 			case <-persisterDone:
@@ -799,7 +805,10 @@ func recoverPendingPersistence(
 		// The application commit made it to disk; only marker cleanup was interrupted.
 		return clearPendingPersistence(path)
 	case appHeight == previousHeight && blockHeight == previousHeight:
-		// The marker was written but persistence never began.
+		// The marker was written after signing, but persistence never began.
+		if err := restoreValidatorSignState(validatorKey, pending.PreviousSignState); err != nil {
+			return fmt.Errorf("restore validator sign state: %w", err)
+		}
 		return clearPendingPersistence(path)
 	case appHeight == previousHeight && blockHeight == pending.Height:
 		if err := rollbackPersistence(
