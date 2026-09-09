@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"encoding/hex"
+	"encoding/xml"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -176,8 +177,19 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 			if r.Method == http.MethodGet {
 				_, _ = w.Write(data)
 			}
-		case http.MethodDelete:
-			delete(objects, r.URL.Path)
+		case http.MethodPost:
+			assert.True(t, r.URL.Query().Has("delete"))
+			var request struct {
+				Keys []string `xml:"Object>Key"`
+			}
+			if err := xml.NewDecoder(r.Body).Decode(&request); !assert.NoError(t, err) {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
+			for _, key := range request.Keys {
+				delete(objects, r.URL.Path+"/"+key)
+			}
+			_, _ = w.Write([]byte("<DeleteResult/>"))
 		default:
 			t.Errorf("unexpected method %s", r.Method)
 			w.WriteHeader(http.StatusBadRequest)

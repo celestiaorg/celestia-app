@@ -62,6 +62,19 @@ func (s *routedStorage) Delete(ctx context.Context, marker []byte, commitment Co
 	return backend.Delete(ctx, commitment, promiseHash)
 }
 
+// DeleteObjects routes a batch of object shards to the object backend.
+func (s *routedStorage) DeleteObjects(ctx context.Context, ids []shardID) ([]error, error) {
+	backend, err := s.backend(objectBackendTag)
+	if err != nil {
+		return nil, err
+	}
+	object, ok := backend.(*objectBackend)
+	if !ok {
+		return nil, fmt.Errorf("%w: object backend does not support batch deletion", ErrStoreIntegrity)
+	}
+	return object.DeleteObjects(ctx, ids)
+}
+
 func (s *routedStorage) size(marker []byte, commitment Commitment, promiseHash []byte) (int64, error) {
 	tag, size, err := decodeShardMarkerBackend(marker)
 	if err != nil {
