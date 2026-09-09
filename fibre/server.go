@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -141,6 +142,12 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.Creds(creds),
 	)
 
+	pubKey, err := s.signer.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("getting validator public key: %w", err)
+	}
+	s.Config.ChainID = s.state.ChainID()
+	s.Config.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
 	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)

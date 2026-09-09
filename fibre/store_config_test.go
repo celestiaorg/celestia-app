@@ -1,0 +1,194 @@
+package fibre
+
+import (
+	"encoding/hex"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func testObjectStorageConfig() ObjectStorageConfig {
+	return ObjectStorageConfig{
+		Endpoint: "https://account.r2.cloudflarestorage.com",
+		Region:   "auto",
+		Bucket:   "fibre-shards",
+		Prefix:   "fibre",
+	}
+}
+
+func TestObjectStorageConfigValidate(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		modify func(*ObjectStorageConfig)
+	}{
+		{"endpoint missing", func(c *ObjectStorageConfig) { c.Endpoint = "" }},
+		{"endpoint relative", func(c *ObjectStorageConfig) { c.Endpoint = "/r2" }},
+		{"endpoint scheme", func(c *ObjectStorageConfig) { c.Endpoint = "ftp://r2.example" }},
+		{"endpoint malformed", func(c *ObjectStorageConfig) { c.Endpoint = "https://%" }},
+		{"endpoint credentials", func(c *ObjectStorageConfig) { c.Endpoint = "https://user:secret@r2.example" }},
+		{"endpoint query", func(c *ObjectStorageConfig) { c.Endpoint += "?query=1" }},
+		{"endpoint fragment", func(c *ObjectStorageConfig) { c.Endpoint += "#fragment" }},
+		{"region", func(c *ObjectStorageConfig) { c.Region = " " }},
+		{"bucket", func(c *ObjectStorageConfig) { c.Bucket = " " }},
+		{"prefix", func(c *ObjectStorageConfig) { c.Prefix = " " }},
+		{"prefix slashes", func(c *ObjectStorageConfig) { c.Prefix = "///" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := testObjectStorageConfig()
+			tc.modify(&cfg)
+			require.Error(t, cfg.Validate())
+		})
+	}
+	cfg := testObjectStorageConfig()
+	require.NoError(t, cfg.Validate())
+	cfg.Endpoint = "http://localhost:9000"
+	require.NoError(t, cfg.Validate())
+}
+
+func TestStoreConfigValidateBackend(t *testing.T) {
+	cfg := StoreConfig{Path: t.TempDir()}
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, "local", cfg.StorageBackend)
+	cfg.StorageBackend = "unknown"
+	require.ErrorContains(t, cfg.Validate(), "storage_backend")
+	cfg.StorageBackend = "object"
+	require.ErrorContains(t, cfg.Validate(), "object_storage.endpoint")
+	cfg.ObjectStorage = testObjectStorageConfig()
+	require.NoError(t, cfg.Validate())
+	_, err := NewStore(cfg)
+	require.ErrorContains(t, err, "chain ID and validator address")
+	cfg.ChainID = "test-chain"
+	_, err = NewStore(cfg)
+	require.ErrorContains(t, err, "chain ID and validator address")
+}
+
+func TestStoreConfiguredBackendSwitch(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "config"))
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "credentials"))
+	var mu sync.Mutex
+	objects := make(map[string][]byte)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Contains(t, r.Header.Get("Authorization"), "Credential=test-key/")
+		switch r.Method {
+		case http.MethodPut:
+			assert.Equal(t, "*", r.Header.Get("If-None-Match"))
+			data, err := io.ReadAll(r.Body)
+			assert.NoError(t, err)
+			assert.Equal(t, int64(len(data)), r.ContentLength)
+			objects[r.URL.Path] = data
+		case http.MethodGet, http.MethodHead:
+			data, ok := objects[r.URL.Path]
+			if !ok {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if r.Method == http.MethodGet {
+				_, _ = w.Write(data)
+			}
+		case http.MethodDelete:
+			delete(objects, r.URL.Path)
+		default:
+			t.Errorf("unexpected method %s", r.Method)
+			w.WriteHeader(http.StatusBadRequest)
+		}
+	}))
+	defer server.Close()
+	cfg := DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.Endpoint = server.URL
+	cfg.ChainID = "test-chain"
+	cfg.ValidatorAddress = "test-validator"
+	shard := &types.BlobShard{Rows: []*types.BlobRow{{Index: 1, Data: []byte("data")}}}
+	pruneAt := time.Unix(60, 0)
+	promise := &PaymentPromise{
+		ChainID: cfg.ChainID, SignerKey: secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey),
+		Commitment: generateCommitment(), CreationTimestamp: pruneAt, Signature: []byte{1},
+	}
+	localCommitment := promise.Commitment
+	store, err := NewStore(cfg)
+	require.NoError(t, err)
+	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
+	require.NoError(t, store.Close())
+
+	cfg.StorageBackend = "object"
+	store, err = NewStore(cfg)
+	require.NoError(t, err)
+	got, err := store.Get(t.Context(), localCommitment)
+	require.NoError(t, err)
+	require.Equal(t, shard, got)
+	promise.Commitment[0]++
+	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
+	promiseHash, err := promise.Hash()
+	require.NoError(t, err)
+	mu.Lock()
+	assert.Contains(t, objects, "/fibre-shards/fibre/test-chain/test-validator/shards/"+promise.Commitment.String()+"-"+hex.EncodeToString(promiseHash))
+	mu.Unlock()
+	require.NoError(t, store.Close())
+
+	cfg.StorageBackend = "local"
+	retainedConfig := cfg.ObjectStorage
+	cfg.ObjectStorage = ObjectStorageConfig{}
+	_, err = NewStore(cfg)
+	require.ErrorContains(t, err, "object_storage.endpoint")
+	cfg.ObjectStorage = retainedConfig
+	store, err = NewStore(cfg)
+	require.NoError(t, err)
+	require.Equal(t, localBackendTag, store.shards.primary.backendTag())
+	got, err = store.Get(t.Context(), promise.Commitment)
+	require.NoError(t, err)
+	require.Equal(t, shard, got)
+	has, err := store.Has(t.Context(), promise.Commitment, promiseHash)
+	require.NoError(t, err)
+	require.True(t, has)
+	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, 2, pruned)
+	require.Equal(t, 2*shardBinarySize(shard), freed)
+	require.NoError(t, store.Close())
+
+	cfg.ObjectStorage = ObjectStorageConfig{}
+	store, err = NewStore(cfg)
+	require.NoError(t, err)
+	require.Nil(t, store.shards.secondary)
+	require.NoError(t, store.Close())
+}
+
+func TestStoreLocalDoesNotLoadAWSConfig(t *testing.T) {
+	t.Setenv("AWS_PROFILE", "missing-profile")
+	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "missing"))
+	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "missing"))
+	cfg := DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := NewStore(cfg)
+	require.NoError(t, err)
+	require.Nil(t, store.shards.secondary)
+	// Legacy and invalid markers do not identify an object backend.
+	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), nil, pebbledb.Sync))
+	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{2}), []byte{1}, pebbledb.Sync))
+	require.NoError(t, store.Close())
+	store, err = NewStore(cfg)
+	require.NoError(t, err)
+	require.NoError(t, store.Close())
+	cfg.StorageBackend = "object"
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ChainID, cfg.ValidatorAddress = "test-chain", "test-validator"
+	_, err = NewStore(cfg)
+	require.ErrorContains(t, err, "loading AWS configuration")
+}

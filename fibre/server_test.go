@@ -13,6 +13,7 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -157,3 +158,35 @@ func (m *testPrivValidator) SignProposal(chainID string, proposal *cmtproto.Prop
 func (m *testPrivValidator) GetAddress() core.Address {
 	return m.privKey.PubKey().Address()
 }
+
+func TestServerStartDerivesStoreIdentity(t *testing.T) {
+	var got fibre.StoreConfig
+	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		newState := cfg.StateClientFn
+		cfg.StateClientFn = func() (state.Client, error) {
+			client, err := newState()
+			return &startChainStateClient{Client: client}, err
+		}
+		cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+			got = scfg
+			return fibre.NewMemoryStore(scfg), nil
+		}
+	})
+	require.Equal(t, "started-chain", got.ChainID)
+	require.Equal(t, sdk.ConsAddress(validator.Address).String(), got.ValidatorAddress)
+}
+
+type startChainStateClient struct {
+	state.Client
+	chainID string
+}
+
+func (s *startChainStateClient) Start(ctx context.Context) error {
+	if err := s.Client.Start(ctx); err != nil {
+		return err
+	}
+	s.chainID = "started-chain"
+	return nil
+}
+
+func (s *startChainStateClient) ChainID() string { return s.chainID }

@@ -35,6 +35,13 @@ var ErrStoreIntegrity = errors.New("store integrity error")
 
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
+	// StorageBackend selects the backend for new shards: local or object.
+	StorageBackend string `toml:"storage_backend"`
+	// ObjectStorage must remain configured until all object shards are pruned.
+	ObjectStorage ObjectStorageConfig `toml:"object_storage"`
+	// ChainID and ValidatorAddress are derived by the server at startup.
+	ChainID          string `toml:"-"`
+	ValidatorAddress string `toml:"-"`
 	// Path is the path to the store directory.
 	Path string `toml:"-"`
 	// Log defaults to [slog.Default] when nil.
@@ -43,12 +50,24 @@ type StoreConfig struct {
 
 // DefaultStoreConfig returns a [StoreConfig] with default values.
 func DefaultStoreConfig() StoreConfig {
-	return StoreConfig{}
+	return StoreConfig{StorageBackend: "local"}
 }
 
 // Validate checks that the StoreConfig is valid and fills in defaults for
 // unset fields.
 func (cfg *StoreConfig) Validate() error {
+	if cfg.StorageBackend == "" {
+		cfg.StorageBackend = "local"
+	}
+	switch cfg.StorageBackend {
+	case "local":
+	case "object":
+		if err := cfg.ObjectStorage.Validate(); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("storage_backend must be local or object")
+	}
 	if cfg.Path == "" {
 		return fmt.Errorf("store path is required")
 	}
@@ -76,6 +95,7 @@ const memStorePath = "/store"
 // when the Store is garbage collected.
 func NewMemoryStore(cfg StoreConfig) *Store {
 	cfg.Path = memStorePath
+	cfg.StorageBackend = "local"
 	s, err := openStore(cfg, vfs.NewMem())
 	if err != nil {
 		panic(fmt.Sprintf("opening in-memory store: %v", err))
@@ -83,9 +103,8 @@ func NewMemoryStore(cfg StoreConfig) *Store {
 	return s
 }
 
-// NewStore opens a [Store] backed by an on-disk pebble database and flat
-// shard files at cfg.Path. On open, [Store.reconcile] drops leftover staging
-// files from a previous crash.
+// NewStore opens Pebble and the configured shard backends at cfg.Path.
+// It removes leftover staging files from a previous crash.
 func NewStore(cfg StoreConfig) (*Store, error) {
 	return openStore(cfg, vfs.Default)
 }
@@ -113,6 +132,10 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 	}
 
 	s := &Store{db: db, log: cfg.Log, shards: newRoutedStorage(local, nil)}
+	if err := s.openObjectStorage(cfg); err != nil {
+		_ = db.Close()
+		return nil, fmt.Errorf("opening object shard storage: %w", err)
+	}
 	if err := s.reconcile(); err != nil {
 		_ = s.db.Close()
 		return nil, fmt.Errorf("reconciling store: %w", err)
