@@ -431,15 +431,14 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	defer batch.Close()
 	var (
 		selectedBytes  int64
-		local          []pruneCandidate
-		objects        []pruneCandidate
+		candidates     []pruneCandidate
 		pruned         int
 		prunedBytes    int64
 		integrityErr   error
 		corruptMarkers int
 	)
 	beforeStr := formatTimestamp(before.UTC())
-	for valid := iter.First(); valid && len(local)+len(objects) < maxPruneBatchSize; valid = iter.Next() {
+	for valid := iter.First(); valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
 		if err := ctx.Err(); err != nil {
 			return 0, 0, err
 		}
@@ -484,53 +483,25 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 			return 0, 0, errors.New("pruned shard size overflows int64")
 		}
 		selectedBytes += size
-		candidate := pruneCandidate{
-			id:  shardID{commitment: commitment, promiseHash: promiseHash},
-			key: slices.Clone(key), marker: markerData, size: size,
-		}
-		// size already validated the marker and its backend.
-		tag, _, _ := decodeShardMarkerBackend(markerData)
-		if tag == objectBackendTag {
-			objects = append(objects, candidate)
-		} else {
-			local = append(local, candidate)
-		}
+		candidates = append(candidates, pruneCandidate{
+			markedShard: markedShard{
+				id: shardID{commitment: commitment, promiseHash: promiseHash}, marker: markerData,
+			},
+			key: slices.Clone(key), size: size,
+		})
 	}
 
 	if err := iter.Error(); err != nil {
 		return 0, 0, fmt.Errorf("iterating prune index: %w", err)
 	}
 
-	var deleteErr error
-	var successful []pruneCandidate
-	for _, candidate := range local {
-		if err := s.shards.Delete(ctx, candidate.marker, candidate.id.commitment, candidate.id.promiseHash); err != nil {
-			deleteErr = err
-			break
-		}
-		successful = append(successful, candidate)
+	shards := make([]markedShard, len(candidates))
+	for i, candidate := range candidates {
+		shards[i] = candidate.markedShard
 	}
-	if len(objects) > 0 {
-		ids := make([]shardID, len(objects))
-		for i, candidate := range objects {
-			ids[i] = candidate.id
-		}
-		results, err := s.shards.DeleteObjects(ctx, ids)
-		if err != nil {
-			deleteErr = errors.Join(deleteErr, err)
-		} else {
-			for i, err := range results {
-				if err != nil {
-					if deleteErr == nil {
-						deleteErr = err
-					}
-					continue
-				}
-				successful = append(successful, objects[i])
-			}
-		}
-	}
-	for _, candidate := range successful {
+	successful, deleteErr := s.shards.DeleteBatch(ctx, shards)
+	for _, i := range successful {
+		candidate := candidates[i]
 		if err := batch.Delete(candidate.key, pebbledb.NoSync); err != nil {
 			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
 		}
@@ -557,10 +528,9 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 }
 
 type pruneCandidate struct {
-	id     shardID
-	key    []byte
-	marker []byte
-	size   int64
+	markedShard
+	key  []byte
+	size int64
 }
 
 // reconcile drops everything under <store>/staging/. Anything there at open
