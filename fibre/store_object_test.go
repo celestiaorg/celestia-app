@@ -302,30 +302,48 @@ func TestObjectBackendGetChecksum(t *testing.T) {
 	}
 }
 
-func TestObjectBackendGetDoesNotRetry(t *testing.T) {
-	var calls atomic.Int32
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		calls.Add(1)
-		w.Header().Set("Content-Type", "application/xml")
-		w.WriteHeader(http.StatusServiceUnavailable)
-		_, _ = io.WriteString(w, "<Error><Code>SlowDown</Code><Message>retry later</Message></Error>")
-	}))
-	defer server.Close()
-	client := s3.New(s3.Options{
-		Region:           "us-east-1",
-		Credentials:      credentials.NewStaticCredentialsProvider("test", "test", ""),
-		BaseEndpoint:     aws.String(server.URL),
-		UsePathStyle:     true,
-		HTTPClient:       server.Client(),
-		RetryMaxAttempts: 3,
-	})
-	backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
-	require.NoError(t, err)
-	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-	defer cancel()
-	_, err = backend.Get(ctx, Commitment{}, []byte{1})
-	require.ErrorContains(t, err, "SlowDown")
-	require.Equal(t, int32(1), calls.Load())
+func TestObjectBackendGetRetriesOnce(t *testing.T) {
+	for _, recovers := range []bool{false, true} {
+		t.Run(fmt.Sprintf("recovers=%t", recovers), func(t *testing.T) {
+			shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: []byte("data")}}}
+			var encoded bytes.Buffer
+			require.NoError(t, writeShardBinary(&encoded, shard))
+			var calls atomic.Int32
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if calls.Add(1) == 2 && recovers {
+					_, _ = w.Write(encoded.Bytes())
+					return
+				}
+				w.Header().Set("Content-Type", "application/xml")
+				w.WriteHeader(http.StatusServiceUnavailable)
+				_, _ = io.WriteString(w, "<Error><Code>SlowDown</Code><Message>retry later</Message></Error>")
+			}))
+			defer server.Close()
+			client := s3.New(s3.Options{
+				Region:           "us-east-1",
+				Credentials:      credentials.NewStaticCredentialsProvider("test", "test", ""),
+				BaseEndpoint:     aws.String(server.URL),
+				UsePathStyle:     true,
+				HTTPClient:       server.Client(),
+				RetryMaxAttempts: 3,
+			})
+			backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1e-9)
+			require.NoError(t, err)
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			got, err := backend.Get(ctx, Commitment{}, []byte{1})
+			if recovers {
+				require.NoError(t, err)
+				require.Equal(t, shard, got)
+			} else {
+				require.ErrorContains(t, err, "SlowDown")
+			}
+			require.Equal(t, int32(2), calls.Load())
+			_, err = backend.Get(ctx, Commitment{}, []byte{1})
+			require.ErrorIs(t, err, ErrObjectReadRateLimited)
+			require.Equal(t, int32(2), calls.Load())
+		})
+	}
 }
 
 func TestObjectBackendNormalisesMissingObject(t *testing.T) {

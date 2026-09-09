@@ -11,6 +11,7 @@
 - 2026-09-02: Make conditional object writes idempotent
 - 2026-09-02: Define the shard-marker binary format
 - 2026-09-07: Route shard operations through `routedStorage`
+- 2026-09-09: Allow one retry per admitted object read
 
 ## Status
 
@@ -157,6 +158,15 @@ For each matching shard marker, `Store` will use this flow:
 Every read of an object-backed shard accesses object storage.
 
 The read flow keeps missing-file markers until pruning can release their recorded sizes.
+
+### Object-read rate limit and retries
+
+Object reads share one token bucket per object backend, with burst 1 and an explicit positive RPS value.
+Each `GetObject` call consumes one token and permits at most two SDK attempts: the initial attempt and one retry for transient errors.
+The retry does not consume another token, so admitted calls can generate up to two provider attempts each.
+Local reads remain unrestricted.
+
+Open question: do measured request costs and provider load require stricter limiting, such as charging each retry a token or disabling retries?
 
 ### Read latency concerns
 

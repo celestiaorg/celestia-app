@@ -124,8 +124,8 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 		Bucket: aws.String(b.bucket),
 		Key:    aws.String(b.objectKey(commitment, promiseHash)),
 	}, func(options *s3.Options) {
-		// Each token permits one provider attempt.
-		options.RetryMaxAttempts = 1
+		// Each token permits an initial attempt and one retry for transient errors.
+		options.RetryMaxAttempts = 2
 	})
 	if isObjectNotFound(err) {
 		return nil, ErrStoreNotFound
