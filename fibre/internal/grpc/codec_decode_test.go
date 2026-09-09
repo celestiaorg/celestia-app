@@ -3,6 +3,7 @@ package grpc
 import (
 	"bytes"
 	"math/rand"
+	"runtime"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -227,5 +228,33 @@ func TestCountingAllocations(t *testing.T) {
 			var stub types.ProofCountUploadShard
 			return stub.Unmarshal(buf)
 		})
+	})
+}
+
+// TestCodecUnmarshalDownloadShardLimit checks that oversized download requests
+// are rejected before the codec copies them.
+func TestCodecUnmarshalDownloadShardLimit(t *testing.T) {
+	codec := NewServerCodec(testMaxRows, testMaxProofs)
+
+	t.Run("round-trips a valid request", func(t *testing.T) {
+		wire, err := codec.Marshal(&types.DownloadShardRequest{BlobId: bytes.Repeat([]byte{1}, 33)})
+		require.NoError(t, err)
+
+		var got types.DownloadShardRequest
+		require.NoError(t, codec.Unmarshal(wire, &got))
+		require.Equal(t, bytes.Repeat([]byte{1}, 33), got.BlobId)
+	})
+
+	t.Run("rejects an oversized request before copying it", func(t *testing.T) {
+		buf, err := (&types.DownloadShardRequest{BlobId: make([]byte, 1<<20)}).Marshal()
+		require.NoError(t, err)
+
+		var before, after runtime.MemStats
+		runtime.ReadMemStats(&before)
+		err = codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(buf)}, &types.DownloadShardRequest{})
+		runtime.ReadMemStats(&after)
+
+		require.ErrorContains(t, err, "download request")
+		require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(len(buf)), "rejection must not copy the message")
 	})
 }
