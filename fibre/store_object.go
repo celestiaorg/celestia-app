@@ -87,7 +87,8 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	writeErr := <-writeDone
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
-		// IfNoneMatch rejected an existing object; this call created nothing.
+		// IfNoneMatch: "*" rejected this upload because a shard already exists for this commitment and promise hash.
+		// Return created=false with no error: the payload exists, but this call did not create it.
 		return false, nil
 	}
 	if putErr != nil {
