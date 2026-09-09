@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/merkle"
 	"github.com/cometbft/cometbft/privval"
+	cmtstate "github.com/cometbft/cometbft/proto/tendermint/state"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sm "github.com/cometbft/cometbft/state"
 	"github.com/cometbft/cometbft/store"
@@ -36,14 +38,16 @@ import (
 	tmdbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/gogoproto/proto"
 	"github.com/spf13/cobra"
 )
 
 var defaultNamespace share.Namespace
 
 const (
-	defaultNamespaceStr = "test"
-	maxSquareSize       = 512
+	defaultNamespaceStr    = "test"
+	maxSquareSize          = 512
+	pendingPersistenceFile = "chainbuilder-pending-persistence.json"
 )
 
 func init() {
@@ -134,6 +138,7 @@ func Run(ctx context.Context, cfg BuilderConfig, dir string) error {
 
 type runHooks struct {
 	afterBlockCommitted func(int64)
+	afterBlockPersisted func(int64) error
 	commitApp           func() error
 	saveState           func(sm.State) error
 }
@@ -239,6 +244,10 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 	infoResp, err := simApp.Info(&abci.RequestInfo{})
 	if err != nil {
 		return fmt.Errorf("failed to get app info: %w", err)
+	}
+	pendingPath := filepath.Join(tmCfg.DBDir(), pendingPersistenceFile)
+	if err := recoverPendingPersistence(pendingPath, stateStore, blockStore, validatorKey, infoResp.LastBlockHeight); err != nil {
+		return fmt.Errorf("recover pending persistence: %w", err)
 	}
 
 	lastHeight := blockStore.Height()
@@ -503,6 +512,9 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 					Signatures: []types.CommitSig{commitSig},
 				},
 			}
+			if err := writePendingPersistence(pendingPath, height, previousState, previousSignState); err != nil {
+				return fmt.Errorf("record pending persistence: %w", err)
+			}
 			select {
 			case persistCh <- toPersist:
 			case <-persisterDone:
@@ -517,6 +529,11 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 			case <-persisterDone:
 				restoreErr := restoreValidatorSignState(validatorKey, previousSignState)
 				return errors.Join(shutdownWorkers(), restoreErr)
+			}
+			if hooks.afterBlockPersisted != nil {
+				if err := hooks.afterBlockPersisted(height); err != nil {
+					return fmt.Errorf("after block persisted: %w", err)
+				}
 			}
 
 			if hooks.commitApp != nil {
@@ -535,7 +552,13 @@ func run(ctx context.Context, cfg BuilderConfig, dir string, hooks runHooks) (re
 				); rollbackErr != nil {
 					return errors.Join(commitErr, fmt.Errorf("failed to roll back persisted block: %w", rollbackErr))
 				}
+				if clearErr := clearPendingPersistence(pendingPath); clearErr != nil {
+					return errors.Join(commitErr, fmt.Errorf("clear pending persistence: %w", clearErr))
+				}
 				return commitErr
+			}
+			if err := clearPendingPersistence(pendingPath); err != nil {
+				return fmt.Errorf("clear pending persistence: %w", err)
 			}
 
 			if hooks.afterBlockCommitted != nil {
@@ -655,9 +678,149 @@ func restoreValidatorSignState(
 			err = fmt.Errorf("restore validator sign state: %v", recovered)
 		}
 	}()
-	validatorKey.LastSignState = previousSignState
+	// Keep the file path loaded with validatorKey. It is intentionally private
+	// in FilePVLastSignState and is therefore not present in the recovery marker.
+	validatorKey.LastSignState.Height = previousSignState.Height
+	validatorKey.LastSignState.Round = previousSignState.Round
+	validatorKey.LastSignState.Step = previousSignState.Step
+	validatorKey.LastSignState.Signature = previousSignState.Signature
+	validatorKey.LastSignState.SignBytes = previousSignState.SignBytes
 	validatorKey.LastSignState.Save()
 	return nil
+}
+
+// pendingPersistence makes the cross-store transition recoverable. The marker
+// is written before consensus data reaches disk and removed only after the app
+// commit has completed. On the next start it tells us whether to roll the
+// consensus stores back or to simply acknowledge a completed app commit.
+type pendingPersistence struct {
+	Height            int64                       `json:"height"`
+	PreviousState     []byte                      `json:"previous_state"`
+	PreviousSignState privval.FilePVLastSignState `json:"previous_sign_state"`
+}
+
+func writePendingPersistence(
+	path string,
+	height int64,
+	previousState sm.State,
+	previousSignState privval.FilePVLastSignState,
+) error {
+	stateProto, err := previousState.ToProto()
+	if err != nil {
+		return fmt.Errorf("encode previous state: %w", err)
+	}
+	stateBytes, err := proto.Marshal(stateProto)
+	if err != nil {
+		return fmt.Errorf("marshal previous state: %w", err)
+	}
+	pending := pendingPersistence{
+		Height:            height,
+		PreviousState:     stateBytes,
+		PreviousSignState: previousSignState,
+	}
+	data, err := json.Marshal(pending)
+	if err != nil {
+		return fmt.Errorf("marshal marker: %w", err)
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("create marker directory: %w", err)
+	}
+	tmp, err := os.CreateTemp(dir, ".chainbuilder-pending-*")
+	if err != nil {
+		return fmt.Errorf("create marker: %w", err)
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("write marker: %w", err)
+	}
+	if err := tmp.Sync(); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("sync marker: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("close marker: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		return fmt.Errorf("publish marker: %w", err)
+	}
+	return syncDir(dir)
+}
+
+func clearPendingPersistence(path string) error {
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return syncDir(filepath.Dir(path))
+}
+
+func syncDir(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	return dir.Sync()
+}
+
+func recoverPendingPersistence(
+	path string,
+	stateStore sm.Store,
+	blockStore *store.BlockStore,
+	validatorKey *privval.FilePV,
+	appHeight int64,
+) error {
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var pending pendingPersistence
+	if err := json.Unmarshal(data, &pending); err != nil {
+		return fmt.Errorf("decode marker: %w", err)
+	}
+
+	blockHeight := blockStore.Height()
+	stateProto := new(cmtstate.State)
+	if err := proto.Unmarshal(pending.PreviousState, stateProto); err != nil {
+		return fmt.Errorf("decode previous state: %w", err)
+	}
+	previousState, err := sm.FromProto(stateProto)
+	if err != nil {
+		return fmt.Errorf("restore previous state: %w", err)
+	}
+	previousHeight := previousState.LastBlockHeight
+	switch {
+	case appHeight == pending.Height && blockHeight == pending.Height:
+		// The application commit made it to disk; only marker cleanup was interrupted.
+		return clearPendingPersistence(path)
+	case appHeight == previousHeight && blockHeight == previousHeight:
+		// The marker was written but persistence never began.
+		return clearPendingPersistence(path)
+	case appHeight == previousHeight && blockHeight == pending.Height:
+		if err := rollbackPersistence(
+			stateStore,
+			blockStore,
+			*previousState,
+			validatorKey,
+			pending.PreviousSignState,
+		); err != nil {
+			return fmt.Errorf("roll back incomplete persistence: %w", err)
+		}
+		return clearPendingPersistence(path)
+	default:
+		return fmt.Errorf(
+			"unexpected heights for pending block %d: app=%d block=%d previous=%d",
+			pending.Height,
+			appHeight,
+			blockHeight,
+			previousHeight,
+		)
+	}
 }
 
 type persistData struct {

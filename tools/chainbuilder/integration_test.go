@@ -203,6 +203,35 @@ func TestRunRollsBackPersistenceOnAppCommitFailure(t *testing.T) {
 	requireChainHeights(t, chainDir, cfg.ChainID, 2)
 }
 
+func TestRunRecoversPersistenceInterruptedBeforeAppCommit(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping chainbuilder tool test")
+	}
+
+	cfg := BuilderConfig{
+		NumBlocks:     1,
+		BlockSize:     1024,
+		BlockInterval: time.Second,
+		ChainID:       random.Str(6),
+		Namespace:     defaultNamespace,
+	}
+	dir := t.TempDir()
+	require.NoError(t, Run(context.Background(), cfg, dir))
+
+	chainDir := filepath.Join(dir, fmt.Sprintf("testnode-%s", cfg.ChainID))
+	cfg.ExistingDir = chainDir
+	interrupted := errors.New("simulated process interruption after persistence")
+	err := run(context.Background(), cfg, dir, runHooks{
+		afterBlockPersisted: func(int64) error { return interrupted },
+	})
+	require.ErrorIs(t, err, interrupted)
+
+	// The marker keeps the previous consensus state and validator sign state so
+	// the next process can undo persistence that outlived the application commit.
+	require.NoError(t, Run(context.Background(), cfg, dir))
+	requireChainHeights(t, chainDir, cfg.ChainID, 2)
+}
+
 func TestRunRollsBackBlockOnStateSaveFailure(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping chainbuilder tool test")
