@@ -117,9 +117,16 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 	}
 	defer output.Body.Close()
 
-	shard, err := readShardBinary(bufio.NewReaderSize(output.Body, 1<<20))
+	reader := bufio.NewReaderSize(output.Body, 1<<20)
+	shard, err := readShardBinary(reader)
 	if err != nil {
 		return nil, fmt.Errorf("decoding shard object: %w", err)
+	}
+	if _, err := reader.ReadByte(); err != io.EOF {
+		if err != nil {
+			return nil, fmt.Errorf("reading shard object: %w", err)
+		}
+		return nil, errors.New("unexpected trailing data in shard object")
 	}
 	return shard, nil
 }

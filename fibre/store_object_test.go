@@ -3,7 +3,10 @@ package fibre
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -119,6 +122,55 @@ func TestObjectBackendGet(t *testing.T) {
 	got, err := backend.Get(t.Context(), Commitment{}, []byte{1})
 	require.NoError(t, err)
 	require.Equal(t, shard, got)
+}
+
+// TestObjectBackendGetChecksum guards against accepting corrupt shards when decoding
+// finishes before the AWS SDK reports a checksum error at EOF.
+func TestObjectBackendGetChecksum(t *testing.T) {
+	for _, size := range []int{4, 2 << 20} {
+		for _, outcome := range []string{"valid", "corrupt", "trailing data"} {
+			t.Run(fmt.Sprintf("%d/%s", size, outcome), func(t *testing.T) {
+				shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: bytes.Repeat([]byte("a"), size)}}}
+				var encoded bytes.Buffer
+				require.NoError(t, writeShardBinary(&encoded, shard))
+				if outcome == "trailing data" {
+					encoded.WriteByte(0)
+				}
+				checksum := sha256.Sum256(encoded.Bytes())
+				if outcome == "corrupt" {
+					encoded.Bytes()[20] ^= 1 // First row data byte, after the length prefixes.
+				}
+				server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					w.Header().Set("X-Amz-Checksum-Sha256", base64.StdEncoding.EncodeToString(checksum[:]))
+					_, _ = w.Write(encoded.Bytes())
+				}))
+				defer server.Close()
+				client := s3.New(s3.Options{
+					Region:                     "us-east-1",
+					Credentials:                credentials.NewStaticCredentialsProvider("test", "test", ""),
+					BaseEndpoint:               aws.String(server.URL),
+					UsePathStyle:               true,
+					HTTPClient:                 server.Client(),
+					ResponseChecksumValidation: aws.ResponseChecksumValidationWhenSupported,
+				})
+				backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+				defer cancel()
+				got, err := backend.Get(ctx, Commitment{}, []byte{1})
+				switch outcome {
+				case "valid":
+					require.NoError(t, err)
+					require.Equal(t, shard, got)
+				case "corrupt":
+					require.ErrorContains(t, err, "checksum did not match")
+					require.Nil(t, got)
+				case "trailing data":
+					require.ErrorContains(t, err, "unexpected trailing data")
+					require.Nil(t, got)
+				}
+			})
+		}
+	}
 }
 
 func TestObjectBackendNormalisesMissingObject(t *testing.T) {
