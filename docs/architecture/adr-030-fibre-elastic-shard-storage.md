@@ -332,7 +332,6 @@ The first cache option to evaluate will be a bounded, write-through in-memory ca
 - Do not populate the cache after object-storage reads. This prevents arbitrary reads from displacing recent uploads.
 - Treat the cache as optional and non-durable. It will start empty after a restart.
 - Measure shard sizes, the hot-read window, cache hit rate, and memory use before selecting a default limit.
-- Include cache misses when evaluating the deferred object-read limit.
 
 ## References
 
