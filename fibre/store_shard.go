@@ -73,6 +73,7 @@ type markedShard struct {
 // Local deletes stop on failure. Object requests contain at most 1,000 keys; per-key failures remain for retry.
 func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) ([]int, error) {
 	var local, objects []int
+	var object *objectBackend
 	for i, shard := range shards {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -82,6 +83,11 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 			return nil, err
 		}
 		if backend.backendTag() == objectBackendTag {
+			var ok bool
+			object, ok = backend.(*objectBackend)
+			if !ok {
+				return nil, fmt.Errorf("%w: object backend does not support batch deletion", ErrStoreIntegrity)
+			}
 			objects = append(objects, i)
 		} else {
 			local = append(local, i)
@@ -100,14 +106,6 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 	}
 	if len(objects) == 0 {
 		return successful, deleteErr
-	}
-	backend, err := s.backend(objectBackendTag)
-	if err != nil {
-		return successful, errors.Join(deleteErr, err)
-	}
-	object, ok := backend.(*objectBackend)
-	if !ok {
-		return successful, errors.Join(deleteErr, fmt.Errorf("%w: object backend does not support batch deletion", ErrStoreIntegrity))
 	}
 	for indices := range slices.Chunk(objects, maxObjectDeleteBatchSize) {
 		ids := make([]shardID, len(indices))
