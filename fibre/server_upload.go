@@ -132,7 +132,7 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	defer mu.Unlock()
 
 	// Re-check now that we have the lock, to avoid TOCTOU
-	has, accounted, err := s.store.shardStatus(promise.Commitment, promiseHash)
+	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
