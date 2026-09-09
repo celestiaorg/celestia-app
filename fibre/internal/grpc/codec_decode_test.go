@@ -229,3 +229,40 @@ func TestCountingAllocations(t *testing.T) {
 		})
 	})
 }
+
+// TestCodecUnmarshalDownloadShardLimit checks that oversized download requests
+// are rejected before the codec copies them.
+func TestCodecUnmarshalDownloadShardLimit(t *testing.T) {
+	codec := NewServerCodec(testMaxRows, testMaxProofs)
+
+	t.Run("round-trips a valid request", func(t *testing.T) {
+		wire, err := codec.Marshal(&types.DownloadShardRequest{BlobId: bytes.Repeat([]byte{1}, 33)})
+		require.NoError(t, err)
+
+		var got types.DownloadShardRequest
+		require.NoError(t, codec.Unmarshal(wire, &got))
+		require.Equal(t, bytes.Repeat([]byte{1}, 33), got.BlobId)
+	})
+
+	t.Run("rejects an oversized request without reading it", func(t *testing.T) {
+		buf, err := (&types.DownloadShardRequest{BlobId: make([]byte, maxDownloadShardRequestSize)}).Marshal()
+		require.NoError(t, err)
+
+		tracked := &readCountingBuffer{Buffer: mem.SliceBuffer(buf)}
+		err = codec.Unmarshal(mem.BufferSlice{tracked}, &types.DownloadShardRequest{})
+		require.ErrorContains(t, err, "download request")
+		require.Zero(t, tracked.reads, "rejection must not read or copy the message")
+	})
+}
+
+// readCountingBuffer counts how often the codec reads the buffer contents.
+// Materialize copies through ReadOnlyData, so zero reads means zero copies.
+type readCountingBuffer struct {
+	mem.Buffer
+	reads int
+}
+
+func (b *readCountingBuffer) ReadOnlyData() []byte {
+	b.reads++
+	return b.Buffer.ReadOnlyData()
+}
