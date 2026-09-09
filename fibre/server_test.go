@@ -65,7 +65,7 @@ func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*
 		return privVal, nil
 	}
 
-	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+	cfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
 	}
 	if modify != nil {
@@ -168,7 +168,8 @@ func TestServerStartDerivesStoreIdentity(t *testing.T) {
 			client, err := newState()
 			return &startChainStateClient{Client: client}, err
 		}
-		cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+		cfg.StoreFn = func(ctx context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
+			require.Same(t, t.Context(), ctx)
 			got = scfg
 			return fibre.NewMemoryStore(scfg), nil
 		}
@@ -202,7 +203,7 @@ func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
 		return core.NewMockPV(), nil
 	}
 	wantErr := errors.New("cannot open store")
-	cfg.StoreFn = func(fibre.StoreConfig) (*fibre.Store, error) { return nil, wantErr }
+	cfg.StoreFn = func(context.Context, fibre.StoreConfig) (*fibre.Store, error) { return nil, wantErr }
 	server, err := fibre.NewServer(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, server.Stop(context.Background())) })

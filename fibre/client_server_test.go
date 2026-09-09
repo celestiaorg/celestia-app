@@ -365,7 +365,7 @@ func makeTestServers(
 			modifyServerConfig(&serverCfg)
 		}
 
-		serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+		serverCfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 			return fibre.NewMemoryStore(scfg), nil
 		}
 		srv, err := fibre.NewServer(serverCfg)

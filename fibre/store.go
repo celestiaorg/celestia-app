@@ -93,7 +93,7 @@ const memStorePath = "/store"
 func NewMemoryStore(cfg StoreConfig) *Store {
 	cfg.Path = memStorePath
 	cfg.StorageBackend = "local"
-	s, err := openStore(cfg, vfs.NewMem())
+	s, err := openStore(context.Background(), cfg, vfs.NewMem())
 	if err != nil {
 		panic(fmt.Sprintf("opening in-memory store: %v", err))
 	}
@@ -102,11 +102,14 @@ func NewMemoryStore(cfg StoreConfig) *Store {
 
 // NewStore opens Pebble and the configured shard backends at cfg.Path.
 // It removes leftover staging files from a previous crash.
-func NewStore(cfg StoreConfig) (*Store, error) {
-	return openStore(cfg, vfs.Default)
+func NewStore(ctx context.Context, cfg StoreConfig) (*Store, error) {
+	return openStore(ctx, cfg, vfs.Default)
 }
 
-func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
+func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validating store config: %w", err)
 	}
@@ -129,7 +132,7 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 	}
 
 	s := &Store{db: db, log: cfg.Log}
-	object, err := s.openObjectStorage(cfg)
+	object, err := s.openObjectStorage(ctx, cfg)
 	if err != nil {
 		_ = s.Close()
 		return nil, fmt.Errorf("opening object shard storage: %w", err)

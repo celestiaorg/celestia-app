@@ -47,11 +47,11 @@ func (cfg *ObjectStorageConfig) Validate() error {
 
 // openObjectStorage opens the backend for object mode or existing object markers.
 // Local mode still needs it to read and prune shards written before a mode change.
-func (s *Store) openObjectStorage(cfg StoreConfig) (shardBackend, error) {
+func (s *Store) openObjectStorage(ctx context.Context, cfg StoreConfig) (shardBackend, error) {
 	needsObject := cfg.StorageBackend == "object"
 	if !needsObject {
 		var err error
-		needsObject, err = s.hasObjectMarkers()
+		needsObject, err = s.hasObjectMarkers(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +66,7 @@ func (s *Store) openObjectStorage(cfg StoreConfig) (shardBackend, error) {
 		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.ObjectStorage.Region))
 	if err != nil {
@@ -83,7 +83,7 @@ func (s *Store) openObjectStorage(cfg StoreConfig) (shardBackend, error) {
 }
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.
-func (s *Store) hasObjectMarkers() (bool, error) {
+func (s *Store) hasObjectMarkers(ctx context.Context) (bool, error) {
 	prefix := []byte(shardKeyPrefix)
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
@@ -95,6 +95,9 @@ func (s *Store) hasObjectMarkers() (bool, error) {
 	defer iter.Close()
 
 	for valid := iter.First(); valid; valid = iter.Next() {
+		if err := ctx.Err(); err != nil {
+			return false, err
+		}
 		backend, _, err := decodeShardMarkerBackend(iter.Value())
 		if err == nil && backend == objectBackendTag {
 			return true, nil

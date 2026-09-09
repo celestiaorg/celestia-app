@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"encoding/hex"
 	"io"
 	"net/http"
@@ -66,6 +67,29 @@ func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
 }
 
 func TestStoreRejectsMissingObjectCredentials(t *testing.T) {
+	clearAWSCredentials(t)
+	cfg := DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := NewStore(t.Context(), cfg)
+	require.NoError(t, err)
+	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(objectBackendTag, 1), pebbledb.Sync))
+	require.NoError(t, store.Close())
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
+	for _, mode := range []string{"local", "object"} {
+		t.Run(mode, func(t *testing.T) {
+			cfg.StorageBackend = mode
+			store, err := NewStore(t.Context(), cfg)
+			if store != nil {
+				require.NoError(t, store.Close())
+			}
+			require.ErrorContains(t, err, "credentials")
+		})
+	}
+}
+
+func clearAWSCredentials(t *testing.T) {
+	t.Helper()
 	for _, name := range []string{
 		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_ACCESS_KEY", "AWS_SECRET_KEY", "AWS_SESSION_TOKEN", "AWS_PROFILE", "AWS_DEFAULT_PROFILE",
 		"AWS_WEB_IDENTITY_TOKEN_FILE", "AWS_ROLE_ARN", "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI", "AWS_CONTAINER_CREDENTIALS_FULL_URI",
@@ -75,24 +99,33 @@ func TestStoreRejectsMissingObjectCredentials(t *testing.T) {
 	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
 	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "missing"))
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "missing"))
+}
+
+// TestStoreCancelsCredentialLookup cancels startup while the credential provider is still waiting.
+func TestStoreCancelsCredentialLookup(t *testing.T) {
+	clearAWSCredentials(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		cancel()
+		<-release
+		_, _ = io.WriteString(w, `{"AccessKeyId":"test-key","SecretAccessKey":"test-secret","Token":"test-token","Expiration":"2100-01-01T00:00:00Z"}`)
+	}))
+	defer server.Close()
+	defer close(release)
+	t.Setenv("AWS_CONTAINER_CREDENTIALS_FULL_URI", server.URL)
 	cfg := DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := NewStore(cfg)
-	require.NoError(t, err)
-	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(objectBackendTag, 1), pebbledb.Sync))
-	require.NoError(t, store.Close())
+	cfg.StorageBackend = "object"
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
-	for _, mode := range []string{"local", "object"} {
-		t.Run(mode, func(t *testing.T) {
-			cfg.StorageBackend = mode
-			store, err := NewStore(cfg)
-			if store != nil {
-				require.NoError(t, store.Close())
-			}
-			require.ErrorContains(t, err, "credentials")
-		})
+	store, err := NewStore(ctx, cfg)
+	if store != nil {
+		require.NoError(t, store.Close())
 	}
+	require.ErrorIs(t, ctx.Err(), context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestStoreConfigValidateBackend(t *testing.T) {
@@ -105,10 +138,10 @@ func TestStoreConfigValidateBackend(t *testing.T) {
 	require.ErrorContains(t, cfg.Validate(), "object_storage.endpoint")
 	cfg.ObjectStorage = testObjectStorageConfig()
 	require.NoError(t, cfg.Validate())
-	_, err := NewStore(cfg)
+	_, err := NewStore(t.Context(), cfg)
 	require.ErrorContains(t, err, "chain ID and validator address")
 	cfg.ObjectStorage.ChainID = "test-chain"
-	_, err = NewStore(cfg)
+	_, err = NewStore(t.Context(), cfg)
 	require.ErrorContains(t, err, "chain ID and validator address")
 }
 
@@ -167,13 +200,13 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 		Commitment: generateCommitment(), CreationTimestamp: pruneAt, Signature: []byte{1},
 	}
 	localCommitment := promise.Commitment
-	store, err := NewStore(cfg)
+	store, err := NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
 	require.NoError(t, store.Close())
 
 	cfg.StorageBackend = "object"
-	store, err = NewStore(cfg)
+	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	got, err := store.Get(t.Context(), localCommitment)
 	require.NoError(t, err)
@@ -190,10 +223,10 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	cfg.StorageBackend = "local"
 	retainedConfig := cfg.ObjectStorage
 	cfg.ObjectStorage = ObjectStorageConfig{}
-	_, err = NewStore(cfg)
+	_, err = NewStore(t.Context(), cfg)
 	require.ErrorContains(t, err, "object_storage.endpoint")
 	cfg.ObjectStorage = retainedConfig
-	store, err = NewStore(cfg)
+	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.Equal(t, localBackendTag, store.shards.primary.backendTag())
 	got, err = store.Get(t.Context(), promise.Commitment)
@@ -209,7 +242,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.NoError(t, store.Close())
 
 	cfg.ObjectStorage = ObjectStorageConfig{}
-	store, err = NewStore(cfg)
+	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.Nil(t, store.shards.secondary)
 	require.NoError(t, store.Close())
@@ -223,19 +256,19 @@ func TestStoreLocalDoesNotLoadAWSConfig(t *testing.T) {
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "missing"))
 	cfg := DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := NewStore(cfg)
+	store, err := NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.Nil(t, store.shards.secondary)
 	// Legacy and invalid markers do not identify an object backend.
 	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), nil, pebbledb.Sync))
 	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{2}), []byte{1}, pebbledb.Sync))
 	require.NoError(t, store.Close())
-	store, err = NewStore(cfg)
+	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.NoError(t, store.Close())
 	cfg.StorageBackend = "object"
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
-	_, err = NewStore(cfg)
+	_, err = NewStore(t.Context(), cfg)
 	require.ErrorContains(t, err, "loading AWS configuration")
 }

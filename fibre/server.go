@@ -148,7 +148,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.Config.ObjectStorage.ChainID = s.state.ChainID()
 	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
-	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
+	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}

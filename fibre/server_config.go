@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -54,7 +55,7 @@ type ServerConfig struct {
 
 	// StoreFn creates the persistent [Store] for the server.
 	// If nil, defaults to [NewStore].
-	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
+	StoreFn func(context.Context, StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
 	StateClientFn func() (state.Client, error) `toml:"-"`
