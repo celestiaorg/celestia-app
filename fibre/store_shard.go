@@ -2,7 +2,6 @@ package fibre
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -44,11 +43,7 @@ func (s *routedStorage) Get(ctx context.Context, marker []byte, commitment Commi
 	if err != nil {
 		return nil, err
 	}
-	shard, err := backend.Get(ctx, commitment, promiseHash)
-	if backend.backendTag() == objectBackendTag && errors.Is(err, ErrStoreNotFound) {
-		return nil, fmt.Errorf("%w: object shard payload is missing", ErrStoreIntegrity)
-	}
-	return shard, err
+	return backend.Get(ctx, commitment, promiseHash)
 }
 
 func (s *routedStorage) Has(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte) (bool, error) {

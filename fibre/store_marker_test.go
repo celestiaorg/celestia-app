@@ -539,7 +539,7 @@ func TestStoreMissingObjectPreservesMetadata(t *testing.T) {
 
 	store.shards.secondary = &shardStorageStub{missing: true}
 	_, err = store.Get(t.Context(), commitment)
-	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.ErrorIs(t, err, ErrStoreNotFound)
 	has, err := store.Has(t.Context(), commitment, promiseHash)
 	require.NoError(t, err)
 	require.False(t, has)
