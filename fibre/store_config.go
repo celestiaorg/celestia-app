@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -18,61 +19,70 @@ type ObjectStorageConfig struct {
 	Region   string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	Bucket   string `toml:"bucket"`
 	Prefix   string `toml:"prefix"`
+	// ChainID and ValidatorAddress are derived by the server at startup.
+	ChainID          string `toml:"-"`
+	ValidatorAddress string `toml:"-"`
 }
 
-// Validate checks the settings required to access object storage.
-func (cfg ObjectStorageConfig) Validate() error {
+// Validate removes surrounding whitespace and checks the settings required to access object storage.
+func (cfg *ObjectStorageConfig) Validate() error {
+	cfg.Region = strings.TrimSpace(cfg.Region)
+	cfg.Bucket = strings.TrimSpace(cfg.Bucket)
+	cfg.Prefix = strings.TrimSpace(cfg.Prefix)
 	u, err := url.Parse(cfg.Endpoint)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return fmt.Errorf("object_storage.endpoint must be an absolute HTTP or HTTPS URL without credentials, query, or fragment")
 	}
-	if strings.TrimSpace(cfg.Region) == "" {
+	if cfg.Region == "" {
 		return fmt.Errorf("object_storage.region is required")
 	}
-	if strings.TrimSpace(cfg.Bucket) == "" {
+	if cfg.Bucket == "" {
 		return fmt.Errorf("object_storage.bucket is required")
 	}
-	if strings.Trim(strings.TrimSpace(cfg.Prefix), "/") == "" {
+	if strings.Trim(cfg.Prefix, "/") == "" {
 		return fmt.Errorf("object_storage.prefix is required")
 	}
 	return nil
 }
 
-func (s *Store) openObjectStorage(cfg StoreConfig) error {
+// openObjectStorage opens the backend for object mode or existing object markers.
+// Local mode still needs it to read and prune shards written before a mode change.
+func (s *Store) openObjectStorage(cfg StoreConfig) (shardBackend, error) {
 	needsObject := cfg.StorageBackend == "object"
 	if !needsObject {
 		var err error
 		needsObject, err = s.hasObjectMarkers()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	if !needsObject {
-		return nil
+		return nil, nil
 	}
 	if err := cfg.ObjectStorage.Validate(); err != nil {
-		return err
+		return nil, err
 	}
-	if cfg.ChainID == "" || cfg.ValidatorAddress == "" {
-		return fmt.Errorf("chain ID and validator address are required for object storage")
+	if cfg.ObjectStorage.ChainID == "" || cfg.ObjectStorage.ValidatorAddress == "" {
+		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
 	}
 
-	awsConfig, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(cfg.ObjectStorage.Region))
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.ObjectStorage.Region))
 	if err != nil {
-		return fmt.Errorf("loading AWS configuration: %w", err)
+		return nil, fmt.Errorf("loading AWS configuration: %w", err)
+	}
+	// The SDK resolves credentials lazily; fail startup if none can be retrieved.
+	if _, err := awsConfig.Credentials.Retrieve(ctx); err != nil {
+		return nil, fmt.Errorf("loading object storage credentials: %w", err)
 	}
 	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.BaseEndpoint = aws.String(cfg.ObjectStorage.Endpoint)
 	})
-	object := newObjectBackend(client, cfg.ObjectStorage.Bucket, cfg.ObjectStorage.Prefix, cfg.ChainID, cfg.ValidatorAddress)
-	if cfg.StorageBackend == "object" {
-		s.shards = newRoutedStorage(object, s.shards.primary)
-	} else {
-		s.shards.secondary = object
-	}
-	return nil
+	return newObjectBackend(client, cfg.ObjectStorage.Bucket, cfg.ObjectStorage.Prefix, cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress), nil
 }
 
+// hasObjectMarkers stops at the first valid object marker without reading payloads.
 func (s *Store) hasObjectMarkers() (bool, error) {
 	prefix := []byte(shardKeyPrefix)
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{

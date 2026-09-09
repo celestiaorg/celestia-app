@@ -39,9 +39,6 @@ type StoreConfig struct {
 	StorageBackend string `toml:"storage_backend"`
 	// ObjectStorage must remain configured until all object shards are pruned.
 	ObjectStorage ObjectStorageConfig `toml:"object_storage"`
-	// ChainID and ValidatorAddress are derived by the server at startup.
-	ChainID          string `toml:"-"`
-	ValidatorAddress string `toml:"-"`
 	// Path is the path to the store directory.
 	Path string `toml:"-"`
 	// Log defaults to [slog.Default] when nil.
@@ -131,13 +128,19 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	s := &Store{db: db, log: cfg.Log, shards: newRoutedStorage(local, nil)}
-	if err := s.openObjectStorage(cfg); err != nil {
-		_ = db.Close()
+	s := &Store{db: db, log: cfg.Log}
+	object, err := s.openObjectStorage(cfg)
+	if err != nil {
+		_ = s.Close()
 		return nil, fmt.Errorf("opening object shard storage: %w", err)
 	}
+	if cfg.StorageBackend == "object" {
+		s.shards = newRoutedStorage(object, local)
+	} else {
+		s.shards = newRoutedStorage(local, object)
+	}
 	if err := s.reconcile(); err != nil {
-		_ = s.db.Close()
+		_ = s.Close()
 		return nil, fmt.Errorf("reconciling store: %w", err)
 	}
 	return s, nil

@@ -83,6 +83,7 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 		IfNoneMatch:   aws.String("*"),
 	}, func(options *s3.Options) {
 		options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		// The pipe cannot rewind for SigV4 payload hashing; sign the request with UNSIGNED-PAYLOAD instead.
 		options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
 	})
 	_ = reader.CloseWithError(putErr)

@@ -104,19 +104,20 @@ func TestServerConfigObjectStorageRoundTrip(t *testing.T) {
 	cfg.StorageBackend = "object"
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.Path = "runtime-store-path"
-	cfg.ChainID = "runtime-chain"
-	cfg.ValidatorAddress = "runtime-validator"
+	cfg.ObjectStorage.ChainID = "runtime-chain"
+	cfg.ObjectStorage.ValidatorAddress = "runtime-validator"
 	require.NoError(t, cfg.Save(configPath))
 	require.NoError(t, loaded.Load(configPath))
 	require.Equal(t, "object", loaded.StorageBackend)
-	require.Equal(t, cfg.ObjectStorage, loaded.ObjectStorage)
+	require.Equal(t, testObjectStorageConfig(), loaded.ObjectStorage)
 	require.Empty(t, loaded.Path)
-	require.Empty(t, loaded.ChainID)
-	require.Empty(t, loaded.ValidatorAddress)
+	require.Empty(t, loaded.ObjectStorage.ChainID)
+	require.Empty(t, loaded.ObjectStorage.ValidatorAddress)
 	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	for _, excluded := range []string{"test-access-key", "test-secret-key", "runtime-store-path", "runtime-chain", "runtime-validator", "access_key", "secret_key"} {
 		require.NotContains(t, string(data), excluded)
 	}
 	require.Contains(t, string(data), "[object_storage]")
+	require.Contains(t, string(data), "# Use auto for Cloudflare R2.")
 }

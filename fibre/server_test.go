@@ -2,6 +2,7 @@ package fibre_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -172,8 +173,8 @@ func TestServerStartDerivesStoreIdentity(t *testing.T) {
 			return fibre.NewMemoryStore(scfg), nil
 		}
 	})
-	require.Equal(t, "started-chain", got.ChainID)
-	require.Equal(t, sdk.ConsAddress(validator.Address).String(), got.ValidatorAddress)
+	require.Equal(t, "started-chain", got.ObjectStorage.ChainID)
+	require.Equal(t, sdk.ConsAddress(validator.Address).String(), got.ObjectStorage.ValidatorAddress)
 }
 
 type startChainStateClient struct {
@@ -190,3 +191,21 @@ func (s *startChainStateClient) Start(ctx context.Context) error {
 }
 
 func (s *startChainStateClient) ChainID() string { return s.chainID }
+
+func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
+	cfg := fibre.DefaultServerConfig()
+	cfg.ServerListenAddress = "127.0.0.1:0"
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "test-chain"}, nil
+	}
+	cfg.SignerFn = func(string) (core.PrivValidator, error) {
+		return core.NewMockPV(), nil
+	}
+	wantErr := errors.New("cannot open store")
+	cfg.StoreFn = func(fibre.StoreConfig) (*fibre.Store, error) { return nil, wantErr }
+	server, err := fibre.NewServer(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, server.Stop(context.Background())) })
+	require.ErrorIs(t, server.Start(t.Context()), wantErr)
+	require.Nil(t, server.Store())
+}

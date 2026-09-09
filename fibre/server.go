@@ -146,8 +146,8 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("getting validator public key: %w", err)
 	}
-	s.Config.ChainID = s.state.ChainID()
-	s.Config.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
+	s.Config.ObjectStorage.ChainID = s.state.ChainID()
+	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
 	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
