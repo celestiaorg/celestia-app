@@ -23,7 +23,8 @@ import (
 // staking power, or adding a per-peer connection policy, are possible follow-ups.
 //
 // NewServerCodec separately limits rows and proofs before decoding allocates
-// memory for them.
+// memory for them, and rejects oversized DownloadShard requests before copying
+// them.
 const (
 	maxConnections       = 16
 	maxConcurrentStreams = 13
