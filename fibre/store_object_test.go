@@ -5,15 +5,50 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
+
+func TestObjectBackendPutContentLength(t *testing.T) {
+	shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: bytes.Repeat([]byte("data"), 1<<19)}}}
+	var encoded bytes.Buffer
+	require.NoError(t, writeShardBinary(&encoded, shard))
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil || !bytes.Equal(encoded.Bytes(), body) {
+			t.Error("upload body does not match the encoded shard", err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if r.ContentLength != int64(encoded.Len()) {
+			t.Errorf("content length: got %d, want %d", r.ContentLength, encoded.Len())
+		}
+	}))
+	defer server.Close()
+	client := s3.New(s3.Options{
+		Region:       "us-east-1",
+		Credentials:  credentials.NewStaticCredentialsProvider("test", "test", ""),
+		BaseEndpoint: aws.String(server.URL),
+		UsePathStyle: true,
+		HTTPClient:   server.Client(),
+	})
+	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
+	require.NoError(t, err)
+	require.True(t, created)
+}
 
 func TestObjectBackendPut(t *testing.T) {
 	var commitment Commitment

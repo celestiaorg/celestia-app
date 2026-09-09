@@ -65,7 +65,11 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	reader, writer := io.Pipe()
 	writeDone := make(chan error, 1)
 	go func() {
-		err := writeShardBinary(writer, shard)
+		buffer := bufio.NewWriterSize(writer, 1<<20)
+		err := writeShardBinary(buffer, shard)
+		if err == nil {
+			err = buffer.Flush()
+		}
 		_ = writer.CloseWithError(err)
 		writeDone <- err
 	}()
@@ -73,7 +77,7 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	_, putErr := b.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(b.bucket),
 		Key:           aws.String(b.objectKey(commitment, promiseHash)),
-		Body:          reader,
+		Body:          io.NopCloser(reader), // Preserve ContentLength; the SDK treats a bare pipe as unknown-length.
 		ContentLength: aws.Int64(shardBinarySize(shard)),
 		IfNoneMatch:   aws.String("*"),
 	}, func(options *s3.Options) {
@@ -83,6 +87,7 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	writeErr := <-writeDone
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
+		// IfNoneMatch rejected an existing object; this call created nothing.
 		return false, nil
 	}
 	if putErr != nil {
@@ -168,6 +173,8 @@ func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]err
 	}
 
 	objects := make([]s3types.ObjectIdentifier, len(ids))
+	// S3 returns failures by key; map each key back to its input positions.
+	// Keep every position so duplicate IDs receive the same error.
 	indices := make(map[string][]int, len(ids))
 	for i, id := range ids {
 		key := b.objectKey(id.commitment, id.promiseHash)
@@ -222,6 +229,7 @@ func isObjectNotFound(err error) bool {
 	return hasObjectErrorCode(err, "NoSuchKey") || hasObjectErrorCode(err, "NotFound")
 }
 
+// hasObjectErrorCode unwraps AWS SDK service errors and matches their API code.
 func hasObjectErrorCode(err error, code string) bool {
 	var apiErr smithy.APIError
 	return errors.As(err, &apiErr) && apiErr.ErrorCode() == code
