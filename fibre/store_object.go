@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"path"
 	"strings"
 
@@ -15,9 +16,13 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"golang.org/x/time/rate"
 )
 
 const maxObjectDeleteBatchSize = 1000
+
+// ErrObjectReadRateLimited is returned when the object-read limit is exhausted.
+var ErrObjectReadRateLimited = errors.New("object read rate limit exceeded")
 
 type s3ObjectClient interface {
 	PutObject(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error)
@@ -39,6 +44,7 @@ type objectBackend struct {
 	prefix           string
 	chainID          string
 	validatorAddress string
+	readLimiter      *rate.Limiter
 }
 
 var _ shardBackend = (*objectBackend)(nil)
@@ -47,14 +53,19 @@ func (*objectBackend) backendTag() shardBackendTag {
 	return objectBackendTag
 }
 
-func newObjectBackend(client s3ObjectClient, bucket, prefix, chainID, validatorAddress string) *objectBackend {
+func newObjectBackend(client s3ObjectClient, bucket, prefix, chainID, validatorAddress string, readRPS float64) (*objectBackend, error) {
+	// rate.Inf is math.MaxFloat64, so that finite value must also be rejected.
+	if readRPS <= 0 || math.IsNaN(readRPS) || readRPS >= float64(rate.Inf) {
+		return nil, fmt.Errorf("object read RPS must be positive and below %g", rate.Inf)
+	}
 	return &objectBackend{
 		client:           client,
 		bucket:           bucket,
 		prefix:           strings.Trim(prefix, "/"),
 		chainID:          chainID,
 		validatorAddress: validatorAddress,
-	}
+		readLimiter:      rate.NewLimiter(rate.Limit(readRPS), 1),
+	}, nil
 }
 
 func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
@@ -105,9 +116,16 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 		return nil, err
 	}
 
+	if !b.readLimiter.Allow() {
+		return nil, ErrObjectReadRateLimited
+	}
+
 	output, err := b.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(b.bucket),
 		Key:    aws.String(b.objectKey(commitment, promiseHash)),
+	}, func(options *s3.Options) {
+		// Each token permits one provider attempt.
+		options.RetryMaxAttempts = 1
 	})
 	if isObjectNotFound(err) {
 		return nil, ErrStoreNotFound

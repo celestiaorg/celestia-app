@@ -8,8 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,8 +23,128 @@ import (
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+func TestObjectBackendRejectsInvalidReadRPS(t *testing.T) {
+	for _, rps := range []float64{0, -1, math.NaN(), math.Inf(1), math.Inf(-1), math.MaxFloat64} {
+		t.Run(fmt.Sprint(rps), func(t *testing.T) {
+			backend, err := newObjectBackend(&s3ObjectClientStub{}, "bucket", "prefix", "chain", "validator", rps)
+			require.Error(t, err)
+			require.Nil(t, backend)
+		})
+	}
+}
+
+func TestObjectBackendGetRateLimit(t *testing.T) {
+	shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: []byte("data")}}}
+	var encoded bytes.Buffer
+	require.NoError(t, writeShardBinary(&encoded, shard))
+	for _, providerErr := range []error{nil, errors.New("provider error"), &smithy.GenericAPIError{Code: "NoSuchKey"}} {
+		t.Run(fmt.Sprint(providerErr), func(t *testing.T) {
+			var calls atomic.Int32
+			client := &s3ObjectClientStub{
+				getObject: func(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+					calls.Add(1)
+					if providerErr != nil {
+						return nil, providerErr
+					}
+					return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(encoded.Bytes()))}, nil
+				},
+			}
+			// One token, with no refill during the test.
+			backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1e-9)
+			require.NoError(t, err)
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			_, err = backend.Get(ctx, Commitment{}, []byte{1})
+			require.ErrorIs(t, err, context.Canceled)
+			require.Zero(t, calls.Load())
+
+			const readers = 16
+			results := make(chan error, readers)
+			var wg sync.WaitGroup
+			for i := range readers {
+				wg.Go(func() {
+					_, err := backend.Get(t.Context(), Commitment{byte(i)}, []byte{byte(i)})
+					results <- err
+				})
+			}
+			wg.Wait()
+			close(results)
+			limited := 0
+			for err := range results {
+				switch {
+				case errors.Is(err, ErrObjectReadRateLimited):
+					limited++
+				case isObjectNotFound(providerErr):
+					require.ErrorIs(t, err, ErrStoreNotFound)
+				default:
+					require.ErrorIs(t, err, providerErr)
+				}
+			}
+			require.Equal(t, readers-1, limited)
+			require.Equal(t, int32(1), calls.Load())
+		})
+	}
+}
+
+func TestServerDownloadShardObjectReadLimit(t *testing.T) {
+	store := newMarkerTestStore(t)
+	var calls int
+	client := &s3ObjectClientStub{
+		getObject: func(context.Context, *s3.GetObjectInput, ...func(*s3.Options)) (*s3.GetObjectOutput, error) {
+			calls++
+			return nil, errors.New("provider error")
+		},
+	}
+	object, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1e-9)
+	require.NoError(t, err)
+	store.shards = newRoutedStorage(object, store.shards.primary)
+	commitment := Commitment{1}
+	marker := encodeShardMarkerForBackend(objectBackendTag, 1)
+	for _, hash := range [][]byte{{1}, {2}} {
+		require.NoError(t, store.db.Set(shardKey(commitment, hash), marker, pebbledb.NoSync))
+	}
+	metrics, err := newServerMetrics(otel.Meter("test"), newOccupancy(0))
+	require.NoError(t, err)
+	server := &Server{
+		store:   store,
+		log:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		tracer:  otel.Tracer("test"),
+		metrics: metrics,
+	}
+	req := &types.DownloadShardRequest{BlobId: NewBlobID(0, commitment)}
+	response, err := server.DownloadShard(t.Context(), req)
+	require.Nil(t, response)
+	require.Equal(t, codes.ResourceExhausted, status.Code(err))
+	require.Equal(t, 1, calls)
+
+	// An exhausted object backend must not prevent a local sibling from serving the read.
+	localHash := []byte{3}
+	size := writeMarkerTestShard(t, store, commitment, localHash)
+	require.NoError(t, store.db.Set(shardKey(commitment, localHash), encodeShardMarkerForBackend(localBackendTag, size), pebbledb.NoSync))
+	response, err = server.DownloadShard(t.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, []byte("data"), response.Shard.Rows[0].Data)
+	require.Equal(t, 1, calls)
+	for _, hash := range [][]byte{{1}, {2}} {
+		data, closer, err := store.db.Get(shardKey(commitment, hash))
+		require.NoError(t, err)
+		require.Equal(t, marker, data)
+		require.NoError(t, closer.Close())
+		require.NoError(t, store.db.Delete(shardKey(commitment, hash), pebbledb.NoSync))
+	}
+
+	response, err = server.DownloadShard(t.Context(), req)
+	require.NoError(t, err)
+	require.Equal(t, []byte("data"), response.Shard.Rows[0].Data)
+	require.Equal(t, 1, calls)
+}
 
 func TestObjectBackendPutContentLength(t *testing.T) {
 	shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: bytes.Repeat([]byte("data"), 1<<19)}}}
@@ -45,7 +169,8 @@ func TestObjectBackendPutContentLength(t *testing.T) {
 		UsePathStyle: true,
 		HTTPClient:   server.Client(),
 	})
-	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
@@ -85,7 +210,8 @@ func TestObjectBackendPut(t *testing.T) {
 				return &s3.PutObjectOutput{}, nil
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "/fibre/", "test-chain", "celestiavalcons1validator")
+		backend, err := newObjectBackend(client, "bucket", "/fibre/", "test-chain", "celestiavalcons1validator", 1)
+		require.NoError(t, err)
 
 		created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
@@ -98,7 +224,8 @@ func TestObjectBackendPut(t *testing.T) {
 				return nil, &smithy.GenericAPIError{Code: "PreconditionFailed", Fault: smithy.FaultClient}
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "fibre", "test-chain", "celestiavalcons1validator")
+		backend, err := newObjectBackend(client, "bucket", "fibre", "test-chain", "celestiavalcons1validator", 1)
+		require.NoError(t, err)
 
 		created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
@@ -117,7 +244,8 @@ func TestObjectBackendGet(t *testing.T) {
 			return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(data.Bytes()))}, nil
 		},
 	}
-	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+	require.NoError(t, err)
 
 	got, err := backend.Get(t.Context(), Commitment{}, []byte{1})
 	require.NoError(t, err)
@@ -153,7 +281,8 @@ func TestObjectBackendGetChecksum(t *testing.T) {
 					HTTPClient:                 server.Client(),
 					ResponseChecksumValidation: aws.ResponseChecksumValidationWhenSupported,
 				})
-				backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+				backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+				require.NoError(t, err)
 				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				defer cancel()
 				got, err := backend.Get(ctx, Commitment{}, []byte{1})
@@ -173,6 +302,32 @@ func TestObjectBackendGetChecksum(t *testing.T) {
 	}
 }
 
+func TestObjectBackendGetDoesNotRetry(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		calls.Add(1)
+		w.Header().Set("Content-Type", "application/xml")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = io.WriteString(w, "<Error><Code>SlowDown</Code><Message>retry later</Message></Error>")
+	}))
+	defer server.Close()
+	client := s3.New(s3.Options{
+		Region:           "us-east-1",
+		Credentials:      credentials.NewStaticCredentialsProvider("test", "test", ""),
+		BaseEndpoint:     aws.String(server.URL),
+		UsePathStyle:     true,
+		HTTPClient:       server.Client(),
+		RetryMaxAttempts: 3,
+	})
+	backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	_, err = backend.Get(ctx, Commitment{}, []byte{1})
+	require.ErrorContains(t, err, "SlowDown")
+	require.Equal(t, int32(1), calls.Load())
+}
+
 func TestObjectBackendNormalisesMissingObject(t *testing.T) {
 	missing := &smithy.GenericAPIError{Code: "NoSuchKey", Fault: smithy.FaultClient}
 	client := &s3ObjectClientStub{
@@ -186,9 +341,10 @@ func TestObjectBackendNormalisesMissingObject(t *testing.T) {
 			return nil, missing
 		},
 	}
-	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+	require.NoError(t, err)
 
-	_, err := backend.Get(t.Context(), Commitment{}, []byte{1})
+	_, err = backend.Get(t.Context(), Commitment{}, []byte{1})
 	require.ErrorIs(t, err, ErrStoreNotFound)
 	has, err := backend.Has(t.Context(), Commitment{}, []byte{1})
 	require.NoError(t, err)
@@ -220,7 +376,8 @@ func TestObjectBackendDeleteObjects(t *testing.T) {
 				}}}, nil
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+		backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+		require.NoError(t, err)
 
 		errs, err := backend.DeleteObjects(t.Context(), ids)
 		require.NoError(t, err)
@@ -235,7 +392,8 @@ func TestObjectBackendDeleteObjects(t *testing.T) {
 				return nil, requestErr
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+		backend, err := newObjectBackend(client, "bucket", "prefix", "chain", "validator", 1)
+		require.NoError(t, err)
 
 		errs, err := backend.DeleteObjects(t.Context(), ids)
 		require.ErrorIs(t, err, requestErr)
@@ -243,8 +401,9 @@ func TestObjectBackendDeleteObjects(t *testing.T) {
 	})
 
 	t.Run("batch limit", func(t *testing.T) {
-		backend := newObjectBackend(&s3ObjectClientStub{}, "bucket", "prefix", "chain", "validator")
-		_, err := backend.DeleteObjects(t.Context(), make([]shardID, maxObjectDeleteBatchSize+1))
+		backend, err := newObjectBackend(&s3ObjectClientStub{}, "bucket", "prefix", "chain", "validator", 1)
+		require.NoError(t, err)
+		_, err = backend.DeleteObjects(t.Context(), make([]shardID, maxObjectDeleteBatchSize+1))
 		require.ErrorContains(t, err, "maximum is 1000")
 	})
 }
