@@ -3,7 +3,6 @@ package grpc
 import (
 	"bytes"
 	"math/rand"
-	"runtime"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -245,16 +244,25 @@ func TestCodecUnmarshalDownloadShardLimit(t *testing.T) {
 		require.Equal(t, bytes.Repeat([]byte{1}, 33), got.BlobId)
 	})
 
-	t.Run("rejects an oversized request before copying it", func(t *testing.T) {
-		buf, err := (&types.DownloadShardRequest{BlobId: make([]byte, 1<<20)}).Marshal()
+	t.Run("rejects an oversized request without reading it", func(t *testing.T) {
+		buf, err := (&types.DownloadShardRequest{BlobId: make([]byte, maxDownloadShardRequestSize)}).Marshal()
 		require.NoError(t, err)
 
-		var before, after runtime.MemStats
-		runtime.ReadMemStats(&before)
-		err = codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(buf)}, &types.DownloadShardRequest{})
-		runtime.ReadMemStats(&after)
-
+		tracked := &readCountingBuffer{Buffer: mem.SliceBuffer(buf)}
+		err = codec.Unmarshal(mem.BufferSlice{tracked}, &types.DownloadShardRequest{})
 		require.ErrorContains(t, err, "download request")
-		require.Less(t, after.TotalAlloc-before.TotalAlloc, uint64(len(buf)), "rejection must not copy the message")
+		require.Zero(t, tracked.reads, "rejection must not read or copy the message")
 	})
+}
+
+// readCountingBuffer counts how often the codec reads the buffer contents.
+// Materialize copies through ReadOnlyData, so zero reads means zero copies.
+type readCountingBuffer struct {
+	mem.Buffer
+	reads int
+}
+
+func (b *readCountingBuffer) ReadOnlyData() []byte {
+	b.reads++
+	return b.Buffer.ReadOnlyData()
 }
