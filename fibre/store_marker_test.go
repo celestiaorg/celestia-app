@@ -324,6 +324,80 @@ func TestPruneBeforeLimitsBatchSize(t *testing.T) {
 	require.Equal(t, int64(1), freed)
 }
 
+func TestPruneCommitsProgressOnCancellation(t *testing.T) {
+	for _, throughServer := range []bool{false, true} {
+		name := "store"
+		if throughServer {
+			name = "server"
+		}
+		t.Run(name, func(t *testing.T) {
+			store := newMarkerTestStore(t)
+			local := storeLocalBackend(t, store)
+			commitment := generateCommitment()
+			pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+			var size int64
+			for _, hash := range [][]byte{{1}, {2}} {
+				size = writeMarkerTestShard(t, store, commitment, hash)
+				require.NoError(t, store.db.Set(shardKey(commitment, hash), encodeShardMarkerForBackend(localBackendTag, size), pebbledb.NoSync))
+				require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, hash), nil, pebbledb.NoSync))
+				require.NoError(t, store.db.Set(promiseKey(hash), []byte("promise"), pebbledb.NoSync))
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			store.shards.primary = &cancelAfterDeleteBackend{shardBackend: local, cancel: cancel}
+			if throughServer {
+				occ := newOccupancy(0)
+				occ.seed(2 * size)
+				provider := sdkmetric.NewMeterProvider()
+				metrics, err := newServerMetrics(provider.Meter("prune-test"), occ)
+				require.NoError(t, err)
+				server := &Server{store: store, occ: occ, metrics: metrics, log: slog.Default()}
+				server.prune(ctx)
+				require.Equal(t, size, occ.usage())
+			} else {
+				pruned, freed, err := store.PruneBefore(ctx, pruneAt.Add(time.Hour))
+				require.ErrorIs(t, err, context.Canceled)
+				require.Equal(t, 1, pruned)
+				require.Equal(t, size, freed)
+			}
+			for _, hash := range [][]byte{{1}, {2}} {
+				for _, key := range [][]byte{shardKey(commitment, hash), pruneKey(pruneAt, commitment, hash), promiseKey(hash)} {
+					_, closer, err := store.db.Get(key)
+					if hash[0] == 1 {
+						require.ErrorIs(t, err, pebbledb.ErrNotFound)
+					} else {
+						require.NoError(t, err)
+						require.NoError(t, closer.Close())
+					}
+				}
+				_, err := local.fs.Stat(local.shardPath(commitment, hash))
+				if hash[0] == 1 {
+					require.ErrorIs(t, err, os.ErrNotExist)
+				} else {
+					require.NoError(t, err)
+				}
+			}
+			pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
+			require.NoError(t, err)
+			require.Equal(t, 1, pruned)
+			require.Equal(t, size, freed)
+		})
+	}
+}
+
+type cancelAfterDeleteBackend struct {
+	shardBackend
+	cancel context.CancelFunc
+}
+
+func (b *cancelAfterDeleteBackend) Delete(ctx context.Context, commitment Commitment, hash []byte) error {
+	if err := b.shardBackend.Delete(ctx, commitment, hash); err != nil {
+		return err
+	}
+	b.cancel()
+	return nil
+}
+
 func TestPruneBeforeOverflowReturnsNoUncommittedCounts(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()

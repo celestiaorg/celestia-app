@@ -40,6 +40,10 @@ func (s *Server) prune(ctx context.Context) {
 
 	for {
 		pruned, freed, err := s.store.PruneBefore(ctx, start)
+		totalPruned += pruned
+		if freed > 0 {
+			s.occ.release(freed)
+		}
 		if err != nil {
 			if !errors.Is(err, ErrStoreIntegrity) {
 				s.metrics.observePrune(ctx, start, totalPruned, err)
@@ -51,10 +55,6 @@ func (s *Server) prune(ctx context.Context) {
 			}
 		}
 
-		totalPruned += pruned
-		if freed > 0 {
-			s.occ.release(freed)
-		}
 		if pruned < maxPruneBatchSize || ctx.Err() != nil {
 			break
 		}

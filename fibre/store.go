@@ -385,6 +385,8 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 // markers are skipped, it commits valid deletions and returns their count and
 // freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
 // do not consume deletion capacity. Fatal errors return no uncommitted counts.
+// If a payload deletion fails, completed cleanup is committed and returned
+// with the deletion error.
 func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -449,7 +451,10 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 
 		// Missing file is fine (orphan marker from a crashed Put).
 		if err := s.shards.Delete(ctx, markerData, commitment, promiseHash); err != nil {
-			return 0, 0, err
+			if commitErr := batch.Commit(pebbledb.NoSync); commitErr != nil {
+				return 0, 0, errors.Join(err, fmt.Errorf("committing batch: %w", commitErr))
+			}
+			return pruned, prunedBytes, err
 		}
 		if err := batch.Delete(key, pebbledb.NoSync); err != nil {
 			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
