@@ -407,15 +407,8 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 	return &promise, nil
 }
 
-// PruneBefore deletes all shards and payment promises with pruneAt before the given time
-// and returns the number of pruned entries and the freed bytes.
-//
-// It deletes at most [maxPruneBatchSize] expired entries per call. If invalid
-// markers are skipped, it commits valid deletions and returns their count and
-// freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
-// do not consume deletion capacity. Fatal errors return no uncommitted counts.
-// If a payload deletion fails, completed cleanup is committed and returned
-// with the deletion error.
+// PruneBefore deletes up to [maxPruneBatchSize] shards and payment promises that expire before the given time.
+// It returns the committed deletion count and freed bytes, retaining failed or invalid entries for retry.
 func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -430,13 +423,18 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	batch := s.db.NewBatch()
 	defer batch.Close()
 	var (
+		selectedBytes  int64
+		candidates     []pruneCandidate
 		pruned         int
 		prunedBytes    int64
 		integrityErr   error
 		corruptMarkers int
 	)
 	beforeStr := formatTimestamp(before.UTC())
-	for valid := iter.First(); valid && pruned < maxPruneBatchSize; valid = iter.Next() {
+	for valid := iter.First(); valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
+		if err := ctx.Err(); err != nil {
+			return 0, 0, err
+		}
 		key := iter.Key()
 
 		// Keys are sorted; once the timestamp reaches the cutoff we're done.
@@ -474,41 +472,58 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 			}
 			continue
 		}
-		if size > math.MaxInt64-prunedBytes {
+		if size > math.MaxInt64-selectedBytes {
 			return 0, 0, errors.New("pruned shard size overflows int64")
 		}
-
-		// Missing file is fine (orphan marker from a crashed Put).
-		if err := s.shards.Delete(ctx, markerData, commitment, promiseHash); err != nil {
-			if commitErr := batch.Commit(pebbledb.NoSync); commitErr != nil {
-				return 0, 0, errors.Join(err, fmt.Errorf("committing batch: %w", commitErr))
-			}
-			return pruned, prunedBytes, err
-		}
-		if err := batch.Delete(key, pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
-		}
-		if err := batch.Delete(shardKey(commitment, promiseHash), pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting shard marker: %w", err)
-		}
-		if err := batch.Delete(promiseKey(promiseHash), pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting payment promise: %w", err)
-		}
-		pruned++
-		prunedBytes += size
+		selectedBytes += size
+		candidates = append(candidates, pruneCandidate{
+			markedShard: markedShard{
+				id: shardID{commitment: commitment, promiseHash: promiseHash}, marker: markerData,
+			},
+			key: slices.Clone(key), size: size,
+		})
 	}
 
 	if err := iter.Error(); err != nil {
 		return 0, 0, fmt.Errorf("iterating prune index: %w", err)
 	}
 
+	shards := make([]markedShard, len(candidates))
+	for i, candidate := range candidates {
+		shards[i] = candidate.markedShard
+	}
+	successful, deleteErr := s.shards.DeleteBatch(ctx, shards)
+	for _, i := range successful {
+		candidate := candidates[i]
+		if err := batch.Delete(candidate.key, pebbledb.NoSync); err != nil {
+			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
+		}
+		if err := batch.Delete(shardKey(candidate.id.commitment, candidate.id.promiseHash), pebbledb.NoSync); err != nil {
+			return 0, 0, fmt.Errorf("deleting shard marker: %w", err)
+		}
+		if err := batch.Delete(promiseKey(candidate.id.promiseHash), pebbledb.NoSync); err != nil {
+			return 0, 0, fmt.Errorf("deleting payment promise: %w", err)
+		}
+		pruned++
+		prunedBytes += candidate.size
+	}
+
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return 0, 0, fmt.Errorf("committing batch: %w", err)
+		return 0, 0, errors.Join(deleteErr, fmt.Errorf("committing batch: %w", err))
+	}
+	if deleteErr != nil {
+		return pruned, prunedBytes, deleteErr
 	}
 	if corruptMarkers > 1 {
 		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
 	}
 	return pruned, prunedBytes, integrityErr
+}
+
+type pruneCandidate struct {
+	markedShard
+	key  []byte
+	size int64
 }
 
 // reconcile drops everything under <store>/staging/. Anything there at open
