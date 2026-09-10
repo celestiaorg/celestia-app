@@ -407,15 +407,8 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 	return &promise, nil
 }
 
-// PruneBefore deletes all shards and payment promises with pruneAt before the given time
-// and returns the number of pruned entries and the freed bytes.
-//
-// It selects at most [maxPruneBatchSize] expired entries per call. If invalid
-// markers are skipped, it commits valid deletions and returns their count and
-// freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
-// do not consume deletion capacity. Fatal errors return no uncommitted counts.
-// If a payload deletion fails, completed cleanup is committed and returned
-// with the deletion error. Object deletions use batches; failed keys remain for retry.
+// PruneBefore deletes up to [maxPruneBatchSize] shards and payment promises that expire before the given time.
+// It returns the committed deletion count and freed bytes, retaining failed or invalid entries for retry.
 func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
