@@ -125,7 +125,7 @@ func TestStartCmdNilLog(t *testing.T) {
 		cfg.SignerFn = func(string) (core.PrivValidator, error) {
 			return &mockPV, nil
 		}
-		cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+		cfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 			return fibre.NewMemoryStore(scfg), nil
 		}
 		return startServer(ctx, cfg)

@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -44,7 +45,7 @@ type ServerConfig struct {
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
 
-	StoreConfig `toml:"-"`
+	StoreConfig
 
 	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
 	LivenessThreshold cmtmath.Fraction `toml:"-"`
@@ -61,7 +62,7 @@ type ServerConfig struct {
 
 	// StoreFn creates the persistent [Store] for the server.
 	// If nil, defaults to [NewStore].
-	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
+	StoreFn func(context.Context, StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
 	StateClientFn func() (state.Client, error) `toml:"-"`

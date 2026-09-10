@@ -360,7 +360,7 @@ func testStoreGetDeterministicOrdering(t *testing.T, store *fibre.Store, _ strin
 func TestStoreReconcileStaging(t *testing.T) {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := fibre.NewStore(cfg)
+	store, err := fibre.NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 
 	blob := makeTestBlobV0(t, 256)
@@ -379,7 +379,7 @@ func TestStoreReconcileStaging(t *testing.T) {
 	var buf strings.Builder
 	cfg.Log = slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	store, err = fibre.NewStore(cfg)
+	store, err = fibre.NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 
@@ -610,7 +610,7 @@ func makeTestStore(t *testing.T) (*fibre.Store, string) {
 	t.Helper()
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = t.TempDir()
-	store, err := fibre.NewStore(cfg)
+	store, err := fibre.NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 	return store, cfg.Path
