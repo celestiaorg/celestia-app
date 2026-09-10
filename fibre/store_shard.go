@@ -2,7 +2,9 @@ package fibre
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 )
@@ -60,6 +62,71 @@ func (s *routedStorage) Delete(ctx context.Context, marker []byte, commitment Co
 		return err
 	}
 	return backend.Delete(ctx, commitment, promiseHash)
+}
+
+type markedShard struct {
+	id     shardID
+	marker []byte
+}
+
+// DeleteBatch deletes payloads by marker and returns their successful input positions.
+// Local deletes stop on failure. Object requests contain at most 1,000 keys; per-key failures remain for retry.
+func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) ([]int, error) {
+	var local, objects []int
+	var object *objectBackend
+	for i, shard := range shards {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		backend, err := s.backendForMarker(shard.marker)
+		if err != nil {
+			return nil, err
+		}
+		if backend.backendTag() == objectBackendTag {
+			var ok bool
+			object, ok = backend.(*objectBackend)
+			if !ok {
+				return nil, fmt.Errorf("%w: object backend does not support batch deletion", ErrStoreIntegrity)
+			}
+			objects = append(objects, i)
+		} else {
+			local = append(local, i)
+		}
+	}
+
+	var successful []int
+	var deleteErr error
+	for _, i := range local {
+		shard := shards[i]
+		if err := s.Delete(ctx, shard.marker, shard.id.commitment, shard.id.promiseHash); err != nil {
+			deleteErr = err
+			break
+		}
+		successful = append(successful, i)
+	}
+	if len(objects) == 0 {
+		return successful, deleteErr
+	}
+	for indices := range slices.Chunk(objects, maxObjectDeleteBatchSize) {
+		ids := make([]shardID, len(indices))
+		for i, index := range indices {
+			ids[i] = shards[index].id
+		}
+		results, err := object.DeleteObjects(ctx, ids)
+		if err != nil {
+			return successful, errors.Join(deleteErr, err)
+		}
+		for i, err := range results {
+			if err != nil {
+				if deleteErr == nil {
+					deleteErr = err
+				}
+				continue
+			}
+			successful = append(successful, indices[i])
+		}
+	}
+	return successful, deleteErr
 }
 
 func (s *routedStorage) size(marker []byte, commitment Commitment, promiseHash []byte) (int64, error) {

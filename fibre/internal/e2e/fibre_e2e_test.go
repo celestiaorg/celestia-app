@@ -77,7 +77,7 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 		return filePV, nil
 	}
 
-	serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+	serverCfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
 	}
 	s.fibreServer, err = fibre.NewServer(serverCfg)

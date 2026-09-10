@@ -150,9 +150,9 @@ For each matching shard marker, `Store` will use this flow:
 3. For a local marker, `localBackend` reads the local flat file.
 4. For an object marker, `objectBackend` reads the object with `GetObject`.
 5. If local storage returns `NotFound`, keep the marker for occupancy accounting and try the next matching shard marker.
-6. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next matching shard marker.
+6. If object storage returns `NotFound`, keep the marker and try the next matching shard marker.
 7. If another durable-storage error occurs, record it and try the next matching shard marker.
-8. If no matching shard marker succeeds, return the recorded error.
+8. If no matching shard marker succeeds, return the recorded error, or `ErrStoreNotFound` if no other error occurred.
 
 Every read of an object-backed shard accesses object storage.
 
@@ -186,6 +186,8 @@ The `Store` API will not change. `Store` will contain `routedStorage` and delega
 `NewStore` will always open Pebble and `localBackend`.
 
 `NewStore` will open `objectBackend` in object mode. It will also open this backend while live markers record `object`.
+
+Startup fails if required object-storage settings are missing or invalid, including in local mode with object markers.
 
 In local mode, `routedStorage` will use `localBackend` as primary. It will use `objectBackend` as secondary when object access is configured.
 
@@ -314,7 +316,7 @@ This approach preserves the Pebble marker format. It adds backend requests and r
 | Write latency | An object upload can exceed the current upload timeout. | Measure the complete write path against the timeout. |
 | Provider availability | An outage stops new uploads and object-backed reads. | Fibre reports the provider error and keeps its Pebble markers. |
 | Read latency | Object storage adds latency to every object-backed read. | Measure object-read latency and define request limits. |
-| Request cost | Repeated downloads can create unbounded object-read charges. | Before object mode ships, define a configurable global limit for object-read requests and measure its effect on legitimate downloads. |
+| Request cost | Repeated downloads can create unbounded object-read charges. | Object-read limiting is deferred to [PROTOCO-2621](https://linear.app/celestia/issue/PROTOCO-2621). Measure traffic and costs before selecting a policy. |
 | Binary downgrade | Old Fibre cannot read live object-backed shards. | Copy live objects to legacy local paths before downgrade. |
 | Disaster recovery | Loss of Pebble removes the object index. | Complete disaster recovery is outside this ADR. |
 | Provider lifecycle rules | A short lifecycle can delete a promised shard. | Use at least 30 days as a safety net and review this period when protocol retention limits change. |
@@ -330,7 +332,6 @@ The first cache option to evaluate will be a bounded, write-through in-memory ca
 - Do not populate the cache after object-storage reads. This prevents arbitrary reads from displacing recent uploads.
 - Treat the cache as optional and non-durable. It will start empty after a restart.
 - Measure shard sizes, the hot-read window, cache hit rate, and memory use before selecting a default limit.
-- Keep the global object-read limit because cache misses still access object storage.
 
 ## References
 

@@ -35,6 +35,10 @@ var ErrStoreIntegrity = errors.New("store integrity error")
 
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
+	// StorageBackend selects the backend for new shards: local or object.
+	StorageBackend string `toml:"storage_backend"`
+	// ObjectStorage must remain configured until all object shards are pruned.
+	ObjectStorage ObjectStorageConfig `toml:"object_storage"`
 	// Path is the path to the store directory.
 	Path string `toml:"-"`
 	// Log defaults to [slog.Default] when nil.
@@ -43,12 +47,24 @@ type StoreConfig struct {
 
 // DefaultStoreConfig returns a [StoreConfig] with default values.
 func DefaultStoreConfig() StoreConfig {
-	return StoreConfig{}
+	return StoreConfig{StorageBackend: storageBackendLocal}
 }
 
 // Validate checks that the StoreConfig is valid and fills in defaults for
 // unset fields.
 func (cfg *StoreConfig) Validate() error {
+	if cfg.StorageBackend == "" {
+		cfg.StorageBackend = storageBackendLocal
+	}
+	switch cfg.StorageBackend {
+	case storageBackendLocal:
+	case storageBackendObject:
+		if err := cfg.ObjectStorage.Validate(); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("storage_backend must be local or object")
+	}
 	if cfg.Path == "" {
 		return fmt.Errorf("store path is required")
 	}
@@ -76,21 +92,24 @@ const memStorePath = "/store"
 // when the Store is garbage collected.
 func NewMemoryStore(cfg StoreConfig) *Store {
 	cfg.Path = memStorePath
-	s, err := openStore(cfg, vfs.NewMem())
+	cfg.StorageBackend = storageBackendLocal
+	s, err := openStore(context.Background(), cfg, vfs.NewMem())
 	if err != nil {
 		panic(fmt.Sprintf("opening in-memory store: %v", err))
 	}
 	return s
 }
 
-// NewStore opens a [Store] backed by an on-disk pebble database and flat
-// shard files at cfg.Path. On open, [Store.reconcile] drops leftover staging
-// files from a previous crash.
-func NewStore(cfg StoreConfig) (*Store, error) {
-	return openStore(cfg, vfs.Default)
+// NewStore opens Pebble and the configured shard backends at cfg.Path.
+// It removes leftover staging files from a previous crash.
+func NewStore(ctx context.Context, cfg StoreConfig) (*Store, error) {
+	return openStore(ctx, cfg, vfs.Default)
 }
 
-func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
+func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validating store config: %w", err)
 	}
@@ -112,9 +131,19 @@ func openStore(cfg StoreConfig, filesystem vfs.FS) (*Store, error) {
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	s := &Store{db: db, log: cfg.Log, shards: newRoutedStorage(local, nil)}
+	s := &Store{db: db, log: cfg.Log}
+	object, err := s.openObjectStorage(ctx, cfg)
+	if err != nil {
+		_ = s.Close()
+		return nil, fmt.Errorf("opening object shard storage: %w", err)
+	}
+	if cfg.StorageBackend == storageBackendObject {
+		s.shards = newRoutedStorage(object, local)
+	} else {
+		s.shards = newRoutedStorage(local, object)
+	}
 	if err := s.reconcile(); err != nil {
-		_ = s.db.Close()
+		_ = s.Close()
 		return nil, fmt.Errorf("reconciling store: %w", err)
 	}
 	return s, nil
@@ -378,15 +407,8 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 	return &promise, nil
 }
 
-// PruneBefore deletes all shards and payment promises with pruneAt before the given time
-// and returns the number of pruned entries and the freed bytes.
-//
-// It deletes at most [maxPruneBatchSize] expired entries per call. If invalid
-// markers are skipped, it commits valid deletions and returns their count and
-// freed bytes with [ErrStoreIntegrity]. Invalid markers remain unchanged and
-// do not consume deletion capacity. Fatal errors return no uncommitted counts.
-// If a payload deletion fails, completed cleanup is committed and returned
-// with the deletion error.
+// PruneBefore deletes up to [maxPruneBatchSize] shards and payment promises that expire before the given time.
+// It returns the committed deletion count and freed bytes, retaining failed or invalid entries for retry.
 func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -401,13 +423,18 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	batch := s.db.NewBatch()
 	defer batch.Close()
 	var (
+		selectedBytes  int64
+		candidates     []pruneCandidate
 		pruned         int
 		prunedBytes    int64
 		integrityErr   error
 		corruptMarkers int
 	)
 	beforeStr := formatTimestamp(before.UTC())
-	for valid := iter.First(); valid && pruned < maxPruneBatchSize; valid = iter.Next() {
+	for valid := iter.First(); valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
+		if err := ctx.Err(); err != nil {
+			return 0, 0, err
+		}
 		key := iter.Key()
 
 		// Keys are sorted; once the timestamp reaches the cutoff we're done.
@@ -445,41 +472,58 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 			}
 			continue
 		}
-		if size > math.MaxInt64-prunedBytes {
+		if size > math.MaxInt64-selectedBytes {
 			return 0, 0, errors.New("pruned shard size overflows int64")
 		}
-
-		// Missing file is fine (orphan marker from a crashed Put).
-		if err := s.shards.Delete(ctx, markerData, commitment, promiseHash); err != nil {
-			if commitErr := batch.Commit(pebbledb.NoSync); commitErr != nil {
-				return 0, 0, errors.Join(err, fmt.Errorf("committing batch: %w", commitErr))
-			}
-			return pruned, prunedBytes, err
-		}
-		if err := batch.Delete(key, pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
-		}
-		if err := batch.Delete(shardKey(commitment, promiseHash), pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting shard marker: %w", err)
-		}
-		if err := batch.Delete(promiseKey(promiseHash), pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting payment promise: %w", err)
-		}
-		pruned++
-		prunedBytes += size
+		selectedBytes += size
+		candidates = append(candidates, pruneCandidate{
+			markedShard: markedShard{
+				id: shardID{commitment: commitment, promiseHash: promiseHash}, marker: markerData,
+			},
+			key: slices.Clone(key), size: size,
+		})
 	}
 
 	if err := iter.Error(); err != nil {
 		return 0, 0, fmt.Errorf("iterating prune index: %w", err)
 	}
 
+	shards := make([]markedShard, len(candidates))
+	for i, candidate := range candidates {
+		shards[i] = candidate.markedShard
+	}
+	successful, deleteErr := s.shards.DeleteBatch(ctx, shards)
+	for _, i := range successful {
+		candidate := candidates[i]
+		if err := batch.Delete(candidate.key, pebbledb.NoSync); err != nil {
+			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
+		}
+		if err := batch.Delete(shardKey(candidate.id.commitment, candidate.id.promiseHash), pebbledb.NoSync); err != nil {
+			return 0, 0, fmt.Errorf("deleting shard marker: %w", err)
+		}
+		if err := batch.Delete(promiseKey(candidate.id.promiseHash), pebbledb.NoSync); err != nil {
+			return 0, 0, fmt.Errorf("deleting payment promise: %w", err)
+		}
+		pruned++
+		prunedBytes += candidate.size
+	}
+
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return 0, 0, fmt.Errorf("committing batch: %w", err)
+		return 0, 0, errors.Join(deleteErr, fmt.Errorf("committing batch: %w", err))
+	}
+	if deleteErr != nil {
+		return pruned, prunedBytes, deleteErr
 	}
 	if corruptMarkers > 1 {
 		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
 	}
 	return pruned, prunedBytes, integrityErr
+}
+
+type pruneCandidate struct {
+	markedShard
+	key  []byte
+	size int64
 }
 
 // reconcile drops everything under <store>/staging/. Anything there at open
