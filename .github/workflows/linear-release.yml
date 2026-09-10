@@ -2,6 +2,7 @@ name: linear-release
 
 # Sync each published GitHub release to the celestia-app release pipeline in
 # Linear so issues fixed by PRs in the release move from Merged to Released.
+# Pre-releases are testnet-only, so only mainnet releases are synced.
 # https://linear.app/celestia/settings/releases/pipelines/celestia-app
 on:
   release:
@@ -12,6 +13,7 @@ permissions:
 
 jobs:
   sync:
+    if: github.event.release.prerelease == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -19,12 +21,14 @@ jobs:
           ref: ${{ github.event.release.tag_name }}
           fetch-depth: 0
       - run: git fetch --force --tags
-      # Scan from the previous tag on the same release line. The action's
-      # default base is the previous Linear release, which may be on another
-      # release branch (e.g. v9.x vs v10.x) and would misattribute commits.
-      - name: Find previous tag
+      # Scan from the previous mainnet tag on the same release line. The
+      # action's default base is the previous Linear release, which may be on
+      # another release branch (e.g. v9.x vs v10.x) and would misattribute
+      # commits. Pre-release tags contain a hyphen (v9.0.8-mocha) and are
+      # excluded so commits they shipped still land in the next mainnet release.
+      - name: Find previous mainnet tag
         id: prev
-        run: echo "tag=$(git describe --tags --abbrev=0 "${{ github.event.release.tag_name }}^")" >> "$GITHUB_OUTPUT"
+        run: echo "tag=$(git describe --tags --abbrev=0 --exclude='*-*' "${{ github.event.release.tag_name }}^")" >> "$GITHUB_OUTPUT"
       - uses: linear/linear-release-action@53ad0f863963e7f8e270fba18426bbb55ef55384 #v0.17.2
         with:
           access_key: ${{ secrets.LINEAR_ACCESS_KEY }}
