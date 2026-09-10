@@ -86,48 +86,6 @@ func TestTxCache_ExistsEmpty(t *testing.T) {
 	assert.False(t, exists)
 }
 
-func TestTxCache_RemoveTransaction(t *testing.T) {
-	cache := NewTxCache()
-	tx1 := []byte("tx1")
-	tx2 := []byte("tx2")
-	tx3 := []byte("tx3")
-	blobs1 := blobfactory.ManyRandBlobs(random.New(), 1000)
-	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
-	blobs3 := blobfactory.ManyRandBlobs(random.New(), 1000)
-
-	cache.Set(tx1, blobs1)
-	cache.Set(tx2, blobs2)
-	cache.Set(tx3, blobs3)
-	assert.Equal(t, 3, cache.Size())
-
-	cache.RemoveTransaction(tx2)
-
-	assert.Equal(t, 2, cache.Size())
-	exists := cache.Exists(tx1, blobs1)
-	assert.True(t, exists)
-
-	exists = cache.Exists(tx2, blobs2)
-	assert.False(t, exists)
-
-	exists = cache.Exists(tx3, blobs3)
-	assert.True(t, exists)
-}
-
-func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
-	cache := NewTxCache()
-	tx := []byte("tx1")
-	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
-	nonExistentTx := []byte("non existent")
-
-	cache.Set(tx, blobs)
-	assert.Equal(t, 1, cache.Size())
-
-	cache.RemoveTransaction(nonExistentTx)
-	assert.Equal(t, 1, cache.Size())
-	exists := cache.Exists(tx, blobs)
-	assert.True(t, exists)
-}
-
 func TestTxCache_Eviction(t *testing.T) {
 	cache := NewTxCache()
 	blobs := blobfactory.ManyRandBlobs(random.New(), 100)
@@ -311,13 +269,13 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 	expectedSize := len(batch1) + len(batch2)
 	require.Equal(t, expectedSize, cache.Size())
 
-	// phase 3: Concurrently remove batch 2 and add batch 3
-	// remove batch 2
+	// phase 3: Concurrently read batch 2 and add batch 3
+	// read batch 2
 	for _, tx := range batch2 {
 		wg.Add(1)
 		go func(transaction []byte) {
 			defer wg.Done()
-			cache.RemoveTransaction(transaction)
+			require.True(t, cache.Exists(transaction, blobs))
 		}(tx)
 	}
 
