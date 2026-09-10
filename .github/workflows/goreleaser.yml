@@ -39,7 +39,8 @@ jobs:
     if: github.event_name == 'release'
     needs: goreleaser-check
     runs-on: ubuntu-latest
-    permissions: write-all
+    permissions:
+      contents: read
     steps:
       - name: Free disk space
         run: |
