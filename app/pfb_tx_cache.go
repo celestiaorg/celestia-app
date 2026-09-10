@@ -63,12 +63,6 @@ func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
 	return string(sum)
 }
 
-// RemoveTransaction removes specific transactions from the cache
-func (c *TxCache) RemoveTransaction(tx []byte) {
-	key := c.getTxKey(tx)
-	c.entries.Remove(key)
-}
-
 // Size returns the current number of entries in the cache
 func (c *TxCache) Size() int {
 	return c.entries.Len()

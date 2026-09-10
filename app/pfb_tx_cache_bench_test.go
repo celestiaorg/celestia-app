@@ -92,7 +92,7 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 		}
 	})
 
-	b.Run("All operations (set, exists, remove)", func(b *testing.B) {
+	b.Run("All operations (set, exists)", func(b *testing.B) {
 		for _, tc := range testCases {
 			b.Run(tc.name, func(b *testing.B) {
 				b.ReportAllocs()
@@ -107,10 +107,6 @@ func BenchmarkTxCache_Operations(b *testing.B) {
 
 					for i, tx := range txs {
 						cache.Exists(tx, blobs[i])
-					}
-
-					for _, tx := range txs {
-						cache.RemoveTransaction(tx)
 					}
 				}
 			})
