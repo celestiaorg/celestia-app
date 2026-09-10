@@ -21,8 +21,9 @@ const (
 
 // localBackend stores shard payloads as flat files.
 type localBackend struct {
-	path string
-	fs   vfs.FS
+	path    string
+	fs      vfs.FS
+	metrics *serverMetrics
 }
 
 // shardPayloadWriteCategory labels shard payload bytes in VFS disk-write metrics.
@@ -61,8 +62,19 @@ func (b *localBackend) Put(ctx context.Context, commitment Commitment, promiseHa
 	return true, nil
 }
 
-func (b *localBackend) Get(_ context.Context, commitment Commitment, promiseHash []byte) (*types.BlobShard, error) {
-	return readShardFile(b.fs, b.shardPath(commitment, promiseHash))
+func (b *localBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
+	done := b.metrics.observeBackendGet(ctx, storageBackendLocal)
+	defer func() { done(err) }()
+	f, err := b.fs.Open(b.shardPath(commitment, promiseHash))
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, ErrStoreNotFound
+		}
+		return nil, err
+	}
+	defer f.Close()
+	// Buffer small codec reads to avoid per-field file reads and metric updates.
+	return readShardBinary(bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendLocal, f), 1<<20))
 }
 
 func (b *localBackend) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {

@@ -152,6 +152,14 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
+	for _, backend := range []shardBackend{s.store.shards.primary, s.store.shards.secondary} {
+		switch backend := backend.(type) {
+		case *localBackend:
+			backend.metrics = s.metrics
+		case *objectBackend:
+			backend.metrics = s.metrics
+		}
+	}
 
 	if err := s.seedOccupancy(ctx); err != nil {
 		return err
