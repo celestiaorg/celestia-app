@@ -16,6 +16,9 @@ type shardBackendTag byte
 const (
 	localBackendTag  shardBackendTag = 0x01
 	objectBackendTag shardBackendTag = 0x02
+
+	storageBackendLocal  = "local"
+	storageBackendObject = "object"
 )
 
 // encodeShardMarkerForBackend encodes a backend and shard size in a versioned marker.

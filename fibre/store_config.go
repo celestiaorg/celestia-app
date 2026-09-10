@@ -48,7 +48,7 @@ func (cfg *ObjectStorageConfig) Validate() error {
 // openObjectStorage opens the backend for object mode or existing object markers.
 // Local mode still needs it to read and prune shards written before a mode change.
 func (s *Store) openObjectStorage(ctx context.Context, cfg StoreConfig) (shardBackend, error) {
-	needsObject := cfg.StorageBackend == "object"
+	needsObject := cfg.StorageBackend == storageBackendObject
 	if !needsObject {
 		var err error
 		needsObject, err = s.hasObjectMarkers(ctx)

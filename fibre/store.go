@@ -47,18 +47,18 @@ type StoreConfig struct {
 
 // DefaultStoreConfig returns a [StoreConfig] with default values.
 func DefaultStoreConfig() StoreConfig {
-	return StoreConfig{StorageBackend: "local"}
+	return StoreConfig{StorageBackend: storageBackendLocal}
 }
 
 // Validate checks that the StoreConfig is valid and fills in defaults for
 // unset fields.
 func (cfg *StoreConfig) Validate() error {
 	if cfg.StorageBackend == "" {
-		cfg.StorageBackend = "local"
+		cfg.StorageBackend = storageBackendLocal
 	}
 	switch cfg.StorageBackend {
-	case "local":
-	case "object":
+	case storageBackendLocal:
+	case storageBackendObject:
 		if err := cfg.ObjectStorage.Validate(); err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ const memStorePath = "/store"
 // when the Store is garbage collected.
 func NewMemoryStore(cfg StoreConfig) *Store {
 	cfg.Path = memStorePath
-	cfg.StorageBackend = "local"
+	cfg.StorageBackend = storageBackendLocal
 	s, err := openStore(context.Background(), cfg, vfs.NewMem())
 	if err != nil {
 		panic(fmt.Sprintf("opening in-memory store: %v", err))
@@ -137,7 +137,7 @@ func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store,
 		_ = s.Close()
 		return nil, fmt.Errorf("opening object shard storage: %w", err)
 	}
-	if cfg.StorageBackend == "object" {
+	if cfg.StorageBackend == storageBackendObject {
 		s.shards = newRoutedStorage(object, local)
 	} else {
 		s.shards = newRoutedStorage(local, object)
