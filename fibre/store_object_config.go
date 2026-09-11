@@ -91,13 +91,14 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.BaseEndpoint = aws.String(namespace.Endpoint)
 	})
-	if mismatch {
+	if !recorded || saved != namespace {
 		namespaceData, err := json.Marshal(namespace)
 		if err != nil {
 			return nil, fmt.Errorf("encoding object namespace: %w", err)
 		}
+		// Save the namespace durably before any uploads can commit shard markers.
 		if err := db.Set([]byte(objectNamespaceKey), namespaceData, pebbledb.Sync); err != nil {
-			return nil, fmt.Errorf("saving object namespace override: %w", err)
+			return nil, fmt.Errorf("saving object namespace: %w", err)
 		}
 	}
 	return newObjectBackend(client, namespace), nil

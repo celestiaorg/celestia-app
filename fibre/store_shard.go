@@ -60,20 +60,6 @@ func (s *routedStorage) marker(size int64) []byte {
 	return encodeShardMarkerForBackend(s.primary.backendTag(), size)
 }
 
-// writeMarker adds the marker and its backend metadata to the same batch.
-func (s *routedStorage) writeMarker(batch *pebbledb.Batch, commitment Commitment, promiseHash, marker []byte) error {
-	backend, err := s.backendForMarker(marker)
-	if err != nil {
-		return err
-	}
-	if object, ok := backend.(*objectBackend); ok {
-		if err := object.writeNamespace(batch); err != nil {
-			return err
-		}
-	}
-	return batch.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync)
-}
-
 func (s *routedStorage) Put(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
 	backend, err := s.backendForMarker(marker)
 	if err != nil {
