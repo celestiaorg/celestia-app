@@ -36,35 +36,48 @@ func (s *Server) prune(ctx context.Context) {
 	var (
 		totalPruned  int
 		integrityErr error
+		deleteErr    error
+		cursor       []byte
 	)
 
 	for {
-		pruned, freed, err := s.store.PruneBefore(ctx, start)
+		pruned, freed, next, err := s.store.pruneBefore(ctx, start, cursor)
 		totalPruned += pruned
 		if freed > 0 {
 			s.occ.release(freed)
 		}
 		if err != nil {
-			if !errors.Is(err, ErrStoreIntegrity) {
+			// Only a direct partial error permits progress; joined fatal errors must stop the pass.
+			if _, partial := err.(*partialDeleteError); partial {
+				if deleteErr == nil {
+					deleteErr = err
+				}
+			} else if errors.Is(err, ErrStoreIntegrity) {
+				if integrityErr == nil {
+					integrityErr = err
+				}
+			} else {
 				s.metrics.observePrune(ctx, start, totalPruned, err)
 				s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
 				return
 			}
-			if integrityErr == nil {
-				integrityErr = err
-			}
 		}
 
-		if pruned < maxPruneBatchSize || ctx.Err() != nil {
+		if len(next) == 0 || ctx.Err() != nil {
 			break
 		}
+		cursor = next
 	}
 
 	if integrityErr != nil {
 		s.log.WarnContext(ctx, "prune skipped corrupt shard markers", "error", integrityErr,
 			"elapsed (ms)", time.Since(start).Milliseconds())
 	}
-	s.metrics.observePrune(ctx, start, totalPruned, nil)
+	if deleteErr != nil {
+		s.log.WarnContext(ctx, "prune retained failed payload deletions", "error", deleteErr,
+			"elapsed (ms)", time.Since(start).Milliseconds())
+	}
+	s.metrics.observePrune(ctx, start, totalPruned, deleteErr)
 
 	if totalPruned > 0 {
 		s.log.InfoContext(ctx, "pruned expired entries", "pruned", totalPruned, "elapsed (ms)", time.Since(start).Milliseconds())
