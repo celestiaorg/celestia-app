@@ -51,14 +51,3 @@ func readObjectNamespace(db *pebbledb.DB) (ObjectNamespace, bool, error) {
 	}
 	return namespace, true, nil
 }
-
-func (b *objectBackend) writeNamespace(batch *pebbledb.Batch) error {
-	data, err := json.Marshal(b.namespace)
-	if err != nil {
-		return fmt.Errorf("encoding object namespace: %w", err)
-	}
-	if err := batch.Set([]byte(objectNamespaceKey), data, pebbledb.NoSync); err != nil {
-		return fmt.Errorf("putting object namespace: %w", err)
-	}
-	return nil
-}

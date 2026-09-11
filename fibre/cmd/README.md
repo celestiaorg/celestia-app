@@ -96,7 +96,8 @@ Changing `storage_backend` between `local` and `object` only changes where new s
 
 Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
 
-The store records the object endpoint, bucket, prefix, chain ID, and validator address with object shard markers.
+The store saves the object endpoint, bucket, prefix, chain ID, and validator address at startup, before accepting uploads.
+It updates this record only when an allowed namespace change occurs.
 While object shards remain, a change to this namespace prevents startup in either storage mode.
 Restore the previous configuration and signer to recover access.
 For an intentional migration, stop the server and move all retained objects to the new namespace first.

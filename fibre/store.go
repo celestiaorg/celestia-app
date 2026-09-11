@@ -143,7 +143,7 @@ func (s *Store) commitAndStore(
 	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting payment promise: %w", err)
 	}
-	if err := s.shards.writeMarker(batch, promise.Commitment, promiseHash, marker); err != nil {
+	if err := batch.Set(shardKey(promise.Commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting shard marker: %w", err)
 	}
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
