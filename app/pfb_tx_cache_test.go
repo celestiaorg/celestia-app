@@ -86,46 +86,23 @@ func TestTxCache_ExistsEmpty(t *testing.T) {
 	assert.False(t, exists)
 }
 
-func TestTxCache_RemoveTransaction(t *testing.T) {
+// TestTxCache_CapacityBound asserts that the cache never exceeds its fixed
+// capacity and evicts the least recently used entry once full.
+func TestTxCache_CapacityBound(t *testing.T) {
 	cache := NewTxCache()
-	tx1 := []byte("tx1")
-	tx2 := []byte("tx2")
-	tx3 := []byte("tx3")
-	blobs1 := blobfactory.ManyRandBlobs(random.New(), 1000)
-	blobs2 := blobfactory.ManyRandBlobs(random.New(), 1000)
-	blobs3 := blobfactory.ManyRandBlobs(random.New(), 1000)
-
-	cache.Set(tx1, blobs1)
-	cache.Set(tx2, blobs2)
-	cache.Set(tx3, blobs3)
-	assert.Equal(t, 3, cache.Size())
-
-	cache.RemoveTransaction(tx2)
-
-	assert.Equal(t, 2, cache.Size())
-	exists := cache.Exists(tx1, blobs1)
-	assert.True(t, exists)
-
-	exists = cache.Exists(tx2, blobs2)
-	assert.False(t, exists)
-
-	exists = cache.Exists(tx3, blobs3)
-	assert.True(t, exists)
-}
-
-func TestTxCache_RemoveTransactionNonExistent(t *testing.T) {
-	cache := NewTxCache()
-	tx := []byte("tx1")
 	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
-	nonExistentTx := []byte("non existent")
 
-	cache.Set(tx, blobs)
-	assert.Equal(t, 1, cache.Size())
+	for i := range defaultTxCacheCapacity + 1 {
+		tx := fmt.Appendf([]byte{}, "tx-%d", i)
+		cache.Set(tx, blobs)
+	}
 
-	cache.RemoveTransaction(nonExistentTx)
-	assert.Equal(t, 1, cache.Size())
-	exists := cache.Exists(tx, blobs)
-	assert.True(t, exists)
+	oldestTx := []byte("tx-0")
+	newestTx := fmt.Appendf([]byte{}, "tx-%d", defaultTxCacheCapacity)
+
+	assert.Equal(t, defaultTxCacheCapacity, cache.Size())
+	assert.False(t, cache.Exists(oldestTx, blobs))
+	assert.True(t, cache.Exists(newestTx, blobs))
 }
 
 func TestTxCache_GetTxKey(t *testing.T) {
@@ -237,7 +214,9 @@ func TestTxCache_ConcurrentSet(t *testing.T) {
 
 	wg.Wait()
 
-	assert.Equal(t, numGoroutines*numTxsPerGoroutine, cache.Size())
+	expectedSize := min(numGoroutines*numTxsPerGoroutine, defaultTxCacheCapacity)
+	assert.Equal(t, expectedSize, cache.Size(),
+		"cache should hold every inserted tx, capped at the cache capacity")
 }
 
 func TestTxCache_ConcurrentBatches(t *testing.T) {
@@ -282,17 +261,7 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 	expectedSize := len(batch1) + len(batch2)
 	require.Equal(t, expectedSize, cache.Size())
 
-	// phase 3: Concurrently remove batch 2 and add batch 3
-	// remove batch 2
-	for _, tx := range batch2 {
-		wg.Add(1)
-		go func(transaction []byte) {
-			defer wg.Done()
-			cache.RemoveTransaction(transaction)
-		}(tx)
-	}
-
-	// add batch 3
+	// phase 3: Concurrently add batch 3
 	for _, tx := range batch3 {
 		wg.Add(1)
 		go func(transaction []byte) {
