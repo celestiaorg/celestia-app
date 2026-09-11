@@ -39,6 +39,8 @@ type StoreConfig struct {
 	StorageBackend string `toml:"storage_backend"`
 	// ObjectStorage must remain configured until all object shards are pruned.
 	ObjectStorage ObjectStorageConfig `toml:"object_storage"`
+	// OverrideObjectNamespace accepts a namespace change after operator migration.
+	OverrideObjectNamespace bool `toml:"-"`
 	// Path is the path to the store directory.
 	Path string `toml:"-"`
 	// Log defaults to [slog.Default] when nil.
@@ -77,9 +79,10 @@ func (cfg *StoreConfig) Validate() error {
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
 type Store struct {
-	db     *pebbledb.DB
-	log    *slog.Logger
-	shards *routedStorage
+	db              *pebbledb.DB
+	log             *slog.Logger
+	shards          *routedStorage
+	objectNamespace []byte
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -196,6 +199,11 @@ func (s *Store) commitAndStore(
 	}
 	if err := batch.Set(shardKey(promise.Commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting shard marker: %w", err)
+	}
+	if s.shards.primary.backendTag() == objectBackendTag {
+		if err := batch.Set([]byte(objectNamespaceKey), s.objectNamespace, pebbledb.NoSync); err != nil {
+			return fmt.Errorf("putting object namespace: %w", err)
+		}
 	}
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)

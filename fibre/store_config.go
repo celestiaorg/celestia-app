@@ -2,6 +2,7 @@ package fibre
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -48,15 +49,18 @@ func (cfg *ObjectStorageConfig) Validate() error {
 // openObjectStorage opens the backend for object mode or existing object markers.
 // Local mode still needs it to read and prune shards written before a mode change.
 func (s *Store) openObjectStorage(ctx context.Context, cfg StoreConfig) (shardBackend, error) {
-	needsObject := cfg.StorageBackend == storageBackendObject
-	if !needsObject {
-		var err error
-		needsObject, err = s.hasObjectMarkers(ctx)
-		if err != nil {
-			return nil, err
-		}
+	hasObjects, err := s.hasObjectMarkers(ctx)
+	if err != nil {
+		return nil, err
 	}
-	if !needsObject {
+	saved, recorded, err := s.readObjectNamespace()
+	if err != nil {
+		return nil, err
+	}
+	if hasObjects && !recorded {
+		return nil, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
+	}
+	if !hasObjects && cfg.StorageBackend != storageBackendObject {
 		return nil, nil
 	}
 	s.log.Warn("Changing storage_backend only affects new shards. Keep object storage configured and accessible until all object shards are pruned.",
@@ -66,6 +70,19 @@ func (s *Store) openObjectStorage(ctx context.Context, cfg StoreConfig) (shardBa
 	}
 	if cfg.ObjectStorage.ChainID == "" || cfg.ObjectStorage.ValidatorAddress == "" {
 		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
+	}
+	namespace := namespaceFromConfig(cfg.ObjectStorage)
+	mismatch := hasObjects && saved != namespace
+	if mismatch {
+		s.log.Warn("Object storage namespace changed", "old", saved, "new", namespace,
+			"override", cfg.OverrideObjectNamespace)
+		if !cfg.OverrideObjectNamespace {
+			return nil, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
+		}
+	}
+	s.objectNamespace, err = json.Marshal(namespace)
+	if err != nil {
+		return nil, fmt.Errorf("encoding object namespace: %w", err)
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -81,6 +98,11 @@ func (s *Store) openObjectStorage(ctx context.Context, cfg StoreConfig) (shardBa
 	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.BaseEndpoint = aws.String(cfg.ObjectStorage.Endpoint)
 	})
+	if mismatch {
+		if err := s.db.Set([]byte(objectNamespaceKey), s.objectNamespace, pebbledb.Sync); err != nil {
+			return nil, fmt.Errorf("saving object namespace override: %w", err)
+		}
+	}
 	return newObjectBackend(client, cfg.ObjectStorage.Bucket, cfg.ObjectStorage.Prefix, cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress), nil
 }
 

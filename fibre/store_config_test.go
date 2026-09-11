@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"encoding/xml"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -76,9 +78,12 @@ func TestStoreRejectsMissingObjectCredentials(t *testing.T) {
 	store, err := NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(objectBackendTag, 1), pebbledb.Sync))
-	require.NoError(t, store.Close())
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
+	namespace, err := json.Marshal(namespaceFromConfig(cfg.ObjectStorage))
+	require.NoError(t, err)
+	require.NoError(t, store.db.Set([]byte(objectNamespaceKey), namespace, pebbledb.Sync))
+	require.NoError(t, store.Close())
 	for _, mode := range []string{"local", "object"} {
 		t.Run(mode, func(t *testing.T) {
 			cfg.StorageBackend = mode
@@ -158,6 +163,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	t.Setenv("AWS_CONFIG_FILE", filepath.Join(t.TempDir(), "config"))
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", filepath.Join(t.TempDir(), "credentials"))
 	var mu sync.Mutex
+	rejectWrites := true
 	objects := make(map[string][]byte)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
@@ -165,6 +171,10 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 		assert.Contains(t, r.Header.Get("Authorization"), "Credential=test-key/")
 		switch r.Method {
 		case http.MethodPut:
+			if rejectWrites {
+				w.WriteHeader(http.StatusForbidden)
+				return
+			}
 			assert.Equal(t, "*", r.Header.Get("If-None-Match"))
 			data, err := io.ReadAll(r.Body)
 			assert.NoError(t, err)
@@ -232,6 +242,13 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, shard, got)
 	promise.Commitment[0]++
+	require.Error(t, store.Put(t.Context(), promise, shard, pruneAt))
+	_, recorded, err := store.readObjectNamespace()
+	require.NoError(t, err)
+	require.False(t, recorded, "failed writes must not bind the namespace")
+	mu.Lock()
+	rejectWrites = false
+	mu.Unlock()
 	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
 	promiseHash, err := promise.Hash()
 	require.NoError(t, err)
@@ -239,6 +256,33 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	assert.Contains(t, objects, "/fibre-shards/fibre/test-chain/test-validator/shards/"+promise.Commitment.String()+"-"+hex.EncodeToString(promiseHash))
 	mu.Unlock()
 	require.NoError(t, store.Close())
+
+	for _, mode := range []string{"object", "local"} {
+		for _, tc := range []struct {
+			name   string
+			modify func(*ObjectStorageConfig)
+		}{
+			{"endpoint", func(c *ObjectStorageConfig) { c.Endpoint += "/other" }},
+			{"bucket", func(c *ObjectStorageConfig) { c.Bucket = "other-bucket" }},
+			{"prefix", func(c *ObjectStorageConfig) { c.Prefix = "other-prefix" }},
+			{"chain", func(c *ObjectStorageConfig) { c.ChainID = "other-chain" }},
+			{"validator", func(c *ObjectStorageConfig) { c.ValidatorAddress = "other-validator" }},
+		} {
+			t.Run(mode+"/"+tc.name, func(t *testing.T) {
+				changed := cfg
+				changed.StorageBackend = mode
+				tc.modify(&changed.ObjectStorage)
+				opened, err := NewStore(t.Context(), changed)
+				if opened != nil {
+					require.NoError(t, opened.Close())
+				}
+				require.ErrorIs(t, err, ErrStoreIntegrity)
+				require.Contains(t, logs.String(), "Object storage namespace changed")
+				require.Contains(t, logs.String(), "old=")
+				require.Contains(t, logs.String(), "new=")
+			})
+		}
+	}
 
 	cfg.StorageBackend = "local"
 	retainedConfig := cfg.ObjectStorage
@@ -248,6 +292,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.ErrorContains(t, err, "object storage must remain configured until all object shards are pruned")
 	logs.Reset()
 	cfg.ObjectStorage = retainedConfig
+	cfg.ObjectStorage.Prefix = " /fibre/./ "
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.Contains(t, logs.String(), "level=WARN")
@@ -259,10 +304,35 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	has, err := store.Has(t.Context(), promise.Commitment, promiseHash)
 	require.NoError(t, err)
 	require.True(t, has)
+	require.NoError(t, store.Close())
+
+	// The operator moves the objects before accepting the new namespace.
+	mu.Lock()
+	for key, data := range objects {
+		delete(objects, key)
+		objects[strings.Replace(key, "/fibre/", "/migrated/", 1)] = data
+	}
+	mu.Unlock()
+	cfg.ObjectStorage.Prefix = "migrated"
+	cfg.OverrideObjectNamespace = true
+	logs.Reset()
+	store, err = NewStore(t.Context(), cfg)
+	require.NoError(t, err)
+	require.Contains(t, logs.String(), "override=true")
+	require.NoError(t, store.Close())
+	cfg.OverrideObjectNamespace = false
+	store, err = NewStore(t.Context(), cfg)
+	require.NoError(t, err)
+	got, err = store.Get(t.Context(), promise.Commitment)
+	require.NoError(t, err)
+	require.Equal(t, shard, got)
 	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Minute))
 	require.NoError(t, err)
 	require.Equal(t, 2, pruned)
 	require.Equal(t, 2*shardBinarySize(shard), freed)
+	mu.Lock()
+	assert.Empty(t, objects)
+	mu.Unlock()
 	require.NoError(t, store.Close())
 
 	logs.Reset()
@@ -272,6 +342,46 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.Nil(t, store.shards.secondary)
 	require.Empty(t, logs.String())
 	require.NoError(t, store.Close())
+
+	cfg.StorageBackend = "object"
+	cfg.ObjectStorage = retainedConfig
+	cfg.ObjectStorage.Prefix = "after-pruning"
+	store, err = NewStore(t.Context(), cfg)
+	require.NoError(t, err)
+	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
+	require.NoError(t, store.Close())
+	store, err = NewStore(t.Context(), cfg)
+	require.NoError(t, err)
+	got, err = store.Get(t.Context(), promise.Commitment)
+	require.NoError(t, err)
+	require.Equal(t, shard, got)
+	require.NoError(t, store.Close())
+}
+
+func TestStoreRejectsInvalidObjectNamespace(t *testing.T) {
+	for _, data := range []string{"missing", "", "null", "{}", "{", `{"endpoint":"https://example.com","bucket":"bucket","prefix":"prefix","chain_id":"chain"}`} {
+		t.Run(data, func(t *testing.T) {
+			cfg := DefaultStoreConfig()
+			cfg.Path = t.TempDir()
+			store, err := NewStore(t.Context(), cfg)
+			require.NoError(t, err)
+			require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(objectBackendTag, 1), pebbledb.Sync))
+			if data != "missing" {
+				require.NoError(t, store.db.Set([]byte(objectNamespaceKey), []byte(data), pebbledb.Sync))
+			}
+			require.NoError(t, store.Close())
+			cfg.ObjectStorage = testObjectStorageConfig()
+			cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
+			for _, mode := range []string{"local", "object"} {
+				cfg.StorageBackend = mode
+				for _, override := range []bool{false, true} {
+					cfg.OverrideObjectNamespace = override
+					_, err := NewStore(t.Context(), cfg)
+					require.ErrorIs(t, err, ErrStoreIntegrity)
+				}
+			}
+		})
+	}
 }
 
 // TestStoreLocalDoesNotLoadAWSConfig checks that local stores without object markers ignore an invalid AWS profile.
