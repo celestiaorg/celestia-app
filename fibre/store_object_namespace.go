@@ -51,3 +51,15 @@ func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
 	}
 	return namespace, true, nil
 }
+
+// saveObjectNamespace persists the namespace before uploads can commit shard markers.
+func saveObjectNamespace(db *pebbledb.DB, namespace objectNamespace) error {
+	data, err := json.Marshal(namespace)
+	if err != nil {
+		return fmt.Errorf("encoding object namespace: %w", err)
+	}
+	if err := db.Set([]byte(objectNamespaceKey), data, pebbledb.Sync); err != nil {
+		return fmt.Errorf("saving object namespace: %w", err)
+	}
+	return nil
+}
