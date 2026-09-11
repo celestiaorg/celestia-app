@@ -410,13 +410,19 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 // PruneBefore deletes up to [maxPruneBatchSize] shards and payment promises that expire before the given time.
 // It returns the committed deletion count and freed bytes, retaining failed or invalid entries for retry.
 func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
+	pruned, freed, _, err := s.pruneBefore(ctx, before, nil)
+	return pruned, freed, err
+}
+
+// pruneBefore resumes after a previous batch and returns the next cursor, or nil when done.
+func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte) (int, int64, []byte, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
 		UpperBound: prefixUpperBound(prefix),
 	})
 	if err != nil {
-		return 0, 0, fmt.Errorf("creating iterator: %w", err)
+		return 0, 0, nil, fmt.Errorf("creating iterator: %w", err)
 	}
 	defer iter.Close()
 
@@ -431,9 +437,13 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 		corruptMarkers int
 	)
 	beforeStr := formatTimestamp(before.UTC())
-	for valid := iter.First(); valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
+	valid := iter.First()
+	if len(after) > 0 {
+		valid = iter.SeekGE(append(slices.Clone(after), 0))
+	}
+	for ; valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
 		if err := ctx.Err(); err != nil {
-			return 0, 0, err
+			return 0, 0, nil, err
 		}
 		key := iter.Key()
 
@@ -453,7 +463,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 		switch {
 		case errors.Is(err, pebbledb.ErrNotFound):
 		case err != nil:
-			return 0, 0, fmt.Errorf("getting shard marker: %w", err)
+			return 0, 0, nil, fmt.Errorf("getting shard marker: %w", err)
 		default:
 			// Pebble owns markerData until the closer closes.
 			markerData = slices.Clone(markerData)
@@ -463,7 +473,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 		size, err = s.shards.size(markerData, commitment, promiseHash)
 		if err != nil {
 			if !errors.Is(err, ErrStoreIntegrity) {
-				return 0, 0, fmt.Errorf("getting shard file stats: %w", err)
+				return 0, 0, nil, fmt.Errorf("getting shard file stats: %w", err)
 			}
 			corruptMarkers++
 			// Keep the first integrity error and count every corrupt marker.
@@ -473,7 +483,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 			continue
 		}
 		if size > math.MaxInt64-selectedBytes {
-			return 0, 0, errors.New("pruned shard size overflows int64")
+			return 0, 0, nil, errors.New("pruned shard size overflows int64")
 		}
 		selectedBytes += size
 		candidates = append(candidates, pruneCandidate{
@@ -485,9 +495,13 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	}
 
 	if err := iter.Error(); err != nil {
-		return 0, 0, fmt.Errorf("iterating prune index: %w", err)
+		return 0, 0, nil, fmt.Errorf("iterating prune index: %w", err)
 	}
 
+	var next []byte
+	if len(candidates) == maxPruneBatchSize {
+		next = candidates[len(candidates)-1].key
+	}
 	shards := make([]markedShard, len(candidates))
 	for i, candidate := range candidates {
 		shards[i] = candidate.markedShard
@@ -496,28 +510,28 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	for _, i := range successful {
 		candidate := candidates[i]
 		if err := batch.Delete(candidate.key, pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting prune index: %w", err)
+			return 0, 0, nil, fmt.Errorf("deleting prune index: %w", err)
 		}
 		if err := batch.Delete(shardKey(candidate.id.commitment, candidate.id.promiseHash), pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting shard marker: %w", err)
+			return 0, 0, nil, fmt.Errorf("deleting shard marker: %w", err)
 		}
 		if err := batch.Delete(promiseKey(candidate.id.promiseHash), pebbledb.NoSync); err != nil {
-			return 0, 0, fmt.Errorf("deleting payment promise: %w", err)
+			return 0, 0, nil, fmt.Errorf("deleting payment promise: %w", err)
 		}
 		pruned++
 		prunedBytes += candidate.size
 	}
 
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		return 0, 0, errors.Join(deleteErr, fmt.Errorf("committing batch: %w", err))
+		return 0, 0, nil, errors.Join(deleteErr, fmt.Errorf("committing batch: %w", err))
 	}
 	if deleteErr != nil {
-		return pruned, prunedBytes, deleteErr
+		return pruned, prunedBytes, next, deleteErr
 	}
 	if corruptMarkers > 1 {
 		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
 	}
-	return pruned, prunedBytes, integrityErr
+	return pruned, prunedBytes, next, integrityErr
 }
 
 type pruneCandidate struct {
