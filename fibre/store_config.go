@@ -59,8 +59,10 @@ func (s *Store) openObjectStorage(ctx context.Context, cfg StoreConfig) (shardBa
 	if !needsObject {
 		return nil, nil
 	}
+	s.log.Warn("Changing storage_backend only affects new shards. Keep object storage configured and accessible until all object shards are pruned.",
+		"storage_backend", cfg.StorageBackend)
 	if err := cfg.ObjectStorage.Validate(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("object storage must remain configured until all object shards are pruned: %w", err)
 	}
 	if cfg.ObjectStorage.ChainID == "" || cfg.ObjectStorage.ValidatorAddress == "" {
 		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
