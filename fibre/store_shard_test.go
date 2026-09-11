@@ -3,7 +3,6 @@ package fibre
 import (
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -50,11 +49,8 @@ func TestRoutedStorageWriteMarker(t *testing.T) {
 				store := newMarkerTestStore(t)
 				cfg := testObjectStorageConfig()
 				cfg.ChainID, cfg.ValidatorAddress = "chain", "validator"
-				want := namespaceFromConfig(cfg)
-				object := newObjectBackend(nil, cfg.Bucket, cfg.Prefix, cfg.ChainID, cfg.ValidatorAddress)
-				var err error
-				object.namespace, err = json.Marshal(want)
-				require.NoError(t, err)
+				want := cfg.canonical()
+				object := newObjectBackend(nil, want)
 				storage := newRoutedStorage(store.shards.primary, object)
 				if primary == "object" {
 					storage = newRoutedStorage(object, store.shards.primary)
@@ -136,7 +132,7 @@ func TestRoutedStorageChunksObjectDeletes(t *testing.T) {
 					}
 					return &s3.DeleteObjectsOutput{}, nil
 				},
-			}, "bucket", "prefix", "chain", "validator")
+			}, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 			store.shards.secondary = object
 			shards := make([]markedShard, maxObjectDeleteBatchSize+2)
 			localIndex := maxObjectDeleteBatchSize / 2

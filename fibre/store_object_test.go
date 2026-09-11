@@ -45,7 +45,7 @@ func TestObjectBackendPutContentLength(t *testing.T) {
 		UsePathStyle: true,
 		HTTPClient:   server.Client(),
 	})
-	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
 	created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
@@ -85,7 +85,7 @@ func TestObjectBackendPut(t *testing.T) {
 				return &s3.PutObjectOutput{}, nil
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "/fibre/", "test-chain", "celestiavalcons1validator")
+		backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "/fibre/", ChainID: "test-chain", ValidatorAddress: "celestiavalcons1validator"})
 
 		created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestObjectBackendPut(t *testing.T) {
 				return nil, &smithy.GenericAPIError{Code: "PreconditionFailed", Fault: smithy.FaultClient}
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "fibre", "test-chain", "celestiavalcons1validator")
+		backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "fibre", ChainID: "test-chain", ValidatorAddress: "celestiavalcons1validator"})
 
 		created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
@@ -117,7 +117,7 @@ func TestObjectBackendGet(t *testing.T) {
 			return &s3.GetObjectOutput{Body: io.NopCloser(bytes.NewReader(data.Bytes()))}, nil
 		},
 	}
-	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 
 	got, err := backend.Get(t.Context(), Commitment{}, []byte{1})
 	require.NoError(t, err)
@@ -153,7 +153,7 @@ func TestObjectBackendGetChecksum(t *testing.T) {
 					HTTPClient:                 server.Client(),
 					ResponseChecksumValidation: aws.ResponseChecksumValidationWhenSupported,
 				})
-				backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+				backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 				ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 				defer cancel()
 				got, err := backend.Get(ctx, Commitment{}, []byte{1})
@@ -186,7 +186,7 @@ func TestObjectBackendNormalisesMissingObject(t *testing.T) {
 			return nil, missing
 		},
 	}
-	backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+	backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 
 	_, err := backend.Get(t.Context(), Commitment{}, []byte{1})
 	require.ErrorIs(t, err, ErrStoreNotFound)
@@ -220,7 +220,7 @@ func TestObjectBackendDeleteObjects(t *testing.T) {
 				}}}, nil
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+		backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 
 		errs, err := backend.DeleteObjects(t.Context(), ids)
 		require.NoError(t, err)
@@ -235,7 +235,7 @@ func TestObjectBackendDeleteObjects(t *testing.T) {
 				return nil, requestErr
 			},
 		}
-		backend := newObjectBackend(client, "bucket", "prefix", "chain", "validator")
+		backend := newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 
 		errs, err := backend.DeleteObjects(t.Context(), ids)
 		require.ErrorIs(t, err, requestErr)
@@ -243,7 +243,7 @@ func TestObjectBackendDeleteObjects(t *testing.T) {
 	})
 
 	t.Run("batch limit", func(t *testing.T) {
-		backend := newObjectBackend(&s3ObjectClientStub{}, "bucket", "prefix", "chain", "validator")
+		backend := newObjectBackend(&s3ObjectClientStub{}, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 		_, err := backend.DeleteObjects(t.Context(), make([]shardID, maxObjectDeleteBatchSize+1))
 		require.ErrorContains(t, err, "maximum is 1000")
 	})

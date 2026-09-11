@@ -25,10 +25,11 @@ import (
 
 func testObjectStorageConfig() ObjectStorageConfig {
 	return ObjectStorageConfig{
-		Endpoint: "https://account.r2.cloudflarestorage.com",
-		Region:   "auto",
-		Bucket:   "fibre-shards",
-		Prefix:   "fibre",
+		ObjectNamespace: ObjectNamespace{
+			Endpoint: "https://account.r2.cloudflarestorage.com",
+			Bucket:   "fibre-shards", Prefix: "fibre",
+		},
+		Region: "auto",
 	}
 }
 
@@ -80,7 +81,7 @@ func TestStoreRejectsMissingObjectCredentials(t *testing.T) {
 	require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(objectBackendTag, 1), pebbledb.Sync))
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
-	namespace, err := json.Marshal(namespaceFromConfig(cfg.ObjectStorage))
+	namespace, err := json.Marshal(cfg.ObjectStorage.canonical())
 	require.NoError(t, err)
 	require.NoError(t, store.db.Set([]byte(objectNamespaceKey), namespace, pebbledb.Sync))
 	require.NoError(t, store.Close())
