@@ -724,12 +724,47 @@ func TestCheckTxPayForFibreReplay(t *testing.T) {
 	}
 }
 
+// TestCheckTxPayForFibreRecheckExpiry admits a payment promise and then
+// advances block time past its timeout, so recheck must reject the expired
+// promise and the mempool evicts it instead of proposing a stale PFF.
+func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	txBytes := newSignedPayForFibreTx(t, signer, accounts[0], true)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Commit an empty block timestamped past the promise timeout but within
+	// the freshness window, so the promise is expired rather than too old.
+	commitBlockAt(t, testApp, time.Now().Add(fibretypes.DefaultPaymentPromiseTimeout+time.Minute))
+
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	require.Contains(t, resp.Log, "payment promise expired")
+}
+
 // commitBlock finalizes and commits a block of txs stamped time.Now, so the
 // CheckTx state carries a current block time for promise freshness checks.
 func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFinalizeBlock {
 	t.Helper()
+	return commitBlockAt(t, testApp, time.Now(), txs...)
+}
+
+// commitBlockAt is commitBlock with an explicit block time.
+func commitBlockAt(t *testing.T, testApp *app.App, blockTime time.Time, txs ...[]byte) *abci.ResponseFinalizeBlock {
+	t.Helper()
 	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:   time.Now(),
+		Time:   blockTime,
 		Height: testApp.LastBlockHeight() + 1,
 		Hash:   testApp.LastCommitID().Hash,
 		Txs:    txs,
