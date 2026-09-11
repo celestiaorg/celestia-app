@@ -2,7 +2,6 @@ package fibre
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/url"
 	"strings"
@@ -78,9 +77,22 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 			return nil, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
 		}
 	}
+	client, err := newObjectClient(ctx, cfg.ObjectStorage)
+	if err != nil {
+		return nil, err
+	}
+	if !recorded || saved != namespace {
+		if err := saveObjectNamespace(db, namespace); err != nil {
+			return nil, err
+		}
+	}
+	return newObjectBackend(client, namespace), nil
+}
+
+func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.ObjectStorage.Region))
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region))
 	if err != nil {
 		return nil, fmt.Errorf("loading AWS configuration: %w", err)
 	}
@@ -88,20 +100,9 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	if _, err := awsConfig.Credentials.Retrieve(ctx); err != nil {
 		return nil, fmt.Errorf("loading object storage credentials: %w", err)
 	}
-	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
-		options.BaseEndpoint = aws.String(namespace.Endpoint)
-	})
-	if !recorded || saved != namespace {
-		namespaceData, err := json.Marshal(namespace)
-		if err != nil {
-			return nil, fmt.Errorf("encoding object namespace: %w", err)
-		}
-		// Save the namespace durably before any uploads can commit shard markers.
-		if err := db.Set([]byte(objectNamespaceKey), namespaceData, pebbledb.Sync); err != nil {
-			return nil, fmt.Errorf("saving object namespace: %w", err)
-		}
-	}
-	return newObjectBackend(client, namespace), nil
+	return s3.NewFromConfig(awsConfig, func(options *s3.Options) {
+		options.BaseEndpoint = aws.String(cfg.Endpoint)
+	}), nil
 }
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.
