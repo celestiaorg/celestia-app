@@ -9,17 +9,15 @@ import (
 
 const defaultTxCacheCapacity = 10_000
 
-// TxCache remembers blob txs validated in CheckTx so ProcessProposal can skip
-// re-validating them. Its fixed capacity bounds memory use independently of
-// mempool eviction, and only txs that passed full CheckTx are admitted, so
-// invalid spam cannot evict legitimate entries.
+// TxCache caches blob transactions validated in CheckTx so ProcessProposal
+// can skip re-validating them. Its fixed capacity bounds memory use.
 type TxCache struct {
-	entries *lru.Cache[string, string]
+	entries *lru.Cache[[sha256.Size]byte, [sha256.Size]byte]
 }
 
 // NewTxCache creates a new transaction cache
 func NewTxCache() *TxCache {
-	entries, err := lru.New[string, string](defaultTxCacheCapacity)
+	entries, err := lru.New[[sha256.Size]byte, [sha256.Size]byte](defaultTxCacheCapacity)
 	if err != nil {
 		panic(err)
 	}
@@ -27,40 +25,40 @@ func NewTxCache() *TxCache {
 }
 
 // getTxKey generates a deterministic key for a transaction
-func (c *TxCache) getTxKey(tx []byte) string {
-	hash := sha256.Sum256(tx)
-	return string(hash[:])
+func (c *TxCache) getTxKey(tx []byte) [sha256.Size]byte {
+	return sha256.Sum256(tx)
 }
 
 // Exists checks whether the Tx exists in the cache and the blobs match the cached blobs
 func (c *TxCache) Exists(tx []byte, blobs []*share.Blob) bool {
-	key := c.getTxKey(tx)
-	cachedBlobHash, exists := c.entries.Get(key)
-	if !exists {
+	txKey := c.getTxKey(tx)
+	cachedBlobsHash, found := c.entries.Get(txKey)
+	if !found {
 		return false
 	}
 
-	blobHash := c.getBlobsHash(blobs)
-	return cachedBlobHash == blobHash
+	blobsHash := c.getBlobsHash(blobs)
+	return cachedBlobsHash == blobsHash
 }
 
 // Set stores the Tx in the cache
 func (c *TxCache) Set(tx []byte, blobs []*share.Blob) {
-	key := c.getTxKey(tx)
+	txKey := c.getTxKey(tx)
 	blobsHash := c.getBlobsHash(blobs)
-	c.entries.Add(key, blobsHash)
+	c.entries.Add(txKey, blobsHash)
 }
 
-// getBlobsHash hashes the domain-separated, length-prefixed hash of each blob.
-// Since each blob contributes a fixed-size digest, the boundaries between
-// adjacent blobs are unambiguous.
-func (c *TxCache) getBlobsHash(blobs []*share.Blob) string {
-	h := sha256.New()
+// getBlobsHash hashes each blob's fixed-size digest, so the boundaries
+// between adjacent blobs are unambiguous.
+func (c *TxCache) getBlobsHash(blobs []*share.Blob) [sha256.Size]byte {
+	hasher := sha256.New()
 	for _, blob := range blobs {
-		h.Write(blob.Hash())
+		hasher.Write(blob.Hash())
 	}
-	sum := h.Sum(nil)
-	return string(sum)
+
+	var blobsHash [sha256.Size]byte
+	copy(blobsHash[:], hasher.Sum(nil))
+	return blobsHash
 }
 
 // Size returns the current number of entries in the cache
