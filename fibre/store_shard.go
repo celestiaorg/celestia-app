@@ -7,6 +7,8 @@ import (
 	"slices"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/vfs"
 )
 
 // shardBackend stores shard payloads in one storage backend.
@@ -28,6 +30,21 @@ func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
 	return &routedStorage{primary: primary, secondary: secondary}
 }
 
+func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, filesystem vfs.FS) (*routedStorage, error) {
+	local, err := newLocalBackend(cfg.Path, filesystem)
+	if err != nil {
+		return nil, fmt.Errorf("opening local shard storage: %w", err)
+	}
+	object, err := openObjectBackend(ctx, cfg, db)
+	if err != nil {
+		return nil, fmt.Errorf("opening object shard storage: %w", err)
+	}
+	if cfg.StorageBackend == storageBackendObject {
+		return newRoutedStorage(object, local), nil
+	}
+	return newRoutedStorage(local, object), nil
+}
+
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
 	for _, backend := range []shardBackend{s.primary, s.secondary} {
 		switch backend := backend.(type) {
@@ -41,6 +58,20 @@ func (s *routedStorage) setMetrics(metrics *serverMetrics) {
 
 func (s *routedStorage) marker(size int64) []byte {
 	return encodeShardMarkerForBackend(s.primary.backendTag(), size)
+}
+
+// writeMarker adds the marker and its backend metadata to the same batch.
+func (s *routedStorage) writeMarker(batch *pebbledb.Batch, commitment Commitment, promiseHash, marker []byte) error {
+	backend, err := s.backendForMarker(marker)
+	if err != nil {
+		return err
+	}
+	if object, ok := backend.(*objectBackend); ok {
+		if err := object.writeNamespace(batch); err != nil {
+			return err
+		}
+	}
+	return batch.Set(shardKey(commitment, promiseHash), marker, pebbledb.NoSync)
 }
 
 func (s *routedStorage) Put(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {

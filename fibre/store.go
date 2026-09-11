@@ -33,56 +33,12 @@ var ErrStoreNotFound = errors.New("no shard found in store")
 // ErrStoreIntegrity is returned when stored metadata is invalid.
 var ErrStoreIntegrity = errors.New("store integrity error")
 
-// StoreConfig contains configuration options for the [Store].
-type StoreConfig struct {
-	// StorageBackend selects the backend for new shards: local or object.
-	StorageBackend string `toml:"storage_backend"`
-	// ObjectStorage must remain configured until all object shards are pruned.
-	ObjectStorage ObjectStorageConfig `toml:"object_storage"`
-	// OverrideObjectNamespace accepts a namespace change after operator migration.
-	OverrideObjectNamespace bool `toml:"-"`
-	// Path is the path to the store directory.
-	Path string `toml:"-"`
-	// Log defaults to [slog.Default] when nil.
-	Log *slog.Logger `toml:"-"`
-}
-
-// DefaultStoreConfig returns a [StoreConfig] with default values.
-func DefaultStoreConfig() StoreConfig {
-	return StoreConfig{StorageBackend: storageBackendLocal}
-}
-
-// Validate checks that the StoreConfig is valid and fills in defaults for
-// unset fields.
-func (cfg *StoreConfig) Validate() error {
-	if cfg.StorageBackend == "" {
-		cfg.StorageBackend = storageBackendLocal
-	}
-	switch cfg.StorageBackend {
-	case storageBackendLocal:
-	case storageBackendObject:
-		if err := cfg.ObjectStorage.Validate(); err != nil {
-			return err
-		}
-	default:
-		return fmt.Errorf("storage_backend must be local or object")
-	}
-	if cfg.Path == "" {
-		return fmt.Errorf("store path is required")
-	}
-	if cfg.Log == nil {
-		cfg.Log = slog.Default()
-	}
-	return nil
-}
-
 // Store manages persistent storage of [PaymentPromise] and row data.
 // It provides indexed access by [Commitment], promise hash, and timestamp.
 type Store struct {
-	db              *pebbledb.DB
-	log             *slog.Logger
-	shards          *routedStorage
-	objectNamespace []byte
+	db     *pebbledb.DB
+	log    *slog.Logger
+	shards *routedStorage
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -117,11 +73,6 @@ func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store,
 		return nil, fmt.Errorf("validating store config: %w", err)
 	}
 
-	local, err := newLocalBackend(cfg.Path, filesystem)
-	if err != nil {
-		return nil, fmt.Errorf("opening local shard storage: %w", err)
-	}
-
 	opts := &pebbledb.Options{FS: filesystem}
 	// Values in pebble are sub-1KB metadata only; tuning is light.
 	opts.MemTableSize = 16 << 20
@@ -135,15 +86,10 @@ func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store,
 	}
 
 	s := &Store{db: db, log: cfg.Log}
-	object, err := s.openObjectStorage(ctx, cfg)
+	s.shards, err = openRoutedStorage(ctx, cfg, db, filesystem)
 	if err != nil {
 		_ = s.Close()
-		return nil, fmt.Errorf("opening object shard storage: %w", err)
-	}
-	if cfg.StorageBackend == storageBackendObject {
-		s.shards = newRoutedStorage(object, local)
-	} else {
-		s.shards = newRoutedStorage(local, object)
+		return nil, fmt.Errorf("opening shard storage: %w", err)
 	}
 	if err := s.reconcile(); err != nil {
 		_ = s.Close()
@@ -197,13 +143,8 @@ func (s *Store) commitAndStore(
 	if err := batch.Set(promiseKey(promiseHash), ppData, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting payment promise: %w", err)
 	}
-	if err := batch.Set(shardKey(promise.Commitment, promiseHash), marker, pebbledb.NoSync); err != nil {
+	if err := s.shards.writeMarker(batch, promise.Commitment, promiseHash, marker); err != nil {
 		return fmt.Errorf("putting shard marker: %w", err)
-	}
-	if s.shards.primary.backendTag() == objectBackendTag {
-		if err := batch.Set([]byte(objectNamespaceKey), s.objectNamespace, pebbledb.NoSync); err != nil {
-			return fmt.Errorf("putting object namespace: %w", err)
-		}
 	}
 	if err := batch.Set(pruneKey(pruneAt, promise.Commitment, promiseHash), nil, pebbledb.NoSync); err != nil {
 		return fmt.Errorf("putting prune index: %w", err)

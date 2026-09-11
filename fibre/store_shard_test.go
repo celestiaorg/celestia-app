@@ -3,13 +3,16 @@ package fibre
 import (
 	"context"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,6 +41,47 @@ func TestRoutedStorageBackend(t *testing.T) {
 
 	_, err = storage.backend(shardBackendTag(3))
 	require.ErrorIs(t, err, ErrStoreIntegrity)
+}
+
+func TestRoutedStorageWriteMarker(t *testing.T) {
+	for _, primary := range []string{"local", "object"} {
+		for _, tag := range []shardBackendTag{localBackendTag, objectBackendTag} {
+			t.Run(fmt.Sprintf("%s/%d", primary, tag), func(t *testing.T) {
+				store := newMarkerTestStore(t)
+				cfg := testObjectStorageConfig()
+				cfg.ChainID, cfg.ValidatorAddress = "chain", "validator"
+				want := namespaceFromConfig(cfg)
+				object := newObjectBackend(nil, cfg.Bucket, cfg.Prefix, cfg.ChainID, cfg.ValidatorAddress)
+				var err error
+				object.namespace, err = json.Marshal(want)
+				require.NoError(t, err)
+				storage := newRoutedStorage(store.shards.primary, object)
+				if primary == "object" {
+					storage = newRoutedStorage(object, store.shards.primary)
+				}
+				commitment, hash := generateCommitment(), []byte{1}
+				marker := encodeShardMarkerForBackend(tag, 42)
+				batch := store.db.NewBatch()
+				defer batch.Close()
+				require.NoError(t, storage.writeMarker(batch, commitment, hash, marker))
+				for _, key := range [][]byte{shardKey(commitment, hash), []byte(objectNamespaceKey)} {
+					_, _, err := store.db.Get(key)
+					require.ErrorIs(t, err, pebbledb.ErrNotFound, "metadata must wait for the batch commit")
+				}
+				require.NoError(t, batch.Commit(pebbledb.Sync))
+				data, closer, err := store.db.Get(shardKey(commitment, hash))
+				require.NoError(t, err)
+				require.Equal(t, marker, data)
+				require.NoError(t, closer.Close())
+				got, recorded, err := readObjectNamespace(store.db)
+				require.NoError(t, err)
+				require.Equal(t, tag == objectBackendTag, recorded)
+				if recorded {
+					require.Equal(t, want, got)
+				}
+			})
+		}
+	}
 }
 
 type taggedShardBackend struct {
