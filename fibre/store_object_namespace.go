@@ -12,8 +12,8 @@ import (
 
 const objectNamespaceKey = "/meta/object-namespace"
 
-// ObjectNamespace identifies the location of a validator's object shards.
-type ObjectNamespace struct {
+// objectNamespace identifies the location of a validator's object shards.
+type objectNamespace struct {
 	Endpoint         string `json:"endpoint" toml:"endpoint"`
 	Bucket           string `json:"bucket" toml:"bucket"`
 	Prefix           string `json:"prefix" toml:"prefix"`
@@ -21,13 +21,13 @@ type ObjectNamespace struct {
 	ValidatorAddress string `json:"validator_address" toml:"-"`
 }
 
-func (n ObjectNamespace) canonical() ObjectNamespace {
+func (n objectNamespace) canonical() objectNamespace {
 	n.Prefix = path.Clean(strings.Trim(n.Prefix, "/"))
 	return n
 }
 
-func readObjectNamespace(db *pebbledb.DB) (ObjectNamespace, bool, error) {
-	var namespace ObjectNamespace
+func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
+	var namespace objectNamespace
 	data, closer, err := db.Get([]byte(objectNamespaceKey))
 	if errors.Is(err, pebbledb.ErrNotFound) {
 		return namespace, false, nil
@@ -41,7 +41,7 @@ func readObjectNamespace(db *pebbledb.DB) (ObjectNamespace, bool, error) {
 	}
 	// Reuse configuration validation without storing the region or credentials.
 	cfg := ObjectStorageConfig{
-		ObjectNamespace: namespace, Region: "unused",
+		objectNamespace: namespace, Region: "unused",
 	}
 	if err := cfg.Validate(); err != nil {
 		return namespace, false, fmt.Errorf("%w: invalid object namespace: %v", ErrStoreIntegrity, err)

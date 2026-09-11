@@ -25,7 +25,7 @@ import (
 
 func testObjectStorageConfig() ObjectStorageConfig {
 	return ObjectStorageConfig{
-		ObjectNamespace: ObjectNamespace{
+		objectNamespace: objectNamespace{
 			Endpoint: "https://account.r2.cloudflarestorage.com",
 			Bucket:   "fibre-shards", Prefix: "fibre",
 		},

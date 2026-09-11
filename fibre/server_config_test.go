@@ -119,6 +119,6 @@ func TestServerConfigObjectStorageRoundTrip(t *testing.T) {
 		require.NotContains(t, string(data), excluded)
 	}
 	require.Contains(t, string(data), "[object_storage]")
-	require.NotContains(t, string(data), "ObjectNamespace")
+	require.NotContains(t, string(data), "objectNamespace")
 	require.Contains(t, string(data), "# Use auto for Cloudflare R2.")
 }

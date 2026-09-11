@@ -35,7 +35,7 @@ type shardID struct {
 // objectBackend stores shard payloads in S3-compatible object storage.
 type objectBackend struct {
 	client    s3ObjectClient
-	namespace ObjectNamespace
+	namespace objectNamespace
 	metrics   *serverMetrics
 }
 
@@ -45,7 +45,7 @@ func (*objectBackend) backendTag() shardBackendTag {
 	return objectBackendTag
 }
 
-func newObjectBackend(client s3ObjectClient, namespace ObjectNamespace) *objectBackend {
+func newObjectBackend(client s3ObjectClient, namespace objectNamespace) *objectBackend {
 	return &objectBackend{client: client, namespace: namespace.canonical()}
 }
 
