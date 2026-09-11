@@ -16,13 +16,9 @@ import (
 
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
-	Endpoint string `toml:"endpoint"`
-	Region   string `toml:"region" comment:"Use auto for Cloudflare R2."`
-	Bucket   string `toml:"bucket"`
-	Prefix   string `toml:"prefix"`
 	// ChainID and ValidatorAddress are derived by the server at startup.
-	ChainID          string `toml:"-"`
-	ValidatorAddress string `toml:"-"`
+	ObjectNamespace
+	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
 }
@@ -73,7 +69,7 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	if cfg.ObjectStorage.ChainID == "" || cfg.ObjectStorage.ValidatorAddress == "" {
 		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
 	}
-	namespace := namespaceFromConfig(cfg.ObjectStorage)
+	namespace := cfg.ObjectStorage.canonical()
 	mismatch := hasObjects && saved != namespace
 	if mismatch {
 		cfg.Log.Warn("Object storage namespace changed", "old", saved, "new", namespace,
@@ -82,11 +78,6 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 			return nil, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
 		}
 	}
-	namespaceData, err := json.Marshal(namespace)
-	if err != nil {
-		return nil, fmt.Errorf("encoding object namespace: %w", err)
-	}
-
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.ObjectStorage.Region))
@@ -98,16 +89,18 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 		return nil, fmt.Errorf("loading object storage credentials: %w", err)
 	}
 	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
-		options.BaseEndpoint = aws.String(cfg.ObjectStorage.Endpoint)
+		options.BaseEndpoint = aws.String(namespace.Endpoint)
 	})
 	if mismatch {
+		namespaceData, err := json.Marshal(namespace)
+		if err != nil {
+			return nil, fmt.Errorf("encoding object namespace: %w", err)
+		}
 		if err := db.Set([]byte(objectNamespaceKey), namespaceData, pebbledb.Sync); err != nil {
 			return nil, fmt.Errorf("saving object namespace override: %w", err)
 		}
 	}
-	backend := newObjectBackend(client, cfg.ObjectStorage.Bucket, cfg.ObjectStorage.Prefix, cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress)
-	backend.namespace = namespaceData
-	return backend, nil
+	return newObjectBackend(client, namespace), nil
 }
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.
