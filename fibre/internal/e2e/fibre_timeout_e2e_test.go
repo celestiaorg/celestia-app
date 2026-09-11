@@ -123,14 +123,12 @@ func (s *FibreTimeoutTestSuite) TestTimeoutSettlement() {
 	require.NoError(t, s.cctx.WaitForNextBlock())
 	require.NoError(t, submit(), "timeout settlement should succeed once the promise has expired")
 
+	hash, err := signed.Hash()
+	require.NoError(t, err)
+	waitForPaymentProcessed(t, s.cctx, hash)
+
 	uploadSize := uint32(fibre.DefaultBlobConfigV0().UploadSize(len(data)))
 	wantDebit := fibretypes.PaymentAmount(uploadSize)
 	require.Equal(t, wantDebit, before.Sub(escrowBalance()),
 		"escrow should be debited by the payment amount on timeout settlement")
-
-	hash, err := signed.Hash()
-	require.NoError(t, err)
-	processed, err := fibreQ.IsPaymentProcessed(ctx, &fibretypes.QueryIsPaymentProcessedRequest{PromiseHash: hash})
-	require.NoError(t, err)
-	require.True(t, processed.Found, "timed-out promise should be recorded as processed")
 }

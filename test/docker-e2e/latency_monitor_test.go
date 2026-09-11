@@ -19,17 +19,16 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/stretchr/testify/require"
 )
 
 const latencyMonitorImage = "ghcr.io/celestiaorg/latency-monitor"
 
 // CSV column names produced by the latency-monitor tool.
 const (
-	colLatencyMs = "Latency (ms)"
-	colFailed    = "Failed"
+	colLatencyMs   = "Latency (ms)"
+	colEffectiveMs = "Effective Latency (ms)"
+	colFailed      = "Failed"
 )
 
 type LatencyMonitorConfig struct {
@@ -49,60 +48,11 @@ type LatencyMonitorResult struct {
 	FailureCount int
 	MaxLatency   time.Duration
 	AvgLatency   time.Duration
-	SuccessRate  float64
-}
-
-// DeployLatencyMonitor starts a latency monitor container connected to the chain.
-func (s *CelestiaTestSuite) DeployLatencyMonitor(
-	ctx context.Context,
-	chain tastoratypes.Chain,
-	cfg LatencyMonitorConfig,
-) (*tastoracontainertypes.Container, error) {
-	t := s.T()
-
-	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
-	if err != nil {
-		return nil, err
-	}
-
-	tag, err := dockerchain.GetCelestiaTagStrict()
-	if err != nil {
-		return nil, err
-	}
-
-	image := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), latencyMonitorImage, tag)
-
-	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
-	require.NoError(t, err, "failed to get network info")
-
-	args := []string{
-		"/bin/latency-monitor",
-		"--grpc-endpoint", networkInfo.Internal.Hostname + ":9090",
-		"--keyring-dir", "/celestia-home",
-		"--blob-size", strconv.Itoa(cfg.BlobSize),
-		"--blob-size-min", strconv.Itoa(cfg.MinBlobSize),
-		"--submission-delay", cfg.SubmissionDelay.String(),
-		"--namespace", "test",
-		"--disable-observability",
-	}
-
-	t.Logf("Starting latency-monitor with args: %v", args)
-
-	container, err := image.Start(ctx, args, tastoracontainertypes.Options{
-		User:  "0:0",
-		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start latency-monitor: %w", err)
-	}
-
-	t.Cleanup(func() {
-		if err := container.Stop(10 * time.Second); err != nil {
-			t.Logf("Error stopping latency-monitor: %v", err)
-		}
-	})
-
-	return container, nil
+	// Effective latency excludes the client-side broadcast (signing and
+	// uploading the blob). Zero in parallel mode.
+	MaxEffectiveLatency time.Duration
+	AvgEffectiveLatency time.Duration
+	SuccessRate         float64
 }
 
 // DeployLatencyMonitorForNetwork starts a latency-monitor container that connects to
@@ -262,13 +212,20 @@ func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 	if !ok {
 		return nil, fmt.Errorf("missing required column %q in header: %v", colFailed, header)
 	}
+	effectiveIdx, ok := colIndex[colEffectiveMs]
+	if !ok {
+		return nil, fmt.Errorf("missing required column %q in header: %v", colEffectiveMs, header)
+	}
 
 	var (
-		totalLatency time.Duration
-		maxLatency   time.Duration
-		successCount int
-		failureCount int
-		latencyCount int
+		totalLatency   time.Duration
+		maxLatency     time.Duration
+		totalEffective time.Duration
+		maxEffective   time.Duration
+		successCount   int
+		failureCount   int
+		latencyCount   int
+		effectiveCount int
 	)
 
 	for {
@@ -301,6 +258,22 @@ func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 		if d > maxLatency {
 			maxLatency = d
 		}
+
+		// Empty in parallel mode, where broadcast completion is not observable.
+		rawEffective := record[effectiveIdx]
+		if rawEffective == "" {
+			continue
+		}
+		effectiveMs, err := strconv.ParseFloat(rawEffective, 64)
+		if err != nil {
+			return nil, fmt.Errorf("parsing effective latency %q: %w", rawEffective, err)
+		}
+		e := time.Duration(effectiveMs) * time.Millisecond
+		totalEffective += e
+		effectiveCount++
+		if e > maxEffective {
+			maxEffective = e
+		}
 	}
 
 	totalTxs := successCount + failureCount
@@ -312,13 +285,19 @@ func parseLatencyCSV(r io.Reader) (*LatencyMonitorResult, error) {
 	if latencyCount > 0 {
 		avgLatency = totalLatency / time.Duration(latencyCount)
 	}
+	var avgEffective time.Duration
+	if effectiveCount > 0 {
+		avgEffective = totalEffective / time.Duration(effectiveCount)
+	}
 
 	return &LatencyMonitorResult{
-		TotalTxs:     totalTxs,
-		SuccessCount: successCount,
-		FailureCount: failureCount,
-		MaxLatency:   maxLatency,
-		AvgLatency:   avgLatency,
-		SuccessRate:  float64(successCount) / float64(totalTxs),
+		TotalTxs:            totalTxs,
+		SuccessCount:        successCount,
+		FailureCount:        failureCount,
+		MaxLatency:          maxLatency,
+		AvgLatency:          avgLatency,
+		MaxEffectiveLatency: maxEffective,
+		AvgEffectiveLatency: avgEffective,
+		SuccessRate:         float64(successCount) / float64(totalTxs),
 	}, nil
 }

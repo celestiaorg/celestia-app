@@ -8,7 +8,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 )
 
-func QueryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) {
+func QueryTx(clientCtx client.Context, hashHexStr string, prove bool) (*rpctypes.ResultTx, error) { //nolint:staticcheck
 	hash, err := hex.DecodeString(hashHexStr)
 	if err != nil {
 		return nil, err

@@ -4,7 +4,7 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.5-alpine
+ARG BUILDER_IMAGE=docker.io/golang:1.26.6-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
@@ -24,7 +24,7 @@ ARG CELESTIA_VERSION_V5="v5.0.12"
 ARG CELESTIA_VERSION_V6="v6.4.4"
 ARG CELESTIA_VERSION_V7="v7.0.2-mocha"
 ARG CELESTIA_VERSION_V8="v8.0.8"
-ARG CELESTIA_VERSION_V9="v9.0.4"
+ARG CELESTIA_VERSION_V9="v9.0.7-corto"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3

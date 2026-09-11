@@ -101,7 +101,7 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 
 	// get the responses for each tx for analysis and sort by height
 	// note: use rpc types because they contain the tx index
-	heightMap := make(map[int64][]*rpctypes.ResultTx)
+	heightMap := make(map[int64][]*rpctypes.ResultTx) //nolint:staticcheck
 	for hash := range hashes {
 		// use WaitForTx to poll until the tx is indexed
 		coreRes, err := s.cctx.WaitForTx(hash, 10)
@@ -126,14 +126,14 @@ func (s *PriorityTestSuite) TestPriorityByGasPrice() {
 	require.Greater(t, highestNumOfTxsPerBlock, 3)
 }
 
-func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx {
+func sortByIndex(txs []*rpctypes.ResultTx) []*rpctypes.ResultTx { //nolint:staticcheck
 	sort.Slice(txs, func(i, j int) bool {
 		return txs[i].Index < txs[j].Index
 	})
 	return txs
 }
 
-func isSortedByFee(t *testing.T, ecfg encoding.Config, responses []*rpctypes.ResultTx) bool {
+func isSortedByFee(t *testing.T, ecfg encoding.Config, responses []*rpctypes.ResultTx) bool { //nolint:staticcheck
 	for i := 0; i < len(responses)-1; i++ {
 		if getGasPrice(t, ecfg, responses[i]) < getGasPrice(t, ecfg, responses[i+1]) {
 			return false
@@ -142,7 +142,7 @@ func isSortedByFee(t *testing.T, ecfg encoding.Config, responses []*rpctypes.Res
 	return true
 }
 
-func getGasPrice(t *testing.T, ecfg encoding.Config, resp *rpctypes.ResultTx) float64 {
+func getGasPrice(t *testing.T, ecfg encoding.Config, resp *rpctypes.ResultTx) float64 { //nolint:staticcheck
 	sdkTx, err := ecfg.TxConfig.TxDecoder()(resp.Tx)
 	require.NoError(t, err)
 	feeTx := sdkTx.(sdk.FeeTx)

@@ -86,23 +86,33 @@ func TestTxCache_ExistsEmpty(t *testing.T) {
 	assert.False(t, exists)
 }
 
-// TestTxCache_CapacityBound asserts that the cache never exceeds its fixed
-// capacity and evicts the least recently used entry once full.
-func TestTxCache_CapacityBound(t *testing.T) {
+func TestTxCache_Eviction(t *testing.T) {
 	cache := NewTxCache()
-	blobs := blobfactory.ManyRandBlobs(random.New(), 1000)
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100)
 
 	for i := range defaultTxCacheCapacity + 1 {
-		tx := fmt.Appendf([]byte{}, "tx-%d", i)
-		cache.Set(tx, blobs)
+		cache.Set(fmt.Appendf(nil, "tx-%d", i), blobs)
 	}
 
-	oldestTx := []byte("tx-0")
-	newestTx := fmt.Appendf([]byte{}, "tx-%d", defaultTxCacheCapacity)
-
 	assert.Equal(t, defaultTxCacheCapacity, cache.Size())
-	assert.False(t, cache.Exists(oldestTx, blobs))
-	assert.True(t, cache.Exists(newestTx, blobs))
+	assert.False(t, cache.Exists([]byte("tx-0"), blobs), "oldest entry must be evicted")
+	assert.True(t, cache.Exists(fmt.Appendf(nil, "tx-%d", defaultTxCacheCapacity), blobs))
+}
+
+func TestTxCache_EvictionRecency(t *testing.T) {
+	cache := NewTxCache()
+	blobs := blobfactory.ManyRandBlobs(random.New(), 100)
+
+	for i := range defaultTxCacheCapacity {
+		cache.Set(fmt.Appendf(nil, "tx-%d", i), blobs)
+	}
+
+	// touch the oldest entry so the next insert evicts tx-1 instead
+	require.True(t, cache.Exists([]byte("tx-0"), blobs))
+	cache.Set([]byte("one more"), blobs)
+
+	assert.True(t, cache.Exists([]byte("tx-0"), blobs))
+	assert.False(t, cache.Exists([]byte("tx-1"), blobs))
 }
 
 func TestTxCache_GetTxKey(t *testing.T) {
@@ -261,7 +271,17 @@ func TestTxCache_ConcurrentBatches(t *testing.T) {
 	expectedSize := len(batch1) + len(batch2)
 	require.Equal(t, expectedSize, cache.Size())
 
-	// phase 3: Concurrently add batch 3
+	// phase 3: Concurrently read batch 2 and add batch 3
+	// read batch 2
+	for _, tx := range batch2 {
+		wg.Add(1)
+		go func(transaction []byte) {
+			defer wg.Done()
+			require.True(t, cache.Exists(transaction, blobs))
+		}(tx)
+	}
+
+	// add batch 3
 	for _, tx := range batch3 {
 		wg.Add(1)
 		go func(transaction []byte) {

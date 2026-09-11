@@ -6,6 +6,8 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ### Node Operators (v10.0.0)
 
+Node operators MUST upgrade their binary to this version prior to the v10 activation height.
+
 #### Fibre
 
 v10 introduces fibre, a data availability protocol served by validator-operated fibre servers. Validators should follow the [fibre server guide](../../fibre/cmd/README.md) — prerequisites, setup, and the on-chain host registration via [`x/valaddr`](../../x/valaddr/README.md) — to start serving fibre traffic once v10 is live.
@@ -20,6 +22,34 @@ The horcrux deprecation announced in the v7 release notes is superseded. Any KMS
 Horcrux is currently under-maintained. Additionally, a couple of slashing incidents have occurred due to misconfigured horcrux setups. Validators who choose to run horcrux accept these risks.
 
 As a reminder, KMS are third-party software and validators are responsible for ensuring their own KMS setup is correctly configured. An incorrect setup may result in double signing, which can lead to slashing. Validators choosing to run a KMS do so at their own risk.
+
+#### Privval gRPC Endpoint Enabled by Default
+
+Every node now runs a privval gRPC endpoint, which the fibre server uses for payment-promise endorsements and its TLS identity. The default listen address moved from `127.0.0.1:26659` to `127.0.0.1:26669`. Nodes that don't serve fibre can disable it by clearing `priv_validator_grpc_laddr` in `config.toml`.
+
+#### Heavy RPC Requests Are Limited
+
+celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_search`, `unconfirmed_txs`, share and data-root proofs, and the gRPC block, validator-set, and proof endpoints) behind a process-wide concurrency limit. It is configurable via `max_concurrent_heavy_requests` in the `[rpc]` section of `config.toml` (default 20) and is shared across HTTP JSON-RPC, URI, WebSocket, and gRPC. Excess requests are rejected with HTTP 503 / gRPC `ResourceExhausted`. Public RPC providers may want to raise this limit.
+
+#### Blockstore Compaction
+
+New `[storage]` options in `config.toml`: `compact` (default `false`) and `compaction_interval` (default `10000`). When enabled, the blockstore is compacted asynchronously over the pruned range, keeping pruned nodes at a bounded disk size. A new `celestia-appd compact-blockstore` command performs a one-off compaction of an existing blockstore.
+
+#### Metrics Push via OTLP
+
+`celestia-appd start` accepts a new `--otel-endpoint` flag (env `CELESTIA_APP_OTEL_ENDPOINT`) that pushes node metrics (SDK telemetry, CometBFT, Go runtime) to an OpenTelemetry collector over OTLP HTTP.
+
+### State Machine Changes (v10.0.0)
+
+#### New Modules (v10.0.0)
+
+**`x/fibre`**: escrow, payment promises, and settlement for fibre. `MsgPayForFibre` pays for blob dissemination through fibre. See the [x/fibre README](../../x/fibre/README.md).
+
+**`x/valaddr`**: on-chain registration of validator fibre hosts. Stale provider entries are garbage collected in EndBlock. See the [x/valaddr README](../../x/valaddr/README.md).
+
+#### Evidence Window
+
+`MaxAgeNumBlocks` is reduced from 559,940 to 404,400 so the evidence window stays within the unbonding period at block times up to 3s ([#7706](https://github.com/celestiaorg/celestia-app/pull/7706)). Equivocation evidence naming a validator no longer in staking state is ignored instead of erroring out of FinalizeBlock ([#7718](https://github.com/celestiaorg/celestia-app/pull/7718)).
 
 ## v9.0.0
 

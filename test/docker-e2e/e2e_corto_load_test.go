@@ -35,6 +35,16 @@ const (
 	// must stay ≤ 4 s while the network processes 20 MiB of blobs per second.
 	maxAvgBlockTime = 4 * time.Second
 	maxP99BlockTime = 4 * time.Second
+
+	// Bound on the average effective latency, which excludes the client-side
+	// broadcast (signing and uploading the blob). Nightly runs against Corto
+	// sit between 5.0 s and 5.6 s, so this leaves headroom for a busier network
+	// while still catching a regression.
+	maxAvgEffectiveLatency = 8 * time.Second
+	// minSuccessRate tolerates a small number of transient submission failures
+	// while still catching real regressions, which drop the success rate well
+	// below this bound.
+	minSuccessRate = 0.99 // 99%
 )
 
 // TestCortoLoad connects to the Corto internal testnet, submits blobs via the
@@ -159,12 +169,27 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	t.Logf("  Failed: %d", latencyResults.FailureCount)
 	t.Logf("  Avg Latency: %v", latencyResults.AvgLatency)
 	t.Logf("  Max Latency: %v", latencyResults.MaxLatency)
+	t.Logf("  Avg Effective Latency (excl. broadcast): %v", latencyResults.AvgEffectiveLatency)
+	t.Logf("  Max Effective Latency (excl. broadcast): %v", latencyResults.MaxEffectiveLatency)
 
 	// --- 8. Assert: block time must not exceed 4 s under 20 MiB/s load ---
 	require.LessOrEqual(t, avgBT, maxAvgBlockTime,
 		"average block time %v exceeds %v under 20 MiB/s blob load", avgBT, maxAvgBlockTime)
 	require.LessOrEqual(t, p99BT, maxP99BlockTime,
 		"p99 block time %v exceeds %v under 20 MiB/s blob load", p99BT, maxP99BlockTime)
+
+	// --- 9. Assert: blob submission must stay reliable and fast under load ---
+	require.GreaterOrEqual(t, latencyResults.SuccessRate, minSuccessRate,
+		"success rate %.2f%% below threshold %.2f%%",
+		latencyResults.SuccessRate*100, minSuccessRate*100)
+
+	// Effective latency is only recorded in sequential mode; with parallel
+	// workers broadcast completion is not observable and the average is zero.
+	if workers <= 1 {
+		require.LessOrEqual(t, latencyResults.AvgEffectiveLatency, maxAvgEffectiveLatency,
+			"avg effective latency %v exceeds threshold %v",
+			latencyResults.AvgEffectiveLatency, maxAvgEffectiveLatency)
+	}
 
 	t.Log("Corto load test passed")
 }

@@ -409,7 +409,6 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		require.ErrorContains(t, err, "namespace of blob and its respective MsgPayForBlobs differ")
 		assert.False(t, fromCache, "blobs changed so cache miss, full validation used")
 	})
-
 }
 
 func createTestSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {

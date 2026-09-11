@@ -20,6 +20,7 @@ type FilteredSquareBuilder struct {
 	handler   sdk.AnteHandler
 	msgRouter baseapp.MessageRouter
 	txConfig  client.TxConfig
+	chanKeep  channelKeeper
 	builder   *square.Builder
 }
 
@@ -27,6 +28,7 @@ func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
 	msgRouter baseapp.MessageRouter,
 	txConfig client.TxConfig,
+	chanKeep channelKeeper,
 	maxSquareSize,
 	subtreeRootThreshold int,
 ) (*FilteredSquareBuilder, error) {
@@ -38,6 +40,7 @@ func NewFilteredSquareBuilder(
 		handler:   handler,
 		msgRouter: msgRouter,
 		txConfig:  txConfig,
+		chanKeep:  chanKeep,
 		builder:   builder,
 	}, nil
 }
@@ -102,7 +105,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		execMsgCount := countExecutableMsgs(sdkTx.GetMsgs())
+		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue

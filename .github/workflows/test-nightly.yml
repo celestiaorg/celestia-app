@@ -108,7 +108,7 @@ jobs:
     needs: [build-e2e-image, build-latency-monitor-image]
     runs-on: ubuntu-latest
     # Generous budget so the retried sync test (up to 3 attempts) has headroom
-    # without prematurely killing the long-running upgrade/tx tests.
+    # without prematurely killing the long-running upgrade tests.
     timeout-minutes: 90
     strategy:
       fail-fast: false
@@ -125,15 +125,6 @@ jobs:
           # deadline, so retry once before failing the nightly.
           - test: TestAllUpgrades
             max-attempts: 2
-          # TestTxSubmission asserts a wall-clock average tx-inclusion latency
-          # bound. On shared GitHub-hosted runners a single run can occasionally
-          # see sustained CPU contention that inflates latency well above the
-          # threshold (e.g. 17s avg vs the usual ~4.6s). A genuine latency
-          # regression shifts the whole distribution and fails every attempt,
-          # so a retry de-flakes transient runner noise without masking it.
-          - test: TestTxSubmission
-            max-attempts: 2
-            extra-image: true
           - test: TestCortoLoad
             extra-image: true
     steps:
