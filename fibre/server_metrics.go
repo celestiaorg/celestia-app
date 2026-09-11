@@ -148,7 +148,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	}
 
 	sm.backendGetDuration, err = m.Float64Histogram("fibre.server.backend.get.duration",
-		metric.WithDescription("Duration of backend GET calls through payload reading, decoding and closing, including SDK retries"),
+		metric.WithDescription("Duration of backend GET calls through payload reading, decoding and closing"),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60),
 	)
@@ -156,7 +156,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating backend get duration histogram: %w", err)
 	}
 	sm.backendGetInFlight, err = m.Int64UpDownCounter("fibre.server.backend.get.in_flight",
-		metric.WithDescription("Number of backend GET calls in progress, including SDK retries and payload reading"),
+		metric.WithDescription("Number of backend GET calls in progress"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating backend get in_flight counter: %w", err)
@@ -235,7 +235,7 @@ func (m *serverMetrics) observeStoreOp(ctx context.Context, h metric.Float64Hist
 }
 
 func (m *serverMetrics) observeBackendGet(ctx context.Context, backend string) func(error) {
-	if m == nil {
+	if m == nil || (!m.backendGetDuration.Enabled(ctx) && !m.backendGetInFlight.Enabled(ctx)) {
 		return func(error) {}
 	}
 	start := time.Now()
@@ -270,7 +270,7 @@ func backendGetOutcome(err error) string {
 }
 
 func (m *serverMetrics) backendReader(ctx context.Context, backend string, r io.Reader) io.Reader {
-	if m == nil {
+	if m == nil || !m.backendGetBytes.Enabled(ctx) {
 		return r
 	}
 	return &backendMetricReader{

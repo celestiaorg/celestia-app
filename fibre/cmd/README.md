@@ -188,7 +188,7 @@ W3C TraceContext and Baggage propagators are registered globally, enabling distr
 
 Resource attributes exported with every trace: `service.name=fibre`, `service.version`, `service.instance.id` (hostname).
 
-**Metrics** — Exported via a periodic OTLP reader. All duration histograms carry a `success` attribute for error rate derivation from `_count`. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
+**Metrics** — Exported via a periodic OTLP reader. Duration histograms carry a `success` or `outcome` attribute for error rate derivation from `_count`. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
 
 #### Client metrics
 
@@ -220,9 +220,16 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total bytes sent |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
+| `fibre.server.backend.get.duration` | Histogram (s) | `backend`, `outcome` | Backend GET latency through payload reading, decoding and closing |
+| `fibre.server.backend.get.in_flight` | UpDownCounter | `backend` | Concurrent backend GET calls |
+| `fibre.server.backend.get.bytes` | Counter (By) | `backend` | Encoded bytes consumed, including partial failures and buffered reads |
 | `fibre.server.sign.duration` | Histogram (s) | `success` | Payment promise signing latency |
 | `fibre.server.prune.entries` | Counter | — | Total entries pruned |
 | `fibre.server.prune.duration` | Histogram (s) | `success` | Prune cycle duration |
+
+Backend GET metrics use `backend=local|object`.
+The duration metric uses `outcome=success|not_found|timeout|canceled|throttled|error`.
+Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.
 
 #### Grafana dashboard
 

@@ -237,6 +237,14 @@ The server records OpenTelemetry metrics for:
 - `fibre.server.download_shard.bytes`
 - `fibre.server.store.put.duration`
 - `fibre.server.store.get.duration`
+- `fibre.server.backend.get.duration`
+- `fibre.server.backend.get.in_flight`
+- `fibre.server.backend.get.bytes`
 - `fibre.server.sign.duration`
 - `fibre.server.prune.entries`
 - `fibre.server.prune.duration`
+
+Backend GET metrics use `backend=local|object`.
+Duration is measured in seconds through payload reading, decoding and closing, with `outcome=success|not_found|timeout|canceled|throttled|error`.
+The in-flight metric counts concurrent backend GET calls. The byte counter records encoded bytes consumed, including partial failures and buffered reads.
+Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.
