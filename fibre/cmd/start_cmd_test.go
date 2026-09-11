@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"os"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
@@ -224,6 +225,22 @@ func TestStartCmdUnlimitedBudget(t *testing.T) {
 
 		require.True(t, got.UnlimitedBudget, "--unlimited-budget must set the off switch")
 	})
+}
+
+func TestStartCmdOverrideObjectNamespace(t *testing.T) {
+	home := t.TempDir()
+	cmd, got := newTestStartCmd(t, home)
+	cmd.SetArgs([]string{"--" + flagOverrideObjectNamespace})
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+	require.True(t, got.ObjectStorage.OverrideNamespace)
+	require.NoError(t, got.Save(fibre.DefaultConfigPath(home)))
+	data, err := os.ReadFile(fibre.DefaultConfigPath(home))
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "OverrideNamespace")
+	require.NotContains(t, string(data), "override_namespace")
+	cmd, got = newTestStartCmd(t, home)
+	require.NoError(t, cmd.ExecuteContext(t.Context()))
+	require.False(t, got.ObjectStorage.OverrideNamespace)
 }
 
 func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress, signerGRPCAddress string) {

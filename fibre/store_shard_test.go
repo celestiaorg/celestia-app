@@ -92,7 +92,7 @@ func TestRoutedStorageChunksObjectDeletes(t *testing.T) {
 					}
 					return &s3.DeleteObjectsOutput{}, nil
 				},
-			}, "bucket", "prefix", "chain", "validator")
+			}, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 			store.shards.secondary = object
 			shards := make([]markedShard, maxObjectDeleteBatchSize+2)
 			localIndex := maxObjectDeleteBatchSize / 2

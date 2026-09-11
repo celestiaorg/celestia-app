@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -35,12 +34,9 @@ type shardID struct {
 
 // objectBackend stores shard payloads in S3-compatible object storage.
 type objectBackend struct {
-	client           s3ObjectClient
-	bucket           string
-	prefix           string
-	chainID          string
-	validatorAddress string
-	metrics          *serverMetrics
+	client    s3ObjectClient
+	namespace objectNamespace
+	metrics   *serverMetrics
 }
 
 var _ shardBackend = (*objectBackend)(nil)
@@ -49,14 +45,8 @@ func (*objectBackend) backendTag() shardBackendTag {
 	return objectBackendTag
 }
 
-func newObjectBackend(client s3ObjectClient, bucket, prefix, chainID, validatorAddress string) *objectBackend {
-	return &objectBackend{
-		client:           client,
-		bucket:           bucket,
-		prefix:           strings.Trim(prefix, "/"),
-		chainID:          chainID,
-		validatorAddress: validatorAddress,
-	}
+func newObjectBackend(client s3ObjectClient, namespace objectNamespace) *objectBackend {
+	return &objectBackend{client: client, namespace: namespace.canonical()}
 }
 
 func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
@@ -77,7 +67,7 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	}()
 
 	_, putErr := b.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:        aws.String(b.bucket),
+		Bucket:        aws.String(b.namespace.Bucket),
 		Key:           aws.String(b.objectKey(commitment, promiseHash)),
 		Body:          io.NopCloser(reader), // Preserve ContentLength; the SDK treats a bare pipe as unknown-length.
 		ContentLength: aws.Int64(shardBinarySize(shard)),
@@ -112,7 +102,7 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 	}
 
 	output, err := b.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(b.bucket),
+		Bucket: aws.String(b.namespace.Bucket),
 		Key:    aws.String(b.objectKey(commitment, promiseHash)),
 	})
 	if isObjectNotFound(err) {
@@ -143,7 +133,7 @@ func (b *objectBackend) Has(ctx context.Context, commitment Commitment, promiseH
 	}
 
 	_, err := b.client.HeadObject(ctx, &s3.HeadObjectInput{
-		Bucket: aws.String(b.bucket),
+		Bucket: aws.String(b.namespace.Bucket),
 		Key:    aws.String(b.objectKey(commitment, promiseHash)),
 	})
 	switch {
@@ -162,7 +152,7 @@ func (b *objectBackend) Delete(ctx context.Context, commitment Commitment, promi
 	}
 
 	_, err := b.client.DeleteObject(ctx, &s3.DeleteObjectInput{
-		Bucket: aws.String(b.bucket),
+		Bucket: aws.String(b.namespace.Bucket),
 		Key:    aws.String(b.objectKey(commitment, promiseHash)),
 	})
 	if isObjectNotFound(err) {
@@ -197,7 +187,7 @@ func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]err
 	}
 
 	output, err := b.client.DeleteObjects(ctx, &s3.DeleteObjectsInput{
-		Bucket: aws.String(b.bucket),
+		Bucket: aws.String(b.namespace.Bucket),
 		Delete: &s3types.Delete{
 			Objects: objects,
 			Quiet:   aws.Bool(true),
@@ -231,9 +221,9 @@ func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]err
 
 func (b *objectBackend) objectKey(commitment Commitment, promiseHash []byte) string {
 	return path.Join(
-		b.prefix,
-		b.chainID,
-		b.validatorAddress,
+		b.namespace.Prefix,
+		b.namespace.ChainID,
+		b.namespace.ValidatorAddress,
 		shardsSubdir,
 		commitment.String()+"-"+hex.EncodeToString(promiseHash),
 	)
