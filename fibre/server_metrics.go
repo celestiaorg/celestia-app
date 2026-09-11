@@ -15,6 +15,15 @@ import (
 	"go.opentelemetry.io/otel/metric"
 )
 
+const (
+	metricOutcomeSuccess   = "success"
+	metricOutcomeNotFound  = "not_found"
+	metricOutcomeTimeout   = "timeout"
+	metricOutcomeCanceled  = "canceled"
+	metricOutcomeThrottled = "throttled"
+	metricOutcomeError     = "error"
+)
+
 // serverMetrics holds OTel metric instruments for the Fibre [Server].
 type serverMetrics struct {
 	// UploadShard RPC
@@ -254,18 +263,18 @@ func backendGetOutcome(err error) string {
 	var response interface{ HTTPStatusCode() int }
 	switch {
 	case err == nil:
-		return "success"
+		return metricOutcomeSuccess
 	case errors.Is(err, ErrStoreNotFound):
-		return "not_found"
+		return metricOutcomeNotFound
 	case errors.Is(err, context.DeadlineExceeded), errors.As(err, &timeout) && timeout.Timeout():
-		return "timeout"
+		return metricOutcomeTimeout
 	case errors.Is(err, context.Canceled):
-		return "canceled"
+		return metricOutcomeCanceled
 	case (retry.ThrottleErrorCode{Codes: retry.DefaultThrottleErrorCodes}).IsErrorThrottle(err) == aws.TrueTernary,
 		errors.As(err, &response) && response.HTTPStatusCode() == http.StatusTooManyRequests:
-		return "throttled"
+		return metricOutcomeThrottled
 	default:
-		return "error"
+		return metricOutcomeError
 	}
 }
 
