@@ -37,7 +37,7 @@ func TestPruneObjectPartialFailureRecovery(t *testing.T) {
 			return &s3.DeleteObjectsOutput{}, nil
 		},
 	}
-	store.shards.secondary = newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
+	store.shards.secondary = newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 	for _, hash := range []byte{1, 2, 3} {
 		setPruneEntry(t, store, pruneAt, commitment, []byte{hash}, encodeShardMarkerForBackend(objectBackendTag, 7))
 	}
@@ -87,7 +87,7 @@ func TestPruneObjectRequestFailure(t *testing.T) {
 					return nil, requestErr
 				},
 			}
-			store.shards = newRoutedStorage(newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"}), store.shards.primary)
+			store.shards = newRoutedStorage(newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"}), store.shards.primary)
 			localHash := []byte{2}
 			size := writeMarkerTestShard(t, store, commitment, localHash)
 			setPruneEntry(t, store, pruneAt, commitment, localHash, nil)
@@ -120,7 +120,7 @@ func TestPruneObjectBatchLimit(t *testing.T) {
 			return &s3.DeleteObjectsOutput{}, nil
 		},
 	}
-	store.shards.secondary = newObjectBackend(client, ObjectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
+	store.shards.secondary = newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 	for i := range maxObjectDeleteBatchSize + 1 {
 		hash := binary.BigEndian.AppendUint64(nil, uint64(i))
 		setPruneEntry(t, store, pruneAt, commitment, hash, encodeShardMarkerForBackend(objectBackendTag, 1))

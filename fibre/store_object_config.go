@@ -17,7 +17,7 @@ import (
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
 	// ChainID and ValidatorAddress are derived by the server at startup.
-	ObjectNamespace
+	objectNamespace
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
