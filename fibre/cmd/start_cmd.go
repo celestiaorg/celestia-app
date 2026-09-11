@@ -71,7 +71,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
 	cmd.Flags().BoolVar(&cfg.UnlimitedBudget, flagUnlimitedBudget, cfg.UnlimitedBudget, "run without a storage budget, disabling the Fibre upload limiter")
-	cmd.Flags().BoolVar(&cfg.ObjectStorage.OverrideNamespace, flagOverrideObjectNamespace, false, "accept an object namespace change after migrating retained objects; does not migrate or verify objects")
+	cmd.Flags().BoolVar(&cfg.ObjectStorage.OverrideNamespace, flagOverrideObjectNamespace, false, "accept a new object storage namespace after migrating retained shards; does not migrate or verify objects")
 
 	return cmd
 }

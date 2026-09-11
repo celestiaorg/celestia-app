@@ -102,7 +102,8 @@ Restore the previous configuration and signer to recover access.
 For an intentional migration, stop the server and move all retained objects to the new namespace first.
 Then start once with `--override-object-namespace`. The server logs the old and new namespaces and saves the new namespace.
 This flag does not move or verify objects. An incorrect override can make retained shards unavailable and leave orphaned objects after pruning.
-The flag is not saved in TOML. Missing or corrupt namespace metadata cannot be overridden.
+The flag is not saved in TOML. It only overrides a mismatch with a valid saved namespace.
+Startup fails if the saved record is corrupt, or if retained object shards have no namespace record.
 After all object shards are pruned, namespace changes need no override.
 
 ### Shard retention
