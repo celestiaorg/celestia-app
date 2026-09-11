@@ -1,6 +1,7 @@
 package fibre_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -9,6 +10,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 // TestServerDownloadShard unit tests the [Server.DownloadShard].
@@ -100,6 +104,33 @@ func TestServerDownloadShard(t *testing.T) {
 			tt.check(t, resp, err)
 		})
 	}
+}
+
+func TestServerBackendGetMetrics(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
+	server, _, _ := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Meter = provider.Meter("server-test")
+	})
+	blob := makeTestBlobV0(t, 256)
+	storeTestShard(t, server, blob)
+	_, err := server.DownloadShard(t.Context(), &types.DownloadShardRequest{BlobId: blob.ID()})
+	require.NoError(t, err)
+	var data metricdata.ResourceMetrics
+	require.NoError(t, reader.Collect(t.Context(), &data))
+	for _, scope := range data.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			if m.Name == "fibre.server.backend.get.duration" {
+				points := m.Data.(metricdata.Histogram[float64]).DataPoints
+				require.Len(t, points, 1)
+				require.Equal(t, uint64(1), points[0].Count)
+				require.Equal(t, attribute.NewSet(attribute.String("backend", "local"), attribute.String("outcome", "success")), points[0].Attributes)
+				return
+			}
+		}
+	}
+	t.Fatal("server did not record backend GET metrics")
 }
 
 // storeTestShard stores a test blob shard in the server's store for download testing.

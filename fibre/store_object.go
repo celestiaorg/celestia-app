@@ -40,6 +40,7 @@ type objectBackend struct {
 	prefix           string
 	chainID          string
 	validatorAddress string
+	metrics          *serverMetrics
 }
 
 var _ shardBackend = (*objectBackend)(nil)
@@ -103,7 +104,9 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	return true, nil
 }
 
-func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (*types.BlobShard, error) {
+func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
+	done := b.metrics.observeBackendGet(ctx, storageBackendObject)
+	defer func() { done(err) }()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -120,7 +123,7 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 	}
 	defer output.Body.Close()
 
-	reader := bufio.NewReaderSize(output.Body, 1<<20)
+	reader := bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendObject, output.Body), 1<<20)
 	shard, err := readShardBinary(reader)
 	if err != nil {
 		return nil, fmt.Errorf("decoding shard object: %w", err)
