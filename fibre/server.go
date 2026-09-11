@@ -152,6 +152,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
+	s.store.shards.setMetrics(s.metrics)
 
 	if err := s.seedOccupancy(ctx); err != nil {
 		return err

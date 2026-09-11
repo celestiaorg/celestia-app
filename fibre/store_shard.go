@@ -28,6 +28,15 @@ func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
 	return &routedStorage{primary: primary, secondary: secondary}
 }
 
+func (s *routedStorage) setMetrics(metrics *serverMetrics) {
+	switch backend := s.primary.(type) {
+	case *localBackend:
+		backend.metrics = metrics
+	case *objectBackend:
+		backend.metrics = metrics
+	}
+}
+
 func (s *routedStorage) marker(size int64) []byte {
 	return encodeShardMarkerForBackend(s.primary.backendTag(), size)
 }
