@@ -19,7 +19,7 @@ When in doubt, treat as the higher tier. Light tier: skip Phase 1 and Phase 3 en
 
 ## Phase 1 — Align (risky only, hard gate)
 
-1. Explore the code involved. Answer every question the codebase can answer before asking the engineer.
+1. Explore the code involved — delegate token-heavy exploration to read-only sub-agents that return conclusions, not transcripts. Answer every question the codebase can answer before asking the engineer.
 2. Interview the engineer about every unclear or under-defined aspect. Give a recommended answer for each question.
 3. Write an assumptions note to `docs/plans/<task>.md`: goal, stated assumptions, invariants in play (by INV number), design decisions, open questions, and an implementation plan (ordered steps, files to touch, tests to add — as short as the task allows). Never commit this file.
 4. Present the note and wait for explicit confirmation. Do not write code before the engineer confirms.
@@ -32,7 +32,12 @@ When in doubt, treat as the higher tier. Light tier: skip Phase 1 and Phase 3 en
 
 ## Phase 3 — Review loop
 
-1. Get the full diff (`git diff` plus untracked files) and spawn these agents from `.claude/agents/` in parallel on it: `determinism-reviewer`, `adversarial-input-reviewer`, `consensus-reviewer`, `compat-reviewer`, `simplicity-reviewer`. Give each the diff and the path to the assumptions note if one exists.
+Model guideline — cheap models gather, frontier models think:
+
+- Gathering (`context-gatherer`, Phase 1 exploration) runs on a cheap model: Claude `sonnet` (pinned via `model:` in `.claude/agents/`); Codex low reasoning effort; any other LLM a mid-tier model.
+- Judgment (all reviewers and `finding-verifier`) is thinking: spawn these on the orchestrator's frontier model (no override). Deciding whether a finding is real never runs on a cheap model.
+
+1. Get the full diff (`git diff` plus untracked files). Spawn `context-gatherer` on it to build the evidence package, then spawn these agents from `.claude/agents/` in parallel: `determinism-reviewer`, `adversarial-input-reviewer`, `consensus-reviewer`, `compat-reviewer`, `simplicity-reviewer`. Give each the diff, the evidence package, and the path to the assumptions note if one exists.
 2. Consensus-critical tier: also spawn `adversarial-reviewer` in the first round. In later rounds, re-run it only on state transitions whose code changed during fixes. The engineer can request it for any change or skip it for a provably trivial one; record a skip in the report.
 3. For every finding, spawn a `finding-verifier` agent to try to refute it. Discard refuted findings. Escalate unproven findings to the engineer — never fix them on your own.
 4. Fix all confirmed findings, then run the reviewers again.
