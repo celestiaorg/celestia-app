@@ -227,7 +227,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.prune.entries` | Counter | — | Total entries pruned |
 | `fibre.server.prune.duration` | Histogram (s) | `success` | Prune cycle duration |
 
-Backend GET metrics use `backend=local|object`.
+Backend GET metrics record only the primary backend and use `backend=local|object`.
 The duration metric uses `outcome=success|not_found|timeout|canceled|throttled|error`.
 Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.
 

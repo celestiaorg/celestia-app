@@ -100,3 +100,22 @@ func TestBackendMetricsDisabled(t *testing.T) {
 		metrics.observeBackendGet(t.Context(), storageBackendLocal)(nil)
 	}
 }
+
+func TestRoutedStorageMetricsPrimaryOnly(t *testing.T) {
+	for _, objectPrimary := range []bool{false, true} {
+		local, object := &localBackend{}, &objectBackend{}
+		primary, secondary := shardBackend(local), shardBackend(object)
+		if objectPrimary {
+			primary, secondary = secondary, primary
+		}
+		metrics := &serverMetrics{}
+		newRoutedStorage(primary, secondary).setMetrics(metrics)
+		if objectPrimary {
+			require.Same(t, metrics, object.metrics)
+			require.Nil(t, local.metrics)
+		} else {
+			require.Same(t, metrics, local.metrics)
+			require.Nil(t, object.metrics)
+		}
+	}
+}

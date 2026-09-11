@@ -29,13 +29,11 @@ func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
-	for _, backend := range []shardBackend{s.primary, s.secondary} {
-		switch backend := backend.(type) {
-		case *localBackend:
-			backend.metrics = metrics
-		case *objectBackend:
-			backend.metrics = metrics
-		}
+	switch backend := s.primary.(type) {
+	case *localBackend:
+		backend.metrics = metrics
+	case *objectBackend:
+		backend.metrics = metrics
 	}
 }
 
