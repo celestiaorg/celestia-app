@@ -28,9 +28,9 @@ func namespaceFromConfig(cfg ObjectStorageConfig) objectNamespace {
 	}
 }
 
-func (s *Store) readObjectNamespace() (objectNamespace, bool, error) {
+func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
 	var namespace objectNamespace
-	data, closer, err := s.db.Get([]byte(objectNamespaceKey))
+	data, closer, err := db.Get([]byte(objectNamespaceKey))
 	if errors.Is(err, pebbledb.ErrNotFound) {
 		return namespace, false, nil
 	}
@@ -53,4 +53,11 @@ func (s *Store) readObjectNamespace() (objectNamespace, bool, error) {
 		return namespace, false, fmt.Errorf("%w: incomplete or non-canonical object namespace", ErrStoreIntegrity)
 	}
 	return namespace, true, nil
+}
+
+func (b *objectBackend) writeNamespace(batch *pebbledb.Batch) error {
+	if err := batch.Set([]byte(objectNamespaceKey), b.namespace, pebbledb.NoSync); err != nil {
+		return fmt.Errorf("putting object namespace: %w", err)
+	}
+	return nil
 }

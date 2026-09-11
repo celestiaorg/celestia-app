@@ -243,7 +243,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.Equal(t, shard, got)
 	promise.Commitment[0]++
 	require.Error(t, store.Put(t.Context(), promise, shard, pruneAt))
-	_, recorded, err := store.readObjectNamespace()
+	_, recorded, err := readObjectNamespace(store.db)
 	require.NoError(t, err)
 	require.False(t, recorded, "failed writes must not bind the namespace")
 	mu.Lock()
@@ -314,13 +314,13 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	}
 	mu.Unlock()
 	cfg.ObjectStorage.Prefix = "migrated"
-	cfg.OverrideObjectNamespace = true
+	cfg.ObjectStorage.OverrideNamespace = true
 	logs.Reset()
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.Contains(t, logs.String(), "override=true")
 	require.NoError(t, store.Close())
-	cfg.OverrideObjectNamespace = false
+	cfg.ObjectStorage.OverrideNamespace = false
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	got, err = store.Get(t.Context(), promise.Commitment)
@@ -375,7 +375,7 @@ func TestStoreRejectsInvalidObjectNamespace(t *testing.T) {
 			for _, mode := range []string{"local", "object"} {
 				cfg.StorageBackend = mode
 				for _, override := range []bool{false, true} {
-					cfg.OverrideObjectNamespace = override
+					cfg.ObjectStorage.OverrideNamespace = override
 					_, err := NewStore(t.Context(), cfg)
 					require.ErrorIs(t, err, ErrStoreIntegrity)
 				}

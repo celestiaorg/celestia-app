@@ -40,6 +40,7 @@ type objectBackend struct {
 	prefix           string
 	chainID          string
 	validatorAddress string
+	namespace        []byte
 	metrics          *serverMetrics
 }
 
