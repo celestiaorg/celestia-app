@@ -1,10 +1,12 @@
 package fibre
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"encoding/xml"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -196,7 +198,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 		}
 	}))
 	defer server.Close()
+	var logs bytes.Buffer
 	cfg := DefaultStoreConfig()
+	cfg.Log = slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
 	cfg.Path = t.TempDir()
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.Endpoint = server.URL
@@ -214,12 +218,16 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	localCommitment := promise.Commitment
 	store, err := NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	require.Empty(t, logs.String())
 	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
 	require.NoError(t, store.Close())
 
 	cfg.StorageBackend = "object"
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	require.Contains(t, logs.String(), "level=WARN")
+	require.Contains(t, logs.String(), "Changing storage_backend only affects new shards")
+	logs.Reset()
 	got, err := store.Get(t.Context(), localCommitment)
 	require.NoError(t, err)
 	require.Equal(t, shard, got)
@@ -237,9 +245,13 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	cfg.ObjectStorage = ObjectStorageConfig{}
 	_, err = NewStore(t.Context(), cfg)
 	require.ErrorContains(t, err, "object_storage.endpoint")
+	require.ErrorContains(t, err, "object storage must remain configured until all object shards are pruned")
+	logs.Reset()
 	cfg.ObjectStorage = retainedConfig
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	require.Contains(t, logs.String(), "level=WARN")
+	require.Contains(t, logs.String(), "Keep object storage configured and accessible until all object shards are pruned")
 	require.Equal(t, localBackendTag, store.shards.primary.backendTag())
 	got, err = store.Get(t.Context(), promise.Commitment)
 	require.NoError(t, err)
@@ -253,10 +265,12 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.Equal(t, 2*shardBinarySize(shard), freed)
 	require.NoError(t, store.Close())
 
+	logs.Reset()
 	cfg.ObjectStorage = ObjectStorageConfig{}
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	require.Nil(t, store.shards.secondary)
+	require.Empty(t, logs.String())
 	require.NoError(t, store.Close())
 }
 
