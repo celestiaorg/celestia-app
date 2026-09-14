@@ -86,7 +86,32 @@ fibre version
 
 The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fibre/server_config.toml`).
 
-Config precedence: **flag > config file > default**.
+Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
+
+### Connection caps and memory
+
+Two caps bound the server's worst-case receive memory:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `max_connections` | 16 | total concurrent gRPC connections |
+| `max_concurrent_streams` | 13 | concurrent streams per connection |
+
+gRPC buffers a full upload message (~132 MiB) per in-flight stream before the handler runs, so:
+
+```text
+worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```
+
+The defaults give 16 × 13 × 132 MiB ≈ 27 GiB, sized for a 32 GiB validator. To pick caps for a host with `R` GiB of RAM, keep the product under the RAM you can spend on receive buffers (leave headroom for the rest of the process and the OS):
+
+```text
+max_connections × max_concurrent_streams ≤ (receive-buffer budget in MiB) / 132
+```
+
+For example, on 64 GiB budgeting ~54 GiB for receive buffers gives 54 × 1024 / 132 ≈ 418 streams, e.g. `max_connections = 32`, `max_concurrent_streams = 13`.
+
+An upload uses 16 signers, i.e. 16 connections. With `max_connections = 16` a concurrent download cannot get a connection until the upload finishes. Raise `max_connections` above 16 to leave slots free for downloads. To do this without raising RAM, lower `max_concurrent_streams` so the product stays roughly the same — e.g. `max_connections = 24`, `max_concurrent_streams = 8` (≈ 25 GiB) frees 8 slots on a 32 GiB host. Both caps must be at least 1.
 
 ## Signing
 
