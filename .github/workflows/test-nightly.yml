@@ -107,9 +107,8 @@ jobs:
   test-nightly:
     needs: [build-e2e-image, build-latency-monitor-image]
     runs-on: ubuntu-latest
-    # Generous budget so the retried sync test (up to 3 attempts) has headroom
-    # without prematurely killing the long-running upgrade tests.
-    timeout-minutes: 90
+    # Corto needs room for 4 attempts, 3 ten-minute waits, and setup.
+    timeout-minutes: ${{ matrix.timeout-minutes || 90 }}
     strategy:
       fail-fast: false
       matrix:
@@ -127,6 +126,10 @@ jobs:
             max-attempts: 2
           - test: TestCortoLoad
             extra-image: true
+            # Initial attempt plus 3 retries, waiting 10 minutes before each.
+            max-attempts: 4
+            retry-wait-seconds: 600
+            timeout-minutes: 160
     steps:
       - name: Checkout code
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
@@ -186,6 +189,7 @@ jobs:
           timeout_minutes: 30
           # Defaults to 1 attempt (no retry) for tests that don't opt in.
           max_attempts: ${{ matrix.max-attempts || 1 }}
+          retry_wait_seconds: ${{ matrix.retry-wait-seconds || 10 }}
           command: make test-docker-e2e test=${{ matrix.test }}
         env:
           CELESTIA_IMAGE: ghcr.io/celestiaorg/celestia-app
