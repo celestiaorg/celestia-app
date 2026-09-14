@@ -363,7 +363,8 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	return pruned, freed, err
 }
 
-// pruneBefore resumes after a previous batch and returns the next cursor, or nil when done.
+// pruneBefore resumes after the given prune-index key and returns the last selected key for the next batch.
+// A nil returned key means the pass is complete.
 func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte) (int, int64, []byte, error) {
 	prefix := []byte("/prune/")
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
@@ -388,6 +389,9 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 	beforeStr := formatTimestamp(before.UTC())
 	valid := iter.First()
 	if len(after) > 0 {
+		// SeekGE finds the first key greater than or equal to its argument.
+		// Appending a zero byte makes the target greater than after, so retained failures are not selected again.
+		// Clone the key so append cannot change the caller's backing array.
 		valid = iter.SeekGE(append(slices.Clone(after), 0))
 	}
 	for ; valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
