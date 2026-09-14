@@ -130,6 +130,14 @@ Restart Fibre to apply changes. Values must be positive and no greater than the 
 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
 
+### Switching shard storage backends
+
+Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
+
+**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix.
+
+Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
+
 ### Connection caps and memory
 
 `max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
