@@ -96,7 +96,8 @@ type markedShard struct {
 }
 
 // DeleteBatch deletes payloads by marker and returns their successful input positions.
-// Local deletes stop on failure. Object requests contain at most 1,000 keys; per-key failures remain for retry.
+// The caller keeps metadata for failed deletions and retries them in a later prune pass.
+// Object requests contain at most 1,000 keys.
 func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) ([]int, error) {
 	var local, objects []int
 	var object *objectBackend
@@ -123,15 +124,20 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 	var successful []int
 	var deleteErr error
 	for _, i := range local {
+		if err := ctx.Err(); err != nil {
+			return successful, errors.Join(deleteErr, err)
+		}
 		shard := shards[i]
 		if err := s.Delete(ctx, shard.marker, shard.id.commitment, shard.id.promiseHash); err != nil {
-			deleteErr = err
-			break
+			if ctx.Err() != nil {
+				return successful, errors.Join(deleteErr, err, ctx.Err())
+			}
+			if deleteErr == nil {
+				deleteErr = err
+			}
+			continue
 		}
 		successful = append(successful, i)
-	}
-	if len(objects) == 0 {
-		return successful, deleteErr
 	}
 	for indices := range slices.Chunk(objects, maxObjectDeleteBatchSize) {
 		ids := make([]shardID, len(indices))
@@ -140,7 +146,11 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 		}
 		results, err := object.DeleteObjects(ctx, ids)
 		if err != nil {
-			return successful, errors.Join(deleteErr, err)
+			if ctx.Err() != nil {
+				return successful, errors.Join(deleteErr, err, ctx.Err())
+			}
+			deleteErr = errors.Join(deleteErr, err)
+			continue
 		}
 		for i, err := range results {
 			if err != nil {
@@ -152,8 +162,17 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 			successful = append(successful, indices[i])
 		}
 	}
-	return successful, deleteErr
+	if deleteErr != nil {
+		return successful, &partialDeleteError{deleteErr}
+	}
+	return successful, nil
 }
+
+// partialDeleteError reports payload failures after all deletions were attempted.
+type partialDeleteError struct{ err error }
+
+func (e *partialDeleteError) Error() string { return e.err.Error() }
+func (e *partialDeleteError) Unwrap() error { return e.err }
 
 func (s *routedStorage) size(marker []byte, commitment Commitment, promiseHash []byte) (int64, error) {
 	tag, size, err := decodeShardMarkerBackend(marker)
