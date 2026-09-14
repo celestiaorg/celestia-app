@@ -53,6 +53,9 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 		{"bucket", func(c *ObjectStorageConfig) { c.Bucket = " " }},
 		{"prefix", func(c *ObjectStorageConfig) { c.Prefix = " " }},
 		{"prefix slashes", func(c *ObjectStorageConfig) { c.Prefix = "///" }},
+		{"prefix trailing space", func(c *ObjectStorageConfig) { c.Prefix = "fibre /" }},
+		{"prefix leading space", func(c *ObjectStorageConfig) { c.Prefix = "/ fibre" }},
+		{"prefix cleaned space", func(c *ObjectStorageConfig) { c.Prefix = "fibre /./" }},
 		{"negative timeout", func(c *ObjectStorageConfig) { c.RequestTimeout = -time.Second }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -77,6 +80,31 @@ func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
 	cfg.Prefix = " fibre "
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, want, cfg)
+}
+
+func TestStoreRejectsUnstablePrefix(t *testing.T) {
+	clearAWSCredentials(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	cfg := DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	cfg.StorageBackend = "object"
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
+	cfg.ObjectStorage.Prefix = "fibre /"
+	store, err := NewStore(t.Context(), cfg)
+	if store != nil {
+		require.NoError(t, store.Close())
+	}
+	require.ErrorContains(t, err, "object_storage.prefix")
+
+	// A rejected prefix must not leave metadata that prevents a corrected restart.
+	cfg.ObjectStorage.Prefix = " /fibre/./ "
+	for range 2 {
+		store, err = NewStore(t.Context(), cfg)
+		require.NoError(t, err)
+		require.NoError(t, store.Close())
+	}
 }
 
 func TestStoreRejectsMissingObjectCredentials(t *testing.T) {
