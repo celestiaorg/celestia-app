@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -36,6 +37,10 @@ type ServerConfig struct {
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
+	// MaxConnections caps total concurrent gRPC connections.
+	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
+	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
+	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
 
 	StoreConfig `toml:"-"`
 
@@ -87,16 +92,18 @@ func DefaultServerConfig() ServerConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
-		AppGRPCAddress:      "127.0.0.1:9090",
-		ServerListenAddress: "0.0.0.0:7980",
-		SignerGRPCAddress:   "127.0.0.1:26669",
-		StoreConfig:         DefaultStoreConfig(),
-		LivenessThreshold:   p.LivenessThreshold,
-		MinRowsPerValidator: p.MinRowsPerValidator(),
-		OriginalRows:        p.Rows,
-		MaxShardSize:        p.MaxShardSize(),
-		MaxMessageSize:      p.MaxMessageSize(),
-		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
+		AppGRPCAddress:       "127.0.0.1:9090",
+		ServerListenAddress:  "0.0.0.0:7980",
+		SignerGRPCAddress:    "127.0.0.1:26669",
+		StoreConfig:          DefaultStoreConfig(),
+		LivenessThreshold:    p.LivenessThreshold,
+		MinRowsPerValidator:  p.MinRowsPerValidator(),
+		OriginalRows:         p.Rows,
+		MaxShardSize:         p.MaxShardSize(),
+		MaxMessageSize:       p.MaxMessageSize(),
+		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
+		MaxConnections:       fibregrpc.DefaultMaxConnections,
+		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}
 	return cfg
 }
@@ -147,6 +154,15 @@ func (cfg *ServerConfig) Validate() error {
 
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
+	}
+	if cfg.MaxConnections < 1 {
+		return fmt.Errorf("max_connections must be at least 1, got %d", cfg.MaxConnections)
+	}
+	if cfg.MaxConcurrentStreams < 1 {
+		return fmt.Errorf("max_concurrent_streams must be at least 1, got %d", cfg.MaxConcurrentStreams)
+	}
+	if uint64(cfg.MaxConcurrentStreams) > math.MaxUint32 {
+		return fmt.Errorf("max_concurrent_streams must not exceed %d, got %d", uint64(math.MaxUint32), cfg.MaxConcurrentStreams)
 	}
 	return nil
 }

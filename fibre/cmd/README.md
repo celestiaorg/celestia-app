@@ -86,7 +86,19 @@ fibre version
 
 The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fibre/server_config.toml`).
 
-Config precedence: **flag > config file > default**.
+Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
+
+### Connection caps and memory
+
+`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+
+```text
+worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```
+
+The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+
+An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
 
 ## Signing
 
