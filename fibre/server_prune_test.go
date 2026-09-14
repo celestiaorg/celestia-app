@@ -123,7 +123,7 @@ func TestServerPruneLocalFailureWithObjectRequest(t *testing.T) {
 					}
 					return &s3.DeleteObjectsOutput{}, nil
 				},
-			}, "bucket", "prefix", "chain", "validator")
+			}, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 			for i := range maxPruneBatchSize + 1 {
 				tag := localBackendTag
 				if i == 1 {
