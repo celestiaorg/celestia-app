@@ -47,6 +47,9 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	if strings.Trim(cfg.Prefix, "/") == "" {
 		return fmt.Errorf("object_storage.prefix is required")
 	}
+	if prefix := cfg.canonical().Prefix; prefix != strings.TrimSpace(prefix) {
+		return fmt.Errorf("object_storage.prefix must not start or end with whitespace after path cleaning")
+	}
 	if cfg.RequestTimeout < 0 {
 		return fmt.Errorf("object_storage.request_timeout must not be negative")
 	}
