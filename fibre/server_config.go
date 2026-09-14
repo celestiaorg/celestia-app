@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -159,6 +160,9 @@ func (cfg *ServerConfig) Validate() error {
 	}
 	if cfg.MaxConcurrentStreams < 1 {
 		return fmt.Errorf("max_concurrent_streams must be at least 1, got %d", cfg.MaxConcurrentStreams)
+	}
+	if uint64(cfg.MaxConcurrentStreams) > math.MaxUint32 {
+		return fmt.Errorf("max_concurrent_streams must not exceed %d, got %d", uint64(math.MaxUint32), cfg.MaxConcurrentStreams)
 	}
 	return nil
 }

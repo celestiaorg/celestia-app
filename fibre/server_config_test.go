@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
@@ -104,6 +105,12 @@ func TestServerConfigValidateConnectionCaps(t *testing.T) {
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "max_concurrent_streams must be at least 1")
+
+	tooBig := uint64(math.MaxUint32) + 1
+	cfg.MaxConcurrentStreams = int(tooBig)
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not exceed")
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {
