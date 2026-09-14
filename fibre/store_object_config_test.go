@@ -16,9 +16,12 @@ import (
 	"testing"
 	"time"
 
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +32,8 @@ func testObjectStorageConfig() ObjectStorageConfig {
 			Endpoint: "https://account.r2.cloudflarestorage.com",
 			Bucket:   "fibre-shards", Prefix: "fibre",
 		},
-		Region: "auto",
+		Region:         "auto",
+		RequestTimeout: defaultObjectRequestTimeout,
 	}
 }
 
@@ -49,6 +53,7 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 		{"bucket", func(c *ObjectStorageConfig) { c.Bucket = " " }},
 		{"prefix", func(c *ObjectStorageConfig) { c.Prefix = " " }},
 		{"prefix slashes", func(c *ObjectStorageConfig) { c.Prefix = "///" }},
+		{"negative timeout", func(c *ObjectStorageConfig) { c.RequestTimeout = -time.Second }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := testObjectStorageConfig()
@@ -57,7 +62,9 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 		})
 	}
 	cfg := testObjectStorageConfig()
+	cfg.RequestTimeout = 0
 	require.NoError(t, cfg.Validate())
+	require.Equal(t, defaultObjectRequestTimeout, cfg.RequestTimeout)
 	cfg.Endpoint = "http://localhost:9000"
 	require.NoError(t, cfg.Validate())
 }
@@ -154,6 +161,62 @@ func TestStoreConfigValidateBackend(t *testing.T) {
 	require.ErrorContains(t, err, "chain ID and validator address")
 }
 
+func TestObjectStorageRequestTimeout(t *testing.T) {
+	clearAWSCredentials(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	for _, operation := range []string{"put", "get", "has", "delete", "delete batch", "read body", "cancel body"} {
+		t.Run(operation, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			defer cancel()
+			release := make(chan struct{})
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.Copy(io.Discard, r.Body)
+				if strings.HasSuffix(operation, "body") {
+					w.Header().Set("Content-Length", "100")
+					w.WriteHeader(http.StatusOK)
+					w.(http.Flusher).Flush()
+				}
+				if operation == "cancel body" {
+					cancel()
+				}
+				<-release
+			}))
+			defer server.Close()
+			defer close(release)
+			cfg := DefaultStoreConfig()
+			cfg.Path = t.TempDir()
+			cfg.StorageBackend = storageBackendObject
+			cfg.ObjectStorage = testObjectStorageConfig()
+			cfg.ObjectStorage.Endpoint = server.URL
+			cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "chain", "validator"
+			require.NoError(t, toml.Unmarshal([]byte("request_timeout = 100000000"), &cfg.ObjectStorage))
+			store, err := NewStore(t.Context(), cfg)
+			require.NoError(t, err)
+			defer store.Close()
+			backend := store.shards.primary.(*objectBackend)
+			switch operation {
+			case "put":
+				_, err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
+			case "get", "read body", "cancel body":
+				_, err = backend.Get(ctx, Commitment{}, []byte{1})
+			case "has":
+				_, err = backend.Has(ctx, Commitment{}, []byte{1})
+			case "delete":
+				err = backend.Delete(ctx, Commitment{}, []byte{1})
+			case "delete batch":
+				_, err = backend.DeleteObjects(ctx, []shardID{{promiseHash: []byte{1}}})
+			}
+			if operation == "cancel body" {
+				require.ErrorIs(t, err, context.Canceled)
+			} else {
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+				require.NoError(t, ctx.Err(), "the backend must time out before its caller")
+			}
+		})
+	}
+}
+
 // TestStoreConfiguredBackendSwitch checks reads and pruning across local-to-object-to-local restarts.
 // It also checks SDK signing, object keys, and the required configuration for retained object markers.
 func TestStoreConfiguredBackendSwitch(t *testing.T) {
@@ -216,6 +279,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.Endpoint = server.URL
 	cfg.ObjectStorage.Region = " auto "
+	cfg.ObjectStorage.RequestTimeout = 90 * time.Second
 	cfg.ObjectStorage.Bucket = " fibre-shards "
 	cfg.ObjectStorage.Prefix = " fibre "
 	cfg.ObjectStorage.ChainID = "test-chain"
@@ -236,6 +300,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	cfg.StorageBackend = "object"
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	client := store.shards.primary.(*objectBackend).client.(*s3.Client)
+	transport := client.Options().HTTPClient.(*awshttp.BuildableClient).GetTransport()
+	require.Equal(t, cfg.ObjectStorage.RequestTimeout, transport.ResponseHeaderTimeout)
 	_, recorded, err := readObjectNamespace(store.db)
 	require.NoError(t, err)
 	require.True(t, recorded, "startup must save the namespace before accepting uploads")
