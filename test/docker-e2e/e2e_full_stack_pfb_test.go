@@ -28,7 +28,7 @@ const (
 	// NOTE: the intention of this test is that it is just a basic sanity check for the entire stack.
 	// while the app version will vary on a per-pr and per-tag basis, the node version can remain relatively static.
 	// we can bump it as required.
-	celestiaNodeVersion    = "cb0ffce"
+	celestiaNodeVersion    = "v0.34.1-corto"
 	celestiaNodeRepository = "ghcr.io/celestiaorg/celestia-node"
 )
 
@@ -44,13 +44,6 @@ func (s *CelestiaTestSuite) TestE2EFullStackPFB() {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}
-	// TODO: re-enable (and bump celestiaNodeVersion) once a celestia-node
-	// release supports celestia-app/v10. celestia-node cb0ffce (and celestia-node
-	// main) still depend on celestia-app/v9 and reject v10 block headers, so the
-	// bridge node produces no headers and the light node fails to sync its
-	// network head. The app was bumped to v10 in #7492.
-	t.Skip("skipping until celestia-node supports app v10")
-
 	ctx := context.TODO()
 
 	cfg := dockerchain.DefaultConfig(s.client, s.network)
