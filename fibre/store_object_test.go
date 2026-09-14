@@ -10,10 +10,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -51,6 +53,66 @@ func TestObjectBackendPutContentLength(t *testing.T) {
 	created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
 	require.NoError(t, err)
 	require.True(t, created)
+}
+
+func TestObjectBackendPutRetry(t *testing.T) {
+	for _, secondStatus := range []int{http.StatusOK, http.StatusPreconditionFailed, http.StatusServiceUnavailable} {
+		t.Run(http.StatusText(secondStatus), func(t *testing.T) {
+			shard := &types.BlobShard{
+				Rlcs: []byte("rlcs"),
+				Rows: []*types.BlobRow{{Index: 4, Data: bytes.Repeat([]byte("data"), 1<<19), Proof: [][]byte{[]byte("proof")}}},
+			}
+			var encoded bytes.Buffer
+			require.NoError(t, writeShardBinary(&encoded, shard))
+			var attempts atomic.Int32
+			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				if err != nil || !bytes.Equal(encoded.Bytes(), body) {
+					t.Error("upload body does not match the encoded shard", err)
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
+				if r.ContentLength != int64(encoded.Len()) || r.Header.Get("If-None-Match") != "*" {
+					t.Error("upload length or conditional creation header changed")
+				}
+				status := secondStatus
+				if attempts.Add(1) == 1 {
+					status = http.StatusServiceUnavailable
+				}
+				w.Header().Set("Content-Type", "application/xml")
+				w.WriteHeader(status)
+				switch status {
+				case http.StatusServiceUnavailable:
+					_, _ = io.WriteString(w, "<Error><Code>SlowDown</Code></Error>")
+				case http.StatusPreconditionFailed:
+					_, _ = io.WriteString(w, "<Error><Code>PreconditionFailed</Code></Error>")
+				}
+			}))
+			defer server.Close()
+			client := s3.New(s3.Options{
+				Region:       "us-east-1",
+				Credentials:  credentials.NewStaticCredentialsProvider("test", "test", ""),
+				BaseEndpoint: aws.String(server.URL),
+				UsePathStyle: true,
+				HTTPClient:   server.Client(),
+				Retryer: retry.NewStandard(func(o *retry.StandardOptions) {
+					o.MaxAttempts = 2
+					o.Backoff = retry.BackoffDelayerFunc(func(int, error) (time.Duration, error) { return 0, nil })
+				}),
+			})
+			backend := newObjectBackend(client, objectNamespace{Bucket: "bucket"})
+			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+			defer cancel()
+			created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
+			if secondStatus == http.StatusServiceUnavailable {
+				require.True(t, hasObjectErrorCode(err, "SlowDown"), "got %v", err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.Equal(t, secondStatus == http.StatusOK, created)
+			require.Equal(t, int32(2), attempts.Load())
+		})
+	}
 }
 
 func TestObjectBackendPut(t *testing.T) {

@@ -58,31 +58,22 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 		return false, err
 	}
 
-	reader, writer := io.Pipe()
-	writeDone := make(chan error, 1)
-	go func() {
-		buffer := bufio.NewWriterSize(writer, 1<<20)
-		err := writeShardBinary(buffer, shard)
-		if err == nil {
-			err = buffer.Flush()
-		}
-		_ = writer.CloseWithError(err)
-		writeDone <- err
-	}()
+	reader, err := newShardReader(shard)
+	if err != nil {
+		return false, fmt.Errorf("encoding shard object: %w", err)
+	}
 
 	_, putErr := b.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(b.namespace.Bucket),
 		Key:           aws.String(b.objectKey(commitment, promiseHash)),
-		Body:          io.NopCloser(reader), // Preserve ContentLength; the SDK treats a bare pipe as unknown-length.
-		ContentLength: aws.Int64(shardBinarySize(shard)),
+		Body:          reader,
+		ContentLength: aws.Int64(reader.size),
 		IfNoneMatch:   aws.String("*"),
 	}, func(options *s3.Options) {
 		options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
-		// The pipe cannot rewind for SigV4 payload hashing; sign the request with UNSIGNED-PAYLOAD instead.
+		// Avoid hashing the full shard for SigV4 signing.
 		options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
 	})
-	_ = reader.CloseWithError(putErr)
-	writeErr := <-writeDone
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
 		// IfNoneMatch: "*" rejected this upload because a shard already exists for this commitment and promise hash.
@@ -91,9 +82,6 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	}
 	if putErr != nil {
 		return false, fmt.Errorf("putting shard object: %w", putErr)
-	}
-	if writeErr != nil {
-		return false, fmt.Errorf("encoding shard object: %w", writeErr)
 	}
 	return true, nil
 }
