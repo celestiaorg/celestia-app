@@ -9,6 +9,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -39,6 +40,8 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards *routedStorage
+	// putLocks serialises same-key writes through metadata commit and cleanup.
+	putLocks [256]sync.Mutex
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -116,6 +119,10 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
 
+	mu := &s.putLocks[promiseHash[0]]
+	mu.Lock()
+	defer mu.Unlock()
+
 	marker := s.shards.marker(shardBinarySize(shard))
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
 }
@@ -156,12 +163,12 @@ func (s *Store) commitAndStore(
 	}
 
 	// The marker routes the write and any commit-failure cleanup to the same backend.
-	created, err := s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
+	_, err = s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
 	if err != nil {
 		return fmt.Errorf("storing shard payload: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		if created && !s.hasShardMarker(promise.Commitment, promiseHash) {
+		if s.shardMarkerMissing(promise.Commitment, promiseHash) {
 			if rmErr := s.shards.Delete(context.Background(), marker, promise.Commitment, promiseHash); rmErr != nil {
 				s.log.Warn("failed to remove orphaned shard after commit failure",
 					"commitment", promise.Commitment.String(), "error", rmErr)
@@ -248,16 +255,15 @@ func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseH
 	return has, accounted, nil
 }
 
-// hasShardMarker reports whether a committed shard marker exists,
-// checking only the pebble metadata.
-func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
+// shardMarkerMissing reports confirmed absence. Read errors must not permit deletion.
+func (s *Store) shardMarkerMissing(commit Commitment, promiseHash []byte) bool {
 	_, closer, err := s.db.Get(shardKey(commit, promiseHash))
 	switch {
 	case err == nil:
 		_ = closer.Close()
-		return true
-	case errors.Is(err, pebbledb.ErrNotFound):
 		return false
+	case errors.Is(err, pebbledb.ErrNotFound):
+		return true
 	default:
 		s.log.Warn("failed to check shard marker", "commitment", commit.String(), "error", err)
 		return false
