@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -81,6 +82,28 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 	err := cfg.Validate()
 	require.NoError(t, err)
 	assert.NotNil(t, cfg.SignerFn)
+}
+
+func TestServerConfigConnectionDefaults(t *testing.T) {
+	cfg := DefaultServerConfig()
+	assert.Equal(t, fibregrpc.DefaultMaxConnections, cfg.MaxConnections)
+	assert.Equal(t, fibregrpc.DefaultMaxConcurrentStreams, cfg.MaxConcurrentStreams)
+}
+
+func TestServerConfigValidateConnectionCaps(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.Path = t.TempDir()
+	cfg.MaxConnections = 0
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "max_connections must be at least 1")
+
+	cfg.MaxConnections = fibregrpc.DefaultMaxConnections
+	cfg.MaxConcurrentStreams = 0
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "max_concurrent_streams must be at least 1")
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {
