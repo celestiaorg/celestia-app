@@ -2,8 +2,6 @@ package fibre
 
 import (
 	"context"
-	"errors"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -62,29 +60,6 @@ func TestStorePutCommitFailureCleanup(t *testing.T) {
 			require.ErrorContains(t, err, "committing metadata")
 			if markerState == "missing" {
 				require.Equal(t, 1, deletes)
-				var active atomic.Bool
-				client.putObject = func(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
-					if active.Swap(true) {
-						t.Error("another same-key write started before cleanup finished")
-					}
-					return nil, &smithy.GenericAPIError{Code: "PreconditionFailed"}
-				}
-				client.deleteObject = func(context.Context, *s3.DeleteObjectInput, ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
-					// Keep cleanup in progress while the other writers try to enter Put.
-					time.Sleep(time.Millisecond)
-					active.Store(false)
-					return &s3.DeleteObjectOutput{}, nil
-				}
-				var writers sync.WaitGroup
-				for range 10 {
-					writers.Go(func() {
-						err := store.Put(t.Context(), promise, &types.BlobShard{}, promise.CreationTimestamp)
-						if !errors.Is(err, pebbledb.ErrReadOnly) {
-							t.Errorf("expected failed metadata commit, got %v", err)
-						}
-					})
-				}
-				writers.Wait()
 			} else {
 				require.Zero(t, deletes)
 			}

@@ -9,7 +9,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -40,8 +39,6 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards *routedStorage
-	// putLocks serialises same-key writes through metadata commit and cleanup.
-	putLocks [256]sync.Mutex
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -118,10 +115,6 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	if err != nil {
 		return fmt.Errorf("getting promise hash: %w", err)
 	}
-
-	mu := &s.putLocks[promiseHash[0]]
-	mu.Lock()
-	defer mu.Unlock()
 
 	marker := s.shards.marker(shardBinarySize(shard))
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
