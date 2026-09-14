@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -34,9 +35,10 @@ type shardID struct {
 
 // objectBackend stores shard payloads in S3-compatible object storage.
 type objectBackend struct {
-	client    s3ObjectClient
-	namespace objectNamespace
-	metrics   *serverMetrics
+	client         s3ObjectClient
+	namespace      objectNamespace
+	metrics        *serverMetrics
+	requestTimeout time.Duration
 }
 
 var _ shardBackend = (*objectBackend)(nil)
@@ -46,10 +48,12 @@ func (*objectBackend) backendTag() shardBackendTag {
 }
 
 func newObjectBackend(client s3ObjectClient, namespace objectNamespace) *objectBackend {
-	return &objectBackend{client: client, namespace: namespace.canonical()}
+	return &objectBackend{client: client, namespace: namespace.canonical(), requestTimeout: defaultObjectRequestTimeout}
 }
 
 func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
+	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -95,6 +99,8 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 }
 
 func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
+	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
+	defer cancel()
 	done := b.metrics.observeBackendGet(ctx, storageBackendObject)
 	defer func() { done(err) }()
 	if err := ctx.Err(); err != nil {
@@ -128,6 +134,8 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 }
 
 func (b *objectBackend) Has(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
+	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -147,6 +155,8 @@ func (b *objectBackend) Has(ctx context.Context, commitment Commitment, promiseH
 }
 
 func (b *objectBackend) Delete(ctx context.Context, commitment Commitment, promiseHash []byte) error {
+	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
+	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -166,6 +176,8 @@ func (b *objectBackend) Delete(ctx context.Context, commitment Commitment, promi
 
 // DeleteObjects deletes up to 1,000 objects. Returned errors align with ids.
 func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]error, error) {
+	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
+	defer cancel()
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

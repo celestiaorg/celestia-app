@@ -2,22 +2,29 @@ package fibre
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 )
+
+const defaultObjectRequestTimeout = 30 * time.Second
 
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
 	// ChainID and ValidatorAddress are derived by the server at startup.
 	objectNamespace
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
+	// RequestTimeout bounds an object operation, including retries and response reads.
+	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
 }
@@ -39,6 +46,12 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	}
 	if strings.Trim(cfg.Prefix, "/") == "" {
 		return fmt.Errorf("object_storage.prefix is required")
+	}
+	if cfg.RequestTimeout < 0 {
+		return fmt.Errorf("object_storage.request_timeout must not be negative")
+	}
+	if cfg.RequestTimeout == 0 {
+		cfg.RequestTimeout = defaultObjectRequestTimeout
 	}
 	return nil
 }
@@ -86,13 +99,24 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 			return nil, err
 		}
 	}
-	return newObjectBackend(client, namespace), nil
+	backend := newObjectBackend(client, namespace)
+	backend.requestTimeout = cfg.ObjectStorage.RequestTimeout
+	return backend, nil
 }
 
 func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region))
+	httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+		tr.ForceAttemptHTTP2 = false
+		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
+		tr.TLSClientConfig.ClientSessionCache = tls.NewLRUClientSessionCache(512)
+		tr.MaxIdleConns, tr.MaxIdleConnsPerHost = 512, 512
+		tr.IdleConnTimeout = 15 * time.Second
+		tr.ResponseHeaderTimeout = defaultObjectRequestTimeout
+		tr.WriteBufferSize, tr.ReadBufferSize = 256<<10, 256<<10
+	})
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region), config.WithHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("loading AWS configuration: %w", err)
 	}
