@@ -13,7 +13,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/attribute"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 )
 
 func TestServerPruneContinuesAfterLocalFailure(t *testing.T) {
@@ -37,7 +39,9 @@ func TestServerPruneContinuesAfterLocalFailure(t *testing.T) {
 			store.shards.primary = backend
 			occ := newOccupancy(0)
 			occ.seed((total + 1) * size)
-			provider := sdkmetric.NewMeterProvider()
+			reader := sdkmetric.NewManualReader()
+			provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+			t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
 			metrics, err := newServerMetrics(provider.Meter("prune-test"), occ)
 			require.NoError(t, err)
 			var logs strings.Builder
@@ -58,6 +62,28 @@ func TestServerPruneContinuesAfterLocalFailure(t *testing.T) {
 					require.Equal(t, wantAttempts, backend.attempts[uint64(i)])
 				}
 			}
+			var collected metricdata.ResourceMetrics
+			require.NoError(t, reader.Collect(t.Context(), &collected))
+			seen := 0
+			for _, scope := range collected.ScopeMetrics {
+				for _, metric := range scope.Metrics {
+					switch metric.Name {
+					case "fibre.server.prune.entries":
+						points := metric.Data.(metricdata.Sum[int64]).DataPoints
+						require.Len(t, points, 1)
+						require.Equal(t, int64(total-failures), points[0].Value)
+					case "fibre.server.prune.duration":
+						points := metric.Data.(metricdata.Histogram[float64]).DataPoints
+						require.Len(t, points, 1)
+						require.Equal(t, uint64(2), points[0].Count)
+						require.Equal(t, attribute.NewSet(attribute.Bool("success", false)), points[0].Attributes)
+					default:
+						continue
+					}
+					seen++
+				}
+			}
+			require.Equal(t, 2, seen)
 			require.Contains(t, logs.String(), "prune retained failed payload deletions")
 			require.Zero(t, backend.attempts[total])
 			requirePruneEntry(t, store, pruneAt.Add(2*time.Hour), commitment, futureHash, true)
@@ -75,18 +101,24 @@ func TestServerPruneContinuesAfterLocalFailure(t *testing.T) {
 }
 
 func TestServerPruneLocalFailureWithObjectRequest(t *testing.T) {
-	for _, requestFails := range []bool{false, true} {
-		t.Run(fmt.Sprint(requestFails), func(t *testing.T) {
+	for _, outcome := range []string{"success", "request failure", "cancelled"} {
+		t.Run(outcome, func(t *testing.T) {
 			store := newMarkerTestStore(t)
 			commitment := generateCommitment()
 			pruneAt := time.Now().Add(-time.Hour)
 			backend := &failingDeleteBackend{shardBackend: store.shards.primary, failures: 1, attempts: make(map[uint64]int)}
 			store.shards.primary = backend
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
 			requests := 0
 			store.shards.secondary = newObjectBackend(&s3ObjectClientStub{
 				deleteObjects: func(context.Context, *s3.DeleteObjectsInput, ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
 					requests++
-					if requestFails {
+					if outcome == "cancelled" {
+						cancel()
+						return nil, ctx.Err()
+					}
+					if outcome == "request failure" {
 						return nil, errors.New("request failed")
 					}
 					return &s3.DeleteObjectsOutput{}, nil
@@ -107,21 +139,33 @@ func TestServerPruneLocalFailureWithObjectRequest(t *testing.T) {
 			require.NoError(t, err)
 			var logs strings.Builder
 			server := &Server{store: store, occ: occ, metrics: metrics, log: slog.New(slog.NewTextHandler(&logs, nil))}
-			server.prune(t.Context())
+			server.prune(ctx)
 			require.Equal(t, 1, requests)
 			require.Equal(t, 1, backend.attempts[0])
-			if requestFails {
+			if outcome == "cancelled" {
 				require.Equal(t, int64(3), occ.usage())
 				require.Zero(t, backend.attempts[maxPruneBatchSize])
 				require.Contains(t, logs.String(), "failed to prune store")
 			} else {
-				require.Equal(t, int64(1), occ.usage())
+				want := int64(1)
+				if outcome == "request failure" {
+					want++
+				}
+				require.Equal(t, want, occ.usage())
 				require.Equal(t, 1, backend.attempts[maxPruneBatchSize])
 			}
 			for i := range maxPruneBatchSize + 1 {
 				hash := binary.BigEndian.AppendUint64(nil, uint64(i))
-				retained := i == 0 || (requestFails && (i == 1 || i == maxPruneBatchSize))
+				retained := i == 0 || (outcome != "success" && i == 1) || (outcome == "cancelled" && i == maxPruneBatchSize)
 				requirePruneEntry(t, store, pruneAt, commitment, hash, retained)
+			}
+			if outcome == "request failure" {
+				outcome = "success"
+				server.prune(t.Context())
+				server.prune(t.Context())
+				require.Equal(t, int64(1), occ.usage())
+				require.Equal(t, 2, requests)
+				requirePruneEntry(t, store, pruneAt, commitment, binary.BigEndian.AppendUint64(nil, 1), false)
 			}
 		})
 	}

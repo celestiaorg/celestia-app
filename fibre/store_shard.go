@@ -130,7 +130,13 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 		}
 		results, err := object.DeleteObjects(ctx, ids)
 		if err != nil {
-			return successful, errors.Join(deleteErr, err)
+			if ctx.Err() != nil {
+				return successful, errors.Join(deleteErr, err, ctx.Err())
+			}
+			if deleteErr == nil {
+				deleteErr = err
+			}
+			continue
 		}
 		for i, err := range results {
 			if err != nil {
@@ -148,7 +154,7 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 	return successful, nil
 }
 
-// partialDeleteError reports individual failures after all payloads were attempted.
+// partialDeleteError reports payload failures after all deletions were attempted.
 type partialDeleteError struct{ err error }
 
 func (e *partialDeleteError) Error() string { return e.err.Error() }
