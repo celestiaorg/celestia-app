@@ -152,6 +152,7 @@ func Setup(t testing.TB) (keyring.Keyring, string, string) {
 
 	cfg := testnode.DefaultConfig().WithDelayedPrecommitTimeout(300 * time.Millisecond).WithFundedAccounts("txsim-master")
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
+	require.NoError(t, cctx.WaitForNextBlock())
 
 	return cctx.Keyring, rpcAddr, grpcAddr
 }
