@@ -138,6 +138,17 @@ Changing `storage_backend` between `local` and `object` only changes where new s
 
 Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
 
+The store saves the object endpoint, bucket, prefix, chain ID, and validator address at startup, before accepting uploads.
+It updates this record only when an allowed namespace change occurs.
+While object shards remain, a change to this namespace prevents startup in either storage mode.
+Restore the previous configuration and signer to recover access.
+For an intentional migration, stop the server and move all retained objects to the new namespace first.
+Then start once with `--override-object-namespace`. The server logs the old and new namespaces and saves the new namespace.
+This flag does not move or verify objects. An incorrect override can make retained shards unavailable and leave orphaned objects after pruning.
+The flag is not saved in TOML. It only overrides a mismatch with a valid saved namespace.
+Startup fails if the saved record is corrupt, or if retained object shards have no namespace record.
+After all object shards are pruned, namespace changes need no override.
+
 ### Connection caps and memory
 
 `max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
