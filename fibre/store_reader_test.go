@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestShardReader checks encoded bytes, size and seeking across all byte positions, including past EOF.
 func TestShardReader(t *testing.T) {
 	for name, shard := range map[string]*types.BlobShard{
 		"empty":        {},
@@ -54,6 +55,7 @@ func TestShardReader(t *testing.T) {
 	}
 }
 
+// TestShardReaderInvalidSeek checks that invalid seeks return errors without changing the reader position.
 func TestShardReaderInvalidSeek(t *testing.T) {
 	r, err := newShardReader(&types.BlobShard{})
 	require.NoError(t, err)
@@ -79,6 +81,7 @@ func TestShardReaderInvalidSeek(t *testing.T) {
 	}
 }
 
+// TestShardReaderReusesPayload checks that the reader uses the original RLC, row data and proof slices.
 func TestShardReaderReusesPayload(t *testing.T) {
 	shard := &types.BlobShard{
 		Rlcs: []byte("rlcs"),
@@ -97,6 +100,7 @@ func TestShardReaderReusesPayload(t *testing.T) {
 	require.Equal(t, encoded.Bytes(), data)
 }
 
+// TestShardReaderRejectsNil checks that nil shards and rows return errors.
 func TestShardReaderRejectsNil(t *testing.T) {
 	_, err := newShardReader(nil)
 	require.ErrorContains(t, err, "nil shard")
