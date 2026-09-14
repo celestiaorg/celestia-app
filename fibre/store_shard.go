@@ -149,9 +149,7 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 			if ctx.Err() != nil {
 				return successful, errors.Join(deleteErr, err, ctx.Err())
 			}
-			if deleteErr == nil {
-				deleteErr = err
-			}
+			deleteErr = errors.Join(deleteErr, err)
 			continue
 		}
 		for i, err := range results {

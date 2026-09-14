@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
+	"os"
 	"slices"
 	"testing"
 
@@ -64,6 +65,29 @@ func TestRoutedStorageDeleteBatchLocal(t *testing.T) {
 	has, err := storeLocalBackend(t, store).Has(t.Context(), commitment, hash)
 	require.NoError(t, err)
 	require.False(t, has)
+}
+
+func TestRoutedStorageDeleteBatchRetainsLocalAndObjectErrors(t *testing.T) {
+	store := newMarkerTestStore(t)
+	store.shards.primary = &failingDeleteBackend{
+		shardBackend: store.shards.primary, failures: 1, attempts: make(map[uint64]int),
+	}
+	requestErr := errors.New("object request failed")
+	store.shards.secondary = newObjectBackend(&s3ObjectClientStub{
+		deleteObjects: func(context.Context, *s3.DeleteObjectsInput, ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
+			return nil, requestErr
+		},
+	}, objectNamespace{Bucket: "bucket"})
+	shards := []markedShard{
+		{id: shardID{promiseHash: binary.BigEndian.AppendUint64(nil, 0)}, marker: encodeShardMarkerForBackend(localBackendTag, 1)},
+		{id: shardID{promiseHash: []byte{1}}, marker: encodeShardMarkerForBackend(objectBackendTag, 1)},
+	}
+
+	successful, err := store.shards.DeleteBatch(t.Context(), shards)
+	require.Empty(t, successful)
+	require.IsType(t, &partialDeleteError{}, err)
+	require.ErrorIs(t, err, os.ErrPermission)
+	require.ErrorIs(t, err, requestErr)
 }
 
 func TestRoutedStorageChunksObjectDeletes(t *testing.T) {
