@@ -7,6 +7,8 @@ import (
 	"slices"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	pebbledb "github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/vfs"
 )
 
 // shardBackend stores shard payloads in one storage backend.
@@ -26,6 +28,21 @@ type routedStorage struct {
 
 func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
 	return &routedStorage{primary: primary, secondary: secondary}
+}
+
+func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, filesystem vfs.FS) (*routedStorage, error) {
+	local, err := newLocalBackend(cfg.Path, filesystem)
+	if err != nil {
+		return nil, fmt.Errorf("opening local shard storage: %w", err)
+	}
+	object, err := openObjectBackend(ctx, cfg, db)
+	if err != nil {
+		return nil, fmt.Errorf("opening object shard storage: %w", err)
+	}
+	if cfg.StorageBackend == storageBackendObject {
+		return newRoutedStorage(object, local), nil
+	}
+	return newRoutedStorage(local, object), nil
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
