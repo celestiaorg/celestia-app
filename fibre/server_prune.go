@@ -47,7 +47,7 @@ func (s *Server) prune(ctx context.Context) {
 			s.occ.release(freed)
 		}
 		if err != nil {
-			// Only a direct partial error permits progress; joined fatal errors must stop the pass.
+			// Check the type directly so a joined database failure is not treated as a partial deletion failure.
 			if _, partial := err.(*partialDeleteError); partial {
 				if deleteErr == nil {
 					deleteErr = err
