@@ -38,9 +38,9 @@ type ServerConfig struct {
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// MaxConnections caps total concurrent gRPC connections.
-	MaxConnections int `toml:"max_connections" comment:"MaxConnections caps total concurrent gRPC connections."`
+	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
-	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"MaxConcurrentStreams caps concurrent gRPC streams per connection."`
+	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
 
 	StoreConfig `toml:"-"`
 
