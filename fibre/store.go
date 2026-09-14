@@ -156,7 +156,7 @@ func (s *Store) commitAndStore(
 	}
 
 	// The marker routes the write and any commit-failure cleanup to the same backend.
-	_, err = s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
+	err = s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
 	if err != nil {
 		return fmt.Errorf("storing shard payload: %w", err)
 	}

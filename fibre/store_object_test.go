@@ -50,9 +50,8 @@ func TestObjectBackendPutContentLength(t *testing.T) {
 	backend := newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
-	created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
+	err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
 	require.NoError(t, err)
-	require.True(t, created)
 }
 
 func TestObjectBackendPutRetry(t *testing.T) {
@@ -103,13 +102,12 @@ func TestObjectBackendPutRetry(t *testing.T) {
 			backend := newObjectBackend(client, objectNamespace{Bucket: "bucket"})
 			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 			defer cancel()
-			created, err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
+			err := backend.Put(ctx, Commitment{}, []byte{1}, shard)
 			if secondStatus == http.StatusServiceUnavailable {
 				require.True(t, hasObjectErrorCode(err, "SlowDown"), "got %v", err)
 			} else {
 				require.NoError(t, err)
 			}
-			require.Equal(t, secondStatus == http.StatusOK, created)
 			require.Equal(t, int32(2), attempts.Load())
 		})
 	}
@@ -149,9 +147,8 @@ func TestObjectBackendPut(t *testing.T) {
 		}
 		backend := newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "/fibre/", ChainID: "test-chain", ValidatorAddress: "celestiavalcons1validator"})
 
-		created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
+		err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
-		require.True(t, created)
 	})
 
 	t.Run("existing", func(t *testing.T) {
@@ -162,9 +159,8 @@ func TestObjectBackendPut(t *testing.T) {
 		}
 		backend := newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "fibre", ChainID: "test-chain", ValidatorAddress: "celestiavalcons1validator"})
 
-		created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
+		err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
-		require.False(t, created)
 	})
 }
 

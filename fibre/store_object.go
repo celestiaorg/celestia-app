@@ -51,16 +51,16 @@ func newObjectBackend(client s3ObjectClient, namespace objectNamespace) *objectB
 	return &objectBackend{client: client, namespace: namespace.canonical(), requestTimeout: defaultObjectRequestTimeout}
 }
 
-func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
+func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) error {
 	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
-		return false, err
+		return err
 	}
 
 	reader, err := newShardReader(shard)
 	if err != nil {
-		return false, fmt.Errorf("encoding shard object: %w", err)
+		return fmt.Errorf("encoding shard object: %w", err)
 	}
 
 	_, putErr := b.client.PutObject(ctx, &s3.PutObjectInput{
@@ -77,13 +77,12 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
 		// IfNoneMatch: "*" rejected this upload because a shard already exists for this commitment and promise hash.
-		// Return created=false with no error: the payload exists, but this call did not create it.
-		return false, nil
+		return nil
 	}
 	if putErr != nil {
-		return false, fmt.Errorf("putting shard object: %w", putErr)
+		return fmt.Errorf("putting shard object: %w", putErr)
 	}
-	return true, nil
+	return nil
 }
 
 func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {

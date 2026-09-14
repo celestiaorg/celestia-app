@@ -225,7 +225,7 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 			backend := store.shards.primary.(*objectBackend)
 			switch operation {
 			case "put":
-				_, err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
+				err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
 			case "get", "read body", "cancel body":
 				_, err = backend.Get(ctx, Commitment{}, []byte{1})
 			case "has":
