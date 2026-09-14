@@ -113,7 +113,7 @@ func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, 
 		tr.TLSClientConfig.ClientSessionCache = tls.NewLRUClientSessionCache(512)
 		tr.MaxIdleConns, tr.MaxIdleConnsPerHost = 512, 512
 		tr.IdleConnTimeout = 15 * time.Second
-		tr.ResponseHeaderTimeout = defaultObjectRequestTimeout
+		tr.ResponseHeaderTimeout = cfg.RequestTimeout
 		tr.WriteBufferSize, tr.ReadBufferSize = 256<<10, 256<<10
 	})
 	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region), config.WithHTTPClient(httpClient))

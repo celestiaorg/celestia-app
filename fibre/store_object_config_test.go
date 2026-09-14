@@ -16,6 +16,8 @@ import (
 	"testing"
 	"time"
 
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
@@ -277,6 +279,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	cfg.ObjectStorage = testObjectStorageConfig()
 	cfg.ObjectStorage.Endpoint = server.URL
 	cfg.ObjectStorage.Region = " auto "
+	cfg.ObjectStorage.RequestTimeout = 90 * time.Second
 	cfg.ObjectStorage.Bucket = " fibre-shards "
 	cfg.ObjectStorage.Prefix = " fibre "
 	cfg.ObjectStorage.ChainID = "test-chain"
@@ -297,6 +300,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	cfg.StorageBackend = "object"
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	client := store.shards.primary.(*objectBackend).client.(*s3.Client)
+	transport := client.Options().HTTPClient.(*awshttp.BuildableClient).GetTransport()
+	require.Equal(t, cfg.ObjectStorage.RequestTimeout, transport.ResponseHeaderTimeout)
 	_, recorded, err := readObjectNamespace(store.db)
 	require.NoError(t, err)
 	require.True(t, recorded, "startup must save the namespace before accepting uploads")
