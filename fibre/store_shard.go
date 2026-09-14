@@ -96,7 +96,8 @@ type markedShard struct {
 }
 
 // DeleteBatch deletes payloads by marker and returns their successful input positions.
-// Individual failures remain for retry. Object requests contain at most 1,000 keys.
+// The caller keeps metadata for failed deletions and retries them in a later prune pass.
+// Object requests contain at most 1,000 keys.
 func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) ([]int, error) {
 	var local, objects []int
 	var object *objectBackend
