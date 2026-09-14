@@ -224,7 +224,9 @@ func TestTxCache_ConcurrentSet(t *testing.T) {
 
 	wg.Wait()
 
-	assert.Equal(t, numGoroutines*numTxsPerGoroutine, cache.Size())
+	expectedSize := min(numGoroutines*numTxsPerGoroutine, defaultTxCacheCapacity)
+	assert.Equal(t, expectedSize, cache.Size(),
+		"cache should hold every inserted tx, capped at the cache capacity")
 }
 
 func TestTxCache_ConcurrentBatches(t *testing.T) {
