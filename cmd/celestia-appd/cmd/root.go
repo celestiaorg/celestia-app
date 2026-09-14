@@ -41,6 +41,15 @@ const (
 	// FlagFibrePromiseCache toggles the validator-local fibre promise cache used
 	// by the ValidatePaymentPromise query.
 	FlagFibrePromiseCache = "fibre-promise-cache"
+
+	// FlagPrivValGRPCAllowInsecure force-allows the privval gRPC endpoint to
+	// listen on a non-localhost address without mutual TLS.
+	FlagPrivValGRPCAllowInsecure = "privval-grpc-allow-insecure"
+
+	// privValGRPCAllowInsecureKey is the mapstructure key of the comet config
+	// field priv_validator_grpc_allow_insecure. Referenced by key because the
+	// pinned celestia-core version does not define the struct field yet.
+	privValGRPCAllowInsecureKey = "priv_validator_grpc_allow_insecure"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -139,7 +148,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
+	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
@@ -156,6 +165,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
 	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 	startCmd.Flags().Bool(FlagFibrePromiseCache, true, "enable the validator-local fibre promise cache used by the ValidatePaymentPromise query. Enabled by default.")
+	startCmd.Flags().Bool(FlagPrivValGRPCAllowInsecure, false, "DANGER: allow the privval gRPC endpoint to listen on a non-localhost address without mutual TLS; anyone who can reach it can request signatures from the validator key")
 	addOTelMetricsFlag(startCmd)
 
 	prevPostRunE := startCmd.PostRunE
@@ -166,6 +176,24 @@ func addStartFlags(startCmd *cobra.Command) {
 		}
 		return nil
 	}
+}
+
+// allowInsecurePrivValGRPC sets priv_validator_grpc_allow_insecure to true in
+// the comet config when the --privval-grpc-allow-insecure flag is passed.
+func allowInsecurePrivValGRPC(cmd *cobra.Command, logger log.Logger) error {
+	allow, err := cmd.Flags().GetBool(FlagPrivValGRPCAllowInsecure)
+	if err != nil || !allow {
+		return err
+	}
+
+	logger.Warn("DANGER: forcing priv_validator_grpc_allow_insecure=true; the privval gRPC endpoint may listen on a non-localhost address without mutual TLS")
+
+	sctx := server.GetServerContextFromCmd(cmd)
+	sctx.Viper.Set(privValGRPCAllowInsecureKey, true)
+	// Re-unmarshal viper into the comet config so the key reaches the struct
+	// field once the celestia-core dependency defines it; until then this is a
+	// no-op because mapstructure ignores unknown keys.
+	return sctx.Viper.Unmarshal(sctx.Config)
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
