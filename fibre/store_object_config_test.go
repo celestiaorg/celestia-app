@@ -275,11 +275,55 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.NoError(t, store.Close())
 
 	for _, mode := range []string{"object", "local"} {
+		t.Run(mode+"/equivalent endpoint", func(t *testing.T) {
+			changed := cfg
+			changed.StorageBackend = mode
+			changed.ObjectStorage.Endpoint += "/"
+			opened, err := NewStore(t.Context(), changed)
+			require.NoError(t, err)
+			got, err := opened.Get(t.Context(), promise.Commitment)
+			require.NoError(t, err)
+			require.Equal(t, shard, got)
+			// Older records can contain the endpoint's root slash.
+			namespace := cfg.ObjectStorage
+			require.NoError(t, namespace.Validate())
+			namespace.Endpoint = changed.ObjectStorage.Endpoint
+			require.NoError(t, saveObjectNamespace(opened.db, namespace.objectNamespace))
+			require.NoError(t, opened.Close())
+			changed.ObjectStorage.Endpoint = cfg.ObjectStorage.Endpoint
+			opened, err = NewStore(t.Context(), changed)
+			require.NoError(t, err)
+			require.NoError(t, opened.Close())
+		})
+		t.Run(mode+"/adoption", func(t *testing.T) {
+			changed := cfg
+			changed.StorageBackend = mode
+			opened, err := NewStore(t.Context(), changed)
+			require.NoError(t, err)
+			require.NoError(t, opened.db.Delete([]byte(objectNamespaceKey), pebbledb.Sync))
+			require.NoError(t, opened.Close())
+			_, err = NewStore(t.Context(), changed)
+			require.ErrorIs(t, err, ErrStoreIntegrity)
+			changed.ObjectStorage.OverrideNamespace = true
+			opened, err = NewStore(t.Context(), changed)
+			require.NoError(t, err)
+			require.NoError(t, opened.Close())
+			changed.ObjectStorage.OverrideNamespace = false
+			opened, err = NewStore(t.Context(), changed)
+			require.NoError(t, err)
+			got, err := opened.Get(t.Context(), promise.Commitment)
+			require.NoError(t, err)
+			require.Equal(t, shard, got)
+			require.NoError(t, opened.Close())
+		})
 		for _, tc := range []struct {
 			name   string
 			modify func(*ObjectStorageConfig)
 		}{
 			{"endpoint", func(c *ObjectStorageConfig) { c.Endpoint += "/other" }},
+			{"endpoint double slash", func(c *ObjectStorageConfig) { c.Endpoint += "//" }},
+			{"endpoint escaped slash", func(c *ObjectStorageConfig) { c.Endpoint += "/%2F" }},
+			{"endpoint dot", func(c *ObjectStorageConfig) { c.Endpoint += "/./" }},
 			{"bucket", func(c *ObjectStorageConfig) { c.Bucket = "other-bucket" }},
 			{"prefix", func(c *ObjectStorageConfig) { c.Prefix = "other-prefix" }},
 			{"chain", func(c *ObjectStorageConfig) { c.ChainID = "other-chain" }},
@@ -376,16 +420,14 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 }
 
 func TestStoreRejectsInvalidObjectNamespace(t *testing.T) {
-	for _, data := range []string{"missing", "", "null", "{}", "{", `{"endpoint":"https://example.com","bucket":"bucket","prefix":"prefix","chain_id":"chain"}`} {
+	for _, data := range []string{"", "null", "{}", "{", `{"endpoint":"https://example.com","bucket":"bucket","prefix":"prefix","chain_id":"chain"}`} {
 		t.Run(data, func(t *testing.T) {
 			cfg := DefaultStoreConfig()
 			cfg.Path = t.TempDir()
 			store, err := NewStore(t.Context(), cfg)
 			require.NoError(t, err)
 			require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(objectBackendTag, 1), pebbledb.Sync))
-			if data != "missing" {
-				require.NoError(t, store.db.Set([]byte(objectNamespaceKey), []byte(data), pebbledb.Sync))
-			}
+			require.NoError(t, store.db.Set([]byte(objectNamespaceKey), []byte(data), pebbledb.Sync))
 			require.NoError(t, store.Close())
 			cfg.ObjectStorage = testObjectStorageConfig()
 			cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"

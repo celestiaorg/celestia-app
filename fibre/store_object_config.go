@@ -18,7 +18,7 @@ type ObjectStorageConfig struct {
 	// ChainID and ValidatorAddress are derived by the server at startup.
 	objectNamespace
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
-	// OverrideNamespace accepts a namespace change after operator migration.
+	// OverrideNamespace accepts a migrated namespace or adopts one for an older store.
 	OverrideNamespace bool `toml:"-"`
 }
 
@@ -54,8 +54,8 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	if err != nil {
 		return nil, err
 	}
-	if hasObjects && !recorded {
-		return nil, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
+	if hasObjects && !recorded && !cfg.ObjectStorage.OverrideNamespace {
+		return nil, fmt.Errorf("%w: object markers exist without an object namespace; verify the configured object location before using --override-object-namespace", ErrStoreIntegrity)
 	}
 	if !hasObjects && cfg.StorageBackend != storageBackendObject {
 		return nil, nil

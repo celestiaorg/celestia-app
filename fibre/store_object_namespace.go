@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 
@@ -23,6 +24,10 @@ type objectNamespace struct {
 
 func (n objectNamespace) canonical() objectNamespace {
 	n.Prefix = path.Clean(strings.Trim(n.Prefix, "/"))
+	if endpoint, err := url.Parse(n.Endpoint); err == nil && endpoint.EscapedPath() == "/" {
+		endpoint.Path = ""
+		n.Endpoint = endpoint.String()
+	}
 	return n
 }
 
@@ -46,7 +51,10 @@ func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
 	if err := cfg.Validate(); err != nil {
 		return namespace, false, fmt.Errorf("%w: invalid object namespace: %v", ErrStoreIntegrity, err)
 	}
-	if namespace.ChainID == "" || namespace.ValidatorAddress == "" || namespace != cfg.canonical() {
+	canonical := cfg.canonical()
+	// Older records can contain the equivalent root slash.
+	namespace.Endpoint = canonical.Endpoint
+	if namespace.ChainID == "" || namespace.ValidatorAddress == "" || namespace != canonical {
 		return namespace, false, fmt.Errorf("%w: incomplete or non-canonical object namespace", ErrStoreIntegrity)
 	}
 	return namespace, true, nil
