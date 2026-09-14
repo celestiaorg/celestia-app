@@ -88,6 +88,14 @@ The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fib
 
 Config precedence: **flag > config file > default**.
 
+### Switching shard storage backends
+
+Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
+
+**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix.
+
+Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
+
 ### Shard retention
 
 How long uploaded shards are kept locally before pruning is the `shard_retention` on-chain parameter of the `x/fibre` module (default `4h`), changeable by governance. It is independent of the chain's payment-promise timeout. The server reads the current value from the app node on every upload (returned by `ValidatePaymentPromise`), so there is no local setting to configure.
