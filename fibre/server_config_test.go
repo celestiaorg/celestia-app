@@ -92,3 +92,52 @@ func TestServerConfigValidateNoSigner(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signer_grpc_address is required")
 }
+
+func TestServerConfigValidateSignerTLS(t *testing.T) {
+	testCases := []struct {
+		name             string
+		ca, cert, key    string
+		wantErrSubstring string
+	}{
+		{name: "all empty"},
+		{name: "all set", ca: "ca.pem", cert: "cert.pem", key: "key.pem"},
+		{name: "CA only", ca: "ca.pem", wantErrSubstring: "must be set together"},
+		{name: "cert without key", ca: "ca.pem", cert: "cert.pem", wantErrSubstring: "must be set together"},
+		{name: "cert and key without CA", cert: "cert.pem", key: "key.pem", wantErrSubstring: "must be set together"},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := DefaultServerConfig()
+			cfg.Path = t.TempDir()
+			cfg.SignerGRPCCAFile = tc.ca
+			cfg.SignerGRPCCertFile = tc.cert
+			cfg.SignerGRPCKeyFile = tc.key
+
+			err := cfg.Validate()
+			if tc.wantErrSubstring == "" {
+				require.NoError(t, err)
+				assert.NotNil(t, cfg.SignerFn)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.wantErrSubstring)
+			}
+		})
+	}
+}
+
+func TestServerConfigSignerTLSRoundTrip(t *testing.T) {
+	home := t.TempDir()
+	configPath := DefaultConfigPath(home)
+
+	cfg := DefaultServerConfig()
+	cfg.SignerGRPCCAFile = "ca.pem"
+	cfg.SignerGRPCCertFile = "cert.pem"
+	cfg.SignerGRPCKeyFile = "key.pem"
+	require.NoError(t, cfg.Save(configPath))
+
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(configPath))
+	assert.Equal(t, "ca.pem", loaded.SignerGRPCCAFile)
+	assert.Equal(t, "cert.pem", loaded.SignerGRPCCertFile)
+	assert.Equal(t, "key.pem", loaded.SignerGRPCKeyFile)
+}
