@@ -80,3 +80,4 @@ pull_request_rules:
           - main
 merge_queue:
   status_comments: none
+  queue_controls_comment: false
