@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 
 	otelpyroscope "github.com/grafana/otel-profiling-go"
@@ -25,7 +26,7 @@ const (
 // registerTracingFlags adds the otel-endpoint persistent flag to cmd and
 // applies the corresponding environment variable override if set.
 func registerTracingFlags(cmd *cobra.Command) {
-	cmd.PersistentFlags().String(flagOTelEndpoint, defaultOTelEndpoint, fmt.Sprintf("OpenTelemetry OTLP HTTP endpoint for tracing, e.g. http://localhost:4318 (or set %s)", envOTelEndpoint))
+	cmd.PersistentFlags().String(flagOTelEndpoint, defaultOTelEndpoint, fmt.Sprintf("OpenTelemetry OTLP HTTP base URL for traces and metrics, e.g. http://localhost:4318 (or set %s)", envOTelEndpoint))
 	setPersistentFlagFromEnv(cmd, flagOTelEndpoint, envOTelEndpoint)
 }
 
@@ -45,6 +46,10 @@ func setupTracing(ctx context.Context, cmd *cobra.Command) (func(context.Context
 		return func(context.Context) {}, nil
 	}
 
+	endpoint, err = url.JoinPath(endpoint, "v1/traces")
+	if err != nil {
+		return nil, fmt.Errorf("constructing OTLP trace endpoint: %w", err)
+	}
 	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)

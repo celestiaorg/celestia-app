@@ -174,7 +174,7 @@ fibre start --log-level debug --log-format json
 
 ### Tracing & Metrics
 
-Fibre exports traces and metrics via OTLP/HTTP to any OpenTelemetry-compatible backend (Grafana Alloy, OTel Collector, Tempo, etc.). Both signals share the same endpoint and are enabled together.
+Fibre exports traces and metrics via OTLP/HTTP to an OpenTelemetry collector (Grafana Alloy, OTel Collector, etc.). Both signals share the same base URL and are enabled together. Configure the collector to forward both metrics and traces to their backends.
 
 | Flag | Env | Default |
 |---|---|---|
@@ -184,7 +184,9 @@ Fibre exports traces and metrics via OTLP/HTTP to any OpenTelemetry-compatible b
 fibre start --otel-endpoint http://localhost:4318
 ```
 
-OTLP uses separate paths on the same endpoint: `/v1/traces` for traces and `/v1/metrics` for metrics.
+Fibre appends `/v1/traces` and `/v1/metrics` to the base URL. A proxy prefix is preserved: `https://collector.example.com/otel` sends traces to `/otel/v1/traces` and metrics to `/otel/v1/metrics`.
+
+Set `--otel-endpoint` or `FIBRE_OTEL_ENDPOINT` to the base URL only. If your existing configuration ends in `/v1/metrics` or `/v1/traces`, remove that suffix when upgrading.
 
 **Tracing** — The sampler uses `ParentBased(TraceIDRatioBased(0.1))` — 10% of root spans are sampled, and sampling decisions from upstream services are respected.
 
