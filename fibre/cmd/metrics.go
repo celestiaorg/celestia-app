@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -16,7 +17,7 @@ import (
 )
 
 // setupMetrics initializes the global OTel MeterProvider with an OTLP HTTP
-// exporter pointing at the same endpoint used for tracing. If the endpoint is
+// exporter using the same base URL as tracing. If the endpoint is
 // empty, no SDK is started and a no-op shutdown is returned. The shutdown
 // function must be called on exit to flush buffered metrics.
 func setupMetrics(ctx context.Context, cmd *cobra.Command) (func(context.Context), error) {
@@ -28,6 +29,10 @@ func setupMetrics(ctx context.Context, cmd *cobra.Command) (func(context.Context
 		return func(context.Context) {}, nil
 	}
 
+	endpoint, err = url.JoinPath(endpoint, "v1/metrics")
+	if err != nil {
+		return nil, fmt.Errorf("constructing OTLP metric endpoint: %w", err)
+	}
 	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
