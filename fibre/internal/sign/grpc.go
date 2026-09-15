@@ -83,13 +83,16 @@ var (
 // otherwise it uses mutual TLS with the configured PEM files.
 func NewGRPCClient(addr string, chainID string, tlsCfg *TLSConfig, log *slog.Logger) (*GRPCClient, error) {
 	creds := insecure.NewCredentials()
+	transport := "plaintext"
 	if !tlsCfg.Empty() {
 		var err error
 		creds, err = tlsCfg.credentials()
 		if err != nil {
 			return nil, fmt.Errorf("privval gRPC TLS config: %w", err)
 		}
+		transport = "mtls"
 	}
+	log.Info("connecting to privval gRPC signer", "addr", addr, "transport", transport)
 
 	conn, err := grpc.NewClient(
 		addr,
