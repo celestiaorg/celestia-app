@@ -46,17 +46,17 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.cctx = cctx
 	s.ecfg = encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	// Wait for at least one block to be produced before querying
+	_, err := s.cctx.WaitForHeight(1)
+	require.NoError(t, err, "failed to wait for first block")
+
 	// Use a mock clock so the rate-limit window can be advanced deterministically
 	// below to force GetHost to re-query.
 	s.clk = clock.NewMock()
 	s.hostRegistry = grpc.NewHostRegistry(types.NewQueryClient(s.cctx.GRPCClient), slog.Default(),
 		grpc.WithClock(s.clk), grpc.WithRefreshInterval(time.Minute))
-	err := s.hostRegistry.Start(t.Context())
+	err = s.hostRegistry.Start(t.Context())
 	require.NoError(t, err)
-
-	// Wait for at least one block to be produced before querying
-	_, err = s.cctx.WaitForHeight(1)
-	require.NoError(t, err, "failed to wait for first block")
 
 	// Use the GRPCClient to setup a cmtservice query client and query the validator set
 	tmserviceClient := cmtservice.NewServiceClient(s.cctx.GRPCClient)
