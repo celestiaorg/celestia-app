@@ -14,7 +14,7 @@ import (
 // shardBackend stores shard payloads in one storage backend.
 type shardBackend interface {
 	backendTag() shardBackendTag
-	Put(context.Context, Commitment, []byte, *types.BlobShard) (bool, error)
+	Put(context.Context, Commitment, []byte, *types.BlobShard) error
 	Get(context.Context, Commitment, []byte) (*types.BlobShard, error)
 	Has(context.Context, Commitment, []byte) (bool, error)
 	Delete(context.Context, Commitment, []byte) error
@@ -58,10 +58,10 @@ func (s *routedStorage) marker(size int64) []byte {
 	return encodeShardMarkerForBackend(s.primary.backendTag(), size)
 }
 
-func (s *routedStorage) Put(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
+func (s *routedStorage) Put(ctx context.Context, marker []byte, commitment Commitment, promiseHash []byte, shard *types.BlobShard) error {
 	backend, err := s.backendForMarker(marker)
 	if err != nil {
-		return false, err
+		return err
 	}
 	return backend.Put(ctx, commitment, promiseHash, shard)
 }

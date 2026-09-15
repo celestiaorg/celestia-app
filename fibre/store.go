@@ -156,12 +156,12 @@ func (s *Store) commitAndStore(
 	}
 
 	// The marker routes the write and any commit-failure cleanup to the same backend.
-	created, err := s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
+	err = s.shards.Put(ctx, marker, promise.Commitment, promiseHash, shard)
 	if err != nil {
 		return fmt.Errorf("storing shard payload: %w", err)
 	}
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
-		if created && !s.hasShardMarker(promise.Commitment, promiseHash) {
+		if s.shardMarkerMissing(promise.Commitment, promiseHash) {
 			if rmErr := s.shards.Delete(context.Background(), marker, promise.Commitment, promiseHash); rmErr != nil {
 				s.log.Warn("failed to remove orphaned shard after commit failure",
 					"commitment", promise.Commitment.String(), "error", rmErr)
@@ -248,16 +248,15 @@ func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseH
 	return has, accounted, nil
 }
 
-// hasShardMarker reports whether a committed shard marker exists,
-// checking only the pebble metadata.
-func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
+// shardMarkerMissing reports confirmed absence. Read errors must not permit deletion.
+func (s *Store) shardMarkerMissing(commit Commitment, promiseHash []byte) bool {
 	_, closer, err := s.db.Get(shardKey(commit, promiseHash))
 	switch {
 	case err == nil:
 		_ = closer.Close()
-		return true
-	case errors.Is(err, pebbledb.ErrNotFound):
 		return false
+	case errors.Is(err, pebbledb.ErrNotFound):
+		return true
 	default:
 		s.log.Warn("failed to check shard marker", "commitment", commit.String(), "error", err)
 		return false

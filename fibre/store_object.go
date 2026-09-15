@@ -51,51 +51,38 @@ func newObjectBackend(client s3ObjectClient, namespace objectNamespace) *objectB
 	return &objectBackend{client: client, namespace: namespace.canonical(), requestTimeout: defaultObjectRequestTimeout}
 }
 
-func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
+func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) error {
 	ctx, cancel := context.WithTimeout(ctx, b.requestTimeout)
 	defer cancel()
 	if err := ctx.Err(); err != nil {
-		return false, err
+		return err
 	}
 
-	reader, writer := io.Pipe()
-	writeDone := make(chan error, 1)
-	go func() {
-		buffer := bufio.NewWriterSize(writer, 1<<20)
-		err := writeShardBinary(buffer, shard)
-		if err == nil {
-			err = buffer.Flush()
-		}
-		_ = writer.CloseWithError(err)
-		writeDone <- err
-	}()
+	reader, err := newShardReader(shard)
+	if err != nil {
+		return fmt.Errorf("encoding shard object: %w", err)
+	}
 
 	_, putErr := b.client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(b.namespace.Bucket),
 		Key:           aws.String(b.objectKey(commitment, promiseHash)),
-		Body:          io.NopCloser(reader), // Preserve ContentLength; the SDK treats a bare pipe as unknown-length.
-		ContentLength: aws.Int64(shardBinarySize(shard)),
+		Body:          reader,
+		ContentLength: aws.Int64(reader.size),
 		IfNoneMatch:   aws.String("*"),
 	}, func(options *s3.Options) {
 		options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
-		// The pipe cannot rewind for SigV4 payload hashing; sign the request with UNSIGNED-PAYLOAD instead.
+		// Avoid hashing the full shard for SigV4 signing.
 		options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
 	})
-	_ = reader.CloseWithError(putErr)
-	writeErr := <-writeDone
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
 		// IfNoneMatch: "*" rejected this upload because a shard already exists for this commitment and promise hash.
-		// Return created=false with no error: the payload exists, but this call did not create it.
-		return false, nil
+		return nil
 	}
 	if putErr != nil {
-		return false, fmt.Errorf("putting shard object: %w", putErr)
+		return fmt.Errorf("putting shard object: %w", putErr)
 	}
-	if writeErr != nil {
-		return false, fmt.Errorf("encoding shard object: %w", writeErr)
-	}
-	return true, nil
+	return nil
 }
 
 func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {

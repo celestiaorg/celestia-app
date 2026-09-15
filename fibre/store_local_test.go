@@ -25,12 +25,10 @@ func TestLocalBackendPayloadLifecycle(t *testing.T) {
 	require.ErrorIs(t, err, ErrStoreNotFound)
 	require.NoError(t, backend.Delete(t.Context(), commitment, promiseHash))
 
-	created, err := backend.Put(t.Context(), commitment, promiseHash, shard)
+	err = backend.Put(t.Context(), commitment, promiseHash, shard)
 	require.NoError(t, err)
-	require.True(t, created)
-	created, err = backend.Put(t.Context(), commitment, promiseHash, shard)
+	err = backend.Put(t.Context(), commitment, promiseHash, shard)
 	require.NoError(t, err)
-	require.True(t, created)
 
 	got, err := backend.Get(t.Context(), commitment, promiseHash)
 	require.NoError(t, err)
@@ -51,9 +49,8 @@ func TestLocalBackendPutHonoursCancellation(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	created, err := backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
+	err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
 	require.ErrorIs(t, err, context.Canceled)
-	require.False(t, created)
 	has, err := backend.Has(t.Context(), Commitment{}, []byte{1})
 	require.NoError(t, err)
 	require.False(t, has)
