@@ -13,6 +13,8 @@ Before starting, make sure:
 - [ ] The fibre listen port (default `7980`) is reachable by clients from outside your network.
 - [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set gets no budget and no traffic.
 
+We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other. Use `--home` or `FIBRE_HOME` to place the fibre home directory on a separate disk (see [Start](#start)).
+
 ## Install
 
 ### Prebuilt binary
