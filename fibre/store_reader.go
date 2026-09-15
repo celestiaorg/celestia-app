@@ -33,8 +33,17 @@ func newShardReader(shard *types.BlobShard) (*shardReader, error) {
 		proofSegments += len(row.Proof)
 	}
 
-	headers := make([]byte, 0, 12+12*len(shard.Rows)+4*proofSegments)
-	r := &shardReader{parts: make([][]byte, 0, 3+3*len(shard.Rows)+2*proofSegments)}
+	const (
+		shardHeaderBytes   = 12 // Version, RLC length, row count.
+		rowHeaderBytes     = 12 // Index, data length, proof count.
+		segmentHeaderBytes = 4  // Segment length.
+
+		shardParts   = 3 // Header, RLC payload, row count.
+		rowParts     = 3 // Header, data payload, proof count.
+		segmentParts = 2 // Length header, payload.
+	)
+	headers := make([]byte, 0, shardHeaderBytes+rowHeaderBytes*len(shard.Rows)+segmentHeaderBytes*proofSegments)
+	r := &shardReader{parts: make([][]byte, 0, shardParts+rowParts*len(shard.Rows)+segmentParts*proofSegments)}
 	addHeader := func(values ...uint32) {
 		start := len(headers)
 		for _, value := range values {
