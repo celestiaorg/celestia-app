@@ -108,6 +108,7 @@ func setup(t testing.TB) (keyring.Keyring, string, string) {
 		)
 
 	cctx, rpcAddr, grpcAddr := testnode.NewNetwork(t, cfg)
+	require.NoError(t, cctx.WaitForNextBlock())
 
 	return cctx.Keyring, rpcAddr, grpcAddr
 }
