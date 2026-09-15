@@ -2,6 +2,7 @@ package fibre
 
 import (
 	"bytes"
+	"encoding/binary"
 	"io"
 	"math"
 	"testing"
@@ -106,4 +107,55 @@ func TestShardReaderRejectsNil(t *testing.T) {
 	require.ErrorContains(t, err, "nil shard")
 	_, err = newShardReader(&types.BlobShard{Rows: []*types.BlobRow{nil}})
 	require.ErrorContains(t, err, "nil row")
+}
+
+// FuzzShardReader compares mixed reads and seeks with bytes.Reader, including errors and EOF.
+func FuzzShardReader(f *testing.F) {
+	f.Add([]byte{}, []byte{0, 32, 0, 1, 0, 0, 0, 32, 0, 3, 0, 0, 0, 1, 0, 2, 255, 255, 4, 0, 0})
+	f.Add(bytes.Repeat([]byte{0xff}, 128), bytes.Repeat([]byte{0}, 30))
+	f.Add([]byte{0, 2}, bytes.Repeat([]byte{0xff}, 30))
+
+	f.Fuzz(func(t *testing.T, seed, operations []byte) {
+		shard := shardFromSeed(seed)
+		var encoded bytes.Buffer
+		require.NoError(t, writeShardBinary(&encoded, shard))
+		want := bytes.NewReader(encoded.Bytes())
+		got, err := newShardReader(shard)
+		require.NoError(t, err)
+		var gotBuf, wantBuf [1024]byte
+
+		// Limit each input to 256 operations. Each operation uses one tag and a two-byte argument.
+		operations = operations[:min(len(operations), 256*3)]
+		for len(operations) >= 3 {
+			op := operations[0] % 5
+			arg := binary.LittleEndian.Uint16(operations[1:3])
+			operations = operations[3:]
+			if op == 0 {
+				size := int(arg) % (len(gotBuf) + 1)
+				wantN, wantErr := want.Read(wantBuf[:size])
+				gotN, gotErr := got.Read(gotBuf[:size])
+				require.Equal(t, wantErr, gotErr)
+				require.Equal(t, wantN, gotN)
+				require.Equal(t, wantBuf[:wantN], gotBuf[:gotN])
+			} else {
+				offset, whence := int64(int16(arg)), int(op)-1
+				wantPos, wantErr := want.Seek(offset, whence)
+				gotPos, gotErr := got.Seek(offset, whence)
+				require.Equal(t, wantErr == nil, gotErr == nil)
+				require.Equal(t, wantPos, gotPos)
+			}
+		}
+
+		remaining, err := io.ReadAll(want)
+		require.NoError(t, err)
+		data, err := io.ReadAll(got)
+		require.NoError(t, err)
+		require.Equal(t, remaining, data)
+
+		_, err = got.Seek(0, io.SeekStart)
+		require.NoError(t, err)
+		data, err = io.ReadAll(got)
+		require.NoError(t, err)
+		require.Equal(t, encoded.Bytes(), data)
+	})
 }
