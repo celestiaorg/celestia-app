@@ -581,11 +581,11 @@ type shardStorageStub struct {
 	heads   int
 }
 
-func (s *shardStorageStub) Put(_ context.Context, _ Commitment, _ []byte, shard *types.BlobShard) (bool, error) {
+func (s *shardStorageStub) Put(_ context.Context, _ Commitment, _ []byte, shard *types.BlobShard) error {
 	s.puts++
 	s.shard = shard
 	s.missing = false
-	return true, nil
+	return nil
 }
 
 func (s *shardStorageStub) Get(context.Context, Commitment, []byte) (*types.BlobShard, error) {

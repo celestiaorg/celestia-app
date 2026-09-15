@@ -42,24 +42,24 @@ func newLocalBackend(path string, filesystem vfs.FS) (*localBackend, error) {
 	return &localBackend{path: path, fs: filesystem}, nil
 }
 
-func (b *localBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) (bool, error) {
+func (b *localBackend) Put(ctx context.Context, commitment Commitment, promiseHash []byte, shard *types.BlobShard) error {
 	if err := ctx.Err(); err != nil {
-		return false, err
+		return err
 	}
 
 	tmp, err := b.writeTmp(shard)
 	if err != nil {
-		return false, fmt.Errorf("writing shard tmp: %w", err)
+		return fmt.Errorf("writing shard tmp: %w", err)
 	}
 	defer func() { _ = b.fs.Remove(tmp) }()
 
 	if err := ctx.Err(); err != nil {
-		return false, fmt.Errorf("aborting shard publish: %w", err)
+		return fmt.Errorf("aborting shard publish: %w", err)
 	}
 	if err := b.fs.Rename(tmp, b.shardPath(commitment, promiseHash)); err != nil {
-		return false, fmt.Errorf("renaming shard tmp to final: %w", err)
+		return fmt.Errorf("renaming shard tmp to final: %w", err)
 	}
-	return true, nil
+	return nil
 }
 
 func (b *localBackend) Get(ctx context.Context, commitment Commitment, promiseHash []byte) (_ *types.BlobShard, err error) {
