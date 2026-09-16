@@ -79,6 +79,40 @@ func TestNewClient_NoKeyringStateClientError(t *testing.T) {
 	require.Nil(t, client)
 }
 
+// stopTrackingStateClient records whether Stop was called.
+type stopTrackingStateClient struct {
+	*mockStateClient
+	stopped bool
+}
+
+func (m *stopTrackingStateClient) Stop(ctx context.Context) error {
+	m.stopped = true
+	return m.mockStateClient.Stop(ctx)
+}
+
+func TestClientStop_StopsStateClient(t *testing.T) {
+	stateClient := &stopTrackingStateClient{mockStateClient: &mockStateClient{chainID: "celestia"}}
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) { return stateClient, nil }
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.NoError(t, client.Start(t.Context()))
+	require.NoError(t, client.Stop(t.Context()))
+	require.True(t, stateClient.stopped, "Stop must release the state client")
+}
+
+func TestNewClient_KeepsDefaultDialerOutOfConfig(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia"}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.Nil(t, client.Config.NewClientFn, "the default dialer is bound to this client's state client")
+}
+
 var testNamespace = share.MustNewV0Namespace([]byte("test"))
 
 func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
