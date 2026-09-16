@@ -9,7 +9,11 @@ The implemented data-plane service is `celestia.fibre.v1.Fibre`:
 ```protobuf
 service Fibre {
   rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
-  rpc DownloadShard(DownloadShardRequest) returns (stream DownloadShardResponse);
+  // DownloadShard returns the whole shard in a single response.
+  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+  // DownloadShardStream returns the same shard as a header followed by one row
+  // per message, so the server never holds the whole shard in memory.
+  rpc DownloadShardStream(DownloadShardRequest) returns (stream DownloadShardStreamResponse);
 }
 
 message BlobRow {
@@ -36,12 +40,20 @@ message DownloadShardRequest {
   bytes blob_id = 1;
 }
 
+// DownloadShardResponse is the unary DownloadShard response.
+message DownloadShardResponse {
+  BlobShard shard = 1;
+}
+
+// ShardHeader is the first message of a DownloadShardStream.
 message ShardHeader {
   bytes rlcs = 1;
   uint32 num_rows = 2;
 }
 
-message DownloadShardResponse {
+// DownloadShardStreamResponse is one message of a DownloadShardStream: a header
+// first, then one row per message.
+message DownloadShardStreamResponse {
   oneof chunk {
     ShardHeader header = 1;
     BlobRow row = 2;
@@ -188,7 +200,10 @@ The row indices `0..totalRows-1` are shuffled with a ChaCha8 RNG seeded by the c
 
 ## DownloadShard Flow
 
-`DownloadShard` accepts a 33-byte `BlobID` (`blob_version || commitment`), validates the blob ID and supported blob version, looks up a stored shard by commitment, and streams the first matching stored shard: a `ShardHeader` (RLC vector and row count) followed by one `BlobRow` per message. The shard is read from disk one row at a time, so the server never holds the whole shard in memory. If there are multiple promises for the same commitment, the store streams one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC `NotFound`.
+Both download RPCs accept a 33-byte `BlobID` (`blob_version || commitment`), validate the blob ID and supported blob version, and look up a stored shard by commitment. If there are multiple promises for the same commitment, the store returns one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC `NotFound`.
+
+- `DownloadShard` (unary) loads the whole matching shard and returns it in a single `DownloadShardResponse.shard`.
+- `DownloadShardStream` returns the same shard as a `ShardHeader` (RLC vector and row count) followed by one `BlobRow` per message, reading it from disk one row at a time so the server never holds the whole shard in memory.
 
 ## Storage
 
@@ -223,9 +238,9 @@ Current gRPC status behavior is intentionally simple:
 | `UploadShard` | assignment verification fails | `InvalidArgument` |
 | `UploadShard` | row, proof, RLC, upload-size, or commitment verification fails | `InvalidArgument` |
 | `UploadShard` | store write or validator signing fails | `Internal` |
-| `DownloadShard` | invalid blob ID or unsupported blob version | `InvalidArgument` |
-| `DownloadShard` | no shard found for commitment | `NotFound` |
-| `DownloadShard` | store read failure | `Internal` |
+| `DownloadShard` / `DownloadShardStream` | invalid blob ID or unsupported blob version | `InvalidArgument` |
+| `DownloadShard` / `DownloadShardStream` | no shard found for commitment | `NotFound` |
+| `DownloadShard` / `DownloadShardStream` | store read failure | `Internal` |
 
 The implementation does not currently return `FailedPrecondition`, `PermissionDenied`, `AlreadyExists`, or `ResourceExhausted` for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.
 
