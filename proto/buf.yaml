@@ -16,6 +16,10 @@ lint:
     - SERVICE_SUFFIX
     - PACKAGE_VERSION_SUFFIX
     - RPC_REQUEST_STANDARD_NAME
+  ignore_only:
+    # DownloadShard and DownloadShardStream intentionally share DownloadShardRequest.
+    RPC_REQUEST_RESPONSE_UNIQUE:
+      - celestia/fibre/v1/service.proto
   ignore:
     - tendermint
     - gogoproto
