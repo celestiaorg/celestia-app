@@ -1,0 +1,93 @@
+name: celestia-local-devnet
+
+x-common: &common
+  image: celestia-local-devnet:v10
+  volumes:
+    - data:/data
+
+x-validator: &validator
+  <<: *common
+  command: [bash, /opt/devnet/start-validator.sh]
+  depends_on:
+    init:
+      condition: service_completed_successfully
+  healthcheck:
+    test: [CMD-SHELL, 'curl -fsS localhost:26657/status | jq -e ''.result.sync_info.latest_block_height | tonumber > 1''']
+    interval: 2s
+    timeout: 5s
+    retries: 90
+  stop_grace_period: 30s
+
+x-fibre: &fibre
+  <<: *common
+  stop_grace_period: 30s
+  healthcheck:
+    test: [CMD-SHELL, 'nc -z localhost "$$FIBRE_PORT"']
+    interval: 2s
+    timeout: 5s
+    retries: 60
+
+services:
+  init:
+    <<: *common
+    build:
+      context: ..
+      dockerfile: local_devnet/Dockerfile
+    command: [bash, /opt/devnet/init.sh]
+
+  validator-1:
+    <<: *validator
+    environment:
+      VALIDATOR: '1'
+    ports:
+      - '127.0.0.1:26657:26657'
+      - '127.0.0.1:1317:1317'
+      - '127.0.0.1:9090:9090'
+
+  validator-2:
+    <<: *validator
+    environment:
+      VALIDATOR: '2'
+    ports:
+      - '127.0.0.1:26658:26657'
+      - '127.0.0.1:1318:1317'
+      - '127.0.0.1:9091:9090'
+
+  fibre-1:
+    <<: *fibre
+    environment:
+      FIBRE_PORT: '7980'
+    command: [fibre, start, --home, /data/fibre-1, --app-grpc-address, 'validator-1:9090', --signer-grpc-address, 'validator-1:26669', --server-listen-address, '0.0.0.0:7980']
+    depends_on:
+      validator-1:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:7980:7980'
+
+  fibre-2:
+    <<: *fibre
+    environment:
+      FIBRE_PORT: '7981'
+    command: [fibre, start, --home, /data/fibre-2, --app-grpc-address, 'validator-2:9090', --signer-grpc-address, 'validator-2:26669', --server-listen-address, '0.0.0.0:7981']
+    depends_on:
+      validator-2:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:7981:7981'
+
+  setup:
+    <<: *common
+    command: [bash, /opt/devnet/setup.sh]
+    depends_on:
+      fibre-1:
+        condition: service_healthy
+      fibre-2:
+        condition: service_healthy
+
+  tools:
+    <<: *common
+    profiles: [tools]
+    entrypoint: [submit]
+
+volumes:
+  data:
