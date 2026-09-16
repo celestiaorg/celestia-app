@@ -102,6 +102,17 @@ func TestClientStop_StopsStateClient(t *testing.T) {
 	require.True(t, stateClient.stopped, "Stop must release the state client")
 }
 
+func TestNewClient_KeepsDefaultDialerOutOfConfig(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia"}, nil
+	}
+
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	require.Nil(t, client.Config.NewClientFn, "the default dialer is bound to this client's state client")
+}
+
 var testNamespace = share.MustNewV0Namespace([]byte("test"))
 
 func makeTestBlobV0(t *testing.T, sizeBytes int) *fibre.Blob {
