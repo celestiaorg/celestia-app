@@ -4982,12 +4982,20 @@ message DownloadShardRequest {
   bytes blob_id = 1;
 }
 
+// DownloadShardResponse is the unary DownloadShard response.
+message DownloadShardResponse {
+  BlobShard shard = 1;
+}
+
+// ShardHeader is the first message of a DownloadShardStream.
 message ShardHeader {
   bytes rlcs = 1;
   uint32 num_rows = 2;
 }
 
-message DownloadShardResponse {
+// DownloadShardStreamResponse is one message of a DownloadShardStream: a header
+// first, then one row per message.
+message DownloadShardStreamResponse {
   oneof chunk {
     ShardHeader header = 1;
     BlobRow row = 2;
@@ -4996,7 +5004,10 @@ message DownloadShardResponse {
 
 service Fibre {
   rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
-  rpc DownloadShard(DownloadShardRequest) returns (stream DownloadShardResponse);
+  // DownloadShard returns the whole shard in a single response.
+  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+  // DownloadShardStream returns the shard as a header followed by one row per message.
+  rpc DownloadShardStream(DownloadShardRequest) returns (stream DownloadShardStreamResponse);
 }
 </code></pre>
 <p><code>BlobShard.rlcs</code> contains the serialized full original-row RLC vector, not only coefficients for the returned rows.</p>
@@ -5040,7 +5051,7 @@ service Fibre {
 </li>
 <li>Select validators with <code>validator.Set.Select</code>, shuffled by stake for load balancing.</li>
 <li>Start download workers while the reconstructor still wants rows and row reservations are available.</li>
-<li>Each worker calls <code>DownloadShard</code> with <code>RPCTimeout</code> and reassembles the streamed shard: a <code>ShardHeader</code> (RLC vector and row count) first, then one <code>BlobRow</code> per message. The worker checks the message ordering and that the row count matches the header.</li>
+<li>Each worker calls <code>DownloadShardStream</code> with <code>RPCTimeout</code> and reassembles the streamed shard: a <code>ShardHeader</code> (RLC vector and row count) first, then one <code>BlobRow</code> per message. The worker checks the message ordering and that the row count matches the header. (The unary <code>DownloadShard</code> remains available for clients that prefer a single response.)</li>
 <li>Parse rows, row proofs, and RLC vector from the reassembled <code>BlobShard</code>.</li>
 <li>Add the shard to the <code>rsema1d.Reconstructor</code>, which verifies proofs and the commitment/RLC relationship.</li>
 <li>Stop dispatching after enough unique rows are collected or all selected validators have been tried.</li>
@@ -5105,7 +5116,11 @@ service Fibre {
 <p>The implemented data-plane service is <code>celestia.fibre.v1.Fibre</code>:</p>
 <pre><code class="language-protobuf">service Fibre {
   rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
-  rpc DownloadShard(DownloadShardRequest) returns (stream DownloadShardResponse);
+  // DownloadShard returns the whole shard in a single response.
+  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+  // DownloadShardStream returns the same shard as a header followed by one row
+  // per message, so the server never holds the whole shard in memory.
+  rpc DownloadShardStream(DownloadShardRequest) returns (stream DownloadShardStreamResponse);
 }
 
 message BlobRow {
@@ -5132,12 +5147,20 @@ message DownloadShardRequest {
   bytes blob_id = 1;
 }
 
+// DownloadShardResponse is the unary DownloadShard response.
+message DownloadShardResponse {
+  BlobShard shard = 1;
+}
+
+// ShardHeader is the first message of a DownloadShardStream.
 message ShardHeader {
   bytes rlcs = 1;
   uint32 num_rows = 2;
 }
 
-message DownloadShardResponse {
+// DownloadShardStreamResponse is one message of a DownloadShardStream: a header
+// first, then one row per message.
+message DownloadShardStreamResponse {
   oneof chunk {
     ShardHeader header = 1;
     BlobRow row = 2;
@@ -5245,7 +5268,11 @@ rows = min(max(rows, minRows), originalRows)
 </code></pre>
 <p>The row indices <code>0..totalRows-1</code> are shuffled with a ChaCha8 RNG seeded by the commitment. Validators are then walked in CometBFT validator-set order and assigned the next <code>rows</code> shuffled indices. If the total assigned rows exceed <code>totalRows</code>, assignment wraps modulo <code>totalRows</code>, so the same row may be assigned to multiple validators.</p>
 <h2 id="downloadshard-flow"><a class="header" href="#downloadshard-flow">DownloadShard Flow</a></h2>
-<p><code>DownloadShard</code> accepts a 33-byte <code>BlobID</code> (<code>blob_version || commitment</code>), validates the blob ID and supported blob version, looks up a stored shard by commitment, and streams the first matching stored shard: a <code>ShardHeader</code> (RLC vector and row count) followed by one <code>BlobRow</code> per message. The shard is read from disk one row at a time, so the server never holds the whole shard in memory. If there are multiple promises for the same commitment, the store streams one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC <code>NotFound</code>.</p>
+<p>Both download RPCs accept a 33-byte <code>BlobID</code> (<code>blob_version || commitment</code>), validate the blob ID and supported blob version, and look up a stored shard by commitment. If there are multiple promises for the same commitment, the store returns one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC <code>NotFound</code>.</p>
+<ul>
+<li><code>DownloadShard</code> (unary) loads the whole matching shard and returns it in a single <code>DownloadShardResponse.shard</code>.</li>
+<li><code>DownloadShardStream</code> returns the same shard as a <code>ShardHeader</code> (RLC vector and row count) followed by one <code>BlobRow</code> per message, reading it from disk one row at a time so the server never holds the whole shard in memory.</li>
+</ul>
 <h2 id="storage"><a class="header" href="#storage">Storage</a></h2>
 <p>The store uses Pebble for metadata and flat files for bulk shard payloads. The layout under <code>StoreConfig.Path</code> is:</p>
 <pre><code class="language-text">shards/&lt;commitment-hex&gt;-&lt;promise-hash-hex&gt;  finalized shard payload
@@ -5266,9 +5293,9 @@ staging/&lt;random&gt;                            temporary in-flight write
 <tr><td><code>UploadShard</code></td><td>assignment verification fails</td><td><code>InvalidArgument</code></td></tr>
 <tr><td><code>UploadShard</code></td><td>row, proof, RLC, upload-size, or commitment verification fails</td><td><code>InvalidArgument</code></td></tr>
 <tr><td><code>UploadShard</code></td><td>store write or validator signing fails</td><td><code>Internal</code></td></tr>
-<tr><td><code>DownloadShard</code></td><td>invalid blob ID or unsupported blob version</td><td><code>InvalidArgument</code></td></tr>
-<tr><td><code>DownloadShard</code></td><td>no shard found for commitment</td><td><code>NotFound</code></td></tr>
-<tr><td><code>DownloadShard</code></td><td>store read failure</td><td><code>Internal</code></td></tr>
+<tr><td><code>DownloadShard</code> / <code>DownloadShardStream</code></td><td>invalid blob ID or unsupported blob version</td><td><code>InvalidArgument</code></td></tr>
+<tr><td><code>DownloadShard</code> / <code>DownloadShardStream</code></td><td>no shard found for commitment</td><td><code>NotFound</code></td></tr>
+<tr><td><code>DownloadShard</code> / <code>DownloadShardStream</code></td><td>store read failure</td><td><code>Internal</code></td></tr>
 </tbody></table>
 </div>
 <p>The implementation does not currently return <code>FailedPrecondition</code>, <code>PermissionDenied</code>, <code>AlreadyExists</code>, or <code>ResourceExhausted</code> for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.</p>
