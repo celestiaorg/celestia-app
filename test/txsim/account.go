@@ -109,6 +109,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 	var (
 		highestBalance    uint64
 		wealthiestAddress string
+		lastBalanceErr    error
 	)
 
 	for _, record := range records {
@@ -121,6 +122,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 		balance, err := am.getBalance(ctx, address)
 		if err != nil {
 			log.Err(err).Str("account", record.Name).Msg("error getting initial account balance")
+			lastBalanceErr = err
 			continue
 		}
 
@@ -131,6 +133,9 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 	}
 
 	if wealthiestAddress == "" {
+		if lastBalanceErr != nil {
+			return "", fmt.Errorf("no suitable master account found: %w", lastBalanceErr)
+		}
 		return "", errors.New("no suitable master account found")
 	}
 

@@ -13,6 +13,8 @@ Before starting, make sure:
 - [ ] The fibre listen port (default `7980`) is reachable by clients from outside your network.
 - [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set gets no budget and no traffic.
 
+We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other. Use `--home` or `FIBRE_HOME` to place the fibre home directory on a separate disk (see [Start](#start)).
+
 ## Install
 
 ### Prebuilt binary
@@ -86,7 +88,19 @@ fibre version
 
 The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fibre/server_config.toml`).
 
-Config precedence: **flag > config file > default**.
+Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
+
+### Connection caps and memory
+
+`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+
+```text
+worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```
+
+The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+
+An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
 
 ## Signing
 
@@ -162,7 +176,7 @@ fibre start --log-level debug --log-format json
 
 ### Tracing & Metrics
 
-Fibre exports traces and metrics via OTLP/HTTP to any OpenTelemetry-compatible backend (Grafana Alloy, OTel Collector, Tempo, etc.). Both signals share the same endpoint and are enabled together.
+Fibre exports traces and metrics via OTLP/HTTP to an OpenTelemetry collector (Grafana Alloy, OTel Collector, etc.). Both signals share the same base URL and are enabled together. Configure the collector to forward both metrics and traces to their backends.
 
 | Flag | Env | Default |
 |---|---|---|
@@ -172,7 +186,9 @@ Fibre exports traces and metrics via OTLP/HTTP to any OpenTelemetry-compatible b
 fibre start --otel-endpoint http://localhost:4318
 ```
 
-OTLP uses separate paths on the same endpoint: `/v1/traces` for traces and `/v1/metrics` for metrics.
+Fibre appends `/v1/traces` and `/v1/metrics` to the base URL. A proxy prefix is preserved: `https://collector.example.com/otel` sends traces to `/otel/v1/traces` and metrics to `/otel/v1/metrics`.
+
+Set `--otel-endpoint` or `FIBRE_OTEL_ENDPOINT` to the base URL only. If your existing configuration ends in `/v1/metrics` or `/v1/traces`, remove that suffix when upgrading.
 
 **Tracing** — The sampler uses `ParentBased(TraceIDRatioBased(0.1))` — 10% of root spans are sampled, and sampling decisions from upstream services are respected.
 

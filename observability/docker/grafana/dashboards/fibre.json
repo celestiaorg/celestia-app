@@ -1,898 +1,3790 @@
 {
-  "title": "Fibre Network",
-  "uid": "fibre-network",
-  "annotations": { "list": [] },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
+  "id": null,
   "links": [],
   "panels": [
     {
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "id": 100,
+      "panels": [],
       "title": "Operational Overview",
       "type": "row"
     },
     {
-      "title": "Client Upload Success Rate",
-      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
       "id": 1,
-      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit", "min": 0, "max": 1,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "red", "value": null },
-            { "color": "orange", "value": 0.95 },
-            { "color": "green", "value": 0.99 }
-          ] }
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "overrides": []
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
           "expr": "sum(rate(fibre_client_upload_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_upload_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "success %"
+          "legendFormat": "success %",
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Client Upload Success Rate",
+      "type": "stat"
     },
     {
-      "title": "Client Download Success Rate",
-      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
       "id": 2,
-      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit", "min": 0, "max": 1,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "red", "value": null },
-            { "color": "orange", "value": 0.95 },
-            { "color": "green", "value": 0.99 }
-          ] }
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "overrides": []
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
           "expr": "sum(rate(fibre_client_download_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_download_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "success %"
+          "legendFormat": "success %",
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Client Download Success Rate",
+      "type": "stat"
     },
     {
-      "title": "Server UploadShard Success Rate",
-      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
       "id": 50,
-      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit", "min": 0, "max": 1,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "red", "value": null },
-            { "color": "orange", "value": 0.95 },
-            { "color": "green", "value": 0.99 }
-          ] }
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "overrides": []
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
+          "editorMode": "code",
           "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "success %"
+          "interval": "1m",
+          "legendFormat": "success %",
+          "range": true,
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Server UploadShard Success Rate",
+      "type": "stat"
     },
     {
-      "title": "Server DownloadShard Success Rate",
-      "type": "stat",
-      "id": 51,
-      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "unit": "percentunit", "min": 0, "max": 1,
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "red", "value": null },
-            { "color": "orange", "value": 0.95 },
-            { "color": "green", "value": 0.99 }
-          ] }
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.95
+              },
+              {
+                "color": "green",
+                "value": 0.99
+              }
+            ]
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "none" },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "id": 51,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
+          "editorMode": "code",
           "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "success %"
+          "interval": "1m",
+          "legendFormat": "success %",
+          "range": true,
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Server DownloadShard Success Rate",
+      "type": "stat"
     },
     {
-      "title": "Uploads In-Flight",
-      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
       "id": 3,
-      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(fibre_client_upload_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "uploads",
+          "refId": "A"
+        }
+      ],
+      "title": "Uploads In-Flight",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null },
-            { "color": "orange", "value": 50 },
-            { "color": "red", "value": 100 }
-          ] }
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "unit": "short"
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
-      "targets": [
-        { "expr": "sum(fibre_client_upload_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "uploads" }
-      ]
-    },
-    {
-      "title": "Downloads In-Flight",
-      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
       "id": 4,
-      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "percentChangeColorMode": "standard",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "showPercentChange": false,
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(fibre_client_download_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "downloads",
+          "refId": "A"
+        }
+      ],
+      "title": "Downloads In-Flight",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "thresholds": { "mode": "absolute", "steps": [
-            { "color": "green", "value": null },
-            { "color": "orange", "value": 50 },
-            { "color": "red", "value": 100 }
-          ] }
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
-      "targets": [
-        { "expr": "sum(fibre_client_download_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "downloads" }
-      ]
-    },
-    {
-      "title": "Success Rates Over Time",
-      "type": "timeseries",
-      "id": 5,
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-        "overrides": []
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 5
       },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
           "expr": "sum(rate(fibre_client_upload_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_upload_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "Client Upload"
+          "legendFormat": "Client Upload",
+          "refId": "A"
         },
         {
           "expr": "sum(rate(fibre_client_download_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_download_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "Client Download"
+          "legendFormat": "Client Download",
+          "refId": "B"
         },
         {
           "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "Server UploadShard"
+          "interval": "1m",
+          "legendFormat": "Server UploadShard",
+          "refId": "C"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "Server DownloadShard"
+          "interval": "1m",
+          "legendFormat": "Server DownloadShard",
+          "refId": "D"
         }
-      ]
+      ],
+      "title": "Success Rates Over Time",
+      "type": "timeseries"
     },
     {
-      "title": "Latency p99",
-      "type": "timeseries",
-      "id": 6,
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 5 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 5
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-          "legendFormat": "Client Upload p99"
+          "legendFormat": "Client Upload p99",
+          "refId": "A"
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-          "legendFormat": "Client Download p99"
+          "legendFormat": "Client Download p99",
+          "refId": "B"
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-          "legendFormat": "Server UploadShard p99"
+          "interval": "1m",
+          "legendFormat": "Server UploadShard p99",
+          "refId": "C"
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-          "legendFormat": "Server DownloadShard p99"
+          "interval": "1m",
+          "legendFormat": "Server DownloadShard p99",
+          "refId": "D"
         }
-      ]
+      ],
+      "title": "Latency p99",
+      "type": "timeseries"
     },
     {
-      "title": "In-Flight Over Time",
-      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
       "id": 7,
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
-        "overrides": []
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
+      "pluginVersion": "11.4.0",
       "targets": [
-        { "expr": "sum(fibre_client_upload_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "Client Uploads" },
-        { "expr": "sum(fibre_client_download_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "Client Downloads" },
-        { "expr": "sum(fibre_server_upload_shard_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "Server UploadShard" },
-        { "expr": "sum(fibre_server_download_shard_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "Server DownloadShard" }
-      ]
+        {
+          "expr": "sum(fibre_client_upload_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "Client Uploads",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(fibre_client_download_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "Client Downloads",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(fibre_server_upload_shard_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "Server UploadShard",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(fibre_server_download_shard_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "Server DownloadShard",
+          "refId": "D"
+        }
+      ],
+      "title": "In-Flight Over Time",
+      "type": "timeseries"
     },
     {
-      "title": "Throughput",
-      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
       "id": 8,
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 21 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
-      "fieldConfig": {
-        "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
-        "overrides": []
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
+      "pluginVersion": "11.4.0",
       "targets": [
-        { "expr": "sum(rate(fibre_client_upload_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Client Upload" },
-        { "expr": "sum(rate(fibre_client_download_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Client Download" },
-        { "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Server UploadShard" },
-        { "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Server DownloadShard" }
-      ]
+        {
+          "expr": "sum(rate(fibre_client_upload_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Client Upload",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(fibre_client_download_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Client Download",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Server UploadShard",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Server DownloadShard",
+          "refId": "D"
+        }
+      ],
+      "title": "Throughput",
+      "type": "timeseries"
     },
     {
-      "title": "Upload Amplification Factor (Network / Data)",
-      "type": "timeseries",
-      "id": 52,
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 29 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "description": "Ratio of total network bytes pushed (parity + shard duplication) to original data bytes. Expected ~2x for 2x erasure coding.",
       "fieldConfig": {
-        "defaults": { "unit": "short", "decimals": 2, "custom": { "fillOpacity": 10 } },
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 2,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "id": 52,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
       "targets": [
         {
           "expr": "sum(rate(fibre_client_upload_network_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_upload_data_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-          "legendFormat": "Amplification"
+          "legendFormat": "Amplification",
+          "refId": "A"
         }
-      ]
+      ],
+      "title": "Upload Amplification Factor (Network / Data)",
+      "type": "timeseries"
     },
     {
-      "title": "Total Upload Throughput (Data vs Network)",
-      "type": "timeseries",
-      "id": 9,
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 29 },
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "fieldConfig": {
-        "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
         "overrides": []
       },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
       "targets": [
-        { "expr": "sum(rate(fibre_client_upload_data_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Data (without coding overhead)" },
-        { "expr": "sum(rate(fibre_client_upload_network_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Network (with coding overhead)" },
-        { "expr": "sum(rate(fibre_client_upload_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))", "legendFormat": "Upload (original rows, with padding)" }
-      ]
+        {
+          "expr": "sum(rate(fibre_client_upload_data_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Data (without coding overhead)",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(fibre_client_upload_network_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Network (with coding overhead)",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(fibre_client_upload_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Upload (original rows, with padding)",
+          "refId": "C"
+        }
+      ],
+      "title": "Total Upload Throughput (Data vs Network)",
+      "type": "timeseries"
     },
-
     {
-      "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 },
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
       "id": 200,
+      "panels": [],
       "title": "Client Upload",
-      "type": "row",
-      "panels": [
-        {
-          "title": "Upload Success Rate",
-          "type": "timeseries",
-          "id": 10,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
           },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_upload_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_upload_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Success Rate"
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
-          ]
-        },
-        {
-          "title": "Upload Latency Percentiles",
-          "type": "timeseries",
-          "id": 11,
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
           },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p99"
-            }
-          ]
-        },
-        {
-          "title": "Upload Request Rate & In-Flight",
-          "type": "timeseries",
-          "id": 12,
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 22 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
-            "overrides": [
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "matcher": { "id": "byName", "options": "In-Flight" },
-                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.axisPlacement", "value": "right" }]
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_upload_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Requests/s"
-            },
-            {
-              "expr": "sum(fibre_client_upload_in_flight{service_instance_id=~\"$validator\"})",
-              "legendFormat": "In-Flight"
-            }
-          ]
+          "unit": "percentunit"
         },
-        {
-          "title": "Upload Throughput",
-          "type": "timeseries",
-          "id": 18,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 30 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_upload_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Throughput"
-            }
-          ]
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 38
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
         },
-        {
-          "title": "Signatures Collected Distribution",
-          "type": "timeseries",
-          "id": 13,
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 30 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_upload_signatures_collected_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_signatures_collected_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95"
-            }
-          ]
-        },
-        {
-          "title": "Upload Latency by Blob Size",
-          "type": "timeseries",
-          "id": 14,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 38 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le, blob_size) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95 blob_size={{blob_size}}"
-            }
-          ]
-        },
-        {
-          "title": "Per-Validator: Duration vs RPC Latency (p95)",
-          "type": "timeseries",
-          "id": 15,
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 38 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_to_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "Full Duration p95"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_to_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "RPC Latency p95"
-            }
-          ]
-        },
-        {
-          "title": "Per-Validator Success Rate by Validator",
-          "type": "timeseries",
-          "id": 16,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 46 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum by(validator_address) (rate(fibre_client_upload_to_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum by(validator_address) (rate(fibre_client_upload_to_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "{{validator_address}}"
-            }
-          ]
-        },
-        {
-          "title": "Per-Validator RPC Latency by Validator (p95)",
-          "type": "timeseries",
-          "id": 17,
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 46 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le, validator_address) (rate(fibre_client_upload_to_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "{{validator_address}}"
-            }
-          ]
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
         }
-      ]
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_client_upload_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_upload_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Success Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "Upload Success Rate",
+      "type": "timeseries"
     },
-
     {
-      "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 38 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 38
+      },
+      "id": 11,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Upload Latency Percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "In-Flight"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 38
+      },
+      "id": 12,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_client_upload_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Requests/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(fibre_client_upload_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "In-Flight",
+          "refId": "B"
+        }
+      ],
+      "title": "Upload Request Rate & In-Flight",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 46
+      },
+      "id": 18,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_client_upload_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Throughput",
+          "refId": "A"
+        }
+      ],
+      "title": "Upload Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 46
+      },
+      "id": 13,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_upload_signatures_collected_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_signatures_collected_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Signatures Collected Distribution",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 54
+      },
+      "id": 14,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le, blob_size) (rate(fibre_client_upload_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p95 blob_size={{blob_size}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Upload Latency by Blob Size",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 54
+      },
+      "id": 15,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_to_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "Full Duration p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_upload_to_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "RPC Latency p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Per-Validator: Duration vs RPC Latency (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 62
+      },
+      "id": 16,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum by(validator_address) (rate(fibre_client_upload_to_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum by(validator_address) (rate(fibre_client_upload_to_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "{{validator_address}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-Validator Success Rate by Validator",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 62
+      },
+      "id": 17,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le, validator_address) (rate(fibre_client_upload_to_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "{{validator_address}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-Validator RPC Latency by Validator (p95)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 70
+      },
       "id": 300,
+      "panels": [],
       "title": "Client Download",
-      "type": "row",
-      "panels": [
-        {
-          "title": "Download Success Rate",
-          "type": "timeseries",
-          "id": 20,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 23 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_download_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_download_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Success Rate"
-            }
-          ]
-        },
-        {
-          "title": "Download Latency Percentiles",
-          "type": "timeseries",
-          "id": 21,
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 23 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p99"
-            }
-          ]
-        },
-        {
-          "title": "Download Request Rate & In-Flight",
-          "type": "timeseries",
-          "id": 22,
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 23 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
-            "overrides": [
-              {
-                "matcher": { "id": "byName", "options": "In-Flight" },
-                "properties": [{ "id": "unit", "value": "short" }, { "id": "custom.axisPlacement", "value": "right" }]
-              }
-            ]
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_download_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Requests/s"
-            },
-            {
-              "expr": "sum(fibre_client_download_in_flight{service_instance_id=~\"$validator\"})",
-              "legendFormat": "In-Flight"
-            }
-          ]
-        },
-        {
-          "title": "Download Throughput",
-          "type": "timeseries",
-          "id": 27,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_client_download_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Throughput"
-            }
-          ]
-        },
-        {
-          "title": "Download Latency by Blob Size",
-          "type": "timeseries",
-          "id": 23,
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 31 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le, blob_size) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95 blob_size={{blob_size}}"
-            }
-          ]
-        },
-        {
-          "title": "Per-Validator: Duration vs RPC Latency (p95)",
-          "type": "timeseries",
-          "id": 24,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_download_from_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "Full Duration p95"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_download_from_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "RPC Latency p95"
-            }
-          ]
-        },
-        {
-          "title": "Per-Validator Success Rate by Validator",
-          "type": "timeseries",
-          "id": 25,
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum by(validator_address) (rate(fibre_client_download_from_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum by(validator_address) (rate(fibre_client_download_from_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "{{validator_address}}"
-            }
-          ]
-        },
-        {
-          "title": "Per-Validator RPC Latency by Validator (p95)",
-          "type": "timeseries",
-          "id": 26,
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 47 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le, validator_address) (rate(fibre_client_download_from_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "{{validator_address}}"
-            }
-          ]
-        }
-      ]
+      "type": "row"
     },
-
     {
-      "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 39 },
-      "id": 500,
-      "title": "Server",
-      "type": "row",
-      "panels": [
-        {
-          "title": "UploadShard Success Rate",
-          "type": "timeseries",
-          "id": 40,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 25 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
           },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Success Rate"
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
             }
-          ]
-        },
-        {
-          "title": "UploadShard Latency",
-          "type": "timeseries",
-          "id": 41,
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 25 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
           },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p99"
-            }
-          ]
-        },
-        {
-          "title": "Server In-Flight RPCs",
-          "type": "timeseries",
-          "id": 42,
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 25 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            { "expr": "sum(fibre_server_upload_shard_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "UploadShard" },
-            { "expr": "sum(fibre_server_download_shard_in_flight{service_instance_id=~\"$validator\"})", "legendFormat": "DownloadShard" }
-          ]
-        },
-        {
-          "title": "DownloadShard Success Rate",
-          "type": "timeseries",
-          "id": 43,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 33 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Success Rate"
-            }
-          ]
-        },
-        {
-          "title": "DownloadShard Latency",
-          "type": "timeseries",
-          "id": 44,
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 33 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p99"
-            }
-          ]
-        },
-        {
-          "title": "Server Request Rate",
-          "type": "timeseries",
-          "id": 45,
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 33 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "reqps", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "UploadShard/s"
-            },
-            {
-              "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "DownloadShard/s"
-            }
-          ]
-        },
-        {
-          "title": "Server Throughput",
-          "type": "timeseries",
-          "id": 49,
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 41 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "Bps", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "UploadShard"
-            },
-            {
-              "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "DownloadShard"
-            }
-          ]
-        },
-        {
-          "title": "Store Latency (Put vs Get)",
-          "type": "timeseries",
-          "id": 46,
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 41 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_store_put_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "Store Put p95"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_store_get_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "Store Get p95"
-            }
-          ]
-        },
-        {
-          "title": "Signing Latency",
-          "type": "timeseries",
-          "id": 47,
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 41 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "s", "custom": { "fillOpacity": 10 } },
-            "overrides": []
-          },
-          "targets": [
-            {
-              "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p50"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "p95"
-            },
-            {
-              "expr": "sum(rate(fibre_server_sign_duration_seconds_count{success=\"false\",service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Failures/s"
-            }
-          ]
-        },
-        {
-          "title": "Prune Health",
-          "type": "timeseries",
-          "id": 48,
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 49 },
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "fieldConfig": {
-            "defaults": { "unit": "short", "custom": { "fillOpacity": 10 } },
-            "overrides": [
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
               {
-                "matcher": { "id": "byName", "options": "Duration p95" },
-                "properties": [{ "id": "unit", "value": "s" }, { "id": "custom.axisPlacement", "value": "right" }]
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
               }
             ]
           },
-          "targets": [
-            {
-              "expr": "sum(rate(fibre_server_prune_entries_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Entries Pruned/s"
-            },
-            {
-              "expr": "sum(rate(fibre_server_prune_duration_seconds_count{success=\"false\",service_instance_id=~\"$validator\"}[$__rate_interval]))",
-              "legendFormat": "Failures/s"
-            },
-            {
-              "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_prune_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
-              "legendFormat": "Duration p95"
-            }
-          ]
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 71
+      },
+      "id": 20,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
         }
-      ]
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_client_download_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_client_download_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Success Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "Download Success Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 71
+      },
+      "id": 21,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "Download Latency Percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "In-Flight"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 71
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_client_download_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Requests/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(fibre_client_download_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "In-Flight",
+          "refId": "B"
+        }
+      ],
+      "title": "Download Request Rate & In-Flight",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 79
+      },
+      "id": 27,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_client_download_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "Throughput",
+          "refId": "A"
+        }
+      ],
+      "title": "Download Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 79
+      },
+      "id": 23,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le, blob_size) (rate(fibre_client_download_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "p95 blob_size={{blob_size}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Download Latency by Blob Size",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 87
+      },
+      "id": 24,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_download_from_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "Full Duration p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_client_download_from_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "RPC Latency p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Per-Validator: Duration vs RPC Latency (p95)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 87
+      },
+      "id": 25,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum by(validator_address) (rate(fibre_client_download_from_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum by(validator_address) (rate(fibre_client_download_from_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "legendFormat": "{{validator_address}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-Validator Success Rate by Validator",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 95
+      },
+      "id": 26,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le, validator_address) (rate(fibre_client_download_from_rpc_latency_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "legendFormat": "{{validator_address}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-Validator RPC Latency by Validator (p95)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 103
+      },
+      "id": 500,
+      "panels": [],
+      "title": "Server",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 104
+      },
+      "id": 40,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Success Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "UploadShard Success Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 104
+      },
+      "id": 41,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "UploadShard Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 104
+      },
+      "id": 42,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(fibre_server_upload_shard_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "UploadShard",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(fibre_server_download_shard_in_flight{service_instance_id=~\"$validator\"})",
+          "legendFormat": "DownloadShard",
+          "refId": "B"
+        }
+      ],
+      "title": "Server In-Flight RPCs",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "max": 1,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 112
+      },
+      "id": 43,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Success Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "DownloadShard Success Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 112
+      },
+      "id": 44,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "title": "DownloadShard Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 112
+      },
+      "id": 45,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "UploadShard/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "DownloadShard/s",
+          "refId": "B"
+        }
+      ],
+      "title": "Server Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 120
+      },
+      "id": 49,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "UploadShard",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "DownloadShard",
+          "refId": "B"
+        }
+      ],
+      "title": "Server Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 120
+      },
+      "id": 46,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_store_put_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "Store Put p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_store_get_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "Store Get p95",
+          "refId": "B"
+        }
+      ],
+      "title": "Store Latency (Put vs Get)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 120
+      },
+      "id": 47,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(fibre_server_sign_duration_seconds_count{success=\"false\",service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Failures/s",
+          "refId": "C"
+        }
+      ],
+      "title": "Signing Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Duration p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 128
+      },
+      "id": 48,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_server_prune_entries_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Entries Pruned/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(fibre_server_prune_duration_seconds_count{success=\"false\",service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Failures/s",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_prune_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
+          "legendFormat": "Duration p95",
+          "refId": "C"
+        }
+      ],
+      "title": "Prune Health",
+      "type": "timeseries"
     }
   ],
-  "schemaVersion": 39,
-  "tags": ["fibre", "celestia"],
+  "preload": false,
+  "refresh": "5s",
+  "schemaVersion": 40,
+  "tags": [
+    "fibre",
+    "celestia"
+  ],
   "templating": {
     "list": [
       {
-        "name": "validator",
-        "label": "Validator",
-        "type": "query",
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "allValue": ".*",
+        "current": {
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "definition": "label_values(fibre_client_upload_in_flight, service_instance_id)",
+        "includeAll": true,
+        "label": "Validator",
+        "multi": true,
+        "name": "validator",
         "query": {
           "query": "label_values(fibre_client_upload_in_flight, service_instance_id)",
           "refId": "StandardVariableQuery"
         },
-        "includeAll": true,
-        "allValue": ".*",
-        "multi": true,
-        "current": {},
         "refresh": 2,
         "sort": 1,
-        "hide": 0
+        "type": "query"
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
-  "version": 3
+  "title": "Fibre Network",
+  "uid": "fibre-network",
+  "version": 1,
+  "weekStart": ""
 }
