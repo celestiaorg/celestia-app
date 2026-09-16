@@ -27,6 +27,7 @@ import (
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
+	runtimeservices "github.com/cosmos/cosmos-sdk/runtime/services"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -45,6 +46,13 @@ const (
 	flagTraceStore = "trace-store"
 	flagGRPCOnly   = "grpc-only"
 )
+
+// reflectionServiceRegistrar is satisfied by any servertypes.Application
+// Since the servertypes.Application interface does not include RegisterCosmosReflectionService,
+// and lives in another repo, to get around it we use a local interface to satisfy it.
+type reflectionServiceRegistrar interface {
+	RegisterCosmosReflectionService(client.Context, *runtimeservices.ReflectionService)
+}
 
 // Multiplexer is responsible for managing multiple versions of applications and coordinating their lifecycle.
 // It handles version switching between embedded and native applications.
@@ -179,6 +187,16 @@ func (m *Multiplexer) enableGRPCAndAPIServers(app servertypes.Application) error
 		app.RegisterTxService(m.clientContext)
 		app.RegisterTendermintService(m.clientContext)
 		app.RegisterNodeService(m.clientContext, m.svrCfg)
+		// initialize reflection service
+		// servertypes.Application does not declare RegisterCosmosReflectionService,
+		// To get around this, we make a local interface to satisfy it.
+		if rsr, ok := app.(reflectionServiceRegistrar); ok {
+			rfS, err := runtimeservices.NewReflectionService()
+			if err != nil {
+				return err
+			}
+			rsr.RegisterCosmosReflectionService(m.clientContext, rfS)
+		}
 	}
 
 	// startGRPCServer the grpc server in the case of a native app. If using an embedded app

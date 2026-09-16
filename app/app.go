@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/log"
@@ -849,6 +850,10 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 
 func (app *App) RegisterNodeService(clientCtx client.Context, cfg config.Config) {
 	nodeservice.RegisterNodeService(clientCtx, app.GRPCQueryRouter(), cfg)
+}
+
+func (app *App) RegisterCosmosReflectionService(clientCtx client.Context, rfS *runtimeservices.ReflectionService) {
+	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), rfS)
 }
 
 // initParamsKeeper initializes the params keeper and its subspaces.
