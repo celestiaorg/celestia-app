@@ -13,7 +13,7 @@ This package is the Go client. Depending on what you want to do:
 
 - A network running app version 10 or later, with bonded validators that have [registered fibre hosts](../x/valaddr/README.md) — the client discovers servers through that registry.
 - gRPC access to a `celestia-appd` node (default `127.0.0.1:9090`).
-- A funded account in a local keyring, plus a funded fibre **escrow account** for that key (see [Escrow](#escrow)).
+- For uploads: a funded account in a local keyring, plus a funded fibre **escrow account** for that key (see [Escrow](#escrow)).
 
 ## Quickstart
 
@@ -95,7 +95,7 @@ func main() {
 }
 ```
 
-Anyone who knows the `BlobID` can download the blob the same way — only uploading requires a key and escrow.
+Anyone who knows the `BlobID` can download the blob the same way — only uploading requires a key and escrow. A download-only client can pass a `nil` keyring to `fibre.NewClient`; `Upload` and `Put` on such a client return `ErrNoKeyring`.
 
 ## Escrow
 

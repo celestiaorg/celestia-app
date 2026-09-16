@@ -120,7 +120,7 @@ talis genesis --ods-size 256 --build-dir build
 talis deploy --workers 20
 ```
 
-`talis genesis` stages a `reader-payload/` directory (fibre-reader binary + a fibre keyring borrowed from validator-0). `talis deploy` ships it to each reader and runs `reader_init.sh`, which installs `/bin/fibre-reader` and `/root/.celestia-app/keyring-test/`. Mirrors the encoder pattern.
+`talis genesis` stages a `reader-payload/` directory (the fibre-reader binary). `talis deploy` ships it to each reader and runs `reader_init.sh`, which installs `/bin/fibre-reader`. Mirrors the encoder pattern.
 
 `make build-talis-bins` builds the fibre-reader binary along with the other talis binaries. Its codec can decode `MsgPayForFibre` because the fibre module is compiled into every build by default.
 
@@ -141,7 +141,6 @@ talis fibre-reader \
 | `--download-concurrency` | `8`     | Max concurrent in-flight downloads per reader (semaphore-bounded; goroutine spawned per blob)                                |
 | `--download-timeout`     | `2m`    | Per-blob download timeout                                                                                                    |
 | `--duration`             | `0`     | How long to run (`0` = until killed)                                                                                         |
-| `--key-prefix`           | `fibre` | Fibre keyring key-name prefix (only used to satisfy `fibre.NewClient`'s key-existence check; reader does not sign anything)  |
 | `--pyroscope-endpoint`   | *(auto)* | Pyroscope endpoint (auto-detected from observability config)                                                                |
 
 ### Sharding

@@ -24,6 +24,8 @@ const DefaultKeyName = "default-fibre"
 var (
 	// ErrClientClosed is returned when an operation is attempted on a closed client.
 	ErrClientClosed = errors.New("fibre: client is closed")
+	// ErrNoKeyring is returned when Upload or Put is called without a keyring.
+	ErrNoKeyring = errors.New("fibre: keyring is required for uploads")
 	// ErrKeyNotFound is returned when the configured key is not found in the keyring.
 	ErrKeyNotFound = errors.New("fibre: key not found in keyring")
 )
@@ -61,13 +63,13 @@ type Client struct {
 	stopCh chan struct{}
 }
 
-// NewClient creates a new [Client] with the provided dependencies.
-// Returns an error if the configured key is not found in the keyring.
+// NewClient creates a new [Client]; a nil keyring allows downloads only.
+// If a keyring is provided, the configured key must exist.
 func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
-	// verify the key exists in the keyring
-	_, err := kr.Key(cfg.DefaultKeyName)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s: %v", ErrKeyNotFound, cfg.DefaultKeyName, err)
+	if kr != nil {
+		if _, err := kr.Key(cfg.DefaultKeyName); err != nil {
+			return nil, fmt.Errorf("%w: %s: %v", ErrKeyNotFound, cfg.DefaultKeyName, err)
+		}
 	}
 
 	if err := cfg.Validate(); err != nil {

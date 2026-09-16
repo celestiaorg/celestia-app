@@ -18,7 +18,6 @@ func fibreReaderCmd() *cobra.Command {
 		downloadConcurrency int
 		downloadTimeout     time.Duration
 		duration            time.Duration
-		keyPrefix           string
 		pyroscopeEndpoint   string
 	)
 
@@ -61,10 +60,9 @@ func fibreReaderCmd() *cobra.Command {
 				grpcEndpoint := fmt.Sprintf("%s:9091", target.PrivateIP)
 
 				remoteCmd := fmt.Sprintf(
-					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --keyring-dir .celestia-app --key-name %s-0 --reader-index %d --reader-count %d --download-concurrency %d --download-timeout %s --duration %s",
+					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --reader-index %d --reader-count %d --download-concurrency %d --download-timeout %s --duration %s",
 					rpcEndpoint,
 					grpcEndpoint,
-					keyPrefix,
 					readerIndex,
 					readerCount,
 					downloadConcurrency,
@@ -101,7 +99,6 @@ func fibreReaderCmd() *cobra.Command {
 	cmd.Flags().IntVar(&downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads per reader (semaphore bound; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs.")
 	cmd.Flags().DurationVar(&downloadTimeout, "download-timeout", 2*time.Minute, "per-blob download timeout")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
-	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "fibre keyring key-name prefix (only used to satisfy fibre.NewClient's key existence check; reader does not sign)")
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint (default: auto-detected from observability config)")
 
 	return cmd
