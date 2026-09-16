@@ -111,5 +111,3 @@ container exiting with code 0 is normal. Port conflicts require stopping the
 other local service or changing the published port in `compose.yaml`.
 After changing app code, rebuild with `./up.sh`; reset the volume if the change
 requires a new genesis or incompatible state.
-
-The implementation plan is in [PLAN.md](PLAN.md).
