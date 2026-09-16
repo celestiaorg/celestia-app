@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/log"
@@ -532,6 +533,12 @@ func New(
 	if err := app.ModuleManager.RegisterServices(app.configurator); err != nil {
 		panic(err)
 	}
+
+	rfS, err := runtimeservices.NewReflectionService()
+	if err != nil {
+		panic(err)
+	}
+	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), rfS)
 
 	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
