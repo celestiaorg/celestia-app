@@ -199,5 +199,5 @@ func (c *Client) Stop(ctx context.Context) error {
 	case <-done:
 	case <-ctx.Done():
 	}
-	return c.clientCache.Close()
+	return errors.Join(c.clientCache.Close(), c.state.Stop(ctx))
 }
