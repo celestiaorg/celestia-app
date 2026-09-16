@@ -49,6 +49,7 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.1
 	github.com/golang/protobuf v1.5.4
+	github.com/google/go-tdx-guest v0.3.1
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3
 	github.com/grafana/otel-profiling-go v0.6.0
 	github.com/grafana/pyroscope-go v1.4.2
@@ -268,6 +269,7 @@ require (
 	github.com/google/flatbuffers v25.1.24+incompatible // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/logger v1.1.1 // indirect
 	github.com/google/orderedcode v0.0.1 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect

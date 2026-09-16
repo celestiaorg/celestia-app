@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package celestia.teeism.v1;
+
+import "celestia/teeism/v1/types.proto";
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
+
+// Msg defines the teeism module Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // CreateInterchainSecurityModule defines the rpc method for creating a new TEE ISM.
+  rpc CreateInterchainSecurityModule(MsgCreateInterchainSecurityModule)
+      returns (MsgCreateInterchainSecurityModuleResponse);
+
+  // SubmitAttestation advances the ism state and authorizes a batch of messages
+  // in a single step.
+  rpc SubmitAttestation(MsgSubmitAttestation) returns (MsgSubmitAttestationResponse);
+}
+
+// MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModule {
+  option (cosmos.msg.v1.signer) = "creator";
+
+  // creator is the message sender.
+  string creator = 1;
+  // initial trusted state, which pins the origin light client checkpoint
+  bytes state = 2;
+  // origin merkle tree hook address in bytes32 format
+  bytes merkle_tree_address = 3;
+  // the enclave permitted to advance this ism
+  EnclaveIdentity identity = 4;
+}
+
+// MsgCreateInterchainSecurityModuleResponse is the response type for CreateInterchainSecurityModule.
+message MsgCreateInterchainSecurityModuleResponse {
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+}
+
+// MsgSubmitAttestation is the request type for SubmitAttestation.
+//
+// Unlike a proof-carrying ISM, one attestation authorizes both the state
+// transition and the message batch. The enclave already signs a single payload
+// covering both, so splitting them into two transactions would only re-verify the
+// same quote twice.
+message MsgSubmitAttestation {
+  option (cosmos.msg.v1.signer) = "signer";
+
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the raw TDX quote produced by the enclave
+  bytes quote = 2;
+  // the dstack event log, as dstack returned it (JSON)
+  bytes event_log = 3;
+  // Intel PCS artifacts the quote is verified against
+  Collateral collateral = 4;
+  // the canonically encoded attested update the quote commits to
+  bytes payload = 5;
+  // the tx signer address
+  string signer = 6;
+}
+
+// MsgSubmitAttestationResponse is the response type for SubmitAttestation.
+message MsgSubmitAttestationResponse {
+  // new ism state (hex-encoded)
+  string state = 1;
+  // state commitment root the messages were authorized under (hex-encoded)
+  string state_root = 2;
+  // list of authorized message ids
+  repeated string messages = 3;
+}

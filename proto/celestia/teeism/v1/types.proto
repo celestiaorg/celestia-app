@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package celestia.teeism.v1;
+
+option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// EnclaveIdentity pins which enclave may advance an ISM.
+//
+// A DCAP quote on its own proves only that some genuine, non-debug TDX machine
+// signed a payload; anyone renting any TDX host can produce one. These fields are
+// what turn that into "our code, on a platform Intel still trusts, said this".
+//
+// app-id and instance-id are deliberately absent. They differ per CVM, while
+// compose_hash already covers the container image digest and the whole compose
+// file, so leaving them out lets every node in a deployment share one identity.
+message EnclaveIdentity {
+  option (gogoproto.goproto_getters) = false;
+
+  // the TD build-time measurement, covering the dstack OS image and the VM's
+  // vCPU/memory shape. 48 bytes.
+  bytes mr_td = 1;
+  // the dstack OS image, as dstack records it in its event log.
+  bytes os_image_hash = 2;
+  // hash of the compose file, which pins our container image digest.
+  bytes compose_hash = 3;
+  // which KMS may release this application's keys.
+  bytes mr_kms = 4;
+  // which key-provider mode the CVM booted with.
+  bytes key_provider = 5;
+}
+
+// InterchainSecurityModule defines a TEE-backed Hyperlane interchain security module.
+message InterchainSecurityModule {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // current trusted state. The first 32 bytes are the origin state root; the
+  // remainder carries the origin domain, height, timestamp, a commitment to the
+  // light client store and a digest of the enclave identity below.
+  bytes state = 3;
+  // origin merkle tree hook address in bytes32 format
+  bytes merkle_tree_address = 4;
+  // the enclave permitted to advance this ism
+  EnclaveIdentity identity = 5;
+}
+
+// Collateral carries the Intel PCS artifacts a quote is verified against.
+//
+// DCAP verification needs TCB info, QE identity and revocation lists that are
+// normally fetched from Intel over the network. A consensus machine cannot make
+// network calls, so the submitter carries them in the transaction instead. This
+// costs nothing in security: every artifact is signed by Intel and the signatures
+// are checked during verification, so a forged or stale artifact is rejected the
+// same way a forged quote is.
+message Collateral {
+  option (gogoproto.goproto_getters) = false;
+
+  // PCK certificate revocation list, DER encoded
+  bytes pck_crl = 1;
+  // the issuer chain served alongside the PCK CRL, PEM encoded
+  bytes pck_crl_issuer_chain = 2;
+  // TDX TCB info, as served by PCS (JSON)
+  bytes tcb_info = 3;
+  // the issuer chain served alongside the TCB info, PEM encoded
+  bytes tcb_info_issuer_chain = 4;
+  // quoting enclave identity, as served by PCS (JSON)
+  bytes qe_identity = 5;
+  // the issuer chain served alongside the QE identity, PEM encoded
+  bytes qe_identity_issuer_chain = 6;
+  // Intel SGX root CA revocation list, DER encoded
+  bytes root_ca_crl = 7;
+}

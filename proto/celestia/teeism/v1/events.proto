@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+package celestia.teeism.v1;
+
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
+
+// EventCreateInterchainSecurityModule is emitted when a new ISM is created.
+message EventCreateInterchainSecurityModule {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner or creator of the ism
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // initial state (hex-encoded)
+  string state = 3;
+  // origin merkle tree hook address (hex-encoded)
+  string merkle_tree_address = 4;
+  // digest of the pinned enclave identity (hex-encoded)
+  string identity_digest = 5;
+}
+
+// EventSubmitAttestation is emitted when an attestation advances the ism.
+message EventSubmitAttestation {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // new state (hex-encoded)
+  string state = 2;
+  // new origin state root (hex-encoded)
+  string state_root = 3;
+  // origin height the state now commits to
+  uint64 height = 4;
+  // list of authorized message ids (hex-encoded)
+  repeated string message_ids = 5;
+}

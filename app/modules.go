@@ -23,6 +23,8 @@ import (
 	minttypes "github.com/celestiaorg/celestia-app/v10/x/mint/types"
 	"github.com/celestiaorg/celestia-app/v10/x/signal"
 	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
+	"github.com/celestiaorg/celestia-app/v10/x/teeism"
+	teeismtypes "github.com/celestiaorg/celestia-app/v10/x/teeism/types"
 	"github.com/celestiaorg/celestia-app/v10/x/valaddr"
 	valaddrtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism"
@@ -91,6 +93,7 @@ var ModuleEncodingRegisters = []module.AppModuleBasic{
 	hyperlanecore.AppModule{},
 	warp.AppModule{},
 	zkism.AppModule{},
+	teeism.AppModule{},
 	// celestia
 	blob.AppModule{},
 	forwarding.AppModule{},
@@ -124,6 +127,7 @@ func (app *App) setModuleOrder() {
 		icatypes.ModuleName,
 		packetforwardtypes.ModuleName,
 		zkismtypes.ModuleName,
+		teeismtypes.ModuleName,
 		fibretypes.ModuleName,
 		valaddrtypes.ModuleName,
 	}
@@ -195,6 +199,7 @@ func (app *App) setModuleOrder() {
 		hyperlanetypes.ModuleName,
 		warptypes.ModuleName,
 		zkismtypes.ModuleName,
+		teeismtypes.ModuleName,
 		forwardingtypes.ModuleName,
 		fibretypes.ModuleName,
 		valaddrtypes.ModuleName,
@@ -230,6 +235,7 @@ func allStoreKeys() []string {
 		hyperlanetypes.ModuleName, // added in v4
 		warptypes.ModuleName,      // added in v4
 		zkismtypes.StoreKey,       // added in v7
+		teeismtypes.StoreKey,
 		valaddrtypes.StoreKey,
 		fibretypes.StoreKey,
 	}

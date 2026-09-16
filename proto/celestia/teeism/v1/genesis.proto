@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package celestia.teeism.v1;
+
+import "celestia/teeism/v1/types.proto";
+import "gogoproto/gogo.proto";
+
+option go_package = "github.com/celestiaorg/celestia-app/x/teeism/types";
+
+// GenesisState defines the teeism module's genesis state.
+message GenesisState {
+  // list of tee isms.
+  repeated InterchainSecurityModule isms = 1 [(gogoproto.nullable) = false];
+  // messages authorized for each tee ism.
+  repeated GenesisMessages messages = 2 [(gogoproto.nullable) = false];
+}
+
+// GenesisMessages contains the authorized Hyperlane message IDs for a tee ism.
+message GenesisMessages {
+  // ism identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // list of authorized message ids
+  repeated string messages = 2;
+}
