@@ -528,11 +528,13 @@
         },
         {
           "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Server UploadShard",
           "refId": "C"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Server DownloadShard",
           "refId": "D"
         }
@@ -634,11 +636,13 @@
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "Server UploadShard p99",
           "refId": "C"
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "Server DownloadShard p99",
           "refId": "D"
         }
@@ -846,11 +850,13 @@
         },
         {
           "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Server UploadShard",
           "refId": "C"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Server DownloadShard",
           "refId": "D"
         }
@@ -2811,6 +2817,7 @@
       "targets": [
         {
           "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Success Rate",
           "refId": "A"
         }
@@ -2902,16 +2909,19 @@
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
           "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -3101,6 +3111,7 @@
       "targets": [
         {
           "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{success=\"true\",service_instance_id=~\"$validator\"}[$__rate_interval])) / sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Success Rate",
           "refId": "A"
         }
@@ -3192,16 +3203,19 @@
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
           "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
           "expr": "histogram_quantile(0.99, sum by(le) (rate(fibre_server_download_shard_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p99",
           "refId": "C"
         }
@@ -3293,11 +3307,13 @@
       "targets": [
         {
           "expr": "sum(rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "UploadShard/s",
           "refId": "A"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "DownloadShard/s",
           "refId": "B"
         }
@@ -3389,11 +3405,13 @@
       "targets": [
         {
           "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "UploadShard",
           "refId": "A"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "DownloadShard",
           "refId": "B"
         }
@@ -3485,11 +3503,13 @@
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_store_put_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "Store Put p95",
           "refId": "A"
         },
         {
           "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_store_get_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "Store Get p95",
           "refId": "B"
         }
@@ -3581,16 +3601,19 @@
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum by(le) (rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p50",
           "refId": "A"
         },
         {
           "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "p95",
           "refId": "B"
         },
         {
           "expr": "sum(rate(fibre_server_sign_duration_seconds_count{success=\"false\",service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Failures/s",
           "refId": "C"
         }
@@ -3699,16 +3722,19 @@
       "targets": [
         {
           "expr": "sum(rate(fibre_server_prune_entries_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Entries Pruned/s",
           "refId": "A"
         },
         {
           "expr": "sum(rate(fibre_server_prune_duration_seconds_count{success=\"false\",service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
           "legendFormat": "Failures/s",
           "refId": "B"
         },
         {
           "expr": "histogram_quantile(0.95, sum by(le) (rate(fibre_server_prune_duration_seconds_bucket{service_instance_id=~\"$validator\"}[$__rate_interval])))",
+          "interval": "1m",
           "legendFormat": "Duration p95",
           "refId": "C"
         }
@@ -3718,6 +3744,7 @@
     }
   ],
   "preload": false,
+  "refresh": "5s",
   "schemaVersion": 40,
   "tags": [
     "fibre",
@@ -3727,7 +3754,10 @@
     "list": [
       {
         "allValue": ".*",
-        "current": {},
+        "current": {
+          "text": ["All"],
+          "value": ["$__all"]
+        },
         "datasource": {
           "type": "prometheus",
           "uid": "prometheus"
