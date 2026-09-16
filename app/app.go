@@ -534,6 +534,12 @@ func New(
 		panic(err)
 	}
 
+	rfS, err := runtimeservices.NewReflectionService()
+	if err != nil {
+		panic(err)
+	}
+	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), rfS)
+
 	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
@@ -850,10 +856,6 @@ func (app *App) RegisterTendermintService(clientCtx client.Context) {
 
 func (app *App) RegisterNodeService(clientCtx client.Context, cfg config.Config) {
 	nodeservice.RegisterNodeService(clientCtx, app.GRPCQueryRouter(), cfg)
-}
-
-func (app *App) RegisterCosmosReflectionService(clientCtx client.Context, rfS *runtimeservices.ReflectionService) {
-	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), rfS)
 }
 
 // initParamsKeeper initializes the params keeper and its subspaces.
