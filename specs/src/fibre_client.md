@@ -352,13 +352,21 @@ message DownloadShardRequest {
   bytes blob_id = 1;
 }
 
+message ShardHeader {
+  bytes rlcs = 1;
+  uint32 num_rows = 2;
+}
+
 message DownloadShardResponse {
-  BlobShard shard = 1;
+  oneof chunk {
+    ShardHeader header = 1;
+    BlobRow row = 2;
+  }
 }
 
 service Fibre {
   rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
-  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+  rpc DownloadShard(DownloadShardRequest) returns (stream DownloadShardResponse);
 }
 ```
 
@@ -405,8 +413,8 @@ The implementation does not submit PFF through a Fibre payment relay service and
    * `Head(ctx)` otherwise.
 4. Select validators with `validator.Set.Select`, shuffled by stake for load balancing.
 5. Start download workers while the reconstructor still wants rows and row reservations are available.
-6. Each worker calls `DownloadShard` with `RPCTimeout`.
-7. Parse rows, row proofs, and RLC vector from `BlobShard`.
+6. Each worker calls `DownloadShard` with `RPCTimeout` and reassembles the streamed shard: a `ShardHeader` (RLC vector and row count) first, then one `BlobRow` per message. The worker checks the message ordering and that the row count matches the header.
+7. Parse rows, row proofs, and RLC vector from the reassembled `BlobShard`.
 8. Add the shard to the `rsema1d.Reconstructor`, which verifies proofs and the commitment/RLC relationship.
 9. Stop dispatching after enough unique rows are collected or all selected validators have been tried.
 10. Reconstruct and decode the v0 blob header.

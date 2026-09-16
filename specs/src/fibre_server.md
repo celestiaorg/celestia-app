@@ -9,7 +9,7 @@ The implemented data-plane service is `celestia.fibre.v1.Fibre`:
 ```protobuf
 service Fibre {
   rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
-  rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+  rpc DownloadShard(DownloadShardRequest) returns (stream DownloadShardResponse);
 }
 
 message BlobRow {
@@ -36,8 +36,16 @@ message DownloadShardRequest {
   bytes blob_id = 1;
 }
 
+message ShardHeader {
+  bytes rlcs = 1;
+  uint32 num_rows = 2;
+}
+
 message DownloadShardResponse {
-  BlobShard shard = 1;
+  oneof chunk {
+    ShardHeader header = 1;
+    BlobRow row = 2;
+  }
 }
 ```
 
@@ -180,7 +188,7 @@ The row indices `0..totalRows-1` are shuffled with a ChaCha8 RNG seeded by the c
 
 ## DownloadShard Flow
 
-`DownloadShard` accepts a 33-byte `BlobID` (`blob_version || commitment`), validates the blob ID and supported blob version, looks up a stored shard by commitment, and returns the first matching stored `BlobShard`. If there are multiple promises for the same commitment, the store returns one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC `NotFound`.
+`DownloadShard` accepts a 33-byte `BlobID` (`blob_version || commitment`), validates the blob ID and supported blob version, looks up a stored shard by commitment, and streams the first matching stored shard: a `ShardHeader` (RLC vector and row count) followed by one `BlobRow` per message. The shard is read from disk one row at a time, so the server never holds the whole shard in memory. If there are multiple promises for the same commitment, the store streams one deterministic matching shard rather than concatenating all rows for all promises. Missing data returns gRPC `NotFound`.
 
 ## Storage
 

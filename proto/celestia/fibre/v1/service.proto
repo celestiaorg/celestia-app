@@ -36,15 +36,35 @@ message DownloadShardRequest {
   bytes blob_id = 1; // const len == 33 (version + commitment)
 }
 
-// DownloadShardResponse is the response message for the DownloadShard RPC method.
+// DownloadShardResponse is the response message for the unary DownloadShard RPC.
 message DownloadShardResponse {
   BlobShard shard = 1;
+}
+
+// ShardHeader carries the RLC vector and the number of rows that follow,
+// so the client can preallocate and validate the row count.
+message ShardHeader {
+  bytes rlcs = 1;
+  uint32 num_rows = 2;
+}
+
+// DownloadShardStreamResponse is one message of the DownloadShardStream server
+// stream: a ShardHeader first, then one BlobRow per message.
+message DownloadShardStreamResponse {
+  // chunk is the header on the first message, then a row on each subsequent one.
+  oneof chunk {
+    ShardHeader header = 1;
+    BlobRow row = 2;
+  }
 }
 
 // Fibre defines the gRPC service for uploading and downloading fibre blob shards.
 service Fibre {
   // UploadShard uploads a blob shard with its RLC vector to a validator.
   rpc UploadShard(UploadShardRequest) returns (UploadShardResponse);
-  // DownloadShard downloads a blob shard with its RLC vector from a validator.
+  // DownloadShard downloads a whole blob shard in a single response.
   rpc DownloadShard(DownloadShardRequest) returns (DownloadShardResponse);
+  // DownloadShardStream streams a blob shard: a ShardHeader followed by one row
+  // per message, so the server never holds the whole shard in memory.
+  rpc DownloadShardStream(DownloadShardRequest) returns (stream DownloadShardStreamResponse);
 }
