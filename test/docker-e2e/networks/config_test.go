@@ -46,3 +46,45 @@ func TestMochaConfigRPCsAreDistinct(t *testing.T) {
 		t.Errorf("Expected at least 2 distinct RPC endpoints, got %d distinct out of %d", len(seen), len(config.RPCs))
 	}
 }
+
+// TestMochaConfigPeers verifies the mocha config lists archive peers so a
+// node block syncing from genesis can fetch block 1.
+func TestMochaConfigPeers(t *testing.T) {
+	config := NewMochaConfig()
+
+	if config.Peers == "" {
+		t.Fatal("Expected mocha config to list archive peers")
+	}
+	for peer := range strings.SplitSeq(config.Peers, ",") {
+		if !strings.Contains(peer, "@") {
+			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
+		}
+	}
+}
+
+// TestMainnetConfig verifies the mainnet config has the chain ID, seeds, and
+// archive peers needed to block sync from genesis.
+func TestMainnetConfig(t *testing.T) {
+	config := NewMainnetConfig()
+
+	if config.ChainID != "celestia" {
+		t.Errorf("Expected chain ID celestia, got: %s", config.ChainID)
+	}
+	if config.Name != "mainnet" {
+		t.Errorf("Expected name mainnet, got: %s", config.Name)
+	}
+	if len(config.RPCs) < 2 {
+		t.Errorf("Expected at least 2 RPC servers, got %d", len(config.RPCs))
+	}
+	if config.Seeds == "" {
+		t.Error("Expected mainnet config to list seeds")
+	}
+	if config.Peers == "" {
+		t.Fatal("Expected mainnet config to list archive peers")
+	}
+	for peer := range strings.SplitSeq(config.Peers, ",") {
+		if !strings.Contains(peer, "@") {
+			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
+		}
+	}
+}
