@@ -31,7 +31,7 @@ func (d BlobShareDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	}
 
 	txBytes := ctx.TxBytes()
-	if len(txBytes) > math.MaxUint32 {
+	if uint64(len(txBytes)) > math.MaxUint32 {
 		return ctx, errors.Wrapf(blobtypes.ErrBlobsTooLarge, "the tx size %d exceeds the max uint32", txBytes)
 	}
 	txSize := uint32(len(txBytes))
