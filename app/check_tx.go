@@ -31,16 +31,13 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
-		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx) {
+		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
 			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
 		}
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
 	if isBlob {
-		if !blobTxIsCanonical(tx, btx) {
-			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
-		}
 		return app.handleBlobCheckTx(req, btx)
 	}
 
