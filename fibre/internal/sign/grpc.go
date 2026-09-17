@@ -2,9 +2,12 @@ package sign
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/cometbft/cometbft/crypto"
@@ -13,10 +16,51 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/types"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
 const signTimeout = 5 * time.Second
+
+// TLSConfig holds PEM file paths for mutual TLS to the PrivValidatorAPI
+// endpoint. A nil or empty config means plaintext transport. All three
+// files are required otherwise.
+type TLSConfig struct {
+	// CAFile is the CA certificate used to verify the server certificate.
+	CAFile string
+	// CertFile is the client certificate presented to the server.
+	CertFile string
+	// KeyFile is the private key for the client certificate.
+	KeyFile string
+}
+
+// Empty reports whether no TLS files are configured.
+func (c *TLSConfig) Empty() bool {
+	return c == nil || (c.CAFile == "" && c.CertFile == "" && c.KeyFile == "")
+}
+
+// credentials builds gRPC transport credentials from the configured files.
+func (c *TLSConfig) credentials() (credentials.TransportCredentials, error) {
+	caPEM, err := os.ReadFile(c.CAFile)
+	if err != nil {
+		return nil, fmt.Errorf("reading CA file: %w", err)
+	}
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(caPEM) {
+		return nil, fmt.Errorf("no certificates found in CA file %s", c.CAFile)
+	}
+
+	tlsCfg := &tls.Config{
+		RootCAs:    pool,
+		MinVersion: tls.VersionTLS13,
+	}
+	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("loading client certificate: %w", err)
+	}
+	tlsCfg.Certificates = []tls.Certificate{cert}
+	return credentials.NewTLS(tlsCfg), nil
+}
 
 // GRPCClient implements [types.PrivValidator] by connecting to a node's
 // PrivValidatorAPI gRPC endpoint. This allows fiber to sign payment promises
@@ -33,13 +77,26 @@ var (
 	_ io.Closer           = (*GRPCClient)(nil)
 )
 
-// NewGRPCClient dials the given gRPC address with insecure credentials
-// (intended for localhost use) and returns a client that delegates
-// signing to the remote PrivValidatorAPI.
-func NewGRPCClient(addr string, chainID string, log *slog.Logger) (*GRPCClient, error) {
+// NewGRPCClient dials the given gRPC address and returns a client that
+// delegates signing to the remote PrivValidatorAPI. If tlsCfg is nil or
+// empty, it dials with insecure credentials (intended for localhost use);
+// otherwise it uses mutual TLS with the configured PEM files.
+func NewGRPCClient(addr string, chainID string, tlsCfg *TLSConfig, log *slog.Logger) (*GRPCClient, error) {
+	creds := insecure.NewCredentials()
+	transport := "plaintext"
+	if !tlsCfg.Empty() {
+		var err error
+		creds, err = tlsCfg.credentials()
+		if err != nil {
+			return nil, fmt.Errorf("privval gRPC TLS config: %w", err)
+		}
+		transport = "mtls"
+	}
+	log.Info("connecting to privval gRPC signer", "addr", addr, "transport", transport)
+
 	conn, err := grpc.NewClient(
 		addr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("dialing privval gRPC at %s: %w", addr, err)

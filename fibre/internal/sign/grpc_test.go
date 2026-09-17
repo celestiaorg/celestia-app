@@ -40,7 +40,7 @@ func TestGRPCClientSignRawBytes(t *testing.T) {
 	pv := types.NewMockPV()
 	addr := startTestServer(t, pv)
 
-	client, err := sign.NewGRPCClient(addr, testChainID, slog.Default())
+	client, err := sign.NewGRPCClient(addr, testChainID, nil, slog.Default())
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = client.Close() })
 
@@ -64,7 +64,7 @@ func TestGRPCClientGetPubKey(t *testing.T) {
 	expectedPubKey, err := pv.GetPubKey()
 	require.NoError(t, err)
 
-	client, err := sign.NewGRPCClient(addr, testChainID, slog.Default())
+	client, err := sign.NewGRPCClient(addr, testChainID, nil, slog.Default())
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = client.Close() })
 
@@ -77,7 +77,7 @@ func TestGRPCClientSignRawBytesError(t *testing.T) {
 	pv := types.NewErroringMockPV()
 	addr := startTestServer(t, pv)
 
-	client, err := sign.NewGRPCClient(addr, testChainID, slog.Default())
+	client, err := sign.NewGRPCClient(addr, testChainID, nil, slog.Default())
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = client.Close() })
 
@@ -90,7 +90,7 @@ func TestGRPCClientClose(t *testing.T) {
 	pv := types.NewMockPV()
 	addr := startTestServer(t, pv)
 
-	client, err := sign.NewGRPCClient(addr, testChainID, slog.Default())
+	client, err := sign.NewGRPCClient(addr, testChainID, nil, slog.Default())
 	require.NoError(t, err)
 
 	require.NoError(t, client.Close())

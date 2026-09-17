@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -35,6 +36,16 @@ type ServerConfig struct {
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
 	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
+	// SignerGRPCCAFile is the PEM CA certificate used to verify the validator node's
+	// server certificate. Set all three TLS files for mTLS; leave all empty for plaintext (localhost only).
+	SignerGRPCCAFile string `toml:"signer_grpc_ca_file" comment:"SignerGRPCCAFile is the PEM CA certificate used to verify the validator node's server certificate. Set all three TLS files for mTLS; leave all empty for plaintext (localhost only)."`
+	// SignerGRPCCertFile is the PEM client certificate presented to the validator node.
+	SignerGRPCCertFile string `toml:"signer_grpc_cert_file" comment:"SignerGRPCCertFile is the PEM client certificate presented to the validator node."`
+	// SignerGRPCKeyFile is the PEM private key for the client certificate.
+	SignerGRPCKeyFile string `toml:"signer_grpc_key_file" comment:"SignerGRPCKeyFile is the PEM private key for the client certificate."`
+	// SignerGRPCAllowInsecure allows a plaintext signer connection to a non-localhost address.
+	// DANGER: only use on a network that already restricts access to the signer endpoint.
+	SignerGRPCAllowInsecure bool `toml:"signer_grpc_allow_insecure" comment:"SignerGRPCAllowInsecure allows a plaintext signer connection to a non-localhost address. DANGER: only use on a network that already restricts access to the signer endpoint."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// MaxConnections caps total concurrent gRPC connections.
@@ -147,8 +158,24 @@ func (cfg *ServerConfig) Validate() error {
 		if cfg.SignerGRPCAddress == "" {
 			return fmt.Errorf("signer_grpc_address is required")
 		}
+		tlsSet := cfg.SignerGRPCCAFile != "" || cfg.SignerGRPCCertFile != "" || cfg.SignerGRPCKeyFile != ""
+		tlsComplete := cfg.SignerGRPCCAFile != "" && cfg.SignerGRPCCertFile != "" && cfg.SignerGRPCKeyFile != ""
+		if tlsSet && !tlsComplete {
+			return fmt.Errorf("signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file must be set together")
+		}
+		if !tlsSet && !dialsLocalhost(cfg.SignerGRPCAddress) {
+			if !cfg.SignerGRPCAllowInsecure {
+				return fmt.Errorf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
+			}
+			cfg.Log.Warn("signer gRPC uses plaintext to a non-localhost address", "address", cfg.SignerGRPCAddress)
+		}
+		tlsCfg := &sign.TLSConfig{
+			CAFile:   cfg.SignerGRPCCAFile,
+			CertFile: cfg.SignerGRPCCertFile,
+			KeyFile:  cfg.SignerGRPCKeyFile,
+		}
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
+			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, tlsCfg, cfg.Log)
 		}
 	}
 
@@ -165,6 +192,19 @@ func (cfg *ServerConfig) Validate() error {
 		return fmt.Errorf("max_concurrent_streams must not exceed %d, got %d", uint64(math.MaxUint32), cfg.MaxConcurrentStreams)
 	}
 	return nil
+}
+
+// dialsLocalhost reports whether the TCP address points at a loopback interface.
+func dialsLocalhost(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
 }
 
 // Load reads the TOML config file at path into the receiver, overriding only
