@@ -211,6 +211,7 @@ height=350 pff_txs=4 pfb_txs=0 pff_bytes=3MB pfb_bytes=0MB block_time=3.06s pff_
 | `--rpc-endpoint` | *(first validator IP:26657)* | CometBFT RPC endpoint to poll                 |
 | `--duration`     | `0`                          | How long to run (`0` = until Ctrl+C)          |
 | `--start-height` | `0`                          | Block height to start from (`0` = latest + 1) |
+| `--successful-only` | `false` | Count only PFFs with execution code 0; fetch block results automatically. PFB counts stay unchanged. |
 | `--with-traces`  | `false`                      | Enable JSONL trace file output                |
 | `--traces-dir`   | `traces/throughput`          | Directory where trace files are written       |
 
