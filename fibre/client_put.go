@@ -83,11 +83,16 @@ func (r *escrowReservation) abort() {
 // Put uploads given data to the Fibre network.
 // It encodes the data into a [Blob], calls [Client.Upload] to upload it,
 // and submits a MsgPayForFibre transaction using the provided [user.TxClient].
+// Returns [ErrNoKeyring] if the Fibre client has no keyring.
 //
 // TODO(@Wondertan): This does not belong here. Fibre protocol in it's core doesn't need to know about transactions.
 // Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
 // And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
 func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
+	if c.keyring == nil {
+		return result, ErrNoKeyring
+	}
+
 	ctx, span := c.tracer.Start(ctx, "fibre.Client.Put",
 		trace.WithAttributes(
 			attribute.String("namespace", ns.String()),

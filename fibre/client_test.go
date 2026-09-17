@@ -3,6 +3,7 @@ package fibre_test
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"testing"
@@ -41,6 +42,41 @@ func TestNewClient_KeyNotFound(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, fibre.ErrKeyNotFound, "expected ErrKeyNotFound when key doesn't exist")
 	require.Contains(t, err.Error(), cfg.DefaultKeyName, "error should mention the key name")
+}
+
+func TestNewClient_NoKeyring(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.DefaultKeyName = ""
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia"}, nil
+	}
+
+	client, err := fibre.NewClient(nil, cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, client.Stop(context.Background())) })
+	require.NoError(t, client.Start(t.Context()))
+	require.Equal(t, "celestia", client.ChainID())
+}
+
+func TestNewClient_NoKeyringInvalidConfig(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.RPCTimeout = 0
+
+	client, err := fibre.NewClient(nil, cfg)
+	require.ErrorContains(t, err, "RPCTimeout must be > 0")
+	require.Nil(t, client)
+}
+
+func TestNewClient_NoKeyringStateClientError(t *testing.T) {
+	stateErr := errors.New("state client failed")
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return nil, stateErr
+	}
+
+	client, err := fibre.NewClient(nil, cfg)
+	require.ErrorIs(t, err, stateErr)
+	require.Nil(t, client)
 }
 
 var testNamespace = share.MustNewV0Namespace([]byte("test"))

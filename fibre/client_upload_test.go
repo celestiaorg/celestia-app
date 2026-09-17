@@ -33,6 +33,7 @@ func TestClientUpload(t *testing.T) {
 		{"AllValidatorsReceiveData", testClientUploadAllValidatorsReceiveData},
 		{"AwaitAllSignatures", testClientUploadAwaitAllSignatures},
 		{"ClosedClient", testClientUploadClosedClient},
+		{"NoKeyring", testClientUploadNoKeyring},
 		{"ReUpload", testClientReUpload},
 		{"AfterFree", testClientUploadAfterFree},
 	}
@@ -65,6 +66,28 @@ func testClientConcurrentUploads(t *testing.T) {
 	wg.Wait()
 	close(commitments)
 	require.Len(t, commitments, numConcurrent)
+}
+
+func testClientUploadNoKeyring(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia"}, nil
+	}
+	client, err := fibre.NewClient(nil, cfg)
+	require.NoError(t, err)
+	blob := makeTestBlobV0(t, 256*1024)
+
+	// Lifecycle errors take precedence over the missing keyring.
+	_, err = client.Upload(t.Context(), testNamespace, blob)
+	require.ErrorContains(t, err, "client is not started")
+
+	require.NoError(t, client.Start(t.Context()))
+	_, err = client.Upload(t.Context(), testNamespace, blob)
+	require.ErrorIs(t, err, fibre.ErrNoKeyring)
+
+	require.NoError(t, client.Stop(t.Context()))
+	_, err = client.Upload(t.Context(), testNamespace, blob)
+	require.ErrorIs(t, err, fibre.ErrClientClosed)
 }
 
 func testClientUploadContextCancellation(t *testing.T) {

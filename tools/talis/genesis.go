@@ -157,11 +157,10 @@ func generateCmd() *cobra.Command {
 				}
 			}
 
-			// Stage reader payload: copy fibre-reader binary + a keyring (any
-			// key — readers don't sign, fibre.NewClient just needs one to exist)
-			// to the reader-payload directory.
+			// Stage reader payload: copy the fibre-reader binary to the
+			// reader-payload directory.
 			if len(cfg.Readers) > 0 {
-				if err := stageReaderPayload(rootDir, payloadDir, cfg.Validators, fibreReaderBinaryPath, buildDirPath); err != nil {
+				if err := stageReaderPayload(rootDir, fibreReaderBinaryPath, buildDirPath); err != nil {
 					return fmt.Errorf("failed to stage reader payload: %w", err)
 				}
 			}
@@ -397,16 +396,10 @@ echo "Encoder $parsed_hostname initialized"
 	return os.WriteFile(path, []byte(script), 0o755)
 }
 
-// stageReaderPayload copies the fibre-reader binary and a fibre keyring
-// into the reader-payload directory so deploy can create a lightweight
-// tar for reader instances. Readers don't sign anything — fibre.NewClient
-// just requires the configured key name to exist in the keyring — so we
-// reuse validator-0's pre-generated fibre keyring (validator-0 always
-// exists, has fibre-0..N keys from genesis).
-func stageReaderPayload(rootDir, payloadDir string, validators []Instance, fibreReaderBinaryPath, buildDirPath string) error {
-	if len(validators) == 0 {
-		return fmt.Errorf("readers configured but no validators — cannot source the fibre keyring")
-	}
+// stageReaderPayload copies the fibre-reader binary into the reader-payload
+// directory so deploy can create a lightweight tar for reader instances.
+// Readers don't sign anything, so no keyring is staged.
+func stageReaderPayload(rootDir, fibreReaderBinaryPath, buildDirPath string) error {
 	rdrPayload := filepath.Join(rootDir, "reader-payload")
 
 	rdrBuild := filepath.Join(rdrPayload, "build")
@@ -425,24 +418,16 @@ func stageReaderPayload(rootDir, payloadDir string, validators []Instance, fibre
 		}
 	}
 
-	srcKeyring := filepath.Join(payloadDir, validators[0].Name, "keyring-test")
-	dstKeyring := filepath.Join(rdrPayload, "keyring-test")
-	if err := copyDir(srcKeyring, dstKeyring); err != nil {
-		return fmt.Errorf("copy keyring from %s: %w", validators[0].Name, err)
-	}
-
 	return writeReaderInitScript(filepath.Join(rdrPayload, "reader_init.sh"))
 }
 
 // writeReaderInitScript creates a minimal init script for reader instances.
-// Readers only need fibre-reader on PATH and a keyring containing at least
-// one fibre key. They subscribe to the chain via cometbft RPC, so they
-// don't need celestia-appd, genesis, or any per-validator state.
+// Readers only need fibre-reader on PATH. They subscribe to the chain via
+// cometbft RPC, so they don't need celestia-appd, genesis, or any
+// per-validator state.
 func writeReaderInitScript(path string) error {
 	script := `#!/bin/bash
 set -euo pipefail
-
-CELES_HOME="$HOME/.celestia-app"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold"
@@ -456,10 +441,6 @@ sysctl -w net.core.default_qdisc=fq
 sysctl -w net.ipv4.tcp_congestion_control=bbr
 
 cp reader-payload/build/fibre-reader /bin/fibre-reader
-
-rm -rf "$CELES_HOME"
-mkdir -p "$CELES_HOME"
-cp -r reader-payload/keyring-test "$CELES_HOME/"
 
 echo "Reader $(hostname) initialized"
 `
