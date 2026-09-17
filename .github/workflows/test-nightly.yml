@@ -125,6 +125,13 @@ jobs:
           # deadline, so retry once before failing the nightly.
           - test: TestAllUpgrades
             max-attempts: 2
+          # The genesis sync tests block sync the first block from live public
+          # archive peers, which can be slow or briefly unavailable, so retry
+          # once before failing the nightly.
+          - test: TestGenesisSyncMocha
+            max-attempts: 2
+          - test: TestGenesisSyncMainnet
+            max-attempts: 2
           - test: TestCortoLoad
             extra-image: true
     steps:

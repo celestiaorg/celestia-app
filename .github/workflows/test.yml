@@ -134,7 +134,6 @@ jobs:
         include:
           - testcase: TestE2ESimple
           - testcase: TestStateSync
-          - testcase: TestBlockSync
           - testcase: TestE2EFullStackPFB
           - testcase: TestIBC
             entrypoint: TestIBCTestSuite
