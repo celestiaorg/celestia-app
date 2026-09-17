@@ -21,6 +21,9 @@ const (
 	// mainnetV2UpgradeHeight is the height at which Mainnet Beta upgraded from
 	// app version 1 to 2. The embedded v3 binary needs it to replay v1 blocks.
 	mainnetV2UpgradeHeight = 2371495
+	// maxDiagnosticLogBytes caps the container log tail printed when a node
+	// fails to start.
+	maxDiagnosticLogBytes = 20_000
 )
 
 // TestGenesisSyncMocha starts a full node from the Mocha genesis file and
@@ -82,8 +85,10 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 
 	// Start returns only after the node reports two blocks, so a successful
 	// start means genesis was processed and the first blocks were synced.
-	err = chain.Start(ctx)
-	s.Require().NoError(err, "%s node did not process the first block within %s", netCfg.Name, genesisSyncTimeout)
+	if err := chain.Start(ctx); err != nil {
+		s.logNodeDiagnostics(ctx, chain.GetNodes())
+		s.Require().NoError(err, "%s node did not process the first block within %s", netCfg.Name, genesisSyncTimeout)
+	}
 	t.Logf("%s node reached its first blocks after %s", netCfg.Name, time.Since(startTime))
 
 	nodes := chain.GetNodes()
@@ -101,4 +106,31 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 	block, err := client.Block(ctx, &height)
 	s.Require().NoError(err, "failed to fetch block 1 from %s node", netCfg.Name)
 	s.Require().Equal(netCfg.ChainID, block.Block.ChainID, "block 1 has unexpected chain ID")
+}
+
+// logNodeDiagnostics logs each node's sync status, peer count, and the tail of
+// its container logs so a failed start can be diagnosed from CI output alone.
+func (s *CelestiaTestSuite) logNodeDiagnostics(ctx context.Context, nodes []tastoratypes.ChainNode) {
+	t := s.T()
+	for _, n := range nodes {
+		node, ok := n.(*cosmos.ChainNode)
+		if !ok {
+			continue
+		}
+		if client, err := node.GetRPCClient(); err == nil && client != nil {
+			if status, err := client.Status(ctx); err != nil {
+				t.Logf("%s status error: %v", node.Name(), err)
+			} else {
+				t.Logf("%s status: height=%d catching_up=%t", node.Name(), status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
+			}
+			if netInfo, err := client.NetInfo(ctx); err == nil {
+				t.Logf("%s peers: %d", node.Name(), netInfo.NPeers)
+			}
+		}
+		logs := s.containerLogs(ctx, node.Name())
+		if len(logs) > maxDiagnosticLogBytes {
+			logs = logs[len(logs)-maxDiagnosticLogBytes:]
+		}
+		t.Logf("%s logs (tail):\n%s", node.Name(), logs)
+	}
 }
