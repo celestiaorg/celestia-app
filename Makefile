@@ -337,6 +337,13 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
+## govulncheck: Check for vulnerabilities in dependencies.
+govulncheck:
+	@echo "--> Running govulncheck"
+	@go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+	@cd test/docker-e2e && go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+.PHONY: govulncheck
+
 ## markdown-link-check: Check all links in markdown files for validity.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
