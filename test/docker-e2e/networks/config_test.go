@@ -55,7 +55,7 @@ func TestMochaConfigPeers(t *testing.T) {
 	if config.Peers == "" {
 		t.Fatal("Expected mocha config to list archive peers")
 	}
-	for _, peer := range strings.Split(config.Peers, ",") {
+	for peer := range strings.SplitSeq(config.Peers, ",") {
 		if !strings.Contains(peer, "@") {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
@@ -82,7 +82,7 @@ func TestMainnetConfig(t *testing.T) {
 	if config.Peers == "" {
 		t.Fatal("Expected mainnet config to list archive peers")
 	}
-	for _, peer := range strings.Split(config.Peers, ",") {
+	for peer := range strings.SplitSeq(config.Peers, ",") {
 		if !strings.Contains(peer, "@") {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
