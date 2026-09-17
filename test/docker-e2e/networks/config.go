@@ -18,6 +18,10 @@ type Config struct {
 	// RPC requests.
 	AuthToken string
 	Seeds     string
+	// Peers are persistent peers that keep the full block history. Block
+	// syncing from genesis needs at least one of them because most public
+	// peers are pruned and cannot serve block 1.
+	Peers string
 }
 
 // NewMochaConfig returns a Config for the mocha testnet
@@ -38,6 +42,8 @@ func NewMochaConfig() *Config {
 		// more resilient than hardcoded persistent peers which go stale.
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/main/mocha-5/seeds.txt
 		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656",
+		// Archive nodes (earliest_block_height = 1 on their RPC /status).
+		Peers: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@65.109.124.134:26656",
 	}
 }
 
@@ -63,5 +69,19 @@ func NewCortoConfig() (*Config, error) {
 	}, nil
 }
 
-// TODO: add additional config for mainnet
-// func NewMainnetConfig() *Config {}
+// NewMainnetConfig returns a Config for Mainnet Beta.
+func NewMainnetConfig() *Config {
+	return &Config{
+		Name:    "mainnet",
+		ChainID: appconsts.MainnetChainID,
+		// Distinct archive RPC providers. Keep in sync with the live network.
+		RPCs: []string{
+			"https://rpc.celestia.pops.one:443",
+			"https://celestia-mainnet-rpc.itrocket.net:443",
+		},
+		// Keep in sync with https://github.com/celestiaorg/networks/blob/master/celestia/seeds.txt
+		Seeds: "acca7837e4eb5f9dc7f5a94ed1d82edda6931ff8@seed.celestia.pops.one:26656,12ad7c73c7e1f2460941326937a039139aa78884@celestia-mainnet-seed.itrocket.net:40656,9b1d22c3a78487d1a664a4b6a331fce527d14fb4@seed.celestia.mainnet.dteam.tech:27656",
+		// Archive nodes (earliest_block_height = 1 on their RPC /status).
+		Peers: "acca7837e4eb5f9dc7f5a94ed1d82edda6931ff8@seed.celestia.pops.one:26656,d535cbf8d0efd9100649aa3f53cb5cbab33ef2d6@celestia-mainnet-peer.itrocket.net:26656",
+	}
+}
