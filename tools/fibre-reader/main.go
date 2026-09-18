@@ -407,7 +407,7 @@ func assignedReads(commitment fibre.Commitment, count, index, reads int) int {
 func scheduleDownloads(ctx context.Context, reads int, sem chan struct{}, wg *sync.WaitGroup, download func(queuedAt time.Time, readNumber int)) {
 	queuedAt := time.Now()
 	wg.Go(func() {
-		for i := 0; i < reads; i++ {
+		for i := range reads {
 			if ctx.Err() != nil {
 				return
 			}
