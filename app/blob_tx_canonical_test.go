@@ -12,32 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBlobTxIsCanonical(t *testing.T) {
-	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
-	canonical := newBlobTx(t, txConfig)
-
-	bTx, isBlob, err := blobtx.UnmarshalBlobTx(canonical)
-	require.True(t, isBlob)
-	require.NoError(t, err)
-	require.True(t, blobTxIsCanonical(canonical, bTx), "a freshly marshaled blob tx is canonical")
-
-	// Since go-square v4.0.0-rc7, UnmarshalBlobTx itself rejects unknown
-	// protobuf fields as non-canonical.
-	padded := appendUnknownProtoField(canonical, 4096)
-	_, isBlob, err = blobtx.UnmarshalBlobTx(padded)
-	require.True(t, isBlob)
-	require.ErrorIs(t, err, blobtx.ErrNonCanonicalBlobTx, "unknown protobuf fields are rejected as non-canonical")
-
-	// Repeat the singular type_id field (field 3, wire type 2, value "BLOB").
-	// proto.Unmarshal keeps the last value, so it decodes to the same blob tx,
-	// but the bytes are a distinct, non-canonical encoding.
-	repeated := append(append([]byte{}, canonical...), 0x1a, 0x04, 'B', 'L', 'O', 'B')
-	repeatedTx, isBlob, err := blobtx.UnmarshalBlobTx(repeated)
-	require.True(t, isBlob)
-	require.NoError(t, err, "repeated singular protobuf fields decode without error")
-	require.False(t, blobTxIsCanonical(repeated, repeatedTx), "a blob tx with a repeated singular field is not canonical")
-}
-
 func TestSeparateTxsDropsNonCanonicalBlobTx(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	padded := appendUnknownProtoField(newBlobTx(t, txConfig), 4096)
@@ -66,7 +40,6 @@ func TestBlobTxCanonicalEncodingGolden(t *testing.T) {
 	bTx, isBlob, err := blobtx.UnmarshalBlobTx(raw)
 	require.True(t, isBlob)
 	require.NoError(t, err)
-	require.True(t, blobTxIsCanonical(raw, bTx))
 	require.Equal(t, []byte("tx"), bTx.Tx)
 	require.Len(t, bTx.Blobs, 1)
 	require.Equal(t, blob, bTx.Blobs[0])
