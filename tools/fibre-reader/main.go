@@ -2,13 +2,13 @@
 //
 // It subscribes to a Celestia validator's RPC for NewBlock events,
 // scans each block for MsgPayForFibre transactions, extracts BlobIDs,
-// applies hash-modulo sharding (commitment[0:8] % reader_count == reader_index)
-// to determine ownership, and concurrently downloads owned blobs via fibre.Client.
+// distributes reads starting at commitment[0:8] % reader_count, and concurrently
+// downloads assigned blobs via fibre.Client.
 //
 // Mode: trail-only. Does NOT catch up to historical heights — only blobs
 // posted after subscription begins are observed. To distribute load across
 // a cluster, run N reader instances with --reader-index 0..N-1 --reader-count N;
-// commitments are uniformly hashed so each blob is downloaded exactly once.
+// Set --reads-per-blob to schedule multiple reads across the cluster (default 1).
 package main
 
 import (
@@ -49,6 +49,7 @@ type config struct {
 	grpcEndpoint        string
 	readerIndex         int
 	readerCount         int
+	readsPerBlob        int
 	downloadConcurrency int
 	downloadTimeout     time.Duration
 	startupTimeout      time.Duration
@@ -60,22 +61,24 @@ type config struct {
 }
 
 type stats struct {
-	blobsSeen        atomic.Int64
-	blobsOwned       atomic.Int64
-	blobsSkipped     atomic.Int64
-	downloadsSuccess atomic.Int64
-	downloadsFailed  atomic.Int64
-	downloadedBytes  atomic.Int64
-	dlTotalLatNs     atomic.Int64
-	e2eTotalLatNs    atomic.Int64
-	inclusionLatNs   atomic.Int64
-	queueWaitNs      atomic.Int64
+	blobsSeen         atomic.Int64
+	blobsOwned        atomic.Int64
+	blobsSkipped      atomic.Int64
+	downloadsAssigned atomic.Int64
+	downloadsSuccess  atomic.Int64
+	downloadsFailed   atomic.Int64
+	downloadedBytes   atomic.Int64
+	dlTotalLatNs      atomic.Int64
+	e2eTotalLatNs     atomic.Int64
+	inclusionLatNs    atomic.Int64
+	queueWaitNs       atomic.Int64
 }
 
 type readerMetrics struct {
 	blobsSeen           metric.Int64Counter
 	blobsOwned          metric.Int64Counter
 	blobsSkipped        metric.Int64Counter
+	downloadsAssigned   metric.Int64Counter
 	downloadsSuccess    metric.Int64Counter
 	downloadsFailed     metric.Int64Counter
 	downloadedBytes     metric.Int64Counter
@@ -94,6 +97,8 @@ type downloadRequest struct {
 	blockTime         time.Time
 	dataSize          uint32
 	queuedAt          time.Time
+	readNumber        int
+	readCount         int
 }
 
 func main() {
@@ -102,6 +107,7 @@ func main() {
 	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "celestia-app gRPC endpoint for fibre client state")
 	flag.IntVar(&cfg.readerIndex, "reader-index", -1, "this reader's index in [0, reader-count)")
 	flag.IntVar(&cfg.readerCount, "reader-count", 0, "total number of reader instances (>=1)")
+	flag.IntVar(&cfg.readsPerBlob, "reads-per-blob", 1, "total download attempts per blob across all readers (>=1)")
 	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs — each in-flight slot can hold 1+ GiB of buffered shards.")
 	flag.DurationVar(&cfg.downloadTimeout, "download-timeout", 2*time.Minute, "per-download timeout")
 	flag.DurationVar(&cfg.startupTimeout, "startup-timeout", 5*time.Minute, "how long to retry connecting to the validator's gRPC + cometbft RPC at startup before giving up (handles validators not yet ready / brief restarts)")
@@ -124,6 +130,9 @@ func run(cfg config) error {
 	}
 	if cfg.readerIndex < 0 || cfg.readerIndex >= cfg.readerCount {
 		return fmt.Errorf("--reader-index must be in [0, %d), got %d", cfg.readerCount, cfg.readerIndex)
+	}
+	if cfg.readsPerBlob < 1 {
+		return fmt.Errorf("--reads-per-blob must be >= 1, got %d", cfg.readsPerBlob)
 	}
 	if cfg.downloadConcurrency <= 0 {
 		return fmt.Errorf("--download-concurrency must be >= 1, got %d", cfg.downloadConcurrency)
@@ -240,8 +249,8 @@ func run(cfg config) error {
 	var dlWg sync.WaitGroup
 
 	startTime := time.Now()
-	fmt.Printf("[reader-%d] reader-count=%d download-concurrency=%d trailing %s...\n",
-		cfg.readerIndex, cfg.readerCount, cfg.downloadConcurrency, cfg.rpcEndpoint)
+	fmt.Printf("[reader-%d] reader-count=%d download-concurrency=%d trailing %s... reads-per-blob=%d\n",
+		cfg.readerIndex, cfg.readerCount, cfg.downloadConcurrency, cfg.rpcEndpoint, cfg.readsPerBlob)
 
 loop:
 	for {
@@ -346,7 +355,8 @@ func handlePayForFibre(
 		rm.blobsSeen.Add(context.Background(), 1)
 	}
 
-	if !owns(commitment, cfg.readerCount, cfg.readerIndex) {
+	reads := assignedReads(commitment, cfg.readerCount, cfg.readerIndex, cfg.readsPerBlob)
+	if reads == 0 {
 		st.blobsSkipped.Add(1)
 		if rm != nil {
 			rm.blobsSkipped.Add(context.Background(), 1)
@@ -355,8 +365,10 @@ func handlePayForFibre(
 	}
 
 	st.blobsOwned.Add(1)
+	st.downloadsAssigned.Add(int64(reads))
 	if rm != nil {
 		rm.blobsOwned.Add(context.Background(), 1)
+		rm.downloadsAssigned.Add(context.Background(), int64(reads))
 	}
 
 	req := downloadRequest{
@@ -366,27 +378,53 @@ func handlePayForFibre(
 		creationTimestamp: promise.CreationTimestamp,
 		blockTime:         block.Time,
 		dataSize:          promise.BlobSize,
-		queuedAt:          time.Now(),
+		readCount:         reads,
 	}
 
-	dlWg.Go(func() {
-		// Acquire a slot. Blocks until one is free or ctx cancels — backpressure
-		// instead of dropping. Multiple owned blobs in a single block all reach
-		// here concurrently and run in parallel up to cfg.downloadConcurrency.
-		select {
-		case sem <- struct{}{}:
-		case <-ctx.Done():
-			return
-		}
-		defer func() { <-sem }()
+	scheduleDownloads(ctx, reads, sem, dlWg, func(queuedAt time.Time, readNumber int) {
+		req.queuedAt = queuedAt
+		req.readNumber = readNumber
 		downloadOne(ctx, req, fibreClient, cfg, st, rm, tracer)
 	})
 }
 
-// owns returns true when this reader instance is responsible for the given commitment
-// under hash-modulo sharding. Commitments are SHA-derived so a uint64 prefix is uniform.
-func owns(commitment fibre.Commitment, count, index int) bool {
-	return binary.BigEndian.Uint64(commitment[:8])%uint64(count) == uint64(index)
+// assignedReads evenly distributes reads starting at the original hash-modulo owner.
+// count and reads must be positive, with index in [0, count).
+func assignedReads(commitment fibre.Commitment, count, index, reads int) int {
+	owner := int(binary.BigEndian.Uint64(commitment[:8]) % uint64(count))
+	distance := index - owner
+	if distance < 0 {
+		distance += count
+	}
+	n := reads / count
+	if distance < reads%count {
+		n++
+	}
+	return n
+}
+
+// scheduleDownloads keeps one goroutine per blob, even when it has many reads.
+func scheduleDownloads(ctx context.Context, reads int, sem chan struct{}, wg *sync.WaitGroup, download func(queuedAt time.Time, readNumber int)) {
+	queuedAt := time.Now()
+	wg.Go(func() {
+		for i := 0; i < reads; i++ {
+			if ctx.Err() != nil {
+				return
+			}
+			if i > 0 {
+				queuedAt = time.Now()
+			}
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			if ctx.Err() == nil {
+				download(queuedAt, i+1)
+			}
+			<-sem
+		}
+	})
 }
 
 func downloadOne(
@@ -406,13 +444,14 @@ func downloadOne(
 			attribute.String("blob.commitment", hex.EncodeToString(req.commitment[:])),
 			attribute.Int64("blob.height", req.height),
 			attribute.Int("reader.index", cfg.readerIndex),
+			attribute.Int("reader.read_number", req.readNumber),
+			attribute.Int("reader.read_count", req.readCount),
 		),
 	)
 	defer span.End()
 
-	// queue_wait = time between block scan creating the request and this
-	// goroutine acquiring its semaphore slot — surfaces saturation when the
-	// bound is hit.
+	// queue_wait measures this attempt's wait for a semaphore slot. Repeats
+	// reset queuedAt after the preceding download finishes.
 	queueWait := time.Since(req.queuedAt)
 	st.queueWaitNs.Add(queueWait.Nanoseconds())
 	if rm != nil {
@@ -432,8 +471,8 @@ func downloadOne(
 			rm.downloadsFailed.Add(context.Background(), 1)
 		}
 		span.RecordError(err)
-		fmt.Fprintf(os.Stderr, "[reader-%d] download failed commitment=%s height=%d latency=%s queue_wait=%s err=%v\n",
-			cfg.readerIndex, req.commitment, req.height, dlLat, queueWait, err)
+		fmt.Fprintf(os.Stderr, "[reader-%d] download failed commitment=%s height=%d latency=%s queue_wait=%s err=%v read=%d/%d\n",
+			cfg.readerIndex, req.commitment, req.height, dlLat, queueWait, err, req.readNumber, req.readCount)
 		return
 	}
 	defer blob.Free()
@@ -459,8 +498,8 @@ func downloadOne(
 	}
 
 	span.SetAttributes(attribute.Int("blob.size", blob.DataSize()))
-	fmt.Printf("[reader-%d] download ok commitment=%s height=%d size=%d dl_latency=%s queue_wait=%s e2e_latency=%s inclusion_latency=%s\n",
-		cfg.readerIndex, req.commitment, req.height, blob.DataSize(), dlLat, queueWait, e2eLat, inclusionLat)
+	fmt.Printf("[reader-%d] download ok commitment=%s height=%d size=%d dl_latency=%s queue_wait=%s e2e_latency=%s inclusion_latency=%s read=%d/%d\n",
+		cfg.readerIndex, req.commitment, req.height, blob.DataSize(), dlLat, queueWait, e2eLat, inclusionLat, req.readNumber, req.readCount)
 }
 
 func printSummary(cfg config, st *stats, elapsed time.Duration) {
@@ -481,6 +520,7 @@ func printSummary(cfg config, st *stats, elapsed time.Duration) {
 
 	fmt.Printf("\n--- Summary (reader-%d of %d) ---\n", cfg.readerIndex, cfg.readerCount)
 	fmt.Printf("Duration:   %s\n", elapsed.Truncate(time.Second))
+	fmt.Printf("Reads/blob: %d (across all readers)\n", cfg.readsPerBlob)
 	fmt.Println()
 	fmt.Println("Blobs:")
 	fmt.Printf("  Seen:    %d\n", st.blobsSeen.Load())
@@ -488,6 +528,7 @@ func printSummary(cfg config, st *stats, elapsed time.Duration) {
 	fmt.Printf("  Skipped: %d\n", st.blobsSkipped.Load())
 	fmt.Println()
 	fmt.Println("Downloads:")
+	fmt.Printf("  Assigned:              %d\n", st.downloadsAssigned.Load())
 	fmt.Printf("  Successes:             %d\n", s)
 	fmt.Printf("  Failures:              %d\n", st.downloadsFailed.Load())
 	fmt.Printf("  Bytes downloaded:      %d (%.1f MiB)\n", bytes, float64(bytes)/(1024*1024))
@@ -519,6 +560,12 @@ func newReaderMetrics() (*readerMetrics, error) {
 	}
 	rm.blobsSkipped, err = m.Int64Counter("fibre_reader.blobs_skipped_not_owned",
 		metric.WithDescription("Blobs skipped because they belong to another reader"),
+	)
+	if err != nil {
+		return nil, err
+	}
+	rm.downloadsAssigned, err = m.Int64Counter("fibre_reader.downloads_assigned",
+		metric.WithDescription("Download attempts assigned to this reader, including repeated reads"),
 	)
 	if err != nil {
 		return nil, err
