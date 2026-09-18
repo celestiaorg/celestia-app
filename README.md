@@ -160,12 +160,15 @@ If nothing is missing, it leaves the file untouched.
 To inspect additions or update the file before restarting:
 
 ```sh
-celestia-appd config sync --home ~/.celestia-app --dry-run
-celestia-appd config sync --home ~/.celestia-app
+celestia-appd config sync --dry-run
+celestia-appd config sync
 ```
 
+The preview lists each missing setting and its default value. Use `--home` for a non-default node directory.
+
 If automatic synchronization fails, startup logs a warning and continues with normal configuration loading and validation.
-Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
+Synchronization supports ordinary `[section]` tables and undotted keys.
+Read-only files, linked files, dotted keys, nested tables, and arrays of tables are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.
 The explicit command returns an error on failure.
 

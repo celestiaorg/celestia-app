@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"syscall"
 
 	"cosmossdk.io/log"
+	confixcmd "cosmossdk.io/tools/confix/cmd"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
@@ -17,10 +17,21 @@ import (
 	"github.com/creachadair/tomledit"
 	"github.com/creachadair/tomledit/parser"
 	"github.com/creachadair/tomledit/transform"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+func newConfigRootCmd() *cobra.Command {
+	root := &cobra.Command{Use: "celestia-appd", SilenceUsage: true}
+	root.PersistentFlags().String(FlagLogToFile, "", "Write logs directly to a file. If empty, logs are written to stderr")
+	config := confixcmd.ConfigCommand()
+	config.AddCommand(syncConfigCmd())
+	root.AddCommand(config)
+	return root
+}
 
 func syncConfigCmd() *cobra.Command {
 	var dryRun bool
@@ -50,9 +61,9 @@ func syncConfigCmd() *cobra.Command {
 				return nil
 			}
 			if dryRun {
-				cmd.Printf("Settings to add: %s\n", strings.Join(added, ", "))
+				cmd.Printf("Settings to add:\n%s\n", strings.Join(added, "\n"))
 			} else {
-				cmd.Printf("Added settings: %s\nBackup: %s\n", strings.Join(added, ", "), backup)
+				cmd.Printf("Added settings:\n%s\nBackup: %s\n", strings.Join(added, "\n"), backup)
 			}
 			return nil
 		},
@@ -68,7 +79,7 @@ func syncConfigOnStart(cmd *cobra.Command, logger log.Logger) error {
 	if err != nil {
 		logger.Warn("Could not add missing config settings; runtime defaults still apply", "path", path, "err", err)
 	} else if len(added) > 0 {
-		logger.Info("Added missing config settings", "keys", added, "backup", backup)
+		logger.Info("Added missing config settings", "settings", added, "backup", backup)
 	}
 	return nil
 }
@@ -87,56 +98,54 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	present := make(map[string]bool)
-	current.Scan(func(key parser.Key, _ *tomledit.Entry) bool {
-		present[strings.ToLower(key.String())] = true
+	entries := make(map[string]*tomledit.Entry)
+	current.Scan(func(key parser.Key, entry *tomledit.Entry) bool {
+		if (entry.IsSection() && (len(key) != 1 || entry.IsArray)) || (entry.IsMapping() && len(entry.Name) != 1) {
+			err = fmt.Errorf("cannot extend %s: use ordinary [section] tables and undotted keys", key)
+			return false
+		}
+		name := strings.ToLower(key.String())
+		if entries[name] != nil {
+			err = fmt.Errorf("ambiguous config key %s", key)
+			return false
+		}
+		entries[name] = entry
 		return true
 	})
+	if err != nil {
+		return nil, nil, err
+	}
 	var added []string
-	for _, section := range append([]*tomledit.Section{template.Global}, template.Sections...) {
-		if section == nil {
-			continue
+	template.Scan(func(key parser.Key, entry *tomledit.Entry) bool {
+		if entry.IsSection() || entries[strings.ToLower(key.String())] != nil {
+			return true
 		}
-		name := section.TableName()
-		// The core template uses top-level settings and single-level sections.
-		if len(name) > 1 || (section.Heading != nil && section.IsArray) {
-			return nil, nil, fmt.Errorf("unsupported template section %s", name)
+		name := entry.TableName()
+		if len(name) > 1 || entry.IsInline() || (entry.Heading != nil && entry.IsArray) {
+			err = fmt.Errorf("unsupported template section %s", name)
+			return false
 		}
 		destination := current.Global
-		dotted := false
 		if len(name) == 1 {
-			actualKey, exists, err := configKey(before, name[0])
-			if err != nil {
-				return nil, nil, err
-			}
-			if exists {
-				name = parser.Key{actualKey}
-				if table := transform.FindTable(current, name...); table != nil {
-					destination = table.Section
-				} else {
-					dotted = true
+			sectionKey := strings.ToLower(name.String())
+			if existing := entries[sectionKey]; existing != nil {
+				if !existing.IsSection() {
+					err = fmt.Errorf("cannot extend %s: use an ordinary [section] table", name)
+					return false
 				}
+				destination = existing.Section
 			} else {
-				destination = &tomledit.Section{Heading: section.Heading}
+				destination = &tomledit.Section{Heading: entry.Heading}
 				current.Sections = append(current.Sections, destination)
+				entries[sectionKey] = &tomledit.Entry{Section: destination}
 			}
 		}
-		for _, item := range section.Items {
-			kv, ok := item.(*parser.KeyValue)
-			if !ok {
-				continue
-			}
-			full := append(append(parser.Key(nil), name...), kv.Name...)
-			if present[strings.ToLower(full.String())] {
-				continue
-			}
-			added = append(added, strings.Join(full, "."))
-			copyKV := *kv
-			if dotted {
-				copyKV.Name = full
-			}
-			transform.InsertMapping(destination, &copyKV, false)
-		}
+		transform.InsertMapping(destination, entry.KeyValue, false)
+		added = append(added, fmt.Sprintf("%s = %s", key, entry.Value))
+		return true
+	})
+	if err != nil {
+		return nil, nil, err
 	}
 	if len(added) == 0 {
 		return original, nil, nil
@@ -163,26 +172,11 @@ func configValuesPreserved(before, after map[string]any) bool {
 			if !ok || !configValuesPreserved(table, updated) {
 				return false
 			}
-		} else if !reflect.DeepEqual(value, after[key]) {
+		} else if !cmp.Equal(value, after[key], cmpopts.EquateNaNs()) {
 			return false
 		}
 	}
 	return true
-}
-
-// Match the SDK's case-insensitive keys without introducing ambiguous duplicates.
-func configKey(values map[string]any, key string) (string, bool, error) {
-	var actual string
-	var found bool
-	for candidate := range values {
-		if strings.EqualFold(candidate, key) {
-			if found {
-				return "", false, fmt.Errorf("ambiguous config key %s", key)
-			}
-			actual, found = candidate, true
-		}
-	}
-	return actual, found, nil
 }
 
 func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
