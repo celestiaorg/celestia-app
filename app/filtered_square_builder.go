@@ -15,7 +15,7 @@ import (
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
-// rules before adding it the square.
+// rules before adding it to the square.
 type FilteredSquareBuilder struct {
 	handler   sdk.AnteHandler
 	msgRouter baseapp.MessageRouter
