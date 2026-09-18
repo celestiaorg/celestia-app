@@ -27,7 +27,9 @@ As a reminder, KMS are third-party software and validators are responsible for e
 
 #### Privval gRPC Endpoint Enabled by Default
 
-Every node now runs a privval gRPC endpoint, which the fibre server uses for payment-promise endorsements and its TLS identity. The default listen address moved from `127.0.0.1:26659` to `127.0.0.1:26669`. Nodes that don't serve fibre can disable it by clearing `priv_validator_grpc_laddr` in `config.toml`.
+Fresh v10 configurations enable a privval gRPC endpoint, which the fibre server uses for payment-promise endorsements and its TLS identity. The default listen address moved from `127.0.0.1:26659` to `127.0.0.1:26669` to avoid a TMKMS port clash. Existing configurations retain their saved address or empty (disabled) value; replacing the binary does not rewrite it. Check the top-level `priv_validator_grpc_laddr` in `config/config.toml` and set Fibre's signer address to match. Nodes that don't serve fibre can disable it by clearing this setting.
+
+Fibre also needs application gRPC enabled in the `[grpc]` section of `config/app.toml` (normally port `9090`). This is separate from `[rpc] grpc_laddr` in `config/config.toml` (normally port `9098`); preserve the latter for existing core RPC clients. See the [connection settings and address formats](../../fibre/cmd/README.md#node-connections).
 
 #### Heavy RPC Requests Are Limited
 
@@ -36,6 +38,38 @@ celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_s
 #### Blockstore Compaction
 
 New `[storage]` options in `config.toml`: `compact` (default `false`) and `compaction_interval` (default `10000`). When enabled, the blockstore is compacted asynchronously over the pruned range, keeping pruned nodes at a bounded disk size. A new `celestia-appd compact-blockstore` command performs a one-off compaction of an existing blockstore.
+
+Automatic compaction covers newly pruned blocks. To reclaim space from an existing pruned backlog, stop the node and run `celestia-appd compact-blockstore --home <node-home>` before enabling it. Compaction does not enable pruning; archival nodes should retain `min-retain-blocks = 0` in `app.toml`.
+
+#### Updating Existing Configuration Files
+
+Missing fields use the binary's defaults, but existing files are not rewritten to add fields or comments. The deprecated `celestia-appd update-config` command only supports the v6 migration; it is not a v10 config-refresh command.
+
+To make the new RPC and blockstore compaction settings explicit, merge these keys into the existing sections of `config/config.toml`. Do not create duplicate sections or keys:
+
+```toml
+[rpc]
+# Maximum concurrent heavy RPC requests. Higher values use more memory.
+max_concurrent_heavy_requests = 20
+
+[storage]
+# Optional compaction of newly pruned blocks; disabled by default.
+compact = false
+# Number of pruned blocks between compaction attempts.
+compaction_interval = 10000
+```
+
+For the complete release-matched comments, generate reference files using the v10 binary in a separate temporary home:
+
+```sh
+reference_home=$(mktemp -d)
+celestia-appd init config-reference --chain-id config-reference --home "$reference_home"
+# Read "$reference_home/config/config.toml" and "$reference_home/config/app.toml".
+```
+
+Back up your live configuration files, then copy only the needed settings and comments into their existing sections. Keep your peers, custom ports, pruning settings, and other local values. Do not replace the live home, keys, genesis, or data with the reference files. If configuration is managed by deployment tooling, edit its source templates too.
+
+Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
 #### Metrics Push via OTLP
 
