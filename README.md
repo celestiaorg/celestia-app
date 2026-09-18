@@ -152,7 +152,8 @@ celestia-appd start
 ### Updating config.toml
 
 `celestia-appd start` adds missing settings and their documentation using the binary's defaults.
-Existing values, comments, and unknown settings are preserved. Flags and environment overrides are not saved.
+Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
+Flags and environment overrides are not saved.
 Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
 If nothing is missing, it leaves the file untouched.
 

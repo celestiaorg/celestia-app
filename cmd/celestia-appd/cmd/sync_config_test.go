@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
+	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +30,16 @@ func TestMergeConfig(t *testing.T) {
 			updated, added, err := mergeConfig([]byte(original), reference)
 			require.NoError(t, err)
 			require.Equal(t, []string{"storage.compact"}, added)
-			require.True(t, bytes.HasPrefix(updated, []byte(original)))
+			var before, after map[string]any
+			require.NoError(t, toml.Unmarshal([]byte(original), &before))
+			require.NoError(t, toml.Unmarshal(updated, &after))
+			before["storage"] = map[string]any{"compact": false}
+			require.Equal(t, before, after)
+			for _, comment := range []string{"# operator", "# rpc note", "# disabled"} {
+				if strings.Contains(original, comment) {
+					require.Contains(t, string(updated), comment)
+				}
+			}
 			require.Contains(t, string(updated), "# Storage\n[storage]\n")
 			require.Contains(t, string(updated), "# Compact\ncompact = false")
 			second, added, err := mergeConfig(updated, reference)
@@ -43,7 +53,7 @@ func TestMergeConfig(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, []string{"moniker", "rpc.enabled", "rpc.address", "storage.compact"}, added)
 		require.Contains(t, string(updated), "# personal\n[rpc]\n")
-		require.Contains(t, string(updated), "limit=7 # custom\n")
+		require.Contains(t, string(updated), "limit = 7  # custom\n")
 		require.Contains(t, string(updated), "# Enabled\nenabled = true")
 	})
 	t.Run("dotted missing field", func(t *testing.T) {
@@ -77,7 +87,7 @@ func TestSyncConfigFile(t *testing.T) {
 	require.Equal(t, original, saved)
 	data, err = os.ReadFile(path)
 	require.NoError(t, err)
-	require.Contains(t, string(data), "max_concurrent_heavy_requests=3")
+	require.Contains(t, string(data), "max_concurrent_heavy_requests = 3")
 	cfg, err := loadCometBFTConfig(path, t.TempDir())
 	require.NoError(t, err)
 	require.Equal(t, 3, cfg.RPC.MaxConcurrentHeavyRequests)
@@ -177,7 +187,7 @@ func TestMergeEmptyAndUnterminatedConfig(t *testing.T) {
 		require.NoError(t, err, original)
 		require.Equal(t, []string{"rpc.limit"}, added)
 		for _, line := range strings.SplitAfter(original, "\n") {
-			require.Contains(t, string(updated), line)
+			require.Contains(t, string(updated), strings.TrimSpace(line))
 		}
 	}
 }
@@ -268,4 +278,22 @@ func TestSyncConfigPreservesConcurrentEdit(t *testing.T) {
 	contents, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, edited, contents)
+}
+
+func TestMergeConfigPreservesOrder(t *testing.T) {
+	original := []byte("# storage first\n[storage]\ncompact=false # keep disabled\n# rpc second\n[rpc]\n# custom limit\nlimit=7\nunknown='keep'\n")
+	reference := []byte("[rpc]\nlimit=20\n# New RPC setting\nenabled=true\n[storage]\ncompact=true\n")
+	updated, _, err := mergeConfig(original, reference)
+	require.NoError(t, err)
+	previous := -1
+	for _, text := range []string{"# storage first", "[storage]", "# keep disabled", "# rpc second", "[rpc]", "# custom limit", "limit = 7", "unknown = 'keep'", "# New RPC setting", "enabled = true"} {
+		position := strings.Index(string(updated), text)
+		require.Greater(t, position, previous, text)
+		previous = position
+	}
+	// A complete file keeps its original whitespace, even if it is nonstandard.
+	unchanged, added, err := mergeConfig(original, []byte("[rpc]\nlimit=20\n[storage]\ncompact=true\n"))
+	require.NoError(t, err)
+	require.Empty(t, added)
+	require.Equal(t, original, unchanged)
 }

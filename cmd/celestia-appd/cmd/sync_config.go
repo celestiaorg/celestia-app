@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/creachadair/tomledit"
 	"github.com/creachadair/tomledit/parser"
+	"github.com/creachadair/tomledit/transform"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -72,13 +73,10 @@ func syncConfigOnStart(cmd *cobra.Command, logger log.Logger) error {
 	return nil
 }
 
-// mergeConfig inserts missing documented settings without rewriting existing text.
+// mergeConfig adds missing documented settings while preserving existing values and comments.
 func mergeConfig(original, reference []byte) ([]byte, []string, error) {
-	var expected, defaults map[string]any
-	if err := toml.Unmarshal(original, &expected); err != nil {
-		return nil, nil, err
-	}
-	if err := toml.Unmarshal(reference, &defaults); err != nil {
+	var before map[string]any
+	if err := toml.Unmarshal(original, &before); err != nil {
 		return nil, nil, err
 	}
 	current, err := tomledit.Parse(bytes.NewReader(original))
@@ -89,8 +87,11 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	lines := strings.SplitAfter(string(original), "\n")
-	insertions := make(map[int]string)
+	present := make(map[string]bool)
+	current.Scan(func(key parser.Key, _ *tomledit.Entry) bool {
+		present[strings.ToLower(key.String())] = true
+		return true
+	})
 	var added []string
 	for _, section := range append([]*tomledit.Section{template.Global}, template.Sections...) {
 		if section == nil {
@@ -101,91 +102,72 @@ func mergeConfig(original, reference []byte) ([]byte, []string, error) {
 		if len(name) > 1 || (section.Heading != nil && section.IsArray) {
 			return nil, nil, fmt.Errorf("unsupported template section %s", name)
 		}
-		target, source := expected, defaults
-		at, dotted := 0, false
-		var heading *parser.Heading
+		destination := current.Global
+		dotted := false
 		if len(name) == 1 {
-			source = defaults[name[0]].(map[string]any)
-			actualKey, exists, err := configKey(expected, name[0])
+			actualKey, exists, err := configKey(before, name[0])
 			if err != nil {
 				return nil, nil, err
 			}
 			if exists {
 				name = parser.Key{actualKey}
-				var ok bool
-				target, ok = expected[actualKey].(map[string]any)
-				if !ok {
-					return nil, nil, fmt.Errorf("%s is not a table", name)
-				}
-				dotted = true
-				for _, s := range current.Sections {
-					if s.TableName().Equals(name) && !s.IsArray {
-						at, dotted = s.Line, false
-						break
-					}
+				if table := transform.FindTable(current, name...); table != nil {
+					destination = table.Section
+				} else {
+					dotted = true
 				}
 			} else {
-				target = make(map[string]any)
-				expected[name[0]] = target
-				at, heading = len(lines), section.Heading
+				destination = &tomledit.Section{Heading: section.Heading}
+				current.Sections = append(current.Sections, destination)
 			}
 		}
-		var items []parser.Item
 		for _, item := range section.Items {
 			kv, ok := item.(*parser.KeyValue)
 			if !ok {
 				continue
 			}
-			if len(kv.Name) != 1 {
-				return nil, nil, fmt.Errorf("unsupported template key %s", kv.Name)
-			}
-			key := kv.Name[0]
-			_, exists, err := configKey(target, key)
-			if err != nil {
-				return nil, nil, err
-			}
-			if exists {
+			full := append(append(parser.Key(nil), name...), kv.Name...)
+			if present[strings.ToLower(full.String())] {
 				continue
 			}
-			target[key] = source[key]
-			full := append(append(parser.Key(nil), name...), key)
 			added = append(added, strings.Join(full, "."))
 			copyKV := *kv
 			if dotted {
 				copyKV.Name = full
 			}
-			items = append(items, &copyKV)
+			transform.InsertMapping(destination, &copyKV, false)
 		}
-		if len(items) == 0 {
-			continue
-		}
-		doc := &tomledit.Document{Global: &tomledit.Section{Items: items}}
-		if heading != nil {
-			doc = &tomledit.Document{Sections: []*tomledit.Section{{Heading: heading, Items: items}}}
-		}
-		var rendered bytes.Buffer
-		if err := tomledit.Format(&rendered, doc); err != nil {
-			return nil, nil, err
-		}
-		insertions[at] += "\n" + rendered.String() + "\n"
 	}
 	if len(added) == 0 {
 		return original, nil, nil
 	}
 	var result bytes.Buffer
-	for i, line := range lines {
-		result.WriteString(insertions[i])
-		result.WriteString(line)
+	if err := tomledit.Format(&result, current); err != nil {
+		return nil, nil, err
 	}
-	result.WriteString(insertions[len(lines)])
 	var actual map[string]any
 	if err := toml.Unmarshal(result.Bytes(), &actual); err != nil {
 		return nil, nil, fmt.Errorf("cannot safely extend config: %w", err)
 	}
-	if !reflect.DeepEqual(expected, actual) {
+	if !configValuesPreserved(before, actual) {
 		return nil, nil, fmt.Errorf("config update would change existing values")
 	}
 	return result.Bytes(), added, nil
+}
+
+// configValuesPreserved allows additions but rejects changes to existing values.
+func configValuesPreserved(before, after map[string]any) bool {
+	for key, value := range before {
+		if table, ok := value.(map[string]any); ok {
+			updated, ok := after[key].(map[string]any)
+			if !ok || !configValuesPreserved(table, updated) {
+				return false
+			}
+		} else if !reflect.DeepEqual(value, after[key]) {
+			return false
+		}
+	}
+	return true
 }
 
 // Match the SDK's case-insensitive keys without introducing ambiguous duplicates.
