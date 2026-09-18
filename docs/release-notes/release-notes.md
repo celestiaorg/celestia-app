@@ -10,7 +10,7 @@ Node operators MUST upgrade their binary to this version prior to the v10 activa
 
 #### Update config.toml
 
-Validators SHOULD run the following command with the v10 binary to add new fields and their documentation to `config.toml`:
+Validators are recommended to run the following command with the v10 binary to add new fields and their documentation to `config.toml`:
 
 ```sh
 celestia-appd config sync --home ~/.celestia-app
