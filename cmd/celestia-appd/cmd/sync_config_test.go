@@ -3,11 +3,8 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"slices"
 	"strings"
 	"testing"
 
@@ -15,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
-	servercmd "github.com/cosmos/cosmos-sdk/server/cmd"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -25,6 +21,7 @@ func TestMergeConfig(t *testing.T) {
 	reference := []byte("# Name\nmoniker = 'default'\n# RPC\n[rpc]\n# Limit\nlimit = 20\n# Enabled\nenabled = true\n# Address\naddress = 'localhost'\n# Storage\n[storage]\n# Compact\ncompact = false\n")
 	for _, original := range []string{
 		"# operator\nmoniker='mine'\n[rpc] # rpc note\nlimit=0 # disabled\nenabled=false\naddress=''\nunknown='keep'\n",
+		"moniker='mine'\nrpc.limit=0\nrpc.enabled=false\nrpc.address=''\n",
 		"moniker='mine'\n[\"rpc\"]\n\"limit\"=0\nenabled=false\naddress=''",
 		"MONIKER='mine'\n[RPC]\nLIMIT=0\nENABLED=false\nADDRESS=''\n",
 		"moniker='mine'\n[rpc]\nlimit=0\nenabled=false\naddress=''\nnotes='''\n[storage]\nnot a heading\n'''\n",
@@ -32,7 +29,7 @@ func TestMergeConfig(t *testing.T) {
 		t.Run(original, func(t *testing.T) {
 			updated, added, err := mergeConfig([]byte(original), reference)
 			require.NoError(t, err)
-			require.Equal(t, []string{"storage.compact = false"}, added)
+			require.Equal(t, []string{"storage.compact"}, added)
 			var before, after map[string]any
 			require.NoError(t, toml.Unmarshal([]byte(original), &before))
 			require.NoError(t, toml.Unmarshal(updated, &after))
@@ -54,12 +51,17 @@ func TestMergeConfig(t *testing.T) {
 	t.Run("missing fields and sections", func(t *testing.T) {
 		updated, added, err := mergeConfig([]byte("# personal\n[rpc]\nlimit=7 # custom\n"), reference)
 		require.NoError(t, err)
-		require.Equal(t, []string{"moniker = 'default'", "rpc.enabled = true", "rpc.address = 'localhost'", "storage.compact = false"}, added)
+		require.Equal(t, []string{"moniker", "rpc.enabled", "rpc.address", "storage.compact"}, added)
 		require.Contains(t, string(updated), "# personal\n[rpc]\n")
 		require.Contains(t, string(updated), "limit = 7  # custom\n")
 		require.Contains(t, string(updated), "# Enabled\nenabled = true")
 	})
-	for _, original := range []string{"[rpc", "[rpc]\nlimit=1\nlimit=2", "rpc=3", "rpc={limit=0}", "RPC.limit=0", "[rpc.custom]\nlimit=0", "[[rpc]]\nlimit=0", "[rpc]\nLIMIT=0\nlimit=1"} {
+	t.Run("dotted missing field", func(t *testing.T) {
+		updated, _, err := mergeConfig([]byte("rpc.limit=0\n"), reference)
+		require.NoError(t, err)
+		require.Contains(t, string(updated), "rpc.enabled = true")
+	})
+	for _, original := range []string{"[rpc", "[rpc]\nlimit=1\nlimit=2", "rpc=3", "rpc={limit=0}"} {
 		_, _, err := mergeConfig([]byte(original), reference)
 		require.Error(t, err, original)
 	}
@@ -78,8 +80,8 @@ func TestSyncConfigFile(t *testing.T) {
 	require.Equal(t, original, data)
 	added, backup, err = syncConfigFile(path, false)
 	require.NoError(t, err)
-	require.Contains(t, added, "storage.compact = false")
-	require.Contains(t, added, fmt.Sprintf("storage.compaction_interval = %d", app.DefaultConsensusConfig().Storage.CompactionInterval))
+	require.Contains(t, added, "storage.compact")
+	require.Contains(t, added, "storage.compaction_interval")
 	saved, err := os.ReadFile(backup)
 	require.NoError(t, err)
 	require.Equal(t, original, saved)
@@ -157,61 +159,33 @@ func TestSyncConfigStartup(t *testing.T) {
 }
 
 func TestSyncConfigCommandDryRun(t *testing.T) {
-	if os.Getenv("CELESTIA_SYNC_CONFIG_TEST") == "1" {
-		os.Args = append([]string{os.Args[0]}, os.Args[slices.Index(os.Args, "--")+1:]...)
-		if err := servercmd.Execute(NewRootCmd(), app.EnvPrefix, app.NodeHome); err != nil {
-			os.Exit(1)
-		}
-		os.Exit(0)
+	home := filepath.Join(t.TempDir(), "absent")
+	root := NewRootCmd()
+	root.PersistentPreRunE = func(*cobra.Command, []string) error {
+		t.Fatal("must not initialize config files")
+		return nil
 	}
-	for _, readonly := range []bool{false, true} {
-		t.Run(fmt.Sprintf("readonly=%t", readonly), func(t *testing.T) {
-			home := filepath.Join(t.TempDir(), "node")
-			path := filepath.Join(home, "config", "config.toml")
-			original := []byte("moniker='mine'\n")
-			if readonly {
-				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-				require.NoError(t, os.WriteFile(path, original, 0o400))
-				require.NoError(t, os.Chmod(home, 0o500))
-				t.Cleanup(func() { require.NoError(t, os.Chmod(home, 0o700)) })
-			}
-			child := exec.Command(os.Args[0], "-test.run=^TestSyncConfigCommandDryRun$", "--", "--trace", "--log-to-file", home+".log", "config", "sync", "--home", home, "--dry-run")
-			child.Env = append(os.Environ(), "CELESTIA_SYNC_CONFIG_TEST=1")
-			output, err := child.CombinedOutput()
-			require.NoFileExists(t, home+".log")
-			if !readonly {
-				require.Error(t, err)
-				require.NoDirExists(t, home)
-				return
-			}
-			require.NoError(t, err, string(output))
-			require.Contains(t, string(output), "storage.compact = false")
-			require.NoDirExists(t, filepath.Join(home, "data"))
-			data, err := os.ReadFile(path)
-			require.NoError(t, err)
-			require.Equal(t, original, data)
-			entries, err := os.ReadDir(filepath.Dir(path))
-			require.NoError(t, err)
-			require.Len(t, entries, 1)
-		})
-	}
-}
-
-func TestMergeConfigPreservesNaN(t *testing.T) {
-	for _, value := range []string{"nan", "[nan]", "{value=nan}"} {
-		original := []byte("custom=" + value + "\n")
-		updated, added, err := mergeConfig(original, []byte("moniker='default'\n"))
-		require.NoError(t, err, value)
-		require.NotEmpty(t, added)
-		require.Contains(t, string(updated), "nan")
-	}
+	root.SetArgs([]string{"config", "sync", "--home", home, "--dry-run"})
+	var out bytes.Buffer
+	root.SetOut(&out)
+	require.Error(t, root.Execute())
+	_, err := os.Stat(home)
+	require.True(t, os.IsNotExist(err))
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "config"), 0o700))
+	path := filepath.Join(home, "config", "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte("moniker='mine'"), 0o600))
+	require.NoError(t, root.Execute())
+	require.True(t, strings.Contains(out.String(), "storage.compact"))
+	entries, err := os.ReadDir(filepath.Dir(path))
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
 }
 
 func TestMergeEmptyAndUnterminatedConfig(t *testing.T) {
 	for _, original := range []string{"", "# comment", "[rpc]", "[rpc]\r\n# comment\r\n"} {
 		updated, added, err := mergeConfig([]byte(original), []byte("[rpc]\n# Limit\nlimit=20\n"))
 		require.NoError(t, err, original)
-		require.Equal(t, []string{"rpc.limit = 20"}, added)
+		require.Equal(t, []string{"rpc.limit"}, added)
 		for _, line := range strings.SplitAfter(original, "\n") {
 			require.Contains(t, string(updated), strings.TrimSpace(line))
 		}

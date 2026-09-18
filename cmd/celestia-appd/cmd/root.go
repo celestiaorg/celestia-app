@@ -45,17 +45,6 @@ const (
 
 // NewRootCmd creates a new root command for celestia-appd.
 func NewRootCmd() *cobra.Command {
-	// Resolve file-only commands before initializing the app or embedded binaries.
-	configRoot := newConfigRootCmd()
-	configRoot.PersistentFlags().Bool(tmcli.TraceFlag, false, "")
-	configRoot.PersistentFlags().Bool(flags.FlagLogNoColor, false, "")
-	configRoot.PersistentFlags().BoolP("help", "h", false, "")
-	selected, _, err := configRoot.Find(os.Args[1:])
-	if err == nil && selected.CommandPath() == "celestia-appd config sync" {
-		// SDK execution installs the real root flags, so discard the lookup flags.
-		return newConfigRootCmd()
-	}
-
 	// we "pre"-instantiate the application for getting the injected/configured encoding configuration
 	// note, this is not necessary when using app wiring, as depinject can be directly used.
 	opts := simtestutil.NewAppOptionsWithFlagHome(app.NodeHome)
