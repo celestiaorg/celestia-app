@@ -247,14 +247,6 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
 				continue
 			}
-			if !blobTxIsCanonical(rawTx, bTx) {
-				// Drop non-canonically encoded blob txs, matching CheckTx and
-				// ProcessProposalHandler. CheckTx already rejects these before
-				// they enter the mempool, so this is a defense-in-depth backstop.
-				logger.Error("dropping non-canonically encoded blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-				telemetry.IncrCounter(1, "prepare_proposal", "non_canonical_blob_txs")
-				continue
-			}
 			blobTxs = append(blobTxs, bTx)
 			rawBlobTxs = append(rawBlobTxs, rawTx)
 			continue
