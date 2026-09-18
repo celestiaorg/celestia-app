@@ -151,7 +151,8 @@ celestia-appd start
 
 ### Updating config.toml
 
-`celestia-appd start` adds missing settings and their documentation using the binary's defaults.
+`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults.
+Synchronization runs only when this command is called, not on node startup.
 Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
 Flags and environment overrides are not saved.
 Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
@@ -164,10 +165,9 @@ celestia-appd config sync --home ~/.celestia-app --dry-run
 celestia-appd config sync --home ~/.celestia-app
 ```
 
-If automatic synchronization fails, startup logs a warning and continues with normal configuration loading and validation.
 Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.
-The explicit command returns an error on failure.
+The command returns an error on failure.
 
 Synchronization does not update `app.toml`, remove deprecated settings, or replace existing values with newer defaults.
 Once a default is written, it remains an explicit value on later upgrades.

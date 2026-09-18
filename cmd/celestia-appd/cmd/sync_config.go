@@ -9,11 +9,9 @@ import (
 	"strings"
 	"syscall"
 
-	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
-	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/creachadair/tomledit"
 	"github.com/creachadair/tomledit/parser"
 	"github.com/creachadair/tomledit/transform"
@@ -60,17 +58,6 @@ func syncConfigCmd() *cobra.Command {
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show missing settings without modifying files")
 	return cmd
-}
-
-func syncConfigOnStart(cmd *cobra.Command, logger log.Logger) error {
-	path := filepath.Join(server.GetServerContextFromCmd(cmd).Config.RootDir, "config", "config.toml")
-	added, backup, err := syncConfigFile(path, false)
-	if err != nil {
-		logger.Warn("Could not add missing config settings; runtime defaults still apply", "path", path, "err", err)
-	} else if len(added) > 0 {
-		logger.Info("Added missing config settings", "keys", added, "backup", backup)
-	}
-	return nil
 }
 
 // mergeConfig adds missing documented settings while preserving existing values and comments.

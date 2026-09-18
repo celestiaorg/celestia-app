@@ -2,15 +2,12 @@ package cmd
 
 import (
 	"bytes"
-	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app"
-	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
@@ -132,32 +129,6 @@ func TestSyncConfigRejectsUnsafeFiles(t *testing.T) {
 	}
 }
 
-func TestSyncConfigStartup(t *testing.T) {
-	home := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
-	path := filepath.Join(home, "config", "config.toml")
-	cfg := app.DefaultConsensusConfig()
-	cmtcfg.WriteConfigFile(path, cfg)
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-	data = bytes.ReplaceAll(data, []byte("max_concurrent_heavy_requests = 20"), nil)
-	require.NoError(t, os.WriteFile(path, data, 0o600))
-	sctx := server.NewDefaultContext()
-	sctx.Config = cfg.SetRoot(home)
-	// Runtime overrides must never be persisted.
-	sctx.Config.RPC.MaxConcurrentHeavyRequests = 999
-	cmd := &cobra.Command{}
-	cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, sctx))
-	require.NoError(t, syncConfigOnStart(cmd, log.NewNopLogger()))
-	data, err = os.ReadFile(path)
-	require.NoError(t, err)
-	require.Contains(t, string(data), "max_concurrent_heavy_requests = 20")
-	require.NotContains(t, string(data), "999")
-	require.Equal(t, 999, sctx.Config.RPC.MaxConcurrentHeavyRequests)
-	require.NoError(t, os.WriteFile(path, []byte("[broken"), 0o600))
-	require.NoError(t, syncConfigOnStart(cmd, log.NewNopLogger()))
-}
-
 func TestSyncConfigCommandDryRun(t *testing.T) {
 	home := filepath.Join(t.TempDir(), "absent")
 	root := NewRootCmd()
@@ -249,11 +220,12 @@ func TestSyncConfigDoesNotPersistFlagsOrEnvironment(t *testing.T) {
 			sctx, err := server.InterceptConfigsAndCreateContext(cmd, "", app.DefaultAppConfig(), app.DefaultConsensusConfig())
 			require.NoError(t, err)
 			require.Equal(t, want, sctx.Config.RPC.MaxConcurrentHeavyRequests)
-			cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, sctx))
 			appPath := filepath.Join(home, "config", "app.toml")
 			appBefore, err := os.ReadFile(appPath)
 			require.NoError(t, err)
-			require.NoError(t, syncConfigOnStart(cmd, log.NewNopLogger()))
+			syncCmd := syncConfigCmd()
+			syncCmd.SetArgs([]string{"--home", home})
+			require.NoError(t, syncCmd.Execute())
 			require.Equal(t, want, sctx.Config.RPC.MaxConcurrentHeavyRequests)
 			persisted, err := loadCometBFTConfig(path, home)
 			require.NoError(t, err)
