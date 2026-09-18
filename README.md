@@ -149,6 +149,29 @@ celestia-appd init test
 celestia-appd start
 ```
 
+### Updating config.toml
+
+`celestia-appd start` adds missing settings and their documentation using the binary's defaults.
+Existing values, comments, and unknown settings are preserved. Flags and environment overrides are not saved.
+Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
+If nothing is missing, it leaves the file untouched.
+
+To inspect additions or update the file before restarting:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app --dry-run
+celestia-appd config sync --home ~/.celestia-app
+```
+
+If automatic synchronization fails, startup logs a warning and continues with normal configuration loading and validation.
+Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
+For deployment-managed configurations, add the reported settings to the source configuration.
+The explicit command returns an error on failure.
+
+Synchronization does not update `app.toml`, remove deprecated settings, or replace existing values with newer defaults.
+Once a default is written, it remains an explicit value on later upgrades.
+Existing binary overrides for consensus, mempool, and P2P settings still apply.
+
 ### Create a single node local testnet
 
 ```sh

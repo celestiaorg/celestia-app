@@ -118,12 +118,14 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		CheckVersionCmd(),
 	)
 
+	configCmd := confixcmd.ConfigCommand()
+	configCmd.AddCommand(syncConfigCmd())
 	rootCommand.AddCommand(
 		InitCmd(capp),
 		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
-		confixcmd.ConfigCommand(),
+		configCmd,
 		addrbookCommand(),
 		compactBlockstoreCommand(),
 		downloadGenesisCommand(),
@@ -139,7 +141,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
+	if err := addPreStartHooks(rootCommand, syncConfigOnStart, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }
