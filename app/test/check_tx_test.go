@@ -442,8 +442,7 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				// Append an unknown protobuf field. UnmarshalBlobTx accepts it
-				// but it is not the canonical encoding, so CheckTx must reject it.
+				// Append an unknown protobuf field so UnmarshalBlobTx rejects it.
 				return appendUnknownProtoField(btx, 4096)
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
@@ -462,6 +461,24 @@ func TestCheckTx(t *testing.T) {
 				// decodes to the same blob tx, but the encoding is not
 				// canonical, so CheckTx must reject it.
 				return append(btx, 0x1a, 0x04, 'B', 'L', 'O', 'B')
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "nested blob tx, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				outer, err := tx.MarshalBlobTx(inner, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
 		},
