@@ -251,8 +251,8 @@ github.com/catenacyber/perfsprint v0.10.1 h1:u7Riei30bk46XsG8nknMhKLXG9BcXz3+3tl
 github.com/catenacyber/perfsprint v0.10.1/go.mod h1:DJTGsi/Zufpuus6XPGJyKOTMELe347o6akPvWG9Zcsc=
 github.com/ccojocar/zxcvbn-go v1.0.4 h1:FWnCIRMXPj43ukfX000kvBZvV6raSxakYr1nzyNrUcc=
 github.com/ccojocar/zxcvbn-go v1.0.4/go.mod h1:3GxGX+rHmueTUMvm5ium7irpyjmm7ikxYFOSJB21Das=
-github.com/celestiaorg/celestia-core v0.42.1-0.20260918132224-c2106df2edf5 h1:xSFsbtBizoH8THl/e1YyFJTFMPr+NB6VG7xuUUb1n3Q=
-github.com/celestiaorg/celestia-core v0.42.1-0.20260918132224-c2106df2edf5/go.mod h1:znDAw/NFVo/oZKG7Q70cHxRRLUVzi2/K9qJ911+lpYg=
+github.com/celestiaorg/celestia-core v0.42.1 h1:4oa3xq+t6dARaTNda9mYRa4f9l4ABfCKmt9MEaLz/bc=
+github.com/celestiaorg/celestia-core v0.42.1/go.mod h1:znDAw/NFVo/oZKG7Q70cHxRRLUVzi2/K9qJ911+lpYg=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35 h1:FREwqZwPvYsodr1AqqEIyW+VsBnwTzJNtC6NFdZX8rs=
 github.com/celestiaorg/celestia-core v1.55.0-tm-v0.34.35/go.mod h1:SI38xqZZ4ccoAxszUJqsJ/a5rOkzQRijzHQQlLKkyUc=
 github.com/celestiaorg/cosmos-sdk v0.52.11 h1:/NQnTw3pAyO03e2TXR7DenDQvaobQ5L4+Zd2bPhVp5c=
