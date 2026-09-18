@@ -303,11 +303,17 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 			return fmt.Errorf("failed to create file %s: %w", filePath, err)
 		}
 
-		if _, err := io.Copy(f, tarReader); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
+		_, copyErr := io.Copy(f, tarReader)
+		if copyErr != nil {
+			copyErr = fmt.Errorf("failed to copy file contents to %s: %w", filePath, copyErr)
 		}
-		f.Close()
+		closeErr := f.Close()
+		if closeErr != nil {
+			closeErr = fmt.Errorf("failed to close file %s: %w", filePath, closeErr)
+		}
+		if err := errors.Join(copyErr, closeErr); err != nil {
+			return err
+		}
 	}
 
 	return nil
