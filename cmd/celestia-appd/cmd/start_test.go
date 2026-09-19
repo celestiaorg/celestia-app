@@ -83,3 +83,18 @@ func mustGetFreePort() int {
 	}
 	return port
 }
+
+func TestIgnoreQuitSignal(t *testing.T) {
+	logger := log.NewNopLogger()
+	other := fmt.Errorf("boom")
+
+	if got := ignoreQuitSignal(logger, server.ErrorCode{Code: 130}); got != nil {
+		t.Fatalf("expected quit signal error code to be ignored, got %v", got)
+	}
+	if got := ignoreQuitSignal(logger, other); got != other {
+		t.Fatalf("expected other errors to be returned unchanged, got %v", got)
+	}
+	if got := ignoreQuitSignal(logger, nil); got != nil {
+		t.Fatalf("expected nil to be returned unchanged, got %v", got)
+	}
+}

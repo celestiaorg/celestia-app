@@ -33,6 +33,7 @@ import (
 	"github.com/spf13/cobra"
 	tmserver "github.com/tendermint/tendermint/abci/server"
 	cmtcmd "github.com/tendermint/tendermint/cmd/cometbft/commands"
+	"github.com/tendermint/tendermint/libs/log"
 	tmos "github.com/tendermint/tendermint/libs/os"
 	"github.com/tendermint/tendermint/node"
 	"github.com/tendermint/tendermint/p2p"
@@ -140,22 +141,16 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 			withTM, _ := cmd.Flags().GetBool(flagWithTendermint)
 			if !withTM {
 				serverCtx.Logger.Info("starting ABCI without Tendermint")
-				return wrapCPUProfile(serverCtx, func() error {
+				return ignoreQuitSignal(serverCtx.Logger, wrapCPUProfile(serverCtx, func() error {
 					return startStandAlone(serverCtx, clientCtx, appCreator)
-				})
+				}))
 			}
 
 			// amino is needed here for backwards compatibility of REST routes
 			err = wrapCPUProfile(serverCtx, func() error {
 				return startInProcess(serverCtx, clientCtx, appCreator)
 			})
-			errCode, ok := err.(server.ErrorCode)
-			if !ok {
-				return err
-			}
-
-			serverCtx.Logger.Debug(fmt.Sprintf("received quit signal: %d", errCode.Code))
-			return nil
+			return ignoreQuitSignal(serverCtx.Logger, err)
 		},
 	}
 
@@ -202,6 +197,17 @@ is performed. Note, when enabled, gRPC will also be automatically enabled.
 	// add support for all Tendermint-specific command line options
 	cmtcmd.AddNodeFlags(cmd)
 	return cmd
+}
+
+// ignoreQuitSignal returns nil if err is the error code returned after a quit
+// signal (SIGINT or SIGTERM) so a normal shutdown is not reported as an error.
+func ignoreQuitSignal(logger log.Logger, err error) error {
+	errCode, ok := err.(server.ErrorCode)
+	if !ok {
+		return err
+	}
+	logger.Debug(fmt.Sprintf("received quit signal: %d", errCode.Code))
+	return nil
 }
 
 func startStandAlone(ctx *server.Context, clientCtx client.Context, appCreator srvrtypes.AppCreator) error {
