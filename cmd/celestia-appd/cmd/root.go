@@ -118,12 +118,14 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 		CheckVersionCmd(),
 	)
 
+	configCmd := confixcmd.ConfigCommand()
+	configCmd.AddCommand(syncConfigCmd())
 	rootCommand.AddCommand(
 		InitCmd(capp),
 		genutilcli.Commands(capp.GetTxConfig(), capp.BasicManager, app.NodeHome),
 		tmcli.NewCompletionCmd(rootCommand, true),
 		debugCmd,
-		confixcmd.ConfigCommand(),
+		configCmd,
 		addrbookCommand(),
 		compactBlockstoreCommand(),
 		downloadGenesisCommand(),

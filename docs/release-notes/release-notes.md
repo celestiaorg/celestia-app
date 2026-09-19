@@ -8,6 +8,16 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Node operators MUST upgrade their binary to this version prior to the v10 activation height.
 
+#### Update config.toml
+
+Validators are recommended to run the following command with the v10 binary to add new fields and their documentation to `config.toml`:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Use your node's home directory if it differs. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
+
 #### Fibre
 
 v10 introduces fibre, a data availability protocol served by validator-operated fibre servers. Validators should follow the [fibre server guide](../../fibre/cmd/README.md) — prerequisites, setup, and the on-chain host registration via [`x/valaddr`](../../x/valaddr/README.md) — to start serving fibre traffic once v10 is live.
