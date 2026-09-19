@@ -140,7 +140,13 @@ Fibre signs payment promises by connecting to the consensus node's `PrivValidato
 
 Fresh v10 `celestia-appd init` configurations enable the privval gRPC endpoint on `127.0.0.1:26669`. Existing configurations keep their saved value, which may be `127.0.0.1:26659`, a custom address, or empty (disabled). Replacing the binary does not rewrite that value. The new default avoids a port clash with TMKMS.
 
-To enable or change it, edit the top-level setting in `config/config.toml`, before any section such as `[rpc]`:
+With celestia-app v10.2.0 or later, sync the node's configuration first to add missing fields and their documentation:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Use your node's home directory if it differs. The command preserves existing values, including an empty or old signer address. Then enable or change the top-level setting in `config/config.toml`, before any section such as `[rpc]`:
 
 ```toml
 priv_validator_grpc_laddr = "127.0.0.1:26669"

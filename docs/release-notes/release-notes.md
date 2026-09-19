@@ -10,7 +10,7 @@ Node operators MUST upgrade their binary to this version prior to the v10 activa
 
 #### Update config.toml
 
-Validators are recommended to run the following command with the v10 binary to add new fields and their documentation to `config.toml`:
+Validators are recommended to run the following command with a v10.2.0 or later binary to add missing fields and their documentation to `config.toml` before changing settings:
 
 ```sh
 celestia-appd config sync --home ~/.celestia-app
@@ -53,31 +53,11 @@ Automatic compaction covers newly pruned blocks. To reclaim space from an existi
 
 #### Updating Existing Configuration Files
 
-Missing fields use the binary's defaults, but existing files are not rewritten to add fields or comments. The deprecated `celestia-appd update-config` command only supports the v6 migration; it is not a v10 config-refresh command.
+At startup, missing fields use the binary's defaults without rewriting existing files. The deprecated `celestia-appd update-config` command only supports the v6 migration; use `celestia-appd config sync` to add missing v10 settings and their documentation.
 
-To make the new RPC and blockstore compaction settings explicit, merge these keys into the existing sections of `config/config.toml`. Do not create duplicate sections or keys:
+Run [`celestia-appd config sync`](#update-configtoml) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
 
-```toml
-[rpc]
-# Maximum concurrent heavy RPC requests. Higher values use more memory.
-max_concurrent_heavy_requests = 20
-
-[storage]
-# Optional compaction of newly pruned blocks; disabled by default.
-compact = false
-# Number of pruned blocks between compaction attempts.
-compaction_interval = 10000
-```
-
-For the complete release-matched comments, generate reference files using the v10 binary in a separate temporary home:
-
-```sh
-reference_home=$(mktemp -d)
-celestia-appd init config-reference --chain-id config-reference --home "$reference_home"
-# Read "$reference_home/config/config.toml" and "$reference_home/config/app.toml".
-```
-
-Back up your live configuration files, then copy only the needed settings and comments into their existing sections. Keep your peers, custom ports, pruning settings, and other local values. Do not replace the live home, keys, genesis, or data with the reference files. If configuration is managed by deployment tooling, edit its source templates too.
+The command only updates `config.toml`. Back up and edit `config/app.toml` and Fibre's `server_config.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
 
 Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
