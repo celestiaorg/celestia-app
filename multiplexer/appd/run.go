@@ -259,9 +259,19 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 	defer gzipReader.Close()
 
 	targetDirectory := getDirectoryForVersion(version)
-	if err := os.MkdirAll(targetDirectory, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(targetDirectory), 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
+
+	// Extract into a staging directory and only publish it once every file has
+	// been written and closed. Otherwise a failed extraction would leave the
+	// version directory in place and isBinaryDecompressed would report the
+	// unusable output as a completed extraction on the next start.
+	stagingDirectory, err := os.MkdirTemp(filepath.Dir(targetDirectory), "."+filepath.Base(targetDirectory)+".tmp-")
+	if err != nil {
+		return fmt.Errorf("failed to create staging directory: %w", err)
+	}
+	defer os.RemoveAll(stagingDirectory)
 
 	// extract all files from the tar archive to the directory
 	tarReader := tar.NewReader(gzipReader)
@@ -276,7 +286,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath, err := sanitizeTarPath(targetDirectory, header.Name)
+			dirPath, err := sanitizeTarPath(stagingDirectory, header.Name)
 			if err != nil {
 				return fmt.Errorf("path traversal in tar entry: %w", err)
 			}
@@ -287,7 +297,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 		}
 
 		// Create file path
-		filePath, err := sanitizeTarPath(targetDirectory, header.Name)
+		filePath, err := sanitizeTarPath(stagingDirectory, header.Name)
 		if err != nil {
 			return fmt.Errorf("path traversal in tar entry: %w", err)
 		}
@@ -303,11 +313,21 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 			return fmt.Errorf("failed to create file %s: %w", filePath, err)
 		}
 
-		if _, err := io.Copy(f, tarReader); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
+		_, copyErr := io.Copy(f, tarReader)
+		if copyErr != nil {
+			copyErr = fmt.Errorf("failed to copy file contents to %s: %w", filePath, copyErr)
 		}
-		f.Close()
+		closeErr := f.Close()
+		if closeErr != nil {
+			closeErr = fmt.Errorf("failed to close file %s: %w", filePath, closeErr)
+		}
+		if err := errors.Join(copyErr, closeErr); err != nil {
+			return err
+		}
+	}
+
+	if err := os.Rename(stagingDirectory, targetDirectory); err != nil {
+		return fmt.Errorf("failed to publish extracted binary for %s: %w", version, err)
 	}
 
 	return nil
