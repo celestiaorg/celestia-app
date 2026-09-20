@@ -44,9 +44,9 @@ func (p *Pool) Stats() PoolStats {
 }
 
 // MemoryStats reports pooled parity/partial rows and Merkle tree capacity.
-func (a *Assembler) MemoryStats() (rows, trees PoolStats) {
+func (a *Assembler) MemoryStats() (PoolStats, PoolStats) {
 	if a == nil {
-		return
+		return PoolStats{}, PoolStats{}
 	}
 	return a.rowsPool.Stats(), a.treePool.Stats()
 }
