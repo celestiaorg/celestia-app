@@ -2,6 +2,7 @@ package abci
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -200,6 +201,14 @@ func TestValidate(t *testing.T) {
 		{
 			name:     "contiguous range not starting at 1",
 			versions: []Version{{AppVersion: 3}, {AppVersion: 4}, {AppVersion: 5}},
+		},
+		{
+			name:     "single element at the maximum app version",
+			versions: []Version{{AppVersion: math.MaxUint64}},
+		},
+		{
+			name:     "contiguous range ending at the maximum app version",
+			versions: []Version{{AppVersion: math.MaxUint64 - 1}, {AppVersion: math.MaxUint64}},
 		},
 	}
 

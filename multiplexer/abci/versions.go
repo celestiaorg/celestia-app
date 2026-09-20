@@ -40,13 +40,9 @@ func (v Versions) Sorted() Versions {
 	return versionList
 }
 
-// GetForAppVersion returns the version registered for exactly appVersion.
-//
-// It returns ErrNoVersionFound when appVersion is newer than every registered
-// version, which callers treat as "use the native app". It returns
-// ErrUnsupportedAppVersion when appVersion is older than the lowest registered
-// version or falls in a gap between registered versions, because no binary can
-// serve it. It never falls back to a different version than the one requested.
+// GetForAppVersion returns the version registered for exactly appVersion. It
+// returns ErrNoVersionFound for newer versions and ErrUnsupportedAppVersion
+// when no registered binary can serve appVersion.
 func (v Versions) GetForAppVersion(appVersion uint64) (Version, error) {
 	if len(v) == 0 {
 		return Version{}, fmt.Errorf("%w for app version %d: no versions registered", ErrNoVersionFound, appVersion)
@@ -107,9 +103,12 @@ func (v Versions) Validate() error {
 	}
 
 	lowest, highest := v.bounds()
-	for want := lowest; want <= highest; want++ {
+	for want := lowest; ; want++ {
 		if _, ok := seen[want]; !ok {
 			return fmt.Errorf("version %d is missing: registered app versions must be contiguous (%d through %d)", want, lowest, highest)
+		}
+		if want == highest {
+			break
 		}
 	}
 
