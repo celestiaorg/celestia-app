@@ -68,6 +68,10 @@ type ClientConfig struct {
 	// Escrow configures client-side escrow auto-funding so uploads don't fail
 	// when the escrow account runs low.
 	Escrow EscrowConfig
+
+	// PutLimiter bounds blobs retaining encoded storage during Put. Nil disables
+	// the limit; pending confirmations do not consume capacity.
+	PutLimiter *PutLimiter
 }
 
 // defaultEscrowConfig derives escrow auto-funding defaults from the protocol
