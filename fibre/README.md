@@ -15,6 +15,29 @@ This package is the Go client. Depending on what you want to do:
 - gRPC access to a `celestia-appd` node (default `127.0.0.1:9090`).
 - For uploads: a funded account in a local keyring, plus a funded fibre **escrow account** for that key (see [Escrow](#escrow)).
 
+`Put` confirms PFF execution through `TxClient.ConfirmTxSubscription` on the same
+app gRPC connection. Current multiplexer and standalone nodes with in-process core
+provide the required `BlockAPI.SubscribeNewHeights`, `TxStatusBatch`, and committed
+application height metadata. Separate-process ABCI deployments are not validated.
+
+Confirmation remains blocking until successful execution is covered by a committed
+height. One shared stream triggers status batches of at most 20 hashes. Registration
+and reconnect perform reconciliation reads; there is no periodic status polling.
+The stream has no setup acknowledgement, so a missed startup event can delay the
+result until the final reconciliation after 30 seconds without new height events.
+That reconciliation resolves completed transactions and fails unresolved waiters.
+
+Each client admits at most 1,024 waiters, bounds each status round to five seconds,
+and reconnects at most three times per observation session. Unsupported services,
+invalid responses, exhausted reconnects, and stalled observation return errors;
+an observation error does not mean the transaction failed on-chain. Caller deadlines
+still apply. The last waiter releases the stream, cancelling the `SetupTxClient`
+context stops observation, and `CloseConfirmations` stops subscription confirmation
+explicitly. The caller retains ownership of the gRPC connection.
+
+Existing `ConfirmTx` and `WithPollTime` behavior is unchanged for other SDK callers.
+`Put` never falls back to that polling path.
+
 ## Quickstart
 
 Upload a blob with `Put`, then fetch it back by its `BlobID`:
