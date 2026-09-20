@@ -165,6 +165,8 @@ celestia-appd config sync --home ~/.celestia-app --dry-run
 celestia-appd config sync --home ~/.celestia-app
 ```
 
+Then edit the fields in `config/config.toml` under your node's home directory to set the values you want before restarting the node.
+
 Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.
 The command returns an error on failure.
