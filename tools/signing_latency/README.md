@@ -8,7 +8,13 @@ Note: the tracing latency file is only for remote KMS. For local signing, the va
 
 ### Enable the signing latency traces
 
-The signing latency trace file is generated automatically when the `signing_latency` tracing table is enabled. To enable it, update the `$CELESTIA_APP_HOME/config/config.toml` tracing section to be:
+The signing latency trace file is generated automatically when the `signing_latency` tracing table is enabled. With celestia-app v10.2.0 or later, first sync the node's configuration to add missing fields and their documentation:
+
+```sh
+celestia-appd config sync --home "$CELESTIA_APP_HOME"
+```
+
+Use your node's home directory. Then update the `$CELESTIA_APP_HOME/config/config.toml` tracing section to be:
 
 ```toml
 # The tracer to use for collecting trace data.
