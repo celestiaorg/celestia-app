@@ -173,7 +173,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	))
 
 	// confirm transaction inclusion
-	txResp, err := txClient.ConfirmTx(ctx, broadcastResp.TxHash)
+	txResp, err := txClient.ConfirmTxSubscription(ctx, broadcastResp.TxHash)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to confirm PayForFibre transaction")

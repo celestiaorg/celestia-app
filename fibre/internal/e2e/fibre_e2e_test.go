@@ -255,6 +255,10 @@ func (s *FibreE2ETestSuite) Test03Put() {
 	require.NotEmpty(t, result.ValidatorSignatures, "should have validator signatures")
 	require.NotEmpty(t, result.TxHash, "tx hash should not be empty")
 	require.Greater(t, result.Height, uint64(0), "height should be positive")
+	confirmed, err := s.txClient.ConfirmTxSubscription(ctx, result.TxHash)
+	require.NoError(t, err)
+	require.Equal(t, result.Height, uint64(confirmed.Height))
+	require.Equal(t, result.TxHash, confirmed.TxHash)
 	t.Logf("Put result: commitment=%s, txHash=%s, height=%d", result.BlobID.String(), result.TxHash, result.Height)
 
 	// verify data was stored in server's store.
@@ -386,12 +390,14 @@ func (s *FibreE2ETestSuite) Test07DuplicatePayment() {
 
 	resp, err := s.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 	require.NoError(t, err)
-	_, err = s.txClient.ConfirmTx(ctx, resp.TxHash)
+	_, err = s.txClient.ConfirmTxSubscription(ctx, resp.TxHash)
 	require.NoError(t, err)
 
 	hash, err := signed.Hash()
 	require.NoError(t, err)
-	waitForPaymentProcessed(t, s.cctx, hash)
+	processed, err := fibretypes.NewQueryClient(s.cctx.GRPCClient).IsPaymentProcessed(ctx, &fibretypes.QueryIsPaymentProcessedRequest{PromiseHash: hash})
+	require.NoError(t, err)
+	require.True(t, processed.Found, "subscription confirmation must cover committed application state")
 
 	resp, err = s.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 	if err == nil {
