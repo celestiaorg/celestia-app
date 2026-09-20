@@ -155,13 +155,35 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 // uploadPut releases its blob ownership before transaction settlement.
 func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (BlobID, SignedPaymentPromise, error) {
 	span := trace.SpanFromContext(ctx)
+	if c.Config.PutLimiter != nil {
+		span.AddEvent("expanded_memory_wait_started")
+	}
+	release, err := c.Config.PutLimiter.acquire(ctx, c.stopCh, int64(len(data)))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "blob memory admission failed")
+		return nil, SignedPaymentPromise{}, err
+	}
+	if c.Config.PutLimiter != nil {
+		span.AddEvent("expanded_memory_acquired")
+	}
+	span.AddEvent("blob_encoding_started")
 	blob, err := NewBlob(data, DefaultBlobConfigV0())
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")
+		release()
 		return nil, SignedPaymentPromise{}, err
 	}
-	defer blob.Free()
+	free := blob.releaseFn
+	blob.releaseFn = func() {
+		free()
+		release()
+	}
+	defer func() {
+		blob.Free()
+		span.AddEvent("blob_memory_released", trace.WithAttributes(attribute.String("owner", "put")))
+	}()
 
 	blobID := blob.ID()
 	span.AddEvent("blob_encoded", trace.WithAttributes(

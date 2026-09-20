@@ -42,7 +42,8 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			var releaseOnce sync.Once
 			unblock := func() { releaseOnce.Do(func() { close(release) }) }
 			var clients atomic.Int64
-			client, txClient, settlement := newLifetimePutClient(t, func(next fibregrpc.NewClientFn) fibregrpc.NewClientFn {
+			limiter := fibre.NewPutLimiter(1)
+			client, txClient, settlement := newLifetimePutClient(t, limiter, func(next fibregrpc.NewClientFn) fibregrpc.NewClientFn {
 				return func(ctx context.Context, val *coretypes.Validator) (fibregrpc.Client, error) {
 					c, err := next(ctx, val)
 					if err != nil || clients.Add(1) != 1 {
@@ -69,6 +70,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			}()
 			awaitLifetimeSignal(t, entered)
 			awaitLifetimeSignal(t, settlement.entered)
+			require.EqualValues(t, 1, limiter.Stats().Active, "quorum must not release a delayed reader's permit")
 
 			if canceled {
 				cancel()
@@ -78,6 +80,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 				case <-time.After(10 * time.Second):
 					t.Fatal("Put did not stop waiting for confirmation")
 				}
+				require.EqualValues(t, 1, limiter.Stats().Active, "cancellation must not release storage still in use")
 			}
 
 			// Reusing the same pool shape must not overwrite the delayed RPC's rows.
@@ -87,6 +90,8 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			unblock()
 			require.NoError(t, <-checked)
 			client.Await()
+			require.Zero(t, limiter.Stats().Active)
+			require.Zero(t, limiter.Stats().ActiveRawBytes)
 			if !canceled {
 				require.Eventually(t, func() bool {
 					runtime.GC()
@@ -109,6 +114,26 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPutMemoryAdmissionFailuresReleaseCapacity(t *testing.T) {
+	limiter := fibre.NewPutLimiter(1)
+	client, txClient, _ := newLifetimePutClient(t, limiter, nil)
+	_, err := fibre.Put(t.Context(), client, txClient, testNamespace, nil)
+	require.Error(t, err)
+	require.Zero(t, limiter.Stats().Active)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = fibre.Put(ctx, client, txClient, testNamespace, []byte("canceled"))
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, limiter.Stats().Active)
+	require.Zero(t, limiter.Stats().Waiting)
+
+	require.NoError(t, client.Stop(t.Context()))
+	_, err = fibre.Put(t.Context(), client, txClient, testNamespace, []byte("closed"))
+	require.ErrorIs(t, err, fibre.ErrClientClosed)
+	require.Zero(t, limiter.Stats().Active)
 }
 
 type delayedUploadReader struct {
@@ -138,11 +163,12 @@ func (c *delayedUploadReader) UploadShard(ctx context.Context, req *types.Upload
 	return c.Client.UploadShard(ctx, req, opts...)
 }
 
-func newLifetimePutClient(t *testing.T, wrap func(fibregrpc.NewClientFn) fibregrpc.NewClientFn) (*fibre.Client, *user.TxClient, *lifetimeSettlementServer) {
+func newLifetimePutClient(t *testing.T, limiter *fibre.PutLimiter, wrap func(fibregrpc.NewClientFn) fibregrpc.NewClientFn) (*fibre.Client, *user.TxClient, *lifetimeSettlementServer) {
 	t.Helper()
 	kr := makeTestKeyring(t)
 	validators, keys := makeTestValidators(t, 4)
 	cfg := fibre.DefaultClientConfig()
+	cfg.PutLimiter = limiter
 	cfg.NewClientFn = makeMockClientFn(validators, keys)
 	if wrap != nil {
 		cfg.NewClientFn = wrap(cfg.NewClientFn)
