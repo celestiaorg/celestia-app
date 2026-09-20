@@ -1,7 +1,6 @@
 package abci
 
 import (
-	"errors"
 	"fmt"
 	"testing"
 
@@ -23,47 +22,70 @@ func TestGetForAppVersion(t *testing.T) {
 				{AppVersion: 2},
 				{AppVersion: 3},
 			},
-			appVersion:  2,
-			expected:    Version{AppVersion: 2},
-			expectedErr: nil,
-		},
-		{
-			name: "no matching version returns smallest available version",
-			versions: Versions{
-				{AppVersion: 2},
-				{AppVersion: 3},
-			},
-			appVersion:  1,
-			expected:    Version{AppVersion: 2},
-			expectedErr: nil,
-		},
-		{
-			name:        "empty versions list returns error",
-			versions:    Versions{},
-			appVersion:  1,
-			expected:    Version{},
-			expectedErr: fmt.Errorf("%w: %d", ErrNoVersionFound, 1),
+			appVersion: 2,
+			expected:   Version{AppVersion: 2},
 		},
 		{
 			name: "app version matches the lowest version",
 			versions: Versions{
 				{AppVersion: 1},
+				{AppVersion: 2},
+			},
+			appVersion: 1,
+			expected:   Version{AppVersion: 1},
+		},
+		{
+			name: "app version matches the highest version",
+			versions: Versions{
+				{AppVersion: 1},
+				{AppVersion: 2},
+			},
+			appVersion: 2,
+			expected:   Version{AppVersion: 2},
+		},
+		{
+			name:        "empty versions list returns ErrNoVersionFound",
+			versions:    Versions{},
+			appVersion:  1,
+			expectedErr: ErrNoVersionFound,
+		},
+		{
+			name: "app version above the highest version returns ErrNoVersionFound",
+			versions: Versions{
+				{AppVersion: 1},
+				{AppVersion: 2},
+				{AppVersion: 3},
+			},
+			appVersion:  4,
+			expectedErr: ErrNoVersionFound,
+		},
+		{
+			name: "app version below the lowest version returns ErrUnsupportedAppVersion",
+			versions: Versions{
+				{AppVersion: 2},
 				{AppVersion: 3},
 			},
 			appVersion:  1,
-			expected:    Version{AppVersion: 1},
-			expectedErr: nil,
+			expectedErr: ErrUnsupportedAppVersion,
 		},
 		{
-			name: "app version not in list, returns lowest",
+			name: "app version far below the lowest version returns ErrUnsupportedAppVersion",
 			versions: Versions{
 				{AppVersion: 4},
 				{AppVersion: 5},
 				{AppVersion: 6},
 			},
 			appVersion:  2,
-			expected:    Version{AppVersion: 4},
-			expectedErr: nil,
+			expectedErr: ErrUnsupportedAppVersion,
+		},
+		{
+			name: "app version in a gap between registered versions returns ErrUnsupportedAppVersion",
+			versions: Versions{
+				{AppVersion: 1},
+				{AppVersion: 3},
+			},
+			appVersion:  2,
+			expectedErr: ErrUnsupportedAppVersion,
 		},
 	}
 
@@ -72,8 +94,9 @@ func TestGetForAppVersion(t *testing.T) {
 			actual, err := tt.versions.GetForAppVersion(tt.appVersion)
 
 			if tt.expectedErr != nil {
-				require.Error(t, err)
-				require.EqualError(t, tt.expectedErr, err.Error(), "unexpected error message")
+				require.ErrorIs(t, err, tt.expectedErr)
+				require.ErrorContains(t, err, fmt.Sprintf("app version %d", tt.appVersion), "error should name the offending app version")
+				require.Equal(t, Version{}, actual)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tt.expected, actual, "unexpected result")
@@ -107,12 +130,20 @@ func TestShouldUseLatestApp(t *testing.T) {
 			2, false,
 		},
 		{
-			"App version does not match any version",
+			"App version above every registered version",
 			Versions{
 				{AppVersion: 1},
 				{AppVersion: 2},
 			},
 			3, true,
+		},
+		{
+			"App version below the lowest registered version is not served by the latest app",
+			Versions{
+				{AppVersion: 2},
+				{AppVersion: 3},
+			},
+			1, false,
 		},
 	}
 
@@ -123,36 +154,52 @@ func TestShouldUseLatestApp(t *testing.T) {
 	}
 }
 
-func TestEnsureUniqueVersions(t *testing.T) {
+func TestValidate(t *testing.T) {
 	tests := []struct {
 		name        string
 		versions    Versions
-		expectedErr error
+		expectedErr string
 	}{
 		{
-			name:        "no duplicates",
-			versions:    []Version{{AppVersion: 1}, {AppVersion: 2}, {AppVersion: 3}},
-			expectedErr: nil,
+			name:     "no duplicates",
+			versions: []Version{{AppVersion: 1}, {AppVersion: 2}, {AppVersion: 3}},
 		},
 		{
 			name:        "duplicate app versions",
 			versions:    []Version{{AppVersion: 1}, {AppVersion: 2}, {AppVersion: 1}},
-			expectedErr: errors.New("version 1 specified multiple times"),
+			expectedErr: "version 1 specified multiple times",
 		},
 		{
 			name:        "empty list",
 			versions:    []Version{},
-			expectedErr: errors.New("no versions specified"),
+			expectedErr: "no versions specified",
 		},
 		{
-			name:        "single element",
-			versions:    []Version{{AppVersion: 1}},
-			expectedErr: nil,
+			name:     "single element",
+			versions: []Version{{AppVersion: 1}},
 		},
 		{
 			name:        "multiple duplicates",
 			versions:    []Version{{AppVersion: 1}, {AppVersion: 2}, {AppVersion: 1}, {AppVersion: 3}, {AppVersion: 2}},
-			expectedErr: errors.New("version 1 specified multiple times"),
+			expectedErr: "version 1 specified multiple times",
+		},
+		{
+			name:        "gap between registered versions",
+			versions:    []Version{{AppVersion: 1}, {AppVersion: 3}},
+			expectedErr: "version 2 is missing",
+		},
+		{
+			name:        "gap in the middle of a longer range",
+			versions:    []Version{{AppVersion: 3}, {AppVersion: 4}, {AppVersion: 6}, {AppVersion: 7}},
+			expectedErr: "version 5 is missing",
+		},
+		{
+			name:     "contiguous but unsorted",
+			versions: []Version{{AppVersion: 3}, {AppVersion: 1}, {AppVersion: 2}},
+		},
+		{
+			name:     "contiguous range not starting at 1",
+			versions: []Version{{AppVersion: 3}, {AppVersion: 4}, {AppVersion: 5}},
 		},
 	}
 
@@ -160,9 +207,8 @@ func TestEnsureUniqueVersions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := tt.versions.Validate()
 
-			if tt.expectedErr != nil {
-				require.Error(t, err)
-				require.Contains(t, err.Error(), tt.expectedErr.Error(), "expected error message mismatch")
+			if tt.expectedErr != "" {
+				require.ErrorContains(t, err, tt.expectedErr)
 			} else {
 				require.NoError(t, err)
 			}
