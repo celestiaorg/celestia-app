@@ -590,9 +590,8 @@ func (m *Multiplexer) embeddedVersionRunning() bool {
 	return m.activeVersion.Appd != nil && m.activeVersion.Appd.IsRunning()
 }
 
-// isServedByRunningEmbeddedApp reports whether the embedded binary that is
-// currently running is the same binary registered for version, in which case
-// switching to version does not require stopping and restarting the process.
+// isServedByRunningEmbeddedApp reports whether the running embedded binary is
+// the one registered for version, so switching to it needs no restart.
 func (m *Multiplexer) isServedByRunningEmbeddedApp(version Version) bool {
 	return m.embeddedVersionRunning() && m.activeVersion.Appd == version.Appd
 }

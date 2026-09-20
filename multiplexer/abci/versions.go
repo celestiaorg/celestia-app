@@ -62,7 +62,7 @@ func (v Versions) GetForAppVersion(appVersion uint64) (Version, error) {
 }
 
 // ShouldUseLatestApp returns true if appVersion is newer than every registered
-// version and therefore must be served by the native (latest) app.
+// version and so must be served by the native (latest) app.
 func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
 	_, err := v.GetForAppVersion(appVersion)
 	return errors.Is(err, ErrNoVersionFound)
@@ -84,11 +84,8 @@ func (v Version) GetStartArgs(args []string) []string {
 	)
 }
 
-// Validate checks that at least one version is registered, that no app version
-// is registered twice, and that the registered app versions form a contiguous
-// range. Contiguity guarantees that every historical app version between the
-// lowest and highest registered version is explicitly served by a binary
-// rather than silently routed elsewhere.
+// Validate checks that versions is non-empty, has no duplicate app versions,
+// and forms a contiguous range of app versions.
 func (v Versions) Validate() error {
 	if len(v) == 0 {
 		return fmt.Errorf("no versions specified")
@@ -115,8 +112,8 @@ func (v Versions) Validate() error {
 	return nil
 }
 
-// bounds returns the lowest and highest registered app version. It does not
-// assume v is sorted. v must be non-empty.
+// bounds returns the lowest and highest app version in v, which must be
+// non-empty.
 func (v Versions) bounds() (lowest, highest uint64) {
 	lowest, highest = v[0].AppVersion, v[0].AppVersion
 	for _, ver := range v[1:] {
