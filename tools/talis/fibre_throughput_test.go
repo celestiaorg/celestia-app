@@ -44,16 +44,18 @@ func TestFibreThroughputSuccessfulOnly(t *testing.T) {
 		results        []*abci.ExecTxResult
 		wantCount      int
 		wantBytes      int64
+		wantIncluded   int64
 		wantErr        string
 	}{
-		{name: "default", results: results, wantCount: 3, wantBytes: 700},
-		{name: "default with gas", withGas: true, results: results, wantCount: 3, wantBytes: 700},
-		{name: "successful only", successfulOnly: true, results: results, wantCount: 2, wantBytes: 500},
-		{name: "successful only with gas", successfulOnly: true, withGas: true, results: results, wantCount: 2, wantBytes: 500},
+		{name: "default", results: results, wantCount: 3, wantBytes: 700, wantIncluded: 500},
+		{name: "default with gas", withGas: true, results: results, wantCount: 3, wantBytes: 700, wantIncluded: 500},
+		{name: "successful only", successfulOnly: true, results: results, wantCount: 2, wantBytes: 500, wantIncluded: 500},
+		{name: "successful only with gas", successfulOnly: true, withGas: true, results: results, wantCount: 2, wantBytes: 500, wantIncluded: 500},
+		{name: "all failed", results: []*abci.ExecTxResult{{Code: 1}, {Code: 2}, {Code: 3}}, wantCount: 3, wantBytes: 700},
 		{name: "missing results", successfulOnly: true, wantErr: "missing execution result for PFF at height 10, tx index 0"},
 		{name: "short results", successfulOnly: true, results: results[:1], wantErr: "missing execution result for PFF at height 10, tx index 1"},
 		{name: "nil result", successfulOnly: true, withGas: true, results: []*abci.ExecTxResult{results[0], nil, results[2]}, wantErr: "missing execution result for PFF at height 10, tx index 1"},
-		{name: "default without results", wantCount: 3, wantBytes: 700},
+		{name: "default without results", wantErr: "missing execution result for PFF at height 10, tx index 0"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -85,11 +87,7 @@ func TestFibreThroughputSuccessfulOnly(t *testing.T) {
 			blocks := fetchBlocksConcurrent(t.Context(), []*rpchttp.HTTP{client}, 10, 10, 1, 0, encCfg.TxConfig.TxDecoder(), tt.withGas, tt.successfulOnly)
 			require.Len(t, blocks, 1)
 			res := blocks[0]
-			if tt.withGas || tt.successfulOnly {
-				require.EqualValues(t, 1, resultCalls.Load())
-			} else {
-				require.Zero(t, resultCalls.Load())
-			}
+			require.EqualValues(t, 1, resultCalls.Load())
 			if tt.wantErr != "" {
 				require.EqualError(t, res.err, tt.wantErr)
 				return
@@ -98,6 +96,7 @@ func TestFibreThroughputSuccessfulOnly(t *testing.T) {
 			require.Zero(t, res.decodeErrs)
 			require.Equal(t, tt.wantCount, res.pffCount)
 			require.Equal(t, tt.wantBytes, res.pffBytes)
+			require.Equal(t, tt.wantIncluded, res.pffIncludedBytes)
 			require.Equal(t, 1, res.pfbCount)
 			require.EqualValues(t, 30, res.pfbBytes)
 			if tt.withGas {

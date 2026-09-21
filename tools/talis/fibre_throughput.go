@@ -18,6 +18,7 @@ import (
 	"github.com/cometbft/cometbft/rpc/client/http"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cobra"
+	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -54,17 +55,18 @@ type pffGasTrace struct {
 // worker. Only small scalar fields are retained; the (potentially 32MB+) block
 // is decoded and discarded inside fetchAndDecodeBlock.
 type blockResult struct {
-	height     int64
-	blockTime  time.Time
-	numTxs     int
-	decodeErrs int
-	attempts   int
-	pffCount   int
-	pffBytes   int64
-	pfbCount   int
-	pfbBytes   int64
-	pffGas     []pffGasTrace
-	err        error
+	height           int64
+	blockTime        time.Time
+	numTxs           int
+	decodeErrs       int
+	attempts         int
+	pffCount         int
+	pffBytes         int64
+	pffIncludedBytes int64
+	pfbCount         int
+	pfbBytes         int64
+	pffGas           []pffGasTrace
+	err              error
 }
 
 func fibreThroughputCmd() *cobra.Command {
@@ -137,6 +139,24 @@ func fibreThroughputCmd() *cobra.Command {
 			if duration > 0 {
 				ctx, cancel = context.WithTimeout(ctx, duration)
 				defer cancel()
+			}
+
+			var includedBytes metric.Int64Counter
+			if len(cfg.Observability) > 0 && startHeight == 0 {
+				endpoint := fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)
+				counter, shutdown, err := setupFibreThroughputMetrics(ctx, endpoint)
+				if err != nil {
+					return err
+				}
+				includedBytes = counter
+				defer func() {
+					shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					defer cancel()
+					if err := shutdown(shutdownCtx); err != nil {
+						fmt.Printf("error flushing throughput metrics: %v\n", err)
+					}
+				}()
+				fmt.Printf("PFF inclusion metrics enabled endpoint=%s\n", endpoint)
 			}
 
 			var nextHeight int64
@@ -230,8 +250,17 @@ func fibreThroughputCmd() *cobra.Command {
 							break
 						}
 						if res.err != nil {
+							if includedBytes != nil {
+								return fmt.Errorf("cannot count PFF inclusion at height %d: %w", res.height, res.err)
+							}
 							fmt.Printf("error fetching block %d after %d attempt(s): %v\n", res.height, res.attempts, res.err)
 							continue
+						}
+						if includedBytes != nil {
+							if res.decodeErrs > 0 {
+								return fmt.Errorf("cannot count PFF inclusion at height %d: %d undecoded transactions", res.height, res.decodeErrs)
+							}
+							includedBytes.Add(ctx, res.pffIncludedBytes)
 						}
 
 						var blockTimeDelta float64
@@ -334,8 +363,8 @@ func fibreThroughputCmd() *cobra.Command {
 	cmd.Flags().IntVar(&maxRetries, "max-retries", 5, "number of times to retry a failed block fetch (rotating across endpoints, with backoff) before skipping it")
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until Ctrl+C)")
 	cmd.Flags().BoolVar(&withTraces, "with-traces", false, "enable JSONL trace file output")
-	cmd.Flags().BoolVar(&successfulOnly, "successful-only", false, "count only successful PFF transactions (fetches block results)")
-	cmd.Flags().BoolVar(&withGas, "with-gas", false, "record per-PFF gas usage from block results (adds one block_results RPC per block)")
+	cmd.Flags().BoolVar(&successfulOnly, "successful-only", false, "count only successful PFF transactions in console output and traces")
+	cmd.Flags().BoolVar(&withGas, "with-gas", false, "record per-PFF gas usage from block results")
 	cmd.Flags().StringVar(&tracesDir, "traces-dir", "./data/monitoring/throughput", "directory for trace files")
 	cmd.Flags().Int64Var(&startHeight, "start-height", 0, "block height to start from (0 = latest + 1)")
 
@@ -394,7 +423,7 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 		// block.Txs. Fetch it from the same endpoint so both views agree; a
 		// failure retries the whole attempt like a block fetch failure.
 		var txsResults []*abci.ExecTxResult
-		if err == nil && (withGas || successfulOnly) {
+		if err == nil {
 			blockResults, brErr := client.BlockResults(ctx, &h)
 			if brErr != nil {
 				err = brErr
@@ -415,11 +444,14 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 				}
 				for _, msg := range sdkTx.GetMsgs() {
 					if pff, ok := msg.(*fibretypes.MsgPayForFibre); ok {
-						if successfulOnly && (txIdx >= len(txsResults) || txsResults[txIdx] == nil) {
+						if txIdx >= len(txsResults) || txsResults[txIdx] == nil {
 							res.err = fmt.Errorf("missing execution result for PFF at height %d, tx index %d", height, txIdx)
 							return res
 						}
-						if withGas && txIdx < len(txsResults) && txsResults[txIdx] != nil {
+						if txsResults[txIdx].Code == abci.CodeTypeOK {
+							res.pffIncludedBytes += int64(pff.PaymentPromise.BlobSize)
+						}
+						if withGas {
 							txRes := txsResults[txIdx]
 							res.pffGas = append(res.pffGas, pffGasTrace{
 								Height:    height,
