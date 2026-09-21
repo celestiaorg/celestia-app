@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -348,7 +349,7 @@ func (cfg Config) WithChainID(chainID string) Config {
 	return cfg
 }
 
-func (cfg Config) Save(root string) error {
+func (cfg Config) Save(root string) (err error) {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(root, 0o755); err != nil {
 		return err
@@ -361,7 +362,11 @@ func (cfg Config) Save(root string) error {
 	if err != nil {
 		return err
 	}
-	defer cfgFile.Close()
+	defer func() {
+		if closeErr := cfgFile.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close config file: %w", closeErr))
+		}
+	}()
 
 	// Write the config to the file
 	encoder := json.NewEncoder(cfgFile)
