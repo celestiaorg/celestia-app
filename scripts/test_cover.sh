@@ -12,11 +12,11 @@ for DIR in "${EXCLUDE_DIRS[@]}"; do
     PKGS=$(echo "$PKGS" | grep -v "$DIR")
 done
 
-echo "mode: atomic" > coverage.txt
-for pkg in ${PKGS[@]}; do
-    go test -v -timeout 30m -test.short -coverprofile=profile.out -covermode=atomic "$pkg"
-    if [ -f profile.out ]; then
-        tail -n +2 profile.out >> coverage.txt;
-        rm profile.out
-    fi
-done
+# -coverpkg credits coverage to the package that owns the code rather than the
+# package whose tests exercised it, so tests in app/test count toward app/.
+# -p 1 runs packages serially because the testnode-based suites collide on
+# ports and time out when run concurrently.
+# TestPrepareProposalCappingNumberOfMessages needs over 11 GiB of memory, which
+# exceeds what the CI runner has.
+# shellcheck disable=SC2086
+go test -p 1 -timeout 60m -skip TestPrepareProposalCappingNumberOfMessages -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... $PKGS
