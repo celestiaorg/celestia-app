@@ -314,7 +314,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPayForFibreMessages {
+		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.GetMaxPayForFibreMessages(ctx.ConsensusParams().Version.GetApp()) {
 			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
 			continue
 		}

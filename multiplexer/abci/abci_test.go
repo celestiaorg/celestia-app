@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	app "github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -75,4 +76,16 @@ func getVersions(t *testing.T) Versions {
 	})
 	require.NoError(t, err)
 	return versions
+}
+
+func TestNativeV10ToV11KeepsApplication(t *testing.T) {
+	native := &app.App{}
+	mux := &Multiplexer{logger: log.NewNopLogger(), versions: Versions{{AppVersion: 9}}, nativeApp: native, appVersion: 10}
+	before, err := mux.getApp()
+	require.NoError(t, err)
+	require.Same(t, native, before)
+	mux.appVersion = 11
+	after, err := mux.getApp()
+	require.NoError(t, err)
+	require.Same(t, native, after)
 }

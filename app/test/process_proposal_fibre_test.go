@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -32,70 +33,76 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 		t.Skip("skipping process proposal capping PayForFibre messages test in short mode.")
 	}
 
-	numPFFs := appconsts.MaxPayForFibreMessages + 1
-	numberOfAccounts := numPFFs
-	accounts := testfactory.GenerateAccounts(numberOfAccounts)
-	consensusParams := app.DefaultConsensusParams()
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	for _, appVersion := range []uint64{10, 11} {
+		t.Run(fmt.Sprintf("v%d", appVersion), func(t *testing.T) {
+			limit := appconsts.GetMaxPayForFibreMessages(appVersion)
+			numPFFs := limit + 1
+			numberOfAccounts := numPFFs
+			accounts := testfactory.GenerateAccounts(numberOfAccounts)
+			consensusParams := app.DefaultConsensusParams()
+			consensusParams.Version.App = appVersion
+			testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
+			enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	infos := queryAccountInfo(testApp, accounts, kr)
-	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
-	signers := make([]*user.Signer, 0, numberOfAccounts)
-	for index, account := range accounts {
-		signers = append(signers, newSigner(index))
-		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
-	}
-
-	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
-	pffTxs := make([][]byte, 0, numPFFs)
-	for i := range numPFFs {
-		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
-	}
-
-	type testCase struct {
-		name           string
-		txs            [][]byte
-		expectedResult abci.ResponseProcessProposal_ProposalStatus
-	}
-
-	testCases := []testCase{
-		{
-			name:           "reject block exceeding MaxPayForFibreMessages",
-			txs:            pffTxs[:appconsts.MaxPayForFibreMessages+1],
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
-			name:           "accept block at exactly MaxPayForFibreMessages",
-			txs:            pffTxs[:appconsts.MaxPayForFibreMessages],
-			expectedResult: abci.ResponseProcessProposal_ACCEPT,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var dataRootHash []byte
-			var squareSize uint64
-			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
-				classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
-				require.NoError(t, err)
-				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-				require.NoError(t, err)
-				dataRootHash = calculateNewDataHash(t, tc.txs)
-				ss, err := dataSquare.Size()
-				require.NoError(t, err)
-				squareSize = uint64(ss)
+			infos := queryAccountInfo(testApp, accounts, kr)
+			newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+			signers := make([]*user.Signer, 0, numberOfAccounts)
+			for index, account := range accounts {
+				signers = append(signers, newSigner(index))
+				seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 			}
 
-			resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-				Height:       testApp.LastBlockHeight() + 1,
-				Time:         time.Now(),
-				Txs:          tc.txs,
-				DataRootHash: dataRootHash,
-				SquareSize:   squareSize,
-			})
-			require.NoError(t, err)
-			require.Equal(t, tc.expectedResult, resp.Status)
+			// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
+			pffTxs := make([][]byte, 0, numPFFs)
+			for i := range numPFFs {
+				pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
+			}
+
+			type testCase struct {
+				name           string
+				txs            [][]byte
+				expectedResult abci.ResponseProcessProposal_ProposalStatus
+			}
+
+			testCases := []testCase{
+				{
+					name:           "reject block exceeding MaxPayForFibreMessages",
+					txs:            pffTxs[:limit+1],
+					expectedResult: abci.ResponseProcessProposal_REJECT,
+				},
+				{
+					name:           "accept block at exactly MaxPayForFibreMessages",
+					txs:            pffTxs[:limit],
+					expectedResult: abci.ResponseProcessProposal_ACCEPT,
+				},
+			}
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					var dataRootHash []byte
+					var squareSize uint64
+					if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
+						classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
+						require.NoError(t, err)
+						dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+						require.NoError(t, err)
+						dataRootHash = calculateNewDataHash(t, tc.txs)
+						ss, err := dataSquare.Size()
+						require.NoError(t, err)
+						squareSize = uint64(ss)
+					}
+
+					resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+						Height:       testApp.LastBlockHeight() + 1,
+						Time:         time.Now(),
+						Txs:          tc.txs,
+						DataRootHash: dataRootHash,
+						SquareSize:   squareSize,
+					})
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedResult, resp.Status)
+				})
+			}
 		})
 	}
 }

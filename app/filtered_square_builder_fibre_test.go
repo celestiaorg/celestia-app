@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 
@@ -265,29 +266,34 @@ func TestFilteredSquareBuilderFillWithPayForFibre(t *testing.T) {
 }
 
 func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
-	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
-	txConfig := encConf.TxConfig
+	for _, appVersion := range []uint64{10, 11} {
+		t.Run(fmt.Sprintf("v%d", appVersion), func(t *testing.T) {
+			limit := appconsts.GetMaxPayForFibreMessages(appVersion)
+			encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+			txConfig := encConf.TxConfig
 
-	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
-		return ctx, nil
+			alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+				return ctx, nil
+			}
+
+			// Create limit+1 pay-for-fibre txs.
+			numPFF := limit + 1
+			pffTxs := make([][]byte, numPFF)
+			for i := range numPFF {
+				pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
+			}
+
+			fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			require.NoError(t, err)
+
+			db := dbm.NewMemDB()
+			ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
+			ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger()).WithConsensusParams(cmtproto.ConsensusParams{Version: &cmtproto.VersionParams{App: appVersion}})
+
+			kept := fsb.Fill(ctx, pffTxs, math.MaxInt64)
+			require.Len(t, kept, limit)
+		})
 	}
-
-	// Create appconsts.MaxPayForFibreMessages+1 pay-for-fibre txs.
-	numPFF := appconsts.MaxPayForFibreMessages + 1
-	pffTxs := make([][]byte, numPFF)
-	for i := range numPFF {
-		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
-	}
-
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-	require.NoError(t, err)
-
-	db := dbm.NewMemDB()
-	ms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
-	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
-
-	kept := fsb.Fill(ctx, pffTxs, math.MaxInt64)
-	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
 }
 
 // newMultiPayForFibreTx creates an unsigned SDK tx containing two MsgPayForFibre messages for testing.

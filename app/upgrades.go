@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -70,7 +69,7 @@ func (app App) RegisterUpgradeHandlers() {
 		}
 	}
 
-	upgradeName := fmt.Sprintf("v%d", appconsts.Version)
+	const upgradeName = "v10"
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgradeName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
@@ -85,6 +84,11 @@ func (app App) RegisterUpgradeHandlers() {
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
+
+	// v11 only changes the version-gated PFF limit; stores and module versions stay unchanged.
+	app.UpgradeKeeper.SetUpgradeHandler("v11", func(_ context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		return fromVM, nil
+	})
 
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	if err != nil {
