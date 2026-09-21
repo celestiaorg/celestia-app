@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
-	embedding "github.com/celestiaorg/celestia-app/v10/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v10/internal/embedding"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	multiplexer "github.com/celestiaorg/celestia-app/v10/multiplexer/cmd"
@@ -124,8 +124,23 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		fmt.Sprintf("--minimum-gas-prices=%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom),
 	}, interBlockCacheOffArgs...)
 
+	// celestia-app v3 serves app versions 1, 2 and 3: it performs the v1 -> v2
+	// upgrade itself at --v2-upgrade-height and the v2 -> v3 upgrade via the
+	// signal module. Register all three explicitly so that GetForAppVersion
+	// never has to guess. The multiplexer keeps the v3 process running across
+	// these switches because they share the same Appd instance.
 	versions, err := abci.NewVersions(
 		abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  1,
+			StartArgs:   v3Args,
+		}, abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  2,
+			StartArgs:   v3Args,
+		}, abci.Version{
 			Appd:        appdV3,
 			ABCIVersion: abci.ABCIClientVersion1,
 			AppVersion:  3,

@@ -490,9 +490,15 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 
 	// get the appropriate version for the latest app version.
 	currentVersion, err := m.versions.GetForAppVersion(m.appVersion)
+	if err != nil && !errors.Is(err, ErrNoVersionFound) {
+		// The app version is older than, or in a gap between, the registered
+		// embedded versions. Nothing can serve it, so fail instead of guessing.
+		return nil, err
+	}
 	if err != nil {
-		// if we are switching from an embedded binary to a native one, we need to ensure that we stop it
-		// before we start the native app.
+		// The app version is newer than every embedded version, so it is served
+		// by the native app. If we are switching from an embedded binary to the
+		// native one, we need to ensure that we stop it before we start the native app.
 		if err := m.stopEmbeddedApp(); err != nil {
 			return nil, fmt.Errorf("failed to stop embedded app: %w", err)
 		}
@@ -516,9 +522,16 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 
 	// check if we need to start the app or if we have a different app running
 	if !m.started || currentVersion.AppVersion > m.activeVersion.AppVersion {
-		m.logger.Info("Using ABCI remote connection", "maximum_app_version", m.activeVersion.AppVersion, "abci_version", m.activeVersion.ABCIVersion.String(), "chain_id", m.chainID)
-		if err := m.startEmbeddedApp(currentVersion); err != nil {
-			return nil, fmt.Errorf("failed to start embedded app: %w", err)
+		if m.isServedByRunningEmbeddedApp(currentVersion) {
+			// The running binary also serves the new app version (celestia-app
+			// v3 serves app versions 1, 2 and 3), so switch without restarting it.
+			m.logger.Info("switching app version served by the running embedded app", "from_app_version", m.activeVersion.AppVersion, "to_app_version", currentVersion.AppVersion)
+			m.activeVersion = currentVersion
+		} else {
+			m.logger.Info("Using ABCI remote connection", "maximum_app_version", m.activeVersion.AppVersion, "abci_version", m.activeVersion.ABCIVersion.String(), "chain_id", m.chainID)
+			if err := m.startEmbeddedApp(currentVersion); err != nil {
+				return nil, fmt.Errorf("failed to start embedded app: %w", err)
+			}
 		}
 	}
 
@@ -575,6 +588,12 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 // embeddedVersionRunning returns true if there is an active version specified which is running.
 func (m *Multiplexer) embeddedVersionRunning() bool {
 	return m.activeVersion.Appd != nil && m.activeVersion.Appd.IsRunning()
+}
+
+// isServedByRunningEmbeddedApp reports whether the running embedded binary is
+// the one registered for version, so switching to it needs no restart.
+func (m *Multiplexer) isServedByRunningEmbeddedApp(version Version) bool {
+	return m.embeddedVersionRunning() && m.activeVersion.Appd == version.Appd
 }
 
 // startCmtNode initializes and starts a CometBFT node, sets up cleanup tasks, and assigns it to the Multiplexer instance.

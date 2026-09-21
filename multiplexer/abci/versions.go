@@ -1,6 +1,7 @@
 package abci
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -29,13 +30,9 @@ type Versions []Version
 
 // Sorted returns a sorted slice of Versions, sorted by AppVersion (ascending).
 func (v Versions) Sorted() Versions {
-	// convert map to slice
-	versionList := make([]Version, 0, len(v))
-	for _, ver := range v {
-		versionList = append(versionList, ver)
-	}
+	versionList := make(Versions, len(v))
+	copy(versionList, v)
 
-	// sort by AppVersion in ascending order
 	sort.SliceStable(versionList, func(i, j int) bool {
 		return versionList[i].AppVersion < versionList[j].AppVersion
 	})
@@ -43,19 +40,12 @@ func (v Versions) Sorted() Versions {
 	return versionList
 }
 
-// GetForAppVersion returns the version for a given appVersion.
-// if the app version specified is lower than the minimum app version, return the lowest version.
+// GetForAppVersion returns the version registered for exactly appVersion. It
+// returns ErrNoVersionFound for newer versions and ErrUnsupportedAppVersion
+// when no registered binary can serve appVersion.
 func (v Versions) GetForAppVersion(appVersion uint64) (Version, error) {
 	if len(v) == 0 {
-		return Version{}, fmt.Errorf("%w: %d", ErrNoVersionFound, appVersion)
-	}
-
-	lowestVersion := v[0]
-	highestVersion := v[len(v)-1]
-
-	// the version being specified is higher than any version we have, we assume this is the latest version.
-	if appVersion > highestVersion.AppVersion {
-		return Version{}, fmt.Errorf("%w: %d", ErrNoVersionFound, appVersion)
+		return Version{}, fmt.Errorf("%w for app version %d: no versions registered", ErrNoVersionFound, appVersion)
 	}
 
 	for _, version := range v {
@@ -64,15 +54,18 @@ func (v Versions) GetForAppVersion(appVersion uint64) (Version, error) {
 		}
 	}
 
-	// return the lowest version if the exact version is not found.
-	return lowestVersion, nil
+	lowest, highest := v.bounds()
+	if appVersion > highest {
+		return Version{}, fmt.Errorf("%w for app version %d: highest registered version is %d", ErrNoVersionFound, appVersion, highest)
+	}
+	return Version{}, fmt.Errorf("%w %d: registered versions are %d through %d", ErrUnsupportedAppVersion, appVersion, lowest, highest)
 }
 
-// ShouldUseLatestApp returns true if there is no version found with the given appVersion.
+// ShouldUseLatestApp returns true if appVersion is newer than every registered
+// version and so must be served by the native (latest) app.
 func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
-	// should only use the latest app if there are no versions to use based on desired version.
 	_, err := v.GetForAppVersion(appVersion)
-	return err != nil
+	return errors.Is(err, ErrNoVersionFound)
 }
 
 // GetStartArgs returns the appropriate args.
@@ -91,13 +84,14 @@ func (v Version) GetStartArgs(args []string) []string {
 	)
 }
 
-// Validate checks for duplicate app versions in a slice of Versions.
+// Validate checks that versions is non-empty, has no duplicate app versions,
+// and forms a contiguous range of app versions.
 func (v Versions) Validate() error {
 	if len(v) == 0 {
 		return fmt.Errorf("no versions specified")
 	}
 
-	seen := make(map[uint64]struct{})
+	seen := make(map[uint64]struct{}, len(v))
 	for _, ver := range v {
 		if _, exists := seen[ver.AppVersion]; exists {
 			return fmt.Errorf("version %d specified multiple times", ver.AppVersion)
@@ -105,5 +99,26 @@ func (v Versions) Validate() error {
 		seen[ver.AppVersion] = struct{}{}
 	}
 
+	lowest, highest := v.bounds()
+	for want := lowest; ; want++ {
+		if _, ok := seen[want]; !ok {
+			return fmt.Errorf("version %d is missing: registered app versions must be contiguous (%d through %d)", want, lowest, highest)
+		}
+		if want == highest {
+			break
+		}
+	}
+
 	return nil
+}
+
+// bounds returns the lowest and highest app version in v, which must be
+// non-empty.
+func (v Versions) bounds() (lowest, highest uint64) {
+	lowest, highest = v[0].AppVersion, v[0].AppVersion
+	for _, ver := range v[1:] {
+		lowest = min(lowest, ver.AppVersion)
+		highest = max(highest, ver.AppVersion)
+	}
+	return lowest, highest
 }
