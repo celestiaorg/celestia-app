@@ -47,6 +47,10 @@ func main() {
 		os.Exit(2)
 	}
 	src, dst := flag.Arg(0), flag.Arg(1)
+	if *sampleGB < 0 {
+		fmt.Printf("FATAL: sample-gb cant be negative: %0.2f\n", *sampleGB)
+		os.Exit(1)
+	}
 	full := *sampleGB == 0
 	if !full {
 		*verify = false // an incomplete store can never match the source
