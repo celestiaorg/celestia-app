@@ -16,7 +16,5 @@ done
 # package whose tests exercised it, so tests in app/test count toward app/.
 # -p 1 runs packages serially because the testnode-based suites collide on
 # ports and time out when run concurrently.
-# TestPrepareProposalCappingNumberOfMessages needs over 11 GiB of memory, which
-# exceeds what the CI runner has.
 # shellcheck disable=SC2086
-go test -p 1 -timeout 60m -skip TestPrepareProposalCappingNumberOfMessages -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... $PKGS
+go test -p 1 -timeout 60m -coverprofile=coverage.txt -covermode=atomic -coverpkg=./... $PKGS
