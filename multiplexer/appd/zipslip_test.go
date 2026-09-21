@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -79,6 +80,50 @@ func TestEnsureBinaryDecompressed_FailedExtractionDoesNotPersist(t *testing.T) {
 	require.NoError(t, gw.Close())
 
 	require.NoError(t, ensureBinaryDecompressed(version, valid.Bytes()))
+	got, err := os.ReadFile(filepath.Join(getDirectoryForVersion(version), "celestia-appd"))
+	require.NoError(t, err)
+	require.Equal(t, binary, got)
+}
+
+// TestEnsureBinaryDecompressed_Concurrent asserts that two instances sharing a
+// node home can extract the same version at once. The loser of the publish
+// race must accept the directory the winner published instead of failing.
+func TestEnsureBinaryDecompressed_Concurrent(t *testing.T) {
+	version := "v0.0.0-concurrent-test"
+	defer os.RemoveAll(getDirectoryForVersion(version))
+
+	var archive bytes.Buffer
+	gw := gzip.NewWriter(&archive)
+	tw := tar.NewWriter(gw)
+	binary := []byte("#!/bin/sh\necho hello\n")
+	require.NoError(t, tw.WriteHeader(&tar.Header{
+		Name: "celestia-appd",
+		Mode: 0o755,
+		Size: int64(len(binary)),
+	}))
+	_, err := tw.Write(binary)
+	require.NoError(t, err)
+	require.NoError(t, tw.Close())
+	require.NoError(t, gw.Close())
+
+	const instances = 8
+	start := make(chan struct{})
+	errs := make(chan error, instances)
+	var wg sync.WaitGroup
+	for range instances {
+		wg.Go(func() {
+			<-start
+			errs <- ensureBinaryDecompressed(version, archive.Bytes())
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		require.NoError(t, err, "concurrent extraction of the same version must succeed")
+	}
+
 	got, err := os.ReadFile(filepath.Join(getDirectoryForVersion(version), "celestia-appd"))
 	require.NoError(t, err)
 	require.Equal(t, binary, got)

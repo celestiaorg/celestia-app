@@ -327,6 +327,12 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 	}
 
 	if err := os.Rename(stagingDirectory, targetDirectory); err != nil {
+		// Another instance sharing this node home may have published the same
+		// version first. Its directory is a complete extraction, so accept it
+		// rather than failing the caller's appd.New.
+		if isBinaryDecompressed(version) {
+			return nil
+		}
 		return fmt.Errorf("failed to publish extracted binary for %s: %w", version, err)
 	}
 
