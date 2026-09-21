@@ -1,7 +1,7 @@
-1818d8bfb7124cf7d73a8a3fb3d7178bae45011187478d1ca2a1d6582a5139ff  v3.12.0/celestia-app_Darwin_arm64.tar.gz
-d2bb7d5ad1b6026588e9e03ae66d531ef60a0c1031a6d46024308cb2f4755465  v3.12.0/celestia-app_Darwin_x86_64.tar.gz
-d7378b06f7ccec081af8d7b95a06b91222199f998f0695ddf2c246d7cb1f7e24  v3.12.0/celestia-app_Linux_arm64.tar.gz
-bc2777f02acf4cc06f7b4f05324cdd76d0f7ab07b2bd5b076fee3d6e1fd26394  v3.12.0/celestia-app_Linux_x86_64.tar.gz
+c8c2e621cd49eed333624025f154e8a44e3451fcb66286458838a006b61da5b3  v3.13.0/celestia-app_Darwin_arm64.tar.gz
+488cd46a0e8da7c2155d2b2c4d70f79daa139e25ff9e07050bba05ccc3bde50e  v3.13.0/celestia-app_Darwin_x86_64.tar.gz
+6ad1d3a29e8bce47222a68af31ce38efaced96ae54e595dfdea0ad987521dd94  v3.13.0/celestia-app_Linux_arm64.tar.gz
+47c059ae2c86013ce132bccdb7b1ac27e69e84938dbd4e20ba4a8fd4cd60d088  v3.13.0/celestia-app_Linux_x86_64.tar.gz
 359a4a613144dcd84056949f3ef56cebf0f5c09fab7e198e23b2ed751efba8ca  v4.1.0/celestia-app-standalone_Darwin_arm64.tar.gz
 0c243fbb939eb56d856bcf161d78639cdc2e2d0dec285026eabd70e2b8f7601b  v4.1.0/celestia-app-standalone_Darwin_x86_64.tar.gz
 f2cb72cfcdab3b9bf6650a5024009834c4a2df0f3cbd15891358aaaa68d4d0ed  v4.1.0/celestia-app-standalone_Linux_arm64.tar.gz
