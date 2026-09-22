@@ -13,6 +13,25 @@ func galMulNEON(low, high, in, out []byte)
 //go:noescape
 func galMulXorNEON(low, high, in, out []byte)
 
+//go:noescape
+func ifftDIT2NEON(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func fftDIT2NEON(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func mulgf16NEON(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func mulgf16XorNEON(x, y []byte, table *[128]uint8)
+
+// leopardNEON reports whether the GF(2^16) NEON kernels can be used. They
+// consume whole 64-byte blocks; callers pass the remainder to the reference
+// code, which handles the same block granularity.
+func leopardNEON(o *options) bool {
+	return o.useNEON && multiply256LUT != nil
+}
+
 func getVectorLength() (vl, pl uint64)
 
 func init() {
@@ -96,6 +115,18 @@ func fftDIT48(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe8, o *option
 
 // 2-way butterfly forward
 func fftDIT2(x, y []byte, log_m ffe, o *options) {
+	if leopardNEON(o) {
+		done := len(x) &^ 63
+		if raceEnabled {
+			raceWriteSlice(x[:done])
+			raceWriteSlice(y[:done])
+		}
+		fftDIT2NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if done == len(x) {
+			return
+		}
+		x, y = x[done:], y[done:]
+	}
 	// Reference version:
 	refMulAdd(x, y, log_m)
 	// 64 byte aligned, always full.
@@ -111,6 +142,18 @@ func fftDIT28(x, y []byte, log_m ffe8, o *options) {
 
 // 2-way butterfly
 func ifftDIT2(x, y []byte, log_m ffe, o *options) {
+	if leopardNEON(o) {
+		done := len(x) &^ 63
+		if raceEnabled {
+			raceWriteSlice(x[:done])
+			raceWriteSlice(y[:done])
+		}
+		ifftDIT2NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if done == len(x) {
+			return
+		}
+		x, y = x[done:], y[done:]
+	}
 	// 64 byte aligned, always full.
 	xorSliceNEON(x, y)
 	// Reference version:
@@ -125,14 +168,46 @@ func ifftDIT28(x, y []byte, log_m ffe8, o *options) {
 }
 
 func mulgf16(x, y []byte, log_m ffe, o *options) {
+	if leopardNEON(o) {
+		done := len(x) &^ 63
+		if raceEnabled {
+			raceReadSlice(y[:done])
+			raceWriteSlice(x[:done])
+		}
+		mulgf16NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if done == len(x) {
+			return
+		}
+		x, y = x[done:], y[done:]
+	}
 	refMul(x, y, log_m)
 }
 
 func mulgf16Xor8(scalars *[8]uint16, in []byte, outs *[8][]byte, o *options) {
+	if leopardNEON(o) {
+		for k, c := range scalars {
+			if c != 0 {
+				mulgf16Xor(outs[k], in, logLUT[ffe(c)], o)
+			}
+		}
+		return
+	}
 	refMulAdd8x(scalars, in, outs)
 }
 
 func mulgf16Xor(x, y []byte, log_m ffe, o *options) {
+	if leopardNEON(o) {
+		done := len(x) &^ 63
+		if raceEnabled {
+			raceReadSlice(y[:done])
+			raceWriteSlice(x[:done])
+		}
+		mulgf16XorNEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if done == len(x) {
+			return
+		}
+		x, y = x[done:], y[done:]
+	}
 	refMulAdd(x, y, log_m)
 }
 
