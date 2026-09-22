@@ -168,7 +168,7 @@ from genesis with --block-sync-only), measures sync time, and tears down the ins
 				return fmt.Errorf("no validators found in config")
 			}
 
-			cfg.SSHPubKeyPath = resolveValue(sshPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
+			cfg.SSHPubKeyPath = resolveValue(sshPubKeyPath, EnvVarPubSSHKeyPath, cfg.SSHPubKeyPath)
 			cfg.GoogleCloudProject = resolveValue(gcProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(gcKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
 
