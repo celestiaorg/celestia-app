@@ -33,7 +33,7 @@ func (o replayOptions) Get(key string) any {
 
 func replayApp(t *testing.T, home string) *app.App {
 	t.Helper()
-	db, err := dbm.NewDB("application", dbm.GoLevelDBBackend, home)
+	db, err := dbm.NewDB("application", dbm.PebbleDBBackend, home)
 	require.NoError(t, err)
 	return app.New(log.NewNopLogger(), db, nil, 0, 0, replayOptions{home}, baseapp.SetChainID(appconsts.TestChainID))
 }
