@@ -308,7 +308,10 @@ func DefaultAppConfig() *serverconfig.Config {
 	// this is set to an empty string. As an empty string, the binary will use
 	// the hardcoded default gas price. To override this, the user must set the
 	// minimum gas prices in the app.toml file.
-	cfg.MinGasPrices = ""
+	// Temporary network setting: no local gas price filter, so a flat 1 utia
+	// pay-for-fibre fee is admitted. ValidateTxFee skips the node check at zero,
+	// which it already supports. Must not ship to a real network.
+	cfg.MinGasPrices = "0" + appconsts.BondDenom
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.MinRetainBlocks = appconsts.MinRetainBlocks

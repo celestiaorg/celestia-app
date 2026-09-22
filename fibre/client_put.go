@@ -88,6 +88,17 @@ func (r *escrowReservation) abort() {
 // TODO(@Wondertan): This does not belong here. Fibre protocol in it's core doesn't need to know about transactions.
 // Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
 // And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
+const (
+	// payForFibreFee is the flat fee a MsgPayForFibre pays, in utia.
+	//
+	// Temporary network setting: it makes fibre traffic effectively free so
+	// throughput is not gated by fees. It must not ship to a real network.
+	payForFibreFee = 1
+	// payForFibreGasLimit is generous enough to cover signature verification
+	// for a large validator set without an estimation round trip.
+	payForFibreGasLimit = 1_000_000
+)
+
 func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
 	if c.keyring == nil {
 		return result, ErrNoKeyring
@@ -121,7 +132,8 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	}
 
 	broadcastResp, err := retryPFFBroadcast(ctx, func(ctx context.Context) (*sdk.TxResponse, error) {
-		return txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+		return txClient.BroadcastTx(ctx, []sdk.Msg{msg},
+			user.SetGasLimit(payForFibreGasLimit), user.SetFee(payForFibreFee))
 	})
 	if err != nil {
 		span.RecordError(err)

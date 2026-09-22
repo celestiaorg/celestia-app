@@ -60,8 +60,10 @@ func TestEstimateGasForPayForFibreSignatureVerification(t *testing.T) {
 }
 
 func TestPaymentAmount(t *testing.T) {
-	const blobSize = 5 * appconsts.PFBFibreChunkSize
-	amount := types.PaymentAmount(blobSize)
-	require.Equal(t, appconsts.BondDenom, amount.Denom)
-	require.Equal(t, int64(types.EstimateGasForPayForFibre(blobSize)), amount.Amount.Int64())
+	// Temporary network setting: a flat 1 utia, independent of blob size.
+	for _, blobSize := range []uint32{0, 1, 5 * appconsts.PFBFibreChunkSize} {
+		amount := types.PaymentAmount(blobSize)
+		require.Equal(t, appconsts.BondDenom, amount.Denom)
+		require.Equal(t, int64(1), amount.Amount.Int64())
+	}
 }
