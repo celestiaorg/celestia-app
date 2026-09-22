@@ -198,9 +198,9 @@ func initCmd() *cobra.Command {
 }
 
 func DefaultConfigProfile(cfg *cmtconfig.Config, tables []string, enablePrometheus bool) *cmtconfig.Config {
-	// Most mainnet nodes run goleveldb (the historical default), so talis
-	// experiments use it too instead of celestia-core's pebbledb default.
-	cfg.DBBackend = "goleveldb"
+	// PebbleDB, matching celestia-core's default and the app database, so a
+	// node never runs the two stores on different backends.
+	cfg.DBBackend = "pebbledb"
 	cfg.Instrumentation.TracingTables = strings.Join(tables, ",")
 	cfg.Instrumentation.TraceType = "local"
 	cfg.Instrumentation.Prometheus = enablePrometheus

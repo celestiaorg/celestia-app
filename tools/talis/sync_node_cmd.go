@@ -538,8 +538,8 @@ echo "Found $(echo "$PERSISTENT_PEERS" | tr ',' '\n' | wc -l | tr -d ' ') peers"
 # Configure persistent peers
 sed -i "s|^persistent_peers *=.*|persistent_peers = \"$PERSISTENT_PEERS\"|" "$HOME_DIR/config/config.toml"
 
-# Use goleveldb to match the mainnet default
-sed -i "s|^db_backend *=.*|db_backend = \"goleveldb\"|" "$HOME_DIR/config/config.toml"
+# Use pebbledb to match the app database backend
+sed -i "s|^db_backend *=.*|db_backend = \"pebbledb\"|" "$HOME_DIR/config/config.toml"
 
 # Disable block sync verification for faster sync
 sed -i -E "s|^verify_data *=.*|verify_data = false|" "$HOME_DIR/config/config.toml"
