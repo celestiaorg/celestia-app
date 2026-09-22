@@ -361,7 +361,7 @@ func (cfg Config) Save(root string) (err error) {
 	// Create the config file path
 	configFilePath := filepath.Join(root, "config.json")
 
-	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_SYNC, 0o755)
+	cfgFile, err := os.OpenFile(configFilePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC|os.O_SYNC, 0o755)
 	if err != nil {
 		return err
 	}
