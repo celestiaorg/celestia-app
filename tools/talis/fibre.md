@@ -20,7 +20,7 @@ Follow the main [README.md](README.md) through the **deploy** step so you have a
 talis init --chain-id <chain-id> --experiment <experiment>
 talis add --type validator --count <count>
 talis up
-talis genesis --square-size 256 --build-dir build
+talis genesis --ods-size 256 --build-dir build
 talis deploy --direct-payload-upload --workers 20
 ```
 
