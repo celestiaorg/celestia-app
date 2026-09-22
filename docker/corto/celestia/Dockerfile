@@ -4,6 +4,7 @@ FROM docker.io/golang:1.26.6-bookworm AS builder
 
 WORKDIR /src
 COPY go.mod go.sum ./
+COPY third_party/reedsolomon ./third_party/reedsolomon
 RUN go mod download
 COPY . .
 RUN make build-standalone
