@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,7 @@ func resetCmd() *cobra.Command {
 		Long:  "Stops the running services and removes files created by the deploy command for specified validators or all validators",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Load config
-			cfg, err := LoadConfig(rootDir)
+			cfg, err := LoadConfigFile(filepath.Join(rootDir, cfgPath))
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
 			}
