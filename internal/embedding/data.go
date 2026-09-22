@@ -16,7 +16,7 @@ const (
 	v6Version = "v6.4.10"
 	v7Version = "v7.0.3-mocha"
 	v8Version = "v8.0.8"
-	v9Version = "v9.0.7-corto"
+	v9Version = "v9.0.8"
 )
 
 // CelestiaAppV3 returns the compressed platform specific Celestia binary and
