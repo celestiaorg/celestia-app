@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
@@ -582,9 +583,8 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		signerAddrStr := signerAddr.String()
 
 		// Create escrow account with insufficient balance
-		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-		requiredAmount := sdk.NewInt64Coin("utia", int64(gasRequired))
-		insufficientBalance := sdk.NewInt64Coin("utia", int64(gasRequired)-1) // Less than required
+		requiredAmount := types.PaymentAmount(paymentPromise.BlobSize)
+		insufficientBalance := requiredAmount.SubAmount(math.OneInt()) // Less than required
 
 		escrowAccount := types.EscrowAccount{
 			Signer:           signerAddrStr,
@@ -749,7 +749,14 @@ func (suite *KeeperTestSuite) twoPromisesFundedForOne() (types.PaymentPromise, t
 
 	promise1 := newPromise(0x01)
 	promise2 := newPromise(0x02)
-	suite.createEscrowAccount(promise1)
+
+	// Fund exactly one payment, so a second reservation exceeds the budget.
+	onePayment := types.PaymentAmount(promise1.BlobSize)
+	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+		Signer:           sdk.AccAddress(promise1.SignerPublicKey.Address()).String(),
+		Balance:          onePayment,
+		AvailableBalance: onePayment,
+	})
 	return promise1, promise2
 }
 
@@ -846,8 +853,7 @@ func (suite *KeeperTestSuite) createEscrowAccount(paymentPromise types.PaymentPr
 	signerAddrStr := signerAddr.String()
 	extraBalance := int64(1000)
 
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	availableBalance := sdk.NewInt64Coin("utia", int64(gasRequired)+extraBalance)
+	availableBalance := types.PaymentAmount(paymentPromise.BlobSize).AddAmount(math.NewInt(extraBalance))
 
 	escrowAccount := types.EscrowAccount{
 		Signer:           signerAddrStr,

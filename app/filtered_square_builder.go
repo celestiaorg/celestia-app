@@ -1,6 +1,9 @@
 package app
 
 import (
+	"slices"
+	"time"
+
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -222,11 +225,13 @@ func msgTypes(sdkTx sdk.Tx) []string {
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
+//
+// Pay-for-fibre txs are returned oldest promise first; see orderFibreTxsByAge.
 func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs [][]byte) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
 	rawBlobTxs = make([][]byte, 0, len(rawTxs))
-	payForFibreTxs = make([][]byte, 0, len(rawTxs))
+	fibreTxs := make([]fibreTxByAge, 0, len(rawTxs))
 	dec := txConfig.TxDecoder()
 
 	for _, rawTx := range rawTxs {
@@ -266,13 +271,73 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 				logger.Debug("dropping invalid pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
 				continue
 			}
-			payForFibreTxs = append(payForFibreTxs, rawTx)
+			// The shape check above guarantees exactly one MsgPayForFibre.
+			msg, ok := payForFibreMsg(sdkTx)
+			if !ok {
+				continue
+			}
+			fibreTxs = append(fibreTxs, fibreTxByAge{
+				raw:     rawTx,
+				signer:  msg.Signer,
+				created: msg.PaymentPromise.CreationTimestamp,
+			})
 			continue
 		}
 
 		normalTxs = append(normalTxs, rawTx)
 	}
-	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
+	return normalTxs, blobTxs, rawBlobTxs, orderFibreTxsByAge(fibreTxs)
+}
+
+// fibreTxByAge pairs a raw pay-for-fibre tx with what the ordering needs.
+type fibreTxByAge struct {
+	raw     []byte
+	signer  string
+	created time.Time
+}
+
+// orderFibreTxsByAge returns the transactions with the oldest payment promises
+// first.
+//
+// An older promise was broadcast earlier, so more of the network has already
+// seen its transaction in CheckTx and cached the signature verification. Filling
+// the square with those makes ProcessProposal hit the warm path on more
+// validators, which is the difference between roughly one second and five at a
+// full block. It also settles the promises closest to their timeout first.
+//
+// One signer's transactions keep their relative order: they carry consecutive
+// sequence numbers, and reordering them would make the ante handler drop all but
+// the first. Only the signers are ordered, by their oldest promise.
+func orderFibreTxsByAge(txs []fibreTxByAge) [][]byte {
+	bySigner := make(map[string][]fibreTxByAge, len(txs))
+	oldest := make(map[string]time.Time, len(txs))
+	// Signers in order of first appearance, so the result never depends on map
+	// iteration order.
+	signers := make([]string, 0, len(txs))
+
+	for _, fibreTx := range txs {
+		previous, seen := oldest[fibreTx.signer]
+		switch {
+		case !seen:
+			signers = append(signers, fibreTx.signer)
+			oldest[fibreTx.signer] = fibreTx.created
+		case fibreTx.created.Before(previous):
+			oldest[fibreTx.signer] = fibreTx.created
+		}
+		bySigner[fibreTx.signer] = append(bySigner[fibreTx.signer], fibreTx)
+	}
+
+	slices.SortStableFunc(signers, func(a, b string) int {
+		return oldest[a].Compare(oldest[b])
+	})
+
+	ordered := make([][]byte, 0, len(txs))
+	for _, signer := range signers {
+		for _, fibreTx := range bySigner[signer] {
+			ordered = append(ordered, fibreTx.raw)
+		}
+	}
+	return ordered
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.

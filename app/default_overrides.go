@@ -15,6 +15,7 @@ import (
 	tmcfg "github.com/cometbft/cometbft/config"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/codec"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -290,6 +291,10 @@ func DefaultConsensusConfig() *tmcfg.Config {
 
 func DefaultAppConfig() *serverconfig.Config {
 	cfg := serverconfig.DefaultConfig()
+	// State the backend explicitly. Empty means "fall back to the CometBFT
+	// db_backend", which already resolves to pebbledb, but writing it into
+	// app.toml keeps the two from drifting apart.
+	cfg.AppDBBackend = string(dbm.PebbleDBBackend)
 	cfg.API.Enable = false
 	cfg.GRPC.Enable = false
 	cfg.GRPCWeb.Enable = false
@@ -303,6 +308,10 @@ func DefaultAppConfig() *serverconfig.Config {
 	// this is set to an empty string. As an empty string, the binary will use
 	// the hardcoded default gas price. To override this, the user must set the
 	// minimum gas prices in the app.toml file.
+	// Left empty, which falls back to appconsts.DefaultMinGasPrice. A temp
+	// network that wants to admit the flat 1 utia pay-for-fibre fee sets
+	// minimum-gas-prices = "0utia" in its app.toml; zeroing it here breaks the
+	// TxClient, which derives a gas limit from fee / gas price.
 	cfg.MinGasPrices = ""
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2

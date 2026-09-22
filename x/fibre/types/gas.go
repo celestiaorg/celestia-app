@@ -31,10 +31,13 @@ func EstimateGasForPayForFibreSignatureVerification(validatorSignatureCount uint
 		validatorSignatureCount*appconsts.PFFibreGasPerValidatorSignature
 }
 
-// PaymentAmount returns the escrow payment charged for settling a Fibre blob of the
-// given size. It mirrors the keeper's calculatePaymentAmount: 1 utia per gas in
-// appconsts.BondDenom. Clients use this to size escrow reservations and deposits
-// without round-tripping to the chain.
-func PaymentAmount(blobSize uint32) sdk.Coin {
-	return sdk.NewCoin(appconsts.BondDenom, math.NewIntFromUint64(EstimateGasForPayForFibre(blobSize)))
+// PaymentAmount returns the escrow payment charged for settling a Fibre blob.
+// It mirrors the keeper's calculatePaymentAmount. Clients use this to size
+// escrow reservations and deposits without round-tripping to the chain.
+//
+// Temporary network setting: a flat 1 utia regardless of blob size, so blob
+// size does not gate throughput measurements. It makes fibre traffic
+// effectively free and must not ship to a real network.
+func PaymentAmount(_ uint32) sdk.Coin {
+	return sdk.NewCoin(appconsts.BondDenom, math.OneInt())
 }

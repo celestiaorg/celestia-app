@@ -46,7 +46,7 @@ func (f *fakeStateReader) GetParams(_ sdk.Context) types.Params {
 }
 
 // gas for a zero-size blob; used to size test balances.
-var zeroBlobGas = math.NewIntFromUint64(EstimateGasForPayForFibre(0))
+var zeroBlobGas = types.PaymentAmount(0).Amount
 
 func ctxAtHeight(h int64) sdk.Context { return sdk.Context{}.WithBlockHeight(h) }
 
