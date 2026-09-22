@@ -43,6 +43,7 @@ type config struct {
 	keyringDir        string
 	keyPrefix         string
 	blobSize          int
+	maxBlobSizeMiB    int
 	concurrency       int
 	interval          time.Duration
 	duration          time.Duration
@@ -60,6 +61,7 @@ func main() {
 	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
 	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
+	flag.IntVar(&cfg.maxBlobSizeMiB, "experimental-max-blob-size-mib", fibre.DefaultProtocolParams.MaxBlobSize>>20, "experimental Fibre v0 maximum blob size in MiB; must match all servers and readers")
 	flag.IntVar(&cfg.concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
 	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
@@ -129,6 +131,9 @@ func run(cfg config) error {
 	if cfg.concurrency <= 0 {
 		return fmt.Errorf("--concurrency must be >= 1, got %d", cfg.concurrency)
 	}
+	if cfg.maxBlobSizeMiB <= 0 {
+		return fmt.Errorf("--experimental-max-blob-size-mib must be positive")
+	}
 
 	if cfg.pyroscopeEndpoint != "" {
 		stopPyroscope, err := setupPyroscope(cfg.pyroscopeEndpoint, cfg.pyroscopeUser, cfg.pyroscopePass)
@@ -182,6 +187,9 @@ func run(cfg config) error {
 	// Create a single shared fibre client with a cached validator set to avoid
 	// redundant gRPC round-trips on every upload/download.
 	clientCfg := fibre.DefaultClientConfig()
+	if err := clientCfg.SetMaxBlobSize(cfg.maxBlobSizeMiB << 20); err != nil {
+		return fmt.Errorf("invalid --experimental-max-blob-size-mib: %w", err)
+	}
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
 	// Validate populates StateClientFn from StateAddress so we can wrap it.

@@ -96,7 +96,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	defer span.End()
 
 	// encoding section
-	blob, err := NewBlob(data, DefaultBlobConfigV0())
+	blob, err := NewBlob(data, c.Config.BlobConfig)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")

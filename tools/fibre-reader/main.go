@@ -55,6 +55,7 @@ type config struct {
 	readerIndex         int
 	readerCount         int
 	downloadConcurrency int
+	maxBlobSizeMiB      int
 	downloadTimeout     time.Duration
 	startupTimeout      time.Duration
 	duration            time.Duration
@@ -110,6 +111,7 @@ func main() {
 	flag.IntVar(&cfg.readerIndex, "reader-index", -1, "this reader's index in [0, reader-count)")
 	flag.IntVar(&cfg.readerCount, "reader-count", 0, "total number of reader instances (>=1)")
 	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs — each in-flight slot can hold 1+ GiB of buffered shards.")
+	flag.IntVar(&cfg.maxBlobSizeMiB, "experimental-max-blob-size-mib", fibre.DefaultProtocolParams.MaxBlobSize>>20, "experimental Fibre v0 maximum blob size in MiB; must match all servers and clients")
 	flag.DurationVar(&cfg.downloadTimeout, "download-timeout", 2*time.Minute, "per-download timeout")
 	flag.DurationVar(&cfg.startupTimeout, "startup-timeout", 5*time.Minute, "how long to retry connecting to the validator's gRPC + cometbft RPC at startup before giving up (handles validators not yet ready / brief restarts)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
@@ -134,6 +136,9 @@ func run(cfg config) error {
 	}
 	if cfg.downloadConcurrency <= 0 {
 		return fmt.Errorf("--download-concurrency must be >= 1, got %d", cfg.downloadConcurrency)
+	}
+	if cfg.maxBlobSizeMiB <= 0 {
+		return fmt.Errorf("--experimental-max-blob-size-mib must be positive")
 	}
 
 	if cfg.pyroscopeEndpoint != "" {
@@ -190,6 +195,9 @@ func run(cfg config) error {
 	}
 
 	clientCfg := fibre.DefaultClientConfig()
+	if err := clientCfg.SetMaxBlobSize(cfg.maxBlobSizeMiB << 20); err != nil {
+		return fmt.Errorf("invalid --experimental-max-blob-size-mib: %w", err)
+	}
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = cfg.keyName
 	if err := clientCfg.Validate(); err != nil {

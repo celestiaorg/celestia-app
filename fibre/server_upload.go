@@ -192,9 +192,9 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", chainID, promise.ChainID)
 	}
 	// validate blob version is supported
-	blobCfg, err := BlobConfigForVersion(uint8(promise.BlobVersion))
-	if err != nil {
-		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("unsupported blob version %d: %w", promise.BlobVersion, err)
+	blobCfg := s.Config.BlobConfig
+	if promise.BlobVersion != uint32(blobCfg.BlobVersion) {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("unsupported blob version %d", promise.BlobVersion)
 	}
 
 	// stateless validation
@@ -319,8 +319,7 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 // newVerifierPool eagerly populates a buffered channel with n Verifiers
 // for the v0 blob layout, each pinned to WorkerCount=1 (concurrency is
 // the channel capacity).
-func newVerifierPool(n int) chan *rsema1d.Verifier {
-	blobCfg := DefaultBlobConfigV0()
+func newVerifierPool(n int, blobCfg BlobConfig) chan *rsema1d.Verifier {
 	verifiers := make(chan *rsema1d.Verifier, n)
 	for i := range n {
 		v, err := rsema1d.NewVerifier(&rsema1d.Config{

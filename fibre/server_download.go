@@ -34,11 +34,12 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	}
 
 	// validate blob version is supported
-	if _, err := BlobConfigForVersion(id.Version()); err != nil {
+	if id.Version() != s.Config.BlobConfig.BlobVersion {
+		err := fmt.Errorf("unsupported blob version: %d", id.Version())
 		s.log.ErrorContext(ctx, "unsupported blob version", "version", id.Version(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unsupported blob version")
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("unsupported blob version: %v", err))
+		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("unsupported blob version: %d", id.Version()))
 	}
 
 	// retrieve blob shard from storage using commitment

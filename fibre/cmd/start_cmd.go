@@ -14,6 +14,7 @@ const (
 	flagServerListenAddress = "server-listen-address"
 	flagSignerGRPCAddress   = "signer-grpc-address"
 	flagUnlimitedBudget     = "unlimited-budget"
+	flagMaxBlobSizeMiB      = "experimental-max-blob-size-mib"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -21,6 +22,7 @@ const (
 // testable without global state.
 func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.Command {
 	cfg := fibre.DefaultServerConfig()
+	maxBlobSizeMiB := fibre.DefaultProtocolParams.MaxBlobSize >> 20
 
 	cmd := &cobra.Command{
 		Use:   "start",
@@ -59,6 +61,12 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 			}
 
 			cfg.Path = home
+			if maxBlobSizeMiB <= 0 {
+				return fmt.Errorf("--%s must be positive", flagMaxBlobSizeMiB)
+			}
+			if err := cfg.SetMaxBlobSize(maxBlobSizeMiB << 20); err != nil {
+				return fmt.Errorf("--%s: %w", flagMaxBlobSizeMiB, err)
+			}
 			return start(cmd.Context(), cfg)
 		},
 	}
@@ -70,6 +78,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
 	cmd.Flags().BoolVar(&cfg.UnlimitedBudget, flagUnlimitedBudget, cfg.UnlimitedBudget, "run without a storage budget, disabling the Fibre upload limiter")
+	cmd.Flags().IntVar(&maxBlobSizeMiB, flagMaxBlobSizeMiB, maxBlobSizeMiB, "experimental Fibre v0 maximum blob size in MiB; all clients, servers, and readers must match")
 
 	return cmd
 }

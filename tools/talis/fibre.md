@@ -59,6 +59,7 @@ talis start-fibre
 | `--instances`       | `0` (all)           | Number of validators to start fibre on                        |
 | `--otel-endpoint`   | *(auto)*            | OTLP HTTP endpoint for metrics/traces (auto-enabled with observability) |
 | `--storage-limit`   | `false`             | Enable the Fibre storage limiter (off by default so experiments run at full throughput) |
+| `--experimental-max-blob-size-mib` | `128` | Experimental Fibre v0 maximum; must match txsim and readers |
 
 The storage limiter is disabled by default: `start-fibre` passes `--unlimited-budget` to the fibre server so uploads are never rejected on budget and experiments measure full throughput. Pass `--storage-limit` to run the limiter instead (e.g. to reproduce the ADR-029 storage-budget behaviour), in which case set the budget via the genesis flags in section 0.
 
@@ -90,6 +91,7 @@ talis fibre-txsim --instances 4 \
 | `--interval`     | `0`                 | Delay between submissions per worker (`0` = no delay)                    |
 | `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
 | `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
+| `--experimental-max-blob-size-mib` | `128` | Experimental Fibre v0 maximum; must match servers and readers |
 
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts.
 
@@ -143,6 +145,7 @@ talis fibre-reader \
 | `--duration`             | `0`     | How long to run (`0` = until killed)                                                                                         |
 | `--key-prefix`           | `fibre` | Fibre keyring key-name prefix (only used to satisfy `fibre.NewClient`'s key-existence check; reader does not sign anything)  |
 | `--pyroscope-endpoint`   | *(auto)* | Pyroscope endpoint (auto-detected from observability config)                                                                |
+| `--experimental-max-blob-size-mib` | `128` | Experimental Fibre v0 maximum; must match servers and txsim                                                       |
 
 ### Sharding
 
@@ -154,7 +157,7 @@ Each reader is launched with `--reader-index N --reader-count K` (talis fills th
 
 ### Memory notes
 
-The default `--download-concurrency 8` is the safe upper bound on `c6in.8xlarge` (64 GiB) at 128 MiB blobs — each in-flight download holds an extended (parity-doubled) blob buffer plus per-validator gRPC scatter buffers, easily 1+ GiB per slot at the high end. Larger values (e.g. 32) can OOM here until the Reed-Solomon coder is pooled (Pyroscope `inuse_space` is dominated by `reedsolomon.AllocAligned`). Raise this on bigger instance types.
+The default `--download-concurrency 8` is the safe upper bound on `c6in.8xlarge` (64 GiB) at 128 MiB blobs — each in-flight download holds an extended (parity-doubled) blob buffer plus per-validator gRPC scatter buffers, easily 1+ GiB per slot at the high end. Larger values (e.g. 32) can OOM here until the Reed-Solomon coder is pooled (Pyroscope `inuse_space` is dominated by `reedsolomon.AllocAligned`). Raise this on bigger instance types. For 10x/20x profiles, begin with concurrency 1 and increase only while watching RSS and swap.
 
 ### Logs and lifecycle
 

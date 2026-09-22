@@ -20,6 +20,7 @@ func fibreReaderCmd() *cobra.Command {
 		duration            time.Duration
 		keyPrefix           string
 		pyroscopeEndpoint   string
+		maxBlobSizeMiB      int
 	)
 
 	cmd := &cobra.Command{
@@ -27,6 +28,9 @@ func fibreReaderCmd() *cobra.Command {
 		Short: "Start fibre-reader on remote reader instances via SSH + tmux",
 		Long:  "Starts fibre-reader tmux sessions on dedicated reader instances. Each reader trails the chain via a pinned validator's RPC, scans for MsgPayForFibre, and downloads owned blobs (hash-modulo sharded across the reader cluster). The fibre-reader binary must already be deployed via 'talis deploy'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if maxBlobSizeMiB <= 0 {
+				return fmt.Errorf("--experimental-max-blob-size-mib must be positive")
+			}
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
@@ -61,13 +65,14 @@ func fibreReaderCmd() *cobra.Command {
 				grpcEndpoint := fmt.Sprintf("%s:9091", target.PrivateIP)
 
 				remoteCmd := fmt.Sprintf(
-					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --keyring-dir .celestia-app --key-name %s-0 --reader-index %d --reader-count %d --download-concurrency %d --download-timeout %s --duration %s",
+					"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-reader --rpc-endpoint %s --grpc-endpoint %s --keyring-dir .celestia-app --key-name %s-0 --reader-index %d --reader-count %d --download-concurrency %d --experimental-max-blob-size-mib %d --download-timeout %s --duration %s",
 					rpcEndpoint,
 					grpcEndpoint,
 					keyPrefix,
 					readerIndex,
 					readerCount,
 					downloadConcurrency,
+					maxBlobSizeMiB,
 					downloadTimeout,
 					duration,
 				)
@@ -103,6 +108,7 @@ func fibreReaderCmd() *cobra.Command {
 	cmd.Flags().DurationVar(&duration, "duration", 0, "how long to run (0 = until killed)")
 	cmd.Flags().StringVar(&keyPrefix, "key-prefix", "fibre", "fibre keyring key-name prefix (only used to satisfy fibre.NewClient's key existence check; reader does not sign)")
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint (default: auto-detected from observability config)")
+	cmd.Flags().IntVar(&maxBlobSizeMiB, "experimental-max-blob-size-mib", 128, "experimental Fibre v0 maximum blob size in MiB; must match servers and txsim")
 
 	return cmd
 }

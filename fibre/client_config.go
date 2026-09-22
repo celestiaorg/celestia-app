@@ -17,6 +17,8 @@ import (
 
 // ClientConfig contains configuration options for the Fibre [Client].
 type ClientConfig struct {
+	protocolParams ProtocolParams
+
 	// DefaultKeyName is the name of the key in the keyring to use for signing [PaymentPromise]s.
 	DefaultKeyName string
 	// StateAddress is the gRPC address of the celestia-app node.
@@ -32,6 +34,10 @@ type ClientConfig struct {
 	MinRowsPerValidator int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int
+	// BlobConfig is the versioned coding configuration used by Put and Download.
+	// It must match the Fibre servers. Use SetMaxBlobSize only for coordinated
+	// benchmark networks; changing the v0 limit is not backwards compatible.
+	BlobConfig BlobConfig
 
 	// RPCTimeout bounds a single UploadShard/DownloadShard call to one peer
 	// (dial + RPC), and also the initial validator-set lookup against the
@@ -99,21 +105,53 @@ func DefaultClientConfig() ClientConfig {
 // NewClientConfigFromParams creates a ClientConfig with values derived from the given ProtocolParams.
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
+	blobCfg, err := NewBlobConfigFromParams(0, p)
+	if err != nil {
+		panic(fmt.Sprintf("creating client blob config: %v", err))
+	}
 	return ClientConfig{
+		protocolParams:      p,
 		DefaultKeyName:      DefaultKeyName,
 		StateAddress:        "127.0.0.1:9090",
 		SafetyThreshold:     p.SafetyThreshold,
 		LivenessThreshold:   p.LivenessThreshold,
 		MinRowsPerValidator: p.MinRowsPerValidator(),
 		MaxMessageSize:      p.MaxMessageSize(),
+		BlobConfig:          blobCfg,
 		RPCTimeout:          15 * time.Second,
 		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
 		Escrow:              defaultEscrowConfig(p),
 	}
 }
 
+// SetMaxBlobSize changes the Fibre v0 maximum for a coordinated benchmark
+// network and refreshes every client-side value derived from it. All clients,
+// servers, and readers in the network must use the same value.
+//
+// This is experimental plumbing for large-blob evaluation, not a production
+// rollout mechanism. A production increase should use a new blob version.
+func (cfg *ClientConfig) SetMaxBlobSize(maxBlobSize int) error {
+	p := cfg.protocolParams
+	if p.Rows == 0 {
+		p = DefaultProtocolParams
+	}
+	p.MaxBlobSize = maxBlobSize
+	blobCfg, err := NewBlobConfigFromParams(0, p)
+	if err != nil {
+		return err
+	}
+	cfg.BlobConfig = blobCfg
+	cfg.protocolParams = p
+	cfg.MaxMessageSize = p.MaxMessageSize()
+	cfg.Escrow = defaultEscrowConfig(p)
+	return nil
+}
+
 // Validate validates the ClientConfig and sets default values for unset fields.
 func (cfg *ClientConfig) Validate() error {
+	if cfg.BlobConfig.OriginalRows == 0 {
+		cfg.BlobConfig = DefaultBlobConfigV0()
+	}
 	if cfg.StateClientFn == nil {
 		if cfg.StateAddress == "" {
 			return fmt.Errorf("state address is required for default state client")
