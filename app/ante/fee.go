@@ -52,9 +52,9 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 	// This is only for local mempool purposes, and thus
 	// is only run on check tx.
 	if ctx.IsCheckTx() {
-		// if the config is "" then we use the default min gas price
+		// Empty configuration parses to nil; explicit zero parses to a non-nil empty slice.
 		minGasPrice := math.LegacyNewDecWithPrec(int64(appconsts.DefaultMinGasPrice*1_000_000), 6)
-		if ctx.MinGasPrices().Len() > 0 {
+		if ctx.MinGasPrices() != nil {
 			minGasPrice = ctx.MinGasPrices().AmountOf(appconsts.BondDenom)
 		}
 		// NOTE: users can still specify a min gas price of 0utia
