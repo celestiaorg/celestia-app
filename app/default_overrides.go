@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"cosmossdk.io/math"
@@ -305,14 +306,12 @@ func DefaultAppConfig() *serverconfig.Config {
 	// snapshots to nodes that state sync
 	cfg.StateSync.SnapshotInterval = 1500
 	cfg.StateSync.SnapshotKeepRecent = 2
-	// this is set to an empty string. As an empty string, the binary will use
-	// the hardcoded default gas price. To override this, the user must set the
-	// minimum gas prices in the app.toml file.
-	// Temporary network setting: no local gas price filter, so a flat 1 utia
-	// pay-for-fibre fee is admitted with no per-network plumbing. ValidateTxFee
-	// skips the node check at zero, which it already supports. Must not ship to
-	// a real network.
-	cfg.MinGasPrices = "0" + appconsts.BondDenom
+	// Temporary network setting: the node filter matches the network minimum,
+	// so a flat 1 utia pay-for-fibre fee at a 1,000,000 gas limit is admitted.
+	// Zero cannot be used: sdk.ParseDecCoins drops zero coins, and an empty set
+	// makes ValidateTxFee fall back to DefaultMinGasPrice. Must not ship to a
+	// real network.
+	cfg.MinGasPrices = fmt.Sprintf("%.6f%s", appconsts.DefaultNetworkMinGasPrice, appconsts.BondDenom)
 	cfg.GRPC.MaxRecvMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.GRPC.MaxSendMsgSize = appconsts.DefaultUpperBoundMaxBytes * 2
 	cfg.MinRetainBlocks = appconsts.MinRetainBlocks
