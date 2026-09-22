@@ -81,11 +81,19 @@ func (app App) RegisterUpgradeHandlers() {
 			}
 			app.ensureFibreModuleAccount(ctx)
 
+			// Initialize Fibre with historical defaults when replaying its v10 activation.
+			if _, exists := fromVM[fibretypes.ModuleName]; !exists {
+				genesis := fibretypes.DefaultGenesis()
+				genesis.Params = fibretypes.DefaultParamsForVersion(10)
+				app.FibreKeeper.InitGenesis(sdkCtx, *genesis)
+				fromVM[fibretypes.ModuleName] = app.ModuleManager.Modules[fibretypes.ModuleName].(module.HasConsensusVersion).ConsensusVersion()
+			}
+
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
 
-	// v11 only changes the version-gated PFF limit; stores and module versions stay unchanged.
+	// v11 changes version-gated limits; existing parameters and stores stay unchanged.
 	app.UpgradeKeeper.SetUpgradeHandler("v11", func(_ context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 		return fromVM, nil
 	})

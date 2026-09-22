@@ -96,6 +96,31 @@ func DefaultParams() Params {
 	return NewParams(DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseHeightWindow, DefaultShardRetention, DefaultFullStakeStorageBudget)
 }
 
+// DefaultParamsForVersion returns the fresh-chain preset for an app version.
+// DefaultParams retains the historical governance and migration defaults.
+func DefaultParamsForVersion(version uint64) Params {
+	p := DefaultParams()
+	if version >= 11 {
+		p.PaymentPromiseTimeout = 5 * time.Minute
+		p.ShardRetention = 5 * time.Minute
+	}
+	return p
+}
+
+// ValidateGenesisForVersion permits the five-minute preset in app v11 genesis.
+// Governance message validation retains its historical ten-minute bounds.
+func (p Params) ValidateGenesisForVersion(version uint64) error {
+	if version >= 11 {
+		if p.PaymentPromiseTimeout >= 5*time.Minute && p.PaymentPromiseTimeout < MinPaymentPromiseTimeout {
+			p.PaymentPromiseTimeout = MinPaymentPromiseTimeout
+		}
+		if p.ShardRetention >= 5*time.Minute && p.ShardRetention < MinShardRetention {
+			p.ShardRetention = MinShardRetention
+		}
+	}
+	return p.Validate()
+}
+
 // PaymentPromiseRetentionWindow is how long a processed-payment record is kept
 // before pruning. It is derived, not configured: a promise stays settleable for
 // WithdrawalDelay + MaxPromiseClockSkew after creation, so the record must

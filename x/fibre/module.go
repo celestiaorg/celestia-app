@@ -106,6 +106,12 @@ func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, gs json.RawM
 		panic(fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err))
 	}
 
+	if version := ctx.ConsensusParams().Version.GetApp(); version != 0 {
+		if err := genState.Params.ValidateGenesisForVersion(version); err != nil {
+			panic(fmt.Errorf("invalid fibre genesis parameters: %w", err))
+		}
+	}
+
 	am.keeper.InitGenesis(ctx, genState)
 }
 

@@ -254,3 +254,11 @@ func TestV11UpgradePreservesV10State(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, beforeVersionMap, afterVersionMap)
 }
+
+func TestV10FibreInitializationPreservesHistoricalDefaults(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	ctx.KVStore(testApp.GetKey(upgradetypes.StoreKey)).Delete(append([]byte{upgradetypes.VersionMapByte}, []byte(fibretypes.ModuleName)...))
+	applyV10Upgrade(t, testApp, ctx)
+	require.Equal(t, fibretypes.DefaultParamsForVersion(10), testApp.FibreKeeper.GetParams(ctx))
+}

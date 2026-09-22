@@ -247,11 +247,6 @@ func New(
 	}
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
-	// Run FinalizeBlock speculatively as soon as ProcessProposal accepts, so the
-	// result is ready when CometBFT asks for it. Aborted when the decided block
-	// is not the one that was executed.
-	baseAppOptions = append(baseAppOptions, baseapp.SetOptimisticExecution())
-
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
 	baseApp.SetCommitMultiStoreTracer(traceStore)
 	baseApp.SetVersion(version.Version)
