@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -47,9 +48,6 @@ const (
 	// AWSCanonicalOwnerID is Canonical's AWS account ID. It owns the
 	// official Ubuntu AMIs we filter against.
 	AWSCanonicalOwnerID = "099720109477"
-	// AWSUbuntuImageNamePattern matches Ubuntu 24.04 LTS amd64 EBS SSD
-	// images (matches talis' default OS image for DO / GCP).
-	AWSUbuntuImageNamePattern = "ubuntu/images/hvm-ssd*/ubuntu-noble-24.04-amd64-server-*"
 
 	// AWSDefaultZone is the AZ used for launches when Config.AWSZone is
 	// unset. Single-AZ launches keep all cross-instance traffic intra-AZ
@@ -64,9 +62,30 @@ const (
 // multi-region can set an explicit Region on each Instance.
 var AWSRegions = []string{"us-east-1"}
 
-// amiCache memoises the resolved Ubuntu AMI per region — AMIs are
-// region-scoped and resolving them costs an API round-trip.
-var amiCache sync.Map // map[region]string
+// amiCache memoises the resolved Ubuntu AMI per region and architecture —
+// AMIs are region-scoped and resolving them costs an API round-trip.
+var amiCache sync.Map // map[region/arch]string
+
+// gravitonFamily matches Graviton (arm64) instance families such as c8gn or m7g.
+var gravitonFamily = regexp.MustCompile(`^[a-z]+[0-9]+g`)
+
+// awsArchitecture returns the EC2 architecture ("arm64" or "x86_64") of an instance type.
+func awsArchitecture(slug string) string {
+	if gravitonFamily.MatchString(slug) {
+		return "arm64"
+	}
+	return "x86_64"
+}
+
+// awsUbuntuImageNamePattern matches Ubuntu 24.04 LTS EBS SSD images for the
+// given EC2 architecture (matches talis' default OS image for DO / GCP).
+func awsUbuntuImageNamePattern(arch string) string {
+	debArch := "amd64"
+	if arch == "arm64" {
+		debArch = "arm64"
+	}
+	return fmt.Sprintf("ubuntu/images/hvm-ssd*/ubuntu-noble-24.04-%s-server-*", debArch)
+}
 
 type AWSClient struct {
 	ClientInfo
@@ -115,7 +134,7 @@ func (c *AWSClient) Up(ctx context.Context, workers int) error {
 		return fmt.Errorf("no instances to create")
 	}
 
-	insts, err := CreateAWSInstances(ctx, insts, string(c.sshKey), c.cfg.SSHKeyName, workers)
+	insts, err := CreateAWSInstances(ctx, insts, string(c.sshKey), c.cfg.SSHKeyName, c.cfg.AWSInstanceProfile, workers)
 	if err != nil {
 		return fmt.Errorf("failed to create instances: %w", err)
 	}
@@ -269,7 +288,7 @@ func newEC2Client(ctx context.Context, region string) (*ec2.Client, error) {
 // CreateAWSInstances launches EC2 instances in parallel, each pinned to
 // its Instance.Zone + the cluster placement group (where supported),
 // waits for public + private IPs, and returns the filled-in slice.
-func CreateAWSInstances(ctx context.Context, insts []Instance, sshKey, keyName string, workers int) ([]Instance, error) {
+func CreateAWSInstances(ctx context.Context, insts []Instance, sshKey, keyName, instanceProfile string, workers int) ([]Instance, error) {
 	type result struct {
 		inst         Instance
 		err          error
@@ -307,7 +326,7 @@ func CreateAWSInstances(ctx context.Context, insts []Instance, sshKey, keyName s
 			start := time.Now()
 			log.Println("Creating instance", inst.Name, "in region", inst.Region, start.Format(time.RFC3339))
 
-			pubIP, privIP, err := createAWSInstance(ctx, inst, sshKey, keyName)
+			pubIP, privIP, err := createAWSInstance(ctx, inst, sshKey, keyName, instanceProfile)
 			if err != nil {
 				results <- result{inst: inst, err: fmt.Errorf("create %s: %w", inst.Name, err)}
 				return
@@ -339,13 +358,13 @@ func CreateAWSInstances(ctx context.Context, insts []Instance, sshKey, keyName s
 // createAWSInstance runs the full per-instance provisioning: resolve
 // AMI, ensure key pair + security group + placement group, resolve
 // default subnet in the target AZ, RunInstances, wait for IPs.
-func createAWSInstance(ctx context.Context, inst Instance, sshKey, keyName string) (string, string, error) {
+func createAWSInstance(ctx context.Context, inst Instance, sshKey, keyName, instanceProfile string) (string, string, error) {
 	client, err := newEC2Client(ctx, inst.Region)
 	if err != nil {
 		return "", "", err
 	}
 
-	amiID, err := resolveUbuntuAMI(ctx, client, inst.Region)
+	amiID, err := resolveUbuntuAMI(ctx, client, inst.Region, awsArchitecture(inst.Slug))
 	if err != nil {
 		return "", "", fmt.Errorf("resolve AMI: %w", err)
 	}
@@ -399,7 +418,8 @@ func createAWSInstance(ctx context.Context, inst Instance, sshKey, keyName strin
 			AssociatePublicIpAddress: aws.Bool(true),
 			DeleteOnTermination:      aws.Bool(true),
 		}},
-		Placement: placement,
+		Placement:          placement,
+		IamInstanceProfile: awsIamInstanceProfile(instanceProfile),
 		BlockDeviceMappings: []ec2types.BlockDeviceMapping{{
 			DeviceName: aws.String("/dev/sda1"),
 			Ebs: &ec2types.EbsBlockDevice{
@@ -427,6 +447,14 @@ func createAWSInstance(ctx context.Context, inst Instance, sshKey, keyName strin
 	}
 
 	return waitForAWSNetworkIP(ctx, client, *runOut.Instances[0].InstanceId)
+}
+
+// awsIamInstanceProfile returns the instance profile to attach, or nil when none is configured.
+func awsIamInstanceProfile(name string) *ec2types.IamInstanceProfileSpecification {
+	if name == "" {
+		return nil
+	}
+	return &ec2types.IamInstanceProfileSpecification{Name: aws.String(name)}
 }
 
 // supportsClusterPlacement reports whether the given EC2 instance type
@@ -784,17 +812,18 @@ func hasAWSExperimentTag(tag, experimentID, chainID string) bool {
 // resolveUbuntuAMI finds the most recent Ubuntu 24.04 AMI in the region.
 // Results are cached in-process since AMI IDs rarely change and the
 // lookup costs an API round-trip.
-func resolveUbuntuAMI(ctx context.Context, client *ec2.Client, region string) (string, error) {
-	if cached, ok := amiCache.Load(region); ok {
+func resolveUbuntuAMI(ctx context.Context, client *ec2.Client, region, arch string) (string, error) {
+	cacheKey := region + "/" + arch
+	if cached, ok := amiCache.Load(cacheKey); ok {
 		return cached.(string), nil
 	}
 
 	out, err := client.DescribeImages(ctx, &ec2.DescribeImagesInput{
 		Owners: []string{AWSCanonicalOwnerID},
 		Filters: []ec2types.Filter{
-			{Name: aws.String("name"), Values: []string{AWSUbuntuImageNamePattern}},
+			{Name: aws.String("name"), Values: []string{awsUbuntuImageNamePattern(arch)}},
 			{Name: aws.String("state"), Values: []string{"available"}},
-			{Name: aws.String("architecture"), Values: []string{"x86_64"}},
+			{Name: aws.String("architecture"), Values: []string{arch}},
 			{Name: aws.String("virtualization-type"), Values: []string{"hvm"}},
 		},
 	})
@@ -802,7 +831,7 @@ func resolveUbuntuAMI(ctx context.Context, client *ec2.Client, region string) (s
 		return "", fmt.Errorf("describe images: %w", err)
 	}
 	if len(out.Images) == 0 {
-		return "", fmt.Errorf("no Ubuntu AMIs found in %s", region)
+		return "", fmt.Errorf("no %s Ubuntu AMIs found in %s", arch, region)
 	}
 
 	sort.Slice(out.Images, func(i, j int) bool {
@@ -823,7 +852,7 @@ func resolveUbuntuAMI(ctx context.Context, client *ec2.Client, region string) (s
 	if amiID == "" {
 		return "", fmt.Errorf("selected AMI has no ID in %s", region)
 	}
-	amiCache.Store(region, amiID)
+	amiCache.Store(cacheKey, amiID)
 	return amiID, nil
 }
 

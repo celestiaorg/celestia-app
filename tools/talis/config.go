@@ -182,8 +182,11 @@ type Config struct {
 	// AWSZone is the availability zone within AWSRegion. All AWS instances
 	// get pinned to this AZ + a cluster placement group so intra-cluster
 	// traffic stays free and latency is minimised. Empty means "default AZ".
-	AWSZone  string   `json:"aws_zone"`
-	S3Config S3Config `json:"s3_config"`
+	AWSZone string `json:"aws_zone"`
+	// AWSInstanceProfile is an optional IAM instance profile attached to
+	// every AWS instance, e.g. to grant fibre access to object storage.
+	AWSInstanceProfile string   `json:"aws_instance_profile,omitempty"`
+	S3Config           S3Config `json:"s3_config"`
 }
 
 // NewConfig builds a fresh talis config. The provider determines which

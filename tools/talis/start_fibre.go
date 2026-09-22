@@ -19,6 +19,10 @@ func startFibreCmd() *cobra.Command {
 		pyroscopeEndpoint string
 		storageLimit      bool
 		maxBlobSizeMiB    int
+		objectBucket      string
+		objectRegion      string
+		objectEndpoint    string
+		objectTimeout     time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -48,6 +52,16 @@ func startFibreCmd() *cobra.Command {
 			// Build the remote command
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := fmt.Sprintf("OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091 --experimental-max-blob-size-mib %d", maxBlobSizeMiB)
+			if objectBucket != "" {
+				region := objectRegion
+				if region == "" {
+					region = cfg.AWSRegion
+				}
+				if region == "" {
+					return fmt.Errorf("--object-storage-region is required when aws_region is not set")
+				}
+				remoteCmd = fibreObjectStorageScript(".celestia-fibre", objectBucket, region, objectEndpoint, cfg.ChainID, objectTimeout) + "\n" + remoteCmd
+			}
 			// Disable the storage limiter by default so experiments run at full
 			// throughput; pass --storage-limit to exercise the limiter instead.
 			if !storageLimit {
@@ -95,9 +109,31 @@ func startFibreCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "number of validators to start fibre on (default all)")
 	cmd.Flags().StringVar(&metricsAddress, "otel-endpoint", "", "OTLP HTTP endpoint for metrics/traces (e.g. http://host:4318; empty = disabled)")
+	cmd.Flags().StringVar(&objectBucket, "object-storage-bucket", "", "store shards in this S3-compatible bucket under <chain-id>/<validator-name> (empty = local disk)")
+	cmd.Flags().StringVar(&objectRegion, "object-storage-region", "", "object storage region (default: aws_region from config)")
+	cmd.Flags().StringVar(&objectEndpoint, "object-storage-endpoint", "", "object storage endpoint (default: regional AWS S3 endpoint)")
+	cmd.Flags().DurationVar(&objectTimeout, "object-storage-request-timeout", 5*time.Minute, "timeout per object storage operation")
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
 	cmd.Flags().BoolVar(&storageLimit, "storage-limit", false, "enable the Fibre storage limiter (default: disabled so experiments run at full throughput)")
 	cmd.Flags().IntVar(&maxBlobSizeMiB, "experimental-max-blob-size-mib", 128, "experimental Fibre v0 maximum blob size in MiB; must match txsim and readers")
 
 	return cmd
+}
+
+// fibreObjectStorageScript returns a shell snippet that writes a fibre server
+// config using object storage. Each validator gets its own prefix, keyed by hostname.
+func fibreObjectStorageScript(home, bucket, region, endpoint, chainID string, requestTimeout time.Duration) string {
+	if endpoint == "" {
+		endpoint = fmt.Sprintf("https://s3.%s.amazonaws.com", region)
+	}
+	return fmt.Sprintf(`mkdir -p %[1]s && cat > %[1]s/server_config.toml <<EOF
+storage_backend = "object"
+
+[object_storage]
+endpoint = "%[2]s"
+bucket = "%[3]s"
+prefix = "%[4]s/$(hostname)"
+region = "%[5]s"
+request_timeout = %[6]d
+EOF`, home, endpoint, bucket, chainID, region, requestTimeout.Nanoseconds())
 }
