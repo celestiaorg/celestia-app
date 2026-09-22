@@ -299,11 +299,14 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.in_flight` | UpDownCounter | — | Concurrent UploadShard RPCs |
 | `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
+| `fibre.server.upload_shard.rejected` | Counter | `reason` | UploadShard RPCs rejected by the storage limiter |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
+| `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
+| `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |
 | `fibre.server.upload_shard.last_success_timestamp` | Gauge (s) | — | Unix time of the last successful UploadShard RPC; not reported before the first one |
 | `fibre.server.download_shard.in_flight` | UpDownCounter | — | Concurrent DownloadShard RPCs |
 | `fibre.server.download_shard.duration` | Histogram (s) | `success`, `shard_size` | DownloadShard RPC latency |
-| `fibre.server.download_shard.bytes` | Counter (By) | — | Total bytes sent |
+| `fibre.server.download_shard.bytes` | Counter (By) | — | Total shard row bytes served |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
 | `fibre.server.backend.get.duration` | Histogram (s) | `backend`, `outcome` | Backend GET latency through payload reading, decoding and closing |
@@ -319,7 +322,7 @@ Each observation covers one backend call. Object GET duration includes SDK retri
 
 #### Grafana dashboard
 
-A pre-built Grafana dashboard is available at [`fibre/dashboards/fibre-dashboards.json`](../dashboards/fibre-dashboards.json).
+A pre-built Grafana dashboard is available at [`observability/docker/grafana/dashboards/fibre.json`](../../observability/docker/grafana/dashboards/fibre.json).
 
 ### Profiling (pprof)
 
