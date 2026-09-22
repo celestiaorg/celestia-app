@@ -214,16 +214,17 @@ Current gRPC status behavior is intentionally simple:
 | `UploadShard` | payment promise conversion, chain ID, blob version, stateless validation, or stateful validation fails | `InvalidArgument` |
 | `UploadShard` | assignment verification fails | `InvalidArgument` |
 | `UploadShard` | row, proof, RLC, upload-size, or commitment verification fails | `InvalidArgument` |
+| `UploadShard` | storage budget exceeded | `ResourceExhausted` with a `RetryInfo` detail |
 | `UploadShard` | store write or validator signing fails | `Internal` |
 | `DownloadShard` | invalid blob ID or unsupported blob version | `InvalidArgument` |
 | `DownloadShard` | no shard found for commitment | `NotFound` |
 | `DownloadShard` | store read failure | `Internal` |
 
-The implementation does not currently return `FailedPrecondition`, `PermissionDenied`, `AlreadyExists`, or `ResourceExhausted` for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.
+The implementation does not currently return `FailedPrecondition`, `PermissionDenied`, or `AlreadyExists` for the cases described by older target designs. The only machine-readable error detail is the `RetryInfo` backoff hint on `ResourceExhausted`.
 
 ## Concurrency And DoS Controls
 
-The server does not implement per-peer token buckets, throughput caps, request backoff hints, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by `UploadVerifyWorkers`, which is the size of the pooled `rsema1d.Verifier` channel. gRPC receive/send message size is bounded by `MaxMessageSize` from protocol params.
+The server does not implement per-peer token buckets, throughput caps, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by `UploadVerifyWorkers`, which is the size of the pooled `rsema1d.Verifier` channel. gRPC receive/send message size is bounded by `MaxMessageSize` from protocol params.
 
 ## Metrics
 
@@ -233,6 +234,10 @@ The server records OpenTelemetry metrics for:
 - `fibre.server.upload_shard.duration`
 - `fibre.server.upload_shard.bytes`
 - `fibre.server.upload_shard.request_bytes`
+- `fibre.server.upload_shard.rejected`
+- `fibre.server.upload_shard.dupe_hits`
+- `fibre.server.upload_shard.occupancy_bytes`
+- `fibre.server.upload_shard.budget_bytes`
 - `fibre.server.download_shard.in_flight`
 - `fibre.server.download_shard.duration`
 - `fibre.server.download_shard.bytes`
