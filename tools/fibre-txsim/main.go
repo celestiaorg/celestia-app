@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	"flag"
 	"fmt"
 	"math"
@@ -27,8 +28,10 @@ import (
 	"github.com/grafana/pyroscope-go"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -100,14 +103,20 @@ type downloadRequest struct {
 
 // confirmRequest is sent from upload workers to confirmation workers after broadcasting a PFF tx.
 type confirmRequest struct {
-	grpcConn *grpc.ClientConn
-	txHash   string
-	keyName  string
-	startT   time.Time
+	grpcConn    *grpc.ClientConn
+	txHash      string
+	keyName     string
+	startT      time.Time
+	rawBytes    int64
+	paddedBytes int64
 }
 
 // stats tracks shared counters across all workers.
 type stats struct {
+	metrics    *txsimMetrics
+	pending    atomic.Int64
+	encoding   atomic.Int64
+	untracked  atomic.Int64
 	totalSent  atomic.Int64
 	successes  atomic.Int64
 	failures   atomic.Int64
@@ -256,6 +265,12 @@ func run(cfg config) error {
 	}
 
 	st := &stats{}
+	metrics, err := newTxsimMetrics(otel.Meter("fibre.txsim"), st)
+	if err != nil {
+		return fmt.Errorf("setup txsim metrics: %w", err)
+	}
+	st.metrics = metrics
+	defer metrics.registration.Unregister()
 	startTime := time.Now()
 
 	fmt.Printf("\nStarting fibre blob spam with %d workers...\n", cfg.concurrency)
@@ -362,7 +377,8 @@ func run(cfg config) error {
 		fmt.Println()
 		fmt.Println("Confirmations:")
 		fmt.Printf("  Successes:  %d\n", cs)
-		fmt.Printf("  Failures:   %d\n", cf)
+		fmt.Printf("  Failures/unknown: %d\n", cf)
+		fmt.Printf("  Untracked: %d\n", st.untracked.Load())
 		fmt.Printf("  Avg latency (success): %s\n", avgConfirmLat)
 	}
 
@@ -475,6 +491,18 @@ func setupPyroscope(endpoint, user, pass string) (func(), error) {
 }
 
 func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, dlCh chan<- downloadRequest, confirmCh chan<- confirmRequest) {
+	stage := "generate"
+	completed := false
+	rawBytes, paddedBytes := int64(blobSize), int64(0)
+	defer func() {
+		if !completed {
+			outcome := "failed"
+			if ctx.Err() != nil {
+				outcome = "cancelled"
+			}
+			st.metrics.record(ctx, stage, outcome, rawBytes, paddedBytes)
+		}
+	}()
 	// Generate random namespace
 	nsID := make([]byte, share.NamespaceVersionZeroIDSize)
 	if _, err := rand.Read(nsID); err != nil {
@@ -507,13 +535,18 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	t := time.Now()
 
 	if uploadOnly {
+		stage = "encode"
+		st.encoding.Add(1)
 		blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+		st.encoding.Add(-1)
 		if err != nil {
 			st.failures.Add(1)
 			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
 			return
 		}
 		defer blob.Free()
+		paddedBytes = int64(blob.UploadSize())
+		stage = "upload"
 		_, err = w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 		lat := time.Since(t)
 		if err != nil {
@@ -524,6 +557,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 			fmt.Printf("[%s] upload error: %v (latency=%s)\n", w.keyName, err, lat)
 			return
 		}
+		completed = true
+		st.metrics.record(ctx, "upload", "success", rawBytes, paddedBytes)
 		st.successes.Add(1)
 		st.totalLatNs.Add(lat.Nanoseconds())
 		fmt.Printf("[%s] upload-only: latency=%s\n", w.keyName, lat)
@@ -531,7 +566,10 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	}
 
 	// Async TX mode: encode, upload, broadcast, then hand off confirmation to background workers.
+	stage = "encode"
+	st.encoding.Add(1)
 	blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+	st.encoding.Add(-1)
 	if err != nil {
 		st.failures.Add(1)
 		fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
@@ -539,6 +577,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	}
 	defer blob.Free()
 
+	paddedBytes = int64(blob.UploadSize())
+	stage = "upload"
 	signedPromise, err := w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 	if err != nil {
 		if ctx.Err() != nil {
@@ -549,6 +589,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		return
 	}
 
+	st.metrics.record(ctx, "upload", "success", rawBytes, paddedBytes)
+	stage = "broadcast"
 	promiseProto, err := signedPromise.ToProto()
 	if err != nil {
 		st.failures.Add(1)
@@ -572,6 +614,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		return
 	}
 
+	completed = true
+	st.metrics.record(ctx, "broadcast", "success", rawBytes, paddedBytes)
 	uploadLat := time.Since(t)
 	st.successes.Add(1)
 	st.totalLatNs.Add(uploadLat.Nanoseconds())
@@ -579,19 +623,11 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	st.uploadCount.Add(1)
 	fmt.Printf("[%s] broadcast: tx=%s upload_latency=%s\n", w.keyName, broadcastResp.TxHash, uploadLat)
 
-	// Hand off confirmation to background workers (non-blocking).
-	if confirmCh != nil {
-		select {
-		case confirmCh <- confirmRequest{
-			grpcConn: w.grpcConn,
-			txHash:   broadcastResp.TxHash,
-			keyName:  w.keyName,
-			startT:   t,
-		}:
-		default:
-			// Channel full, skip confirmation tracking to avoid blocking uploads.
-		}
-	}
+	// Hand off without slowing the load; explicitly account for untracked broadcasts.
+	enqueueConfirmation(ctx, confirmCh, confirmRequest{
+		grpcConn: w.grpcConn, txHash: broadcastResp.TxHash, keyName: w.keyName,
+		startT: t, rawBytes: rawBytes, paddedBytes: paddedBytes,
+	}, st)
 
 	// Send download request (non-blocking) to download workers.
 	if dlCh != nil {
@@ -616,6 +652,10 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 func confirmWorkerLoop(ctx context.Context, ch <-chan confirmRequest, st *stats) {
 	for req := range ch {
 		height, err := pollTxStatus(ctx, req.grpcConn, req.txHash, 2*time.Minute)
+		st.pending.Add(-1)
+		outcome := confirmationOutcome(err)
+		st.metrics.record(ctx, "confirmation", outcome, req.rawBytes, req.paddedBytes)
+		st.metrics.latency.Record(ctx, time.Since(req.startT).Seconds(), metric.WithAttributes(attribute.String("outcome", outcome)))
 		if err != nil {
 			st.confirmFailures.Add(1)
 			fmt.Printf("[%s] confirm error: tx=%s %v\n", req.keyName, req.txHash, err)
@@ -659,13 +699,13 @@ func pollTxStatus(_ context.Context, conn *grpc.ClientConn, txHash string, timeo
 		switch resp.Status {
 		case "COMMITTED":
 			if resp.ExecutionCode != 0 {
-				return 0, fmt.Errorf("tx %s execution error (code %d): %s", txHash, resp.ExecutionCode, resp.Error)
+				return 0, fmt.Errorf("%w: tx %s execution error (code %d): %s", errTxRejected, txHash, resp.ExecutionCode, resp.Error)
 			}
 			return resp.Height, nil
 		case "REJECTED":
-			return 0, fmt.Errorf("tx %s rejected: %s", txHash, resp.Error)
+			return 0, fmt.Errorf("%w: tx %s rejected: %s", errTxRejected, txHash, resp.Error)
 		case "EVICTED":
-			return 0, fmt.Errorf("tx %s evicted", txHash)
+			return 0, fmt.Errorf("%w: tx %s evicted", errTxEvicted, txHash)
 		default:
 			// PENDING or UNKNOWN, keep polling
 		}
@@ -718,4 +758,31 @@ func downloadBlob(ctx context.Context, req *downloadRequest, st *stats) {
 	}
 	fmt.Printf("[%s] download: blob_id=%s latency=%s verified=%t\n",
 		req.keyName, req.blobID, lat, verified)
+}
+
+var errTxRejected = errors.New("transaction rejected")
+var errTxEvicted = errors.New("transaction evicted")
+
+func confirmationOutcome(err error) string {
+	switch {
+	case err == nil:
+		return "success"
+	case errors.Is(err, errTxRejected):
+		return "failed"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "timeout"
+	default:
+		return "unknown"
+	}
+}
+
+func enqueueConfirmation(ctx context.Context, ch chan<- confirmRequest, req confirmRequest, st *stats) {
+	st.pending.Add(1)
+	select {
+	case ch <- req:
+	default:
+		st.pending.Add(-1)
+		st.untracked.Add(1)
+		st.metrics.record(ctx, "confirmation", "untracked", req.rawBytes, req.paddedBytes)
+	}
 }

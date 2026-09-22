@@ -47,8 +47,8 @@ fibre-txsim \
 2. Creates one worker per `--concurrency` slot, each with its own signing key (`fibre-0`, `fibre-1`, ...) and `TxClient`.
 3. Each worker independently:
    - Generates a random namespace and random blob data of `--blob-size` bytes.
-   - Calls `fibre.PutWithKey()` to submit the blob through the Fibre protocol using its own key.
-   - Logs the resulting block height, tx hash, and submission latency.
+   - Encodes with `NewBlob`, calls `Upload`, and broadcasts `MsgPayForFibre` using its own key.
+   - Hands off confirmation to background workers and logs upload and confirmation separately.
 4. On shutdown (Ctrl+C or `--duration` elapsed), prints a summary with total sent, successes, failures, and average latency.
 
 ## Typical deployment
@@ -64,3 +64,43 @@ talis fibre-txsim --directory <experiment-dir> \
 ```
 
 See `tools/talis/fibre.md` for the full experiment workflow.
+
+## Simulator metrics
+
+Enable `--otel-endpoint http://collector:4318`. The service name is `fibre-txsim`;
+its instance ID is the hostname. The `fibre.txsim` instruments describe simulator
+work, independently of Fibre server traffic. The companion Grafana dashboard is
+`observability/docker/grafana/dashboards/fibre-txsim.json`.
+
+- `fibre.txsim.blobs`, `raw_bytes`, and `padded_bytes` count stage outcomes.
+  `raw_bytes` excludes the header and padding; `padded_bytes` is `Blob.UploadSize()`
+  (billed input, not Reed–Solomon expansion or retransmitted network bytes).
+  Labels are `stage` and `outcome`; **never sum across stages**.
+- `stage="upload",outcome="success"` means the SDK returned a quorum receipt,
+  not that every provider's background upload finished. Broadcast success means
+  broadcast returned successfully, not settlement. Only
+  `stage="confirmation",outcome="success"` means observed successful execution.
+- Generation, encoding, upload and broadcast failures/cancellation are explicit.
+  Confirmation `failed` means rejection or nonzero execution code; `timeout` and
+  `unknown` do **not** mean unpaid. A timed-out/evicted transaction may settle later.
+  This simulator does not reconcile those outcomes later.
+- Confirmation queue overflow is `untracked`, with blob and byte counts. The
+  bounded queue still never blocks uploads; these broadcasts may settle but are
+  absent from confirmed totals. Confirmed rates are therefore lower bounds when
+  unknown, timeout or untracked counts are nonzero.
+- `fibre.txsim.confirmation.pending` includes queued and polling requests.
+  `confirmation.duration` measures encoding start through the observed outcome,
+  including queue wait; its outcome label separates success from timeout/failure.
+- `fibre.txsim.encoding.active` measures actual `NewBlob` calls. It is not an
+  admission limiter. `pool.bytes` reports shared SDK capacity by pool and state:
+  `in_use`, `free`, and `mapped`. **Mapped overlaps in-use/free; do not add them.**
+  Capacity is not RSS. Linux `process.rss` includes resident mmap pages; platforms
+  without `/proc/self/statm` omit this measurement. Existing Go runtime metrics
+  remain available and do not account for all off-heap codec storage.
+
+OTLP-to-Prometheus normalization produces `fibre_txsim_blobs_total`,
+`fibre_txsim_raw_bytes_total`, `fibre_txsim_padded_bytes_total`,
+`fibre_txsim_confirmation_pending`, `fibre_txsim_encoding_active`,
+`fibre_txsim_pool_bytes`, `fibre_txsim_process_rss_bytes`, and
+`fibre_txsim_confirmation_duration_seconds_{bucket,sum,count}` with the standard
+Prometheus exporter naming strategy. Collector configuration can alter labels.
