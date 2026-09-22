@@ -30,8 +30,9 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	defer span.End()
 
 	var uploadSize int64
+	outcome := uploadInvalid
 	uploadShardDone := s.metrics.observeUploadShard(ctx)
-	defer func() { uploadShardDone(uploadSize, err) }()
+	defer func() { uploadShardDone(uploadSize, int64(req.Size()), outcome, err) }()
 
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {
@@ -68,11 +69,13 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
+		outcome = uploadFailed
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
 	}
 
 	if has {
 		// Already stored: skip verification and storage, just re-sign.
+		outcome = uploadDuplicate
 		s.observeDuplicateUpload(ctx, log, "before_verification")
 	} else {
 		// verify assignment - check that the shard belongs to us
@@ -96,7 +99,8 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 			attribute.Int("rows_count", len(req.Shard.Rows)),
 		))
 
-		if err := s.storeShard(ctx, log, promise, promiseHash, pruneAt, req.Shard); err != nil {
+		outcome, err = s.storeShard(ctx, log, promise, promiseHash, pruneAt, req.Shard)
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -122,8 +126,9 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 // storeShard reserves storage capacity and writes a verified shard. It
 // serializes identical uploads so concurrent duplicates can't each reserve
 // occupancy for a single stored shard, and skips the write if the shard
-// was stored in the meantime. Errors are returned as gRPC statuses.
-func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *PaymentPromise, promiseHash []byte, pruneAt time.Time, shard *types.BlobShard) error {
+// was stored in the meantime. It reports how the upload ended. Errors are
+// returned as gRPC statuses.
+func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *PaymentPromise, promiseHash []byte, pruneAt time.Time, shard *types.BlobShard) (uploadOutcome, error) {
 	ctx, span := s.tracer.Start(ctx, "store_shard")
 	defer span.End()
 
@@ -137,11 +142,11 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
-		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+		return uploadFailed, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
 	}
 	if has {
 		s.observeDuplicateUpload(ctx, log, "after_verification")
-		return nil
+		return uploadDuplicate, nil
 	}
 
 	size := shardBinarySize(shard)
@@ -151,7 +156,7 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 		st, _ = st.WithDetails(&errdetails.RetryInfo{
 			RetryDelay: durationpb.New(retryAfterHint()),
 		})
-		return st.Err()
+		return uploadRejected, st.Err()
 	}
 
 	// store payment promise and shard with RLC roots
@@ -167,12 +172,12 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "store upload aborted")
-			return status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+			return uploadFailed, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
 		}
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
-		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+		return uploadFailed, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
 	}
 	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
 	span.AddEvent("shard_stored")
@@ -185,7 +190,7 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 		"rows_count", len(shard.Rows),
 		"row_size", len(shard.Rows[0].Data),
 	)
-	return nil
+	return uploadStored, nil
 }
 
 // observeDuplicateUpload records an upload that was skipped because the

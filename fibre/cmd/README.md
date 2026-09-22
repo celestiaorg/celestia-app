@@ -270,8 +270,9 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | Metric | Type | Attributes | Description |
 |---|---|---|---|
 | `fibre.server.upload_shard.in_flight` | UpDownCounter | — | Concurrent UploadShard RPCs |
-| `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
-| `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
+| `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `outcome`, `upload_size` | UploadShard RPC latency. `outcome` is `stored`, `duplicate`, `rejected` (storage limiter), `invalid` (failed validation) or `failed` (server error or cancellation) |
+| `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored (verified uploads only) |
+| `fibre.server.upload_shard.request_bytes` | Counter (By) | `outcome` | Total proto-encoded bytes of UploadShard requests received |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
 | `fibre.server.download_shard.in_flight` | UpDownCounter | — | Concurrent DownloadShard RPCs |
 | `fibre.server.download_shard.duration` | Histogram (s) | `success`, `shard_size` | DownloadShard RPC latency |

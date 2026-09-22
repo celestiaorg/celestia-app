@@ -232,6 +232,7 @@ The server records OpenTelemetry metrics for:
 - `fibre.server.upload_shard.in_flight`
 - `fibre.server.upload_shard.duration`
 - `fibre.server.upload_shard.bytes`
+- `fibre.server.upload_shard.request_bytes`
 - `fibre.server.download_shard.in_flight`
 - `fibre.server.download_shard.duration`
 - `fibre.server.download_shard.bytes`

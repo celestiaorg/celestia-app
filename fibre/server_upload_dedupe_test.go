@@ -50,7 +50,7 @@ func TestServerUploadShardDuplicate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, gogoproto.Equal(stored, after))
 
-	require.Equal(t, map[string]int64{"before_verification": 2}, dupeHits(t, reader))
+	require.Equal(t, map[string]int64{"before_verification": 2}, counterByAttr(t, reader, "fibre.server.upload_shard.dupe_hits", "stage"))
 }
 
 // TestServerUploadShardConcurrentDuplicates uploads the same shard from many
@@ -81,32 +81,32 @@ func TestServerUploadShardConcurrentDuplicates(t *testing.T) {
 	}
 
 	var total int64
-	for _, v := range dupeHits(t, reader) {
+	for _, v := range counterByAttr(t, reader, "fibre.server.upload_shard.dupe_hits", "stage") {
 		total += v
 	}
 	require.Equal(t, int64(n-1), total)
 }
 
-// dupeHits collects the upload_shard.dupe_hits counter, keyed by stage.
-func dupeHits(t *testing.T, reader *sdkmetric.ManualReader) map[string]int64 {
+// counterByAttr collects an int64 counter, keyed by the value of the given attribute.
+func counterByAttr(t *testing.T, reader *sdkmetric.ManualReader, name, attr string) map[string]int64 {
 	t.Helper()
 
 	var rm metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(t.Context(), &rm))
 
-	hits := map[string]int64{}
+	values := map[string]int64{}
 	for _, sm := range rm.ScopeMetrics {
 		for _, m := range sm.Metrics {
-			if m.Name != "fibre.server.upload_shard.dupe_hits" {
+			if m.Name != name {
 				continue
 			}
 			sum, ok := m.Data.(metricdata.Sum[int64])
 			require.True(t, ok)
 			for _, dp := range sum.DataPoints {
-				stage, _ := dp.Attributes.Value(attribute.Key("stage"))
-				hits[stage.AsString()] += dp.Value
+				key, _ := dp.Attributes.Value(attribute.Key(attr))
+				values[key.AsString()] += dp.Value
 			}
 		}
 	}
-	return hits
+	return values
 }

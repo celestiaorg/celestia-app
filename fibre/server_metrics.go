@@ -15,6 +15,7 @@ type serverMetrics struct {
 	uploadShardInFlight metric.Int64UpDownCounter
 	uploadShardDuration metric.Float64Histogram
 	uploadShardBytes    metric.Int64Counter
+	uploadShardReqBytes metric.Int64Counter
 	uploadShardRejected metric.Int64Counter
 	uploadShardDupeHits metric.Int64Counter
 
@@ -64,6 +65,14 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard bytes counter: %w", err)
+	}
+
+	sm.uploadShardReqBytes, err = m.Int64Counter("fibre.server.upload_shard.request_bytes",
+		metric.WithDescription("Total proto-encoded bytes of UploadShard requests received, by outcome"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard request_bytes counter: %w", err)
 	}
 
 	sm.uploadShardRejected, err = m.Int64Counter("fibre.server.upload_shard.rejected",
@@ -176,14 +185,29 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	return &sm, nil
 }
 
+// uploadOutcome says how an UploadShard RPC ended.
+type uploadOutcome string
+
+const (
+	uploadStored    uploadOutcome = "stored"    // shard verified and written
+	uploadDuplicate uploadOutcome = "duplicate" // shard already stored
+	uploadRejected  uploadOutcome = "rejected"  // refused by the storage limiter
+	uploadInvalid   uploadOutcome = "invalid"   // request failed validation
+	uploadFailed    uploadOutcome = "failed"    // server-side error or client cancellation
+)
+
 // observeUploadShard records in-flight increment and returns a function that records
-// duration and decrements in-flight. Call the returned function in a defer.
-func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize int64, err error)) {
+// duration, request bytes and decrements in-flight. Call the returned function in a defer.
+func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize, requestBytes int64, outcome uploadOutcome, err error)) {
 	start := time.Now()
 	m.uploadShardInFlight.Add(ctx, 1)
-	return func(uploadSize int64, err error) {
+	return func(uploadSize, requestBytes int64, outcome uploadOutcome, err error) {
 		m.uploadShardInFlight.Add(ctx, -1)
-		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
+		m.uploadShardReqBytes.Add(ctx, requestBytes, metric.WithAttributes(attribute.String("outcome", string(outcome))))
+		attrs := []attribute.KeyValue{
+			attribute.Bool("success", err == nil),
+			attribute.String("outcome", string(outcome)),
+		}
 		if uploadSize > 0 {
 			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
 		}
