@@ -1,0 +1,841 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": false,
+        "iconColor": "#FF9830",
+        "name": "Run events",
+        "target": {
+          "matchAny": false,
+          "tags": [
+            "fibre-benchmark",
+            "$run"
+          ],
+          "type": "tags"
+        },
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": false,
+  "links": [
+    {
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "fibre",
+        "benchmark"
+      ],
+      "title": "Benchmark views",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Rates use a fixed **30-second window**. Missing coverage produces gaps, never zero. An empty boundary may be unsupported: consult the run manifest. Observed partial rates and counters are **not final reconciled totals**. Exact totals, run verdict, start/stop and deployment annotations come from the run evidence/operator. Select one component to drill down; inventory includes absent components. Main-run target: **40 GB/s raw decimal** (40,000,000,000 B/s = **37.2529 GiB/s**), for **600 seconds**. This target is not a smoke-run acceptance threshold.",
+        "mode": "markdown"
+      },
+      "title": "Live estimates \u00b7 coverage and evidence",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "quantile by(boundary) (0.5, (rate(fibre_bench_raw_bytes_total{role=\"encoder\"}[30s])) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1)))",
+          "legendFormat": "{{boundary}} median",
+          "refId": "A"
+        },
+        {
+          "expr": "min by(boundary) ((rate(fibre_bench_raw_bytes_total{role=\"encoder\"}[30s])) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1)))",
+          "legendFormat": "{{boundary}} min",
+          "refId": "B"
+        },
+        {
+          "expr": "max by(boundary) ((rate(fibre_bench_raw_bytes_total{role=\"encoder\"}[30s])) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1)))",
+          "legendFormat": "{{boundary}} max",
+          "refId": "C"
+        }
+      ],
+      "title": "Observed per-component rate distribution",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(rate(fibre_bench_raw_bytes_total{role=\"encoder\"}[30s])) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Observed PARTIAL per-component raw rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(time() - fibre_bench_sample_timestamp_seconds{role=\"encoder\"}) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Source sample age",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(fibre_bench_connections{role=\"encoder\"}) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Observed active connections",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 47
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(fibre_bench_inflight_raw_bytes{role=\"encoder\"}) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Observed stage queue bytes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 47
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(fibre_bench_oldest_pending_seconds{role=\"encoder\"}) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Oldest pending by stage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(rate(fibre_bench_errors_total{role=\"encoder\"}[30s])) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Observed errors by stage/reason",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le,stage) ((rate(fibre_bench_stage_duration_seconds_bucket{role=\"encoder\"}[30s])) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Stage p95 \u00b7 aggregate histogram buckets",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 65
+      },
+      "id": 10,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "(fibre_bench_raw_bytes_total{role=\"encoder\"}) and on(component_id,role,region) (fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\",component_id=~\"$component\"} == 1) and on(component_id,role,region) (max by(component_id,role,region) (fibre_bench_identity_info{run_id=\"$run\"} == 1))",
+          "legendFormat": "{{role}} {{component_id}} {{boundary}} {{stage}} {{device}} {{layer}} {{direction}} {{reason}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Observed counters \u00b7 not reconciled totals",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Sum of unique encoder counters,1minute rate. All includes every selected encoder. Raw useful bytes, not encoded shard or NIC traffic.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "id": 400,
+      "targets": [
+        {
+          "expr": "sum((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"encoder_admitted\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"}))) / 1073741824",
+          "legendFormat": "TOTAL encoder_admitted GiB/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"}))) / 1073741824",
+          "legendFormat": "TOTAL chain_confirmed GiB/s",
+          "refId": "B"
+        }
+      ],
+      "title": "TOTAL encoder raw throughput \u2014 admitted vs chain confirmed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "id": 401,
+      "targets": [
+        {
+          "expr": "(max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"})) / 1073741824",
+          "legendFormat": "{{component_id}} confirmed GiB/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-encoder raw confirmed throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 402,
+      "targets": [
+        {
+          "expr": "count((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "Rate sources",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(up{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"})",
+          "legendFormat": "Selected reachable targets",
+          "refId": "B"
+        }
+      ],
+      "title": "Included encoder rate sources / selected reachable targets",
+      "type": "timeseries"
+    },
+    {
+      "id": 500,
+      "title": "TOTAL payload input rates \u2014 admitted / dispatched / confirmed / unknown",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:inputs/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL unique admitted inputs/s"
+        },
+        {
+          "refId": "B",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_dispatch_batch_inputs_sum{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL dispatched inputs inputs/s"
+        },
+        {
+          "refId": "C",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL confirmed outcomes inputs/s"
+        },
+        {
+          "refId": "D",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"unknown\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL unknown outcomes inputs/s"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 74,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 501,
+      "title": "Per-encoder unique admitted payload inputs/s",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:inputs/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))",
+          "legendFormat": "{{component_id}} admitted inputs/s"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 74,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 502,
+      "title": "Per-encoder confirmed / unknown outcome inputs/s",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:inputs/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))",
+          "legendFormat": "{{component_id}} confirmed outcomes inputs/s"
+        },
+        {
+          "refId": "B",
+          "expr": "(max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"unknown\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))",
+          "legendFormat": "{{component_id}} unknown outcomes inputs/s"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 503,
+      "title": "TOTAL average admitted payload bytes per input",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Raw admitted bytes / unique admitted input count. Weighted mean only, not percentile/min/max. No admissions yields no data.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",boundary=\"encoder_admitted\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))) / sum((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))) and (sum((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))) > 0)",
+          "legendFormat": "Fleet weighted mean input bytes"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 82,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 504,
+      "title": "Per-encoder average admitted payload bytes per input",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Mean only; individual-input size histogram is unavailable. Excludes idempotent retries and rejected attempts. No admissions yields no data.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",boundary=\"encoder_admitted\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})) / (max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))) and ((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})) > 0)",
+          "legendFormat": "{{component_id}} mean input bytes"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 90,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 505,
+      "title": "TOTAL current pending payload inputs",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Current pending gauges, not cumulative counters.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"accepted\"})",
+          "legendFormat": "accepted inputs"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"dispatching\"})",
+          "legendFormat": "dispatching inputs"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 90,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 506,
+      "title": "TOTAL cumulative terminal outcomes since current processes started",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"confirmed\"})",
+          "legendFormat": "confirmed cumulative inputs"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"unknown\"})",
+          "legendFormat": "unknown cumulative inputs"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 98,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": [
+    "fibre",
+    "benchmark"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "run",
+        "query": "label_values(fibre_bench_identity_info{chain_id=\"$chain\",role=\"encoder\"},run_id)",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "region",
+        "query": {
+          "query": "label_values(fibre_bench_expected_component{run_id=\"$run\"}, region)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "component",
+        "query": {
+          "query": "label_values(fibre_bench_expected_component{run_id=\"$run\",region=~\"$region\"}, component_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "name": "chain",
+        "query": "label_values(up,chain_id)",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "label": "Encoders",
+        "multi": true,
+        "name": "encoder",
+        "query": "label_values(fibre_encoder_put_limit{chain_id=\"$chain\"},component_id)",
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "title": "Fibre Encoders",
+  "uid": "fibre-encoders",
+  "version": 1
+}

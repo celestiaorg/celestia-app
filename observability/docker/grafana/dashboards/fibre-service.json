@@ -1,0 +1,530 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": false,
+  "links": [
+    {
+      "asDropdown": true,
+      "includeVars": true,
+      "keepTime": true,
+      "tags": [
+        "fibre",
+        "benchmark"
+      ],
+      "title": "Benchmark views",
+      "type": "dashboards"
+    }
+  ],
+  "panels": [
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Current-fleet smoke view using existing node_exporter and Fibre OTel metric names. **No run completeness or benchmark success implied.** Select host and Fibre process separately; selectors are not an identity mapping. Host uptime is not Fibre process uptime. Blank metrics mean unavailable. Throughput uses decimal GB/s. Main-run target is **40 GB/s raw decimal = 37.2529 GiB/s for 600 seconds**; shard rates are encoded bytes and cannot be compared directly to that raw target.",
+        "mode": "markdown"
+      },
+      "title": "Live estimates \u00b7 coverage and evidence",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "id": 2,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$fibre_instance\"}[30s])",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre received shard bytes (includes duplicates)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "go_memory_used_bytes{service_instance_id=~\"$fibre_instance\"}",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre Go memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "go_goroutine_count{service_instance_id=~\"$fibre_instance\"}",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre goroutines",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le,service_instance_id)(rate(fibre_server_upload_shard_duration_seconds_bucket{service_instance_id=~\"$fibre_instance\"}[30s])))",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre upload_shard p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 47
+      },
+      "id": 6,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le,service_instance_id)(rate(fibre_server_store_put_duration_seconds_bucket{service_instance_id=~\"$fibre_instance\"}[30s])))",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre store_put p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 47
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le,service_instance_id)(rate(fibre_server_store_get_duration_seconds_bucket{service_instance_id=~\"$fibre_instance\"}[30s])))",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre store_get p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "id": 8,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le,service_instance_id)(rate(fibre_server_sign_duration_seconds_bucket{service_instance_id=~\"$fibre_instance\"}[30s])))",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre sign p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "spanNulls": false
+          },
+          "noValue": "UNKNOWN / N/A",
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "id": 9,
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by(le,service_instance_id)(rate(fibre_server_prune_duration_seconds_bucket{service_instance_id=~\"$fibre_instance\"}[30s])))",
+          "legendFormat": "{{service_instance_id}} {{go_memory_type}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre prune p95",
+      "type": "timeseries"
+    },
+    {
+      "id": 403,
+      "title": "TOTAL Fibre received shard throughput \u2014 expanded payload",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "All selected providers. Includes duplicate/retry shard payload; not raw useful bytes or exact NIC wire bytes. Provider metric has no source-encoder attribution: may include traffic from unselected encoders.",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(max by(component_id)(rate(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}[1m]))) / 1073741824",
+          "legendFormat": "TOTAL received shard payload GiB/s"
+        }
+      ]
+    },
+    {
+      "id": 404,
+      "title": "Per-provider received shard throughput",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "max by(component_id)(rate(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}[1m])) / 1073741824",
+          "legendFormat": "{{component_id}} shard GiB/s"
+        }
+      ]
+    },
+    {
+      "id": 405,
+      "title": "Included Fibre providers / oldest sample age",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "gridPos": {
+        "x": 0,
+        "y": 11,
+        "w": 12,
+        "h": 7
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "count(max by(component_id)(rate(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}[1m])))",
+          "legendFormat": "Provider rate sources"
+        },
+        {
+          "refId": "B",
+          "expr": "max(time()-timestamp(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}))",
+          "legendFormat": "Oldest sample age seconds"
+        }
+      ]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": [
+    "fibre",
+    "benchmark"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "host",
+        "query": {
+          "query": "label_values(node_uname_info, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "fibre_instance",
+        "query": {
+          "query": "label_values(go_goroutine_count, service_instance_id)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "service",
+        "query": {
+          "query": "label_values(node_systemd_unit_state{instance=~\"$host\",name=~\".*fibre.*|.*encoder.*\"}, name)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 2,
+        "type": "query"
+      },
+      {
+        "name": "chain",
+        "type": "query",
+        "query": "label_values(up,chain_id)",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "title": "Fibre Current Service Latencies",
+  "uid": "fibre-service",
+  "version": 1
+}

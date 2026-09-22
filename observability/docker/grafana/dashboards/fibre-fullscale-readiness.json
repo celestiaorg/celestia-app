@@ -1,0 +1,1598 @@
+{
+  "editable": true,
+  "panels": [
+    {
+      "gridPos": {
+        "h": 4,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "content": "Direct-source operational estimates, not reconciled campaign results. All includes idle hosts; select the intended encoder/run and one chain. Component IDs must be unique within that chain. Current identity joins cannot isolate historical samples across a restart. Missing data is not zero. NIC and shard bytes include erasure amplification and retries. Compare reporting-source coverage with inventory before treating totals as complete. Optional host sampler metrics require separate instrumentation.",
+        "mode": "markdown"
+      },
+      "title": "Read before sharing results",
+      "type": "text"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 29
+      },
+      "id": 2,
+      "targets": [
+        {
+          "expr": "sum by(job)(up{chain_id=\"$chain\"})",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "count by(job)(up{chain_id=\"$chain\"})",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Live target reachability (fleet, not selected encoder)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 29
+      },
+      "id": 3,
+      "targets": [
+        {
+          "expr": "sum by(boundary)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",component_id=~\"$encoder\",role=\"encoder\"}[1m]) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",role=\"encoder\",run_id=~\"$run\"})) / 1073741824",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Raw admitted / confirmed (GiB/s, selected identity)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 37
+      },
+      "id": 4,
+      "targets": [
+        {
+          "expr": "(max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"})) / 1073741824",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-encoder confirmed raw GiB/s",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 37
+      },
+      "id": 5,
+      "targets": [
+        {
+          "expr": "resets(fibre_bench_raw_bytes_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[5m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Counter resets: invalidate cross-run comparisons",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 45
+      },
+      "id": 6,
+      "targets": [
+        {
+          "expr": "fibre_encoder_ledger_inputs{chain_id=\"$chain\",component_id=~\"$encoder\",state!=\"confirmed\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pending / unknown inputs (exact current gauges)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 45
+      },
+      "id": 7,
+      "targets": [
+        {
+          "expr": "fibre_encoder_ledger_raw_bytes{chain_id=\"$chain\",component_id=~\"$encoder\",state!=\"confirmed\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Pending raw bytes by state",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 53
+      },
+      "id": 8,
+      "targets": [
+        {
+          "expr": "fibre_encoder_put_active{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "fibre_encoder_put_waiting{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        },
+        {
+          "expr": "fibre_encoder_put_limit{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "C"
+        }
+      ],
+      "title": "Put active / waiting / configured slots",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 53
+      },
+      "id": 9,
+      "targets": [
+        {
+          "expr": "fibre_encoder_put_active_raw_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "fibre_encoder_put_waiting_raw_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Put active / waiting raw bytes (not expanded memory)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 61
+      },
+      "id": 10,
+      "targets": [
+        {
+          "expr": "fibre_encoder_memory_ledger_resident_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "fibre_encoder_ledger_payload_limit_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Ledger resident / payload limit",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 61
+      },
+      "id": 11,
+      "targets": [
+        {
+          "expr": "rate(fibre_encoder_memory_ledger_blocked_admissions_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(fibre_encoder_stage_events_dropped_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Admission blocked / events dropped per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 69
+      },
+      "id": 12,
+      "targets": [
+        {
+          "expr": "rate(fibre_encoder_dispatch_batch_bytes_sum{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m]) / rate(fibre_encoder_dispatch_batch_bytes_count{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Assembled batch mean bytes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 69
+      },
+      "id": 13,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5,sum by(component_id,le)(rate(fibre_encoder_dispatch_batch_bytes_bucket{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95,sum by(component_id,le)(rate(fibre_encoder_dispatch_batch_bytes_bucket{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Assembled batch p50 / p95 bytes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 77
+      },
+      "id": 14,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5,sum by(component_id,le)(rate(fibre_bench_stage_duration_seconds_bucket{chain_id=\"$chain\",component_id=~\"$encoder\",stage=\"confirmation\"}[1m])))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95,sum by(component_id,le)(rate(fibre_bench_stage_duration_seconds_bucket{chain_id=\"$chain\",component_id=~\"$encoder\",stage=\"confirmation\"}[1m])))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99,sum by(component_id,le)(rate(fibre_bench_stage_duration_seconds_bucket{chain_id=\"$chain\",component_id=~\"$encoder\",stage=\"confirmation\"}[1m])))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "C"
+        }
+      ],
+      "title": "Confirmation p50 / p95 / p99 seconds",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 77
+      },
+      "id": 15,
+      "targets": [
+        {
+          "expr": "fibre_encoder_heap_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Encoder heap (not RSS/mmap/cgroup)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 85
+      },
+      "id": 16,
+      "targets": [
+        {
+          "expr": "rate(fibre_encoder_gc_pause_seconds_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(fibre_encoder_gc_cycles_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Encoder GC pause seconds per second / cycles per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 85
+      },
+      "id": 17,
+      "targets": [
+        {
+          "expr": "node_memory_MemAvailable_bytes{chain_id=\"$chain\",instance=~\"$host\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Host memory available",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 93
+      },
+      "id": 18,
+      "targets": [
+        {
+          "expr": "1-avg by(instance)(rate(node_cpu_seconds_total{chain_id=\"$chain\",instance=~\"$host\",mode=\"idle\"}[1m]))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Host CPU busy fraction",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 93
+      },
+      "id": 19,
+      "targets": [
+        {
+          "expr": "increase(node_vmstat_oom_kill{chain_id=\"$chain\",instance=~\"$host\"}[5m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Host OOM kills during last 5 minutes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 101
+      },
+      "id": 20,
+      "targets": [
+        {
+          "expr": "rate(node_network_receive_bytes_total{chain_id=\"$chain\",instance=~\"$host\",device!=\"lo\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(node_network_transmit_bytes_total{chain_id=\"$chain\",instance=~\"$host\",device!=\"lo\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Host physical NIC receive / transmit bytes per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 101
+      },
+      "id": 21,
+      "targets": [
+        {
+          "expr": "rate(node_netstat_Tcp_RetransSegs{chain_id=\"$chain\",instance=~\"$host\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(node_netstat_TcpExt_ListenDrops{chain_id=\"$chain\",instance=~\"$host\"}[1m])",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "TCP retransmissions / listen drops per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 109
+      },
+      "id": 22,
+      "targets": [
+        {
+          "expr": "fibre_server_upload_shard_occupancy_bytes{chain_id=\"$chain\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        },
+        {
+          "expr": "fibre_server_upload_shard_budget_bytes{chain_id=\"$chain\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Live provider occupancy / budget",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 109
+      },
+      "id": 23,
+      "targets": [
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\"}[1m]))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Live provider shard bytes/s (duplicates included)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 117
+      },
+      "id": 24,
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99,sum by(service_instance_id,le)(rate(fibre_server_upload_shard_duration_seconds_bucket{chain_id=\"$chain\"}[1m])))",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Live provider upload p99",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 117
+      },
+      "id": 25,
+      "targets": [
+        {
+          "expr": "node_filesystem_avail_bytes{chain_id=\"$chain\",instance=~\"$host\",mountpoint=~\"$data_mount\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre data disk available (canonical mount only)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 125
+      },
+      "id": 26,
+      "targets": [
+        {
+          "expr": "(node_filesystem_avail_bytes{chain_id=\"$chain\",instance=~\"$host\",mountpoint=~\"$data_mount\"} / -deriv(node_filesystem_avail_bytes{chain_id=\"$chain\",instance=~\"$host\",mountpoint=~\"$data_mount\"}[10m])) and (deriv(node_filesystem_avail_bytes{chain_id=\"$chain\",instance=~\"$host\",mountpoint=~\"$data_mount\"}[10m]) < 0)",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Fibre disk estimated seconds to full (10m observed growth)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 133
+      },
+      "id": 28,
+      "targets": [
+        {
+          "expr": "node_filesystem_files_free{chain_id=\"$chain\",instance=~\"$host\",mountpoint=~\"$data_mount\"} / node_filesystem_files{chain_id=\"$chain\",instance=~\"$host\",mountpoint=~\"$data_mount\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Data filesystem free inodes fraction",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 133
+      },
+      "id": 29,
+      "targets": [
+        {
+          "expr": "time()-prometheus_remote_storage_queue_highest_sent_timestamp_seconds{chain_id=\"$chain\"}",
+          "legendFormat": "{{component_id}} {{instance}} {{boundary}} {{state}} {{job}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Collector remote-write lag seconds",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 141
+      },
+      "id": 200,
+      "targets": [
+        {
+          "expr": "count(fibre_encoder_host_service_collect_success{chain_id=\"$chain\",component_id=~\"$encoder\"} == 1)",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        },
+        {
+          "expr": "count(fibre_encoder_put_limit{chain_id=\"$chain\",component_id=~\"$encoder\"})",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "B"
+        }
+      ],
+      "title": "New host collector coverage (expected selected encoders)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 141
+      },
+      "id": 201,
+      "targets": [
+        {
+          "expr": "time()-fibre_encoder_host_collect_timestamp_seconds{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        }
+      ],
+      "title": "New host collector sample age",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "RSS belongs to encoder PID. Cgroup includes charged descendants/cache and can differ from RSS. Missing/unlimited limit is not zero headroom.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 149
+      },
+      "id": 202,
+      "targets": [
+        {
+          "expr": "fibre_encoder_process_resident_memory_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        },
+        {
+          "expr": "fibre_encoder_cgroup_memory_current_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "B"
+        },
+        {
+          "expr": "fibre_encoder_cgroup_memory_limit_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "C"
+        }
+      ],
+      "title": "Encoder service RSS / cgroup memory (different accounting)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 149
+      },
+      "id": 203,
+      "targets": [
+        {
+          "expr": "(fibre_encoder_cgroup_memory_limit_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}-fibre_encoder_cgroup_memory_current_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}) and (fibre_encoder_cgroup_memory_limit_bytes{chain_id=\"$chain\",component_id=~\"$encoder\"}>0)",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Cgroup memory headroom",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 157
+      },
+      "id": 204,
+      "targets": [
+        {
+          "expr": "increase(fibre_encoder_cgroup_memory_high_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[5m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        },
+        {
+          "expr": "increase(fibre_encoder_cgroup_memory_max_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[5m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "B"
+        },
+        {
+          "expr": "increase(fibre_encoder_cgroup_memory_oom_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[5m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "C"
+        },
+        {
+          "expr": "increase(fibre_encoder_cgroup_memory_oom_kill_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[5m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "D"
+        }
+      ],
+      "title": "Cgroup memory limit / OOM events in 5 minutes",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Counters are cumulative since device lifetime; rate measures current allowance pressure. Packet drops do not directly equal lost useful bytes.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 157
+      },
+      "id": 205,
+      "targets": [
+        {
+          "expr": "rate(fibre_encoder_ena_bw_in_allowance_exceeded_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(fibre_encoder_ena_bw_out_allowance_exceeded_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(fibre_encoder_ena_pps_allowance_exceeded_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "C"
+        },
+        {
+          "expr": "rate(fibre_encoder_ena_conntrack_allowance_exceeded_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "D"
+        },
+        {
+          "expr": "rate(fibre_encoder_ena_linklocal_allowance_exceeded_total{chain_id=\"$chain\",component_id=~\"$encoder\"}[1m])",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "E"
+        }
+      ],
+      "title": "ENA allowance drops per second",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 165
+      },
+      "id": 206,
+      "targets": [
+        {
+          "expr": "fibre_encoder_ena_conntrack_allowance_available{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        }
+      ],
+      "title": "ENA conntrack allowance remaining",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 165
+      },
+      "id": 207,
+      "targets": [
+        {
+          "expr": "fibre_encoder_host_service_collect_success{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "A"
+        },
+        {
+          "expr": "fibre_encoder_ena_collect_success{chain_id=\"$chain\",component_id=~\"$encoder\"}",
+          "legendFormat": "{{__name__}} {{component_id}} {{device}}",
+          "refId": "B"
+        }
+      ],
+      "title": "Host service / ENA collection successful",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Sum of unique encoder counters,1minute rate. All includes every selected encoder. Raw useful bytes, not encoded shard or NIC traffic.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
+      "id": 400,
+      "targets": [
+        {
+          "expr": "sum((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"encoder_admitted\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"}))) / 1073741824",
+          "legendFormat": "TOTAL encoder_admitted GiB/s",
+          "refId": "A"
+        },
+        {
+          "expr": "sum((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"}))) / 1073741824",
+          "legendFormat": "TOTAL chain_confirmed GiB/s",
+          "refId": "B"
+        }
+      ],
+      "title": "TOTAL encoder raw throughput \u2014 admitted vs chain confirmed",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
+      "id": 401,
+      "targets": [
+        {
+          "expr": "(max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"})) / 1073741824",
+          "legendFormat": "{{component_id}} confirmed GiB/s",
+          "refId": "A"
+        }
+      ],
+      "title": "Per-encoder raw confirmed throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 11
+      },
+      "id": 402,
+      "targets": [
+        {
+          "expr": "count((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",component_id=~\"$encoder\",boundary=\"chain_confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",role=\"encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "Rate sources",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(up{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"})",
+          "legendFormat": "Selected reachable targets",
+          "refId": "B"
+        }
+      ],
+      "title": "Included encoder rate sources / selected reachable targets",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "All selected providers. Includes duplicate/retry shard payload; not raw useful bytes or exact NIC wire bytes. Provider metric has no source-encoder attribution: may include traffic from unselected encoders.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:GiB/s"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 11
+      },
+      "id": 403,
+      "targets": [
+        {
+          "expr": "sum(max by(component_id)(rate(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}[1m]))) / 1073741824",
+          "legendFormat": "TOTAL received shard payload GiB/s",
+          "refId": "A"
+        }
+      ],
+      "title": "TOTAL Fibre received shard throughput \u2014 expanded payload",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 18
+      },
+      "id": 405,
+      "targets": [
+        {
+          "expr": "count(max by(component_id)(rate(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}[1m])))",
+          "legendFormat": "Provider rate sources",
+          "refId": "A"
+        },
+        {
+          "expr": "max(time()-timestamp(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\",job=\"freshchain-fibre-central\",service_instance_id=~\"$fibre_instance\"}))",
+          "legendFormat": "Oldest sample age seconds",
+          "refId": "B"
+        }
+      ],
+      "title": "Included Fibre providers / oldest sample age",
+      "type": "timeseries"
+    },
+    {
+      "id": 500,
+      "title": "TOTAL payload input rates \u2014 admitted / dispatched / confirmed / unknown",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:inputs/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL unique admitted inputs/s"
+        },
+        {
+          "refId": "B",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_dispatch_batch_inputs_sum{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL dispatched inputs inputs/s"
+        },
+        {
+          "refId": "C",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL confirmed outcomes inputs/s"
+        },
+        {
+          "refId": "D",
+          "expr": "sum((max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"unknown\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))",
+          "legendFormat": "TOTAL unknown outcomes inputs/s"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 173,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 501,
+      "title": "Per-encoder unique admitted payload inputs/s",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:inputs/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))",
+          "legendFormat": "{{component_id}} admitted inputs/s"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 173,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 502,
+      "title": "Per-encoder confirmed / unknown outcome inputs/s",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "suffix:inputs/s"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"confirmed\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))",
+          "legendFormat": "{{component_id}} confirmed outcomes inputs/s"
+        },
+        {
+          "refId": "B",
+          "expr": "(max by(component_id)(rate(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"unknown\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))",
+          "legendFormat": "{{component_id}} unknown outcomes inputs/s"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 181,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 503,
+      "title": "TOTAL average admitted payload bytes per input",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Raw admitted bytes / unique admitted input count. Weighted mean only, not percentile/min/max. No admissions yields no data.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "(sum((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",boundary=\"encoder_admitted\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))) / sum((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})))) and (sum((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))) > 0)",
+          "legendFormat": "Fleet weighted mean input bytes"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 181,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 504,
+      "title": "Per-encoder average admitted payload bytes per input",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Mean only; individual-input size histogram is unavailable. Excludes idempotent retries and rejected attempts. No admissions yields no data.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "((max by(component_id)(rate(fibre_bench_raw_bytes_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",boundary=\"encoder_admitted\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})) / (max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"}))) and ((max by(component_id)(rate(fibre_encoder_admitted_inputs_total{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\"}[1m])) and on(component_id) max by(component_id)(fibre_bench_identity_info{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",run_id=~\"$run\"})) > 0)",
+          "legendFormat": "{{component_id}} mean input bytes"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 189,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 505,
+      "title": "TOTAL current pending payload inputs",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Current pending gauges, not cumulative counters.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"accepted\"})",
+          "legendFormat": "accepted inputs"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"dispatching\"})",
+          "legendFormat": "dispatching inputs"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 189,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 506,
+      "title": "TOTAL cumulative terminal outcomes since current processes started",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "description": "Unique admitted payload inputs, not all WS/HTTP requests. Retries, status polls and pre-admission rejects are excluded. Memory-ledger confirmed/unknown totals are monotonic across receipt eviction but reset on process restart; rate handles resets. Cohorts can cross window boundaries. Unknown is unresolved, not definitive failure.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"confirmed\"})",
+          "legendFormat": "confirmed cumulative inputs"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(fibre_encoder_ledger_inputs{chain_id=\"$chain\",job=\"workload\",component_id=~\"$encoder\",state=\"unknown\"})",
+          "legendFormat": "unknown cumulative inputs"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 197,
+        "w": 12,
+        "h": 8
+      }
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 41,
+  "tags": [
+    "fibre",
+    "fullscale"
+  ],
+  "templating": {
+    "list": [
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": false,
+        "multi": false,
+        "name": "chain",
+        "query": "label_values(up,chain_id)",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "label": "Encoders",
+        "multi": true,
+        "name": "encoder",
+        "query": "label_values(fibre_encoder_put_limit{chain_id=\"$chain\"},component_id)",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "run",
+        "query": "label_values(fibre_bench_identity_info{chain_id=\"$chain\",role=\"encoder\"},run_id)",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "host",
+        "query": "label_values(up{chain_id=\"$chain\",job=\"hosts\"},instance)",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "includeAll": true,
+        "multi": true,
+        "name": "fibre_instance",
+        "query": "label_values(fibre_server_upload_shard_bytes_total{chain_id=\"$chain\"},service_instance_id)",
+        "refresh": 1,
+        "type": "query"
+      },
+      {
+        "name": "data_mount",
+        "label": "Data filesystem",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(node_filesystem_avail_bytes{chain_id=\"$chain\",fstype!~\"tmpfs|overlay|squashfs\"},mountpoint)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "timezone": "utc",
+  "title": "Fibre Fullscale Readiness \u2014 direct metrics",
+  "uid": "fibre-fullscale-readiness",
+  "version": 1
+}
