@@ -13,6 +13,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -104,9 +105,17 @@ func newClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSi
 			),
 		}
 		if sourceIP != "" {
+			metrics, err := newConnectionMetrics(otel.Meter("fibre-transport"))
+			if err != nil {
+				return nil, err
+			}
 			dialer := &net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP(sourceIP)}}
 			opts = append(opts, grpclib.WithContextDialer(func(ctx context.Context, address string) (net.Conn, error) {
-				return dialer.DialContext(ctx, "tcp", address)
+				conn, err := dialer.DialContext(ctx, "tcp", address)
+				if err != nil {
+					return nil, err
+				}
+				return metrics.wrap(conn, "client"), nil
 			}))
 		}
 		conn, err := grpclib.NewClient(host.String(), opts...)

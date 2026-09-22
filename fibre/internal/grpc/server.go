@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"go.opentelemetry.io/otel"
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -59,6 +60,12 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
+	metrics, err := newConnectionMetrics(otel.Meter("fibre-transport"))
+	if err != nil {
+		_ = listener.Close()
+		return nil, fmt.Errorf("create transport metrics: %w", err)
+	}
+	listener = &meteredListener{Listener: listener, metrics: metrics}
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)

@@ -332,3 +332,49 @@ existing limit. Size `--max-concurrent-streams` together with that limit: their
 product bounds concurrent requests and can greatly increase memory use with large
 blobs. Defaults are unchanged. Measure each card's traffic and confirmed throughput
 before increasing concurrency; these flags do not configure or attach ENIs.
+
+### Connection-path metrics
+
+With OTLP metrics enabled, Fibre servers expose TCP connection counts and byte
+counters by `role` and `local_ip`. Clients using `--network-config` expose the same
+metrics with an additional `remote_ip` label. Ephemeral ports are not labels.
+
+- `fibre_transport_connections`: currently open TCP connections, including TLS
+  handshakes. An open connection does not imply that it carries shard traffic.
+- `fibre_transport_sent_bytes_total`: bytes written to TCP.
+- `fibre_transport_received_bytes_total`: bytes read from TCP.
+
+The byte counters include TLS and HTTP/2 overhead, but exclude TCP/IP headers and
+retransmissions. They measure actual successful reads/writes, including partial
+I/O on failed transfers. These Prometheus names assume metric suffixes are enabled
+in the OTLP-to-Prometheus exporter.
+
+For colocated servers and uploaders, separate `role="server"` and `role="client"`.
+For example, uploader throughput by source IP in GiB/s:
+
+```promql
+sum by (instance, local_ip) (
+  rate(fibre_transport_sent_bytes_total{role="client"}[1m])
+) / 1073741824
+```
+
+Server receive throughput by destination IP:
+
+```promql
+sum by (instance, local_ip) (
+  rate(fibre_transport_received_bytes_total{role="server"}[1m])
+) / 1073741824
+```
+
+Open uploader connections by source and destination IP:
+
+```promql
+sum by (instance, local_ip, remote_ip) (
+  fibre_transport_connections{role="client"}
+)
+```
+
+Two local IPs with sustained traffic indicate that both configured paths are in
+use. Confirm physical NIC utilization using node-exporter interface counters:
+self-delivery can remain inside the host, and two IPs can belong to one interface.
+A configured path that has never connected may have no time series yet.
