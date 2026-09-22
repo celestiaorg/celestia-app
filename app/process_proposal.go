@@ -88,7 +88,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
-		maxPFF          = appconsts.MaxPayForFibreMessages
+		maxPFF          = appconsts.GetMaxPayForFibreMessages(ctx.ConsensusParams().Version.GetApp())
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non

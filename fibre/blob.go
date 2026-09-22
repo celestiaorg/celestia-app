@@ -42,6 +42,7 @@ type BlobConfig struct {
 	Assembler *row.Assembler
 	// DataPool pools blob downloads allocations.
 	DataPool *row.Pool
+	workPool *row.Pool
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -109,6 +110,7 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		Coder:         coder,
 		Assembler:     assembler,
 		DataPool:      dataPool,
+		workPool:      workPool,
 	}, nil
 }
 
@@ -272,9 +274,12 @@ func (d *Blob) retain() bool {
 // Called by internal owners (e.g., Upload's terminal goroutine) after they
 // finish using the blob.
 func (d *Blob) release() {
-	if d.refCount.Add(-1) == 0 && d.releaseFn != nil {
-		d.releaseFn()
-		d.releaseFn = nil
+	if d.refCount.Add(-1) == 0 {
+		d.data, d.extendedData = nil, nil
+		if d.releaseFn != nil {
+			d.releaseFn()
+			d.releaseFn = nil
+		}
 	}
 }
 

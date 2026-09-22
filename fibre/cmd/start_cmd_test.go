@@ -235,3 +235,21 @@ func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress, signer
 	cfg.SignerGRPCAddress = signerGRPCAddress
 	require.NoError(t, cfg.Save(fibre.DefaultConfigPath(home)))
 }
+
+func TestStartCmdConnectionLimits(t *testing.T) {
+	home := t.TempDir()
+	cfg := fibre.DefaultServerConfig()
+	cfg.MaxConnections = 64
+	cfg.MaxConcurrentStreams = 4
+	require.NoError(t, cfg.Save(fibre.DefaultConfigPath(home)))
+	cmd, got := newTestStartCmd(t, home)
+	cmd.SetArgs([]string{"--max-connections", "128"})
+	require.NoError(t, cmd.ExecuteContext(context.Background()))
+	require.Equal(t, 128, got.MaxConnections)
+	require.Equal(t, 4, got.MaxConcurrentStreams)
+	cmd, got = newTestStartCmd(t, home)
+	cmd.SetArgs([]string{"--max-concurrent-streams", "2"})
+	require.NoError(t, cmd.ExecuteContext(context.Background()))
+	require.Equal(t, 64, got.MaxConnections)
+	require.Equal(t, 2, got.MaxConcurrentStreams)
+}

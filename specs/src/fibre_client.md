@@ -68,7 +68,7 @@ Defaults come from `DefaultProtocolParams`:
 * `SafetyThreshold = 2/3`
 * `LivenessThreshold = 1/3`
 * `RPCTimeout = 15s`
-* `MaxBlobSize = 128 MiB`
+* `MaxBlobSize = 2 GiB`
 * original rows `K = 4096`
 * total rows `K + N = 16384`
 * supported blob version: `0`
@@ -104,7 +104,7 @@ func (b *Blob) RowSize() int
 func (b *Blob) Free()
 ```
 
-`NewBlob` requires non-empty data. It returns `ErrBlobTooLarge` if `len(data)` exceeds `BlobConfig.MaxDataSize` (`128 MiB - 5` for the default v0 header). The returned blob owns pooled storage and must be released with `Free`.
+`NewBlob` requires non-empty data. It returns `ErrBlobTooLarge` if `len(data)` exceeds `BlobConfig.MaxDataSize` (`2 GiB - 5` for the default v0 header). The returned blob owns pooled storage and must be released with `Free`.
 
 ### Upload
 
@@ -252,7 +252,7 @@ Rows are produced with `rsema1d`. Default protocol parameters:
 * parity rows: `12288`
 * total rows: `16384`
 * encoding ratio: `0.25`
-* maximum blob size, including header: `128 MiB`
+* maximum blob size, including header: `2 GiB`
 * minimum row-size alignment: `64` bytes
 
 `UploadSize` is the padded original-row size only:

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ const FibreTxSimSessionName = "fibre-txsim"
 
 func fibreTxsimCmd() *cobra.Command {
 	var (
+		networkConfigDir  string
 		rootDir           string
 		SSHKeyPath        string
 		instances         int
@@ -31,6 +33,9 @@ func fibreTxsimCmd() *cobra.Command {
 		Short: "Start fibre-txsim on remote validators or encoder instances via SSH + tmux",
 		Long:  "Starts fibre-txsim tmux sessions on remote validators or dedicated encoder instances. The fibre-txsim binary must already be deployed via 'talis deploy' (built by 'make build-talis-bins').",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if instances <= 0 {
+				return fmt.Errorf("--instances must be positive")
+			}
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
@@ -42,12 +47,16 @@ func fibreTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			if onEncoders {
-				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, duration, download, uploadOnly, pyroscopeEndpoint)
+				return startFibreTxsimOnEncoders(cmd.Context(), cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, duration, download, uploadOnly, pyroscopeEndpoint, networkConfigDir)
 			}
 
 			// Legacy mode: run fibre-txsim on validators themselves
 			n := min(instances, len(cfg.Validators))
 			validators := cfg.Validators[:n]
+			networkArg, err := stageFibreNetworkConfigs(cmd.Context(), networkConfigDir, validators, resolvedSSHKeyPath, FibreTxSimSessionName)
+			if err != nil {
+				return err
+			}
 
 			// Build the remote command — binaries are copied to /bin/ by validator_init.sh
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
@@ -74,6 +83,8 @@ func fibreTxsimCmd() *cobra.Command {
 				remoteCmd += fmt.Sprintf(" --pyroscope-endpoint %s", pyroscopeEndpoint)
 			}
 
+			remoteCmd += networkArg
+
 			fmt.Printf("Starting fibre-txsim sessions on %d validator(s)...\n", len(validators))
 
 			if err := runScriptInTMux(validators, resolvedSSHKeyPath, remoteCmd, FibreTxSimSessionName, 5*time.Minute); err != nil {
@@ -85,6 +96,7 @@ func fibreTxsimCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&networkConfigDir, "network-config-dir", "", "directory containing <instance-name>.json network configs")
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 1, "number of instances to start fibre-txsim on")
@@ -104,13 +116,17 @@ func fibreTxsimCmd() *cobra.Command {
 // startFibreTxsimOnEncoders launches fibre-txsim on each encoder instance.
 // Each encoder is mapped to a validator (round-robin) and uses a unique key
 // prefix (enc0, enc1, ...) so that their escrow accounts are independent.
-func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval, duration time.Duration, download, uploadOnly bool, pyroscopeEndpoint string) error {
+func startFibreTxsimOnEncoders(ctx context.Context, cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval, duration time.Duration, download, uploadOnly bool, pyroscopeEndpoint, networkConfigDir string) error {
 	if len(cfg.Encoders) == 0 {
 		return fmt.Errorf("no encoder instances found in config — add encoders via 'talis add -t encoder'")
 	}
 
 	n := min(instances, len(cfg.Encoders))
 	encoders := cfg.Encoders[:n]
+	networkArg, err := stageFibreNetworkConfigs(ctx, networkConfigDir, encoders, sshKeyPath, FibreTxSimSessionName)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("Starting fibre-txsim on %d encoder(s)...\n", len(encoders))
 
@@ -150,6 +166,8 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 		if pyroscopeEndpoint != "" {
 			remoteCmd += fmt.Sprintf(" --pyroscope-endpoint %s", pyroscopeEndpoint)
 		}
+
+		remoteCmd += networkArg
 
 		fmt.Printf("  encoder %s → validator %s (grpc=%s, keys=%s-*)\n",
 			enc.Name, cfg.Validators[valIndex].Name, grpcEndpoint, encKeyPrefix)

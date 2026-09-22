@@ -39,6 +39,7 @@ import (
 const downloadDelay = 10 * time.Second
 
 type config struct {
+	networkConfig     string
 	grpcEndpoint      string
 	keyringDir        string
 	keyPrefix         string
@@ -56,6 +57,7 @@ type config struct {
 
 func main() {
 	var cfg config
+	flag.StringVar(&cfg.networkConfig, "network-config", "", "JSON configuration for paired local and validator network addresses")
 	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
 	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
 	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
@@ -126,6 +128,15 @@ type stats struct {
 }
 
 func run(cfg config) error {
+	var network *fibre.NetworkConfig
+	if cfg.networkConfig != "" {
+		var err error
+		network, err = fibre.LoadNetworkConfig(cfg.networkConfig)
+		if err != nil {
+			return fmt.Errorf("load network config: %w", err)
+		}
+	}
+
 	if cfg.concurrency <= 0 {
 		return fmt.Errorf("--concurrency must be >= 1, got %d", cfg.concurrency)
 	}
@@ -182,6 +193,7 @@ func run(cfg config) error {
 	// Create a single shared fibre client with a cached validator set to avoid
 	// redundant gRPC round-trips on every upload/download.
 	clientCfg := fibre.DefaultClientConfig()
+	clientCfg.Network = network
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
 	// Validate populates StateClientFn from StateAddress so we can wrap it.

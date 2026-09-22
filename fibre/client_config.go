@@ -17,6 +17,9 @@ import (
 
 // ClientConfig contains configuration options for the Fibre [Client].
 type ClientConfig struct {
+	// Network optionally selects explicit source and validator IP paths.
+	Network *NetworkConfig
+
 	// DefaultKeyName is the name of the key in the keyring to use for signing [PaymentPromise]s.
 	DefaultKeyName string
 	// StateAddress is the gRPC address of the celestia-app node.
@@ -68,6 +71,10 @@ type ClientConfig struct {
 	// Escrow configures client-side escrow auto-funding so uploads don't fail
 	// when the escrow account runs low.
 	Escrow EscrowConfig
+
+	// PutLimiter bounds blobs retaining encoded storage during Put. Nil disables
+	// the limit; pending confirmations do not consume capacity.
+	PutLimiter *PutLimiter
 }
 
 // defaultEscrowConfig derives escrow auto-funding defaults from the protocol
@@ -114,6 +121,14 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 
 // Validate validates the ClientConfig and sets default values for unset fields.
 func (cfg *ClientConfig) Validate() error {
+	if cfg.Network != nil {
+		if cfg.NewClientFn != nil {
+			return fmt.Errorf("network and custom client factory cannot both be set")
+		}
+		if err := cfg.Network.Validate(); err != nil {
+			return err
+		}
+	}
 	if cfg.StateClientFn == nil {
 		if cfg.StateAddress == "" {
 			return fmt.Errorf("state address is required for default state client")

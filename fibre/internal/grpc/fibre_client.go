@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
@@ -50,6 +51,10 @@ func (f *fibreClientCloser) Close() error {
 // chainID is evaluated lazily per dial because the state client resolves it
 // during Start, which can run after this constructor.
 func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int, log *slog.Logger) NewClientFn {
+	return newClientFn(hostReg, chainID, maxMsgSize, log, "")
+}
+
+func newClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int, log *slog.Logger, sourceIP string) NewClientFn {
 	if log == nil {
 		log = slog.Default()
 	}
@@ -88,7 +93,7 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 			MinVersion: tls.VersionTLS13,
 		}
 
-		conn, err := grpclib.NewClient(host.String(),
+		opts := []grpclib.DialOption{
 			grpclib.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
@@ -97,7 +102,14 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 				// Pooled + scatter-gather codec; see codec.go.
 				grpclib.CallContentSubtype(codecName),
 			),
-		)
+		}
+		if sourceIP != "" {
+			dialer := &net.Dialer{LocalAddr: &net.TCPAddr{IP: net.ParseIP(sourceIP)}}
+			opts = append(opts, grpclib.WithContextDialer(func(ctx context.Context, address string) (net.Conn, error) {
+				return dialer.DialContext(ctx, "tcp", address)
+			}))
+		}
+		conn, err := grpclib.NewClient(host.String(), opts...)
 		if err != nil {
 			return nil, err
 		}

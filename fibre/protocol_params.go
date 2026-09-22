@@ -65,7 +65,7 @@ var DefaultProtocolParams = ProtocolParams{
 	SafetyThreshold:            cmtmath.Fraction{Numerator: 2, Denominator: 3},
 	LivenessThreshold:          cmtmath.Fraction{Numerator: 1, Denominator: 3},
 
-	MaxBlobSize: 1 << 27, // 128 MiB
+	MaxBlobSize: 1 << 31, // 2 GiB
 	MinRowSize:  field.LeopardChunkSize,
 }
 

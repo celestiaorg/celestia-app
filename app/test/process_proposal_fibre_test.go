@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -32,70 +35,87 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 		t.Skip("skipping process proposal capping PayForFibre messages test in short mode.")
 	}
 
-	numPFFs := appconsts.MaxPayForFibreMessages + 1
-	numberOfAccounts := numPFFs
-	accounts := testfactory.GenerateAccounts(numberOfAccounts)
-	consensusParams := app.DefaultConsensusParams()
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
-	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	for _, appVersion := range []uint64{10, 11} {
+		t.Run(fmt.Sprintf("v%d", appVersion), func(t *testing.T) {
+			limit := appconsts.GetMaxPayForFibreMessages(appVersion)
+			numPFFs := limit + 1
+			numberOfAccounts := numPFFs
+			accounts := testfactory.GenerateAccounts(numberOfAccounts)
+			consensusParams := app.DefaultConsensusParams()
+			consensusParams.Version.App = appVersion
+			testApp := app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0, pffProposalOptions{}, baseapp.SetChainID(testutil.ChainID))
+			genesisState, _, kr := testutil.GenesisStateWithSingleValidator(testApp, accounts...)
+			testApp = testutil.InitialiseTestAppWithGenesis(testApp, consensusParams, genesisState)
+			commitBlock(t, testApp)
+			enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	infos := queryAccountInfo(testApp, accounts, kr)
-	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
-	signers := make([]*user.Signer, 0, numberOfAccounts)
-	for index, account := range accounts {
-		signers = append(signers, newSigner(index))
-		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
-	}
-
-	// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
-	pffTxs := make([][]byte, 0, numPFFs)
-	for i := range numPFFs {
-		pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
-	}
-
-	type testCase struct {
-		name           string
-		txs            [][]byte
-		expectedResult abci.ResponseProcessProposal_ProposalStatus
-	}
-
-	testCases := []testCase{
-		{
-			name:           "reject block exceeding MaxPayForFibreMessages",
-			txs:            pffTxs[:appconsts.MaxPayForFibreMessages+1],
-			expectedResult: abci.ResponseProcessProposal_REJECT,
-		},
-		{
-			name:           "accept block at exactly MaxPayForFibreMessages",
-			txs:            pffTxs[:appconsts.MaxPayForFibreMessages],
-			expectedResult: abci.ResponseProcessProposal_ACCEPT,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			var dataRootHash []byte
-			var squareSize uint64
-			if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
-				classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
-				require.NoError(t, err)
-				dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-				require.NoError(t, err)
-				dataRootHash = calculateNewDataHash(t, tc.txs)
-				ss, err := dataSquare.Size()
-				require.NoError(t, err)
-				squareSize = uint64(ss)
+			infos := queryAccountInfo(testApp, accounts, kr)
+			newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+			signers := make([]*user.Signer, 0, numberOfAccounts)
+			for index, account := range accounts {
+				signers = append(signers, newSigner(index))
+				seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 			}
 
-			resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-				Height:       testApp.LastBlockHeight() + 1,
-				Time:         time.Now(),
-				Txs:          tc.txs,
-				DataRootHash: dataRootHash,
-				SquareSize:   squareSize,
+			// Generate MaxPayForFibreMessages+1 signed MsgPayForFibre txs.
+			pffTxs := make([][]byte, 0, numPFFs)
+			for i := range numPFFs {
+				pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
+			}
+
+			proposed, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Height: testApp.LastBlockHeight() + 1,
+				Time:   time.Now(),
+				Txs:    pffTxs,
 			})
 			require.NoError(t, err)
-			require.Equal(t, tc.expectedResult, resp.Status)
+			require.Len(t, proposed.Txs, 1)
+
+			type testCase struct {
+				name           string
+				txs            [][]byte
+				expectedResult abci.ResponseProcessProposal_ProposalStatus
+			}
+
+			testCases := []testCase{
+				{
+					name:           "reject block exceeding MaxPayForFibreMessages",
+					txs:            pffTxs[:limit+1],
+					expectedResult: abci.ResponseProcessProposal_REJECT,
+				},
+				{
+					name:           "accept block at exactly MaxPayForFibreMessages",
+					txs:            pffTxs[:limit],
+					expectedResult: abci.ResponseProcessProposal_ACCEPT,
+				},
+			}
+
+			for _, tc := range testCases {
+				t.Run(tc.name, func(t *testing.T) {
+					var dataRootHash []byte
+					var squareSize uint64
+					if tc.expectedResult == abci.ResponseProcessProposal_ACCEPT {
+						classifiedTxs, err := fibretypes.ClassifyTxs(tc.txs)
+						require.NoError(t, err)
+						dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+						require.NoError(t, err)
+						dataRootHash = calculateNewDataHash(t, tc.txs)
+						ss, err := dataSquare.Size()
+						require.NoError(t, err)
+						squareSize = uint64(ss)
+					}
+
+					resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+						Height:       testApp.LastBlockHeight() + 1,
+						Time:         time.Now(),
+						Txs:          tc.txs,
+						DataRootHash: dataRootHash,
+						SquareSize:   squareSize,
+					})
+					require.NoError(t, err)
+					require.Equal(t, tc.expectedResult, resp.Status)
+				})
+			}
 		})
 	}
 }
@@ -535,4 +555,14 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
 	}
+}
+
+// A validator with a lower local proposal target must accept the protocol maximum.
+type pffProposalOptions struct{}
+
+func (pffProposalOptions) Get(key string) interface{} {
+	if key == app.FlagPFFProposalLimit {
+		return 1
+	}
+	return nil
 }

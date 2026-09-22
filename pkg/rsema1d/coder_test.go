@@ -48,6 +48,7 @@ var roundtripConfigs = []struct {
 	{"1:3 medium k=8 n=24", 8, 24, 256},
 	{"1:1 large k=16 n=16", 16, 16, 512},
 	{"1:3 large k=16 n=48", 16, 48, 512},
+	{"1:3 max row k=4 n=12", 4, 12, 512 << 10},
 }
 
 // fillRows fills k rows of `rowSize` deterministic bytes seeded by k+rowSize

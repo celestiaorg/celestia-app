@@ -37,6 +37,7 @@ WORKDIR /celestia-app
 
 # cache go module dependencies
 COPY go.mod go.sum ./
+COPY third_party/reedsolomon ./third_party/reedsolomon
 RUN go mod download
 
 # copy source code after downloading modules (to leverage caching)

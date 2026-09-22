@@ -12,12 +12,14 @@ const StartFibreSessionName = "fibre"
 
 func startFibreCmd() *cobra.Command {
 	var (
-		rootDir           string
-		SSHKeyPath        string
-		instances         int
-		metricsAddress    string
-		pyroscopeEndpoint string
-		storageLimit      bool
+		rootDir              string
+		SSHKeyPath           string
+		instances            int
+		metricsAddress       string
+		pyroscopeEndpoint    string
+		storageLimit         bool
+		maxConnections       int
+		maxConcurrentStreams int
 	)
 
 	cmd := &cobra.Command{
@@ -25,6 +27,10 @@ func startFibreCmd() *cobra.Command {
 		Short: "Start fibre server on remote validators via SSH + tmux",
 		Long:  "Starts fibre server tmux sessions on remote validators. The fibre binary must already be deployed via 'talis deploy'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			limits, err := fibreServerLimitArgs(cmd)
+			if err != nil {
+				return err
+			}
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
@@ -43,7 +49,7 @@ func startFibreCmd() *cobra.Command {
 
 			// Build the remote command
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
-			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091"
+			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091" + limits
 			// Disable the storage limiter by default so experiments run at full
 			// throughput; pass --storage-limit to exercise the limiter instead.
 			if !storageLimit {
@@ -87,6 +93,8 @@ func startFibreCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().IntVar(&maxConnections, "max-connections", 0, "override Fibre server connection limit (must be positive)")
+	cmd.Flags().IntVar(&maxConcurrentStreams, "max-concurrent-streams", 0, "override Fibre server streams per connection (must be positive)")
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "number of validators to start fibre on (default all)")
@@ -95,4 +103,22 @@ func startFibreCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&storageLimit, "storage-limit", false, "enable the Fibre storage limiter (default: disabled so experiments run at full throughput)")
 
 	return cmd
+}
+
+func fibreServerLimitArgs(cmd *cobra.Command) (string, error) {
+	var args strings.Builder
+	for _, name := range []string{"max-connections", "max-concurrent-streams"} {
+		if !cmd.Flags().Changed(name) {
+			continue
+		}
+		value, err := cmd.Flags().GetInt(name)
+		if err != nil {
+			return "", err
+		}
+		if value <= 0 {
+			return "", fmt.Errorf("--%s must be positive", name)
+		}
+		fmt.Fprintf(&args, " --%s %d", name, value)
+	}
+	return args.String(), nil
 }

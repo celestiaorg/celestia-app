@@ -12,6 +12,7 @@ const FibreReaderSessionName = "fibre-reader"
 
 func fibreReaderCmd() *cobra.Command {
 	var (
+		networkConfigDir    string
 		rootDir             string
 		SSHKeyPath          string
 		instances           int
@@ -45,6 +46,10 @@ func fibreReaderCmd() *cobra.Command {
 			}
 			readers := cfg.Readers[:n]
 			readerCount := len(readers)
+			networkArg, err := stageFibreNetworkConfigs(cmd.Context(), networkConfigDir, readers, resolvedSSHKeyPath, FibreReaderSessionName)
+			if err != nil {
+				return err
+			}
 
 			fmt.Printf("Starting fibre-reader on %d reader(s)...\n", readerCount)
 
@@ -80,6 +85,8 @@ func fibreReaderCmd() *cobra.Command {
 					remoteCmd += fmt.Sprintf(" --pyroscope-endpoint %s", pyroscopeEndpoint)
 				}
 
+				remoteCmd += networkArg
+
 				fmt.Printf("  reader %s -> validator %s (rpc=%s, grpc=%s, index=%d/%d)\n",
 					r.Name, target.Name, rpcEndpoint, grpcEndpoint, readerIndex, readerCount)
 
@@ -93,6 +100,7 @@ func fibreReaderCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().StringVar(&networkConfigDir, "network-config-dir", "", "directory containing <instance-name>.json network configs")
 	cmd.Flags().StringVarP(&rootDir, "directory", "d", ".", "root directory (for config.json)")
 	cmd.Flags().StringVarP(&SSHKeyPath, "ssh-key-path", "k", "", "path to SSH private key (overrides env/default)")
 	cmd.Flags().IntVar(&instances, "instances", 0, "max number of reader instances to launch (0 = all)")

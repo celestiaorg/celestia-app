@@ -216,7 +216,8 @@ type App struct {
 	txCache *TxCache
 	// sigCache skips repeat signature verification across ante passes, the
 	// fibre message server and every ABCI phase. It is in memory only.
-	sigCache *sigcache.Cache
+	sigCache         *sigcache.Cache
+	pffProposalLimit int
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -240,6 +241,10 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	pffProposalLimit, err := parsePFFProposalLimit(appOpts.Get(FlagPFFProposalLimit))
+	if err != nil {
+		panic(err)
+	}
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
@@ -268,6 +273,7 @@ func New(
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
 		sigCache:                NewSigCache(),
+		pffProposalLimit:        pffProposalLimit,
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},

@@ -224,3 +224,16 @@ func TestValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestV10AndV11UseNativeApp(t *testing.T) {
+	versions, err := NewVersions(Version{AppVersion: 3}, Version{AppVersion: 4}, Version{AppVersion: 5}, Version{AppVersion: 6}, Version{AppVersion: 7}, Version{AppVersion: 8}, Version{AppVersion: 9})
+	require.NoError(t, err)
+	for version := uint64(3); version <= 9; version++ {
+		require.False(t, versions.ShouldUseLatestApp(version))
+		selected, err := versions.GetForAppVersion(version)
+		require.NoError(t, err)
+		require.Equal(t, version, selected.AppVersion)
+	}
+	require.True(t, versions.ShouldUseLatestApp(10))
+	require.True(t, versions.ShouldUseLatestApp(11))
+}

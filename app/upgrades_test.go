@@ -35,6 +35,7 @@ func TestUpgrades(t *testing.T) {
 
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v9"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v10"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v11"))
 	})
 }
 
@@ -225,4 +226,31 @@ func TestMaxCommissionRate(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "commission rate cannot be greater than the max commission rate")
 	})
+}
+
+func TestV11UpgradePreservesV10State(t *testing.T) {
+	params := app.DefaultConsensusParams()
+	params.Version.App = 10
+	testApp, _, _ := util.NewTestAppWithGenesisSet(params)
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	applyV10Upgrade(t, testApp, ctx)
+	address := testApp.AccountKeeper.GetModuleAddress(fibretypes.ModuleName)
+	account := testApp.AccountKeeper.GetAccount(ctx, address)
+	require.NotNil(t, account)
+	require.NoError(t, account.SetSequence(42))
+	testApp.AccountKeeper.SetAccount(ctx, account)
+	beforeParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+	require.NoError(t, err)
+	beforeVersionMap, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v11", Height: 2}))
+	after := testApp.AccountKeeper.GetAccount(ctx, address)
+	require.Equal(t, account.GetAccountNumber(), after.GetAccountNumber())
+	require.Equal(t, uint64(42), after.GetSequence())
+	afterParams, err := testApp.ConsensusKeeper.ParamsStore.Get(ctx)
+	require.NoError(t, err)
+	require.Equal(t, beforeParams, afterParams)
+	afterVersionMap, err := testApp.UpgradeKeeper.GetModuleVersionMap(ctx)
+	require.NoError(t, err)
+	require.Equal(t, beforeVersionMap, afterVersionMap)
 }
