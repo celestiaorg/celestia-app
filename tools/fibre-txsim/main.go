@@ -45,6 +45,7 @@ type config struct {
 	blobSize          int
 	maxBlobSizeMiB    int
 	concurrency       int
+	keyOffset         int
 	interval          time.Duration
 	duration          time.Duration
 	otelEndpoint      string
@@ -63,6 +64,7 @@ func main() {
 	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
 	flag.IntVar(&cfg.maxBlobSizeMiB, "experimental-max-blob-size-mib", fibre.DefaultProtocolParams.MaxBlobSize>>20, "experimental Fibre v0 maximum blob size in MiB; must match all servers and readers")
 	flag.IntVar(&cfg.concurrency, "concurrency", 1, "number of concurrent blob submissions (each gets its own account)")
+	flag.IntVar(&cfg.keyOffset, "key-offset", 0, "index of the first key to use, so several processes can share a keyring")
 	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
@@ -191,7 +193,7 @@ func run(cfg config) error {
 		return fmt.Errorf("invalid --experimental-max-blob-size-mib: %w", err)
 	}
 	clientCfg.StateAddress = cfg.grpcEndpoint
-	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
+	clientCfg.DefaultKeyName = fmt.Sprintf("%s-%d", cfg.keyPrefix, cfg.keyOffset)
 	// Validate populates StateClientFn from StateAddress so we can wrap it.
 	// NewClient calls Validate again, which is idempotent for already-set fields.
 	if err := clientCfg.Validate(); err != nil {
@@ -221,7 +223,7 @@ func run(cfg config) error {
 	// Create one worker per concurrent slot, each with its own account
 	workers := make([]worker, cfg.concurrency)
 	for i := range cfg.concurrency {
-		keyName := fmt.Sprintf("%s-%d", cfg.keyPrefix, i)
+		keyName := fmt.Sprintf("%s-%d", cfg.keyPrefix, cfg.keyOffset+i)
 
 		grpcConn, err := grpc.NewClient(
 			cfg.grpcEndpoint,
