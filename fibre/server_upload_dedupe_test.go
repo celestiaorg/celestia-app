@@ -69,11 +69,9 @@ func TestServerUploadShardConcurrentDuplicates(t *testing.T) {
 	errs := make([]error, n)
 	var wg sync.WaitGroup
 	for i := range n {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			responses[i], errs[i] = server.UploadShard(t.Context(), req)
-		}()
+		})
 	}
 	wg.Wait()
 
