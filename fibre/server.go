@@ -15,6 +15,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -141,16 +142,21 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.Creds(creds),
 	)
 
-	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
+	pubKey, err := s.signer.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("getting validator public key: %w", err)
+	}
+	s.Config.ObjectStorage.ChainID = s.state.ChainID()
+	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
+	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
+	s.store.shards.setMetrics(s.metrics)
 
-	size, err := s.store.Size(ctx)
-	if err != nil {
-		return fmt.Errorf("getting store size: %w", err)
+	if err := s.seedOccupancy(ctx); err != nil {
+		return err
 	}
-	s.occ.seed(size)
 
 	// Derive the budget once at startup.
 	if err := s.recomputeBudget(ctx); err != nil {
@@ -172,6 +178,18 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+	return nil
+}
+
+func (s *Server) seedOccupancy(ctx context.Context) error {
+	size, err := s.store.Size(ctx)
+	if err != nil && !errors.Is(err, ErrStoreIntegrity) {
+		return fmt.Errorf("getting store size: %w", err)
+	}
+	if err != nil {
+		s.log.Warn("store size may be incorrect due to corrupt shard marker", "error", err)
+	}
+	s.occ.seed(size)
 	return nil
 }
 
