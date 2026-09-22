@@ -9,9 +9,11 @@ import (
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	lru "github.com/hashicorp/golang-lru/v2"
 )
 
 // Keeper handles all the state changes for the fibre module.
@@ -28,6 +30,17 @@ type Keeper struct {
 	// double-spend window. It is nil in consensus-only setups and unit tests and
 	// is never consulted from the ABCI path. See local_promise_cache.go.
 	promiseCache *LocalPromiseCache
+	// sigCache memoizes promise signature verification. A nil cache disables
+	// memoization; the verification itself is unchanged either way.
+	sigCache SigCache
+	// valSetCache memoizes the validator set conversion per height.
+	valSetCache *lru.Cache[int64, *convertedValidatorSet]
+}
+
+// SigCache remembers signatures that already verified successfully.
+type SigCache interface {
+	Has(key sigcache.Key) bool
+	Add(key sigcache.Key)
 }
 
 // NewKeeper creates a new fibre Keeper instance. When enableCache is true the
@@ -36,13 +49,15 @@ type Keeper struct {
 // keeps the double-spend protection from silently depending on call order. The
 // cache is a non-consensus, query-path-only dependency and is never consulted from
 // the ABCI path.
-func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool) *Keeper {
+func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool, sigCache SigCache) *Keeper {
 	k := &Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
 		bankKeeper:    bankKeeper,
 		stakingKeeper: stakingKeeper,
 		authority:     authority,
+		sigCache:      sigCache,
+		valSetCache:   newValidatorSetCache(),
 	}
 	if enableCache {
 		k.promiseCache = NewLocalPromiseCache(k)
@@ -327,7 +342,38 @@ func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.
 		return fmt.Errorf("invalid payment promise format: %v", err)
 	}
 
-	return pp.Validate()
+	return k.ValidatePromiseStateless(&pp)
+}
+
+// ValidatePromiseStateless runs pp.Validate, skipping it when an identical
+// promise already passed. Validate is a pure function of the promise, so a hit
+// can only skip a check that would have succeeded.
+func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
+	key, keyed := promiseSigCacheKey(pp)
+	if keyed && k.sigCache != nil && k.sigCache.Has(key) {
+		return nil
+	}
+	if err := pp.Validate(); err != nil {
+		return err
+	}
+	if keyed && k.sigCache != nil {
+		k.sigCache.Add(key)
+	}
+	return nil
+}
+
+// promiseSigCacheKey covers every input to pp.Validate: the signer key, the sign
+// bytes (which encode all the validated fields) and the signature. It reports
+// false when the promise is too malformed to key, leaving Validate to report it.
+func promiseSigCacheKey(pp *fibre.PaymentPromise) (sigcache.Key, bool) {
+	if pp.SignerKey == nil {
+		return sigcache.Key{}, false
+	}
+	signBytes, err := pp.SignBytes()
+	if err != nil {
+		return sigcache.Key{}, false
+	}
+	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature), true
 }
 
 // GetProcessedPaymentsByTimeIterator returns an iterator for all processed payments up to the given time
