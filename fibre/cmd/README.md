@@ -278,8 +278,9 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
 | `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |
 | `fibre.server.download_shard.in_flight` | UpDownCounter | — | Concurrent DownloadShard RPCs |
-| `fibre.server.download_shard.duration` | Histogram (s) | `success`, `shard_size` | DownloadShard RPC latency |
+| `fibre.server.download_shard.duration` | Histogram (s) | `success`, `outcome`, `shard_size` | DownloadShard RPC latency. `outcome` is `served`, `not_found`, `invalid` or `failed` |
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total shard row bytes served |
+| `fibre.server.download_shard.response_bytes` | Counter (By) | — | Total proto-encoded bytes of DownloadShard responses sent |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
 | `fibre.server.sign.duration` | Histogram (s) | `success` | Payment promise signing latency |

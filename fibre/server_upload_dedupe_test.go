@@ -110,3 +110,28 @@ func counterByAttr(t *testing.T, reader *sdkmetric.ManualReader, name, attr stri
 	}
 	return values
 }
+
+// histogramCountByAttr collects a float64 histogram's observation counts, keyed
+// by the value of the given attribute.
+func histogramCountByAttr(t *testing.T, reader *sdkmetric.ManualReader, name, attr string) map[string]int64 {
+	t.Helper()
+
+	var rm metricdata.ResourceMetrics
+	require.NoError(t, reader.Collect(t.Context(), &rm))
+
+	counts := map[string]int64{}
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			if m.Name != name {
+				continue
+			}
+			hist, ok := m.Data.(metricdata.Histogram[float64])
+			require.True(t, ok)
+			for _, dp := range hist.DataPoints {
+				key, _ := dp.Attributes.Value(attribute.Key(attr))
+				counts[key.AsString()] += int64(dp.Count)
+			}
+		}
+	}
+	return counts
+}
