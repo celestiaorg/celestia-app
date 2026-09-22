@@ -49,7 +49,7 @@ func upCmd() *cobra.Command {
 			// overwrite the config values if flags or env vars are set
 			// flag > env > config
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
-			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
+			cfg.SSHPubKeyPath = resolveSSHPubKeyPath(SSHPubKeyPath, cfg.SSHPubKeyPath)
 			cfg.DigitalOceanToken = resolveValue(DOAPIToken, EnvVarDigitalOceanToken, cfg.DigitalOceanToken)
 			cfg.GoogleCloudProject = resolveValue(GCProject, EnvVarGoogleCloudProject, cfg.GoogleCloudProject)
 			cfg.GoogleCloudKeyJSONPath = resolveValue(GCKeyJSONPath, EnvVarGoogleCloudKeyJSONPath, cfg.GoogleCloudKeyJSONPath)
@@ -688,7 +688,7 @@ func downCmd() *cobra.Command {
 			}
 
 			cfg.SSHKeyName = resolveValue(SSHKeyName, EnvVarSSHKeyName, cfg.SSHKeyName)
-			cfg.SSHPubKeyPath = resolveValue(SSHPubKeyPath, EnvVarSSHKeyPath, cfg.SSHPubKeyPath)
+			cfg.SSHPubKeyPath = resolveSSHPubKeyPath(SSHPubKeyPath, cfg.SSHPubKeyPath)
 
 			client, err := NewClient(cfg)
 			if err != nil {
@@ -729,6 +729,11 @@ func resolveValue(flagVal, envKey, configVal string) string {
 		return env
 	}
 	return configVal
+}
+
+// resolveSSHPubKeyPath selects the SSH public key path: flag > env > config.
+func resolveSSHPubKeyPath(flagVal, configVal string) string {
+	return resolveValue(flagVal, EnvVarPubSSHKeyPath, configVal)
 }
 
 func listCmd() *cobra.Command {

@@ -83,8 +83,8 @@ func initCmd() *cobra.Command {
 				}
 
 				// Override SSH config from env vars if they exist
-				if envSSHKeyPath := os.Getenv(EnvVarSSHKeyPath); envSSHKeyPath != "" {
-					SSHPubKeyPath = envSSHKeyPath
+				if envSSHPubKeyPath := os.Getenv(EnvVarPubSSHKeyPath); envSSHPubKeyPath != "" {
+					SSHPubKeyPath = envSSHPubKeyPath
 				}
 				if envSSHKeyName := os.Getenv(EnvVarSSHKeyName); envSSHKeyName != "" {
 					SSHKeyName = envSSHKeyName
