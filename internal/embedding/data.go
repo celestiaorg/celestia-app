@@ -13,8 +13,8 @@ const (
 	v3Version = "v3.13.0"
 	v4Version = "v4.1.0"
 	v5Version = "v5.0.12"
-	v6Version = "v6.4.4"
-	v7Version = "v7.0.2-mocha"
+	v6Version = "v6.4.10"
+	v7Version = "v7.0.3-mocha"
 	v8Version = "v8.0.8"
 	v9Version = "v9.0.7-corto"
 )
