@@ -65,7 +65,7 @@ func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get([]byte(types.ParamsKey))
 	if len(bz) == 0 {
-		return types.DefaultParams()
+		return types.DefaultParamsForVersion(ctx.ConsensusParams().Version.GetApp())
 	}
 
 	var params types.Params

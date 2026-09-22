@@ -42,6 +42,7 @@ func NewAnteHandler(
 		ante.NewExtensionOptionsDecorator(nil),
 		// Ensure the tx passes ValidateBasic.
 		ante.NewValidateBasicDecorator(),
+		fibreante.ParamsVersionDecorator{},
 		// Ensure the tx has not reached a height timeout.
 		ante.NewTxTimeoutHeightDecorator(),
 		// Ensure the tx memo <= max memo characters.

@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	signaltypes "github.com/celestiaorg/celestia-app/v10/x/signal/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -40,6 +41,9 @@ func replayApp(t *testing.T, home string) *app.App {
 func initializeV10Replay(t *testing.T, a *app.App) {
 	t.Helper()
 	genesis, _, _ := util.GenesisStateWithSingleValidator(a)
+	fibreGenesis := fibretypes.DefaultGenesis()
+	fibreGenesis.Params = fibretypes.DefaultParamsForVersion(10)
+	genesis[fibretypes.ModuleName] = a.AppCodec().MustMarshalJSON(fibreGenesis)
 	raw, err := json.Marshal(genesis)
 	require.NoError(t, err)
 	cp := app.DefaultConsensusParams()

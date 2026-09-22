@@ -252,3 +252,36 @@ func TestTimeoutSettlementWindowIsNeverEmpty(t *testing.T) {
 func TestDefaultParamsAreValid(t *testing.T) {
 	assert.NoError(t, DefaultParams().Validate())
 }
+
+func TestFiveMinuteParamsVersionGate(t *testing.T) {
+	for _, version := range []uint64{9, 10, 11, 12} {
+		p := DefaultParamsForVersion(version)
+		require.NoError(t, p.ValidateForVersion(version))
+		if version < 11 {
+			require.Equal(t, time.Hour, p.PaymentPromiseTimeout)
+			require.Equal(t, 4*time.Hour, p.ShardRetention)
+		} else {
+			require.Equal(t, 5*time.Minute, p.PaymentPromiseTimeout)
+			require.Equal(t, 5*time.Minute, p.ShardRetention)
+		}
+		for _, timeout := range []bool{false, true} {
+			p = DefaultParamsForVersion(10)
+			if timeout {
+				p.PaymentPromiseTimeout = 5 * time.Minute
+			} else {
+				p.ShardRetention = 5 * time.Minute
+			}
+			if version < 11 {
+				require.Error(t, p.ValidateForVersion(version))
+			} else {
+				require.NoError(t, p.ValidateForVersion(version))
+			}
+			if timeout {
+				p.PaymentPromiseTimeout -= time.Nanosecond
+			} else {
+				p.ShardRetention -= time.Nanosecond
+			}
+			require.Error(t, p.ValidateForVersion(version))
+		}
+	}
+}

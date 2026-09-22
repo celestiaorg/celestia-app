@@ -28,3 +28,10 @@ func TestShardPruneAt(t *testing.T) {
 		})
 	}
 }
+
+func TestFiveMinuteShardPruneAt(t *testing.T) {
+	creation := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	expiry := creation.Add(5 * time.Minute)
+	require.Equal(t, expiry, shardPruneAt(creation, expiry, 5*time.Minute))
+	require.Equal(t, creation.Add(time.Hour), shardPruneAt(creation, creation.Add(time.Hour), 5*time.Minute))
+}
