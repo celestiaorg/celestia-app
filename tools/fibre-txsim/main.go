@@ -604,7 +604,9 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 	}
 
-	broadcastResp, err := w.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
+	// Match fibre.Put's temporary network fee and gas limit.
+	broadcastResp, err := w.txClient.BroadcastTx(ctx, []sdk.Msg{msg},
+		user.SetGasLimit(1_000_000), user.SetFee(1))
 	if err != nil {
 		if ctx.Err() != nil {
 			return
