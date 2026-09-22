@@ -7,6 +7,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -32,7 +33,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 		app.FibreKeeper,
-		app.pffSigCache,
+		app.sigCache,
 	)
 
 	fsb, err := NewFilteredSquareBuilder(
@@ -56,6 +57,12 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if err := app.FibreKeeper.BeginBlocker(ctx); err != nil {
 		return nil, fmt.Errorf("failed to run fibre begin blocker on proposal branch: %w", err)
 	}
+
+	// Warm the signature cache across every CPU before filling the square. A
+	// failed check is not recorded, so Fill still performs and decides it. A
+	// failure here only drops one tx, so the pass covers the whole mempool
+	// scan rather than stopping at the first.
+	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{Certificates: true})
 
 	txs := fsb.Fill(ctx, req.Txs, req.MaxTxBytes)
 

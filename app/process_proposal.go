@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -53,7 +54,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 		app.FibreKeeper,
-		app.pffSigCache,
+		app.sigCache,
 	)
 	blockHeader := ctx.BlockHeader()
 
@@ -72,6 +73,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to run fibre begin blocker on proposal branch", err)
 		return reject(), nil
 	}
+
+	// Verify the block's pay-for-fibre signatures across every CPU before the
+	// sequential loop reaches them. This only warms the signature cache: a
+	// failed check is not recorded, so the loop below still performs it and
+	// still decides. Any failure rejects the whole block, so the pass stops
+	// claiming work at the first one.
+	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{
+		Certificates:       true,
+		StopOnFirstFailure: true,
+	})
 
 	var (
 		sdkMessageCount int

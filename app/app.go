@@ -37,6 +37,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v10/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
@@ -213,9 +214,9 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
-	// pffSigCache skips repeat PFF signature checks across ante passes.
-	// It is in memory only.
-	pffSigCache      *PffSigVerificationCache
+	// sigCache skips repeat signature verification across ante passes, the
+	// fibre message server and every ABCI phase. It is in memory only.
+	sigCache         *sigcache.Cache
 	pffProposalLimit int
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
@@ -271,7 +272,7 @@ func New(
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
-		pffSigCache:             NewPffSigVerificationCache(),
+		sigCache:                NewSigCache(),
 		pffProposalLimit:        pffProposalLimit,
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
@@ -476,6 +477,7 @@ func New(
 		app.StakingKeeper,
 		govModuleAddr,
 		enablePromiseCache,
+		app.sigCache,
 	)
 
 	/****  Module Options ****/
@@ -572,7 +574,7 @@ func New(
 		&app.CircuitKeeper,
 		app.GovParamFilters(),
 		app.FibreKeeper,
-		app.pffSigCache,
+		app.sigCache,
 	))
 
 	protoFiles, err := proto.MergedRegistry()
@@ -618,7 +620,11 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 }
 
 // PreBlocker application updates every pre block
-func (app *App) PreBlocker(ctx sdk.Context, _ *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+func (app *App) PreBlocker(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
+	// Warm the payment promise signatures of this block across every CPU before
+	// the transactions execute. Validator certificates are left out:
+	// FinalizeBlock never verifies them.
+	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{})
 	return app.ModuleManager.PreBlock(ctx)
 }
 
