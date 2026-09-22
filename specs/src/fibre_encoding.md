@@ -43,8 +43,9 @@ Default protocol parameters for version 0:
 - total rows: 16384
 - encoding ratio: 0.25
 - minimum row size: 64 bytes
-- maximum blob size, including the Fibre blob header: 128 MiB
-- maximum user payload size: 128 MiB - 5 bytes
+- maximum row size: 512 KiB
+- maximum blob size, including the Fibre blob header: 2 GiB
+- maximum user payload size: 2 GiB - 5 bytes
 
 The `4096` original-row count pairs with the 64-byte minimum row size to make the smallest paid upload step `4096 * 64 = 256 KiB`. The 64-byte minimum comes from the Leopard/GF(2^16) Reed-Solomon layout. Fewer rows would reduce this step size for small blobs, but would increase Merkle proof overhead per byte; very small choices such as 512 or 1024 rows make proof bandwidth large enough that validators may be close to downloading the whole blob anyway.
 
@@ -66,7 +67,7 @@ For version 0:
 - `original_data_size_u32be` is the original user payload length, encoded as a 4-byte big-endian unsigned integer
 - `original_data` is the user payload
 
-The user payload must be non-empty and must not exceed `128 MiB - 5 bytes`.
+The user payload must be non-empty and must not exceed `2 GiB - 5 bytes`.
 
 ### Row size
 

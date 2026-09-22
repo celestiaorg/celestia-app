@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/rand"
+	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -45,6 +46,14 @@ func TestClientServerUploadDownload(t *testing.T) {
 			duplicate:      2,
 		},
 		{
+			name:           "128MiB",
+			numValidators:  2,
+			numClients:     1,
+			blobsPerClient: 1,
+			blobSize:       (128 << 20) - 5,
+			duplicate:      2,
+		},
+		{
 			name:           "MinBlobSize",
 			numValidators:  3,
 			numClients:     2,
@@ -72,6 +81,9 @@ func TestClientServerUploadDownload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.name == "MaxBlobSize" && os.Getenv("FIBRE_TEST_2GIB") != "1" {
+				t.Skip("set FIBRE_TEST_2GIB=1 on a host sized for 2 GiB upload and download buffers")
+			}
 			env := makeTestEnv(t, tt.numValidators, tt.numClients, nil, nil)
 			defer env.Close()
 
