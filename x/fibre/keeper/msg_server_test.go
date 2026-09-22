@@ -1236,21 +1236,3 @@ func (suite *MsgServerTestSuite) generateValidatorSignatures(paymentPromise *typ
 
 	return [][]byte{signature}
 }
-
-func (suite *MsgServerTestSuite) TestFiveMinuteParamsVersionGate() {
-	for _, version := range []uint64{10, 11} {
-		cp := suite.ctx.ConsensusParams()
-		cp.Version = &cmtproto.VersionParams{App: version}
-		ctx := suite.ctx.WithConsensusParams(cp)
-		before := types.DefaultParamsForVersion(10)
-		suite.keeper.SetParams(ctx, before)
-		_, err := suite.msgServer.UpdateFibreParams(ctx, &types.MsgUpdateFibreParams{Authority: suite.authority, Params: types.DefaultParams()})
-		if version == 10 {
-			suite.Error(err)
-			suite.Equal(before, suite.keeper.GetParams(ctx))
-		} else {
-			suite.NoError(err)
-			suite.Equal(types.DefaultParams(), suite.keeper.GetParams(ctx))
-		}
-	}
-}

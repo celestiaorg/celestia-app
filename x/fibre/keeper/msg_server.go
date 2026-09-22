@@ -274,7 +274,7 @@ func (ms msgServer) UpdateFibreParams(goCtx context.Context, msg *types.MsgUpdat
 	}
 
 	// Validate parameters before setting them
-	if err := msg.Params.ValidateForVersion(ctx.ConsensusParams().Version.GetApp()); err != nil {
+	if err := msg.Params.Validate(); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid parameters: %s", err)
 	}
 

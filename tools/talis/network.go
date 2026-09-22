@@ -72,7 +72,7 @@ func NewNetwork(chainID string, squareSize int, mods ...genesis.Modifier) (*Netw
 // A zero value for either field leaves that param at its module default.
 func fibreParamsModifier(fullStakeStorageBudget uint64, shardRetention time.Duration) genesis.Modifier {
 	c := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-	params := fibretypes.DefaultParams()
+	params := fibretypes.DefaultGenesis().Params
 	if fullStakeStorageBudget > 0 {
 		params.FullStakeStorageBudget = fullStakeStorageBudget
 	}

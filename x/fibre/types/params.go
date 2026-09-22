@@ -20,12 +20,12 @@ var (
 	// DefaultWithdrawalDelay is the initial value of the withdrawal delay parameter.
 	DefaultWithdrawalDelay = 24 * time.Hour
 	// DefaultPaymentPromiseTimeout is the initial value of the payment promise timeout parameter.
-	DefaultPaymentPromiseTimeout = 5 * time.Minute
+	DefaultPaymentPromiseTimeout = 1 * time.Hour
 	// DefaultPaymentPromiseHeightWindow is the initial value of the payment promise height window parameter.
 	DefaultPaymentPromiseHeightWindow uint64 = 1000
 	// DefaultShardRetention is the initial value of the shard retention parameter. It is the
 	// minimum local duration validators keep uploaded shards, decoupled from PaymentPromiseTimeout.
-	DefaultShardRetention = 5 * time.Minute
+	DefaultShardRetention = 4 * time.Hour
 	// DefaultFullStakeStorageBudget caps the Fibre disk of a 100%-stake validator
 	// over one ShardRetention window.
 	DefaultFullStakeStorageBudget uint64 = 2 << 40 // 2 TiB (~146 MiB/s full-stake)
@@ -64,13 +64,13 @@ const (
 	// parameter. A promise has to stay valid long enough for the client to upload
 	// its shards to the assigned validators, collect their signatures, and get
 	// MsgPayForFibre included in a block.
-	MinPaymentPromiseTimeout = 5 * time.Minute
+	MinPaymentPromiseTimeout = 10 * time.Minute
 	// MaxPaymentPromiseTimeout is the upper bound of the payment promise timeout
 	// parameter.
 	MaxPaymentPromiseTimeout = 12 * time.Hour
 
 	// MinShardRetention is the lower bound of the shard retention parameter.
-	MinShardRetention = 5 * time.Minute
+	MinShardRetention = 10 * time.Minute
 	// MaxShardRetention is the upper bound of the shard retention parameter.
 	MaxShardRetention = 7 * 24 * time.Hour
 )
@@ -96,24 +96,26 @@ func DefaultParams() Params {
 	return NewParams(DefaultWithdrawalDelay, DefaultPaymentPromiseTimeout, DefaultPaymentPromiseHeightWindow, DefaultShardRetention, DefaultFullStakeStorageBudget)
 }
 
-// DefaultParamsForVersion preserves defaults used before app v11.
+// DefaultParamsForVersion returns the fresh-chain preset for an app version.
+// DefaultParams retains the historical governance and migration defaults.
 func DefaultParamsForVersion(version uint64) Params {
 	p := DefaultParams()
-	if version < 11 {
-		p.PaymentPromiseTimeout = time.Hour
-		p.ShardRetention = 4 * time.Hour
+	if version >= 11 {
+		p.PaymentPromiseTimeout = 5 * time.Minute
+		p.ShardRetention = 5 * time.Minute
 	}
 	return p
 }
 
-// ValidateForVersion enforces the duration bounds active at the block's app version.
-func (p Params) ValidateForVersion(version uint64) error {
-	if version < 11 {
-		if p.PaymentPromiseTimeout < 10*time.Minute {
-			return fmt.Errorf("payment promise timeout must be at least %s: %s", 10*time.Minute, p.PaymentPromiseTimeout)
+// ValidateGenesisForVersion permits the five-minute preset in app v11 genesis.
+// Governance message validation retains its historical ten-minute bounds.
+func (p Params) ValidateGenesisForVersion(version uint64) error {
+	if version >= 11 {
+		if p.PaymentPromiseTimeout >= 5*time.Minute && p.PaymentPromiseTimeout < MinPaymentPromiseTimeout {
+			p.PaymentPromiseTimeout = MinPaymentPromiseTimeout
 		}
-		if p.ShardRetention < 10*time.Minute {
-			return fmt.Errorf("shard retention must be at least %s: %s", 10*time.Minute, p.ShardRetention)
+		if p.ShardRetention >= 5*time.Minute && p.ShardRetention < MinShardRetention {
+			p.ShardRetention = MinShardRetention
 		}
 	}
 	return p.Validate()

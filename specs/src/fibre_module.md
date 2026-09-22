@@ -441,16 +441,16 @@ message Params {
 | Parameter | Default | Validation | Current use |
 | --- | --- | --- | --- |
 | `withdrawal_delay` | `24h` | Must be between `12h10m` and `168h` | Sets withdrawal availability and the oldest accepted payment-promise creation time |
-| `payment_promise_timeout` | `5m` | Must be between `5m` and `12h` (app v11+) | Defines normal promise expiration and when timeout processing becomes valid |
+| `payment_promise_timeout` | `5m` in fresh v11 genesis | Governance updates retain the `10m`–`12h` bounds | Defines normal promise expiration and when timeout processing becomes valid |
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
-| `shard_retention` | `5m` | Must be between `5m` and `168h` (app v11+) | Sets the local retention floor validators apply to uploaded shards |
+| `shard_retention` | `5m` in fresh v11 genesis | Governance updates retain the `10m`–`168h` bounds | Sets the local retention floor validators apply to uploaded shards |
 | `full_stake_storage_budget` | `2TiB` | Must be positive | Caps the Fibre disk a 100%-stake validator uses over one `shard_retention` window; each node derives its own budget from its assigned stake share |
 
 The processed-payment retention window is not a governance parameter; it is derived as `withdrawal_delay + 10m` and exposed by `Params.PaymentPromiseRetentionWindow()` (see the last paragraph for why).
 
 `payment_promise_timeout` is bounded below so a promise stays valid long enough to be uploaded, signed, and settled in a block, and bounded above so it stays well inside the `withdrawal_delay` window gating its `creation_timestamp`.
 
-Fresh app v11 chains default to five minutes for both durations. Earlier app versions retain a ten-minute minimum and historical defaults of one hour for promise timeout and four hours for shard retention. Upgrading does not overwrite stored parameters.
+Fresh app v11 genesis permits five minutes for both durations. Earlier versions retain a ten-minute genesis minimum and historical defaults of one hour for promise timeout and four hours for shard retention. Upgrading does not overwrite stored parameters. Governance messages retain their historical validation: updating parameters requires both durations to be at least ten minutes.
 
 `shard_retention` is bounded below so shards outlive the window in which a client fetches them back, and above to cap the local storage obligation it places on assigned validators.
 

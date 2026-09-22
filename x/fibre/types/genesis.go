@@ -1,9 +1,11 @@
 package types
 
+import "github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+
 // DefaultGenesis returns the default genesis state
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
-		Params:            DefaultParams(),
+		Params:            DefaultParamsForVersion(appconsts.Version),
 		EscrowAccounts:    []EscrowAccount{},
 		Withdrawals:       []Withdrawal{},
 		ProcessedPayments: []ProcessedPayment{},
@@ -14,7 +16,7 @@ func DefaultGenesis() *GenesisState {
 // failure.
 func (gs GenesisState) Validate() error {
 	// Validate params
-	if err := gs.Params.Validate(); err != nil {
+	if err := gs.Params.ValidateGenesisForVersion(appconsts.Version); err != nil {
 		return err
 	}
 
