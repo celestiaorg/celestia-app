@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"os/exec"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -22,7 +21,7 @@ func TestFibreObjectStorageScript(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := fibre.DefaultServerConfig()
-	require.NoError(t, cfg.Load(filepath.Join(home, fibre.DefaultConfigFileName)))
+	require.NoError(t, cfg.Load(fibre.DefaultConfigPath(home)))
 	require.NoError(t, cfg.ObjectStorage.Validate())
 	require.Equal(t, "object", cfg.StorageBackend)
 	require.Equal(t, "https://s3.us-east-2.amazonaws.com", cfg.ObjectStorage.Endpoint)
@@ -40,6 +39,6 @@ func TestFibreObjectStorageScriptCustomEndpoint(t *testing.T) {
 	require.NoError(t, err, string(out))
 
 	cfg := fibre.DefaultServerConfig()
-	require.NoError(t, cfg.Load(filepath.Join(home, fibre.DefaultConfigFileName)))
+	require.NoError(t, cfg.Load(fibre.DefaultConfigPath(home)))
 	require.Equal(t, "https://example.r2.cloudflarestorage.com", cfg.ObjectStorage.Endpoint)
 }

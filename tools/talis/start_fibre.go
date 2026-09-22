@@ -126,7 +126,7 @@ func fibreObjectStorageScript(home, bucket, region, endpoint, chainID string, re
 	if endpoint == "" {
 		endpoint = fmt.Sprintf("https://s3.%s.amazonaws.com", region)
 	}
-	return fmt.Sprintf(`mkdir -p %[1]s && cat > %[1]s/server_config.toml <<EOF
+	return fmt.Sprintf(`mkdir -p %[1]s/config && cat > %[1]s/config/server_config.toml <<EOF
 storage_backend = "object"
 
 [object_storage]
