@@ -144,6 +144,10 @@ func (cfg *ClientConfig) SetMaxBlobSize(maxBlobSize int) error {
 	cfg.protocolParams = p
 	cfg.MaxMessageSize = p.MaxMessageSize()
 	cfg.Escrow = defaultEscrowConfig(p)
+	// Scale the per-peer RPC timeout with the blob size, since shards grow linearly with it.
+	if maxBlobSize > DefaultProtocolParams.MaxBlobSize {
+		cfg.RPCTimeout = DefaultClientConfig().RPCTimeout * time.Duration(maxBlobSize>>20) / time.Duration(DefaultProtocolParams.MaxBlobSize>>20)
+	}
 	return nil
 }
 
