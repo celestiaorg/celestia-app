@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"net/url"
 	"os"
 	"os/signal"
 	"sync"
@@ -386,6 +387,10 @@ func run(cfg config) error {
 }
 
 func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Context), error) {
+	endpoint, err := url.JoinPath(endpoint, "v1/metrics")
+	if err != nil {
+		return nil, fmt.Errorf("constructing OTLP metric endpoint: %w", err)
+	}
 	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
@@ -419,6 +424,10 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 }
 
 func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Context), error) {
+	endpoint, err := url.JoinPath(endpoint, "v1/traces")
+	if err != nil {
+		return nil, fmt.Errorf("constructing OTLP trace endpoint: %w", err)
+	}
 	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
