@@ -284,3 +284,51 @@ talis kill-session --session fibre
 # Tear down cloud instances
 talis down --workers 20
 ```
+
+## Two network cards
+
+Configure one ENI on each network card and private connectivity between peers.
+Configure source-based policy routing for both local IPs, including return paths,
+and check reverse-path filtering and security groups. Binding a source IP does not
+configure Linux routes. Keep both cards bidirectional; no bonding is required.
+The server's wildcard listener accepts both IPs in one process. Shard transfers
+remain ordinary TCP; Talis does not attach ENIs or configure policy routes.
+
+Create a local directory with one `<instance-name>.json` per selected uploader or
+reader. Each file uses that host's source IPs and every validator's consensus
+address (uppercase 40-character hex, without `0x`, not its P2P node ID):
+
+```json
+{
+  "source_ips": ["10.0.0.10", "10.0.1.10"],
+  "validators": {
+    "0123456789ABCDEF0123456789ABCDEF01234567": [
+      "10.0.0.20:7980",
+      "10.0.1.20:7980"
+    ]
+  }
+}
+```
+
+Source and destination entries are paired by index. Include all validators in the
+actual file. TLS still authenticates each validator's consensus identity. When
+configured, missing private endpoints fail instead of falling back to public IPs.
+
+```sh
+talis fibre-txsim --instances 45 --network-config-dir ./network-configs
+# Also supported with --on-encoders:
+talis fibre-reader --network-config-dir ./reader-network-configs
+```
+
+Talis validates all selected files before staging them over SCP and launching
+sessions. Direct `fibre-txsim` and `fibre-reader` runs accept `--network-config FILE`.
+Without these flags, existing networking is unchanged. Chain RPC/gRPC endpoints
+are separate from the shard connections configured here.
+
+Each client maintains a connection per path per validator. For 45 uploaders with
+two paths, budget approximately 90 server connections plus reader and operational
+headroom. For example, `talis start-fibre --max-connections 128` overrides the
+existing limit. Size `--max-concurrent-streams` together with that limit: their
+product bounds concurrent requests and can greatly increase memory use with large
+blobs. Defaults are unchanged. Measure each card's traffic and confirmed throughput
+before increasing concurrency; these flags do not configure or attach ENIs.

@@ -45,6 +45,7 @@ import (
 )
 
 type config struct {
+	networkConfig       string
 	rpcEndpoint         string
 	grpcEndpoint        string
 	readerIndex         int
@@ -98,6 +99,7 @@ type downloadRequest struct {
 
 func main() {
 	var cfg config
+	flag.StringVar(&cfg.networkConfig, "network-config", "", "JSON configuration for paired local and validator network addresses")
 	flag.StringVar(&cfg.rpcEndpoint, "rpc-endpoint", "tcp://localhost:26657", "cometbft RPC endpoint")
 	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "celestia-app gRPC endpoint for fibre client state")
 	flag.IntVar(&cfg.readerIndex, "reader-index", -1, "this reader's index in [0, reader-count)")
@@ -119,6 +121,15 @@ func main() {
 }
 
 func run(cfg config) error {
+	var network *fibre.NetworkConfig
+	if cfg.networkConfig != "" {
+		var err error
+		network, err = fibre.LoadNetworkConfig(cfg.networkConfig)
+		if err != nil {
+			return fmt.Errorf("load network config: %w", err)
+		}
+	}
+
 	if cfg.readerCount < 1 {
 		return fmt.Errorf("--reader-count must be >= 1, got %d", cfg.readerCount)
 	}
@@ -176,6 +187,7 @@ func run(cfg config) error {
 	}
 
 	clientCfg := fibre.DefaultClientConfig()
+	clientCfg.Network = network
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	if err := clientCfg.Validate(); err != nil {
 		return fmt.Errorf("invalid fibre client config: %w", err)
