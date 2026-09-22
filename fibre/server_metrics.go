@@ -181,12 +181,9 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize int64, err error)) {
 	start := time.Now()
 	m.uploadShardInFlight.Add(ctx, 1)
-	return func(uploadSize int64, err error) {
+	return func(_ int64, err error) {
 		m.uploadShardInFlight.Add(ctx, -1)
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
-		if uploadSize > 0 {
-			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
-		}
 		m.uploadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
 	}
 }
@@ -196,12 +193,9 @@ func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploa
 func (m *serverMetrics) observeDownloadShard(ctx context.Context) (done func(shardSize int64, err error)) {
 	start := time.Now()
 	m.downloadShardInFlight.Add(ctx, 1)
-	return func(shardSize int64, err error) {
+	return func(_ int64, err error) {
 		m.downloadShardInFlight.Add(ctx, -1)
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
-		if shardSize > 0 {
-			attrs = append(attrs, attribute.Int64("shard_size", shardSize))
-		}
 		m.downloadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
 	}
 }
