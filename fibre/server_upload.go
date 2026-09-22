@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"time"
 
@@ -62,33 +63,6 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		attribute.Int64("upload_size", int64(promise.UploadSize)),
 	))
 
-	// verify assignment - check that the shard belongs to us
-	if err := s.verifyAssignment(ctx, promise, blobCfg, req.Shard); err != nil {
-		log.WarnContext(ctx, "shard assignment verification failed", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "shard assignment verification failed")
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard assignment verification failed: %v", err))
-	}
-	span.AddEvent("assignment_verified")
-
-	// verify row proofs using rsema1d and set RLC root
-	if err := s.verifyShard(ctx, blobCfg, promise, req.Shard); err != nil {
-		log.WarnContext(ctx, "shard verification failed", "error", err)
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "shard verification failed")
-		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard verification failed: %v", err))
-	}
-	span.AddEvent("shard_verified", trace.WithAttributes(
-		attribute.Int("row_size", len(req.Shard.Rows[0].Data)), // this must be valid, as we just verified the rows, so no panics
-		attribute.Int("rows_count", len(req.Shard.Rows)),
-	))
-
-	// Serialize identical uploads so concurrent duplicates can't each reserve
-	// occupancy for a single stored shard.
-	mu := s.uploadLock(promiseHash)
-	mu.Lock()
-	defer mu.Unlock()
-
 	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
@@ -97,40 +71,34 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
 	}
 
-	if !has {
-		size := shardBinarySize(req.Shard)
-		reserved := s.occ.reserve(size)
-		if !reserved {
-			s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
-			st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
-			st, _ = st.WithDetails(&errdetails.RetryInfo{
-				RetryDelay: durationpb.New(retryAfterHint()),
-			})
-			return nil, st.Err()
-		}
-
-		// store payment promise and shard with RLC roots
-		storePutStart := time.Now()
-		if err := s.store.Put(ctx, promise, req.Shard, pruneAt); err != nil {
-			s.occ.release(size)
-			s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
-			// A cancelled/expired client context means the store deliberately
-			// skipped the commit; report it as such rather than as an Internal
-			// error so the caller (and metrics) can tell it apart from a real
-			// storage failure.
-			if ctxErr := context.Cause(ctx); ctxErr != nil {
-				log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
-				span.RecordError(err)
-				span.SetStatus(codes.Error, "store upload aborted")
-				return nil, status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
-			}
-			log.ErrorContext(ctx, "failed to store upload data", "error", err)
+	if has {
+		// Already stored: skip verification and storage, just re-sign.
+		s.observeDuplicateUpload(ctx, log, "before_verification")
+	} else {
+		// verify assignment - check that the shard belongs to us
+		if err := s.verifyAssignment(ctx, promise, blobCfg, req.Shard); err != nil {
+			log.WarnContext(ctx, "shard assignment verification failed", "error", err)
 			span.RecordError(err)
-			span.SetStatus(codes.Error, "failed to store upload data")
-			return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+			span.SetStatus(codes.Error, "shard assignment verification failed")
+			return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard assignment verification failed: %v", err))
 		}
-		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
-		span.AddEvent("shard_stored")
+		span.AddEvent("assignment_verified")
+
+		// verify row proofs using rsema1d and set RLC root
+		if err := s.verifyShard(ctx, blobCfg, promise, req.Shard); err != nil {
+			log.WarnContext(ctx, "shard verification failed", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "shard verification failed")
+			return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard verification failed: %v", err))
+		}
+		span.AddEvent("shard_verified", trace.WithAttributes(
+			attribute.Int("row_size", len(req.Shard.Rows[0].Data)), // this must be valid, as we just verified the rows, so no panics
+			attribute.Int("rows_count", len(req.Shard.Rows)),
+		))
+
+		if err := s.storeShard(ctx, log, promise, promiseHash, pruneAt, req.Shard); err != nil {
+			return nil, err
+		}
 	}
 
 	// sign the payment promise
@@ -145,19 +113,89 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	}
 	span.AddEvent("signature_generated")
 
-	shardBytes := int64(len(req.Shard.Rows)) * int64(len(req.Shard.Rows[0].Data))
-	s.metrics.uploadShardBytes.Add(ctx, shardBytes)
-	log.DebugContext(ctx, "successful upload",
-		"upload_size", promise.UploadSize,
-		"shard_bytes", shardBytes,
-		"rows_count", len(req.Shard.Rows),
-		"row_size", len(req.Shard.Rows[0].Data),
-	)
-
 	span.SetStatus(codes.Ok, "")
 	return &types.UploadShardResponse{
 		ValidatorSignature: signature,
 	}, nil
+}
+
+// storeShard reserves storage capacity and writes a verified shard. It
+// serializes identical uploads so concurrent duplicates can't each reserve
+// occupancy for a single stored shard, and skips the write if the shard
+// was stored in the meantime. Errors are returned as gRPC statuses.
+func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *PaymentPromise, promiseHash []byte, pruneAt time.Time, shard *types.BlobShard) error {
+	ctx, span := s.tracer.Start(ctx, "store_shard")
+	defer span.End()
+
+	mu := s.uploadLock(promiseHash)
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Re-check now that we have the lock, to avoid TOCTOU
+	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	if err != nil {
+		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "store presence check failed")
+		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+	}
+	if has {
+		s.observeDuplicateUpload(ctx, log, "after_verification")
+		return nil
+	}
+
+	size := shardBinarySize(shard)
+	if !s.occ.reserve(size) {
+		s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
+		st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
+		st, _ = st.WithDetails(&errdetails.RetryInfo{
+			RetryDelay: durationpb.New(retryAfterHint()),
+		})
+		return st.Err()
+	}
+
+	// store payment promise and shard with RLC roots
+	storePutStart := time.Now()
+	if err := s.store.Put(ctx, promise, shard, pruneAt); err != nil {
+		s.occ.release(size)
+		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+		// A cancelled/expired client context means the store deliberately
+		// skipped the commit; report it as such rather than as an Internal
+		// error so the caller (and metrics) can tell it apart from a real
+		// storage failure.
+		if ctxErr := context.Cause(ctx); ctxErr != nil {
+			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "store upload aborted")
+			return status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+		}
+		log.ErrorContext(ctx, "failed to store upload data", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to store upload data")
+		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+	}
+	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
+	span.AddEvent("shard_stored")
+
+	shardBytes := int64(len(shard.Rows)) * int64(len(shard.Rows[0].Data))
+	s.metrics.uploadShardBytes.Add(ctx, shardBytes)
+	log.DebugContext(ctx, "shard uploaded",
+		"upload_size", promise.UploadSize,
+		"shard_bytes", shardBytes,
+		"rows_count", len(shard.Rows),
+		"row_size", len(shard.Rows[0].Data),
+	)
+	return nil
+}
+
+// observeDuplicateUpload records an upload that was skipped because the
+// shard is already stored. stage says whether the duplicate was detected
+// before or after shard verification. The span event goes on the span
+// current in ctx, which already implies the stage.
+func (s *Server) observeDuplicateUpload(ctx context.Context, log *slog.Logger, stage string) {
+	s.metrics.uploadShardDupeHits.Add(ctx, 1, metric.WithAttributes(attribute.String("stage", stage)))
+	trace.SpanFromContext(ctx).AddEvent("shard_duplicate")
+	log.DebugContext(ctx, "shard upload skipped due to duplicate", "stage", stage)
 }
 
 // retryAfterHint returns how long a rejected client should wait before retrying.
