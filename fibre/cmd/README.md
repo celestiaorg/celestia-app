@@ -245,7 +245,7 @@ W3C TraceContext and Baggage propagators are registered globally, enabling distr
 
 Resource attributes exported with every trace: `service.name=fibre`, `service.version`, `service.instance.id` (hostname).
 
-**Metrics** — Exported via a periodic OTLP reader. All duration histograms carry a `success` attribute for error rate derivation from `_count`. Size attributes (`upload_size`, `shard_size`) are rounded up to the next power of two to bound cardinality. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
+**Metrics** — Exported via a periodic OTLP reader. All duration histograms carry a `success` attribute for error rate derivation from `_count`. Size attributes (`blob_size`, `upload_size`, `shard_size`) are rounded up to the next power of two to bound cardinality. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
 
 #### Client metrics
 
