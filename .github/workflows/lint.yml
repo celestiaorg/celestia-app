@@ -23,6 +23,16 @@ jobs:
       - run: go tool golangci-lint run --timeout 10m
         if: env.GIT_DIFF
 
+  govulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        with:
+          go-version-file: "go.mod"
+      - run: make govulncheck
+
   hadolint:
     runs-on: ubuntu-latest
     steps:
@@ -31,15 +41,15 @@ jobs:
         with:
           PATTERNS: |
             docker/**
-      - uses: hadolint/hadolint-action@v3.4.0
+      - uses: hadolint/hadolint-action@v3.5.0
         if: env.GIT_DIFF
         with:
           dockerfile: docker/standalone.Dockerfile
-      - uses: hadolint/hadolint-action@v3.4.0
+      - uses: hadolint/hadolint-action@v3.5.0
         if: env.GIT_DIFF
         with:
           dockerfile: docker/multiplexer.Dockerfile
-      - uses: hadolint/hadolint-action@v3.4.0
+      - uses: hadolint/hadolint-action@v3.5.0
         if: env.GIT_DIFF
         with:
           dockerfile: docker/txsim/Dockerfile

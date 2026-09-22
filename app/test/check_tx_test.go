@@ -31,10 +31,38 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	vestingtypes "github.com/cosmos/cosmos-sdk/x/auth/vesting/types"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestCheckTxICAPacketWithinLimit checks that CheckTx counts an ICA packet's
+// payload rather than falling back to the fail-closed count. Both paths reject a
+// packet over the limit with the same code, so only a packet under the limit
+// tells them apart: counted it passes the limit check, while a count that failed
+// closed would exceed it.
+func TestCheckTxICAPacketWithinLimit(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	seedICAHostChannel(t, testApp)
+
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
+	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+	addr := signer.Account(accounts[0]).Address()
+
+	msg := icaHostRecvPacket(t, encodingConfig.Codec, addr, appconsts.MaxSDKMessages-1)
+	rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+	require.NoError(t, err)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: rawTx})
+	require.NoError(t, err)
+	// The packet still fails later in the ante handler, since the test only
+	// seeds the channel, but it must not fail on the message count.
+	require.NotEqual(t, apperr.ErrTxExceedsMaxSDKMessages.ABCICode(), resp.Code, resp.Log)
+}
 
 // Here we only need to check the functionality that is added to CheckTx. We
 // assume that the rest of CheckTx is tested by the cosmos-sdk.
@@ -49,7 +77,7 @@ func TestCheckTx(t *testing.T) {
 	namespace1, err = share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
 	require.NoError(t, err)
 
-	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n"}
+	accounts := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
 
 	signers := make([]*user.Signer, len(accounts))
@@ -57,6 +85,10 @@ func TestCheckTx(t *testing.T) {
 		fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, account))
 		signers[i] = createSigner(t, kr, account, encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
 	}
+
+	// The message counter reads the payload encoding from the channel, so the
+	// channel the ICA packet below arrives on has to exist.
+	seedICAHostChannel(t, testApp)
 
 	opts := blobfactory.FeeTxOpts(1e9)
 	type test struct {
@@ -340,6 +372,68 @@ func TestCheckTx(t *testing.T) {
 			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
 		},
 		{
+			name:      "authz MsgExec flattening exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[11]
+				addr := signer.Account(accounts[11]).Address()
+				// Spread MaxSDKMessages+1 executable messages across MsgExec
+				// wrappers of at most 99 inner messages each (the tx decoder's
+				// per-message unpack limit). Only the wrappers are top-level
+				// messages, so this must still be rejected.
+				var msgs []sdk.Msg
+				for remaining := appconsts.MaxSDKMessages + 1; remaining > 0; {
+					n := min(99, remaining)
+					inner := make([]sdk.Msg, n)
+					for i := range inner {
+						inner[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewCoin(appconsts.BondDenom, sdkmath.NewInt(1))))
+					}
+					exec := authz.NewMsgExec(addr, inner)
+					msgs = append(msgs, &exec)
+					remaining -= n
+				}
+				tx, _, err := signer.CreateTx(msgs, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
+			name:      "MsgModuleQuerySafe queries exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// A single MsgModuleQuerySafe dispatches one query per request, so
+				// counting it as one message would let it bypass the limit.
+				requests := make([]*icahosttypes.QueryRequest, appconsts.MaxSDKMessages+1)
+				for i := range requests {
+					requests[i] = &icahosttypes.QueryRequest{Path: "/cosmos.bank.v1beta1.Query/TotalSupply"}
+				}
+				msg := icahosttypes.NewMsgModuleQuerySafe(addr.String(), requests)
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
+			name:      "ICA packet flattening exceeding max SDK messages, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				signer := signers[14]
+				addr := signer.Account(accounts[14]).Address()
+				// The ICA host dispatches every message in the packet payload,
+				// but only the packet is a top-level message, so this must still
+				// be rejected. The packet itself counts as one.
+				msg := icaHostRecvPacket(t, encodingConfig.Codec, addr, appconsts.MaxSDKMessages)
+				tx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimitAndGasPrice(1e7, appconsts.DefaultMinGasPrice))
+				require.NoError(t, err)
+				return tx
+			},
+			expectedABCICode: apperr.ErrTxExceedsMaxSDKMessages.ABCICode(),
+		},
+		{
 			name:      "non-canonically encoded blob tx, CheckTxType_New",
 			checkType: abci.CheckTxType_New,
 			getTx: func() []byte {
@@ -348,8 +442,7 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				// Append an unknown protobuf field. UnmarshalBlobTx accepts it
-				// but it is not the canonical encoding, so CheckTx must reject it.
+				// Append an unknown protobuf field so UnmarshalBlobTx rejects it.
 				return appendUnknownProtoField(btx, 4096)
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
@@ -368,6 +461,24 @@ func TestCheckTx(t *testing.T) {
 				// decodes to the same blob tx, but the encoding is not
 				// canonical, so CheckTx must reject it.
 				return append(btx, 0x1a, 0x04, 'B', 'L', 'O', 'B')
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "nested blob tx, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				outer, err := tx.MarshalBlobTx(inner, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
 		},
@@ -481,6 +592,43 @@ func TestCheckTxMalformedModeInfoDoesNotPanic(t *testing.T) {
 	})
 }
 
+// TestCheckTxBlobTxCacheAdmission verifies that only blob txs passing full
+// CheckTx are admitted to the cache consulted by ProcessProposal.
+func TestCheckTxBlobTxCacheAdmission(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	fromCacheAfterCheckTx := func(rawTx []byte) bool {
+		blobTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
+		require.True(t, isBlob)
+		require.NoError(t, err)
+		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
+		require.NoError(t, err)
+		return fromCache
+	}
+
+	// A blob tx signed with a wrong account number passes stateless blob
+	// validation but fails the stateful ante pass; it must not be cached.
+	badSigner := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber()+1)
+	invalidTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(badSigner, []share.Namespace{namespace}, []int{100})[0]
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: invalidTx})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	assert.False(t, fromCacheAfterCheckTx(invalidTx), "a blob tx failing CheckTx must not be cached")
+
+	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+	validTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []share.Namespace{namespace}, []int{100})[0]
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: validTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	assert.True(t, fromCacheAfterCheckTx(validTx), "a blob tx passing CheckTx must be cached")
+}
+
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	t.Helper()
 
@@ -494,6 +642,7 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(4)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
@@ -550,6 +699,97 @@ func TestCheckTxPayForFibre(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
 	})
+}
+
+// TestCheckTxPayForFibreReplay settles a payment promise in a committed block
+// and then rejects a fresh wrapper around the same promise in CheckTx, so
+// replayed promises neither enter the mempool nor survive recheck.
+func TestCheckTxPayForFibreReplay(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	// Two envelopes with sequential nonces around the same promise.
+	promiseTime := time.Now()
+	txs := newPayForFibreTxPair(t, signer, accounts[0], promiseTime, promiseTime)
+	original, replay := txs[0], txs[1]
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: original, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Settle the promise in a committed block.
+	finalizeResp := commitBlock(t, testApp, original)
+	require.Len(t, finalizeResp.TxResults, 1)
+	require.Equal(t, abci.CodeTypeOK, finalizeResp.TxResults[0].Code, finalizeResp.TxResults[0].Log)
+
+	for name, checkTxType := range map[string]abci.CheckTxType{
+		"checktx": abci.CheckTxType_New,
+		"recheck": abci.CheckTxType_Recheck,
+	} {
+		t.Run("replayed promise is rejected on "+name, func(t *testing.T) {
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: replay, Type: checkTxType})
+			require.NoError(t, err)
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+			require.Contains(t, resp.Log, "already been processed")
+		})
+	}
+}
+
+// TestCheckTxPayForFibreRecheckExpiry admits a payment promise and then
+// advances block time past its timeout, so recheck must reject the expired
+// promise and the mempool evicts it instead of proposing a stale PFF.
+func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	txBytes := newSignedPayForFibreTx(t, signer, accounts[0], true)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Commit an empty block timestamped past the promise timeout but within
+	// the freshness window, so the promise is expired rather than too old.
+	commitBlockAt(t, testApp, time.Now().Add(fibretypes.DefaultPaymentPromiseTimeout+time.Minute))
+
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	require.Contains(t, resp.Log, "payment promise expired")
+}
+
+// commitBlock finalizes and commits a block of txs stamped time.Now, so the
+// CheckTx state carries a current block time for promise freshness checks.
+func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFinalizeBlock {
+	t.Helper()
+	return commitBlockAt(t, testApp, time.Now(), txs...)
+}
+
+// commitBlockAt is commitBlock with an explicit block time.
+func commitBlockAt(t *testing.T, testApp *app.App, blockTime time.Time, txs ...[]byte) *abci.ResponseFinalizeBlock {
+	t.Helper()
+	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
+		Time:   blockTime,
+		Height: testApp.LastBlockHeight() + 1,
+		Hash:   testApp.LastCommitID().Hash,
+		Txs:    txs,
+	})
+	require.NoError(t, err)
+	_, err = testApp.Commit()
+	require.NoError(t, err)
+	return resp
 }
 
 // appendUnknownProtoField appends an unknown protobuf field (field 100, wire

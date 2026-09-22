@@ -348,6 +348,10 @@ func (s *Store) hasShardMarker(commit Commitment, promiseHash []byte) bool {
 
 // Size returns the total on-disk bytes of stored shard files.
 func (s *Store) Size(ctx context.Context) (int64, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+
 	dir := filepath.Join(s.cfg.Path, shardsSubdir)
 	list, err := s.fs.List(dir)
 	if err != nil {
@@ -363,7 +367,7 @@ func (s *Store) Size(ctx context.Context) (int64, error) {
 		case err != nil:
 			return 0, fmt.Errorf("stat shard file %s: %w", name, err)
 		case ctx.Err() != nil:
-			return 0, err
+			return 0, ctx.Err()
 		}
 		totalSize += info.Size()
 	}

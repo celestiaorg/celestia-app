@@ -200,6 +200,33 @@ func createTestContext() sdk.Context {
 	return testutil.DefaultContext(storetypes.NewKVStoreKey("testkv"), storetypes.NewTransientStoreKey("testtransient"))
 }
 
+// useHookBoundAddressWithMetadata re-derives the setup's address to commit to a
+// (hook, metadata) pair. Either may be empty, but not both. Call before funding.
+func (s *testIGPSetup) useHookBoundAddressWithMetadata(t *testing.T, hookID, metadataHex string) {
+	t.Helper()
+	destRecipient, err := util.DecodeHexAddress(s.destRecipient)
+	require.NoError(t, err)
+	token, err := util.DecodeHexAddress(s.tokenID)
+	require.NoError(t, err)
+
+	var hookBytes []byte
+	if hookID != "" {
+		hook, err := util.DecodeHexAddress(hookID)
+		require.NoError(t, err)
+		hookBytes = hook.Bytes()
+	}
+
+	var metadata []byte
+	if metadataHex != "" {
+		metadata, err = util.DecodeEthHex(metadataHex)
+		require.NoError(t, err)
+	}
+
+	addrBytes, err := types.DeriveForwardingAddress(s.destDomain, destRecipient.Bytes(), token.Bytes(), hookBytes, metadata)
+	require.NoError(t, err)
+	s.forwardAddr = sdk.AccAddress(addrBytes)
+}
+
 // deriveTestForwardAddress derives a forwarding address from the given destDomain, destRecipient, and token.
 func deriveTestForwardAddress(destDomain uint32, destRecipientHex, tokenID string) (sdk.AccAddress, error) {
 	destRecipient, err := util.DecodeHexAddress(destRecipientHex)
@@ -210,7 +237,7 @@ func deriveTestForwardAddress(destDomain uint32, destRecipientHex, tokenID strin
 	if err != nil {
 		return nil, err
 	}
-	addrBytes, err := types.DeriveForwardingAddress(destDomain, destRecipient.Bytes(), token.Bytes())
+	addrBytes, err := types.DeriveForwardingAddress(destDomain, destRecipient.Bytes(), token.Bytes(), nil, nil)
 	if err != nil {
 		return nil, err
 	}

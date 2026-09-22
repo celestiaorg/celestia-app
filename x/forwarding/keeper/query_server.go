@@ -51,7 +51,31 @@ func (q queryServer) DeriveForwardingAddress(ctx context.Context, req *types.Que
 		return nil, status.Errorf(codes.FailedPrecondition, "no warp route for token %s to domain %d", req.TokenId, req.DestDomain)
 	}
 
-	forwardAddr, err := types.DeriveForwardingAddress(req.DestDomain, destRecipient.Bytes(), tokenID.Bytes())
+	// The address binds to this exact pair; neither set derives the default-hook address.
+	var customHookId *util.HexAddress
+	if req.CustomHookId != "" {
+		h, err := util.DecodeHexAddress(req.CustomHookId)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_id hex %q: %v", req.CustomHookId, err)
+		}
+		if !h.IsZeroAddress() {
+			customHookId = &h
+		}
+	}
+
+	var customHookMetadata []byte
+	if req.CustomHookMetadata != "" {
+		customHookMetadata, err = util.DecodeEthHex(req.CustomHookMetadata)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid custom_hook_metadata hex %q: %v", req.CustomHookMetadata, err)
+		}
+	}
+
+	var hookBytes []byte
+	if customHookId != nil {
+		hookBytes = customHookId.Bytes()
+	}
+	forwardAddr, err := types.DeriveForwardingAddress(req.DestDomain, destRecipient.Bytes(), tokenID.Bytes(), hookBytes, customHookMetadata)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "failed to derive address: %v", err)
 	}

@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
-	embedding "github.com/celestiaorg/celestia-app/v10/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v10/internal/embedding"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	multiplexer "github.com/celestiaorg/celestia-app/v10/multiplexer/cmd"
@@ -25,6 +25,17 @@ var defaultArgs = []string{
 	"--with-tendermint=false",
 	"--transport=grpc",
 }
+
+// interBlockCacheOffArgs disables the SDK inter-block cache for the embedded
+// v4-v8 apps. Appended after the operator's own args, it overrides an
+// explicit --inter-block-cache=true.
+var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defaultArgs...)
+
+// interBlockCacheOnArgs forces the inter-block cache on for the embedded v3
+// app. v3's upgrade-height Commit reloads the store mid-commit and relies on
+// the cache to preserve the upgrade block's writes; running v3 with the cache
+// disabled discards those writes and forks replay. See issue #7770.
+var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, defaultArgs...)
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
@@ -98,7 +109,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		panic(err)
 	}
 
-	v3Args := defaultArgs
+	v3Args := interBlockCacheOnArgs
 	if v2UpgradeHeight != "" && v2UpgradeHeight != "0" {
 		v3Args = append(v3Args, "--v2-upgrade-height="+v2UpgradeHeight)
 	}
@@ -111,10 +122,25 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	// replaying historical blocks, so overriding is harmless.
 	legacyMinGasPricesArgs := append([]string{
 		fmt.Sprintf("--minimum-gas-prices=%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom),
-	}, defaultArgs...)
+	}, interBlockCacheOffArgs...)
 
+	// celestia-app v3 serves app versions 1, 2 and 3: it performs the v1 -> v2
+	// upgrade itself at --v2-upgrade-height and the v2 -> v3 upgrade via the
+	// signal module. Register all three explicitly so that GetForAppVersion
+	// never has to guess. The multiplexer keeps the v3 process running across
+	// these switches because they share the same Appd instance.
 	versions, err := abci.NewVersions(
 		abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  1,
+			StartArgs:   v3Args,
+		}, abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  2,
+			StartArgs:   v3Args,
+		}, abci.Version{
 			Appd:        appdV3,
 			ABCIVersion: abci.ABCIClientVersion1,
 			AppVersion:  3,
@@ -133,17 +159,17 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 			Appd:        appdV6,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  6,
-			StartArgs:   defaultArgs,
+			StartArgs:   interBlockCacheOffArgs,
 		}, abci.Version{
 			Appd:        appdV7,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  7,
-			StartArgs:   defaultArgs,
+			StartArgs:   interBlockCacheOffArgs,
 		}, abci.Version{
 			Appd:        appdV8,
 			ABCIVersion: abci.ABCIClientVersion2,
 			AppVersion:  8,
-			StartArgs:   defaultArgs,
+			StartArgs:   interBlockCacheOffArgs,
 		}, abci.Version{
 			Appd:        appdV9,
 			ABCIVersion: abci.ABCIClientVersion2,

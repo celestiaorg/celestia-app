@@ -22,6 +22,9 @@ func TestNestedMsgDecorator(t *testing.T) {
 	nestedMsgExec := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&msgExec})
 	nestedMsgPayForBlobs := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&blobtypes.MsgPayForBlobs{}})
 	nestedMsgPayForFibre := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&fibretypes.MsgPayForFibre{}})
+	nestedMsgPaymentPromiseTimeout := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&fibretypes.MsgPaymentPromiseTimeout{}})
+	nestedMsgDepositToEscrow := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&fibretypes.MsgDepositToEscrow{}})
+	nestedMsgRequestWithdrawal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{&fibretypes.MsgRequestWithdrawal{}})
 
 	proposalWithMsgSend := newMsgSubmitProposal(t, &banktypes.MsgSend{})
 	proposalWithMsgExec := newMsgSubmitProposal(t, &msgExec)
@@ -53,6 +56,21 @@ func TestNestedMsgDecorator(t *testing.T) {
 		{
 			name:    "Reject nestedMsgPayForFibre",
 			msg:     &nestedMsgPayForFibre,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject nestedMsgPaymentPromiseTimeout",
+			msg:     &nestedMsgPaymentPromiseTimeout,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject nestedMsgDepositToEscrow",
+			msg:     &nestedMsgDepositToEscrow,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject nestedMsgRequestWithdrawal",
+			msg:     &nestedMsgRequestWithdrawal,
 			wantErr: sdkerrors.ErrNotSupported,
 		},
 		{

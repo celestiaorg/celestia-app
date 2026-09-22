@@ -247,7 +247,7 @@ func deployEncodersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKey
 // deployReadersIfConfigured creates a lightweight reader-payload tar and deploys
 // it to all configured reader instances. Mirrors the encoder pattern: each reader
 // downloads the tar from S3 (or direct), extracts, and runs reader_init.sh which
-// installs the fibre-reader binary and a fibre keyring.
+// installs the fibre-reader binary.
 func deployReadersIfConfigured(ctx context.Context, cfg Config, rootDir, sshKeyPath string, directUpload, skipUpload bool, workers int) error {
 	if len(cfg.Readers) == 0 {
 		return nil

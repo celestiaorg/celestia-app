@@ -15,11 +15,12 @@ import (
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
-// rules before adding it the square.
+// rules before adding it to the square.
 type FilteredSquareBuilder struct {
 	handler   sdk.AnteHandler
 	msgRouter baseapp.MessageRouter
 	txConfig  client.TxConfig
+	chanKeep  channelKeeper
 	builder   *square.Builder
 }
 
@@ -27,6 +28,7 @@ func NewFilteredSquareBuilder(
 	handler sdk.AnteHandler,
 	msgRouter baseapp.MessageRouter,
 	txConfig client.TxConfig,
+	chanKeep channelKeeper,
 	maxSquareSize,
 	subtreeRootThreshold int,
 ) (*FilteredSquareBuilder, error) {
@@ -38,6 +40,7 @@ func NewFilteredSquareBuilder(
 		handler:   handler,
 		msgRouter: msgRouter,
 		txConfig:  txConfig,
+		chanKeep:  chanKeep,
 		builder:   builder,
 	}, nil
 }
@@ -102,7 +105,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = ctx.WithTxBytes(tx)
 
 		msgTypes := msgTypes(sdkTx)
-		if sdkMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxSDKMessages {
+		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
+		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
 			continue
 		}
@@ -131,7 +135,16 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		sdkMessageCount += len(sdkTx.GetMsgs())
+		// Replay fibre escrow effects (e.g. a timeout debit) so later pay-for-fibre
+		// settlement sees the same balance it will in FinalizeBlock. A failed
+		// message keeps the tx (gas only), so ignore the error.
+		if containsFibreStateMsg(sdkTx) {
+			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
+				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			}
+		}
+
+		sdkMessageCount += execMsgCount
 		normalTxs[n] = tx
 		n++
 	}
@@ -232,14 +245,6 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 				// regression so log + count it for visibility.
 				logger.Error("dropping malformed blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
 				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
-				continue
-			}
-			if !blobTxIsCanonical(rawTx, bTx) {
-				// Drop non-canonically encoded blob txs, matching CheckTx and
-				// ProcessProposalHandler. CheckTx already rejects these before
-				// they enter the mempool, so this is a defense-in-depth backstop.
-				logger.Error("dropping non-canonically encoded blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
-				telemetry.IncrCounter(1, "prepare_proposal", "non_canonical_blob_txs")
 				continue
 			}
 			blobTxs = append(blobTxs, bTx)

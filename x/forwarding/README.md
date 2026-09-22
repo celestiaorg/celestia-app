@@ -37,6 +37,36 @@ forwardAddr  = address.Module("forwarding", salt)[:20]
 
 Each address handles exactly one token for a given `(destDomain, destRecipient, tokenId)` tuple.
 
+### Hook-bound addresses
+
+An address can additionally commit to a post-dispatch hook and its metadata. This makes both part
+of the depositor's intent rather than parameters chosen by whoever submits `MsgForward`:
+
+```text
+callDigest   = sha256(destDomain_32bytes || destRecipient || tokenId || hookId || hookMetadata)
+salt         = sha256(version_byte || callDigest)       // version_byte = 0x01
+forwardAddr  = address.Module("forwarding", salt)[:20]
+```
+
+`hookId` is fixed width and `hookMetadata` is the terminal field, so the concatenation is
+unambiguous without a length prefix. `hookMetadata` is committed as its **decoded bytes**, so
+equivalent hex encodings derive the same address.
+
+The commitment is all-or-nothing, and the two schemes cannot collide because the bound preimage is
+longer than the unbound one:
+
+- An address derived committing to **neither** can only be forwarded through the mailbox
+  default hook with no metadata. Supplying either field derives a different address and fails with
+  `ErrAddressMismatch`.
+- An address derived committing to **either or both** can only be forwarded with exactly
+  that pair. A different hook, different metadata, or omitting either likewise fails with
+  `ErrAddressMismatch`.
+
+An absent `hookId` normalises to the zero address, which is the sentinel for "mailbox default
+hook". So metadata alone is a valid binding — it means the default hook with that exact metadata —
+while committing to neither yields the plain address. A single `DeriveForwardingAddress` covers
+both schemes, taking the hook and metadata as optional arguments.
+
 ## State
 
 ### Params
@@ -124,6 +154,12 @@ The relayer (signer) pays these fees as part of `MsgForward`.
 
 By default the warp dispatch routes its gas payment through the mailbox's default post-dispatch hook. `MsgForward` optionally overrides this so the fee is routed through a chosen hook (e.g. an alternative IGP) instead.
 
+**The hook and metadata must match the ones the forwarding address was derived with.** Choosing
+them is done at address-derivation time, not at forward time — see
+[Hook-bound addresses](#hook-bound-addresses). To route through your own IGP, derive the address
+with `--custom-hook-id` (and `--custom-hook-metadata` if you use it), have the user deposit there,
+and pass the same values to `tx forwarding forward`.
+
 - `custom_hook_id`: hex-encoded post-dispatch hook address. Empty selects the mailbox default hook (prior behavior is unchanged). A zero address is treated as empty.
 - `custom_hook_metadata`: hex-encoded metadata passed to the custom hook. Some hooks price the dispatch off this metadata; hooks that don't (e.g. the default IGP) ignore it.
 - The same hook **and metadata** must be used when quoting and when forwarding. `QuoteForwardingFee` accepts both `custom_hook_id` and `custom_hook_metadata` and quotes the dispatch exactly as `MsgForward` will, so the estimate matches the fee that will be charged. Quoting the default hook (or omitting metadata a hook prices off) then forwarding through a more expensive path can under-set `max_igp_fee` and fail with `ErrInsufficientIgpFee`.
@@ -136,6 +172,17 @@ By default the warp dispatch routes its gas payment through the mailbox's defaul
 celestia-appd query forwarding derive-address 0x<token-id> \
   42161 \
   0x000000000000000000000000<recipient-address>
+```
+
+To derive an address bound to your own IGP (so the forward is routed through it and no one can
+substitute a different hook), pass the hook id:
+
+```bash
+celestia-appd query forwarding derive-address 0x<token-id> \
+  42161 \
+  0x000000000000000000000000<recipient-address> \
+  --custom-hook-id 0x<hook-id> \
+  --custom-hook-metadata 0x<metadata>
 ```
 
 ### QuoteForwardingFee
@@ -209,11 +256,13 @@ celestia-appd tx forwarding forward <forward-addr> \
 | 7    | ErrInsufficientIgpFee | IGP fee provided is less than required         |
 | 8    | ErrForwardFailed      | Token forward failed                           |
 | 9    | ErrInvalidTokenID     | Invalid token identifier                       |
+| 10   | ErrInvalidHookID      | Invalid post-dispatch hook identifier          |
 
 ## Security
 
-- **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient, tokenId)`. Funds can only be forwarded using the committed token route and destination.
-- **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination.
+- **Cryptographic binding**: The `forwardAddr` cryptographically commits to `(destDomain, destRecipient, tokenId)`, and to `(hookId, hookMetadata)` when either is used. Funds can only be forwarded using the committed token route, destination, post-dispatch hook, and hook metadata.
+- **Permissionless execution**: Anyone can trigger forwarding, but only to the pre-committed destination and only through the pre-committed hook and metadata.
+- **No unfunded dispatch**: Because the hook is committed, a caller cannot route someone else's deposit through a hook of their choosing (e.g. a free noop hook) to dispatch it without funding delivery.
 - **Off-chain route trust**: Frontends and relayers choose the token route; the chain enforces consistency but does not decide which token is canonical.
 - **No fund loss**: Failed forwarding attempts do not commit state changes, so the bound token remains at `forwardAddr`.
 - **Collision resistance**: Same as standard Cosmos addresses (160-bit truncation). Draining requires 2^160 operations (second preimage), not 2^80 (birthday attack).

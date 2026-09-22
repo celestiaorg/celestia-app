@@ -66,6 +66,18 @@ func startFibreStack(t *testing.T, cctx testnode.Context, ecfg encoding.Config, 
 	return fibreStack{server: server, client: client, tx: txClient}
 }
 
+// waitForPaymentProcessed waits until the promise is recorded as processed.
+// A confirmed settlement tx can precede its state becoming visible to queries
+// by a moment, so assertions on settlement state must wait for it.
+func waitForPaymentProcessed(t *testing.T, cctx testnode.Context, promiseHash []byte) {
+	t.Helper()
+	q := fibretypes.NewQueryClient(cctx.GRPCClient)
+	require.Eventually(t, func() bool {
+		resp, err := q.IsPaymentProcessed(cctx.GoContext(), &fibretypes.QueryIsPaymentProcessedRequest{PromiseHash: promiseHash})
+		return err == nil && resp.Found
+	}, 30*time.Second, 250*time.Millisecond, "payment promise should be recorded as processed")
+}
+
 func fundEscrow(t *testing.T, cctx testnode.Context, tx *user.TxClient, amount sdk.Coin) {
 	t.Helper()
 	resp, err := tx.SubmitTx(cctx.GoContext(),

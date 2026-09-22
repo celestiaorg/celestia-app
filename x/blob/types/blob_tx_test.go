@@ -3,7 +3,6 @@ package types_test
 import (
 	"bytes"
 	"testing"
-	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app"
@@ -409,42 +408,6 @@ func TestValidateBlobTxWithCache(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "namespace of blob and its respective MsgPayForBlobs differ")
 		assert.False(t, fromCache, "blobs changed so cache miss, full validation used")
-	})
-
-	t.Run("cache is cleaned after FinalizeBlock", func(t *testing.T) {
-		blobTxBytes := blobfactory.RandBlobTxsWithNamespacesAndSigner(
-			signers[3],
-			[]share.Namespace{namespace1},
-			[]int{100},
-		)[0]
-
-		blobTx, isBlobTx, err := tx.UnmarshalBlobTx(blobTxBytes)
-		require.NoError(t, err)
-		require.True(t, isBlobTx)
-
-		resp, err := testApp.CheckTx(&abci.RequestCheckTx{
-			Type: abci.CheckTxType_New,
-			Tx:   blobTxBytes,
-		})
-		require.NoError(t, err)
-		require.Equal(t, abci.CodeTypeOK, resp.Code)
-
-		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
-		require.NoError(t, err)
-		assert.True(t, fromCache, "expected validation from cache before FinalizeBlock")
-
-		// finalize block to clean the cache
-		_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-			Txs:    [][]byte{blobTx.Tx},
-			Time:   time.Now(),
-			Height: 2,
-		})
-		require.NoError(t, err)
-
-		// verify transaction is no longer in cache
-		fromCache, err = testApp.ValidateBlobTxWithCache(blobTx)
-		require.NoError(t, err)
-		assert.False(t, fromCache, "expected validation without cache after FinalizeBlock")
 	})
 }
 

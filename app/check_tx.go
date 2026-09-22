@@ -31,16 +31,13 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
-		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx) {
+		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
 			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
 		}
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
 	if isBlob {
-		if !blobTxIsCanonical(tx, btx) {
-			return responseCheckTxWithEvents(apperr.ErrNonCanonicalBlobTx, 0, 0, []abci.Event{}, false), nil
-		}
 		return app.handleBlobCheckTx(req, btx)
 	}
 
@@ -55,7 +52,12 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		}
 	}
 
-	if msgCount := len(sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
+	checkTxCtx, ok := app.CheckState()
+	if !ok {
+		err := fmt.Errorf("checkState not set")
+		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
+	}
+	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
@@ -76,8 +78,6 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		if err := blobtypes.ValidateBlobTx(app.encodingConfig.TxConfig, btx, appconsts.SubtreeRootThreshold, appconsts.Version); err != nil {
 			return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 		}
-		// Cache the tx, so ProcessProposal will skip the validation step
-		app.txCache.Set(btx.Tx, btx.Blobs)
 	case abci.CheckTxType_Recheck:
 		// no need to re-validate a blob
 	default:
@@ -90,7 +90,18 @@ func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) 
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
 
-	return app.forwardCheckTx(baseReq, sdkTx)
+	res, err := app.forwardCheckTx(baseReq, sdkTx)
+	if err != nil || res.Code != abci.CodeTypeOK {
+		return res, err
+	}
+
+	// Cache only txs that passed full CheckTx, so ProcessProposal skips
+	// re-validation and invalid spam cannot evict legitimate entries.
+	if req.Type == abci.CheckTxType_New {
+		app.txCache.Set(btx.Tx, btx.Blobs)
+	}
+
+	return res, nil
 }
 
 func (app *App) forwardCheckTx(req *abci.RequestCheckTx, sdkTx sdk.Tx) (*abci.ResponseCheckTx, error) {
@@ -189,4 +200,20 @@ func payForFibreMsg(tx sdk.Tx) (*fibretypes.MsgPayForFibre, bool) {
 	}
 	pff, ok := msgs[0].(*fibretypes.MsgPayForFibre)
 	return pff, ok
+}
+
+// containsFibreStateMsg reports whether the tx carries a fibre message that
+// mutates escrow state/balance as soon as it executes, so proposal must replay
+// it before settling a later MsgPayForFibre. MsgPayForFibre (settled on its
+// own path) and MsgRequestWithdrawal (only locks funds, paid out later by the
+// BeginBlocker) are excluded.
+func containsFibreStateMsg(tx sdk.Tx) bool {
+	for _, msg := range tx.GetMsgs() {
+		switch msg.(type) {
+		case *fibretypes.MsgPaymentPromiseTimeout,
+			*fibretypes.MsgDepositToEscrow:
+			return true
+		}
+	}
+	return false
 }

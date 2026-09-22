@@ -1,14 +1,18 @@
 package fibre_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
+	grpcfibre "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // TestServerDownloadShard unit tests the [Server.DownloadShard].
@@ -142,4 +146,32 @@ func storeTestShard(t *testing.T, server *fibre.Server, blob *fibre.Blob) {
 
 	err = server.Store().Put(t.Context(), promise, shard, promise.CreationTimestamp.Add(time.Second))
 	require.NoError(t, err)
+}
+
+// TestDownloadShardOversizedRequestRejected checks that the server rejects a
+// DownloadShard request far larger than a blob ID with a gRPC status before the
+// handler runs, and keeps serving afterwards.
+func TestDownloadShardOversizedRequestRejected(t *testing.T) {
+	validators, privKeys := makeTestValidators(t, 1)
+	valSetGetter := newShufflingValidatorSetGetter(validators, 1)
+	servers, _, addresses := makeTestServers(t, validators, privKeys, fibre.DefaultProtocolParams, valSetGetter, nil)
+	t.Cleanup(func() { _ = servers[0].Stop(context.Background()) })
+
+	newClient := grpcfibre.DefaultNewClientFn(
+		&testHostRegistry{addresses: addresses},
+		func() string { return "celestia" },
+		fibre.DefaultProtocolParams.MaxMessageSize(),
+		nil,
+	)
+	client, err := newClient(t.Context(), validators[0])
+	require.NoError(t, err)
+	defer client.Close()
+
+	_, err = client.DownloadShard(t.Context(), &types.DownloadShardRequest{BlobId: make([]byte, 1<<20)})
+	require.Equal(t, codes.Internal, status.Code(err))
+	require.ErrorContains(t, err, "download request exceeds")
+
+	// A well-formed request still reaches the handler.
+	_, err = client.DownloadShard(t.Context(), &types.DownloadShardRequest{BlobId: makeTestBlobV0(t, 256).ID()})
+	require.Equal(t, codes.NotFound, status.Code(err))
 }

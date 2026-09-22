@@ -76,6 +76,8 @@ type ForwardingRequest struct {
 	DestDomain    uint32 `json:"dest_domain"`
 	DestRecipient string `json:"dest_recipient"`
 	TokenId       string `json:"token_id"`
+	// Must match the hook the address was derived with; the backend re-derives and validates.
+	CustomHookId string `json:"custom_hook_id,omitempty"`
 }
 
 func (s *HyperlaneTestSuite) SetupSuite() {
@@ -331,6 +333,11 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 }
 
 func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient string) {
+	s.SendForwardingRequestWithHook(ctx, forwardingService, forwardAddr, tokenId, destDomain, destRecipient, "")
+}
+
+// SendForwardingRequestWithHook registers a request whose address is bound to customHookID.
+func (s *HyperlaneTestSuite) SendForwardingRequestWithHook(ctx context.Context, forwardingService *hyperlane.ForwardRelayer, forwardAddr string, tokenId string, destDomain uint32, destRecipient, customHookID string) {
 	s.T().Helper()
 
 	networkInfo, err := forwardingService.GetNetworkInfo(ctx)
@@ -343,6 +350,7 @@ func (s *HyperlaneTestSuite) SendForwardingRequest(ctx context.Context, forwardi
 		DestDomain:    destDomain,
 		DestRecipient: destRecipient,
 		TokenId:       tokenId,
+		CustomHookId:  customHookID,
 	}
 
 	reqBz, err := json.Marshal(forwardReq)
@@ -608,6 +616,12 @@ func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *Evol
 }
 
 func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient string) string {
+	return s.QueryForwardingAddressWithHook(ctx, chain, tokenId, domain, recipient, "")
+}
+
+// QueryForwardingAddressWithHook derives the address bound to customHookID; empty derives
+// the mailbox-default-hook address.
+func (s *HyperlaneTestSuite) QueryForwardingAddressWithHook(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient, customHookID string) string {
 	s.T().Helper()
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
@@ -623,6 +637,7 @@ func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *
 		TokenId:       tokenId,
 		DestDomain:    domain,
 		DestRecipient: recipient,
+		CustomHookId:  customHookID,
 	}
 
 	client := forwardingtypes.NewQueryClient(grpcConn)

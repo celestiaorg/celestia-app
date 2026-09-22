@@ -77,7 +77,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		occ:       occ,
 	}
 
-	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress)
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
@@ -133,6 +133,11 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	s.grpc.Register(s,
 		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
+		// Reject too many rows or proofs before protobuf allocates for them.
+		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
+			DefaultProtocolParams.MaxRowsPerValidator(),
+			DefaultProtocolParams.MerkleProofDepth(),
+		)),
 		grpclib.Creds(creds),
 	)
 

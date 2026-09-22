@@ -18,12 +18,18 @@ import (
 
 // Connection and stream caps bound receive memory: gRPC buffers a full
 // UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The values
-// are intentionally conservative for a 32 GiB-RAM validator. Tying them to
-// staking power, or adding a per-peer connection policy, are possible follow-ups.
+// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The defaults
+// are intentionally conservative for a 32 GiB-RAM validator; operators can
+// override both caps via config to trade RAM for throughput.
+//
+// NewServerCodec separately limits rows and proofs before decoding allocates
+// memory for them, and rejects oversized DownloadShard requests before copying
+// them.
 const (
-	maxConnections       = 16
-	maxConcurrentStreams = 13
+	// DefaultMaxConnections is the default total connection cap.
+	DefaultMaxConnections = 16
+	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
+	DefaultMaxConcurrentStreams = 13
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.
@@ -38,16 +44,17 @@ const (
 
 // Server wraps a [grpc.Server] with TCP listener and lifecycle management.
 type Server struct {
-	server   *grpc.Server
-	listener net.Listener
-	done     chan struct{}
+	server               *grpc.Server
+	listener             net.Listener
+	done                 chan struct{}
+	maxConcurrentStreams uint32
 }
 
 // Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
 // is created lazily by [Server.Register] so callers can defer building
 // credentials until after the listener address is known (e.g., for TLS certs
 // that depend on a chain ID resolved at startup).
-func Listen(listenAddr string) (*Server, error) {
+func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Server, error) {
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
@@ -55,7 +62,7 @@ func Listen(listenAddr string) (*Server, error) {
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener}, nil
+	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
@@ -67,7 +74,7 @@ func Listen(listenAddr string) (*Server, error) {
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
-		grpc.MaxConcurrentStreams(maxConcurrentStreams),
+		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
 			MinTime: keepAliveMinTime,

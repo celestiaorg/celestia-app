@@ -23,8 +23,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app"
-	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
@@ -32,7 +30,6 @@ import (
 	"github.com/cometbft/cometbft/rpc/client/http"
 	coretypes "github.com/cometbft/cometbft/rpc/core/types"
 	cmttypes "github.com/cometbft/cometbft/types"
-	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/grafana/pyroscope-go"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
@@ -50,8 +47,6 @@ import (
 type config struct {
 	rpcEndpoint         string
 	grpcEndpoint        string
-	keyringDir          string
-	keyName             string
 	readerIndex         int
 	readerCount         int
 	downloadConcurrency int
@@ -106,8 +101,6 @@ func main() {
 	var cfg config
 	flag.StringVar(&cfg.rpcEndpoint, "rpc-endpoint", "tcp://localhost:26657", "cometbft RPC endpoint")
 	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "celestia-app gRPC endpoint for fibre client state")
-	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
-	flag.StringVar(&cfg.keyName, "key-name", "fibre-0", "key name in keyring (used to satisfy fibre.NewClient existence check)")
 	flag.IntVar(&cfg.readerIndex, "reader-index", -1, "this reader's index in [0, reader-count)")
 	flag.IntVar(&cfg.readerCount, "reader-count", 0, "total number of reader instances (>=1)")
 	flag.IntVar(&cfg.downloadConcurrency, "download-concurrency", 8, "max concurrent in-flight downloads (semaphore-bounded; goroutine spawned per blob). Default 8 fits c6in.8xlarge (64 GiB) at 128 MiB blobs — each in-flight slot can hold 1+ GiB of buffered shards.")
@@ -171,13 +164,6 @@ func run(cfg config) error {
 	}
 	tracer := otel.Tracer("fibre-reader")
 
-	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
-
-	kr, err := keyring.New(app.Name, keyring.BackendTest, cfg.keyringDir, nil, encCfg.Codec)
-	if err != nil {
-		return fmt.Errorf("failed to initialize keyring: %w", err)
-	}
-
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -199,13 +185,13 @@ func run(cfg config) error {
 		return fmt.Errorf("invalid --experimental-max-blob-size-mib: %w", err)
 	}
 	clientCfg.StateAddress = cfg.grpcEndpoint
-	clientCfg.DefaultKeyName = cfg.keyName
 	if err := clientCfg.Validate(); err != nil {
 		return fmt.Errorf("invalid fibre client config: %w", err)
 	}
 	clientCfg.StateClientFn = state.WithCachedValset(clientCfg.StateClientFn, 30*time.Second)
 
-	fibreClient, err := fibre.NewClient(kr, clientCfg)
+	// Readers only download, so no keyring is needed.
+	fibreClient, err := fibre.NewClient(nil, clientCfg)
 	if err != nil {
 		return fmt.Errorf("failed to create fibre client: %w", err)
 	}

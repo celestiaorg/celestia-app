@@ -12,6 +12,10 @@ import (
 // grpc.CallContentSubtype.
 const codecName = "fibre-proto"
 
+// maxDownloadShardRequestSize bounds the wire size of a DownloadShardRequest.
+// A valid request is 35 bytes; the slack leaves room for small future fields.
+const maxDownloadShardRequestSize = 1024
+
 type sizedBufferMarshaler interface {
 	Size() int
 	MarshalToSizedBuffer([]byte) (int, error)
@@ -27,10 +31,30 @@ type protoUnmarshaler interface {
 // through the pooled contiguous path.
 type pooledCodec struct {
 	pool mem.BufferPool
+
+	// These limits are zero for clients, which do not decode upload requests.
+	// Servers set them with NewServerCodec.
+	maxShardRows     int
+	maxProofSegments int
 }
 
 func init() {
 	encoding.RegisterCodecV2(&pooledCodec{pool: mem.DefaultBufferPool()})
+}
+
+// NewServerCodec returns a codec that rejects upload requests with more than
+// maxShardRows rows per shard or maxProofSegments per row before protobuf
+// allocates for them. Both limits must be positive: a zero limit would
+// silently disable the check. Install it with [grpc.ForceServerCodecV2].
+func NewServerCodec(maxShardRows, maxProofSegments int) encoding.CodecV2 {
+	if maxShardRows <= 0 || maxProofSegments <= 0 {
+		panic(fmt.Sprintf("fibre-proto codec: limits must be positive, got maxShardRows=%d maxProofSegments=%d", maxShardRows, maxProofSegments))
+	}
+	return &pooledCodec{
+		pool:             mem.DefaultBufferPool(),
+		maxShardRows:     maxShardRows,
+		maxProofSegments: maxProofSegments,
+	}
 }
 
 func (c *pooledCodec) Name() string { return codecName }
@@ -70,5 +94,16 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if data.Len() == 0 {
 		return msg.Unmarshal(nil)
 	}
-	return msg.Unmarshal(data.Materialize())
+	// Reject oversized download requests before Materialize copies them.
+	if _, ok := v.(*types.DownloadShardRequest); ok && data.Len() > maxDownloadShardRequestSize {
+		return fmt.Errorf("fibre-proto codec: download request exceeds %d bytes", maxDownloadShardRequestSize)
+	}
+	buf := data.Materialize()
+	// Check row and proof counts before the generated decoder allocates for them.
+	if _, ok := v.(*types.UploadShardRequest); ok && c.maxShardRows > 0 {
+		if err := c.validateUploadShard(buf); err != nil {
+			return err
+		}
+	}
+	return msg.Unmarshal(buf)
 }

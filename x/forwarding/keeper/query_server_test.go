@@ -109,6 +109,78 @@ func TestQueryDeriveForwardingAddressRequiresKnownTokenRoute(t *testing.T) {
 	require.Equal(t, codes.FailedPrecondition, status.Code(err))
 }
 
+// The derive query must expose the hook-bound scheme, otherwise clients have no way to
+// compute the address a hook-routed forward will be checked against.
+func TestQueryDeriveForwardingAddressBindsCustomHook(t *testing.T) {
+	ctx := createTestContext()
+	bankKeeper := NewMockBankKeeper()
+	warpKeeper := NewMockWarpKeeper()
+	hyperlaneKeeper := NewMockHyperlaneKeeper()
+
+	token := createTestHypToken(1, appconsts.BondDenom, warptypes.HYP_TOKEN_TYPE_COLLATERAL)
+	warpKeeper.Tokens = append(warpKeeper.Tokens, token)
+	warpKeeper.EnrolledRouters[1] = map[uint32]warptypes.RemoteRouter{
+		42161: {Gas: math.NewInt(200000)},
+	}
+
+	queryServer := keeper.NewQueryServerImpl(keeper.NewKeeper(bankKeeper, warpKeeper, hyperlaneKeeper))
+	recipient := "0x000000000000000000000000deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+	base, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+	})
+	require.NoError(t, err)
+
+	hooked, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookId: "0x726f757465725f706f73745f6469737061746368000000040000000000000009",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, base.Address, hooked.Address, "a hook-bound address must differ from the default one")
+
+	// A zero hook id means the mailbox default hook, so it must resolve to the base address.
+	zero, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookId: util.NewZeroAddress().String(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, base.Address, zero.Address, "zero hook id must derive the default-hook address")
+
+	// Metadata is committed alongside the hook, so it must move the address too, and it
+	// must be bindable on its own (default hook with that metadata).
+	hookAndMeta, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookId:       "0x726f757465725f706f73745f6469737061746368000000040000000000000009",
+		CustomHookMetadata: "0xabcdef",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, hooked.Address, hookAndMeta.Address, "metadata must change the address")
+
+	metaOnly, err := queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookMetadata: "0xabcdef",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, base.Address, metaOnly.Address, "a metadata-only binding must differ from the default")
+	require.NotEqual(t, hookAndMeta.Address, metaOnly.Address)
+
+	// Malformed hook id => InvalidArgument.
+	_, err = queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookId: "0xnothex",
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+
+	// Malformed metadata => InvalidArgument.
+	_, err = queryServer.DeriveForwardingAddress(ctx, &types.QueryDeriveForwardingAddressRequest{
+		DestDomain: 42161, DestRecipient: recipient, TokenId: token.Id.String(),
+		CustomHookMetadata: "0xnothex",
+	})
+	require.Error(t, err)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
 func TestQueryQuoteForwardingFeeRequiresExplicitToken(t *testing.T) {
 	ctx := createTestContext()
 	bankKeeper := NewMockBankKeeper()

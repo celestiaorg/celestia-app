@@ -75,14 +75,15 @@ func TestDefaultConsensusConfig(t *testing.T) {
 	t.Run("mempool overrides", func(t *testing.T) {
 		want := tmcfg.MempoolConfig{
 			// defaults
-			Broadcast:             tmcfg.DefaultMempoolConfig().Broadcast,
-			CacheSize:             tmcfg.DefaultMempoolConfig().CacheSize,
-			KeepInvalidTxsInCache: tmcfg.DefaultMempoolConfig().KeepInvalidTxsInCache,
-			Recheck:               tmcfg.DefaultMempoolConfig().Recheck,
-			RootDir:               tmcfg.DefaultMempoolConfig().RootDir,
-			Size:                  tmcfg.DefaultMempoolConfig().Size,
-			WalPath:               tmcfg.DefaultMempoolConfig().WalPath,
-			RecheckTimeout:        1_000_000_000,
+			Broadcast:                tmcfg.DefaultMempoolConfig().Broadcast,
+			CacheSize:                tmcfg.DefaultMempoolConfig().CacheSize,
+			KeepInvalidTxsInCache:    tmcfg.DefaultMempoolConfig().KeepInvalidTxsInCache,
+			MaxPersistentStickyPeers: tmcfg.DefaultMempoolConfig().MaxPersistentStickyPeers,
+			Recheck:                  tmcfg.DefaultMempoolConfig().Recheck,
+			RootDir:                  tmcfg.DefaultMempoolConfig().RootDir,
+			Size:                     tmcfg.DefaultMempoolConfig().Size,
+			WalPath:                  tmcfg.DefaultMempoolConfig().WalPath,
+			RecheckTimeout:           1_000_000_000,
 
 			// Overrides
 			MaxTxBytes:     appconsts.MaxTxSize,

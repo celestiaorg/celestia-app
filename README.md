@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.26.5
+1. [Install Go](https://go.dev/doc/install) 1.26.6
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
 
@@ -148,6 +148,32 @@ celestia-appd init test
 # Start the consensus node.
 celestia-appd start
 ```
+
+### Updating config.toml
+
+`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults.
+Synchronization runs only when this command is called, not on node startup.
+Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
+Flags and environment overrides are not saved.
+Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
+If nothing is missing, it leaves the file untouched.
+
+To inspect additions or update the file before restarting:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app --dry-run
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Then edit the fields in `config/config.toml` under your node's home directory to set the values you want before restarting the node.
+
+Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
+For deployment-managed configurations, add the reported settings to the source configuration.
+The command returns an error on failure.
+
+Synchronization does not update `app.toml`, remove deprecated settings, or replace existing values with newer defaults.
+Once a default is written, it remains an explicit value on later upgrades.
+Existing binary overrides for consensus, mempool, and P2P settings still apply.
 
 ### Create a single node local testnet
 

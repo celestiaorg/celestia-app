@@ -56,7 +56,7 @@ type ClientConfig struct {
 	// If nil, [Validate] creates one from [StateAddress].
 	StateClientFn func() (state.Client, error)
 	// NewClientFn is the constructor function for creating gRPC [fibregrpc.Client]s.
-	// If nil, [Validate] will set a default using the [state.Client]'s [validator.HostRegistry].
+	// If nil, the client dials validators through its own [state.Client]'s host registry.
 	NewClientFn fibregrpc.NewClientFn
 	// Log is the logger for the client.
 	// If nil, [slog.Default] will be used.

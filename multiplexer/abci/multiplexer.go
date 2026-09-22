@@ -8,9 +8,11 @@ import (
 	"math"
 	"net"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app/observability"
@@ -81,6 +83,10 @@ type Multiplexer struct {
 	ctx context.Context
 	// g is the errgroup to which the gRPC server, API server, block event listener, and signal handler are added to.
 	g *errgroup.Group
+	// cancelEmbeddedAppWatcher cancels the watcher goroutine of the currently
+	// running embedded app, marking its upcoming exit as operator-initiated.
+	// stopEmbeddedApp calls it before interrupting the child process.
+	cancelEmbeddedAppWatcher context.CancelFunc
 	// traceWriter is the trace writer for the multiplexer.
 	traceWriter io.WriteCloser
 	// metrics caches the telemetry.Metrics instance to prevent duplicate
@@ -126,7 +132,7 @@ func (m *Multiplexer) isGrpcOnly() bool {
 }
 
 func (m *Multiplexer) Start() error {
-	m.g, m.ctx = getCtx(m.svrCtx, true)
+	m.g, m.ctx = getCtx(m.svrCtx)
 
 	emitServerInfoMetrics()
 
@@ -155,7 +161,7 @@ func (m *Multiplexer) Start() error {
 	}
 
 	// wait for signal capture and gracefully return
-	// we are guaranteed to be waiting for the "ListenForQuitSignals" goroutine.
+	// we are guaranteed to be waiting for the quit-signal listener goroutine.
 	return m.g.Wait()
 }
 
@@ -233,9 +239,62 @@ func (m *Multiplexer) startApp() error {
 
 		m.started = true
 		m.activeVersion = currentVersion
+		m.watchEmbeddedApp(currentVersion.AppVersion, currentVersion.Appd.Exited())
 	}
 
-	return m.initRemoteGrpcConn()
+	if err := m.initRemoteGrpcConn(); err != nil {
+		return err
+	}
+
+	// The watcher cannot close a connection that did not exist yet, so catch a
+	// child that died while the connection was being set up.
+	if currentVersion.Appd.IsStopped() {
+		return fmt.Errorf("embedded app for version %d exited while starting", currentVersion.AppVersion)
+	}
+	return nil
+}
+
+// watchEmbeddedApp watches a just-started embedded app and surfaces an
+// unexpected exit as an error on the multiplexer's errgroup, so the parent
+// process exits instead of hanging silently. Exits that are part of an
+// operator-initiated stop (a version switch or a graceful shutdown) are not
+// errors: stopEmbeddedApp cancels the watcher before interrupting the child,
+// and an OS quit signal cancels m.ctx, which the watch context is derived
+// from.
+func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
+	watchCtx, cancel := context.WithCancel(m.ctx)
+	m.cancelEmbeddedAppWatcher = cancel
+
+	m.g.Go(func() error {
+		select {
+		case err := <-exited:
+			// The watch context may have been cancelled concurrently with the
+			// exit being delivered; if so, the exit is expected.
+			select {
+			case <-watchCtx.Done():
+				return nil
+			default:
+			}
+
+			// Close the ABCI connection so a handshake already in flight fails
+			// instead of queueing forever against the dead child: the remote
+			// clients call with grpc.WaitForReady(true), so without this the
+			// main goroutine stays parked in startCmtNode and never observes
+			// the error below.
+			m.mu.Lock()
+			if closeErr := m.stopGRPCConnection(); closeErr != nil {
+				m.logger.Error("failed to close gRPC connection after embedded app exited", "err", closeErr)
+			}
+			m.mu.Unlock()
+
+			if err != nil {
+				return fmt.Errorf("embedded app for version %d exited unexpectedly: %w", appVersion, err)
+			}
+			return fmt.Errorf("embedded app for version %d exited unexpectedly", appVersion)
+		case <-watchCtx.Done():
+			return nil
+		}
+	})
 }
 
 // removeStart removes the first argument (the binary name) and the start argument from args.
@@ -431,9 +490,15 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 
 	// get the appropriate version for the latest app version.
 	currentVersion, err := m.versions.GetForAppVersion(m.appVersion)
+	if err != nil && !errors.Is(err, ErrNoVersionFound) {
+		// The app version is older than, or in a gap between, the registered
+		// embedded versions. Nothing can serve it, so fail instead of guessing.
+		return nil, err
+	}
 	if err != nil {
-		// if we are switching from an embedded binary to a native one, we need to ensure that we stop it
-		// before we start the native app.
+		// The app version is newer than every embedded version, so it is served
+		// by the native app. If we are switching from an embedded binary to the
+		// native one, we need to ensure that we stop it before we start the native app.
 		if err := m.stopEmbeddedApp(); err != nil {
 			return nil, fmt.Errorf("failed to stop embedded app: %w", err)
 		}
@@ -457,9 +522,16 @@ func (m *Multiplexer) getApp() (servertypes.ABCI, error) {
 
 	// check if we need to start the app or if we have a different app running
 	if !m.started || currentVersion.AppVersion > m.activeVersion.AppVersion {
-		m.logger.Info("Using ABCI remote connection", "maximum_app_version", m.activeVersion.AppVersion, "abci_version", m.activeVersion.ABCIVersion.String(), "chain_id", m.chainID)
-		if err := m.startEmbeddedApp(currentVersion); err != nil {
-			return nil, fmt.Errorf("failed to start embedded app: %w", err)
+		if m.isServedByRunningEmbeddedApp(currentVersion) {
+			// The running binary also serves the new app version (celestia-app
+			// v3 serves app versions 1, 2 and 3), so switch without restarting it.
+			m.logger.Info("switching app version served by the running embedded app", "from_app_version", m.activeVersion.AppVersion, "to_app_version", currentVersion.AppVersion)
+			m.activeVersion = currentVersion
+		} else {
+			m.logger.Info("Using ABCI remote connection", "maximum_app_version", m.activeVersion.AppVersion, "abci_version", m.activeVersion.ABCIVersion.String(), "chain_id", m.chainID)
+			if err := m.startEmbeddedApp(currentVersion); err != nil {
+				return nil, fmt.Errorf("failed to start embedded app: %w", err)
+			}
 		}
 	}
 
@@ -508,6 +580,7 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 
 		m.activeVersion = version
 		m.started = true
+		m.watchEmbeddedApp(version.AppVersion, version.Appd.Exited())
 	}
 	return nil
 }
@@ -515,6 +588,12 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 // embeddedVersionRunning returns true if there is an active version specified which is running.
 func (m *Multiplexer) embeddedVersionRunning() bool {
 	return m.activeVersion.Appd != nil && m.activeVersion.Appd.IsRunning()
+}
+
+// isServedByRunningEmbeddedApp reports whether the running embedded binary is
+// the one registered for version, so switching to it needs no restart.
+func (m *Multiplexer) isServedByRunningEmbeddedApp(version Version) bool {
+	return m.embeddedVersionRunning() && m.activeVersion.Appd == version.Appd
 }
 
 // startCmtNode initializes and starts a CometBFT node, sets up cleanup tasks, and assigns it to the Multiplexer instance.
@@ -597,6 +676,13 @@ func (m *Multiplexer) stopNativeApp() error {
 
 // stopEmbeddedApp stops any embedded app versions if they are currently running.
 func (m *Multiplexer) stopEmbeddedApp() error {
+	// Mark any upcoming exit as expected before interrupting the child so the
+	// embedded app watcher doesn't report the stop as a crash.
+	if m.cancelEmbeddedAppWatcher != nil {
+		m.cancelEmbeddedAppWatcher()
+		m.cancelEmbeddedAppWatcher = nil
+	}
+
 	if !m.embeddedVersionRunning() {
 		return nil
 	}
@@ -665,10 +751,31 @@ func emitServerInfoMetrics() {
 	telemetry.SetGaugeWithLabels([]string{"server", "info"}, 1, ls)
 }
 
-func getCtx(svrCtx *server.Context, block bool) (*errgroup.Group, context.Context) {
+// getCtx returns an errgroup whose context is cancelled either by an OS quit
+// signal or by any goroutine in the group returning an error.
+//
+// It intentionally does not use server.ListenForQuitSignals: that helper's
+// goroutine blocks until a signal arrives without ever observing the group's
+// context, which would keep g.Wait from returning when another goroutine in
+// the group fails (e.g. the embedded app watcher).
+func getCtx(svrCtx *server.Context) (*errgroup.Group, context.Context) {
 	ctx, cancelFn := context.WithCancel(context.Background())
 	g, ctx := errgroup.WithContext(ctx)
+
 	// listen for quit signals so the calling parent process can gracefully exit
-	server.ListenForQuitSignals(g, block, cancelFn, svrCtx.Logger)
+	g.Go(func() error {
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+		defer signal.Stop(sigCh)
+
+		select {
+		case sig := <-sigCh:
+			svrCtx.Logger.Info("caught signal", "signal", sig.String())
+			cancelFn()
+		case <-ctx.Done():
+		}
+		return nil
+	})
+
 	return g, ctx
 }

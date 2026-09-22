@@ -105,6 +105,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(2)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
@@ -456,6 +457,7 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
 	infos := queryAccountInfo(testApp, accounts, kr)
 
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
@@ -518,7 +520,7 @@ func TestProcessProposalChargesTxSizeGas(t *testing.T) {
 }
 
 // processProposalRequest builds a valid ProcessProposal request for the txs.
-func processProposalRequest(t *testing.T, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
+func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.RequestProcessProposal {
 	t.Helper()
 	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
 	require.NoError(t, err)

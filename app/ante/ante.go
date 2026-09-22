@@ -78,6 +78,9 @@ func NewAnteHandler(
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
 		blobante.NewBlobShareDecorator(blobKeeper),
+		// Reject unsettleable MsgPayForFibre txs in CheckTx and recheck to keep
+		// replayed or stale promises out of the mempool.
+		fibreante.NewFibreStatefulValidationDecorator(fibreKeeper),
 		// Verify uncached MsgPayForFibre validator signatures.
 		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, pffSigCache),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.

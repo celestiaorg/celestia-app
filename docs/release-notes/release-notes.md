@@ -6,9 +6,23 @@ This guide provides notes for major version releases. These notes may be helpful
 
 ### Node Operators (v10.0.0)
 
+Node operators MUST upgrade their binary to this version prior to the v10 activation height.
+
+#### Update config.toml
+
+Validators are recommended to run the following command with a v10.2.0 or later binary to add missing fields and their documentation to `config.toml` before changing settings:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Use your node's home directory if it differs. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
+
 #### Fibre
 
 v10 introduces fibre, a data availability protocol served by validator-operated fibre servers. Validators should follow the [fibre server guide](../../fibre/cmd/README.md) — prerequisites, setup, and the on-chain host registration via [`x/valaddr`](../../x/valaddr/README.md) — to start serving fibre traffic once v10 is live.
+
+We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other.
 
 #### Key Management Systems (KMS)
 
@@ -20,6 +34,48 @@ The horcrux deprecation announced in the v7 release notes is superseded. Any KMS
 Horcrux is currently under-maintained. Additionally, a couple of slashing incidents have occurred due to misconfigured horcrux setups. Validators who choose to run horcrux accept these risks.
 
 As a reminder, KMS are third-party software and validators are responsible for ensuring their own KMS setup is correctly configured. An incorrect setup may result in double signing, which can lead to slashing. Validators choosing to run a KMS do so at their own risk.
+
+#### Privval gRPC Endpoint Enabled by Default
+
+Fresh v10 configurations enable a privval gRPC endpoint, which the fibre server uses for payment-promise endorsements and its TLS identity. The default listen address moved from `127.0.0.1:26659` to `127.0.0.1:26669` to avoid a TMKMS port clash. Existing configurations retain their saved address or empty (disabled) value; replacing the binary does not rewrite it. Check the top-level `priv_validator_grpc_laddr` in `config/config.toml` and set Fibre's signer address to match. Nodes that don't serve fibre can disable it by clearing this setting.
+
+Fibre also needs application gRPC enabled in the `[grpc]` section of `config/app.toml` (normally port `9090`). This is separate from `[rpc] grpc_laddr` in `config/config.toml` (normally port `9098`); preserve the latter for existing core RPC clients. See the [connection settings and address formats](../../fibre/cmd/README.md#node-connections).
+
+#### Heavy RPC Requests Are Limited
+
+celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_search`, `unconfirmed_txs`, share and data-root proofs, and the gRPC block, validator-set, and proof endpoints) behind a process-wide concurrency limit. It is configurable via `max_concurrent_heavy_requests` in the `[rpc]` section of `config.toml` (default 20) and is shared across HTTP JSON-RPC, URI, WebSocket, and gRPC. Excess requests are rejected with HTTP 503 / gRPC `ResourceExhausted`. Public RPC providers may want to raise this limit.
+
+#### Blockstore Compaction
+
+New `[storage]` options in `config.toml`: `compact` (default `false`) and `compaction_interval` (default `10000`). When enabled, the blockstore is compacted asynchronously over the pruned range, keeping pruned nodes at a bounded disk size. A new `celestia-appd compact-blockstore` command performs a one-off compaction of an existing blockstore.
+
+Automatic compaction covers newly pruned blocks. To reclaim space from an existing pruned backlog, stop the node and run `celestia-appd compact-blockstore --home <node-home>` before enabling it. Compaction does not enable pruning; archival nodes should retain `min-retain-blocks = 0` in `app.toml`.
+
+#### Updating Existing Configuration Files
+
+At startup, missing fields use the binary's defaults without rewriting existing files. The deprecated `celestia-appd update-config` command only supports the v6 migration; use `celestia-appd config sync` to add missing v10 settings and their documentation.
+
+Run [`celestia-appd config sync`](#update-configtoml) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
+
+The command only updates `config.toml`. Back up and edit `config/app.toml` and Fibre's `server_config.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
+
+Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
+
+#### Metrics Push via OTLP
+
+`celestia-appd start` accepts a new `--otel-endpoint` flag (env `CELESTIA_APP_OTEL_ENDPOINT`) that pushes node metrics (SDK telemetry, CometBFT, Go runtime) to an OpenTelemetry collector over OTLP HTTP.
+
+### State Machine Changes (v10.0.0)
+
+#### New Modules (v10.0.0)
+
+**`x/fibre`**: escrow, payment promises, and settlement for fibre. `MsgPayForFibre` pays for blob dissemination through fibre. See the [x/fibre README](../../x/fibre/README.md).
+
+**`x/valaddr`**: on-chain registration of validator fibre hosts. Stale provider entries are garbage collected in EndBlock. See the [x/valaddr README](../../x/valaddr/README.md).
+
+#### Evidence Window
+
+`MaxAgeNumBlocks` is reduced from 559,940 to 404,400 so the evidence window stays within the unbonding period at block times up to 3s ([#7706](https://github.com/celestiaorg/celestia-app/pull/7706)). Equivocation evidence naming a validator no longer in staking state is ignored instead of erroring out of FinalizeBlock ([#7718](https://github.com/celestiaorg/celestia-app/pull/7718)).
 
 ## v9.0.0
 

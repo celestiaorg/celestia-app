@@ -12,10 +12,10 @@ import (
 var _ sdk.AnteDecorator = NestedMsgDecorator{}
 
 // NestedMsgDecorator rejects messages wrapped in a MsgExec or MsgSubmitProposal
-// that must not skip the ante handler: MsgPayForBlobs and MsgPayForFibre (which
-// would bypass checks like PFF signature verification). It also rejects a
-// MsgExec or MsgSubmitProposal wrapped in either container, so nesting can't be
-// used to smuggle those messages one level deeper.
+// that must not skip the ante handler: MsgPayForBlobs, MsgPayForFibre, and the
+// fibre escrow messages (which would otherwise bypass PFF signature verification
+// or the proposal-time settlement replay). It also rejects a nested MsgExec or
+// MsgSubmitProposal so those can't be smuggled one level deeper.
 type NestedMsgDecorator struct{}
 
 func NewNestedMsgDecorator() *NestedMsgDecorator {
@@ -54,6 +54,12 @@ func rejectWrapped(msgs []sdk.Msg, container string) error {
 			return sdkerrors.ErrNotSupported.Wrapf("MsgPayForBlobs inside %s is not supported", container)
 		case *fibretypes.MsgPayForFibre:
 			return sdkerrors.ErrNotSupported.Wrapf("MsgPayForFibre inside %s is not supported", container)
+		case *fibretypes.MsgPaymentPromiseTimeout:
+			return sdkerrors.ErrNotSupported.Wrapf("MsgPaymentPromiseTimeout inside %s is not supported", container)
+		case *fibretypes.MsgDepositToEscrow:
+			return sdkerrors.ErrNotSupported.Wrapf("MsgDepositToEscrow inside %s is not supported", container)
+		case *fibretypes.MsgRequestWithdrawal:
+			return sdkerrors.ErrNotSupported.Wrapf("MsgRequestWithdrawal inside %s is not supported", container)
 		case *authz.MsgExec:
 			return sdkerrors.ErrNotSupported.Wrapf("MsgExec inside %s is not supported", container)
 		case *govv1.MsgSubmitProposal:

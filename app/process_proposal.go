@@ -57,6 +57,22 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
+	// Read the max square size before the ante loop. The loop reassigns ctx to
+	// the context returned by the ante handler, which carries a finite gas meter
+	// scoped to the last transaction. Reading it after the loop would meter this
+	// block level read against that leftover meter and can run out of gas. This
+	// mirrors PrepareProposal, which reads it before running any ante handler.
+	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
+
+	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
+	// which pays out matured withdrawals and advances the freshness floor before
+	// any tx. Pay-for-fibre settlement below must see that escrow state. The
+	// branch is discarded, so nothing commits.
+	if err := app.FibreKeeper.BeginBlocker(ctx); err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to run fibre begin blocker on proposal branch", err)
+		return reject(), nil
+	}
+
 	var (
 		sdkMessageCount int
 		pfbMessageCount int
@@ -81,10 +97,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject(), nil
-			}
-			if !blobTxIsCanonical(rawTx, blobTx) {
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("blob tx %d is not canonically encoded", idx))
 				return reject(), nil
 			}
 			sdkTxBytes = blobTx.Tx
@@ -125,7 +137,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
-				sdkMessageCount += len(msgs)
+				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))
 					return reject(), nil
@@ -151,6 +163,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
+				}
+			} else if containsFibreStateMsg(sdkTx) {
+				// Replay fibre escrow effects in block order so later settlement
+				// sees the FinalizeBlock balance. A failed message keeps the tx
+				// (gas only), so don't reject.
+				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+					app.Logger().Debug("fibre state msg did not settle in proposal; keeping tx", "idx", idx, "err", execErr)
 				}
 			}
 
@@ -193,7 +212,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil
 	}
-	dataSquare, err := squarev4.Construct(classifiedTxs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
 		return reject(), nil

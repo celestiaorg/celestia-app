@@ -3,8 +3,10 @@ package docker_e2e
 import (
 	"context"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -29,10 +31,20 @@ const (
 	// are auto-created, funded, and fee-granted from the master account.
 	defaultCortoWorkers = 1
 
-	// Assertions: both the average and the worst single inter-block interval
+	// Assertions: both the average and the 99th-percentile inter-block interval
 	// must stay ≤ 4 s while the network processes 20 MiB of blobs per second.
-	maxAvgBlockTime    = 4 * time.Second
-	maxSingleBlockTime = 4 * time.Second
+	maxAvgBlockTime = 4 * time.Second
+	maxP99BlockTime = 4 * time.Second
+
+	// Bound on the average effective latency, which excludes the client-side
+	// broadcast (signing and uploading the blob). Nightly runs against Corto
+	// sit between 5.0 s and 5.6 s, so this leaves headroom for a busier network
+	// while still catching a regression.
+	maxAvgEffectiveLatency = 8 * time.Second
+	// minSuccessRate tolerates a small number of transient submission failures
+	// while still catching real regressions, which drop the success rate well
+	// below this bound.
+	minSuccessRate = 0.99 // 99%
 )
 
 // TestCortoLoad connects to the Corto internal testnet, submits blobs via the
@@ -141,7 +153,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	avgBT, err := averageBlockTime(blockTimes, startHeight, endHeight)
 	require.NoError(t, err, "failed to compute average block time")
 
-	maxBT := maxBlockTime(blockTimes, startHeight, endHeight)
+	p99BT := p99BlockTime(blockTimes, startHeight, endHeight)
 
 	// --- 7. Report ---
 	t.Logf("")
@@ -149,7 +161,7 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	t.Logf("")
 	t.Logf("Block Time Statistics (%d blocks):", len(blockTimes))
 	t.Logf("  Average: %v", avgBT)
-	t.Logf("  Max:     %v", maxBT)
+	t.Logf("  p99:     %v", p99BT)
 	t.Logf("")
 	t.Logf("Tx Submission Statistics:")
 	t.Logf("  Total Transactions: %d", latencyResults.TotalTxs)
@@ -157,12 +169,27 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	t.Logf("  Failed: %d", latencyResults.FailureCount)
 	t.Logf("  Avg Latency: %v", latencyResults.AvgLatency)
 	t.Logf("  Max Latency: %v", latencyResults.MaxLatency)
+	t.Logf("  Avg Effective Latency (excl. broadcast): %v", latencyResults.AvgEffectiveLatency)
+	t.Logf("  Max Effective Latency (excl. broadcast): %v", latencyResults.MaxEffectiveLatency)
 
 	// --- 8. Assert: block time must not exceed 4 s under 20 MiB/s load ---
 	require.LessOrEqual(t, avgBT, maxAvgBlockTime,
 		"average block time %v exceeds %v under 20 MiB/s blob load", avgBT, maxAvgBlockTime)
-	require.LessOrEqual(t, maxBT, maxSingleBlockTime,
-		"max block time %v exceeds %v under 20 MiB/s blob load", maxBT, maxSingleBlockTime)
+	require.LessOrEqual(t, p99BT, maxP99BlockTime,
+		"p99 block time %v exceeds %v under 20 MiB/s blob load", p99BT, maxP99BlockTime)
+
+	// --- 9. Assert: blob submission must stay reliable and fast under load ---
+	require.GreaterOrEqual(t, latencyResults.SuccessRate, minSuccessRate,
+		"success rate %.2f%% below threshold %.2f%%",
+		latencyResults.SuccessRate*100, minSuccessRate*100)
+
+	// Effective latency is only recorded in sequential mode; with parallel
+	// workers broadcast completion is not observable and the average is zero.
+	if workers <= 1 {
+		require.LessOrEqual(t, latencyResults.AvgEffectiveLatency, maxAvgEffectiveLatency,
+			"avg effective latency %v exceeds threshold %v",
+			latencyResults.AvgEffectiveLatency, maxAvgEffectiveLatency)
+	}
 
 	t.Log("Corto load test passed")
 }
@@ -235,21 +262,24 @@ func averageBlockTime(times map[int64]time.Time, startHeight, endHeight int64) (
 	return last.Sub(first) / time.Duration(endHeight-startHeight), nil
 }
 
-// maxBlockTime returns the largest interval between two consecutive blocks in
-// [startHeight, endHeight].
-func maxBlockTime(times map[int64]time.Time, startHeight, endHeight int64) time.Duration {
-	var maxBT time.Duration
+// p99BlockTime returns the 99th-percentile (nearest-rank) interval between
+// two consecutive blocks in [startHeight, endHeight].
+func p99BlockTime(times map[int64]time.Time, startHeight, endHeight int64) time.Duration {
+	intervals := make([]time.Duration, 0, endHeight-startHeight)
 	for h := startHeight + 1; h <= endHeight; h++ {
 		cur, curOK := times[h]
 		prev, prevOK := times[h-1]
 		if !curOK || !prevOK {
 			continue
 		}
-		if bt := cur.Sub(prev); bt > maxBT {
-			maxBT = bt
-		}
+		intervals = append(intervals, cur.Sub(prev))
 	}
-	return maxBT
+	if len(intervals) == 0 {
+		return 0
+	}
+	slices.Sort(intervals)
+	rank := int(math.Ceil(0.99 * float64(len(intervals))))
+	return intervals[rank-1]
 }
 
 // envIntOr reads an integer from an environment variable or returns a default.

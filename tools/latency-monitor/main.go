@@ -67,11 +67,15 @@ type txResult struct {
 	submitTime time.Time
 	commitTime time.Time
 	latency    time.Duration
-	txHash     string
-	code       uint32
-	height     int64
-	failed     bool
-	errorMsg   string
+	// effective is the latency excluding the client-side broadcast (signing and
+	// uploading the blob). Zero in parallel mode, where broadcast completion is
+	// not observable.
+	effective time.Duration
+	txHash    string
+	code      uint32
+	height    int64
+	failed    bool
+	errorMsg  string
 }
 
 func main() {
@@ -330,6 +334,7 @@ func monitorLatency(
 			checkTxStart := time.Now()
 			resp, err := txClient.BroadcastPayForBlob(ctx, []*share.Blob{blob})
 			checkTxLatency := time.Since(checkTxStart)
+			broadcastEnd := time.Now()
 			if err != nil {
 				fmt.Printf("[BROADCAST_FAILED] size=%d bytes time=%s error=%v\n",
 					randomSize, submitTime.Format("15:04:05.000"), err)
@@ -343,7 +348,7 @@ func monitorLatency(
 			recordSubmit()
 
 			// Launch background goroutine to confirm the transaction
-			go func(txHash string, submitTime time.Time, blobSize int) {
+			go func(txHash string, submitTime, broadcastEnd time.Time, blobSize int) {
 				confirmed, err := txClient.ConfirmTx(ctx, txHash)
 				if err != nil {
 					if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
@@ -373,13 +378,15 @@ func monitorLatency(
 				resultsMux.Lock()
 				commitTime := time.Now()
 				latency := commitTime.Sub(submitTime)
-				fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms code=%d time=%s\n",
-					confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
+				effective := commitTime.Sub(broadcastEnd)
+				fmt.Printf("[CONFIRM] tx=%s height=%d latency=%dms effective=%dms code=%d time=%s\n",
+					confirmed.TxHash[:16], confirmed.Height, latency.Milliseconds(), effective.Milliseconds(), confirmed.Code, commitTime.Format("15:04:05.000"))
 				recordConfirm(latency, blobSize)
 				results = append(results, txResult{
 					submitTime: submitTime,
 					commitTime: commitTime,
 					latency:    latency,
+					effective:  effective,
 					txHash:     confirmed.TxHash,
 					code:       confirmed.Code,
 					height:     confirmed.Height,
@@ -387,7 +394,7 @@ func monitorLatency(
 					errorMsg:   "",
 				})
 				resultsMux.Unlock()
-			}(resp.TxHash, submitTime, randomSize)
+			}(resp.TxHash, submitTime, broadcastEnd, randomSize)
 		}
 	}
 }
@@ -404,7 +411,7 @@ func writeResults(results []txResult) error {
 	defer writer.Flush()
 
 	// Write header
-	if err := writer.Write([]string{"Submit Time", "Commit Time", "Latency (ms)", "Tx Hash", "Height", "Code", "Failed", "Error"}); err != nil {
+	if err := writer.Write([]string{"Submit Time", "Commit Time", "Latency (ms)", "Effective Latency (ms)", "Tx Hash", "Height", "Code", "Failed", "Error"}); err != nil {
 		return fmt.Errorf("failed to write CSV header: %w", err)
 	}
 
@@ -433,14 +440,19 @@ func writeResults(results []txResult) error {
 		}
 
 		latencyStr := ""
+		effectiveStr := ""
 		if !result.failed {
 			latencyStr = fmt.Sprintf("%.2f", float64(result.latency.Milliseconds()))
+			if result.effective > 0 {
+				effectiveStr = fmt.Sprintf("%.2f", float64(result.effective.Milliseconds()))
+			}
 		}
 
 		if err := writer.Write([]string{
 			result.submitTime.Format(time.RFC3339Nano),
 			result.commitTime.Format(time.RFC3339Nano),
 			latencyStr,
+			effectiveStr,
 			result.txHash,
 			fmt.Sprintf("%d", result.height),
 			fmt.Sprintf("%d", result.code),

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -28,6 +29,17 @@ type Appd struct {
 	stdout io.Writer
 	// cmd is the started celestia-appd binary.
 	cmd *exec.Cmd
+	// done is closed once the process started by Start has exited. It is
+	// created by Start so that a single background goroutine owns cmd.Wait()
+	// (exec.Cmd forbids calling Wait more than once); Stop and IsStopped
+	// observe the exit through done instead of calling Wait themselves.
+	done chan struct{}
+	// exitErr holds the result of cmd.Wait(). It is only safe to read after
+	// done is closed.
+	exitErr error
+	// exited delivers the result of cmd.Wait() (nil on a clean exit) once the
+	// process exits, and is then closed. See Exited.
+	exited chan error
 }
 
 // New returns a new Appd instance.
@@ -97,7 +109,30 @@ func (a *Appd) Start(args ...string) error {
 		return fmt.Errorf("failed to start %s: %w", a.path, err)
 	}
 	a.cmd = cmd
+
+	// A single background goroutine owns cmd.Wait(): exec.Cmd forbids calling
+	// Wait more than once, so Stop and IsStopped observe the exit via done and
+	// the multiplexer's watcher receives it via exited.
+	done := make(chan struct{})
+	exited := make(chan error, 1)
+	a.done, a.exited = done, exited
+	go func() {
+		err := cmd.Wait()
+		a.exitErr = err
+		close(done)
+		exited <- err
+		close(exited)
+	}()
 	return nil
+}
+
+// Exited returns a channel that delivers the result of the process's exit
+// (the error returned by cmd.Wait, nil on a clean exit) and is closed
+// afterwards. The multiplexer uses it to detect an embedded app that exits
+// unexpectedly. If Start has not been called, the returned channel is nil and
+// never delivers.
+func (a *Appd) Exited() <-chan error {
+	return a.exited
 }
 
 func (a *Appd) IsRunning() bool {
@@ -105,19 +140,18 @@ func (a *Appd) IsRunning() bool {
 }
 
 func (a *Appd) IsStopped() bool {
-	// Never started or failed to start
-	if a.cmd == nil || a.cmd.Process == nil {
+	// Never started or failed to start.
+	if a.cmd == nil || a.cmd.Process == nil || a.done == nil {
 		return true
 	}
 
-	// If ProcessState is not nil, it means Wait() was called and the process has finished
-	// (either by exiting normally or being terminated by a signal)
-	if a.cmd.ProcessState != nil {
+	// done is closed once the process has exited.
+	select {
+	case <-a.done:
 		return true
+	default:
+		return false
 	}
-
-	// ProcessState is nil, which means the process is still running
-	return false
 }
 
 // Stop interrupts and then kills the running appd process if it exists and
@@ -131,15 +165,19 @@ func (a *Appd) Stop() error {
 		return nil
 	}
 
+	// The Wait goroutine reaps the child as soon as it exits, so signalling a
+	// child that already exited returns os.ErrProcessDone. It is already
+	// stopped, which is what the caller asked for, so fall through to done.
 	err := a.cmd.Process.Signal(os.Interrupt)
-	if err != nil {
+	if err != nil && !errors.Is(err, os.ErrProcessDone) {
 		log.Printf("Failed to send interrupt signal, attempting to kill: %v", err)
-		if err := a.cmd.Process.Kill(); err != nil {
+		if err := a.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return fmt.Errorf("failed to kill process with PID %d: %w", a.cmd.Process.Pid, err)
 		}
 
-		if err := a.cmd.Wait(); err != nil {
-			log.Printf("Process finished with error: %v\n", err)
+		<-a.done
+		if a.exitErr != nil {
+			log.Printf("Process finished with error: %v\n", a.exitErr)
 		}
 		return nil
 	}
@@ -147,27 +185,23 @@ func (a *Appd) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 
-	done := make(chan error, 1)
-	go func() {
-		done <- a.cmd.Wait()
-	}()
-
 	select {
-	case err := <-done:
-		if err != nil {
-			log.Printf("Process finished with error: %v\n", err)
+	case <-a.done:
+		if a.exitErr != nil {
+			log.Printf("Process finished with error: %v\n", a.exitErr)
 		} else {
 			log.Printf("Process finished with no error\n")
 		}
 		return nil
 	case <-ctx.Done():
 		log.Printf("Process did not exit within 6 seconds, force killing")
-		if err := a.cmd.Process.Kill(); err != nil {
+		if err := a.cmd.Process.Kill(); err != nil && !errors.Is(err, os.ErrProcessDone) {
 			return fmt.Errorf("failed to kill process with PID %d after timeout: %w", a.cmd.Process.Pid, err)
 		}
 
-		if err := <-done; err != nil {
-			log.Printf("Process finished with error after force kill: %v\n", err)
+		<-a.done
+		if a.exitErr != nil {
+			log.Printf("Process finished with error after force kill: %v\n", a.exitErr)
 		} else {
 			log.Printf("Process finished after force kill\n")
 		}
@@ -225,9 +259,19 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 	defer gzipReader.Close()
 
 	targetDirectory := getDirectoryForVersion(version)
-	if err := os.MkdirAll(targetDirectory, 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(targetDirectory), 0o755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
+
+	// Extract into a staging directory and only publish it once every file has
+	// been written and closed. Otherwise a failed extraction would leave the
+	// version directory in place and isBinaryDecompressed would report the
+	// unusable output as a completed extraction on the next start.
+	stagingDirectory, err := os.MkdirTemp(filepath.Dir(targetDirectory), "."+filepath.Base(targetDirectory)+".tmp-")
+	if err != nil {
+		return fmt.Errorf("failed to create staging directory: %w", err)
+	}
+	defer os.RemoveAll(stagingDirectory)
 
 	// extract all files from the tar archive to the directory
 	tarReader := tar.NewReader(gzipReader)
@@ -242,7 +286,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 
 		if header.FileInfo().IsDir() {
 			// Create directory
-			dirPath, err := sanitizeTarPath(targetDirectory, header.Name)
+			dirPath, err := sanitizeTarPath(stagingDirectory, header.Name)
 			if err != nil {
 				return fmt.Errorf("path traversal in tar entry: %w", err)
 			}
@@ -253,7 +297,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 		}
 
 		// Create file path
-		filePath, err := sanitizeTarPath(targetDirectory, header.Name)
+		filePath, err := sanitizeTarPath(stagingDirectory, header.Name)
 		if err != nil {
 			return fmt.Errorf("path traversal in tar entry: %w", err)
 		}
@@ -269,11 +313,27 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 			return fmt.Errorf("failed to create file %s: %w", filePath, err)
 		}
 
-		if _, err := io.Copy(f, tarReader); err != nil {
-			f.Close()
-			return fmt.Errorf("failed to copy file contents to %s: %w", filePath, err)
+		_, copyErr := io.Copy(f, tarReader)
+		if copyErr != nil {
+			copyErr = fmt.Errorf("failed to copy file contents to %s: %w", filePath, copyErr)
 		}
-		f.Close()
+		closeErr := f.Close()
+		if closeErr != nil {
+			closeErr = fmt.Errorf("failed to close file %s: %w", filePath, closeErr)
+		}
+		if err := errors.Join(copyErr, closeErr); err != nil {
+			return err
+		}
+	}
+
+	if err := os.Rename(stagingDirectory, targetDirectory); err != nil {
+		// Another instance sharing this node home may have published the same
+		// version first. Its directory is a complete extraction, so accept it
+		// rather than failing the caller's appd.New.
+		if isBinaryDecompressed(version) {
+			return nil
+		}
+		return fmt.Errorf("failed to publish extracted binary for %s: %w", version, err)
 	}
 
 	return nil

@@ -48,14 +48,14 @@ func TestDeriveForwardingAddress(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			addr, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient, tc.tokenID)
+			addr, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient, tc.tokenID, nil, nil)
 			require.NoError(t, err)
 
 			// Verify address is CosmosAddressLen bytes
 			require.Len(t, addr, types.CosmosAddressLen, "derived address should be CosmosAddressLen bytes")
 
 			// Verify determinism - same inputs produce same output
-			addr2, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient, tc.tokenID)
+			addr2, err := types.DeriveForwardingAddress(tc.destDomain, tc.destRecipient, tc.tokenID, nil, nil)
 			require.NoError(t, err)
 			require.Equal(t, addr, addr2, "derivation should be deterministic")
 		})
@@ -69,24 +69,24 @@ func TestDeriveForwardingAddressUniqueness(t *testing.T) {
 	token2 := tokenIDBytes(t, 2)
 
 	// Different domains should produce different addresses
-	addr1, err := types.DeriveForwardingAddress(1, baseRecipient, token1)
+	addr1, err := types.DeriveForwardingAddress(1, baseRecipient, token1, nil, nil)
 	require.NoError(t, err)
-	addr2, err := types.DeriveForwardingAddress(2, baseRecipient, token1)
+	addr2, err := types.DeriveForwardingAddress(2, baseRecipient, token1, nil, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, addr1, addr2, "different domains should produce different addresses")
 
 	// Different recipients should produce different addresses
 	recipient1 := hexToBytes(t, "0000000000000000000000001111111111111111111111111111111111111111")
 	recipient2 := hexToBytes(t, "0000000000000000000000002222222222222222222222222222222222222222")
-	addr3, err := types.DeriveForwardingAddress(1, recipient1, token1)
+	addr3, err := types.DeriveForwardingAddress(1, recipient1, token1, nil, nil)
 	require.NoError(t, err)
-	addr4, err := types.DeriveForwardingAddress(1, recipient2, token1)
+	addr4, err := types.DeriveForwardingAddress(1, recipient2, token1, nil, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, addr3, addr4, "different recipients should produce different addresses")
 
-	addr5, err := types.DeriveForwardingAddress(1, baseRecipient, token1)
+	addr5, err := types.DeriveForwardingAddress(1, baseRecipient, token1, nil, nil)
 	require.NoError(t, err)
-	addr6, err := types.DeriveForwardingAddress(1, baseRecipient, token2)
+	addr6, err := types.DeriveForwardingAddress(1, baseRecipient, token2, nil, nil)
 	require.NoError(t, err)
 	require.NotEqual(t, addr5, addr6, "different token IDs should produce different addresses")
 }
@@ -126,7 +126,7 @@ func TestDeriveForwardingAddressIntermediates(t *testing.T) {
 	derivedAddr := address.Module(types.ModuleName, salt)[:types.CosmosAddressLen]
 
 	// Verify this matches the function output
-	addr, err := types.DeriveForwardingAddress(destDomain, destRecipient, tokenID)
+	addr, err := types.DeriveForwardingAddress(destDomain, destRecipient, tokenID, nil, nil)
 	require.NoError(t, err)
 	require.Equal(t, derivedAddr, addr, "manual derivation should match function output")
 }
@@ -168,7 +168,7 @@ func TestDeriveForwardingAddressTestVectors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			recipient := hexToBytes(t, tc.destRecipient)
 			tokenID := hexToBytes(t, tc.tokenID)
-			addr, err := types.DeriveForwardingAddress(tc.destDomain, recipient, tokenID)
+			addr, err := types.DeriveForwardingAddress(tc.destDomain, recipient, tokenID, nil, nil)
 			require.NoError(t, err)
 
 			actualHex := hex.EncodeToString(addr)
@@ -193,7 +193,7 @@ func TestDeriveForwardingAddressReturnsErrorOnInvalidLength(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := types.DeriveForwardingAddress(1, tc.destRecipient, tokenIDBytes(t, 1))
+			_, err := types.DeriveForwardingAddress(1, tc.destRecipient, tokenIDBytes(t, 1), nil, nil)
 			require.Error(t, err, "should return error for recipient length %d", len(tc.destRecipient))
 			require.ErrorIs(t, err, types.ErrInvalidRecipient)
 		})
@@ -215,7 +215,7 @@ func TestDeriveForwardingAddressReturnsErrorOnInvalidTokenIDLength(t *testing.T)
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := types.DeriveForwardingAddress(1, destRecipient, tc.tokenID)
+			_, err := types.DeriveForwardingAddress(1, destRecipient, tc.tokenID, nil, nil)
 			require.Error(t, err, "should return error for tokenID length %d", len(tc.tokenID))
 			require.ErrorIs(t, err, types.ErrInvalidTokenID)
 		})

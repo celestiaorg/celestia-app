@@ -14,4 +14,5 @@ var (
 	ErrInsufficientIgpFee = errors.Register(ModuleName, 7, "IGP fee provided is less than required")
 	ErrForwardFailed      = errors.Register(ModuleName, 8, "token forward failed")
 	ErrInvalidTokenID     = errors.Register(ModuleName, 9, "invalid token identifier")
+	ErrInvalidHookID      = errors.Register(ModuleName, 10, "invalid post-dispatch hook identifier")
 )
