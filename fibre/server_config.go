@@ -30,6 +30,8 @@ func DefaultConfigPath(home string) string {
 
 // ServerConfig contains configuration options for the Fibre [Server].
 type ServerConfig struct {
+	protocolParams ProtocolParams
+
 	// AppGRPCAddress is the gRPC address of the core/app node.
 	AppGRPCAddress string `toml:"app_grpc_address" comment:"AppGRPCAddress is the gRPC address of the core/app node."`
 	// ServerListenAddress is the TCP address where the server listens for requests.
@@ -57,6 +59,10 @@ type ServerConfig struct {
 	MaxShardSize int `toml:"-"`
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int `toml:"-"`
+	// BlobConfig is the versioned coding configuration accepted by this server.
+	// It must match clients and readers. Use SetMaxBlobSize only for coordinated
+	// benchmark networks; changing the v0 limit is not backwards compatible.
+	BlobConfig BlobConfig `toml:"-"`
 
 	// StoreFn creates the persistent [Store] for the server.
 	// If nil, defaults to [NewStore].
@@ -92,7 +98,12 @@ func DefaultServerConfig() ServerConfig {
 // NewServerConfigFromParams creates a ServerConfig with values derived from the given ProtocolParams.
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
+	blobCfg, err := NewBlobConfigFromParams(0, p)
+	if err != nil {
+		panic(fmt.Sprintf("creating server blob config: %v", err))
+	}
 	cfg := ServerConfig{
+		protocolParams:       p,
 		AppGRPCAddress:       "127.0.0.1:9090",
 		ServerListenAddress:  "0.0.0.0:7980",
 		SignerGRPCAddress:    "127.0.0.1:26669",
@@ -102,6 +113,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		OriginalRows:         p.Rows,
 		MaxShardSize:         p.MaxShardSize(),
 		MaxMessageSize:       p.MaxMessageSize(),
+		BlobConfig:           blobCfg,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
@@ -109,8 +121,36 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	return cfg
 }
 
+// SetMaxBlobSize changes the Fibre v0 maximum for a coordinated benchmark
+// network and refreshes every server-side value derived from it. All clients,
+// servers, and readers in the network must use the same value.
+//
+// This is experimental plumbing for large-blob evaluation, not a production
+// rollout mechanism. A production increase should use a new blob version.
+func (cfg *ServerConfig) SetMaxBlobSize(maxBlobSize int) error {
+	p := cfg.protocolParams
+	if p.Rows == 0 {
+		p = DefaultProtocolParams
+	}
+	p.MaxBlobSize = maxBlobSize
+	blobCfg, err := NewBlobConfigFromParams(0, p)
+	if err != nil {
+		return err
+	}
+	cfg.BlobConfig = blobCfg
+	cfg.protocolParams = p
+	cfg.OriginalRows = p.Rows
+	cfg.MinRowsPerValidator = p.MinRowsPerValidator()
+	cfg.MaxShardSize = p.MaxShardSize()
+	cfg.MaxMessageSize = p.MaxMessageSize()
+	return nil
+}
+
 // Validate validates the ServerConfig and sets default values for unset fields.
 func (cfg *ServerConfig) Validate() error {
+	if cfg.BlobConfig.OriginalRows == 0 {
+		cfg.BlobConfig = DefaultBlobConfigV0()
+	}
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")
 	}

@@ -74,7 +74,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		log:       cfg.Log,
 		tracer:    cfg.Tracer,
 		metrics:   metrics,
-		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
+		verifiers: newVerifierPool(cfg.UploadVerifyWorkers, cfg.BlobConfig),
 		occ:       occ,
 	}
 

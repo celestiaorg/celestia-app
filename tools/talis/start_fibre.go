@@ -18,6 +18,7 @@ func startFibreCmd() *cobra.Command {
 		metricsAddress    string
 		pyroscopeEndpoint string
 		storageLimit      bool
+		maxBlobSizeMiB    int
 	)
 
 	cmd := &cobra.Command{
@@ -25,6 +26,9 @@ func startFibreCmd() *cobra.Command {
 		Short: "Start fibre server on remote validators via SSH + tmux",
 		Long:  "Starts fibre server tmux sessions on remote validators. The fibre binary must already be deployed via 'talis deploy'.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if maxBlobSizeMiB <= 0 {
+				return fmt.Errorf("--experimental-max-blob-size-mib must be positive")
+			}
 			cfg, err := LoadConfig(rootDir)
 			if err != nil {
 				return fmt.Errorf("failed to load config: %w", err)
@@ -43,7 +47,7 @@ func startFibreCmd() *cobra.Command {
 
 			// Build the remote command
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
-			remoteCmd := "OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091"
+			remoteCmd := fmt.Sprintf("OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre start --home .celestia-fibre --app-grpc-address localhost:9091 --experimental-max-blob-size-mib %d", maxBlobSizeMiB)
 			// Disable the storage limiter by default so experiments run at full
 			// throughput; pass --storage-limit to exercise the limiter instead.
 			if !storageLimit {
@@ -93,6 +97,7 @@ func startFibreCmd() *cobra.Command {
 	cmd.Flags().StringVar(&metricsAddress, "otel-endpoint", "", "OTLP HTTP endpoint for metrics/traces (e.g. http://host:4318; empty = disabled)")
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
 	cmd.Flags().BoolVar(&storageLimit, "storage-limit", false, "enable the Fibre storage limiter (default: disabled so experiments run at full throughput)")
+	cmd.Flags().IntVar(&maxBlobSizeMiB, "experimental-max-blob-size-mib", 128, "experimental Fibre v0 maximum blob size in MiB; must match txsim and readers")
 
 	return cmd
 }

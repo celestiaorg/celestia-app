@@ -97,9 +97,9 @@ func (c *Client) Download(ctx context.Context, id BlobID, opts ...DownloadOption
 		attribute.Int64("validator_set_height", int64(valSet.Height)),
 	))
 
-	blobCfg, err := BlobConfigForVersion(id.Version())
-	if err != nil {
-		return nil, err
+	blobCfg := c.Config.BlobConfig
+	if id.Version() != blobCfg.BlobVersion {
+		return nil, fmt.Errorf("unsupported blob version: %d", id.Version())
 	}
 
 	blob, err = c.downloadBlob(ctx, valSet, id, blobCfg)

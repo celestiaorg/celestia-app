@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"runtime"
 	"sync/atomic"
 
@@ -75,6 +76,15 @@ func BlobConfigForVersion(version uint8) (BlobConfig, error) {
 func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConfig, error) {
 	if blobVersion != 0 {
 		return BlobConfig{}, fmt.Errorf("unsupported blob version: %d", blobVersion)
+	}
+	if params.MaxBlobSize <= blobHeaderLen {
+		return BlobConfig{}, fmt.Errorf("max blob size must be greater than the %d-byte header", blobHeaderLen)
+	}
+	if uint64(params.MaxBlobSize) > math.MaxUint32 {
+		return BlobConfig{}, fmt.Errorf("max blob size %d exceeds uint32 wire limit", params.MaxBlobSize)
+	}
+	if uint64(params.MaxMessageSize()) > math.MaxUint32 {
+		return BlobConfig{}, fmt.Errorf("max gRPC message size %d exceeds uint32 framing limit", params.MaxMessageSize())
 	}
 
 	maxRowSize := params.MaxRowSize(blobVersion)
