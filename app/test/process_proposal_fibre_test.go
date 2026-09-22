@@ -361,12 +361,16 @@ func seedFibreEscrow(t *testing.T, testApp *app.App, owner sdk.AccAddress, amoun
 		Height:  testApp.LastBlockHeight(),
 		Time:    time.Now(),
 	})
-	coins := sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, amount))
-	require.NoError(t, testApp.BankKeeper.SendCoinsFromAccountToModule(ctx, owner, fibretypes.ModuleName, coins))
+	// sdk.NewCoins drops a zero coin, so build the balance directly: an escrow
+	// account that exists but holds nothing is a case callers need.
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, amount)
+	if amount > 0 {
+		require.NoError(t, testApp.BankKeeper.SendCoinsFromAccountToModule(ctx, owner, fibretypes.ModuleName, sdk.NewCoins(balance)))
+	}
 	testApp.FibreKeeper.SetEscrowAccount(ctx, fibretypes.EscrowAccount{
 		Signer:           owner.String(),
-		Balance:          coins[0],
-		AvailableBalance: coins[0],
+		Balance:          balance,
+		AvailableBalance: balance,
 	})
 }
 
@@ -383,8 +387,9 @@ func TestProcessProposalPayForFibreStatefulChecks(t *testing.T) {
 		signers[i] = newSigner(i)
 	}
 
-	// accounts[0] has no escrow account; accounts[1] has an underfunded one.
-	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 1)
+	// accounts[0] has no escrow account; accounts[1] has an empty one, which is
+	// underfunded for the flat 1 utia settlement.
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 0)
 
 	tests := []struct {
 		name string
