@@ -17,11 +17,12 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it to the square.
 type FilteredSquareBuilder struct {
-	handler   sdk.AnteHandler
-	msgRouter baseapp.MessageRouter
-	txConfig  client.TxConfig
-	chanKeep  channelKeeper
-	builder   *square.Builder
+	handler          sdk.AnteHandler
+	msgRouter        baseapp.MessageRouter
+	txConfig         client.TxConfig
+	chanKeep         channelKeeper
+	builder          *square.Builder
+	pffProposalLimit int
 }
 
 func NewFilteredSquareBuilder(
@@ -314,7 +315,11 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			continue
 		}
 
-		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.GetMaxPayForFibreMessages(ctx.ConsensusParams().Version.GetApp()) {
+		limit := appconsts.GetMaxPayForFibreMessages(ctx.ConsensusParams().Version.GetApp())
+		if fsb.pffProposalLimit > 0 && fsb.pffProposalLimit < limit {
+			limit = fsb.pffProposalLimit
+		}
+		if pffMessageCount+len(sdkTx.GetMsgs()) > limit {
 			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
 			continue
 		}

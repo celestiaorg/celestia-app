@@ -215,7 +215,8 @@ type App struct {
 	txCache *TxCache
 	// pffSigCache skips repeat PFF signature checks across ante passes.
 	// It is in memory only.
-	pffSigCache *PffSigVerificationCache
+	pffSigCache      *PffSigVerificationCache
+	pffProposalLimit int
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -239,6 +240,10 @@ func New(
 	appOpts servertypes.AppOptions,
 	baseAppOptions ...func(*baseapp.BaseApp),
 ) *App {
+	pffProposalLimit, err := parsePFFProposalLimit(appOpts.Get(FlagPFFProposalLimit))
+	if err != nil {
+		panic(err)
+	}
 	encodingConfig := encoding.MakeConfig(ModuleEncodingRegisters...)
 
 	baseApp := baseapp.NewBaseApp(Name, logger, db, encodingConfig.TxConfig.TxDecoder(), baseAppOptions...)
@@ -267,6 +272,7 @@ func New(
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
 		pffSigCache:             NewPffSigVerificationCache(),
+		pffProposalLimit:        pffProposalLimit,
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},

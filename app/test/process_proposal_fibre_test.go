@@ -20,6 +20,8 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
+	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -41,7 +43,10 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 			accounts := testfactory.GenerateAccounts(numberOfAccounts)
 			consensusParams := app.DefaultConsensusParams()
 			consensusParams.Version.App = appVersion
-			testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
+			testApp := app.New(testutil.TestAppLogger, dbm.NewMemDB(), nil, 0, 0, pffProposalOptions{}, baseapp.SetChainID(testutil.ChainID))
+			genesisState, _, kr := testutil.GenesisStateWithSingleValidator(testApp, accounts...)
+			testApp = testutil.InitialiseTestAppWithGenesis(testApp, consensusParams, genesisState)
+			commitBlock(t, testApp)
 			enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
 			infos := queryAccountInfo(testApp, accounts, kr)
@@ -57,6 +62,14 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 			for i := range numPFFs {
 				pffTxs = append(pffTxs, newSignedPayForFibreTx(t, signers[i], accounts[i], true))
 			}
+
+			proposed, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Height: testApp.LastBlockHeight() + 1,
+				Time:   time.Now(),
+				Txs:    pffTxs,
+			})
+			require.NoError(t, err)
+			require.Len(t, proposed.Txs, 1)
 
 			type testCase struct {
 				name           string
@@ -542,4 +555,14 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
 	}
+}
+
+// A validator with a lower local proposal target must accept the protocol maximum.
+type pffProposalOptions struct{}
+
+func (pffProposalOptions) Get(key string) interface{} {
+	if key == app.FlagPFFProposalLimit {
+		return 1
+	}
+	return nil
 }

@@ -329,3 +329,40 @@ func newMixedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	require.NoError(t, err)
 	return txBytes
 }
+
+func TestPFFProposalLimit(t *testing.T) {
+	for _, value := range []interface{}{nil, 0, "0", 1, 500, appconsts.GetMaxPayForFibreMessages(appconsts.Version)} {
+		_, err := parsePFFProposalLimit(value)
+		require.NoError(t, err)
+	}
+	for _, value := range []interface{}{-1, "bad", "1.5", 1.5, true, appconsts.GetMaxPayForFibreMessages(appconsts.Version) + 1} {
+		_, err := parsePFFProposalLimit(value)
+		require.Error(t, err)
+	}
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	for _, limit := range []int{0, 1, 2, 3, 2000} {
+		t.Run(fmt.Sprint(limit), func(t *testing.T) {
+			fsb, err := NewFilteredSquareBuilder(func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+			require.NoError(t, err)
+			fsb.pffProposalLimit = limit
+			ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
+			ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger()).WithConsensusParams(cmtproto.ConsensusParams{Version: &cmtproto.VersionParams{App: 11}})
+			txs := [][]byte{newMultiPayForFibreTx(t, txConfig), newMixedPayForFibreTx(t, txConfig)}
+			for range 4 {
+				txs = append(txs, blobfactory.UnsignedPayForFibreTx(t, txConfig))
+			}
+			kept := fsb.Fill(ctx, txs, math.MaxInt64)
+			count := 0
+			for _, raw := range kept {
+				tx, err := txConfig.TxDecoder()(raw)
+				require.NoError(t, err)
+				count += countMsgPayForFibre(tx)
+			}
+			expected := limit
+			if limit == 0 || limit > 4 {
+				expected = 4
+			}
+			require.Equal(t, expected, count)
+		})
+	}
+}
