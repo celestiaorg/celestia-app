@@ -146,6 +146,14 @@ func FuzzShardCodecRoundTrip(f *testing.F) {
 		var buf bytes.Buffer
 		require.NoError(t, writeShardBinary(&buf, shard))
 
+		reader, err := newShardReader(shard)
+		require.NoError(t, err)
+		data, err := io.ReadAll(reader)
+		require.NoError(t, err)
+		require.Equal(t, buf.Bytes(), data)
+		require.Equal(t, int64(buf.Len()), reader.size)
+		require.Equal(t, reader.size, shardBinarySize(shard))
+
 		got, err := readShardBinary(&buf)
 		require.NoError(t, err)
 		require.Equal(t, shard.Rlcs, got.Rlcs)

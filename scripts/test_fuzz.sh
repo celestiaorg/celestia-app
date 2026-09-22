@@ -20,3 +20,4 @@ go test -fuzz=FuzzCountICAPacketMsgs -fuzztime 5m ./app
 go test -fuzz=FuzzScatterMarshalParity -fuzztime 5m ./fibre/internal/grpc
 go test -fuzz=FuzzShardCodecRoundTrip -fuzztime 5m ./fibre
 go test -fuzz=FuzzShardCodecReadNoPanic -fuzztime 5m ./fibre
+go test -fuzz=FuzzShardReader -fuzztime 5m ./fibre
