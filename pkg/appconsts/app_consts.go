@@ -37,17 +37,21 @@ const (
 	TimeoutPrevoteDelta          = time.Millisecond * 500
 	TimeoutPrecommit             = time.Millisecond * 3000
 	TimeoutPrecommitDelta        = time.Millisecond * 500
-	TimeoutCommit                = time.Millisecond * 500
-	// DelayedPrecommitTimeout is the primary determinant of expected block
-	// time. If this value changes, MaxExpectedTimePerBlock should also be
-	// updated. See TestMaxExpectedTimePerBlock.
-	DelayedPrecommitTimeout = time.Millisecond * 2100
+	// TimeoutCommit is the minimum time between the start of two consecutive
+	// heights and the primary determinant of expected block time. A height that
+	// takes longer starts the next one right away. If this value changes,
+	// MaxExpectedTimePerBlock should also be updated. See
+	// TestMaxExpectedTimePerBlock.
+	TimeoutCommit = time.Second
+	// DelayedPrecommitTimeout is disabled: pacing comes from TimeoutCommit
+	// alone, so nothing waits between having the prevotes and signing the
+	// precommit. Zero is the documented "no precommit wait" value.
+	DelayedPrecommitTimeout = time.Duration(0)
 	// MaxExpectedTimePerBlock is the IBC connection parameter that should be
-	// 3-5x the expected block time. The expected block time is primarily
-	// determined by DelayedPrecommitTimeout + TimeoutCommit (~2.6 seconds), so this value is
-	// 13 seconds (~5x). If the timeout constants change, this value must be
-	// updated.
-	MaxExpectedTimePerBlock = 13 * time.Second
+	// 3-5x the expected block time. The expected block time is TimeoutCommit
+	// (1 second), so this value is 5 seconds (5x). If the timeout constants
+	// change, this value must be updated.
+	MaxExpectedTimePerBlock = 5 * time.Second
 
 	// TestUpgradeHeightDelay is the number of blocks that chain-id "test" waits
 	// after a MsgTryUpgrade to activate the next version.
