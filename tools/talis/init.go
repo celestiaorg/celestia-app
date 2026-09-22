@@ -83,12 +83,13 @@ func initCmd() *cobra.Command {
 				}
 
 				// Override SSH config from env vars if they exist
-				if envSSHPubKeyPath := os.Getenv(EnvVarPubSSHKeyPath); envSSHPubKeyPath != "" {
-					SSHPubKeyPath = envSSHPubKeyPath
-				}
 				if envSSHKeyName := os.Getenv(EnvVarSSHKeyName); envSSHKeyName != "" {
 					SSHKeyName = envSSHKeyName
 				}
+			}
+
+			if !cmd.Flags().Changed("ssh-pub-key-path") {
+				SSHPubKeyPath = resolveSSHPubKeyPath("", SSHPubKeyPath)
 			}
 
 			if err := initDirs(rootDir); err != nil {
