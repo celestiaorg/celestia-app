@@ -85,12 +85,14 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		span.AddEvent("assignment_verified")
 
 		// verify row proofs using rsema1d and set RLC root
+		verifyStart := time.Now()
 		if err := s.verifyShard(ctx, blobCfg, promise, req.Shard); err != nil {
 			log.WarnContext(ctx, "shard verification failed", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "shard verification failed")
 			return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard verification failed: %v", err))
 		}
+		log.InfoContext(ctx, "shard verified", "verify_ms", time.Since(verifyStart).Milliseconds())
 		span.AddEvent("shard_verified", trace.WithAttributes(
 			attribute.Int("row_size", len(req.Shard.Rows[0].Data)), // this must be valid, as we just verified the rows, so no panics
 			attribute.Int("rows_count", len(req.Shard.Rows)),
@@ -182,7 +184,8 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 
 	shardBytes := int64(len(shard.Rows)) * int64(len(shard.Rows[0].Data))
 	s.metrics.uploadShardBytes.Add(ctx, shardBytes)
-	log.DebugContext(ctx, "shard uploaded",
+	log.InfoContext(ctx, "shard uploaded",
+		"store_put_ms", time.Since(storePutStart).Milliseconds(),
 		"upload_size", promise.UploadSize,
 		"shard_bytes", shardBytes,
 		"rows_count", len(shard.Rows),
