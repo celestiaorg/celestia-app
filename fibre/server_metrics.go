@@ -209,7 +209,7 @@ func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploa
 			attribute.String("outcome", string(outcome)),
 		}
 		if uploadSize > 0 {
-			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
+			attrs = append(attrs, attribute.Int64("upload_size", sizeBucket(uploadSize)))
 		}
 		m.uploadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
 	}
@@ -224,7 +224,7 @@ func (m *serverMetrics) observeDownloadShard(ctx context.Context) (done func(sha
 		m.downloadShardInFlight.Add(ctx, -1)
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
 		if shardSize > 0 {
-			attrs = append(attrs, attribute.Int64("shard_size", shardSize))
+			attrs = append(attrs, attribute.Int64("shard_size", sizeBucket(shardSize)))
 		}
 		m.downloadShardDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
 	}
