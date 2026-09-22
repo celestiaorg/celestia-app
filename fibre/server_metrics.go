@@ -16,6 +16,7 @@ type serverMetrics struct {
 	uploadShardDuration metric.Float64Histogram
 	uploadShardBytes    metric.Int64Counter
 	uploadShardRejected metric.Int64Counter
+	uploadShardDupeHits metric.Int64Counter
 
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
@@ -70,6 +71,13 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard rejected counter: %w", err)
+	}
+
+	sm.uploadShardDupeHits, err = m.Int64Counter("fibre.server.upload_shard.dupe_hits",
+		metric.WithDescription("UploadShard RPCs that skipped storing because the shard was already stored, by detection stage"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard dupe_hits counter: %w", err)
 	}
 
 	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.occupancy_bytes",
