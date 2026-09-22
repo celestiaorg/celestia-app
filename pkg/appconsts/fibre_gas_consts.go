@@ -26,6 +26,7 @@ const (
 	PFFibreGasPerValidatorSignature uint64 = 1_000
 
 	// MaxFibreValidatorSignatures is a stateless ceiling on a MsgPayForFibre's
-	// signatures; keep it >= MaxValidators (the keeper enforces the exact bound).
-	MaxFibreValidatorSignatures = 1_000
+	// signatures; keep it >= MaxValidators (the keeper enforces the exact bound
+	// against the validator set, so this only rejects absurd messages earlier).
+	MaxFibreValidatorSignatures = 500
 )
