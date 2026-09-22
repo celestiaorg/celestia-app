@@ -59,7 +59,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	}
 
 	sm.uploadShardBytes, err = m.Int64Counter("fibre.server.upload_shard.bytes",
-		metric.WithDescription("Total bytes received via UploadShard RPCs"),
+		metric.WithDescription("Total shard row bytes stored via UploadShard RPCs"),
 		metric.WithUnit("By"),
 	)
 	if err != nil {
