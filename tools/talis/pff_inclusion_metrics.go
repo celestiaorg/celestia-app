@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/cometbft/cometbft/rpc/client/http"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -13,7 +14,19 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
-func setupFibreThroughputMetrics(ctx context.Context, endpoint string) (metric.Int64Counter, func(context.Context) error, error) {
+// BlockResults fails when a running validator has DiscardABCIResponses enabled.
+func pffInclusionAvailable(ctx context.Context, clients []*http.HTTP) bool {
+	for _, client := range clients {
+		if _, err := client.BlockResults(ctx, nil); err != nil {
+			fmt.Printf("PFF inclusion metrics disabled: %s cannot serve block results; validators require storage.discard_abci_responses=false: %v\n", client.Remote(), err)
+			return false
+		}
+	}
+	return true
+}
+
+// setupPFFInclusionMetrics starts the inclusion counter exporter and returns its shutdown function.
+func setupPFFInclusionMetrics(ctx context.Context, endpoint string) (metric.Int64Counter, func(context.Context) error, error) {
 	exporter, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint), otlpmetrichttp.WithURLPath("/v1/metrics"))
 	if err != nil {
 		return nil, nil, fmt.Errorf("creating throughput metric exporter: %w", err)

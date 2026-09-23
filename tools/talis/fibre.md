@@ -197,17 +197,9 @@ Run `fibre-throughput` from your local machine to poll blocks and print per-bloc
 talis fibre-throughput
 ```
 
-When the experiment has an observability node, live monitoring sends
-`fibre_pff_included_bytes_total` to its OTel collector. The Fibre Network
-Throughput panel shows this as **Successful PFF Inclusion** in bytes/sec.
-It counts `PaymentPromise.BlobSize` only for committed transactions with execution code zero.
-This is the blob size recorded on chain, without shard replication or parity overhead.
-
-Run one monitor per experiment. This series covers the whole chain and ignores
-the dashboard's validator filter. Keep the monitor running during the load test.
-Metrics start from the next block; they are disabled when `--start-height` selects historical blocks.
-If a block cannot be fetched or decoded, the live exporter stops to avoid silently omitting bytes.
-The rate uses observation time, so RPC delays can shift bytes into a later interval.
+With observability enabled, live runs add **Successful PFF Inclusion** (blob bytes/sec) to the Throughput panel.
+This requires `discard_abci_responses = false` under `[storage]` on every selected validator, with block results available.
+Run one monitor per experiment without `--start-height`.
 
 This connects to the first validator's RPC endpoint and prints a line per block:
 

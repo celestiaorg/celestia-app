@@ -142,13 +142,15 @@ func fibreThroughputCmd() *cobra.Command {
 			}
 
 			var includedBytes metric.Int64Counter
-			if len(cfg.Observability) > 0 && startHeight == 0 {
+			// Export live inclusion bytes only when every selected validator retains block results.
+			if len(cfg.Observability) > 0 && startHeight == 0 && pffInclusionAvailable(ctx, clients) {
 				endpoint := fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)
-				counter, shutdown, err := setupFibreThroughputMetrics(ctx, endpoint)
+				counter, shutdown, err := setupPFFInclusionMetrics(ctx, endpoint)
 				if err != nil {
 					return err
 				}
 				includedBytes = counter
+				// Flush pending metrics after the monitoring context has been cancelled.
 				defer func() {
 					shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 					defer cancel()
@@ -243,7 +245,7 @@ func fibreThroughputCmd() *cobra.Command {
 						endHeight = nextHeight + maxBlocksPerTick - 1
 					}
 
-					results := fetchBlocksConcurrent(ctx, clients, nextHeight, endHeight, concurrency, maxRetries, txDecoder, withGas, successfulOnly)
+					results := fetchBlocksConcurrent(ctx, clients, nextHeight, endHeight, concurrency, maxRetries, txDecoder, withGas, successfulOnly, includedBytes != nil)
 
 					for _, res := range results {
 						if ctx.Err() != nil {
@@ -376,7 +378,7 @@ func fibreThroughputCmd() *cobra.Command {
 // Results are returned in ascending height order; a per-block fetch failure
 // (after retries) is recorded in that block's result rather than aborting the
 // batch.
-func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to int64, concurrency, maxRetries int, txDecoder sdk.TxDecoder, withGas, successfulOnly bool) []blockResult {
+func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to int64, concurrency, maxRetries int, txDecoder sdk.TxDecoder, withGas, successfulOnly, withInclusion bool) []blockResult {
 	n := int(to - from + 1)
 	results := make([]blockResult, n)
 
@@ -387,7 +389,7 @@ func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to i
 		g.Go(func() error {
 			// startIdx=i preserves the round-robin distribution of first
 			// attempts; retries rotate to subsequent endpoints from there.
-			results[i] = fetchAndDecodeBlock(gctx, clients, i, height, maxRetries, txDecoder, withGas, successfulOnly)
+			results[i] = fetchAndDecodeBlock(gctx, clients, i, height, maxRetries, txDecoder, withGas, successfulOnly, withInclusion)
 			return nil
 		})
 	}
@@ -404,7 +406,7 @@ func fetchBlocksConcurrent(ctx context.Context, clients []*http.HTTP, from, to i
 // single unhealthy node fails over to another. It is safe to call
 // concurrently: the tx decoder only reads from the interface registry, which
 // is fully populated before any worker starts.
-func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int, height int64, maxRetries int, txDecoder sdk.TxDecoder, withGas, successfulOnly bool) blockResult {
+func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int, height int64, maxRetries int, txDecoder sdk.TxDecoder, withGas, successfulOnly, withInclusion bool) blockResult {
 	res := blockResult{height: height}
 	h := height
 
@@ -423,7 +425,7 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 		// block.Txs. Fetch it from the same endpoint so both views agree; a
 		// failure retries the whole attempt like a block fetch failure.
 		var txsResults []*abci.ExecTxResult
-		if err == nil {
+		if err == nil && (withGas || successfulOnly || withInclusion) {
 			blockResults, brErr := client.BlockResults(ctx, &h)
 			if brErr != nil {
 				err = brErr
@@ -444,14 +446,15 @@ func fetchAndDecodeBlock(ctx context.Context, clients []*http.HTTP, startIdx int
 				}
 				for _, msg := range sdkTx.GetMsgs() {
 					if pff, ok := msg.(*fibretypes.MsgPayForFibre); ok {
-						if txIdx >= len(txsResults) || txsResults[txIdx] == nil {
+						hasResult := txIdx < len(txsResults) && txsResults[txIdx] != nil
+						if (successfulOnly || withInclusion) && !hasResult {
 							res.err = fmt.Errorf("missing execution result for PFF at height %d, tx index %d", height, txIdx)
 							return res
 						}
-						if txsResults[txIdx].Code == abci.CodeTypeOK {
+						if hasResult && txsResults[txIdx].Code == abci.CodeTypeOK {
 							res.pffIncludedBytes += int64(pff.PaymentPromise.BlobSize)
 						}
-						if withGas {
+						if withGas && hasResult {
 							txRes := txsResults[txIdx]
 							res.pffGas = append(res.pffGas, pffGasTrace{
 								Height:    height,
