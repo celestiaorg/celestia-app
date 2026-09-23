@@ -55,10 +55,13 @@ func TestHashFirstMixedRouting(t *testing.T) {
 	namespace.Bucket = "next"
 	next := newObjectBackend(nil, namespace)
 	next.hashFirst, next.hashedTag = true, nextHashedObjectBackendTag
+	promiseBackend := newObjectBackend(nil, namespace)
+	promiseBackend.namespace.Bucket = "promise"
+	promiseBackend.hashFirst, promiseBackend.hashedTag = true, promiseHashObjectBackendTag
 	commitment := Commitment{}
 	hash := []byte{1}
 	seen := make(map[string]int)
-	for _, backend := range []*objectBackend{legacy, hashed, next} {
+	for _, backend := range []*objectBackend{legacy, hashed, next, promiseBackend} {
 		backend := backend
 		check := func(operation, bucket, key string) {
 			require.Equal(t, backend.namespace.Bucket, bucket)
@@ -85,9 +88,9 @@ func TestHashFirstMixedRouting(t *testing.T) {
 			},
 		}
 	}
-	storage := &routedStorage{primary: next, secondary: legacy, tertiary: hashed}
+	storage := &routedStorage{primary: promiseBackend, secondary: legacy, tertiary: hashed, quaternary: next}
 	var marked []markedShard
-	for _, backend := range []*objectBackend{legacy, hashed, next} {
+	for _, backend := range []*objectBackend{legacy, hashed, next, promiseBackend} {
 		marker := encodeShardMarkerForBackend(backend.backendTag(), int64(encoded.Len()))
 		got, err := storage.Get(t.Context(), marker, commitment, hash)
 		require.NoError(t, err)
@@ -100,8 +103,8 @@ func TestHashFirstMixedRouting(t *testing.T) {
 	}
 	successful, err := storage.DeleteBatch(t.Context(), marked)
 	require.NoError(t, err)
-	require.ElementsMatch(t, []int{0, 1, 2}, successful)
-	for _, bucket := range []string{"legacy", "hashed", "next"} {
+	require.ElementsMatch(t, []int{0, 1, 2, 3}, successful)
+	for _, bucket := range []string{"legacy", "hashed", "next", "promise"} {
 		for _, operation := range []string{"get", "head", "delete", "batch"} {
 			require.Equal(t, 1, seen[operation+bucket], operation+bucket)
 		}
@@ -188,16 +191,18 @@ func TestHashFirstPutPreservesLegacyMarker(t *testing.T) {
 }
 
 func TestHashFirstMixedBatchFailureIsolation(t *testing.T) {
-	for _, failedTag := range []shardBackendTag{objectBackendTag, hashedObjectBackendTag, nextHashedObjectBackendTag} {
+	for _, failedTag := range []shardBackendTag{objectBackendTag, hashedObjectBackendTag, nextHashedObjectBackendTag, promiseHashObjectBackendTag} {
 		t.Run(string(rune('0'+failedTag)), func(t *testing.T) {
 			legacy := newObjectBackend(nil, objectNamespace{Bucket: "legacy"})
 			hashed := newObjectBackend(nil, objectNamespace{Bucket: "hashed"})
 			hashed.hashFirst = true
 			next := newObjectBackend(nil, objectNamespace{Bucket: "next"})
 			next.hashFirst, next.hashedTag = true, nextHashedObjectBackendTag
+			promiseBackend := newObjectBackend(nil, objectNamespace{Bucket: "promise"})
+			promiseBackend.hashFirst, promiseBackend.hashedTag = true, promiseHashObjectBackendTag
 			var shards []markedShard
 			var wantSuccessful []int
-			for _, backend := range []*objectBackend{legacy, hashed, next} {
+			for _, backend := range []*objectBackend{legacy, hashed, next, promiseBackend} {
 				backend := backend
 				backend.client = &s3ObjectClientStub{deleteObjects: func(_ context.Context, in *s3.DeleteObjectsInput, _ ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
 					require.Equal(t, backend.namespace.Bucket, aws.ToString(in.Bucket))
@@ -214,7 +219,7 @@ func TestHashFirstMixedBatchFailureIsolation(t *testing.T) {
 					shards = append(shards, markedShard{id: shardID{promiseHash: []byte{byte(i)}}, marker: encodeShardMarkerForBackend(backend.backendTag(), 1)})
 				}
 			}
-			storage := &routedStorage{primary: next, secondary: legacy, tertiary: hashed}
+			storage := &routedStorage{primary: promiseBackend, secondary: legacy, tertiary: hashed, quaternary: next}
 			successful, err := storage.DeleteBatch(t.Context(), shards)
 			require.Error(t, err)
 			require.IsType(t, &partialDeleteError{}, err)
@@ -282,4 +287,57 @@ func TestHashNextPutPreservesPreviousMarker(t *testing.T) {
 	tag, _, err := decodeShardMarkerBackend(marker)
 	require.NoError(t, err)
 	require.Equal(t, hashedObjectBackendTag, tag)
+}
+
+func TestPromiseHashKeyLayout(t *testing.T) {
+	namespace := objectNamespace{Bucket: "bucket", Prefix: "namespace", ChainID: "chain", ValidatorAddress: "validator"}
+	legacy := newObjectBackend(nil, namespace)
+	backend := newObjectBackend(nil, namespace)
+	backend.hashFirst, backend.hashedTag = true, promiseHashObjectBackendTag
+	hash := make([]byte, 32)
+	for i := range hash {
+		hash[i] = byte(i)
+	}
+	want := hex.EncodeToString(hash) + "/" + legacy.objectKey(Commitment{}, hash)
+	require.Equal(t, want, backend.objectKey(Commitment{}, hash))
+	require.Equal(t, byte('/'), want[64])
+}
+
+func TestPromiseHashNamespaceRestart(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	cfg := DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	cfg.StorageBackend = storageBackendObject
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "chain", "validator"
+	cfg.ObjectStorage.HashFirstBucket, cfg.ObjectStorage.HashFirstBucketNext = "hashed", "next"
+	cfg.ObjectStorage.PromiseHashKeys = true
+	for range 2 {
+		store, err := NewStore(t.Context(), cfg)
+		require.NoError(t, err)
+		require.Equal(t, promiseHashObjectBackendTag, store.shards.primary.backendTag())
+		for _, tag := range []shardBackendTag{localBackendTag, objectBackendTag, hashedObjectBackendTag, nextHashedObjectBackendTag, promiseHashObjectBackendTag} {
+			_, err = store.shards.backend(tag)
+			require.NoError(t, err)
+			require.NoError(t, store.db.Set(shardKey(Commitment{}, []byte{byte(tag)}), encodeShardMarkerForBackend(tag, 1), pebbledb.Sync))
+		}
+		require.NoError(t, store.Close())
+	}
+	for _, mode := range []string{storageBackendLocal, storageBackendObject} {
+		for _, change := range []string{"disabled", "bucket"} {
+			changed := cfg
+			changed.StorageBackend = mode
+			if change == "disabled" {
+				changed.ObjectStorage.PromiseHashKeys = false
+			} else {
+				changed.ObjectStorage.HashFirstBucketNext = "wrong"
+			}
+			store, err := NewStore(t.Context(), changed)
+			if store != nil {
+				require.NoError(t, store.Close())
+			}
+			require.ErrorIs(t, err, ErrStoreIntegrity)
+		}
+	}
 }

@@ -19,7 +19,7 @@ import (
 )
 
 func TestUploadObjectStatusConditionalPut(t *testing.T) {
-	for _, tag := range []shardBackendTag{objectBackendTag, hashedObjectBackendTag, nextHashedObjectBackendTag} {
+	for _, tag := range []shardBackendTag{objectBackendTag, hashedObjectBackendTag, nextHashedObjectBackendTag, promiseHashObjectBackendTag} {
 		t.Run(fmt.Sprint(tag), func(t *testing.T) {
 			store := newMarkerTestStore(t)
 			present, fail := false, false

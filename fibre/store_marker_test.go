@@ -46,7 +46,7 @@ func TestShardMarkerRejectsInvalidData(t *testing.T) {
 	zeroBackend := append([]byte(nil), valid...)
 	zeroBackend[1] = 0
 	unknownBackend := append([]byte(nil), valid...)
-	unknownBackend[1] = 5
+	unknownBackend[1] = 6
 	tests := []struct {
 		name string
 		data []byte

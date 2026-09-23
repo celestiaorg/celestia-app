@@ -239,6 +239,9 @@ func (b *objectBackend) objectKey(commitment Commitment, promiseHash []byte) str
 	if !b.hashFirst {
 		return key
 	}
+	if b.hashedTag == promiseHashObjectBackendTag {
+		return hex.EncodeToString(promiseHash) + "/" + key
+	}
 	h := sha256.New()
 	for _, value := range [][]byte{[]byte(b.namespace.ChainID), []byte(b.namespace.ValidatorAddress), []byte(commitment.String()), promiseHash} {
 		var length [8]byte

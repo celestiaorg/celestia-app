@@ -14,6 +14,7 @@ import (
 const objectNamespaceKey = "/meta/object-namespace"
 const hashedObjectNamespaceKey = "/meta/object-namespace-hash-first"
 const nextHashedObjectNamespaceKey = "/meta/object-namespace-hash-first-next"
+const promiseHashObjectNamespaceKey = "/meta/object-namespace-promise-hash"
 
 // objectNamespace identifies the location of a validator's object shards.
 type objectNamespace struct {

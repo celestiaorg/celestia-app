@@ -27,6 +27,8 @@ type ObjectStorageConfig struct {
 	HashFirstBucket string `toml:"hash_first_bucket"`
 	// HashFirstBucketNext receives new shards while retaining both previous destinations.
 	HashFirstBucketNext string `toml:"hash_first_bucket_next"`
+	// PromiseHashKeys starts new keys with the full promise hash in the next bucket.
+	PromiseHashKeys bool `toml:"promise_hash_keys"`
 	// RequestTimeout bounds an object operation, including retries and response reads.
 	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
 	// OverrideNamespace accepts a namespace change after operator migration.
