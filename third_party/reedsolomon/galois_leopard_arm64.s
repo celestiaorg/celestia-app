@@ -152,3 +152,69 @@ mulxorloop:
 
 mulxordone:
 	RET
+
+// Nibbles are shared across all eight outputs. V16-V19 hold the four
+// nibbles for symbols 0-15; V20-V23 hold those for symbols 16-31.
+#define MUL_NIBBLES(A, B, C, D, LO, HI) \
+	VTBL A.B16, [V0.B16], LO.B16 \
+	VTBL A.B16, [V4.B16], HI.B16 \
+	VTBL B.B16, [V1.B16], V28.B16 \
+	VEOR V28.B16, LO.B16, LO.B16 \
+	VTBL B.B16, [V5.B16], V28.B16 \
+	VEOR V28.B16, HI.B16, HI.B16 \
+	VTBL C.B16, [V2.B16], V28.B16 \
+	VEOR V28.B16, LO.B16, LO.B16 \
+	VTBL C.B16, [V6.B16], V28.B16 \
+	VEOR V28.B16, HI.B16, HI.B16 \
+	VTBL D.B16, [V3.B16], V28.B16 \
+	VEOR V28.B16, LO.B16, LO.B16 \
+	VTBL D.B16, [V7.B16], V28.B16 \
+	VEOR V28.B16, HI.B16, HI.B16
+
+// func mulgf16Xor8NEON(in []byte, outs *[8][]byte, tables *[8]*[128]uint8)
+// The caller validates equal lengths and whole 64-byte blocks.
+// A nil table skips the corresponding zero scalar.
+TEXT ·mulgf16Xor8NEON(SB), NOSPLIT, $0-40
+	MOVD in_base+0(FP), R5
+	MOVD in_len+8(FP), R2
+	MOVD outs+24(FP), R6
+	MOVD tables+32(FP), R7
+	CBZ R2, mulxor8done
+	LOAD_MASK
+	MOVD $0, R9
+mulxor8block:
+	VLD1.P 64(R5), [V24.B16, V25.B16, V26.B16, V27.B16]
+	VAND V8.B16, V24.B16, V16.B16
+	VUSHR $4, V24.B16, V17.B16
+	VAND V8.B16, V26.B16, V18.B16
+	VUSHR $4, V26.B16, V19.B16
+	VAND V8.B16, V25.B16, V20.B16
+	VUSHR $4, V25.B16, V21.B16
+	VAND V8.B16, V27.B16, V22.B16
+	VUSHR $4, V27.B16, V23.B16
+	MOVD R6, R11
+	MOVD R7, R12
+	MOVD $8, R13
+mulxor8output:
+	MOVD.P 8(R12), R10
+	CBZ R10, mulxor8next
+	LOAD_TABLES(R10)
+	MUL_NIBBLES(V16, V17, V18, V19, V24, V26)
+	MUL_NIBBLES(V20, V21, V22, V23, V25, V27)
+	MOVD (R11), R1
+	ADD R9, R1
+	VLD1 (R1), [V0.B16, V1.B16, V2.B16, V3.B16]
+	VEOR V0.B16, V24.B16, V24.B16
+	VEOR V1.B16, V25.B16, V25.B16
+	VEOR V2.B16, V26.B16, V26.B16
+	VEOR V3.B16, V27.B16, V27.B16
+	VST1 [V24.B16, V25.B16, V26.B16, V27.B16], (R1)
+mulxor8next:
+	ADD $24, R11
+	SUBS $1, R13
+	BNE mulxor8output
+	ADD $64, R9
+	SUBS $64, R2
+	BGT mulxor8block
+mulxor8done:
+	RET

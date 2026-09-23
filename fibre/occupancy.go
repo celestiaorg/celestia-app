@@ -2,10 +2,10 @@ package fibre
 
 import "sync/atomic"
 
-// occupancy tracks how many bytes of shards a validator holds against its disk
-// budget.
+// occupancy tracks marker-accounted and in-flight shard bytes against the
+// validator's storage budget.
 type occupancy struct {
-	used atomic.Int64 // on-disk plus in-flight bytes
+	used atomic.Int64 // marker-accounted plus in-flight bytes
 	// budget is the per-node cap in bytes. A non-positive value (<=0) disables
 	// the limiter.
 	budget atomic.Int64
@@ -25,7 +25,7 @@ func (o *occupancy) setBudget(newBudget int64) {
 	o.budget.Store(newBudget)
 }
 
-// usage returns the current tracked occupancy in bytes (on-disk plus in-flight).
+// usage returns the current marker-accounted and in-flight bytes.
 func (o *occupancy) usage() int64 {
 	return o.used.Load()
 }

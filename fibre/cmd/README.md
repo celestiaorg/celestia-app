@@ -122,6 +122,25 @@ The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fib
 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
 
+### Switching shard storage backends
+
+Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
+
+**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix.
+
+Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
+
+The store saves the object endpoint, bucket, prefix, chain ID, and validator address at startup, before accepting uploads.
+It updates this record only when an allowed namespace change occurs.
+While object shards remain, a change to this namespace prevents startup in either storage mode.
+Restore the previous configuration and signer to recover access.
+For an intentional migration, stop the server and move all retained objects to the new namespace first.
+Then start once with `--override-object-namespace`. The server logs the old and new namespaces and saves the new namespace.
+This flag does not move or verify objects. An incorrect override can make retained shards unavailable and leave orphaned objects after pruning.
+The flag is not saved in TOML. It only overrides a mismatch with a valid saved namespace.
+Startup fails if the saved record is corrupt, or if retained object shards have no namespace record.
+After all object shards are pruned, namespace changes need no override.
+
 ### Connection caps and memory
 
 `max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
@@ -245,7 +264,7 @@ W3C TraceContext and Baggage propagators are registered globally, enabling distr
 
 Resource attributes exported with every trace: `service.name=fibre`, `service.version`, `service.instance.id` (hostname).
 
-**Metrics** — Exported via a periodic OTLP reader. All duration histograms carry a `success` attribute for error rate derivation from `_count`. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
+**Metrics** — Exported via a periodic OTLP reader. Duration histograms carry a `success` or `outcome` attribute for error rate derivation from `_count`. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
 
 #### Client metrics
 
@@ -278,9 +297,16 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total bytes sent |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
+| `fibre.server.backend.get.duration` | Histogram (s) | `backend`, `outcome` | Backend GET latency through payload reading, decoding and closing |
+| `fibre.server.backend.get.in_flight` | UpDownCounter | `backend` | Concurrent backend GET calls |
+| `fibre.server.backend.get.bytes` | Counter (By) | `backend` | Encoded bytes consumed, including partial failures and buffered reads |
 | `fibre.server.sign.duration` | Histogram (s) | `success` | Payment promise signing latency |
 | `fibre.server.prune.entries` | Counter | — | Total entries pruned |
 | `fibre.server.prune.duration` | Histogram (s) | `success` | Prune cycle duration |
+
+Backend GET metrics record only the primary backend and use `backend=local|object`.
+The duration metric uses `outcome=success|not_found|timeout|canceled|throttled|error`.
+Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.
 
 #### Grafana dashboard
 

@@ -5,6 +5,8 @@
 
 package reedsolomon
 
+import "unsafe"
+
 const pshufb = true
 
 //go:noescape
@@ -24,6 +26,9 @@ func mulgf16NEON(x, y []byte, table *[128]uint8)
 
 //go:noescape
 func mulgf16XorNEON(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func mulgf16Xor8NEON(in []byte, outs *[8][]byte, tables *[8]*[128]uint8)
 
 // leopardNEON reports whether the GF(2^16) NEON kernels can be used. They
 // consume whole 64-byte blocks; callers pass the remainder to the reference
@@ -185,11 +190,29 @@ func mulgf16(x, y []byte, log_m ffe, o *options) {
 
 func mulgf16Xor8(scalars *[8]uint16, in []byte, outs *[8][]byte, o *options) {
 	if leopardNEON(o) {
+		// Larger buffers benefit from keeping each scalar's tables in registers.
+		// Preserve the original ordered operations for overlapping buffers.
+		if len(in) > 1024 || mulgf16Xor8Overlap(in, outs) {
+			for k, c := range scalars {
+				if c != 0 {
+					mulgf16Xor(outs[k], in, logLUT[ffe(c)], o)
+				}
+			}
+			return
+		}
+		var tables [8]*[128]uint8
 		for k, c := range scalars {
 			if c != 0 {
-				mulgf16Xor(outs[k], in, logLUT[ffe(c)], o)
+				tables[k] = &multiply256LUT[logLUT[ffe(c)]]
+				if raceEnabled {
+					raceWriteSlice(outs[k])
+				}
 			}
 		}
+		if raceEnabled {
+			raceReadSlice(in)
+		}
+		mulgf16Xor8NEON(in, outs, &tables)
 		return
 	}
 	refMulAdd8x(scalars, in, outs)
@@ -246,4 +269,23 @@ func ifftDIT4Dst(dst, work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o 
 func ifftDIT48Dst(dst, work [][]byte, dist int, log_m01, log_m23, log_m02 ffe8, o *options) {
 	// Fall back. Should not be called.
 	ifftDIT4DstRef8(dst, work, dist, log_m01, log_m23, log_m02, o)
+}
+
+// mulgf16Xor8Overlap detects aliases whose update order must be preserved.
+func mulgf16Xor8Overlap(in []byte, outs *[8][]byte) bool {
+	if len(in) == 0 {
+		return false
+	}
+	var starts [9]uintptr
+	starts[0] = uintptr(unsafe.Pointer(unsafe.SliceData(in)))
+	for k := range outs {
+		start := uintptr(unsafe.Pointer(unsafe.SliceData(outs[k])))
+		for _, prev := range starts[:k+1] {
+			if start < prev+uintptr(len(in)) && prev < start+uintptr(len(in)) {
+				return true
+			}
+		}
+		starts[k+1] = start
+	}
+	return false
 }

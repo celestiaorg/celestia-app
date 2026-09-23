@@ -4,6 +4,7 @@ package reedsolomon
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"testing"
 )
@@ -270,5 +271,102 @@ func BenchmarkLeopardGF16EncodeGoroutineOpts(b *testing.B) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkLeopardNEONMulXor8(b *testing.B) {
+	initConstants()
+	o := defaultOptions
+	scalars := [8]uint16{1, 2, 3, 0xffff, 0x1234, 0xabcd, 0x5555, 0xaaaa}
+	for _, n := range []int{64, 1024, 16384, 65536, 1048576} {
+		in := make([]byte, n)
+		var outs [8][]byte
+		for k := range outs {
+			outs[k] = make([]byte, n)
+		}
+		for _, fused := range []bool{false, true} {
+			name := "loop"
+			if fused {
+				name = "dispatch"
+			}
+			b.Run(fmt.Sprintf("%d/%s", n, name), func(b *testing.B) {
+				b.SetBytes(int64(n))
+				b.ReportAllocs()
+				for i := 0; i < b.N; i++ {
+					if fused {
+						mulgf16Xor8(&scalars, in, &outs, &o)
+					} else {
+						for k, c := range scalars {
+							if c != 0 {
+								mulgf16Xor(outs[k], in, logLUT[ffe(c)], &o)
+							}
+						}
+					}
+				}
+			})
+		}
+	}
+}
+
+func TestLeopardNEONMulXor8Boundaries(t *testing.T) {
+	initConstants()
+	rng := rand.New(rand.NewSource(39))
+	for _, n := range []int{0, 64, 128, 960, 1024, 1088, 16384} {
+		for _, offset := range []int{0, 1, 15, 63} {
+			for _, scalars := range [][8]uint16{{}, {1, 2, 3, 4, 0xffff, 0x1234, 0xabcd, 0x5555}, {0, 0, 1, 0, 0, 0xffff, 0, 0}} {
+				inbuf := make([]byte, n+128)
+				rng.Read(inbuf)
+				before := bytes.Clone(inbuf)
+				in := inbuf[offset : offset+n]
+				var got, want, backing, initial [8][]byte
+				var tables [8]*[128]uint8
+				for k, c := range scalars {
+					backing[k] = make([]byte, n+128)
+					rng.Read(backing[k])
+					initial[k] = bytes.Clone(backing[k])
+					got[k] = backing[k][offset : offset+n]
+					want[k] = bytes.Clone(got[k])
+					if c != 0 {
+						tables[k] = &multiply256LUT[logLUT[ffe(c)]]
+					}
+				}
+				mulgf16Xor8NEON(in, &got, &tables)
+				refMulAdd8x(&scalars, in, &want)
+				if !bytes.Equal(inbuf, before) {
+					t.Fatal("input modified")
+				}
+				for k := range got {
+					if !bytes.Equal(got[k], want[k]) || !bytes.Equal(backing[k][:offset], initial[k][:offset]) || !bytes.Equal(backing[k][offset+n:], initial[k][offset+n:]) {
+						t.Fatalf("n=%d offset=%d output=%d scalars=%v", n, offset, k, scalars)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestLeopardNEONMulXor8Aliases(t *testing.T) {
+	initConstants()
+	o := defaultOptions
+	scalars := [8]uint16{1, 2, 3, 4, 5, 6, 7, 8}
+	for _, n := range []int{64, 1024, 1088} {
+		for _, offset := range []int{0, 1, 32, 64} {
+			a := make([]byte, 10*n+64)
+			rand.New(rand.NewSource(41)).Read(a)
+			b := bytes.Clone(a)
+			var got, want [8][]byte
+			for k := range got {
+				got[k], want[k] = a[(k+1)*n:(k+2)*n], b[(k+1)*n:(k+2)*n]
+			}
+			got[0], want[0] = a[offset:offset+n], b[offset:offset+n]
+			got[2], want[2] = a[3*n+offset:4*n+offset], b[3*n+offset:4*n+offset]
+			mulgf16Xor8(&scalars, a[:n], &got, &o)
+			for k, c := range scalars {
+				mulgf16Xor(want[k], b[:n], logLUT[ffe(c)], &o)
+			}
+			if !bytes.Equal(a, b) {
+				t.Fatalf("alias order changed: n=%d offset=%d", n, offset)
+			}
+		}
 	}
 }

@@ -2,6 +2,11 @@
 
 A load-generation tool that submits blobs to a Celestia network through the Fibre protocol. It connects to a validator's gRPC endpoint, creates random blobs, and sends them via `MsgPayForFibre` as fast as possible (or at a configured interval).
 
+Payloads and namespaces use a worker-local ChaCha8 generator seeded from the
+host, process, run timestamp, and worker index. Payloads of at least 40 bytes
+include the worker identity and a sequence number. This synthetic randomness
+is only for benchmark data; signing keys still come from the keyring.
+
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts when running with `--concurrency > 1`.
 
 This binary is built for Linux and deployed to validator nodes by `make build-talis-bins`. It is started remotely via the `talis fibre-txsim` command.
@@ -40,6 +45,17 @@ fibre-txsim \
 | `--concurrency`   | `1`              | Number of concurrent workers (each gets its own account)                    |
 | `--interval`      | `0`              | Delay between blob submissions per worker (`0` = no delay)                  |
 | `--duration`      | `0`              | How long to run (`0` = until killed with Ctrl+C)                            |
+| `--upload-only`   | `false`          | Upload shards without broadcasting or confirming a transaction             |
+| `--preencode`     | `false`          | Reuse one encoded blob with fresh payment promises |
+
+With `--preencode`, each process encodes one random blob before the timed load
+window. Every upload uses a fresh namespace and signed payment promise, creating
+a new stored shard object. By default, uploads are followed by PFF broadcast and
+confirmation; add `--upload-only` to measure ingestion without PFFs. Both modes
+exclude random payload generation and encoding from the timed window; report
+these results separately from throughput that includes fresh encoding.
+It does not support `--download`. `--blob-size` specifies payload bytes, excluding
+the blob header.
 
 ## How it works
 

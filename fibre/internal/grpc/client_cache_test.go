@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
@@ -252,4 +253,109 @@ func TestClientCacheRequest_SkipsRetryOnCancelledContext(t *testing.T) {
 	err := cache.Request(ctx, requestVal, func(grpc.Client) error { calls++; return errUnreachable })
 	require.Error(t, err)
 	assert.Equal(t, 1, calls, "a cancelled context must not trigger a re-dial")
+}
+
+// lifetimeClient signals closure so requests can detect premature cancellation.
+type lifetimeClient struct {
+	types.FibreClient
+	closed chan struct{}
+	closes atomic.Int32
+}
+
+func (c *lifetimeClient) Close() error {
+	if c.closes.Add(1) == 1 {
+		close(c.closed)
+	}
+	return nil
+}
+
+func TestClientCacheRequest_RetiresActiveConnection(t *testing.T) {
+	for _, shutdown := range []bool{false, true} {
+		name := "release"
+		if shutdown {
+			name = "shutdown"
+		}
+		t.Run(name, func(t *testing.T) {
+			cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+				return &lifetimeClient{closed: make(chan struct{})}, nil
+			}, 1)
+			defer cache.Close() //nolint:errcheck
+			active := make(chan *lifetimeClient, 1)
+			finish := make(chan struct{})
+			defer close(finish)
+			done := make(chan error, 1)
+			go func() {
+				done <- cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+					active <- c.(*lifetimeClient)
+					select {
+					case <-finish:
+						return nil
+					case <-c.(*lifetimeClient).closed:
+						return status.Error(grpccodes.Canceled, "connection closed")
+					}
+				})
+			}()
+			stale := <-active
+			var fresh *lifetimeClient
+			require.NoError(t, cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+				if c == stale {
+					return status.Error(grpccodes.DeadlineExceeded, "timeout")
+				}
+				fresh = c.(*lifetimeClient)
+				return nil
+			}))
+			require.Zero(t, stale.closes.Load(), "eviction must not abort another request")
+			if shutdown {
+				require.NoError(t, cache.Close())
+				require.Equal(t, grpccodes.Canceled, status.Code(<-done))
+				require.EqualValues(t, 1, fresh.closes.Load())
+			} else {
+				finish <- struct{}{}
+				require.NoError(t, <-done)
+				require.Zero(t, fresh.closes.Load())
+			}
+			require.EqualValues(t, 1, stale.closes.Load())
+		})
+	}
+}
+
+func TestClientCacheRequest_OldFailureKeepsReplacement(t *testing.T) {
+	var dials atomic.Int32
+	cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+		dials.Add(1)
+		return &lifetimeClient{closed: make(chan struct{})}, nil
+	}, 1)
+	defer cache.Close() //nolint:errcheck
+	active := make(chan grpc.Client, 1)
+	fail := make(chan struct{})
+	defer close(fail)
+	done := make(chan error, 1)
+	var retried grpc.Client
+	go func() {
+		attempts := 0
+		done <- cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+			attempts++
+			if attempts == 1 {
+				active <- c
+				<-fail
+				return errUnreachable
+			}
+			retried = c
+			return nil
+		})
+	}()
+	stale := <-active
+	var replacement grpc.Client
+	require.NoError(t, cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+		if c == stale {
+			return errUnreachable
+		}
+		replacement = c
+		return nil
+	}))
+	fail <- struct{}{}
+	require.NoError(t, <-done)
+	require.Same(t, replacement, retried)
+	require.EqualValues(t, 2, dials.Load())
+	require.Zero(t, replacement.(*lifetimeClient).closes.Load())
 }

@@ -59,6 +59,16 @@ All binaries used by nodes in the network are compiled on the user's local machi
 make build-talis-bins
 ```
 
+This defaults to Linux AMD64. For Graviton machines, build all six deployment binaries for ARM64:
+
+```sh
+make build-talis-bins TALIS_GOARCH=arm64
+```
+
+Run this from the repository root to retain the local Reed–Solomon replacement and its NEON kernels. Do not disable assembly with `noasm` or `nopshufb`. Each invocation overwrites the binaries in `build/`; use separate copies for fleets with mixed architectures. The Rust uploader target only supports AMD64.
+
+Size colocated uploader and server memory budgets for the destination machine before running load. C8gn.48xlarge has 384 GiB RAM; concurrency and budgets require measurement and should not inherit settings from larger-memory machines.
+
 Note that this doesn't install binaries in the `$GOPATH/bin`, so you must specify the path when creating the payload with the `genesis` subcommand using `-b` (`--build-dir`) to copy an entire build directory, or the per-binary flags such as `-a` (`--app-binary`) and `-t` (`--txsim-binary`). See `genesis` subcommand usage below.
 
 ## Usage
