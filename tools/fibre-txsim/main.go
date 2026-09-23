@@ -69,7 +69,7 @@ func main() {
 	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
 	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
-	flag.IntVar(&cfg.concurrency, "concurrency", 20, "number of concurrent blob submissions (each gets its own account)")
+	flag.IntVar(&cfg.concurrency, "concurrency", 24, "number of concurrent blob submissions (each gets its own account)")
 	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")

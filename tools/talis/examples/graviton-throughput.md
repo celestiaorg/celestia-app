@@ -35,7 +35,7 @@ The packed implementation uses full batches of 16 without timer flushing, a 128 
 
 ## Uploader
 
-Provision at least 20 funded uploader accounts per node; keeping 64 supports later experiments. Submit through each node's own app endpoint:
+Provision at least 24 funded uploader accounts per node; keeping 64 supports later experiments. Submit through each node's own app endpoint:
 
 ```sh
 fibre-txsim \
@@ -43,7 +43,7 @@ fibre-txsim \
   --keyring-dir '<app-home>' --key-prefix fibre \
   --network-config '<per-host-network.json>' \
   --preencode --blob-size 2147483643 \
-  --concurrency 20 --rpc-timeout 60s \
+  --concurrency 24 --rpc-timeout 60s \
   --interval 0 --duration 10m \
   --otel-endpoint 'http://<collector>:4318'
 ```

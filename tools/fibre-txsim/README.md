@@ -49,7 +49,7 @@ fibre-txsim \
 | `--keyring-dir`   | `.celestia-app`  | Path to the keyring directory                                               |
 | `--key-prefix`    | `fibre`          | Key name prefix (keys are named `<prefix>-0`, `<prefix>-1`, ...)           |
 | `--blob-size`     | `1000000`        | Size of each blob in bytes                                                  |
-| `--concurrency`   | `20`             | Number of concurrent workers (each gets its own account)                    |
+| `--concurrency`   | `24`             | Number of concurrent workers (each gets its own account)                    |
 | `--interval`      | `0`              | Delay between blob submissions per worker (`0` = no delay)                  |
 | `--duration`      | `0`              | How long to run (`0` = until killed with Ctrl+C)                            |
 | `--upload-only`   | `false`          | Upload shards without broadcasting or confirming a transaction             |
