@@ -42,12 +42,16 @@ type objectBackend struct {
 	metrics        *serverMetrics
 	requestTimeout time.Duration
 	hashFirst      bool
+	hashedTag      shardBackendTag
 }
 
 var _ shardBackend = (*objectBackend)(nil)
 
 func (b *objectBackend) backendTag() shardBackendTag {
 	if b.hashFirst {
+		if b.hashedTag != 0 {
+			return b.hashedTag
+		}
 		return hashedObjectBackendTag
 	}
 	return objectBackendTag

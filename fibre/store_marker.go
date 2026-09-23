@@ -14,9 +14,10 @@ const (
 type shardBackendTag byte
 
 const (
-	localBackendTag        shardBackendTag = 0x01
-	objectBackendTag       shardBackendTag = 0x02
-	hashedObjectBackendTag shardBackendTag = 0x03
+	localBackendTag            shardBackendTag = 0x01
+	objectBackendTag           shardBackendTag = 0x02
+	hashedObjectBackendTag     shardBackendTag = 0x03
+	nextHashedObjectBackendTag shardBackendTag = 0x04
 
 	storageBackendLocal  = "local"
 	storageBackendObject = "object"
@@ -44,7 +45,7 @@ func decodeShardMarkerBackend(data []byte) (shardBackendTag, int64, error) {
 		return 0, 0, fmt.Errorf("%w: unsupported shard marker version %d", ErrStoreIntegrity, data[0])
 	}
 	backend := shardBackendTag(data[1])
-	if backend != localBackendTag && backend != objectBackendTag && backend != hashedObjectBackendTag {
+	if backend != localBackendTag && backend != objectBackendTag && backend != hashedObjectBackendTag && backend != nextHashedObjectBackendTag {
 		return 0, 0, fmt.Errorf("%w: unsupported shard backend tag 0x%02x", ErrStoreIntegrity, data[1])
 	}
 	size := binary.BigEndian.Uint64(data[2:])

@@ -22,9 +22,10 @@ type shardBackend interface {
 
 // routedStorage writes to its primary backend and routes existing markers by tag.
 type routedStorage struct {
-	primary   shardBackend
-	secondary shardBackend
-	tertiary  shardBackend
+	primary    shardBackend
+	secondary  shardBackend
+	tertiary   shardBackend
+	quaternary shardBackend
 }
 
 func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
@@ -44,7 +45,18 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 	if err != nil {
 		return nil, fmt.Errorf("opening hash-first storage: %w", err)
 	}
+	next, err := openHashedObjectGeneration(ctx, cfg, db, cfg.ObjectStorage.HashFirstBucketNext, nextHashedObjectNamespaceKey, nextHashedObjectBackendTag)
+	if err != nil {
+		return nil, fmt.Errorf("opening next hash-first storage: %w", err)
+	}
 	if cfg.StorageBackend == storageBackendObject {
+		if next != nil {
+			storage := &routedStorage{primary: next, secondary: object, tertiary: local}
+			if hashed != nil {
+				storage.quaternary = hashed
+			}
+			return storage, nil
+		}
 		if hashed != nil {
 			return &routedStorage{primary: hashed, secondary: object, tertiary: local}, nil
 		}
@@ -54,11 +66,14 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 	if hashed != nil {
 		storage.tertiary = hashed
 	}
+	if next != nil {
+		storage.quaternary = next
+	}
 	return storage, nil
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
-	for _, item := range []shardBackend{s.primary, s.secondary, s.tertiary} {
+	for _, item := range []shardBackend{s.primary, s.secondary, s.tertiary, s.quaternary} {
 		switch backend := item.(type) {
 		case *localBackend:
 			backend.metrics = metrics
@@ -123,7 +138,7 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 		if err != nil {
 			return nil, err
 		}
-		if backend.backendTag() == objectBackendTag || backend.backendTag() == hashedObjectBackendTag {
+		if backend.backendTag() == objectBackendTag || backend.backendTag() == hashedObjectBackendTag || backend.backendTag() == nextHashedObjectBackendTag {
 			object, ok := backend.(*objectBackend)
 			if !ok {
 				return nil, fmt.Errorf("%w: object backend does not support batch deletion", ErrStoreIntegrity)
@@ -243,6 +258,9 @@ func (s *routedStorage) backend(tag shardBackendTag) (shardBackend, error) {
 	if s.tertiary != nil && s.tertiary.backendTag() == tag {
 		return s.tertiary, nil
 	}
+	if s.quaternary != nil && s.quaternary.backendTag() == tag {
+		return s.quaternary, nil
+	}
 	return nil, fmt.Errorf("%w: shard backend 0x%02x is unavailable", ErrStoreIntegrity, tag)
 }
 
@@ -254,6 +272,9 @@ func (s *routedStorage) localBackend() (*localBackend, error) {
 		return local, nil
 	}
 	if local, ok := s.tertiary.(*localBackend); ok {
+		return local, nil
+	}
+	if local, ok := s.quaternary.(*localBackend); ok {
 		return local, nil
 	}
 	return nil, fmt.Errorf("%w: local shard backend is unavailable", ErrStoreIntegrity)
