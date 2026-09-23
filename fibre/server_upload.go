@@ -128,17 +128,19 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	ctx, span := s.tracer.Start(ctx, "store_shard")
 	defer span.End()
 
-	mu := s.uploadLock(promiseHash)
-	waitDone := s.metrics.phase(ctx, "hash_lock_wait", 0)
-	mu.Lock()
+	waitDone := s.metrics.phase(ctx, "upload_identity_wait", 0)
+	release, err := s.uploads.acquire(ctx, promiseHash)
 	waitDone()
-	defer mu.Unlock()
-	defer s.metrics.phase(ctx, "hash_lock_hold", 0)()
+	if err != nil {
+		return status.Error(cancellationCode(err), fmt.Sprintf("waiting for existing upload: %v", err))
+	}
+	defer release()
+	defer s.metrics.phase(ctx, "upload_identity_hold", 0)()
 
-	// Re-check now that we have the lock, to avoid TOCTOU
+	// Re-check after becoming the sole writer for this promise.
 	has, accounted, err := s.store.uploadShardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
-		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
+		log.ErrorContext(ctx, "failed to check store for existing shard after coordination", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
 		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
