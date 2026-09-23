@@ -32,11 +32,11 @@ When in doubt, treat as the higher tier. Light tier: skip Phase 1 and Phase 3 en
 
 ## Phase 3 — Review loop
 
-1. Get the full diff (`git diff` plus untracked files) and spawn these agents from `.claude/agents/` in parallel on it: `determinism-reviewer`, `adversarial-input-reviewer`, `consensus-reviewer`, `compat-reviewer`, `simplicity-reviewer`. Give each the diff and the path to the assumptions note if one exists.
+1. Get the full diff (`git diff` plus untracked files) and spawn these agents from `.claude/agents/` in parallel on it: `determinism-reviewer`, `adversarial-input-reviewer`, `consensus-reviewer`, `compat-reviewer`, `simplicity-reviewer`. Give each the diff and the path to the assumptions note if one exists. If your tool can't load these agents, use each `.claude/agents/<name>.md` as a review checklist yourself.
 2. Consensus-critical tier: also spawn `adversarial-reviewer` in the first round. In later rounds, re-run it only on state transitions whose code changed during fixes. The engineer can request it for any change or skip it for a provably trivial one; record a skip in the report.
 3. For every finding, spawn a `finding-verifier` agent to try to refute it. Discard refuted findings. Escalate unproven findings to the engineer — never fix them on your own.
-4. Fix all confirmed findings, then run the reviewers again.
-5. Stop when two consecutive rounds produce zero confirmed findings, or after three rounds total. Escalate any still-open findings to the engineer — never silently drop them.
+4. Fix all confirmed findings, then run the reviewers again on only the code that changed during fixes.
+5. Stop when a round produces zero confirmed findings, or after three rounds total. Escalate any still-open findings to the engineer — never silently drop them.
 
 ## Phase 4 — Verify
 
