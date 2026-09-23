@@ -2,6 +2,10 @@
 
 Reference settings for 120 equal-stake validators, each running Fibre and a Go uploader. Size these settings against the target host's RAM and measure before sustained load. This example is documentation, not an automatically loaded Talis profile.
 
+## Chain and accounts
+
+Use a unique chain ID of at most 20 characters, for example `g120-0923-1435`. Configure 120 equal-stake validators. Provision 64 funded uploader accounts per validator, named `fibre-0` through `fibre-63`; the first 24 are active in this profile. Deposit 30,000,000 TIA into each active uploader escrow and 100,000 TIA into each of the remaining 40 escrows before load. Keep bank funds available for transaction fees.
+
 ## Fibre server
 
 Merge these fields into each existing `fibre/config/server_config.toml`:
@@ -35,7 +39,7 @@ The packed implementation uses full batches of 16 without timer flushing, a 128 
 
 ## Uploader
 
-Provision at least 24 funded uploader accounts per node; keeping 64 supports later experiments. Submit through each node's own app endpoint:
+Use the funded accounts above and submit through each node's own app endpoint:
 
 ```sh
 fibre-txsim \
@@ -75,7 +79,15 @@ For hosts with approximately 371 GiB usable RAM, use these systemd limits as a m
 
 Keep persistent app state, signing state and Fibre metadata on the mounted data volume. Do not restore stale signing state or metadata during rollback. Configure Fibre metric exports every five seconds with `OTEL_METRIC_EXPORT_INTERVAL=5000`.
 
-## App timing
+## App fees and timing
+
+Set the node-local filter explicitly in each app `config/app.toml`:
+
+```toml
+minimum-gas-prices = "0.000001utia"
+```
+
+The flat PFF transaction fee is 1 utia with a 1,000,000 gas limit. A stale `0.004utia` local filter rejects it with code 13; changing this filter does not change on-chain parameters.
 
 The benchmark app launch profile uses `--delayed-precommit-timeout=1s --timeout-commit=500ms`, targeting a nominal 1.5-second cadence. These are runtime flags; observed block intervals also depend on consensus progress. Keep the 2,000-PFF block cap unless a separate coordinated change is approved.
 
