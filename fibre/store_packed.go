@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"slices"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -140,7 +141,7 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 		if !req.dispatched {
 			for i, pending := range q.requests {
 				if pending == req {
-					q.requests = append(q.requests[:i], q.requests[i+1:]...)
+					q.requests = slices.Delete(q.requests, i, i+1)
 					b.failQueuedLocked(req, ctx.Err())
 					break
 				}
