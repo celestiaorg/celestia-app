@@ -6,10 +6,10 @@ import (
 	"time"
 )
 
-const pruneInterval = time.Minute
+const pruneInterval = 24 * time.Hour
 
 // startPruneLoop starts a background goroutine that periodically prunes expired entries from the store.
-// It runs every minute and removes entries with pruneAt times before the current time.
+// It runs every 24 hours and removes entries with pruneAt times before the current time.
 // The loop stops when the context is cancelled.
 func (s *Server) startPruneLoop(ctx context.Context) {
 	ticker := time.NewTicker(pruneInterval)
