@@ -110,8 +110,8 @@ func TestPackedFullBatchRangeAndPrune(t *testing.T) {
 	require.NoError(t, b.Delete(t.Context(), Commitment{}, []byte{3, 15}))
 	require.Empty(t, mock.objects)
 }
-func TestPackedPartialFlushAndFailedPutRecovery(t *testing.T) {
-	b, mock := newPackedTestBackend(t, 16)
+func TestPackedFailedPutRecovery(t *testing.T) {
+	b, mock := newPackedTestBackend(t, 1)
 	shard := &types.BlobShard{Rows: []*types.BlobRow{}, Rlcs: []byte("data")}
 	start := time.Now()
 	require.NoError(t, b.Put(t.Context(), Commitment{}, []byte{7}, shard))
@@ -134,7 +134,7 @@ func TestPackedPartialFlushAndFailedPutRecovery(t *testing.T) {
 	require.Empty(t, mock.objects)
 }
 func TestPackedEightGroupsAndCancellation(t *testing.T) {
-	b, mock := newPackedTestBackend(t, 16)
+	b, mock := newPackedTestBackend(t, 1)
 	shard := &types.BlobShard{Rows: []*types.BlobRow{}, Rlcs: []byte("data")}
 	errs := make(chan error, 8)
 	for i := 0; i < 8; i++ {
@@ -160,7 +160,24 @@ func TestPackedStoreCommitRestartAndPrune(t *testing.T) {
 	store := &Store{db: b.db, log: slog.Default(), shards: &routedStorage{primary: b.object, packed: b}}
 	promise := &PaymentPromise{ChainID: "chain", SignerKey: secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), Commitment: generateCommitment(), CreationTimestamp: time.Unix(1, 0), Signature: []byte{1}}
 	shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: []byte("payload")}}, Rlcs: []byte("rlc")}
-	require.NoError(t, store.Put(t.Context(), promise, shard, time.Unix(100, 0)))
+	h0, err := promise.Hash()
+	require.NoError(t, err)
+	promises := []*PaymentPromise{promise}
+	for i := 0; len(promises) < 16; i++ {
+		candidate := &PaymentPromise{ChainID: promise.ChainID, SignerKey: promise.SignerKey, Commitment: promise.Commitment, CreationTimestamp: promise.CreationTimestamp, Signature: []byte{2, byte(i), byte(i >> 8)}}
+		h, err := candidate.Hash()
+		require.NoError(t, err)
+		if h[0]&7 == h0[0]&7 {
+			promises = append(promises, candidate)
+		}
+	}
+	errs := make(chan error, 16)
+	for _, p := range promises {
+		go func() { errs <- store.Put(t.Context(), p, shard, time.Unix(100, 0)) }()
+	}
+	for range promises {
+		require.NoError(t, <-errs)
+	}
 	h, err := promise.Hash()
 	require.NoError(t, err)
 	marker, closer, err := b.db.Get(shardKey(promise.Commitment, h))
@@ -177,7 +194,7 @@ func TestPackedStoreCommitRestartAndPrune(t *testing.T) {
 	require.Equal(t, shard, got)
 	count, _, err := store.PruneBefore(t.Context(), time.Unix(3600, 0))
 	require.NoError(t, err)
-	require.Equal(t, 1, count)
+	require.Equal(t, 16, count)
 	require.Empty(t, mock.objects)
 	recovered.Close()
 }
@@ -217,7 +234,7 @@ func TestPackedCanceledUploadRetainsBuffersUntilComplete(t *testing.T) {
 	require.NoError(t, <-done)
 }
 func TestPackedConcurrentDuplicate(t *testing.T) {
-	b, mock := newPackedTestBackend(t, 16)
+	b, mock := newPackedTestBackend(t, 1)
 	shard := &types.BlobShard{Rlcs: []byte("data")}
 	errs := make(chan error, 20)
 	for i := 0; i < 20; i++ {
@@ -248,4 +265,43 @@ func TestPackedBucketPinnedIndependently(t *testing.T) {
 	require.NoError(t, b.db.Set(shardKey(Commitment{}, []byte{1}), encodeShardMarkerForBackend(packedObjectBackendTag, 1), pebbledb.Sync))
 	cfg.ObjectStorage.PackedBucket = "wrong-bucket"
 	require.ErrorIs(t, storage.openPacked(t.Context(), cfg, b.db), ErrStoreIntegrity)
+}
+
+func TestPackedPartialCancellationAndShutdown(t *testing.T) {
+	for _, shutdown := range []bool{false, true} {
+		t.Run(fmt.Sprint(shutdown), func(t *testing.T) {
+			b, mock := newPackedTestBackend(t, 16)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			errs := make(chan error, 15)
+			for i := 0; i < 15; i++ {
+				i := i
+				go func() { errs <- b.Put(ctx, Commitment{}, []byte{1, byte(i)}, &types.BlobShard{Rlcs: []byte("data")}) }()
+			}
+			require.Eventually(t, func() bool { b.mu.Lock(); defer b.mu.Unlock(); return len(b.queues[1].requests) == 15 }, time.Second, time.Millisecond)
+			time.Sleep(250 * time.Millisecond)
+			mock.mu.Lock()
+			puts := mock.puts
+			mock.mu.Unlock()
+			require.Zero(t, puts, "partial group must never flush on a timer")
+			if shutdown {
+				b.Close()
+			} else {
+				cancel()
+			}
+			for i := 0; i < 15; i++ {
+				err := <-errs
+				if shutdown {
+					require.ErrorContains(t, err, "closed before full batch")
+				} else {
+					require.ErrorIs(t, err, context.Canceled)
+				}
+			}
+			require.Empty(t, mock.objects)
+			b.mu.Lock()
+			require.Empty(t, b.inflight)
+			require.Empty(t, b.queues[1].requests)
+			b.mu.Unlock()
+		})
+	}
 }

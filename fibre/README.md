@@ -122,9 +122,11 @@ objects retain their original bucket and layout.
 
 New packed objects use eight groups selected by the first promise-hash byte
 modulo eight. Keys start with `00/` through `07/`, followed by the configured
-namespace, validator address, and unique pack identity. Each group flushes after
-200 ms even when incomplete. Objects are capped at 4 GiB; admitted shard payloads
-share a 16 GiB budget and are streamed without an extra payload copy. All S3
+namespace, validator address, and unique pack identity. Each group uploads only when it reaches the configured
+shard count. Cancellation and shutdown fail partial groups without uploading them.
+Enough concurrent promises must reach each group to fill it; sparse workloads can
+wait indefinitely until cancellation. Objects are capped at 4 GiB; admitted shard payloads
+share a 128 GiB budget and are streamed without an extra payload copy. All S3
 clients share a 1,000-connection limit, including idle and dialing sockets.
 
 Shard locations use durable Pebble range indexes. Upload acknowledgment follows
@@ -135,5 +137,5 @@ older binaries cannot read the new backend marker `06`. Batch size 1 remains a
 safe way to stop new packed writes while retaining reads and pruning.
 
 `fibre.server.storage.packed.put.attempts` counts physical PUT attempts, including
-SDK retries. `fibre.server.storage.packed.shards` reports batch fill. Partial batches
-and retries reduce the request savings below the configured batch size.
+SDK retries. `fibre.server.storage.packed.shards` reports batch fill. Retries reduce the request savings below the configured batch size. Shards too
+large to fill a batch within the object/admission limits are rejected.

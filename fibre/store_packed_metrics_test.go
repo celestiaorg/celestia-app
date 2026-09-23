@@ -42,7 +42,7 @@ func TestPackedMetricsCountHTTPRetries(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
 	metrics, err := newServerMetrics(provider.Meter("packed-test"), newOccupancy(0))
 	require.NoError(t, err)
-	b, _ := newPackedTestBackend(t, 16)
+	b, _ := newPackedTestBackend(t, 1)
 	b.object.metrics = metrics
 	b.object.client = s3.NewFromConfig(aws.Config{
 		Region:      "eu-west-1",

@@ -11,7 +11,6 @@ import (
 	"io"
 	"path"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
@@ -28,7 +27,7 @@ const (
 	packedNamespaceKey         = "/meta/object-namespace-packed"
 	packedManifestPrefix       = "/pack/manifest/"
 	maxPackedBytes       int64 = 4 << 30
-	packedFlushDelay           = 200 * time.Millisecond
+	packedAdmissionBytes int64 = 128 << 30
 )
 
 type packedLocation struct {
@@ -42,16 +41,15 @@ type packedManifest struct {
 }
 type packedQueue struct {
 	requests []*packedRequest
-	size     int64
-	timer    *time.Timer
 }
 
 type packedRequest struct {
-	id     string
-	hash   []byte
-	reader *shardReader
-	done   chan struct{}
-	err    error
+	id         string
+	hash       []byte
+	reader     *shardReader
+	done       chan struct{}
+	err        error
+	dispatched bool
 }
 
 // packedBackend keeps shard locations and a recovery journal in Pebble.
@@ -68,7 +66,7 @@ type packedBackend struct {
 }
 
 func newPackedBackend(object *objectBackend, db *pebbledb.DB, batchSize int) *packedBackend {
-	return &packedBackend{object: object, db: db, batchSize: batchSize, memory: semaphore.NewWeighted(16 << 30), inflight: make(map[string]*packedRequest)}
+	return &packedBackend{object: object, db: db, batchSize: batchSize, memory: semaphore.NewWeighted(packedAdmissionBytes), inflight: make(map[string]*packedRequest)}
 }
 func (*packedBackend) backendTag() shardBackendTag { return packedObjectBackendTag }
 func packedIndexKey(id string) []byte              { return []byte("/pack/index/" + id) }
@@ -93,8 +91,8 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 	if err != nil {
 		return err
 	}
-	if reader.size > maxPackedBytes {
-		return fmt.Errorf("shard exceeds packed object limit")
+	if reader.size > maxPackedBytes/int64(b.batchSize) || reader.size > packedAdmissionBytes/int64(8*b.batchSize) {
+		return fmt.Errorf("shard size %d cannot form a full batch of %d within object and admission limits", reader.size, b.batchSize)
 	}
 	if err = b.memory.Acquire(ctx, reader.size); err != nil {
 		return err
@@ -115,8 +113,12 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 	}
 	if old := b.inflight[id]; old != nil {
 		b.mu.Unlock()
-		<-old.done
-		return old.err
+		select {
+		case <-old.done:
+			return old.err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 	req := &packedRequest{id: id, hash: append([]byte(nil), h...), reader: reader, done: make(chan struct{})}
 	b.inflight[id] = req
@@ -125,39 +127,47 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 		group = int(h[0] & 7)
 	}
 	q := &b.queues[group]
-	if q.size+reader.size > maxPackedBytes {
-		b.flushLocked(group)
-	}
 	q.requests = append(q.requests, req)
-	q.size += reader.size
-	if len(q.requests) == 1 {
-		q.timer = time.AfterFunc(packedFlushDelay, func() {
-			b.mu.Lock()
-			defer b.mu.Unlock()
-			if len(q.requests) > 0 && q.requests[0] == req {
-				b.flushLocked(group)
-			}
-		})
-	}
 	if len(q.requests) >= b.batchSize {
 		b.flushLocked(group)
 	}
 	b.mu.Unlock()
-	// The caller owns the shard buffers until the upload has stopped using them.
-	<-req.done
-	return req.err
+	select {
+	case <-req.done:
+		return req.err
+	case <-ctx.Done():
+		b.mu.Lock()
+		if !req.dispatched {
+			for i, pending := range q.requests {
+				if pending == req {
+					q.requests = append(q.requests[:i], q.requests[i+1:]...)
+					b.failQueuedLocked(req, ctx.Err())
+					break
+				}
+			}
+		}
+		b.mu.Unlock()
+		// Dispatched batches retain caller buffers until the PUT has stopped reading.
+		<-req.done
+		return req.err
+	}
+
+}
+func (b *packedBackend) failQueuedLocked(req *packedRequest, err error) {
+	req.err = err
+	delete(b.inflight, req.id)
+	close(req.done)
 }
 func (b *packedBackend) flushLocked(group int) {
 	q := &b.queues[group]
-	if len(q.requests) == 0 {
+	if len(q.requests) != b.batchSize {
 		return
-	}
-	if q.timer != nil {
-		q.timer.Stop()
 	}
 	requests := q.requests
 	q.requests = nil
-	q.size = 0
+	for _, r := range requests {
+		r.dispatched = true
+	}
 	b.wg.Add(1)
 	go func() {
 		defer b.wg.Done()
@@ -366,7 +376,10 @@ func (b *packedBackend) Close() {
 	b.mu.Lock()
 	b.closed = true
 	for group := range b.queues {
-		b.flushLocked(group)
+		for _, r := range b.queues[group].requests {
+			b.failQueuedLocked(r, errors.New("packed storage closed before full batch"))
+		}
+		b.queues[group].requests = nil
 	}
 	b.mu.Unlock()
 	b.wg.Wait()
