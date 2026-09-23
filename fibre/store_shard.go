@@ -22,6 +22,7 @@ type shardBackend interface {
 
 // routedStorage writes to its primary backend and routes existing markers by tag.
 type routedStorage struct {
+	metrics    *serverMetrics
 	primary    shardBackend
 	secondary  shardBackend
 	tertiary   shardBackend
@@ -104,6 +105,7 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
+	s.metrics = metrics
 	if s.packed != nil {
 		s.packed.object.metrics = metrics
 	}

@@ -129,8 +129,11 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	defer span.End()
 
 	mu := s.uploadLock(promiseHash)
+	waitDone := s.metrics.phase(ctx, "hash_lock_wait", 0)
 	mu.Lock()
+	waitDone()
 	defer mu.Unlock()
+	defer s.metrics.phase(ctx, "hash_lock_hold", 0)()
 
 	// Re-check now that we have the lock, to avoid TOCTOU
 	has, accounted, err := s.store.uploadShardStatus(ctx, promise.Commitment, promiseHash)
@@ -345,11 +348,14 @@ func (s *Server) verifyShard(ctx context.Context, blobCfg BlobConfig, promise *P
 		rows[i] = row
 	}
 
+	verifyWaitDone := s.metrics.phase(ctx, "verifier_wait", 0)
 	verifier, err := s.getVerifier(ctx)
+	verifyWaitDone()
 	if err != nil {
 		return fmt.Errorf("acquiring verifier: %w", err)
 	}
 	defer s.putVerifier(verifier)
+	defer s.metrics.phase(ctx, "verification", 0)()
 
 	if err := verifier.Verify(promise.Commitment, rows, rlcs); err != nil {
 		return fmt.Errorf("shard row verification failed: %w", err)

@@ -26,6 +26,7 @@ const (
 
 // serverMetrics holds OTel metric instruments for the Fibre [Server].
 type serverMetrics struct {
+	phases *uploadPhaseMetrics
 	// UploadShard RPC
 	uploadShardInFlight metric.Int64UpDownCounter
 	uploadShardDuration metric.Float64Histogram
@@ -60,6 +61,11 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		sm  serverMetrics
 		err error
 	)
+
+	sm.phases, err = newUploadPhaseMetrics(m)
+	if err != nil {
+		return nil, err
+	}
 
 	// UploadShard RPC metrics
 	sm.uploadShardInFlight, err = m.Int64UpDownCounter("fibre.server.upload_shard.in_flight",

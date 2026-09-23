@@ -173,7 +173,10 @@ func (s *Store) commitAndStore(
 	if tag, _, _ := decodeShardMarkerBackend(marker); tag == packedObjectBackendTag {
 		options = pebbledb.Sync
 	}
-	if err := batch.Commit(options); err != nil {
+	metadataDone := s.shards.metrics.phase(ctx, "marker_commit", 0)
+	err = batch.Commit(options)
+	metadataDone()
+	if err != nil {
 		if s.shardMarkerMissing(promise.Commitment, promiseHash) {
 			if rmErr := s.shards.Delete(context.Background(), marker, promise.Commitment, promiseHash); rmErr != nil {
 				s.log.Warn("failed to remove orphaned shard after commit failure",
