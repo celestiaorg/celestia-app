@@ -51,6 +51,7 @@ type packedRequest struct {
 	done       chan struct{}
 	err        error
 	dispatched bool
+	queueDone  func()
 }
 
 // packedBackend keeps shard locations and a recovery journal in Pebble.
@@ -95,12 +96,18 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 	if reader.size > maxPackedBytes/int64(b.batchSize) || reader.size > packedAdmissionBytes/int64(8*b.batchSize) {
 		return fmt.Errorf("shard size %d cannot form a full batch of %d within object and admission limits", reader.size, b.batchSize)
 	}
-	if err = b.memory.Acquire(ctx, reader.size); err != nil {
+	admissionDone := b.object.metrics.phase(ctx, "packed_admission_wait", reader.size)
+	err = b.memory.Acquire(ctx, reader.size)
+	admissionDone()
+	if err != nil {
 		return err
 	}
 	defer b.memory.Release(reader.size)
+	defer b.object.metrics.phase(ctx, "packed_admitted", reader.size)()
 	id := string(shardKey(c, h))
+	lockDone := b.object.metrics.phase(ctx, "packed_mutex_wait", 0)
 	b.mu.Lock()
+	lockDone()
 	if b.closed {
 		b.mu.Unlock()
 		return errors.New("packed storage closed")
@@ -122,6 +129,7 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 		}
 	}
 	req := &packedRequest{id: id, hash: append([]byte(nil), h...), reader: reader, done: make(chan struct{})}
+	req.queueDone = b.object.metrics.phase(ctx, "packed_queue_fill", reader.size)
 	b.inflight[id] = req
 	group := 0
 	if len(h) > 0 {
@@ -155,6 +163,7 @@ func (b *packedBackend) Put(ctx context.Context, c Commitment, h []byte, shard *
 
 }
 func (b *packedBackend) failQueuedLocked(req *packedRequest, err error) {
+	req.queueDone()
 	req.err = err
 	delete(b.inflight, req.id)
 	close(req.done)
@@ -168,6 +177,7 @@ func (b *packedBackend) flushLocked(group int) {
 	q.requests = nil
 	for _, r := range requests {
 		r.dispatched = true
+		r.queueDone()
 	}
 	b.wg.Add(1)
 	go func() {
@@ -205,12 +215,16 @@ func (b *packedBackend) upload(requests []*packedRequest) error {
 	if err != nil {
 		return err
 	}
-	if err = b.db.Set(packedManifestKey(key), data, pebbledb.Sync); err != nil {
+	intentDone := b.object.metrics.phase(ctx, "packed_intent_sync", 0)
+	err = b.db.Set(packedManifestKey(key), data, pebbledb.Sync)
+	intentDone()
+	if err != nil {
 		return err
 	}
 	if m := b.object.metrics; m != nil {
 		m.packedShards.Record(ctx, int64(len(requests)))
 	}
+	putDone := b.object.metrics.phase(ctx, "packed_put", reader.size)
 	_, err = b.object.client.PutObject(ctx, &s3.PutObjectInput{Bucket: aws.String(b.object.namespace.Bucket), Key: aws.String(key), Body: reader, ContentLength: aws.Int64(reader.size), IfNoneMatch: aws.String("*")}, func(o *s3.Options) {
 		o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 		o.APIOptions = append(o.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware, func(stack *middleware.Stack) error {
@@ -223,6 +237,7 @@ func (b *packedBackend) upload(requests []*packedRequest) error {
 			}), middleware.After)
 		})
 	})
+	putDone()
 	if err != nil && !hasObjectErrorCode(err, "PreconditionFailed") {
 		return fmt.Errorf("putting packed object: %w", err)
 	}
@@ -239,7 +254,10 @@ func (b *packedBackend) upload(requests []*packedRequest) error {
 	if err = batch.Set(packedManifestKey(key), data, nil); err != nil {
 		return err
 	}
-	return batch.Commit(pebbledb.Sync)
+	indexDone := b.object.metrics.phase(ctx, "packed_index_sync", 0)
+	err = batch.Commit(pebbledb.Sync)
+	indexDone()
+	return err
 }
 func (b *packedBackend) Get(ctx context.Context, c Commitment, h []byte) (_ *types.BlobShard, err error) {
 	done := b.object.metrics.observeBackendGet(ctx, storageBackendObject)
@@ -289,7 +307,10 @@ func (b *packedBackend) Has(ctx context.Context, c Commitment, h []byte) (bool, 
 	return err == nil, err
 }
 func (b *packedBackend) Delete(ctx context.Context, c Commitment, h []byte) error {
+	waitDone := b.object.metrics.phase(ctx, "packed_delete_mutex_wait", 0)
 	b.mu.Lock()
+	waitDone()
+	defer b.object.metrics.phase(ctx, "packed_delete_mutex_hold", 0)()
 	defer b.mu.Unlock()
 	return b.deleteLocked(ctx, string(shardKey(c, h)))
 }

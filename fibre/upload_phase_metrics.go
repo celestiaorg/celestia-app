@@ -14,6 +14,9 @@ type uploadPhaseMetrics struct {
 }
 
 func newUploadPhaseMetrics(m metric.Meter) (*uploadPhaseMetrics, error) {
+	if _, err := m.Int64ObservableGauge("fibre.server.storage.packed.admission_capacity", metric.WithUnit("By"), metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error { o.Observe(packedAdmissionBytes); return nil })); err != nil {
+		return nil, err
+	}
 	p := &uploadPhaseMetrics{}
 	var err error
 	p.duration, err = m.Float64Histogram("fibre.server.upload.phase.duration", metric.WithUnit("s"), metric.WithDescription("Upload phase wall time, including waits; phases may overlap"), metric.WithExplicitBucketBoundaries(.0001, .001, .01, .1, .25, .5, 1, 2, 5, 10, 20, 30, 60, 120, 300))
