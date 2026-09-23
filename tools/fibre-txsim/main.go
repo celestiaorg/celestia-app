@@ -50,6 +50,7 @@ type config struct {
 	otelEndpoint      string
 	download          bool
 	uploadOnly        bool
+	preencode         bool
 	pyroscopeEndpoint string
 	pyroscopeUser     string
 	pyroscopePass     string
@@ -68,6 +69,7 @@ func main() {
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
 	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
+	flag.BoolVar(&cfg.preencode, "preencode", false, "reuse one encoded blob to isolate server ingestion (requires --upload-only)")
 	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
 	flag.StringVar(&cfg.pyroscopeUser, "pyroscope-basic-auth-user", "", "Pyroscope basic auth username")
 	flag.StringVar(&cfg.pyroscopePass, "pyroscope-basic-auth-password", "", "Pyroscope basic auth password")
@@ -83,10 +85,11 @@ func main() {
 
 // worker holds a per-account tx client and key name, sharing one fibre client.
 type worker struct {
-	fibreClient *fibre.Client
-	txClient    *user.TxClient
-	grpcConn    *grpc.ClientConn
-	keyName     string
+	fibreClient  *fibre.Client
+	txClient     *user.TxClient
+	grpcConn     *grpc.ClientConn
+	keyName      string
+	preparedBlob *fibre.Blob
 }
 
 // downloadRequest is sent from upload workers to download workers after a successful upload.
@@ -141,6 +144,18 @@ func run(cfg config) error {
 		return fmt.Errorf("--concurrency must be >= 1, got %d", cfg.concurrency)
 	}
 
+	if cfg.preencode {
+		if !cfg.uploadOnly {
+			return fmt.Errorf("--preencode requires --upload-only")
+		}
+		if cfg.download {
+			return fmt.Errorf("--preencode does not support --download")
+		}
+		if cfg.blobSize <= 0 || cfg.blobSize > fibre.DefaultBlobConfigV0().MaxDataSize {
+			return fmt.Errorf("--blob-size must be between 1 and %d", fibre.DefaultBlobConfigV0().MaxDataSize)
+		}
+	}
+
 	if cfg.pyroscopeEndpoint != "" {
 		stopPyroscope, err := setupPyroscope(cfg.pyroscopeEndpoint, cfg.pyroscopeUser, cfg.pyroscopePass)
 		if err != nil {
@@ -185,7 +200,7 @@ func run(cfg config) error {
 	}()
 
 	// Apply duration limit if set
-	if cfg.duration > 0 {
+	if cfg.duration > 0 && !cfg.preencode {
 		ctx, cancel = context.WithTimeout(ctx, cfg.duration)
 		defer cancel()
 	}
@@ -222,6 +237,20 @@ func run(cfg config) error {
 		}
 	}()
 
+	var preparedBlob *fibre.Blob
+	if cfg.preencode {
+		data := make([]byte, cfg.blobSize)
+		if _, err := rand.Read(data); err != nil {
+			return fmt.Errorf("generate preencoded blob data: %w", err)
+		}
+		preparedBlob, err = fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+		if err != nil {
+			return fmt.Errorf("preencode blob: %w", err)
+		}
+		defer preparedBlob.Free()
+		fmt.Println("Benchmark mode: server-isolation (preencoded blob, fresh payment promises)")
+	}
+
 	// Create one worker per concurrent slot, each with its own account
 	workers := make([]worker, cfg.concurrency)
 	for i := range cfg.concurrency {
@@ -246,12 +275,19 @@ func run(cfg config) error {
 		}
 
 		workers[i] = worker{
-			fibreClient: sharedFibreClient,
-			txClient:    txClient,
-			grpcConn:    grpcConn,
-			keyName:     keyName,
+			fibreClient:  sharedFibreClient,
+			preparedBlob: preparedBlob,
+			txClient:     txClient,
+			grpcConn:     grpcConn,
+			keyName:      keyName,
 		}
 		fmt.Printf("Worker %d initialized with key %s\n", i, keyName)
+	}
+
+	// Exclude preparation and worker setup from the server-isolation load window.
+	if cfg.preencode && cfg.duration > 0 {
+		ctx, cancel = context.WithTimeout(ctx, cfg.duration)
+		defer cancel()
 	}
 
 	st := &stats{}
@@ -485,26 +521,31 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		return
 	}
 
-	// Generate random blob data
-	data := make([]byte, blobSize)
-	if _, err := rand.Read(data); err != nil {
-		fmt.Printf("[%s] error generating blob data: %v\n", w.keyName, err)
-		st.failures.Add(1)
-		st.totalSent.Add(1)
-		return
+	var data []byte
+	if w.preparedBlob == nil {
+		data = make([]byte, blobSize)
+		if _, err := rand.Read(data); err != nil {
+			fmt.Printf("[%s] error generating blob data: %v\n", w.keyName, err)
+			st.failures.Add(1)
+			st.totalSent.Add(1)
+			return
+		}
 	}
 
 	st.totalSent.Add(1)
 	t := time.Now()
 
 	if uploadOnly {
-		blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
-		if err != nil {
-			st.failures.Add(1)
-			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
-			return
+		blob := w.preparedBlob
+		if blob == nil {
+			blob, err = fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+			if err != nil {
+				st.failures.Add(1)
+				fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
+				return
+			}
+			defer blob.Free()
 		}
-		defer blob.Free()
 		_, err = w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 		lat := time.Since(t)
 		if err != nil {
@@ -517,7 +558,11 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		}
 		st.successes.Add(1)
 		st.totalLatNs.Add(lat.Nanoseconds())
-		fmt.Printf("[%s] upload-only: latency=%s\n", w.keyName, lat)
+		if w.preparedBlob != nil {
+			fmt.Printf("[%s] upload-only: latency=%s acknowledged_at=%s\n", w.keyName, lat, time.Now().UTC().Format(time.RFC3339Nano))
+		} else {
+			fmt.Printf("[%s] upload-only: latency=%s\n", w.keyName, lat)
+		}
 		return
 	}
 
