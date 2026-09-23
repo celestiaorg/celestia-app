@@ -9,7 +9,7 @@ import (
 )
 
 // unmarshalUploadViews recognizes the field order emitted by the scatter marshaler.
-// data must be GC-owned, and row/proof counts must already have been validated.
+// data must outlive all readers, and row/proof counts must already be validated.
 // Unsupported layouts leave dst unchanged for the generated decoder to handle.
 func unmarshalUploadViews(data []byte, dst *types.UploadShardRequest) bool {
 	if dst.Promise != nil || dst.Shard != nil {

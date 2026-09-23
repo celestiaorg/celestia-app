@@ -131,14 +131,11 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
-	s.grpc.Register(s,
-		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
+	s.grpc.RegisterWithUploadBufferReuse(s,
+		s.Config.MaxMessageSize,
+		DefaultProtocolParams.MaxRowsPerValidator(),
+		DefaultProtocolParams.MerkleProofDepth(),
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
-		// Reject too many rows or proofs before protobuf allocates for them.
-		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
-			DefaultProtocolParams.MaxRowsPerValidator(),
-			DefaultProtocolParams.MerkleProofDepth(),
-		)),
 		grpclib.Creds(creds),
 	)
 

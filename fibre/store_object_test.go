@@ -334,3 +334,46 @@ func (s *s3ObjectClientStub) DeleteObject(ctx context.Context, input *s3.DeleteO
 func (s *s3ObjectClientStub) DeleteObjects(ctx context.Context, input *s3.DeleteObjectsInput, optFns ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
 	return s.deleteObjects(ctx, input, optFns...)
 }
+
+// retainedBodyClient models a transport retaining the upload body after Do returns.
+type retainedBodyClient struct {
+	body io.ReadCloser
+	err  error
+}
+
+func (c *retainedBodyClient) Do(req *http.Request) (*http.Response, error) {
+	c.body = req.Body
+	if c.err != nil {
+		return nil, c.err
+	}
+	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: http.NoBody}, nil
+}
+
+func TestObjectBackendReleasesUploadReader(t *testing.T) {
+	for _, transportErr := range []error{nil, errors.New("transport failed"), context.Canceled} {
+		t.Run(fmt.Sprint(transportErr), func(t *testing.T) {
+			transport := &retainedBodyClient{err: transportErr}
+			client := s3.New(s3.Options{
+				Region:       "us-east-1",
+				Credentials:  credentials.NewStaticCredentialsProvider("test", "test", ""),
+				BaseEndpoint: aws.String("https://storage.example"),
+				UsePathStyle: true,
+				HTTPClient:   transport,
+				Retryer:      retry.NewStandard(func(o *retry.StandardOptions) { o.MaxAttempts = 1 }),
+			})
+			backend := newObjectBackend(client, objectNamespace{Bucket: "bucket"})
+			shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: []byte("payload")}}}
+			err := backend.Put(t.Context(), Commitment{}, []byte{1}, shard)
+			if transportErr == nil {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+			require.NotNil(t, transport.body)
+			clear(shard.Rows[0].Data)
+			n, err := transport.body.Read(make([]byte, 32))
+			require.Zero(t, n)
+			require.ErrorIs(t, err, io.EOF, "SDK must detach the body before request storage can be recycled")
+		})
+	}
+}

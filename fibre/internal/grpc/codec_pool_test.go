@@ -94,14 +94,21 @@ func TestCodecUploadErrorOwnership(t *testing.T) {
 	}
 }
 
-func BenchmarkCodecUploadDecode(b *testing.B) {
+func BenchmarkCodecUploadDecode(b *testing.B) { benchmarkUploadDecode(b, false) }
+
+func BenchmarkCodecUploadDecodeReuse(b *testing.B) { benchmarkUploadDecode(b, true) }
+
+func benchmarkUploadDecode(b *testing.B, reuse bool) {
 	req := makeUploadShard(148, 14)
 	for _, row := range req.Shard.Rows {
 		row.Data = make([]byte, 512<<10)
 	}
 	wire, err := req.Marshal()
 	require.NoError(b, err)
-	codec := NewServerCodec(4096, 14)
+	codec := NewServerCodec(4096, 14).(*pooledCodec)
+	if reuse {
+		codec.uploads = &uploadBuffers{limit: len(wire)}
+	}
 	var input mem.BufferSlice
 	for offset := 0; offset < len(wire); offset += 16 << 10 {
 		input = append(input, mem.SliceBuffer(wire[offset:min(offset+16<<10, len(wire))]))
@@ -113,6 +120,9 @@ func BenchmarkCodecUploadDecode(b *testing.B) {
 		var got types.UploadShardRequest
 		if err := codec.Unmarshal(input, &got); err != nil {
 			b.Fatal(err)
+		}
+		if reuse {
+			codec.uploads.release(&got)
 		}
 	}
 }
