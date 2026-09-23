@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	pebbledb "github.com/cockroachdb/pebble/v2"
@@ -329,7 +328,8 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
 	client := store.shards.primary.(*objectBackend).client.(*s3.Client)
-	transport := client.Options().HTTPClient.(*awshttp.BuildableClient).GetTransport()
+	require.IsType(t, &http.Client{}, client.Options().HTTPClient)
+	transport := newObjectHTTPClient(cfg.ObjectStorage).GetTransport()
 	require.Equal(t, cfg.ObjectStorage.RequestTimeout, transport.ResponseHeaderTimeout)
 	_, recorded, err := readObjectNamespace(store.db)
 	require.NoError(t, err)

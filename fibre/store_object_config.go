@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -17,6 +19,39 @@ import (
 )
 
 const defaultObjectRequestTimeout = 30 * time.Second
+
+const maxObjectConnections = 1000
+
+// All object generations share this limit, including their idle connections.
+var objectConnectionSlots = make(chan struct{}, maxObjectConnections)
+
+type objectLimitedConn struct {
+	net.Conn
+	slots chan struct{}
+	once  sync.Once
+}
+
+func (c *objectLimitedConn) Close() error {
+	err := c.Conn.Close()
+	c.once.Do(func() { <-c.slots })
+	return err
+}
+
+func limitObjectDial(slots chan struct{}, dial func(context.Context, string, string) (net.Conn, error)) func(context.Context, string, string) (net.Conn, error) {
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		select {
+		case slots <- struct{}{}:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		conn, err := dial(ctx, network, address)
+		if err != nil {
+			<-slots
+			return nil, err
+		}
+		return &objectLimitedConn{Conn: conn, slots: slots}, nil
+	}
+}
 
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
@@ -115,10 +150,10 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	return backend, nil
 }
 
-func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+func newObjectHTTPClient(cfg ObjectStorageConfig) *awshttp.BuildableClient {
+	return awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+		tr.DialContext = limitObjectDial(objectConnectionSlots, tr.DialContext)
+		tr.MaxConnsPerHost = maxObjectConnections
 		tr.ForceAttemptHTTP2 = false
 		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
 		tr.TLSClientConfig.ClientSessionCache = tls.NewLRUClientSessionCache(512)
@@ -127,7 +162,13 @@ func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, 
 		tr.ResponseHeaderTimeout = cfg.RequestTimeout
 		tr.WriteBufferSize, tr.ReadBufferSize = 256<<10, 256<<10
 	})
-	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region), config.WithHTTPClient(httpClient))
+}
+
+func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	httpClient := newObjectHTTPClient(cfg)
+	awsConfig, err := config.LoadDefaultConfig(ctx, config.WithRegion(cfg.Region), config.WithHTTPClient(httpClient.Freeze()))
 	if err != nil {
 		return nil, fmt.Errorf("loading AWS configuration: %w", err)
 	}
