@@ -67,7 +67,7 @@ func main() {
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
 	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
-	flag.BoolVar(&cfg.preencode, "preencode", false, "reuse one encoded blob to isolate server ingestion (requires --upload-only)")
+	flag.BoolVar(&cfg.preencode, "preencode", false, "reuse one encoded blob while creating fresh payment promises")
 	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
 	flag.StringVar(&cfg.pyroscopeUser, "pyroscope-basic-auth-user", "", "Pyroscope basic auth username")
 	flag.StringVar(&cfg.pyroscopePass, "pyroscope-basic-auth-password", "", "Pyroscope basic auth password")
@@ -134,9 +134,6 @@ func run(cfg config) error {
 	}
 
 	if cfg.preencode {
-		if !cfg.uploadOnly {
-			return fmt.Errorf("--preencode requires --upload-only")
-		}
 		if cfg.download {
 			return fmt.Errorf("--preencode does not support --download")
 		}
@@ -236,7 +233,7 @@ func run(cfg config) error {
 			return fmt.Errorf("preencode blob: %w", err)
 		}
 		defer preparedBlob.Free()
-		fmt.Println("Benchmark mode: server-isolation (preencoded blob, fresh payment promises)")
+		fmt.Printf("Benchmark mode: preencoded payload, fresh payment promises, upload_only=%t\n", cfg.uploadOnly)
 	}
 
 	// Create one worker per concurrent slot, each with its own account
@@ -272,7 +269,7 @@ func run(cfg config) error {
 		fmt.Printf("Worker %d initialized with key %s\n", i, keyName)
 	}
 
-	// Exclude preparation and worker setup from the server-isolation load window.
+	// Exclude preparation and worker setup from the preencoded load window.
 	if cfg.preencode && cfg.duration > 0 {
 		ctx, cancel = context.WithTimeout(ctx, cfg.duration)
 		defer cancel()
@@ -554,14 +551,17 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		return
 	}
 
-	// Async TX mode: encode, upload, broadcast, then hand off confirmation to background workers.
-	blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
-	if err != nil {
-		st.failures.Add(1)
-		fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
-		return
+	// Async TX mode: upload, broadcast, then hand off confirmation to background workers.
+	blob := w.preparedBlob
+	if blob == nil {
+		blob, err = fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
+		if err != nil {
+			st.failures.Add(1)
+			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
+			return
+		}
+		defer blob.Free()
 	}
-	defer blob.Free()
 
 	signedPromise, err := w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 	if err != nil {

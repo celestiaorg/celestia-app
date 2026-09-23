@@ -13,7 +13,6 @@ func TestRunRejectsInvalidPreencodeConfig(t *testing.T) {
 		cfg  config
 		want string
 	}{
-		{"requires upload-only", config{preencode: true}, "requires --upload-only"},
 		{"rejects download", config{preencode: true, uploadOnly: true, download: true}, "does not support --download"},
 		{"negative size", config{preencode: true, uploadOnly: true, blobSize: -1}, "--blob-size"},
 		{"empty", config{preencode: true, uploadOnly: true}, "--blob-size"},
@@ -21,7 +20,10 @@ func TestRunRejectsInvalidPreencodeConfig(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			tc.cfg.concurrency = 1
-			require.ErrorContains(t, run(tc.cfg), tc.want)
+			for _, uploadOnly := range []bool{false, true} {
+				tc.cfg.uploadOnly = uploadOnly
+				require.ErrorContains(t, run(tc.cfg), tc.want)
+			}
 		})
 	}
 }
