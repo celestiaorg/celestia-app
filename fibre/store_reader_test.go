@@ -56,6 +56,35 @@ func TestShardReader(t *testing.T) {
 	}
 }
 
+func TestShardReaderReadAt(t *testing.T) {
+	shard := &types.BlobShard{
+		Rlcs: []byte("rlcs"),
+		Rows: []*types.BlobRow{
+			{Index: 4, Data: []byte("first row"), Proof: [][]byte{[]byte("proof"), nil, []byte("segment")}},
+			{Index: 7, Data: []byte("second row")},
+		},
+	}
+	var encoded bytes.Buffer
+	require.NoError(t, writeShardBinary(&encoded, shard))
+	r, err := newShardReader(shard)
+	require.NoError(t, err)
+
+	for offset := int64(0); offset <= int64(encoded.Len())+1; offset++ {
+		for size := range 20 {
+			want := make([]byte, size)
+			wantN, wantErr := bytes.NewReader(encoded.Bytes()).ReadAt(want, offset)
+			got := make([]byte, size)
+			gotN, gotErr := r.ReadAt(got, offset)
+			require.Equal(t, wantErr, gotErr, "offset=%d size=%d", offset, size)
+			require.Equal(t, wantN, gotN, "offset=%d size=%d", offset, size)
+			require.Equal(t, want[:wantN], got[:gotN], "offset=%d size=%d", offset, size)
+		}
+	}
+
+	_, err = r.ReadAt(make([]byte, 1), -1)
+	require.Error(t, err)
+}
+
 // TestShardReaderInvalidSeek checks that invalid seeks return errors without changing the reader position.
 func TestShardReaderInvalidSeek(t *testing.T) {
 	r, err := newShardReader(&types.BlobShard{})

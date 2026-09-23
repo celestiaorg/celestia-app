@@ -32,8 +32,11 @@ func testObjectStorageConfig() ObjectStorageConfig {
 			Endpoint: "https://account.r2.cloudflarestorage.com",
 			Bucket:   "fibre-shards", Prefix: "fibre",
 		},
-		Region:         "auto",
-		RequestTimeout: defaultObjectRequestTimeout,
+		Region:               "auto",
+		RequestTimeout:       defaultObjectRequestTimeout,
+		MultipartThreshold:   defaultMultipartThreshold,
+		MultipartPartSize:    defaultMultipartPartSize,
+		MultipartConcurrency: defaultMultipartConcurrency,
 	}
 }
 
@@ -57,6 +60,10 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 		{"prefix leading space", func(c *ObjectStorageConfig) { c.Prefix = "/ fibre" }},
 		{"prefix cleaned space", func(c *ObjectStorageConfig) { c.Prefix = "fibre /./" }},
 		{"negative timeout", func(c *ObjectStorageConfig) { c.RequestTimeout = -time.Second }},
+		{"negative multipart threshold", func(c *ObjectStorageConfig) { c.MultipartThreshold = -1 }},
+		{"small multipart part", func(c *ObjectStorageConfig) { c.MultipartPartSize = minMultipartPartSize - 1 }},
+		{"threshold below part size", func(c *ObjectStorageConfig) { c.MultipartThreshold = c.MultipartPartSize - 1 }},
+		{"negative multipart concurrency", func(c *ObjectStorageConfig) { c.MultipartConcurrency = -1 }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := testObjectStorageConfig()
@@ -66,8 +73,14 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 	}
 	cfg := testObjectStorageConfig()
 	cfg.RequestTimeout = 0
+	cfg.MultipartThreshold = 0
+	cfg.MultipartPartSize = 0
+	cfg.MultipartConcurrency = 0
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, defaultObjectRequestTimeout, cfg.RequestTimeout)
+	require.Equal(t, defaultMultipartThreshold, cfg.MultipartThreshold)
+	require.Equal(t, defaultMultipartPartSize, cfg.MultipartPartSize)
+	require.Equal(t, defaultMultipartConcurrency, cfg.MultipartConcurrency)
 	cfg.Endpoint = "http://localhost:9000"
 	require.NoError(t, cfg.Validate())
 }

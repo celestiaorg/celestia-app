@@ -98,6 +98,9 @@ func TestBackendMetricsDisabled(t *testing.T) {
 		r := bytes.NewReader([]byte("data"))
 		require.Same(t, r, metrics.backendReader(t.Context(), storageBackendLocal, r))
 		metrics.observeBackendGet(t.Context(), storageBackendLocal)(nil)
+		metrics.observeBackendPut(t.Context(), "multipart", 4)(nil)
+		metrics.observeMultipartPart(t.Context())(nil)
+		metrics.observeMultipartAbort(t.Context(), nil)
 	}
 }
 

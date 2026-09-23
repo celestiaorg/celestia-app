@@ -16,7 +16,13 @@ import (
 	pebbledb "github.com/cockroachdb/pebble/v2"
 )
 
-const defaultObjectRequestTimeout = 30 * time.Second
+const (
+	defaultObjectRequestTimeout = 30 * time.Second
+	defaultMultipartThreshold   = int64(64 << 20)
+	defaultMultipartPartSize    = int64(64 << 20)
+	defaultMultipartConcurrency = 16
+	minMultipartPartSize        = int64(5 << 20)
+)
 
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
@@ -25,6 +31,12 @@ type ObjectStorageConfig struct {
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	// RequestTimeout bounds an object operation, including retries and response reads.
 	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
+	// MultipartThreshold is the encoded shard size that enables multipart upload.
+	MultipartThreshold int64 `toml:"multipart_threshold" comment:"Multipart upload threshold in bytes. Zero uses 64 MiB."`
+	// MultipartPartSize is the target size of each multipart upload part.
+	MultipartPartSize int64 `toml:"multipart_part_size" comment:"Multipart upload part size in bytes. Zero uses 64 MiB."`
+	// MultipartConcurrency caps upload part requests across the object backend.
+	MultipartConcurrency int `toml:"multipart_concurrency" comment:"Maximum concurrent multipart upload requests. Zero uses 16."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
 }
@@ -55,6 +67,30 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	}
 	if cfg.RequestTimeout == 0 {
 		cfg.RequestTimeout = defaultObjectRequestTimeout
+	}
+	if cfg.MultipartThreshold < 0 {
+		return fmt.Errorf("object_storage.multipart_threshold must not be negative")
+	}
+	if cfg.MultipartThreshold == 0 {
+		cfg.MultipartThreshold = defaultMultipartThreshold
+	}
+	if cfg.MultipartPartSize < 0 {
+		return fmt.Errorf("object_storage.multipart_part_size must not be negative")
+	}
+	if cfg.MultipartPartSize == 0 {
+		cfg.MultipartPartSize = defaultMultipartPartSize
+	}
+	if cfg.MultipartPartSize < minMultipartPartSize {
+		return fmt.Errorf("object_storage.multipart_part_size must be at least %d bytes", minMultipartPartSize)
+	}
+	if cfg.MultipartThreshold < cfg.MultipartPartSize {
+		return fmt.Errorf("object_storage.multipart_threshold must be at least multipart_part_size")
+	}
+	if cfg.MultipartConcurrency < 0 {
+		return fmt.Errorf("object_storage.multipart_concurrency must not be negative")
+	}
+	if cfg.MultipartConcurrency == 0 {
+		cfg.MultipartConcurrency = defaultMultipartConcurrency
 	}
 	return nil
 }
@@ -104,6 +140,7 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	}
 	backend := newObjectBackend(client, namespace)
 	backend.requestTimeout = cfg.ObjectStorage.RequestTimeout
+	backend.configureMultipart(cfg.ObjectStorage.MultipartThreshold, cfg.ObjectStorage.MultipartPartSize, cfg.ObjectStorage.MultipartConcurrency)
 	return backend, nil
 }
 

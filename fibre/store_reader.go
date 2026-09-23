@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"sort"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 )
@@ -12,14 +13,18 @@ import (
 // shardReader reads the binary shard format without copying its payload slices.
 // The caller must keep the shard unchanged until reading and retries finish.
 type shardReader struct {
-	parts  [][]byte
-	size   int64
-	pos    int64
-	index  int
-	offset int
+	parts   [][]byte
+	offsets []int64
+	size    int64
+	pos     int64
+	index   int
+	offset  int
 }
 
-var _ io.ReadSeeker = (*shardReader)(nil)
+var (
+	_ io.ReadSeeker = (*shardReader)(nil)
+	_ io.ReaderAt   = (*shardReader)(nil)
+)
 
 func newShardReader(shard *types.BlobShard) (*shardReader, error) {
 	if shard == nil {
@@ -67,6 +72,10 @@ func newShardReader(shard *types.BlobShard) (*shardReader, error) {
 	for _, part := range r.parts {
 		r.size += int64(len(part))
 	}
+	r.offsets = make([]int64, len(r.parts)+1)
+	for i, part := range r.parts {
+		r.offsets[i+1] = r.offsets[i] + int64(len(part))
+	}
 	return r, nil
 }
 
@@ -85,6 +94,33 @@ func (r *shardReader) Read(p []byte) (int, error) {
 		}
 	}
 	r.pos += int64(n)
+	return n, nil
+}
+
+// ReadAt reads encoded shard bytes without changing the sequential reader position.
+func (r *shardReader) ReadAt(p []byte, off int64) (int, error) {
+	if off < 0 {
+		return 0, errors.New("negative read offset")
+	}
+	if off >= r.size {
+		return 0, io.EOF
+	}
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	index := sort.Search(len(r.parts), func(i int) bool { return r.offsets[i+1] > off })
+	n := 0
+	for n < len(p) && index < len(r.parts) {
+		partOffset := off - r.offsets[index]
+		copied := copy(p[n:], r.parts[index][partOffset:])
+		n += copied
+		off += int64(copied)
+		index++
+	}
+	if n < len(p) {
+		return n, io.EOF
+	}
 	return n, nil
 }
 

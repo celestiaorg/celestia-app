@@ -38,11 +38,17 @@ type serverMetrics struct {
 	downloadShardBytes    metric.Int64Counter
 
 	// Store operations
-	storePutDuration   metric.Float64Histogram
-	storeGetDuration   metric.Float64Histogram
-	backendGetDuration metric.Float64Histogram
-	backendGetInFlight metric.Int64UpDownCounter
-	backendGetBytes    metric.Int64Counter
+	storePutDuration      metric.Float64Histogram
+	storeGetDuration      metric.Float64Histogram
+	backendGetDuration    metric.Float64Histogram
+	backendGetInFlight    metric.Int64UpDownCounter
+	backendGetBytes       metric.Int64Counter
+	backendPutDuration    metric.Float64Histogram
+	backendPutBytes       metric.Int64Counter
+	multipartPartInFlight metric.Int64UpDownCounter
+	multipartParts        metric.Int64Counter
+	multipartPartFailures metric.Int64Counter
+	multipartAborts       metric.Int64Counter
 
 	// Signing
 	signDuration metric.Float64Histogram
@@ -177,6 +183,45 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	if err != nil {
 		return nil, fmt.Errorf("creating backend get bytes counter: %w", err)
 	}
+	sm.backendPutDuration, err = m.Float64Histogram("fibre.server.backend.put.duration",
+		metric.WithDescription("Duration of backend PUT calls"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating backend put duration histogram: %w", err)
+	}
+	sm.backendPutBytes, err = m.Int64Counter("fibre.server.backend.put.bytes",
+		metric.WithDescription("Encoded bytes successfully written by backend PUT calls"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating backend put bytes counter: %w", err)
+	}
+	sm.multipartPartInFlight, err = m.Int64UpDownCounter("fibre.server.backend.multipart.part.in_flight",
+		metric.WithDescription("Number of multipart upload part requests in progress"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating multipart part in_flight counter: %w", err)
+	}
+	sm.multipartParts, err = m.Int64Counter("fibre.server.backend.multipart.parts",
+		metric.WithDescription("Total successfully uploaded multipart parts"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating multipart parts counter: %w", err)
+	}
+	sm.multipartPartFailures, err = m.Int64Counter("fibre.server.backend.multipart.part.failures",
+		metric.WithDescription("Total multipart part requests that exhausted SDK retries"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating multipart part failures counter: %w", err)
+	}
+	sm.multipartAborts, err = m.Int64Counter("fibre.server.backend.multipart.aborts",
+		metric.WithDescription("Total multipart abort attempts"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating multipart aborts counter: %w", err)
+	}
 
 	// Signing metrics
 	sm.signDuration, err = m.Float64Histogram("fibre.server.sign.duration",
@@ -256,6 +301,42 @@ func (m *serverMetrics) observeBackendGet(ctx context.Context, backend string) f
 			attribute.String("backend", backend), attribute.String("outcome", backendGetOutcome(err)),
 		))
 	}
+}
+
+func (m *serverMetrics) observeBackendPut(ctx context.Context, mode string, size int64) func(error) {
+	if m == nil || (!m.backendPutDuration.Enabled(ctx) && !m.backendPutBytes.Enabled(ctx)) {
+		return func(error) {}
+	}
+	start := time.Now()
+	return func(err error) {
+		attrs := metric.WithAttributes(attribute.String("mode", mode), attribute.String("outcome", backendGetOutcome(err)))
+		m.backendPutDuration.Record(ctx, time.Since(start).Seconds(), attrs)
+		if err == nil {
+			m.backendPutBytes.Add(ctx, size, metric.WithAttributes(attribute.String("mode", mode)))
+		}
+	}
+}
+
+func (m *serverMetrics) observeMultipartPart(ctx context.Context) func(error) {
+	if m == nil || (!m.multipartPartInFlight.Enabled(ctx) && !m.multipartParts.Enabled(ctx) && !m.multipartPartFailures.Enabled(ctx)) {
+		return func(error) {}
+	}
+	m.multipartPartInFlight.Add(ctx, 1)
+	return func(err error) {
+		m.multipartPartInFlight.Add(ctx, -1)
+		if err == nil {
+			m.multipartParts.Add(ctx, 1)
+			return
+		}
+		m.multipartPartFailures.Add(ctx, 1, metric.WithAttributes(attribute.String("outcome", backendGetOutcome(err))))
+	}
+}
+
+func (m *serverMetrics) observeMultipartAbort(ctx context.Context, err error) {
+	if m == nil || !m.multipartAborts.Enabled(ctx) {
+		return
+	}
+	m.multipartAborts.Add(ctx, 1, metric.WithAttributes(attribute.Bool("success", err == nil)))
 }
 
 func backendGetOutcome(err error) string {
