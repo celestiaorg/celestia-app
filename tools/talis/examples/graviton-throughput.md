@@ -1,6 +1,6 @@
 # Colocated Graviton throughput profile
 
-Reference settings for 100 equal-stake validators, each running Fibre and a Go uploader. Size these settings against the target host's RAM and measure before sustained load. This example is documentation, not an automatically loaded Talis profile.
+Reference settings for 120 equal-stake validators, each running Fibre and a Go uploader. Size these settings against the target host's RAM and measure before sustained load. This example is documentation, not an automatically loaded Talis profile.
 
 ## Fibre server
 
@@ -9,7 +9,7 @@ Merge these fields into each existing `fibre/config/server_config.toml`:
 ```toml
 app_grpc_address = "127.0.0.1:9091"
 signer_grpc_address = "127.0.0.1:26669"
-server_listen_address = "0.0.0.0:7980"
+server_listen_address = "<local-secondary-ip>:7980"
 upload_verify_workers = 100
 max_connections = 256
 max_concurrent_streams = 200
@@ -52,7 +52,7 @@ Leave PFF submission enabled. Failed attempts use exponential backoff with jitte
 
 ## Network and memory
 
-Bind Fibre to both NICs using the wildcard listener, keeping primary endpoints available. Each uploader's network JSON contains its secondary source IP and all validators' secondary destinations:
+Bind Fibre to the secondary NIC. Each uploader's network JSON contains only its secondary source IP and all validators' secondary destinations:
 
 ```json
 {
@@ -63,7 +63,7 @@ Bind Fibre to both NICs using the wildcard listener, keeping primary endpoints a
 }
 ```
 
-Include all 100 validators. Verify source-policy routing for both request and response traffic, authenticated secondary Fibre access, and primary fallback. Keep the ordinary S3 default route on the primary NIC and local app/signer endpoints unchanged. Confirm actual socket paths and interface counters; two addresses alone do not prove two network cards.
+Include all 120 validators and verify they are bonded before measuring the full validator set. Verify source-policy routing for both request and response traffic and authenticated secondary Fibre access. Keep S3 on the primary NIC and local app/signer endpoints unchanged. Use mq with fq leaves on both interfaces. Confirm actual socket paths and interface counters; two addresses alone do not prove two network cards.
 
 For hosts with approximately 371 GiB usable RAM, use these systemd limits as a measured starting profile:
 
@@ -75,8 +75,12 @@ For hosts with approximately 371 GiB usable RAM, use these systemd limits as a m
 
 Keep persistent app state, signing state and Fibre metadata on the mounted data volume. Do not restore stale signing state or metadata during rollback. Configure Fibre metric exports every five seconds with `OTEL_METRIC_EXPORT_INTERVAL=5000`.
 
+## App timing
+
+The benchmark app launch profile uses `--delayed-precommit-timeout=1s --timeout-commit=500ms`, targeting a nominal 1.5-second cadence. These are runtime flags; observed block intervals also depend on consensus progress. Keep the 2,000-PFF block cap unless a separate coordinated change is approved.
+
 ## Ramp and validation
 
-Start with 20 producers, then 40, 60, 80 and 100. Hold each stage for at least 28 seconds and the final stage for 90 seconds; keep earlier producers running. Starting with fewer producers can starve full batches spread across eight groups. Monitor memory, chain progress, successful quorum uploads, PFF-confirmed bytes and S3 errors separately. Hold or stop when errors increase; queued bytes are not completed throughput.
+Start with 20 producers, then 40, 60, 80, 100 and 120. Hold each stage for 14 seconds and the final stage for 180 seconds; keep earlier producers running. Starting with fewer producers can starve full batches spread across eight groups. Monitor memory, chain progress, successful quorum uploads, PFF-confirmed bytes and S3 errors separately. Hold or stop when errors increase; queued bytes are not completed throughput.
 
 Before the run, validate packed PUT/range-GET/reopen/pruning and legacy routing using an isolated namespace. Keep uploaders stopped while changing binaries, destinations or network paths. Stop and remask uploaders at the end of the controlled window.
