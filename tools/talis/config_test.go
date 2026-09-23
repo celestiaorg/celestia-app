@@ -15,6 +15,7 @@ func TestConfigFlag(t *testing.T) {
 	t.Setenv(EnvVarDigitalOceanToken, "")
 	t.Setenv(EnvVarGoogleCloudProject, "")
 	t.Setenv(EnvVarAWSRegion, "")
+	t.Setenv("AWS_MAX_ATTEMPTS", "1")
 
 	tests := []struct {
 		name    string
@@ -30,11 +31,20 @@ func TestConfigFlag(t *testing.T) {
 		{"download", downloadCmd, nil, "no validators (nodes) found in config"},
 		{"txsim", startTxsimCmd, []string{"--instances", "1", "--sequences", "1"}, "no validators found in config"},
 		{"kill-session", killTmuxSessionCmd, []string{"--session", "s"}, "no validators found in config"},
+		{"download s3", downloadS3DataCmd, nil, "failed to download S3 objects"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			require.NoError(t, NewConfig("test", "test", "").SaveFile(filepath.Join(dir, "other.json")))
+			// Static creds and a local endpoint keep `download s3` offline.
+			cfg := NewConfig("test", "test", "").WithS3Config(S3Config{
+				Region:          "us-east-1",
+				AccessKeyID:     "id",
+				SecretAccessKey: "secret",
+				BucketName:      "bucket",
+				Endpoint:        "http://127.0.0.1:1",
+			})
+			require.NoError(t, cfg.SaveFile(filepath.Join(dir, "other.json")))
 
 			cmd := tt.cmd()
 			cmd.SetArgs(append([]string{"-d", dir, "-c", "other.json"}, tt.args...))
