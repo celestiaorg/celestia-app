@@ -101,7 +101,7 @@ func TestBackendMetricsDisabled(t *testing.T) {
 	}
 }
 
-func TestRoutedStorageMetricsPrimaryOnly(t *testing.T) {
+func TestRoutedStorageMetricsAllBackends(t *testing.T) {
 	for _, objectPrimary := range []bool{false, true} {
 		local, object := &localBackend{}, &objectBackend{}
 		primary, secondary := shardBackend(local), shardBackend(object)
@@ -110,12 +110,7 @@ func TestRoutedStorageMetricsPrimaryOnly(t *testing.T) {
 		}
 		metrics := &serverMetrics{}
 		newRoutedStorage(primary, secondary).setMetrics(metrics)
-		if objectPrimary {
-			require.Same(t, metrics, object.metrics)
-			require.Nil(t, local.metrics)
-		} else {
-			require.Same(t, metrics, local.metrics)
-			require.Nil(t, object.metrics)
-		}
+		require.Same(t, metrics, object.metrics)
+		require.Same(t, metrics, local.metrics)
 	}
 }

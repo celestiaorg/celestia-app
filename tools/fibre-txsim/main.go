@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -44,6 +45,7 @@ const downloadDelay = 10 * time.Second
 type config struct {
 	networkConfig     string
 	grpcEndpoint      string
+	rpcTimeout        time.Duration
 	keyringDir        string
 	keyPrefix         string
 	blobSize          int
@@ -63,6 +65,7 @@ func main() {
 	var cfg config
 	flag.StringVar(&cfg.networkConfig, "network-config", "", "JSON configuration for paired local and validator network addresses")
 	flag.StringVar(&cfg.grpcEndpoint, "grpc-endpoint", "localhost:9091", "gRPC endpoint")
+	flag.DurationVar(&cfg.rpcTimeout, "rpc-timeout", fibre.DefaultClientConfig().RPCTimeout, "timeout for each Fibre peer RPC and state query")
 	flag.StringVar(&cfg.keyringDir, "keyring-dir", ".celestia-app", "keyring directory")
 	flag.StringVar(&cfg.keyPrefix, "key-prefix", "fibre", "key name prefix in keyring (keys are named <prefix>-0, <prefix>-1, ...)")
 	flag.IntVar(&cfg.blobSize, "blob-size", 1000000, "size of each blob in bytes")
@@ -162,6 +165,10 @@ func run(cfg config) error {
 		return fmt.Errorf("--blob-size must be between 1 and %d", fibre.DefaultBlobConfigV0().MaxDataSize)
 	}
 
+	if cfg.rpcTimeout <= 0 {
+		return fmt.Errorf("--rpc-timeout must be > 0")
+	}
+
 	if cfg.pyroscopeEndpoint != "" {
 		stopPyroscope, err := setupPyroscope(cfg.pyroscopeEndpoint, cfg.pyroscopeUser, cfg.pyroscopePass)
 		if err != nil {
@@ -214,6 +221,7 @@ func run(cfg config) error {
 	// Create a single shared fibre client with a cached validator set to avoid
 	// redundant gRPC round-trips on every upload/download.
 	clientCfg := fibre.DefaultClientConfig()
+	clientCfg.RPCTimeout = cfg.rpcTimeout
 	clientCfg.Network = network
 	clientCfg.StateAddress = cfg.grpcEndpoint
 	clientCfg.DefaultKeyName = fmt.Sprintf("%s-0", cfg.keyPrefix)
@@ -441,10 +449,24 @@ func run(cfg config) error {
 	return nil
 }
 
-func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Context), error) {
-	endpoint, err := url.JoinPath(endpoint, "v1/metrics")
+func otelSignalEndpoint(endpoint, signal string) (string, error) {
+	u, err := url.Parse(endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("constructing OTLP metric endpoint: %w", err)
+		return "", err
+	}
+	u.Path = strings.TrimRight(u.Path, "/")
+	for _, suffix := range []string{"/v1/metrics", "/v1/traces"} {
+		u.Path = strings.TrimSuffix(u.Path, suffix)
+	}
+	u.RawPath = ""
+	return url.JoinPath(u.String(), "v1", signal)
+}
+
+func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Context), error) {
+	endpoint, err := otelSignalEndpoint(endpoint, "metrics")
+	if err != nil {
+		return nil, fmt.Errorf("constructing OTLP metrics endpoint: %w", err)
+
 	}
 	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint))
 	if err != nil {
@@ -479,9 +501,10 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 }
 
 func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Context), error) {
-	endpoint, err := url.JoinPath(endpoint, "v1/traces")
+	endpoint, err := otelSignalEndpoint(endpoint, "traces")
 	if err != nil {
-		return nil, fmt.Errorf("constructing OTLP trace endpoint: %w", err)
+		return nil, fmt.Errorf("constructing OTLP traces endpoint: %w", err)
+
 	}
 	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
 	if err != nil {

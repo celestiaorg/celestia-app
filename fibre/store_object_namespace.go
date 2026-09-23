@@ -12,6 +12,7 @@ import (
 )
 
 const objectNamespaceKey = "/meta/object-namespace"
+const hashedObjectNamespaceKey = "/meta/object-namespace-hash-first"
 
 // objectNamespace identifies the location of a validator's object shards.
 type objectNamespace struct {
@@ -32,8 +33,12 @@ func (n objectNamespace) canonical() objectNamespace {
 }
 
 func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
+	return readObjectNamespaceAt(db, objectNamespaceKey)
+}
+
+func readObjectNamespaceAt(db *pebbledb.DB, key string) (objectNamespace, bool, error) {
 	var namespace objectNamespace
-	data, closer, err := db.Get([]byte(objectNamespaceKey))
+	data, closer, err := db.Get([]byte(key))
 	if errors.Is(err, pebbledb.ErrNotFound) {
 		return namespace, false, nil
 	}
@@ -62,11 +67,15 @@ func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
 
 // saveObjectNamespace persists the namespace before uploads can commit shard markers.
 func saveObjectNamespace(db *pebbledb.DB, namespace objectNamespace) error {
+	return saveObjectNamespaceAt(db, objectNamespaceKey, namespace)
+}
+
+func saveObjectNamespaceAt(db *pebbledb.DB, key string, namespace objectNamespace) error {
 	data, err := json.Marshal(namespace)
 	if err != nil {
 		return fmt.Errorf("encoding object namespace: %w", err)
 	}
-	if err := db.Set([]byte(objectNamespaceKey), data, pebbledb.Sync); err != nil {
+	if err := db.Set([]byte(key), data, pebbledb.Sync); err != nil {
 		return fmt.Errorf("saving object namespace: %w", err)
 	}
 	return nil

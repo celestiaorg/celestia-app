@@ -3,6 +3,8 @@ package fibre
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -39,11 +41,15 @@ type objectBackend struct {
 	namespace      objectNamespace
 	metrics        *serverMetrics
 	requestTimeout time.Duration
+	hashFirst      bool
 }
 
 var _ shardBackend = (*objectBackend)(nil)
 
-func (*objectBackend) backendTag() shardBackendTag {
+func (b *objectBackend) backendTag() shardBackendTag {
+	if b.hashFirst {
+		return hashedObjectBackendTag
+	}
 	return objectBackendTag
 }
 
@@ -219,13 +225,24 @@ func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]err
 }
 
 func (b *objectBackend) objectKey(commitment Commitment, promiseHash []byte) string {
-	return path.Join(
+	key := path.Join(
 		b.namespace.Prefix,
 		b.namespace.ChainID,
 		b.namespace.ValidatorAddress,
 		shardsSubdir,
 		commitment.String()+"-"+hex.EncodeToString(promiseHash),
 	)
+	if !b.hashFirst {
+		return key
+	}
+	h := sha256.New()
+	for _, value := range [][]byte{[]byte(b.namespace.ChainID), []byte(b.namespace.ValidatorAddress), []byte(commitment.String()), promiseHash} {
+		var length [8]byte
+		binary.BigEndian.PutUint64(length[:], uint64(len(value)))
+		h.Write(length[:])
+		h.Write(value)
+	}
+	return hex.EncodeToString(h.Sum(nil)[:1]) + "/" + key
 }
 
 func isObjectNotFound(err error) bool {

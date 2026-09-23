@@ -23,6 +23,8 @@ type ObjectStorageConfig struct {
 	// ChainID and ValidatorAddress are derived by the server at startup.
 	objectNamespace
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
+	// HashFirstBucket receives new shards with hash-first keys; legacy shards keep their bucket.
+	HashFirstBucket string `toml:"hash_first_bucket"`
 	// RequestTimeout bounds an object operation, including retries and response reads.
 	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
 	// OverrideNamespace accepts a namespace change after operator migration.
@@ -33,6 +35,7 @@ type ObjectStorageConfig struct {
 func (cfg *ObjectStorageConfig) Validate() error {
 	cfg.Region = strings.TrimSpace(cfg.Region)
 	cfg.Bucket = strings.TrimSpace(cfg.Bucket)
+	cfg.HashFirstBucket = strings.TrimSpace(cfg.HashFirstBucket)
 	cfg.Prefix = strings.TrimSpace(cfg.Prefix)
 	u, err := url.Parse(cfg.Endpoint)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
@@ -134,6 +137,10 @@ func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, 
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.
 func hasObjectMarkers(ctx context.Context, db *pebbledb.DB) (bool, error) {
+	return hasBackendMarkers(ctx, db, objectBackendTag)
+}
+
+func hasBackendMarkers(ctx context.Context, db *pebbledb.DB, tag shardBackendTag) (bool, error) {
 	prefix := []byte(shardKeyPrefix)
 	iter, err := db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
@@ -149,9 +156,55 @@ func hasObjectMarkers(ctx context.Context, db *pebbledb.DB) (bool, error) {
 			return false, err
 		}
 		backend, _, err := decodeShardMarkerBackend(iter.Value())
-		if err == nil && backend == objectBackendTag {
+		if err == nil && backend == tag {
 			return true, nil
 		}
 	}
 	return false, iter.Error()
+}
+
+// openHashedObjectBackend pins the destination independently from legacy objects.
+func openHashedObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (*objectBackend, error) {
+	hasObjects, err := hasBackendMarkers(ctx, db, hashedObjectBackendTag)
+	if err != nil {
+		return nil, err
+	}
+	saved, recorded, err := readObjectNamespaceAt(db, hashedObjectNamespaceKey)
+	if err != nil {
+		return nil, err
+	}
+	if cfg.ObjectStorage.HashFirstBucket == "" {
+		if hasObjects {
+			return nil, fmt.Errorf("%w: hash_first_bucket is required for existing hashed objects", ErrStoreIntegrity)
+		}
+		return nil, nil
+	}
+	if hasObjects && !recorded {
+		return nil, fmt.Errorf("%w: hashed objects lack a namespace", ErrStoreIntegrity)
+	}
+	target := cfg.ObjectStorage
+	target.Bucket = target.HashFirstBucket
+	if err := target.Validate(); err != nil {
+		return nil, err
+	}
+	namespace := target.canonical()
+	if namespace.ChainID == "" || namespace.ValidatorAddress == "" {
+		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
+	}
+	if hasObjects && saved != namespace {
+		return nil, fmt.Errorf("%w: hash-first object namespace changed", ErrStoreIntegrity)
+	}
+	client, err := newObjectClient(ctx, target)
+	if err != nil {
+		return nil, err
+	}
+	if !recorded || saved != namespace {
+		if err := saveObjectNamespaceAt(db, hashedObjectNamespaceKey, namespace); err != nil {
+			return nil, err
+		}
+	}
+	backend := newObjectBackend(client, namespace)
+	backend.hashFirst = true
+	backend.requestTimeout = target.RequestTimeout
+	return backend, nil
 }

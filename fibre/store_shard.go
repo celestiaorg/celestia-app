@@ -24,6 +24,7 @@ type shardBackend interface {
 type routedStorage struct {
 	primary   shardBackend
 	secondary shardBackend
+	tertiary  shardBackend
 }
 
 func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
@@ -39,18 +40,31 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 	if err != nil {
 		return nil, fmt.Errorf("opening object shard storage: %w", err)
 	}
+	hashed, err := openHashedObjectBackend(ctx, cfg, db)
+	if err != nil {
+		return nil, fmt.Errorf("opening hash-first storage: %w", err)
+	}
 	if cfg.StorageBackend == storageBackendObject {
+		if hashed != nil {
+			return &routedStorage{primary: hashed, secondary: object, tertiary: local}, nil
+		}
 		return newRoutedStorage(object, local), nil
 	}
-	return newRoutedStorage(local, object), nil
+	storage := newRoutedStorage(local, object)
+	if hashed != nil {
+		storage.tertiary = hashed
+	}
+	return storage, nil
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
-	switch backend := s.primary.(type) {
-	case *localBackend:
-		backend.metrics = metrics
-	case *objectBackend:
-		backend.metrics = metrics
+	for _, item := range []shardBackend{s.primary, s.secondary, s.tertiary} {
+		switch backend := item.(type) {
+		case *localBackend:
+			backend.metrics = metrics
+		case *objectBackend:
+			backend.metrics = metrics
+		}
 	}
 }
 
@@ -99,8 +113,8 @@ type markedShard struct {
 // The caller keeps metadata for failed deletions and retries them in a later prune pass.
 // Object requests contain at most 1,000 keys.
 func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) ([]int, error) {
-	var local, objects []int
-	var object *objectBackend
+	var local []int
+	objects := make(map[*objectBackend][]int)
 	for i, shard := range shards {
 		if err := ctx.Err(); err != nil {
 			return nil, err
@@ -109,13 +123,12 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 		if err != nil {
 			return nil, err
 		}
-		if backend.backendTag() == objectBackendTag {
-			var ok bool
-			object, ok = backend.(*objectBackend)
+		if backend.backendTag() == objectBackendTag || backend.backendTag() == hashedObjectBackendTag {
+			object, ok := backend.(*objectBackend)
 			if !ok {
 				return nil, fmt.Errorf("%w: object backend does not support batch deletion", ErrStoreIntegrity)
 			}
-			objects = append(objects, i)
+			objects[object] = append(objects[object], i)
 		} else {
 			local = append(local, i)
 		}
@@ -139,27 +152,29 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 		}
 		successful = append(successful, i)
 	}
-	for indices := range slices.Chunk(objects, maxObjectDeleteBatchSize) {
-		ids := make([]shardID, len(indices))
-		for i, index := range indices {
-			ids[i] = shards[index].id
-		}
-		results, err := object.DeleteObjects(ctx, ids)
-		if err != nil {
-			if ctx.Err() != nil {
-				return successful, errors.Join(deleteErr, err, ctx.Err())
+	for object, group := range objects {
+		for indices := range slices.Chunk(group, maxObjectDeleteBatchSize) {
+			ids := make([]shardID, len(indices))
+			for i, index := range indices {
+				ids[i] = shards[index].id
 			}
-			deleteErr = errors.Join(deleteErr, err)
-			continue
-		}
-		for i, err := range results {
+			results, err := object.DeleteObjects(ctx, ids)
 			if err != nil {
-				if deleteErr == nil {
-					deleteErr = err
+				if ctx.Err() != nil {
+					return successful, errors.Join(deleteErr, err, ctx.Err())
 				}
+				deleteErr = errors.Join(deleteErr, err)
 				continue
 			}
-			successful = append(successful, indices[i])
+			for i, err := range results {
+				if err != nil {
+					if deleteErr == nil {
+						deleteErr = err
+					}
+					continue
+				}
+				successful = append(successful, indices[i])
+			}
 		}
 	}
 	if deleteErr != nil {
@@ -225,6 +240,9 @@ func (s *routedStorage) backend(tag shardBackendTag) (shardBackend, error) {
 	if s.secondary != nil && s.secondary.backendTag() == tag {
 		return s.secondary, nil
 	}
+	if s.tertiary != nil && s.tertiary.backendTag() == tag {
+		return s.tertiary, nil
+	}
 	return nil, fmt.Errorf("%w: shard backend 0x%02x is unavailable", ErrStoreIntegrity, tag)
 }
 
@@ -233,6 +251,9 @@ func (s *routedStorage) localBackend() (*localBackend, error) {
 		return local, nil
 	}
 	if local, ok := s.secondary.(*localBackend); ok {
+		return local, nil
+	}
+	if local, ok := s.tertiary.(*localBackend); ok {
 		return local, nil
 	}
 	return nil, fmt.Errorf("%w: local shard backend is unavailable", ErrStoreIntegrity)

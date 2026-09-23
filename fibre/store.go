@@ -117,6 +117,15 @@ func (s *Store) Put(ctx context.Context, promise *PaymentPromise, shard *types.B
 	}
 
 	marker := s.shards.marker(shardBinarySize(shard))
+	existing, closer, err := s.db.Get(shardKey(promise.Commitment, promiseHash))
+	switch {
+	case err == nil:
+		marker = slices.Clone(existing)
+		_ = closer.Close()
+	case errors.Is(err, pebbledb.ErrNotFound):
+	default:
+		return fmt.Errorf("reading existing shard marker: %w", err)
+	}
 	return s.commitAndStore(ctx, promise, promiseHash, shard, marker, pruneAt)
 }
 

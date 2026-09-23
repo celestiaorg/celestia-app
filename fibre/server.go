@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"crypto/tls"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -40,10 +41,8 @@ type Server struct {
 	occ *occupancy
 	// uploadLocks serializes admission for identical uploads so concurrent
 	// duplicates cannot each reserve occupancy for a single shard. Striped by the
-	// promise hash's first byte: identical uploads share a lock, distinct ones
-	// almost always take different locks, and a rare cross-key collision only
-	// serializes two unrelated uploads (never breaks exclusion).
-	uploadLocks [256]sync.Mutex
+	// promise hash: collisions serialize unrelated uploads without breaking exclusion.
+	uploadLocks [2048]sync.Mutex
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -102,10 +101,9 @@ func (s *Server) Store() *Store {
 }
 
 // uploadLock returns the mutex serializing admission for the given promise hash.
-// promiseHash is a uniformly distributed cryptographic hash, so its first byte
-// indexes the stripe directly. See the uploadLocks field.
+// The first two hash bytes distribute uploads across all stripes.
 func (s *Server) uploadLock(promiseHash []byte) *sync.Mutex {
-	return &s.uploadLocks[promiseHash[0]]
+	return &s.uploadLocks[int(binary.BigEndian.Uint16(promiseHash))%len(s.uploadLocks)]
 }
 
 // Start connects to the celestia-app node, creates the signer,

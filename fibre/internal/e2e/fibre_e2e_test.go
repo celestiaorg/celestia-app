@@ -23,6 +23,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/cometbft/cometbft/privval"
 	core "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
@@ -56,6 +57,9 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	t := s.T()
 
 	cfg := testnode.DefaultConfig().
+		WithAppCreator(testnode.DefaultAppCreator(func(a *app.App) {
+			baseapp.SetMinGasPrices("0.000001utia")(a.BaseApp)
+		})).
 		WithFundedAccounts(fibre.DefaultKeyName, noEscrowKeyName).
 		WithDelayedPrecommitTimeout(500 * time.Millisecond)
 

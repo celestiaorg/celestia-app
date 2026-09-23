@@ -56,8 +56,13 @@ func TestStorePutCommitFailureCleanup(t *testing.T) {
 			}
 			store.shards = newRoutedStorage(newObjectBackend(client, objectNamespace{Bucket: "bucket"}), nil)
 			err = store.Put(t.Context(), promise, &types.BlobShard{}, promise.CreationTimestamp)
-			require.ErrorIs(t, err, pebbledb.ErrReadOnly)
-			require.ErrorContains(t, err, "committing metadata")
+			if markerState == "read error" {
+				require.ErrorIs(t, err, errorfs.ErrInjected)
+				require.ErrorContains(t, err, "reading existing shard marker")
+			} else {
+				require.ErrorIs(t, err, pebbledb.ErrReadOnly)
+				require.ErrorContains(t, err, "committing metadata")
+			}
 			if markerState == "missing" {
 				require.Equal(t, 1, deletes)
 			} else {
