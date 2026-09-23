@@ -363,14 +363,15 @@ func run(cfg config) error {
 	// Launch upload workers
 	for _, w := range workers {
 		uploadWg.Go(func() {
+			var backoff submissionBackoff
 			for ctx.Err() == nil {
-				submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, dlCh, confirmCh)
-				if cfg.interval > 0 {
-					select {
-					case <-ctx.Done():
-						return
-					case <-time.After(cfg.interval):
-					}
+				succeeded := submitBlob(ctx, w, cfg.blobSize, cfg.uploadOnly, st, dlCh, confirmCh)
+				delay := backoff.next(succeeded)
+				if delay > 0 && ctx.Err() == nil {
+					fmt.Printf("[%s] submission backoff: %s\n", w.keyName, delay)
+				}
+				if !waitSubmission(ctx, max(cfg.interval, delay)) {
+					return
 				}
 			}
 		})
@@ -552,7 +553,7 @@ func setupPyroscope(endpoint, user, pass string) (func(), error) {
 	}, nil
 }
 
-func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, dlCh chan<- downloadRequest, confirmCh chan<- confirmRequest) {
+func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st *stats, dlCh chan<- downloadRequest, confirmCh chan<- confirmRequest) bool {
 	stage := "generate"
 	completed := false
 	rawBytes, paddedBytes := int64(blobSize), int64(0)
@@ -571,7 +572,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		fmt.Printf("[%s] error generating namespace: %v\n", w.keyName, err)
 		st.failures.Add(1)
 		st.totalSent.Add(1)
-		return
+		return false
 	}
 	id := make([]byte, 0, share.NamespaceIDSize)
 	id = append(id, share.NamespaceVersionZeroPrefix...)
@@ -581,7 +582,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		fmt.Printf("[%s] error creating namespace: %v\n", w.keyName, err)
 		st.failures.Add(1)
 		st.totalSent.Add(1)
-		return
+		return false
 	}
 
 	var data []byte
@@ -591,7 +592,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 			fmt.Printf("[%s] error generating blob data: %v\n", w.keyName, err)
 			st.failures.Add(1)
 			st.totalSent.Add(1)
-			return
+			return false
 		}
 	}
 
@@ -608,7 +609,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 			if err != nil {
 				st.failures.Add(1)
 				fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
-				return
+				return false
 			}
 			defer blob.Free()
 		}
@@ -618,11 +619,11 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		lat := time.Since(t)
 		if err != nil {
 			if ctx.Err() != nil {
-				return
+				return false
 			}
 			st.failures.Add(1)
 			fmt.Printf("[%s] upload error: %v (latency=%s)\n", w.keyName, err, lat)
-			return
+			return false
 		}
 		completed = true
 		st.metrics.record(ctx, "upload", "success", rawBytes, paddedBytes)
@@ -633,7 +634,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		} else {
 			fmt.Printf("[%s] upload-only: latency=%s\n", w.keyName, lat)
 		}
-		return
+		return true
 	}
 
 	// Async TX mode: upload, broadcast, then hand off confirmation to background workers.
@@ -646,7 +647,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		if err != nil {
 			st.failures.Add(1)
 			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
-			return
+			return false
 		}
 		defer blob.Free()
 	}
@@ -656,11 +657,11 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	signedPromise, err := w.fibreClient.Upload(ctx, ns, blob, fibre.WithKeyName(w.keyName))
 	if err != nil {
 		if ctx.Err() != nil {
-			return
+			return false
 		}
 		st.failures.Add(1)
 		fmt.Printf("[%s] upload error: %v\n", w.keyName, err)
-		return
+		return false
 	}
 
 	st.metrics.record(ctx, "upload", "success", rawBytes, paddedBytes)
@@ -669,7 +670,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	if err != nil {
 		st.failures.Add(1)
 		fmt.Printf("[%s] promise proto error: %v\n", w.keyName, err)
-		return
+		return false
 	}
 
 	msg := &fibretypes.MsgPayForFibre{
@@ -683,11 +684,11 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 		user.SetGasLimit(1_000_000), user.SetFee(1))
 	if err != nil {
 		if ctx.Err() != nil {
-			return
+			return false
 		}
 		st.failures.Add(1)
 		fmt.Printf("[%s] broadcast error: %v\n", w.keyName, err)
-		return
+		return false
 	}
 
 	completed = true
@@ -718,6 +719,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 			// Channel full, skip this download to avoid blocking uploads.
 		}
 	}
+	return true
 }
 
 // confirmWorkerLoop polls TxStatus for each broadcast tx without using TxClient.ConfirmTx.

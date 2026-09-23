@@ -9,6 +9,12 @@ is only for benchmark data; signing keys still come from the keyring.
 
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts when running with `--concurrency > 1`.
 
+Submission errors trigger per-worker exponential backoff with jitter, starting at
+250–500 ms and capped at 5–10 seconds. Successful submissions reset the backoff.
+The configured `--interval` remains a minimum delay; background confirmation and
+download errors do not delay uploads. Shutdown cancels pending waits.
+
+
 This binary is built for Linux and deployed to validator nodes by `make build-talis-bins`. It is started remotely via the `talis fibre-txsim` command.
 
 ## Build
