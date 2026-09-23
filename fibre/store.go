@@ -236,6 +236,15 @@ func (s *Store) Has(ctx context.Context, commitment Commitment, promiseHash []by
 
 // shardStatus reports whether the payload exists and its marker counts towards occupancy.
 func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, bool, error) {
+	return s.payloadStatus(ctx, commitment, promiseHash, false)
+}
+
+// uploadShardStatus leaves object presence unconfirmed for a conditional PUT.
+func (s *Store) uploadShardStatus(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, bool, error) {
+	return s.payloadStatus(ctx, commitment, promiseHash, true)
+}
+
+func (s *Store) payloadStatus(ctx context.Context, commitment Commitment, promiseHash []byte, forUpload bool) (bool, bool, error) {
 	markerData, closer, err := s.db.Get(shardKey(commitment, promiseHash))
 	var accounted bool
 	switch {
@@ -250,7 +259,14 @@ func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseH
 		_ = closer.Close()
 	}
 
-	has, err := s.shards.Has(ctx, markerData, commitment, promiseHash)
+	backend, err := s.shards.backendForMarker(markerData)
+	if err != nil {
+		return false, false, err
+	}
+	if forUpload && backend.backendTag() != localBackendTag {
+		return false, accounted, nil
+	}
+	has, err := backend.Has(ctx, commitment, promiseHash)
 	if err != nil {
 		return false, false, err
 	}

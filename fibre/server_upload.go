@@ -63,7 +63,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		attribute.Int64("upload_size", int64(promise.UploadSize)),
 	))
 
-	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	has, _, err := s.store.uploadShardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
@@ -122,7 +122,8 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 // storeShard reserves storage capacity and writes a verified shard. It
 // serializes identical uploads so concurrent duplicates can't each reserve
 // occupancy for a single stored shard, and skips the write if the shard
-// was stored in the meantime. Errors are returned as gRPC statuses.
+// was stored locally in the meantime. Objects use a conditional PUT.
+// Errors are returned as gRPC statuses.
 func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *PaymentPromise, promiseHash []byte, pruneAt time.Time, shard *types.BlobShard) error {
 	ctx, span := s.tracer.Start(ctx, "store_shard")
 	defer span.End()
@@ -132,7 +133,7 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	defer mu.Unlock()
 
 	// Re-check now that we have the lock, to avoid TOCTOU
-	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
+	has, accounted, err := s.store.uploadShardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
