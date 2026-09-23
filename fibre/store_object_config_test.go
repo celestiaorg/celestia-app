@@ -27,6 +27,7 @@ import (
 
 func testObjectStorageConfig() ObjectStorageConfig {
 	return ObjectStorageConfig{
+		BatchSize: 1,
 		objectNamespace: objectNamespace{
 			Endpoint: "https://account.r2.cloudflarestorage.com",
 			Bucket:   "fibre-shards", Prefix: "fibre",
