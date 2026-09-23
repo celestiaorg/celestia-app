@@ -18,15 +18,17 @@ Agent context for `celestia-app/x/forwarding/`.
 
 ```mermaid
 flowchart TD
-    A["(destDomain, destRecipient, tokenId)"] --> B["destDomain → 32-byte big-endian"]
+    A["(destDomain, destRecipient, tokenId[, hookId, hookMetadata])"] --> B["destDomain → 32-byte big-endian"]
     A --> C["tokenId → 32-byte Hyperlane token identifier"]
-    A -->|destRecipient as 32-byte recipient| D["sha256(domainBytes || recipient || tokenId) = callDigest"]
-    B --> D["sha256(domainBytes || recipient || tokenId) = callDigest"]
+    A -->|destRecipient as 32-byte recipient| D["sha256(domainBytes || recipient || tokenId [|| hookId || hookMetadata]) = callDigest"]
+    B --> D["sha256(domainBytes || recipient || tokenId [|| hookId || hookMetadata]) = callDigest"]
     C --> D
     D --> E["sha256(0x01 || callDigest) = salt"]
     E --> F["address.Module('forwarding', salt)[:20]"]
     F --> G["forwardAddr (bech32)"]
 ```
+
+The hook fields are appended only when the address commits to a hook or metadata; a missing hookId is written as 32 zero bytes. See `DeriveForwardingAddress` in `types/address.go`.
 
 ## Token Lifecycle
 
