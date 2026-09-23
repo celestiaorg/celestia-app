@@ -621,10 +621,6 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 
 // PreBlocker application updates every pre block
 func (app *App) PreBlocker(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
-	// Warm the payment promise signatures of this block across every CPU before
-	// the transactions execute. Validator certificates are left out:
-	// FinalizeBlock never verifies them.
-	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{})
 	return app.ModuleManager.PreBlock(ctx)
 }
 

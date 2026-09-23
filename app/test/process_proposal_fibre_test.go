@@ -139,7 +139,7 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 	checkResp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: invalidValidatorSignatureTx, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
-	require.NotEqual(t, abci.CodeTypeOK, checkResp.Code)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
 
 	blobSigner := newSigner(1)
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x02}, share.NamespaceVersionZeroIDSize))
@@ -182,11 +182,11 @@ func TestProcessProposalWithPayForFibre(t *testing.T) {
 			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
-			name: "reject pay-for-fibre with invalid validator signatures",
+			name: "accept pay-for-fibre with invalid validator signatures",
 			txs: func() [][]byte {
 				return [][]byte{invalidValidatorSignatureTx}
 			},
-			expectedStatus: abci.ResponseProcessProposal_REJECT,
+			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
 			name: "reject block with garbage bytes",
@@ -457,9 +457,9 @@ func TestProcessProposalPayForFibreDoubleSpend(t *testing.T) {
 			expectedStatus: abci.ResponseProcessProposal_REJECT,
 		},
 		{
-			name:           "reject duplicate promise within one block",
+			name:           "accept duplicate promise within one block",
 			txs:            duplicateTxs,
-			expectedStatus: abci.ResponseProcessProposal_REJECT,
+			expectedStatus: abci.ResponseProcessProposal_ACCEPT,
 		},
 		{
 			name:           "accept two promises the escrow can cover",

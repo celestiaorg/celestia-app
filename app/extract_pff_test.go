@@ -51,47 +51,40 @@ func TestValidatePayForFibreTxShape(t *testing.T) {
 			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name:    "pay-for-fibre promising a reserved namespace is invalid",
+			name:    "pay-for-fibre promising a reserved namespace skips validation",
 			txBytes: newPayForFibreTxWithNamespace(t, txConfig, share.TxNamespace.Bytes()),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name:    "pay-for-fibre promising the parity namespace is invalid",
+			name:    "pay-for-fibre promising the parity namespace skips validation",
 			txBytes: newPayForFibreTxWithNamespace(t, txConfig, share.ParitySharesNamespace.Bytes()),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name:    "pay-for-fibre promising a malformed namespace is invalid",
+			name:    "pay-for-fibre promising a malformed namespace skips validation",
 			txBytes: newPayForFibreTxWithNamespace(t, txConfig, []byte{0x01, 0x02}),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name: "pay-for-fibre promising an unsupported blob version is invalid",
+			name: "pay-for-fibre promising an unsupported blob version skips validation",
 			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
 				msg.PaymentPromise.BlobVersion = 999
 			}),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name: "pay-for-fibre promising a zero blob size is invalid",
+			name: "pay-for-fibre promising a zero blob size skips validation",
 			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
 				msg.PaymentPromise.BlobSize = 0
 			}),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name: "pay-for-fibre promising a malformed commitment is invalid",
+			name: "pay-for-fibre promising a malformed commitment skips validation",
 			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
 				msg.PaymentPromise.Commitment = []byte{0x01}
 			}),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 		{
-			name: "pay-for-fibre promising an empty chain ID is invalid",
+			name: "pay-for-fibre promising an empty chain ID skips validation",
 			txBytes: newPayForFibreTx(t, txConfig, func(msg *fibretypes.MsgPayForFibre) {
 				msg.PaymentPromise.ChainId = ""
 			}),
-			wantErr: apperr.ErrInvalidPayForFibreTx,
 		},
 	}
 

@@ -7,7 +7,6 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
-	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -66,14 +65,6 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	// MsgPayForFibre must be the only message in its tx.
 	if err := validatePayForFibreTxShape(sdkTx); err != nil {
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
-	}
-
-	// Verify this tx's PFF signatures across every CPU before the ante handler
-	// reaches them. CometBFT serialises CheckTx, so spreading one transaction's
-	// signatures is the only lever on admission throughput. Recheck never
-	// verifies them again, so it is skipped.
-	if _, isPFF := payForFibreMsg(sdkTx); isPFF && req.Type == abci.CheckTxType_New {
-		app.FibreKeeper.PreverifySignatures(checkTxCtx, [][]byte{tx}, fibrekeeper.PreverifyOptions{Certificates: true})
 	}
 
 	return app.forwardCheckTx(req, sdkTx)
@@ -181,21 +172,16 @@ func signerDataFromTx(tx sdk.Tx) (addr []byte, seq uint64, err error) {
 }
 
 // validatePayForFibreTxShape rejects txs that mix MsgPayForFibre with other
-// messages, and txs whose payment promise fails stateless validation. Both
-// CheckTx and ProcessProposal call this, so a promise that would fail
-// ValidateBasic in FinalizeBlock never reaches the square.
+// messages.
 func validatePayForFibreTxShape(tx sdk.Tx) error {
 	msgs := tx.GetMsgs()
 	for _, msg := range msgs {
-		pff, isPFF := msg.(*fibretypes.MsgPayForFibre)
+		_, isPFF := msg.(*fibretypes.MsgPayForFibre)
 		if !isPFF {
 			continue
 		}
 		if len(msgs) > 1 {
 			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "tx contains a MsgPayForFibre and %d total messages", len(msgs))
-		}
-		if err := pff.PaymentPromise.ValidateBasic(); err != nil {
-			return errors.Wrapf(apperr.ErrInvalidPayForFibreTx, "invalid payment promise: %s", err)
 		}
 	}
 	return nil

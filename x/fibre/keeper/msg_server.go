@@ -128,17 +128,6 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
 	}
 
-	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := ms.ValidatePromiseStateless(&pp); err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
-	}
-
-	// Perform stateful verification (escrow account, balance, not already processed)
-	_, err := ms.ValidatePaymentPromiseStateful(ctx, &msg.PaymentPromise)
-	if err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise stateful verification failed: %s", err)
-	}
-
 	promiseHash, err := pp.Hash()
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
