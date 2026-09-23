@@ -41,7 +41,10 @@ func TestSet_Assign(t *testing.T) {
 	t.Run("zero min rows", func(t *testing.T) {
 		valSet := makeValidatorSet(3)
 		shardMap := valSet.Assign(testCommitment, 100, 25, 0, testLivenessThreshold)
-		require.Empty(t, shardMap)
+		require.Len(t, shardMap, 3)
+		for _, rows := range shardMap {
+			require.Len(t, rows, 25)
+		}
 	})
 
 	t.Run("single validator", func(t *testing.T) {
@@ -399,4 +402,25 @@ func makeStakes(count int, each int64) []int64 {
 		stakes[i] = each
 	}
 	return stakes
+}
+
+func TestSet_AssignWithoutFloor(t *testing.T) {
+	for _, tc := range []struct{ validators, rows int }{{100, 123}, {200, 62}, {400, 31}} {
+		t.Run(fmt.Sprint(tc.validators), func(t *testing.T) {
+			set := makeValidatorSet(tc.validators)
+			assigned := set.Assign(testCommitment, 16384, testOriginalRows, 0, testLivenessThreshold)
+			require.Len(t, assigned, tc.validators)
+			require.Equal(t, assigned, set.Assign(testCommitment, 16384, testOriginalRows, 0, testLivenessThreshold))
+			seen := make(map[int]bool)
+			for _, val := range set.Select(testOriginalRows, 0, testLivenessThreshold) {
+				require.Equal(t, tc.rows, val.ExpectedRows)
+				require.Len(t, assigned[val.Validator], val.ExpectedRows)
+				for _, row := range assigned[val.Validator] {
+					require.False(t, seen[row])
+					seen[row] = true
+				}
+			}
+			require.GreaterOrEqual(t, ((tc.validators+2)/3)*tc.rows, testOriginalRows)
+		})
+	}
 }

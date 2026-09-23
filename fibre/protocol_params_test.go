@@ -75,3 +75,9 @@ func TestProtocolParams_RowSize(t *testing.T) {
 		})
 	}
 }
+
+func TestDefaultAssignmentHasNoFloor(t *testing.T) {
+	if DefaultProtocolParams.MinRowsPerValidator() != 0 || DefaultClientConfig().MinRowsPerValidator != 0 || DefaultServerConfig().MinRowsPerValidator != 0 {
+		t.Fatal("protocol, client and server must all disable the assignment floor")
+	}
+}

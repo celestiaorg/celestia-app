@@ -3,7 +3,6 @@ package fibre
 import (
 	"crypto/sha256"
 	"fmt"
-	"math"
 	"math/bits"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
@@ -37,7 +36,7 @@ type ProtocolParams struct {
 
 	// Security parameters
 	//
-	// UniqueDecodingSecurityBits defines how likely it is for unique decoding to fail.
+	// UniqueDecodingSecurityBits is retained for compatibility; it no longer sets an assignment floor.
 	UniqueDecodingSecurityBits int
 	// SafetyThreshold is the fraction of voting power required for safety (typically 2/3).
 	// The minimum percentage of stake needed to cause a safety failure.
@@ -126,36 +125,10 @@ func (p ProtocolParams) MaxRowsPerValidator() int {
 	return ceilDiv(num, den)
 }
 
-// MinRowsPerValidator returns the minimum number of rows each validator must receive
-// for unique decodability security, regardless of their stake percentage.
-// This is the security-optimal number based on:
-//  1. Unique decode samples needed for cryptographic security
-//  2. Reconstruction samples needed for fault tolerance
-//
-// Uses MaxValidatorCount to compute a conservative (safe) minimum.
+// MinRowsPerValidator returns zero to use stake-proportional assignments without a floor.
+// This does not enforce a per-validator unique-decoding security target.
 func (p ProtocolParams) MinRowsPerValidator() int {
-	// Constraint 1: Unique decoding security
-	//
-	// The minimum number of samples s required for λ bits of security:
-	//
-	//              ⌈      λ          ⌉
-	//         s ≥  | ─────────────── |
-	//              ⌈ 1 - log₂(1 + ρ) ⌉
-	//
-	// Where:
-	//   λ (lambda) = UniqueDecodingSecurityBits
-	//   ρ (rho)    = EncodingRatio = K/(K+N)
-	//
-	uniqueDecodeSamples := int(math.Ceil(float64(p.UniqueDecodingSecurityBits) / (1 - math.Log2(1+p.EncodingRatio))))
-
-	// Constraint 2: Reconstruction samples for fault tolerance
-	// We need enough rows from LivenessThreshold fraction of validators to reconstruct
-	num := int(p.LivenessThreshold.Numerator)
-	den := int(p.LivenessThreshold.Denominator)
-	validatorsForReconstruction := max(1, ceilDiv(p.MaxValidatorCount*num, den))
-	reconstructionSamples := ceilDiv(p.Rows, validatorsForReconstruction)
-
-	return max(uniqueDecodeSamples, reconstructionSamples)
+	return 0
 }
 
 // ValidatorsForReconstruction returns the minimum number of validators

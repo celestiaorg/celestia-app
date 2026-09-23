@@ -52,7 +52,7 @@ type ShardMap map[*core.Validator][]int
 // This means 33% stake should have originalRows (4096), so each validator gets:
 // rows = ceil(originalRows * stake% / livenessThreshold)
 //
-// The minRows parameter ensures every validator receives at least that many rows
+// A zero minRows disables the floor. Otherwise, every validator receives at least that many rows
 // for unique decodability security, even if their proportional share would be less.
 //
 // When the sum of assigned rows exceeds totalRows (due to minRows floor guarantees),
@@ -63,7 +63,7 @@ type ShardMap map[*core.Validator][]int
 // It uses a ChaCha8 RNG seeded with the commitment to shuffle the row indices
 // using the Fisher-Yates algorithm, ensuring deterministic and uniform distribution.
 func (s Set) Assign(commitment rsema1d.Commitment, totalRows, originalRows, minRows int, livenessThreshold cmtmath.Fraction) ShardMap {
-	if len(s.Validators) == 0 || totalRows == 0 || minRows == 0 {
+	if len(s.Validators) == 0 || totalRows == 0 {
 		return make(ShardMap)
 	}
 

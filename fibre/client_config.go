@@ -31,7 +31,7 @@ type ClientConfig struct {
 	// LivenessThreshold is the fraction of stake needed to cause a liveness failure (typically 1/3).
 	LivenessThreshold cmtmath.Fraction
 	// MinRowsPerValidator is the minimum number of rows each validator must receive
-	// for unique decodability security.
+	// when a floor is enabled. Zero uses stake-proportional assignments.
 	MinRowsPerValidator int
 	// MaxMessageSize is the maximum gRPC message size for upload requests.
 	MaxMessageSize int

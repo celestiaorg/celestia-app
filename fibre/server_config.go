@@ -47,7 +47,7 @@ type ServerConfig struct {
 	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
 	LivenessThreshold cmtmath.Fraction `toml:"-"`
 	// MinRowsPerValidator is the minimum number of rows each validator must receive
-	// for unique decodability security.
+	// when a floor is enabled. Zero uses stake-proportional assignments.
 	MinRowsPerValidator int `toml:"-"`
 	// OriginalRows
 	OriginalRows int `toml:"-"`
