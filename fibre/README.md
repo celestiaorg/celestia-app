@@ -112,3 +112,28 @@ The charge per blob is `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` utia (see
 - `Put` is the convenience path: one blob, one `MsgPayForFibre`, submitted through the provided tx client. For custom transaction handling — fee grants, batching several blobs into a single PFF — use `Client.Upload` and submit the message yourself.
 - Uploaded data is retained by fibre servers for a limited window (the `shard_retention` chain parameter, plus whatever servers keep voluntarily). Fibre is not archival storage: download soon after publishing, or persist the data elsewhere.
 - The full API and configuration reference (`ClientConfig`, thresholds, timeouts, retries) is specified in [specs/src/fibre_client.md](../specs/src/fibre_client.md).
+
+### Packed S3 uploads
+
+Object storage batches up to `object_storage.batch_size` shards per S3 PUT
+(default 16; 1 disables packing for new shards). `object_storage.packed_bucket`
+selects a separate destination; empty uses the current primary bucket. Existing
+objects retain their original bucket and layout.
+
+New packed objects use eight groups selected by the first promise-hash byte
+modulo eight. Keys start with `00/` through `07/`, followed by the configured
+namespace, validator address, and unique pack identity. Each group flushes after
+200 ms even when incomplete. Objects are capped at 4 GiB; admitted shard payloads
+share a 16 GiB budget and are streamed without an extra payload copy. All S3
+clients share a 1,000-connection limit, including idle and dialing sockets.
+
+Shard locations use durable Pebble range indexes. Upload acknowledgment follows
+S3 completion and durable metadata commit. Pruning retains a packed object until
+its last shard expires. Startup recovers interrupted uploads and removes packs
+without committed shards. Keep the metadata directory and configured bucket;
+older binaries cannot read the new backend marker `06`. Batch size 1 remains a
+safe way to stop new packed writes while retaining reads and pruning.
+
+`fibre.server.storage.packed.put.attempts` counts physical PUT attempts, including
+SDK retries. `fibre.server.storage.packed.shards` reports batch fill. Partial batches
+and retries reduce the request savings below the configured batch size.

@@ -55,6 +55,10 @@ func limitObjectDial(slots chan struct{}, dial func(context.Context, string, str
 
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
+	// BatchSize is the maximum shards per S3 object. One disables packing.
+	BatchSize int `toml:"batch_size"`
+	// PackedBucket receives packed objects; empty uses the current primary bucket.
+	PackedBucket string `toml:"packed_bucket"`
 	// ChainID and ValidatorAddress are derived by the server at startup.
 	objectNamespace
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
@@ -72,6 +76,13 @@ type ObjectStorageConfig struct {
 
 // Validate removes surrounding whitespace and checks the settings required to access object storage.
 func (cfg *ObjectStorageConfig) Validate() error {
+	if cfg.BatchSize < 0 || cfg.BatchSize > 1024 {
+		return fmt.Errorf("object_storage.batch_size must be between 1 and 1024")
+	}
+	if cfg.BatchSize == 0 {
+		cfg.BatchSize = 16
+	}
+	cfg.PackedBucket = strings.TrimSpace(cfg.PackedBucket)
 	cfg.Region = strings.TrimSpace(cfg.Region)
 	cfg.Bucket = strings.TrimSpace(cfg.Bucket)
 	cfg.HashFirstBucket = strings.TrimSpace(cfg.HashFirstBucket)

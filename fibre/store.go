@@ -169,7 +169,11 @@ func (s *Store) commitAndStore(
 	if err != nil {
 		return fmt.Errorf("storing shard payload: %w", err)
 	}
-	if err := batch.Commit(pebbledb.NoSync); err != nil {
+	options := pebbledb.NoSync
+	if tag, _, _ := decodeShardMarkerBackend(marker); tag == packedObjectBackendTag {
+		options = pebbledb.Sync
+	}
+	if err := batch.Commit(options); err != nil {
 		if s.shardMarkerMissing(promise.Commitment, promiseHash) {
 			if rmErr := s.shards.Delete(context.Background(), marker, promise.Commitment, promiseHash); rmErr != nil {
 				s.log.Warn("failed to remove orphaned shard after commit failure",
@@ -535,6 +539,9 @@ func (s *Store) reconcile() error {
 // Close closes the underlying pebble database. For [NewMemoryStore] the
 // in-memory FS is dropped when the Store is garbage collected.
 func (s *Store) Close() error {
+	if s.shards != nil && s.shards.packed != nil {
+		s.shards.packed.Close()
+	}
 	return s.db.Close()
 }
 

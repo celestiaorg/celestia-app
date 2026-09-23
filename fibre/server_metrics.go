@@ -38,6 +38,8 @@ type serverMetrics struct {
 	downloadShardDuration metric.Float64Histogram
 	downloadShardBytes    metric.Int64Counter
 
+	packedPutAttempts metric.Int64Counter
+	packedShards      metric.Int64Histogram
 	// Store operations
 	storePutDuration   metric.Float64Histogram
 	storeGetDuration   metric.Float64Histogram
@@ -145,6 +147,14 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating download_shard bytes counter: %w", err)
 	}
 
+	sm.packedPutAttempts, err = m.Int64Counter("fibre.server.storage.packed.put.attempts", metric.WithDescription("HTTP PUT attempts for packed objects, including SDK retries"))
+	if err != nil {
+		return nil, err
+	}
+	sm.packedShards, err = m.Int64Histogram("fibre.server.storage.packed.shards", metric.WithDescription("Shards per submitted packed object"), metric.WithExplicitBucketBoundaries(1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024))
+	if err != nil {
+		return nil, err
+	}
 	// Store operation metrics
 	sm.storePutDuration, err = m.Float64Histogram("fibre.server.store.put.duration",
 		metric.WithDescription("Duration of store Put operations in seconds"),

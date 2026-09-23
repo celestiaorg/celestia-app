@@ -27,13 +27,19 @@ type routedStorage struct {
 	tertiary   shardBackend
 	quaternary shardBackend
 	quinary    shardBackend
+	packed     *packedBackend
 }
 
 func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
 	return &routedStorage{primary: primary, secondary: secondary}
 }
 
-func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, filesystem vfs.FS) (*routedStorage, error) {
+func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, filesystem vfs.FS) (result *routedStorage, resultErr error) {
+	defer func() {
+		if resultErr == nil {
+			resultErr = result.openPacked(ctx, cfg, db)
+		}
+	}()
 	local, err := newLocalBackend(cfg.Path, filesystem)
 	if err != nil {
 		return nil, fmt.Errorf("opening local shard storage: %w", err)
@@ -98,6 +104,9 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {
+	if s.packed != nil {
+		s.packed.object.metrics = metrics
+	}
 	for _, item := range []shardBackend{s.primary, s.secondary, s.tertiary, s.quaternary, s.quinary} {
 		switch backend := item.(type) {
 		case *localBackend:
@@ -109,6 +118,9 @@ func (s *routedStorage) setMetrics(metrics *serverMetrics) {
 }
 
 func (s *routedStorage) marker(size int64) []byte {
+	if s.packed != nil && s.packed.batchSize > 1 && s.primary.backendTag() != localBackendTag {
+		return encodeShardMarkerForBackend(packedObjectBackendTag, size)
+	}
 	return encodeShardMarkerForBackend(s.primary.backendTag(), size)
 }
 
@@ -274,6 +286,9 @@ func (s *routedStorage) backendForMarker(marker []byte) (shardBackend, error) {
 }
 
 func (s *routedStorage) backend(tag shardBackendTag) (shardBackend, error) {
+	if tag == packedObjectBackendTag && s.packed != nil {
+		return s.packed, nil
+	}
 	if s.primary.backendTag() == tag {
 		return s.primary, nil
 	}
