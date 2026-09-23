@@ -19,9 +19,8 @@ import (
 
 // Connection and stream caps bound receive memory: gRPC buffers a full
 // UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The defaults
-// are intentionally conservative for a 32 GiB-RAM validator; operators can
-// override both caps via config to trade RAM for throughput.
+// maxConnections * maxConcurrentStreams * MaxRecvMsgSize. Operators must size
+// both caps for available RAM; packed-storage admission runs after decoding.
 //
 // NewServerCodec separately limits rows and proofs before decoding allocates
 // memory for them, and rejects oversized DownloadShard requests before copying
@@ -30,7 +29,7 @@ const (
 	// DefaultMaxConnections is the default total connection cap.
 	DefaultMaxConnections = 16
 	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
-	DefaultMaxConcurrentStreams = 13
+	DefaultMaxConcurrentStreams = 200
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.

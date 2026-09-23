@@ -143,13 +143,13 @@ After all object shards are pruned, namespace changes need no override.
 
 ### Connection caps and memory
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+`max_connections` (default 16) and `max_concurrent_streams` (default 200) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
 
 ```text
 worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
 ```
 
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+Size both caps for available memory. Packed-storage admission runs after gRPC decoding and does not bound receive buffers.
 
 An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
 

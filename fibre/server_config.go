@@ -8,7 +8,6 @@ import (
 	"math"
 	"os"
 	"path/filepath"
-	"runtime"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -36,12 +35,12 @@ type ServerConfig struct {
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
 	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
-	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
-	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
+	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to 100.
+	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to 100."`
 	// MaxConnections caps total concurrent gRPC connections.
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
-	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 200). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
 
 	StoreConfig
 
@@ -102,7 +101,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		OriginalRows:         p.Rows,
 		MaxShardSize:         p.MaxShardSize(),
 		MaxMessageSize:       p.MaxMessageSize(),
-		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
+		UploadVerifyWorkers:  100,
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}

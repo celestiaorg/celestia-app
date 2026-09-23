@@ -44,17 +44,18 @@ fibre-txsim \
 | Flag              | Default          | Description                                                                 |
 |-------------------|------------------|-----------------------------------------------------------------------------|
 | `--chain-id`      | *(optional)*     | Chain ID of the network (accepted for compatibility, unused)                |
+| `--rpc-timeout`   | `60s`            | Timeout for each Fibre peer RPC and state query |
 | `--grpc-endpoint` | `localhost:9091` | gRPC endpoint of the validator                                              |
 | `--keyring-dir`   | `.celestia-app`  | Path to the keyring directory                                               |
 | `--key-prefix`    | `fibre`          | Key name prefix (keys are named `<prefix>-0`, `<prefix>-1`, ...)           |
 | `--blob-size`     | `1000000`        | Size of each blob in bytes                                                  |
-| `--concurrency`   | `1`              | Number of concurrent workers (each gets its own account)                    |
+| `--concurrency`   | `20`             | Number of concurrent workers (each gets its own account)                    |
 | `--interval`      | `0`              | Delay between blob submissions per worker (`0` = no delay)                  |
 | `--duration`      | `0`              | How long to run (`0` = until killed with Ctrl+C)                            |
 | `--upload-only`   | `false`          | Upload shards without broadcasting or confirming a transaction             |
-| `--preencode`     | `false`          | Reuse one encoded blob with fresh payment promises |
+| `--preencode`     | `true`          | Reuse one encoded blob with fresh payment promises |
 
-With `--preencode`, each process encodes one random blob before the timed load
+Preencoding is enabled by default; use `--preencode=false` for fresh encoding or download verification. With `--preencode`, each process encodes one random blob before the timed load
 window. Every upload uses a fresh namespace and signed payment promise, creating
 a new stored shard object. By default, uploads are followed by PFF broadcast and
 confirmation; add `--upload-only` to measure ingestion without PFFs. Both modes
