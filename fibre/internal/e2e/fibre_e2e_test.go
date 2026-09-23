@@ -304,6 +304,12 @@ func (s *FibreE2ETestSuite) Test04Download() {
 			defer downloaded.Free()
 			require.Equal(t, data, downloaded.Data(), "downloaded blob must byte-match the submitted data")
 
+			// ConfirmTx returns once CometBFT stores the tx, which can happen before
+			// the app commits the block, so wait for the app to commit the
+			// PayForFibre height before reading the debited balance.
+			_, err = s.cctx.WaitForHeight(int64(result.Height))
+			require.NoError(t, err)
+
 			// Charged on the padded upload size the promise commits to, not len(data).
 			uploadSize := uint32(fibre.DefaultBlobConfigV0().UploadSize(len(data)))
 			wantDebit := fibretypes.PaymentAmount(uploadSize)
