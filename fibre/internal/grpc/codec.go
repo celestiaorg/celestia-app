@@ -90,12 +90,18 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if data.Len() == 0 {
 		return msg.Unmarshal(nil)
 	}
-	buf := data.Materialize()
-	// Check row and proof counts before the generated decoder allocates for them.
-	if _, ok := v.(*types.UploadShardRequest); ok && c.maxShardRows > 0 {
-		if err := c.validateUploadShard(buf); err != nil {
-			return err
+	if req, ok := v.(*types.UploadShardRequest); ok {
+		// Decoded shard fields retain this GC-owned buffer after the RPC input is freed.
+		buf := data.Materialize()
+		if c.maxShardRows > 0 {
+			if err := c.validateUploadShard(buf); err != nil {
+				return err
+			}
 		}
+		if unmarshalUploadViews(buf, req) {
+			return nil
+		}
+		return req.Unmarshal(buf)
 	}
-	return msg.Unmarshal(buf)
+	return msg.Unmarshal(data.Materialize())
 }
