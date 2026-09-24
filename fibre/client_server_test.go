@@ -510,6 +510,7 @@ type uploadParamState struct {
 func (s uploadParamState) UploadParams(context.Context) (fibretypes.Params, error) {
 	return *s.params.Load(), nil
 }
+
 func (s uploadParamState) VerifyPromise(ctx context.Context, p *state.PaymentPromise) (state.VerifiedPromise, error) {
 	if err := s.params.Load().ValidateUploadSize(p.BlobSize); err != nil {
 		return state.VerifiedPromise{}, err
