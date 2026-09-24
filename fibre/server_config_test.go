@@ -167,6 +167,36 @@ func TestServerConfigValidateSignerTLS(t *testing.T) {
 	}
 }
 
+func TestServerConfigSignerTLSPathsResolveAgainstHome(t *testing.T) {
+	home := t.TempDir()
+
+	cfg := DefaultServerConfig()
+	cfg.Path = home
+	cfg.SignerGRPCCAFile = "ca.pem"
+	cfg.SignerGRPCCertFile = "cert.pem"
+	cfg.SignerGRPCKeyFile = "key.pem"
+	require.NoError(t, cfg.Validate())
+
+	// The signer loads the TLS files when constructed: the error names the
+	// missing CA resolved against the home directory, not the working directory.
+	_, err := cfg.SignerFn("test-chain")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), filepath.Join(home, "ca.pem"))
+
+	// Absolute paths are used as-is.
+	absCA := filepath.Join(t.TempDir(), "other-ca.pem")
+	cfg = DefaultServerConfig()
+	cfg.Path = home
+	cfg.SignerGRPCCAFile = absCA
+	cfg.SignerGRPCCertFile = "cert.pem"
+	cfg.SignerGRPCKeyFile = "key.pem"
+	require.NoError(t, cfg.Validate())
+
+	_, err = cfg.SignerFn("test-chain")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), absCA)
+}
+
 func TestServerConfigSignerTLSRoundTrip(t *testing.T) {
 	home := t.TempDir()
 	configPath := DefaultConfigPath(home)

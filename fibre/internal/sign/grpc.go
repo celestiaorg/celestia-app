@@ -22,6 +22,12 @@ import (
 
 const signTimeout = 5 * time.Second
 
+// Transport labels used for logging the signer connection type.
+const (
+	transportPlaintext = "plaintext"
+	transportMTLS      = "mtls"
+)
+
 // TLSConfig holds PEM file paths for mutual TLS to the PrivValidatorAPI
 // endpoint. A nil or empty config means plaintext transport. All three
 // files are required otherwise.
@@ -83,14 +89,14 @@ var (
 // otherwise it uses mutual TLS with the configured PEM files.
 func NewGRPCClient(addr string, chainID string, tlsCfg *TLSConfig, log *slog.Logger) (*GRPCClient, error) {
 	creds := insecure.NewCredentials()
-	transport := "plaintext"
+	transport := transportPlaintext
 	if !tlsCfg.Empty() {
 		var err error
 		creds, err = tlsCfg.credentials()
 		if err != nil {
 			return nil, fmt.Errorf("privval gRPC TLS config: %w", err)
 		}
-		transport = "mtls"
+		transport = transportMTLS
 	}
 	log.Info("connecting to privval gRPC signer", "addr", addr, "transport", transport)
 

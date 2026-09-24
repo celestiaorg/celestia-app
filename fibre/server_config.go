@@ -170,9 +170,9 @@ func (cfg *ServerConfig) Validate() error {
 			cfg.Log.Warn("signer gRPC uses plaintext to a non-localhost address", "address", cfg.SignerGRPCAddress)
 		}
 		tlsCfg := &sign.TLSConfig{
-			CAFile:   cfg.SignerGRPCCAFile,
-			CertFile: cfg.SignerGRPCCertFile,
-			KeyFile:  cfg.SignerGRPCKeyFile,
+			CAFile:   rootify(cfg.SignerGRPCCAFile, cfg.Path),
+			CertFile: rootify(cfg.SignerGRPCCertFile, cfg.Path),
+			KeyFile:  rootify(cfg.SignerGRPCKeyFile, cfg.Path),
 		}
 		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
 			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, tlsCfg, cfg.Log)
@@ -192,6 +192,15 @@ func (cfg *ServerConfig) Validate() error {
 		return fmt.Errorf("max_concurrent_streams must not exceed %d, got %d", uint64(math.MaxUint32), cfg.MaxConcurrentStreams)
 	}
 	return nil
+}
+
+// rootify resolves a relative file path against the given root directory.
+// Absolute and empty paths are returned unchanged.
+func rootify(path, root string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(root, path)
 }
 
 // dialsLocalhost reports whether the TCP address points at a loopback interface.
