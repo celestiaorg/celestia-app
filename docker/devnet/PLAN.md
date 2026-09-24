@@ -1,137 +1,106 @@
-# Publish reusable devnet images from celestia-app
+# Publish reusable Celestia devnet images
 
-## High Level Goal
+## Goal and scope
 
-Facilitate easier testing of celestia adjacent projects.
-To have something like ganache for ethereum, so everyone can run 2 containers or copy/paste simple docker compose.
-It should be reliable and fast to start.
+Provide a reliable local Celestia network that developers can obtain as published images and start with a small Compose file. No repository checkout or Go installation should be required.
 
-## Summary
+Run exactly two containers:
 
-Centralize the publishable devnet implementation in celestia-app. 
-Each app release tag should produce a tested validator image and bridge image 
-that can start a useful local network with sane defaults, 
-runtime configuration, Fibre support, and persistent state.
+- **Validator:** runs both `celestia-appd` and `fibre`.
+- **Bridge:** runs `celestia bridge`.
 
-The first version publishes a one-validator topology with one Fibre server and one bridge. 
-It supports multiple funded client accounts. Configurable consensus-validator counts, downstream repository migrations, 
-and authenticated bridge RPC are follow-up work. The existing two-validator `local_devnet` example remains available.
+Version 1 provides one consensus validator, ten fixed public test accounts, Fibre support, and persistent state. Keep the existing `local_devnet` example available.
 
-## Current release and devnet implementations
+For v1, build and publish both devnet images from `celestia-app`. Move bridge devnet packaging and publication to `celestia-node` as a follow-up, using the same release-driven publishing rules and preserving the runtime and credential interface. After that move, `celestia-app` consumes a pinned bridge devnet image and continues testing the validator/bridge pair. Consumers should only need to update the bridge image reference.
 
-A maintainer creates a release branch, chooses a semantic version tag in GitHub, and publishes a release or prerelease.
-Release publication triggers binary generation. A separate Docker workflow responds to `v*` tag pushes.
-Devnet publication should follow the tag-driven Docker process and include release candidates and network-specific prereleases.
+Downstream migrations and consumer test suites are out of scope. Authenticated bridge RPC, light nodes, configurable validator counts, supplied account keys, configurable account counts, and specialized eviction-test settings are follow-up work.
 
-// Nikolai: insert a permalink
-Sovereign SDK currently builds and pushes its validator and bridge images manually. 
-It provides a useful single-validator setup with multiple funded bridge accounts,
-image health checks, shared credentials, and a genesis-hash handoff. 
-Its account-count setting creates funded bridge accounts, not multiple consensus validators.
+Relevant existing implementations:
 
-// Nikolai: insert a permalink
-// Nikolai: Lumina has been updated, review
-Lumina builds local validator, node, and proxy images for CI. 
-It provides useful runtime configuration, supplied-key support, 
-bridge and light-node startup, optional RPC authentication, and specialized integration-test topologies. 
-Those specialized topologies and grpcwebproxy remain consumer-specific.
+- [Sovereign image build and publication](https://github.com/Sovereign-Labs/sovereign-sdk/blob/3208eb5c54243a1854f44a453787335dc9f87642/docker/Makefile#L73-L87) and [Testcontainers integration](https://github.com/Sovereign-Labs/sovereign-sdk/blob/3208eb5c54243a1854f44a453787335dc9f87642/crates/adapters/celestia/src/test_helper/docker.rs#L24-L83).
+- [Lumina topology](https://github.com/celestiaorg/lumina/blob/cb5706332716c50a6d6f795db20c1708c607c5c7/ci/docker-compose.yml#L1-L170) and [validator startup](https://github.com/celestiaorg/lumina/blob/cb5706332716c50a6d6f795db20c1708c607c5c7/ci/run-validator.sh#L119-L245), including genesis-funded escrow and colocated Fibre.
+- [`local_devnet` image](../../local_devnet/Dockerfile#L8-L17) and [topology](../../local_devnet/compose.yaml#L30-L90): one image supplies two validator containers, two Fibre containers, and separate initialization and provisioning jobs.
 
-The existing celestia-app `local_devnet` provides two validators, two Fibre servers, persistent initialization, 
-Fibre provider registration, escrow funding, and PFB/PFF checks. 
-Its Fibre setup and verification tools should be reused without replacing that example.
+## Images and runtime
 
-## Images and runtime behavior
+Publish these images for `linux/amd64` and `linux/arm64` under the same app release tag:
 
-Add the canonical publishable implementation under `docker/devnet/`.
+- `ghcr.io/celestiaorg/celestia-devnet-validator:<app-tag>`
+- `ghcr.io/celestiaorg/celestia-devnet-bridge:<app-tag>`
 
-Publish these images under the same celestia-app release tag:
+Build the validator and Fibre binaries from the tagged app checkout. Pin the bridge's celestia-node dependency by tag and multi-platform digest in the Dockerfile. The digest fixes the exact image contents even if the tag moves. Weekly Dependabot updates must pass the devnet smoke suite before merging. Keep the literal digest out of this plan.
 
-- `ghcr.io/celestiaorg/celestia-devnet-validator:<app-tag>` contains `celestia-appd`, `fibre`, provisioning scripts, and the test helper, all built from the tagged celestia-app checkout.
-- `ghcr.io/celestiaorg/celestia-devnet-bridge:<app-tag>` contains a repository-pinned celestia-node release and the bridge startup script.
+Provide a published-image Compose example and a source-build override. Initialization, readiness, and process management belong inside the images so they also work without Compose.
 
-Both images support `linux/amd64` and `linux/arm64`. 
-The bridge base image is `ghcr.io/celestiaorg/celestia-node`, pinned by tag and digest.
-Docker Hub is not used: anonymous pulls from shared runner IPs hit rate limits, which the org pipeline already works around with retries. 
-// Nikolai: What is this and why?
-The `v0.34.2-mocha` index digest is `sha256:d66a22770edaeb0bcadafa3e40b88ff86422d38f51eb07dd3e34566520ecdf2b` and lists both Linux architectures. 
-Weekly Dependabot PRs update tag and digest, and the devnet compatibility suite must pass before such an update merges. An app release therefore uses the celestia-node version already tested and recorded in its source tag.
+The validator startup script manages both processes. It must forward shutdown signals, wait for children to exit, and stop the container if either service fails. Perform Fibre host registration inside this container; do not add separate initialization, Fibre, or provisioning containers.
 
+On first boot:
 
-Provide a published-image Compose example and a source-build override. 
-The default stack runs one validator, one Fibre server, one bridge, and a one-shot provisioning service. 
-// Nikolai: No, can fibre run as part of validator? Is it part of the same binary or do we need 2 binaries to have fibre
-Fibre runs as a separate container from the validator image.
+1. Import the fixed test account keys and create the validator genesis.
+2. Fund accounts, initialize Fibre escrow, and fund the module account backing that escrow.
+3. Start the validator and Fibre server.
+4. Register the advertised Fibre address and verify that registration committed successfully.
 
+Escrow supports [genesis initialization](../../x/fibre/keeper/genesis.go#L9-L15); host registration requires a transaction because [`valaddr` has no genesis initialization logic](../../x/valaddr/genesis.go#L25-L31). Do not bake initialized chain state into the images.
 
-On first boot, 
-// Nikolai: can this be done during container building?
-the validator generates keys, funds accounts in genesis, and exports client credentials. 
+Bundle fixed disposable credentials in both images at `/credentials`. For `node-0` through `node-9`, provide `.key` files (armored, password `password`), `.plaintext-key` files (hex), and `.addr` files. Also provide `validator-0.key`, `validator-0.plaintext-key`, `validator-0.addr`, and `validator-0.valaddr`. These are ordinary files inside the containers. No shared writable credential volume is needed. Document how host clients copy these files.
 
-Callers may supply deterministic account keys before initialization. 
-Validator, bridge, Fibre, credentials, and stored blobs persist across container restarts. 
-Deleting Compose volumes is the explicit reset operation.
+The bridge uses `node-0` and obtains the first-block hash through validator RPC, without a shared genesis-hash volume.
 
-// Nikolai: just to confirm, those are filesystem in container? 
-The credential files are the image's public API and stay stable: 
-`/credentials/node-N.key` (armored, password `password`), `node-N.plaintext-key` (hex), `node-N.addr`, and `validator-0.key`, `validator-0.plaintext-key`, `validator-0.addr`, `validator-0.valaddr`. 
-These are the names lumina's tests compile in. The validator keyring name stays `validator`.
+Defaults:
 
-Startup order is validator, Fibre, provisioning, then bridge. 
-Provisioning registers the Fibre address, funds Fibre escrow for every client account, waits for each transaction to commit, and fails if it cannot complete. 
-Validator and bridge image health checks verify usable protocol state rather than an open port. All startup waits are bounded.
+| Setting | Default |
+|---------|---------|
+| Network and chain ID | `devnet` |
+| Client accounts | Ten fixed public test accounts |
+| Account funding | `1000000000000000utia` per account |
+| Fibre escrow | `1000000000000utia` per funded account |
+| Block timing | `1s` delayed precommit timeout |
+| Fibre advertised address | `localhost:7980` |
+| Bridge RPC authentication | Disabled |
 
-Bridge RPC authentication is disabled in version 1. 
-Published host ports bind to loopback. The validator signing port remains internal. 
-Containers run as root. Version 1 supports neither light nodes nor authenticated bridge RPC, so lumina's auth-enabled and light-node services cannot migrate yet.
+Retain network, block timing, Fibre advertised-address, and bridge connection settings. Use binary defaults for block size, square size, and mempool TTL.
 
-Expose these settings:
+Bind published ports to loopback. Keep validator signing internal and use explicit `127.0.0.1` addresses between the colocated processes. Document container-client addressing separately.
 
-| Setting                                  | Default                            |
-|------------------------------------------|------------------------------------|
-| Network and chain ID                     | `devnet`                           |
-| Funded account count                     | `1`, with support for at least 10  |
-| Bridge account                           | First funded account               |
-| Account funding                          | `1000000000000000utia` per account |
-| Fibre escrow                             | `1000000000000utia` per account    |
-| Block timing                             | `1s` delayed precommit timeout     |
-| Fibre advertised address                 | `localhost:7980`                   |
-| Block size, square size, and mempool TTL | Binary defaults unless overridden  |
+Validator readiness requires block production, a listening Fibre server, and committed host registration. Bridge readiness requires a usable RPC endpoint and synchronized headers. Bound all startup waits and report failures in container logs.
 
-Expose validator connection settings for the bridge. 
-Document the Fibre advertised-address override for clients that run in another Docker network. 
-Run Fibre and bundled tools in the validator network namespace so the default `localhost` address works for the included stack.
+Persist validator and Fibre state in the validator container's data volume, and bridge state in its own volume. Restart preserves state; deleting volumes resets it. Incompatible version changes require a reset. Fixed account identities survive resets.
 
 ## CI and publication
 
-Add one devnet workflow with three stages.
+Keep publication tied to future app release tags, including prereleases. Devnet-only fixes wait for an app release. Do not backfill historical releases.
 
-1. Build and test on pull requests that touch `docker/devnet/**`, `.github/workflows/devnet.yml`, or `local_devnet/submit/**`, on all merge-queue entries (GitHub has no path filters for that event), on `v*` tag pushes, and on manual dispatch. This matches how the E2E image build is gated to the merge queue and release branches. Use native amd64 and arm64 runners. Build both images, start the complete stack, and run the smoke suite.
-2. On upstream tag pushes or manual dispatch targeting an existing tag, upload the exact tested per-architecture images to GHCR. Do not rebuild after testing.
-3. After both architectures publish successfully, assemble the validator and bridge multi-architecture manifests under the exact app tag and verify that each contains amd64 and arm64 Linux images.
+Use one dedicated workflow:
 
-This is a dedicated workflow rather than more jobs in `docker-build-publish.yml` on the org's reusable pipeline: native arm64 runners replace QEMU emulation, and the exact per-architecture images that passed the smoke suite are the ones published, with the manifest assembled only after both pass. Consequences, decided explicitly: GHCR only, no docker.io mirror, no sha or `latest` tags.
+1. Build both images and run self-contained smoke tests on native amd64 and arm64 runners.
+2. Publish the exact tested images on upstream `v*` tags or manual reruns targeting an existing tag containing the devnet implementation. Do not rebuild after testing.
+3. Assemble and verify both multi-platform manifests after both architectures pass.
 
-Keep registry credentials and package-write permissions confined to publication jobs. Preserve logs on failure. Do not publish `latest` or `main` aliases. Per-architecture tags `<tag>-amd64` and `<tag>-arm64` remain published next to the manifest tag. Leave existing production image publication unchanged.
+Run validation for pull requests touching `docker/devnet/**`, `.github/workflows/devnet.yml`, or `local_devnet/submit/**`, all merge-queue entries, release tags, and manual dispatch. Preserve failure logs and confine registry credentials and package-write permissions to publication jobs.
 
-Update release documentation with the image names, usage, architecture verification, and manual-rerun procedure. The GHCR packages must allow anonymous pulls.
+Publish publicly pullable GHCR packages, with app-version and per-architecture tags (`<app-tag>-amd64` and `<app-tag>-arm64`). Do not add Docker Hub publication, `latest`, `main`, SHA aliases, or independent devnet revision tags. Leave production image publication unchanged.
 
-## Acceptance criteria
+Update release documentation with image names, usage, architecture verification, and the manual-rerun procedure.
 
-Run these checks on both architectures:
+## Acceptance and delivery
 
-- A fresh startup produces blocks, completes Fibre provisioning, and synchronizes the bridge.
-- A classic blob can be submitted and retrieved through the bridge.
-- A Fibre blob can be uploaded and downloaded with byte-for-byte verification.
-- After stopping and restarting without deleting volumes, account addresses remain unchanged, block production continues, and previously stored classic and Fibre blobs remain retrievable.
-- Supplied keys, multiple funded accounts, a nondefault network, advertised address, block timing, block size, square size, and mempool TTL work.
-- Missing dependencies and failed provisioning produce bounded failures.
-- Shell scripts, Dockerfiles, Compose files, workflow syntax, and documentation pass their repository checks. `make lint` runs hadolint on `docker/devnet/Dockerfile`; hadolint is wired in `lint.yml` and the Makefile, not in the devnet workflow.
-- `local_devnet/e2e.sh` still passes with the modified `submit` tool.
-- Go helper changes pass formatting and the required `make build`.
+Verify on both architectures:
 
-Deliver the work in two PRs: first the `docker/devnet/` runtime, the Compose example, and the `local_devnet/submit` changes; second the devnet workflow, lint wiring, Dependabot entry, and release documentation. 
-Keep each under the repository's 700-line PR limit.
+- Fresh startup produces blocks, registers Fibre, and synchronizes the bridge.
+- All fixed accounts have the expected balances and escrow.
+- Ordinary and Fibre blobs complete roundtrips with matching contents.
+- Restart preserves chain progress and previously stored blobs.
+- Reset creates fresh state with the same fixed account identities.
+- Shutdown terminates both validator processes; failure of either stops the container.
+- Failed registration and unavailable dependencies produce bounded startup failures.
+- Two isolated stacks can run concurrently.
+- Documented connection and timing overrides work.
 
-Automatic publication applies only to future tags that contain the workflow. Historical releases are not backfilled.
+Record startup time with cached images without committing to an unmeasured performance target. Do not add Sovereign or Lumina test suites to these acceptance criteria.
 
-This file is a planning note. Repository rules keep planning notes in `docs/plans/` and never commit them; move it there or delete it before opening the PR.
+Run applicable script, Dockerfile, Compose, workflow, and documentation checks. If existing Go helpers change, run formatting, `make build`, and their relevant tests, including the existing local-devnet checks. Before opening a PR modifying Go code, run `make lint` and `make test-short`.
+
+Deliver runtime, Compose, and smoke tests first; publication automation and release documentation second. Keep each PR under the repository's 700-line limit.
+
+Keep this planning note out of implementation PRs.
