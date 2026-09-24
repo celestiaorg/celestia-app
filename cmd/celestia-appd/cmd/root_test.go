@@ -71,5 +71,16 @@ func TestAllowInsecurePrivValGRPC(t *testing.T) {
 		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
 		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
 		require.True(t, sctx.Viper.GetBool(privValGRPCAllowInsecureKey))
+		require.True(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
+	})
+
+	t.Run("flag allows a non-localhost address without TLS", func(t *testing.T) {
+		cmd, sctx := newCmd(t)
+		sctx.Config.PrivValidatorGRPCListenAddr = "0.0.0.0:26669"
+		require.Error(t, sctx.Config.BaseConfig.ValidatePrivValidatorGRPCExposure())
+
+		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
+		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
+		require.NoError(t, sctx.Config.BaseConfig.ValidatePrivValidatorGRPCExposure())
 	})
 }
