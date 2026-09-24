@@ -8,6 +8,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 )
 
@@ -204,4 +205,8 @@ func TestWithCachedValset(t *testing.T) {
 	if calls := inner.headCalls.Load(); calls != 1 {
 		t.Fatalf("expected 1 inner call through WithCachedValset, got %d", calls)
 	}
+}
+
+func (m *mockClient) UploadParams(context.Context) (types.Params, error) {
+	return types.DefaultParams(), nil
 }

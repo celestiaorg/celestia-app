@@ -26,4 +26,8 @@ message Params {
     (gogoproto.nullable) = false
   ];
   uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = "yaml:\"full_stake_storage_budget\""];
+  // Minimum padded upload size in bytes. Zero selects the legacy 256 KiB default.
+  uint32 min_upload_size = 6 [(gogoproto.moretags) = "yaml:\"min_upload_size\""];
+  // Maximum padded upload size in bytes. Zero selects the legacy 128 MiB default.
+  uint32 max_upload_size = 7 [(gogoproto.moretags) = "yaml:\"max_upload_size\""];
 }

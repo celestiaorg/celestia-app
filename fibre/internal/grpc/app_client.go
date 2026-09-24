@@ -140,3 +140,11 @@ func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error
 	}
 	return chainID, nil
 }
+
+func (c *AppClient) UploadParams(ctx context.Context) (types.Params, error) {
+	resp, err := c.queryClient.Params(ctx, &types.QueryParamsRequest{})
+	if err != nil {
+		return types.Params{}, err
+	}
+	return resp.Params, resp.Params.ValidateUploadLimits()
+}

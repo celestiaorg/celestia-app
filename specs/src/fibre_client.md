@@ -253,7 +253,7 @@ Rows are produced with `rsema1d`. Default protocol parameters:
 * total rows: `16384`
 * encoding ratio: `0.25`
 * maximum blob size, including header: `128 MiB`
-* minimum row-size alignment: `8 KiB` (32 MiB padded upload steps)
+* minimum row-size alignment: `64` bytes
 
 `UploadSize` is the padded original-row size only:
 
@@ -261,7 +261,7 @@ Rows are produced with `rsema1d`. Default protocol parameters:
 UploadSize = row_size * original_rows
 ```
 
-It excludes parity rows but includes padding and the v0 header.
+It excludes parity rows but includes padding and the v0 header. `Put` queries the on-chain upload limits before encoding. Callers using `NewBlob` and `Client.Upload` directly should obtain their encoding config from `Client.UploadBlobConfig(ctx)`. Uploads are checked against the current network limits; downloads use the fixed protocol ceiling so older blobs remain readable.
 
 ## 5) Assignment
 

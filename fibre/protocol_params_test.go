@@ -75,25 +75,3 @@ func TestProtocolParams_RowSize(t *testing.T) {
 		})
 	}
 }
-
-func TestDefaultBlobConfig_UploadSize(t *testing.T) {
-	cfg := DefaultBlobConfigV0()
-	const step = 32 << 20
-	for _, tt := range []struct {
-		name    string
-		dataLen int
-		want    int
-	}{
-		{"single byte", 1, step},
-		{"exact first step including header", step - blobHeaderLen, step},
-		{"header crosses first step", step - blobHeaderLen + 1, 2 * step},
-		{"32 MiB payload plus header", step, 2 * step},
-		{"maximum payload", cfg.MaxDataSize, 128 << 20},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := cfg.UploadSize(tt.dataLen); got != tt.want {
-				t.Errorf("UploadSize(%d) = %d, want %d", tt.dataLen, got, tt.want)
-			}
-		})
-	}
-}

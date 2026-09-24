@@ -32,6 +32,8 @@ type Client interface {
 	// VerifyPromise verifies a payment promise against on-chain state
 	// and returns the verification result.
 	VerifyPromise(context.Context, *PaymentPromise) (VerifiedPromise, error)
+	// UploadParams returns current network upload limits.
+	UploadParams(context.Context) (types.Params, error)
 	// FullStakeStorageBudget returns the FullStakeStorageBudget governance
 	// parameter in bytes.
 	FullStakeStorageBudget(context.Context) (int64, error)

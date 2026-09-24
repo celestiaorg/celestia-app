@@ -428,6 +428,12 @@ On success, `ValidatePaymentPromise` returns `is_valid = true` and `expiration_t
 
 ## Parameters
 
+`min_upload_size` and `max_upload_size` are per-network admission limits for padded original bytes, including the five-byte header and excluding parity. Configure them in genesis or through `MsgUpdateFibreParams`; both use 256 KiB increments, with minimum no greater than maximum and a fixed 128 MiB safety ceiling. Zero retains the legacy default (256 KiB minimum, 128 MiB maximum), so existing parameter records need no rewrite.
+
+For a 32 MiB minimum and 64 MiB maximum, set `min_upload_size: 33554432` and `max_upload_size: 67108864`. Smaller payloads are padded to the minimum; larger uploads still round in 256 KiB steps. The maximum user payload is the maximum upload size minus five bytes.
+
+Clients query limits before encoding and uploading. Validators enforce current limits through `ValidatePaymentPromise` before signing or reserving funds. Changes can reject uploads in flight; clients must fetch the new settings and re-encode when necessary. Settlement (including timeout settlement) deliberately does not apply current admission limits to already signed promises, and downloads continue to accept historical blobs up to the fixed safety ceiling. These are admission parameters, not retroactive block-validity limits.
+
 ```proto
 message Params {
   google.protobuf.Duration withdrawal_delay = 1 [(gogoproto.moretags) = "yaml:\"withdrawal_delay\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
@@ -435,6 +441,8 @@ message Params {
   uint64 payment_promise_height_window = 3 [(gogoproto.moretags) = "yaml:\"payment_promise_height_window\""];
   google.protobuf.Duration shard_retention = 4 [(gogoproto.moretags) = "yaml:\"shard_retention\"", (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = "yaml:\"full_stake_storage_budget\""];
+  uint32 min_upload_size = 6;
+  uint32 max_upload_size = 7;
 }
 ```
 
@@ -445,6 +453,8 @@ message Params {
 | `payment_promise_height_window` | `1000` | Must be nonzero | Limits how far behind the current height a normal payment promise can be |
 | `shard_retention` | `4h` | Must be between `10m` and `168h` | Sets the local retention floor validators apply to uploaded shards |
 | `full_stake_storage_budget` | `2TiB` | Must be positive | Caps the Fibre disk a 100%-stake validator uses over one `shard_retention` window; each node derives its own budget from its assigned stake share |
+| `min_upload_size` | `0` (256 KiB) | Zero or a multiple of 256 KiB, at most the effective maximum | Minimum padded size for new uploads |
+| `max_upload_size` | `0` (128 MiB) | Zero or a multiple of 256 KiB, at most 128 MiB | Maximum padded size for new uploads |
 
 The processed-payment retention window is not a governance parameter; it is derived as `withdrawal_delay + 10m` and exposed by `Params.PaymentPromiseRetentionWindow()` (see the last paragraph for why).
 

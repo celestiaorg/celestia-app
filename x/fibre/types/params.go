@@ -16,6 +16,8 @@ var (
 	KeyPaymentPromiseHeightWindow = []byte("PaymentPromiseHeightWindow")
 	KeyShardRetention             = []byte("ShardRetention")
 	KeyFullStakeStorageBudget     = []byte("FullStakeStorageBudget")
+	KeyMinUploadSize              = []byte("MinUploadSize")
+	KeyMaxUploadSize              = []byte("MaxUploadSize")
 
 	// DefaultWithdrawalDelay is the initial value of the withdrawal delay parameter.
 	DefaultWithdrawalDelay = 24 * time.Hour
@@ -32,6 +34,11 @@ var (
 )
 
 const (
+	// UploadSizeAlignment is 4096 original rows times the 64-byte codec alignment.
+	UploadSizeAlignment uint32 = 256 << 10
+	// MaxUploadSizeLimit bounds allocations and transport message sizes.
+	MaxUploadSizeLimit uint32 = 128 << 20
+
 	// MaxPromiseClockSkew is how far a promise's creation_timestamp may lead block
 	// time. Absorbs clock drift only, so it must stay well under
 	// WithdrawalDelay - PaymentPromiseTimeout.
@@ -112,12 +119,17 @@ func (p *Params) ParamSetPairs() paramtypes.ParamSetPairs {
 		paramtypes.NewParamSetPair(KeyPaymentPromiseHeightWindow, &p.PaymentPromiseHeightWindow, validatePaymentPromiseHeightWindow),
 		paramtypes.NewParamSetPair(KeyShardRetention, &p.ShardRetention, validateShardRetention),
 		paramtypes.NewParamSetPair(KeyFullStakeStorageBudget, &p.FullStakeStorageBudget, validateFullStakeStorageBudget),
+		paramtypes.NewParamSetPair(KeyMinUploadSize, &p.MinUploadSize, validateUploadSize),
+		paramtypes.NewParamSetPair(KeyMaxUploadSize, &p.MaxUploadSize, validateUploadSize),
 	}
 }
 
 // Validate validates the set of params. PaymentPromiseRetentionWindow is derived
 // from WithdrawalDelay, not stored, so there is nothing to validate for it.
 func (p Params) Validate() error {
+	if err := p.ValidateUploadLimits(); err != nil {
+		return err
+	}
 	if err := validateWithdrawalDelay(&p.WithdrawalDelay); err != nil {
 		return err
 	}
@@ -234,5 +246,55 @@ func validateFullStakeStorageBudget(v any) error {
 
 	// No upper bound: any positive budget is a valid governance choice; the
 	// per-node budget derivation is overflow-safe on its own.
+	return nil
+}
+
+// UploadLimits returns the effective limits, including defaults for legacy state.
+func (p Params) UploadLimits() (minSize, maxSize uint32) {
+	minSize, maxSize = p.MinUploadSize, p.MaxUploadSize
+	if minSize == 0 {
+		minSize = UploadSizeAlignment
+	}
+	if maxSize == 0 {
+		maxSize = MaxUploadSizeLimit
+	}
+	return minSize, maxSize
+}
+
+// ValidateUploadLimits checks the independently configurable network upload limits.
+func (p Params) ValidateUploadLimits() error {
+	if err := validateUploadSize(p.MinUploadSize); err != nil {
+		return fmt.Errorf("min_upload_size: %w", err)
+	}
+	if err := validateUploadSize(p.MaxUploadSize); err != nil {
+		return fmt.Errorf("max_upload_size: %w", err)
+	}
+	minSize, maxSize := p.UploadLimits()
+	if minSize > maxSize {
+		return fmt.Errorf("minimum upload size %d exceeds maximum %d", minSize, maxSize)
+	}
+	return nil
+}
+
+// ValidateUploadSize applies current admission policy, not settlement rules.
+func (p Params) ValidateUploadSize(size uint32) error {
+	if err := p.ValidateUploadLimits(); err != nil {
+		return err
+	}
+	minSize, maxSize := p.UploadLimits()
+	if size < minSize || size > maxSize || size%UploadSizeAlignment != 0 {
+		return fmt.Errorf("upload size %d must be a multiple of %d within [%d, %d]", size, UploadSizeAlignment, minSize, maxSize)
+	}
+	return nil
+}
+
+func validateUploadSize(v any) error {
+	size, ok := v.(uint32)
+	if !ok {
+		return fmt.Errorf("invalid parameter type: %T", v)
+	}
+	if size > MaxUploadSizeLimit || size%UploadSizeAlignment != 0 {
+		return fmt.Errorf("must be zero (legacy default) or a multiple of %d up to %d", UploadSizeAlignment, MaxUploadSizeLimit)
+	}
 	return nil
 }
