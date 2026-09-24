@@ -1,10 +1,12 @@
 # Colocated Graviton throughput profile
 
+For the completed experiment, see the [team report](graviton-throughput/EXPERIMENT-REPORT.md), [agent reproduction guide](graviton-throughput/REPRODUCE.md), and [artifact index](graviton-throughput/ARTIFACTS.md).
+
 Reference settings for 120 equal-stake validators, each running Fibre and a Go uploader. Size these settings against the target host's RAM and measure before sustained load. This example is documentation, not an automatically loaded Talis profile.
 
 ## Chain and accounts
 
-Use a unique chain ID of at most 20 characters, for example `g120-0923-1435`. Configure 120 equal-stake validators. Provision 64 funded uploader accounts per validator, named `fibre-0` through `fibre-63`; the first 24 are active in this profile. Deposit 30,000,000 TIA into each active uploader escrow and 100,000 TIA into each of the remaining 40 escrows before load. Keep bank funds available for transaction fees.
+Use a unique chain ID of at most 20 characters, for example `graviton-bench-120`. Configure 120 equal-stake validators. Provision 64 funded uploader accounts per validator, named `fibre-0` through `fibre-63`; the first 24 are active in this profile. Deposit 30,000,000 TIA into each active uploader escrow and 100,000 TIA into each of the remaining 40 escrows before load. Keep bank funds available for transaction fees.
 
 ## Fibre server
 

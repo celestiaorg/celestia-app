@@ -410,3 +410,5 @@ talis deploy -s <path-to-ssh-key> --direct-payload-upload --workers 20
 After you're done running experiments, make sure to take a snapshot of your deployment droplet and destroy the original.
 
 See the [colocated Graviton throughput profile](examples/graviton-throughput.md) for server, uploader, storage and ramp settings.
+
+The completed benchmark has a [team report](examples/graviton-throughput/EXPERIMENT-REPORT.md), [reproduction guide](examples/graviton-throughput/REPRODUCE.md), and [artifact index](examples/graviton-throughput/ARTIFACTS.md).

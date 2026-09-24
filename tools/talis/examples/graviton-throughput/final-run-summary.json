@@ -1,0 +1,78 @@
+{
+  "height_range": [
+    2510,
+    2866
+  ],
+  "stages": [
+    {
+      "producers": 20,
+      "seconds": 39.01771688461304,
+      "confirmed_unique_indexed_pff": 1515,
+      "confirmed_raw_GB_per_second": 83.38360055167709,
+      "confirmed_raw_bytes": 3253437719145,
+      "block_pff_inclusions": 1529
+    },
+    {
+      "producers": 40,
+      "seconds": 13.021904945373535,
+      "confirmed_unique_indexed_pff": 1027,
+      "confirmed_raw_GB_per_second": 169.36582709003454,
+      "confirmed_raw_bytes": 2205465701361,
+      "block_pff_inclusions": 1034
+    },
+    {
+      "producers": 60,
+      "seconds": 15.73324704170227,
+      "confirmed_unique_indexed_pff": 1968,
+      "confirmed_raw_GB_per_second": 268.61891879165063,
+      "confirmed_raw_bytes": 4226247809424,
+      "block_pff_inclusions": 1992
+    },
+    {
+      "producers": 80,
+      "seconds": 8.078408002853394,
+      "confirmed_unique_indexed_pff": 969,
+      "confirmed_raw_GB_per_second": 257.58932320972104,
+      "confirmed_raw_bytes": 2080911650067,
+      "block_pff_inclusions": 1029
+    },
+    {
+      "producers": 100,
+      "seconds": 8.94722580909729,
+      "confirmed_unique_indexed_pff": 2271,
+      "confirmed_raw_GB_per_second": 545.077933351617,
+      "confirmed_raw_bytes": 4876935353253,
+      "block_pff_inclusions": 2318
+    },
+    {
+      "producers": 120,
+      "seconds": 143.4122269153595,
+      "confirmed_unique_indexed_pff": 25597,
+      "confirmed_raw_GB_per_second": 383.294646434249,
+      "confirmed_raw_bytes": 54969138809871,
+      "block_pff_inclusions": 27808
+    }
+  ],
+  "total_block_inclusions": 44686,
+  "unique_successful_indexed_pff": 42204,
+  "duplicate_block_occurrences": 2482,
+  "indexed_receipts_failed": 0,
+  "decode_errors": 0,
+  "peak_block_pff": 2000,
+  "blocks_at_2000": 3,
+  "block_interval_seconds": {
+    "median": 0.5656944513320923,
+    "p95": 2.584834098815918,
+    "max": 12.138757944107056
+  },
+  "full120_block_interval_seconds": {
+    "median": 1.5646220445632935,
+    "p95": 10.297366857528687,
+    "max": 11.95275092124939
+  },
+  "notes": [
+    "Unique throughput is deduplicated by txhash and attributed to its latest successfully indexed code0 inclusion height.",
+    "Same transaction bytes occur in multiple blocks; historical block_results receipts unavailable. Inclusion counts are not independently proven execution successes.",
+    "Only actual all-producer upload windows count; preencoding and stopdrain excluded."
+  ]
+}

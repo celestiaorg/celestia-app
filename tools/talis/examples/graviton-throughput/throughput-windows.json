@@ -1,0 +1,413 @@
+{
+  "run": "final-120-validator-run",
+  "metric": "unique successfully indexed PFF raw bytes per second, decimal GB/s",
+  "method": "Deduplicate by transaction hash; attribute each code-zero receipt to indexed_height and its block timestamp. Rolling intervals are (start,end], entirely inside the actual 120-producer window. Evaluate every eligible block timestamp, the earliest complete-window endpoint, and the run end; a maximum occurs at one of these endpoints. Peaks describe confirmation bursts, not instantaneous network or S3 throughput.",
+  "source_scan_sha256": "388cdff33b1a0f30071480398aae37cd67726aba44de892a698807b12fea26b3",
+  "full_load_average": {
+    "window_seconds": 143.4122269153595,
+    "unique_pff": 25597,
+    "raw_bytes": 54969138809871,
+    "raw_GB_per_second": 383.294646434249,
+    "start_seconds": 0.0,
+    "end_seconds": 143.412227
+  },
+  "rolling_peaks": [
+    {
+      "window_seconds": 60,
+      "unique_pff": 12882,
+      "raw_bytes": 27663884289126,
+      "raw_GB_per_second": 461.06473815209995,
+      "start_seconds": 47.887817,
+      "end_seconds": 107.887817
+    },
+    {
+      "window_seconds": 30,
+      "unique_pff": 7463,
+      "raw_bytes": 16026670427709,
+      "raw_GB_per_second": 534.2223475902999,
+      "start_seconds": 32.033844,
+      "end_seconds": 62.033844
+    }
+  ],
+  "full_load_block_aggregates": [
+    {
+      "height": 2761,
+      "unique_pff": 743,
+      "raw_bytes": 1595580346749,
+      "block_time_seconds": 2.193788
+    },
+    {
+      "height": 2762,
+      "unique_pff": 109,
+      "raw_bytes": 234075717087,
+      "block_time_seconds": 5.378335
+    },
+    {
+      "height": 2763,
+      "unique_pff": 278,
+      "raw_bytes": 597000452754,
+      "block_time_seconds": 7.341001
+    },
+    {
+      "height": 2764,
+      "unique_pff": 223,
+      "raw_bytes": 478888852389,
+      "block_time_seconds": 9.353628
+    },
+    {
+      "height": 2765,
+      "unique_pff": 577,
+      "raw_bytes": 1239098062011,
+      "block_time_seconds": 11.290048
+    },
+    {
+      "height": 2766,
+      "unique_pff": 2000,
+      "raw_bytes": 4294967286000,
+      "block_time_seconds": 13.512366
+    },
+    {
+      "height": 2767,
+      "unique_pff": 603,
+      "raw_bytes": 1294932636729,
+      "block_time_seconds": 25.362585
+    },
+    {
+      "height": 2768,
+      "unique_pff": 312,
+      "raw_bytes": 670014896616,
+      "block_time_seconds": 28.673965
+    },
+    {
+      "height": 2769,
+      "unique_pff": 363,
+      "raw_bytes": 779536562409,
+      "block_time_seconds": 30.62481
+    },
+    {
+      "height": 2770,
+      "unique_pff": 314,
+      "raw_bytes": 674309863902,
+      "block_time_seconds": 32.854938
+    },
+    {
+      "height": 2771,
+      "unique_pff": 735,
+      "raw_bytes": 1578400477605,
+      "block_time_seconds": 35.954536
+    },
+    {
+      "height": 2772,
+      "unique_pff": 799,
+      "raw_bytes": 1715839430757,
+      "block_time_seconds": 39.784382
+    },
+    {
+      "height": 2773,
+      "unique_pff": 175,
+      "raw_bytes": 375809637525,
+      "block_time_seconds": 42.079399
+    },
+    {
+      "height": 2774,
+      "unique_pff": 99,
+      "raw_bytes": 212600880657,
+      "block_time_seconds": 43.557297
+    },
+    {
+      "height": 2775,
+      "unique_pff": 354,
+      "raw_bytes": 760209209622,
+      "block_time_seconds": 44.602832
+    },
+    {
+      "height": 2776,
+      "unique_pff": 368,
+      "raw_bytes": 790273980624,
+      "block_time_seconds": 46.307509
+    },
+    {
+      "height": 2777,
+      "unique_pff": 306,
+      "raw_bytes": 657129994758,
+      "block_time_seconds": 47.945896
+    },
+    {
+      "height": 2778,
+      "unique_pff": 1710,
+      "raw_bytes": 3672197029530,
+      "block_time_seconds": 49.13328
+    },
+    {
+      "height": 2779,
+      "unique_pff": 603,
+      "raw_bytes": 1294932636729,
+      "block_time_seconds": 59.430647
+    },
+    {
+      "height": 2780,
+      "unique_pff": 2000,
+      "raw_bytes": 4294967286000,
+      "block_time_seconds": 62.033844
+    },
+    {
+      "height": 2781,
+      "unique_pff": 1237,
+      "raw_bytes": 2656437266391,
+      "block_time_seconds": 73.986595
+    },
+    {
+      "height": 2782,
+      "unique_pff": 874,
+      "raw_bytes": 1876900703982,
+      "block_time_seconds": 77.840136
+    },
+    {
+      "height": 2783,
+      "unique_pff": 248,
+      "raw_bytes": 532575943464,
+      "block_time_seconds": 80.150971
+    },
+    {
+      "height": 2784,
+      "unique_pff": 261,
+      "raw_bytes": 560493230823,
+      "block_time_seconds": 81.969808
+    },
+    {
+      "height": 2785,
+      "unique_pff": 148,
+      "raw_bytes": 317827579164,
+      "block_time_seconds": 83.060398
+    },
+    {
+      "height": 2786,
+      "unique_pff": 265,
+      "raw_bytes": 569083165395,
+      "block_time_seconds": 84.308285
+    },
+    {
+      "height": 2787,
+      "unique_pff": 236,
+      "raw_bytes": 506806139748,
+      "block_time_seconds": 86.178901
+    },
+    {
+      "height": 2788,
+      "unique_pff": 189,
+      "raw_bytes": 405874408527,
+      "block_time_seconds": 87.381157
+    },
+    {
+      "height": 2789,
+      "unique_pff": 105,
+      "raw_bytes": 225485782515,
+      "block_time_seconds": 88.262187
+    },
+    {
+      "height": 2790,
+      "unique_pff": 340,
+      "raw_bytes": 730144438620,
+      "block_time_seconds": 89.003719
+    },
+    {
+      "height": 2791,
+      "unique_pff": 518,
+      "raw_bytes": 1112396527074,
+      "block_time_seconds": 91.663925
+    },
+    {
+      "height": 2792,
+      "unique_pff": 353,
+      "raw_bytes": 758061725979,
+      "block_time_seconds": 93.233015
+    },
+    {
+      "height": 2793,
+      "unique_pff": 279,
+      "raw_bytes": 599147936397,
+      "block_time_seconds": 94.939969
+    },
+    {
+      "height": 2794,
+      "unique_pff": 298,
+      "raw_bytes": 639950125614,
+      "block_time_seconds": 96.500123
+    },
+    {
+      "height": 2795,
+      "unique_pff": 348,
+      "raw_bytes": 747324307764,
+      "block_time_seconds": 98.427072
+    },
+    {
+      "height": 2796,
+      "unique_pff": 125,
+      "raw_bytes": 268435455375,
+      "block_time_seconds": 99.708868
+    },
+    {
+      "height": 2797,
+      "unique_pff": 148,
+      "raw_bytes": 317827579164,
+      "block_time_seconds": 101.100831
+    },
+    {
+      "height": 2798,
+      "unique_pff": 121,
+      "raw_bytes": 259845520803,
+      "block_time_seconds": 102.164453
+    },
+    {
+      "height": 2799,
+      "unique_pff": 63,
+      "raw_bytes": 135291469509,
+      "block_time_seconds": 103.157352
+    },
+    {
+      "height": 2800,
+      "unique_pff": 559,
+      "raw_bytes": 1200443356437,
+      "block_time_seconds": 105.933374
+    },
+    {
+      "height": 2801,
+      "unique_pff": 1548,
+      "raw_bytes": 3324304679364,
+      "block_time_seconds": 107.887817
+    },
+    {
+      "height": 2802,
+      "unique_pff": 313,
+      "raw_bytes": 672162380259,
+      "block_time_seconds": 118.280389
+    },
+    {
+      "height": 2803,
+      "unique_pff": 675,
+      "raw_bytes": 1449551459025,
+      "block_time_seconds": 121.425185
+    },
+    {
+      "height": 2804,
+      "unique_pff": 334,
+      "raw_bytes": 717259536762,
+      "block_time_seconds": 123.312785
+    },
+    {
+      "height": 2805,
+      "unique_pff": 298,
+      "raw_bytes": 639950125614,
+      "block_time_seconds": 125.073611
+    },
+    {
+      "height": 2806,
+      "unique_pff": 90,
+      "raw_bytes": 193273527870,
+      "block_time_seconds": 126.330772
+    },
+    {
+      "height": 2807,
+      "unique_pff": 170,
+      "raw_bytes": 365072219310,
+      "block_time_seconds": 127.671306
+    },
+    {
+      "height": 2808,
+      "unique_pff": 126,
+      "raw_bytes": 270582939018,
+      "block_time_seconds": 128.502821
+    },
+    {
+      "height": 2809,
+      "unique_pff": 119,
+      "raw_bytes": 255550553517,
+      "block_time_seconds": 129.246855
+    },
+    {
+      "height": 2810,
+      "unique_pff": 95,
+      "raw_bytes": 204010946085,
+      "block_time_seconds": 129.981366
+    },
+    {
+      "height": 2811,
+      "unique_pff": 160,
+      "raw_bytes": 343597382880,
+      "block_time_seconds": 130.70698
+    },
+    {
+      "height": 2812,
+      "unique_pff": 182,
+      "raw_bytes": 390842023026,
+      "block_time_seconds": 131.603741
+    },
+    {
+      "height": 2813,
+      "unique_pff": 332,
+      "raw_bytes": 712964569476,
+      "block_time_seconds": 132.923741
+    },
+    {
+      "height": 2814,
+      "unique_pff": 293,
+      "raw_bytes": 629212707399,
+      "block_time_seconds": 134.321862
+    },
+    {
+      "height": 2815,
+      "unique_pff": 238,
+      "raw_bytes": 511101107034,
+      "block_time_seconds": 135.745158
+    },
+    {
+      "height": 2816,
+      "unique_pff": 295,
+      "raw_bytes": 633507674685,
+      "block_time_seconds": 137.091567
+    },
+    {
+      "height": 2817,
+      "unique_pff": 235,
+      "raw_bytes": 504658656105,
+      "block_time_seconds": 138.467256
+    },
+    {
+      "height": 2818,
+      "unique_pff": 122,
+      "raw_bytes": 261993004446,
+      "block_time_seconds": 139.612169
+    },
+    {
+      "height": 2819,
+      "unique_pff": 111,
+      "raw_bytes": 238370684373,
+      "block_time_seconds": 140.435234
+    },
+    {
+      "height": 2820,
+      "unique_pff": 124,
+      "raw_bytes": 266287971732,
+      "block_time_seconds": 141.136555
+    },
+    {
+      "height": 2821,
+      "unique_pff": 109,
+      "raw_bytes": 234075717087,
+      "block_time_seconds": 142.010616
+    },
+    {
+      "height": 2822,
+      "unique_pff": 115,
+      "raw_bytes": 246960618945,
+      "block_time_seconds": 142.674676
+    },
+    {
+      "height": 2823,
+      "unique_pff": 127,
+      "raw_bytes": 272730422661,
+      "block_time_seconds": 143.359038
+    }
+  ],
+  "time_origin": "Seconds relative to the start of the actual 120-producer full-load window; wall-clock timestamps omitted."
+}
