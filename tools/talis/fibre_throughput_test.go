@@ -41,15 +41,21 @@ func TestFibreThroughputSuccessfulOnly(t *testing.T) {
 		name           string
 		successfulOnly bool
 		withGas        bool
+		withInclusion  bool
 		results        []*abci.ExecTxResult
 		wantCount      int
 		wantBytes      int64
+		wantIncluded   int64
 		wantErr        string
 	}{
 		{name: "default", results: results, wantCount: 3, wantBytes: 700},
-		{name: "default with gas", withGas: true, results: results, wantCount: 3, wantBytes: 700},
-		{name: "successful only", successfulOnly: true, results: results, wantCount: 2, wantBytes: 500},
-		{name: "successful only with gas", successfulOnly: true, withGas: true, results: results, wantCount: 2, wantBytes: 500},
+		{name: "default with gas", withGas: true, results: results, wantCount: 3, wantBytes: 700, wantIncluded: 500},
+		{name: "successful only", successfulOnly: true, results: results, wantCount: 2, wantBytes: 500, wantIncluded: 500},
+		{name: "successful only with gas", successfulOnly: true, withGas: true, results: results, wantCount: 2, wantBytes: 500, wantIncluded: 500},
+		{name: "all failed", results: []*abci.ExecTxResult{{Code: 1}, {Code: 2}, {Code: 3}}, wantCount: 3, wantBytes: 700},
+		{name: "inclusion metric", withInclusion: true, results: results, wantCount: 3, wantBytes: 700, wantIncluded: 500},
+		{name: "inclusion metric all failed", withInclusion: true, results: []*abci.ExecTxResult{{Code: 1}, {Code: 2}, {Code: 3}}, wantCount: 3, wantBytes: 700},
+		{name: "inclusion metric missing results", withInclusion: true, wantErr: "missing execution result for PFF at height 10, tx index 0"},
 		{name: "missing results", successfulOnly: true, wantErr: "missing execution result for PFF at height 10, tx index 0"},
 		{name: "short results", successfulOnly: true, results: results[:1], wantErr: "missing execution result for PFF at height 10, tx index 1"},
 		{name: "nil result", successfulOnly: true, withGas: true, results: []*abci.ExecTxResult{results[0], nil, results[2]}, wantErr: "missing execution result for PFF at height 10, tx index 1"},
@@ -82,10 +88,10 @@ func TestFibreThroughputSuccessfulOnly(t *testing.T) {
 			t.Cleanup(server.Close)
 			client, err := rpchttp.New(server.URL, "/websocket")
 			require.NoError(t, err)
-			blocks := fetchBlocksConcurrent(t.Context(), []*rpchttp.HTTP{client}, 10, 10, 1, 0, encCfg.TxConfig.TxDecoder(), tt.withGas, tt.successfulOnly)
+			blocks := fetchBlocksConcurrent(t.Context(), []*rpchttp.HTTP{client}, 10, 10, 1, 0, encCfg.TxConfig.TxDecoder(), tt.withGas, tt.successfulOnly, tt.withInclusion)
 			require.Len(t, blocks, 1)
 			res := blocks[0]
-			if tt.withGas || tt.successfulOnly {
+			if tt.withGas || tt.successfulOnly || tt.withInclusion {
 				require.EqualValues(t, 1, resultCalls.Load())
 			} else {
 				require.Zero(t, resultCalls.Load())
@@ -98,6 +104,7 @@ func TestFibreThroughputSuccessfulOnly(t *testing.T) {
 			require.Zero(t, res.decodeErrs)
 			require.Equal(t, tt.wantCount, res.pffCount)
 			require.Equal(t, tt.wantBytes, res.pffBytes)
+			require.Equal(t, tt.wantIncluded, res.pffIncludedBytes)
 			require.Equal(t, 1, res.pfbCount)
 			require.EqualValues(t, 30, res.pfbBytes)
 			if tt.withGas {

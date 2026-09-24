@@ -197,6 +197,10 @@ Run `fibre-throughput` from your local machine to poll blocks and print per-bloc
 talis fibre-throughput
 ```
 
+With observability enabled, live runs add **Successful PFF Inclusion** (blob bytes/sec) to the Throughput panel.
+This requires `discard_abci_responses = false` under `[storage]` on every selected validator, with block results available.
+Run one monitor per experiment without `--start-height`.
+
 This connects to the first validator's RPC endpoint and prints a line per block:
 
 ```text
