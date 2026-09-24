@@ -8,7 +8,7 @@ Before starting, make sure:
 
 - [ ] A `celestia-appd` node is available. The app link (`--app-grpc-address`) is not TLS-protected. The signer link (`--signer-grpc-address`) allows plaintext only on loopback and requires mutual TLS for a remote node — see [Signing](#signing).
 - [ ] The chain is on **app version 10 or later**. The `x/fibre` and `x/valaddr` modules the server depends on do not exist in earlier versions.
-- [ ] The node's application gRPC endpoint is enabled (default `127.0.0.1:9090`).
+- [ ] The node's application gRPC endpoint is enabled in `app.toml` — see [Node connections](#node-connections).
 - [ ] The node's privval gRPC endpoint is enabled — see [Signing](#signing). If the consensus key lives in an external KMS, the KMS must support the privval `SignRawBytes` message; see the [release notes](../../docs/release-notes/release-notes.md) for the KMS policy.
 - [ ] The fibre listen port (default `7980`) is reachable by clients from outside your network.
 - [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set gets no budget and no traffic.
@@ -52,7 +52,39 @@ commit hash instead.
 
 ## Usage
 
+### Node connections
+
+Fibre uses two connections to your validator's node. The application gRPC service and the core RPC gRPC service are separate listeners:
+
+| Service | Node configuration | Example address | Fibre flag |
+|---|---|---|---|
+| Application gRPC | `config/app.toml`, `[grpc] address` | `127.0.0.1:9090` | `--app-grpc-address` |
+| Core RPC gRPC | `config/config.toml`, `[rpc] grpc_laddr` | `tcp://127.0.0.1:9098` | None |
+| Privval gRPC | `config/config.toml`, top-level `priv_validator_grpc_laddr` | `127.0.0.1:26669` | `--signer-grpc-address` |
+
+Paths are relative to your node's home directory. Enable application gRPC by editing the existing `[grpc]` section in `config/app.toml`:
+
+```toml
+[grpc]
+enable = true
+address = "127.0.0.1:9090"
+```
+
+Application gRPC is disabled in a freshly generated app config. Enable it explicitly so it remains available when the multiplexer switches to v10. Restart the node after changing its configuration; also check for service-manager flags that override these values.
+
+Keep the existing `[rpc] grpc_laddr` address and port in `config/config.toml` so existing core RPC clients, including bridge nodes, can continue using it. Moving that listener from `9098` to `9090` does not make it an application gRPC service and can cause a port conflict. Custom ports work: point Fibre at the actual application and privval listeners.
+
+Use `host:port` without `tcp://` for application gRPC, privval gRPC, and Fibre's connection flags. The core RPC listener uses `tcp://host:port`. Keep Fibre's application and signer connections on loopback or a trusted private network; only its client listen port (default `7980`) needs to be publicly reachable.
+
 ### Start
+
+Start Fibre after the chain activates app version 10. Installing a v10 binary alone does not activate v10. Check your node's running app version through its HTTP RPC endpoint:
+
+```sh
+curl -s http://127.0.0.1:26657/abci_info
+```
+
+Confirm `result.response.app_version` is `10` or later before starting:
 
 ```sh
 fibre start
@@ -106,13 +138,21 @@ An upload uses 16 signers, so it fills all 16 connection slots and blocks concur
 
 Fibre signs payment promises by connecting to the consensus node's `PrivValidatorAPI` gRPC endpoint. The node handles its own key management (local key, tmkms, etc.) — fibre just delegates signing to it.
 
-The privval gRPC endpoint is enabled by default when running `celestia-appd init` on `127.0.0.1:26669`.
+Fresh v10 `celestia-appd init` configurations enable the privval gRPC endpoint on `127.0.0.1:26669`. Existing configurations keep their saved value, which may be `127.0.0.1:26659`, a custom address, or empty (disabled). Replacing the binary does not rewrite that value. The new default avoids a port clash with TMKMS.
 
-To verify or override, check `config.toml`:
+With celestia-app v10.2.0 or later, sync the node's configuration first to add missing fields and their documentation:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Use your node's home directory if it differs. The command preserves existing values, including an empty or old signer address. Then enable or change the top-level setting in `config/config.toml`, before any section such as `[rpc]`:
 
 ```toml
 priv_validator_grpc_laddr = "127.0.0.1:26669"
 ```
+
+If you change the port, also update Fibre's `signer_grpc_address` in `server_config.toml` or its `--signer-grpc-address` flag, then restart the node and Fibre. A working custom port can be retained if it does not conflict with another listener and Fibre uses the same address. Update deployment-managed config templates too.
 
 This default loopback connection uses plaintext. To run Fibre on a separate
 host, use a dedicated certificate authority to issue a server certificate for
@@ -189,6 +229,15 @@ Two things to keep in mind:
 
 For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
 
+## Troubleshooting connections
+
+- **`unknown service cosmos.base.tendermint.v1beta1.Service`**: Fibre could not query node information from its application connection. Check `--app-grpc-address`, the `[grpc]` section of `app.toml`, and the chain's active app version. The core RPC listener is not a substitute for application gRPC. This error alone does not establish that the only problem is pending v10 activation.
+- **Missing Fibre or valaddr services before activation**: prepare the configuration now, but start Fibre and register its host only once app version 10 is active.
+- **Application connection refused**: enable application gRPC, restart the node, and check that Fibre uses the same address and port. Flags passed by the service manager can override the file.
+- **Signer connection failed**: compare Fibre's signer address with the node's top-level `priv_validator_grpc_laddr`. Check for an empty value, the old port, or a listener conflict.
+
+For new node settings and their comments, see [Updating existing configuration files](../../docs/release-notes/release-notes.md#updating-existing-configuration-files). `update-config` has no v10 migration.
+
 ## Observability
 
 All observability flags are persistent and apply to every subcommand.
@@ -252,7 +301,8 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 |---|---|---|---|
 | `fibre.server.upload_shard.in_flight` | UpDownCounter | — | Concurrent UploadShard RPCs |
 | `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
-| `fibre.server.upload_shard.bytes` | Counter (By) | — | Total bytes received |
+| `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
+| `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
 | `fibre.server.download_shard.in_flight` | UpDownCounter | — | Concurrent DownloadShard RPCs |
 | `fibre.server.download_shard.duration` | Histogram (s) | `success`, `shard_size` | DownloadShard RPC latency |
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total bytes sent |

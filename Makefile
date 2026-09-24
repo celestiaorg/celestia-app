@@ -53,13 +53,13 @@ BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 # dockerchain/config.go
-CELESTIA_V3_VERSION := v3.12.0
+CELESTIA_V3_VERSION := v3.13.0
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
-CELESTIA_V6_VERSION := v6.4.4
-CELESTIA_V7_VERSION := v7.0.2-mocha
+CELESTIA_V6_VERSION := v6.4.10
+CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
-CELESTIA_V9_VERSION := v9.0.7-corto
+CELESTIA_V9_VERSION := v9.0.8
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -337,6 +337,13 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
+## govulncheck: Check for vulnerabilities in dependencies.
+govulncheck:
+	@echo "--> Running govulncheck"
+	@go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+	@cd test/docker-e2e && go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+.PHONY: govulncheck
+
 ## markdown-link-check: Check all links in markdown files for validity.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
@@ -473,7 +480,7 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_FIBRE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins
@@ -683,6 +690,7 @@ disable-mptcp:
 
 ## mptcp-disable: Disable mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
 mptcp-disable: disable-mptcp
+.PHONY: mptcp-disable
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
 SEND_RECV_RATE ?= 10485760  # 10 MiB

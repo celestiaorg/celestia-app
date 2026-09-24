@@ -3,8 +3,6 @@
 [![Go Reference](https://img.shields.io/badge/godoc-reference-blue.svg)](https://pkg.go.dev/github.com/celestiaorg/celestia-app)
 [![mdBook Specs](https://img.shields.io/badge/mdBook-specs-blue)](https://celestiaorg.github.io/celestia-app/)
 [![GitHub Release](https://img.shields.io/github/v/release/celestiaorg/celestia-app)](https://github.com/celestiaorg/celestia-app/releases/latest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/celestiaorg/celestia-app)](https://goreportcard.com/report/github.com/celestiaorg/celestia-app)
-[![GitPOAP Badge](https://public-api.gitpoap.io/v1/repo/celestiaorg/celestia-app/badge)](https://www.gitpoap.io/gh/celestiaorg/celestia-app)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/celestiaorg/celestia-app)
 
 celestia-app is the software used by [validators](https://docs.celestia.org/operate/consensus-validators/validator-node/) and [consensus nodes](https://docs.celestia.org/operate/consensus-validators/consensus-node/) on the Celestia consensus network. celestia-app is a blockchain application built using parts of the Cosmos stack:
@@ -149,6 +147,32 @@ celestia-appd init test
 celestia-appd start
 ```
 
+### Updating config.toml
+
+`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults.
+Synchronization runs only when this command is called, not on node startup.
+Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
+Flags and environment overrides are not saved.
+Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
+If nothing is missing, it leaves the file untouched.
+
+To inspect additions or update the file before restarting:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app --dry-run
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Then edit the fields in `config/config.toml` under your node's home directory to set the values you want before restarting the node.
+
+Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
+For deployment-managed configurations, add the reported settings to the source configuration.
+The command returns an error on failure.
+
+Synchronization does not update `app.toml`, remove deprecated settings, or replace existing values with newer defaults.
+Once a default is written, it remains an explicit value on later upgrades.
+Existing binary overrides for consensus, mempool, and P2P settings still apply.
+
 ### Create a single node local testnet
 
 ```sh
@@ -201,23 +225,55 @@ Fibre (available from app v10) is Celestia's data availability protocol served b
 
 ## Server Architecture
 
-celestia-app and celestia-core start multiple servers to handle different types of network communication and requests. Here's an overview of each server and their default addresses:
+`celestia-appd` runs celestia-core and the Cosmos SDK application in one process when the native application version is active. Core handles consensus and networking; the application executes transactions and maintains module state. They communicate through ABCI. The servers below expose different services from that process.
+
+```mermaid
+flowchart TB
+    subgraph Appd["celestia-appd process — native application"]
+        Core["Core: consensus and networking<br/>RPC :26657 · gRPC :9098 · P2P :26656"]
+        App["Application: transaction execution and state<br/>gRPC :9090 · REST / gRPC-Web :1317"]
+        Signer["PrivValidator: local key or remote signer<br/>PrivVal gRPC :26669"]
+        Core <-->|"ABCI via multiplexer"| App
+        App -->|"Block API calls"| Core
+        Core -->|"Sign proposals and votes"| Signer
+    end
+    Peers["Other consensus nodes"] <-->|"P2P"| Core
+    Client["Fibre client"] <-->|"gRPC over TLS"| Fibre["Separate fibre process :7980<br/>Stores and serves blob shards"]
+    Fibre -->|"Query state via app gRPC"| App
+    Fibre -->|"Sign via PrivVal gRPC"| Signer
+    Signer -.->|"Optional remote-signing connection"| KMS["Separate KMS process"]
+```
+
+When replaying older application versions, the [multiplexer](multiplexer/README.md) runs an embedded application binary in a child process and forwards ABCI calls over gRPC. Core remains in the parent process.
+
+The addresses below are configurable defaults. Application gRPC also exposes Core's Block API on the same listener, so clients can query both application state and block data through one connection. Core gRPC does not expose application module queries.
 
 ### Celestia-Core (CometBFT) Servers
 
-| Server   | Default Address         | Configuration               | Purpose                                                                                               |
-|----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
-| **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
-| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API for broadcasting txs, querying blocks, and querying blobstream data                          |
-| **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
+| Server     | Default Address           | Configuration                 | Purpose                                                                                                                                        |
+|------------|---------------------------|-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| **RPC**    | `tcp://127.0.0.1:26657`   | `config.toml` under `[rpc]`   | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions.                                          |
+| **gRPC**   | `tcp://127.0.0.1:9098`    | `config.toml` under `[rpc]`   | Core services for transaction broadcast, blocks, commits, validator sets, new-height subscriptions, and Blobstream data-root inclusion proofs. |
+| **P2P**    | `tcp://0.0.0.0:26656`     | `config.toml` under `[p2p]`   | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.                                                        |
 
 ### Celestia-App (Cosmos SDK) Servers
 
-| Server       | Default Address                | Configuration                 | Purpose                                                                                                                                      |
-|--------------|--------------------------------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| **gRPC**     | `localhost:9090`               | `app.toml` under `[grpc]`     | gRPC for application-specific queries. Provides access to Cosmos SDK modules (bank, governance, etc.) and Celestia-specific modules (blob).  |
-| **REST API** | `tcp://localhost:1317`         | `app.toml` under `[api]`      | RESTful HTTP API that proxies requests to the gRPC server via gRPC-gateway. Provides the same functionality as gRPC but over HTTP with JSON. |
-| **gRPC-Web** | *Uses REST API server address* | `app.toml` under `[grpc-web]` | Browser-compatible gRPC API that allows web applications to interact with the gRPC server.                                                   |
+| Server         | Default Address                  | Configuration                   | Purpose                                                                                                                                        |
+|----------------|----------------------------------|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| **gRPC**       | `localhost:9090`                 | `app.toml` under `[grpc]`       | Application module queries, transaction simulation and broadcast, node information, and Core's Block API.                                      |
+| **REST API**   | `tcp://localhost:1317`           | `app.toml` under `[api]`        | HTTP/JSON access to registered gRPC-gateway routes. Not every gRPC service has a REST route.                                                   |
+| **gRPC-Web**   | *Uses REST API server address*   | `app.toml` under `[grpc-web]`   | Browser-compatible gRPC API that allows web applications to interact with the gRPC server.                                                     |
+
+### Validator Signing and Fibre
+
+| Server           | Default Address   | Configuration                                         | Purpose                                                                                                        |
+|------------------|-------------------|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| **PrivVal gRPC** | `127.0.0.1:26669` | `config.toml`: `priv_validator_grpc_laddr`            | Core endpoint that lets Fibre request payment-promise and TLS-identity signatures from the validator's signer. |
+| **Fibre gRPC**   | `0.0.0.0:7980`    | Fibre's `server_config.toml`: `server_listen_address` | Separate server for uploading and downloading blob shards over TLS.                                            |
+
+PrivValidator is Core's signing interface. It uses a local consensus key or an external signer configured through `priv_validator_laddr`. That remote-signing connection is separate from the PrivVal gRPC endpoint exposed to Fibre.
+
+Fibre connects to application gRPC for chain state and to PrivVal gRPC for signatures. It always requests signatures through the node, even when the key is held by an external KMS. See the [Fibre server guide](fibre/cmd/README.md) for connection and deployment details.
 
 ## Contributing
 

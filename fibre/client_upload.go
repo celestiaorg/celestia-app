@@ -73,12 +73,16 @@ func WithAwaitAllSignatures() UploadOption {
 //
 // The blob must not be reused after calling [Blob.Free].
 // Returns [ErrClientClosed] if the client has been closed.
+// Returns [ErrNoKeyring] if the client has no keyring.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
 		return result, errors.New("fibre: client is not started")
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
+	}
+	if c.keyring == nil {
+		return result, ErrNoKeyring
 	}
 	if !blob.retain() {
 		return result, errors.New("fibre: blob already released; create a new blob to upload")

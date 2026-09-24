@@ -8,6 +8,16 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Node operators MUST upgrade their binary to this version prior to the v10 activation height.
 
+#### Update config.toml
+
+Validators are recommended to run the following command with a v10.2.0 or later binary to add missing fields and their documentation to `config.toml` before changing settings:
+
+```sh
+celestia-appd config sync --home ~/.celestia-app
+```
+
+Use your node's home directory if it differs. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
+
 #### Fibre
 
 v10 introduces fibre, a data availability protocol served by validator-operated fibre servers. Validators should follow the [fibre server guide](../../fibre/cmd/README.md) — prerequisites, setup, and the on-chain host registration via [`x/valaddr`](../../x/valaddr/README.md) — to start serving fibre traffic once v10 is live.
@@ -27,7 +37,9 @@ As a reminder, KMS are third-party software and validators are responsible for e
 
 #### Privval gRPC Endpoint Enabled by Default
 
-Every node now runs a privval gRPC endpoint, which the fibre server uses for payment-promise endorsements and its TLS identity. The default listen address moved from `127.0.0.1:26659` to `127.0.0.1:26669`. Nodes that don't serve fibre can disable it by clearing `priv_validator_grpc_laddr` in `config.toml`.
+Fresh v10 configurations enable a privval gRPC endpoint, which the fibre server uses for payment-promise endorsements and its TLS identity. The default listen address moved from `127.0.0.1:26659` to `127.0.0.1:26669` to avoid a TMKMS port clash. Existing configurations retain their saved address or empty (disabled) value; replacing the binary does not rewrite it. Check the top-level `priv_validator_grpc_laddr` in `config/config.toml` and set Fibre's signer address to match. Nodes that don't serve fibre can disable it by clearing this setting.
+
+Fibre also needs application gRPC enabled in the `[grpc]` section of `config/app.toml` (normally port `9090`). This is separate from `[rpc] grpc_laddr` in `config/config.toml` (normally port `9098`); preserve the latter for existing core RPC clients. See the [connection settings and address formats](../../fibre/cmd/README.md#node-connections).
 
 #### Heavy RPC Requests Are Limited
 
@@ -36,6 +48,18 @@ celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_s
 #### Blockstore Compaction
 
 New `[storage]` options in `config.toml`: `compact` (default `false`) and `compaction_interval` (default `10000`). When enabled, the blockstore is compacted asynchronously over the pruned range, keeping pruned nodes at a bounded disk size. A new `celestia-appd compact-blockstore` command performs a one-off compaction of an existing blockstore.
+
+Automatic compaction covers newly pruned blocks. To reclaim space from an existing pruned backlog, stop the node and run `celestia-appd compact-blockstore --home <node-home>` before enabling it. Compaction does not enable pruning; archival nodes should retain `min-retain-blocks = 0` in `app.toml`.
+
+#### Updating Existing Configuration Files
+
+At startup, missing fields use the binary's defaults without rewriting existing files. The deprecated `celestia-appd update-config` command only supports the v6 migration; use `celestia-appd config sync` to add missing v10 settings and their documentation.
+
+Run [`celestia-appd config sync`](#update-configtoml) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
+
+The command only updates `config.toml`. Back up and edit `config/app.toml` and Fibre's `server_config.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
+
+Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
 #### Metrics Push via OTLP
 

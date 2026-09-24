@@ -24,6 +24,8 @@ const DefaultKeyName = "default-fibre"
 var (
 	// ErrClientClosed is returned when an operation is attempted on a closed client.
 	ErrClientClosed = errors.New("fibre: client is closed")
+	// ErrNoKeyring is returned when Upload or Put is called without a keyring.
+	ErrNoKeyring = errors.New("fibre: keyring is required for uploads")
 	// ErrKeyNotFound is returned when the configured key is not found in the keyring.
 	ErrKeyNotFound = errors.New("fibre: key not found in keyring")
 )
@@ -61,13 +63,13 @@ type Client struct {
 	stopCh chan struct{}
 }
 
-// NewClient creates a new [Client] with the provided dependencies.
-// Returns an error if the configured key is not found in the keyring.
+// NewClient creates a new [Client]; a nil keyring allows downloads only.
+// If a keyring is provided, the configured key must exist.
 func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
-	// verify the key exists in the keyring
-	_, err := kr.Key(cfg.DefaultKeyName)
-	if err != nil {
-		return nil, fmt.Errorf("%w: %s: %v", ErrKeyNotFound, cfg.DefaultKeyName, err)
+	if kr != nil {
+		if _, err := kr.Key(cfg.DefaultKeyName); err != nil {
+			return nil, fmt.Errorf("%w: %s: %v", ErrKeyNotFound, cfg.DefaultKeyName, err)
+		}
 	}
 
 	if err := cfg.Validate(); err != nil {
@@ -79,8 +81,12 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		return nil, fmt.Errorf("create state client: %w", err)
 	}
 
-	if cfg.NewClientFn == nil {
-		cfg.NewClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log)
+	// The default dialer is bound to this client's state client, so it stays
+	// out of the exported Config: a client built from a copied Config must
+	// dial through its own state client.
+	newClientFn := cfg.NewClientFn
+	if newClientFn == nil {
+		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log)
 	}
 
 	metrics, err := newClientMetrics(cfg.Meter)
@@ -96,7 +102,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 		tracer:        cfg.Tracer,
 		metrics:       metrics,
 		clock:         cfg.Clock,
-		clientCache:   fibregrpc.NewClientCache(cfg.NewClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
+		clientCache:   fibregrpc.NewClientCache(newClientFn, DefaultProtocolParams.MaxValidatorCount, fibregrpc.WithTracer(cfg.Tracer)),
 		escrowLedgers: make(map[string]*escrowLedger),
 		stopCh:        make(chan struct{}),
 	}, nil
@@ -197,5 +203,5 @@ func (c *Client) Stop(ctx context.Context) error {
 	case <-done:
 	case <-ctx.Done():
 	}
-	return c.clientCache.Close()
+	return errors.Join(c.clientCache.Close(), c.state.Stop(ctx))
 }
