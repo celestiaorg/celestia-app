@@ -142,6 +142,7 @@ func fibreThroughputCmd() *cobra.Command {
 			}
 
 			var includedBytes metric.Int64Counter
+			var stopInclusionMetrics func()
 			// Export live inclusion bytes only when every selected validator retains block results.
 			if len(cfg.Observability) > 0 && startHeight == 0 && pffInclusionAvailable(ctx, clients) {
 				endpoint := fmt.Sprintf("http://%s:4318", cfg.Observability[0].PublicIP)
@@ -150,14 +151,19 @@ func fibreThroughputCmd() *cobra.Command {
 					return err
 				}
 				includedBytes = counter
-				// Flush pending metrics after the monitoring context has been cancelled.
-				defer func() {
+				// Flush pending metrics even if the monitoring context has been cancelled.
+				stopInclusionMetrics = func() {
+					if includedBytes == nil {
+						return
+					}
+					includedBytes = nil
 					shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 					defer cancel()
 					if err := shutdown(shutdownCtx); err != nil {
 						fmt.Printf("error flushing throughput metrics: %v\n", err)
 					}
-				}()
+				}
+				defer stopInclusionMetrics()
 				fmt.Printf("PFF inclusion metrics enabled endpoint=%s\n", endpoint)
 			}
 
@@ -251,17 +257,15 @@ func fibreThroughputCmd() *cobra.Command {
 						if ctx.Err() != nil {
 							break
 						}
+						if includedBytes != nil && (res.err != nil || res.decodeErrs > 0) {
+							fmt.Printf("PFF inclusion metrics disabled: incomplete accounting at height %d; continuing throughput monitoring\n", res.height)
+							stopInclusionMetrics()
+						}
 						if res.err != nil {
-							if includedBytes != nil {
-								return fmt.Errorf("cannot count PFF inclusion at height %d: %w", res.height, res.err)
-							}
 							fmt.Printf("error fetching block %d after %d attempt(s): %v\n", res.height, res.attempts, res.err)
 							continue
 						}
 						if includedBytes != nil {
-							if res.decodeErrs > 0 {
-								return fmt.Errorf("cannot count PFF inclusion at height %d: %d undecoded transactions", res.height, res.decodeErrs)
-							}
 							includedBytes.Add(ctx, res.pffIncludedBytes)
 						}
 
