@@ -4905,12 +4905,12 @@ SignBytes = CometBFT RawBytesMessageSignBytes(
 <li>total rows: <code>16384</code></li>
 <li>encoding ratio: <code>0.25</code></li>
 <li>maximum blob size, including header: <code>128 MiB</code></li>
-<li>minimum row-size alignment: <code>8 KiB</code> (32 MiB padded upload steps)</li>
+<li>minimum row-size alignment: <code>64</code> bytes</li>
 </ul>
 <p><code>UploadSize</code> is the padded original-row size only:</p>
 <pre><code class="language-text">UploadSize = row_size * original_rows
 </code></pre>
-<p>It excludes parity rows but includes padding and the v0 header.</p>
+<p>It excludes parity rows but includes padding and the v0 header. <code>Put</code> queries the on-chain upload limits before encoding. Callers using <code>NewBlob</code> and <code>Client.Upload</code> directly should obtain their encoding config from <code>Client.UploadBlobConfig(ctx)</code>. Uploads are checked against the current network limits; downloads use the fixed protocol ceiling so older blobs remain readable.</p>
 <h2 id="5-assignment"><a class="header" href="#5-assignment">5) Assignment</a></h2>
 <p><code>validator.Set.Assign</code> maps row indices to validators using voting power and the configured liveness threshold.</p>
 <p>Inputs:</p>
@@ -5604,12 +5604,17 @@ message EventProcessedPaymentPruned {
 </code></pre>
 <p>On success, <code>ValidatePaymentPromise</code> returns <code>is_valid = true</code> and <code>expiration_time = creation_timestamp + payment_promise_timeout</code>.</p>
 <h2 id="parameters-2"><a class="header" href="#parameters-2">Parameters</a></h2>
+<p><code>min_upload_size</code> and <code>max_upload_size</code> are per-network admission limits for padded original bytes, including the five-byte header and excluding parity. Configure them in genesis or through <code>MsgUpdateFibreParams</code>; both use 256 KiB increments, with minimum no greater than maximum and a fixed 128 MiB safety ceiling. Zero retains the legacy default (256 KiB minimum, 128 MiB maximum), so existing parameter records need no rewrite.</p>
+<p>For a 32 MiB minimum and 64 MiB maximum, set <code>min_upload_size: 33554432</code> and <code>max_upload_size: 67108864</code>. Smaller payloads are padded to the minimum; larger uploads still round in 256 KiB steps. The maximum user payload is the maximum upload size minus five bytes.</p>
+<p>Clients query limits before encoding and uploading. Validators enforce current limits through <code>ValidatePaymentPromise</code> before signing or reserving funds. Changes can reject uploads in flight; clients must fetch the new settings and re-encode when necessary. Settlement (including timeout settlement) deliberately does not apply current admission limits to already signed promises, and downloads continue to accept historical blobs up to the fixed safety ceiling. These are admission parameters, not retroactive block-validity limits.</p>
 <pre><code class="language-proto">message Params {
   google.protobuf.Duration withdrawal_delay = 1 [(gogoproto.moretags) = &quot;yaml:\&quot;withdrawal_delay\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   google.protobuf.Duration payment_promise_timeout = 2 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_timeout\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 payment_promise_height_window = 3 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_height_window\&quot;&quot;];
   google.protobuf.Duration shard_retention = 4 [(gogoproto.moretags) = &quot;yaml:\&quot;shard_retention\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = &quot;yaml:\&quot;full_stake_storage_budget\&quot;&quot;];
+  uint32 min_upload_size = 6;
+  uint32 max_upload_size = 7;
 }
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Validation</th><th>Current use</th></tr></thead><tbody>
@@ -5618,6 +5623,8 @@ message EventProcessedPaymentPruned {
 <tr><td><code>payment_promise_height_window</code></td><td><code>1000</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
 <tr><td><code>shard_retention</code></td><td><code>4h</code></td><td>Must be between <code>10m</code> and <code>168h</code></td><td>Sets the local retention floor validators apply to uploaded shards</td></tr>
 <tr><td><code>full_stake_storage_budget</code></td><td><code>2TiB</code></td><td>Must be positive</td><td>Caps the Fibre disk a 100%-stake validator uses over one <code>shard_retention</code> window; each node derives its own budget from its assigned stake share</td></tr>
+<tr><td><code>min_upload_size</code></td><td><code>0</code> (256 KiB)</td><td>Zero or a multiple of 256 KiB, at most the effective maximum</td><td>Minimum padded size for new uploads</td></tr>
+<tr><td><code>max_upload_size</code></td><td><code>0</code> (128 MiB)</td><td>Zero or a multiple of 256 KiB, at most 128 MiB</td><td>Maximum padded size for new uploads</td></tr>
 </tbody></table>
 </div>
 <p>The processed-payment retention window is not a governance parameter; it is derived as <code>withdrawal_delay + 10m</code> and exposed by <code>Params.PaymentPromiseRetentionWindow()</code> (see the last paragraph for why).</p>
@@ -5809,11 +5816,12 @@ celestia-appd tx valaddr set-host &lt;host:port&gt; --from &lt;validator-operato
 <li>parity rows: 12288</li>
 <li>total rows: 16384</li>
 <li>encoding ratio: 0.25</li>
-<li>minimum row size: 8 KiB</li>
-<li>maximum blob size, including the Fibre blob header: 128 MiB</li>
+<li>minimum row size: 64 bytes</li>
+<li>fixed maximum blob size, including the Fibre blob header: 128 MiB</li>
 <li>maximum user payload size: 128 MiB - 5 bytes</li>
 </ul>
-<p>The <code>4096</code> original-row count pairs with the 8 KiB minimum row size to make the smallest paid upload step <code>4096 * 8192 = 32 MiB</code>. Smaller payloads are padded to this size. Rows round up in 8 KiB steps, a multiple of the 64-byte alignment required by the Leopard/GF(2^16) Reed-Solomon layout.</p>
+<p>Networks can configure a higher minimum padded upload size and a lower maximum through the Fibre module parameters. These admission limits preserve the 64-byte row alignment and 256 KiB upload increments.</p>
+<p>The <code>4096</code> original-row count pairs with the 64-byte minimum row size to make the smallest paid upload step <code>4096 * 64 = 256 KiB</code>. The 64-byte minimum comes from the Leopard/GF(2^16) Reed-Solomon layout. Fewer rows would reduce this step size for small blobs, but would increase Merkle proof overhead per byte; very small choices such as 512 or 1024 rows make proof bandwidth large enough that validators may be close to downloading the whole blob anyway.</p>
 <p>The <code>1:3</code> original-to-parity ratio means any <code>4096</code> rows out of <code>16384</code> are enough to reconstruct the blob, so the row recovery threshold is <code>1/4</code> of the extended data. Fibre uses this instead of a <code>1:2</code> ratio, where recovery would require <code>1/3</code> of the extended data, because the validator liveness target is already <code>1/3</code> of voting power. A <code>1/4</code> row threshold gives room for assignment rounding, duplicate rows, slow or missing validators, and bad rows discarded by RLC verification.</p>
 <p>The chosen shape also fits the codec cleanly: <code>K = 4096</code> and <code>K + N = 16384</code> are both powers of two, and the total row count is well below the GF(2^16) limit of <code>65536</code>. It also satisfies stricter compatible-library bounds such as <code>K + next_power_of_two(N) = 4096 + 16384 = 20480 &lt;= 65536</code>. A <code>1/3</code> encoding ratio with <code>K = 4096</code> would imply <code>12288</code> total rows, which is mathematically plausible but not a power-of-two total for the current RSEMA1D configuration.</p>
 <h3 id="fibre-blob-v0-byte-stream"><a class="header" href="#fibre-blob-v0-byte-stream">Fibre blob v0 byte stream</a></h3>

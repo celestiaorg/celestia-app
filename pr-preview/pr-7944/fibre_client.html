@@ -332,12 +332,12 @@ SignBytes = CometBFT RawBytesMessageSignBytes(
 <li>total rows: <code>16384</code></li>
 <li>encoding ratio: <code>0.25</code></li>
 <li>maximum blob size, including header: <code>128 MiB</code></li>
-<li>minimum row-size alignment: <code>8 KiB</code> (32 MiB padded upload steps)</li>
+<li>minimum row-size alignment: <code>64</code> bytes</li>
 </ul>
 <p><code>UploadSize</code> is the padded original-row size only:</p>
 <pre><code class="language-text">UploadSize = row_size * original_rows
 </code></pre>
-<p>It excludes parity rows but includes padding and the v0 header.</p>
+<p>It excludes parity rows but includes padding and the v0 header. <code>Put</code> queries the on-chain upload limits before encoding. Callers using <code>NewBlob</code> and <code>Client.Upload</code> directly should obtain their encoding config from <code>Client.UploadBlobConfig(ctx)</code>. Uploads are checked against the current network limits; downloads use the fixed protocol ceiling so older blobs remain readable.</p>
 <h2 id="5-assignment"><a class="header" href="#5-assignment">5) Assignment</a></h2>
 <p><code>validator.Set.Assign</code> maps row indices to validators using voting power and the configured liveness threshold.</p>
 <p>Inputs:</p>

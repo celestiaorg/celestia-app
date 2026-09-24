@@ -468,12 +468,17 @@ message EventProcessedPaymentPruned {
 </code></pre>
 <p>On success, <code>ValidatePaymentPromise</code> returns <code>is_valid = true</code> and <code>expiration_time = creation_timestamp + payment_promise_timeout</code>.</p>
 <h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
+<p><code>min_upload_size</code> and <code>max_upload_size</code> are per-network admission limits for padded original bytes, including the five-byte header and excluding parity. Configure them in genesis or through <code>MsgUpdateFibreParams</code>; both use 256 KiB increments, with minimum no greater than maximum and a fixed 128 MiB safety ceiling. Zero retains the legacy default (256 KiB minimum, 128 MiB maximum), so existing parameter records need no rewrite.</p>
+<p>For a 32 MiB minimum and 64 MiB maximum, set <code>min_upload_size: 33554432</code> and <code>max_upload_size: 67108864</code>. Smaller payloads are padded to the minimum; larger uploads still round in 256 KiB steps. The maximum user payload is the maximum upload size minus five bytes.</p>
+<p>Clients query limits before encoding and uploading. Validators enforce current limits through <code>ValidatePaymentPromise</code> before signing or reserving funds. Changes can reject uploads in flight; clients must fetch the new settings and re-encode when necessary. Settlement (including timeout settlement) deliberately does not apply current admission limits to already signed promises, and downloads continue to accept historical blobs up to the fixed safety ceiling. These are admission parameters, not retroactive block-validity limits.</p>
 <pre><code class="language-proto">message Params {
   google.protobuf.Duration withdrawal_delay = 1 [(gogoproto.moretags) = &quot;yaml:\&quot;withdrawal_delay\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   google.protobuf.Duration payment_promise_timeout = 2 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_timeout\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 payment_promise_height_window = 3 [(gogoproto.moretags) = &quot;yaml:\&quot;payment_promise_height_window\&quot;&quot;];
   google.protobuf.Duration shard_retention = 4 [(gogoproto.moretags) = &quot;yaml:\&quot;shard_retention\&quot;&quot;, (gogoproto.stdduration) = true, (gogoproto.nullable) = false];
   uint64 full_stake_storage_budget = 5 [(gogoproto.moretags) = &quot;yaml:\&quot;full_stake_storage_budget\&quot;&quot;];
+  uint32 min_upload_size = 6;
+  uint32 max_upload_size = 7;
 }
 </code></pre>
 <div class="table-wrapper"><table><thead><tr><th>Parameter</th><th>Default</th><th>Validation</th><th>Current use</th></tr></thead><tbody>
@@ -482,6 +487,8 @@ message EventProcessedPaymentPruned {
 <tr><td><code>payment_promise_height_window</code></td><td><code>1000</code></td><td>Must be nonzero</td><td>Limits how far behind the current height a normal payment promise can be</td></tr>
 <tr><td><code>shard_retention</code></td><td><code>4h</code></td><td>Must be between <code>10m</code> and <code>168h</code></td><td>Sets the local retention floor validators apply to uploaded shards</td></tr>
 <tr><td><code>full_stake_storage_budget</code></td><td><code>2TiB</code></td><td>Must be positive</td><td>Caps the Fibre disk a 100%-stake validator uses over one <code>shard_retention</code> window; each node derives its own budget from its assigned stake share</td></tr>
+<tr><td><code>min_upload_size</code></td><td><code>0</code> (256 KiB)</td><td>Zero or a multiple of 256 KiB, at most the effective maximum</td><td>Minimum padded size for new uploads</td></tr>
+<tr><td><code>max_upload_size</code></td><td><code>0</code> (128 MiB)</td><td>Zero or a multiple of 256 KiB, at most 128 MiB</td><td>Maximum padded size for new uploads</td></tr>
 </tbody></table>
 </div>
 <p>The processed-payment retention window is not a governance parameter; it is derived as <code>withdrawal_delay + 10m</code> and exposed by <code>Params.PaymentPromiseRetentionWindow()</code> (see the last paragraph for why).</p>
