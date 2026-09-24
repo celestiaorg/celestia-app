@@ -386,29 +386,32 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
+	// A single signer holds every account. Creating one signer per account
+	// lists the whole keyring each time, which is quadratic in the number of
+	// accounts and needs over 11 GiB for 8000 accounts.
 	addrs := make([]sdk.AccAddress, 0, numberOfAccounts)
 	accs := make([]sdk.AccountI, 0, numberOfAccounts)
-	signers := make([]*user.Signer, 0, numberOfAccounts)
+	signerAccounts := make([]*user.Account, 0, numberOfAccounts)
 	for index, account := range accounts {
 		addr := testfactory.GetAddress(kr, account)
 		addrs = append(addrs, addr)
 		acc := testutil.DirectQueryAccount(testApp, addrs[index])
 		accs = append(accs, acc)
-		signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
-		require.NoError(t, err)
-		signers = append(signers, signer)
+		signerAccounts = append(signerAccounts, user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
 	}
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID, signerAccounts...)
+	require.NoError(t, err)
 
 	numberOfPFBs := appconsts.MaxPFBMessages + 500
 	pfbTxs := make([][]byte, 0, numberOfPFBs)
 	randomBytes := make([]byte, 2000)
-	_, err := rand.Read(randomBytes)
+	_, err = rand.Read(randomBytes)
 	require.NoError(t, err)
 	accountIndex := 0
 	for range numberOfPFBs {
 		blob, err := share.NewBlob(share.RandomNamespace(), randomBytes, 1, accs[accountIndex].GetAddress().Bytes())
 		require.NoError(t, err)
-		tx, _, err := signers[accountIndex].CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
+		tx, _, err := signer.CreatePayForBlobs(accounts[accountIndex], []*share.Blob{blob}, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(t, err)
 		pfbTxs = append(pfbTxs, tx)
 		accountIndex++
@@ -427,7 +430,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			msgs = append(msgs, msg)
 			blobs = append(blobs, blob)
 		}
-		txBytes, _, err := signers[accountIndex].CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
+		txBytes, _, err := signer.CreateTx(msgs, user.SetGasLimit(2549760000), user.SetFee(10000))
 		require.NoError(t, err)
 		blobTx, err := blobtx.MarshalBlobTx(txBytes, blobs...)
 		require.NoError(t, err)
@@ -443,7 +446,7 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			testnode.RandomAddress().(sdk.AccAddress),
 			sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 10)),
 		)
-		rawTx, _, err := signers[accountIndex].CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
+		rawTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1000000), user.SetFee(10))
 		require.NoError(t, err)
 		msgSendTxs = append(msgSendTxs, rawTx)
 		accountIndex++
