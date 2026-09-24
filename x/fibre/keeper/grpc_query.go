@@ -96,12 +96,6 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 
 	ctx := sdk.UnwrapSDKContext(c)
 
-	// Apply current limits only to admission. Already signed promises must remain
-	// settleable after a governance change, including through the timeout path.
-	if err := k.GetParams(ctx).ValidateUploadSize(req.Promise.BlobSize); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
-	}
-
 	// Perform stateful verification only
 	// Note: Stateless validation (signature, format checks) should be done by the caller
 	// before making this query, as it doesn't require state access

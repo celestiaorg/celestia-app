@@ -837,9 +837,6 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 			512<<30,      // FullStakeStorageBudget
 		)
 
-		newParams.MinUploadSize = 32 << 20
-		newParams.MaxUploadSize = 64 << 20
-
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
 			Params:    newParams,

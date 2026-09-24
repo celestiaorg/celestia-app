@@ -485,15 +485,8 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	st.totalSent.Add(1)
 	t := time.Now()
 
-	blobCfg, err := w.fibreClient.UploadBlobConfig(ctx)
-	if err != nil {
-		st.failures.Add(1)
-		fmt.Printf("[%s] upload limits query error: %v\n", w.keyName, err)
-		return
-	}
-
 	if uploadOnly {
-		blob, err := fibre.NewBlob(data, blobCfg)
+		blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 		if err != nil {
 			st.failures.Add(1)
 			fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)
@@ -517,7 +510,7 @@ func submitBlob(ctx context.Context, w worker, blobSize int, uploadOnly bool, st
 	}
 
 	// Async TX mode: encode, upload, broadcast, then hand off confirmation to background workers.
-	blob, err := fibre.NewBlob(data, blobCfg)
+	blob, err := fibre.NewBlob(data, fibre.DefaultBlobConfigV0())
 	if err != nil {
 		st.failures.Add(1)
 		fmt.Printf("[%s] blob encode error: %v\n", w.keyName, err)

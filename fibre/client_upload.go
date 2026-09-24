@@ -105,14 +105,6 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	uploadDone := c.metrics.observeUpload(ctx, blob.UploadSize())
 	defer func() { uploadDone(err) }()
 
-	params, err := c.state.UploadParams(ctx)
-	if err != nil {
-		return result, fmt.Errorf("querying upload limits: %w", err)
-	}
-	if err := params.ValidateUploadSize(uint32(blob.UploadSize())); err != nil {
-		return result, err
-	}
-
 	// 1) get validator set
 	valSet, err := c.validatorSet(ctx, 0)
 	if err != nil {

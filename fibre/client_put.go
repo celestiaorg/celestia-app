@@ -102,11 +102,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	defer span.End()
 
 	// encoding section
-	cfg, err := c.UploadBlobConfig(ctx)
-	if err != nil {
-		return result, err
-	}
-	blob, err := NewBlob(data, cfg)
+	blob, err := NewBlob(data, DefaultBlobConfigV0())
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")
@@ -226,27 +222,4 @@ func retryPFFBroadcast(ctx context.Context, broadcast func(context.Context) (*sd
 		resp, err = broadcast(ctx)
 	}
 	return resp, err
-}
-
-// UploadBlobConfig returns encoding settings for the network's current upload limits.
-// Use this before NewBlob when calling Client.Upload directly.
-func (c *Client) UploadBlobConfig(ctx context.Context) (BlobConfig, error) {
-	params, err := c.state.UploadParams(ctx)
-	if err != nil {
-		return BlobConfig{}, fmt.Errorf("querying upload limits: %w", err)
-	}
-	return BlobConfigWithUploadParams(params)
-}
-
-// BlobConfigWithUploadParams applies network admission limits while sharing codec pools.
-func BlobConfigWithUploadParams(params types.Params) (BlobConfig, error) {
-	if err := params.ValidateUploadLimits(); err != nil {
-		return BlobConfig{}, err
-	}
-	minSize, maxSize := params.UploadLimits()
-	cfg := DefaultBlobConfigV0()
-	rowSize := cfg.RowSize
-	cfg.RowSize = func(dataLen int) int { return max(rowSize(dataLen), int(minSize)/cfg.OriginalRows) }
-	cfg.MaxDataSize = int(maxSize) - blobHeaderLen
-	return cfg, nil
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -235,8 +234,4 @@ func writeConfig(t *testing.T, home, serverListenAddress, appGRPCAddress, signer
 	cfg.AppGRPCAddress = appGRPCAddress
 	cfg.SignerGRPCAddress = signerGRPCAddress
 	require.NoError(t, cfg.Save(fibre.DefaultConfigPath(home)))
-}
-
-func (m *stubStateClient) UploadParams(context.Context) (types.Params, error) {
-	return types.DefaultParams(), nil
 }

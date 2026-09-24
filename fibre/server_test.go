@@ -157,7 +157,3 @@ func (m *testPrivValidator) SignProposal(chainID string, proposal *cmtproto.Prop
 func (m *testPrivValidator) GetAddress() core.Address {
 	return m.privKey.PubKey().Address()
 }
-
-func (m *mockStateClient) UploadParams(context.Context) (types.Params, error) {
-	return types.DefaultParams(), nil
-}

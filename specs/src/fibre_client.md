@@ -261,7 +261,7 @@ Rows are produced with `rsema1d`. Default protocol parameters:
 UploadSize = row_size * original_rows
 ```
 
-It excludes parity rows but includes padding and the v0 header. `Put` queries the on-chain upload limits before encoding. Callers using `NewBlob` and `Client.Upload` directly should obtain their encoding config from `Client.UploadBlobConfig(ctx)`. Uploads are checked against the current network limits; downloads use the fixed protocol ceiling so older blobs remain readable.
+It excludes parity rows but includes padding and the v0 header.
 
 ## 5) Assignment
 

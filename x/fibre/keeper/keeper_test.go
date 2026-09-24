@@ -737,7 +737,7 @@ func (suite *KeeperTestSuite) twoPromisesFundedForOne() (types.PaymentPromise, t
 			ChainId:           "test-chain",
 			Height:            suite.ctx.BlockHeight(),
 			Namespace:         share.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, share.NamespaceVersionZeroIDSize)).Bytes(),
-			BlobSize:          types.UploadSizeAlignment,
+			BlobSize:          uint32(1000),
 			BlobVersion:       0,
 			Commitment:        bytes.Repeat([]byte{commitmentByte}, 32),
 			CreationTimestamp: time.Now().UTC().Truncate(time.Second),
@@ -828,7 +828,7 @@ func (suite *KeeperTestSuite) createPaymentPromise() types.PaymentPromise {
 		ChainId:           "test-chain",
 		Height:            int64(100),
 		Namespace:         share.MustNewV0Namespace(bytes.Repeat([]byte{0x1}, share.NamespaceVersionZeroIDSize)).Bytes(),
-		BlobSize:          types.UploadSizeAlignment,
+		BlobSize:          uint32(1000),
 		BlobVersion:       0,
 		Commitment:        make([]byte, 32),
 		CreationTimestamp: time.Now().UTC().Truncate(time.Second),
@@ -869,33 +869,4 @@ func (suite *KeeperTestSuite) signPaymentPromise(paymentPromise *types.PaymentPr
 	suite.NoError(err)
 	paymentPromise.Signature = signature
 	return paymentPromise
-}
-
-func (suite *KeeperTestSuite) TestUploadLimitsDoNotInvalidateSettlement() {
-	promise := suite.createPaymentPromise()
-	suite.createEscrowAccount(promise)
-	_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise})
-	suite.Require().NoError(err)
-
-	params := suite.keeper.GetParams(suite.ctx)
-	params.MinUploadSize = 32 << 20
-	params.MaxUploadSize = 64 << 20
-	suite.keeper.SetParams(suite.ctx, params)
-	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise})
-	suite.Equal(codes.InvalidArgument, status.Code(err))
-	_, err = suite.keeper.ValidatePaymentPromiseStateful(suite.ctx, &promise)
-	suite.NoError(err)
-	_, err = suite.keeper.ValidatePaymentPromiseStatefulForTimeout(suite.ctx, &promise)
-	suite.NoError(err)
-
-	for _, size := range []uint32{32 << 20, 64 << 20, (64 << 20) + types.UploadSizeAlignment} {
-		promise.BlobSize = size
-		suite.createEscrowAccount(promise)
-		_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise})
-		if size > params.MaxUploadSize {
-			suite.Equal(codes.InvalidArgument, status.Code(err))
-		} else {
-			suite.NoError(err)
-		}
-	}
 }

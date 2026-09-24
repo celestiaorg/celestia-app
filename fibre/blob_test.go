@@ -3,7 +3,6 @@ package fibre
 import (
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -92,25 +91,4 @@ func TestBlob_RetainRefusesAfterRelease(t *testing.T) {
 	// A retain now must refuse rather than resurrect the freed blob.
 	require.False(t, blob.retain())
 	require.True(t, blob.released())
-}
-
-func TestBlobConfigWithUploadParams(t *testing.T) {
-	params := types.DefaultParams()
-	params.MinUploadSize, params.MaxUploadSize = 32<<20, 64<<20
-	cfg, err := BlobConfigWithUploadParams(params)
-	require.NoError(t, err)
-	for _, tt := range []struct{ dataLen, want int }{
-		{1, 32 << 20},
-		{(32 << 20) - blobHeaderLen, 32 << 20},
-		{(32 << 20) - blobHeaderLen + 1, (32 << 20) + (256 << 10)},
-		{cfg.MaxDataSize, 64 << 20},
-	} {
-		require.Equal(t, tt.want, cfg.UploadSize(tt.dataLen))
-	}
-	_, err = NewBlob(make([]byte, cfg.MaxDataSize+1), cfg)
-	require.ErrorIs(t, err, ErrBlobTooLarge)
-	require.Equal(t, 256<<10, DefaultBlobConfigV0().UploadSize(1))
-	params.MinUploadSize = 65 << 20
-	_, err = BlobConfigWithUploadParams(params)
-	require.Error(t, err)
 }

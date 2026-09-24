@@ -201,12 +201,8 @@ func (s *download) Blob(ctx context.Context) (*Blob, error) {
 		s.freeSlab()
 		return nil, err
 	}
-	// Preserve the actual row size even if the network minimum has since changed.
-	cfg := s.cfg
-	rowSize := len(s.slab) / cfg.OriginalRows
-	cfg.RowSize = func(int) int { return rowSize }
 	blob := &Blob{
-		cfg:       cfg,
+		cfg:       s.cfg,
 		id:        s.id,
 		header:    header,
 		data:      data,
