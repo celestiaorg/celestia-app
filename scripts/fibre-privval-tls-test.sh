@@ -189,17 +189,42 @@ if [ "${FIBRES}" = "2" ]; then
   FIBRE2_PID=$!
 fi
 
-# tx <args...>: send a tx from the validator key and print its code.
+# tx <args...>: send a tx from the validator key and require it to be included with code 0.
 tx() {
-  "${APPD}" tx "$@" --from "${KEY_NAME}" --keyring-backend test --home "${APP_HOME}" \
-    --chain-id "${CHAIN_ID}" --fees 5000utia --yes -o json | grep -o '"code":[0-9]*'
-  sleep 3
+  out=$("${APPD}" tx "$@" --from "${KEY_NAME}" --keyring-backend test --home "${APP_HOME}" \
+    --chain-id "${CHAIN_ID}" --fees 5000utia --yes -o json)
+  code=$(echo "${out}" | grep -o '"code":[0-9]*' | head -1 | cut -d: -f2)
+  if [ "${code}" != "0" ]; then
+    echo "tx broadcast failed: ${out}"
+    return 1
+  fi
+  txhash=$(echo "${out}" | grep -o '"txhash":"[0-9A-F]*"' | cut -d'"' -f4)
+  i=0
+  while [ "${i}" -lt 15 ]; do
+    i=$((i + 1))
+    sleep 1
+    result=$("${APPD}" q tx "${txhash}" --home "${APP_HOME}" -o json 2>/dev/null) || continue
+    code=$(echo "${result}" | grep -o '"code":[0-9]*' | head -1 | cut -d: -f2)
+    if [ "${code}" = "0" ]; then
+      echo "tx ${txhash} included (code 0)"
+      return 0
+    fi
+    echo "tx ${txhash} failed: $(echo "${result}" | grep -o '"raw_log":"[^"]*"')"
+    return 1
+  done
+  echo "tx ${txhash} not included in time"
+  return 1
 }
 
-# submit_blob <fibre host>: register the host for the validator and upload a blob through it.
+# submit_blob <fibre host>: register the host for the validator, verify the
+# registration, and upload a blob through it.
 submit_blob() {
   echo "--> registering fibre host $1 and submitting a blob"
   tx valaddr set-host "$1"
+  "${APPD}" q valaddr providers --home "${APP_HOME}" -o json | grep -q "\"host\":\"$1\"" || {
+    echo "fibre host $1 is not registered"
+    return 1
+  }
   go run ./tools/submit-fibre-blob --home "${APP_HOME}" --grpc-addr localhost:9090
 }
 
