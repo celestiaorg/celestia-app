@@ -36,25 +36,32 @@ func main() {
 }
 
 func Run(ctx context.Context) error {
-	home := flag.String("home", "", "node home directory (contains data/)")
+	home := flag.String("home", "", "node home directory")
+	dbDir := flag.String("db-dir", "", "directory with state.db (default: <home>/data)")
+	blockstoreDir := flag.String("blockstore-dir", "", "directory with blockstore.db (default: --db-dir)")
 	backend := flag.String("backend", string(dbm.PebbleDBBackend), "db backend: pebbledb or goleveldb")
 	from := flag.Int64("from", 0, "first height to scan (default: blockstore base)")
 	to := flag.Int64("to", 0, "last height to scan (default: blockstore height)")
 	verifyEvery := flag.Int64("verify-every", 0, "also verify every K-th present result against block H+1 (0 = off)")
 	flag.Parse()
 
-	if *home == "" {
-		return errors.New("--home is required")
+	if *dbDir == "" {
+		if *home == "" {
+			return errors.New("--home or --db-dir is required")
+		}
+		*dbDir = filepath.Join(*home, "data")
 	}
-	dataDir := filepath.Join(*home, "data")
+	if *blockstoreDir == "" {
+		*blockstoreDir = *dbDir
+	}
 
-	blockStoreDB, err := openReadOnly("blockstore", dbm.BackendType(*backend), dataDir)
+	blockStoreDB, err := openReadOnly("blockstore", dbm.BackendType(*backend), *blockstoreDir)
 	if err != nil {
 		return err
 	}
 	defer blockStoreDB.Close()
 
-	stateDB, err := openReadOnly("state", dbm.BackendType(*backend), dataDir)
+	stateDB, err := openReadOnly("state", dbm.BackendType(*backend), *dbDir)
 	if err != nil {
 		return err
 	}
@@ -141,6 +148,9 @@ func Scan(ctx context.Context, blockStore *store.BlockStore, stateDB dbm.DB, fro
 		fmt.Printf("verified %d present results, %d failed\n\n", verified, verifyFailures)
 	}
 	printGaps(gaps.gaps)
+	if verifyFailures > 0 {
+		return fmt.Errorf("%d present results failed verification", verifyFailures)
+	}
 	return nil
 }
 

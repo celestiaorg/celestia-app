@@ -23,10 +23,14 @@ scp build/scan-blockresults.linux node:/tmp/scan-blockresults
 /tmp/scan-blockresults --home ~/.celestia-app [--from H] [--to H] [--verify-every K] [--backend pebbledb|goleveldb]
 ```
 
-`--from` and `--to` default to the blockstore base and height. With `--verify-every K`, every
-K-th present result is loaded the way `/block_results` loads it and its `AppHash` and results hash
-are checked against the header of block `H+1`. Results in the legacy format carry no `AppHash` and
-are only checked for being loadable.
+The stores are read from `<home>/data`. If the node sets `db_dir` or `blockstore_dir`, pass the
+directories with `--db-dir` and `--blockstore-dir`. `--db-dir` also works without `--home`, e.g.
+to scan a copied `data.new`. `--from` and `--to` default to the blockstore base and height.
+
+With `--verify-every K`, every K-th present result is loaded the way `/block_results` loads it and
+its `AppHash` and results hash are checked against the header of block `H+1`. Results in the
+legacy format carry no `AppHash` and are only checked for being loadable. The tool exits non-zero
+if any verification fails.
 
 Example output (numbers are illustrative):
 
