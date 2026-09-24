@@ -110,12 +110,12 @@ func (cc *ClientCache) release(entry *clientEntry) {
 	cc.mu.Lock()
 	entry.users--
 	closeClient := entry.retired && entry.users == 0
-	if closeClient {
-		delete(cc.entries, entry)
-	}
 	cc.mu.Unlock()
 	if closeClient {
 		_ = entry.close()
+		cc.mu.Lock()
+		delete(cc.entries, entry)
+		cc.mu.Unlock()
 	}
 }
 
@@ -214,12 +214,12 @@ func (cc *ClientCache) evict(val *core.Validator, entry *clientEntry) {
 	delete(cc.clients, addr)
 	entry.retired = true
 	closeClient := entry.users == 0
-	if closeClient {
-		delete(cc.entries, entry)
-	}
 	cc.mu.Unlock()
 	if closeClient {
 		_ = entry.close()
+		cc.mu.Lock()
+		delete(cc.entries, entry)
+		cc.mu.Unlock()
 	}
 }
 

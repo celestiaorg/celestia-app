@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -358,4 +359,79 @@ func TestClientCacheRequest_OldFailureKeepsReplacement(t *testing.T) {
 	require.Same(t, replacement, retried)
 	require.EqualValues(t, 2, dials.Load())
 	require.Zero(t, replacement.(*lifetimeClient).closes.Load())
+}
+
+type blockingCloseClient struct {
+	lifetimeClient
+	started chan struct{}
+	finish  chan struct{}
+}
+
+func (c *blockingCloseClient) Close() error {
+	close(c.started)
+	<-c.finish
+	return c.lifetimeClient.Close()
+}
+
+func TestClientCacheClose_WaitsForRetiredConnection(t *testing.T) {
+	for _, retireWithActiveRequest := range []bool{false, true} {
+		name := "evict"
+		if retireWithActiveRequest {
+			name = "release"
+		}
+		t.Run(name, func(t *testing.T) {
+			stale := &blockingCloseClient{
+				lifetimeClient: lifetimeClient{closed: make(chan struct{})},
+				started:        make(chan struct{}),
+				finish:         make(chan struct{}),
+			}
+			dials := 0
+			cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+				dials++
+				if dials == 1 {
+					return stale, nil
+				}
+				return &lifetimeClient{closed: make(chan struct{})}, nil
+			}, 1)
+			defer cache.Close() //nolint:errcheck
+			requestDone := make(chan error, 1)
+			failStale := func(c grpc.Client) error {
+				if c == stale {
+					return errUnreachable
+				}
+				return nil
+			}
+			if retireWithActiveRequest {
+				active := make(chan struct{})
+				finishRequest := make(chan struct{})
+				go func() {
+					requestDone <- cache.Request(t.Context(), requestVal, func(grpc.Client) error {
+						close(active)
+						<-finishRequest
+						return nil
+					})
+				}()
+				<-active
+				require.NoError(t, cache.Request(t.Context(), requestVal, failStale))
+				close(finishRequest)
+			} else {
+				go func() { requestDone <- cache.Request(t.Context(), requestVal, failStale) }()
+			}
+			<-stale.started
+			shutdownDone := make(chan struct{})
+			go func() {
+				assert.NoError(t, cache.Close())
+				close(shutdownDone)
+			}()
+			select {
+			case <-shutdownDone:
+				t.Error("cache shutdown returned before the retired connection closed")
+			case <-time.After(100 * time.Millisecond):
+			}
+			close(stale.finish)
+			<-shutdownDone
+			<-requestDone
+			require.EqualValues(t, 1, stale.closes.Load())
+		})
+	}
 }
