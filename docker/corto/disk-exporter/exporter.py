@@ -18,6 +18,7 @@ def dir_size(path):
             try:
                 total += os.path.getsize(fp)
             except OSError:
+                # Files may disappear or become unreadable during traversal.
                 pass
     return total
 

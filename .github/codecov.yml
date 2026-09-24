@@ -1,1 +1,9 @@
 comment: false
+
+ignore:
+  # Generated protobuf code.
+  - "**/*.pb.go"
+  - "**/*.pb.gw.go"
+  # Test utilities and one-off CLI tools.
+  - "test/**/*"
+  - "tools/**/*"

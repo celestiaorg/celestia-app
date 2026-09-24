@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -447,7 +448,7 @@ echo "Reader $(hostname) initialized"
 	return os.WriteFile(path, []byte(script), 0o755)
 }
 
-func writeAWSEnv(varsPath string, cfg Config) error {
+func writeAWSEnv(varsPath string, cfg Config) (err error) {
 	f, err := os.OpenFile(varsPath,
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
 		0o755,
@@ -455,7 +456,11 @@ func writeAWSEnv(varsPath string, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to open vars.sh for append: %w", err)
 	}
-	defer f.Close()
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close vars.sh: %w", closeErr))
+		}
+	}()
 
 	exports := []string{
 		fmt.Sprintf("export AWS_DEFAULT_REGION=%q\n", cfg.S3Config.Region),
