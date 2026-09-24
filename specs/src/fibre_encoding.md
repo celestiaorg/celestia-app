@@ -42,11 +42,11 @@ Default protocol parameters for version 0:
 - parity rows: 12288
 - total rows: 16384
 - encoding ratio: 0.25
-- minimum row size: 64 bytes
+- minimum row size: 8 KiB
 - maximum blob size, including the Fibre blob header: 128 MiB
 - maximum user payload size: 128 MiB - 5 bytes
 
-The `4096` original-row count pairs with the 64-byte minimum row size to make the smallest paid upload step `4096 * 64 = 256 KiB`. The 64-byte minimum comes from the Leopard/GF(2^16) Reed-Solomon layout. Fewer rows would reduce this step size for small blobs, but would increase Merkle proof overhead per byte; very small choices such as 512 or 1024 rows make proof bandwidth large enough that validators may be close to downloading the whole blob anyway.
+The `4096` original-row count pairs with the 8 KiB minimum row size to make the smallest paid upload step `4096 * 8192 = 32 MiB`. Smaller payloads are padded to this size. Rows round up in 8 KiB steps, a multiple of the 64-byte alignment required by the Leopard/GF(2^16) Reed-Solomon layout.
 
 The `1:3` original-to-parity ratio means any `4096` rows out of `16384` are enough to reconstruct the blob, so the row recovery threshold is `1/4` of the extended data. Fibre uses this instead of a `1:2` ratio, where recovery would require `1/3` of the extended data, because the validator liveness target is already `1/3` of voting power. A `1/4` row threshold gives room for assignment rounding, duplicate rows, slow or missing validators, and bad rows discarded by RLC verification.
 

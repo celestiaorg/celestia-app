@@ -253,7 +253,7 @@ Rows are produced with `rsema1d`. Default protocol parameters:
 * total rows: `16384`
 * encoding ratio: `0.25`
 * maximum blob size, including header: `128 MiB`
-* minimum row-size alignment: `64` bytes
+* minimum row-size alignment: `8 KiB` (32 MiB padded upload steps)
 
 `UploadSize` is the padded original-row size only:
 

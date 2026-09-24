@@ -65,8 +65,8 @@ var DefaultProtocolParams = ProtocolParams{
 	SafetyThreshold:            cmtmath.Fraction{Numerator: 2, Denominator: 3},
 	LivenessThreshold:          cmtmath.Fraction{Numerator: 1, Denominator: 3},
 
-	MaxBlobSize: 1 << 27, // 128 MiB
-	MinRowSize:  field.LeopardChunkSize,
+	MaxBlobSize: 1 << 27,                      // 128 MiB
+	MinRowSize:  128 * field.LeopardChunkSize, // 8 KiB rows give a 32 MiB minimum padded upload.
 }
 
 func init() {
