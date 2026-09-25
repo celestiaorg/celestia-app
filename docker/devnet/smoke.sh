@@ -30,19 +30,18 @@ credentials=$(dc exec -T validator bash -c 'sha256sum /credentials/*')
 # shellcheck disable=SC2016
 [[ $(dc exec -T bridge bash -c 'sha256sum /credentials/*') == "$credentials" ]]
 initial_hash=$(hash)
-# shellcheck disable=SC2016
-dc exec -T validator bash -c '
+dc exec -T validator bash -seuo pipefail <<'EOF'
   for name in validator-0 node-{0..9}; do
     address=$(cat "/credentials/$name.addr")
-    jq -e --arg address "$address" '\''.app_state.bank.balances[] | select(.address == $address) | .coins == [{denom: "utia", amount: "1000000000000000"}]'\'' /data/validator/config/genesis.json >/dev/null
+    jq -e --arg address "$address" '.app_state.bank.balances[] | select(.address == $address) | .coins == [{denom: "utia", amount: "1000000000000000"}]' /data/validator/config/genesis.json >/dev/null
     celestia-appd query fibre escrow-account "$address" --home /data/validator --node tcp://127.0.0.1:26657 --output json |
-      jq -e '\''.found and .escrow_account.balance.amount == "1000000000000" and .escrow_account.available_balance.amount == "1000000000000"'\'' >/dev/null
+      jq -e '.found and .escrow_account.balance.amount == "1000000000000" and .escrow_account.available_balance.amount == "1000000000000"' >/dev/null
   done
   for i in {0..9}; do
     celestia-appd query bank balances "$(cat "/credentials/node-$i.addr")" --home /data/validator --node tcp://127.0.0.1:26657 --output json |
-      jq -e '\''.balances == [{denom: "utia", amount: "1000000000000000"}]'\'' >/dev/null
+      jq -e '.balances == [{denom: "utia", amount: "1000000000000000"}]' >/dev/null
   done
-'
+EOF
 receipt=$(bridge blob submit 0x0102030405060708090a 0x6465766e6574)
 blob_height=$(jq -er '.result.height' <<<"$receipt")
 commitment=$(jq -er '.result.commitments[0]' <<<"$receipt")

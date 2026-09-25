@@ -35,7 +35,7 @@ jobs:
       tag: ${{ steps.version.outputs.tag }}
     env:
       DEVNET_VERSION: local
-      DEVNET_LOG: /tmp/devnet.log
+      DEVNET_LOG_DIR: /tmp/devnet-logs
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -68,7 +68,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: devnet-logs-${{ matrix.arch }}
-          path: /tmp/devnet.log
+          path: ${{ env.DEVNET_LOG_DIR }}
           if-no-files-found: ignore
       - name: Save tested images
         if: steps.version.outputs.tag != '' && github.repository == 'celestiaorg/celestia-app'
