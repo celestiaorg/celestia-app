@@ -202,6 +202,12 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
 	}
 
+	// Reject below the local minimum before reserving escrow through the state
+	// query or doing shard verification, storage, and signing.
+	if uint64(promise.UploadSize) < uint64(s.Config.MinUploadSize) {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("upload size %d is below local minimum %d bytes", promise.UploadSize, s.Config.MinUploadSize)
+	}
+
 	// validate stateful constraints
 	verifyResult, err := s.state.VerifyPromise(ctx, promisePb)
 	if err != nil {
