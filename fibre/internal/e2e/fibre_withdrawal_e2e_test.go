@@ -78,11 +78,7 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), depositResp.Code)
 
-<<<<<<< HEAD
-	acc := escrow()
-=======
 	acc := escrow(deposit, deposit)
->>>>>>> 8117a95 (feat(fibre): Introduce ability to use object storage for storing blob shards (#7808))
 	require.Equal(t, deposit, acc.Balance)
 	require.Equal(t, deposit, acc.AvailableBalance)
 
@@ -92,11 +88,7 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), reqResp.Code)
 
-<<<<<<< HEAD
-	acc = escrow()
-=======
 	acc = escrow(deposit, deposit.Sub(withdraw))
->>>>>>> 8117a95 (feat(fibre): Introduce ability to use object storage for storing blob shards (#7808))
 	require.Equal(t, deposit, acc.Balance, "total balance stays locked until the withdrawal executes")
 	require.Equal(t, deposit.Sub(withdraw), acc.AvailableBalance, "available balance drops by the requested amount")
 
