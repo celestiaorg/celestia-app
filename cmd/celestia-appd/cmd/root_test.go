@@ -60,17 +60,16 @@ func TestAllowInsecurePrivValGRPC(t *testing.T) {
 		return cmd, sctx
 	}
 
-	t.Run("flag not passed leaves the key unset", func(t *testing.T) {
+	t.Run("flag not passed leaves the config unchanged", func(t *testing.T) {
 		cmd, sctx := newCmd(t)
 		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
-		require.False(t, sctx.Viper.IsSet(privValGRPCAllowInsecureKey))
+		require.False(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
 	})
 
-	t.Run("flag passed sets the key to true", func(t *testing.T) {
+	t.Run("flag passed enables the insecure override", func(t *testing.T) {
 		cmd, sctx := newCmd(t)
 		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
 		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
-		require.True(t, sctx.Viper.GetBool(privValGRPCAllowInsecureKey))
 		require.True(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
 	})
 

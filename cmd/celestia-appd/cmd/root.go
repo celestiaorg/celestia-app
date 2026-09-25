@@ -45,11 +45,6 @@ const (
 	// FlagPrivValGRPCAllowInsecure force-allows the privval gRPC endpoint to
 	// listen on a non-localhost address without mutual TLS.
 	FlagPrivValGRPCAllowInsecure = "privval-grpc-allow-insecure"
-
-	// privValGRPCAllowInsecureKey is the mapstructure key of the comet config
-	// field priv_validator_grpc_allow_insecure. Referenced by key because the
-	// pinned celestia-core version does not define the struct field yet.
-	privValGRPCAllowInsecureKey = "priv_validator_grpc_allow_insecure"
 )
 
 // NewRootCmd creates a new root command for celestia-appd.
@@ -191,11 +186,8 @@ func allowInsecurePrivValGRPC(cmd *cobra.Command, logger log.Logger) error {
 	logger.Warn("DANGER: forcing priv_validator_grpc_allow_insecure=true; the privval gRPC endpoint may listen on a non-localhost address without mutual TLS")
 
 	sctx := server.GetServerContextFromCmd(cmd)
-	sctx.Viper.Set(privValGRPCAllowInsecureKey, true)
-	// Re-unmarshal viper into the comet config so the key reaches the struct
-	// field once the celestia-core dependency defines it; until then this is a
-	// no-op because mapstructure ignores unknown keys.
-	return sctx.Viper.Unmarshal(sctx.Config)
+	sctx.Config.PrivValidatorGRPCAllowInsecure = true
+	return nil
 }
 
 // replaceLogger optionally replaces the logger with a file logger if the flag
