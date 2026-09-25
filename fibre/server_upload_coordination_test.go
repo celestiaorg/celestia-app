@@ -49,24 +49,21 @@ func TestUploadIndependentPromises(t *testing.T) {
 	require.NotNil(t, second, "must find a first-byte collision")
 	backend := &blockedUploadBackend{shardBackend: server.store.shards.primary, hash: hex.EncodeToString(firstHash), entered: make(chan struct{}), release: make(chan struct{})}
 	server.store.shards.primary = backend
-	firstDone := startTestUpload(server, t.Context(), first)
-	var secondDone <-chan error
+	firstDone := startTestUpload(t, server, t.Context(), first)
 	defer func() {
 		close(backend.release)
-		require.NoError(t, <-firstDone)
-		if secondDone != nil {
-			require.NoError(t, <-secondDone)
-		}
+		require.NoError(t, waitTestUpload(t, firstDone))
 	}()
 	select {
 	case <-backend.entered:
+	case err := <-firstDone:
+		t.Fatalf("first upload returned before entering storage: %v", err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("first upload did not enter storage")
 	}
-	secondDone = startTestUpload(server, t.Context(), second)
+	secondDone := startTestUpload(t, server, t.Context(), second)
 	select {
 	case err := <-secondDone:
-		secondDone = nil
 		require.NoError(t, err)
 	case <-time.After(5 * time.Second):
 		t.Fatal("different promise with the same first hash byte blocked behind storage")
@@ -92,17 +89,25 @@ func TestUploadDuplicateAndFailedOwner(t *testing.T) {
 			backend := &blockedUploadBackend{shardBackend: server.store.shards.primary, hash: hex.EncodeToString(hash), entered: make(chan struct{}), release: make(chan struct{}), fail: fail}
 			server.store.shards.primary = backend
 			server.occ.setBudget(shardBinarySize(req.Shard))
-			first := startTestUpload(server, t.Context(), req)
-			<-backend.entered
-			second := startTestUpload(server, t.Context(), req)
-			close(backend.release)
-			firstErr := <-first
+			release := sync.OnceFunc(func() { close(backend.release) })
+			defer release()
+			first := startTestUpload(t, server, t.Context(), req)
+			select {
+			case <-backend.entered:
+			case err := <-first:
+				t.Fatalf("first upload returned before entering storage: %v", err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("first upload did not enter storage")
+			}
+			second := startTestUpload(t, server, t.Context(), req)
+			release()
+			firstErr := waitTestUpload(t, first)
 			if fail {
 				require.Equal(t, codes.Internal, status.Code(firstErr))
 			} else {
 				require.NoError(t, firstErr)
 			}
-			require.NoError(t, <-second)
+			require.NoError(t, waitTestUpload(t, second))
 			wantPuts := int32(1)
 			if fail {
 				wantPuts++
@@ -140,10 +145,30 @@ func (b *blockedUploadBackend) Put(ctx context.Context, commitment Commitment, h
 	return b.shardBackend.Put(ctx, commitment, hash, shard)
 }
 
-func startTestUpload(s *Server, ctx context.Context, req *types.UploadShardRequest) <-chan error {
+func startTestUpload(t *testing.T, s *Server, ctx context.Context, req *types.UploadShardRequest) <-chan error {
+	t.Helper()
 	done := make(chan error, 1)
-	go func() { _, err := s.UploadShard(ctx, req); done <- err }()
+	go func() {
+		defer close(done)
+		_, err := s.UploadShard(ctx, req)
+		done <- err
+	}()
+	t.Cleanup(func() {
+		if err := waitTestUpload(t, done); err != nil {
+			t.Errorf("upload cleanup: %v", err)
+		}
+	})
 	return done
+}
+
+func waitTestUpload(t *testing.T, done <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(5 * time.Second):
+		return errors.New("upload did not finish within 5 seconds")
+	}
 }
 
 type uploadTestState struct {
