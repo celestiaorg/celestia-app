@@ -39,7 +39,7 @@ if [[ ! -f "$home/initialized" ]]; then
 fi
 jq -e --arg network "$network" '.chain_id == $network' "$home/config/genesis.json" >/dev/null
 pids=()
-# shellcheck disable=SC2329
+# shellcheck disable=SC2317,SC2329
 cleanup() {
   kill -TERM "${pids[@]}" 2>/dev/null || true
   for pid in "${pids[@]}"; do wait "$pid" || true; done
