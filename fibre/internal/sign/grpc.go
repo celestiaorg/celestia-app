@@ -137,7 +137,14 @@ func (g *GRPCClient) GetPubKey() (crypto.PubKey, error) {
 }
 
 // SignRawBytes delegates signing to the remote PrivValidatorAPI gRPC endpoint.
+// It only signs for the chain ID the client was created with, so a caller
+// can't use this connection to sign for other chains (e.g. keys for other
+// chains co-hosted in the same remote signer).
 func (g *GRPCClient) SignRawBytes(chainID, uniqueID string, rawBytes []byte) ([]byte, error) {
+	if chainID != g.chainID {
+		return nil, fmt.Errorf("chain ID mismatch: want %s, got %s", g.chainID, chainID)
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), signTimeout)
 	defer cancel()
 

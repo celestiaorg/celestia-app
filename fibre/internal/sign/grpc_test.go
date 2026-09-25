@@ -86,6 +86,34 @@ func TestGRPCClientSignRawBytesError(t *testing.T) {
 	assert.Contains(t, err.Error(), "remote signer error")
 }
 
+// recordingPV signs for any chain ID, like a multi-chain remote signer, and
+// records whether it was asked to sign.
+type recordingPV struct {
+	types.MockPV
+	signCalls int
+}
+
+func (pv *recordingPV) SignRawBytes(chainID, uniqueID string, rawBytes []byte) ([]byte, error) {
+	pv.signCalls++
+	return pv.MockPV.SignRawBytes(chainID, uniqueID, rawBytes)
+}
+
+func TestGRPCClientSignRawBytesRejectsOtherChainID(t *testing.T) {
+	pv := &recordingPV{MockPV: types.NewMockPV()}
+	addr := startTestServer(t, pv)
+
+	client, err := sign.NewGRPCClient(addr, testChainID, nil, slog.Default())
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = client.Close() })
+
+	_, err = client.SignRawBytes("other-chain", "fiber-commitment", []byte("test data"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "chain ID mismatch")
+
+	// The request must never reach the signer, which would sign for any chain.
+	assert.Zero(t, pv.signCalls)
+}
+
 func TestGRPCClientClose(t *testing.T) {
 	pv := types.NewMockPV()
 	addr := startTestServer(t, pv)
