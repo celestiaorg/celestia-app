@@ -36,7 +36,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const downloadDelay = 10 * time.Second
+const (
+	downloadDelay   = 10 * time.Second
+	otlpMetricsPath = "/v1/metrics"
+	otlpTracesPath  = "/v1/traces"
+)
 
 type config struct {
 	grpcEndpoint      string
@@ -46,6 +50,8 @@ type config struct {
 	concurrency       int
 	interval          time.Duration
 	duration          time.Duration
+	otelMetricsPath   string
+	otelTracesPath    string
 	otelEndpoint      string
 	download          bool
 	uploadOnly        bool
@@ -64,6 +70,8 @@ func main() {
 	flag.DurationVar(&cfg.interval, "interval", 0, "delay between blob submissions per worker (0 = no delay)")
 	flag.DurationVar(&cfg.duration, "duration", 0, "how long to run (0 = until killed)")
 	flag.StringVar(&cfg.otelEndpoint, "otel-endpoint", "", "OpenTelemetry OTLP HTTP endpoint for metrics (e.g. http://host:4318)")
+	flag.StringVar(&cfg.otelMetricsPath, "otel-metrics-path", otlpMetricsPath, "OTLP HTTP metrics path (replaces the endpoint URL path)")
+	flag.StringVar(&cfg.otelTracesPath, "otel-traces-path", otlpTracesPath, "OTLP HTTP traces path (replaces the endpoint URL path)")
 	flag.BoolVar(&cfg.download, "download", false, "enable download verification after each successful upload")
 	flag.BoolVar(&cfg.uploadOnly, "upload-only", false, "skip PFF transaction — only upload shards to validators without on-chain confirmation")
 	flag.StringVar(&cfg.pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (e.g. http://host:4040)")
@@ -140,13 +148,13 @@ func run(cfg config) error {
 	}
 
 	if cfg.otelEndpoint != "" {
-		metricsShutdown, err := setupOTelMetrics(context.Background(), cfg.otelEndpoint)
+		metricsShutdown, err := setupOTelMetrics(context.Background(), cfg.otelEndpoint, cfg.otelMetricsPath)
 		if err != nil {
 			return fmt.Errorf("setup OTel metrics: %w", err)
 		}
 		defer metricsShutdown(context.Background())
 
-		traceShutdown, err := setupOTelTracing(context.Background(), cfg.otelEndpoint)
+		traceShutdown, err := setupOTelTracing(context.Background(), cfg.otelEndpoint, cfg.otelTracesPath)
 		if err != nil {
 			return fmt.Errorf("setup OTel tracing: %w", err)
 		}
@@ -373,8 +381,8 @@ func run(cfg config) error {
 	return nil
 }
 
-func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Context), error) {
-	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint))
+func setupOTelMetrics(ctx context.Context, endpoint, metricsPath string) (func(context.Context), error) {
+	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint), otlpmetrichttp.WithURLPath(metricsPath))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
 	}
@@ -406,8 +414,8 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 	}, nil
 }
 
-func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Context), error) {
-	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
+func setupOTelTracing(ctx context.Context, endpoint, tracesPath string) (func(context.Context), error) {
+	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint), otlptracehttp.WithURLPath(tracesPath))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}
