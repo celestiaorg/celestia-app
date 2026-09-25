@@ -18,6 +18,7 @@ import (
 type ClientCache struct {
 	newClient NewClientFn
 	tracer    trace.Tracer
+	closeMu   sync.Mutex
 	mu        sync.Mutex
 	clients   map[string]*clientEntry   // keyed by validator address string
 	entries   map[*clientEntry]struct{} // includes retired clients with active requests
@@ -63,14 +64,6 @@ func NewClientCache(newClient NewClientFn, expectedSize int, opts ...ClientCache
 		opt(cc)
 	}
 	return cc
-}
-
-// GetClient returns a cached [Client] for the validator, creating one if needed.
-// Use Request to keep the client open while an RPC is in flight.
-func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Client, error) {
-	entry, client, err := cc.acquire(ctx, val)
-	cc.release(entry)
-	return client, err
 }
 
 var errCacheClosed = errors.New("client cache is closed")
@@ -224,8 +217,11 @@ func (cc *ClientCache) evict(val *core.Validator, entry *clientEntry) {
 }
 
 // Close closes all clients, including retired clients with active requests.
-// Subsequent requests return an error.
+// Concurrent Close calls wait for closure to finish. Subsequent requests return an error.
 func (cc *ClientCache) Close() (err error) {
+	cc.closeMu.Lock()
+	defer cc.closeMu.Unlock()
+
 	cc.mu.Lock()
 	cc.closed = true
 	entries := cc.entries

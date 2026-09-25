@@ -40,7 +40,10 @@ func TestClientCache(t *testing.T) {
 			defer wg.Done()
 			// each goroutine requests a client from a validator (round-robin)
 			val := validators[idx%len(validators)]
-			clients[idx], errors[idx] = cache.GetClient(t.Context(), val)
+			errors[idx] = cache.Request(t.Context(), val, func(client grpc.Client) error {
+				clients[idx] = client
+				return nil
+			})
 		}(i)
 	}
 	wg.Wait()
@@ -75,11 +78,9 @@ func TestClientCache(t *testing.T) {
 	assert.True(t, mockClient2.closed)
 }
 
-// TestClientCacheGetCloseConcurrentRace verifies that concurrent calls to GetClient
+// TestClientCacheRequestCloseConcurrentRace verifies that concurrent calls to Request
 // and Close do not produce a data race. Run with -race to catch the regression.
-// The original sync.Once implementation allowed Close to read entry.clientCloser
-// without holding the entry lock, racing with GetClient's write inside Do.
-func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
+func TestClientCacheRequestCloseConcurrentRace(t *testing.T) {
 	const numGoroutines = 50
 	cache := grpc.NewClientCache(mockClientFn(false), 1)
 	val := &core.Validator{Address: []byte("validator-1")}
@@ -90,7 +91,7 @@ func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
 	for range numGoroutines {
 		go func() {
 			defer wg.Done()
-			cache.GetClient(t.Context(), val) //nolint:errcheck
+			cache.Request(t.Context(), val, func(grpc.Client) error { return nil }) //nolint:errcheck
 		}()
 	}
 
@@ -137,10 +138,12 @@ func TestClientCacheRequest_ClearsCachedDialError(t *testing.T) {
 	cache := grpc.NewClientCache(fn, 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
-	// The first two GetClient calls cache and reuse the dial error.
-	_, err := cache.GetClient(t.Context(), val)
+	// A cancelled context prevents retries, leaving the dial error cached.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := cache.Request(ctx, val, func(grpc.Client) error { return nil })
 	require.Error(t, err)
-	_, err = cache.GetClient(t.Context(), val)
+	err = cache.Request(ctx, val, func(grpc.Client) error { return nil })
 	require.Error(t, err)
 	require.Equal(t, 1, calls, "error should be cached, not re-dialed")
 
@@ -371,6 +374,35 @@ func (c *blockingCloseClient) Close() error {
 	close(c.started)
 	<-c.finish
 	return c.lifetimeClient.Close()
+}
+
+func TestClientCacheClose_WaitsForConcurrentClose(t *testing.T) {
+	client := &blockingCloseClient{
+		lifetimeClient: lifetimeClient{closed: make(chan struct{})},
+		started:        make(chan struct{}),
+		finish:         make(chan struct{}),
+	}
+	cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+		return client, nil
+	}, 1)
+	require.NoError(t, cache.Request(t.Context(), requestVal, func(grpc.Client) error { return nil }))
+	firstDone := make(chan error, 1)
+	go func() { firstDone <- cache.Close() }()
+	<-client.started
+	secondDone := make(chan struct{})
+	go func() {
+		assert.NoError(t, cache.Close())
+		close(secondDone)
+	}()
+	select {
+	case <-secondDone:
+		t.Error("concurrent shutdown returned before the connection closed")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(client.finish)
+	require.NoError(t, <-firstDone)
+	<-secondDone
+	require.EqualValues(t, 1, client.closes.Load())
 }
 
 func TestClientCacheClose_WaitsForRetiredConnection(t *testing.T) {
