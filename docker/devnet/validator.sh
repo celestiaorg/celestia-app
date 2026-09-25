@@ -42,7 +42,14 @@ pids=()
 # shellcheck disable=SC2317,SC2329
 cleanup() {
   kill -TERM "${pids[@]}" 2>/dev/null || true
-  for pid in "${pids[@]}"; do wait "$pid" || true; done
+  for pid in "${pids[@]}"; do
+    for ((i=0; i<5; i++)); do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 1
+    done
+    kill -KILL "$pid" 2>/dev/null || true
+    wait "$pid" || true
+  done
 }
 trap cleanup EXIT
 trap 'exit 0' TERM INT
