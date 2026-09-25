@@ -71,13 +71,13 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 
 	builder := networks.NewChainBuilder(s.T(), mochaConfig, dockerCfg)
 	builder = builder.WithAdditionalStartArgs(startArgs...).
-		WithBlockWaitTimeout(syncToTipTimeout)
+		WithBlockWaitTimeout(syncToTipTimeout).
+		WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
+			return configureStateSyncClient(ctx, node, mochaConfig.RPCs, trustHeight, trustHash)
+		})
 	mochaChain, err := builder.
 		WithNodes(cosmos.NewChainNodeConfigBuilder().
 			WithNodeType(tastoratypes.NodeTypeConsensusFull).
-			WithPostInit(func(ctx context.Context, node *cosmos.ChainNode) error {
-				return configureStateSyncClient(ctx, node, mochaConfig.RPCs, trustHeight, trustHash)
-			}).
 			Build(),
 		).
 		Build(ctx)
