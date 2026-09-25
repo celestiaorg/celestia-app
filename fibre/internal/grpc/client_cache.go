@@ -18,8 +18,11 @@ import (
 type ClientCache struct {
 	newClient NewClientFn
 	tracer    trace.Tracer
+	closeMu   sync.Mutex
 	mu        sync.Mutex
-	clients   map[string]*clientEntry // keyed by validator address string
+	clients   map[string]*clientEntry   // keyed by validator address string
+	entries   map[*clientEntry]struct{} // includes retired clients with active requests
+	closed    bool
 }
 
 // clientEntry holds a lazily-initialized [Client].
@@ -27,6 +30,10 @@ type clientEntry struct {
 	sync.Mutex
 	clientCloser Client
 	err          error
+	closed       bool
+	// Protected by ClientCache.mu.
+	users   int
+	retired bool
 }
 
 // ClientCacheOption configures a [ClientCache].
@@ -51,6 +58,7 @@ func NewClientCache(newClient NewClientFn, expectedSize int, opts ...ClientCache
 		newClient: newClient,
 		tracer:    otel.Tracer("fibre-client"),
 		clients:   make(map[string]*clientEntry, expectedSize),
+		entries:   make(map[*clientEntry]struct{}, expectedSize),
 	}
 	for _, opt := range opts {
 		opt(cc)
@@ -58,30 +66,63 @@ func NewClientCache(newClient NewClientFn, expectedSize int, opts ...ClientCache
 	return cc
 }
 
-// GetClient returns a cached [Client] for the validator, creating one if needed.
-// Uses the constructor function provided to [NewClientCache]. Only one dial per validator will occur.
-func (cc *ClientCache) GetClient(ctx context.Context, val *core.Validator) (Client, error) {
-	addr := val.Address.String()
+var errCacheClosed = errors.New("client cache is closed")
 
+// acquire holds a lease even when dialing fails, so eviction can identify the generation.
+func (cc *ClientCache) acquire(ctx context.Context, val *core.Validator) (*clientEntry, Client, error) {
+	addr := val.Address.String()
 	cc.mu.Lock()
+	if cc.closed {
+		cc.mu.Unlock()
+		return nil, nil, errCacheClosed
+	}
 	entry, ok := cc.clients[addr]
 	if !ok {
 		entry = &clientEntry{}
 		cc.clients[addr] = entry
+		cc.entries[entry] = struct{}{}
 	}
+	entry.users++
 	cc.mu.Unlock()
 
 	entry.Lock()
 	defer entry.Unlock()
-	if entry.clientCloser != nil {
-		return entry.clientCloser, nil
+	if entry.closed {
+		return entry, nil, errCacheClosed
 	}
-	if entry.err != nil {
-		return nil, entry.err
+	if entry.clientCloser == nil && entry.err == nil {
+		entry.clientCloser, entry.err = cc.newClient(ctx, val)
 	}
+	return entry, entry.clientCloser, entry.err
+}
 
-	entry.clientCloser, entry.err = cc.newClient(ctx, val)
-	return entry.clientCloser, entry.err
+func (cc *ClientCache) release(entry *clientEntry) {
+	if entry == nil {
+		return
+	}
+	cc.mu.Lock()
+	entry.users--
+	closeClient := entry.retired && entry.users == 0
+	cc.mu.Unlock()
+	if closeClient {
+		_ = entry.close()
+		cc.mu.Lock()
+		delete(cc.entries, entry)
+		cc.mu.Unlock()
+	}
+}
+
+func (entry *clientEntry) close() error {
+	entry.Lock()
+	defer entry.Unlock()
+	if entry.closed {
+		return nil
+	}
+	entry.closed = true
+	if entry.clientCloser != nil {
+		return entry.clientCloser.Close()
+	}
+	return nil
 }
 
 // Request runs fn against val's cached [Client]. If it fails in a way a changed
@@ -95,12 +136,14 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 	ctx, span := cc.tracer.Start(ctx, "client_cache.request")
 	defer span.End()
 
-	client, err := cc.GetClient(ctx, val)
+	entry, client, err := cc.acquire(ctx, val)
 	if err == nil {
-		if err = fn(client); err == nil {
-			span.SetStatus(otelcodes.Ok, "")
-			return nil
-		}
+		err = fn(client)
+	}
+	cc.release(entry)
+	if err == nil {
+		span.SetStatus(otelcodes.Ok, "")
+		return nil
 	}
 	span.RecordError(err)
 	span.AddEvent("initial attempt failed")
@@ -118,13 +161,14 @@ func (cc *ClientCache) Request(ctx context.Context, val *core.Validator, fn func
 		return err
 	}
 
-	// Drop the stale connection and re-dial once. GetClient re-runs the
+	// Retire the stale connection and re-dial once. acquire re-runs the
 	// [NewClientFn], which re-resolves the host, so a host that changed on chain
 	// is picked up on the retry.
 	span.AddEvent("evicting and re-dialing")
-	cc.evict(val)
+	cc.evict(val, entry)
 
-	client, retryErr := cc.GetClient(ctx, val)
+	entry, client, retryErr := cc.acquire(ctx, val)
+	defer cc.release(entry)
 	if retryErr != nil {
 		span.RecordError(retryErr)
 		span.SetStatus(otelcodes.Error, "re-dial failed")
@@ -152,40 +196,40 @@ func isUnreachable(err error) bool {
 	}
 }
 
-// evict closes and removes the cached [Client] for val, so the next
-// [ClientCache.GetClient] re-resolves the host and re-dials. A cached dial
-// error is cleared as well.
-func (cc *ClientCache) evict(val *core.Validator) {
+// evict removes only the failed generation, allowing its active requests to finish.
+func (cc *ClientCache) evict(val *core.Validator, entry *clientEntry) {
 	addr := val.Address.String()
-
 	cc.mu.Lock()
-	entry, ok := cc.clients[addr]
-	if ok {
-		delete(cc.clients, addr)
-	}
-	cc.mu.Unlock()
-
-	if !ok {
+	if entry == nil || cc.clients[addr] != entry {
+		cc.mu.Unlock()
 		return
 	}
-	entry.Lock()
-	defer entry.Unlock()
-	if entry.clientCloser != nil {
-		_ = entry.clientCloser.Close()
+	delete(cc.clients, addr)
+	entry.retired = true
+	closeClient := entry.users == 0
+	cc.mu.Unlock()
+	if closeClient {
+		_ = entry.close()
+		cc.mu.Lock()
+		delete(cc.entries, entry)
+		cc.mu.Unlock()
 	}
 }
 
-// Close closes all cached [Client]s.
+// Close closes all clients, including retired clients with active requests.
+// Concurrent Close calls wait for closure to finish. Subsequent requests return an error.
 func (cc *ClientCache) Close() (err error) {
+	cc.closeMu.Lock()
+	defer cc.closeMu.Unlock()
+
 	cc.mu.Lock()
-	defer cc.mu.Unlock()
-	for _, entry := range cc.clients {
-		entry.Lock()
-		if entry.clientCloser != nil {
-			err = errors.Join(err, entry.clientCloser.Close())
-		}
-		entry.Unlock()
-	}
+	cc.closed = true
+	entries := cc.entries
+	cc.entries = make(map[*clientEntry]struct{})
 	cc.clients = make(map[string]*clientEntry)
+	cc.mu.Unlock()
+	for entry := range entries {
+		err = errors.Join(err, entry.close())
+	}
 	return err
 }

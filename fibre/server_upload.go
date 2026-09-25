@@ -127,12 +127,14 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	ctx, span := s.tracer.Start(ctx, "store_shard")
 	defer span.End()
 
-	mu := s.uploadLock(promiseHash)
-	mu.Lock()
-	defer mu.Unlock()
+	release, err := s.uploads.acquire(ctx, promiseHash)
+	if err != nil {
+		return status.Error(cancellationCode(err), fmt.Sprintf("waiting for existing upload: %v", err))
+	}
+	defer release()
 
 	// Re-check now that we have the lock, to avoid TOCTOU
-	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
@@ -145,7 +147,8 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	}
 
 	size := shardBinarySize(shard)
-	if !s.occ.reserve(size) {
+	newReservation := !accounted
+	if newReservation && !s.occ.reserve(size) {
 		s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
 		st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
 		st, _ = st.WithDetails(&errdetails.RetryInfo{
@@ -157,7 +160,9 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	// store payment promise and shard with RLC roots
 	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, shard, pruneAt); err != nil {
-		s.occ.release(size)
+		if newReservation {
+			s.occ.release(size)
+		}
 		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
 		// A cancelled/expired client context means the store deliberately
 		// skipped the commit; report it as such rather than as an Internal

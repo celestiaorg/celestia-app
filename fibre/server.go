@@ -8,13 +8,13 @@ import (
 	"io"
 	"log/slog"
 	"math/bits"
-	"sync"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -36,13 +36,8 @@ type Server struct {
 
 	verifiers chan *rsema1d.Verifier // caps concurrent verifications
 
-	occ *occupancy
-	// uploadLocks serializes admission for identical uploads so concurrent
-	// duplicates cannot each reserve occupancy for a single shard. Striped by the
-	// promise hash's first byte: identical uploads share a lock, distinct ones
-	// almost always take different locks, and a rare cross-key collision only
-	// serializes two unrelated uploads (never breaks exclusion).
-	uploadLocks [256]sync.Mutex
+	occ     *occupancy
+	uploads uploadCoordinator
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -100,13 +95,6 @@ func (s *Server) Store() *Store {
 	return s.store
 }
 
-// uploadLock returns the mutex serializing admission for the given promise hash.
-// promiseHash is a uniformly distributed cryptographic hash, so its first byte
-// indexes the stripe directly. See the uploadLocks field.
-func (s *Server) uploadLock(promiseHash []byte) *sync.Mutex {
-	return &s.uploadLocks[promiseHash[0]]
-}
-
 // Start connects to the celestia-app node, creates the signer,
 // starts serving gRPC requests, and kicks off background pruning.
 // NOTE: Order of operations is important. Start the state client first,
@@ -141,16 +129,21 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.Creds(creds),
 	)
 
-	s.store, err = s.Config.StoreFn(s.Config.StoreConfig)
+	pubKey, err := s.signer.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("getting validator public key: %w", err)
+	}
+	s.Config.ObjectStorage.ChainID = s.state.ChainID()
+	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
+	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
+	s.store.shards.setMetrics(s.metrics)
 
-	size, err := s.store.Size(ctx)
-	if err != nil {
-		return fmt.Errorf("getting store size: %w", err)
+	if err := s.seedOccupancy(ctx); err != nil {
+		return err
 	}
-	s.occ.seed(size)
 
 	// Derive the budget once at startup.
 	if err := s.recomputeBudget(ctx); err != nil {
@@ -172,6 +165,18 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+	return nil
+}
+
+func (s *Server) seedOccupancy(ctx context.Context) error {
+	size, err := s.store.Size(ctx)
+	if err != nil && !errors.Is(err, ErrStoreIntegrity) {
+		return fmt.Errorf("getting store size: %w", err)
+	}
+	if err != nil {
+		s.log.Warn("store size may be incorrect due to corrupt shard marker", "error", err)
+	}
+	s.occ.seed(size)
 	return nil
 }
 

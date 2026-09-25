@@ -75,7 +75,7 @@ func benchmarkPruneBefore(b *testing.B, totalEntries, prunePercent int) {
 func makeBenchStore(b *testing.B) *fibre.Store {
 	cfg := fibre.DefaultStoreConfig()
 	cfg.Path = b.TempDir()
-	store, err := fibre.NewStore(cfg)
+	store, err := fibre.NewStore(b.Context(), cfg)
 	if err != nil {
 		b.Fatalf("failed to create store: %v", err)
 	}

@@ -91,6 +91,10 @@ talis fibre-txsim --instances 4 \
 | `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
 | `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
 
+`talis fibre-txsim` accepts `--otel-metrics-path` and `--otel-traces-path`.
+Defaults are `/v1/metrics` and `/v1/traces`. Each value replaces the endpoint URL path, including any proxy prefix.
+Talis forwards only explicitly supplied path flags. Custom paths require remote binaries that support these flags.
+
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts.
 
 Each instance runs inside a tmux session called `fibre-txsim` on the remote validator. To stop all instances:

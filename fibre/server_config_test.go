@@ -124,6 +124,36 @@ func TestServerConfigValidateNoSigner(t *testing.T) {
 	assert.Contains(t, err.Error(), "signer_grpc_address is required")
 }
 
+func TestServerConfigObjectStorageRoundTrip(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret-key")
+	var (
+		cfg        = DefaultServerConfig()
+		loaded     = DefaultServerConfig()
+		configPath = DefaultConfigPath(t.TempDir())
+	)
+	cfg.StorageBackend = "object"
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.Path = "runtime-store-path"
+	cfg.ObjectStorage.ChainID = "runtime-chain"
+	cfg.ObjectStorage.ValidatorAddress = "runtime-validator"
+	require.NoError(t, cfg.Save(configPath))
+	require.NoError(t, loaded.Load(configPath))
+	require.Equal(t, "object", loaded.StorageBackend)
+	require.Equal(t, testObjectStorageConfig(), loaded.ObjectStorage)
+	require.Empty(t, loaded.Path)
+	require.Empty(t, loaded.ObjectStorage.ChainID)
+	require.Empty(t, loaded.ObjectStorage.ValidatorAddress)
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	for _, excluded := range []string{"test-access-key", "test-secret-key", "runtime-store-path", "runtime-chain", "runtime-validator", "access_key", "secret_key"} {
+		require.NotContains(t, string(data), excluded)
+	}
+	require.Contains(t, string(data), "[object_storage]")
+	require.NotContains(t, string(data), "objectNamespace")
+	require.Contains(t, string(data), "# Use auto for Cloudflare R2.")
+}
+
 func TestServerConfigMinUploadSize(t *testing.T) {
 	cfg := DefaultServerConfig()
 	require.Equal(t, 256<<10, cfg.MinUploadSize)
