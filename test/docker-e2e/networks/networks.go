@@ -16,7 +16,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
 	celestiadockertypes "github.com/celestiaorg/tastora/framework/docker/cosmos"
+	"github.com/celestiaorg/tastora/framework/testutil/config"
 	rpchttp "github.com/cometbft/cometbft/rpc/client/http"
+	servercfg "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/stretchr/testify/require"
 
@@ -53,6 +55,12 @@ func NewChainBuilder(t *testing.T, chainConfig *Config, cfg *dockerchain.Config)
 		WithDockerNetworkID(cfg.DockerNetworkID).
 		WithImage(tastoracontainertypes.NewImage(cfg.Image, cfg.Tag, "10001:10001")).
 		WithAdditionalStartArgs("--force-no-bbr").
+		WithPostInit(func(ctx context.Context, node *celestiadockertypes.ChainNode) error {
+			return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+				// Tastora enables REST, which requires Cosmos SDK gRPC.
+				cfg.GRPC.Enable = true
+			})
+		}).
 		WithEncodingConfig(&encodingConfig).
 		WithGenesis(genesisBz)
 }
