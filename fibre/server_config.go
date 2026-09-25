@@ -143,7 +143,7 @@ func (cfg *ServerConfig) Validate() error {
 			return fmt.Errorf("app gRPC address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log)
+			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log, nil)
 		}
 	}
 

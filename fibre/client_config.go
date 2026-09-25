@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"time"
@@ -22,6 +23,8 @@ type ClientConfig struct {
 	// StateAddress is the gRPC address of the celestia-app node.
 	// Used to build the default [StateClientFn] when it is nil.
 	StateAddress string
+	// StateTLSConfig enables TLS for the default app connection. Nil uses plaintext.
+	StateTLSConfig *tls.Config
 
 	// SafetyThreshold is the fraction of stake needed to cause a safety failure (typically 2/3).
 	SafetyThreshold cmtmath.Fraction
@@ -119,7 +122,7 @@ func (cfg *ClientConfig) Validate() error {
 			return fmt.Errorf("state address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log,
+			return fibregrpc.NewAppClient(cfg.StateAddress, cfg.Log, cfg.StateTLSConfig,
 				fibregrpc.WithClock(cfg.Clock),
 				fibregrpc.WithRefreshInterval(cfg.HostRefreshInterval),
 				fibregrpc.WithQueryTimeout(cfg.RPCTimeout),
