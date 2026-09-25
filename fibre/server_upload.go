@@ -85,9 +85,11 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 	// Serialize identical uploads so concurrent duplicates can't each reserve
 	// occupancy for a single stored shard.
-	mu := s.uploadLock(promiseHash)
-	mu.Lock()
-	defer mu.Unlock()
+	release, err := s.uploads.acquire(ctx, promiseHash)
+	if err != nil {
+		return nil, status.Error(cancellationCode(err), fmt.Sprintf("waiting for existing upload: %v", err))
+	}
+	defer release()
 
 	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {

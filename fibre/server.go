@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"math/bits"
-	"sync"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
@@ -37,13 +36,8 @@ type Server struct {
 
 	verifiers chan *rsema1d.Verifier // caps concurrent verifications
 
-	occ *occupancy
-	// uploadLocks serializes admission for identical uploads so concurrent
-	// duplicates cannot each reserve occupancy for a single shard. Striped by the
-	// promise hash's first byte: identical uploads share a lock, distinct ones
-	// almost always take different locks, and a rare cross-key collision only
-	// serializes two unrelated uploads (never breaks exclusion).
-	uploadLocks [256]sync.Mutex
+	occ     *occupancy
+	uploads uploadCoordinator
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -99,13 +93,6 @@ func (s *Server) ChainID() string {
 // Store returns the server's store.
 func (s *Server) Store() *Store {
 	return s.store
-}
-
-// uploadLock returns the mutex serializing admission for the given promise hash.
-// promiseHash is a uniformly distributed cryptographic hash, so its first byte
-// indexes the stripe directly. See the uploadLocks field.
-func (s *Server) uploadLock(promiseHash []byte) *sync.Mutex {
-	return &s.uploadLocks[promiseHash[0]]
 }
 
 // Start connects to the celestia-app node, creates the signer,
