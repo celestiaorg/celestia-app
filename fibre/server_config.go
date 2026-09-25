@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -200,13 +201,13 @@ func rootify(path, root string) string {
 }
 
 // dialsLocalhost reports whether the TCP address points at a loopback interface.
+// Only loopback IP literals qualify. Hostnames, including "localhost", are
+// rejected because gRPC resolves them at dial time and the resolver may map
+// them to a non-loopback address.
 func dialsLocalhost(addr string) bool {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return false
-	}
-	if host == "localhost" {
-		return true
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
@@ -224,7 +225,11 @@ func (cfg *ServerConfig) signerTLSConfig() (*sign.TLSConfig, error) {
 		return nil, fmt.Errorf("signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file must be set together")
 	}
 	if !tlsSet && !dialsLocalhost(cfg.SignerGRPCAddress) && !cfg.SignerGRPCAllowInsecure {
-		return nil, fmt.Errorf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
+		msg := fmt.Sprintf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
+		if host, _, err := net.SplitHostPort(cfg.SignerGRPCAddress); err == nil && strings.EqualFold(host, "localhost") {
+			msg += `; only loopback IP literals count as localhost, so use "127.0.0.1" instead of "localhost" to keep plaintext`
+		}
+		return nil, errors.New(msg)
 	}
 	return &sign.TLSConfig{
 		CAFile:   rootify(cfg.SignerGRPCCAFile, cfg.Path),

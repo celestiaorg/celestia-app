@@ -137,10 +137,10 @@ func TestServerConfigValidateSignerTLS(t *testing.T) {
 		{name: "CA only", ca: "ca.pem", wantErrSubstring: "must be set together"},
 		{name: "cert without key", ca: "ca.pem", cert: "cert.pem", wantErrSubstring: "must be set together"},
 		{name: "cert and key without CA", cert: "cert.pem", key: "key.pem", wantErrSubstring: "must be set together"},
-		{name: "plaintext to localhost name", addr: "localhost:26669"},
 		{name: "plaintext to IPv6 loopback", addr: "[::1]:26669"},
 		{name: "plaintext to remote", addr: "10.0.0.5:26669", wantErrSubstring: "is not localhost"},
 		{name: "plaintext to hostname", addr: "signer.example.com:26669", wantErrSubstring: "is not localhost"},
+		{name: "plaintext to localhost name", addr: "localhost:26669", wantErrSubstring: `use "127.0.0.1" instead of "localhost"`},
 		{name: "mTLS to remote", addr: "10.0.0.5:26669", ca: "ca.pem", cert: "cert.pem", key: "key.pem"},
 		{name: "plaintext to remote with override", addr: "10.0.0.5:26669", allowInsecure: true},
 	}
