@@ -9,7 +9,6 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
-	"github.com/cosmos/cosmos-sdk/types/query"
 )
 
 // InitGenesis initialises the module genesis state.
@@ -72,19 +71,15 @@ func (k *Keeper) ExportGenesis(ctx context.Context) (*types.GenesisState, error)
 	}
 
 	genesisMessages := make([]types.GenesisMessages, 0, len(isms))
-	transform := func(key collections.Pair[uint64, []byte], _ collections.NoValue) (string, error) {
-		return types.EncodeHex(key.K2()), nil
-	}
-
 	for _, ism := range isms {
-		msgs, _, err := query.CollectionPaginate(
-			ctx,
-			k.messages,
-			nil,
-			transform,
-			query.WithCollectionPaginationPairPrefix[uint64, []byte](ism.Id.GetInternalId()),
-		)
-		if err != nil {
+		// Walk instead of paginating: a nil page request caps results at the
+		// default query limit, which would silently drop messages.
+		var msgs []string
+		rng := collections.NewPrefixedPairRange[uint64, []byte](ism.Id.GetInternalId())
+		if err := k.messages.Walk(ctx, rng, func(key collections.Pair[uint64, []byte]) (bool, error) {
+			msgs = append(msgs, types.EncodeHex(key.K2()))
+			return false, nil
+		}); err != nil {
 			return nil, errorsmod.Wrapf(err, "collecting messages for ism %s", ism.Id.String())
 		}
 
