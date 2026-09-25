@@ -68,10 +68,11 @@ signer_grpc_address = "127.0.0.1:26658"
 	assert.Equal(t, "127.0.0.1:8123", cfg.ServerListenAddress)
 	assert.Equal(t, "127.0.0.1:10090", cfg.AppGRPCAddress)
 
-	// StoreFn, SignerFn, and StateClientFn are nil until Validate fills in defaults.
+	// StoreFn and StateClientFn are nil until Validate fills in defaults.
+	// SignerFn stays nil: the default signer is built at start from the final config.
 	require.NoError(t, cfg.Validate())
 	assert.NotNil(t, cfg.StoreFn)
-	assert.NotNil(t, cfg.SignerFn)
+	assert.Nil(t, cfg.SignerFn)
 	assert.NotNil(t, cfg.StateClientFn)
 }
 
@@ -82,7 +83,6 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 
 	err := cfg.Validate()
 	require.NoError(t, err)
-	assert.NotNil(t, cfg.SignerFn)
 }
 
 func TestServerConfigConnectionDefaults(t *testing.T) {
@@ -158,7 +158,6 @@ func TestServerConfigValidateSignerTLS(t *testing.T) {
 			err := cfg.Validate()
 			if tc.wantErrSubstring == "" {
 				require.NoError(t, err)
-				assert.NotNil(t, cfg.SignerFn)
 			} else {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.wantErrSubstring)
@@ -179,7 +178,7 @@ func TestServerConfigSignerTLSPathsResolveAgainstHome(t *testing.T) {
 
 	// The signer loads the TLS files when constructed: the error names the
 	// missing CA resolved against the home directory, not the working directory.
-	_, err := cfg.SignerFn("test-chain")
+	_, err := cfg.newSigner("test-chain")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), filepath.Join(home, "ca.pem"))
 
@@ -192,7 +191,7 @@ func TestServerConfigSignerTLSPathsResolveAgainstHome(t *testing.T) {
 	cfg.SignerGRPCKeyFile = "key.pem"
 	require.NoError(t, cfg.Validate())
 
-	_, err = cfg.SignerFn("test-chain")
+	_, err = cfg.newSigner("test-chain")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), absCA)
 }
@@ -212,4 +211,23 @@ func TestServerConfigSignerTLSRoundTrip(t *testing.T) {
 	assert.Equal(t, "ca.pem", loaded.SignerGRPCCAFile)
 	assert.Equal(t, "cert.pem", loaded.SignerGRPCCertFile)
 	assert.Equal(t, "key.pem", loaded.SignerGRPCKeyFile)
+}
+
+// TestServerConfigSignerChangedAfterValidate checks that changing the signer
+// fields after a successful Validate can't slip a plaintext remote signer
+// past the transport checks.
+func TestServerConfigSignerChangedAfterValidate(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.Path = t.TempDir()
+	require.NoError(t, cfg.Validate())
+
+	cfg.SignerGRPCAddress = "10.0.0.5:26669"
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not localhost")
+
+	_, err = cfg.newSigner("test-chain")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not localhost")
 }

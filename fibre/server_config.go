@@ -76,6 +76,8 @@ type ServerConfig struct {
 	StateClientFn func() (state.Client, error) `toml:"-"`
 	// SignerFn creates a [core.PrivValidator] for the given chain ID.
 	// It is called during [Server.Start] after the chain ID is auto-detected.
+	// If nil, the server dials the privval gRPC signer configured by the
+	// Signer* fields.
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
@@ -154,28 +156,16 @@ func (cfg *ServerConfig) Validate() error {
 		}
 	}
 
+	// The default signer is built in [ServerConfig.newSigner] from the final
+	// field values rather than cached here, so later changes to the config
+	// can't bypass these checks.
 	if cfg.SignerFn == nil {
-		if cfg.SignerGRPCAddress == "" {
-			return fmt.Errorf("signer_grpc_address is required")
+		tlsCfg, err := cfg.signerTLSConfig()
+		if err != nil {
+			return err
 		}
-		tlsSet := cfg.SignerGRPCCAFile != "" || cfg.SignerGRPCCertFile != "" || cfg.SignerGRPCKeyFile != ""
-		tlsComplete := cfg.SignerGRPCCAFile != "" && cfg.SignerGRPCCertFile != "" && cfg.SignerGRPCKeyFile != ""
-		if tlsSet && !tlsComplete {
-			return fmt.Errorf("signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file must be set together")
-		}
-		if !tlsSet && !dialsLocalhost(cfg.SignerGRPCAddress) {
-			if !cfg.SignerGRPCAllowInsecure {
-				return fmt.Errorf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
-			}
+		if tlsCfg.Empty() && !dialsLocalhost(cfg.SignerGRPCAddress) {
 			cfg.Log.Warn("signer gRPC uses plaintext to a non-localhost address", "address", cfg.SignerGRPCAddress)
-		}
-		tlsCfg := &sign.TLSConfig{
-			CAFile:   rootify(cfg.SignerGRPCCAFile, cfg.Path),
-			CertFile: rootify(cfg.SignerGRPCCertFile, cfg.Path),
-			KeyFile:  rootify(cfg.SignerGRPCKeyFile, cfg.Path),
-		}
-		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, tlsCfg, cfg.Log)
 		}
 	}
 
@@ -214,6 +204,41 @@ func dialsLocalhost(addr string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// signerTLSConfig checks the signer address and TLS policy and returns the
+// TLS config to dial the signer with. An empty config means plaintext.
+func (cfg *ServerConfig) signerTLSConfig() (*sign.TLSConfig, error) {
+	if cfg.SignerGRPCAddress == "" {
+		return nil, fmt.Errorf("signer_grpc_address is required")
+	}
+	tlsSet := cfg.SignerGRPCCAFile != "" || cfg.SignerGRPCCertFile != "" || cfg.SignerGRPCKeyFile != ""
+	tlsComplete := cfg.SignerGRPCCAFile != "" && cfg.SignerGRPCCertFile != "" && cfg.SignerGRPCKeyFile != ""
+	if tlsSet && !tlsComplete {
+		return nil, fmt.Errorf("signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file must be set together")
+	}
+	if !tlsSet && !dialsLocalhost(cfg.SignerGRPCAddress) && !cfg.SignerGRPCAllowInsecure {
+		return nil, fmt.Errorf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
+	}
+	return &sign.TLSConfig{
+		CAFile:   rootify(cfg.SignerGRPCCAFile, cfg.Path),
+		CertFile: rootify(cfg.SignerGRPCCertFile, cfg.Path),
+		KeyFile:  rootify(cfg.SignerGRPCKeyFile, cfg.Path),
+	}, nil
+}
+
+// newSigner returns the signer for chainID. It uses [ServerConfig.SignerFn]
+// if set, otherwise dials the privval gRPC signer, re-checking the transport
+// policy against the current field values.
+func (cfg *ServerConfig) newSigner(chainID string) (core.PrivValidator, error) {
+	if cfg.SignerFn != nil {
+		return cfg.SignerFn(chainID)
+	}
+	tlsCfg, err := cfg.signerTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, tlsCfg, cfg.Log)
 }
 
 // Load reads the TOML config file at path into the receiver, overriding only
