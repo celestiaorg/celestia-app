@@ -127,9 +127,11 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	ctx, span := s.tracer.Start(ctx, "store_shard")
 	defer span.End()
 
-	mu := s.uploadLock(promiseHash)
-	mu.Lock()
-	defer mu.Unlock()
+	release, err := s.uploads.acquire(ctx, promiseHash)
+	if err != nil {
+		return status.Error(cancellationCode(err), fmt.Sprintf("waiting for existing upload: %v", err))
+	}
+	defer release()
 
 	// Re-check now that we have the lock, to avoid TOCTOU
 	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
