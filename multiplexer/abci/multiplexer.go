@@ -297,17 +297,20 @@ func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
 	})
 }
 
-// removeStart removes the first argument (the binary name) and the start argument from args.
+// removeStart removes the first argument (the binary name) and the start subcommand from args.
 func removeStart(args []string) []string {
 	if len(args) == 0 {
 		return args
 	}
 	result := []string{}
 	args = args[1:] // remove the first argument (the binary name)
+	removed := false
 	for _, arg := range args {
-		if arg != "start" {
-			result = append(result, arg)
+		if arg == "start" && !removed {
+			removed = true
+			continue
 		}
+		result = append(result, arg)
 	}
 	return result
 }

@@ -80,6 +80,11 @@ func TestRemoveStart(t *testing.T) {
 			input: []string{"celestia-appd", "--home", "foo", "start"},
 			want:  []string{"--home", "foo"},
 		},
+		{
+			name:  "should preserve a flag value equal to start",
+			input: []string{"celestia-appd", "start", "--moniker", "start"},
+			want:  []string{"--moniker", "start"},
+		},
 	}
 	for _, test := range tests {
 		got := removeStart(test.input)

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 )
@@ -24,6 +25,10 @@ type Version struct {
 	Appd        *appd.Appd
 	PreHandlers []string // Commands to run before starting the app
 	StartArgs   []string // Extra arguments to pass to the app
+	// UnsupportedFlags are operator flags this app doesn't define, so they are
+	// not forwarded to it. The value reports whether the flag takes a separate
+	// value argument.
+	UnsupportedFlags map[string]bool
 }
 
 type Versions []Version
@@ -70,6 +75,7 @@ func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
 
 // GetStartArgs returns the appropriate args.
 func (v Version) GetStartArgs(args []string) []string {
+	args = removeFlags(args, v.UnsupportedFlags)
 	if len(v.StartArgs) > 0 {
 		return append(args, v.StartArgs...)
 	}
@@ -82,6 +88,23 @@ func (v Version) GetStartArgs(args []string) []string {
 		"--with-tendermint=false",
 		"--transport=grpc",
 	)
+}
+
+// removeFlags returns args without the given flags and their values.
+func removeFlags(args []string, flags map[string]bool) []string {
+	result := []string{}
+	for i := 0; i < len(args); i++ {
+		name, _, hasInlineValue := strings.Cut(strings.TrimPrefix(args[i], "--"), "=")
+		takesValue, ok := flags[name]
+		if !strings.HasPrefix(args[i], "--") || !ok {
+			result = append(result, args[i])
+			continue
+		}
+		if takesValue && !hasInlineValue {
+			i++ // skip the flag's value
+		}
+	}
+	return result
 }
 
 // Validate checks that versions is non-empty, has no duplicate app versions,
