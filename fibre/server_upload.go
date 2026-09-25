@@ -160,6 +160,93 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 	}, nil
 }
 
+<<<<<<< HEAD
+=======
+// storeShard reserves storage capacity and writes a verified shard. It
+// serializes identical uploads so concurrent duplicates can't each reserve
+// occupancy for a single stored shard, and skips the write if the shard
+// was stored in the meantime. Errors are returned as gRPC statuses.
+func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *PaymentPromise, promiseHash []byte, pruneAt time.Time, shard *types.BlobShard) error {
+	ctx, span := s.tracer.Start(ctx, "store_shard")
+	defer span.End()
+
+	release, err := s.uploads.acquire(ctx, promiseHash)
+	if err != nil {
+		return status.Error(cancellationCode(err), fmt.Sprintf("waiting for existing upload: %v", err))
+	}
+	defer release()
+
+	// Re-check now that we have the lock, to avoid TOCTOU
+	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
+	if err != nil {
+		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "store presence check failed")
+		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+	}
+	if has {
+		s.observeDuplicateUpload(ctx, log, "after_verification")
+		return nil
+	}
+
+	size := shardBinarySize(shard)
+	newReservation := !accounted
+	if newReservation && !s.occ.reserve(size) {
+		s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
+		st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
+		st, _ = st.WithDetails(&errdetails.RetryInfo{
+			RetryDelay: durationpb.New(retryAfterHint()),
+		})
+		return st.Err()
+	}
+
+	// store payment promise and shard with RLC roots
+	storePutStart := time.Now()
+	if err := s.store.Put(ctx, promise, shard, pruneAt); err != nil {
+		if newReservation {
+			s.occ.release(size)
+		}
+		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
+		// A cancelled/expired client context means the store deliberately
+		// skipped the commit; report it as such rather than as an Internal
+		// error so the caller (and metrics) can tell it apart from a real
+		// storage failure.
+		if ctxErr := context.Cause(ctx); ctxErr != nil {
+			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "store upload aborted")
+			return status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+		}
+		log.ErrorContext(ctx, "failed to store upload data", "error", err)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to store upload data")
+		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+	}
+	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
+	span.AddEvent("shard_stored")
+
+	shardBytes := int64(len(shard.Rows)) * int64(len(shard.Rows[0].Data))
+	s.metrics.uploadShardBytes.Add(ctx, shardBytes)
+	log.DebugContext(ctx, "shard uploaded",
+		"upload_size", promise.UploadSize,
+		"shard_bytes", shardBytes,
+		"rows_count", len(shard.Rows),
+		"row_size", len(shard.Rows[0].Data),
+	)
+	return nil
+}
+
+// observeDuplicateUpload records an upload that was skipped because the
+// shard is already stored. stage says whether the duplicate was detected
+// before or after shard verification. The span event goes on the span
+// current in ctx, which already implies the stage.
+func (s *Server) observeDuplicateUpload(ctx context.Context, log *slog.Logger, stage string) {
+	s.metrics.uploadShardDupeHits.Add(ctx, 1, metric.WithAttributes(attribute.String("stage", stage)))
+	trace.SpanFromContext(ctx).AddEvent("shard_duplicate")
+	log.DebugContext(ctx, "shard upload skipped due to duplicate", "stage", stage)
+}
+
+>>>>>>> 8117a95 (feat(fibre): Introduce ability to use object storage for storing blob shards (#7808))
 // retryAfterHint returns how long a rejected client should wait before retrying.
 // Space frees only on prune ticks, so it waits at least one full prune interval,
 // plus up to half an interval of jitter to spread the synchronized retries of
