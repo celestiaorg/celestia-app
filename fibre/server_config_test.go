@@ -67,6 +67,7 @@ signer_grpc_address = "127.0.0.1:26658"
 
 	assert.Equal(t, "127.0.0.1:8123", cfg.ServerListenAddress)
 	assert.Equal(t, "127.0.0.1:10090", cfg.AppGRPCAddress)
+	assert.Equal(t, 256<<10, cfg.MinUploadSize, "old config files retain the default minimum")
 
 	// StoreFn, SignerFn, and StateClientFn are nil until Validate fills in defaults.
 	require.NoError(t, cfg.Validate())
@@ -121,4 +122,27 @@ func TestServerConfigValidateNoSigner(t *testing.T) {
 	err := cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "signer_grpc_address is required")
+}
+
+func TestServerConfigMinUploadSize(t *testing.T) {
+	cfg := DefaultServerConfig()
+	require.Equal(t, 256<<10, cfg.MinUploadSize)
+	path := DefaultConfigPath(t.TempDir())
+	cfg.MinUploadSize = 32 << 20
+	require.NoError(t, cfg.Save(path))
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(path))
+	require.Equal(t, cfg.MinUploadSize, loaded.MinUploadSize)
+
+	for _, size := range []int{-1, 0, 1, 256 << 10, 32 << 20, 128 << 20, (128 << 20) + 1} {
+		cfg := DefaultServerConfig()
+		cfg.Path = t.TempDir()
+		cfg.MinUploadSize = size
+		err := cfg.Validate()
+		if size < 1 || size > 128<<20 {
+			require.ErrorContains(t, err, "min_upload_size")
+		} else {
+			require.NoError(t, err)
+		}
+	}
 }

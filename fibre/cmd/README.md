@@ -118,7 +118,15 @@ fibre version
 
 ## Config
 
-The config file is at `$FIBRE_HOME/server_config.toml` (default `~/.celestia-fibre/server_config.toml`).
+The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).
+
+`min_upload_size` sets this validator's minimum padded Fibre upload size in bytes, including the header and excluding parity. It defaults to `262144` (256 KiB), including when the field is absent from an existing config. To require 32 MiB uploads, set:
+
+```toml
+min_upload_size = 33554432
+```
+
+Restart Fibre to apply changes. Values must be positive and no greater than the 128 MiB protocol maximum. This is a local admission policy: it does not change encoding, block validation, settlement, or downloads of existing blobs. Clients are not automatically informed of the setting and smaller uploads are rejected rather than padded by the server. Coordinate settings across validators and clients; incompatible minimums can prevent clients from collecting enough signatures.
 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
 
