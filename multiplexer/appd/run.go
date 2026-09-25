@@ -22,7 +22,10 @@ type Appd struct {
 	// version is the version of the celestia-appd binary.
 	// Example: "v9.0.4"
 	version string
-	// path is the path to the celestia-appd binary.
+	// compressedBinary is the gzipped tarball containing the binary.
+	compressedBinary []byte
+	// path is the path to the celestia-appd binary. It is set once the binary
+	// is extracted.
 	path   string
 	stdin  io.Reader
 	stderr io.Writer
@@ -48,23 +51,31 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 		return nil, fmt.Errorf("no compressed binary available for version %s", version)
 	}
 
-	if err := ensureBinaryDecompressed(version, compressedBinary); err != nil {
-		return nil, fmt.Errorf("failed to decompress binary: %w", err)
-	}
-
-	pathToBinary, err := getPathToBinary(version)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get path to binary: %w", err)
-	}
-
 	appd := &Appd{
-		version: version,
-		path:    pathToBinary,
-		stdin:   os.Stdin,
-		stdout:  os.Stdout,
-		stderr:  os.Stderr,
+		version:          version,
+		compressedBinary: compressedBinary,
+		stdin:            os.Stdin,
+		stdout:           os.Stdout,
+		stderr:           os.Stderr,
 	}
 	return appd, nil
+}
+
+// ensureExtracted extracts the binary on first use and sets its path.
+func (a *Appd) ensureExtracted() error {
+	if a.path != "" {
+		return nil
+	}
+	dir := getDirectoryForVersion(a.version)
+	if err := ensureBinaryDecompressed(a.version, a.compressedBinary); err != nil {
+		return fmt.Errorf("failed to decompress binary to %s: %w", dir, err)
+	}
+	pathToBinary, err := getPathToBinary(a.version)
+	if err != nil {
+		return fmt.Errorf("failed to get path to binary in %s: %w", dir, err)
+	}
+	a.path = pathToBinary
+	return nil
 }
 
 // telemetryDisableEnv returns environment variables that disable the
@@ -89,6 +100,9 @@ func (a *Appd) getEnv() []string {
 
 // Start starts the appd binary with the given arguments.
 func (a *Appd) Start(args ...string) error {
+	if err := a.ensureExtracted(); err != nil {
+		return err
+	}
 	cmd := exec.Command(a.path, append([]string{"start"}, args...)...)
 	cmd.Env = a.getEnv()
 
@@ -210,12 +224,15 @@ func (a *Appd) Stop() error {
 }
 
 // CreateExecCommand creates an exec.Cmd for the appd binary.
-func (a *Appd) CreateExecCommand(args ...string) *exec.Cmd {
+func (a *Appd) CreateExecCommand(args ...string) (*exec.Cmd, error) {
+	if err := a.ensureExtracted(); err != nil {
+		return nil, err
+	}
 	cmd := exec.Command(a.path, args...)
 	cmd.Stdin = a.stdin
 	cmd.Stdout = a.stdout
 	cmd.Stderr = a.stderr
-	return cmd
+	return cmd, nil
 }
 
 // getPathToBinary returns the path to the celestia-appd binary for the given version.
@@ -329,7 +346,7 @@ func ensureBinaryDecompressed(version string, binary []byte) error {
 	if err := os.Rename(stagingDirectory, targetDirectory); err != nil {
 		// Another instance sharing this node home may have published the same
 		// version first. Its directory is a complete extraction, so accept it
-		// rather than failing the caller's appd.New.
+		// rather than failing the caller.
 		if isBinaryDecompressed(version) {
 			return nil
 		}
