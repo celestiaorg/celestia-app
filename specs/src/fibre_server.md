@@ -118,7 +118,7 @@ signer_grpc_address = "127.0.0.1:26669"
 upload_verify_workers = runtime.GOMAXPROCS(0)
 ```
 
-`StoreConfig.Path` is not a TOML field; the standalone `fibre start` command sets it from `--home`. The default state client is a gRPC app client connected to `AppGRPCAddress`. The default signer is a PrivValidatorAPI gRPC client connected to `SignerGRPCAddress`. Both app-node gRPC and signer gRPC use insecure local transport and are expected to be loopback or otherwise protected.
+`StoreConfig.Path` is not a TOML field; the standalone `fibre start` command sets it from `--home`. The default state client is a gRPC app client connected to `AppGRPCAddress`. The default signer is a PrivValidatorAPI gRPC client connected to `SignerGRPCAddress`. App-node gRPC uses insecure local transport and is expected to be loopback or otherwise protected. Signer gRPC defaults to the same insecure local transport and is only allowed to a loopback `SignerGRPCAddress`. To reach a remote node, set `signer_grpc_ca_file`, `signer_grpc_cert_file` and `signer_grpc_key_file` together to enable mutual TLS: the CA verifies the node's server certificate and the client certificate is presented to the node. Validation rejects a non-loopback address without all three files unless `signer_grpc_allow_insecure` is set.
 
 ## Lifecycle
 

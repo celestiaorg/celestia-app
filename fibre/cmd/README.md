@@ -6,7 +6,7 @@ Standalone binary for the Fibre data availability server.
 
 Before starting, make sure:
 
-- [ ] A `celestia-appd` node runs on the same host (or a trusted host-local network). The server's app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected — see [Transport security](#transport-security-tls).
+- [ ] A `celestia-appd` node is available. The app link (`--app-grpc-address`) is not TLS-protected. The signer link (`--signer-grpc-address`) allows plaintext only on loopback and requires mutual TLS for a remote node — see [Signing](#signing).
 - [ ] The chain is on **app version 10 or later**. The `x/fibre` and `x/valaddr` modules the server depends on do not exist in earlier versions.
 - [ ] The node's application gRPC endpoint is enabled in `app.toml` — see [Node connections](#node-connections).
 - [ ] The node's privval gRPC endpoint is enabled — see [Signing](#signing). If the consensus key lives in an external KMS, the KMS must support the privval `SignRawBytes` message; see the [release notes](../../docs/release-notes/release-notes.md) for the KMS policy.
@@ -162,6 +162,36 @@ priv_validator_grpc_laddr = "127.0.0.1:26669"
 
 If you change the port, also update Fibre's `signer_grpc_address` in `server_config.toml` or its `--signer-grpc-address` flag, then restart the node and Fibre. A working custom port can be retained if it does not conflict with another listener and Fibre uses the same address. Update deployment-managed config templates too.
 
+This default loopback connection uses plaintext. To run Fibre on a separate
+host, use a dedicated certificate authority to issue a server certificate for
+the node and a client certificate for Fibre. The server certificate's subject
+alternative name must match the address Fibre uses to reach the node.
+
+Configure the node's `config.toml`:
+
+```toml
+priv_validator_grpc_laddr = "10.0.0.5:26669"
+priv_validator_grpc_cert_file = "/etc/celestia/privval/server.crt"
+priv_validator_grpc_key_file = "/etc/celestia/privval/server.key"
+priv_validator_grpc_client_ca_file = "/etc/celestia/privval/ca.crt"
+```
+
+Then configure Fibre's `server_config.toml` with the same CA and its client
+certificate:
+
+```toml
+signer_grpc_address = "10.0.0.5:26669"
+signer_grpc_ca_file = "/etc/celestia/privval/ca.crt"
+signer_grpc_cert_file = "/etc/celestia/privval/client.crt"
+signer_grpc_key_file = "/etc/celestia/privval/client.key"
+```
+
+All three TLS files must be set together on each side. Restart the node and
+Fibre after changing them. Fibre rejects a non-loopback plaintext signer unless
+`signer_grpc_allow_insecure` is explicitly enabled; this override is not
+recommended because anyone with network access to the endpoint can request
+signatures.
+
 **Fibre always connects to the node, never to the KMS directly, so the fibre config is the same for every key backend.**
 
 Whatever the backend, median signing latency must stay at or below 10ms. Nodes using a remote signer expose `cometbft_privval_signing_latency_*` metrics and log a warning when the median of the last 50 signatures exceeds it.
@@ -202,7 +232,7 @@ The Fibre server↔client link is always TLS-encrypted, and it is fully automati
 
 Two things to keep in mind:
 
-- The app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected. Keep them on the same host or a trusted local network. If you need to run fibre on a separate server, use its private IP or a closed network connection.
+- The app link (`--app-grpc-address`) is not TLS-protected, so keep it on the same host or a trusted network. The signer link (`--signer-grpc-address`) uses plaintext only on loopback; remote connections require the mutual TLS configuration described in [Signing](#signing).
 - There is no plaintext fallback, so every Fibre server and client on the network must run a TLS-capable build.
 
 For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).

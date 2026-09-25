@@ -116,7 +116,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return err
 	}
 
-	s.signer, err = s.Config.SignerFn(s.state.ChainID())
+	s.signer, err = s.Config.newSigner(s.state.ChainID())
 	if err != nil {
 		return fmt.Errorf("creating signer: %w", err)
 	}

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -35,6 +37,16 @@ type ServerConfig struct {
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
 	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
+	// SignerGRPCCAFile is the PEM CA certificate used to verify the validator node's
+	// server certificate. Set all three TLS files for mTLS; leave all empty for plaintext (localhost only).
+	SignerGRPCCAFile string `toml:"signer_grpc_ca_file" comment:"SignerGRPCCAFile is the PEM CA certificate used to verify the validator node's server certificate. Set all three TLS files for mTLS; leave all empty for plaintext (localhost only)."`
+	// SignerGRPCCertFile is the PEM client certificate presented to the validator node.
+	SignerGRPCCertFile string `toml:"signer_grpc_cert_file" comment:"SignerGRPCCertFile is the PEM client certificate presented to the validator node."`
+	// SignerGRPCKeyFile is the PEM private key for the client certificate.
+	SignerGRPCKeyFile string `toml:"signer_grpc_key_file" comment:"SignerGRPCKeyFile is the PEM private key for the client certificate."`
+	// SignerGRPCAllowInsecure allows a plaintext signer connection to a non-localhost address.
+	// DANGER: only use on a network that already restricts access to the signer endpoint.
+	SignerGRPCAllowInsecure bool `toml:"signer_grpc_allow_insecure" comment:"SignerGRPCAllowInsecure allows a plaintext signer connection to a non-localhost address. DANGER: only use on a network that already restricts access to the signer endpoint."`
 	// MinUploadSize is the local minimum padded upload size, excluding parity, in bytes.
 	MinUploadSize int `toml:"min_upload_size" comment:"Minimum padded Fibre upload size in bytes, including header and excluding parity (default 262144). Restart Fibre after changing."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
@@ -67,6 +79,8 @@ type ServerConfig struct {
 	StateClientFn func() (state.Client, error) `toml:"-"`
 	// SignerFn creates a [core.PrivValidator] for the given chain ID.
 	// It is called during [Server.Start] after the chain ID is auto-detected.
+	// If nil, the server dials the privval gRPC signer configured by the
+	// Signer* fields.
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
@@ -146,12 +160,16 @@ func (cfg *ServerConfig) Validate() error {
 		}
 	}
 
+	// The default signer is built in [ServerConfig.newSigner] from the final
+	// field values rather than cached here, so later changes to the config
+	// can't bypass these checks.
 	if cfg.SignerFn == nil {
-		if cfg.SignerGRPCAddress == "" {
-			return fmt.Errorf("signer_grpc_address is required")
+		tlsCfg, err := cfg.signerTLSConfig()
+		if err != nil {
+			return err
 		}
-		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
+		if tlsCfg.Empty() && !dialsLocalhost(cfg.SignerGRPCAddress) {
+			cfg.Log.Warn("signer gRPC uses plaintext to a non-localhost address", "address", cfg.SignerGRPCAddress)
 		}
 	}
 
@@ -171,6 +189,67 @@ func (cfg *ServerConfig) Validate() error {
 		return fmt.Errorf("max_concurrent_streams must not exceed %d, got %d", uint64(math.MaxUint32), cfg.MaxConcurrentStreams)
 	}
 	return nil
+}
+
+// rootify resolves a relative file path against the given root directory.
+// Absolute and empty paths are returned unchanged.
+func rootify(path, root string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(root, path)
+}
+
+// dialsLocalhost reports whether the TCP address points at a loopback interface.
+// Only loopback IP literals qualify. Hostnames, including "localhost", are
+// rejected because gRPC resolves them at dial time and the resolver may map
+// them to a non-loopback address.
+func dialsLocalhost(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// signerTLSConfig checks the signer address and TLS policy and returns the
+// TLS config to dial the signer with. An empty config means plaintext.
+func (cfg *ServerConfig) signerTLSConfig() (*sign.TLSConfig, error) {
+	if cfg.SignerGRPCAddress == "" {
+		return nil, fmt.Errorf("signer_grpc_address is required")
+	}
+	tlsSet := cfg.SignerGRPCCAFile != "" || cfg.SignerGRPCCertFile != "" || cfg.SignerGRPCKeyFile != ""
+	tlsComplete := cfg.SignerGRPCCAFile != "" && cfg.SignerGRPCCertFile != "" && cfg.SignerGRPCKeyFile != ""
+	if tlsSet && !tlsComplete {
+		return nil, fmt.Errorf("signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file must be set together")
+	}
+	if !tlsSet && !dialsLocalhost(cfg.SignerGRPCAddress) && !cfg.SignerGRPCAllowInsecure {
+		msg := fmt.Sprintf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
+		if host, _, err := net.SplitHostPort(cfg.SignerGRPCAddress); err == nil && strings.EqualFold(host, "localhost") {
+			msg += `; only loopback IP literals count as localhost, so use "127.0.0.1" instead of "localhost" to keep plaintext`
+		}
+		return nil, errors.New(msg)
+	}
+	return &sign.TLSConfig{
+		CAFile:   rootify(cfg.SignerGRPCCAFile, cfg.Path),
+		CertFile: rootify(cfg.SignerGRPCCertFile, cfg.Path),
+		KeyFile:  rootify(cfg.SignerGRPCKeyFile, cfg.Path),
+	}, nil
+}
+
+// newSigner returns the signer for chainID. It uses [ServerConfig.SignerFn]
+// if set, otherwise dials the privval gRPC signer, re-checking the transport
+// policy against the current field values.
+func (cfg *ServerConfig) newSigner(chainID string) (core.PrivValidator, error) {
+	if cfg.SignerFn != nil {
+		return cfg.SignerFn(chainID)
+	}
+	tlsCfg, err := cfg.signerTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, tlsCfg, cfg.Log)
 }
 
 // Load reads the TOML config file at path into the receiver, overriding only

@@ -13,6 +13,10 @@ const (
 	flagAppGRPCAddress      = "app-grpc-address"
 	flagServerListenAddress = "server-listen-address"
 	flagSignerGRPCAddress   = "signer-grpc-address"
+	flagSignerGRPCCAFile    = "signer-grpc-ca-file"
+	flagSignerGRPCCertFile  = "signer-grpc-cert-file"
+	flagSignerGRPCKeyFile   = "signer-grpc-key-file"
+	flagSignerGRPCInsecure  = "signer-grpc-allow-insecure"
 	flagUnlimitedBudget     = "unlimited-budget"
 )
 
@@ -69,6 +73,10 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.AppGRPCAddress, flagAppGRPCAddress, cfg.AppGRPCAddress, "core/app node gRPC address")
 	cmd.Flags().StringVar(&cfg.ServerListenAddress, flagServerListenAddress, cfg.ServerListenAddress, "fibre server listen address")
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
+	cmd.Flags().StringVar(&cfg.SignerGRPCCAFile, flagSignerGRPCCAFile, cfg.SignerGRPCCAFile, "PEM CA certificate to verify the signer gRPC server (mTLS; set with cert and key)")
+	cmd.Flags().StringVar(&cfg.SignerGRPCCertFile, flagSignerGRPCCertFile, cfg.SignerGRPCCertFile, "PEM client certificate for signer gRPC mTLS")
+	cmd.Flags().StringVar(&cfg.SignerGRPCKeyFile, flagSignerGRPCKeyFile, cfg.SignerGRPCKeyFile, "PEM private key for the signer gRPC client certificate")
+	cmd.Flags().BoolVar(&cfg.SignerGRPCAllowInsecure, flagSignerGRPCInsecure, cfg.SignerGRPCAllowInsecure, "DANGER: allow plaintext signer gRPC to a non-localhost address")
 	cmd.Flags().BoolVar(&cfg.UnlimitedBudget, flagUnlimitedBudget, cfg.UnlimitedBudget, "run without a storage budget, disabling the Fibre upload limiter")
 
 	return cmd

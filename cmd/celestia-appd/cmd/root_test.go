@@ -39,3 +39,47 @@ func TestReplaceLoggerStripsColorCodes(t *testing.T) {
 	// The ANSI escape character (0x1b) should not appear in the log file.
 	require.NotContains(t, string(contents), "\x1b", "log file should not contain ANSI color escape codes")
 }
+
+func TestAddStartFlagsRegistersPrivValGRPCAllowInsecure(t *testing.T) {
+	cmd := &cobra.Command{Use: "start"}
+	addStartFlags(cmd)
+
+	flag := cmd.Flags().Lookup(FlagPrivValGRPCAllowInsecure)
+	require.NotNil(t, flag)
+	require.Equal(t, "false", flag.DefValue)
+}
+
+func TestAllowInsecurePrivValGRPC(t *testing.T) {
+	newCmd := func(t *testing.T) (*cobra.Command, *server.Context) {
+		cmd := &cobra.Command{Use: "start"}
+		cmd.Flags().Bool(FlagPrivValGRPCAllowInsecure, false, "")
+
+		sctx := server.NewDefaultContext()
+		ctx := context.WithValue(context.Background(), server.ServerContextKey, sctx)
+		cmd.SetContext(ctx)
+		return cmd, sctx
+	}
+
+	t.Run("flag not passed leaves the config unchanged", func(t *testing.T) {
+		cmd, sctx := newCmd(t)
+		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
+		require.False(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
+	})
+
+	t.Run("flag passed enables the insecure override", func(t *testing.T) {
+		cmd, sctx := newCmd(t)
+		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
+		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
+		require.True(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
+	})
+
+	t.Run("flag allows a non-localhost address without TLS", func(t *testing.T) {
+		cmd, sctx := newCmd(t)
+		sctx.Config.PrivValidatorGRPCListenAddr = "0.0.0.0:26669"
+		require.Error(t, sctx.Config.BaseConfig.ValidatePrivValidatorGRPCExposure())
+
+		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
+		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
+		require.NoError(t, sctx.Config.BaseConfig.ValidatePrivValidatorGRPCExposure())
+	})
+}
