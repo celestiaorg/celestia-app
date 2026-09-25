@@ -33,7 +33,11 @@ func TestFibreTxsimPreencode(t *testing.T) {
 				require.Len(t, parts, 3)
 				script, err := base64.StdEncoding.DecodeString(parts[1])
 				require.NoError(t, err)
-				require.Contains(t, string(script), fmt.Sprintf("--preencode=%t", preencode))
+				if preencode {
+					require.Contains(t, strings.Fields(string(script)), "--preencode")
+				} else {
+					require.NotContains(t, string(script), "--preencode")
+				}
 				require.Contains(t, string(script), "--upload-only=false")
 			})
 		}

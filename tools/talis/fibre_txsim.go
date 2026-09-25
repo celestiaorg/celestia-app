@@ -53,7 +53,7 @@ func fibreTxsimCmd() *cobra.Command {
 			// Build the remote command — binaries are copied to /bin/ by validator_init.sh
 			// OTEL_METRICS_EXEMPLAR_FILTER=always_on attaches trace exemplars to all metric observations
 			remoteCmd := fmt.Sprintf(
-				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t --preencode=%t",
+				"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint localhost:9091 --keyring-dir .celestia-app --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t",
 				cfg.ChainID,
 				keyPrefix,
 				blobSize,
@@ -62,8 +62,11 @@ func fibreTxsimCmd() *cobra.Command {
 				duration,
 				download,
 				uploadOnly,
-				preencode,
 			)
+
+			if preencode {
+				remoteCmd += " --preencode"
+			}
 
 			// Auto-wire observability endpoints when observability nodes are configured
 			if len(cfg.Observability) > 0 {
@@ -130,7 +133,7 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 			// the default ~/.celestia-app/keyring-test by the deploy step;
 			// point fibre-txsim at the right directory directly so it can
 			// load enc<i>-* keys.
-			"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint %s --keyring-dir encoder-payload/%s --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t --preencode=%t",
+			"OTEL_METRICS_EXEMPLAR_FILTER=always_on fibre-txsim --chain-id %s --grpc-endpoint %s --keyring-dir encoder-payload/%s --key-prefix %s --blob-size %d --concurrency %d --interval %s --duration %s --download=%t --upload-only=%t",
 			cfg.ChainID,
 			grpcEndpoint,
 			enc.Name,
@@ -141,8 +144,11 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 			duration,
 			download,
 			uploadOnly,
-			preencode,
 		)
+
+		if preencode {
+			remoteCmd += " --preencode"
+		}
 
 		// Auto-wire observability endpoints
 		if len(cfg.Observability) > 0 {
