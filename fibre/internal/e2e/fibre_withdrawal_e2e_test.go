@@ -78,6 +78,12 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), depositResp.Code)
 
+	// SubmitTx returns once CometBFT stores the tx, which can happen before
+	// the app commits the block, so wait for the app to reach the tx height
+	// before querying state.
+	_, err = cctx.WaitForHeight(depositResp.Height)
+	require.NoError(t, err)
+
 	acc := escrow(deposit, deposit)
 	require.Equal(t, deposit, acc.Balance)
 	require.Equal(t, deposit, acc.AvailableBalance)
@@ -87,6 +93,9 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 		user.SetGasLimit(200_000), user.SetFee(5_000))
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), reqResp.Code)
+
+	_, err = cctx.WaitForHeight(reqResp.Height)
+	require.NoError(t, err)
 
 	acc = escrow(deposit, deposit.Sub(withdraw))
 	require.Equal(t, deposit, acc.Balance, "total balance stays locked until the withdrawal executes")

@@ -15,9 +15,12 @@ DOCKER_GOOS ?= linux
 DOCKER_GOARCH ?= amd64
 HTTPS_GIT := https://github.com/celestiaorg/celestia-app.git
 PACKAGE_NAME := github.com/celestiaorg/celestia-app/v10
-# Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag.
+# Before upgrading the GOLANG_CROSS_VERSION, please verify that a Docker image exists with the new tag
+# and update GOLANG_CROSS_DIGEST to the digest of that tag's manifest index.
 # See https://github.com/goreleaser/goreleaser-cross/pkgs/container/goreleaser-cross
 GOLANG_CROSS_VERSION  ?= v1.26.5
+GOLANG_CROSS_DIGEST   ?= sha256:0cf2b7f757b40397d2bef5423adb88d0ac63899e88a9f0c4bbb370d3fb7b2fb5
+GOLANG_CROSS_IMAGE    := ghcr.io/goreleaser/goreleaser-cross:$(GOLANG_CROSS_VERSION)@$(GOLANG_CROSS_DIGEST)
 # Set this to override v2 upgrade height for the v3 embedded binaries
 V2_UPGRADE_HEIGHT ?= 0
 
@@ -50,13 +53,13 @@ BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
 # dockerchain/config.go
-CELESTIA_V3_VERSION := v3.12.0
+CELESTIA_V3_VERSION := v3.13.0
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
-CELESTIA_V6_VERSION := v6.4.4
-CELESTIA_V7_VERSION := v7.0.2-mocha
+CELESTIA_V6_VERSION := v6.4.10
+CELESTIA_V7_VERSION := v7.0.3-mocha
 CELESTIA_V8_VERSION := v8.0.8
-CELESTIA_V9_VERSION := v9.0.4
+CELESTIA_V9_VERSION := v9.0.8
 
 ## help: Get more info on make commands.
 help: Makefile
@@ -334,6 +337,13 @@ lint:
 	@yamllint --no-warnings . -c .yamllint.yml
 .PHONY: lint
 
+## govulncheck: Check for vulnerabilities in dependencies.
+govulncheck:
+	@echo "--> Running govulncheck"
+	@go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+	@cd test/docker-e2e && go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+.PHONY: govulncheck
+
 ## markdown-link-check: Check all links in markdown files for validity.
 markdown-link-check:
 	@echo "--> Running markdown-link-check"
@@ -470,7 +480,7 @@ build-talis-bins:
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/txsim ./test/cmd/txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/latency-monitor ./tools/latency-monitor
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/celestia-appd ./cmd/celestia-appd
-	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre ./fibre/cmd
+	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_FIBRE)" -o build/fibre ./fibre/cmd
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-txsim ./tools/fibre-txsim
 	GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -tags="ledger" -ldflags="$(LDFLAGS_STANDALONE)" -o build/fibre-reader ./tools/fibre-reader
 .PHONY: build-talis-bins
@@ -531,7 +541,7 @@ adr-gen:
 
 ## check-goreleaser-image: Verify the pinned goreleaser-cross Docker image exists so releases don't silently ship without binaries.
 check-goreleaser-image:
-	@./scripts/check-goreleaser-image.sh ${GOLANG_CROSS_VERSION}
+	@./scripts/check-goreleaser-image.sh ${GOLANG_CROSS_VERSION} ${GOLANG_CROSS_DIGEST}
 .PHONY: check-goreleaser-image
 
 ## goreleaser-check: Check the .goreleaser.yaml config file.
@@ -545,10 +555,9 @@ goreleaser-check:
 		--env CGO_ENABLED=1 \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
-		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
-		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		$(GOLANG_CROSS_IMAGE) \
 		check
 .PHONY: goreleaser-check
 
@@ -563,10 +572,9 @@ prebuilt-binary:
 		--env CGO_ENABLED=1 \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
-		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
-		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		$(GOLANG_CROSS_IMAGE) \
 		release --clean --parallelism 1
 .PHONY: prebuilt-binary
 
@@ -579,10 +587,9 @@ goreleaser-dry-run:
 		--env CGO_ENABLED=1 \
 		--env GORELEASER_CURRENT_TAG=${GORELEASER_CURRENT_TAG} \
 		--env-file .release-env \
-		-v /var/run/docker.sock:/var/run/docker.sock \
 		-v `pwd`:/go/src/$(PACKAGE_NAME) \
 		-w /go/src/$(PACKAGE_NAME) \
-		ghcr.io/goreleaser/goreleaser-cross:${GOLANG_CROSS_VERSION} \
+		$(GOLANG_CROSS_IMAGE) \
 		release --snapshot --clean --parallelism 1
 .PHONY: goreleaser-dry-run
 
@@ -683,6 +690,7 @@ disable-mptcp:
 
 ## mptcp-disable: Disable mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
 mptcp-disable: disable-mptcp
+.PHONY: mptcp-disable
 
 CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
 SEND_RECV_RATE ?= 10485760  # 10 MiB

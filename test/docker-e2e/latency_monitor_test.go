@@ -19,9 +19,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	tastoracontainertypes "github.com/celestiaorg/tastora/framework/docker/container"
-	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
-	"github.com/stretchr/testify/require"
 )
 
 const latencyMonitorImage = "ghcr.io/celestiaorg/latency-monitor"
@@ -55,59 +53,6 @@ type LatencyMonitorResult struct {
 	MaxEffectiveLatency time.Duration
 	AvgEffectiveLatency time.Duration
 	SuccessRate         float64
-}
-
-// DeployLatencyMonitor starts a latency monitor container connected to the chain.
-func (s *CelestiaTestSuite) DeployLatencyMonitor(
-	ctx context.Context,
-	chain tastoratypes.Chain,
-	cfg LatencyMonitorConfig,
-) (*tastoracontainertypes.Container, error) {
-	t := s.T()
-
-	networkName, err := getNetworkNameFromID(ctx, s.client, s.network)
-	if err != nil {
-		return nil, err
-	}
-
-	tag, err := dockerchain.GetCelestiaTagStrict()
-	if err != nil {
-		return nil, err
-	}
-
-	image := tastoracontainertypes.NewJob(s.logger, s.client, networkName, t.Name(), latencyMonitorImage, tag)
-
-	networkInfo, err := chain.GetNodes()[0].GetNetworkInfo(ctx)
-	require.NoError(t, err, "failed to get network info")
-
-	args := []string{
-		"/bin/latency-monitor",
-		"--grpc-endpoint", networkInfo.Internal.Hostname + ":9090",
-		"--keyring-dir", "/celestia-home",
-		"--blob-size", strconv.Itoa(cfg.BlobSize),
-		"--blob-size-min", strconv.Itoa(cfg.MinBlobSize),
-		"--submission-delay", cfg.SubmissionDelay.String(),
-		"--namespace", "test",
-		"--disable-observability",
-	}
-
-	t.Logf("Starting latency-monitor with args: %v", args)
-
-	container, err := image.Start(ctx, args, tastoracontainertypes.Options{
-		User:  "0:0",
-		Binds: []string{chain.GetVolumeName() + ":/celestia-home"},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to start latency-monitor: %w", err)
-	}
-
-	t.Cleanup(func() {
-		if err := container.Stop(10 * time.Second); err != nil {
-			t.Logf("Error stopping latency-monitor: %v", err)
-		}
-	})
-
-	return container, nil
 }
 
 // DeployLatencyMonitorForNetwork starts a latency-monitor container that connects to

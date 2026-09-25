@@ -442,8 +442,7 @@ func TestCheckTx(t *testing.T) {
 					[]share.Namespace{namespace1},
 					[]int{100},
 				)[0]
-				// Append an unknown protobuf field. UnmarshalBlobTx accepts it
-				// but it is not the canonical encoding, so CheckTx must reject it.
+				// Append an unknown protobuf field so UnmarshalBlobTx rejects it.
 				return appendUnknownProtoField(btx, 4096)
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
@@ -462,6 +461,24 @@ func TestCheckTx(t *testing.T) {
 				// decodes to the same blob tx, but the encoding is not
 				// canonical, so CheckTx must reject it.
 				return append(btx, 0x1a, 0x04, 'B', 'L', 'O', 'B')
+			},
+			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
+		},
+		{
+			name:      "nested blob tx, CheckTxType_New",
+			checkType: abci.CheckTxType_New,
+			getTx: func() []byte {
+				inner := blobfactory.RandBlobTxsWithNamespacesAndSigner(
+					signers[10],
+					[]share.Namespace{namespace1},
+					[]int{100},
+				)[0]
+				innerBlobTx, isBlob, err := tx.UnmarshalBlobTx(inner)
+				require.NoError(t, err)
+				require.True(t, isBlob)
+				outer, err := tx.MarshalBlobTx(inner, innerBlobTx.Blobs...)
+				require.NoError(t, err)
+				return outer
 			},
 			expectedABCICode: apperr.ErrNonCanonicalBlobTx.ABCICode(),
 		},
@@ -573,6 +590,43 @@ func TestCheckTxMalformedModeInfoDoesNotPanic(t *testing.T) {
 		resp, _ := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: txBz})
 		require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 	})
+}
+
+// TestCheckTxBlobTxCacheAdmission verifies that only blob txs passing full
+// CheckTx are admitted to the cache consulted by ProcessProposal.
+func TestCheckTxBlobTxCacheAdmission(t *testing.T) {
+	encodingConfig := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := []string{"a"}
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+
+	fetchedAcc := testutil.DirectQueryAccount(testApp, testfactory.GetAddress(kr, accounts[0]))
+	namespace, err := share.NewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	require.NoError(t, err)
+
+	fromCacheAfterCheckTx := func(rawTx []byte) bool {
+		blobTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
+		require.True(t, isBlob)
+		require.NoError(t, err)
+		fromCache, err := testApp.ValidateBlobTxWithCache(blobTx)
+		require.NoError(t, err)
+		return fromCache
+	}
+
+	// A blob tx signed with a wrong account number passes stateless blob
+	// validation but fails the stateful ante pass; it must not be cached.
+	badSigner := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber()+1)
+	invalidTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(badSigner, []share.Namespace{namespace}, []int{100})[0]
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: invalidTx})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	assert.False(t, fromCacheAfterCheckTx(invalidTx), "a blob tx failing CheckTx must not be cached")
+
+	signer := createSigner(t, kr, accounts[0], encodingConfig.TxConfig, fetchedAcc.GetAccountNumber())
+	validTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(signer, []share.Namespace{namespace}, []int{100})[0]
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: validTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	assert.True(t, fromCacheAfterCheckTx(validTx), "a blob tx passing CheckTx must be cached")
 }
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
@@ -687,12 +741,47 @@ func TestCheckTxPayForFibreReplay(t *testing.T) {
 	}
 }
 
+// TestCheckTxPayForFibreRecheckExpiry admits a payment promise and then
+// advances block time past its timeout, so recheck must reject the expired
+// promise and the mempool evicts it instead of proposing a stale PFF.
+func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	txBytes := newSignedPayForFibreTx(t, signer, accounts[0], true)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Commit an empty block timestamped past the promise timeout but within
+	// the freshness window, so the promise is expired rather than too old.
+	commitBlockAt(t, testApp, time.Now().Add(fibretypes.DefaultPaymentPromiseTimeout+time.Minute))
+
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
+	require.Contains(t, resp.Log, "payment promise expired")
+}
+
 // commitBlock finalizes and commits a block of txs stamped time.Now, so the
 // CheckTx state carries a current block time for promise freshness checks.
 func commitBlock(t *testing.T, testApp *app.App, txs ...[]byte) *abci.ResponseFinalizeBlock {
 	t.Helper()
+	return commitBlockAt(t, testApp, time.Now(), txs...)
+}
+
+// commitBlockAt is commitBlock with an explicit block time.
+func commitBlockAt(t *testing.T, testApp *app.App, blockTime time.Time, txs ...[]byte) *abci.ResponseFinalizeBlock {
+	t.Helper()
 	resp, err := testApp.FinalizeBlock(&abci.RequestFinalizeBlock{
-		Time:   time.Now(),
+		Time:   blockTime,
 		Height: testApp.LastBlockHeight() + 1,
 		Hash:   testApp.LastCommitID().Hash,
 		Txs:    txs,

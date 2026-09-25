@@ -91,6 +91,10 @@ talis fibre-txsim --instances 4 \
 | `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
 | `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
 
+`talis fibre-txsim` accepts `--otel-metrics-path` and `--otel-traces-path`.
+Defaults are `/v1/metrics` and `/v1/traces`. Each value replaces the endpoint URL path, including any proxy prefix.
+Talis forwards only explicitly supplied path flags. Custom paths require remote binaries that support these flags.
+
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts.
 
 Each instance runs inside a tmux session called `fibre-txsim` on the remote validator. To stop all instances:
@@ -120,7 +124,7 @@ talis genesis --ods-size 256 --build-dir build
 talis deploy --workers 20
 ```
 
-`talis genesis` stages a `reader-payload/` directory (fibre-reader binary + a fibre keyring borrowed from validator-0). `talis deploy` ships it to each reader and runs `reader_init.sh`, which installs `/bin/fibre-reader` and `/root/.celestia-app/keyring-test/`. Mirrors the encoder pattern.
+`talis genesis` stages a `reader-payload/` directory (the fibre-reader binary). `talis deploy` ships it to each reader and runs `reader_init.sh`, which installs `/bin/fibre-reader`. Mirrors the encoder pattern.
 
 `make build-talis-bins` builds the fibre-reader binary along with the other talis binaries. Its codec can decode `MsgPayForFibre` because the fibre module is compiled into every build by default.
 
@@ -141,7 +145,6 @@ talis fibre-reader \
 | `--download-concurrency` | `8`     | Max concurrent in-flight downloads per reader (semaphore-bounded; goroutine spawned per blob)                                |
 | `--download-timeout`     | `2m`    | Per-blob download timeout                                                                                                    |
 | `--duration`             | `0`     | How long to run (`0` = until killed)                                                                                         |
-| `--key-prefix`           | `fibre` | Fibre keyring key-name prefix (only used to satisfy `fibre.NewClient`'s key-existence check; reader does not sign anything)  |
 | `--pyroscope-endpoint`   | *(auto)* | Pyroscope endpoint (auto-detected from observability config)                                                                |
 
 ### Sharding
@@ -198,6 +201,10 @@ Run `fibre-throughput` from your local machine to poll blocks and print per-bloc
 talis fibre-throughput
 ```
 
+With observability enabled, live runs add **Successful PFF Inclusion** (blob bytes/sec) to the Throughput panel.
+This requires `discard_abci_responses = false` under `[storage]` on every selected validator, with block results available.
+Run one monitor per experiment without `--start-height`.
+
 This connects to the first validator's RPC endpoint and prints a line per block:
 
 ```text
@@ -212,6 +219,7 @@ height=350 pff_txs=4 pfb_txs=0 pff_bytes=3MB pfb_bytes=0MB block_time=3.06s pff_
 | `--rpc-endpoint` | *(first validator IP:26657)* | CometBFT RPC endpoint to poll                 |
 | `--duration`     | `0`                          | How long to run (`0` = until Ctrl+C)          |
 | `--start-height` | `0`                          | Block height to start from (`0` = latest + 1) |
+| `--successful-only` | `false` | Count only PFFs with execution code 0; fetch block results automatically. PFB counts stay unchanged. |
 | `--with-traces`  | `false`                      | Enable JSONL trace file output                |
 | `--traces-dir`   | `traces/throughput`          | Directory where trace files are written       |
 

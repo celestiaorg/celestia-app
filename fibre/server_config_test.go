@@ -1,10 +1,12 @@
 package fibre
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"testing"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -65,6 +67,7 @@ signer_grpc_address = "127.0.0.1:26658"
 
 	assert.Equal(t, "127.0.0.1:8123", cfg.ServerListenAddress)
 	assert.Equal(t, "127.0.0.1:10090", cfg.AppGRPCAddress)
+	assert.Equal(t, 256<<10, cfg.MinUploadSize, "old config files retain the default minimum")
 
 	// StoreFn, SignerFn, and StateClientFn are nil until Validate fills in defaults.
 	require.NoError(t, cfg.Validate())
@@ -81,6 +84,34 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 	err := cfg.Validate()
 	require.NoError(t, err)
 	assert.NotNil(t, cfg.SignerFn)
+}
+
+func TestServerConfigConnectionDefaults(t *testing.T) {
+	cfg := DefaultServerConfig()
+	assert.Equal(t, fibregrpc.DefaultMaxConnections, cfg.MaxConnections)
+	assert.Equal(t, fibregrpc.DefaultMaxConcurrentStreams, cfg.MaxConcurrentStreams)
+}
+
+func TestServerConfigValidateConnectionCaps(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.Path = t.TempDir()
+	cfg.MaxConnections = 0
+
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "max_connections must be at least 1")
+
+	cfg.MaxConnections = fibregrpc.DefaultMaxConnections
+	cfg.MaxConcurrentStreams = 0
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "max_concurrent_streams must be at least 1")
+
+	tooBig := uint64(math.MaxUint32) + 1
+	cfg.MaxConcurrentStreams = int(tooBig)
+	err = cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must not exceed")
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {
@@ -121,4 +152,27 @@ func TestServerConfigObjectStorageRoundTrip(t *testing.T) {
 	require.Contains(t, string(data), "[object_storage]")
 	require.NotContains(t, string(data), "objectNamespace")
 	require.Contains(t, string(data), "# Use auto for Cloudflare R2.")
+}
+
+func TestServerConfigMinUploadSize(t *testing.T) {
+	cfg := DefaultServerConfig()
+	require.Equal(t, 256<<10, cfg.MinUploadSize)
+	path := DefaultConfigPath(t.TempDir())
+	cfg.MinUploadSize = 32 << 20
+	require.NoError(t, cfg.Save(path))
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(path))
+	require.Equal(t, cfg.MinUploadSize, loaded.MinUploadSize)
+
+	for _, size := range []int{-1, 0, 1, 256 << 10, 32 << 20, 128 << 20, (128 << 20) + 1} {
+		cfg := DefaultServerConfig()
+		cfg.Path = t.TempDir()
+		cfg.MinUploadSize = size
+		err := cfg.Validate()
+		if size < 1 || size > 128<<20 {
+			require.ErrorContains(t, err, "min_upload_size")
+		} else {
+			require.NoError(t, err)
+		}
+	}
 }

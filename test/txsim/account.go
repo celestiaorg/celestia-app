@@ -109,6 +109,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 	var (
 		highestBalance    uint64
 		wealthiestAddress string
+		lastBalanceErr    error
 	)
 
 	for _, record := range records {
@@ -121,6 +122,7 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 		balance, err := am.getBalance(ctx, address)
 		if err != nil {
 			log.Err(err).Str("account", record.Name).Msg("error getting initial account balance")
+			lastBalanceErr = err
 			continue
 		}
 
@@ -131,6 +133,9 @@ func (am *AccountManager) findWealthiestAccount(ctx context.Context) (string, er
 	}
 
 	if wealthiestAddress == "" {
+		if lastBalanceErr != nil {
+			return "", fmt.Errorf("no suitable master account found: %w", lastBalanceErr)
+		}
 		return "", errors.New("no suitable master account found")
 	}
 
@@ -240,7 +245,7 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	opts := make([]user.TxOption, 0)
-	var gasLimit, fee uint64
+	var gasLimit uint64
 	var gasPrice float64
 
 	// Step 1: Determine gas limit
@@ -275,10 +280,8 @@ func (am *AccountManager) Submit(ctx context.Context, op Operation) error {
 	}
 
 	// Step 3: Calculate fee
-	if fee == 0 {
-		fee = uint64(math.Ceil(float64(gasLimit) * gasPrice))
-		opts = append(opts, user.SetFee(fee))
-	}
+	fee := uint64(math.Ceil(float64(gasLimit) * gasPrice))
+	opts = append(opts, user.SetFee(fee))
 
 	if am.useFeegrant {
 		opts = append(opts, user.SetFeeGranter(am.txClient.DefaultAddress()))

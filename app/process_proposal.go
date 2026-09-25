@@ -57,6 +57,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	)
 	blockHeader := ctx.BlockHeader()
 
+	// Read the max square size before the ante loop. The loop reassigns ctx to
+	// the context returned by the ante handler, which carries a finite gas meter
+	// scoped to the last transaction. Reading it after the loop would meter this
+	// block level read against that leftover meter and can run out of gas. This
+	// mirrors PrepareProposal, which reads it before running any ante handler.
+	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
+
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
 	// which pays out matured withdrawals and advances the freshness floor before
 	// any tx. Pay-for-fibre settlement below must see that escrow state. The
@@ -90,10 +97,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject(), nil
-			}
-			if !blobTxIsCanonical(rawTx, blobTx) {
-				logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("blob tx %d is not canonically encoded", idx))
 				return reject(), nil
 			}
 			sdkTxBytes = blobTx.Tx
@@ -209,7 +212,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil
 	}
-	dataSquare, err := squarev4.Construct(classifiedTxs, app.MaxEffectiveSquareSize(ctx), appconsts.SubtreeRootThreshold)
+	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
 		return reject(), nil

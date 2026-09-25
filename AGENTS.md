@@ -16,7 +16,7 @@ make mod                # Update all go.mod files
 
 ### Testing
 
-For test-related tasks: 1) write the test, 2) run it to verify it passes, 3) check for flaky behavior by running multiple times if relevant.
+For test-related tasks: 1) write the test, 2) run it to verify it passes, 3) for tests involving timing, concurrency, or networking, check for flakiness with `-count=N`.
 
 ```bash
 go test -v -run TestName ./path/to/package  # Run a single test
@@ -48,7 +48,7 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 ### Directory Structure
 
 - **`/app`** - Application core: state machine, ABCI handlers (`prepare_proposal.go`, `process_proposal.go`), ante decorators (`ante/`)
-- **`/x`** - Custom modules: `blob` (MsgPayForBlobs), `signal` (upgrades), `minfee` (gas price governance), `mint` (inflation)
+- **`/x`** - Custom modules: `blob` (MsgPayForBlobs), `signal` (upgrades), `minfee` (gas price governance), `mint` (inflation), `fibre`, `valaddr`, `forwarding` (Hyperlane forwarding), `zkism`
 - **`/pkg`** - Reusable packages: `appconsts`, `da`, `wrapper` (NMT), `user` (tx APIs), `inclusion`, `proof`
 - **`/multiplexer`** - Multi-version upgrade system embedding v3-v9 binaries
 - **`/cmd/celestia-appd`** - Binary entry point
@@ -59,41 +59,29 @@ celestia-app is a Cosmos SDK-based blockchain implementing Celestia's data avail
 - **`make build`** (default): Multiplexer build embeds v3-v9 binaries, enables syncing from genesis through all upgrades. Build tag: `ledger,multiplexer`
 - **`make build-standalone`**: v10-only, lighter. Build tag: `ledger`
 
-The fibre and valaddr modules are compiled into every build by default. The module code lives under `x/fibre/` and `x/valaddr/`, wired into the app via `app/fibre.go`.
+The fibre and valaddr modules are compiled into every build by default. The module code lives under `x/fibre/` and `x/valaddr/`, wired into the app via `app/modules.go` and `app/app.go`.
 
 ### Dependency Forks
 
-All branches use forked cosmos-sdk and celestia-core:
-
-| celestia-app | celestia-core      | cosmos-sdk                 |
-|--------------|--------------------|----------------------------|
-| `main`       | `v0.40.x`          | `release/v0.52.x-celestia` |
-| `v9.x`       | `v0.40.x`          | `release/v0.52.x-celestia` |
-| `v8.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
-| `v7.x`       | `v0.39.x-celestia` | `release/v0.52.x-celestia` |
-| `v6.x`       | `v0.39.x-celestia` | `release/v0.51.x-celestia` |
-| `v5.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
-| `v4.x`       | `v0.38.x-celestia` | `release/v0.50.x-celestia` |
-| `v3.x`       | `v0.34.x-celestia` | `release/v0.46.x-celestia` |
+All branches use forked cosmos-sdk and celestia-core. The exact versions are pinned in the `replace` block of each branch's `go.mod`.
 
 ## Development Workflow
 
 1. **Multi-module repo**: Copy `go.work.example` to `go.work` and run `go work sync`
 2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `feat!:` for breaking changes). Any consensus-breaking change (one that alters deterministic state-machine behavior and requires a coordinated network upgrade) must include a `!` in the PR title, e.g. `fix!:`.
-3. **Validate inputs** in message handlers; be cautious with arithmetic overflow and gas consumption
-4. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
-5. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
+3. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
+4. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
 
 ## AI Safety Invariants
 
 @docs/ai/invariants.md
 
-Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai/invariants.md), imported above. If a task cannot be done without violating one, stop and ask the engineer.
+Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai/invariants.md), imported above. If your tool does not expand the import, read that file before changing `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/`. If a task cannot be done without violating one, stop and ask the engineer.
 
 ## AI Workflow
 
 - **Risk tiers**: changes touching `x/`, `app/`, `pkg/`, `proto/`, or `multiplexer/` are risky; docs, test-only changes, scripts, tooling, and `.github/` are light; risky changes that modify a state transition reachable from ABCI are consensus-critical and also get an `adversarial-reviewer` deep review. When in doubt, treat as the higher tier.
-- **Interactive gate**: before implementing or reviewing any change, triage the tier, then ask the engineer whether to run the invariant workflow (the `/implement` skill, or the reviewer agents in `.claude/agents/` for a review). Give a 2–3 line overview — tier, paths touched, what the workflow would add — and a recommendation: run it for risky and consensus-critical changes, skip it for light ones. Skip the question when the engineer invoked `/implement` directly. In non-interactive runs, follow the recommendation.
+- **Interactive gate**: before implementing or reviewing any change, triage the tier. For light changes, state the tier in one line and proceed. For risky and consensus-critical changes, ask the engineer whether to run the invariant workflow (the `/implement` skill, or the reviewer agents in `.claude/agents/` for a review). Give a 2–3 line overview — tier, paths touched, what the workflow would add — and recommend running it. Skip the question when the engineer invoked `/implement` directly. In non-interactive runs, run it.
 - **Declined workflow on a risky change**: still state assumptions and get engineer confirmation before writing code; no reviewer agents unless the engineer asks.
 - **Assumptions notes** live in `docs/plans/` and are never committed.
 
@@ -141,13 +129,12 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 
 ### Working on Tasks
 
-- Never make assumptions and act on them. Interview the user relentlessly about every unclear or under-defined aspect until you reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one by one.
-- If a question can be answered by exploring the codebase, explore the codebase instead.
-- For each question, provide your recommended answer.
-- If a task is complex enough, write an implementation plan first and discuss all aspects of the solution before implementing.
-- If a fix is very complex: write an elaborate implementation plan, question the user relentlessly about every aspect of the design, then split the implementation into self-contained phases — each with a clear goal and tests to verify it — that can ideally run in parallel across multiple agents.
+- Answer questions from the codebase first. Ask the engineer only when different readings of the request would lead to materially different code. Give a recommended answer with each question.
+- For risky-tier work, get the engineer's confirmation on the plan before writing code. A wrong assumption in consensus code can halt the chain.
+- If a task is complex enough, write an implementation plan first and discuss it with the engineer before implementing.
+- If a fix is very complex, split the implementation into self-contained phases, each with a clear goal and tests to verify it, that can ideally run in parallel across multiple agents.
 
 ### Searching
 
-- Never hallucinate an answer. Find the definitive answer or ask the user for more information.
-- For internet searches, always actually search and show the links used to find the information.
+- Cite the file path or URL behind factual claims. If you can't find a definitive answer, say so.
+- For internet searches, actually search and show the links used to find the information.

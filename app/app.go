@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	reflectionv1 "cosmossdk.io/api/cosmos/reflection/v1"
 	"cosmossdk.io/client/v2/autocli"
 	"cosmossdk.io/core/appmodule"
 	"cosmossdk.io/log"
@@ -533,6 +534,12 @@ func New(
 		panic(err)
 	}
 
+	rfS, err := runtimeservices.NewReflectionService()
+	if err != nil {
+		panic(err)
+	}
+	reflectionv1.RegisterReflectionServiceServer(app.GRPCQueryRouter(), rfS)
+
 	app.RegisterUpgradeHandlers() // must be called after module manager & configurator are initialized
 
 	// Initialize the KV stores for the base modules (e.g. params). The base modules will be included in every app version.
@@ -600,23 +607,6 @@ func (app *App) Info(req *abci.RequestInfo) (*abci.ResponseInfo, error) {
 	}
 
 	res.TimeoutInfo = app.TimeoutInfo()
-
-	return res, nil
-}
-
-// FinalizeBlock implements the abci interface. It overrides baseapp's FinalizeBlock method, essentially becoming a decorator
-// in order to add transaction pruning logic after normal finalize block processing.
-func (app *App) FinalizeBlock(req *abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
-	// Call the normal BaseApp FinalizeBlock first
-	res, err := app.BaseApp.FinalizeBlock(req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Go through all the transactions that are getting executed and prune the tx tracker
-	for _, tx := range req.Txs {
-		app.txCache.RemoveTransaction(tx)
-	}
 
 	return res, nil
 }

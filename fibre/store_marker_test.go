@@ -14,7 +14,9 @@ import (
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/metric/noop"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestShardMarkerCodec(t *testing.T) {
@@ -518,7 +520,16 @@ func TestStoreRoutesObjectShard(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, has)
 	require.True(t, accounted)
-	require.NoError(t, store.Put(t.Context(), promise, shard, promise.CreationTimestamp))
+	occ := newOccupancy(size)
+	occ.seed(size)
+	metrics, err := newServerMetrics(noop.NewMeterProvider().Meter("replacement-test"), occ)
+	require.NoError(t, err)
+	server := &Server{
+		store: store, occ: occ, metrics: metrics,
+		tracer: tracenoop.NewTracerProvider().Tracer("replacement-test"),
+	}
+	require.NoError(t, server.storeShard(t.Context(), slog.Default(), promise, promiseHash, promise.CreationTimestamp, shard))
+	require.Equal(t, size, occ.usage())
 	got, err = store.Get(t.Context(), commitment)
 	require.NoError(t, err)
 	require.Equal(t, shard, got)

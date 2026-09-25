@@ -218,6 +218,27 @@ func TestClientServerUploadDownload(t *testing.T) {
 	}
 }
 
+func TestClientServerDownloadWithoutKeyring(t *testing.T) {
+	env := makeTestEnv(t, 3, 1, nil, nil)
+	t.Cleanup(env.Close)
+	uploader := env.clients[0]
+	blob := makeTestBlobV0(t, 256*1024)
+
+	_, err := uploader.Upload(t.Context(), testNamespace, blob, fibre.WithAwaitAllSignatures())
+	require.NoError(t, err)
+
+	reader, err := fibre.NewClient(nil, uploader.Config)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, reader.Stop(context.Background())) })
+	require.NoError(t, reader.Start(t.Context()))
+
+	downloaded, err := reader.Download(t.Context(), blob.ID())
+	require.NoError(t, err)
+	t.Cleanup(downloaded.Free)
+	require.Equal(t, blob.ID(), downloaded.ID())
+	require.Equal(t, blob.Data(), downloaded.Data())
+}
+
 // testEnv holds the test environment with servers, clients, and validator set
 type testEnv struct {
 	valSetGetter *shufflingValidatorSetGetter
