@@ -851,19 +851,31 @@
         {
           "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
           "interval": "1m",
-          "legendFormat": "Server UploadShard",
+          "legendFormat": "Server UploadShard (stored)",
           "refId": "C"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
           "interval": "1m",
-          "legendFormat": "Server DownloadShard",
+          "legendFormat": "Server DownloadShard (rows)",
           "refId": "D"
         },
         {
           "expr": "sum(rate(fibre_pff_included_bytes_total[$__rate_interval]))",
           "legendFormat": "Successful PFF Inclusion",
           "refId": "E"
+        },
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_request_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Server UploadShard (received)",
+          "refId": "F"
+        },
+        {
+          "expr": "sum(rate(fibre_server_download_shard_response_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "Server DownloadShard (response)",
+          "refId": "G"
         }
       ],
       "title": "Throughput",
@@ -3411,14 +3423,26 @@
         {
           "expr": "sum(rate(fibre_server_upload_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
           "interval": "1m",
-          "legendFormat": "UploadShard",
+          "legendFormat": "UploadShard (stored)",
           "refId": "A"
         },
         {
           "expr": "sum(rate(fibre_server_download_shard_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
           "interval": "1m",
-          "legendFormat": "DownloadShard",
+          "legendFormat": "DownloadShard (rows)",
           "refId": "B"
+        },
+        {
+          "expr": "sum(rate(fibre_server_upload_shard_request_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "UploadShard (received)",
+          "refId": "C"
+        },
+        {
+          "expr": "sum(rate(fibre_server_download_shard_response_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "DownloadShard (response)",
+          "refId": "D"
         }
       ],
       "title": "Server Throughput",
@@ -3745,6 +3769,282 @@
         }
       ],
       "title": "Prune Health",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "Bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 128
+      },
+      "id": 53,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum by(outcome) (rate(fibre_server_upload_shard_request_bytes_total{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "UploadShard Request Bytes by Outcome",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 136
+      },
+      "id": 54,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum by(outcome) (rate(fibre_server_upload_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "UploadShard Outcome Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 30,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 136
+      },
+      "id": 55,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "11.4.0",
+      "targets": [
+        {
+          "expr": "sum by(outcome) (rate(fibre_server_download_shard_duration_seconds_count{service_instance_id=~\"$validator\"}[$__rate_interval]))",
+          "interval": "1m",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "title": "DownloadShard Outcome Rate",
       "type": "timeseries"
     }
   ],

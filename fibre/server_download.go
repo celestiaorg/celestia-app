@@ -21,8 +21,9 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	defer span.End()
 
 	var shardSize int64
+	outcome := downloadInvalid
 	downloadShardDone := s.metrics.observeDownloadShard(ctx)
-	defer func() { downloadShardDone(shardSize, err) }()
+	defer func() { downloadShardDone(shardSize, outcome, err) }()
 
 	// unmarshal and validate blob ID
 	var id BlobID
@@ -47,10 +48,12 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	s.metrics.observeStoreOp(ctx, s.metrics.storeGetDuration, storeGetStart, err == nil)
 	if err != nil {
 		if errors.Is(err, ErrStoreNotFound) {
+			outcome = downloadNotFound
 			s.log.WarnContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")
 			return nil, status.Error(grpccodes.NotFound, fmt.Sprintf("no blob shard found for commitment %s", id.Commitment().String()))
 		}
+		outcome = downloadFailed
 		s.log.ErrorContext(ctx, "failed to retrieve blob shard", "blob_commitment", id.Commitment().String(), "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to retrieve blob shard")
@@ -70,7 +73,10 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		shardSize += int64(len(row.Data))
 	}
 
+	resp := &types.DownloadShardResponse{Shard: blobShard}
+	outcome = downloadServed
 	s.metrics.downloadShardBytes.Add(ctx, shardSize)
+	s.metrics.downloadShardRespBytes.Add(ctx, int64(resp.Size()))
 	s.log.InfoContext(ctx, "download successful",
 		"blob_commitment", id.Commitment().String(),
 		"rows", len(blobShard.Rows),
@@ -78,7 +84,5 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	)
 
 	span.SetStatus(codes.Ok, "")
-	return &types.DownloadShardResponse{
-		Shard: blobShard,
-	}, nil
+	return resp, nil
 }

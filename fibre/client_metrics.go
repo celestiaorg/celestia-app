@@ -162,7 +162,7 @@ func (m *clientMetrics) observeUpload(ctx context.Context, blobSize int) (done f
 	return func(err error) {
 		m.uploadInFlight.Add(ctx, -1)
 		m.uploadDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(
-			attribute.Int("blob_size", blobSize),
+			attribute.Int64("blob_size", sizeBucket(int64(blobSize))),
 			attribute.Bool("success", err == nil),
 		))
 	}
@@ -182,7 +182,7 @@ func (m *clientMetrics) observeUploadTo(ctx context.Context, start time.Time, su
 		ctx,
 		time.Since(start).Seconds(), metric.WithAttributes(
 			attribute.Bool("success", success),
-			attribute.Int("blob_size", blobSize),
+			attribute.Int64("blob_size", sizeBucket(int64(blobSize))),
 			attribute.String("validator_address", valAddr),
 		))
 }
@@ -206,7 +206,7 @@ func (m *clientMetrics) observeDownload(ctx context.Context) (done func(blob *Bl
 		m.downloadInFlight.Add(ctx, -1)
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
 		if blob != nil {
-			attrs = append(attrs, attribute.Int("blob_size", blob.DataSize()))
+			attrs = append(attrs, attribute.Int64("blob_size", sizeBucket(int64(blob.DataSize()))))
 		}
 		m.downloadDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attrs...))
 	}
