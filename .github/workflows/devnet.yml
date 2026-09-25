@@ -1,0 +1,135 @@
+name: devnet
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing app version tag to build and publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devnet-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    env:
+      DEVNET_VERSION: local
+      DEVNET_LOG_DIR: /tmp/devnet-logs
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.inputs.tag || github.sha }}
+      - name: Resolve version
+        id: version
+        env:
+          REQUESTED_TAG: ${{ github.event.inputs.tag || (github.ref_type == 'tag' && github.ref_name) || '' }}
+        run: |
+          tag="$REQUESTED_TAG"
+          if [[ -n "$tag" ]]; then
+            [[ "$tag" == v* && "$tag" =~ ^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,127}$ ]]
+            git fetch origin "refs/tags/$tag:refs/tags/$tag"
+            [[ "$(git rev-parse HEAD)" == "$(git rev-parse "$tag^{commit}")" ]]
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "VERSION=${tag#v}" >> "$GITHUB_ENV"
+          echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Check scripts and Dockerfile
+        run: |
+          shellcheck docker/devnet/*.sh
+          docker run --rm -i hadolint/hadolint:v2.15.0 < docker/devnet/Dockerfile
+          docker compose -f docker/devnet/compose.yaml -f docker/devnet/compose.build.yaml config --quiet
+      - name: Build both images
+        run: docker compose -f docker/devnet/compose.yaml -f docker/devnet/compose.build.yaml build
+      - name: Test devnet and persistence
+        run: bash docker/devnet/smoke.sh
+      - name: Preserve logs
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: devnet-logs-${{ matrix.arch }}
+          path: ${{ env.DEVNET_LOG_DIR }}
+          if-no-files-found: ignore
+      - name: Save tested images
+        if: steps.version.outputs.tag != '' && github.repository == 'celestiaorg/celestia-app'
+        run: |
+          docker save ghcr.io/celestiaorg/celestia-devnet-validator:local \
+            ghcr.io/celestiaorg/celestia-devnet-bridge:local | gzip > /tmp/devnet-images.tar.gz
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.version.outputs.tag != '' && github.repository == 'celestiaorg/celestia-app'
+        with:
+          name: devnet-images-${{ matrix.arch }}
+          path: /tmp/devnet-images.tar.gz
+          retention-days: 3
+
+  publish:
+    needs: build-test
+    if: >-
+      github.repository == 'celestiaorg/celestia-app' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ubuntu-24.04
+    env:
+      TAG: ${{ needs.build-test.outputs.tag }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: devnet-images-${{ matrix.arch }}
+          path: /tmp
+      - name: Push tested images
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker load < /tmp/devnet-images.tar.gz
+          for role in validator bridge; do
+            image="ghcr.io/celestiaorg/celestia-devnet-$role"
+            docker tag "$image:local" "$image:$TAG-$ARCH"
+            docker push "$image:$TAG-$ARCH"
+          done
+
+  manifests:
+    needs: [build-test, publish]
+    runs-on: ubuntu-24.04
+    permissions:
+      packages: write
+    env:
+      TAG: ${{ needs.build-test.outputs.tag }}
+    steps:
+      - name: Publish and verify version manifests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          for role in validator bridge; do
+            image="ghcr.io/celestiaorg/celestia-devnet-$role"
+            docker buildx imagetools create -t "$image:$TAG" "$image:$TAG-amd64" "$image:$TAG-arm64"
+            docker buildx imagetools inspect "$image:$TAG" --raw |
+              jq -e '[.manifests[].platform | select(.os == "linux") | .architecture] | sort == ["amd64", "arm64"]'
+          done
