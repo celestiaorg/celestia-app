@@ -158,6 +158,8 @@ func configureStateSyncClient(ctx context.Context, node *cosmos.ChainNode, rpcEn
 	}
 
 	return config.Modify(ctx, node, "config/app.toml", func(cfg *servercfg.Config) {
+		// Tastora enables REST, which requires the Cosmos SDK gRPC server.
+		cfg.GRPC.Enable = true
 		cfg.Telemetry.Enabled = true
 	})
 }
