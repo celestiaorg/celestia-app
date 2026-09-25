@@ -5269,10 +5269,17 @@ staging/&lt;random&gt;                            temporary in-flight write
 <li><code>fibre.server.download_shard.bytes</code></li>
 <li><code>fibre.server.store.put.duration</code></li>
 <li><code>fibre.server.store.get.duration</code></li>
+<li><code>fibre.server.backend.get.duration</code></li>
+<li><code>fibre.server.backend.get.in_flight</code></li>
+<li><code>fibre.server.backend.get.bytes</code></li>
 <li><code>fibre.server.sign.duration</code></li>
 <li><code>fibre.server.prune.entries</code></li>
 <li><code>fibre.server.prune.duration</code></li>
 </ul>
+<p>Backend GET metrics record only the primary backend and use <code>backend=local|object</code>.
+Duration is measured in seconds through payload reading, decoding and closing, with <code>outcome=success|not_found|timeout|canceled|throttled|error</code>.
+The in-flight metric counts concurrent backend GET calls. The byte counter records encoded bytes consumed, including partial failures and buffered reads.
+Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="fibre-sdk-module-xfibre"><a class="header" href="#fibre-sdk-module-xfibre">Fibre SDK Module <code>x/fibre</code></a></h1>
 <h2 id="abstract-3"><a class="header" href="#abstract-3">Abstract</a></h2>
 <p>The <code>x/fibre</code> module is the escrow and settlement module for Fibre payment promises. Users deposit funds into module-controlled escrow accounts, sign off-chain <code>PaymentPromise</code> values for specific blobs, and later settle those promises on-chain either through <code>MsgPayForFibre</code> with validator signatures or through <code>MsgPaymentPromiseTimeout</code> after the promise expires.</p>
