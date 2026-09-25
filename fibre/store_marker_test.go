@@ -281,6 +281,34 @@ func TestPruneBeforeSkipsInvalidMarkerAndPrunesValidEntry(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestPruneBeforeDeletesMalformedPruneKeys(t *testing.T) {
+	store := newMarkerTestStore(t)
+	commitment := generateCommitment()
+	promiseHash := []byte{1}
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	size := writeMarkerTestShard(t, store, commitment, promiseHash)
+	require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), encodeShardMarkerForBackend(localBackendTag, size), pebbledb.NoSync))
+	require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync))
+	malformed := [][]byte{[]byte("/prune/short"), []byte("/prune/202501011000/bad")}
+	for _, key := range malformed {
+		require.NoError(t, store.db.Set(key, nil, pebbledb.NoSync))
+	}
+
+	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Equal(t, 1, pruned)
+	require.Equal(t, size, freed)
+	for _, key := range malformed {
+		_, _, err := store.db.Get(key)
+		require.ErrorIs(t, err, pebbledb.ErrNotFound)
+	}
+
+	pruned, freed, err = store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
+	require.NoError(t, err)
+	require.Zero(t, pruned)
+	require.Zero(t, freed)
+}
+
 func TestPruneBeforeHonoursCancellation(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()

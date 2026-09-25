@@ -399,12 +399,20 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 
 		// Keys are sorted; once the timestamp reaches the cutoff we're done.
 		keyStr := string(key)
-		timestampStr := keyStr[7:19] // skip "/prune/" (7 chars), take YYYYMMDDHHmm
-		if timestampStr >= beforeStr {
+		// skip "/prune/" (7 chars), take YYYYMMDDHHmm
+		if len(keyStr) >= 19 && keyStr[7:19] >= beforeStr {
 			break
 		}
 		commitment, promiseHash, ok := parsePruneKey(keyStr)
 		if !ok {
+			// Delete the malformed key so later passes do not rescan it.
+			if err := batch.Delete(key, pebbledb.NoSync); err != nil {
+				return 0, 0, nil, fmt.Errorf("deleting malformed prune index: %w", err)
+			}
+			corruptMarkers++
+			if integrityErr == nil {
+				integrityErr = fmt.Errorf("%w: malformed prune key %q", ErrStoreIntegrity, key)
+			}
 			continue
 		}
 
@@ -479,7 +487,7 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		return pruned, prunedBytes, next, deleteErr
 	}
 	if corruptMarkers > 1 {
-		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
+		integrityErr = fmt.Errorf("%w (%d corrupt prune entries)", integrityErr, corruptMarkers)
 	}
 	return pruned, prunedBytes, next, integrityErr
 }
