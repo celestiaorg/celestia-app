@@ -7,12 +7,14 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // PreverifyOptions selects what a pre-verification pass covers.
@@ -121,12 +123,32 @@ func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts Preveri
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
 	valSets := make(map[int64]*convertedValidatorSet)
+	seen := make(map[sigcache.Key]struct{})
+	pffCount := 0
 
 	for _, rawTx := range txs {
 		msg, ok := types.ParsePayForFibreMsg(rawTx)
 		if !ok {
 			continue
 		}
+
+		pffCount++
+		if pffCount > appconsts.MaxPayForFibreMessages {
+			break
+		}
+		// A pre-pass must not do signature work a transaction cannot pay for.
+		// Skipping only leaves the authoritative sequential check uncached.
+		if !hasPreverificationGas(rawTx, msg) {
+			continue
+		}
+		certKey, err := msg.SigCacheKey()
+		if err != nil {
+			continue
+		}
+		if _, duplicate := seen[certKey]; duplicate {
+			continue
+		}
+		seen[certKey] = struct{}{}
 
 		promise := &fibre.PaymentPromise{}
 		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
@@ -147,8 +169,7 @@ func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts Preveri
 		if !opts.Certificates {
 			continue
 		}
-		certKey, err := msg.SigCacheKey()
-		if err != nil || k.sigCache.Has(certKey) {
+		if k.sigCache.Has(certKey) {
 			continue
 		}
 		if k.appendCertificateItems(ctx, work, valSets, promise, msg, first) {
@@ -156,6 +177,20 @@ func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts Preveri
 		}
 	}
 	return work
+}
+
+// hasPreverificationGas checks only the signature charge; the ante handler
+// remains responsible for all transaction validation and actual gas accounting.
+func hasPreverificationGas(rawTx []byte, msg *types.MsgPayForFibre) bool {
+	var tx cosmostx.TxRaw
+	if err := tx.Unmarshal(rawTx); err != nil {
+		return false
+	}
+	var authInfo cosmostx.AuthInfo
+	if err := authInfo.Unmarshal(tx.AuthInfoBytes); err != nil || authInfo.Fee == nil {
+		return false
+	}
+	return authInfo.Fee.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(uint64(len(msg.ValidatorSignatures)))
 }
 
 // appendCertificateItems queues one ed25519 check per signature in the quorum
@@ -226,7 +261,7 @@ func (k Keeper) appendCertificateItems(
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
 func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
-	results := make([]atomic.Bool, len(items))
+	results := make([]bool, len(items))
 	workers := min(runtime.NumCPU(), len(items))
 
 	var (
@@ -246,7 +281,7 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 					return
 				}
 				if items[i].run() {
-					results[i].Store(true)
+					results[i] = true
 					continue
 				}
 				if stopOnFirstFailure {
@@ -257,9 +292,5 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	}
 	wg.Wait()
 
-	verified := make([]bool, len(items))
-	for i := range results {
-		verified[i] = results[i].Load()
-	}
-	return verified
+	return results
 }

@@ -150,7 +150,9 @@ func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 		Value:   value,
 	}}}).Marshal()
 	require.NoError(t, err)
-	raw, err := (&cosmostx.TxRaw{BodyBytes: body}).Marshal()
+	authInfo, err := (&cosmostx.AuthInfo{Fee: &cosmostx.Fee{GasLimit: 1_000_000}}).Marshal()
+	require.NoError(t, err)
+	raw, err := (&cosmostx.TxRaw{BodyBytes: body, AuthInfoBytes: authInfo}).Marshal()
 	require.NoError(t, err)
 	return raw
 }

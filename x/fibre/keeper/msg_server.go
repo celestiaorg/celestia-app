@@ -179,6 +179,15 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 
 // ValidatePayForFibreSignatures verifies the payment promise and validator signatures.
 func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPayForFibre) error {
+	// CheckTx reaches this after gas, account authentication, and stateful fibre
+	// admission checks. Parallelize only the signatures that passed those gates.
+	if ctx.ExecMode() == sdk.ExecModeCheck && k.sigCache != nil {
+		k.PreverifySignatures(ctx, [][]byte{ctx.TxBytes()}, PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
+		if key, err := msg.SigCacheKey(); err == nil && k.sigCache.Has(key) {
+			return nil
+		}
+	}
+
 	pp := fibre.PaymentPromise{}
 	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
