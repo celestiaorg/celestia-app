@@ -4,7 +4,7 @@ Two containers run one validator with Fibre and one bridge. The images contain f
 
 ## Published images
 
-Publication automation is the next delivery step. Once published, download `compose.yaml`, set `DEVNET_VERSION` to an app release tag, and run:
+Download `compose.yaml`, set `DEVNET_VERSION` to an app release tag that includes the devnet images, and run:
 
 ```sh
 docker compose -f compose.yaml up -d --wait
@@ -12,6 +12,8 @@ docker compose -f compose.yaml logs -f
 ```
 
 Images are `ghcr.io/celestiaorg/celestia-devnet-validator:<app-tag>` and `ghcr.io/celestiaorg/celestia-devnet-bridge:<app-tag>`.
+
+The `devnet` workflow tests both images on amd64 and arm64, then publishes them for app release tags. To rerun publication, open **Actions → devnet → Run workflow** and set `tag` to the existing app release tag containing the devnet implementation.
 
 ## Build from source
 

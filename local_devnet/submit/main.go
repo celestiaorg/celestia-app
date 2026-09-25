@@ -53,17 +53,8 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	conn, err := grpc.NewClient(*address, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return err
-	}
-	defer conn.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	tx, err := user.SetupTxClient(ctx, kr, conn, enc, user.WithDefaultAccount(*key))
-	if err != nil {
-		return err
-	}
 	var client *fibre.Client
 	if *kind == "pff" {
 		params := fibre.DefaultProtocolParams
@@ -93,6 +84,15 @@ func run() error {
 			return err
 		}
 		return receipt.verify(ctx, client)
+	}
+	conn, err := grpc.NewClient(*address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	tx, err := user.SetupTxClient(ctx, kr, conn, enc, user.WithDefaultAccount(*key))
+	if err != nil {
+		return err
 	}
 	ns, err := share.NewV0Namespace([]byte("localdev"))
 	if err != nil {
