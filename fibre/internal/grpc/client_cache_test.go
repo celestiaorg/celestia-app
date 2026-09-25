@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -38,7 +40,10 @@ func TestClientCache(t *testing.T) {
 			defer wg.Done()
 			// each goroutine requests a client from a validator (round-robin)
 			val := validators[idx%len(validators)]
-			clients[idx], errors[idx] = cache.GetClient(t.Context(), val)
+			errors[idx] = cache.Request(t.Context(), val, func(client grpc.Client) error {
+				clients[idx] = client
+				return nil
+			})
 		}(i)
 	}
 	wg.Wait()
@@ -73,11 +78,9 @@ func TestClientCache(t *testing.T) {
 	assert.True(t, mockClient2.closed)
 }
 
-// TestClientCacheGetCloseConcurrentRace verifies that concurrent calls to GetClient
+// TestClientCacheRequestCloseConcurrentRace verifies that concurrent calls to Request
 // and Close do not produce a data race. Run with -race to catch the regression.
-// The original sync.Once implementation allowed Close to read entry.clientCloser
-// without holding the entry lock, racing with GetClient's write inside Do.
-func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
+func TestClientCacheRequestCloseConcurrentRace(t *testing.T) {
 	const numGoroutines = 50
 	cache := grpc.NewClientCache(mockClientFn(false), 1)
 	val := &core.Validator{Address: []byte("validator-1")}
@@ -88,7 +91,7 @@ func TestClientCacheGetCloseConcurrentRace(t *testing.T) {
 	for range numGoroutines {
 		go func() {
 			defer wg.Done()
-			cache.GetClient(t.Context(), val) //nolint:errcheck
+			cache.Request(t.Context(), val, func(grpc.Client) error { return nil }) //nolint:errcheck
 		}()
 	}
 
@@ -135,10 +138,12 @@ func TestClientCacheRequest_ClearsCachedDialError(t *testing.T) {
 	cache := grpc.NewClientCache(fn, 1)
 	val := &core.Validator{Address: []byte("validator-1")}
 
-	// The first two GetClient calls cache and reuse the dial error.
-	_, err := cache.GetClient(t.Context(), val)
+	// A cancelled context prevents retries, leaving the dial error cached.
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	err := cache.Request(ctx, val, func(grpc.Client) error { return nil })
 	require.Error(t, err)
-	_, err = cache.GetClient(t.Context(), val)
+	err = cache.Request(ctx, val, func(grpc.Client) error { return nil })
 	require.Error(t, err)
 	require.Equal(t, 1, calls, "error should be cached, not re-dialed")
 
@@ -252,4 +257,213 @@ func TestClientCacheRequest_SkipsRetryOnCancelledContext(t *testing.T) {
 	err := cache.Request(ctx, requestVal, func(grpc.Client) error { calls++; return errUnreachable })
 	require.Error(t, err)
 	assert.Equal(t, 1, calls, "a cancelled context must not trigger a re-dial")
+}
+
+// lifetimeClient signals closure so requests can detect premature cancellation.
+type lifetimeClient struct {
+	types.FibreClient
+	closed chan struct{}
+	closes atomic.Int32
+}
+
+func (c *lifetimeClient) Close() error {
+	if c.closes.Add(1) == 1 {
+		close(c.closed)
+	}
+	return nil
+}
+
+func TestClientCacheRequest_RetiresActiveConnection(t *testing.T) {
+	for _, shutdown := range []bool{false, true} {
+		name := "release"
+		if shutdown {
+			name = "shutdown"
+		}
+		t.Run(name, func(t *testing.T) {
+			cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+				return &lifetimeClient{closed: make(chan struct{})}, nil
+			}, 1)
+			defer cache.Close() //nolint:errcheck
+			active := make(chan *lifetimeClient, 1)
+			finish := make(chan struct{})
+			defer close(finish)
+			done := make(chan error, 1)
+			go func() {
+				done <- cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+					active <- c.(*lifetimeClient)
+					select {
+					case <-finish:
+						return nil
+					case <-c.(*lifetimeClient).closed:
+						return status.Error(grpccodes.Canceled, "connection closed")
+					}
+				})
+			}()
+			stale := <-active
+			var fresh *lifetimeClient
+			require.NoError(t, cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+				if c == stale {
+					return status.Error(grpccodes.DeadlineExceeded, "timeout")
+				}
+				fresh = c.(*lifetimeClient)
+				return nil
+			}))
+			require.Zero(t, stale.closes.Load(), "eviction must not abort another request")
+			if shutdown {
+				require.NoError(t, cache.Close())
+				require.Equal(t, grpccodes.Canceled, status.Code(<-done))
+				require.EqualValues(t, 1, fresh.closes.Load())
+			} else {
+				finish <- struct{}{}
+				require.NoError(t, <-done)
+				require.Zero(t, fresh.closes.Load())
+			}
+			require.EqualValues(t, 1, stale.closes.Load())
+		})
+	}
+}
+
+func TestClientCacheRequest_OldFailureKeepsReplacement(t *testing.T) {
+	var dials atomic.Int32
+	cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+		dials.Add(1)
+		return &lifetimeClient{closed: make(chan struct{})}, nil
+	}, 1)
+	defer cache.Close() //nolint:errcheck
+	active := make(chan grpc.Client, 1)
+	fail := make(chan struct{})
+	defer close(fail)
+	done := make(chan error, 1)
+	var retried grpc.Client
+	go func() {
+		attempts := 0
+		done <- cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+			attempts++
+			if attempts == 1 {
+				active <- c
+				<-fail
+				return errUnreachable
+			}
+			retried = c
+			return nil
+		})
+	}()
+	stale := <-active
+	var replacement grpc.Client
+	require.NoError(t, cache.Request(t.Context(), requestVal, func(c grpc.Client) error {
+		if c == stale {
+			return errUnreachable
+		}
+		replacement = c
+		return nil
+	}))
+	fail <- struct{}{}
+	require.NoError(t, <-done)
+	require.Same(t, replacement, retried)
+	require.EqualValues(t, 2, dials.Load())
+	require.Zero(t, replacement.(*lifetimeClient).closes.Load())
+}
+
+type blockingCloseClient struct {
+	lifetimeClient
+	started chan struct{}
+	finish  chan struct{}
+}
+
+func (c *blockingCloseClient) Close() error {
+	close(c.started)
+	<-c.finish
+	return c.lifetimeClient.Close()
+}
+
+func TestClientCacheClose_WaitsForConcurrentClose(t *testing.T) {
+	client := &blockingCloseClient{
+		lifetimeClient: lifetimeClient{closed: make(chan struct{})},
+		started:        make(chan struct{}),
+		finish:         make(chan struct{}),
+	}
+	cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+		return client, nil
+	}, 1)
+	require.NoError(t, cache.Request(t.Context(), requestVal, func(grpc.Client) error { return nil }))
+	firstDone := make(chan error, 1)
+	go func() { firstDone <- cache.Close() }()
+	<-client.started
+	secondDone := make(chan struct{})
+	go func() {
+		assert.NoError(t, cache.Close())
+		close(secondDone)
+	}()
+	select {
+	case <-secondDone:
+		t.Error("concurrent shutdown returned before the connection closed")
+	case <-time.After(100 * time.Millisecond):
+	}
+	close(client.finish)
+	require.NoError(t, <-firstDone)
+	<-secondDone
+	require.EqualValues(t, 1, client.closes.Load())
+}
+
+func TestClientCacheClose_WaitsForRetiredConnection(t *testing.T) {
+	for _, retireWithActiveRequest := range []bool{false, true} {
+		name := "evict"
+		if retireWithActiveRequest {
+			name = "release"
+		}
+		t.Run(name, func(t *testing.T) {
+			stale := &blockingCloseClient{
+				lifetimeClient: lifetimeClient{closed: make(chan struct{})},
+				started:        make(chan struct{}),
+				finish:         make(chan struct{}),
+			}
+			dials := 0
+			cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+				dials++
+				if dials == 1 {
+					return stale, nil
+				}
+				return &lifetimeClient{closed: make(chan struct{})}, nil
+			}, 1)
+			defer cache.Close() //nolint:errcheck
+			requestDone := make(chan error, 1)
+			failStale := func(c grpc.Client) error {
+				if c == stale {
+					return errUnreachable
+				}
+				return nil
+			}
+			if retireWithActiveRequest {
+				active := make(chan struct{})
+				finishRequest := make(chan struct{})
+				go func() {
+					requestDone <- cache.Request(t.Context(), requestVal, func(grpc.Client) error {
+						close(active)
+						<-finishRequest
+						return nil
+					})
+				}()
+				<-active
+				require.NoError(t, cache.Request(t.Context(), requestVal, failStale))
+				close(finishRequest)
+			} else {
+				go func() { requestDone <- cache.Request(t.Context(), requestVal, failStale) }()
+			}
+			<-stale.started
+			shutdownDone := make(chan struct{})
+			go func() {
+				assert.NoError(t, cache.Close())
+				close(shutdownDone)
+			}()
+			select {
+			case <-shutdownDone:
+				t.Error("cache shutdown returned before the retired connection closed")
+			case <-time.After(100 * time.Millisecond):
+			}
+			close(stale.finish)
+			<-shutdownDone
+			<-requestDone
+			require.EqualValues(t, 1, stale.closes.Load())
+		})
+	}
 }
