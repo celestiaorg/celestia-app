@@ -159,10 +159,12 @@ The `x/valaddr` module has no parameters.
 
 ## Genesis
 
-`GenesisState` is empty. Provider records are not imported from genesis and are not exported into genesis.
+`GenesisState` contains all stored provider records, including records for validators that are not currently bonded. Export orders records by consensus address; initialization restores them. Empty genesis remains supported. Invalid and duplicate consensus addresses are rejected; historical host values are preserved.
 
 ```protobuf
-message GenesisState {}
+message GenesisState {
+  repeated FibreProvider fibre_providers = 1 [(gogoproto.nullable) = false];
+}
 ```
 
 ## Client
