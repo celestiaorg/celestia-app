@@ -24,6 +24,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// TestUploadIndependentPromises checks that promises with the same first hash byte
+// can upload independently while one storage request is blocked.
 func TestUploadIndependentPromises(t *testing.T) {
 	server, request := newCoordinatedUploadTest(t)
 	first := request(0)
@@ -72,6 +74,8 @@ func TestUploadIndependentPromises(t *testing.T) {
 	require.Equal(t, 2*shardBinarySize(first.Shard), server.occ.usage())
 }
 
+// TestUploadDuplicateAndFailedOwner checks that duplicates store once and retry after an owner fails.
+// Both cases retain one shard's occupancy and remove completed ownership entries.
 func TestUploadDuplicateAndFailedOwner(t *testing.T) {
 	for _, fail := range []bool{false, true} {
 		name := "duplicate"
