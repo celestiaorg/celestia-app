@@ -68,6 +68,7 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 func TestOverrideConsensusTimeoutsLogsChangedValues(t *testing.T) {
 	cfg := app.DefaultConsensusConfig()
 	cfg.Consensus.TimeoutCommit = 10 * time.Second
+	cfg.Consensus.TimeoutPrevote = 20 * time.Second
 
 	sctx := server.NewDefaultContext()
 	sctx.Config = cfg
@@ -75,9 +76,11 @@ func TestOverrideConsensusTimeoutsLogsChangedValues(t *testing.T) {
 	cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, sctx))
 
 	var buf bytes.Buffer
-	require.NoError(t, overrideConsensusTimeouts(cmd, log.NewLogger(&buf)))
+	require.NoError(t, overrideConsensusTimeouts(cmd, log.NewLogger(&buf, log.ColorOption(false))))
 
-	assert.Contains(t, buf.String(), "timeout_commit")
+	assert.Contains(t, buf.String(), "configured=10s enforced="+appconsts.TimeoutCommit.String()+" name=timeout_commit")
+	assert.Contains(t, buf.String(), "configured=20s enforced="+appconsts.TimeoutPrevote.String()+" name=timeout_prevote")
 	assert.NotContains(t, buf.String(), "timeout_propose")
 	assert.Equal(t, appconsts.TimeoutCommit, cfg.Consensus.TimeoutCommit)
+	assert.Equal(t, appconsts.TimeoutPrevote, cfg.Consensus.TimeoutPrevote)
 }
