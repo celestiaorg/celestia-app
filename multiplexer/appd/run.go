@@ -67,6 +67,11 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 	return appd, nil
 }
 
+// Version returns the version of the celestia-appd binary.
+func (a *Appd) Version() string {
+	return a.version
+}
+
 // telemetryDisableEnv returns environment variables that disable the
 // Prometheus telemetry sink in the child process. This prevents
 // "duplicate metrics collector registration attempted" errors.

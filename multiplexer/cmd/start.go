@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
@@ -30,6 +32,7 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	}
 
 	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", chainID)
+	warnStaleBinaries(versions, svrCtx.Logger)
 
 	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
 	if err != nil {
@@ -48,6 +51,24 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	}
 
 	return nil
+}
+
+// warnStaleBinaries logs extracted binaries of versions that are no longer
+// embedded so operators can remove them.
+func warnStaleBinaries(versions abci.Versions, logger log.Logger) {
+	keep := make([]string, 0, len(versions))
+	for _, version := range versions {
+		if version.Appd != nil {
+			keep = append(keep, version.Appd.Version())
+		}
+	}
+	stale, err := appd.StaleBinaries(keep)
+	if err != nil {
+		logger.Warn("failed to check for stale embedded binaries", "err", err)
+	}
+	for _, dir := range stale {
+		logger.Warn("embedded binary from a previous release is no longer used; remove it manually to free disk space", "dir", dir)
+	}
 }
 
 // getState opens the db and fetches the existing state.
