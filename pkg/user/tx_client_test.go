@@ -926,3 +926,15 @@ func (suite *TxClientTestSuite) TestSequenceIncrementOnlyOnceInMultiConnBroadcas
 	require.Equal(t, seqBefore, trackedSeq, "Tracked sequence should be the sequence before increment")
 	require.Equal(t, multiConnClient.DefaultAccountName(), trackedSigner, "Tracked signer should match")
 }
+
+func (suite *TxClientTestSuite) TestQueryNetworkMinGasPrice() {
+	ctx := suite.ctx.GoContext()
+
+	networkMinGasPrice, err := user.QueryNetworkMinGasPrice(ctx, suite.ctx.GRPCClient)
+	suite.Require().NoError(err)
+	suite.Require().Equal(appconsts.DefaultNetworkMinGasPrice, networkMinGasPrice)
+
+	minGasPrice, err := user.QueryMinimumGasPrice(ctx, suite.ctx.GRPCClient)
+	suite.Require().NoError(err)
+	suite.Require().GreaterOrEqual(minGasPrice, networkMinGasPrice)
+}
