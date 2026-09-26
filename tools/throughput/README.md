@@ -31,5 +31,5 @@ You can run the tool using:
 ```shell
  go run tools/throughput/main.go https://celestia-rpc.publicnode.com:443
 
- go run tools/throughput/main.go https://celestia-mocha-rpc.publicnode.com:443
+ go run tools/throughput/main.go https://rpc-mocha.pops.one:443
 ```
