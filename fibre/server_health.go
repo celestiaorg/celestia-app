@@ -62,8 +62,21 @@ type HealthReport struct {
 	ChainIDSource        string                 `json:"chain_id_source"` // configured | auto_detected
 	CheckedAt            time.Time              `json:"checked_at"`
 	Checks               map[string]HealthCheck `json:"checks"`
+	Activity             HealthActivity         `json:"activity"`
 	ExternalReachability string                 `json:"external_reachability"`
 	EndToEndUpload       string                 `json:"end_to_end_upload"`
+}
+
+// HealthActivity counts request traffic since startup. It is informational and
+// never affects readiness: a ready server with no uploads, or with many misses
+// for shards it does not hold, points at registration, reachability or clients.
+type HealthActivity struct {
+	Uploads        int64      `json:"uploads"`
+	UploadFailures int64      `json:"upload_failures"`
+	LastUploadAt   *time.Time `json:"last_upload_at,omitempty"`
+	Downloads      int64      `json:"downloads"`
+	DownloadMisses int64      `json:"download_misses"` // "no blob shard found" responses
+	LastDownloadAt *time.Time `json:"last_download_at,omitempty"`
 }
 
 // HealthCheck is one dependency check within a [HealthReport].
@@ -114,6 +127,40 @@ type healthManager struct {
 	loopStop context.CancelFunc
 	loopDone chan struct{}
 	probes   sync.WaitGroup
+
+	uploads, uploadFailures, lastUpload, downloads, downloadMisses, lastDownload atomic.Int64
+}
+
+// noteUpload and noteDownload record request outcomes for the activity block of
+// the report. They accept a nil manager so handlers work on a bare Server.
+func (m *healthManager) noteUpload(err error) {
+	switch {
+	case m == nil:
+	case err != nil:
+		m.uploadFailures.Add(1)
+	default:
+		m.uploads.Add(1)
+		m.lastUpload.Store(time.Now().UnixNano())
+	}
+}
+
+func (m *healthManager) noteDownload(err error) {
+	switch {
+	case m == nil:
+	case err == nil:
+		m.downloads.Add(1)
+		m.lastDownload.Store(time.Now().UnixNano())
+	case status.Code(err) == codes.NotFound:
+		m.downloadMisses.Add(1)
+	}
+}
+
+func unixPtr(ns int64) *time.Time {
+	if ns == 0 {
+		return nil
+	}
+	t := time.Unix(0, ns)
+	return &t
 }
 
 func newHealthManager(settings healthSettings, log *slog.Logger) *healthManager {
@@ -314,6 +361,10 @@ func (m *healthManager) report() HealthReport {
 	}
 	if m.settings.expectedChainID != "" {
 		rep.ChainIDSource = "configured"
+	}
+	rep.Activity = HealthActivity{
+		Uploads: m.uploads.Load(), UploadFailures: m.uploadFailures.Load(), LastUploadAt: unixPtr(m.lastUpload.Load()),
+		Downloads: m.downloads.Load(), DownloadMisses: m.downloadMisses.Load(), LastDownloadAt: unixPtr(m.lastDownload.Load()),
 	}
 	if ready {
 		rep.Status, rep.Reason = "ready", ""

@@ -22,7 +22,7 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 
 	var shardSize int64
 	downloadShardDone := s.metrics.observeDownloadShard(ctx)
-	defer func() { downloadShardDone(shardSize, err) }()
+	defer func() { downloadShardDone(shardSize, err); s.health.noteDownload(err) }()
 
 	// unmarshal and validate blob ID
 	var id BlobID

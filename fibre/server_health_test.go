@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -244,25 +245,32 @@ func TestServerHealth(t *testing.T) {
 		}
 		return resp.GetStatus()
 	}
-	readyz := func() int {
+	readyz := func() (int, HealthReport) {
 		resp, err := http.Get("http://" + srv.HealthListenAddress() + "/readyz") //nolint:gosec // test URL
 		require.NoError(t, err)
-		resp.Body.Close()
-		return resp.StatusCode
+		defer resp.Body.Close()
+		var rep HealthReport
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&rep))
+		return resp.StatusCode, rep
 	}
 
 	require.Eventually(t, func() bool { return check(HealthServiceLiveness) == healthpb.HealthCheckResponse_SERVING }, 10*time.Second, 20*time.Millisecond)
 	assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, check(HealthServiceReadiness))
-	assert.Equal(t, http.StatusServiceUnavailable, readyz())
+	code, _ := readyz()
+	assert.Equal(t, http.StatusServiceUnavailable, code)
 	_, err = types.NewFibreClient(conn).DownloadShard(ctx, &types.DownloadShardRequest{})
 	assert.Equal(t, codes.Unavailable, status.Code(err), "Fibre RPCs are gated until initialization completes")
 
 	close(gate)
 	require.NoError(t, <-startErr)
 	require.Eventually(t, func() bool { return check("") == healthpb.HealthCheckResponse_SERVING }, 10*time.Second, 20*time.Millisecond)
-	assert.Equal(t, http.StatusOK, readyz())
 	_, err = types.NewFibreClient(conn).DownloadShard(ctx, &types.DownloadShardRequest{})
 	assert.Equal(t, codes.InvalidArgument, status.Code(err), "the gate is open")
+	_, err = types.NewFibreClient(conn).DownloadShard(ctx, &types.DownloadShardRequest{BlobId: NewBlobID(0, Commitment{1})})
+	assert.Equal(t, codes.NotFound, status.Code(err))
+	code, rep := readyz()
+	assert.Equal(t, http.StatusOK, code)
+	assert.Equal(t, HealthActivity{DownloadMisses: 1}, rep.Activity, "misses for shards this server does not hold are counted, uploads are zero")
 
 	stream, err := health.Watch(ctx, &healthpb.HealthCheckRequest{Service: HealthServiceReadiness})
 	require.NoError(t, err)
