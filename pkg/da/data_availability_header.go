@@ -69,48 +69,26 @@ func NewDataAvailabilityHeader(eds *rsmt2d.ExtendedDataSquare) (DataAvailability
 // ConstructEDS constructs an ExtendedDataSquare from the given transactions and app version.
 // If maxSquareSize is less than 0, it will use the upper bound square size for the given app version.
 func ConstructEDS(txs [][]byte, appVersion uint64, maxSquareSize int) (*rsmt2d.ExtendedDataSquare, error) {
-	switch appVersion {
-	case 0:
-		return nil, fmt.Errorf("app version cannot be 0")
-	case 1, 2, 3, 4, 5: // versions 1-5 are all compatible with v2 of the square package
-		if maxSquareSize < 0 {
-			maxSquareSize = v5.SquareSizeUpperBound
-		}
-		// all versions 5 and below have the same parameters and algorithm
-		square, err := squarev2.Construct(txs, maxSquareSize, v5.SubtreeRootThreshold)
-		if err != nil {
-			return nil, err
-		}
-		return ExtendShares(sharev2.ToBytes(square))
-	case 6, 7: // versions 6-7 are compatible with v3 of the square package
-		if maxSquareSize < 0 {
-			maxSquareSize = appconsts.SquareSizeUpperBound
-		}
-		square, err := squarev3.Construct(txs, maxSquareSize, appconsts.SubtreeRootThreshold)
-		if err != nil {
-			return nil, err
-		}
-		return ExtendShares(sharev3.ToBytes(square))
-	default: // assume all other versions are compatible with v4 of the square package
-		if maxSquareSize < 0 {
-			maxSquareSize = appconsts.SquareSizeUpperBound
-		}
-		classifiedTxs, err := fibretypes.ClassifyTxs(txs)
-		if err != nil {
-			return nil, err
-		}
-		square, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
-		if err != nil {
-			return nil, err
-		}
-		return ExtendShares(sharev4.ToBytes(square))
+	shares, err := constructShares(txs, appVersion, maxSquareSize)
+	if err != nil {
+		return nil, err
 	}
+	return ExtendShares(shares)
 }
 
 // ConstructEDSWithTreePool constructs an ExtendedDataSquare from the given transactions and app version,
 // it uses treePool to optimize allocations.
 // If maxSquareSize is less than 0, it will use the upper bound square size for the given app version.
 func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int, treePool *wrapper.TreePool) (*rsmt2d.ExtendedDataSquare, error) {
+	shares, err := constructShares(txs, appVersion, maxSquareSize)
+	if err != nil {
+		return nil, err
+	}
+	return ExtendSharesWithTreePool(shares, treePool)
+}
+
+// constructShares constructs the square for the given app version and returns its shares.
+func constructShares(txs [][]byte, appVersion uint64, maxSquareSize int) ([][]byte, error) {
 	switch appVersion {
 	case 0:
 		return nil, fmt.Errorf("app version cannot be 0")
@@ -123,7 +101,7 @@ func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int
 		if err != nil {
 			return nil, err
 		}
-		return ExtendSharesWithTreePool(sharev2.ToBytes(square), treePool)
+		return sharev2.ToBytes(square), nil
 	case 6, 7: // versions 6-7 are compatible with v3 of the square package
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
@@ -132,7 +110,7 @@ func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int
 		if err != nil {
 			return nil, err
 		}
-		return ExtendSharesWithTreePool(sharev3.ToBytes(square), treePool)
+		return sharev3.ToBytes(square), nil
 	default: // assume all other versions are compatible with v4 of the square package
 		if maxSquareSize < 0 {
 			maxSquareSize = appconsts.SquareSizeUpperBound
@@ -145,7 +123,7 @@ func ConstructEDSWithTreePool(txs [][]byte, appVersion uint64, maxSquareSize int
 		if err != nil {
 			return nil, err
 		}
-		return ExtendSharesWithTreePool(sharev4.ToBytes(square), treePool)
+		return sharev4.ToBytes(square), nil
 	}
 }
 
