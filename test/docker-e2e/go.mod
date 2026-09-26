@@ -292,14 +292,14 @@ replace (
 	// from celestiaorg/cosmos-sdk#705, which closes a data race between
 	// BaseApp.LastBlockHeight and concurrent Commits. Upstream store/v1.1.2
 	// does not have this fix.
-	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.2
+	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.3
 	cosmossdk.io/x/evidence => github.com/celestiaorg/cosmos-sdk/x/evidence v0.1.2-celestia
 	cosmossdk.io/x/tx => github.com/celestiaorg/cosmos-sdk/x/tx v0.13.9
 	cosmossdk.io/x/upgrade => github.com/celestiaorg/cosmos-sdk/x/upgrade v0.2.0
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
 	github.com/celestiaorg/celestia-app/v10 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.1
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.11
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.12
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453
