@@ -31,7 +31,7 @@ if [ "$response" != "y" ]; then
 fi
 
 echo "Deleting $CELESTIA_APP_HOME..."
-rm -r "$CELESTIA_APP_HOME"
+rm -rf "$CELESTIA_APP_HOME"
 
 echo "Initializing config files..."
 celestia-appd init ${NODE_NAME} --chain-id ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
@@ -49,7 +49,7 @@ echo "Enabling state sync in config.toml..."
 sed -i.bak -E "s|^(enable[[:space:]]+=[[:space:]]+).*$|\1true| ; \
 s|^(rpc_servers[[:space:]]+=[[:space:]]+).*$|\1\"$RPC,$RPC\"| ; \
 s|^(trust_height[[:space:]]+=[[:space:]]+).*$|\1$BLOCK_HEIGHT| ; \
-s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"$TRUST_HASH\"|" $HOME/.celestia-app/config/config.toml
+s|^(trust_hash[[:space:]]+=[[:space:]]+).*$|\1\"$TRUST_HASH\"|" $CELESTIA_APP_HOME/config/config.toml
 
 echo "Downloading genesis file..."
 celestia-appd download-genesis ${CHAIN_ID} > /dev/null 2>&1 # Hide output to reduce terminal noise
