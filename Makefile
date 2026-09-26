@@ -69,7 +69,6 @@ help: Makefile
 
 ## build-standalone: Build the celestia-appd binary into the ./build directory.
 build-standalone: mod
-	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
@@ -284,12 +283,6 @@ proto-swagger-gen:
 	@bash scripts/proto-swagger-gen.sh
 .PHONY: proto-swagger-gen
 
-## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
-build-docker-standalone:
-	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
-.PHONY: build-docker-standalone
-
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker-multiplexer
 .PHONY: docker-build
@@ -303,27 +296,6 @@ build-docker-multiplexer:
 		-t celestiaorg/celestia-app:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
-
-## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
-build-ghcr-docker:
-	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/standalone.Dockerfile .
-.PHONY: build-ghcr-docker
-
-## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.
-docker-build-ghcr: build-ghcr-docker
-.PHONY: docker-build-ghcr
-
-## publish-ghcr-docker: Push the celestia-appd Docker image to GitHub Container Registry with the current commit tag.
-publish-ghcr-docker:
-# Make sure you are logged in and authenticated to the ghcr.io registry.
-	@echo "--> Publishing Docker image"
-	$(DOCKER) push ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT)
-.PHONY: publish-ghcr-docker
-
-## docker-publish: Publish the celestia-appd docker image. Requires docker.
-docker-publish: publish-ghcr-docker
-.PHONY: docker-publish
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
@@ -458,7 +430,6 @@ txsim-install:
 ## txsim-build: Build the tx simulator binary into the ./build directory.
 txsim-build:
 	@echo "--> Building tx simulator"
-	@cd ./test/cmd/txsim
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./test/cmd/txsim
 	@go mod tidy
@@ -658,39 +629,3 @@ disable-bbr:
 ## bbr-disable: Disable BBR congestion control algorithm and revert to default.
 bbr-disable: disable-bbr
 .PHONY: bbr-disable
-
-## enable-mptcp: Enable Multi-Path TCP over multiple ports (not interfaces). Improves connection reliability and throughput. Only works on Linux Kernel 5.6+.
-enable-mptcp:
-	@echo "Configuring system to use mptcp..."
-	@sudo sysctl -w net.mptcp.enabled=1
-	@sudo sysctl -w net.mptcp.mptcp_path_manager=ndiffports
-	@sudo sysctl -w net.mptcp.mptcp_ndiffports=16
-	@echo "Making MPTCP settings persistent across reboots..."
-	@echo "net.mptcp.enabled=1" | sudo tee -a /etc/sysctl.conf
-	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
-	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
-	@echo "MPTCP configuration complete and persistent!"
-.PHONY: enable-mptcp
-
-## mptcp-enable: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
-mptcp-enable: enable-mptcp
-.PHONY: mptcp-enable
-
-## disable-mptcp: Disable Multi-Path TCP and revert to standard TCP. Removes all MPTCP settings from system. Only works on Linux Kernel 5.6+.
-disable-mptcp:
-	@echo "Disabling MPTCP..."
-	@sudo sysctl -w net.mptcp.enabled=0
-	@sudo sysctl -w net.mptcp.mptcp_path_manager=default
-	@echo "Removing MPTCP settings from /etc/sysctl.conf..."
-	@sudo sed -i '/net.mptcp.enabled=1/d' /etc/sysctl.conf
-	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
-	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
-	@echo "MPTCP configuration reverted!"
-.PHONY: disable-mptcp
-
-## mptcp-disable: Disable mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
-mptcp-disable: disable-mptcp
-.PHONY: mptcp-disable
-
-CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
-SEND_RECV_RATE ?= 10485760  # 10 MiB
