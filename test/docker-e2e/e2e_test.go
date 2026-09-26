@@ -49,6 +49,7 @@ func (s *CelestiaTestSuite) SetupSuite() {
 	s.logger = zaptest.NewLogger(s.T())
 	s.logger.Info("Setting up Celestia test suite: " + s.T().Name())
 	s.client, s.network = tastoradockertypes.Setup(s.T())
+	s.client = dynamicPortClient{s.client}
 	s.prePullBusybox(context.Background())
 }
 
