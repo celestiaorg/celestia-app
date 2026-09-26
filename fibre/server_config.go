@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -44,6 +45,11 @@ type ServerConfig struct {
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	// HealthListenAddress optionally serves GET /livez and GET /readyz over HTTP. Empty disables it;
+	// the gRPC health service on ServerListenAddress is always on.
+	HealthListenAddress string `toml:"health_listen_address" comment:"Optional HTTP address serving GET /livez and GET /readyz, e.g. 127.0.0.1:7981. Empty disables it; gRPC health on the server listen address is always on."`
+	// Health configures the readiness checks.
+	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service and the HTTP health endpoints."`
 
 	StoreConfig
 
@@ -84,6 +90,43 @@ type ServerConfig struct {
 	// Meter is the OpenTelemetry meter for recording metrics.
 	// If nil, otel.Meter("fibre-server") will be used.
 	Meter metric.Meter `toml:"-"`
+
+	health healthSettings // parsed Health, populated by Validate
+}
+
+// HealthConfig configures the readiness checks. Durations use Go syntax such as "10s".
+// A successful check result stays valid for two check intervals plus one probe timeout.
+type HealthConfig struct {
+	ExpectedChainID string `toml:"expected_chain_id" comment:"Chain ID the app node must report. Empty auto-detects it, which cannot notice a wrong network at first startup."`
+	CheckInterval   string `toml:"check_interval" comment:"How often the app node, Fibre module, signer, validator membership, provider registration and store are checked."`
+	ProbeTimeout    string `toml:"probe_timeout" comment:"Deadline of each check. A successful result stays valid for two check intervals plus one timeout."`
+	MaxBlockAge     string `toml:"max_block_age" comment:"Maximum age of the app node's latest block before the chain is reported as stalled. Tune it to the network's block time."`
+}
+
+type healthSettings struct {
+	expectedChainID                                        string
+	checkInterval, probeTimeout, maxResultAge, maxBlockAge time.Duration
+}
+
+// DefaultHealthConfig returns the default [HealthConfig].
+func DefaultHealthConfig() HealthConfig {
+	return HealthConfig{CheckInterval: "10s", ProbeTimeout: "3s", MaxBlockAge: "2m"}
+}
+
+func (cfg HealthConfig) parse() (healthSettings, error) {
+	s := healthSettings{expectedChainID: cfg.ExpectedChainID}
+	for _, f := range []struct {
+		name, value string
+		dst         *time.Duration
+	}{{"check_interval", cfg.CheckInterval, &s.checkInterval}, {"probe_timeout", cfg.ProbeTimeout, &s.probeTimeout}, {"max_block_age", cfg.MaxBlockAge, &s.maxBlockAge}} {
+		d, err := time.ParseDuration(f.value)
+		if err != nil || d <= 0 {
+			return s, fmt.Errorf("health.%s must be a positive duration, got %q", f.name, f.value)
+		}
+		*f.dst = d
+	}
+	s.maxResultAge = 2*s.checkInterval + s.probeTimeout
+	return s, nil
 }
 
 // DefaultServerConfig returns a [ServerConfig] with default values.
@@ -98,6 +141,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		AppGRPCAddress:       "127.0.0.1:9090",
 		ServerListenAddress:  "0.0.0.0:7980",
 		SignerGRPCAddress:    "127.0.0.1:26669",
+		Health:               DefaultHealthConfig(),
 		StoreConfig:          DefaultStoreConfig(),
 		LivenessThreshold:    p.LivenessThreshold,
 		MinRowsPerValidator:  p.MinRowsPerValidator(),
@@ -117,6 +161,11 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")
 	}
+	health, err := cfg.Health.parse()
+	if err != nil {
+		return fmt.Errorf("health config: %w", err)
+	}
+	cfg.health = health
 
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")

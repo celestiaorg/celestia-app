@@ -51,6 +51,8 @@ type serverMetrics struct {
 	// Prune
 	pruneEntries  metric.Int64Counter
 	pruneDuration metric.Float64Histogram
+
+	healthReady metric.Int64ObservableGauge
 }
 
 func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
@@ -213,7 +215,28 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating prune duration histogram: %w", err)
 	}
 
+	sm.healthReady, err = m.Int64ObservableGauge("fibre.server.health.ready",
+		metric.WithDescription("1 when the server is ready for new uploads, 0 otherwise; the check attribute names each dependency"))
+	if err != nil {
+		return nil, fmt.Errorf("creating health ready gauge: %w", err)
+	}
+
 	return &sm, nil
+}
+
+// registerHealthObserver exports readiness from the health snapshot; exporter availability never affects readiness.
+func (m *serverMetrics) registerHealthObserver(meter metric.Meter, report func() HealthReport) (metric.Registration, error) {
+	return meter.RegisterCallback(func(_ context.Context, o metric.Observer) error {
+		rep := report()
+		values := map[string]bool{"": rep.Status == "ready"}
+		for name, c := range rep.Checks {
+			values[name] = c.Status == "ok"
+		}
+		for name, ok := range values {
+			o.ObserveInt64(m.healthReady, map[bool]int64{true: 1}[ok], metric.WithAttributes(attribute.String("check", name)))
+		}
+		return nil
+	}, m.healthReady)
 }
 
 // observeUploadShard records in-flight increment and returns a function that records

@@ -15,6 +15,8 @@ const (
 	flagSignerGRPCAddress       = "signer-grpc-address"
 	flagUnlimitedBudget         = "unlimited-budget"
 	flagOverrideObjectNamespace = "override-object-namespace"
+	flagHealthListenAddress     = "health-listen-address"
+	flagExpectedChainID         = "expected-chain-id"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -72,6 +74,8 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.SignerGRPCAddress, flagSignerGRPCAddress, cfg.SignerGRPCAddress, "validator PrivValidatorAPI gRPC address for signing")
 	cmd.Flags().BoolVar(&cfg.UnlimitedBudget, flagUnlimitedBudget, cfg.UnlimitedBudget, "run without a storage budget, disabling the Fibre upload limiter")
 	cmd.Flags().BoolVar(&cfg.ObjectStorage.OverrideNamespace, flagOverrideObjectNamespace, false, "accept a new object storage namespace after migrating retained shards; does not migrate or verify objects")
+	cmd.Flags().StringVar(&cfg.HealthListenAddress, flagHealthListenAddress, cfg.HealthListenAddress, "optional HTTP address serving GET /livez and /readyz, e.g. 127.0.0.1:7981 (disabled when empty)")
+	cmd.Flags().StringVar(&cfg.Health.ExpectedChainID, flagExpectedChainID, cfg.Health.ExpectedChainID, "chain ID the app node must report; empty auto-detects it")
 
 	return cmd
 }

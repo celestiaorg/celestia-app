@@ -9,24 +9,32 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
+	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
+	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var _ state.Client = (*AppClient)(nil)
+var (
+	_ state.Client       = (*AppClient)(nil)
+	_ state.HealthClient = (*AppClient)(nil)
+)
 
 // AppClient manages a gRPC client connection to a celestia-app node
 // and provides the query methods needed by the Fibre server.
 type AppClient struct {
 	*SetGetter
 	*HostRegistry
-	conn        *grpclib.ClientConn
-	queryClient types.QueryClient
-	log         *slog.Logger
+	conn          *grpclib.ClientConn
+	blockAPI      coregrpc.BlockAPIClient
+	queryClient   types.QueryClient
+	valaddrClient valtypes.QueryClient
+	log           *slog.Logger
 
 	chainID string // resolved on Start
 }
@@ -44,12 +52,15 @@ func NewAppClient(addr string, log *slog.Logger, hostOpts ...HostRegistryOption)
 		return nil, fmt.Errorf("create app gRPC client (%s): %w", addr, err)
 	}
 
+	blockAPI, valaddrClient := coregrpc.NewBlockAPIClient(conn), valtypes.NewQueryClient(conn)
 	return &AppClient{
-		SetGetter:    NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
-		HostRegistry: NewHostRegistry(valtypes.NewQueryClient(conn), log, hostOpts...),
-		conn:         conn,
-		queryClient:  types.NewQueryClient(conn),
-		log:          log,
+		SetGetter:     NewSetGetter(blockAPI),
+		HostRegistry:  NewHostRegistry(valaddrClient, log, hostOpts...),
+		conn:          conn,
+		blockAPI:      blockAPI,
+		queryClient:   types.NewQueryClient(conn),
+		valaddrClient: valaddrClient,
+		log:           log,
 	}, nil
 }
 
@@ -123,6 +134,42 @@ func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
 		return math.MaxInt64, nil
 	}
 	return int64(budget), nil
+}
+
+// NodeStatus implements [state.HealthClient] with a fresh BlockAPI Status call.
+func (c *AppClient) NodeStatus(ctx context.Context) (state.NodeStatus, error) {
+	resp, err := c.blockAPI.Status(ctx, &coregrpc.StatusRequest{})
+	if err != nil {
+		return state.NodeStatus{}, err
+	}
+	if resp.GetNodeInfo() == nil || resp.GetSyncInfo() == nil || resp.SyncInfo.LatestBlockHeight < 0 {
+		return state.NodeStatus{}, fmt.Errorf("incomplete status response from app node")
+	}
+	return state.NodeStatus{
+		ChainID:    strings.TrimSpace(resp.NodeInfo.Network),
+		Height:     uint64(resp.SyncInfo.LatestBlockHeight),
+		BlockTime:  resp.SyncInfo.LatestBlockTime,
+		CatchingUp: resp.SyncInfo.CatchingUp,
+	}, nil
+}
+
+// ValidatorSetAt implements [state.HealthClient]; [SetGetter] never caches.
+func (c *AppClient) ValidatorSetAt(ctx context.Context, height uint64) (validator.Set, error) {
+	return c.GetByHeight(ctx, height)
+}
+
+// ProviderRegistration implements [state.HealthClient], bypassing the [HostRegistry] cache.
+func (c *AppClient) ProviderRegistration(ctx context.Context, addr core.Address) (state.ProviderRegistration, error) {
+	resp, err := c.valaddrClient.FibreProviderInfo(ctx, &valtypes.QueryFibreProviderInfoRequest{
+		ValidatorConsensusAddress: sdk.ConsAddress(addr.Bytes()).String(),
+	})
+	if err != nil {
+		return state.ProviderRegistration{}, err
+	}
+	if !resp.GetFound() || resp.Info == nil {
+		return state.ProviderRegistration{}, nil
+	}
+	return state.ProviderRegistration{Found: true, Host: resp.Info.Host}, nil
 }
 
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {

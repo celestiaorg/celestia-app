@@ -235,6 +235,51 @@ For the full design (endorsement scheme, certificate format, OIDs), see the [Fib
 
 For new node settings and their comments, see [Updating existing configuration files](../../docs/release-notes/release-notes.md#updating-existing-configuration-files). `update-config` has no v10 migration.
 
+## Health
+
+The listener serves the standard [gRPC health service](https://grpc.io/docs/guides/health-checking/) (`Check` and `Watch`); an optional HTTP listener adds a JSON readiness report. **Ready** means the process responds, its dependencies passed recent checks, and its validator identity is set up to receive new uploads. Downloads of stored shards keep working while the app node or signer is down, so readiness only gates new uploads and discovery.
+
+| gRPC service name | `SERVING` means |
+|---|---|
+| `fibre-liveness` | The gRPC server runs and answers; dependency outages never affect it. `NOT_SERVING` during shutdown. |
+| `fibre-readiness` | Initialization finished and every check below passed within two check intervals plus one probe timeout. |
+| `celestia.fibre.v1.Fibre`, `""` | Aliases of `fibre-readiness`. |
+
+The listener is TLS-only, so probes skip verification of the self-signed identity certificate, and it exists only once the app connection and signer are up (the TLS identity is endorsed by the consensus key). Until then the HTTP endpoints are the only health surface.
+
+```sh
+go install github.com/grpc-ecosystem/grpc-health-probe@latest
+grpc_health_probe -addr=127.0.0.1:7980 -tls -tls-no-verify -service=fibre-readiness
+fibre start --health-listen-address=127.0.0.1:7981   # or health_listen_address in the config; disabled by default
+curl -i http://127.0.0.1:7981/readyz                  # 200 when ready, else 503 with the report; /livez covers liveness
+```
+
+Every check is required. Checks run in the background on `check_interval`; health requests only read the snapshot, so polling adds no load. A result older than its maximum age reports `stale` and fails readiness, which also covers a check that never returns (`probe_timeout`: no second probe starts until it does). `validator` and `registration` need the signer identity and report `dependency_failed` when it is missing. With the defaults an app or signer failure is detected within about 13 seconds.
+
+| Check | Passes when | Reason codes |
+|---|---|---|
+| `app` | A fresh `BlockAPI.Status` reports valid info, `catching_up == false`, a block younger than `max_block_age`, and the chain ID detected at startup (and `expected_chain_id` when set). | `app_unreachable`, `app_syncing`, `chain_stalled`, `chain_id_mismatch` |
+| `fibre_module` | The Fibre module query answers; `Unimplemented` means the chain has not activated the module or the address is not the application gRPC endpoint. | `fibre_module_unavailable`, `app_unreachable` |
+| `signer` | A real `GetPubKey` RPC returns a key that has not changed since startup. It proves access and identity, not signing; only uploads verify `SignRawBytes`. | `signer_unreachable`, `signer_key_changed` |
+| `validator` | The signer's consensus address is in the uncached validator set at the observed height with positive voting power. | `validator_not_active`, `validator_set_unavailable` |
+| `registration` | The validator's `FibreProviderInfo` is found (uncached) with a valid `host:port`. | `provider_not_registered`, `provider_host_invalid`, `registration_unavailable` |
+| `store` | The Pebble metadata store accepts a small synced write under the reserved key `/health/probe` and reads it back. No promises, markers or payloads are created. | `store_write_failed`, `store_read_failed` |
+
+Example `GET /readyz` body before the provider host is registered (other checks abbreviated):
+
+```json
+{"status": "not_ready", "reason": "checks_failed", "failed_checks": ["registration"], "phase": "running",
+ "chain_id": "mocha-4", "chain_id_source": "auto_detected", "checked_at": "2026-09-26T12:00:00Z",
+ "checks": {"app": {"status": "ok", "checked_at": "2026-09-26T11:59:55Z", "last_success": "2026-09-26T11:59:55Z", "height": 123456},
+            "signer": {"status": "ok", "consensus_address": "celestiavalcons1...", "message": "Public key RPC succeeded; signing is only verified by real uploads."},
+            "registration": {"status": "failed", "reason": "provider_not_registered", "message": "Register this validator's Fibre provider host on chain with MsgSetFibreProviderInfo."}},
+ "external_reachability": "not_checked", "end_to_end_upload": "not_checked"}
+```
+
+Responses carry `Cache-Control: no-store` and never include raw upstream errors or paths; those go to the log, which records every check transition once. `chain_id_source` is `auto_detected` unless `expected_chain_id` is set; auto-detection cannot notice a wrong network at first startup, so set it in production. Configure the checks in the `[health]` table: `expected_chain_id` (flag `--expected-chain-id`), `check_interval` (`10s`), `probe_timeout` (`3s`), `max_block_age` (`2m`). The metric `fibre.server.health.ready` exports readiness (`check=""`) and each check (`check=<name>`) as 1 or 0.
+
+Kubernetes' built-in gRPC probes do not support TLS, so point `httpGet` probes at `/livez` (startup and liveness) and `/readyz` (readiness) on the health listener, bound to the pod address and kept off public services. App or signer outages only affect readiness, so they never cause restart loops. The report cannot verify reachability of the registered public `host:port` or the full upload path: probe the public address from another machine and run a small upload canary with a funded escrow account separately.
+
 ## Observability
 
 All observability flags are persistent and apply to every subcommand.
@@ -378,7 +423,7 @@ The server started, but the app node reports no stake for your validator. Either
 
 ### Server runs but no uploads arrive
 
-Clients only dial registered, bonded validators. In order:
+Clients only dial registered, bonded validators. Start with the readiness report (`grpc_health_probe ... -service=fibre-readiness` or `GET /readyz`, see [Health](#health)), which names the failing check. Then, in order:
 
 1. `celestia-appd query valaddr provider <celestiavalcons-address>` — if `found: false`, [register](#registration).
 2. Check the registered `host:port` actually routes to this server's `server_listen_address` port through your firewall — from an outside machine, a TCP connect to it must succeed.
@@ -394,5 +439,6 @@ The server validates every upload's payment promise against the app node. A chai
 
 ## Signals
 
-- First `SIGINT`/`SIGTERM`: graceful shutdown
+- First `SIGINT`/`SIGTERM`: graceful shutdown. Readiness is published as `NOT_SERVING` first, then requests drain for at most 30 seconds.
 - Second signal: force shutdown
+- If the gRPC listener fails, the process shuts down and exits non-zero instead of lingering without a listener.
