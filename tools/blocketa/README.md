@@ -6,7 +6,7 @@ blocketa is a tool that estimates the time of arrival of a block height.
 
 ```shell
 $ go run main.go https://celestia-mocha-rpc.publicnode.com:443 2585031
-chainID: mocha-4
+chainID: mocha-5
 currentHeight: 2580660
 currentTime: 2024-08-28 02:46:32.933542677 +0000 UTC
 diffInBlockHeight: 4371
