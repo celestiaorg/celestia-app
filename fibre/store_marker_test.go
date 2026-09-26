@@ -470,7 +470,7 @@ func TestServerPruneDrainsBacklog(t *testing.T) {
 	size, err := store.Size(t.Context())
 	require.ErrorIs(t, err, ErrStoreIntegrity)
 	require.Zero(t, size)
-	require.Contains(t, logs.String(), "prune skipped corrupt shard markers")
+	require.Contains(t, logs.String(), "prune skipped corrupt prune entries")
 	require.Contains(t, logs.String(), "pruned expired entries")
 	require.NotContains(t, logs.String(), "level=ERROR")
 }
