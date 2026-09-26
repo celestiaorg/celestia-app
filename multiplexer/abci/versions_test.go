@@ -224,3 +224,46 @@ func TestValidate(t *testing.T) {
 		})
 	}
 }
+
+func TestGetStartArgsUnsupportedFlags(t *testing.T) {
+	version := Version{
+		StartArgs:        []string{"--transport=grpc"},
+		UnsupportedFlags: map[string]bool{"otel-endpoint": true, "fibre-promise-cache": false},
+	}
+	tests := []struct {
+		name  string
+		input []string
+		want  []string
+	}{
+		{
+			name:  "keeps supported args",
+			input: []string{"--home", "foo"},
+			want:  []string{"--home", "foo", "--transport=grpc"},
+		},
+		{
+			name:  "strips flag and separate value",
+			input: []string{"--otel-endpoint", "localhost:4318", "--home", "foo"},
+			want:  []string{"--home", "foo", "--transport=grpc"},
+		},
+		{
+			name:  "strips flag with inline value",
+			input: []string{"--otel-endpoint=localhost:4318", "--home", "foo"},
+			want:  []string{"--home", "foo", "--transport=grpc"},
+		},
+		{
+			name:  "strips bool flag without consuming next arg",
+			input: []string{"--fibre-promise-cache", "--home", "foo"},
+			want:  []string{"--home", "foo", "--transport=grpc"},
+		},
+		{
+			name:  "strips bool flag with inline value",
+			input: []string{"--fibre-promise-cache=false", "--home", "foo"},
+			want:  []string{"--home", "foo", "--transport=grpc"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			require.Equal(t, test.want, version.GetStartArgs(test.input))
+		})
+	}
+}

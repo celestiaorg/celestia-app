@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	multiplexer "github.com/celestiaorg/celestia-app/v10/multiplexer/cmd"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +37,27 @@ var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defau
 // the cache to preserve the upgrade block's writes; running v3 with the cache
 // disabled discards those writes and forks replay. See issue #7770.
 var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, defaultArgs...)
+
+// unsupportedFlags returns the start flags that the embedded app for appVersion
+// doesn't define. The value reports whether the flag takes a separate value.
+func unsupportedFlags(appVersion uint64) map[string]bool {
+	result := map[string]bool{
+		flagOTelEndpoint:      true,
+		FlagFibrePromiseCache: false,
+	}
+	if appVersion <= 5 {
+		result[bypassOverridesFlagKey] = false
+		result[DelayedPrecommitTimeoutFlag] = true
+	}
+	if appVersion <= 3 {
+		result[flags.FlagLogNoColor] = false
+		result[server.FlagMempoolMaxTxs] = true
+		result[server.FlagQueryGasLimit] = true
+		result[server.FlagShutdownGrace] = true
+		result["with-comet"] = false
+	}
+	return result
+}
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
@@ -178,6 +200,9 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		})
 	if err != nil {
 		panic(err)
+	}
+	for i := range versions {
+		versions[i].UnsupportedFlags = unsupportedFlags(versions[i].AppVersion)
 	}
 
 	rootCommand.AddCommand(
