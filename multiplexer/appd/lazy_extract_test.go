@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -64,4 +65,20 @@ func TestExtractionErrorNamesDirectory(t *testing.T) {
 
 	err = a.Start()
 	require.ErrorContains(t, err, filepath.Join(home, "bin", "v0.0.0-unwritable"))
+}
+
+func TestConcurrentFirstUse(t *testing.T) {
+	setNodeHome(t, t.TempDir())
+
+	a, err := New("v0.0.0-concurrent", compressScript(t, "true"))
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for range 8 {
+		wg.Go(func() {
+			_, err := a.CreateExecCommand()
+			require.NoError(t, err)
+		})
+	}
+	wg.Wait()
 }

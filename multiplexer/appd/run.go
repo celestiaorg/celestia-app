@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -43,6 +44,8 @@ type Appd struct {
 	// exited delivers the result of cmd.Wait() (nil on a clean exit) once the
 	// process exits, and is then closed. See Exited.
 	exited chan error
+	// extractMu guards path during lazy extraction.
+	extractMu sync.Mutex
 }
 
 // New returns a new Appd instance.
@@ -63,6 +66,8 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 
 // ensureExtracted extracts the binary on first use and sets its path.
 func (a *Appd) ensureExtracted() error {
+	a.extractMu.Lock()
+	defer a.extractMu.Unlock()
 	if a.path != "" {
 		return nil
 	}
