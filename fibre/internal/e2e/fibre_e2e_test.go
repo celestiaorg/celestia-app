@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
@@ -73,6 +74,8 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	serverCfg := fibre.DefaultServerConfig()
 	serverCfg.AppGRPCAddress = grpcAddr
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
+	serverCfg.HealthListenAddress = "127.0.0.1:0"
+	serverCfg.Health.CheckInterval = "1s"
 	serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) {
 		return filePV, nil
 	}
@@ -126,6 +129,7 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	require.Len(t, validatorsResp.Validators, 1)
 
 	valOperatorAddr := validatorsResp.Validators[0].OperatorAddress
+	require.Equal(t, http.StatusServiceUnavailable, s.readyz(), "not ready before the provider host is registered")
 
 	// submit MsgSetFibreProviderInfo to register the fibre server's gRPC address.
 	txClient, err := testnode.NewTxClientFromContext(s.cctx)
@@ -165,6 +169,17 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	// refresh the host registry so the client can find the validator.
 	err = s.hostRegistry.Start(ctx)
 	require.NoError(t, err)
+
+	// the server becomes ready without a restart once the registration is on chain.
+	require.Eventually(t, func() bool { return s.readyz() == http.StatusOK }, 30*time.Second, 500*time.Millisecond)
+}
+
+// readyz returns the HTTP status of the server's readiness report.
+func (s *FibreE2ETestSuite) readyz() int {
+	resp, err := http.Get("http://" + s.fibreServer.HealthListenAddress() + "/readyz") //nolint:gosec // test URL
+	s.Require().NoError(err)
+	defer resp.Body.Close()
+	return resp.StatusCode
 }
 
 func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {

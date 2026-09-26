@@ -31,7 +31,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 
 	var uploadSize int64
 	uploadShardDone := s.metrics.observeUploadShard(ctx)
-	defer func() { uploadShardDone(uploadSize, err) }()
+	defer func() { uploadShardDone(uploadSize, err); s.health.noteUpload(err) }()
 
 	promise, blobCfg, promiseHash, pruneAt, err := s.verifyPromise(ctx, req.Promise)
 	if err != nil {

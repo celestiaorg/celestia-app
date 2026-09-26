@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -39,7 +41,14 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards *routedStorage
+	closed atomic.Bool
 }
+
+// ErrStoreProbeWrite and ErrStoreProbeRead are wrapped by [Store.Probe].
+var (
+	ErrStoreProbeWrite = errors.New("store probe write failed")
+	ErrStoreProbeRead  = errors.New("store probe read failed")
+)
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
 // [NewMemoryStore]; both pebble's files and our shards/staging subdirs live
@@ -507,9 +516,31 @@ func (s *Store) reconcile() error {
 	return nil
 }
 
+// Probe writes value under the reserved key /health/probe with fsync and reads it back. The
+// key lives outside the shard, promise and prune prefixes. Pebble ignores the context; callers
+// bound the call and must not Close while a probe runs.
+func (s *Store) Probe(_ context.Context, value []byte) error {
+	if s.closed.Load() {
+		return fmt.Errorf("%w: store is closed", ErrStoreProbeWrite)
+	}
+	if err := s.db.Set([]byte("/health/probe"), value, pebbledb.Sync); err != nil {
+		return fmt.Errorf("%w: %w", ErrStoreProbeWrite, err)
+	}
+	got, closer, err := s.db.Get([]byte("/health/probe"))
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrStoreProbeRead, err)
+	}
+	defer closer.Close()
+	if !bytes.Equal(got, value) {
+		return fmt.Errorf("%w: value mismatch after write", ErrStoreProbeRead)
+	}
+	return nil
+}
+
 // Close closes the underlying pebble database. For [NewMemoryStore] the
 // in-memory FS is dropped when the Store is garbage collected.
 func (s *Store) Close() error {
+	s.closed.Store(true)
 	return s.db.Close()
 }
 

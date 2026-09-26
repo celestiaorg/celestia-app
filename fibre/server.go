@@ -8,6 +8,11 @@ import (
 	"io"
 	"log/slog"
 	"math/bits"
+	"net"
+	"net/http"
+	"sync"
+	"sync/atomic"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
@@ -15,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -39,9 +45,21 @@ type Server struct {
 	occ     *occupancy
 	uploads uploadCoordinator
 
+	health        *healthManager
+	healthMetrics metric.Registration
+	healthLn      net.Listener // optional HTTP health listener
+	healthHTTP    *http.Server
+
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
+	lifecycle sync.Mutex // serializes Start and Stop so Stop cannot interleave a running Start
+	started   atomic.Bool
+	once      sync.Once
+	stopErr   error
 }
+
+// shutdownTimeout bounds graceful shutdown; remaining requests are cut off when it elapses.
+const shutdownTimeout = 30 * time.Second
 
 // NewServer creates a new Fibre [Server]. The store backend is determined by
 // [ServerConfig.StoreFn], which defaults to [NewStore].
@@ -70,15 +88,47 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		metrics:   metrics,
 		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
 		occ:       occ,
+		health:    newHealthManager(cfg.health, cfg.Log),
 	}
+	server.healthMetrics, err = metrics.registerHealthObserver(cfg.Meter, server.health.report)
+	if err != nil {
+		return nil, fmt.Errorf("registering health metrics: %w", err)
+	}
+	defer func() {
+		if err != nil {
+			_ = server.healthMetrics.Unregister()
+		}
+	}()
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
+	if cfg.HealthListenAddress != "" {
+		if server.healthLn, err = net.Listen("tcp", cfg.HealthListenAddress); err != nil {
+			server.grpc.Stop(context.Background())
+			return nil, fmt.Errorf("listen on health address %s: %w", cfg.HealthListenAddress, err)
+		}
+		server.healthHTTP = &http.Server{Handler: server.health.httpHandler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second}
+	}
 
 	return server, nil
 }
+
+// HealthListenAddress returns the HTTP health address, or "" when disabled.
+func (s *Server) HealthListenAddress() string {
+	if s.healthLn == nil {
+		return ""
+	}
+	return s.healthLn.Addr().String()
+}
+
+// Done is closed once the gRPC server stopped serving, through Stop or because
+// it failed; Err tells the two apart.
+func (s *Server) Done() <-chan struct{} { return s.grpc.Done() }
+
+// Err returns the error the gRPC server exited with, or nil.
+func (s *Server) Err() error { return s.grpc.Err() }
 
 // ListenAddress returns the actual address the server is listening on.
 func (s *Server) ListenAddress() string {
@@ -95,22 +145,49 @@ func (s *Server) Store() *Store {
 	return s.store
 }
 
-// Start connects to the celestia-app node, creates the signer,
-// starts serving gRPC requests, and kicks off background pruning.
-// NOTE: Order of operations is important. Start the state client first,
-// then create the signer, and finally start the pruning loop followed by the gRPC server.
+// Start connects to the celestia-app node, creates the signer and TLS identity,
+// starts serving gRPC, opens the store, derives the storage budget and kicks off
+// background pruning and health checks. The HTTP health endpoints answer from
+// the first moment of Start and the gRPC health service as soon as the TLS
+// identity exists; Fibre RPCs return Unavailable until Start returns. On
+// failure every acquired resource is released. Stop waits for a running Start
+// to return; cancel ctx to abort a blocked Start.
 func (s *Server) Start(ctx context.Context) (err error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
+	if !s.started.CompareAndSwap(false, true) {
+		return errors.New("server already started")
+	}
+	select {
+	case <-s.grpc.Done():
+		return errors.New("server is stopped")
+	default:
+	}
+	if s.healthHTTP != nil {
+		go func() { _ = s.healthHTTP.Serve(s.healthLn) }()
+		s.log.Info("serving health HTTP", "addr", s.healthLn.Addr())
+	}
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, s.stopOnce(context.Background()))
+		}
+	}()
+
 	if err := s.state.Start(ctx); err != nil {
 		return err
 	}
+	chainID := s.state.ChainID()
+	if expected := s.Config.health.expectedChainID; expected != "" && chainID != expected {
+		return fmt.Errorf("app node reports chain ID %q but expected_chain_id is %q", chainID, expected)
+	}
 
-	s.signer, err = s.Config.SignerFn(s.state.ChainID())
+	s.signer, err = s.Config.SignerFn(chainID)
 	if err != nil {
 		return fmt.Errorf("creating signer: %w", err)
 	}
 	s.log.Info("signer ready")
 
-	cert, err := tlsid.BuildServerCert(s.signer, s.state.ChainID())
+	cert, err := tlsid.BuildServerCert(s.signer, chainID)
 	if err != nil {
 		return fmt.Errorf("building TLS cert: %w", err)
 	}
@@ -127,13 +204,25 @@ func (s *Server) Start(ctx context.Context) (err error) {
 			DefaultProtocolParams.MerkleProofDepth(),
 		)),
 		grpclib.Creds(creds),
+		grpclib.ChainUnaryInterceptor(s.health.unaryGate),
 	)
+	s.health.registerGRPC(s.grpc.Registrar())
+	// Serve health (and gated Fibre RPCs) before the remaining, potentially slow initialization.
+	s.grpc.Serve()
+	s.health.set(true, HealthServiceLiveness)
+	go func() { // an unexpected Serve exit fails liveness until the CLI stops the process
+		<-s.grpc.Done()
+		if err := s.grpc.Err(); err != nil {
+			s.health.serveFailed(err)
+		}
+	}()
+	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
 
 	pubKey, err := s.signer.GetPubKey()
 	if err != nil {
 		return fmt.Errorf("getting validator public key: %w", err)
 	}
-	s.Config.ObjectStorage.ChainID = s.state.ChainID()
+	s.Config.ObjectStorage.ChainID = chainID
 	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
 	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
@@ -154,17 +243,29 @@ func (s *Server) Start(ctx context.Context) (err error) {
 			"running without a storage limit until it is re-derived")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Probes must bypass the validator set cache; a client without probe support
+	// leaves the server permanently not ready.
+	stateClient := s.state
+	if cc, ok := stateClient.(*state.CachingClient); ok {
+		stateClient = cc.Client
+	}
+	healthClient, _ := stateClient.(state.HealthClient)
+
+	bgCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
 
 	s.pruneDone = make(chan struct{})
 	go func() {
 		defer close(s.pruneDone)
-		s.startPruneLoop(ctx)
+		s.startPruneLoop(bgCtx)
 	}()
 
-	s.grpc.Serve()
-	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+	s.health.start(bgCtx, healthDeps{
+		client: healthClient,
+		module: func(ctx context.Context) error { _, err := s.state.FullStakeStorageBudget(ctx); return err },
+		signer: s.signer,
+		store:  s.store,
+	}, chainID)
 	return nil
 }
 
@@ -180,18 +281,39 @@ func (s *Server) seedOccupancy(ctx context.Context) error {
 	return nil
 }
 
-// Stop gracefully stops the gRPC server and background routines,
-// then closes the underlying store and app connection.
-// Cancelling the context forces an immediate stop without waiting for in-flight requests.
-func (s *Server) Stop(ctx context.Context) (err error) {
+// Stop publishes not-ready, stops background routines, drains the gRPC server
+// within shutdownTimeout, then closes the signer, store and app connection.
+// Cancelling the context forces an immediate stop. Stop is safe before Start,
+// after a failed Start and when repeated.
+func (s *Server) Stop(ctx context.Context) error {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
+	return s.stopOnce(ctx)
+}
+
+func (s *Server) stopOnce(ctx context.Context) error {
+	s.once.Do(func() { s.stopErr = s.stop(ctx) })
+	return s.stopErr
+}
+
+func (s *Server) stop(ctx context.Context) (err error) {
 	s.log.Info("stopping server")
+	ctx, cancel := context.WithTimeout(ctx, shutdownTimeout)
+	defer cancel()
 	if s.cancel != nil {
 		s.cancel()
+	}
+	probesDrained := s.health.stop(ctx)
+	if s.healthHTTP != nil {
+		err = errors.Join(err, s.healthHTTP.Shutdown(ctx))
+	} else if s.healthLn != nil {
+		_ = s.healthLn.Close()
 	}
 	s.grpc.Stop(ctx)
 	if s.pruneDone != nil {
 		<-s.pruneDone
 	}
+	_ = s.healthMetrics.Unregister()
 
 	if closer, ok := s.signer.(io.Closer); ok {
 		if closeErr := closer.Close(); closeErr != nil {
@@ -199,7 +321,11 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 			err = errors.Join(err, closeErr)
 		}
 	}
-	if s.store != nil {
+	switch {
+	case s.store == nil:
+	case !probesDrained: // closing Pebble under an in-flight probe panics; leave it to process exit
+		err = errors.Join(err, errors.New("store left open: a health probe was still running at the shutdown deadline"))
+	default:
 		if closeErr := s.store.Close(); closeErr != nil {
 			s.log.Error("closing store", "error", closeErr)
 			err = errors.Join(err, closeErr)

@@ -57,7 +57,11 @@ func NewGRPCClient(addr string, chainID string, log *slog.Logger) (*GRPCClient, 
 func (g *GRPCClient) GetPubKey() (crypto.PubKey, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), signTimeout)
 	defer cancel()
+	return g.GetPubKeyContext(ctx)
+}
 
+// GetPubKeyContext is GetPubKey bounded by the caller's context; health checks use it.
+func (g *GRPCClient) GetPubKeyContext(ctx context.Context) (crypto.PubKey, error) {
 	resp, err := g.client.GetPubKey(ctx, &privvalproto.PubKeyRequest{ChainId: g.chainID})
 	if err != nil {
 		return nil, fmt.Errorf("grpc GetPubKey: %w", err)
