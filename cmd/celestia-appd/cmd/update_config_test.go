@@ -30,7 +30,13 @@ func TestUpdateConfig(t *testing.T) {
 			name:          "unsupported version",
 			version:       "99",
 			expectError:   true,
-			errorContains: "unsupported target version",
+			errorContains: `no config migration for app version 99; use "celestia-appd config sync" instead`,
+		},
+		{
+			name:          "default version",
+			version:       fmt.Sprintf("%d", appconsts.Version),
+			expectError:   true,
+			errorContains: `use "celestia-appd config sync" instead`,
 		},
 	}
 
