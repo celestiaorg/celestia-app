@@ -111,6 +111,8 @@ The default list of flags, unless overridden is the following:
 "--transport=grpc",
 ```
 
+`celestia-appd` overrides these defaults for every embedded version. It passes `--with-tendermint=false` and `--transport=grpc`, plus `--inter-block-cache` for v3-v8 and `--minimum-gas-prices` for v4-v5. See [`modify_root_command_multiplexer.go`](../cmd/celestia-appd/cmd/modify_root_command_multiplexer.go).
+
 Note: Flags passed when starting the application are passed down to each embedded binary. `Multiplexer` then adds the extra flags.
 For instance, when calling `appd start --force-no-bbr`, the native app runs with only `--force-no-bbr` flag, while the embedded app runs with `--force-no-bbr` and the default flags.
 
