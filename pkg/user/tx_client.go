@@ -35,6 +35,8 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -1167,6 +1169,10 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 
 	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
 	if err != nil {
+		// v1 nodes don't serve x/minfee so use the local price only.
+		if status.Code(err) == codes.Unimplemented {
+			return localMinPrice, nil
+		}
 		return 0, err
 	}
 
