@@ -384,6 +384,8 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		prunedBytes    int64
 		integrityErr   error
 		corruptMarkers int
+		// seen maps a shard key to its candidate so re-Puts with a different pruneAt are freed once.
+		seen = make(map[string]int)
 	)
 	beforeStr := formatTimestamp(before.UTC())
 	valid := iter.First()
@@ -405,6 +407,10 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		}
 		commitment, promiseHash, ok := parsePruneKey(keyStr)
 		if !ok {
+			continue
+		}
+		if i, ok := seen[string(shardKey(commitment, promiseHash))]; ok {
+			candidates[i].duplicateKeys = append(candidates[i].duplicateKeys, slices.Clone(key))
 			continue
 		}
 
@@ -436,6 +442,7 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 			return 0, 0, nil, errors.New("pruned shard size overflows int64")
 		}
 		selectedBytes += size
+		seen[string(shardKey(commitment, promiseHash))] = len(candidates)
 		candidates = append(candidates, pruneCandidate{
 			markedShard: markedShard{
 				id: shardID{commitment: commitment, promiseHash: promiseHash}, marker: markerData,
@@ -461,6 +468,11 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		candidate := candidates[i]
 		if err := batch.Delete(candidate.key, pebbledb.NoSync); err != nil {
 			return 0, 0, nil, fmt.Errorf("deleting prune index: %w", err)
+		}
+		for _, key := range candidate.duplicateKeys {
+			if err := batch.Delete(key, pebbledb.NoSync); err != nil {
+				return 0, 0, nil, fmt.Errorf("deleting prune index: %w", err)
+			}
 		}
 		if err := batch.Delete(shardKey(candidate.id.commitment, candidate.id.promiseHash), pebbledb.NoSync); err != nil {
 			return 0, 0, nil, fmt.Errorf("deleting shard marker: %w", err)
@@ -488,6 +500,8 @@ type pruneCandidate struct {
 	markedShard
 	key  []byte
 	size int64
+	// duplicateKeys are later prune keys for the same shard.
+	duplicateKeys [][]byte
 }
 
 // reconcile drops everything under <store>/staging/. Anything there at open

@@ -40,6 +40,7 @@ func TestStore(t *testing.T) {
 		{"Has_PresentAbsentOrphan", testStoreHas},
 		{"Size_EmptyAndSum", testStoreSize},
 		{"PruneBefore_ReturnsFreedBytes", testStorePruneBeforeReturnsFreedBytes},
+		{"PruneBefore_DuplicatePruneKeys", testStorePruneBeforeDuplicatePruneKeys},
 		{"DiskAvailable_Positive", testStoreDiskAvailable},
 	}
 
@@ -597,6 +598,31 @@ func testStorePruneBeforeReturnsFreedBytes(t *testing.T, store *fibre.Store, pat
 	size, err := store.Size(ctx)
 	require.NoError(t, err)
 	require.Zero(t, size)
+}
+
+// A shard re-Put with a different pruneAt is freed once, not once per prune key.
+func testStorePruneBeforeDuplicatePruneKeys(t *testing.T, store *fibre.Store, _ string) {
+	ctx := t.Context()
+	blob := makeTestBlobV0(t, 256)
+	p := makeTestPaymentPromise(100, blob.ID())
+	shard := makeShardFrom(t, blob, 0, 1)
+
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	require.NoError(t, store.Put(ctx, p, shard, pruneAt))
+	require.NoError(t, store.Put(ctx, p, shard, pruneAt.Add(time.Minute)))
+	size, err := store.Size(ctx)
+	require.NoError(t, err)
+
+	pruned, freed, err := store.PruneBefore(ctx, pruneAt.Add(time.Hour))
+	require.NoError(t, err)
+	require.Equal(t, 1, pruned)
+	require.Equal(t, size, freed)
+
+	// both prune keys are gone
+	pruned, freed, err = store.PruneBefore(ctx, pruneAt.Add(time.Hour))
+	require.NoError(t, err)
+	require.Zero(t, pruned)
+	require.Zero(t, freed)
 }
 
 // DiskAvailable reports the free bytes on the store's filesystem.
