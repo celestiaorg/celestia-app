@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -195,10 +196,13 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
 	for _, operation := range []string{"put", "get", "has", "delete", "delete batch", "read body", "cancel body"} {
 		t.Run(operation, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+			// The caller has no deadline, so DeadlineExceeded can only come from the backend.
+			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			release := make(chan struct{})
+			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
 				_, _ = io.Copy(io.Discard, r.Body)
 				if strings.HasSuffix(operation, "body") {
 					w.Header().Set("Content-Length", "100")
@@ -239,7 +243,7 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 				require.ErrorIs(t, err, context.Canceled)
 			} else {
 				require.ErrorIs(t, err, context.DeadlineExceeded)
-				require.NoError(t, ctx.Err(), "the backend must time out before its caller")
+				require.LessOrEqual(t, requests.Load(), int32(1), "the request timeout must bound retries")
 			}
 		})
 	}
