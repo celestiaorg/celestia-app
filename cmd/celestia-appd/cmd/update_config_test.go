@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,12 +33,6 @@ func TestUpdateConfig(t *testing.T) {
 			expectError:   true,
 			errorContains: `no config migration for app version 99; use "celestia-appd config sync" instead`,
 		},
-		{
-			name:          "default version",
-			version:       fmt.Sprintf("%d", appconsts.Version),
-			expectError:   true,
-			errorContains: `use "celestia-appd config sync" instead`,
-		},
 	}
 
 	for _, tt := range tests {
@@ -64,6 +59,19 @@ func TestUpdateConfig(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateConfigCmdPointsToConfigSync(t *testing.T) {
+	var out bytes.Buffer
+	cmd := updateConfigCmd()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"--home", t.TempDir()})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `use "celestia-appd config sync" instead`)
+	assert.Contains(t, out.String(), `Use "celestia-appd config sync" instead.`)
 }
 
 func TestLoadAndWriteConfigs(t *testing.T) {
