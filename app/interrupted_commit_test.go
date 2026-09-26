@@ -41,8 +41,11 @@ func TestRestartAfterInterruptedCommit(t *testing.T) {
 
 	restarted := newApp()
 	require.Equal(t, committed, restarted.LastBlockHeight())
+	restartedBankStore := restarted.CommitMultiStore().GetCommitKVStore(restarted.GetKey(banktypes.StoreKey))
+	require.Nil(t, restartedBankStore.Get([]byte("torn")))
 	require.NotPanics(t, func() { finalizeAndCommit(t, restarted) })
 	require.Equal(t, torn, restarted.LastBlockHeight())
+	require.Nil(t, restartedBankStore.Get([]byte("torn")))
 }
 
 func finalizeAndCommit(t *testing.T, testApp *app.App) {
