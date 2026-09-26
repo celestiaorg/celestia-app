@@ -70,7 +70,7 @@ func (s *Server) prune(ctx context.Context) {
 	}
 
 	if integrityErr != nil {
-		s.log.WarnContext(ctx, "prune skipped corrupt shard markers", "error", integrityErr,
+		s.log.WarnContext(ctx, "prune skipped corrupt prune entries", "error", integrityErr,
 			"elapsed (ms)", time.Since(start).Milliseconds())
 	}
 	if deleteErr != nil {
