@@ -21,7 +21,10 @@ sudo modprobe tcp_bbr
 sudo sysctl -w net.core.default_qdisc=fq
 sudo sysctl -w net.ipv4.tcp_congestion_control=bbr
 
-To persist across reboots, add these lines to /etc/sysctl.conf:
+To persist across reboots, load the module at boot:
+echo tcp_bbr | sudo tee /etc/modules-load.d/bbr.conf
+
+and add these lines to /etc/sysctl.conf:
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 

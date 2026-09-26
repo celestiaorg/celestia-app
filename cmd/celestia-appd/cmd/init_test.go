@@ -25,5 +25,5 @@ func Test_getConsensusParams(t *testing.T) {
 func Test_newPrintInfo(t *testing.T) {
 	got, err := json.Marshal(newPrintInfo("moniker", "chain-id", "node-id", "/home"))
 	require.NoError(t, err)
-	assert.NotContains(t, string(got), "app_message")
+	assert.JSONEq(t, `{"moniker":"moniker","chain_id":"chain-id","node_id":"node-id","home":"/home"}`, string(got))
 }
