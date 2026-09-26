@@ -210,11 +210,9 @@ func TestHealthManager(t *testing.T) {
 	assert.Equal(t, phaseStopping, m.report().Reason)
 }
 
-// TestServerHealth covers the lifecycle over real listeners: health answers before the store is open
-// while Fibre RPCs are gated, readiness follows the checks, HTTP agrees, and Watch streams end at Stop.
-func TestServerHealth(t *testing.T) {
-	deps := newFakeDeps()
-	gate := make(chan struct{})
+// newTestServer builds a server on fake dependencies; a non-nil gate holds Start at the store open.
+func newTestServer(t *testing.T, deps *fakeDeps, gate chan struct{}) *Server {
+	t.Helper()
 	cfg := DefaultServerConfig()
 	cfg.ServerListenAddress, cfg.HealthListenAddress, cfg.UnlimitedBudget = "127.0.0.1:0", "127.0.0.1:0", true
 	cfg.Health.CheckInterval, cfg.Health.ProbeTimeout = "50ms", "1s"
@@ -222,12 +220,30 @@ func TestServerHealth(t *testing.T) {
 	cfg.StateClientFn = func() (state.Client, error) { return deps, nil }
 	cfg.SignerFn = func(string) (core.PrivValidator, error) { return deps, nil }
 	cfg.StoreFn = func(ctx context.Context, scfg StoreConfig) (*Store, error) {
-		<-gate
+		if gate != nil {
+			<-gate
+		}
 		return NewMemoryStore(scfg), nil
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = srv.Stop(context.Background()) })
+	return srv
+}
+
+func livez(t *testing.T, srv *Server) int {
+	t.Helper()
+	resp, err := http.Get("http://" + srv.HealthListenAddress() + "/livez") //nolint:gosec // test URL
+	require.NoError(t, err)
+	resp.Body.Close()
+	return resp.StatusCode
+}
+
+// TestServerHealth covers the lifecycle over real listeners: health answers before the store is open
+// while Fibre RPCs are gated, readiness follows the checks, HTTP agrees, and Watch streams end at Stop.
+func TestServerHealth(t *testing.T) {
+	deps, gate := newFakeDeps(), make(chan struct{})
+	srv := newTestServer(t, deps, gate)
 	startErr := make(chan error, 1)
 	go func() { startErr <- srv.Start(context.Background()) }()
 
@@ -283,4 +299,40 @@ func TestServerHealth(t *testing.T) {
 		_, err = stream.Recv()
 	}
 	require.NoError(t, srv.Stop(ctx), "repeated stop")
+}
+
+// TestServerStopDuringStart checks that Stop waits for a blocked Start and then releases what Start
+// acquired, and that a stopped server cannot start again.
+func TestServerStopDuringStart(t *testing.T) {
+	gate := make(chan struct{})
+	srv := newTestServer(t, newFakeDeps(), gate)
+	startErr, stopErr := make(chan error, 1), make(chan error, 1)
+	go func() { startErr <- srv.Start(context.Background()) }()
+	require.Eventually(t, func() bool { return livez(t, srv) == http.StatusOK }, 10*time.Second, 20*time.Millisecond)
+	go func() { stopErr <- srv.Stop(context.Background()) }()
+	select {
+	case err := <-stopErr:
+		t.Fatalf("Stop returned %v while Start was blocked", err)
+	case <-time.After(200 * time.Millisecond):
+	}
+	close(gate)
+	require.NoError(t, <-startErr)
+	require.NoError(t, <-stopErr)
+	assert.True(t, srv.store.closed.Load(), "Stop closes the store Start opened")
+	require.Error(t, srv.Start(context.Background()))
+}
+
+// TestServerServeFailure checks that an unexpected gRPC exit is reported through Done and fails liveness.
+func TestServerServeFailure(t *testing.T) {
+	srv := newTestServer(t, newFakeDeps(), nil)
+	require.NoError(t, srv.Start(context.Background()))
+	require.NoError(t, srv.grpc.Listener().Close())
+	select {
+	case <-srv.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("Done was not closed after the listener failed")
+	}
+	require.Error(t, srv.Err())
+	require.Eventually(t, func() bool { return livez(t, srv) == http.StatusServiceUnavailable }, 5*time.Second, 20*time.Millisecond)
+	require.NoError(t, srv.Stop(context.Background()))
 }

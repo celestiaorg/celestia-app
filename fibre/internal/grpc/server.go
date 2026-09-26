@@ -105,6 +105,9 @@ func (s *Server) Registrar() grpc.ServiceRegistrar { return s.server }
 // Done is closed once the server stopped serving; Err then reports why, nil for a clean stop.
 func (s *Server) Done() <-chan struct{} { return s.done }
 
+// Listener returns the underlying listener; tests inject listener failures through it.
+func (s *Server) Listener() net.Listener { return s.listener }
+
 func (s *Server) Err() error {
 	select {
 	case <-s.done:

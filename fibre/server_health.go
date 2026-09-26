@@ -37,7 +37,7 @@ const (
 // Check names, phases and reason codes exposed by the readiness report. Automation should key on these.
 const (
 	checkApp, checkModule, checkSigner, checkValidator, checkRegistration, checkStore = "app", "fibre_module", "signer", "validator", "registration", "store"
-	phaseStarting, phaseRunning, phaseStopping                                        = "starting", "running", "stopping"
+	phaseStarting, phaseRunning, phaseStopping, phaseFailed                           = "starting", "running", "stopping", "failed"
 
 	reasonChecksFailed, reasonNotChecked, reasonStale, reasonTimeout, reasonUnsupported, reasonDependency                = "checks_failed", "not_checked", "stale", "probe_timeout", "unsupported", "dependency_failed"
 	reasonAppUnreachable, reasonAppSyncing, reasonChainStalled, reasonChainMismatch, reasonModuleUnavailable             = "app_unreachable", "app_syncing", "chain_stalled", "chain_id_mismatch", "fibre_module_unavailable"
@@ -413,6 +413,19 @@ func (m *healthManager) stop(ctx context.Context) bool {
 	}
 }
 
+// serveFailed records an unexpected gRPC server exit: liveness and readiness both fail.
+func (m *healthManager) serveFailed(err error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.phase == phaseStarting || m.phase == phaseRunning {
+		m.log.Error("gRPC server stopped unexpectedly", "error", err)
+		m.phase = phaseFailed
+		m.serving.Store(false)
+		m.set(false, HealthServiceLiveness)
+		m.publish()
+	}
+}
+
 // unaryGate rejects Fibre RPCs until initialization completes and once shutdown began.
 func (m *healthManager) unaryGate(ctx context.Context, req any, info *grpclib.UnaryServerInfo, handler grpclib.UnaryHandler) (any, error) {
 	if m.serving.Load() || strings.HasPrefix(info.FullMethod, "/grpc.health.v1.Health/") {
@@ -434,7 +447,7 @@ func (m *healthManager) httpHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) {
 		phase := m.report().Phase
-		serve(w, phase != phaseStopping, map[string]string{"phase": phase})
+		serve(w, phase == phaseStarting || phase == phaseRunning, map[string]string{"phase": phase})
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
 		rep := m.report()

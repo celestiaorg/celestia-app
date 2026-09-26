@@ -52,8 +52,9 @@ type Server struct {
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
+	lifecycle sync.Mutex // serializes Start and Stop so Stop cannot interleave a running Start
 	started   atomic.Bool
-	stopOnce  sync.Once
+	once      sync.Once
 	stopErr   error
 }
 
@@ -93,6 +94,11 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("registering health metrics: %w", err)
 	}
+	defer func() {
+		if err != nil {
+			_ = server.healthMetrics.Unregister()
+		}
+	}()
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
 	if err != nil {
@@ -144,10 +150,18 @@ func (s *Server) Store() *Store {
 // background pruning and health checks. The HTTP health endpoints answer from
 // the first moment of Start and the gRPC health service as soon as the TLS
 // identity exists; Fibre RPCs return Unavailable until Start returns. On
-// failure every acquired resource is released.
+// failure every acquired resource is released. Stop waits for a running Start
+// to return; cancel ctx to abort a blocked Start.
 func (s *Server) Start(ctx context.Context) (err error) {
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
 	if !s.started.CompareAndSwap(false, true) {
 		return errors.New("server already started")
+	}
+	select {
+	case <-s.grpc.Done():
+		return errors.New("server is stopped")
+	default:
 	}
 	if s.healthHTTP != nil {
 		go func() { _ = s.healthHTTP.Serve(s.healthLn) }()
@@ -155,7 +169,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	defer func() {
 		if err != nil {
-			err = errors.Join(err, s.Stop(context.Background()))
+			err = errors.Join(err, s.stopOnce(context.Background()))
 		}
 	}()
 
@@ -196,6 +210,12 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	// Serve health (and gated Fibre RPCs) before the remaining, potentially slow initialization.
 	s.grpc.Serve()
 	s.health.set(true, HealthServiceLiveness)
+	go func() { // an unexpected Serve exit fails liveness until the CLI stops the process
+		<-s.grpc.Done()
+		if err := s.grpc.Err(); err != nil {
+			s.health.serveFailed(err)
+		}
+	}()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
 
 	pubKey, err := s.signer.GetPubKey()
@@ -266,7 +286,13 @@ func (s *Server) seedOccupancy(ctx context.Context) error {
 // Cancelling the context forces an immediate stop. Stop is safe before Start,
 // after a failed Start and when repeated.
 func (s *Server) Stop(ctx context.Context) error {
-	s.stopOnce.Do(func() { s.stopErr = s.stop(ctx) })
+	s.lifecycle.Lock()
+	defer s.lifecycle.Unlock()
+	return s.stopOnce(ctx)
+}
+
+func (s *Server) stopOnce(ctx context.Context) error {
+	s.once.Do(func() { s.stopErr = s.stop(ctx) })
 	return s.stopErr
 }
 
