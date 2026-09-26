@@ -134,6 +134,10 @@ make bbr-enable
 |---------------------|----------------------------------------------|------------------------------------------------------------|----------|
 | `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
+Flags can also be set with environment variables prefixed by the binary name, e.g. `CELESTIA_APPD_PRUNING=nothing` for `--pruning`.
+Client flags such as `--node` also accept the `CELESTIA_APP_` prefix, e.g. `CELESTIA_APP_NODE`.
+`start` flags only accept the `CELESTIA_APPD_` prefix.
+
 ### Using celestia-appd
 
 ```sh
