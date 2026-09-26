@@ -22,7 +22,7 @@ go run ./tools/check-eds-construction [command]
 ./check-eds-construction --rpc <node_rpc> check <height>
 ```
 
-- `--rpc`: CometBFT HTTP RPC endpoint (e.g., `http://localhost:26657` or `https://celestia-mocha-rpc.publicnode.com:443`)
+- `--rpc`: CometBFT HTTP RPC endpoint (e.g., `http://localhost:26657` or `https://rpc-mocha.pops.one:443`)
 - `<height>`: Height of the block to verify
 
 #### Check random blocks
@@ -39,35 +39,39 @@ go run ./tools/check-eds-construction [command]
 
 ```bash
 # Check a specific block
-$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 check 5165052
-Connected to https://celestia-mocha-rpc.publicnode.com:443 on chain mocha-5
-Got data root: 3C7F...ABCD
-Computed data root: 3C7F...ABCD
-Computed data root (with pool): 3C7F...ABCD
+$ go run ./tools/check-eds-construction --rpc https://rpc-mocha.pops.one:443 check 1134818
+Connected to https://rpc-mocha.pops.one:443 on chain mocha-5
+Got data root: 7F7EC5311B2E62430D95AA55E22BF8EED15CFD826C87336DD40C1D8C2AF12057
+Computed data root: 7F7EC5311B2E62430D95AA55E22BF8EED15CFD826C87336DD40C1D8C2AF12057
+Computed data root (with pool): 7F7EC5311B2E62430D95AA55E22BF8EED15CFD826C87336DD40C1D8C2AF12057
 All roots match!
 
-# Check 20 random blocks with default 100ms delay
-$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 random 20
-Connected to https://celestia-mocha-rpc.publicnode.com:443 on chain mocha-5
-Latest block height: 5165100
+# Check 2 random blocks with default 100ms delay
+$ go run ./tools/check-eds-construction --rpc https://rpc-mocha.pops.one:443 random 2
+Connected to https://rpc-mocha.pops.one:443 on chain mocha-5
+Latest block height: 1134830
 
-Checking 20 random blocks with 100ms delay between checks...
+Checking 2 random blocks with 100ms delay between checks...
 
-[1/20] Checking block at height 4932156
-Got data root: ABC1...2345
-Computed data root: ABC1...2345
-Computed data root (with pool): ABC1...2345
+[1/2] Checking block at height 221751
+Got data root: 3D96B7D238E7E0456F6AF8E7CDF0A67BD6CF9C2089ECB559C659DCAA1F880353
+Computed data root: 3D96B7D238E7E0456F6AF8E7CDF0A67BD6CF9C2089ECB559C659DCAA1F880353
+Computed data root (with pool): 3D96B7D238E7E0456F6AF8E7CDF0A67BD6CF9C2089ECB559C659DCAA1F880353
 All roots match!
-Block 4932156 passed
+Block 221751 passed
 
-[2/20] Checking block at height 5012437
-...
+[2/2] Checking block at height 723681
+Got data root: 617D95601B2F44B4EAD04CEF545A9CB44F5A91A3A531B1C11DB7195E34176806
+Computed data root: 617D95601B2F44B4EAD04CEF545A9CB44F5A91A3A531B1C11DB7195E34176806
+Computed data root (with pool): 617D95601B2F44B4EAD04CEF545A9CB44F5A91A3A531B1C11DB7195E34176806
+All roots match!
+Block 723681 passed
 
 # Check 10 random blocks (default) with custom 500ms delay
-$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 random --delay 500
+$ go run ./tools/check-eds-construction --rpc https://rpc-mocha.pops.one:443 random --delay 500
 
 # Check 10 random blocks with no delay
-$ go run ./tools/check-eds-construction --rpc https://celestia-mocha-rpc.publicnode.com:443 random --delay 0
+$ go run ./tools/check-eds-construction --rpc https://rpc-mocha.pops.one:443 random --delay 0
 ```
 
 ### Help
