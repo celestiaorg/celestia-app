@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app"
@@ -61,4 +63,21 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 	assert.Equal(t, appconsts.TimeoutPrecommit, modifiedCfg.Consensus.TimeoutPrecommit)
 	assert.Equal(t, appconsts.TimeoutPrecommitDelta, modifiedCfg.Consensus.TimeoutPrecommitDelta)
 	assert.Equal(t, appconsts.TimeoutCommit, modifiedCfg.Consensus.TimeoutCommit)
+}
+
+func TestOverrideConsensusTimeoutsLogsChangedValues(t *testing.T) {
+	cfg := app.DefaultConsensusConfig()
+	cfg.Consensus.TimeoutCommit = 10 * time.Second
+
+	sctx := server.NewDefaultContext()
+	sctx.Config = cfg
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, sctx))
+
+	var buf bytes.Buffer
+	require.NoError(t, overrideConsensusTimeouts(cmd, log.NewLogger(&buf)))
+
+	assert.Contains(t, buf.String(), "timeout_commit")
+	assert.NotContains(t, buf.String(), "timeout_propose")
+	assert.Equal(t, appconsts.TimeoutCommit, cfg.Consensus.TimeoutCommit)
 }
