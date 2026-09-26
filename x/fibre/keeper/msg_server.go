@@ -333,7 +333,6 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 }
 
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.
-// TODO: this assumes 1 utia per gas which may not be correct.
 func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.Coin {
 	return types.PaymentAmount(blobSize)
 }
