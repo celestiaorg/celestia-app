@@ -11,8 +11,8 @@ import (
 )
 
 // TestServerUploadShardLastSuccess checks that the last-success timestamp is
-// absent before the first successful upload, is not set by a failed upload,
-// and is set by a successful one.
+// absent before the first successful upload, is not set or changed by a
+// failed upload, and is set and refreshed by successful ones.
 func TestServerUploadShardLastSuccess(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	server, valSet, serverValidator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
@@ -32,10 +32,25 @@ func TestServerUploadShardLastSuccess(t *testing.T) {
 	before := time.Now().Unix()
 	_, err = server.UploadShard(t.Context(), makeTestRequest(t, valSet, serverValidator, nil))
 	require.NoError(t, err)
-	ts, ok := lastUploadSuccess(t, reader)
+	first, ok := lastUploadSuccess(t, reader)
 	require.True(t, ok, "must be reported after a successful upload")
-	require.GreaterOrEqual(t, ts, before)
-	require.LessOrEqual(t, ts, time.Now().Unix())
+	require.GreaterOrEqual(t, first, before)
+	require.LessOrEqual(t, first, time.Now().Unix())
+
+	_, err = server.UploadShard(t.Context(), bad)
+	require.Error(t, err)
+	ts, ok := lastUploadSuccess(t, reader)
+	require.True(t, ok, "must still be reported after a later failed upload")
+	require.Equal(t, first, ts, "a failed upload must not change the timestamp")
+
+	// The timestamp has one-second resolution; wait for the next second so
+	// a refresh is observable.
+	time.Sleep(time.Until(time.Unix(first+1, 0)))
+	_, err = server.UploadShard(t.Context(), makeTestRequest(t, valSet, serverValidator, nil))
+	require.NoError(t, err)
+	ts, ok = lastUploadSuccess(t, reader)
+	require.True(t, ok)
+	require.Greater(t, ts, first, "a later successful upload must refresh the timestamp")
 }
 
 // lastUploadSuccess returns the upload_shard.last_success_timestamp gauge and
