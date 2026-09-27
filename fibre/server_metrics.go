@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -31,6 +32,13 @@ type serverMetrics struct {
 	uploadShardDuration metric.Float64Histogram
 	uploadShardBytes    metric.Int64Counter
 	uploadShardRejected metric.Int64Counter
+<<<<<<< HEAD
+=======
+	uploadShardDupeHits metric.Int64Counter
+	// uploadShardLastSuccess is the Unix time in seconds of the last
+	// successful UploadShard RPC, or zero before the first one.
+	uploadShardLastSuccess atomic.Int64
+>>>>>>> 0b45f32 (feat(fibre): export the time of the last successful shard upload (#8013))
 
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
@@ -90,6 +98,29 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating upload_shard rejected counter: %w", err)
 	}
 
+<<<<<<< HEAD
+=======
+	sm.uploadShardDupeHits, err = m.Int64Counter("fibre.server.upload_shard.dupe_hits",
+		metric.WithDescription("UploadShard RPCs that skipped storing because the shard was already stored, by detection stage"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating upload_shard dupe_hits counter: %w", err)
+	}
+
+	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.last_success_timestamp",
+		metric.WithDescription("Unix time of the last successful UploadShard RPC; not reported before the first one"),
+		metric.WithUnit("s"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			if ts := sm.uploadShardLastSuccess.Load(); ts > 0 {
+				o.Observe(ts)
+			}
+			return nil
+		}),
+	); err != nil {
+		return nil, fmt.Errorf("creating upload_shard last_success_timestamp gauge: %w", err)
+	}
+
+>>>>>>> 0b45f32 (feat(fibre): export the time of the last successful shard upload (#8013))
 	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.occupancy_bytes",
 		metric.WithDescription("Shard bytes tracked by the storage limiter: on-disk plus in-flight reserved"),
 		metric.WithUnit("By"),
@@ -215,6 +246,9 @@ func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploa
 	m.uploadShardInFlight.Add(ctx, 1)
 	return func(uploadSize int64, err error) {
 		m.uploadShardInFlight.Add(ctx, -1)
+		if err == nil {
+			m.uploadShardLastSuccess.Store(time.Now().Unix())
+		}
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
 		if uploadSize > 0 {
 			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
