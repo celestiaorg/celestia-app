@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -20,20 +19,7 @@ import (
 func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
-	handler := ante.NewAnteHandler(
-		app.AccountKeeper,
-		app.BankKeeper,
-		app.BlobKeeper,
-		app.FeeGrantKeeper,
-		app.GetTxConfig().SignModeHandler(),
-		ante.DefaultSigVerificationGasConsumer,
-		app.IBCKeeper,
-		app.MinFeeKeeper,
-		&app.CircuitKeeper,
-		app.GovParamFilters(),
-		app.FibreKeeper,
-		app.pffSigCache,
-	)
+	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
 
 	fsb, err := NewFilteredSquareBuilder(
 		handler,

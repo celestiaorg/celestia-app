@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -91,4 +92,29 @@ func TestBlob_RetainRefusesAfterRelease(t *testing.T) {
 	// A retain now must refuse rather than resurrect the freed blob.
 	require.False(t, blob.retain())
 	require.True(t, blob.released())
+}
+
+func TestBlob_FinalReleaseClearsPayloadBeforeCallback(t *testing.T) {
+	blob, err := NewBlob(bytes.Repeat([]byte{0x47}, 256<<10), DefaultBlobConfigV0())
+	require.NoError(t, err)
+	defer blob.Free()
+	require.True(t, blob.retain())
+	free := blob.releaseFn
+	calls := 0
+	blob.releaseFn = func() {
+		require.Nil(t, blob.data)
+		require.Nil(t, blob.extendedData)
+		free()
+		calls++
+	}
+
+	blob.Free()
+	require.Zero(t, calls)
+	require.NotNil(t, blob.data)
+	require.NoError(t, blob.RowProofs([]int{0, 4096}, func(int, []byte, [][]byte) {}))
+	blob.release()
+	require.Equal(t, 1, calls)
+	require.Nil(t, blob.releaseFn)
+	blob.Free()
+	require.Equal(t, 1, calls)
 }

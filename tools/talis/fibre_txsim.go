@@ -8,7 +8,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const FibreTxSimSessionName = "fibre-txsim"
+const (
+	FibreTxSimSessionName = "fibre-txsim"
+	otlpMetricsPath       = "/v1/metrics"
+	otlpTracesPath        = "/v1/traces"
+)
 
 func fibreTxsimCmd() *cobra.Command {
 	var (
@@ -43,7 +47,7 @@ func fibreTxsimCmd() *cobra.Command {
 			resolvedSSHKeyPath := resolveValue(SSHKeyPath, EnvVarSSHKeyPath, strings.ReplaceAll(cfg.SSHPubKeyPath, ".pub", ""))
 
 			if onEncoders {
-				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, duration, download, uploadOnly, preencode, pyroscopeEndpoint)
+				return startFibreTxsimOnEncoders(cfg, resolvedSSHKeyPath, instances, concurrency, blobSize, interval, duration, download, uploadOnly, preencode, pyroscopeEndpoint, otlpPathArgs(cmd))
 			}
 
 			// Legacy mode: run fibre-txsim on validators themselves
@@ -68,6 +72,7 @@ func fibreTxsimCmd() *cobra.Command {
 				remoteCmd += " --preencode"
 			}
 
+			remoteCmd += otlpPathArgs(cmd)
 			// Auto-wire observability endpoints when observability nodes are configured
 			if len(cfg.Observability) > 0 {
 				remoteCmd += fmt.Sprintf(" --otel-endpoint http://%s:4318", cfg.Observability[0].PublicIP)
@@ -104,13 +109,15 @@ func fibreTxsimCmd() *cobra.Command {
 	cmd.Flags().StringVar(&pyroscopeEndpoint, "pyroscope-endpoint", "", "Pyroscope endpoint for continuous profiling (default: auto-detected from observability config, e.g. http://host:4040)")
 	cmd.Flags().BoolVar(&onEncoders, "on-encoders", false, "run fibre-txsim on dedicated encoder instances instead of validators")
 
+	cmd.Flags().String("otel-metrics-path", otlpMetricsPath, "OTLP HTTP metrics path (replaces the endpoint URL path)")
+	cmd.Flags().String("otel-traces-path", otlpTracesPath, "OTLP HTTP traces path (replaces the endpoint URL path)")
 	return cmd
 }
 
 // startFibreTxsimOnEncoders launches fibre-txsim on each encoder instance.
 // Each encoder is mapped to a validator (round-robin) and uses a unique key
 // prefix (enc0, enc1, ...) so that their escrow accounts are independent.
-func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval, duration time.Duration, download, uploadOnly, preencode bool, pyroscopeEndpoint string) error {
+func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurrency, blobSize int, interval, duration time.Duration, download, uploadOnly, preencode bool, pyroscopeEndpoint, otlpPaths string) error {
 	if len(cfg.Encoders) == 0 {
 		return fmt.Errorf("no encoder instances found in config — add encoders via 'talis add -t encoder'")
 	}
@@ -150,6 +157,7 @@ func startFibreTxsimOnEncoders(cfg Config, sshKeyPath string, instances, concurr
 			remoteCmd += " --preencode"
 		}
 
+		remoteCmd += otlpPaths
 		// Auto-wire observability endpoints
 		if len(cfg.Observability) > 0 {
 			remoteCmd += fmt.Sprintf(" --otel-endpoint http://%s:4318", cfg.Observability[0].PublicIP)
@@ -185,4 +193,15 @@ func printFibreTxsimSummary(instances []Instance) {
 	fmt.Println()
 	fmt.Printf("  To kill all:  talis kill-session -s %s\n", FibreTxSimSessionName)
 	fmt.Printf("  To view logs: ssh root@<ip> 'cat /root/talis-%s.log'\n", FibreTxSimSessionName)
+}
+
+func otlpPathArgs(cmd *cobra.Command) string {
+	var args strings.Builder
+	for _, name := range []string{"otel-metrics-path", "otel-traces-path"} {
+		if cmd.Flags().Changed(name) {
+			value := cmd.Flags().Lookup(name).Value.String()
+			args.WriteString(" --" + name + " '" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'")
+		}
+	}
+	return args.String()
 }

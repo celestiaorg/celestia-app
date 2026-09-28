@@ -96,7 +96,7 @@ func TestRunPreencodeUploads(t *testing.T) {
 	serverCfg.UnlimitedBudget = true
 	serverCfg.SignerFn = func(string) (core.PrivValidator, error) { return pv, nil }
 	store := fibre.NewMemoryStore(serverCfg.StoreConfig)
-	serverCfg.StoreFn = func(fibre.StoreConfig) (*fibre.Store, error) { return store, nil }
+	serverCfg.StoreFn = func(context.Context, fibre.StoreConfig) (*fibre.Store, error) { return store, nil }
 	server, err := fibre.NewServer(serverCfg)
 	require.NoError(t, err)
 	require.NoError(t, server.Start(t.Context()))

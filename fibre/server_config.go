@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -35,6 +36,8 @@ type ServerConfig struct {
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
 	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
+	// MinUploadSize is the local minimum padded upload size, excluding parity, in bytes.
+	MinUploadSize int `toml:"min_upload_size" comment:"Minimum padded Fibre upload size in bytes, including header and excluding parity (default 262144). Restart Fibre after changing."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// MaxConnections caps total concurrent gRPC connections.
@@ -42,7 +45,7 @@ type ServerConfig struct {
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
 
-	StoreConfig `toml:"-"`
+	StoreConfig
 
 	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
 	LivenessThreshold cmtmath.Fraction `toml:"-"`
@@ -59,7 +62,7 @@ type ServerConfig struct {
 
 	// StoreFn creates the persistent [Store] for the server.
 	// If nil, defaults to [NewStore].
-	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
+	StoreFn func(context.Context, StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
 	StateClientFn func() (state.Client, error) `toml:"-"`
@@ -101,6 +104,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		OriginalRows:         p.Rows,
 		MaxShardSize:         p.MaxShardSize(),
 		MaxMessageSize:       p.MaxMessageSize(),
+		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
@@ -152,6 +156,9 @@ func (cfg *ServerConfig) Validate() error {
 		}
 	}
 
+	if cfg.MinUploadSize < 1 || cfg.MinUploadSize > DefaultProtocolParams.MaxBlobSize {
+		return fmt.Errorf("min_upload_size must be between 1 and %d bytes, got %d", DefaultProtocolParams.MaxBlobSize, cfg.MinUploadSize)
+	}
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}

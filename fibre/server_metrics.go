@@ -2,11 +2,27 @@ package fibre
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"sync/atomic"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+)
+
+const (
+	metricOutcomeSuccess   = "success"
+	metricOutcomeNotFound  = "not_found"
+	metricOutcomeTimeout   = "timeout"
+	metricOutcomeCanceled  = "canceled"
+	metricOutcomeThrottled = "throttled"
+	metricOutcomeError     = "error"
 )
 
 // serverMetrics holds OTel metric instruments for the Fibre [Server].
@@ -17,6 +33,9 @@ type serverMetrics struct {
 	uploadShardBytes    metric.Int64Counter
 	uploadShardRejected metric.Int64Counter
 	uploadShardDupeHits metric.Int64Counter
+	// uploadShardLastSuccess is the Unix time in seconds of the last
+	// successful UploadShard RPC, or zero before the first one.
+	uploadShardLastSuccess atomic.Int64
 
 	// DownloadShard RPC
 	downloadShardInFlight metric.Int64UpDownCounter
@@ -24,8 +43,11 @@ type serverMetrics struct {
 	downloadShardBytes    metric.Int64Counter
 
 	// Store operations
-	storePutDuration metric.Float64Histogram
-	storeGetDuration metric.Float64Histogram
+	storePutDuration   metric.Float64Histogram
+	storeGetDuration   metric.Float64Histogram
+	backendGetDuration metric.Float64Histogram
+	backendGetInFlight metric.Int64UpDownCounter
+	backendGetBytes    metric.Int64Counter
 
 	// Signing
 	signDuration metric.Float64Histogram
@@ -78,6 +100,19 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard dupe_hits counter: %w", err)
+	}
+
+	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.last_success_timestamp",
+		metric.WithDescription("Unix time of the last successful UploadShard RPC; not reported before the first one"),
+		metric.WithUnit("s"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			if ts := sm.uploadShardLastSuccess.Load(); ts > 0 {
+				o.Observe(ts)
+			}
+			return nil
+		}),
+	); err != nil {
+		return nil, fmt.Errorf("creating upload_shard last_success_timestamp gauge: %w", err)
 	}
 
 	if _, err := m.Int64ObservableGauge("fibre.server.upload_shard.occupancy_bytes",
@@ -146,6 +181,28 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 		return nil, fmt.Errorf("creating store get duration histogram: %w", err)
 	}
 
+	sm.backendGetDuration, err = m.Float64Histogram("fibre.server.backend.get.duration",
+		metric.WithDescription("Duration of backend GET calls through payload reading, decoding and closing"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating backend get duration histogram: %w", err)
+	}
+	sm.backendGetInFlight, err = m.Int64UpDownCounter("fibre.server.backend.get.in_flight",
+		metric.WithDescription("Number of backend GET calls in progress"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating backend get in_flight counter: %w", err)
+	}
+	sm.backendGetBytes, err = m.Int64Counter("fibre.server.backend.get.bytes",
+		metric.WithDescription("Encoded bytes consumed from backend payload readers, including partial failures and buffered reads"),
+		metric.WithUnit("By"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating backend get bytes counter: %w", err)
+	}
+
 	// Signing metrics
 	sm.signDuration, err = m.Float64Histogram("fibre.server.sign.duration",
 		metric.WithDescription("Duration of payment promise signing in seconds"),
@@ -183,6 +240,9 @@ func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploa
 	m.uploadShardInFlight.Add(ctx, 1)
 	return func(uploadSize int64, err error) {
 		m.uploadShardInFlight.Add(ctx, -1)
+		if err == nil {
+			m.uploadShardLastSuccess.Store(time.Now().Unix())
+		}
 		attrs := []attribute.KeyValue{attribute.Bool("success", err == nil)}
 		if uploadSize > 0 {
 			attrs = append(attrs, attribute.Int64("upload_size", uploadSize))
@@ -211,6 +271,68 @@ func (m *serverMetrics) observeStoreOp(ctx context.Context, h metric.Float64Hist
 	h.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", success)))
 }
 
+func (m *serverMetrics) observeBackendGet(ctx context.Context, backend string) func(error) {
+	if m == nil || (!m.backendGetDuration.Enabled(ctx) && !m.backendGetInFlight.Enabled(ctx)) {
+		return func(error) {}
+	}
+	start := time.Now()
+	attrs := metric.WithAttributes(attribute.String("backend", backend))
+	m.backendGetInFlight.Add(ctx, 1, attrs)
+	return func(err error) {
+		m.backendGetInFlight.Add(ctx, -1, attrs)
+		m.backendGetDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(
+			attribute.String("backend", backend), attribute.String("outcome", backendGetOutcome(err)),
+		))
+	}
+}
+
+func backendGetOutcome(err error) string {
+	var timeout net.Error
+	var response interface{ HTTPStatusCode() int }
+	switch {
+	case err == nil:
+		return metricOutcomeSuccess
+	case errors.Is(err, ErrStoreNotFound):
+		return metricOutcomeNotFound
+	case errors.Is(err, context.DeadlineExceeded), errors.As(err, &timeout) && timeout.Timeout():
+		return metricOutcomeTimeout
+	case errors.Is(err, context.Canceled):
+		return metricOutcomeCanceled
+	case (retry.ThrottleErrorCode{Codes: retry.DefaultThrottleErrorCodes}).IsErrorThrottle(err) == aws.TrueTernary,
+		errors.As(err, &response) && response.HTTPStatusCode() == http.StatusTooManyRequests:
+		return metricOutcomeThrottled
+	default:
+		return metricOutcomeError
+	}
+}
+
+func (m *serverMetrics) backendReader(ctx context.Context, backend string, r io.Reader) io.Reader {
+	if m == nil || !m.backendGetBytes.Enabled(ctx) {
+		return r
+	}
+	return &backendMetricReader{
+		Reader: r,
+		ctx:    ctx,
+		bytes:  m.backendGetBytes,
+		attrs:  metric.WithAttributes(attribute.String("backend", backend)),
+	}
+}
+
+type backendMetricReader struct {
+	io.Reader
+	ctx   context.Context
+	bytes metric.Int64Counter
+	attrs metric.MeasurementOption
+}
+
+func (r *backendMetricReader) Read(p []byte) (int, error) {
+	n, err := r.Reader.Read(p)
+	if n > 0 {
+		r.bytes.Add(r.ctx, int64(n), r.attrs)
+	}
+	return n, err
+}
+
 // observeSign records signing duration.
 func (m *serverMetrics) observeSign(ctx context.Context, start time.Time, success bool) {
 	m.signDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", success)))
@@ -219,7 +341,7 @@ func (m *serverMetrics) observeSign(ctx context.Context, start time.Time, succes
 // observePrune records prune cycle duration and entries pruned.
 func (m *serverMetrics) observePrune(ctx context.Context, start time.Time, pruned int, err error) {
 	m.pruneDuration.Record(ctx, time.Since(start).Seconds(), metric.WithAttributes(attribute.Bool("success", err == nil)))
-	if pruned > 0 && err == nil {
+	if pruned > 0 {
 		m.pruneEntries.Add(ctx, int64(pruned))
 	}
 }

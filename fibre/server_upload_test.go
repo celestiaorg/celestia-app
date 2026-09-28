@@ -1,11 +1,13 @@
 package fibre_test
 
 import (
+	"context"
 	"crypto/ed25519"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
@@ -149,8 +151,8 @@ func TestServerUploadShard(t *testing.T) {
 		{
 			name: "InvalidUploadSize",
 			requestModifier: func(req *types.UploadShardRequest) {
-				// set wrong upload size
-				req.Promise.BlobSize = 12345
+				// Keep the declared size above the local minimum but inconsistent with rows.
+				req.Promise.BlobSize++
 			},
 			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
 				require.Error(t, err)
@@ -310,4 +312,47 @@ func makeTestRequest(
 	}
 
 	return req
+}
+
+type countingPromiseState struct {
+	state.Client
+	calls int
+}
+
+func (s *countingPromiseState) VerifyPromise(ctx context.Context, p *state.PaymentPromise) (state.VerifiedPromise, error) {
+	s.calls++
+	return s.Client.VerifyPromise(ctx, p)
+}
+
+func TestServerLocalMinUploadSize(t *testing.T) {
+	var stateClient *countingPromiseState
+	server, valSet, serverValidator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.MinUploadSize = 32 << 20
+		inner := cfg.StateClientFn
+		cfg.StateClientFn = func() (state.Client, error) {
+			client, err := inner()
+			stateClient = &countingPromiseState{Client: client}
+			return stateClient, err
+		}
+	})
+	req := makeTestRequest(t, valSet, serverValidator, nil)
+	resp, err := server.UploadShard(t.Context(), req)
+	require.Nil(t, resp)
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.ErrorContains(t, err, "below local minimum 33554432 bytes")
+	require.Zero(t, stateClient.calls, "rejected uploads must not reserve escrow")
+
+	// Test the inclusive boundary against actual padded bytes, not payload size.
+	server.Config.MinUploadSize = int(req.Promise.BlobSize)
+	resp, err = server.UploadShard(t.Context(), req)
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.ValidatorSignature)
+	require.Equal(t, 1, stateClient.calls)
+
+	// Raising the local admission minimum must not block existing downloads.
+	server.Config.MinUploadSize = 32 << 20
+	id := fibre.NewBlobID(0, rsema1d.Commitment(req.Promise.Commitment))
+	downloaded, err := server.DownloadShard(t.Context(), &types.DownloadShardRequest{BlobId: id})
+	require.NoError(t, err)
+	require.NotNil(t, downloaded)
 }

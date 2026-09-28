@@ -25,7 +25,7 @@ func TestFibreTxsimPreencode(t *testing.T) {
 				cfg.Encoders = []Instance{{Name: "encoder-0", PublicIP: "192.0.2.2"}}
 				require.NoError(t, cfg.SaveFile(filepath.Join(dir, "config.json")))
 				cmd := fibreTxsimCmd()
-				cmd.SetArgs([]string{"--directory", dir, fmt.Sprintf("--on-encoders=%t", onEncoders), fmt.Sprintf("--preencode=%t", preencode)})
+				cmd.SetArgs([]string{"--directory", dir, fmt.Sprintf("--on-encoders=%t", onEncoders), fmt.Sprintf("--preencode=%t", preencode), "--otel-metrics-path", "/custom/metrics"})
 				require.NoError(t, cmd.Execute())
 				args, err := os.ReadFile(capture)
 				require.NoError(t, err)
@@ -39,6 +39,7 @@ func TestFibreTxsimPreencode(t *testing.T) {
 					require.NotContains(t, string(script), "--preencode")
 				}
 				require.Contains(t, string(script), "--upload-only=false")
+				require.Contains(t, string(script), "--otel-metrics-path '/custom/metrics'")
 			})
 		}
 	}

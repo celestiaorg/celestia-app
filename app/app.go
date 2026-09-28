@@ -22,6 +22,7 @@ import (
 	"cosmossdk.io/x/feegrant"
 	feegrantkeeper "cosmossdk.io/x/feegrant/keeper"
 	feegrantmodule "cosmossdk.io/x/feegrant/module"
+	txsigning "cosmossdk.io/x/tx/signing"
 	"cosmossdk.io/x/upgrade"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -554,20 +555,7 @@ func New(
 	app.SetPrepareProposal(app.PrepareProposalHandler)
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
-	app.SetAnteHandler(ante.NewAnteHandler(
-		app.AccountKeeper,
-		app.BankKeeper,
-		app.BlobKeeper,
-		app.FeeGrantKeeper,
-		encodingConfig.TxConfig.SignModeHandler(),
-		ante.DefaultSigVerificationGasConsumer,
-		app.IBCKeeper,
-		app.MinFeeKeeper,
-		&app.CircuitKeeper,
-		app.GovParamFilters(),
-		app.FibreKeeper,
-		app.pffSigCache,
-	))
+	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
 
 	protoFiles, err := proto.MergedRegistry()
 	if err != nil {
@@ -742,6 +730,25 @@ func (app *App) GetIBCKeeper() *ibckeeper.Keeper {
 // GetScopedIBCKeeper implements the TestingApp interface.
 func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
 	return app.ScopedIBCKeeper
+}
+
+// newAnteHandler returns the ante handler that validates transactions,
+// including in PrepareProposal and ProcessProposal.
+func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHandler {
+	return ante.NewAnteHandler(
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.BlobKeeper,
+		app.FeeGrantKeeper,
+		signModeHandler,
+		ante.DefaultSigVerificationGasConsumer,
+		app.IBCKeeper,
+		app.MinFeeKeeper,
+		&app.CircuitKeeper,
+		app.GovParamFilters(),
+		app.FibreKeeper,
+		app.pffSigCache,
+	)
 }
 
 // GetTxConfig implements the TestingApp interface.
