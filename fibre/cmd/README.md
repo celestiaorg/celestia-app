@@ -300,6 +300,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
+| `fibre.server.upload_shard.last_success_timestamp` | Gauge (s) | — | Unix time of the last successful UploadShard RPC; not reported before the first one |
 | `fibre.server.download_shard.in_flight` | UpDownCounter | — | Concurrent DownloadShard RPCs |
 | `fibre.server.download_shard.duration` | Histogram (s) | `success`, `shard_size` | DownloadShard RPC latency |
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total bytes sent |
