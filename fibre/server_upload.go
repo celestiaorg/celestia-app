@@ -234,6 +234,10 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	if promise.ChainID != chainID {
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %s", chainID, promise.ChainID)
 	}
+	// Reject versions that cannot be represented by BlobConfig before narrowing.
+	if promise.BlobVersion > 255 {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("unsupported blob version %d", promise.BlobVersion)
+	}
 	// validate blob version is supported
 	blobCfg, err := BlobConfigForVersion(uint8(promise.BlobVersion))
 	if err != nil {
