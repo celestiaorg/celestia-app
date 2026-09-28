@@ -237,9 +237,19 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 		if err != nil {
 			return err
 		}
+		removed := false
+		s.T().Cleanup(func() {
+			if !removed {
+				if err := built.Remove(ctx); err != nil {
+					s.T().Logf("Error removing chain: %v", err)
+				}
+			}
+		})
 		if err := built.Start(ctx); err != nil {
 			if removeErr := built.Remove(ctx); removeErr != nil {
 				s.T().Logf("Error removing chain after failed start: %v", removeErr)
+			} else {
+				removed = true
 			}
 			return err
 		}
@@ -247,12 +257,6 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 		return nil
 	})
 	s.Require().NoError(err)
-
-	s.T().Cleanup(func() {
-		if err := chain.Remove(ctx); err != nil {
-			s.T().Logf("Error removing chain: %v", err)
-		}
-	})
 
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
