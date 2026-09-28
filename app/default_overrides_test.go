@@ -104,7 +104,7 @@ func TestDefaultConsensusConfig(t *testing.T) {
 
 	t.Run("privval gRPC localhost is allowed without TLS", func(t *testing.T) {
 		assert.Equal(t, "127.0.0.1:26669", got.PrivValidatorGRPCListenAddr)
-		assert.NoError(t, got.BaseConfig.ValidatePrivValidatorGRPCExposure())
+		assert.NoError(t, got.ValidatePrivValidatorGRPCExposure())
 	})
 
 	t.Run("block sync overrides", func(t *testing.T) {
