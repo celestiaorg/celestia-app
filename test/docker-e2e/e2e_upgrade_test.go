@@ -230,7 +230,22 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 	cfg.Genesis = cfg.Genesis.WithAppVersion(appconsts.Version - 1)
 
 	ctx := context.Background()
-	chain, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+	// Rebuild with fresh host ports if Docker encounters a port collision.
+	var chain *tastoradockertypes.Chain
+	err = retryOnPortCollision(ctx, 3, 2*time.Second, func() error {
+		built, err := dockerchain.NewCelestiaChainBuilder(s.T(), cfg).Build(ctx)
+		if err != nil {
+			return err
+		}
+		if err := built.Start(ctx); err != nil {
+			if removeErr := built.Remove(ctx); removeErr != nil {
+				s.T().Logf("Error removing chain after failed start: %v", removeErr)
+			}
+			return err
+		}
+		chain = built
+		return nil
+	})
 	s.Require().NoError(err)
 
 	s.T().Cleanup(func() {
@@ -238,9 +253,6 @@ func (s *CelestiaTestSuite) TestUpgradeLatest() {
 			s.T().Logf("Error removing chain: %v", err)
 		}
 	})
-
-	err = chain.Start(ctx)
-	s.Require().NoError(err)
 
 	s.ValidatePreUpgrade(ctx, chain, cfg)
 	s.UpgradeChain(ctx, chain, cfg, appconsts.Version)
