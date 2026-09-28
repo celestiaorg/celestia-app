@@ -252,8 +252,10 @@ message FibreProvider {
 <h2 id="parameters"><a class="header" href="#parameters">Parameters</a></h2>
 <p>The <code>x/valaddr</code> module has no parameters.</p>
 <h2 id="genesis"><a class="header" href="#genesis">Genesis</a></h2>
-<p><code>GenesisState</code> is empty. Provider records are not imported from genesis and are not exported into genesis.</p>
-<pre><code class="language-protobuf">message GenesisState {}
+<p><code>GenesisState</code> contains all stored provider records, including records for validators that are not currently bonded. Export orders records by consensus address; initialization restores them. Empty genesis remains supported. Invalid and duplicate consensus addresses are rejected; historical host values are preserved.</p>
+<pre><code class="language-protobuf">message GenesisState {
+  repeated FibreProvider fibre_providers = 1 [(gogoproto.nullable) = false];
+}
 </code></pre>
 <h2 id="client"><a class="header" href="#client">Client</a></h2>
 <h3 id="cli-commands"><a class="header" href="#cli-commands">CLI Commands</a></h3>
