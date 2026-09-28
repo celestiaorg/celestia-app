@@ -241,6 +241,8 @@ func monitorLatency(
 	for {
 		select {
 		case <-ctx.Done():
+			resultsMux.Lock()
+			defer resultsMux.Unlock()
 			return writeResults(results)
 		case <-updateTicker.C:
 			fmt.Printf("Transactions submitted: %d\n", counter)
@@ -336,9 +338,19 @@ func monitorLatency(
 			checkTxLatency := time.Since(checkTxStart)
 			broadcastEnd := time.Now()
 			if err != nil {
+				if ctx.Err() != nil {
+					continue
+				}
 				fmt.Printf("[BROADCAST_FAILED] size=%d bytes time=%s error=%v\n",
 					randomSize, submitTime.Format("15:04:05.000"), err)
 				recordBroadcastFailure()
+				resultsMux.Lock()
+				results = append(results, txResult{
+					submitTime: submitTime,
+					failed:     true,
+					errorMsg:   err.Error(),
+				})
+				resultsMux.Unlock()
 				continue
 			}
 

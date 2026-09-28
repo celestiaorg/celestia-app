@@ -156,7 +156,20 @@ func createKeyringFromPrivKey(dir, privKeyHex string) error {
 
 // CollectLatencyResults sends SIGTERM to trigger CSV writing, waits for exit,
 // then copies and parses the results file.
-func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testing.T, containerName string) (*LatencyMonitorResult, error) {
+func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testing.T, containerName string) (result *LatencyMonitorResult, err error) {
+	// A readable CSV can still be empty or contain only rejected submissions.
+	// Preserve the monitor's errors before cleanup removes the container.
+	defer func() {
+		if err != nil || (result != nil && result.FailureCount > 0) {
+			logsCmd := exec.CommandContext(ctx, "docker", "logs", "--tail", "50", containerName)
+			if logsOutput, logsErr := logsCmd.CombinedOutput(); logsErr == nil {
+				t.Logf("Latency-monitor logs:\n%s", string(logsOutput))
+			} else {
+				t.Logf("Failed to collect latency-monitor logs: %v (output: %s)", logsErr, logsOutput)
+			}
+		}
+	}()
+
 	// Signal the monitor to write CSV and exit
 	killCmd := exec.CommandContext(ctx, "docker", "kill", "-s", "SIGTERM", containerName)
 	if output, err := killCmd.CombinedOutput(); err != nil {
@@ -174,10 +187,6 @@ func (s *CelestiaTestSuite) CollectLatencyResults(ctx context.Context, t *testin
 
 	cmd := exec.CommandContext(ctx, "docker", "cp", srcPath, tmpFile)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		logsCmd := exec.CommandContext(ctx, "docker", "logs", "--tail", "50", containerName)
-		if logsOutput, logsErr := logsCmd.CombinedOutput(); logsErr == nil {
-			t.Logf("Latency-monitor logs:\n%s", string(logsOutput))
-		}
 		return nil, fmt.Errorf("failed to copy results file: %w\nOutput: %s", err, output)
 	}
 

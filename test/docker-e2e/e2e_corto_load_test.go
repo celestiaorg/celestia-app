@@ -139,6 +139,8 @@ func (s *CelestiaTestSuite) TestCortoLoad() {
 	t.Log("Collecting latency results...")
 	latencyResults, err := s.CollectLatencyResults(ctx, t, container.Name)
 	require.NoError(t, err, "failed to collect latency results")
+	require.Positive(t, latencyResults.SuccessCount,
+		"no successful transactions under load (%d failed); see latency-monitor logs", latencyResults.FailureCount)
 
 	// --- 6. Collect block time data ---
 	endStatus, err := rpcClient.Status(ctx)
