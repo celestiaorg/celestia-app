@@ -7,7 +7,6 @@ import (
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
-	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
@@ -41,20 +40,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
-	handler := ante.NewAnteHandler(
-		app.AccountKeeper,
-		app.BankKeeper,
-		app.BlobKeeper,
-		app.FeeGrantKeeper,
-		app.GetTxConfig().SignModeHandler(),
-		ante.DefaultSigVerificationGasConsumer,
-		app.IBCKeeper,
-		app.MinFeeKeeper,
-		&app.CircuitKeeper,
-		app.GovParamFilters(),
-		app.FibreKeeper,
-		app.pffSigCache,
-	)
+	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
 	blockHeader := ctx.BlockHeader()
 
 	// Read the max square size before the ante loop. The loop reassigns ctx to
