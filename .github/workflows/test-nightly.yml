@@ -1,7 +1,7 @@
 name: Nightly Tests
 
 concurrency:
-  group: corto-diagnostics-${{ github.ref }}
+  group: nightly-tests
   cancel-in-progress: true
 
 on:
@@ -114,6 +114,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # TestSyncToTipMocha syncs against the live mocha testnet and can
+          # intermittently stall when no connected peer is serving a usable
+          # state-sync snapshot. Retry it before failing the nightly. Other
+          # tests default to a single attempt so real failures aren't masked.
+          - test: TestSyncToTipMocha
+            max-attempts: 3
+          # TestAllUpgrades starts a fresh chain per upgrade step; on shared
+          # runners an older-version chain occasionally misses the startup
+          # deadline, so retry once before failing the nightly.
+          - test: TestAllUpgrades
+            max-attempts: 2
+          # The genesis sync tests block sync the first block from live public
+          # archive peers, which can be slow or briefly unavailable, so retry
+          # once before failing the nightly.
+          - test: TestGenesisSyncMocha
+            max-attempts: 2
+          - test: TestGenesisSyncMainnet
+            max-attempts: 2
           - test: TestCortoLoad
             extra-image: true
     steps:
@@ -188,3 +206,46 @@ jobs:
           PUSHGATEWAY_USERNAME: ${{ secrets.PUSHGATEWAY_USERNAME }}
           PUSHGATEWAY_PASSWORD: ${{ secrets.PUSHGATEWAY_PASSWORD }}
 
+  test-race:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run tests in race mode
+        run: make test-race
+
+  # WARNING: Required job — a defense line against codec / wire-format bugs,
+  # including the fibre scatter codec. The fuzz targets live in
+  # scripts/test_fuzz.sh. Do NOT remove or disable this job; doing so re-opens
+  # https://github.com/celestiaorg/celestia-app/issues/7392.
+  test-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
+        with:
+          go-version-file: "go.mod"
+
+      - name: Run fuzz tests
+        run: make test-fuzz
+
+  notify-slack-on-failure:
+    name: Notify Slack on failure
+    runs-on: ubuntu-latest
+    needs: [test-nightly, test-race, test-fuzz]
+    if: ${{ always() && (needs.test-nightly.result == 'failure' || needs.test-race.result == 'failure' || needs.test-fuzz.result == 'failure') }}
+    steps:
+      - name: Slack Notification
+        uses: slackapi/slack-github-action@v4.0.0
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "text": "test-nightly tests failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            }
