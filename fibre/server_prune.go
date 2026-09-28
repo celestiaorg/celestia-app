@@ -46,6 +46,12 @@ func (s *Server) prune(ctx context.Context) {
 		if freed > 0 {
 			s.occ.release(freed)
 		}
+		if combined, ok := err.(*pruneError); ok {
+			if integrityErr == nil {
+				integrityErr = combined.integrityErr
+			}
+			err = combined.deleteErr
+		}
 		if err != nil {
 			// Check the type directly so a joined database failure is not treated as a partial deletion failure.
 			if _, partial := err.(*partialDeleteError); partial {
@@ -57,6 +63,7 @@ func (s *Server) prune(ctx context.Context) {
 					integrityErr = err
 				}
 			} else {
+				err = errors.Join(integrityErr, err)
 				s.metrics.observePrune(ctx, start, totalPruned, err)
 				s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
 				return

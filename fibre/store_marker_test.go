@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"log/slog"
 	"math"
 	"os"
@@ -307,6 +308,38 @@ func TestPruneBeforeDeletesMalformedPruneKeys(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, pruned)
 	require.Zero(t, freed)
+}
+
+func TestPruneBeforeBoundsMalformedKeys(t *testing.T) {
+	store := newMarkerTestStore(t)
+	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+	keys := make([][]byte, maxPruneBatchSize+1)
+	for i := range keys {
+		keys[i] = []byte(fmt.Sprintf("/prune/202501011000/bad%04d", i))
+		require.NoError(t, store.db.Set(keys[i], nil, pebbledb.NoSync))
+	}
+	commitment := generateCommitment()
+	hash := []byte{1}
+	setPruneEntry(t, store, pruneAt.Add(time.Minute), commitment, hash, encodeShardMarkerForBackend(localBackendTag, 1))
+
+	pruned, freed, next, err := store.pruneBefore(t.Context(), pruneAt.Add(time.Hour), nil)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Zero(t, pruned)
+	require.Zero(t, freed)
+	require.Equal(t, keys[maxPruneBatchSize-1], next)
+	_, closer, err := store.db.Get(keys[maxPruneBatchSize])
+	require.NoError(t, err)
+	require.NoError(t, closer.Close())
+
+	pruned, freed, next, err = store.pruneBefore(t.Context(), pruneAt.Add(time.Hour), next)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Equal(t, 1, pruned)
+	require.EqualValues(t, 1, freed)
+	require.Nil(t, next)
+	for _, key := range keys {
+		_, _, err := store.db.Get(key)
+		require.ErrorIs(t, err, pebbledb.ErrNotFound)
+	}
 }
 
 func TestPruneBeforeHonoursCancellation(t *testing.T) {

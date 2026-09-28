@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
 )
@@ -153,4 +155,58 @@ func (b *failingDeleteBackend) Delete(ctx context.Context, commitment Commitment
 		return os.ErrPermission
 	}
 	return b.shardBackend.Delete(ctx, commitment, hash)
+}
+
+func TestPruneReportsCorruptionWithDeletionFailure(t *testing.T) {
+	for _, throughServer := range []bool{false, true} {
+		for _, cancelled := range []bool{false, true} {
+			t.Run(fmt.Sprintf("server=%t/cancelled=%t", throughServer, cancelled), func(t *testing.T) {
+				store := newMarkerTestStore(t)
+				ctx, cancel := context.WithCancel(t.Context())
+				defer cancel()
+				commitment := generateCommitment()
+				pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
+				malformed := []byte("/prune/202401010000/bad")
+				require.NoError(t, store.db.Set(malformed, nil, pebbledb.NoSync))
+				for i := range maxPruneBatchSize + 1 {
+					hash := binary.BigEndian.AppendUint64(nil, uint64(i))
+					setPruneEntry(t, store, pruneAt, commitment, hash, encodeShardMarkerForBackend(localBackendTag, 1))
+				}
+				backend := &failingDeleteBackend{shardBackend: store.shards.primary, failures: 1, attempts: make(map[uint64]int)}
+				store.shards.primary = backend
+				if cancelled {
+					store.shards.primary = &cancelAfterDeleteBackend{shardBackend: backend, cancel: cancel}
+				}
+				if throughServer {
+					occ := newOccupancy(0)
+					occ.seed(maxPruneBatchSize + 1)
+					metrics, err := newServerMetrics(noop.NewMeterProvider().Meter("prune-test"), occ)
+					require.NoError(t, err)
+					var logs strings.Builder
+					server := &Server{store: store, occ: occ, metrics: metrics, log: slog.New(slog.NewTextHandler(&logs, nil))}
+					server.prune(ctx)
+					require.Contains(t, logs.String(), "malformed prune key")
+					if cancelled {
+						require.Contains(t, logs.String(), "level=ERROR")
+						require.Contains(t, logs.String(), "context canceled")
+						require.Zero(t, backend.attempts[maxPruneBatchSize])
+					} else {
+						require.Contains(t, logs.String(), "prune retained failed payload deletions")
+						require.NotContains(t, logs.String(), "level=ERROR")
+						require.Equal(t, 1, backend.attempts[maxPruneBatchSize])
+						require.EqualValues(t, 1, occ.usage())
+					}
+				} else {
+					_, _, err := store.PruneBefore(ctx, pruneAt.Add(time.Hour))
+					require.ErrorIs(t, err, ErrStoreIntegrity)
+					require.ErrorIs(t, err, os.ErrPermission)
+					if cancelled {
+						require.ErrorIs(t, err, context.Canceled)
+					}
+				}
+				_, _, err := store.db.Get(malformed)
+				require.ErrorIs(t, err, pebbledb.ErrNotFound)
+			})
+		}
+	}
 }

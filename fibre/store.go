@@ -356,7 +356,8 @@ func (s *Store) GetPaymentPromise(_ context.Context, promiseHash []byte) (*Payme
 }
 
 // PruneBefore deletes up to [maxPruneBatchSize] shards and payment promises that expire before the given time.
-// It returns the committed deletion count and freed bytes, retaining failed or invalid entries for retry.
+// It returns the committed deletion count and freed bytes. Failed deletions and invalid markers are retained.
+// Malformed prune keys are removed and count toward the batch limit.
 func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, error) {
 	pruned, freed, _, err := s.pruneBefore(ctx, before, nil)
 	return pruned, freed, err
@@ -384,6 +385,8 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		prunedBytes    int64
 		integrityErr   error
 		corruptMarkers int
+		selected       int
+		lastKey        []byte
 	)
 	beforeStr := formatTimestamp(before.UTC())
 	valid := iter.First()
@@ -391,7 +394,7 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		// When a cursor is supplied, resume at the first key after it, skipping entries attempted in the previous batch.
 		valid = iter.SeekGE(append(slices.Clone(after), 0))
 	}
-	for ; valid && len(candidates) < maxPruneBatchSize; valid = iter.Next() {
+	for ; valid && selected < maxPruneBatchSize; valid = iter.Next() {
 		if err := ctx.Err(); err != nil {
 			return 0, 0, nil, err
 		}
@@ -409,6 +412,8 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 			if err := batch.Delete(key, pebbledb.NoSync); err != nil {
 				return 0, 0, nil, fmt.Errorf("deleting malformed prune index: %w", err)
 			}
+			selected++
+			lastKey = slices.Clone(key)
 			corruptMarkers++
 			if integrityErr == nil {
 				integrityErr = fmt.Errorf("%w: malformed prune key %q", ErrStoreIntegrity, key)
@@ -443,12 +448,14 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		if size > math.MaxInt64-selectedBytes {
 			return 0, 0, nil, errors.New("pruned shard size overflows int64")
 		}
+		selected++
+		lastKey = slices.Clone(key)
 		selectedBytes += size
 		candidates = append(candidates, pruneCandidate{
 			markedShard: markedShard{
 				id: shardID{commitment: commitment, promiseHash: promiseHash}, marker: markerData,
 			},
-			key: slices.Clone(key), size: size,
+			key: lastKey, size: size,
 		})
 	}
 
@@ -457,8 +464,8 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 	}
 
 	var next []byte
-	if len(candidates) == maxPruneBatchSize {
-		next = candidates[len(candidates)-1].key
+	if selected == maxPruneBatchSize {
+		next = lastKey
 	}
 	shards := make([]markedShard, len(candidates))
 	for i, candidate := range candidates {
@@ -483,14 +490,27 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		return 0, 0, nil, errors.Join(deleteErr, fmt.Errorf("committing batch: %w", err))
 	}
-	if deleteErr != nil {
-		return pruned, prunedBytes, next, deleteErr
-	}
 	if corruptMarkers > 1 {
 		integrityErr = fmt.Errorf("%w (%d corrupt prune entries)", integrityErr, corruptMarkers)
 	}
+	if integrityErr != nil && deleteErr != nil {
+		return pruned, prunedBytes, next, &pruneError{integrityErr: integrityErr, deleteErr: deleteErr}
+	}
+	if deleteErr != nil {
+		return pruned, prunedBytes, next, deleteErr
+	}
 	return pruned, prunedBytes, next, integrityErr
 }
+
+// pruneError preserves corruption diagnostics alongside a deletion failure after a committed batch.
+// Keeping the errors separate lets the server distinguish partial deletions from fatal failures.
+type pruneError struct {
+	integrityErr error
+	deleteErr    error
+}
+
+func (e *pruneError) Error() string   { return errors.Join(e.integrityErr, e.deleteErr).Error() }
+func (e *pruneError) Unwrap() []error { return []error{e.integrityErr, e.deleteErr} }
 
 type pruneCandidate struct {
 	markedShard
