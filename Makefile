@@ -52,7 +52,7 @@ BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-# dockerchain/config.go
+# scripts/embedded_checksums.txt
 CELESTIA_V3_VERSION := v3.13.0
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
@@ -79,13 +79,7 @@ DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
 ifeq ($(DOWNLOAD),true)
-	@$(MAKE) download-v3-binaries
-	@$(MAKE) download-v4-binaries
-	@$(MAKE) download-v5-binaries
-	@$(MAKE) download-v6-binaries
-	@$(MAKE) download-v7-binaries
-	@$(MAKE) download-v8-binaries
-	@$(MAKE) download-v9-binaries
+	@$(MAKE) download-embedded-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -100,115 +94,33 @@ install-standalone:
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
+install: download-embedded-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-## download-v3-binaries: Download the celestia-app v3 binary for the current platform.
-download-v3-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V3_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v3_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v3_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v3_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
-.PHONY: download-v3-binaries
+EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9,download-v$(v)-binaries)
+# v3 release tarballs are named celestia-app_*; later ones are celestia-app-standalone_*.
+EMBEDDED_TARBALL_PREFIX = $(if $(filter 3,$*),celestia-app,celestia-app-standalone)
 
-## download-v4-binaries: Download the celestia-app v4 binary for the current platform.
-download-v4-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V4_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
-.PHONY: download-v4-binaries
+## download-embedded-binaries: Download the celestia-app v3-v9 binaries for the current platform.
+download-embedded-binaries: $(EMBEDDED_BINARY_TARGETS)
+.PHONY: download-embedded-binaries
 
-## download-v5-binaries: Download the celestia-app v5 binary for the current platform.
-download-v5-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V5_VERSION) binary"
+## download-vN-binaries: Download the celestia-app vN binary for the current platform.
+$(EMBEDDED_BINARY_TARGETS): download-v%-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V$*_VERSION) binary"
 	@mkdir -p internal/embedding
 	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
 	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v5_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v5_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v5_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v5_amd64.tar.gz ;; \
+		darwin-arm64) url=$(EMBEDDED_TARBALL_PREFIX)_Darwin_arm64.tar.gz; out=celestia-app_darwin_v$*_arm64.tar.gz ;; \
+		linux-arm64) url=$(EMBEDDED_TARBALL_PREFIX)_Linux_arm64.tar.gz; out=celestia-app_linux_v$*_arm64.tar.gz ;; \
+		darwin-amd64) url=$(EMBEDDED_TARBALL_PREFIX)_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v$*_amd64.tar.gz ;; \
+		linux-amd64) url=$(EMBEDDED_TARBALL_PREFIX)_Linux_x86_64.tar.gz; out=celestia-app_linux_v$*_amd64.tar.gz ;; \
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V5_VERSION)"
-.PHONY: download-v5-binaries
-
-## download-v6-binaries: Download the celestia-app v6 binary for the current platform.
-download-v6-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V6_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v6_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v6_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v6_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v6_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V6_VERSION)"
-.PHONY: download-v6-binaries
-
-## download-v7-binaries: Download the celestia-app v7 binary for the current platform.
-download-v7-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V7_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v7_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v7_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v7_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v7_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V7_VERSION)"
-.PHONY: download-v7-binaries
-
-## download-v8-binaries: Download the celestia-app v8 binary for the current platform.
-download-v8-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V8_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v8_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v8_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v8_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v8_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V8_VERSION)"
-.PHONY: download-v8-binaries
-
-## download-v9-binaries: Download the celestia-app v9 binary for the current platform.
-download-v9-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V9_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v9_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v9_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v9_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v9_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V9_VERSION)"
-.PHONY: download-v9-binaries
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V$*_VERSION)"
+.PHONY: $(EMBEDDED_BINARY_TARGETS)
 
 ## mod: Update all go.mod files.
 mod:
@@ -402,7 +314,7 @@ test-docker-e2e-upgrade-all:
 .PHONY: test-docker-e2e-upgrade-all
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
+test-multiplexer: download-embedded-binaries
 	@echo "--> Running multiplexer tests"
 	@go test -tags multiplexer ./multiplexer/...
 .PHONY: test-multiplexer

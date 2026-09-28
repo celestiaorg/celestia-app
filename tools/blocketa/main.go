@@ -17,13 +17,13 @@ const (
 	blockTime = 11.75 // seconds between blocks on Mainnet Beta.
 
 	// exampleMochaRPC is an example node RPC endpoint for the Mocha testnet.
-	exampleMochaRPC = "https://celestia-mocha-rpc.publicnode.com:443"
+	exampleMochaRPC = "https://rpc-mocha.pops.one:443"
 
 	// exampleMainnetRPC is an example node RPC endpoint for Mainnet Beta.
 	exampleMainnetRPC = "https://celestia-rpc.publicnode.com:443"
 
 	// exampleMochaHeight is an example block height for the Mocha testnet.
-	exampleMochaHeight = 2585031
+	exampleMochaHeight = 1150000
 
 	// exampleMainnetHeight is an example block height for Mainnet Beta.
 	exampleMainnetHeight = 2371495

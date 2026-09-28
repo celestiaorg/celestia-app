@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	flagAppGRPCAddress      = "app-grpc-address"
-	flagServerListenAddress = "server-listen-address"
-	flagSignerGRPCAddress   = "signer-grpc-address"
-	flagSignerGRPCCAFile    = "signer-grpc-ca-file"
-	flagSignerGRPCCertFile  = "signer-grpc-cert-file"
-	flagSignerGRPCKeyFile   = "signer-grpc-key-file"
-	flagSignerGRPCInsecure  = "signer-grpc-allow-insecure"
-	flagUnlimitedBudget     = "unlimited-budget"
+	flagAppGRPCAddress          = "app-grpc-address"
+	flagServerListenAddress     = "server-listen-address"
+	flagSignerGRPCAddress       = "signer-grpc-address"
+	flagSignerGRPCCAFile        = "signer-grpc-ca-file"
+	flagSignerGRPCCertFile      = "signer-grpc-cert-file"
+	flagSignerGRPCKeyFile       = "signer-grpc-key-file"
+	flagSignerGRPCInsecure      = "signer-grpc-allow-insecure"
+	flagUnlimitedBudget         = "unlimited-budget"
+	flagOverrideObjectNamespace = "override-object-namespace"
 )
 
 // newStartCmd builds the "start" subcommand. The start function is called in
@@ -78,6 +79,7 @@ func newStartCmd(start func(context.Context, fibre.ServerConfig) error) *cobra.C
 	cmd.Flags().StringVar(&cfg.SignerGRPCKeyFile, flagSignerGRPCKeyFile, cfg.SignerGRPCKeyFile, "PEM private key for the signer gRPC client certificate")
 	cmd.Flags().BoolVar(&cfg.SignerGRPCAllowInsecure, flagSignerGRPCInsecure, cfg.SignerGRPCAllowInsecure, "DANGER: allow plaintext signer gRPC to a non-localhost address")
 	cmd.Flags().BoolVar(&cfg.UnlimitedBudget, flagUnlimitedBudget, cfg.UnlimitedBudget, "run without a storage budget, disabling the Fibre upload limiter")
+	cmd.Flags().BoolVar(&cfg.ObjectStorage.OverrideNamespace, flagOverrideObjectNamespace, false, "accept a new object storage namespace after migrating retained shards; does not migrate or verify objects")
 
 	return cmd
 }

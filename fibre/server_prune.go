@@ -2,6 +2,7 @@ package fibre
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -32,18 +33,53 @@ func (s *Server) startPruneLoop(ctx context.Context) {
 
 func (s *Server) prune(ctx context.Context) {
 	start := time.Now()
+	var (
+		totalPruned  int
+		integrityErr error
+		deleteErr    error
+		cursor       []byte
+	)
 
-	pruned, freed, err := s.store.PruneBefore(ctx, start)
-	s.metrics.observePrune(ctx, start, pruned, err)
+	for {
+		pruned, freed, next, err := s.store.pruneBefore(ctx, start, cursor)
+		totalPruned += pruned
+		if freed > 0 {
+			s.occ.release(freed)
+		}
+		if err != nil {
+			// Check the type directly so a joined database failure is not treated as a partial deletion failure.
+			if _, partial := err.(*partialDeleteError); partial {
+				if deleteErr == nil {
+					deleteErr = err
+				}
+			} else if errors.Is(err, ErrStoreIntegrity) {
+				if integrityErr == nil {
+					integrityErr = err
+				}
+			} else {
+				s.metrics.observePrune(ctx, start, totalPruned, err)
+				s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
+				return
+			}
+		}
 
-	if freed > 0 {
-		s.occ.release(freed)
+		if len(next) == 0 || ctx.Err() != nil {
+			break
+		}
+		cursor = next
 	}
-	if err != nil {
-		s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
-		return
+
+	if integrityErr != nil {
+		s.log.WarnContext(ctx, "prune skipped corrupt shard markers", "error", integrityErr,
+			"elapsed (ms)", time.Since(start).Milliseconds())
 	}
-	if pruned > 0 {
-		s.log.InfoContext(ctx, "pruned expired entries", "pruned", pruned, "elapsed (ms)", time.Since(start).Milliseconds())
+	if deleteErr != nil {
+		s.log.WarnContext(ctx, "prune retained failed payload deletions", "error", deleteErr,
+			"elapsed (ms)", time.Since(start).Milliseconds())
+	}
+	s.metrics.observePrune(ctx, start, totalPruned, deleteErr)
+
+	if totalPruned > 0 {
+		s.log.InfoContext(ctx, "pruned expired entries", "pruned", totalPruned, "elapsed (ms)", time.Since(start).Milliseconds())
 	}
 }

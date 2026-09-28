@@ -63,23 +63,23 @@ func TestAllowInsecurePrivValGRPC(t *testing.T) {
 	t.Run("flag not passed leaves the config unchanged", func(t *testing.T) {
 		cmd, sctx := newCmd(t)
 		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
-		require.False(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
+		require.False(t, sctx.Config.PrivValidatorGRPCAllowInsecure)
 	})
 
 	t.Run("flag passed enables the insecure override", func(t *testing.T) {
 		cmd, sctx := newCmd(t)
 		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
 		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
-		require.True(t, sctx.Config.BaseConfig.PrivValidatorGRPCAllowInsecure)
+		require.True(t, sctx.Config.PrivValidatorGRPCAllowInsecure)
 	})
 
 	t.Run("flag allows a non-localhost address without TLS", func(t *testing.T) {
 		cmd, sctx := newCmd(t)
 		sctx.Config.PrivValidatorGRPCListenAddr = "0.0.0.0:26669"
-		require.Error(t, sctx.Config.BaseConfig.ValidatePrivValidatorGRPCExposure())
+		require.Error(t, sctx.Config.ValidatePrivValidatorGRPCExposure())
 
 		require.NoError(t, cmd.Flags().Set(FlagPrivValGRPCAllowInsecure, "true"))
 		require.NoError(t, allowInsecurePrivValGRPC(cmd, sctx.Logger))
-		require.NoError(t, sctx.Config.BaseConfig.ValidatePrivValidatorGRPCExposure())
+		require.NoError(t, sctx.Config.ValidatePrivValidatorGRPCExposure())
 	})
 }

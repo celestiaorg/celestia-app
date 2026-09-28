@@ -160,7 +160,7 @@ func addStartFlags(startCmd *cobra.Command) {
 	startCmd.Flags().Duration(TimeoutCommitFlag, 0, "Override the application configured timeout_commit. Note: only for testing purposes.")
 	startCmd.Flags().Duration(DelayedPrecommitTimeoutFlag, 0, "Override the DelayedPrecommitTimeout to control block time. Note: only for testing purposes.")
 	startCmd.Flags().Bool(FlagForceNoBBR, false, "bypass the requirement to use bbr locally")
-	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass all config overrides (P2P rates, mempool config, etc.). WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
+	startCmd.Flags().Bool(bypassOverridesFlagKey, false, "bypass config overrides for consensus timeouts, P2P rates, and mempool settings. The CAT mempool type and min-retain-blocks are always enforced. WARNING: Only use if strictly required. Using this flag may prevent your node from staying at the tip of the chain.")
 	startCmd.Flags().Bool(FlagFibrePromiseCache, true, "enable the validator-local fibre promise cache used by the ValidatePaymentPromise query. Enabled by default.")
 	startCmd.Flags().Bool(FlagPrivValGRPCAllowInsecure, false, "DANGER: allow the privval gRPC endpoint to listen on a non-localhost address without mutual TLS; anyone who can reach it can request signatures from the validator key")
 	addOTelMetricsFlag(startCmd)
