@@ -1,12 +1,15 @@
 package abci
 
 import (
+	"bytes"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	"github.com/spf13/pflag"
 )
 
 // NewVersions returns a list of versions sorted by app version.
@@ -26,9 +29,8 @@ type Version struct {
 	PreHandlers []string // Commands to run before starting the app
 	StartArgs   []string // Extra arguments to pass to the app
 	// UnsupportedFlags are operator flags this app doesn't define, so they are
-	// not forwarded to it. The value reports whether the flag takes a separate
-	// value argument.
-	UnsupportedFlags map[string]bool
+	// not forwarded to it.
+	UnsupportedFlags map[string]struct{}
 }
 
 type Versions []Version
@@ -73,14 +75,43 @@ func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
 	return errors.Is(err, ErrNoVersionFound)
 }
 
-// GetStartArgs returns the appropriate args.
-func (v Version) GetStartArgs(args []string) []string {
-	args = removeFlags(args, v.UnsupportedFlags)
+// GetStartArgs forwards only explicitly set, supported flags. Cobra has already
+// parsed their values, so strings such as "start" or "--otel-endpoint" cannot
+// be mistaken for subcommands or flags. Mandatory child overrides come last.
+func (v Version) GetStartArgs(flags *pflag.FlagSet) []string {
+	args := []string{}
+	if flags != nil {
+		flags.Visit(func(flag *pflag.Flag) {
+			if _, unsupported := v.UnsupportedFlags[flag.Name]; unsupported {
+				return
+			}
+			if slice, ok := flag.Value.(pflag.SliceValue); ok {
+				values := slice.GetSlice()
+				if flag.Value.Type() == "stringArray" {
+					for _, value := range values {
+						args = append(args, "--"+flag.Name+"="+value)
+					}
+					return
+				}
+				// SliceValue.String includes brackets and is not a CLI value. CSV
+				// preserves commas and quotes in stringSlice elements.
+				var value bytes.Buffer
+				writer := csv.NewWriter(&value)
+				_ = writer.Write(values)
+				writer.Flush()
+				encoded := strings.TrimSuffix(value.String(), "\n")
+				if len(values) == 1 && values[0] == "" {
+					encoded = `""` // distinguish one empty string from an empty slice
+				}
+				args = append(args, "--"+flag.Name+"="+encoded)
+				return
+			}
+			args = append(args, "--"+flag.Name+"="+flag.Value.String())
+		})
+	}
 	if len(v.StartArgs) > 0 {
 		return append(args, v.StartArgs...)
 	}
-
-	// Default flags for standalone apps.
 	return append(args,
 		"--grpc.enable",
 		"--api.enable",
@@ -88,23 +119,6 @@ func (v Version) GetStartArgs(args []string) []string {
 		"--with-tendermint=false",
 		"--transport=grpc",
 	)
-}
-
-// removeFlags returns args without the given flags and their values.
-func removeFlags(args []string, flags map[string]bool) []string {
-	result := []string{}
-	for i := 0; i < len(args); i++ {
-		name, _, hasInlineValue := strings.Cut(strings.TrimPrefix(args[i], "--"), "=")
-		takesValue, ok := flags[name]
-		if !strings.HasPrefix(args[i], "--") || !ok {
-			result = append(result, args[i])
-			continue
-		}
-		if takesValue && !hasInlineValue {
-			i++ // skip the flag's value
-		}
-	}
-	return result
 }
 
 // Validate checks that versions is non-empty, has no duplicate app versions,

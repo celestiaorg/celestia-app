@@ -111,7 +111,9 @@ The default list of flags, unless overridden is the following:
 "--transport=grpc",
 ```
 
-Note: Flags passed when starting the application are passed down to each embedded binary. `Multiplexer` then adds the extra flags.
+Only explicitly set start flags supported by the selected embedded version are forwarded. Cobra's parsed values are serialized as `--name=value`, preserving values that look like flags or subcommands. `Multiplexer` appends its mandatory overrides last.
+
+When adding a start flag or updating an embedded binary, update `unsupportedFlags` in `cmd/celestia-appd/cmd/modify_root_command_multiplexer.go` and run `make test-multiplexer`. Its compatibility test compares the native flags with every embedded binary, including hidden flags, and detects missing or obsolete exclusions.
 For instance, when calling `appd start --force-no-bbr`, the native app runs with only `--force-no-bbr` flag, while the embedded app runs with `--force-no-bbr` and the default flags.
 
 Note 2: The remote clients work via `gRPC` connection, when overriding the start flags, please always make sure to include `--with-tendermint=false` and `--transport=grpc` in the list of flags.

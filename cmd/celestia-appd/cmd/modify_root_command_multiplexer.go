@@ -39,22 +39,23 @@ var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defau
 var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, defaultArgs...)
 
 // unsupportedFlags returns the start flags that the embedded app for appVersion
-// doesn't define. The value reports whether the flag takes a separate value.
-func unsupportedFlags(appVersion uint64) map[string]bool {
-	result := map[string]bool{
-		flagOTelEndpoint:      true,
-		FlagFibrePromiseCache: false,
+// doesn't define. TestUnsupportedFlagsMatchEmbeddedBinaries checks this table
+// against every current start flag and embedded binary when either changes.
+func unsupportedFlags(appVersion uint64) map[string]struct{} {
+	result := map[string]struct{}{
+		flagOTelEndpoint:      {},
+		FlagFibrePromiseCache: {},
 	}
 	if appVersion <= 5 {
-		result[bypassOverridesFlagKey] = false
-		result[DelayedPrecommitTimeoutFlag] = true
+		result[bypassOverridesFlagKey] = struct{}{}
+		result[DelayedPrecommitTimeoutFlag] = struct{}{}
 	}
 	if appVersion <= 3 {
-		result[flags.FlagLogNoColor] = false
-		result[server.FlagMempoolMaxTxs] = true
-		result[server.FlagQueryGasLimit] = true
-		result[server.FlagShutdownGrace] = true
-		result["with-comet"] = false
+		result[flags.FlagLogNoColor] = struct{}{}
+		result[server.FlagMempoolMaxTxs] = struct{}{}
+		result[server.FlagQueryGasLimit] = struct{}{}
+		result[server.FlagShutdownGrace] = struct{}{}
+		result["with-comet"] = struct{}{}
 	}
 	return result
 }
@@ -217,7 +218,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		appExporter,
 		server.StartCmdOptions{
 			AddFlags:            addStartFlags,
-			StartCommandHandler: multiplexer.New(versions),
+			StartCommandHandler: multiplexer.New(versions, rootCommand),
 		},
 	)
 }
