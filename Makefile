@@ -399,14 +399,10 @@ test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries
 
 ## test-race: Run tests in race mode.
 test-race:
-# TODO: Remove the -skip flag once the following tests no longer contain data races.
+# TODO: Remove exclusions as race-mode failures and resource limits are resolved.
 # https://github.com/celestiaorg/celestia-app/issues/1369
-# The TestTxsim* CLI tests spin up an in-process node via testnode.NewNetwork and
-# drive txsim against it, which races the consensus IAVL writes against the gRPC
-# query reads. The race lives in the test harness, not in production code, so the
-# tests still run (and provide coverage) outside of race mode.
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestSquareSizeIntegrationTest|TestClientServerUploadDownload|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
