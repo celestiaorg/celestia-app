@@ -40,6 +40,11 @@ const (
 	keepAliveMaxConnIdle = 5 * time.Minute  // close idle connections
 	keepAlivePingTime    = 2 * time.Minute  // ping interval to detect dead peers
 	keepAlivePingTimeout = 20 * time.Second // ping ack deadline before drop
+
+	// Connection age caps how long a peer can hold a slot with streams that
+	// never finish, which MaxConnectionIdle does not cover.
+	keepAliveMaxConnAge      = 5 * time.Minute
+	keepAliveMaxConnAgeGrace = 30 * time.Second
 )
 
 // Server wraps a [grpc.Server] with TCP listener and lifecycle management.
@@ -80,9 +85,11 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 			MinTime: keepAliveMinTime,
 		}),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
-			MaxConnectionIdle: keepAliveMaxConnIdle,
-			Time:              keepAlivePingTime,
-			Timeout:           keepAlivePingTimeout,
+			MaxConnectionIdle:     keepAliveMaxConnIdle,
+			MaxConnectionAge:      keepAliveMaxConnAge,
+			MaxConnectionAgeGrace: keepAliveMaxConnAgeGrace,
+			Time:                  keepAlivePingTime,
+			Timeout:               keepAlivePingTimeout,
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
