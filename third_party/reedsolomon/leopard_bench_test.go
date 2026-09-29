@@ -2,6 +2,7 @@ package reedsolomon
 
 import (
 	"math/rand"
+	"slices"
 	"sync"
 	"testing"
 )
@@ -94,4 +95,97 @@ func BenchmarkLeopardGF16Production(b *testing.B) {
 			}
 		}
 	})
+}
+
+// benchReconSets holds one default-allocator decoder and erased shard view
+// per worker and erasure pattern, built on the benchSets shards.
+var benchReconSets struct {
+	once sync.Once
+	encs [benchWorkers]Encoder
+	// in[pattern][worker] has the missing slots as len 0, cap shardSize.
+	in [2][benchWorkers][][]byte
+}
+
+func benchReconstructSets(b *testing.B) {
+	b.Helper()
+	benchProductionSets(b)
+	const data, parity, size = 4096, 12288, 32 << 10
+	benchReconSets.once.Do(func() {
+		for w := range benchWorkers {
+			enc, err := New(data, parity, WithLeopardGF16(true))
+			if err != nil {
+				b.Fatal(err)
+			}
+			benchReconSets.encs[w] = enc
+			shards := benchSets.sets[w]
+			// Worst case: exactly data shards, all parity.
+			keep := make([]bool, data+parity)
+			for i := data; i < 2*data; i++ {
+				keep[i] = true
+			}
+			benchReconSets.in[0][w] = benchErase(shards, keep)
+			// Random: exactly data shards, uniformly random.
+			rng := rand.New(rand.NewSource(int64(100 + w)))
+			clear(keep)
+			for _, i := range rng.Perm(data + parity)[:data] {
+				keep[i] = true
+			}
+			benchReconSets.in[1][w] = benchErase(shards, keep)
+		}
+	})
+}
+
+// benchErase returns a shard view whose missing slots reuse the shard's own
+// storage with length 0, so ReconstructData writes back in place. Callers
+// clone the view per call since ReconstructData extends the missing slots.
+func benchErase(shards [][]byte, keep []bool) [][]byte {
+	in := make([][]byte, len(shards))
+	for i, s := range shards {
+		if keep[i] {
+			in[i] = s
+		} else {
+			in[i] = s[:0]
+		}
+	}
+	return in
+}
+
+// BenchmarkLeopardGF16Reconstruct measures ReconstructData at the fibre shape
+// for the all-parity and random-K erasures, alone and with 16 decoders
+// running concurrently.
+func BenchmarkLeopardGF16Reconstruct(b *testing.B) {
+	for pi, pat := range []string{"parity", "random"} {
+		b.Run(pat+"/single", func(b *testing.B) {
+			benchReconstructSets(b)
+			enc, in := benchReconSets.encs[0], benchReconSets.in[pi][0]
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if err := enc.ReconstructData(slices.Clone(in)); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+		b.Run(pat+"/conc16", func(b *testing.B) {
+			benchReconstructSets(b)
+			b.SetBytes(int64(benchWorkers) * int64(4096*(32<<10)))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				var wg sync.WaitGroup
+				var errs [benchWorkers]error
+				for w := range benchWorkers {
+					wg.Add(1)
+					go func() {
+						defer wg.Done()
+						errs[w] = benchReconSets.encs[w].ReconstructData(slices.Clone(benchReconSets.in[pi][w]))
+					}()
+				}
+				wg.Wait()
+				for _, err := range errs {
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			}
+		})
+	}
 }
