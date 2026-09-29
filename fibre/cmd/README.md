@@ -11,7 +11,7 @@ Before starting, make sure:
 - [ ] The node's application gRPC endpoint is enabled in `app.toml` — see [Node connections](#node-connections).
 - [ ] The node's privval gRPC endpoint is enabled — see [Signing](#signing). If the consensus key lives in an external KMS, the KMS must support the privval `SignRawBytes` message; see the [release notes](../../docs/release-notes/release-notes.md) for the KMS policy.
 - [ ] The fibre listen port (default `7980`) is reachable by clients from outside your network.
-- [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set gets no budget and no traffic.
+- [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set receives no assignments for new uploads. At startup, if no budget can be derived because the validator is absent, the current server warns and runs without a storage limit until a budget can be derived.
 
 We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other. Use `--home` or `FIBRE_HOME` to place the fibre home directory on a separate disk (see [Start](#start)).
 
@@ -319,7 +319,7 @@ Each observation covers one backend call. Object GET duration includes SDK retri
 
 #### Grafana dashboard
 
-A pre-built Grafana dashboard is available at [`fibre/dashboards/fibre-dashboards.json`](../dashboards/fibre-dashboards.json).
+A pre-built Grafana dashboard is available at [`observability/docker/grafana/dashboards/fibre.json`](../../observability/docker/grafana/dashboards/fibre.json).
 
 ### Profiling (pprof)
 

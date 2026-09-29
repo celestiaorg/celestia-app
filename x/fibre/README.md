@@ -8,8 +8,8 @@ The flow around the module:
 
 1. A user deposits funds into their escrow account (`MsgDepositToEscrow`).
 1. The [fibre client](../../specs/src/fibre_client.md) uploads the blob's shards to the validators' fibre servers together with a `PaymentPromise` signed by the escrow owner. Each server verifies its shards and the promise (via its app node) and endorses the promise with the validator's consensus key.
-1. Once signatures representing more than 2/3 of the voting power are collected, a `MsgPayForFibre` carrying the promise and the signatures is submitted on chain, which deducts the payment from the escrow account (`PayForFibre` transactions are also referred to as "PFFs").
-1. If a promise was handed out but never settled, anyone may submit `MsgPaymentPromiseTimeout` after the promise's timeout to settle it — so a promise is never free to issue.
+1. Once signatures representing at least `floor(2 * total_voting_power / 3)` of the voting power are collected, a `MsgPayForFibre` carrying the promise and the signatures is submitted on chain, which deducts the payment from the escrow account (`PayForFibre` transactions are also referred to as "PFFs").
+1. If a promise was handed out but never settled, anyone may submit `MsgPaymentPromiseTimeout` after the promise's timeout, while it remains fresh, to charge the escrow even if upload failed. Timeout settlement requires a submitted transaction; the standalone Fibre server does not submit these automatically.
 
 Settled payments are routed to the fee collector and distributed like regular fees. The amount charged for a blob is `1 utia` per gas of `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` (see [`EstimateGasForPayForFibre`](./types/gas.go), the shared source of truth for the chain and the client-side escrow accounting).
 
@@ -40,10 +40,10 @@ The delay exists so a user cannot hand out a payment promise and drain the escro
 
 ### `MsgPayForFibre`
 
-Settles a `PaymentPromise` against the promise signer's escrow account. The message carries the original promise and the endorsing validator signatures, and can be submitted by anyone (typically one of the endorsing validators). Validation, beyond the promise's own [stateless checks](./types/msgs.go):
+Settles a `PaymentPromise` against the promise signer's escrow account. The message carries the original promise and the endorsing validator signatures, and can be submitted by anyone (the supplied transaction client when using `fibre.Put`). Validation, beyond the promise's own [stateless checks](./types/msgs.go):
 
 1. The escrow-owner signature on the promise must verify.
-1. The validator signatures must come from the validator set at the promise's `height` and represent more than 2/3 of the voting power.
+1. The validator signatures must come from the validator set at the promise's `height` and represent at least `floor(2 * total_voting_power / 3)` of the voting power.
 1. The promise's `height` must be within `payment_promise_height_window` of the current height, its `creation_timestamp` fresh (not older than the freshness floor, not further than 10 minutes in the future), and the promise not yet expired or already processed.
 1. The escrow account must exist and its total balance cover the payment.
 
@@ -53,7 +53,7 @@ In practice the promise JSON and the signatures are produced by the fibre client
 
 ### `MsgPaymentPromiseTimeout`
 
-Settles a promise whose `payment_promise_timeout` has elapsed without a `MsgPayForFibre` landing. Anyone may submit it (no validator signatures required); the same freshness, replay, and balance rules as `MsgPayForFibre` apply, except expiry — which is required rather than rejected. This is the mechanism that charges for promises that were issued but whose upload never completed.
+Settles a promise whose `payment_promise_timeout` has elapsed without a `MsgPayForFibre` landing. Anyone may submit it (no validator signatures required); the same freshness, replay, and balance rules as `MsgPayForFibre` apply, except that timeout requires expiry and skips the normal height-window checks. This is the mechanism that charges for promises that were issued but whose upload never completed.
 
 ### `MsgUpdateFibreParams`
 
