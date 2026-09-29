@@ -15,7 +15,11 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"google.golang.org/grpc"
 )
+
+// downloadCodec bounds shard responses before they are decoded.
+var downloadCodec = fibregrpc.NewDownloadCodec(DefaultProtocolParams.MaxRowsPerValidator(), DefaultProtocolParams.MerkleProofDepth())
 
 var (
 	// ErrNotFound is returned when no shards were retrieved for the blob.
@@ -159,7 +163,7 @@ func (c *Client) downloadFrom(
 		defer rpcCancel()
 		var err error
 		rpcStart := time.Now()
-		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id})
+		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id}, grpc.ForceCodecV2(downloadCodec))
 		c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 		return err
 	})
