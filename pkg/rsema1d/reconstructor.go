@@ -123,10 +123,15 @@ func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 	if want := r.Want(); want > 0 {
 		return fmt.Errorf("%w: need %d more rows", ErrNotEnoughRows, want)
 	}
-	if err := r.coder.enc.ReconstructData(rows); err != nil {
+	if err := r.coder.reconstructData(rows); err != nil {
 		return fmt.Errorf("reconstructing original rows: %w", err)
 	}
 	return nil
+}
+
+// reconstructData recovers the missing original rows in place.
+func (c *Coder) reconstructData(rows [][]byte) error {
+	return c.enc.ReconstructData(rows)
 }
 
 // verify checks proofs against r.commitment. Fast path: one atomic load and a
