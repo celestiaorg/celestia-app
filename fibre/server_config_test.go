@@ -90,11 +90,17 @@ func TestServerConfigConnectionDefaults(t *testing.T) {
 	cfg := DefaultServerConfig()
 	assert.Equal(t, fibregrpc.DefaultMaxConnections, cfg.MaxConnections)
 	assert.Equal(t, fibregrpc.DefaultMaxConcurrentStreams, cfg.MaxConcurrentStreams)
+	assert.Equal(t, fibregrpc.DefaultMaxConcurrentDownloads, cfg.MaxConcurrentDownloads)
 }
 
 func TestServerConfigValidateConnectionCaps(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.Path = t.TempDir()
+	cfg.MaxConcurrentDownloads = 0
+	require.ErrorContains(t, cfg.Validate(), "max_concurrent_downloads must be at least 1")
+	cfg.MaxConcurrentDownloads = -1
+	require.ErrorContains(t, cfg.Validate(), "max_concurrent_downloads must be at least 1")
+	cfg.MaxConcurrentDownloads = fibregrpc.DefaultMaxConcurrentDownloads
 	cfg.MaxConnections = 0
 
 	err := cfg.Validate()

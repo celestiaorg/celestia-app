@@ -130,6 +130,16 @@ Restart Fibre to apply changes. Values must be positive and no greater than the 
 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
 
+### Download memory
+
+`max_concurrent_downloads` limits downloads across all connections and storage backends. The default is `4`; values must be positive.
+Each slot covers a payload read and its response until gRPC releases the send buffer, including slow readers.
+Excess downloads return `ResourceExhausted` with a one-second retry hint before reading shard payloads.
+
+Allow about 270 MiB per slot at the protocol maximum, plus headroom for garbage collection, uploads and other node operations.
+This bounds active download allocations, not total process memory. Restart Fibre after changing the limit.
+Download responses use no compression so the limit also covers queued response buffers.
+
 ### Switching shard storage backends
 
 Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.

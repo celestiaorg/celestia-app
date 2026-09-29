@@ -45,6 +45,9 @@ type ServerConfig struct {
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
 
+	// MaxConcurrentDownloads caps payload reads and queued download responses across connections.
+	MaxConcurrentDownloads int `toml:"max_concurrent_downloads" comment:"Maximum concurrent downloads across all connections (default 4). Allow about 270 MiB per slot, plus GC headroom, uploads and other node operations."`
+
 	StoreConfig
 
 	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
@@ -95,19 +98,20 @@ func DefaultServerConfig() ServerConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
-		AppGRPCAddress:       "127.0.0.1:9090",
-		ServerListenAddress:  "0.0.0.0:7980",
-		SignerGRPCAddress:    "127.0.0.1:26669",
-		StoreConfig:          DefaultStoreConfig(),
-		LivenessThreshold:    p.LivenessThreshold,
-		MinRowsPerValidator:  p.MinRowsPerValidator(),
-		OriginalRows:         p.Rows,
-		MaxShardSize:         p.MaxShardSize(),
-		MaxMessageSize:       p.MaxMessageSize(),
-		MinUploadSize:        p.Rows * p.MinRowSize,
-		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
-		MaxConnections:       fibregrpc.DefaultMaxConnections,
-		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
+		AppGRPCAddress:         "127.0.0.1:9090",
+		ServerListenAddress:    "0.0.0.0:7980",
+		SignerGRPCAddress:      "127.0.0.1:26669",
+		StoreConfig:            DefaultStoreConfig(),
+		LivenessThreshold:      p.LivenessThreshold,
+		MinRowsPerValidator:    p.MinRowsPerValidator(),
+		OriginalRows:           p.Rows,
+		MaxShardSize:           p.MaxShardSize(),
+		MaxMessageSize:         p.MaxMessageSize(),
+		MinUploadSize:          p.Rows * p.MinRowSize,
+		UploadVerifyWorkers:    runtime.GOMAXPROCS(0),
+		MaxConnections:         fibregrpc.DefaultMaxConnections,
+		MaxConcurrentStreams:   fibregrpc.DefaultMaxConcurrentStreams,
+		MaxConcurrentDownloads: fibregrpc.DefaultMaxConcurrentDownloads,
 	}
 	return cfg
 }
@@ -161,6 +165,9 @@ func (cfg *ServerConfig) Validate() error {
 	}
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
+	}
+	if cfg.MaxConcurrentDownloads < 1 {
+		return fmt.Errorf("max_concurrent_downloads must be at least 1, got %d", cfg.MaxConcurrentDownloads)
 	}
 	if cfg.MaxConnections < 1 {
 		return fmt.Errorf("max_connections must be at least 1, got %d", cfg.MaxConnections)

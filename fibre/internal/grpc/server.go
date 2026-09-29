@@ -30,6 +30,8 @@ const (
 	DefaultMaxConnections = 16
 	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
 	DefaultMaxConcurrentStreams = 13
+	// DefaultMaxConcurrentDownloads bounds download payloads and queued responses.
+	DefaultMaxConcurrentDownloads = 4
 
 	// connectionTimeout bounds TCP+TLS+HTTP/2 setup so a peer cannot pin a
 	// LimitListener slot with a stalled handshake for the 120s gRPC default.
@@ -44,17 +46,18 @@ const (
 
 // Server wraps a [grpc.Server] with TCP listener and lifecycle management.
 type Server struct {
-	server               *grpc.Server
-	listener             net.Listener
-	done                 chan struct{}
-	maxConcurrentStreams uint32
+	server                 *grpc.Server
+	listener               net.Listener
+	done                   chan struct{}
+	maxConcurrentStreams   uint32
+	maxConcurrentDownloads int
 }
 
 // Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
 // is created lazily by [Server.Register] so callers can defer building
 // credentials until after the listener address is known (e.g., for TLS certs
 // that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Server, error) {
+func Listen(listenAddr string, maxConnections, maxConcurrentStreams, maxConcurrentDownloads int) (*Server, error) {
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
@@ -62,7 +65,7 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
+	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams), maxConcurrentDownloads: maxConcurrentDownloads}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
@@ -73,7 +76,7 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 // is converted into an Internal gRPC error instead of crashing the process.
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
 	opts = append(opts,
-		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
+		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor, downloadLimiter(s.maxConcurrentDownloads)),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{

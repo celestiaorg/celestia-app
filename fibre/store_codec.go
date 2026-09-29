@@ -100,10 +100,10 @@ func shardBinarySize(shard *types.BlobShard) int64 {
 }
 
 // Caps used to reject corrupt files cheaply, before allocating.
-const (
-	shardLengthLimit    = 1 << 30 // any single byte-length prefix
-	maxShardRows        = 1 << 16 // 4× TotalRows at current protocol params
-	maxRowProofSegments = 64      // covers 2^64-leaf trees
+var (
+	shardLengthLimit    = uint32(DefaultProtocolParams.MaxMessageSize())
+	maxShardRows        = uint32(DefaultProtocolParams.MaxRowsPerValidator())
+	maxRowProofSegments = uint32(DefaultProtocolParams.MerkleProofDepth())
 )
 
 func readUint32(r io.Reader, scratch []byte) (uint32, error) {
@@ -113,9 +113,9 @@ func readUint32(r io.Reader, scratch []byte) (uint32, error) {
 	return binary.BigEndian.Uint32(scratch[:4]), nil
 }
 
-func readBytes(r io.Reader, n uint32) ([]byte, error) {
-	if n > shardLengthLimit {
-		return nil, fmt.Errorf("length %d exceeds shard limit %d", n, shardLengthLimit)
+func readBytes(r *io.LimitedReader, n uint32) ([]byte, error) {
+	if int64(n) > r.N {
+		return nil, fmt.Errorf("length %d exceeds shard limit %d", n, r.N)
 	}
 	if n == 0 {
 		return nil, nil
@@ -127,7 +127,8 @@ func readBytes(r io.Reader, n uint32) ([]byte, error) {
 	return out, nil
 }
 
-func readShardBinary(r io.Reader) (*types.BlobShard, error) {
+func readShardBinary(source io.Reader) (*types.BlobShard, error) {
+	r := &io.LimitedReader{R: source, N: int64(shardLengthLimit)}
 	var scratch [4]byte
 	version, err := readUint32(r, scratch[:])
 	if err != nil {

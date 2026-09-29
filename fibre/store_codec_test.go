@@ -94,7 +94,7 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 			wantSub: "num proof",
 		},
 		{
-			name: "byte length above 1 GiB cap",
+			name: "byte length above shard cap",
 			buildFile: func() []byte {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
@@ -259,4 +259,12 @@ func TestShardCodecTruncatedMidRow(t *testing.T) {
 		require.Error(t, err, "cut at %d should fail", cut)
 		require.True(t, errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF), "cut at %d: got %v", cut, err)
 	}
+}
+
+func TestShardCodecCumulativeLimit(t *testing.T) {
+	// A tiny remaining budget proves rejection occurs before reading or allocating payloads.
+	r := &io.LimitedReader{R: bytes.NewReader(nil), N: 7}
+	_, err := readBytes(r, 8)
+	require.ErrorContains(t, err, "exceeds shard limit")
+	require.EqualValues(t, 7, r.N)
 }
