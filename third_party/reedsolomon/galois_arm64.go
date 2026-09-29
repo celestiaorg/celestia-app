@@ -113,8 +113,26 @@ func galMulSliceXor(c byte, in, out []byte, o *options) {
 	}
 }
 
+// dit4BlockSize splits 4-way butterflies into byte ranges small enough for
+// the four rows to stay in L1 between the two butterfly layers.
+const dit4BlockSize = 1024
+
+// dit4Blocked runs fn over each dit4BlockSize range of the four rows.
+func dit4Blocked(work [][]byte, dist int, fn func(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options), log_m01, log_m23, log_m02 ffe, o *options) {
+	n := len(work[0])
+	for off := 0; off < n; off += dit4BlockSize {
+		end := min(off+dit4BlockSize, n)
+		w := [4][]byte{work[0][off:end], work[dist][off:end], work[2*dist][off:end], work[3*dist][off:end]}
+		fn(w[:], 1, log_m01, log_m23, log_m02, o)
+	}
+}
+
 // 4-way butterfly
 func ifftDIT4(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options) {
+	if leopardNEON(o) && len(work[0]) > dit4BlockSize {
+		dit4Blocked(work, dist, ifftDIT4Ref, log_m01, log_m23, log_m02, o)
+		return
+	}
 	ifftDIT4Ref(work, dist, log_m01, log_m23, log_m02, o)
 }
 
@@ -125,6 +143,10 @@ func ifftDIT48(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe8, o *optio
 
 // 4-way butterfly
 func fftDIT4(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options) {
+	if leopardNEON(o) && len(work[0]) > dit4BlockSize {
+		dit4Blocked(work, dist, fftDIT4Ref, log_m01, log_m23, log_m02, o)
+		return
+	}
 	fftDIT4Ref(work, dist, log_m01, log_m23, log_m02, o)
 }
 
