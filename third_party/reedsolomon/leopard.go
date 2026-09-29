@@ -277,7 +277,7 @@ func (r *leopardFF16) encodeChunk(data [][]byte, sh [][]byte, mtrunc, lastCount,
 
 skip_body:
 	if r.o.useNEON {
-		fftDITGrouped(work, r.parityShards, m, fftSkew[:], &r.o)
+		fftDITGrouped(work, r.parityShards, m, fftSkew[:], nil, &r.o)
 	} else {
 		fftDIT(work, r.parityShards, m, fftSkew[:], &r.o)
 	}
@@ -625,21 +625,24 @@ func (r *leopardFF16) reconstructChunk(sh, out [][]byte, work [][]byte, m, n, in
 	}
 
 	// work <- IFFT(work, n, 0)
-	ifftDITDecoder(
-		inputCount,
-		work,
-		n,
-		fftSkew[:],
-		&r.o,
-	)
+	if r.o.useNEON {
+		ifftDITDecoderGrouped(inputCount, work, n, fftSkew[:], &r.o)
+	} else {
+		ifftDITDecoder(inputCount, work, n, fftSkew[:], &r.o)
+	}
 
 	// work <- FormalDerivative(work, n)
 	formalDerivative(work, n, &r.o)
 
 	// work <- FFT(work, n, 0) truncated to m + dataShards
-	if LEO_ERROR_BITFIELD_OPT && useBits {
+	switch {
+	case LEO_ERROR_BITFIELD_OPT && useBits && r.o.useNEON:
+		fftDITGrouped(work, outputCount, n, fftSkew[:], errorBits, &r.o)
+	case LEO_ERROR_BITFIELD_OPT && useBits:
 		errorBits.fftDIT(work, outputCount, n, fftSkew[:], &r.o)
-	} else {
+	case r.o.useNEON:
+		fftDITGrouped(work, outputCount, n, fftSkew[:], nil, &r.o)
+	default:
 		fftDIT(work, outputCount, n, fftSkew[:], &r.o)
 	}
 
@@ -794,8 +797,9 @@ func fftDIT(work [][]byte, mtrunc, m int, skewLUT []ffe, o *options) {
 const fftGroupStages = 3
 
 // fftDITGrouped computes the same butterflies as fftDIT, ordered by row
-// group instead of by stage.
-func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, o *options) {
+// group instead of by stage. With e set it skips the blocks
+// errorBitfield.fftDIT skips.
+func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, e *errorBitfield, o *options) {
 	var dists [8]int
 	nd := 0
 	for d := m >> 2; d != 0; d >>= 2 {
@@ -823,6 +827,9 @@ func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, o *options) {
 						if rs >= mtrunc {
 							break
 						}
+						if e != nil && !e.neededFns[s](rs) {
+							continue
+						}
 						iend := rs + dist
 						log_m01 := skewLUT[iend-1]
 						log_m02 := skewLUT[iend+dist-1]
@@ -843,6 +850,9 @@ func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, o *options) {
 	}
 	if last == 2 {
 		for r := 0; r < mtrunc; r += 2 {
+			if e != nil && !e.neededFns[nd](r) {
+				continue
+			}
 			log_m := skewLUT[r]
 			if log_m == modulus {
 				sliceXor(work[r], work[r+1], o)
@@ -1016,38 +1026,7 @@ func ifftDITEncoderGrouped(data [][]byte, mtrunc int, work [][]byte, xorRes [][]
 			clear(work[i])
 		}
 	}
-	var view [1 << (2 * fftGroupStages)][]byte
-	for s0 := 0; s0 < nd; s0 += fftGroupStages {
-		s1 := min(s0+fftGroupStages, nd)
-		dlo := dists[s0]
-		span := dists[s1-1] * 4
-		n := span / dlo
-		v := view[:n]
-		for r := 0; r < mtrunc; r += span {
-			for off := 0; off < dlo; off++ {
-				for t := range n {
-					v[t] = work[r+off+t*dlo]
-				}
-				for s := s0; s < s1; s++ {
-					dist := dists[s]
-					ld := dist / dlo
-					for lr := 0; lr < n; lr += ld * 4 {
-						rs := r + lr*dlo
-						if rs >= mtrunc {
-							break
-						}
-						iend := rs + dist
-						log_m01 := skewLUT[iend]
-						log_m02 := skewLUT[iend+dist]
-						log_m23 := skewLUT[iend+dist*2]
-						for i := lr; i < lr+ld; i++ {
-							ifftDIT4(v[i:], ld, log_m01, log_m23, log_m02, o)
-						}
-					}
-				}
-			}
-		}
-	}
+	ifftDITStagesGrouped(work, mtrunc, dists[:nd], skewLUT[1:], o)
 	if zeroTop {
 		// Last stage with rows [d, 4d) zero: each butterfly reduces to
 		// y = x; x ^= x*log_m, and log_m23 multiplies zeros.
@@ -1084,6 +1063,76 @@ func ifftDITEncoderGrouped(data [][]byte, mtrunc int, work [][]byte, xorRes [][]
 
 	if xorRes != nil {
 		slicesXor(xorRes[:m], work[:m], o)
+	}
+}
+
+// ifftDITStagesGrouped runs the radix-4 IFFT stages in dists ordered by row
+// group (see fftDITGrouped). skewLUT is indexed as in ifftDITDecoder.
+func ifftDITStagesGrouped(work [][]byte, mtrunc int, dists []int, skewLUT []ffe, o *options) {
+	nd := len(dists)
+	var view [1 << (2 * fftGroupStages)][]byte
+	for s0 := 0; s0 < nd; s0 += fftGroupStages {
+		s1 := min(s0+fftGroupStages, nd)
+		dlo := dists[s0]
+		span := dists[s1-1] * 4
+		n := span / dlo
+		v := view[:n]
+		for r := 0; r < mtrunc; r += span {
+			for off := 0; off < dlo; off++ {
+				for t := range n {
+					v[t] = work[r+off+t*dlo]
+				}
+				for s := s0; s < s1; s++ {
+					dist := dists[s]
+					ld := dist / dlo
+					for lr := 0; lr < n; lr += ld * 4 {
+						rs := r + lr*dlo
+						if rs >= mtrunc {
+							break
+						}
+						iend := rs + dist
+						log_m01 := skewLUT[iend-1]
+						log_m02 := skewLUT[iend+dist-1]
+						log_m23 := skewLUT[iend+dist*2-1]
+						for i := lr; i < lr+ld; i++ {
+							ifftDIT4(v[i:], ld, log_m01, log_m23, log_m02, o)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// ifftDITDecoderGrouped is ifftDITDecoder with the radix-4 stages ordered by
+// row group.
+func ifftDITDecoderGrouped(mtrunc int, work [][]byte, m int, skewLUT []ffe, o *options) {
+	var dists [8]int
+	nd := 0
+	for d := 1; d*4 <= m; d <<= 2 {
+		dists[nd] = d
+		nd++
+	}
+	ifftDITStagesGrouped(work, mtrunc, dists[:nd], skewLUT, o)
+
+	// If there is one layer left:
+	dist := 1
+	for dist*4 <= m {
+		dist <<= 2
+	}
+	if dist < m {
+		// Assuming that dist = m / 2
+		if dist*2 != m {
+			panic("internal error")
+		}
+		log_m := skewLUT[dist-1]
+		if log_m == modulus {
+			slicesXor(work[dist:2*dist], work[:dist], o)
+		} else {
+			for i := 0; i < dist; i++ {
+				ifftDIT2(work[i], work[i+dist], log_m, o)
+			}
+		}
 	}
 }
 
