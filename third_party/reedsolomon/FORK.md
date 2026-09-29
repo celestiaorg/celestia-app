@@ -24,7 +24,9 @@ Local changes:
   when NEON assembly is enabled; other paths retain the 4 KiB floor. On NEON the
   encoder runs the FFT and IFFT radix-4 stages grouped by 64 rows
   (`fftDITGrouped`, `ifftDITEncoderGrouped`) and skips the zero rows of the
-  IFFT top stage via `splitMulXor`. On NEON the decoder runs the IFFT and
+  IFFT top stage via `splitMulXor`. When `m == 4*dataShards` and m is a power
+  of 4, the IFFT and FFT top stages are merged into scaling the IFFT output by
+  four constants (`leopard_top.go`). On NEON the decoder runs the IFFT and
   the sparse FFT grouped the same way (`ifftDITDecoderGrouped`,
   `fftDITGrouped` with an `errorBitfield`) and computes the formal derivative
   row by row with `xorSlices` (`formalDerivative`).

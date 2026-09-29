@@ -224,6 +224,12 @@ func (r *leopardFF16) encode(shards [][]byte) error {
 }
 
 func (r *leopardFF16) encodeChunk(data [][]byte, sh [][]byte, mtrunc, lastCount, m int, work [][]byte, skewLUT []ffe) {
+	if r.o.useNEON && fuseTopStages(m, r.dataShards) {
+		ifftDITEncoderGrouped(data, mtrunc, work, nil, m, skewLUT, true, &r.o)
+		scales := topScales(m, skewLUT)
+		fftDITGrouped(work, r.parityShards, m, fftSkew[:], nil, &scales, &r.o)
+		return
+	}
 	ifftDITEncoder(
 		data,
 		mtrunc,
@@ -277,7 +283,7 @@ func (r *leopardFF16) encodeChunk(data [][]byte, sh [][]byte, mtrunc, lastCount,
 
 skip_body:
 	if r.o.useNEON {
-		fftDITGrouped(work, r.parityShards, m, fftSkew[:], nil, &r.o)
+		fftDITGrouped(work, r.parityShards, m, fftSkew[:], nil, nil, &r.o)
 	} else {
 		fftDIT(work, r.parityShards, m, fftSkew[:], &r.o)
 	}
@@ -637,11 +643,11 @@ func (r *leopardFF16) reconstructChunk(sh, out [][]byte, work [][]byte, m, n, in
 	// work <- FFT(work, n, 0) truncated to m + dataShards
 	switch {
 	case LEO_ERROR_BITFIELD_OPT && useBits && r.o.useNEON:
-		fftDITGrouped(work, outputCount, n, fftSkew[:], errorBits, &r.o)
+		fftDITGrouped(work, outputCount, n, fftSkew[:], errorBits, nil, &r.o)
 	case LEO_ERROR_BITFIELD_OPT && useBits:
 		errorBits.fftDIT(work, outputCount, n, fftSkew[:], &r.o)
 	case r.o.useNEON:
-		fftDITGrouped(work, outputCount, n, fftSkew[:], nil, &r.o)
+		fftDITGrouped(work, outputCount, n, fftSkew[:], nil, nil, &r.o)
 	default:
 		fftDIT(work, outputCount, n, fftSkew[:], &r.o)
 	}
@@ -798,8 +804,9 @@ const fftGroupStages = 3
 
 // fftDITGrouped computes the same butterflies as fftDIT, ordered by row
 // group instead of by stage. With e set it skips the blocks
-// errorBitfield.fftDIT skips.
-func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, e *errorBitfield, o *options) {
+// errorBitfield.fftDIT skips. With top set, work holds only the first m/4
+// rows and the top stage is replaced by scaling them (see topScales).
+func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, e *errorBitfield, top *[4]ffe, o *options) {
 	var dists [8]int
 	nd := 0
 	for d := m >> 2; d != 0; d >>= 2 {
@@ -813,13 +820,20 @@ func fftDITGrouped(work [][]byte, mtrunc, m int, skewLUT []ffe, e *errorBitfield
 		span := dists[s0] * 4
 		n := span / d
 		v := view[:n]
+		first := s0
+		if top != nil && s0 == 0 {
+			first = 1
+		}
 		for r := 0; r < mtrunc; r += span {
 			// Rows r+off, r+off+d, ... form one dependency-closed unit.
 			for off := 0; off < d; off++ {
 				for t := range n {
 					v[t] = work[r+off+t*d]
 				}
-				for s := s0; s < s1; s++ {
+				if first != s0 {
+					scaleTopQuarters(v, (mtrunc+m/4-1)/(m/4), top, o)
+				}
+				for s := first; s < s1; s++ {
 					dist := dists[s]
 					ld := dist / d
 					for lr := 0; lr < n; lr += ld * 4 {
@@ -891,7 +905,7 @@ func fftDIT4Ref(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *optio
 // Unrolled IFFT for encoder
 func ifftDITEncoder(data [][]byte, mtrunc int, work [][]byte, xorRes [][]byte, m int, skewLUT []ffe, o *options) {
 	if o.useNEON {
-		ifftDITEncoderGrouped(data, mtrunc, work, xorRes, m, skewLUT, o)
+		ifftDITEncoderGrouped(data, mtrunc, work, xorRes, m, skewLUT, false, o)
 		return
 	}
 	dist := 1
@@ -1007,8 +1021,8 @@ func ifftDITEncoder(data [][]byte, mtrunc int, work [][]byte, xorRes [][]byte, m
 // ifftDITEncoderGrouped is ifftDITEncoder with the radix-4 stages ordered by
 // row group (see fftDITGrouped). When rows [mtrunc, m) would feed only the
 // last stage as zeros, that stage is computed from the mtrunc rows directly
-// and the zero rows are never written.
-func ifftDITEncoderGrouped(data [][]byte, mtrunc int, work [][]byte, xorRes [][]byte, m int, skewLUT []ffe, o *options) {
+// and the zero rows are never written; with skipTop it is left undone.
+func ifftDITEncoderGrouped(data [][]byte, mtrunc int, work [][]byte, xorRes [][]byte, m int, skewLUT []ffe, skipTop bool, o *options) {
 	for i := range mtrunc {
 		copy(work[i], data[i])
 	}
@@ -1027,6 +1041,9 @@ func ifftDITEncoderGrouped(data [][]byte, mtrunc int, work [][]byte, xorRes [][]
 		}
 	}
 	ifftDITStagesGrouped(work, mtrunc, dists[:nd], skewLUT[1:], o)
+	if zeroTop && skipTop {
+		return
+	}
 	if zeroTop {
 		// Last stage with rows [d, 4d) zero: each butterfly reduces to
 		// y = x; x ^= x*log_m, and log_m23 multiplies zeros.

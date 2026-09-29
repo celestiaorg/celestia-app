@@ -38,7 +38,7 @@ func TestLeopardGroupedMatchesUngrouped(t *testing.T) {
 			a := mk()
 			b := clone(a)
 			fftDIT(a, mtrunc, m, fftSkew[:], &ungrouped)
-			fftDITGrouped(b, mtrunc, m, fftSkew[:], nil, &defaultOptions)
+			fftDITGrouped(b, mtrunc, m, fftSkew[:], nil, nil, &defaultOptions)
 			for i := range a {
 				if !bytes.Equal(a[i], b[i]) {
 					t.Fatalf("fft m=%d mtrunc=%d row %d differs", m, mtrunc, i)
@@ -54,7 +54,7 @@ func TestLeopardGroupedMatchesUngrouped(t *testing.T) {
 					xb = clone(xa)
 				}
 				ifftDITEncoder(data, mtrunc, wa, xa, m, fftSkew[m-1:], &ungrouped)
-				ifftDITEncoderGrouped(data, mtrunc, wb, xb, m, fftSkew[m-1:], &defaultOptions)
+				ifftDITEncoderGrouped(data, mtrunc, wb, xb, m, fftSkew[m-1:], false, &defaultOptions)
 				for i := range wa {
 					if !bytes.Equal(wa[i], wb[i]) {
 						t.Fatalf("ifft m=%d mtrunc=%d xor=%v work row %d differs", m, mtrunc, withXor, i)
@@ -111,12 +111,55 @@ func TestLeopardDecoderGroupedMatchesUngrouped(t *testing.T) {
 					copy(b[i], a[i])
 				}
 				e.fftDIT(a, mtrunc, m, fftSkew[:], &ungrouped)
-				fftDITGrouped(b, mtrunc, m, fftSkew[:], &e, &defaultOptions)
+				fftDITGrouped(b, mtrunc, m, fftSkew[:], &e, nil, &defaultOptions)
 				for i := range a {
 					if !bytes.Equal(a[i], b[i]) {
 						t.Fatalf("sparse fft m=%d mtrunc=%d density=%d row %d differs", m, mtrunc, density, i)
 					}
 				}
+			}
+		}
+	}
+}
+
+// TestLeopardFusedTopMatchesReference checks encodes that merge the IFFT and
+// FFT top stages (m = 4*data, m a power of 4) against the portable encoder.
+func TestLeopardFusedTopMatchesReference(t *testing.T) {
+	shapes := []struct{ data, parity int }{
+		{1, 3}, {1, 4}, {4, 9}, {4, 16}, {16, 33}, {16, 48}, {16, 63}, {16, 64},
+		{64, 129}, {64, 200}, {64, 256}, {256, 513}, {256, 768}, {256, 1024},
+	}
+	rng := rand.New(rand.NewSource(5))
+	for _, sh := range shapes {
+		if m := ceilPow2(sh.parity); !fuseTopStages(m, sh.data) {
+			t.Fatalf("shape %v does not take the fused path", sh)
+		}
+		const size = 2112
+		want := AllocAligned(sh.data+sh.parity, size)
+		for i := range want {
+			rng.Read(want[i])
+		}
+		got := make([][]byte, len(want))
+		for i := range want {
+			got[i] = bytes.Clone(want[i])
+		}
+		ref, err := New(sh.data, sh.parity, WithLeopardGF16(true), WithNEON(false))
+		if err != nil {
+			t.Fatal(err)
+		}
+		enc, err := New(sh.data, sh.parity, WithLeopardGF16(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := ref.Encode(want); err != nil {
+			t.Fatal(err)
+		}
+		if err := enc.Encode(got); err != nil {
+			t.Fatal(err)
+		}
+		for i := range want {
+			if !bytes.Equal(want[i], got[i]) {
+				t.Fatalf("data=%d parity=%d shard %d differs", sh.data, sh.parity, i)
 			}
 		}
 	}
