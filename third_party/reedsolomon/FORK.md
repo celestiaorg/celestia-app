@@ -16,7 +16,7 @@ Local changes:
 - `galois_arm64.go`: feature-gated dispatch and race annotations; 4-way
   butterflies use the fused kernels, or 1 KiB byte blocks without SHA3.
 - `options.go`: `useSHA3` detected from cpuid, cleared by `WithNEON(false)`.
-- `leopard.go`: initialize nibble tables on ASIMD and use a 32 KiB chunk floor
+- `leopard.go`: initialize nibble tables on ASIMD and use a 16 KiB chunk floor
   when NEON assembly is enabled; other paths retain the 4 KiB floor. On NEON the
   encoder runs the FFT and IFFT radix-4 stages grouped by 64 rows
   (`fftDITGrouped`, `ifftDITEncoderGrouped`) and skips the zero rows of the
