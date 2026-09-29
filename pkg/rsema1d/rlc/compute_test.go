@@ -116,6 +116,8 @@ func BenchmarkCompute(b *testing.B) {
 		{"size=128MB/k=1024/n=1024/workers=16", 128 << 20, 1024, 1024, 16},
 		{"size=128MB/k=1024/n=3072", 128 << 20, 1024, 3072, 1},
 		{"size=128MB/k=1024/n=3072/workers=16", 128 << 20, 1024, 3072, 16},
+		{"size=128MB/k=4096/n=12288", 128 << 20, 4096, 12288, 1},
+		{"size=128MB/k=4096/n=12288/workers=16", 128 << 20, 4096, 12288, 16},
 	}
 	for _, cfg := range configs {
 		b.Run(cfg.name, func(b *testing.B) {
