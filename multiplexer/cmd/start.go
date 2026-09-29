@@ -32,7 +32,7 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	}
 
 	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", chainID)
-	warnStaleBinaries(versions, svrCtx.Logger)
+	pruneStaleBinaries(versions, svrCtx.Logger)
 
 	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
 	if err != nil {
@@ -53,21 +53,20 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	return nil
 }
 
-// warnStaleBinaries logs extracted binaries of versions that are no longer
-// embedded so operators can remove them.
-func warnStaleBinaries(versions abci.Versions, logger log.Logger) {
+// pruneStaleBinaries removes extracted binaries that are no longer embedded.
+func pruneStaleBinaries(versions abci.Versions, logger log.Logger) {
 	keep := make([]string, 0, len(versions))
 	for _, version := range versions {
 		if version.Appd != nil {
 			keep = append(keep, version.Appd.Version())
 		}
 	}
-	stale, err := appd.StaleBinaries(keep)
+	removed, err := appd.PruneStaleBinaries(keep)
 	if err != nil {
-		logger.Warn("failed to check for stale embedded binaries", "err", err)
+		logger.Warn("failed to remove stale embedded binaries", "err", err)
 	}
-	for _, dir := range stale {
-		logger.Warn("embedded binary from a previous release is no longer used; remove it manually to free disk space", "dir", dir)
+	for _, dir := range removed {
+		logger.Info("removed stale embedded binary", "dir", dir)
 	}
 }
 

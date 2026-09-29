@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestStaleBinaries(t *testing.T) {
+func TestPruneStaleBinaries(t *testing.T) {
 	home := t.TempDir()
 	original := nodeHome
 	nodeHome = home
@@ -17,21 +17,69 @@ func TestStaleBinaries(t *testing.T) {
 	binDir := filepath.Join(home, "bin")
 	for _, name := range []string{"v9.0.8", "v9.0.7", "v3.12.0", ".v9.0.8.tmp-123"} {
 		require.NoError(t, os.MkdirAll(filepath.Join(binDir, name), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(binDir, name, "celestia-appd"), []byte("binary"), 0o700))
 	}
 	require.NoError(t, os.WriteFile(filepath.Join(binDir, "README.md"), nil, 0o600))
 
-	stale, err := StaleBinaries([]string{"v9.0.8"})
+	external := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(external, "celestia-appd"), nil, 0o700))
+	require.NoError(t, os.Symlink(external, filepath.Join(binDir, "v1.0.0")))
+
+	removed, err := PruneStaleBinaries([]string{"v9.0.8", "v3.12.0"})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{filepath.Join(binDir, "v9.0.7"), filepath.Join(binDir, "v3.12.0")}, stale)
-	require.DirExists(t, filepath.Join(binDir, "v9.0.7"))
+	require.Equal(t, []string{filepath.Join(binDir, "v9.0.7")}, removed)
+	require.NoDirExists(t, filepath.Join(binDir, "v9.0.7"))
+	for _, name := range []string{"v9.0.8", "v3.12.0", ".v9.0.8.tmp-123"} {
+		require.FileExists(t, filepath.Join(binDir, name, "celestia-appd"))
+	}
+	require.FileExists(t, filepath.Join(binDir, "README.md"))
+	require.FileExists(t, filepath.Join(external, "celestia-appd"))
+	_, err = os.Lstat(filepath.Join(binDir, "v1.0.0"))
+	require.NoError(t, err)
+	removed, err = PruneStaleBinaries([]string{"v9.0.8", "v3.12.0"})
+	require.NoError(t, err)
+	require.Empty(t, removed)
 }
 
-func TestStaleBinariesMissingDir(t *testing.T) {
+func TestPruneStaleBinariesMissingDir(t *testing.T) {
 	original := nodeHome
 	nodeHome = t.TempDir()
 	t.Cleanup(func() { nodeHome = original })
 
-	stale, err := StaleBinaries([]string{"v9.0.8"})
+	removed, err := PruneStaleBinaries([]string{"v9.0.8"})
 	require.NoError(t, err)
-	require.Empty(t, stale)
+	require.Empty(t, removed)
+}
+
+func TestPruneStaleBinariesReadError(t *testing.T) {
+	original := nodeHome
+	nodeHome = t.TempDir()
+	t.Cleanup(func() { nodeHome = original })
+	require.NoError(t, os.WriteFile(filepath.Join(nodeHome, "bin"), nil, 0o600))
+	removed, err := PruneStaleBinaries(nil)
+	require.Error(t, err)
+	require.Empty(t, removed)
+}
+
+func TestPruneStaleBinariesContinuesAfterRemoveError(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root bypasses directory permissions")
+	}
+	original := nodeHome
+	nodeHome = t.TempDir()
+	t.Cleanup(func() { nodeHome = original })
+	binDir := filepath.Join(nodeHome, "bin")
+	blocked := filepath.Join(binDir, "v3.0.0")
+	require.NoError(t, os.MkdirAll(blocked, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(blocked, "celestia-appd"), nil, 0o700))
+	require.NoError(t, os.Chmod(blocked, 0o500))
+	t.Cleanup(func() { require.NoError(t, os.Chmod(blocked, 0o755)) })
+	removable := filepath.Join(binDir, "v4.0.0")
+	require.NoError(t, os.MkdirAll(removable, 0o755))
+
+	removed, err := PruneStaleBinaries(nil)
+	require.ErrorContains(t, err, blocked)
+	require.Equal(t, []string{removable}, removed)
+	require.NoDirExists(t, removable)
+	require.FileExists(t, filepath.Join(blocked, "celestia-appd"))
 }
