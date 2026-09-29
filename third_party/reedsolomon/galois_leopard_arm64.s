@@ -218,3 +218,30 @@ mulxor8next:
 	BGT mulxor8block
 mulxor8done:
 	RET
+
+// func splitMulXorNEON(x, y []byte, table *[128]uint8)
+// y = x; x ^= x * log_m
+TEXT ·splitMulXorNEON(SB), NOSPLIT, $0-56
+	MOVD table+48(FP), R10
+	LOAD_TABLES(R10)
+	LOAD_MASK
+	MOVD x_base+0(FP), R1
+	MOVD x_len+8(FP), R2
+	MOVD y_base+24(FP), R5
+	CBZ  R2, splitdone
+
+splitloop:
+	VLD1 (R1), [V16.B16, V17.B16, V18.B16, V19.B16]
+	VST1.P [V16.B16, V17.B16, V18.B16, V19.B16], 64(R5)
+	VORR V16.B16, V16.B16, V20.B16
+	VORR V17.B16, V17.B16, V21.B16
+	VORR V18.B16, V18.B16, V22.B16
+	VORR V19.B16, V19.B16, V23.B16
+	MUL64
+	XOR_PRODUCT_INTO_X
+	VST1.P [V20.B16, V21.B16, V22.B16, V23.B16], 64(R1)
+	SUBS $64, R2
+	BGT  splitloop
+
+splitdone:
+	RET

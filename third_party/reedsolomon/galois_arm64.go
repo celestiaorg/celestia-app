@@ -30,6 +30,21 @@ func mulgf16XorNEON(x, y []byte, table *[128]uint8)
 //go:noescape
 func mulgf16Xor8NEON(in []byte, outs *[8][]byte, tables *[8]*[128]uint8)
 
+//go:noescape
+func splitMulXorNEON(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func ifftDIT2NEON3(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func fftDIT2NEON3(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func mulgf16XorNEON3(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func splitMulXorNEON3(x, y []byte, table *[128]uint8)
+
 // leopardNEON reports whether the GF(2^16) NEON kernels can be used. They
 // consume whole 64-byte blocks; callers pass the remainder to the reference
 // code, which handles the same block granularity.
@@ -126,7 +141,11 @@ func fftDIT2(x, y []byte, log_m ffe, o *options) {
 			raceWriteSlice(x[:done])
 			raceWriteSlice(y[:done])
 		}
-		fftDIT2NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if o.useSHA3 {
+			fftDIT2NEON3(x[:done], y[:done], &multiply256LUT[log_m])
+		} else {
+			fftDIT2NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		}
 		if done == len(x) {
 			return
 		}
@@ -153,7 +172,11 @@ func ifftDIT2(x, y []byte, log_m ffe, o *options) {
 			raceWriteSlice(x[:done])
 			raceWriteSlice(y[:done])
 		}
-		ifftDIT2NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if o.useSHA3 {
+			ifftDIT2NEON3(x[:done], y[:done], &multiply256LUT[log_m])
+		} else {
+			ifftDIT2NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		}
 		if done == len(x) {
 			return
 		}
@@ -225,12 +248,42 @@ func mulgf16Xor(x, y []byte, log_m ffe, o *options) {
 			raceReadSlice(y[:done])
 			raceWriteSlice(x[:done])
 		}
-		mulgf16XorNEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if o.useSHA3 {
+			mulgf16XorNEON3(x[:done], y[:done], &multiply256LUT[log_m])
+		} else {
+			mulgf16XorNEON(x[:done], y[:done], &multiply256LUT[log_m])
+		}
 		if done == len(x) {
 			return
 		}
 		x, y = x[done:], y[done:]
 	}
+	refMulAdd(x, y, log_m)
+}
+
+// splitMulXor sets y = x, then x ^= x*log_m.
+func splitMulXor(x, y []byte, log_m ffe, o *options) {
+	if log_m == modulus {
+		copy(y, x)
+		return
+	}
+	if leopardNEON(o) {
+		done := len(x) &^ 63
+		if raceEnabled {
+			raceWriteSlice(x[:done])
+			raceWriteSlice(y[:done])
+		}
+		if o.useSHA3 {
+			splitMulXorNEON3(x[:done], y[:done], &multiply256LUT[log_m])
+		} else {
+			splitMulXorNEON(x[:done], y[:done], &multiply256LUT[log_m])
+		}
+		if done == len(x) {
+			return
+		}
+		x, y = x[done:], y[done:]
+	}
+	copy(y, x)
 	refMulAdd(x, y, log_m)
 }
 

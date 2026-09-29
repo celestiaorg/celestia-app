@@ -371,10 +371,122 @@ func TestLeopardNEONMulXor8Aliases(t *testing.T) {
 	}
 }
 
+// withSHA3 toggles the EOR3 kernels; test-only.
+func withSHA3(enabled bool) Option {
+	return func(o *options) {
+		o.useSHA3 = enabled && defaultOptions.useSHA3
+	}
+}
+
 func goldenArchVariants() []struct {
 	name string
 	opts []Option
 	fast bool
 } {
-	return nil
+	return []struct {
+		name string
+		opts []Option
+		fast bool
+	}{
+		{"noSHA3", []Option{withSHA3(false)}, true},
+	}
+}
+
+type gf16Kernel struct {
+	name string
+	fn   func(x, y []byte, table *[128]uint8)
+	ref  func(x, y []byte, logM ffe)
+}
+
+// gf16Kernels lists every NEON GF16 kernel with its reference; the EOR3
+// variants are included only when the CPU supports SHA3.
+func gf16Kernels() []gf16Kernel {
+	refMulXor := func(x, y []byte, logM ffe) { refMulAdd(x, y, logM) }
+	refFFT := func(x, y []byte, logM ffe) { refMulAdd(x, y, logM); sliceXorGo(x, y, nil) }
+	refIFFT := func(x, y []byte, logM ffe) { sliceXorGo(x, y, nil); refMulAdd(x, y, logM) }
+	refSplit := func(x, y []byte, logM ffe) { copy(y, x); refMulAdd(x, y, logM) }
+	ks := []gf16Kernel{
+		{"mulgf16NEON", mulgf16NEON, func(x, y []byte, logM ffe) { refMul(x, y, logM) }},
+		{"mulgf16XorNEON", mulgf16XorNEON, refMulXor},
+		{"fftDIT2NEON", fftDIT2NEON, refFFT},
+		{"ifftDIT2NEON", ifftDIT2NEON, refIFFT},
+		{"splitMulXorNEON", splitMulXorNEON, refSplit},
+	}
+	if defaultOptions.useSHA3 {
+		ks = append(ks,
+			gf16Kernel{"mulgf16XorNEON3", mulgf16XorNEON3, refMulXor},
+			gf16Kernel{"fftDIT2NEON3", fftDIT2NEON3, refFFT},
+			gf16Kernel{"ifftDIT2NEON3", ifftDIT2NEON3, refIFFT},
+			gf16Kernel{"splitMulXorNEON3", splitMulXorNEON3, refSplit},
+		)
+	}
+	return ks
+}
+
+// TestLeopardGF16KernelsVsReference checks every kernel against its
+// reference for random log_m, sizes and unaligned offsets, and that bytes
+// outside the given slices are untouched.
+func TestLeopardGF16KernelsVsReference(t *testing.T) {
+	initConstants()
+	if !defaultOptions.useNEON {
+		t.Skip("NEON not available")
+	}
+	rng := rand.New(rand.NewSource(11))
+	for _, k := range gf16Kernels() {
+		t.Run(k.name, func(t *testing.T) {
+			for iter := 0; iter < 400; iter++ {
+				logM := ffe(rng.Intn(modulus))
+				switch iter {
+				case 0, 1, 2:
+					logM = ffe(iter)
+				case 3:
+					logM = modulus - 1
+				}
+				n := 64 * rng.Intn(48)
+				offset := []int{0, 1, 15, 31, 63}[rng.Intn(5)]
+				xbuf, ybuf := make([]byte, n+128), make([]byte, n+128)
+				rng.Read(xbuf)
+				rng.Read(ybuf)
+				xbefore, ybefore := bytes.Clone(xbuf), bytes.Clone(ybuf)
+				x, y := xbuf[offset:offset+n], ybuf[offset:offset+n]
+				wx, wy := bytes.Clone(x), bytes.Clone(y)
+				k.fn(x, y, &multiply256LUT[logM])
+				k.ref(wx, wy, logM)
+				if !bytes.Equal(x, wx) || !bytes.Equal(y, wy) {
+					t.Fatalf("mismatch log_m=%d n=%d offset=%d", logM, n, offset)
+				}
+				if !bytes.Equal(xbuf[:offset], xbefore[:offset]) || !bytes.Equal(xbuf[offset+n:], xbefore[offset+n:]) ||
+					!bytes.Equal(ybuf[:offset], ybefore[:offset]) || !bytes.Equal(ybuf[offset+n:], ybefore[offset+n:]) {
+					t.Fatalf("wrote outside slice: log_m=%d n=%d offset=%d", logM, n, offset)
+				}
+			}
+		})
+	}
+}
+
+// TestLeopardSplitMulXor checks the dispatching wrapper, including the
+// modulus (copy-only) case and tails shorter than a NEON block.
+func TestLeopardSplitMulXor(t *testing.T) {
+	initConstants()
+	rng := rand.New(rand.NewSource(12))
+	for _, sha3 := range []bool{false, true} {
+		o := defaultOptions
+		o.useSHA3 = sha3 && defaultOptions.useSHA3
+		for _, n := range []int{0, 2, 64, 66, 1024, 1026, 4096} {
+			for _, logM := range []ffe{0, 1, 1234, modulus - 1, modulus} {
+				x, y := make([]byte, n), make([]byte, n)
+				rng.Read(x)
+				rng.Read(y)
+				wx, wy := bytes.Clone(x), bytes.Clone(y)
+				splitMulXor(x, y, logM, &o)
+				copy(wy, wx)
+				if logM != modulus {
+					refMulAdd(wx, wy, logM)
+				}
+				if !bytes.Equal(x, wx) || !bytes.Equal(y, wy) {
+					t.Fatalf("sha3=%v n=%d log_m=%d mismatch", sha3, n, logM)
+				}
+			}
+		}
+	}
 }
