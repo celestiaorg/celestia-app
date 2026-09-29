@@ -218,3 +218,38 @@ func FuzzScatterMarshalParity(f *testing.F) {
 		}
 	})
 }
+
+// TestScatterMarshalBufferCount checks that only row data and RLCs are views,
+// so the buffer count stays linear in rows rather than in proof segments.
+func TestScatterMarshalBufferCount(t *testing.T) {
+	const rows, depth = 16, 14
+	shard := &types.BlobShard{Rlcs: make([]byte, 64)}
+	for i := range rows {
+		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, 1024)}
+		for range depth {
+			row.Proof = append(row.Proof, make([]byte, 32))
+		}
+		shard.Rows = append(shard.Rows, row)
+	}
+	req := &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
+
+	bs, err := marshalUploadShardRequestScatter(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, limit := len(bs), 2*rows+3; got > limit {
+		t.Fatalf("got %d buffers, want at most %d", got, limit)
+	}
+	var aliased int
+	for _, b := range bs {
+		d := b.ReadOnlyData()
+		for _, row := range shard.Rows {
+			if len(d) > 0 && &d[0] == &row.Data[0] {
+				aliased++
+			}
+		}
+	}
+	if aliased != rows {
+		t.Fatalf("%d row data buffers are views, want %d", aliased, rows)
+	}
+}
