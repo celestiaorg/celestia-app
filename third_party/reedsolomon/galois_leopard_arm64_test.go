@@ -370,3 +370,11 @@ func TestLeopardNEONMulXor8Aliases(t *testing.T) {
 		}
 	}
 }
+
+func goldenArchVariants() []struct {
+	name string
+	opts []Option
+	fast bool
+} {
+	return nil
+}
