@@ -52,6 +52,12 @@ func fftDIT4NEON3(w0, w1, w2, w3 []byte, t01, t23, t02 *[128]uint8)
 func xorSlicesNEON(dst []byte, srcs [][]byte)
 
 //go:noescape
+func mulgf16NEON3(x, y []byte, table *[128]uint8)
+
+//go:noescape
+func mulgf16Xor8NEON3(in []byte, outs *[8][]byte, tables *[8]*[128]uint8)
+
+//go:noescape
 func ifftDIT4NEON3(w0, w1, w2, w3 []byte, t01, t23, t02 *[128]uint8)
 
 // dit4Fused reports whether the fused radix-4 kernels apply: EOR3 available
@@ -268,7 +274,11 @@ func mulgf16(x, y []byte, log_m ffe, o *options) {
 			raceReadSlice(y[:done])
 			raceWriteSlice(x[:done])
 		}
-		mulgf16NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		if o.useSHA3 {
+			mulgf16NEON3(x[:done], y[:done], &multiply256LUT[log_m])
+		} else {
+			mulgf16NEON(x[:done], y[:done], &multiply256LUT[log_m])
+		}
 		if done == len(x) {
 			return
 		}
@@ -301,7 +311,11 @@ func mulgf16Xor8(scalars *[8]uint16, in []byte, outs *[8][]byte, o *options) {
 		if raceEnabled {
 			raceReadSlice(in)
 		}
-		mulgf16Xor8NEON(in, outs, &tables)
+		if o.useSHA3 {
+			mulgf16Xor8NEON3(in, outs, &tables)
+		} else {
+			mulgf16Xor8NEON(in, outs, &tables)
+		}
 		return
 	}
 	refMulAdd8x(scalars, in, outs)

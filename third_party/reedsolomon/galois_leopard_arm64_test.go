@@ -330,14 +330,22 @@ func TestLeopardNEONMulXor8Boundaries(t *testing.T) {
 						tables[k] = &multiply256LUT[logLUT[ffe(c)]]
 					}
 				}
-				mulgf16Xor8NEON(in, &got, &tables)
-				refMulAdd8x(&scalars, in, &want)
-				if !bytes.Equal(inbuf, before) {
-					t.Fatal("input modified")
-				}
-				for k := range got {
-					if !bytes.Equal(got[k], want[k]) || !bytes.Equal(backing[k][:offset], initial[k][:offset]) || !bytes.Equal(backing[k][offset+n:], initial[k][offset+n:]) {
-						t.Fatalf("n=%d offset=%d output=%d scalars=%v", n, offset, k, scalars)
+				for _, kern := range xor8Kernels() {
+					for k := range got {
+						copy(got[k], initial[k][offset:offset+n])
+					}
+					kern.fn(in, &got, &tables)
+					refMulAdd8x(&scalars, in, &want)
+					if !bytes.Equal(inbuf, before) {
+						t.Fatal("input modified")
+					}
+					for k := range got {
+						if !bytes.Equal(got[k], want[k]) || !bytes.Equal(backing[k][:offset], initial[k][:offset]) || !bytes.Equal(backing[k][offset+n:], initial[k][offset+n:]) {
+							t.Fatalf("%s n=%d offset=%d output=%d scalars=%v", kern.name, n, offset, k, scalars)
+						}
+					}
+					for k := range want {
+						copy(want[k], initial[k][offset:offset+n])
 					}
 				}
 			}
@@ -414,6 +422,7 @@ func gf16Kernels() []gf16Kernel {
 	}
 	if defaultOptions.useSHA3 {
 		ks = append(ks,
+			gf16Kernel{"mulgf16NEON3", mulgf16NEON3, func(x, y []byte, logM ffe) { refMul(x, y, logM) }},
 			gf16Kernel{"mulgf16XorNEON3", mulgf16XorNEON3, refMulXor},
 			gf16Kernel{"fftDIT2NEON3", fftDIT2NEON3, refFFT},
 			gf16Kernel{"ifftDIT2NEON3", ifftDIT2NEON3, refIFFT},
@@ -563,4 +572,19 @@ func TestXorSlicesNEON(t *testing.T) {
 			}
 		}
 	}
+}
+
+type xor8Kernel struct {
+	name string
+	fn   func(in []byte, outs *[8][]byte, tables *[8]*[128]uint8)
+}
+
+// xor8Kernels lists the 8-way accumulate kernels; the EOR3 variant only
+// when the CPU supports SHA3.
+func xor8Kernels() []xor8Kernel {
+	ks := []xor8Kernel{{"mulgf16Xor8NEON", mulgf16Xor8NEON}}
+	if defaultOptions.useSHA3 {
+		ks = append(ks, xor8Kernel{"mulgf16Xor8NEON3", mulgf16Xor8NEON3})
+	}
+	return ks
 }
