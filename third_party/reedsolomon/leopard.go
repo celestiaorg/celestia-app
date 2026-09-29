@@ -166,8 +166,9 @@ func encodeChunkSize(shardSize, workBufs int, o *options) int {
 	chunkSize &^= 63 // 64-byte alignment
 	minChunkSize := 4 << 10
 	if o.useNEON && pshufb {
-		// Amortize NEON butterfly setup over larger chunks.
-		minChunkSize = 16 << 10
+		// Amortize NEON butterfly setup over larger chunks; the grouped
+		// stages keep each 64-row group within L2 at this size.
+		minChunkSize = 32 << 10
 	}
 	chunkSize = max(chunkSize, minChunkSize)
 	return min(chunkSize, shardSize)
