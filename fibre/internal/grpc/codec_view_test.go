@@ -2,6 +2,7 @@ package grpc
 
 import (
 	"bytes"
+	"runtime/debug"
 	"testing"
 	"unsafe"
 
@@ -269,5 +270,47 @@ func FuzzDownloadViewsParity(f *testing.F) {
 				require.Equal(t, want, decoded)
 			}
 		}
+	})
+}
+
+func TestDownloadCodecRecyclesBuffers(t *testing.T) {
+	defer debug.SetGCPercent(debug.SetGCPercent(-1))
+	wire := marshalDownloadShard(t, makeDownloadShard(4, 2))
+	decode := func(codec *DownloadCodec) *types.DownloadShardResponse {
+		var resp types.DownloadShardResponse
+		require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &resp))
+		return &resp
+	}
+
+	first := NewDownloadCodec(4, 2)
+	base := unsafe.SliceData(decode(first).Shard.Rows[0].Data)
+	require.NotSame(t, base, unsafe.SliceData(decode(NewDownloadCodec(4, 2)).Shard.Rows[0].Data), "buffers must not be shared before Release")
+	first.Release()
+	first.Release()
+	require.Same(t, base, unsafe.SliceData(decode(NewDownloadCodec(4, 2)).Shard.Rows[0].Data), "Release must recycle the buffer")
+
+	t.Run("fallback returns the buffer", func(t *testing.T) {
+		unknown := append(bytes.Clone(wire), 0x10, 0x01)
+		codec := NewDownloadCodec(4, 2)
+		var resp, want types.DownloadShardResponse
+		require.NoError(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(unknown)}, &resp))
+		require.NoError(t, want.Unmarshal(unknown))
+		require.Equal(t, want, resp)
+		require.Nil(t, codec.buf)
+	})
+
+	t.Run("limits", func(t *testing.T) {
+		codec := NewDownloadCodec(1, 2)
+		err := codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &types.DownloadShardResponse{})
+		require.ErrorContains(t, err, "rows")
+		require.Nil(t, codec.buf)
+	})
+
+	t.Run("pool rejects buffers that do not fit", func(t *testing.T) {
+		var p bufferPool
+		p.put(make([]byte, 100))
+		require.Equal(t, 10, cap(p.get(10)))
+		p.put(make([]byte, 5))
+		require.Equal(t, 10, cap(p.get(10)))
 	})
 }

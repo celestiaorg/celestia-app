@@ -317,15 +317,18 @@ func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
 	t.Cleanup(d.freeSlab)
 
 	ctx := context.Background()
-	dispatched, refetches := 0, 0
+	dispatched, refetches, released := 0, 0, 0
 	var blob *Blob
 	for {
 		for from := range d.ShardSources(ctx) {
+			d.retain(func() { released++ })
 			require.NoError(t, d.AddShard(from, shards[dispatched], vec))
 			dispatched++
 		}
 		blob, err = d.Blob(ctx)
 		if errors.Is(err, errRefetch) {
+			// retained shard buffers must survive until the final Blob
+			require.Zero(t, released)
 			refetches++
 			continue
 		}
@@ -334,6 +337,7 @@ func TestDownload_RecoversFromPoisonedOriginalRow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, refetches)
 	require.Equal(t, 3, dispatched)
+	require.Equal(t, dispatched, released)
 
 	want := bytes.Join(honest[:testK], nil)[blobHeaderLen:]
 	require.Equal(t, want, blob.Data())
