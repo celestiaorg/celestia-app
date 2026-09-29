@@ -5,13 +5,13 @@ blocketa is a tool that estimates the time of arrival of a block height.
 ## Usage
 
 ```shell
-$ go run main.go https://celestia-mocha-rpc.publicnode.com:443 2585031
-chainID: mocha-4
-currentHeight: 2580660
-currentTime: 2024-08-28 02:46:32.933542677 +0000 UTC
-diffInBlockHeight: 4371
-diffInTime: 14h37m50.55s
-arrivalTime: 2024-08-28 17:24:23.483542677 +0000 UTC
+$ go run main.go https://rpc-mocha.pops.one:443 1150000
+chainID: mocha-5
+currentHeight: 1134827
+currentTime: 2026-09-26 13:56:26.546771175 +0000 UTC
+diffInBlockHeight: 15173
+diffInTime: 49h31m23s
+arrivalTime: 2026-09-28 15:27:49.546771175 +0000 UTC
 ```
 
 > [!NOTE]

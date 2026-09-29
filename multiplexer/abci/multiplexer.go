@@ -559,8 +559,11 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 
 	if version.Appd.IsStopped() {
 		for _, preHandler := range version.PreHandlers {
-			preCmd := version.Appd.CreateExecCommand(preHandler)
-			if err := preCmd.Run(); err != nil {
+			preCmd, err := version.Appd.CreateExecCommand(preHandler)
+			if err == nil {
+				err = preCmd.Run()
+			}
+			if err != nil {
 				m.logger.Warn("PreHandler failed, continuing without successful PreHandler", "err", err)
 				// Continue anyway as the pre-handler might be optional
 			}

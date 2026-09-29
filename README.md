@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 1. [Install Go](https://go.dev/doc/install) 1.26.6
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v9.
 
     ```shell
     make install
@@ -133,6 +133,11 @@ make bbr-enable
 | Variable            | Explanation                                  | Default value                                              | Required |
 |---------------------|----------------------------------------------|------------------------------------------------------------|----------|
 | `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
+
+Most flags can also be set with environment variables prefixed by the binary name, e.g. `CELESTIA_APPD_PRUNING=nothing` for `--pruning`.
+Some command-specific flags, such as `config sync --dry-run`, ignore environment variables.
+Client flags such as `--node` also accept the `CELESTIA_APP_` prefix, e.g. `CELESTIA_APP_NODE`.
+`start` flags only accept the `CELESTIA_APPD_` prefix.
 
 ### Using celestia-appd
 

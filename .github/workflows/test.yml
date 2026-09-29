@@ -16,7 +16,10 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Run tests in short mode
-        run: make test-short
+        # Verify cross-package coverage without running the full coverage suite.
+        run: |
+          bash scripts/test_cover_test.sh
+          make test-short
         timeout-minutes: 10
 
   go-test:

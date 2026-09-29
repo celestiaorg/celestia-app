@@ -314,7 +314,8 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 				return
 			}
 			for _, key := range request.Keys {
-				delete(objects, r.URL.Path+"/"+key)
+				// The SDK may include a trailing slash on the bucket path.
+				delete(objects, strings.TrimSuffix(r.URL.Path, "/")+"/"+key)
 			}
 			_, _ = w.Write([]byte("<DeleteResult/>"))
 		default:

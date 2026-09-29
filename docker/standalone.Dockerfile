@@ -8,12 +8,6 @@ ARG BUILDER_IMAGE=docker.io/golang:1.26.6-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maximum square size of the docker image e.g.
-# docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
-ARG MAX_SQUARE_SIZE
-# Use build args to override the upgrade height delay of the docker image e.g.
-# docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
-ARG UPGRADE_HEIGHT_DELAY
 
 # Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
