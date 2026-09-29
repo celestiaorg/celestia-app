@@ -117,20 +117,18 @@ func galMulSliceXor(c byte, in, out []byte, o *options) {
 // the four rows to stay in L1 between the two butterfly layers.
 const dit4BlockSize = 1024
 
-// dit4Blocked runs fn over each dit4BlockSize range of the four rows.
-func dit4Blocked(work [][]byte, dist int, fn func(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options), log_m01, log_m23, log_m02 ffe, o *options) {
-	n := len(work[0])
-	for off := 0; off < n; off += dit4BlockSize {
-		end := min(off+dit4BlockSize, n)
-		w := [4][]byte{work[0][off:end], work[dist][off:end], work[2*dist][off:end], work[3*dist][off:end]}
-		fn(w[:], 1, log_m01, log_m23, log_m02, o)
-	}
+// dit4Block returns the four rows of a butterfly restricted to [off, end).
+func dit4Block(work [][]byte, dist, off, end int) [4][]byte {
+	return [4][]byte{work[0][off:end], work[dist][off:end], work[2*dist][off:end], work[3*dist][off:end]}
 }
 
 // 4-way butterfly
 func ifftDIT4(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options) {
-	if leopardNEON(o) && len(work[0]) > dit4BlockSize {
-		dit4Blocked(work, dist, ifftDIT4Ref, log_m01, log_m23, log_m02, o)
+	if n := len(work[0]); leopardNEON(o) && n > dit4BlockSize {
+		for off := 0; off < n; off += dit4BlockSize {
+			w := dit4Block(work, dist, off, min(off+dit4BlockSize, n))
+			ifftDIT4Ref(w[:], 1, log_m01, log_m23, log_m02, o)
+		}
 		return
 	}
 	ifftDIT4Ref(work, dist, log_m01, log_m23, log_m02, o)
@@ -143,8 +141,11 @@ func ifftDIT48(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe8, o *optio
 
 // 4-way butterfly
 func fftDIT4(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options) {
-	if leopardNEON(o) && len(work[0]) > dit4BlockSize {
-		dit4Blocked(work, dist, fftDIT4Ref, log_m01, log_m23, log_m02, o)
+	if n := len(work[0]); leopardNEON(o) && n > dit4BlockSize {
+		for off := 0; off < n; off += dit4BlockSize {
+			w := dit4Block(work, dist, off, min(off+dit4BlockSize, n))
+			fftDIT4Ref(w[:], 1, log_m01, log_m23, log_m02, o)
+		}
 		return
 	}
 	fftDIT4Ref(work, dist, log_m01, log_m23, log_m02, o)
