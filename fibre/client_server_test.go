@@ -78,7 +78,10 @@ func TestClientServerUploadDownload(t *testing.T) {
 					// Maximum-size shard verification is slower under the race detector.
 					cfg.RPCTimeout = 2 * time.Minute
 				}
-			}, nil)
+			}, func(cfg *fibre.ServerConfig) {
+				// Give each client a download slot for the round-trip checks.
+				cfg.MaxConcurrentDownloads = max(cfg.MaxConcurrentDownloads, tt.numClients)
+			})
 			defer env.Close()
 
 			totalBlobs := tt.numClients * tt.blobsPerClient
