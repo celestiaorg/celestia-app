@@ -1,0 +1,21 @@
+digraph G {
+    node [shape = record, penwidth = 0];
+
+    share [label=<
+    <table border="0" cellborder="1" cellspacing="0">
+        <tr>
+            <td align="left" border="0" cellpadding="0">0</td>
+            <td align="left" border="0" cellpadding="0">1</td>
+            <td align="left" border="0" cellpadding="0">5</td>
+            <td align="left" border="0" cellpadding="0">50</td>
+            <td align="left" border="0" cellpadding="0">64</td>
+        </tr>
+        <tr>
+            <td width="4" cellpadding="4">row version</td>
+            <td width="4" cellpadding="4">length</td>
+            <td width="100" cellpadding="4">blob</td>
+            <td width="100" cellpadding="4">padding</td>
+        </tr>
+    </table>
+    >];
+}
