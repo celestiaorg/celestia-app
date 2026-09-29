@@ -490,3 +490,51 @@ func TestLeopardSplitMulXor(t *testing.T) {
 		}
 	}
 }
+
+// TestLeopardFusedDIT4 checks the fused radix-4 kernels against the 2-way
+// reference path for random multipliers, sizes with tails, and dist > 1.
+func TestLeopardFusedDIT4(t *testing.T) {
+	initConstants()
+	if !defaultOptions.useSHA3 {
+		t.Skip("SHA3 not available")
+	}
+	rng := rand.New(rand.NewSource(31))
+	ref := defaultOptions
+	ref.useSHA3 = false
+	for iter := 0; iter < 300; iter++ {
+		logs := [3]ffe{ffe(rng.Intn(modulus)), ffe(rng.Intn(modulus)), ffe(rng.Intn(modulus))}
+		if iter%7 == 0 {
+			logs[rng.Intn(3)] = modulus
+		}
+		n := 64 * rng.Intn(40)
+		if iter%5 == 0 {
+			n += 2 // tail handled by the reference path
+		}
+		dist := []int{1, 2, 3}[rng.Intn(3)]
+		mk := func() [][]byte {
+			w := make([][]byte, 3*dist+1)
+			for i := range w {
+				w[i] = make([]byte, n)
+				rng.Read(w[i])
+			}
+			return w
+		}
+		a := mk()
+		b := make([][]byte, len(a))
+		for i := range a {
+			b[i] = bytes.Clone(a[i])
+		}
+		if iter%2 == 0 {
+			fftDIT4(a, dist, logs[0], logs[1], logs[2], &defaultOptions)
+			fftDIT4Ref(b, dist, logs[0], logs[1], logs[2], &ref)
+		} else {
+			ifftDIT4(a, dist, logs[0], logs[1], logs[2], &defaultOptions)
+			ifftDIT4Ref(b, dist, logs[0], logs[1], logs[2], &ref)
+		}
+		for i := range a {
+			if !bytes.Equal(a[i], b[i]) {
+				t.Fatalf("iter %d: logs=%v n=%d dist=%d row %d differs", iter, logs, n, dist, i)
+			}
+		}
+	}
+}
