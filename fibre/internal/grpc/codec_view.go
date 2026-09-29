@@ -110,3 +110,28 @@ func (w *uploadWire) bytes() ([]byte, bool) {
 	// Appending to one field must not overwrite another field in the backing buffer.
 	return slices.Clip(value), true
 }
+
+// unmarshalDownloadViews is the [unmarshalUploadViews] counterpart for download
+// responses: rows alias data, which must outlive all readers.
+func unmarshalDownloadViews(data []byte, dst *types.DownloadShardResponse) bool {
+	if dst.Shard != nil {
+		return false
+	}
+	var decoded types.DownloadShardResponse
+	wire := uploadWire(data)
+	if wire.has(0x0a) {
+		shard, ok := wire.bytes()
+		if !ok {
+			return false
+		}
+		decoded.Shard, ok = unmarshalShardViews(shard)
+		if !ok {
+			return false
+		}
+	}
+	if len(wire) != 0 {
+		return false
+	}
+	*dst = decoded
+	return true
+}
