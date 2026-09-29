@@ -9,3 +9,8 @@ func splitMulXor(x, y []byte, log_m ffe, o *options) {
 		mulgf16Xor(x, y, log_m, o)
 	}
 }
+
+// xorSlices sets dst ^= srcs[0] ^ ... ^ srcs[k-1].
+func xorSlices(dst []byte, srcs [][]byte, o *options) {
+	xorSlicesGo(dst, srcs, o)
+}

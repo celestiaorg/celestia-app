@@ -245,3 +245,41 @@ splitloop:
 
 splitdone:
 	RET
+
+// func xorSlicesNEON(dst []byte, srcs [][]byte)
+// dst ^= srcs[0] ^ ... ^ srcs[k-1], 64 bytes at a time; len(dst) must be a
+// multiple of 64 and every source at least that long.
+TEXT ·xorSlicesNEON(SB), NOSPLIT, $0-48
+	MOVD dst_base+0(FP), R0
+	MOVD dst_len+8(FP), R1
+	MOVD srcs_base+24(FP), R2
+	MOVD srcs_len+32(FP), R3
+	CBZ  R1, xsdone
+	CBZ  R3, xsdone
+	MOVD $0, R4
+
+xsouter:
+	ADD  R4, R0, R5
+	VLD1 (R5), [V16.B16, V17.B16, V18.B16, V19.B16]
+	MOVD R2, R6
+	MOVD R3, R7
+
+xsinner:
+	MOVD (R6), R8
+	ADD  R4, R8, R8
+	VLD1 (R8), [V0.B16, V1.B16, V2.B16, V3.B16]
+	ADD  $24, R6
+	VEOR V0.B16, V16.B16, V16.B16
+	VEOR V1.B16, V17.B16, V17.B16
+	VEOR V2.B16, V18.B16, V18.B16
+	VEOR V3.B16, V19.B16, V19.B16
+	SUBS $1, R7
+	BNE  xsinner
+
+	VST1 [V16.B16, V17.B16, V18.B16, V19.B16], (R5)
+	ADD  $64, R4
+	CMP  R1, R4
+	BLO  xsouter
+
+xsdone:
+	RET

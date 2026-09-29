@@ -538,3 +538,29 @@ func TestLeopardFusedDIT4(t *testing.T) {
 		}
 	}
 }
+
+// TestXorSlicesNEON checks the multi-source xor kernel against the portable
+// version for every source count, with tails and untouched trailing bytes.
+func TestXorSlicesNEON(t *testing.T) {
+	if !defaultOptions.useNEON {
+		t.Skip("no NEON")
+	}
+	rng := rand.New(rand.NewSource(5))
+	for _, size := range []int{64, 128, 192, 1024, 4096, 16384} {
+		for k := 0; k <= 16; k++ {
+			srcs := AllocAligned(k, size+64)
+			for i := range srcs {
+				rng.Read(srcs[i])
+				srcs[i] = srcs[i][:size]
+			}
+			a := AllocAligned(1, size+64)[0]
+			rng.Read(a)
+			b := bytes.Clone(a)
+			xorSlicesNEON(a[:size], srcs)
+			xorSlicesGo(b[:size], srcs, nil)
+			if !bytes.Equal(a, b) {
+				t.Fatalf("size=%d k=%d differs", size, k)
+			}
+		}
+	}
+}

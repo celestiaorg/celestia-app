@@ -49,6 +49,9 @@ func splitMulXorNEON3(x, y []byte, table *[128]uint8)
 func fftDIT4NEON3(w0, w1, w2, w3 []byte, t01, t23, t02 *[128]uint8)
 
 //go:noescape
+func xorSlicesNEON(dst []byte, srcs [][]byte)
+
+//go:noescape
 func ifftDIT4NEON3(w0, w1, w2, w3 []byte, t01, t23, t02 *[128]uint8)
 
 // dit4Fused reports whether the fused radix-4 kernels apply: EOR3 available
@@ -322,6 +325,29 @@ func mulgf16Xor(x, y []byte, log_m ffe, o *options) {
 		x, y = x[done:], y[done:]
 	}
 	refMulAdd(x, y, log_m)
+}
+
+// xorSlices sets dst ^= srcs[0] ^ ... ^ srcs[k-1] in one pass over dst.
+func xorSlices(dst []byte, srcs [][]byte, o *options) {
+	if leopardNEON(o) {
+		done := len(dst) &^ 63
+		if raceEnabled {
+			raceWriteSlice(dst[:done])
+			for _, s := range srcs {
+				raceReadSlice(s[:done])
+			}
+		}
+		xorSlicesNEON(dst[:done], srcs)
+		if done == len(dst) {
+			return
+		}
+		dst = dst[done:]
+		srcs = append([][]byte(nil), srcs...)
+		for i := range srcs {
+			srcs[i] = srcs[i][done:]
+		}
+	}
+	xorSlicesGo(dst, srcs, o)
 }
 
 // splitMulXor sets y = x, then x ^= x*log_m.

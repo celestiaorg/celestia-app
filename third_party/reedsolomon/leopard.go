@@ -634,10 +634,7 @@ func (r *leopardFF16) reconstructChunk(sh, out [][]byte, work [][]byte, m, n, in
 	)
 
 	// work <- FormalDerivative(work, n)
-	for i := 1; i < n; i++ {
-		width := ((i ^ (i - 1)) + 1) >> 1
-		slicesXor(work[i-width:i], work[i:i+width], &r.o)
-	}
+	formalDerivative(work, n, &r.o)
 
 	// work <- FFT(work, n, 0) truncated to m + dataShards
 	if LEO_ERROR_BITFIELD_OPT && useBits {
@@ -660,6 +657,45 @@ func (r *leopardFF16) reconstructChunk(sh, out [][]byte, work [][]byte, m, n, in
 		} else {
 			mulgf16(out[i], work[i+m], modulus-errLocs[i+m], &r.o)
 		}
+	}
+}
+
+// formalDerivativeRef is the stage-ordered formal derivative: row i-width..i
+// absorbs rows i..i+width for every i.
+func formalDerivativeRef(work [][]byte, n int, o *options) {
+	for i := 1; i < n; i++ {
+		width := ((i ^ (i - 1)) + 1) >> 1
+		slicesXor(work[i-width:i], work[i:i+width], o)
+	}
+}
+
+// formalDerivative computes the same result as formalDerivativeRef by row.
+// Every step of the reference loop reads rows it has not yet written, so
+// row j ends as old[j] xor old[j|1<<b] for each clear bit b of j; visiting
+// rows in ascending order keeps every source pristine and folds a row's
+// sources into one pass.
+func formalDerivative(work [][]byte, n int, o *options) {
+	if !o.useNEON || n < 4 {
+		formalDerivativeRef(work, n, o)
+		return
+	}
+	var srcs [bitwidth][]byte
+	for j := range n {
+		k := 0
+		for b := 1; b < n; b <<= 1 {
+			if j&b == 0 {
+				srcs[k] = work[j|b]
+				k++
+			}
+		}
+		xorSlices(work[j], srcs[:k], o)
+	}
+}
+
+// xorSlicesGo is the portable xorSlices.
+func xorSlicesGo(dst []byte, srcs [][]byte, o *options) {
+	for _, s := range srcs {
+		sliceXorGo(s[:len(dst)], dst, o)
 	}
 }
 
