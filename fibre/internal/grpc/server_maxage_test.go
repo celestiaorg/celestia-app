@@ -56,11 +56,23 @@ func TestMaxConnectionAgeFreesStalledSlot(t *testing.T) {
 		_, err := dial().DownloadShard(context.Background(), &types.DownloadShardRequest{})
 		stalledErr <- err
 	}()
-	<-service.stalled
+	select {
+	case <-service.stalled:
+	case err := <-stalledErr:
+		t.Fatalf("stalled RPC ended before reaching the handler: %v", err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("stalled RPC never reached the handler")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	_, err = dial().DownloadShard(ctx, &types.DownloadShardRequest{}, grpc.WaitForReady(true))
 	require.NoError(t, err)
-	require.Error(t, <-stalledErr)
+
+	select {
+	case err := <-stalledErr:
+		require.Error(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("stalled RPC was not closed")
+	}
 }
