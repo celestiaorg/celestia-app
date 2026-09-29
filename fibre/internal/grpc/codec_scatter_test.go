@@ -140,14 +140,30 @@ func TestScatterMarshalWireParity(t *testing.T) {
 				t.Fatalf("wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
 					len(canonical), canonical, len(scattered), scattered)
 			}
+			requireDownloadParity(t, &types.DownloadShardResponse{Shard: tc.req.Shard})
 		})
+	}
+}
+
+// requireDownloadParity asserts the download response scatter path matches
+// gogoproto's canonical marshal.
+func requireDownloadParity(t *testing.T, resp *types.DownloadShardResponse) {
+	t.Helper()
+	canonical, err := resp.Marshal()
+	if err != nil {
+		t.Fatalf("canonical download marshal: %v", err)
+	}
+	scattered := marshalDownloadShardResponseScatter(resp).Materialize()
+	if !bytes.Equal(canonical, scattered) {
+		t.Fatalf("download wire mismatch\ncanonical (%d): %x\nscattered (%d): %x",
+			len(canonical), canonical, len(scattered), scattered)
 	}
 }
 
 // FuzzScatterMarshalParity drives the scatter marshaler with random message
 // shapes and asserts byte equality against gogoproto's canonical marshal.
-// Catches drift if new fields are added to UploadShardRequest / BlobShard /
-// BlobRow without updating codec_scatter.go.
+// Catches drift if new fields are added to UploadShardRequest /
+// DownloadShardResponse / BlobShard / BlobRow without updating codec_scatter.go.
 //
 // WARNING: This fuzzer is a defense line against fibre scatter-codec wire-format
 // drift and runs nightly in CI via scripts/test_fuzz.sh. Do NOT delete it, and
@@ -216,5 +232,6 @@ func FuzzScatterMarshalParity(f *testing.F) {
 				seed, rowCount, proofPerRow, dataLen,
 				len(canonical), canonical, len(scattered), scattered)
 		}
+		requireDownloadParity(t, &types.DownloadShardResponse{Shard: req.Shard})
 	})
 }

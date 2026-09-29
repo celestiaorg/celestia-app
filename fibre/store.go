@@ -181,13 +181,28 @@ func (s *Store) commitAndStore(
 // A marker with a missing payload remains until pruning so its recorded size
 // can be released from occupancy.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
+	shard, release, err := s.getAdmitted(ctx, commitment, nil)
+	if release != nil {
+		release()
+	}
+	return shard, err
+}
+
+// admitFunc reserves resources for reading a shard of the given stored size
+// and returns the function that frees them.
+type admitFunc func(ctx context.Context, size int64) (release func(), err error)
+
+// getAdmitted is [Store.Get] with admission control: admit, if set, is called
+// with each candidate's stored size before its payload is read. On success the
+// caller owns the returned release; on error it has already been called.
+func (s *Store) getAdmitted(ctx context.Context, commitment Commitment, admit admitFunc) (*types.BlobShard, func(), error) {
 	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
 		UpperBound: prefixUpperBound(prefix),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("creating iterator: %w", err)
+		return nil, nil, fmt.Errorf("creating iterator: %w", err)
 	}
 	defer iter.Close()
 
@@ -200,9 +215,25 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 			continue
 		}
 
+		release := func() {}
+		if admit != nil {
+			size, err := s.shards.size(iter.Value(), commitment, promiseHash)
+			if err != nil {
+				rerr = errors.Join(rerr, fmt.Errorf("sizing shard payload: %w", err))
+				continue
+			}
+			if release, err = admit(ctx, size); err != nil {
+				return nil, nil, err
+			}
+		}
+
 		shard, err := s.shards.Get(ctx, iter.Value(), commitment, promiseHash)
 		if err == nil {
-			return shard, nil
+			return shard, release, nil
+		}
+		release()
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, nil, ctxErr
 		}
 		if errors.Is(err, ErrStoreNotFound) {
 			continue
@@ -211,12 +242,12 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 	}
 
 	if err := iter.Error(); err != nil {
-		return nil, fmt.Errorf("iterating shards: %w", err)
+		return nil, nil, fmt.Errorf("iterating shards: %w", err)
 	}
 	if rerr != nil {
-		return nil, rerr
+		return nil, nil, rerr
 	}
-	return nil, ErrStoreNotFound
+	return nil, nil, ErrStoreNotFound
 }
 
 // Has verifies that shard exists without reading the whole file

@@ -161,6 +161,8 @@ The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the c
 
 An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
 
+Downloads are public, so `max_download_bytes` (default 2 GiB) caps the stored bytes of shards being read for downloads at once. Downloads past the cap wait for budget. A shard sent to a slow peer stays in memory until it is written, which the stream caps above already bound.
+
 ## Signing
 
 Fibre signs payment promises by connecting to the consensus node's `PrivValidatorAPI` gRPC endpoint. The node handles its own key management (local key, tmkms, etc.) — fibre just delegates signing to it.

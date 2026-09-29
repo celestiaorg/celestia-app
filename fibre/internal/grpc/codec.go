@@ -27,8 +27,8 @@ type protoUnmarshaler interface {
 
 // pooledCodec wraps gogoproto's MarshalToSizedBuffer + Unmarshal with
 // per-RPC buffer reuse from gRPC's mem.BufferPool. For UploadShardRequest
-// the scatter path emits row payloads zero-copy; every other message goes
-// through the pooled contiguous path.
+// and DownloadShardResponse the scatter path emits row payloads zero-copy;
+// every other message goes through the pooled contiguous path.
 type pooledCodec struct {
 	pool mem.BufferPool
 
@@ -60,8 +60,11 @@ func NewServerCodec(maxShardRows, maxProofSegments int) encoding.CodecV2 {
 func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
-	if req, ok := v.(*types.UploadShardRequest); ok {
-		return marshalUploadShardRequestScatter(req)
+	switch msg := v.(type) {
+	case *types.UploadShardRequest:
+		return marshalUploadShardRequestScatter(msg)
+	case *types.DownloadShardResponse:
+		return marshalDownloadShardResponseScatter(msg), nil
 	}
 
 	msg, ok := v.(sizedBufferMarshaler)

@@ -106,7 +106,7 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 	}
 	defer output.Body.Close()
 
-	reader := bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendObject, output.Body), 1<<20)
+	reader := bufio.NewReaderSize(ctxReader{ctx, b.metrics.backendReader(ctx, storageBackendObject, output.Body)}, 1<<20)
 	shard, err := readShardBinary(reader)
 	if err != nil {
 		return nil, fmt.Errorf("decoding shard object: %w", err)

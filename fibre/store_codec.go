@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -125,6 +126,19 @@ func readBytes(r io.Reader, n uint32) ([]byte, error) {
 		return nil, err
 	}
 	return out, nil
+}
+
+// ctxReader fails reads once ctx is done so canceled requests stop decoding.
+type ctxReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (r ctxReader) Read(p []byte) (int, error) {
+	if err := r.ctx.Err(); err != nil {
+		return 0, err
+	}
+	return r.r.Read(p)
 }
 
 func readShardBinary(r io.Reader) (*types.BlobShard, error) {

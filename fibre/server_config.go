@@ -23,6 +23,10 @@ import (
 
 const DefaultConfigFileName = "server_config.toml"
 
+// DefaultMaxDownloadBytes is the default download budget: about 15 maximum-size
+// shards at default protocol params.
+const DefaultMaxDownloadBytes int64 = 2 << 30
+
 // DefaultConfigPath returns the default config file path for the given home directory.
 func DefaultConfigPath(home string) string {
 	return filepath.Join(home, "config", DefaultConfigFileName)
@@ -40,6 +44,8 @@ type ServerConfig struct {
 	MinUploadSize int `toml:"min_upload_size" comment:"Minimum padded Fibre upload size in bytes, including header and excluding parity (default 262144). Restart Fibre after changing."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
+	// MaxDownloadBytes caps the stored bytes of shards being read for downloads at once.
+	MaxDownloadBytes int64 `toml:"max_download_bytes" comment:"Max stored bytes of shards read concurrently for downloads (default 2147483648). Downloads past the cap wait for budget. Lower it to reduce RAM use at the cost of download throughput."`
 	// MaxConnections caps total concurrent gRPC connections.
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
@@ -106,6 +112,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:       p.MaxMessageSize(),
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
+		MaxDownloadBytes:     DefaultMaxDownloadBytes,
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}
@@ -161,6 +168,9 @@ func (cfg *ServerConfig) Validate() error {
 	}
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
+	}
+	if cfg.MaxDownloadBytes < 1 {
+		return fmt.Errorf("max_download_bytes must be at least 1, got %d", cfg.MaxDownloadBytes)
 	}
 	if cfg.MaxConnections < 1 {
 		return fmt.Errorf("max_connections must be at least 1, got %d", cfg.MaxConnections)
