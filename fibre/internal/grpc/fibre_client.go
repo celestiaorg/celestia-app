@@ -95,7 +95,8 @@ func newClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSi
 		}
 
 		opts := []grpclib.DialOption{
-			grpclib.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
+			grpclib.WithTransportCredentials(batchingCreds{credentials.NewTLS(tlsCfg)}),
+			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
