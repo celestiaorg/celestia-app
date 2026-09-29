@@ -129,9 +129,82 @@ func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 	return nil
 }
 
-// reconstructData recovers the missing original rows in place.
+// reconstructData recovers the missing original rows in place, running
+// Reed-Solomon over column ranges in parallel like encodeParity. Only a
+// well-formed input is split, so malformed ones get the single call's error.
 func (c *Coder) reconstructData(rows [][]byte) error {
-	return c.enc.ReconstructData(rows)
+	active := int(c.active.Add(1))
+	defer c.active.Add(-1)
+
+	rowSize, ok := c.splittableReconstruct(rows)
+	parts := 1
+	if ok {
+		parts = splitParts(rowSize, c.config.WorkerCount/active)
+	}
+	if parts == 1 {
+		return c.enc.ReconstructData(rows)
+	}
+	// Missing originals are recovered into their slot's spare capacity, so
+	// each part's sub-slice must have room.
+	for i := range c.config.K {
+		if len(rows[i]) == 0 && cap(rows[i]) < rowSize {
+			rows[i] = make([]byte, 0, rowSize)
+		}
+	}
+	size := rowSize / parts
+	errs := make([]error, parts)
+	var wg sync.WaitGroup
+	for p := range parts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			off := p * size
+			sub := make([][]byte, len(rows))
+			for i, r := range rows {
+				switch {
+				case len(r) != 0:
+					sub[i] = r[off : off+size]
+				case i < c.config.K:
+					sub[i] = r[off : off : off+size]
+				}
+			}
+			errs[p] = c.enc.ReconstructData(sub)
+		}()
+	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		return err
+	}
+	for i := range c.config.K {
+		rows[i] = rows[i][:rowSize]
+	}
+	return nil
+}
+
+// splittableReconstruct reports the row size and whether rows is a shape the
+// single ReconstructData would recover: K+N rows, equal-sized present rows,
+// at least K of them, and at least one original missing.
+func (c *Coder) splittableReconstruct(rows [][]byte) (int, bool) {
+	if len(rows) != c.config.K+c.config.N {
+		return 0, false
+	}
+	rowSize, present, missing := 0, 0, 0
+	for i, r := range rows {
+		if len(r) == 0 {
+			if i < c.config.K {
+				missing++
+			}
+			continue
+		}
+		if rowSize == 0 {
+			rowSize = len(r)
+		}
+		if len(r) != rowSize {
+			return 0, false
+		}
+		present++
+	}
+	return rowSize, rowSize > 0 && present >= c.config.K && missing > 0
 }
 
 // verify checks proofs against r.commitment. Fast path: one atomic load and a

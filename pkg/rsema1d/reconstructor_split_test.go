@@ -13,7 +13,7 @@ import (
 var reconstructShapes = [][3]int{{4096, 12288, 32768}, {1024, 1024, 8192}, {32, 96, 6144}, {8, 8, 64}, {16, 48, 4160}}
 
 // encodedRows returns K+N encoded rows of deterministic data.
-func encodedRows(t *testing.T, c *Coder, rowSize int, seed uint64) [][]byte {
+func encodedRows(t testing.TB, c *Coder, rowSize int, seed uint64) [][]byte {
 	t.Helper()
 	rng := rand.New(rand.NewPCG(seed, 1))
 	rows := make([][]byte, c.config.K+c.config.N)
