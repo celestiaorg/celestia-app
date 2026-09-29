@@ -6,11 +6,12 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// Scatter-gather marshaler for UploadShardRequest. Emits row payloads
-// (BlobRow.Data, BlobRow.Proof, BlobShard.Rlcs) as
-// zero-copy mem.SliceBuffer views over the caller's existing buffers
-// instead of copying them into a single contiguous wire buffer. The
-// resulting bytes are bit-identical to gogoproto's MarshalToSizedBuffer.
+// Scatter-gather marshaler for UploadShardRequest. Emits BlobRow.Data and
+// BlobShard.Rlcs as zero-copy mem.SliceBuffer views over the caller's
+// existing buffers instead of copying them into a single contiguous wire
+// buffer. Small fields, including proof segments, are copied into the
+// framing buffer, since a view per 32-byte segment costs more than the copy.
+// The resulting bytes are bit-identical to gogoproto's MarshalToSizedBuffer.
 //
 // IMPORTANT: this is a hand-rolled proto encoder for one specific message
 // shape. Any new field added to UploadShardRequest, BlobShard, or BlobRow
@@ -19,8 +20,6 @@ import (
 // green when modifying proto types.
 
 const (
-	scatterFramingInitialCap = 8 << 10 // 8 KiB
-
 	uploadShardRequestFieldPromise = 1
 	uploadShardRequestFieldShard   = 2
 
@@ -64,8 +63,27 @@ func blobShardSize(shard *types.BlobShard) int {
 	return size
 }
 
+// scatterFramingSize returns the bytes of req that are copied into framing:
+// everything but row data and RLCs.
+func scatterFramingSize(req *types.UploadShardRequest) int {
+	size := 0
+	if req.Promise != nil {
+		size += protowire.SizeTag(uploadShardRequestFieldPromise) + protowire.SizeBytes(req.Promise.Size())
+	}
+	if req.Shard != nil {
+		size += protowire.SizeTag(uploadShardRequestFieldShard) + protowire.SizeBytes(blobShardSize(req.Shard))
+		size -= len(req.Shard.Rlcs)
+		for _, row := range req.Shard.Rows {
+			if row != nil {
+				size -= len(row.Data)
+			}
+		}
+	}
+	return size
+}
+
 func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.BufferSlice, error) {
-	framing := make([]byte, 0, scatterFramingInitialCap)
+	framing := make([]byte, 0, scatterFramingSize(req))
 
 	// Segments index byte ranges within framing (not slices) so framing
 	// can grow freely; sliced into mem.SliceBuffer only after all writes.
@@ -73,7 +91,10 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.Buffer
 		start, end int
 		data       []byte // zero-copy slice to append after framing[start:end]; nil = none
 	}
-	segs := make([]segment, 0, 64)
+	var segs []segment
+	if req.Shard != nil {
+		segs = make([]segment, 0, len(req.Shard.Rows)+2)
+	}
 	flushFrom := 0
 	pushFraming := func(end int, data []byte) {
 		segs = append(segs, segment{start: flushFrom, end: end, data: data})
@@ -120,8 +141,7 @@ func marshalUploadShardRequestScatter(req *types.UploadShardRequest) (mem.Buffer
 			}
 			for _, seg := range row.Proof {
 				framing = protowire.AppendTag(framing, blobRowFieldProof, protowire.BytesType)
-				framing = protowire.AppendVarint(framing, uint64(len(seg)))
-				pushFraming(len(framing), seg)
+				framing = protowire.AppendBytes(framing, seg)
 			}
 		}
 
