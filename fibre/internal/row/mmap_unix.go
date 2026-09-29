@@ -30,8 +30,10 @@ func mmapAlloc(size int) ([]byte, error) {
 		return nil, fmt.Errorf("mmap(%d): %w", size, err)
 	}
 	if runtime.GOOS == "linux" {
-		// exclude large scratch buffers from core dumps; failure is non-fatal.
+		// exclude large scratch buffers from core dumps and back them with
+		// transparent huge pages to cut TLB misses; failure is non-fatal.
 		_ = unix.Madvise(data, linuxMadvDontDumpCode)
+		_ = unix.Madvise(data, linuxMadvHugePageCode)
 	}
 	return data, nil
 }
@@ -69,3 +71,6 @@ func munmap(data []byte) {
 // linuxMadvDontDumpCode is the MADV_DONTDUMP advice value on Linux; x/sys
 // doesn't export a cross-platform constant since it's Linux-specific.
 const linuxMadvDontDumpCode = 16
+
+// linuxMadvHugePageCode is the MADV_HUGEPAGE advice value on Linux.
+const linuxMadvHugePageCode = 14
