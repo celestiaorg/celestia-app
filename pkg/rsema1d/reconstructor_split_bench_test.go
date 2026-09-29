@@ -7,8 +7,9 @@ import (
 )
 
 // BenchmarkReconstructData measures RS data recovery alone at the fibre v0
-// shape, for every worker count (which sets the column split) and for 16
-// concurrent reconstructs sharing the workers.
+// shape, for every worker count (which sets the column split) and for 8
+// concurrent reconstructs sharing the workers (16 need more than 30 GiB with
+// the default work allocator).
 func BenchmarkReconstructData(b *testing.B) {
 	const k, n, rowSize = 4096, 12288, 32768
 	c, err := NewCoder(&Config{K: k, N: n, WorkerCount: 16})
@@ -38,9 +39,9 @@ func BenchmarkReconstructData(b *testing.B) {
 				}
 			})
 		}
-		b.Run(fmt.Sprintf("%s/concurrent=16", name), func(b *testing.B) {
+		b.Run(fmt.Sprintf("%s/concurrent=8", name), func(b *testing.B) {
 			c.config.WorkerCount = 16
-			const jobs = 16
+			const jobs = 8
 			all := make([][][]byte, jobs)
 			for j := range all {
 				all[j] = selectRows(full, present, k, rowSize)
