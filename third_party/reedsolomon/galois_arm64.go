@@ -60,10 +60,18 @@ func mulgf16Xor8NEON3(in []byte, outs *[8][]byte, tables *[8]*[128]uint8)
 //go:noescape
 func ifftDIT4NEON3(w0, w1, w2, w3 []byte, t01, t23, t02 *[128]uint8)
 
-// dit4Fused reports whether the fused radix-4 kernels apply: EOR3 available
-// and no multiplier is the modulus (which the fused kernels do not special-case).
-func dit4Fused(log_m01, log_m23, log_m02 ffe, o *options) bool {
-	return o.useSHA3 && leopardNEON(o) && log_m01 != modulus && log_m23 != modulus && log_m02 != modulus
+// dit4Fused reports whether the fused radix-4 EOR3 kernels apply.
+func dit4Fused(o *options) bool {
+	return o.useSHA3 && leopardNEON(o)
+}
+
+// dit4Table returns the multiply table for log_m, or nil for the modulus
+// (zero product) case the fused kernels handle with a plain xor.
+func dit4Table(log_m ffe) *[128]uint8 {
+	if log_m == modulus {
+		return nil
+	}
+	return &multiply256LUT[log_m]
 }
 
 // leopardNEON reports whether the GF(2^16) NEON kernels can be used. They
@@ -145,13 +153,13 @@ func dit4Block(work [][]byte, dist, off, end int) [4][]byte {
 
 // 4-way butterfly
 func ifftDIT4(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options) {
-	if dit4Fused(log_m01, log_m23, log_m02, o) {
+	if dit4Fused(o) {
 		done := len(work[0]) &^ 63
 		w := dit4Block(work, dist, 0, done)
 		if raceEnabled {
 			raceWriteSlices(w[:], 0, -1)
 		}
-		ifftDIT4NEON3(w[0], w[1], w[2], w[3], &multiply256LUT[log_m01], &multiply256LUT[log_m23], &multiply256LUT[log_m02])
+		ifftDIT4NEON3(w[0], w[1], w[2], w[3], dit4Table(log_m01), dit4Table(log_m23), dit4Table(log_m02))
 		if done == len(work[0]) {
 			return
 		}
@@ -176,13 +184,13 @@ func ifftDIT48(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe8, o *optio
 
 // 4-way butterfly
 func fftDIT4(work [][]byte, dist int, log_m01, log_m23, log_m02 ffe, o *options) {
-	if dit4Fused(log_m01, log_m23, log_m02, o) {
+	if dit4Fused(o) {
 		done := len(work[0]) &^ 63
 		w := dit4Block(work, dist, 0, done)
 		if raceEnabled {
 			raceWriteSlices(w[:], 0, -1)
 		}
-		fftDIT4NEON3(w[0], w[1], w[2], w[3], &multiply256LUT[log_m01], &multiply256LUT[log_m23], &multiply256LUT[log_m02])
+		fftDIT4NEON3(w[0], w[1], w[2], w[3], dit4Table(log_m01), dit4Table(log_m23), dit4Table(log_m02))
 		if done == len(work[0]) {
 			return
 		}

@@ -176,21 +176,31 @@ fft4loop:
 	VLD1 (R4), [V20.B16, V21.B16, V22.B16, V23.B16]
 	VLD1 (R5), [V24.B16, V25.B16, V26.B16, V27.B16]
 	VLD1 (R6), [V28.B16, V29.B16, V30.B16, V31.B16]
-	// Layer 1: (w0, w2) and (w1, w3) with log_m02.
+	// Layer 1: (w0, w2) and (w1, w3) with log_m02. A nil table is the
+	// modulus (zero product) case: xor only.
 	MOVD R9, R10
+	CBZ  R9, fft4l1
 	LOAD_TABLES3(R10)
 	MULXOR_ROW(V24, V25, V26, V27, V16, V17, V18, V19)
-	XOR_ROW(V16, V17, V18, V19, V24, V25, V26, V27)
 	MULXOR_ROW(V28, V29, V30, V31, V20, V21, V22, V23)
+
+fft4l1:
+	XOR_ROW(V16, V17, V18, V19, V24, V25, V26, V27)
 	XOR_ROW(V20, V21, V22, V23, V28, V29, V30, V31)
 	// Layer 2: (w0, w1) with log_m01, (w2, w3) with log_m23.
 	MOVD R7, R10
+	CBZ  R7, fft4l2a
 	LOAD_TABLES3(R10)
 	MULXOR_ROW(V20, V21, V22, V23, V16, V17, V18, V19)
+
+fft4l2a:
 	XOR_ROW(V16, V17, V18, V19, V20, V21, V22, V23)
 	MOVD R8, R10
+	CBZ  R8, fft4l2b
 	LOAD_TABLES3(R10)
 	MULXOR_ROW(V28, V29, V30, V31, V24, V25, V26, V27)
+
+fft4l2b:
 	XOR_ROW(V24, V25, V26, V27, V28, V29, V30, V31)
 	VST1.P [V16.B16, V17.B16, V18.B16, V19.B16], 64(R1)
 	VST1.P [V20.B16, V21.B16, V22.B16, V23.B16], 64(R4)
@@ -220,22 +230,32 @@ ifft4loop:
 	VLD1 (R4), [V20.B16, V21.B16, V22.B16, V23.B16]
 	VLD1 (R5), [V24.B16, V25.B16, V26.B16, V27.B16]
 	VLD1 (R6), [V28.B16, V29.B16, V30.B16, V31.B16]
-	// Layer 1: (w0, w1) with log_m01, (w2, w3) with log_m23.
-	MOVD R7, R10
-	LOAD_TABLES3(R10)
+	// Layer 1: (w0, w1) with log_m01, (w2, w3) with log_m23. A nil table
+	// is the modulus (zero product) case: xor only.
 	XOR_ROW(V16, V17, V18, V19, V20, V21, V22, V23)
+	MOVD R7, R10
+	CBZ  R7, ifft4l1a
+	LOAD_TABLES3(R10)
 	MULXOR_ROW(V20, V21, V22, V23, V16, V17, V18, V19)
-	MOVD R8, R10
-	LOAD_TABLES3(R10)
+
+ifft4l1a:
 	XOR_ROW(V24, V25, V26, V27, V28, V29, V30, V31)
-	MULXOR_ROW(V28, V29, V30, V31, V24, V25, V26, V27)
-	// Layer 2: (w0, w2) and (w1, w3) with log_m02.
-	MOVD R9, R10
+	MOVD R8, R10
+	CBZ  R8, ifft4l1b
 	LOAD_TABLES3(R10)
+	MULXOR_ROW(V28, V29, V30, V31, V24, V25, V26, V27)
+
+ifft4l1b:
+	// Layer 2: (w0, w2) and (w1, w3) with log_m02.
 	XOR_ROW(V16, V17, V18, V19, V24, V25, V26, V27)
-	MULXOR_ROW(V24, V25, V26, V27, V16, V17, V18, V19)
 	XOR_ROW(V20, V21, V22, V23, V28, V29, V30, V31)
+	MOVD R9, R10
+	CBZ  R9, ifft4l2
+	LOAD_TABLES3(R10)
+	MULXOR_ROW(V24, V25, V26, V27, V16, V17, V18, V19)
 	MULXOR_ROW(V28, V29, V30, V31, V20, V21, V22, V23)
+
+ifft4l2:
 	VST1.P [V16.B16, V17.B16, V18.B16, V19.B16], 64(R1)
 	VST1.P [V20.B16, V21.B16, V22.B16, V23.B16], 64(R4)
 	VST1.P [V24.B16, V25.B16, V26.B16, V27.B16], 64(R5)
