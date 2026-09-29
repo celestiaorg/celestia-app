@@ -59,13 +59,6 @@ func NewServerCodec(maxShardRows, maxProofSegments int) encoding.CodecV2 {
 	}
 }
 
-// NewDownloadCodec returns a codec that bounds download responses the same way
-// [NewServerCodec] bounds upload requests. Pass it to DownloadShard calls with
-// [grpc.ForceCodecV2].
-func NewDownloadCodec(maxShardRows, maxProofSegments int) encoding.CodecV2 {
-	return NewServerCodec(maxShardRows, maxProofSegments)
-}
-
 func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
@@ -142,16 +135,21 @@ func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	if resp, ok := v.(*types.DownloadShardResponse); ok {
 		// Rows alias buf and are retained until the download finishes, so the
 		// buffer must be GC-owned rather than borrowed from the gRPC pool.
-		buf := data.Materialize()
-		if c.maxShardRows > 0 {
-			if err := c.validateDownloadShard(buf); err != nil {
-				return err
-			}
-		}
-		if unmarshalDownloadViews(slices.Clip(buf), resp) {
-			return nil
-		}
-		return resp.Unmarshal(buf)
+		_, err := c.unmarshalDownload(data.Materialize(), resp)
+		return err
 	}
 	return msg.Unmarshal(data.Materialize())
+}
+
+// unmarshalDownload decodes buf into resp and reports whether resp aliases buf.
+func (c *pooledCodec) unmarshalDownload(buf []byte, resp *types.DownloadShardResponse) (bool, error) {
+	if c.maxShardRows > 0 {
+		if err := c.validateDownloadShard(buf); err != nil {
+			return false, err
+		}
+	}
+	if unmarshalDownloadViews(slices.Clip(buf), resp) {
+		return true, nil
+	}
+	return false, resp.Unmarshal(buf)
 }

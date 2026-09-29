@@ -18,9 +18,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-// downloadCodec bounds shard responses before they are decoded.
-var downloadCodec = fibregrpc.NewDownloadCodec(DefaultProtocolParams.MaxRowsPerValidator(), DefaultProtocolParams.MerkleProofDepth())
-
 var (
 	// ErrNotFound is returned when no shards were retrieved for the blob.
 	ErrNotFound = errors.New("blob not found: no shards retrieved")
@@ -157,13 +154,24 @@ func (c *Client) downloadFrom(
 		c.metrics.observeDownloadFrom(ctx, downloadStart, success, valAddrStr)
 	}()
 
+	// The shard buffer goes back to the codec pool once nothing references its
+	// rows: right away for original rows, which store copies into the slab,
+	// and after reconstruction for parity rows, which are adopted by pointer.
+	codec := fibregrpc.NewDownloadCodec(DefaultProtocolParams.MaxRowsPerValidator(), DefaultProtocolParams.MerkleProofDepth())
+	retained := false
+	defer func() {
+		if !retained {
+			codec.Release()
+		}
+	}()
+
 	var resp *types.DownloadShardResponse
 	err = c.clientCache.Request(ctx, from.Validator, func(client fibregrpc.Client) error {
 		rpcCtx, rpcCancel := context.WithTimeout(ctx, c.Config.RPCTimeout)
 		defer rpcCancel()
 		var err error
 		rpcStart := time.Now()
-		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id}, grpc.ForceCodecV2(downloadCodec))
+		resp, err = client.DownloadShard(rpcCtx, &types.DownloadShardRequest{BlobId: id}, grpc.ForceCodecV2(codec))
 		c.metrics.observeDownloadFromRPC(ctx, rpcStart, err == nil || context.Cause(ctx) == errDownloaded, valAddrStr)
 		return err
 	})
@@ -201,6 +209,10 @@ func (c *Client) downloadFrom(
 			"got", len(proofs), "expected", from.ExpectedRows)
 	}
 
+	if hasParityRows(proofs, state.cfg.OriginalRows) {
+		state.retain(codec.Release)
+		retained = true
+	}
 	if err := state.AddShard(from, proofs, rlc); err != nil {
 		log.WarnContext(ctx, "invalid shard", "error", err)
 		span.RecordError(err)
@@ -283,4 +295,13 @@ func parseShard(shard *types.BlobShard, originalRows int) ([]*rsema1d.RowProof, 
 	}
 
 	return proofs, rlcs, nil
+}
+
+func hasParityRows(proofs []*rsema1d.RowProof, originalRows int) bool {
+	for _, p := range proofs {
+		if p.Index >= originalRows {
+			return true
+		}
+	}
+	return false
 }
