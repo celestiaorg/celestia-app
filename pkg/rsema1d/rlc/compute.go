@@ -24,6 +24,9 @@ func Compute(rows [][]byte, coeffs Vector, workers int) Vector {
 	if origK == 0 {
 		return nil
 	}
+	if v, ok := computeFast(rows, coeffs, workers); ok {
+		return v
+	}
 
 	rows, k := padToSymbolsPerChunk(rows)
 	numChunks := len(rows[0]) / chunkSize
