@@ -35,8 +35,8 @@ func NewCoder(cfg *Config, opts ...reedsolomon.Option) (*Coder, error) {
 }
 
 // Encode creates parity and commitment for K+N rows, allocating storage for the
-// Merkle trees. rows must have length K+N. Original data goes in rows[:K], and
-// parity rows in rows[K:] must be allocated and zeroed before calling Encode.
+// Merkle trees. rows must have length K+N. Original data goes in rows[:K];
+// rows[K:] must be allocated at the row size and are overwritten with parity.
 func (c *Coder) Encode(rows [][]byte) (*ExtendedData, error) {
 	return c.EncodeWithTree(rows, nil)
 }
