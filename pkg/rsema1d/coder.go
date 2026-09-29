@@ -2,7 +2,10 @@ package rsema1d
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
@@ -15,6 +18,7 @@ import (
 type Coder struct {
 	config *Config
 	enc    reedsolomon.Encoder
+	active atomic.Int32 // encodes in flight, used to share workers
 }
 
 // NewCoder creates a Coder with cached Reed-Solomon encoder.
@@ -50,10 +54,58 @@ func (c *Coder) EncodeWithTree(rows [][]byte, treeBuffer []byte) (*ExtendedData,
 	if err := c.validateRows(rows); err != nil {
 		return nil, err
 	}
-	if err := c.enc.Encode(rows); err != nil {
+	if err := c.encodeParity(rows); err != nil {
 		return nil, fmt.Errorf("failed to encode: %w", err)
 	}
 	return c.commit(rows, treeBuffer), nil
+}
+
+const (
+	maxSplitParts = 16
+	minSplitBytes = 2 << 10
+)
+
+// encodeParity runs Reed-Solomon over column ranges in parallel. Columns are
+// independent, so the parity equals a single Encode. Workers are shared among
+// in-flight encodes, so a saturated Coder encodes each blob on one goroutine.
+func (c *Coder) encodeParity(rows [][]byte) error {
+	active := int(c.active.Add(1))
+	defer c.active.Add(-1)
+
+	parts := splitParts(len(rows[0]), c.config.WorkerCount/active)
+	if parts == 1 {
+		return c.enc.Encode(rows)
+	}
+	size := len(rows[0]) / parts
+	errs := make([]error, parts)
+	var wg sync.WaitGroup
+	for p := range parts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sub := make([][]byte, len(rows))
+			for i, r := range rows {
+				sub[i] = r[p*size : (p+1)*size]
+			}
+			errs[p] = c.enc.Encode(sub)
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
+// splitParts returns the power-of-two number of column ranges to encode a row
+// of rowSize bytes in, using at most workers goroutines. Each range stays a
+// multiple of the Leopard chunk and at least minSplitBytes long.
+func splitParts(rowSize, workers int) int {
+	parts := 1
+	for next := 2; next <= min(workers, maxSplitParts); next *= 2 {
+		if rowSize%(next*field.LeopardChunkSize) != 0 || rowSize/next < minSplitBytes {
+			break
+		}
+		parts = next
+	}
+	return parts
 }
 
 func (c *Coder) validateRows(rows [][]byte) error {
