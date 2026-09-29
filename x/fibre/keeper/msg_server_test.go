@@ -310,7 +310,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
 	})
 
-	suite.T().Run("replayed payment promise is accepted", func(t *testing.T) {
+	suite.T().Run("payment promise already processed", func(t *testing.T) {
 		msg := &types.MsgPayForFibre{
 			Signer:              signer,
 			PaymentPromise:      paymentPromise,
@@ -318,11 +318,12 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		}
 
 		resp, err := suite.msgServer.PayForFibre(suite.ctx, msg)
-		suite.NoError(err)
-		suite.NotNil(resp)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "payment promise has already been processed")
 	})
 
-	suite.T().Run("invalid payment promise signature is accepted", func(t *testing.T) {
+	suite.T().Run("invalid payment promise signature", func(t *testing.T) {
 		invalidPaymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
 		invalidPaymentPromise.Signature = make([]byte, 64) // Invalid signature
 
@@ -333,8 +334,9 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		}
 
 		resp, err := suite.msgServer.PayForFibre(suite.ctx, msg)
-		suite.NoError(err)
-		suite.NotNil(resp)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "payment promise validation failed")
 	})
 
 	suite.T().Run("escrow account not found", func(t *testing.T) {

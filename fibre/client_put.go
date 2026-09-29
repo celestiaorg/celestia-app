@@ -99,7 +99,7 @@ const (
 	payForFibreGasLimit = 1_000_000
 )
 
-func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
+func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte, txOpts ...user.TxOption) (result PutResult, err error) {
 	if c.keyring == nil {
 		return result, ErrNoKeyring
 	}
@@ -133,7 +133,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 
 	broadcastResp, err := retryPFFBroadcast(ctx, func(ctx context.Context) (*sdk.TxResponse, error) {
 		return txClient.BroadcastTx(ctx, []sdk.Msg{msg},
-			user.SetGasLimit(payForFibreGasLimit), user.SetFee(payForFibreFee))
+			append([]user.TxOption{user.SetGasLimit(payForFibreGasLimit), user.SetFee(payForFibreFee)}, txOpts...)...)
 	})
 	if err != nil {
 		span.RecordError(err)
