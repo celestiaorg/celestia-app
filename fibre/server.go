@@ -114,10 +114,11 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("building TLS cert: %w", err)
 	}
-	creds := credentials.NewTLS(&tls.Config{
+	// Plaintext HTTP/2 is accepted next to TLS; see fibregrpc.NewDetectingServerCreds.
+	creds := fibregrpc.NewDetectingServerCreds(credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
-	})
+	}))
 	s.grpc.RegisterWithUploadBufferReuse(s,
 		s.Config.MaxMessageSize,
 		DefaultProtocolParams.MaxRowsPerValidator(),

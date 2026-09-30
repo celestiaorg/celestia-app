@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	"github.com/celestiaorg/go-square/v4/share"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/require"
@@ -467,12 +468,10 @@ func (g *shufflingValidatorSetGetter) setForHeight(height uint64) validator.Set 
 	}
 }
 
-// TestTLSIdentityMismatchIsRejected checks that the TLS verifier refuses to
-// accept a connection when the expected validator pubkey doesn't match the
-// one bound into the server's cert. We dial the real fibre server with a
-// fabricated *core.Validator whose Address points at the real validator but
-// whose PubKey belongs to a different identity.
-func TestTLSIdentityMismatchIsRejected(t *testing.T) {
+// TestImposterSignatureIsRejected checks that a server answering for a
+// validator it is not cannot supply a valid upload receipt. Shard traffic is
+// plaintext, so receipts, not TLS, bind the response to the validator.
+func TestImposterSignatureIsRejected(t *testing.T) {
 	validators, privKeys := makeTestValidators(t, 1)
 	valSetGetter := newShufflingValidatorSetGetter(validators, 1)
 	servers, _, addresses := makeTestServers(
@@ -484,31 +483,32 @@ func TestTLSIdentityMismatchIsRejected(t *testing.T) {
 		}
 	})
 
-	// Forge a validator that pretends to live at the real validator's address
-	// but carries a different consensus pubkey.
+	// The client expects a different consensus pubkey at the real server.
 	imposter := &core.Validator{
-		Address: validators[0].Address,
-		PubKey:  cmted25519.GenPrivKey().PubKey(),
+		Address:     validators[0].Address,
+		PubKey:      cmted25519.GenPrivKey().PubKey(),
+		VotingPower: validators[0].VotingPower,
 	}
-
-	newClient := grpcfibre.DefaultNewClientFn(
+	cfg := fibre.DefaultClientConfig()
+	cfg.NewClientFn = grpcfibre.DefaultNewClientFn(
 		&testHostRegistry{addresses: addresses},
 		func() string { return "celestia" },
-		fibre.DefaultProtocolParams.MaxMessageSize(),
+		cfg.MaxMessageSize,
 		nil,
 	)
-
-	// Patch the host registry so the imposter resolves to the real server.
-	addresses[imposter.Address.String()] = servers[0].ListenAddress()
-
-	client, err := newClient(t.Context(), imposter)
+	imposterSet := newShufflingValidatorSetGetter([]*core.Validator{imposter}, 1)
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{SetGetter: imposterSet, chainID: "celestia"}, nil
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
 	require.NoError(t, err)
-	defer client.Close()
+	require.NoError(t, client.Start(t.Context()))
+	t.Cleanup(func() { _ = client.Stop(context.Background()) })
 
-	// gRPC dials lazily; the TLS handshake fires on the first RPC. The imposter
-	// supplies a different expected pubkey than the one that signed the real
-	// server's endorsement, so the endorsement signature fails to verify.
-	_, err = client.DownloadShard(t.Context(), &fibretypes.DownloadShardRequest{})
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "peer cert signature is invalid")
+	blob, err := fibre.NewBlob([]byte("imposter"), fibre.DefaultBlobConfigV0())
+	require.NoError(t, err)
+	defer blob.Free()
+	_, err = client.Upload(t.Context(), share.MustNewV0Namespace([]byte("imposter")), blob)
+	var notEnough *validator.NotEnoughSignaturesError
+	require.ErrorAs(t, err, &notEnough)
 }
