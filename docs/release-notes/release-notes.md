@@ -368,19 +368,6 @@ These two configs must match in order for the multiplexer to work correctly. Ple
 +proxy_app = "tcp://127.0.0.1:36658"
 ```
 
-#### Custom build flags
-
-`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, `rocksdb`, `badgerdb`, `cleveldb`, `boltdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`). The embedded binary directory layout:
-
-```bash
-$ tree bin
-bin
-└── v3.10.2-mocha
-    ├── celestia-appd
-    ├── LICENSE
-    └── README.md
-```
-
 #### `rpc.grpc_laddr`
 
 The `rpc.grpc_laddr` config option is now required when running the celestia-app binary with the multiplexer. This option can be set via CLI flag `--rpc.grpc_laddr tcp://127.0.0.1:9098` or in the `config.toml`:
