@@ -112,6 +112,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 		span.SetStatus(codes.Error, "failed to get validator set")
 		return result, fmt.Errorf("fibre: getting validator set: %w", err)
 	}
+	c.warm(valSet)
 	span.AddEvent("validator_set", trace.WithAttributes(
 		attribute.Int("validator_count", len(valSet.Validators)),
 		attribute.Int64("validator_set_height", int64(valSet.Height)),

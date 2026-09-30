@@ -309,6 +309,7 @@ func testClientDownloadWithHeight(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+	getter.headCalls.Store(0) // Start reads Head to pre-dial validators.
 
 	downloaded, err := client.Download(t.Context(), blob.ID(), fibre.WithHeight(42))
 	defer downloaded.Free()
@@ -340,6 +341,7 @@ func testClientDownloadWithZeroHeight(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, client.Start(t.Context()))
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
+	getter.headCalls.Store(0) // Start reads Head to pre-dial validators.
 
 	downloaded, err := client.Download(t.Context(), blob.ID())
 	defer downloaded.Free()

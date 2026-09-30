@@ -223,6 +223,28 @@ func (cc *ClientCache) evict(val *core.Validator, entry *clientEntry) {
 	}
 }
 
+// connector is a [Client] that can connect before its first RPC.
+type connector interface {
+	Connect()
+}
+
+// Warm creates clients for vals and starts connecting them, so the first
+// requests don't pay for the dial and handshake. It returns once every client
+// is created; connections complete in the background.
+func (cc *ClientCache) Warm(ctx context.Context, vals []*core.Validator) {
+	var wg sync.WaitGroup
+	for _, val := range vals {
+		wg.Go(func() {
+			entry, client, err := cc.acquire(ctx, val)
+			if c, ok := client.(connector); ok && err == nil {
+				c.Connect()
+			}
+			cc.release(entry)
+		})
+	}
+	wg.Wait()
+}
+
 // Close closes all clients, including retired clients with active requests.
 // Subsequent requests return an error.
 func (cc *ClientCache) Close() (err error) {

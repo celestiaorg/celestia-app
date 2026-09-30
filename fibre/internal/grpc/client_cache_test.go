@@ -359,3 +359,31 @@ func TestClientCacheRequest_OldFailureKeepsReplacement(t *testing.T) {
 	require.EqualValues(t, 2, dials.Load())
 	require.Zero(t, replacement.(*lifetimeClient).closes.Load())
 }
+
+type connectingClient struct {
+	grpc.Client
+	connects *atomic.Int32
+}
+
+func (c connectingClient) Connect() { c.connects.Add(1) }
+
+// TestClientCacheWarm checks that Warm creates and connects one client per
+// validator, and that later requests reuse them.
+func TestClientCacheWarm(t *testing.T) {
+	var dials, connects atomic.Int32
+	cache := grpc.NewClientCache(func(context.Context, *core.Validator) (grpc.Client, error) {
+		dials.Add(1)
+		return connectingClient{Client: &mockFibreClientCloser{}, connects: &connects}, nil
+	}, 3)
+	defer cache.Close()
+	vals := []*core.Validator{{Address: []byte("v1")}, {Address: []byte("v2")}, {Address: []byte("v3")}}
+
+	cache.Warm(t.Context(), vals)
+	require.Equal(t, int32(3), dials.Load())
+	require.Equal(t, int32(3), connects.Load())
+
+	for _, val := range vals {
+		require.NoError(t, cache.Request(t.Context(), val, func(grpc.Client) error { return nil }))
+	}
+	require.Equal(t, int32(3), dials.Load())
+}

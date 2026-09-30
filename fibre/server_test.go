@@ -96,6 +96,15 @@ func (m *mockStateClient) Start(context.Context) error { return nil }
 func (m *mockStateClient) Stop(context.Context) error  { return nil }
 func (m *mockStateClient) ChainID() string             { return m.chainID }
 
+// Head fails without a SetGetter, so clients that pre-dial on Start work
+// with mocks that don't set one.
+func (m *mockStateClient) Head(ctx context.Context) (validator.Set, error) {
+	if m.SetGetter == nil {
+		return validator.Set{}, errors.New("no validator set")
+	}
+	return m.SetGetter.Head(ctx)
+}
+
 func (m *mockStateClient) FullStakeStorageBudget(context.Context) (int64, error) {
 	return m.budget, nil
 }

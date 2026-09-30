@@ -39,6 +39,11 @@ func (f *fibreClientCloser) Close() error {
 	return f.conn.Close()
 }
 
+// Connect starts connecting without waiting for an RPC.
+func (f *fibreClientCloser) Connect() {
+	f.conn.Connect()
+}
+
 // DefaultNewClientFn returns the default [NewClientFn]. It resolves the
 // validator's network host through hostReg, then dials over plaintext HTTP/2,
 // falling back to TLS with the peer identity bound to the validator's consensus
