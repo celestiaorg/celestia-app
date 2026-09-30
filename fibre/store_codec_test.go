@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"testing"
+	"unsafe"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/stretchr/testify/require"
@@ -184,7 +185,38 @@ func FuzzShardCodecReadNoPanic(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte) {
 		_, _ = readShardBinary(bytes.NewReader(data))
+		_, _ = decodeShardBinary(data)
 	})
+}
+
+// TestShardCodecDecodeAliases checks that decoding a whole file yields the
+// streamed result, with rows aliasing the file buffer, and rejects trailing
+// or truncated bytes.
+func TestShardCodecDecodeAliases(t *testing.T) {
+	shard := shardFromSeed([]byte("alias-seed-0123456789"))
+	var buf bytes.Buffer
+	require.NoError(t, writeShardBinary(&buf, shard))
+	file := buf.Bytes()
+
+	streamed, err := readShardBinary(bytes.NewReader(file))
+	require.NoError(t, err)
+	decoded, err := decodeShardBinary(file)
+	require.NoError(t, err)
+	require.Equal(t, streamed, decoded)
+	for _, row := range decoded.Rows {
+		if len(row.Data) > 0 {
+			require.Equal(t, cap(row.Data), len(row.Data), "row data must be clipped")
+			addr := uintptr(unsafe.Pointer(&row.Data[0]))
+			require.True(t, addr >= uintptr(unsafe.Pointer(&file[0])) && addr <= uintptr(unsafe.Pointer(&file[len(file)-1])), "row data must alias the file")
+		}
+	}
+
+	_, err = decodeShardBinary(append(bytes.Clone(file), 0))
+	require.Error(t, err)
+	for _, cut := range []int{0, 3, 8, len(file) / 2, len(file) - 1} {
+		_, err = decodeShardBinary(file[:cut])
+		require.Error(t, err, "cut %d", cut)
+	}
 }
 
 // shardFromSeed consumes seed deterministically to build a BlobShard with
