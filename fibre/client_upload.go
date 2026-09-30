@@ -68,8 +68,9 @@ func WithAwaitAllSignatures() UploadOption {
 // May keep uploading data in background after returning successfully; use [Client.Await]
 // or [Client.Stop] to drain.
 //
-// Canceling Context right after Upload drops remaining background uploads.
-// Avoid immediate cancels if uploads redundancy matters (it usually does).
+// Uploads still running after the [ClientConfig.WaitForAllUploads] head start
+// (on by default, 5s) run on ctx; canceling it drops them. Avoid immediate
+// cancels if uploads redundancy matters (it usually does).
 //
 // The blob must not be reused after calling [Blob.Free].
 // Returns [ErrClientClosed] if the client has been closed.
@@ -476,8 +477,31 @@ func (c *Client) uploadShards(
 			return ctx.Err()
 		}
 	case <-sigsCollectedCh: // detach: remaining goroutines finish in background
+		if c.Config.WaitForAllUploads {
+			c.awaitRemainingUploads(ctx, responsesExhaustedCh)
+		}
 	}
 	return nil
+}
+
+// waitForAllUploadsTimeout bounds how long [Client.Upload] waits past quorum for
+// the remaining uploads when [ClientConfig.WaitForAllUploads] is set.
+const waitForAllUploadsTimeout = 5 * time.Second
+
+// awaitRemainingUploads waits, past quorum, for the remaining uploads to finish
+// for up to [waitForAllUploadsTimeout]. It returns early when ctx
+// is done or the client stops; quorum is already reached either way, so the
+// upload succeeds regardless and anything still in flight is left to the
+// background uploads, as without the flag.
+func (c *Client) awaitRemainingUploads(ctx context.Context, responsesExhaustedCh <-chan struct{}) {
+	timer := time.NewTimer(waitForAllUploadsTimeout)
+	defer timer.Stop()
+	select {
+	case <-responsesExhaustedCh:
+	case <-timer.C:
+	case <-ctx.Done():
+	case <-c.stopCh:
+	}
 }
 
 // makeUploadRequests builds the per-validator request envelopes — the shared

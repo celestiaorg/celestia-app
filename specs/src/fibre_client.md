@@ -46,6 +46,7 @@ type ClientConfig struct {
     MaxMessageSize      int
     RPCTimeout          time.Duration
     HostRefreshInterval time.Duration
+    WaitForAllUploads   bool
 
     StateClientFn func() (state.Client, error)
     NewClientFn   fibregrpc.NewClientFn
@@ -68,6 +69,7 @@ Defaults come from `DefaultProtocolParams`:
 * `SafetyThreshold = 2/3`
 * `LivenessThreshold = 1/3`
 * `RPCTimeout = 15s`
+* `WaitForAllUploads = true`
 * `MaxBlobSize = 128 MiB`
 * original rows `K = 4096`
 * total rows `K + N = 16384`
@@ -124,7 +126,7 @@ func (c *Client) Upload(
 
 `Upload` signs a payment promise with the configured key, uploads assigned row shards to validators, verifies validator signatures, and returns a `SignedPaymentPromise`.
 
-By default, `Upload` returns after the safety threshold by voting power is reached. Remaining validator uploads continue in background and are tracked by `Await`/`Stop`. `WithAwaitAllSignatures` changes the threshold to all validator voting power and waits for all successful signatures.
+`Upload` succeeds once the safety threshold by voting power is reached. With `WaitForAllUploads` (on by default) it then keeps waiting for the remaining validator uploads for up to 5s before returning, or less on context cancellation or client stop; without it, it returns right away. Uploads still remaining continue in background and are tracked by `Await`/`Stop`. `WithAwaitAllSignatures` changes the threshold to all validator voting power and waits for all successful signatures.
 
 ```go
 type SignedPaymentPromise struct {

@@ -143,6 +143,8 @@ func newLifetimePutClient(t *testing.T, wrap func(fibregrpc.NewClientFn) fibregr
 	kr := makeTestKeyring(t)
 	validators, keys := makeTestValidators(t, 4)
 	cfg := fibre.DefaultClientConfig()
+	// these tests hold a validator past quorum on purpose; don't wait for it
+	cfg.WaitForAllUploads = false
 	cfg.NewClientFn = makeMockClientFn(validators, keys)
 	if wrap != nil {
 		cfg.NewClientFn = wrap(cfg.NewClientFn)

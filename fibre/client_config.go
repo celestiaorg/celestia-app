@@ -41,6 +41,14 @@ type ClientConfig struct {
 	// [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
+	// WaitForAllUploads makes [Client.Upload] keep waiting, once quorum is
+	// reached, for the remaining validators' uploads for up to 5s before
+	// returning, so a caller that cancels its context right after Upload does
+	// not drop them. Uploads still in flight after that continue in the
+	// background as without the flag. It adds up to 5s to Upload (and Put)
+	// latency when a validator is slow. Enabled in [DefaultClientConfig].
+	WaitForAllUploads bool
+
 	// HostRefreshInterval is the minimum time between on-chain host re-queries
 	// for a single validator when a request fails. Defaults to the expected
 	// block time, since registry state cannot change faster than one block.
@@ -109,6 +117,7 @@ func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 		RPCTimeout:          15 * time.Second,
 		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
 		Escrow:              defaultEscrowConfig(p),
+		WaitForAllUploads:   true,
 	}
 }
 
