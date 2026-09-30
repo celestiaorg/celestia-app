@@ -59,9 +59,9 @@ func (f *fibreClientCloser) WaitReady(ctx context.Context) bool {
 }
 
 // DefaultNewClientFn returns the default [NewClientFn]. It resolves the
-// validator's network host through hostReg, then dials over TLS with the
-// peer identity bound to the validator's consensus pubkey via
-// [tlsid.VerifyConnection].
+// validator's network host through hostReg, then dials over plaintext HTTP/2,
+// falling back to TLS with the peer identity bound to the validator's consensus
+// pubkey via [tlsid.VerifyConnection] for servers that only speak TLS.
 //
 // log records TLS identity-verification failures with peer context. Because
 // grpc.NewClient dials lazily, verification runs on the first RPC and a failure
@@ -77,6 +77,7 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 	if chainID == nil {
 		chainID = func() string { return "" }
 	}
+	modes := newTransportModes()
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
 		host, err := hostReg.GetHost(ctx, val)
 		if err != nil {
@@ -111,7 +112,11 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 
 		conn, err := grpclib.NewClient(host.String(),
 			grpclib.WithIdleTimeout(20*time.Second),
-			grpclib.WithTransportCredentials(batchingCreds{credentials.NewTLS(tlsCfg)}),
+			grpclib.WithTransportCredentials(autoCreds{
+				TransportCredentials: batchingCreds{credentials.NewTLS(tlsCfg)},
+				modes:                modes,
+				host:                 host.String(),
+			}),
 			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
