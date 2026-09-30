@@ -375,6 +375,10 @@ systemctl start chrony
 modprobe tcp_bbr || true
 sysctl -w net.core.default_qdisc=fq
 sysctl -w net.ipv4.tcp_congestion_control=bbr
+# Larger send buffers for uploads to far validators; keep the congestion
+# window across idle gaps between blobs.
+sysctl -w net.ipv4.tcp_wmem="4096 16384 33554432"
+sysctl -w net.ipv4.tcp_slow_start_after_idle=0
 
 # Install binaries
 cp encoder-payload/build/celestia-appd /bin/celestia-appd

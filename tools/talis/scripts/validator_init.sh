@@ -37,6 +37,9 @@ fi
 echo "Updating sysctl settings..."
 sysctl -w net.core.default_qdisc=fq
 sysctl -w net.ipv4.tcp_congestion_control=bbr
+# A 4 MiB initial receive buffer lets new Fibre upload connections skip the
+# slow receive-window ramp at high RTT.
+sysctl -w net.ipv4.tcp_rmem="4096 4194304 33554432"
 
 # Enable MPTCP
 sysctl -w net.mptcp.enabled=1
@@ -52,6 +55,7 @@ sysctl -w net.mptcp.mptcp_ndiffports=$SUBFLOWS
 echo "Making changes persistent..."
 echo "net.core.default_qdisc=fq" >> /etc/sysctl.conf
 echo "net.ipv4.tcp_congestion_control=bbr" >> /etc/sysctl.conf
+echo "net.ipv4.tcp_rmem=4096 4194304 33554432" >> /etc/sysctl.conf
 
 #Verify the current TCP congestion control algorithm
 current_algo=$(sysctl net.ipv4.tcp_congestion_control | awk '{print $3}')
