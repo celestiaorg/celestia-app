@@ -37,12 +37,13 @@ type shardID struct {
 
 // objectBackend stores shard payloads in S3-compatible object storage.
 type objectBackend struct {
-	client         s3ObjectClient
-	namespace      objectNamespace
-	metrics        *serverMetrics
-	requestTimeout time.Duration
-	hashFirst      bool
-	hashedTag      shardBackendTag
+	lifecycleManaged bool
+	client           s3ObjectClient
+	namespace        objectNamespace
+	metrics          *serverMetrics
+	requestTimeout   time.Duration
+	hashFirst        bool
+	hashedTag        shardBackendTag
 }
 
 var _ shardBackend = (*objectBackend)(nil)
@@ -158,6 +159,10 @@ func (b *objectBackend) Delete(ctx context.Context, commitment Commitment, promi
 		return err
 	}
 
+	if b.lifecycleManaged {
+		return nil
+	}
+
 	_, err := b.client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: aws.String(b.namespace.Bucket),
 		Key:    aws.String(b.objectKey(commitment, promiseHash)),
@@ -180,6 +185,9 @@ func (b *objectBackend) DeleteObjects(ctx context.Context, ids []shardID) ([]err
 	}
 	if len(ids) > maxObjectDeleteBatchSize {
 		return nil, fmt.Errorf("object delete batch has %d entries, maximum is %d", len(ids), maxObjectDeleteBatchSize)
+	}
+	if b.lifecycleManaged {
+		return make([]error, len(ids)), nil
 	}
 	if len(ids) == 0 {
 		return []error{}, nil
