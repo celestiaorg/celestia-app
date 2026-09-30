@@ -3,6 +3,7 @@ package fibre
 import (
 	"context"
 	"errors"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -171,4 +172,26 @@ func TestPutLimiterDisabledAndInvalid(t *testing.T) {
 	_, err = (&PutLimiter{}).acquire(context.Background(), nil, 1)
 	require.Error(t, err)
 	require.Panics(t, func() { NewPutLimiter(0) })
+}
+
+func TestDefaultPutLimit(t *testing.T) {
+	const blob = 128<<20 - 5
+	per := DefaultBlobConfigV0().PutMemoryBytes(blob)
+	if per < 400<<20 || per > 450<<20 {
+		t.Fatalf("PutMemoryBytes() = %d, want ~422 MiB", per)
+	}
+	procs := runtime.GOMAXPROCS(0)
+	for _, tc := range []struct {
+		mem  int64
+		want int
+	}{
+		{0, 1},
+		{per - 1, 1},
+		{3 * per, min(3, procs)},
+		{1000 * per, procs},
+	} {
+		if got := DefaultPutLimit(tc.mem, blob); got != tc.want {
+			t.Errorf("DefaultPutLimit(%d) = %d, want %d", tc.mem, got, tc.want)
+		}
+	}
 }

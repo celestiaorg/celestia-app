@@ -3,9 +3,25 @@ package fibre
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 )
+
+// PutMemoryBytes estimates the memory one in-flight Put of dataLen bytes
+// holds outside the caller's payload: parity rows plus ~10% for trees,
+// partial rows and upload framing.
+func (c BlobConfig) PutMemoryBytes(dataLen int) int64 {
+	return int64(c.RowSize(dataLen)) * int64(c.ParityRows) * 11 / 10
+}
+
+// DefaultPutLimit returns how many Puts of up to maxDataLen bytes fit in
+// memBytes, capped at GOMAXPROCS since more concurrent encodes don't add
+// throughput.
+func DefaultPutLimit(memBytes int64, maxDataLen int) int {
+	n := int(memBytes / DefaultBlobConfigV0().PutMemoryBytes(maxDataLen))
+	return max(1, min(n, runtime.GOMAXPROCS(0)))
+}
 
 // PutLimiter bounds concurrent Put encodings and upload payloads, including
 // background uploads after quorum. It does not bound cached pool allocations.
