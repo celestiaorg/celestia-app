@@ -93,6 +93,10 @@ func TestSystemSink(t *testing.T) {
 		cert, err := tlsid.BuildServerCert(pv, sysChainID)
 		require.NoError(t, err)
 		creds := credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13})
+		// SYS_SINK_OLD_EVERY=n makes every n-th sink TLS-only, like an old server.
+		if every := sysEnvInt("SYS_SINK_OLD_EVERY", 0); every == 0 || i%every != 0 {
+			creds = fibregrpc.NewDetectingServerCreds(creds)
+		}
 		sinks[i] = &sysSink{pv: pv}
 		var winOpts []grpclib.ServerOption
 		if w := sysEnvInt("SYS_SINK_WINDOW", 0); w > 0 {
@@ -107,12 +111,13 @@ func TestSystemSink(t *testing.T) {
 	}
 	t.Logf("sink: %d validators on ports %d..", n, base)
 	for {
-		time.Sleep(10 * time.Second)
+		time.Sleep(time.Duration(sysEnvInt("SYS_SINK_TICK_MS", 10000)) * time.Millisecond)
 		var h int64
 		for _, s := range sinks {
 			h += s.handled.Load()
 		}
-		fmt.Fprintf(os.Stderr, "sink handled=%d\n", h)
+		c := sysRusage()
+		fmt.Fprintf(os.Stderr, "sink handled=%d cpu_s=%.2f\n", h, (c.user + c.sys).Seconds())
 	}
 }
 
@@ -350,7 +355,7 @@ func TestSystemClient(t *testing.T) {
 		"peak_rss_GiB":       float64(peakRSS.Load()) / (1 << 30),
 		"peak_goroutines":    peakGor.Load(),
 		"enc_ms_p50":         pct(encMs, 0.5), "enc_ms_p90": pct(encMs, 0.9),
-		"up_ms_p50": pct(upMs, 0.5), "up_ms_p90": pct(upMs, 0.9),
+		"up_ms_p50": pct(upMs, 0.5), "up_ms_p90": pct(upMs, 0.9), "up_ms_p99": pct(upMs, 0.99),
 		"tot_ms_p50": pct(totMs, 0.5), "tot_ms_p90": pct(totMs, 0.9),
 	}
 	b, _ := json.Marshal(res)
