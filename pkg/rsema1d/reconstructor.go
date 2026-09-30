@@ -142,10 +142,11 @@ func (c *Coder) reconstructData(rows [][]byte) error {
 	if ok {
 		parts = splitParts(rowSize, c.config.WorkerCount/active)
 	}
-	if parts == 1 {
+	pr, canSplit := c.enc.(reedsolomon.ParallelReconstructor)
+	if parts == 1 || !canSplit {
 		return c.enc.ReconstructData(rows)
 	}
-	return c.enc.(reedsolomon.ParallelReconstructor).ReconstructDataParallel(rows, func() int {
+	return pr.ReconstructDataParallel(rows, func() int {
 		return splitParts(rowSize, c.config.WorkerCount/int(c.active.Load()))
 	})
 }
