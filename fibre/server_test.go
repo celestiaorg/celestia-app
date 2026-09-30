@@ -232,3 +232,14 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 	require.Contains(t, output, "object_namespace.chain_id=celestia")
 	require.Contains(t, output, "object_namespace.validator_address="+sdk.ConsAddress(validator.Address).String())
 }
+
+func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
+	var logs bytes.Buffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+	})
+
+	output := logs.String()
+	require.Contains(t, output, `msg="store ready" storage_backend=local`)
+	require.NotContains(t, output, "object_namespace")
+}

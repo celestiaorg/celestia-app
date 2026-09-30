@@ -141,7 +141,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	storeLogArgs := []any{"storage_backend", s.Config.StorageBackend}
 	objectCfg := s.Config.ObjectStorage.canonical()
-	if objectCfg.Endpoint != "" || objectCfg.Bucket != "" || objectCfg.Prefix != "" {
+	if s.Config.ObjectStorage.Endpoint != "" || s.Config.ObjectStorage.Bucket != "" || s.Config.ObjectStorage.Prefix != "" {
 		storeLogArgs = append(storeLogArgs, slog.Group("object_namespace",
 			slog.String("bucket", objectCfg.Bucket),
 			slog.String("prefix", objectCfg.Prefix),
