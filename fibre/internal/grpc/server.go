@@ -80,6 +80,7 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
+		grpc.WriteBufferSize(writeBufferSize),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{

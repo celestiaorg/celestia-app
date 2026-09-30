@@ -39,7 +39,7 @@ func TestBatchingCredsOneSyscallPerWrite(t *testing.T) {
 	require.NoError(t, err)
 	defer ln.Close()
 
-	payload := make([]byte, uploadWriteBufferSize)
+	payload := make([]byte, writeBufferSize)
 	_, _ = rand.Read(payload)
 	received := make(chan []byte, 2)
 	go func() {

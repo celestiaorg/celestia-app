@@ -8,10 +8,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-// uploadWriteBufferSize is the gRPC write buffer for client connections. With
-// [batchingCreds] one buffer flush becomes one socket write instead of one per
-// 16 KiB TLS record.
-const uploadWriteBufferSize = 256 << 10
+// writeBufferSize is the gRPC write buffer for client and server connections.
+// With [batchingCreds] one buffer flush becomes one socket write instead of one
+// per 16 KiB TLS record.
+const writeBufferSize = 256 << 10
 
 // batchingCreds wraps TLS credentials so the records produced by one Write
 // reach the socket in a single syscall.

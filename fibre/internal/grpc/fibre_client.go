@@ -106,7 +106,7 @@ func newClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSi
 				modes:                modes,
 				host:                 host.String(),
 			}),
-			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
+			grpclib.WithWriteBufferSize(writeBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
