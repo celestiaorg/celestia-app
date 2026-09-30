@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -186,9 +187,15 @@ func (cfg *ServerConfig) Load(path string) error {
 	if err != nil {
 		return fmt.Errorf("read config file %s: %w", path, err)
 	}
-	if err := toml.Unmarshal(data, cfg); err != nil {
+	loaded := *cfg
+	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
+	if err := decoder.Decode(&loaded); err != nil {
+		if strictErr, ok := errors.AsType[*toml.StrictMissingError](err); ok {
+			return fmt.Errorf("decode config file %s: %w\n%s", path, err, strictErr.String())
+		}
 		return fmt.Errorf("decode config file %s: %w", path, err)
 	}
+	*cfg = loaded
 	return nil
 }
 
