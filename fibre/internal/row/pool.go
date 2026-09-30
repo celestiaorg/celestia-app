@@ -86,6 +86,7 @@ const (
 type Pool struct {
 	rowCount   int
 	maxRowSize int
+	rowPad     int // extra bytes between rows, see NewWorkPool
 
 	// buckets[sizeIdx] is the bucket for rowSize (sizeIdx+1)*rowSizeAlign.
 	buckets              []bucket
@@ -128,11 +129,21 @@ func NewPool(maxRowSize, rowCount int) *Pool {
 	}
 }
 
+// NewWorkPool is NewPool for codec work rows: rows are carved 64 bytes
+// apart from their size, so a column of every row spreads across cache sets
+// instead of aliasing onto a few at a power-of-two stride. Such a pool has
+// no contiguous region, so [Pool.GetRegion] panics.
+func NewWorkPool(maxRowSize, rowCount int) *Pool {
+	p := NewPool(maxRowSize, rowCount)
+	p.rowPad = rowSizeAlign
+	return p
+}
+
 // Get returns n buffers of size bytes each, carved from one slab.
 // n must equal the pool's rowCount; size must be a positive multiple
 // of 64 in [64, maxRowSize]. Violations panic.
 func (p *Pool) Get(n, size int) [][]byte {
-	return p.acquire(n, size).carve(n, size)
+	return p.acquire(n, size).carve(n, size, size+p.rowPad)
 }
 
 // GetRegion returns the n*size contiguous bytes of a slab's data region
@@ -141,6 +152,9 @@ func (p *Pool) Get(n, size int) [][]byte {
 // to [Pool.PutRegion] (or any one of its derived per-row sub-slices
 // passed to [Pool.Put]).
 func (p *Pool) GetRegion(n, size int) []byte {
+	if p.rowPad != 0 {
+		panic("row: GetRegion on a padded work pool")
+	}
 	s := p.acquire(n, size)
 	return s.region[headerSize : headerSize+n*size]
 }
@@ -164,7 +178,7 @@ func (p *Pool) acquire(n, size int) *slab {
 		}
 	}
 	if s == nil {
-		s = bk.new(n * size)
+		s = bk.new(n * (size + p.rowPad))
 		p.allocations.Add(1)
 	}
 	return s
@@ -395,13 +409,13 @@ func writeSlabPtr(region []byte, b *slab) {
 	*(**slab)(unsafe.Pointer(unsafe.SliceData(region))) = b
 }
 
-// carve returns n contiguous []byte views of length size each into b's
-// data region. Each slice is capacity-clamped so callers can't append
+// carve returns n []byte views of length size, stride bytes apart, into
+// b's data region. Each slice is capacity-clamped so callers can't append
 // past their row.
-func (b *slab) carve(n, size int) [][]byte {
+func (b *slab) carve(n, size, stride int) [][]byte {
 	bufs := make([][]byte, n)
 	for i := range bufs {
-		off := headerSize + i*size
+		off := headerSize + i*stride
 		bufs[i] = b.region[off : off+size : off+size]
 	}
 	return bufs

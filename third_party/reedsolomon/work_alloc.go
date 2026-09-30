@@ -46,6 +46,10 @@ func getWork(a WorkAllocator, n, size int) ([][]byte, error) {
 	return work, nil
 }
 
+// workRowPad keeps work rows off a power-of-two stride, so one column of every
+// row spreads across cache sets instead of aliasing onto a few.
+const workRowPad = 64
+
 // defaultWorkAllocator is the default WorkAllocator backed by sync.Pool.
 type defaultWorkAllocator struct {
 	pool sync.Pool
@@ -59,14 +63,13 @@ func (a *defaultWorkAllocator) Get(n, size int) [][]byte {
 	if cap(work) >= n {
 		work = work[:n]
 	} else {
-		work = AllocAligned(n, size)
+		work = AllocAligned(n, size+workRowPad)
 	}
 	for i := range work {
 		if cap(work[i]) < size {
-			work[i] = AllocAligned(1, size)[0]
-		} else {
-			work[i] = work[i][:size]
+			work[i] = AllocAligned(1, size+workRowPad)[0]
 		}
+		work[i] = work[i][:size]
 	}
 	return work
 }

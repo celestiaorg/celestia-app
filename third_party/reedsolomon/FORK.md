@@ -35,6 +35,8 @@ Local changes:
   `xorSlices` (`formalDerivative`).
 - `leopard_split_generic.go`: `splitMulXor` and `xorSlices` for non-NEON
   builds.
+- `work_alloc.go`: the default allocator carves work rows 64 bytes apart from
+  their size (`workRowPad`), off a power-of-two stride.
 - `galois_leopard_arm64_test.go`, `leopard_grouped_test.go`,
   `leopard_derivative_test.go`, `leopard_golden_test.go`,
   `leopard_golden_reconstruct_test.go`, `leopard_bench_test.go`: kernel

@@ -90,7 +90,7 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		return BlobConfig{}, fmt.Errorf("creating row assembler: %w", err)
 	}
 
-	workPool := row.NewPool(maxRowSize, params.CodecWorkRows())
+	workPool := row.NewWorkPool(maxRowSize, params.CodecWorkRows())
 	coder, err := rsema1d.NewCoder(codecCfg, reedsolomon.WithWorkAllocator(workPool))
 	if err != nil {
 		return BlobConfig{}, fmt.Errorf("creating rsema1d coder: %w", err)
