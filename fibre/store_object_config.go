@@ -55,6 +55,8 @@ func limitObjectDial(slots chan struct{}, dial func(context.Context, string, str
 
 // ObjectStorageConfig configures S3-compatible storage. Credentials use the AWS SDK credential chain.
 type ObjectStorageConfig struct {
+	// LifecycleManaged leaves payload deletion to bucket lifecycle rules; local expiry cleanup remains enabled.
+	LifecycleManaged bool `toml:"lifecycle_managed"`
 	// BatchSize is the maximum shards per S3 object. One disables packing.
 	BatchSize int `toml:"batch_size"`
 	// PackedBucket receives packed objects; empty uses the current primary bucket.
@@ -81,6 +83,9 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	}
 	if cfg.BatchSize == 0 {
 		cfg.BatchSize = 16
+	}
+	if cfg.LifecycleManaged && cfg.BatchSize != 1 {
+		return fmt.Errorf("object_storage.lifecycle_managed requires batch_size = 1")
 	}
 	cfg.PackedBucket = strings.TrimSpace(cfg.PackedBucket)
 	cfg.Region = strings.TrimSpace(cfg.Region)
@@ -158,6 +163,7 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 	}
 	backend := newObjectBackend(client, namespace)
 	backend.requestTimeout = cfg.ObjectStorage.RequestTimeout
+	backend.lifecycleManaged = cfg.ObjectStorage.LifecycleManaged
 	return backend, nil
 }
 
@@ -268,5 +274,6 @@ func openHashedObjectGeneration(ctx context.Context, cfg StoreConfig, db *pebble
 	backend.hashFirst = true
 	backend.hashedTag = tag
 	backend.requestTimeout = target.RequestTimeout
+	backend.lifecycleManaged = target.LifecycleManaged
 	return backend, nil
 }

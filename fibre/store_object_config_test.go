@@ -544,3 +544,29 @@ func TestStoreLocalDoesNotLoadAWSConfig(t *testing.T) {
 	_, err = NewStore(t.Context(), cfg)
 	require.ErrorContains(t, err, "loading AWS configuration")
 }
+
+func TestObjectStorageLifecycleManagedConfig(t *testing.T) {
+	for _, batchSize := range []int{0, 1, 16} {
+		cfg := testObjectStorageConfig()
+		cfg.LifecycleManaged = true
+		cfg.BatchSize = batchSize
+		err := cfg.Validate()
+		if batchSize == 1 {
+			require.NoError(t, err)
+		} else {
+			require.ErrorContains(t, err, "requires batch_size = 1")
+		}
+	}
+}
+
+func TestLifecycleManagedRejectsPackedHistory(t *testing.T) {
+	store := newMarkerTestStore(t)
+	cfg := DefaultStoreConfig()
+	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.LifecycleManaged = true
+	cfg.ObjectStorage.BatchSize = 1
+	cfg.ObjectStorage.ChainID = "chain"
+	cfg.ObjectStorage.ValidatorAddress = "validator"
+	require.NoError(t, saveObjectNamespaceAt(store.db, packedNamespaceKey, cfg.ObjectStorage.canonical()))
+	require.ErrorContains(t, store.shards.openPacked(t.Context(), cfg, store.db), "packed object history")
+}

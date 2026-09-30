@@ -416,6 +416,9 @@ func (s *routedStorage) openPacked(ctx context.Context, cfg StoreConfig, db *peb
 	if err != nil {
 		return err
 	}
+	if cfg.ObjectStorage.LifecycleManaged && (recorded || has) {
+		return fmt.Errorf("object_storage.lifecycle_managed cannot open a store with packed object history")
+	}
 	target := cfg.ObjectStorage
 	if target.BatchSize == 0 {
 		target.BatchSize = 16
