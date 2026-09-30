@@ -287,7 +287,20 @@ func TestDownloadCodecRecyclesBuffers(t *testing.T) {
 	require.NotSame(t, base, unsafe.SliceData(decode(NewDownloadCodec(4, 2)).Shard.Rows[0].Data), "buffers must not be shared before Release")
 	first.Release()
 	first.Release()
-	require.Same(t, base, unsafe.SliceData(decode(NewDownloadCodec(4, 2)).Shard.Rows[0].Data), "Release must recycle the buffer")
+	require.Nil(t, first.buf)
+	// sync.Pool may drop a Put (often under -race), so retry until one sticks.
+	recycled := false
+	for range 100 {
+		codec := NewDownloadCodec(4, 2)
+		got := unsafe.SliceData(decode(codec).Shard.Rows[0].Data)
+		if got == base {
+			recycled = true
+			break
+		}
+		base = got
+		codec.Release()
+	}
+	require.True(t, recycled, "Release must recycle the buffer")
 
 	t.Run("fallback returns the buffer", func(t *testing.T) {
 		unknown := append(bytes.Clone(wire), 0x10, 0x01)
