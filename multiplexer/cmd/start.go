@@ -14,11 +14,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/spf13/pflag"
 	tmnode "github.com/tendermint/tendermint/node"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator) error {
+func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator, startFlags *pflag.FlagSet) error {
 	svrCfg, err := getAndValidateConfig(svrCtx)
 	if err != nil {
 		return err
@@ -31,7 +32,7 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 
 	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", chainID)
 
-	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
+	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion, startFlags)
 	if err != nil {
 		return err
 	}

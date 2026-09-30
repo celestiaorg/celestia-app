@@ -1,10 +1,18 @@
 package abci
 
 import (
+<<<<<<< HEAD
+=======
+	"bytes"
+	"encoding/csv"
+	"errors"
+>>>>>>> 6f8c6b1 (fix(multiplexer): don't forward unsupported start flags to embedded binaries (#7991))
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	"github.com/spf13/pflag"
 )
 
 // NewVersions returns a list of versions sorted by app version.
@@ -23,6 +31,9 @@ type Version struct {
 	Appd        *appd.Appd
 	PreHandlers []string // Commands to run before starting the app
 	StartArgs   []string // Extra arguments to pass to the app
+	// UnsupportedFlags are operator flags this app doesn't define, so they are
+	// not forwarded to it.
+	UnsupportedFlags map[string]struct{}
 }
 
 type Versions []Version
@@ -75,13 +86,43 @@ func (v Versions) ShouldUseLatestApp(appVersion uint64) bool {
 	return err != nil
 }
 
-// GetStartArgs returns the appropriate args.
-func (v Version) GetStartArgs(args []string) []string {
+// GetStartArgs forwards only explicitly set, supported flags. Cobra has already
+// parsed their values, so strings such as "start" or "--otel-endpoint" cannot
+// be mistaken for subcommands or flags. Mandatory child overrides come last.
+func (v Version) GetStartArgs(flags *pflag.FlagSet) []string {
+	args := []string{}
+	if flags != nil {
+		flags.Visit(func(flag *pflag.Flag) {
+			if _, unsupported := v.UnsupportedFlags[flag.Name]; unsupported {
+				return
+			}
+			if slice, ok := flag.Value.(pflag.SliceValue); ok {
+				values := slice.GetSlice()
+				if flag.Value.Type() == "stringArray" {
+					for _, value := range values {
+						args = append(args, "--"+flag.Name+"="+value)
+					}
+					return
+				}
+				// SliceValue.String includes brackets and is not a CLI value. CSV
+				// preserves commas and quotes in stringSlice elements.
+				var value bytes.Buffer
+				writer := csv.NewWriter(&value)
+				_ = writer.Write(values)
+				writer.Flush()
+				encoded := strings.TrimSuffix(value.String(), "\n")
+				if len(values) == 1 && values[0] == "" {
+					encoded = `""` // distinguish one empty string from an empty slice
+				}
+				args = append(args, "--"+flag.Name+"="+encoded)
+				return
+			}
+			args = append(args, "--"+flag.Name+"="+flag.Value.String())
+		})
+	}
 	if len(v.StartArgs) > 0 {
 		return append(args, v.StartArgs...)
 	}
-
-	// Default flags for standalone apps.
 	return append(args,
 		"--grpc.enable",
 		"--api.enable",

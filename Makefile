@@ -397,7 +397,7 @@ test-docker-e2e-upgrade-all:
 ## test-multiplexer: Run unit tests for the multiplexer package.
 test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
 	@echo "--> Running multiplexer tests"
-	@go test -tags multiplexer ./multiplexer/...
+	@go test -tags multiplexer ./multiplexer/... ./cmd/celestia-appd/cmd
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.

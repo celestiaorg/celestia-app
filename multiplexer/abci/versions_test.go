@@ -3,8 +3,15 @@ package abci
 import (
 	"errors"
 	"fmt"
+<<<<<<< HEAD
+=======
+	"math"
+	"slices"
+>>>>>>> 6f8c6b1 (fix(multiplexer): don't forward unsupported start flags to embedded binaries (#7991))
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/require"
 )
 
@@ -168,4 +175,78 @@ func TestEnsureUniqueVersions(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetStartArgs(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []string
+		want  []string
+	}{
+		{"defaults are not forwarded", []string{"start"}, nil},
+		{"supported flag", []string{"start", "--home", "foo"}, []string{"--home=foo"}},
+		{"separate unsupported value", []string{"start", "--otel-endpoint", "localhost:4318", "--home", "foo"}, []string{"--home=foo"}},
+		{"inline unsupported value", []string{"start", "--otel-endpoint=localhost:4318", "--home=foo"}, []string{"--home=foo"}},
+		{"unsupported bool", []string{"start", "--fibre-promise-cache", "--home", "foo"}, []string{"--home=foo"}},
+		{"unsupported false bool", []string{"start", "--fibre-promise-cache=false", "--home", "foo"}, []string{"--home=foo"}},
+		{"flag-shaped value", []string{"start", "--moniker", "--otel-endpoint", "--home", "/tmp/node"}, []string{"--home=/tmp/node", "--moniker=--otel-endpoint"}},
+		{"start value before subcommand", []string{"--home", "start", "--log_level", "info", "start"}, []string{"--home=start", "--log_level=info"}},
+		{"start value after subcommand", []string{"start", "--moniker", "start"}, []string{"--moniker=start"}},
+		{"explicit booleans", []string{"start", "--inter-block-cache=false", "--trace"}, []string{"--inter-block-cache=false", "--trace=true"}},
+		{"empty value and shorthand", []string{"start", "-m", "", "--home="}, []string{"--home=", "--moniker="}},
+		{"last scalar value wins", []string{"start", "--home=first", "--home=last"}, []string{"--home=last"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			version := Version{
+				StartArgs:        []string{"--inter-block-cache=true", "--transport=grpc"},
+				UnsupportedFlags: map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}},
+			}
+			root := &cobra.Command{Use: "celestia-appd"}
+			root.PersistentFlags().String("home", "default-home", "")
+			root.PersistentFlags().String("log_level", "info", "")
+			cmd := &cobra.Command{Use: "start", RunE: func(cmd *cobra.Command, _ []string) error {
+				want := slices.Concat(test.want, version.StartArgs)
+				require.Equal(t, want, version.GetStartArgs(cmd.Flags()))
+				return nil
+			}}
+			cmd.Flags().StringP("moniker", "m", "default-moniker", "")
+			cmd.Flags().String("otel-endpoint", "", "")
+			cmd.Flags().Bool("fibre-promise-cache", true, "")
+			cmd.Flags().Bool("inter-block-cache", true, "")
+			cmd.Flags().Bool("trace", false, "")
+			root.AddCommand(cmd)
+			root.SetArgs(test.input)
+			require.NoError(t, root.Execute())
+		})
+	}
+}
+
+func TestGetStartArgsSlices(t *testing.T) {
+	newFlags := func() *pflag.FlagSet {
+		flags := pflag.NewFlagSet("start", pflag.ContinueOnError)
+		flags.StringSlice("api.enabled-unsafe-cors-origins", []string{"default"}, "")
+		flags.StringArray("array", nil, "")
+		return flags
+	}
+	for _, input := range [][]string{
+		{"--api.enabled-unsafe-cors-origins=a,b", "--api.enabled-unsafe-cors-origins=\"c,d\",e", "--array=a,b", "--array=\"quoted\""},
+		{"--api.enabled-unsafe-cors-origins=", "--array="},
+		{`--api.enabled-unsafe-cors-origins=""`},
+	} {
+		parent := newFlags()
+		require.NoError(t, parent.Parse(input))
+		version := Version{StartArgs: []string{"--transport=grpc"}}
+		args := version.GetStartArgs(parent)
+		child := newFlags()
+		child.String("transport", "", "")
+		require.NoError(t, child.Parse(args))
+		parent.Visit(func(flag *pflag.Flag) {
+			require.Equal(t, flag.Value.(pflag.SliceValue).GetSlice(), child.Lookup(flag.Name).Value.(pflag.SliceValue).GetSlice())
+		})
+	}
+}
+
+func TestGetStartArgsDefaultOverrides(t *testing.T) {
+	require.Equal(t, []string{"--grpc.enable", "--api.enable", "--api.swagger=false", "--with-tendermint=false", "--transport=grpc"}, (Version{}).GetStartArgs(nil))
 }
