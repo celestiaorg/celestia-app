@@ -31,7 +31,8 @@ WORKDIR /celestia-app
 
 # cache go module dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+COPY docker/download-go-modules.sh /usr/local/bin/download-go-modules.sh
+RUN sh /usr/local/bin/download-go-modules.sh
 
 # copy source code after downloading modules (to leverage caching)
 COPY . .
