@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -195,54 +196,76 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
 	for _, operation := range []string{"put", "get", "has", "delete", "delete batch", "read body", "cancel body"} {
 		t.Run(operation, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-			defer cancel()
-			release := make(chan struct{})
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = io.Copy(io.Discard, r.Body)
-				if strings.HasSuffix(operation, "body") {
-					w.Header().Set("Content-Length", "100")
-					w.WriteHeader(http.StatusOK)
-					w.(http.Flusher).Flush()
-				}
-				if operation == "cancel body" {
-					cancel()
-				}
-				<-release
-			}))
-			defer server.Close()
-			defer close(release)
 			cfg := DefaultStoreConfig()
 			cfg.Path = t.TempDir()
 			cfg.StorageBackend = storageBackendObject
 			cfg.ObjectStorage = testObjectStorageConfig()
-			cfg.ObjectStorage.Endpoint = server.URL
 			cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "chain", "validator"
 			require.NoError(t, toml.Unmarshal([]byte("request_timeout = 100000000"), &cfg.ObjectStorage))
 			store, err := NewStore(t.Context(), cfg)
 			require.NoError(t, err)
 			defer store.Close()
 			backend := store.shards.primary.(*objectBackend)
-			switch operation {
-			case "put":
-				err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
-			case "get", "read body", "cancel body":
-				_, err = backend.Get(ctx, Commitment{}, []byte{1})
-			case "has":
-				_, err = backend.Has(ctx, Commitment{}, []byte{1})
-			case "delete":
-				err = backend.Delete(ctx, Commitment{}, []byte{1})
-			case "delete batch":
-				_, err = backend.DeleteObjects(ctx, []shardID{{promiseHash: []byte{1}}})
-			}
-			if operation == "cancel body" {
-				require.ErrorIs(t, err, context.Canceled)
-			} else {
-				require.ErrorIs(t, err, context.DeadlineExceeded)
-				require.NoError(t, ctx.Err(), "the backend must time out before its caller")
-			}
+			// Fake time ensures the request starts before either deadline, even under load.
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+				defer cancel()
+				requests := 0
+				options := backend.client.(*s3.Client).Options()
+				options.HTTPClient = timeoutHTTPClient(func(r *http.Request) (*http.Response, error) {
+					requests++
+					if r.Body != nil {
+						defer r.Body.Close()
+						_, _ = io.Copy(io.Discard, r.Body)
+					}
+					if strings.HasSuffix(operation, "body") {
+						reader, writer := io.Pipe()
+						go func() {
+							if operation == "cancel body" {
+								cancel()
+							}
+							<-r.Context().Done()
+							_ = writer.CloseWithError(r.Context().Err())
+						}()
+						return &http.Response{
+							StatusCode:    http.StatusOK,
+							Header:        http.Header{"Content-Length": {"100"}},
+							Body:          reader,
+							ContentLength: 100,
+						}, nil
+					}
+					<-r.Context().Done()
+					return nil, r.Context().Err()
+				})
+				backend.client = s3.New(options)
+				switch operation {
+				case "put":
+					err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
+				case "get", "read body", "cancel body":
+					_, err = backend.Get(ctx, Commitment{}, []byte{1})
+				case "has":
+					_, err = backend.Has(ctx, Commitment{}, []byte{1})
+				case "delete":
+					err = backend.Delete(ctx, Commitment{}, []byte{1})
+				case "delete batch":
+					_, err = backend.DeleteObjects(ctx, []shardID{{promiseHash: []byte{1}}})
+				}
+				if operation == "cancel body" {
+					require.ErrorIs(t, err, context.Canceled)
+				} else {
+					require.ErrorIs(t, err, context.DeadlineExceeded)
+					require.NoError(t, ctx.Err(), "the backend must time out before its caller")
+				}
+				require.Equal(t, 1, requests, "the operation must send one request without retrying")
+			})
 		})
 	}
+}
+
+type timeoutHTTPClient func(*http.Request) (*http.Response, error)
+
+func (f timeoutHTTPClient) Do(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 // TestStoreConfiguredBackendSwitch checks reads and pruning across local-to-object-to-local restarts.
@@ -291,7 +314,8 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 				return
 			}
 			for _, key := range request.Keys {
-				delete(objects, r.URL.Path+"/"+key)
+				// The SDK may include a trailing slash on the bucket path.
+				delete(objects, strings.TrimSuffix(r.URL.Path, "/")+"/"+key)
 			}
 			_, _ = w.Write([]byte("<DeleteResult/>"))
 		default:

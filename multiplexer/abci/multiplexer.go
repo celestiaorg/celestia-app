@@ -36,6 +36,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
+	"github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -77,6 +78,8 @@ type Multiplexer struct {
 	cmNode *node.Node
 	// versions is a list of versions which contain all embedded binaries.
 	versions Versions
+	// startFlags contains the operator flags parsed by Cobra, reused on upgrades.
+	startFlags *pflag.FlagSet
 	// conn is a grpc client connection and used when creating remote ABCI connections.
 	conn *grpc.ClientConn
 	// ctx is the context which is passed to the comet, grpc and api server starting functions.
@@ -96,7 +99,7 @@ type Multiplexer struct {
 }
 
 // NewMultiplexer creates a new Multiplexer.
-func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCtx client.Context, appCreator servertypes.AppCreator, versions Versions, chainID string, applicationVersion uint64) (*Multiplexer, error) {
+func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCtx client.Context, appCreator servertypes.AppCreator, versions Versions, chainID string, applicationVersion uint64, startFlags *pflag.FlagSet) (*Multiplexer, error) {
 	if err := versions.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid versions: %w", err)
 	}
@@ -109,6 +112,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 		logger:        svrCtx.Logger.With("multiplexer"),
 		nativeApp:     nil, // app will be initialized if required by the multiplexer.
 		versions:      versions,
+		startFlags:    startFlags,
 		chainID:       chainID,
 		appVersion:    applicationVersion,
 	}
@@ -225,11 +229,11 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	if currentVersion.Appd.IsStopped() {
-		programArgs := removeStart(os.Args)
+		programArgs := currentVersion.GetStartArgs(m.startFlags)
 
 		// start an embedded app.
-		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
-		if err := currentVersion.Appd.Start(currentVersion.GetStartArgs(programArgs)...); err != nil {
+		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", programArgs)
+		if err := currentVersion.Appd.Start(programArgs...); err != nil {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
 
@@ -295,21 +299,6 @@ func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
 			return nil
 		}
 	})
-}
-
-// removeStart removes the first argument (the binary name) and the start argument from args.
-func removeStart(args []string) []string {
-	if len(args) == 0 {
-		return args
-	}
-	result := []string{}
-	args = args[1:] // remove the first argument (the binary name)
-	for _, arg := range args {
-		if arg != "start" {
-			result = append(result, arg)
-		}
-	}
-	return result
 }
 
 // initRemoteGrpcConn initializes a gRPC connection to the remote application client and configures transport credentials.
@@ -570,10 +559,10 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 		}
 
 		// start the new app
-		programArgs := removeStart(os.Args)
+		programArgs := version.GetStartArgs(m.startFlags)
 
-		m.logger.Info("Starting app for version", "app_version", version.AppVersion, "args", version.GetStartArgs(programArgs))
-		if err := version.Appd.Start(version.GetStartArgs(programArgs)...); err != nil {
+		m.logger.Info("Starting app for version", "app_version", version.AppVersion, "args", programArgs)
+		if err := version.Appd.Start(programArgs...); err != nil {
 			return fmt.Errorf("failed to start app for version %d: %w", m.appVersion, err)
 		}
 
