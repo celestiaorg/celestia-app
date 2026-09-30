@@ -78,7 +78,7 @@ func TestLeopardDecoderGroupedMatchesUngrouped(t *testing.T) {
 	ungrouped := defaultOptions
 	ungrouped.useNEON = false
 	ungrouped.useSHA3 = false
-	for _, m := range []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384} {
+	for _, m := range []int{1, 2, 4, 8, 16, 32, 64, 128, 256, 1024, 4096, 16384, 32768} {
 		for _, mtrunc := range []int{1, 2, 3, m / 4, m/4 + 1, m / 2, m - 1, m} {
 			if mtrunc < 1 || mtrunc > m {
 				continue
