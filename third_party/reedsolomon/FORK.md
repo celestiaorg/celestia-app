@@ -28,8 +28,11 @@ Local changes:
   of 4, the IFFT and FFT top stages are merged into scaling the IFFT output by
   four constants (`leopard_top.go`). On NEON the decoder runs the IFFT and
   the sparse FFT grouped the same way (`ifftDITDecoderGrouped`,
-  `fftDITGrouped` with an `errorBitfield`) and computes the formal derivative
-  row by row with `xorSlices` (`formalDerivative`).
+  `fftDITGrouped` with an `errorBitfield`), folding a trailing radix-2 layer
+  into the last group, skips clearing and reading the work rows above the
+  input count that only that folded group touches (`decoderZeroFrom`,
+  `ifftDIT4Zeros`), and computes the formal derivative row by row with
+  `xorSlices` (`formalDerivative`).
 - `leopard_split_generic.go`: `splitMulXor` and `xorSlices` for non-NEON
   builds.
 - `galois_leopard_arm64_test.go`, `leopard_grouped_test.go`,

@@ -142,10 +142,6 @@ func galMulSliceXor(c byte, in, out []byte, o *options) {
 	}
 }
 
-// dit4BlockSize splits 4-way butterflies into byte ranges small enough for
-// the four rows to stay in L1 between the two butterfly layers.
-const dit4BlockSize = 1024
-
 // dit4Block returns the four rows of a butterfly restricted to [off, end).
 func dit4Block(work [][]byte, dist, off, end int) [4][]byte {
 	return [4][]byte{work[0][off:end], work[dist][off:end], work[2*dist][off:end], work[3*dist][off:end]}

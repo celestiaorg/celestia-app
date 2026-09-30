@@ -89,15 +89,21 @@ func TestLeopardDecoderGroupedMatchesUngrouped(t *testing.T) {
 			}
 			a := AllocAligned(m, size)
 			b := AllocAligned(m, size)
+			// Rows from zeroFrom on are zero for the reference and left dirty
+			// for the grouped decoder, which must not read them.
+			zeroFrom := decoderZeroFrom(mtrunc, m, &defaultOptions)
 			for i := range a {
 				rng.Read(a[i])
 				copy(b[i], a[i])
+				if i >= zeroFrom {
+					clear(a[i])
+				}
 			}
 			ifftDITDecoder(mtrunc, a, m, fftSkew[:], &ungrouped)
 			ifftDITDecoderGrouped(mtrunc, b, m, fftSkew[:], &defaultOptions)
 			for i := range a {
 				if !bytes.Equal(a[i], b[i]) {
-					t.Fatalf("ifft m=%d mtrunc=%d row %d differs", m, mtrunc, i)
+					t.Fatalf("ifft m=%d mtrunc=%d zeroFrom=%d row %d differs", m, mtrunc, zeroFrom, i)
 				}
 			}
 			for _, density := range []int{1, 8, 64} {
