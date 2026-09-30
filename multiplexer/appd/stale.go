@@ -12,8 +12,9 @@ import (
 // staleSuffix marks a hidden directory that is being removed.
 const staleSuffix = ".stale"
 
-// PruneStaleBinaries removes extracted binary directories whose version is not
-// in keep and returns the removed paths. Hidden entries and symlinks are skipped.
+// PruneStaleBinaries removes extracted binary directories (named v<version>)
+// whose version is not in keep and returns the removed paths. Other entries and
+// symlinks are skipped.
 // Each directory is renamed to a hidden path before removal so a partial removal
 // never looks like a complete extraction.
 func PruneStaleBinaries(keep []string) ([]string, error) {
@@ -40,7 +41,7 @@ func PruneStaleBinaries(keep []string) ([]string, error) {
 				continue
 			}
 		} else {
-			if slices.Contains(keep, name) {
+			if !strings.HasPrefix(name, "v") || slices.Contains(keep, name) {
 				continue
 			}
 			staged = filepath.Join(dir, "."+name+staleSuffix)
