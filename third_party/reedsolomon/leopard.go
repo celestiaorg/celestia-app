@@ -405,17 +405,31 @@ func (r *leopardFF16) Split(data []byte) ([][]byte, error) {
 
 func (r *leopardFF16) ReconstructSome(shards [][]byte, required []bool) error {
 	if len(required) == r.totalShards {
-		return r.reconstruct(shards, true)
+		return r.reconstruct(shards, true, nil)
 	}
-	return r.reconstruct(shards, false)
+	return r.reconstruct(shards, false, nil)
 }
 
 func (r *leopardFF16) Reconstruct(shards [][]byte) error {
-	return r.reconstruct(shards, true)
+	return r.reconstruct(shards, true, nil)
 }
 
 func (r *leopardFF16) ReconstructData(shards [][]byte) error {
-	return r.reconstruct(shards, false)
+	return r.reconstruct(shards, false, nil)
+}
+
+// ParallelReconstructor is implemented by encoders whose ReconstructData can
+// spread its work over goroutines.
+type ParallelReconstructor interface {
+	ReconstructDataParallel(shards [][]byte, workers func() int) error
+}
+
+// ReconstructDataParallel is ReconstructData with the column chunks spread
+// over goroutines that share one work set, so the work memory stays that of
+// a single call. workers is polled as chunks finish, so the parallelism
+// follows what the caller can spare.
+func (r *leopardFF16) ReconstructDataParallel(shards [][]byte, workers func() int) error {
+	return r.reconstruct(shards, false, workers)
 }
 
 func (r *leopardFF16) Verify(shards [][]byte) (bool, error) {
@@ -446,7 +460,7 @@ func (r *leopardFF16) Verify(shards [][]byte) (bool, error) {
 	return true, nil
 }
 
-func (r *leopardFF16) reconstruct(shards [][]byte, recoverAll bool) error {
+func (r *leopardFF16) reconstruct(shards [][]byte, recoverAll bool, workers func() int) error {
 	if len(shards) != r.totalShards {
 		return ErrTooFewShards
 	}
@@ -567,44 +581,145 @@ func (r *leopardFF16) reconstruct(shards [][]byte, recoverAll bool) error {
 		}
 	}
 
-	if chunkSize >= shardSize {
+	if workers == nil && chunkSize >= shardSize {
 		r.reconstructChunk(sh, shards, work, m, n, inputCount, &errLocs, useBits, &errorBits, recoverAll)
 		return nil
 	}
 
-	// Process in cache-friendly chunks.
+	lanes := 1
+	if workers != nil {
+		lanes = max(min(chunkSize/minLaneSize, maxLanes), 1)
+	}
+	s := &laneScheduler{shardSize: shardSize, laneSize: chunkSize / lanes &^ 63, lanes: lanes, free: 1<<lanes - 1, workers: workers, running: 1}
+	s.cond.L = &s.mu
+	s.run = func() {
+		r.reconstructLanes(s, sh, shards, work, m, n, inputCount, &errLocs, useBits, &errorBits, recoverAll)
+	}
+	s.mu.Lock()
+	s.spawn()
+	s.mu.Unlock()
+	s.run()
+	s.wg.Wait()
+	return nil
+}
+
+// Lanes carve the work columns among concurrent goroutines. A lane is at
+// least minLaneSize wide, so a work chunk has at most maxLanes of them.
+const (
+	minLaneSize = 1 << 10
+	maxLanes    = 32
+)
+
+// laneScheduler hands column blocks of a reconstruct to goroutines. Each
+// block gets an aligned power-of-two group of lanes sized by the workers
+// callback, so a lone goroutine sweeps the whole chunk at once and more
+// goroutines start as the callback allows.
+type laneScheduler struct {
+	shardSize, laneSize, lanes int
+	workers                    func() int
+	run                        func() // one goroutine's loop over claimed blocks
+
+	mu      sync.Mutex
+	cond    sync.Cond
+	next    int    // first unclaimed column
+	free    uint64 // bit i set: lane i is free
+	running int    // goroutines in run, the caller included
+	wg      sync.WaitGroup
+}
+
+// want reports the goroutine count the callback allows, clamped to the lanes.
+func (s *laneScheduler) want() int {
+	if s.workers == nil {
+		return 1
+	}
+	return max(min(s.workers(), s.lanes), 1)
+}
+
+// spawn starts goroutines until running matches want. Caller holds mu.
+func (s *laneScheduler) spawn() {
+	for want := s.want(); s.running < want && s.next < s.shardSize; {
+		s.running++
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			s.run()
+		}()
+	}
+}
+
+// claim reserves the next column block and k lanes from lane for it. It
+// returns false when no columns remain or the caller should stop to match
+// want.
+func (s *laneScheduler) claim() (off, end, lane, k int, ok bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for {
+		if s.next >= s.shardSize {
+			return 0, 0, 0, 0, false
+		}
+		want := s.want()
+		if s.running > want {
+			s.running--
+			return 0, 0, 0, 0, false
+		}
+		k = 1
+		for k*2 <= s.lanes/want {
+			k *= 2
+		}
+		for ; k > 0; k /= 2 {
+			mask := uint64(1)<<k - 1
+			for i := 0; i+k <= s.lanes; i += k {
+				if s.free&(mask<<i) == mask<<i {
+					s.free &^= mask << i
+					off = s.next
+					end = min(off+k*s.laneSize, s.shardSize)
+					s.next = end
+					return off, end, i, k, true
+				}
+			}
+		}
+		s.cond.Wait()
+	}
+}
+
+// release frees k lanes from lane and starts goroutines if want grew.
+func (s *laneScheduler) release(lane, k int) {
+	s.mu.Lock()
+	s.free |= (uint64(1)<<k - 1) << lane
+	s.spawn()
+	s.mu.Unlock()
+	s.cond.Broadcast()
+}
+
+// reconstructLanes runs the chunk pipeline over the blocks s hands out,
+// using the block's lanes of work as scratch.
+func (r *leopardFF16) reconstructLanes(s *laneScheduler, sh, shards, work [][]byte, m, n, inputCount int, errLocs *[order]ffe, useBits bool, errorBits *errorBitfield, recoverAll bool) {
 	wMod := r.getWorkSlice(len(work))
 	defer r.putWorkSlice(wMod)
-	copy(wMod, work)
 	shChunk := r.getShardSlice()
 	defer r.putShardSlice(shChunk)
-	copy(shChunk, sh)
 	outChunk := r.getShardSlice()
 	defer r.putShardSlice(outChunk)
-	for off := 0; off < shardSize; off += chunkSize {
-		work := wMod
-		shChunk := shChunk
-		outChunk := outChunk
-		endSlice := off + chunkSize
-		if endSlice > shardSize {
-			endSlice = shardSize
-			sz := endSlice - off
-			for i := range work {
-				work[i] = work[i][:sz]
-			}
+	for {
+		off, end, lane, k, ok := s.claim()
+		if !ok {
+			return
+		}
+		col := lane * s.laneSize
+		for i := range work {
+			wMod[i] = work[i][col : col+end-off]
 		}
 		for i := range shards {
 			if len(sh[i]) != 0 {
-				shChunk[i] = shards[i][off:endSlice]
+				shChunk[i] = shards[i][off:end]
 			}
 			if len(shards[i]) != 0 {
-				outChunk[i] = shards[i][off:endSlice]
+				outChunk[i] = shards[i][off:end]
 			}
 		}
-
-		r.reconstructChunk(shChunk, outChunk, work, m, n, inputCount, &errLocs, useBits, &errorBits, recoverAll)
+		r.reconstructChunk(shChunk, outChunk, wMod, m, n, inputCount, errLocs, useBits, errorBits, recoverAll)
+		s.release(lane, k)
 	}
-	return nil
 }
 
 // reconstructChunk processes one chunk of the reconstruct pipeline.

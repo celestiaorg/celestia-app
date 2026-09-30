@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"math/rand"
+	"sync/atomic"
 	"testing"
 )
 
@@ -197,6 +198,43 @@ func TestLeopardGF16ReconstructGolden(t *testing.T) {
 					if got != want {
 						t.Errorf("%d+%d size=%d %s %s all=%v: digest %s, want %s", sh.data, sh.parity, sh.size, v.name, e.name, all, got, want)
 					}
+				}
+			}
+		}
+	}
+}
+
+// TestLeopardGF16ReconstructDataParallelGolden checks that spreading the
+// column chunks over goroutines keeps the ReconstructData digests.
+func TestLeopardGF16ReconstructDataParallelGolden(t *testing.T) {
+	for _, sh := range goldenReconstructShapes {
+		if testing.Short() && sh.size > 4096 {
+			continue
+		}
+		shards := goldenShards(sh.data, sh.parity, sh.size, false)
+		enc, err := New(sh.data, sh.parity, WithLeopardGF16(true))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := enc.Encode(shards); err != nil {
+			t.Fatal(err)
+		}
+		pr := enc.(*leopardFF16)
+		for ei, e := range goldenErasures {
+			// 0 stands for a callback whose answer changes every call.
+			for _, parallel := range []int{2, 3, 16, 1 << 20, 0} {
+				workers := func() int { return parallel }
+				if parallel == 0 {
+					var calls atomic.Int32
+					workers = func() int { return []int{1, 16, 3, 5, 2}[calls.Add(1)%5] }
+				}
+				rng := rand.New(rand.NewSource(int64(sh.data*7919 + sh.parity*31 + ei)))
+				in := goldenErased(shards, e.keep(sh.data, sh.parity, rng), rng)
+				if err := pr.ReconstructDataParallel(in, workers); err != nil {
+					t.Fatal(err)
+				}
+				if got := goldenDigestAll(in[:sh.data]); got != sh.dataDigests[ei] {
+					t.Errorf("%d+%d size=%d %s parallel=%d: digest %s, want %s", sh.data, sh.parity, sh.size, e.name, parallel, got, sh.dataDigests[ei])
 				}
 			}
 		}
