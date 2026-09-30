@@ -139,6 +139,17 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
+	storeLogArgs := []any{"storage_backend", s.Config.StorageBackend}
+	objectCfg := s.Config.ObjectStorage.canonical()
+	if objectCfg.Endpoint != "" || objectCfg.Bucket != "" || objectCfg.Prefix != "" {
+		storeLogArgs = append(storeLogArgs, slog.Group("object_namespace",
+			slog.String("bucket", objectCfg.Bucket),
+			slog.String("prefix", objectCfg.Prefix),
+			slog.String("chain_id", objectCfg.ChainID),
+			slog.String("validator_address", objectCfg.ValidatorAddress),
+		))
+	}
+	s.log.Info("store ready", storeLogArgs...)
 	s.store.shards.setMetrics(s.metrics)
 
 	if err := s.seedOccupancy(ctx); err != nil {

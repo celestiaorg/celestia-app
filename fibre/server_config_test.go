@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
+	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,5 +175,54 @@ func TestServerConfigMinUploadSize(t *testing.T) {
 		} else {
 			require.NoError(t, err)
 		}
+	}
+}
+
+func TestServerConfigLoadRejectsUnknownFields(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		content string
+		unknown string
+	}{
+		{
+			name: "top-level field",
+			content: `server_listen_address = "127.0.0.1:8123"
+storage-backend = "object"
+`,
+			unknown: "storage-backend",
+		},
+		{
+			name: "table",
+			content: `server_listen_address = "127.0.0.1:8123"
+[objectstorage]
+bucket = "fibre-shards"
+`,
+			unknown: "objectstorage",
+		},
+		{
+			name: "nested field",
+			content: `server_listen_address = "127.0.0.1:8123"
+[object_storage]
+buckett = "fibre-shards"
+`,
+			unknown: "buckett",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			path := DefaultConfigPath(t.TempDir())
+			require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
+			require.NoError(t, os.WriteFile(path, []byte(tc.content), 0o644))
+
+			cfg := DefaultServerConfig()
+			originalAddress := cfg.ServerListenAddress
+			err := cfg.Load(path)
+			require.Error(t, err)
+			require.ErrorContains(t, err, path)
+			require.ErrorContains(t, err, tc.unknown)
+			var strictErr *toml.StrictMissingError
+			require.ErrorAs(t, err, &strictErr)
+			require.NotEmpty(t, strictErr.Errors)
+			require.Equal(t, originalAddress, cfg.ServerListenAddress)
+		})
 	}
 }

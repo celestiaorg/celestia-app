@@ -1,9 +1,11 @@
 package fibre_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -209,4 +211,24 @@ func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, server.Stop(context.Background())) })
 	require.ErrorIs(t, server.Start(t.Context()), wantErr)
 	require.Nil(t, server.Store())
+}
+
+func TestServerStartLogsStoreConfig(t *testing.T) {
+	var logs bytes.Buffer
+	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.StorageBackend = "object"
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Bucket = "fibre-shards"
+		cfg.ObjectStorage.Prefix = "/fibre/./"
+	})
+
+	output := logs.String()
+	require.Contains(t, output, `msg="store ready"`)
+	require.Contains(t, output, "storage_backend=object")
+	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
+	require.Contains(t, output, "object_namespace.prefix=fibre")
+	require.NotContains(t, output, "object_namespace.prefix=/fibre/./")
+	require.Contains(t, output, "object_namespace.chain_id=celestia")
+	require.Contains(t, output, "object_namespace.validator_address="+sdk.ConsAddress(validator.Address).String())
 }

@@ -129,6 +129,7 @@ min_upload_size = 33554432
 Restart Fibre to apply changes. Values must be positive and no greater than the 128 MiB protocol maximum. This is a local admission policy: it does not change encoding, block validation, settlement, or downloads of existing blobs. Clients are not automatically informed of the setting and smaller uploads are rejected rather than padded by the server. Coordinate settings across validators and clients; incompatible minimums can prevent clients from collecting enough signatures.
 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
+Unknown keys and tables cause startup to fail, so Fibre does not silently ignore misspelled settings.
 
 ### Switching shard storage backends
 
