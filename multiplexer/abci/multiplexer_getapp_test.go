@@ -113,7 +113,7 @@ func TestGetAppFailsForUnsupportedAppVersion(t *testing.T) {
 	serverContext := server.NewDefaultContext()
 	serverContext.Config.SetRoot(t.TempDir())
 	nilAppCreator := func(log.Logger, db.DB, io.Writer, servertypes.AppOptions) servertypes.Application { return nil }
-	m, err := NewMultiplexer(serverContext, serverconfig.Config{}, client.Context{}, nilAppCreator, versions, "test-chain", 1)
+	m, err := NewMultiplexer(serverContext, serverconfig.Config{}, client.Context{}, nilAppCreator, versions, "test-chain", 1, nil)
 	require.NoError(t, err)
 
 	_, err = m.getApp()
