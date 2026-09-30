@@ -57,7 +57,7 @@ Celestia App Specifications
   - [Types v10](./types_v10.md)
 - [TxClient v1](./tx_client.md)
 - [TxClient v2](./tx_client_v2.md)
-- [Fibre](./fibre.md)
+- [How Fibre works](./fibre.md)
   - [Fibre Client](./fibre_client.md)
   - [Fibre Server](./fibre_server.md)
   - [Fibre Module](./fibre_module.md)

@@ -1,6 +1,6 @@
 # Fibre Server
 
-This document describes the Fibre server implemented by the `fibre.Server` type. The server is a validator-operated gRPC service that accepts assigned blob shards, verifies payment promises and row proofs, stores shards locally until the payment promise expires, signs the payment promise with the validator consensus key, and serves stored shards back to download clients.
+This document describes the Fibre server implemented by the `fibre.Server` type. The server is a validator-operated gRPC service that accepts assigned blob shards, verifies payment promises and row proofs, stores shards until the later of promise expiry and the retention deadline, signs the payment promise with the validator consensus key, and serves stored shards back to download clients.
 
 ## Public gRPC API
 
@@ -91,15 +91,21 @@ type ServerConfig struct {
     AppGRPCAddress      string
     ServerListenAddress string
     SignerGRPCAddress   string
+    MinUploadSize       int
     UploadVerifyWorkers int
+    MaxConnections      int
+    MaxConcurrentStreams int
 
     StoreConfig
 
     LivenessThreshold   cmtmath.Fraction
     MinRowsPerValidator int
+    OriginalRows        int
+    MaxShardSize        int
+    UnlimitedBudget     bool
     MaxMessageSize      int
 
-    StoreFn      func(StoreConfig) (*Store, error)
+    StoreFn      func(context.Context, StoreConfig) (*Store, error)
     StateClientFn func() (state.Client, error)
     SignerFn     func(chainID string) (core.PrivValidator, error)
 
@@ -115,14 +121,18 @@ Defaults:
 app_grpc_address = "127.0.0.1:9090"
 server_listen_address = "0.0.0.0:7980"
 signer_grpc_address = "127.0.0.1:26669"
+min_upload_size = 262144
 upload_verify_workers = runtime.GOMAXPROCS(0)
+max_connections = 16
+max_concurrent_streams = 13
+storage_backend = "local"
 ```
 
 `StoreConfig.Path` is not a TOML field; the standalone `fibre start` command sets it from `--home`. The default state client is a gRPC app client connected to `AppGRPCAddress`. The default signer is a PrivValidatorAPI gRPC client connected to `SignerGRPCAddress`. Both app-node gRPC and signer gRPC use insecure local transport and are expected to be loopback or otherwise protected.
 
 ## Lifecycle
 
-`Server.Start` starts the state client first, detects the chain ID, creates the signer, builds a TLS certificate endorsed by the validator consensus key, registers the Fibre gRPC service with TLS 1.3 credentials and max send/receive message sizes, opens the store, starts the prune loop, and starts serving gRPC in the background.
+`Server.Start` starts the state client first, detects the chain ID, creates the signer, builds a TLS certificate endorsed by the validator consensus key, registers the Fibre gRPC service with TLS 1.3 credentials and max send/receive message sizes, opens the store, seeds occupancy from shard markers (falling back to file sizes for legacy local markers), derives its storage budget, starts the prune loop, and starts serving gRPC in the background.
 
 `Server.Stop` cancels the prune loop, stops the gRPC server, closes the signer if it implements `io.Closer`, closes the store, and stops the state client.
 
@@ -145,7 +155,7 @@ New allocations under this arc must be recorded in this table. The extension OID
 
 ## State Client
 
-The server depends on `state.Client` for chain ID, validator sets, validator host lookup, and payment-promise state validation. The default implementation is `fibre/internal/grpc.AppClient`, which uses app-node gRPC. Validator sets are fetched through the CometBFT Block API `ValidatorSet` endpoint. Payment promises are checked with the app `x/fibre` `ValidatePaymentPromise` query, which returns the expiration time used for local pruning.
+The server depends on `state.Client` for chain ID, validator sets, validator host lookup, and payment-promise state validation. The default implementation is `fibre/internal/grpc.AppClient`, which uses app-node gRPC. Validator sets are fetched through the CometBFT Block API `ValidatorSet` endpoint. Payment promises are checked with the app `x/fibre` `ValidatePaymentPromise` query, which returns expiration and shard retention. By default the query also verifies the owner signature and reserves funds in a validator-local promise cache. This query-side reservation is separate from consensus settlement; see the [module reference](./fibre_module.md#queries).
 
 ## UploadShard Flow
 
@@ -155,14 +165,14 @@ The server depends on `state.Client` for chain ID, validator sets, validator hos
 2. Check that `promise.chain_id` matches the connected app chain ID.
 3. Check that `promise.blob_version` is supported.
 4. Run stateless promise validation: signer public key exists and is 33 bytes, chain ID is non-empty and at most 20 bytes, upload size is positive, creation timestamp is nonzero, escrow-owner signature is 64 bytes, height is positive, and the escrow-owner secp256k1 signature verifies against `SignBytes`.
-5. Run stateful validation through the app state client. On success this returns `ExpiresAt` and `ShardRetention` (the `x/fibre` on-chain, governance-changeable parameter, default 4h); the server computes `pruneAt = max(ExpiresAt, creation_timestamp + ShardRetention)`, so shards are kept for at least the configured retention and are never pruned while the promise is still valid.
-6. Compute the payment-promise hash.
+5. Reject a padded upload size below the local `MinUploadSize` (default 256 KiB), then run stateful validation through the app state client. On success this returns `ExpiresAt` and `ShardRetention` (the `x/fibre` on-chain, governance-changeable parameter, default 4h); the server computes `pruneAt = max(ExpiresAt, creation_timestamp + ShardRetention)`, so shards are kept for at least the configured retention and are never pruned while the promise is still valid.
+6. Compute the payment-promise hash and require a non-nil shard. If the store already has this promise and shard, skip assignment verification, shard verification, and storage, and re-sign the promise. Otherwise continue below.
 7. Fetch the validator set at `promise.height`.
 8. Fetch this server's validator consensus public key from the signer and find it in the validator set.
 9. Compute `validator.Set.Assign(promise.commitment, totalRows, originalRows, minRows, livenessThreshold)`.
 10. Verify the uploaded row indices exactly match this validator's assignment by count, membership, and duplicate checks.
 11. Validate the shard: all rows must be present and share one nonzero row size, each row must include data and proof, `promise.blob_size` must equal `row_size * originalRows`, `shard.rlcs` must unmarshal, and `rsema1d.Verifier.Verify` must accept the commitment, row proofs, and RLC vector.
-12. Store the promise and shard.
+12. Serialize uploads with the same promise hash, honoring cancellation while waiting, and re-check storage. Reserve encoded storage size for a shard not already accounted for by its marker, then store the promise and shard. Reject an over-budget upload with `ResourceExhausted` and `RetryInfo`; release a new reservation if storage fails.
 13. Sign the payment promise with the validator signer and return the validator signature.
 
 The server stores before signing. A successful validator signature means the server accepted and stored the shard.
@@ -184,7 +194,9 @@ The row indices `0..totalRows-1` are shuffled with a ChaCha8 RNG seeded by the c
 
 ## Storage
 
-The store uses Pebble for metadata and flat files for bulk shard payloads. The layout under `StoreConfig.Path` is:
+The store uses Pebble for metadata. `StorageBackend` selects local flat files (the default) or experimental object storage for new shard payloads. Each shard marker records its backend and encoded size, so existing shards remain routed to their original backend after a configuration change. Object storage must remain configured and accessible until its shards are pruned. See [`StoreConfig`](../../fibre/store_config.go) and [`ObjectStorageConfig`](../../fibre/store_object_config.go).
+
+For local payloads, the layout under `StoreConfig.Path` is:
 
 ```text
 shards/<commitment-hex>-<promise-hash-hex>  finalized shard payload
@@ -199,11 +211,11 @@ Pebble metadata keys are:
 /prune/<YYYYMMDDHHmm>/<commitment>/<hash>      prune index
 ```
 
-`Store.Put` writes the shard to a random staging file, writes metadata, then renames the staging file to the canonical shard file. Puts for the same commitment but different payment promises are stored independently by promise hash. `Store.Get(commitment)` iterates `/shard/<commitment>/` and returns the first readable shard file. If it finds an orphan marker whose shard file is missing, it deletes the marker lazily. `Store.PruneBefore` iterates the ordered `/prune/` index and deletes shard files, shard markers, payment promises, and prune entries whose prune timestamp is older than the cutoff.
+`Store.Put` writes the payload to the selected backend, then commits the Pebble metadata batch. The local backend stages and renames the file before that commit; object storage does not use the local staging directory. Puts for the same commitment but different payment promises are stored independently by promise hash. `Store.Get(commitment)` iterates `/shard/<commitment>/` and returns the first readable shard from the backend selected by its marker. Markers whose payloads are missing remain until pruning so their recorded occupancy can be released. `Store.PruneBefore` iterates the ordered `/prune/` index and deletes expired payloads from their recorded backend and then removes the associated metadata. Failed payload deletions retain metadata for a later retry.
 
 ## Pruning
 
-The only background worker in the server is the prune loop. It runs once per minute and calls `Store.PruneBefore(time.Now())`, deleting shards whose `pruneAt` has passed. `pruneAt` is `max(ExpiresAt, creation_timestamp + ShardRetention)`, where `ShardRetention` is the `x/fibre` on-chain, governance-changeable parameter (default 4h) independent of the chain's `PaymentPromiseTimeout`. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits `MsgPaymentPromiseTimeout`.
+The only background worker in the server is the prune loop. It runs once per minute, prunes expired entries in batches, releases occupancy for successfully pruned entries, and recomputes the storage budget from current stake and governance parameters. A failed budget refresh keeps the previous budget. `pruneAt` is `max(ExpiresAt, creation_timestamp + ShardRetention)`, where `ShardRetention` is the `x/fibre` on-chain, governance-changeable parameter (default 4h) independent of the chain's `PaymentPromiseTimeout`. There is no block subscriber, no local unprocessed-to-processed promotion, and no timeout scanner that submits `MsgPaymentPromiseTimeout`.
 
 ## Error Mapping
 
@@ -214,16 +226,18 @@ Current gRPC status behavior is intentionally simple:
 | `UploadShard` | payment promise conversion, chain ID, blob version, stateless validation, or stateful validation fails | `InvalidArgument` |
 | `UploadShard` | assignment verification fails | `InvalidArgument` |
 | `UploadShard` | row, proof, RLC, upload-size, or commitment verification fails | `InvalidArgument` |
-| `UploadShard` | store write or validator signing fails | `Internal` |
+| `UploadShard` | storage budget exceeded | `ResourceExhausted`, with `RetryInfo` |
+| `UploadShard` | store write aborted by caller cancellation or deadline | `Canceled` or `DeadlineExceeded` |
+| `UploadShard` | store write or validator signing otherwise fails | `Internal` |
 | `DownloadShard` | invalid blob ID or unsupported blob version | `InvalidArgument` |
 | `DownloadShard` | no shard found for commitment | `NotFound` |
 | `DownloadShard` | store read failure | `Internal` |
 
-The implementation does not currently return `FailedPrecondition`, `PermissionDenied`, `AlreadyExists`, or `ResourceExhausted` for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.
+Storage-budget rejection includes a retry delay of one prune interval plus jitter: at least 60 seconds and less than 90 seconds. Errors returned by app-side promise validation, including local promise-cache budget rejection, are wrapped as `InvalidArgument` by `UploadShard`; they do not use this storage retry response.
 
 ## Concurrency And DoS Controls
 
-The server does not implement per-peer token buckets, throughput caps, request backoff hints, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by `UploadVerifyWorkers`, which is the size of the pooled `rsema1d.Verifier` channel. gRPC receive/send message size is bounded by `MaxMessageSize` from protocol params.
+The server limits stored and in-flight shard bytes. Its budget is `FullStakeStorageBudget * assignedRows / OriginalRows`, using the current validator set and the same row-count calculation as assignment. `UnlimitedBudget` disables this limiter. This is a shard-payload occupancy budget, not a limit on total filesystem usage including Pebble metadata. The transport defaults to 16 connections and 13 concurrent HTTP/2 streams per connection, configurable through `MaxConnections` and `MaxConcurrentStreams`, with a 15-second connection setup timeout and keepalive limits. These limits apply before shard verification. There are no per-peer token buckets or throughput caps. Upload verification concurrency is bounded by `UploadVerifyWorkers`, which is the size of the pooled `rsema1d.Verifier` channel. gRPC receive/send message size is bounded by `MaxMessageSize` from protocol params.
 
 ## Metrics
 
@@ -232,6 +246,11 @@ The server records OpenTelemetry metrics for:
 - `fibre.server.upload_shard.in_flight`
 - `fibre.server.upload_shard.duration`
 - `fibre.server.upload_shard.bytes`
+- `fibre.server.upload_shard.dupe_hits`
+- `fibre.server.upload_shard.last_success_timestamp`
+- `fibre.server.upload_shard.rejected`
+- `fibre.server.upload_shard.occupancy_bytes`
+- `fibre.server.upload_shard.budget_bytes`
 - `fibre.server.download_shard.in_flight`
 - `fibre.server.download_shard.duration`
 - `fibre.server.download_shard.bytes`

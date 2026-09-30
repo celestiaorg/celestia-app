@@ -20,7 +20,7 @@ The client is constructed with a Cosmos SDK keyring and `ClientConfig`.
 func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error)
 ```
 
-The configured key must exist in the keyring. `Start(ctx)` must be called before `Upload`, `Download`, or package-level `Put`.
+A nil keyring allows downloads only; `Upload` and `Put` then return `ErrNoKeyring`. If a keyring is provided, the configured key must exist. `Start(ctx)` must be called before `Upload`, `Download`, or package-level `Put`.
 
 ```go
 client, err := fibre.NewClient(kr, fibre.DefaultClientConfig())
@@ -155,7 +155,11 @@ func Put(
 
 `Put` is a package-level convenience helper. It creates a v0 blob, calls `Client.Upload` to upload assigned shards to validators and collect validator signatures, builds `MsgPayForFibre`, broadcasts it through the supplied `user.TxClient`, and waits for transaction confirmation.
 
-`Put` does not use a DFSP relay client. The caller supplies the transaction client, so transaction endpoint selection, account configuration, fees, fee grants, and signing setup are determined by that `user.TxClient`. `Put` submits one `MsgPayForFibre` for the blob; callers that need batching or custom transaction flow should call `Client.Upload` directly and submit payments themselves. `TTL` is currently present in `PutResult` but is not populated.
+`Put` does not use a DFSP relay client. The caller supplies the transaction client, so transaction endpoint selection, account configuration, fees, fee grants, and signing setup are determined by that `user.TxClient`. `Put` submits one `MsgPayForFibre` for the blob; callers that need custom transaction flow should call `Client.Upload` directly and submit payments themselves. A PFF holds one promise and must be the only message in its transaction; batching PFF messages in one transaction is rejected. `TTL` is currently present in `PutResult` but is not populated.
+
+### Upload retries
+
+For a validator returning `ResourceExhausted`, the upload worker makes up to three retries after the initial attempt. It honors positive `RetryInfo` delays, capped at two minutes, or defaults to one second without a usable hint. Caller cancellation or client shutdown interrupts the wait. This is separate from the connection cache refreshing a failed host.
 
 ### Download
 
@@ -171,7 +175,7 @@ func (c *Client) Download(
 ) (*Blob, error)
 ```
 
-`Download` fetches and reconstructs a blob by `BlobID`. If `WithHeight` is provided, the client uses the validator set at that height; otherwise it uses the current head validator set. The returned blob owns pooled storage and must be released with `Free`.
+`Download` fetches and reconstructs a blob by `BlobID`. If `WithHeight` is provided, the client uses the validator set at that height; otherwise it uses the current head validator set. For later retrieval, use the payment promise height. `PutResult.Height` is the settlement height and may differ. Downloads verify content against the supplied commitment; they do not verify on-chain inclusion or settlement. The returned blob owns pooled storage and must be released with `Free`.
 
 The current API does not expose `Get(ctx, namespace, commitment) ([]byte, error)`. Callers use `Download(ctx, NewBlobID(version, commitment))` and then read `blob.Data()`.
 
@@ -390,7 +394,7 @@ Signature collection currently enforces voting-power threshold only. It does not
 2. Call `Client.Upload` using `WithKeyName(txClient.DefaultAccountName())` to upload assigned shards to validators and collect validator signatures.
 3. Convert the signed promise to proto.
 4. Build `x/fibre` `MsgPayForFibre` with validator signatures.
-5. Broadcast through `txClient.BroadcastTx`.
+5. Broadcast through `txClient.BroadcastTx`. A missing historical validator set rejection is retried up to four total attempts, separated by 500 ms, to allow the app to catch up with the observed head height.
 6. Wait for inclusion with `txClient.ConfirmTx`.
 7. Return `PutResult`.
 
@@ -438,17 +442,15 @@ Escrow state and transactions are available through the app's `x/fibre` query an
 
 Callers that need deposits, withdrawals, escrow queries, or PFF transaction submission use the normal app gRPC query clients and transaction clients.
 
-### Escrow ledger accounting safety
+### Escrow ledger accounting and limits
 
-When escrow auto-funding is enabled, each signer has a client-side ledger holding a single number, `balance`: the on-chain escrow balance minus the funds already committed to signed-but-not-yet-settled promises. `balance` is seeded once from chain (`Query.EscrowAccount`) on first use.
+Escrow admission and auto-funding run in `Put` only when `Escrow.AutoFund` is enabled. Direct calls to `Client.Upload` bypass them. Each signer has an in-memory ledger seeded from the on-chain `AvailableBalance`, minus reservations for this client's subsequent `Put` calls.
 
-An upload is admitted only when `balance` covers its payment, at which point `balance` is decremented. The decrement is credited back only if the upload fails *before* its promise is signed — once signed, the funds are committed (the `Msg.PayForFibre` settlement, or `Msg.PaymentPromiseTimeout` if the PFF never lands, debits the escrow on chain regardless of this client), so the decrement is final. When `balance` dips below `LowWatermark`, a background deposit (`Msg.DepositToEscrow`, single-flighted) tops it up to `HighWatermark`, applied as an additive delta once confirmed.
+Before dispatch, `Put` reserves the payment amount. It returns that reservation if it fails before the signed promise can leave the client. Once dispatch starts, the reservation stays debited even if upload or settlement fails: anyone holding the signed promise may submit a timeout settlement. Confirmed deposits add to the ledger. Failed uploads whose promises never settle can therefore leave the ledger understating the on-chain balance; an abort before dispatch is credited back.
 
-The safety invariant is that `balance` is never *overstated*: it is only ever credited by a real confirmed deposit or by an abort-before-sign (whose funds were never committed), never by a phantom amount. Because no chain re-read overwrites `balance` during operation, the additive deposit delta can never double-count a concurrent reconcile, so the additive is unconditionally correct. A never-overstated balance means concurrent uploads can never collectively overcommit the escrow.
+This accounting only coordinates calls using this ledger. It does not reserve funds on chain or coordinate another process, direct `Upload` calls, or withdrawals made elsewhere with the same account.
 
-The trade-off is one-sided and deliberate: a long-running, never-idle client cannot re-anchor `balance` to on-chain ground truth, so it may *understate* over time (from aborted-before-sign uploads and promises that expire without a timeout settlement). Understating only refuses budget or tops up slightly more often than strictly needed — the excess stays in the escrow and is withdrawable — it never overcommits.
-
-Because the ledger is in-memory only, a client that restarts loses `balance` and re-seeds from chain. `Query.EscrowAccount` reports the on-chain `AvailableBalance`, which does not subtract promises the crashed client had signed but that had not yet settled — so a naive re-seed would *overstate* `balance` and could over-sign. `EscrowConfig.StartupGracePeriod` guards against this: within that window after the ledger starts it seeds nothing, admits nothing, and deposits nothing, and `waitForBudget` fails fast with an explicit error. By the time the window passes, any promise signed before the crash has settled or timed out on chain, so the first seed is exact. It is disabled by default (seed immediately, preserving the behavior above); operators who require crash-safety set it to at least the chain's `PaymentPromiseTimeout`. The alternative — durable local persistence of `balance` — would remove the startup window entirely at the cost of a synchronous disk write on the signing hot path, and is intentionally out of scope here.
+`StartupGracePeriod` delays seeding, admission, and deposits after ledger creation. It defaults to zero. It is a waiting mechanism, not evidence that old promises have settled. Waiting only `PaymentPromiseTimeout` is insufficient: expired promises can still be charged through `MsgPaymentPromiseTimeout` until they fail the freshness check. A restart policy must account for all outstanding promises and the full remaining settlement window, including allowed clock skew and parameter changes; see [stateful validation](./fibre_module.md#stateful-validation).
 
 ## 12) Errors
 
@@ -456,6 +458,7 @@ Important client-side errors include:
 
 * `ErrClientClosed`
 * `ErrKeyNotFound`
+* `ErrNoKeyring`
 * `ErrBlobTooLarge`
 * `ErrNotFound`
 * `ErrNotEnoughShards`
