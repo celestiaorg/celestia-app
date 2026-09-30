@@ -184,17 +184,23 @@ func (r *leopardFF16) encode(shards [][]byte) error {
 	lastCount := r.dataShards % m
 	chunkSize := encodeChunkSize(shardSize, m*2, &r.o)
 
-	work, err := getWork(r.workAlloc, m*2, chunkSize)
-	if err != nil {
-		return err
+	// When parity fills whole quarters of m, the fused top-stage path only
+	// touches rows that alias parity, so it needs no work buffers.
+	var work [][]byte
+	if !(r.o.useNEON && fuseTopStages(m, r.dataShards) && r.parityShards%(m/4) == 0) {
+		var err error
+		work, err = getWork(r.workAlloc, m*2, chunkSize)
+		if err != nil {
+			return err
+		}
+		defer r.workAlloc.Put(work)
 	}
-	defer r.workAlloc.Put(work)
 
 	skewLUT := fftSkew[m-1:]
 
 	sh := r.getShardSlice()
 	defer r.putShardSlice(sh)
-	wMod := r.getWorkSlice(len(work))
+	wMod := r.getWorkSlice(m * 2)
 	defer r.putWorkSlice(wMod)
 	copy(wMod, work)
 	for off := 0; off < shardSize; off += chunkSize {
@@ -205,7 +211,9 @@ func (r *leopardFF16) encode(shards [][]byte) error {
 			end = shardSize
 			sz := end - off
 			for i := range work {
-				work[i] = work[i][:sz]
+				if work[i] != nil {
+					work[i] = work[i][:sz]
+				}
 			}
 		}
 		for i := range shards {
