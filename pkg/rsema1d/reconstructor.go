@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/rlc"
+	"github.com/klauspost/reedsolomon"
 )
 
 // ErrNotEnoughRows is returned when reconstruction is attempted before K
@@ -129,8 +130,8 @@ func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 	return nil
 }
 
-// reconstructData recovers the missing original rows in place, running
-// Reed-Solomon over column ranges in parallel like encodeParity. Only a
+// reconstructData recovers the missing original rows in place, spreading the
+// Reed-Solomon column chunks over goroutines like encodeParity. Only a
 // well-formed input is split, so malformed ones get the single call's error.
 func (c *Coder) reconstructData(rows [][]byte) error {
 	active := int(c.active.Add(1))
@@ -144,41 +145,9 @@ func (c *Coder) reconstructData(rows [][]byte) error {
 	if parts == 1 {
 		return c.enc.ReconstructData(rows)
 	}
-	// Missing originals are recovered into their slot's spare capacity, so
-	// each part's sub-slice must have room.
-	for i := range c.config.K {
-		if len(rows[i]) == 0 && cap(rows[i]) < rowSize {
-			rows[i] = make([]byte, 0, rowSize)
-		}
-	}
-	size := rowSize / parts
-	errs := make([]error, parts)
-	var wg sync.WaitGroup
-	for p := range parts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			off := p * size
-			sub := make([][]byte, len(rows))
-			for i, r := range rows {
-				switch {
-				case len(r) != 0:
-					sub[i] = r[off : off+size]
-				case i < c.config.K:
-					sub[i] = r[off : off : off+size]
-				}
-			}
-			errs[p] = c.enc.ReconstructData(sub)
-		}()
-	}
-	wg.Wait()
-	if err := errors.Join(errs...); err != nil {
-		return err
-	}
-	for i := range c.config.K {
-		rows[i] = rows[i][:rowSize]
-	}
-	return nil
+	return c.enc.(reedsolomon.ParallelReconstructor).ReconstructDataParallel(rows, func() int {
+		return splitParts(rowSize, c.config.WorkerCount/int(c.active.Load()))
+	})
 }
 
 // splittableReconstruct reports the row size and whether rows is a shape the
