@@ -36,7 +36,7 @@ func PruneStaleBinaries(keep []string) ([]string, error) {
 		path := filepath.Join(dir, name)
 		staged := path
 		if strings.HasPrefix(name, ".") {
-			if !strings.HasSuffix(name, staleSuffix) {
+			if !strings.HasPrefix(name, ".v") || !strings.HasSuffix(name, staleSuffix) {
 				continue
 			}
 		} else {

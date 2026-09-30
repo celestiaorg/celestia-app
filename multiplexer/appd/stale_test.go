@@ -15,7 +15,7 @@ func TestPruneStaleBinaries(t *testing.T) {
 	t.Cleanup(func() { nodeHome = original })
 
 	binDir := filepath.Join(home, "bin")
-	for _, name := range []string{"v9.0.8", "v9.0.7", "v3.12.0", ".v9.0.8.tmp-123"} {
+	for _, name := range []string{"v9.0.8", "v9.0.7", "v3.12.0", ".v9.0.8.tmp-123", ".backup.stale"} {
 		require.NoError(t, os.MkdirAll(filepath.Join(binDir, name), 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(binDir, name, "celestia-appd"), []byte("binary"), 0o700))
 	}
@@ -29,7 +29,7 @@ func TestPruneStaleBinaries(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{filepath.Join(binDir, "v9.0.7")}, removed)
 	require.NoDirExists(t, filepath.Join(binDir, "v9.0.7"))
-	for _, name := range []string{"v9.0.8", "v3.12.0", ".v9.0.8.tmp-123"} {
+	for _, name := range []string{"v9.0.8", "v3.12.0", ".v9.0.8.tmp-123", ".backup.stale"} {
 		require.FileExists(t, filepath.Join(binDir, name, "celestia-appd"))
 	}
 	require.FileExists(t, filepath.Join(binDir, "README.md"))
