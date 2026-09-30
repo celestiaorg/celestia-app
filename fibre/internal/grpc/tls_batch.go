@@ -28,6 +28,15 @@ func (c batchingCreds) ClientHandshake(ctx context.Context, authority string, ra
 	return &flushConn{Conn: conn, bc: bc}, info, nil
 }
 
+func (c batchingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	bc := &batchConn{Conn: raw}
+	conn, info, err := c.TransportCredentials.ServerHandshake(bc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return &flushConn{Conn: conn, bc: bc}, info, nil
+}
+
 func (c batchingCreds) Clone() credentials.TransportCredentials {
 	return batchingCreds{c.TransportCredentials.Clone()}
 }

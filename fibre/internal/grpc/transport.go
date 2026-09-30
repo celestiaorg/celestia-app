@@ -68,9 +68,9 @@ type detectingCreds struct {
 }
 
 // NewDetectingServerCreds returns server credentials accepting both tls and
-// plaintext HTTP/2 connections.
+// plaintext HTTP/2 connections. TLS writes are batched; see [batchingCreds].
 func NewDetectingServerCreds(tls credentials.TransportCredentials) credentials.TransportCredentials {
-	return detectingCreds{tls}
+	return detectingCreds{batchingCreds{tls}}
 }
 
 func (c detectingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.AuthInfo, error) {

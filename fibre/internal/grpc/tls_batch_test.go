@@ -15,6 +15,60 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// TestBatchingCredsServerOneSyscallPerWrite is the server-side counterpart of
+// [TestBatchingCredsOneSyscallPerWrite].
+func TestBatchingCredsServerOneSyscallPerWrite(t *testing.T) {
+	const chainID = "test-chain"
+	pv := core.NewMockPV()
+	cert, err := tlsid.BuildServerCert(pv, chainID)
+	require.NoError(t, err)
+	pub, err := pv.GetPubKey()
+	require.NoError(t, err)
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	payload := make([]byte, writeBufferSize)
+	_, _ = rand.Read(payload)
+	creds := batchingCreds{credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13})}
+	writes := make(chan int64, 1)
+	go func() {
+		raw, err := ln.Accept()
+		if err != nil {
+			writes <- -1
+			return
+		}
+		counting := &countingConn{Conn: raw}
+		conn, _, err := creds.ServerHandshake(counting)
+		if err != nil {
+			writes <- -1
+			return
+		}
+		defer conn.Close()
+		before := counting.writes.Load()
+		if _, err := conn.Write(payload); err != nil {
+			writes <- -1
+			return
+		}
+		writes <- counting.writes.Load() - before
+	}()
+
+	client, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // identity is checked via VerifyConnection
+		VerifyConnection:   tlsid.VerifyConnection(pub, chainID),
+		MinVersion:         tls.VersionTLS13,
+		NextProtos:         []string{"h2"},
+	})
+	require.NoError(t, err)
+	defer client.Close()
+	received := make([]byte, len(payload))
+	_, err = io.ReadFull(client, received)
+	require.NoError(t, err)
+	require.True(t, bytes.Equal(payload, received))
+	require.Equal(t, int64(1), <-writes)
+}
+
 type countingConn struct {
 	net.Conn
 	writes atomic.Int64
