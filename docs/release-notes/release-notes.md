@@ -22,6 +22,10 @@ Use your node's and Fibre's home directories if they differ. A file is skipped i
 
 v10 introduces fibre, a data availability protocol served by validator-operated fibre servers. Validators should follow the [fibre server guide](../../fibre/cmd/README.md) — prerequisites, setup, and the on-chain host registration via [`x/valaddr`](../../x/valaddr/README.md) — to start serving fibre traffic once v10 is live.
 
+We recommend running the fibre server on a separate machine with its own public IP address. Fibre's endpoint is advertised on-chain and serves public client traffic. Register the Fibre host's public address in `x/valaddr`; using the validator node's IP exposes it to direct traffic and denial-of-service attacks. A separate Fibre host avoids disclosing the validator's IP through Fibre, but other services, including P2P, can still expose it.
+
+Connect Fibre to the validator's application gRPC and privval signer gRPC endpoints over a trusted private network or encrypted tunnel, and restrict access to the Fibre host. Configure [mutual TLS for the signer connection](../../fibre/cmd/README.md#signing) on both sides. Application gRPC is plaintext, so keep it off the public internet. Only Fibre's client port (default `7980`) needs to be publicly reachable for Fibre clients.
+
 We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other.
 
 #### Key Management Systems (KMS)
