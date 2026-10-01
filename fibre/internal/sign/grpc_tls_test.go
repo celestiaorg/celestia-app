@@ -113,6 +113,7 @@ func startTLSTestServer(t *testing.T, pv types.PrivValidator, certs testCerts) s
 	})))
 	privvalproto.RegisterPrivValidatorAPIServer(srv, privval.NewPrivValidatorGRPCServer(
 		pv,
+		testChainID,
 		log.NewNopLogger(),
 	))
 	go func() { _ = srv.Serve(lis) }()
