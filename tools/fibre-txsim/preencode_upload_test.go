@@ -91,6 +91,7 @@ func TestRunPreencodeUploads(t *testing.T) {
 	t.Cleanup(chain.Stop)
 
 	serverCfg := fibre.DefaultServerConfig()
+	serverCfg.MaxRPCShardRows = fibre.DefaultProtocolParams.MaxRowsPerValidator() // This test has one validator.
 	serverCfg.AppGRPCAddress = listener.Addr().String()
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
 	serverCfg.UnlimitedBudget = true

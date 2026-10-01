@@ -188,7 +188,10 @@ func TestObjectBackendGetChecksum(t *testing.T) {
 	for _, size := range []int{4, 2 << 20} {
 		for _, outcome := range []string{"valid", "corrupt", "trailing data"} {
 			t.Run(fmt.Sprintf("%d/%s", size, outcome), func(t *testing.T) {
-				shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: bytes.Repeat([]byte("a"), size)}}}
+				shard := &types.BlobShard{}
+				for remaining := size; remaining > 0; remaining -= min(remaining, 32768) {
+					shard.Rows = append(shard.Rows, &types.BlobRow{Data: bytes.Repeat([]byte("a"), min(remaining, 32768))})
+				}
 				var encoded bytes.Buffer
 				require.NoError(t, writeShardBinary(&encoded, shard))
 				if outcome == "trailing data" {

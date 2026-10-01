@@ -35,6 +35,7 @@ type shardID struct {
 
 // objectBackend stores shard payloads in S3-compatible object storage.
 type objectBackend struct {
+	maxReadRows    int
 	client         s3ObjectClient
 	namespace      objectNamespace
 	metrics        *serverMetrics
@@ -107,7 +108,7 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 	defer output.Body.Close()
 
 	reader := bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendObject, output.Body), 1<<20)
-	shard, err := readShardBinary(reader)
+	shard, err := readShardBinaryWithLimit(reader, b.maxReadRows)
 	if err != nil {
 		return nil, fmt.Errorf("decoding shard object: %w", err)
 	}

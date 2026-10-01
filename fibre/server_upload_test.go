@@ -3,6 +3,7 @@ package fibre_test
 import (
 	"context"
 	"crypto/ed25519"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,6 +52,16 @@ func TestServerUploadShard(t *testing.T) {
 			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), "signature cannot be empty")
+			},
+		},
+		{
+			name: "OversizedChainID",
+			requestModifier: func(req *types.UploadShardRequest) {
+				req.Promise.ChainId = strings.Repeat("x", 1<<20)
+			},
+			check: func(t *testing.T, _ *types.UploadShardResponse, err error) {
+				require.Error(t, err)
+				require.Less(t, len(err.Error()), 1024)
 			},
 		},
 		{

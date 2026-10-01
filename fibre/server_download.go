@@ -46,6 +46,9 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	blobShard, err := s.store.Get(ctx, id.Commitment())
 	s.metrics.observeStoreOp(ctx, s.metrics.storeGetDuration, storeGetStart, err == nil)
 	if err != nil {
+		if errors.Is(err, ErrShardTooLarge) {
+			return nil, status.Error(grpccodes.ResourceExhausted, ErrShardTooLarge.Error())
+		}
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.DebugContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")

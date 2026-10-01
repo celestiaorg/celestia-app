@@ -154,15 +154,30 @@ After all object shards are pruned, namespace changes need no override.
 
 ### Connection caps and memory
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+Transport limits remain `max_connections = 16` and `max_concurrent_streams = 13`.
+RPC admission separately allows 20 operations across all connections, with 8 slots reserved for uploads:
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```toml
+max_inflight_rpcs = 20
+reserved_upload_slots = 8
+max_rpc_shard_rows = 1721
 ```
 
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+Reads can occupy at most 12 slots; uploads can use all 20.
+Excess requests receive `ResourceExhausted` before message decoding. Clients should retry with backoff and jitter.
+Slots remain occupied until the handler finishes and all response-buffer references are released, including after connection closure.
+Downloads are sent uncompressed so their queued buffers remain tracked. Compressed requests are supported.
+Receive flow-control windows are fixed at 1 MiB per stream to bound buffering before admission.
+These limits reserve RPC capacity, not bandwidth or write throughput.
 
-An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+The default row limit uses a fixed 14% voting-power reference: `ceil(4096 × 0.14 × 3) = 1721` rows.
+A maximum-sized shard at that reference is about 54.64 MiB, including metadata; the receive limit adds 2% framing slack.
+Three payload representations across 20 operations estimate roughly 3.3 GiB, before GC, pools and other allocations.
+This is a sizing estimate, not a process-memory ceiling. Size limits using memory available to Fibre, not total validator RAM.
+
+The row limit applies before decoding uploads and stored downloads. Larger stored shards remain intact but cannot be served at this setting.
+Validators with larger assignments or stored shards must raise `max_rpc_shard_rows` (up to 4096) and reassess their memory budget.
+The setting does not follow stake changes automatically. Add these settings to existing config files if needed, then restart Fibre.
 
 ## Signing
 
