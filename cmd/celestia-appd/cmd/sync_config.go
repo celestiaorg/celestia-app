@@ -24,7 +24,7 @@ import (
 // configFile is a config file that sync can extend with the binary's defaults.
 type configFile struct {
 	path      string
-	reference func() ([]byte, error)
+	reference []byte
 }
 
 func syncConfigCmd() *cobra.Command {
@@ -52,25 +52,38 @@ func syncConfigCmd() *cobra.Command {
 			if !cmd.Flags().Changed(flagFibreHome) && os.Getenv(fibre.EnvHome) != "" {
 				fibreHome = os.Getenv(fibre.EnvHome)
 			}
+			consensus, err := renderConsensusConfig()
+			if err != nil {
+				return err
+			}
+			fibreReference, err := renderFibreConfig()
+			if err != nil {
+				return err
+			}
 			home := v.GetString(flags.FlagHome)
 			files := []configFile{
-				{path: filepath.Join(home, "config", "config.toml"), reference: renderConsensusConfig},
-				{path: fibre.DefaultConfigPath(fibreHome), reference: renderFibreConfig},
+				{path: filepath.Join(home, "config", "config.toml"), reference: consensus},
+				{path: fibre.DefaultConfigPath(fibreHome), reference: fibreReference},
 			}
 			// Hosts that run only the node or only Fibre have just one of the files.
-			found := false
+			var present []configFile
 			for _, file := range files {
-				name := filepath.Base(file.path)
 				if _, err := os.Lstat(file.path); os.IsNotExist(err) {
-					cmd.Printf("%s not found at %s, skipping\n", name, file.path)
+					cmd.Printf("%s not found at %s, skipping\n", filepath.Base(file.path), file.path)
 					continue
 				}
-				found = true
-				reference, err := file.reference()
-				if err != nil {
+				// Validate before writing anything, so a bad file leaves the others untouched.
+				if _, _, err := syncConfigFile(file.path, file.reference, true); err != nil {
 					return err
 				}
-				added, backup, err := syncConfigFile(file.path, reference, dryRun)
+				present = append(present, file)
+			}
+			if len(present) == 0 {
+				return fmt.Errorf("no config files found")
+			}
+			for _, file := range present {
+				name := filepath.Base(file.path)
+				added, backup, err := syncConfigFile(file.path, file.reference, dryRun)
 				if err != nil {
 					return err
 				}
@@ -82,9 +95,6 @@ func syncConfigCmd() *cobra.Command {
 				default:
 					cmd.Printf("Added settings to %s: %s\nBackup: %s\n", name, strings.Join(added, ", "), backup)
 				}
-			}
-			if !found {
-				return fmt.Errorf("no config files found")
 			}
 			return nil
 		},
@@ -229,6 +239,9 @@ func syncConfigFile(path string, reference []byte, dryRun bool) ([]string, strin
 	if !info.Mode().IsRegular() || !ok || stat.Nlink != 1 {
 		return nil, "", fmt.Errorf("config must be a regular file without links: %s", path)
 	}
+	if info.Mode().Perm()&0o222 == 0 {
+		return nil, "", fmt.Errorf("config is read-only: %s", path)
+	}
 	original, err := os.ReadFile(path)
 	if err != nil {
 		return nil, "", err
@@ -243,9 +256,6 @@ func syncConfigFile(path string, reference []byte, dryRun bool) ([]string, strin
 
 func replaceConfigFile(path string, original, updated []byte, info os.FileInfo) (string, error) {
 	stat := info.Sys().(*syscall.Stat_t)
-	if info.Mode().Perm()&0o222 == 0 {
-		return "", fmt.Errorf("config is read-only: %s", path)
-	}
 	temp, err := writeConfigTemp(path, ".tmp-*", updated, info)
 	if err != nil {
 		return "", err

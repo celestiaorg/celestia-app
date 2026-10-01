@@ -391,3 +391,23 @@ func TestSyncConfigCommandAllFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestSyncConfigInvalidFibreLeavesCoreUntouched(t *testing.T) {
+	home, fibreHome := t.TempDir(), t.TempDir()
+	corePath := filepath.Join(home, "config", "config.toml")
+	coreOriginal := []byte("moniker='mine'\n") // stale: sync would add settings
+	require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
+	require.NoError(t, os.WriteFile(corePath, coreOriginal, 0o600))
+	invalidFibre := []byte("[broken") // unterminated table header, not valid TOML
+	require.NoError(t, os.Mkdir(filepath.Join(fibreHome, "config"), 0o700))
+	require.NoError(t, os.WriteFile(fibre.DefaultConfigPath(fibreHome), invalidFibre, 0o600))
+
+	root := NewRootCmd()
+	root.SetArgs([]string{"config", "sync", "--home", home, "--fibre-home", fibreHome})
+	root.SetOut(&bytes.Buffer{})
+	require.Error(t, root.Execute(), "invalid Fibre file should fail the command")
+
+	data, err := os.ReadFile(corePath)
+	require.NoError(t, err)
+	require.Equal(t, coreOriginal, data, "config.toml must not be written when the Fibre file is invalid")
+}
