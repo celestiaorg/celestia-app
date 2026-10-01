@@ -42,6 +42,14 @@ const (
 	keepAlivePingTimeout = 20 * time.Second // ping ack deadline before drop
 )
 
+// Connection age caps how long a peer can hold a slot with streams that never
+// finish, which MaxConnectionIdle does not cover. The grace lets slow in-flight
+// uploads complete. Vars so tests can shorten them.
+var (
+	keepAliveMaxConnAge      = 5 * time.Minute
+	keepAliveMaxConnAgeGrace = 2 * time.Minute
+)
+
 // Server wraps a [grpc.Server] with TCP listener and lifecycle management.
 type Server struct {
 	server               *grpc.Server
@@ -80,9 +88,11 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 			MinTime: keepAliveMinTime,
 		}),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
-			MaxConnectionIdle: keepAliveMaxConnIdle,
-			Time:              keepAlivePingTime,
-			Timeout:           keepAlivePingTimeout,
+			MaxConnectionIdle:     keepAliveMaxConnIdle,
+			MaxConnectionAge:      keepAliveMaxConnAge,
+			MaxConnectionAgeGrace: keepAliveMaxConnAgeGrace,
+			Time:                  keepAlivePingTime,
+			Timeout:               keepAlivePingTimeout,
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
