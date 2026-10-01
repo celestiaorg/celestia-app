@@ -104,7 +104,7 @@ type ServerConfig struct {
 	// UnlimitedBudget disables the storage limiter: an emergency off switch. When
 	// false, the server derives its per-node budget from the
 	// FullStakeStorageBudget governance parameter via the state client.
-	UnlimitedBudget bool `toml:"unlimited_budget"`
+	UnlimitedBudget bool `toml:"unlimited_budget" comment:"UnlimitedBudget disables the storage limiter: an emergency off switch. When false, the per-node budget comes from the FullStakeStorageBudget governance parameter."`
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`

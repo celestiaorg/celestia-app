@@ -307,6 +307,7 @@ func TestSyncFibreConfigFile(t *testing.T) {
 	data, err = os.ReadFile(path)
 	require.NoError(t, err)
 	require.Contains(t, string(data), "\nmax_connections = ", "added key should be written to the file")
+	require.Contains(t, string(data), "# UnlimitedBudget disables", "added key should carry its documentation")
 	require.Contains(t, string(data), "# operator", "operator comment should be kept")
 	var before, after map[string]any
 	require.NoError(t, toml.Unmarshal(original, &before))
