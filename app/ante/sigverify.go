@@ -7,7 +7,6 @@ import (
 	errorsmod "cosmossdk.io/errors"
 	txsigning "cosmossdk.io/x/tx/signing"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -36,10 +35,6 @@ func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *t
 }
 
 func (d CachedSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if fibreante.PayForFibreMessage(tx) != nil {
-		return next(ctx, tx, simulate)
-	}
-
 	sigTx, ok := tx.(authsigning.Tx)
 	if !ok {
 		return ctx, errorsmod.Wrap(sdkerrors.ErrTxDecode, "invalid transaction type")

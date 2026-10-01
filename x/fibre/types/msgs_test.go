@@ -387,6 +387,7 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 				PaymentPromise:      paymentPromise,
 				ValidatorSignatures: validatorSignatures,
 			},
+			wantErr: sdkerrors.ErrInvalidAddress,
 		},
 		{
 			name: "no validator signatures",
@@ -395,6 +396,7 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 				PaymentPromise:      paymentPromise,
 				ValidatorSignatures: [][]byte{},
 			},
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "empty validator signature",
@@ -412,6 +414,7 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 				PaymentPromise:      paymentPromise,
 				ValidatorSignatures: make([][]byte, appconsts.MaxFibreValidatorSignatures+1),
 			},
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 		{
 			name: "validator signature of wrong size",
@@ -420,6 +423,7 @@ func TestMsgPayForFibreValidateBasic(t *testing.T) {
 				PaymentPromise:      paymentPromise,
 				ValidatorSignatures: [][]byte{bytes.Repeat([]byte{0x01}, 32)},
 			},
+			wantErr: sdkerrors.ErrInvalidRequest,
 		},
 	}
 

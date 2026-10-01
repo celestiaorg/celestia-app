@@ -156,3 +156,73 @@ func requirePruneEntry(t *testing.T, store *Store, pruneAt time.Time, commitment
 		}
 	}
 }
+
+func TestPruneLifecycleManaged(t *testing.T) {
+	clearAWSCredentials(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	for _, managed := range []bool{false, true} {
+		t.Run(map[bool]string{false: "normal", true: "lifecycle"}[managed], func(t *testing.T) {
+			cfg := DefaultStoreConfig()
+			cfg.Path = t.TempDir()
+			cfg.StorageBackend = storageBackendObject
+			cfg.ObjectStorage = testObjectStorageConfig()
+			cfg.ObjectStorage.LifecycleManaged = managed
+			cfg.ObjectStorage.ChainID = "chain"
+			cfg.ObjectStorage.ValidatorAddress = "validator"
+			store, err := NewStore(t.Context(), cfg)
+			require.NoError(t, err)
+			commitment := generateCommitment()
+			pruneAt := time.Now().Add(-time.Hour)
+			deletes := 0
+			object := newObjectBackend(&s3ObjectClientStub{
+				deleteObject: func(context.Context, *s3.DeleteObjectInput, ...func(*s3.Options)) (*s3.DeleteObjectOutput, error) {
+					deletes++
+					return &s3.DeleteObjectOutput{}, nil
+				},
+				deleteObjects: func(_ context.Context, input *s3.DeleteObjectsInput, _ ...func(*s3.Options)) (*s3.DeleteObjectsOutput, error) {
+					deletes += len(input.Delete.Objects)
+					return &s3.DeleteObjectsOutput{}, nil
+				},
+			}, objectNamespace{Bucket: "bucket"})
+			object.lifecycleManaged = managed
+			require.Equal(t, managed, store.shards.primary.(*objectBackend).lifecycleManaged)
+			store.shards.primary = object
+			setPruneEntry(t, store, pruneAt, commitment, []byte{1}, encodeShardMarkerForBackend(objectBackendTag, 7))
+			localHash := []byte{2}
+			localSize := writeMarkerTestShard(t, store, commitment, localHash)
+			setPruneEntry(t, store, pruneAt, commitment, localHash, encodeShardMarkerForBackend(localBackendTag, localSize))
+			provider := sdkmetric.NewMeterProvider()
+			defer provider.Shutdown(t.Context())
+			occ := newOccupancy(0)
+			metrics, err := newServerMetrics(provider.Meter("lifecycle-test"), occ)
+			require.NoError(t, err)
+			server := &Server{store: store, occ: occ, metrics: metrics, log: slog.Default()}
+			require.NoError(t, server.seedOccupancy(t.Context()))
+			require.Equal(t, localSize+7, occ.usage())
+			server.prune(t.Context())
+			require.Zero(t, occ.usage())
+			requirePruneEntry(t, store, pruneAt, commitment, []byte{1}, false)
+			requirePruneEntry(t, store, pruneAt, commitment, localHash, false)
+			has, err := storeLocalBackend(t, store).Has(t.Context(), commitment, localHash)
+			require.NoError(t, err)
+			require.False(t, has)
+			// Failed-write cleanup uses the single-object path.
+			require.NoError(t, store.shards.Delete(t.Context(), encodeShardMarkerForBackend(objectBackendTag, 7), commitment, []byte{3}))
+			if managed {
+				require.Zero(t, deletes)
+			} else {
+				require.Equal(t, 2, deletes)
+			}
+			require.NoError(t, store.Close())
+			store, err = NewStore(t.Context(), cfg)
+			require.NoError(t, err)
+			defer store.Close()
+			require.Equal(t, managed, store.shards.primary.(*objectBackend).lifecycleManaged)
+			server.store = store
+			server.occ = newOccupancy(0)
+			require.NoError(t, server.seedOccupancy(t.Context()))
+			require.Zero(t, server.occ.usage())
+		})
+	}
+}
