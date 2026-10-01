@@ -412,3 +412,49 @@ func TestSyncConfigInvalidFibreLeavesCoreUntouched(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, coreOriginal, data, "config.toml must not be written when the Fibre file is invalid")
 }
+
+func TestSyncConfigReadOnlyFiles(t *testing.T) {
+	t.Run("dry run lists missing settings of a read-only file", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config.toml")
+		require.NoError(t, os.WriteFile(path, []byte("moniker='mine'\n"), 0o400))
+		added, _, err := syncConfigFile(path, consensusReference(t), true)
+		require.NoError(t, err)
+		require.NotEmpty(t, added)
+	})
+
+	t.Run("up-to-date read-only Fibre file does not block core sync", func(t *testing.T) {
+		home, fibreHome := t.TempDir(), t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("moniker='mine'\n"), 0o600))
+		fibreReference, err := renderFibreConfig()
+		require.NoError(t, err)
+		require.NoError(t, os.Mkdir(filepath.Join(fibreHome, "config"), 0o700))
+		require.NoError(t, os.WriteFile(fibre.DefaultConfigPath(fibreHome), fibreReference, 0o400))
+
+		root := NewRootCmd()
+		root.SetArgs([]string{"config", "sync", "--home", home, "--fibre-home", fibreHome})
+		var out bytes.Buffer
+		root.SetOut(&out)
+		require.NoError(t, root.Execute())
+		require.Contains(t, out.String(), "Added settings to config.toml: ")
+		require.Contains(t, out.String(), "server_config.toml is up to date")
+	})
+
+	t.Run("stale read-only Fibre file fails before core is written", func(t *testing.T) {
+		home, fibreHome := t.TempDir(), t.TempDir()
+		corePath := filepath.Join(home, "config", "config.toml")
+		coreOriginal := []byte("moniker='mine'\n")
+		require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
+		require.NoError(t, os.WriteFile(corePath, coreOriginal, 0o600))
+		require.NoError(t, os.Mkdir(filepath.Join(fibreHome, "config"), 0o700))
+		require.NoError(t, os.WriteFile(fibre.DefaultConfigPath(fibreHome), []byte("app_grpc_address='x'\n"), 0o400))
+
+		root := NewRootCmd()
+		root.SetArgs([]string{"config", "sync", "--home", home, "--fibre-home", fibreHome})
+		root.SetOut(&bytes.Buffer{})
+		require.ErrorContains(t, root.Execute(), "read-only")
+		data, err := os.ReadFile(corePath)
+		require.NoError(t, err)
+		require.Equal(t, coreOriginal, data, "config.toml must not be written when the Fibre file cannot be")
+	})
+}

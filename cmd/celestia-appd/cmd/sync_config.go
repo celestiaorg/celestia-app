@@ -68,13 +68,19 @@ func syncConfigCmd() *cobra.Command {
 			// Hosts that run only the node or only Fibre have just one of the files.
 			var present []configFile
 			for _, file := range files {
-				if _, err := os.Lstat(file.path); os.IsNotExist(err) {
+				info, err := os.Lstat(file.path)
+				if os.IsNotExist(err) {
 					cmd.Printf("%s not found at %s, skipping\n", filepath.Base(file.path), file.path)
 					continue
 				}
-				// Validate before writing anything, so a bad file leaves the others untouched.
-				if _, _, err := syncConfigFile(file.path, file.reference, true); err != nil {
+				// Dry run every file first, so a broken one leaves the others untouched.
+				added, _, err := syncConfigFile(file.path, file.reference, true)
+				if err != nil {
 					return err
+				}
+				willWrite := len(added) > 0 && !dryRun
+				if willWrite && isReadOnly(info) {
+					return fmt.Errorf("config is read-only: %s", file.path)
 				}
 				present = append(present, file)
 			}
@@ -239,9 +245,6 @@ func syncConfigFile(path string, reference []byte, dryRun bool) ([]string, strin
 	if !info.Mode().IsRegular() || !ok || stat.Nlink != 1 {
 		return nil, "", fmt.Errorf("config must be a regular file without links: %s", path)
 	}
-	if info.Mode().Perm()&0o222 == 0 {
-		return nil, "", fmt.Errorf("config is read-only: %s", path)
-	}
 	original, err := os.ReadFile(path)
 	if err != nil {
 		return nil, "", err
@@ -254,8 +257,15 @@ func syncConfigFile(path string, reference []byte, dryRun bool) ([]string, strin
 	return added, backup, err
 }
 
+func isReadOnly(info os.FileInfo) bool {
+	return info.Mode().Perm()&0o222 == 0
+}
+
 func replaceConfigFile(path string, original, updated []byte, info os.FileInfo) (string, error) {
 	stat := info.Sys().(*syscall.Stat_t)
+	if isReadOnly(info) {
+		return "", fmt.Errorf("config is read-only: %s", path)
+	}
 	temp, err := writeConfigTemp(path, ".tmp-*", updated, info)
 	if err != nil {
 		return "", err
