@@ -183,3 +183,24 @@ func TestSweepDropsExpired(t *testing.T) {
 	require.Equal(t, zeroBlobGas.MulRaw(2), c.budgets["a"].remaining)
 	require.Empty(t, c.pending)
 }
+
+func TestSweepOffsetStaggersSigners(t *testing.T) {
+	signers := []string{"a", "b", "c", "d"}
+	offsets := make(map[time.Duration]struct{})
+	for _, s := range signers {
+		off := sweepOffset(s)
+		require.Equal(t, off, sweepOffset(s))
+		require.GreaterOrEqual(t, off, time.Duration(0))
+		require.Less(t, off, promiseCacheStaleAfter)
+		offsets[off] = struct{}{}
+	}
+	require.Greater(t, len(offsets), 1)
+
+	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas}}
+	c := NewLocalPromiseCache(r)
+	before := time.Now()
+	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
+	lastSweep := c.budgets["a"].lastSweep
+	require.False(t, lastSweep.Before(before.Add(-sweepOffset("a"))))
+	require.False(t, lastSweep.After(time.Now().Add(-sweepOffset("a"))))
+}
