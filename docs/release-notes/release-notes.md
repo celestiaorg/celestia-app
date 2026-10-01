@@ -10,7 +10,7 @@ Node operators MUST upgrade their binary to this version prior to the v10 activa
 
 #### Update config files
 
-Validators are recommended to run the following command with a v10.2.0 or later binary to add missing fields and their documentation to `config.toml` and Fibre's `server_config.toml` before changing settings:
+Validators are recommended to run the following command with a v10.3.0 or later binary to add missing fields and their documentation to `config.toml` and Fibre's `server_config.toml` before changing settings:
 
 ```sh
 celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
