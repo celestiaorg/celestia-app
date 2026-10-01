@@ -5249,21 +5249,26 @@ staging/&lt;random&gt;                            temporary in-flight write
 <tr><td><code>UploadShard</code></td><td>payment promise conversion, chain ID, blob version, stateless validation, or stateful validation fails</td><td><code>InvalidArgument</code></td></tr>
 <tr><td><code>UploadShard</code></td><td>assignment verification fails</td><td><code>InvalidArgument</code></td></tr>
 <tr><td><code>UploadShard</code></td><td>row, proof, RLC, upload-size, or commitment verification fails</td><td><code>InvalidArgument</code></td></tr>
+<tr><td><code>UploadShard</code></td><td>storage budget exceeded</td><td><code>ResourceExhausted</code> with a <code>RetryInfo</code> detail</td></tr>
 <tr><td><code>UploadShard</code></td><td>store write or validator signing fails</td><td><code>Internal</code></td></tr>
 <tr><td><code>DownloadShard</code></td><td>invalid blob ID or unsupported blob version</td><td><code>InvalidArgument</code></td></tr>
 <tr><td><code>DownloadShard</code></td><td>no shard found for commitment</td><td><code>NotFound</code></td></tr>
 <tr><td><code>DownloadShard</code></td><td>store read failure</td><td><code>Internal</code></td></tr>
 </tbody></table>
 </div>
-<p>The implementation does not currently return <code>FailedPrecondition</code>, <code>PermissionDenied</code>, <code>AlreadyExists</code>, or <code>ResourceExhausted</code> for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.</p>
+<p>The implementation does not currently return <code>FailedPrecondition</code>, <code>PermissionDenied</code>, or <code>AlreadyExists</code> for the cases described by older target designs. The only machine-readable error detail is the <code>RetryInfo</code> backoff hint on <code>ResourceExhausted</code>.</p>
 <h2 id="concurrency-and-dos-controls"><a class="header" href="#concurrency-and-dos-controls">Concurrency And DoS Controls</a></h2>
-<p>The server does not implement per-peer token buckets, throughput caps, request backoff hints, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by <code>UploadVerifyWorkers</code>, which is the size of the pooled <code>rsema1d.Verifier</code> channel. gRPC receive/send message size is bounded by <code>MaxMessageSize</code> from protocol params.</p>
+<p>The server does not implement per-peer token buckets, throughput caps, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by <code>UploadVerifyWorkers</code>, which is the size of the pooled <code>rsema1d.Verifier</code> channel. gRPC receive/send message size is bounded by <code>MaxMessageSize</code> from protocol params.</p>
 <h2 id="metrics"><a class="header" href="#metrics">Metrics</a></h2>
 <p>The server records OpenTelemetry metrics for:</p>
 <ul>
 <li><code>fibre.server.upload_shard.in_flight</code></li>
 <li><code>fibre.server.upload_shard.duration</code></li>
 <li><code>fibre.server.upload_shard.bytes</code></li>
+<li><code>fibre.server.upload_shard.rejected</code></li>
+<li><code>fibre.server.upload_shard.dupe_hits</code></li>
+<li><code>fibre.server.upload_shard.occupancy_bytes</code></li>
+<li><code>fibre.server.upload_shard.budget_bytes</code></li>
 <li><code>fibre.server.download_shard.in_flight</code></li>
 <li><code>fibre.server.download_shard.duration</code></li>
 <li><code>fibre.server.download_shard.bytes</code></li>
