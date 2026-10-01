@@ -88,6 +88,8 @@ fibre version
 
 The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).
 
+After upgrading, add missing settings and their documentation with `celestia-appd config sync --fibre-home ~/.celestia-fibre`. It preserves existing values and backs up the file first; add `--dry-run` to preview.
+
 `min_upload_size` sets this validator's minimum padded Fibre upload size in bytes, including the header and excluding parity. It defaults to `262144` (256 KiB), including when the field is absent from an existing config. To require 32 MiB uploads, set:
 
 ```toml
