@@ -145,11 +145,7 @@ func initRootCommand(rootCommand *cobra.Command, capp *app.App) {
 	modifyRootCommand(rootCommand)
 
 	// Add hooks run prior to the start command
-<<<<<<< HEAD
-	if err := addPreStartHooks(rootCommand, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
-=======
-	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, validateAPIConfig, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
->>>>>>> 2b910e9 (feat(fibre)!: support mTLS for the fibre signer gRPC connection (#7842))
+	if err := addPreStartHooks(rootCommand, allowInsecurePrivValGRPC, overrideConsensusTimeouts, overrideP2PConfig, checkBBR, overrideMinRetainBlocks, setupOTelMetrics); err != nil {
 		panic(fmt.Errorf("failed to add pre-start hooks: %w", err))
 	}
 }

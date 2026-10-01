@@ -141,8 +141,6 @@ To verify or override, check `config.toml`:
 priv_validator_grpc_laddr = "127.0.0.1:26669"
 ```
 
-<<<<<<< HEAD
-=======
 If you change the port, also update Fibre's `signer_grpc_address` in `server_config.toml` or its `--signer-grpc-address` flag, then restart the node and Fibre. A working custom port can be retained if it does not conflict with another listener and Fibre uses the same address. Update deployment-managed config templates too.
 
 This default loopback connection uses plaintext. To run Fibre on a separate
@@ -175,7 +173,6 @@ Fibre after changing them. Fibre rejects a non-loopback plaintext signer unless
 recommended because anyone with network access to the endpoint can request
 signatures.
 
->>>>>>> 2b910e9 (feat(fibre)!: support mTLS for the fibre signer gRPC connection (#7842))
 **Fibre always connects to the node, never to the KMS directly, so the fibre config is the same for every key backend.**
 
 Whatever the backend, median signing latency must stay at or below 10ms. Nodes using a remote signer expose `cometbft_privval_signing_latency_*` metrics and log a warning when the median of the last 50 signatures exceeds it.
