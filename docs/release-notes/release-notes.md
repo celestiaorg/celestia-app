@@ -26,6 +26,8 @@ We recommend running the fibre server on a separate machine with its own public 
 
 Connect Fibre to the validator's application gRPC and privval signer gRPC endpoints over a trusted private network or encrypted tunnel, and restrict access to the Fibre host. Configure [mutual TLS for the signer connection](../../fibre/cmd/README.md#signing) on both sides. Application gRPC is plaintext, so keep it off the public internet. Only Fibre's client port (default `7980`) needs to be publicly reachable for Fibre clients.
 
+For separate hosts, edit the validator's `config/app.toml`: in the existing `[grpc]` section, set `enable = true` and bind `address` to its restricted private IP, for example `address = "10.0.0.5:9090"`. Restart the validator and set Fibre's `--app-grpc-address 10.0.0.5:9090` to match. Replace the example IP with your validator's private address. The guide's `127.0.0.1:9090` examples apply to same-host deployments; on a separate Fibre host, loopback points to Fibre's own machine.
+
 We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other.
 
 #### Key Management Systems (KMS)
