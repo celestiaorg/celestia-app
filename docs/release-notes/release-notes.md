@@ -57,7 +57,7 @@ At startup, missing fields use the binary's defaults without rewriting existing 
 
 Run [`celestia-appd config sync`](#update-config-files) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
 
-The command only updates `config.toml`. Back up and edit `config/app.toml` and Fibre's `server_config.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
+The command updates `config.toml` and, if present, Fibre's `server_config.toml`. Back up and edit `config/app.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
 
 Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
