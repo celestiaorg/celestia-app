@@ -3,6 +3,7 @@ package keeper
 import (
 	"encoding/hex"
 	"fmt"
+	"hash/fnv"
 	"sync"
 	"time"
 
@@ -122,6 +123,9 @@ func (c *LocalPromiseCache) Reserve(ctx sdk.Context, signer string, promiseHash 
 	b, ok := c.budgets[signer]
 	if !ok {
 		b = c.sweep(ctx, signer)
+		// Budgets created together (e.g. after a restart) would otherwise all go
+		// stale together and sweep in the same instant every hour.
+		b.lastSweep = b.lastSweep.Add(-sweepOffset(signer))
 	} else if isStale(b) {
 		c.sweep(ctx, signer)
 	}
@@ -231,6 +235,14 @@ func (c *LocalPromiseCache) evictIdleLocked() {
 // a sweep before the next reservation.
 func isStale(b *signerBudget) bool {
 	return b.opsSinceSweep > 0 && time.Since(b.lastSweep) > promiseCacheStaleAfter
+}
+
+// sweepOffset is a per-signer offset in [0, promiseCacheStaleAfter) that staggers
+// hourly sweeps across signers.
+func sweepOffset(signer string) time.Duration {
+	h := fnv.New64a()
+	h.Write([]byte(signer))
+	return time.Duration(h.Sum64() % uint64(promiseCacheStaleAfter))
 }
 
 // requiredAmount is the escrow amount a promise for the given blob size reserves.
