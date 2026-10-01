@@ -14,6 +14,7 @@ import (
 )
 
 type admission struct {
+	disabled         bool
 	mu               sync.Mutex
 	total, reads     int
 	limit, readLimit int
@@ -22,7 +23,7 @@ type admission struct {
 func (a *admission) acquire(upload bool) (*rpcSlot, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.total == a.limit || (!upload && a.reads == a.readLimit) {
+	if !a.disabled && (a.total == a.limit || (!upload && a.reads == a.readLimit)) {
 		return nil, status.Error(codes.ResourceExhausted, "fibre server busy; retry later")
 	}
 	a.total++

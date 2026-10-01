@@ -15,7 +15,7 @@ import (
 // fails to open) does not leak the TCP listener. Previously GracefulStop did not
 // close a listener grpc-go never saw, leaking the fd/port.
 func TestServer_StopReleasesListenerWhenRegisteredButNotServed(t *testing.T) {
-	srv, err := fibregrpc.Listen("127.0.0.1:0", fibregrpc.DefaultMaxConnections, fibregrpc.DefaultMaxConcurrentStreams, 20, 8)
+	srv, err := fibregrpc.Listen("127.0.0.1:0", fibregrpc.DefaultMaxConnections, fibregrpc.DefaultMaxConcurrentStreams, 20, 8, false)
 	require.NoError(t, err)
 
 	addr := srv.ListenAddress()

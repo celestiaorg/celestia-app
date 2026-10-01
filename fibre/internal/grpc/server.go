@@ -55,8 +55,8 @@ type Server struct {
 // is created lazily by [Server.Register] so callers can defer building
 // credentials until after the listener address is known (e.g., for TLS certs
 // that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams, maxRPCs, reservedUploads int) (*Server, error) {
-	if maxRPCs < 1 || reservedUploads < 0 || reservedUploads > maxRPCs {
+func Listen(listenAddr string, maxConnections, maxConcurrentStreams, maxRPCs, reservedUploads int, disableAdmission bool) (*Server, error) {
+	if !disableAdmission && (maxRPCs < 1 || reservedUploads < 0 || reservedUploads > maxRPCs) {
 		return nil, fmt.Errorf("invalid RPC admission limits")
 	}
 	listener, err := net.Listen("tcp", listenAddr)
@@ -66,7 +66,7 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams, maxRPCs, re
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams), admission: &admission{limit: maxRPCs, readLimit: maxRPCs - reservedUploads}}, nil
+	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams), admission: &admission{disabled: disableAdmission, limit: maxRPCs, readLimit: maxRPCs - reservedUploads}}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the

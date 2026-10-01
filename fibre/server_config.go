@@ -74,6 +74,8 @@ type ServerConfig struct {
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). RPC admission separately limits payload allocations."`
 
+	// DisableRPCAdmission bypasses the global RPC cap and upload reservation.
+	DisableRPCAdmission bool `toml:"disable_rpc_admission" comment:"Disable the global RPC cap and upload reservation (default false). Transport and shard size limits still apply. This removes the combined RPC memory budget."`
 	// MaxInflightRPCs caps operations across connections, including retained response buffers.
 	MaxInflightRPCs int `toml:"max_inflight_rpcs" comment:"Maximum in-flight uploads and downloads (default 20)."`
 	// ReservedUploadSlots cannot be occupied by downloads.
@@ -202,7 +204,7 @@ func (cfg *ServerConfig) Validate() error {
 		}
 	}
 
-	if cfg.MaxInflightRPCs < 1 || cfg.ReservedUploadSlots < 0 || cfg.ReservedUploadSlots > cfg.MaxInflightRPCs {
+	if !cfg.DisableRPCAdmission && (cfg.MaxInflightRPCs < 1 || cfg.ReservedUploadSlots < 0 || cfg.ReservedUploadSlots > cfg.MaxInflightRPCs) {
 		return fmt.Errorf("max_inflight_rpcs must be positive and reserved_upload_slots must be between zero and max_inflight_rpcs")
 	}
 	if cfg.MaxRPCShardRows < 1 || cfg.MaxRPCShardRows > DefaultProtocolParams.MaxRowsPerValidator() {

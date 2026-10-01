@@ -158,10 +158,15 @@ Transport limits remain `max_connections = 16` and `max_concurrent_streams = 13`
 RPC admission separately allows 20 operations across all connections, with 8 slots reserved for uploads:
 
 ```toml
+disable_rpc_admission = false
 max_inflight_rpcs = 20
 reserved_upload_slots = 8
 max_rpc_shard_rows = 1721
 ```
+
+Set `disable_rpc_admission = true` to bypass the global RPC cap and upload reservation, then restart Fibre.
+The admission settings are ignored while disabled. Transport, message-size and shard-row limits still apply.
+Disabling admission removes the combined RPC memory budget.
 
 Reads can occupy at most 12 slots; uploads can use all 20.
 Excess requests receive `ResourceExhausted` before message decoding. Clients should retry with backoff and jitter.

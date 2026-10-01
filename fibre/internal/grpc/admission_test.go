@@ -39,7 +39,7 @@ func (s *heldRPCs) UploadShard(context.Context, *types.UploadShardRequest) (*typ
 }
 
 func TestRPCAdmission(t *testing.T) {
-	srv, err := Listen("127.0.0.1:0", 16, 32, 20, 8)
+	srv, err := Listen("127.0.0.1:0", 16, 32, 20, 8, false)
 	require.NoError(t, err)
 	service := &heldRPCs{entered: make(chan struct{}, 32), release: make(chan struct{})}
 	srv.Register(service, grpc.ForceServerCodecV2(NewServerCodec(1721, 14)))
@@ -132,6 +132,32 @@ func TestRPCResponseOwnership(t *testing.T) {
 	}
 }
 
+func TestRPCAdmissionDisabled(t *testing.T) {
+	srv, err := Listen("127.0.0.1:0", 2, 13, 1, 1, true)
+	require.NoError(t, err)
+	service := &heldRPCs{entered: make(chan struct{}, 6), release: make(chan struct{})}
+	srv.Register(service)
+	srv.Serve()
+	t.Cleanup(func() { close(service.release); srv.Stop(context.Background()) })
+	cc, err := grpc.NewClient(srv.ListenAddress(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer cc.Close()
+	client := types.NewFibreClient(cc)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	for range 3 {
+		go func() { _, _ = client.DownloadShard(ctx, &types.DownloadShardRequest{}) }()
+		go func() { _, _ = client.UploadShard(ctx, &types.UploadShardRequest{}) }()
+	}
+	for range 6 {
+		select {
+		case <-service.entered:
+		case <-ctx.Done():
+			t.Fatal("disabled admission must allow reads and uploads beyond the configured limits")
+		}
+	}
+}
+
 func TestRPCUploadsUseSharedSlots(t *testing.T) {
 	a := &admission{limit: 20, readLimit: 12}
 	for range 20 {
@@ -161,7 +187,7 @@ func (malformedCodec) Marshal(any) (mem.BufferSlice, error) {
 }
 
 func TestRPCFailuresAndCompression(t *testing.T) {
-	srv, err := Listen("127.0.0.1:0", 2, 13, 1, 0)
+	srv, err := Listen("127.0.0.1:0", 2, 13, 1, 0, false)
 	require.NoError(t, err)
 	srv.Register(&immediateRPCs{}, grpc.MaxRecvMsgSize(1024))
 	srv.Serve()

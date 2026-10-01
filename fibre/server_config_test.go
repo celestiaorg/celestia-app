@@ -341,6 +341,7 @@ func TestServerConfigAdmission(t *testing.T) {
 	cfg.Path = t.TempDir()
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, 20, cfg.MaxInflightRPCs)
+	require.False(t, cfg.DisableRPCAdmission)
 	require.Equal(t, 8, cfg.ReservedUploadSlots)
 	require.Equal(t, 1721, cfg.MaxRPCShardRows)
 	require.Less(t, cfg.MaxMessageSize, 56<<20)
@@ -356,4 +357,12 @@ func TestServerConfigAdmission(t *testing.T) {
 		cfg.MaxInflightRPCs, cfg.ReservedUploadSlots, cfg.MaxRPCShardRows = limits[0], limits[1], limits[2]
 		require.Error(t, cfg.Validate())
 	}
+	cfg.DisableRPCAdmission = true
+	cfg.MaxInflightRPCs, cfg.ReservedUploadSlots, cfg.MaxRPCShardRows = 0, -1, 1721
+	require.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Save(path))
+	require.NoError(t, loaded.Load(path))
+	require.True(t, loaded.DisableRPCAdmission)
+	loaded.MaxRPCShardRows = 4097
+	require.Error(t, loaded.Validate())
 }
