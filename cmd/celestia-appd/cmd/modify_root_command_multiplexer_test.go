@@ -18,7 +18,7 @@ import (
 
 func TestUnsupportedFlags(t *testing.T) {
 	// v6-v9 lack only the flags added in v10.
-	require.Equal(t, map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}}, unsupportedFlags(9))
+	require.Equal(t, map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}, "privval-grpc-allow-insecure": {}}, unsupportedFlags(9))
 	require.Equal(t, unsupportedFlags(9), unsupportedFlags(6))
 
 	// v4 and v5 also lack flags added in v6.
