@@ -51,6 +51,24 @@ Keep the signing port on a private network and restrict access to the Fibre host
 
 celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_search`, `unconfirmed_txs`, share and data-root proofs, and the gRPC block, validator-set, and proof endpoints) behind a process-wide concurrency limit. It is configurable via `max_concurrent_heavy_requests` in the `[rpc]` section of `config.toml` (default 20) and is shared across HTTP JSON-RPC, URI, WebSocket, and gRPC. Excess requests are rejected with HTTP 503 / gRPC `ResourceExhausted`. Public RPC providers may want to raise this limit.
 
+#### Fibre Connection Lifetimes
+
+Fibre gRPC connections rotate after approximately five minutes, with a two-minute grace period for unfinished RPCs. gRPC adds jitter to the connection age. Custom clients must reconnect and handle requests interrupted when the grace period expires. This bounds stalled streams that previously held connection slots indefinitely; it does not change shard retention or promise expiry.
+
+Fibre now applies the chain's stateless payment-promise checks before storing and signing uploads. Clients submitting invalid promises receive an error instead of an endorsement that cannot be settled. No server configuration change is required.
+
+#### Multiplexer Startup Flags
+
+During genesis sync and pre-v10 operation, the multiplexer forwards only explicitly set start flags supported by the selected embedded binary. Flags specific to the outer v10 node are not passed to older binaries. Supported values are preserved, including values containing spaces, commas, or text that looks like another flag. Mandatory child-process overrides still take precedence.
+
+#### Restart After an Interrupted Commit
+
+The updated SDK store discards an incomplete IAVL version left by an interrupted commit and replays the block on restart. If a node was killed during a commit, try restarting with the updated binary before attempting a manual rollback. This recovery applies to an incomplete commit; it is not a general repair for database corruption.
+
+#### Genesis Exports
+
+Genesis export now includes all message IDs for each zkISM. Older binaries exported at most 100 IDs per ISM without reporting an error. If an ISM has more than 100 IDs, regenerate any export intended for a restart or migration using the updated binary. Updating the binary cannot restore IDs already omitted from an old export.
+
 #### Blockstore Compaction
 
 New `[storage]` options in `config.toml`: `compact` (default `false`) and `compaction_interval` (default `10000`). When enabled, the blockstore is compacted asynchronously over the pruned range, keeping pruned nodes at a bounded disk size. A new `celestia-appd compact-blockstore` command performs a one-off compaction of an existing blockstore.
@@ -82,6 +100,10 @@ Review the diff, restart the node, and verify that it resumes syncing and its co
 #### Evidence Window
 
 `MaxAgeNumBlocks` is reduced from 559,940 to 404,400 so the evidence window stays within the unbonding period at block times up to 3s ([#7706](https://github.com/celestiaorg/celestia-app/pull/7706)). Equivocation evidence naming a validator no longer in staking state is ignored instead of erroring out of FinalizeBlock ([#7718](https://github.com/celestiaorg/celestia-app/pull/7718)).
+
+### Library Consumers (v10.0.0)
+
+Custom multiplexer integrations must update calls to `abci.NewMultiplexer` and `cmd.New` for their new arguments. `Version.GetStartArgs` now takes a parsed `*pflag.FlagSet` instead of a raw argument slice. These Go API changes do not require changes to the normal `celestia-appd start` command.
 
 ## v9.0.0
 
