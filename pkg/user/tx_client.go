@@ -209,6 +209,7 @@ func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
 		if c.txQueue != nil {
 			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
+			c.txQueue.size = size
 		}
 	}
 }
@@ -354,38 +355,50 @@ func (client *TxClient) SubmitPayForBlob(ctx context.Context, blobs []*share.Blo
 // for parallel submission.
 func (client *TxClient) SubmitPayForBlobToQueue(ctx context.Context, blobs []*share.Blob, opts ...TxOption) (*TxResponse, error) {
 	resultsC := make(chan SubmissionResult, 1)
-	defer close(resultsC)
-
 	client.QueueBlob(ctx, resultsC, blobs, opts...)
+	return awaitResult(ctx, resultsC)
+}
 
-	// Block waiting for the result
-	result := <-resultsC
-	if result.Error != nil {
+// awaitResult waits for a queued job's result or the caller's cancellation. The result channel is
+// buffered and never closed, so a worker finishing after the caller gave up cannot block or panic.
+func awaitResult(ctx context.Context, resultsC <-chan SubmissionResult) (*TxResponse, error) {
+	select {
+	case result := <-resultsC:
 		return result.TxResponse, result.Error
+	case <-ctx.Done():
+		// Prefer a result that arrived together with the cancellation.
+		select {
+		case result := <-resultsC:
+			return result.TxResponse, result.Error
+		default:
+			return nil, ctx.Err()
+		}
 	}
-
-	return result.TxResponse, nil
 }
 
 // QueueBlob submits blobs to the parallel transaction queue without blocking. The result will be sent
 // to the provided channel when the transaction is confirmed. The caller is responsible for creating and
 // closing the result channel.
 func (client *TxClient) QueueBlob(ctx context.Context, resultC chan SubmissionResult, blobs []*share.Blob, opts ...TxOption) {
-	if client.txQueue == nil {
-		resultC <- SubmissionResult{Error: errTxQueueNotConfigured}
-		return
-	}
-
-	if !client.txQueue.isStarted() {
-		resultC <- SubmissionResult{Error: errTxQueueNotStarted}
-		return
-	}
-
-	job := &SubmissionJob{
+	client.queueJob(&SubmissionJob{
 		Blobs:    blobs,
 		Options:  opts,
 		Ctx:      ctx,
 		ResultsC: resultC,
+	})
+}
+
+// queueJob submits a job to the parallel transaction queue, reporting a missing or stopped queue
+// on the job's result channel.
+func (client *TxClient) queueJob(job *SubmissionJob) {
+	if client.txQueue == nil {
+		job.ResultsC <- SubmissionResult{Error: errTxQueueNotConfigured}
+		return
+	}
+
+	if !client.txQueue.isRunning() {
+		job.ResultsC <- SubmissionResult{Error: errTxQueueNotStarted}
+		return
 	}
 
 	client.txQueue.submitJob(job)
@@ -1120,13 +1133,19 @@ func (client *TxClient) StopTxQueueForTest() {
 	}
 }
 
-// IsTxQueueStartedForTest returns whether the tx queue is started, for testing purposes.
-// This function is only intended for use in tests.
-func (client *TxClient) IsTxQueueStartedForTest() bool {
+// IsTxQueueStarted reports whether the parallel transaction queue is accepting jobs.
+func (client *TxClient) IsTxQueueStarted() bool {
 	if client.txQueue == nil {
 		return false
 	}
-	return client.txQueue.isStarted()
+	return client.txQueue.isRunning()
+}
+
+// IsTxQueueStartedForTest returns whether the tx queue is started.
+//
+// Deprecated: use [TxClient.IsTxQueueStarted].
+func (client *TxClient) IsTxQueueStartedForTest() bool {
+	return client.IsTxQueueStarted()
 }
 
 // TxQueueWorkerCount returns the number of workers in the tx queue
