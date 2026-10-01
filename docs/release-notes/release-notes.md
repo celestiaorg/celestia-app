@@ -10,11 +10,7 @@ Node operators MUST upgrade their binary to this version prior to the v10 activa
 
 #### Update config files
 
-<<<<<<< HEAD
-Validators are recommended to run the following command with the v10 binary to add new fields and their documentation to `config.toml`:
-=======
 Validators are recommended to run the following command with a v10.3.0 or later binary to add missing fields and their documentation to `config.toml` and Fibre's `server_config.toml` before changing settings:
->>>>>>> 59170fb (chore: extend config sync to Fibre (#8039))
 
 ```sh
 celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
@@ -51,8 +47,6 @@ celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_s
 
 New `[storage]` options in `config.toml`: `compact` (default `false`) and `compaction_interval` (default `10000`). When enabled, the blockstore is compacted asynchronously over the pruned range, keeping pruned nodes at a bounded disk size. A new `celestia-appd compact-blockstore` command performs a one-off compaction of an existing blockstore.
 
-<<<<<<< HEAD
-=======
 Automatic compaction covers newly pruned blocks. To reclaim space from an existing pruned backlog, stop the node and run `celestia-appd compact-blockstore --home <node-home>` before enabling it. Compaction does not enable pruning; archival nodes should retain `min-retain-blocks = 0` in `app.toml`.
 
 #### Updating Existing Configuration Files
@@ -65,7 +59,6 @@ The command updates `config.toml` and, if present, Fibre's `server_config.toml`.
 
 Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
->>>>>>> 59170fb (chore: extend config sync to Fibre (#8039))
 #### Metrics Push via OTLP
 
 `celestia-appd start` accepts a new `--otel-endpoint` flag (env `CELESTIA_APP_OTEL_ENDPOINT`) that pushes node metrics (SDK telemetry, CometBFT, Go runtime) to an OpenTelemetry collector over OTLP HTTP.

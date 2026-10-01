@@ -172,11 +172,8 @@ celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre 
 celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-<<<<<<< HEAD
-=======
 Then edit the fields under your node's and Fibre's home directories to set the values you want before restarting.
 
->>>>>>> 59170fb (chore: extend config sync to Fibre (#8039))
 Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.
 The command returns an error on failure.
