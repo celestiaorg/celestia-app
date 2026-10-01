@@ -8,11 +8,18 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 )
+
+func consensusReference(t *testing.T) []byte {
+	reference, err := renderConsensusConfig()
+	require.NoError(t, err)
+	return reference
+}
 
 func TestMergeConfig(t *testing.T) {
 	reference := []byte("# Name\nmoniker = 'default'\n# RPC\n[rpc]\n# Limit\nlimit = 20\n# Enabled\nenabled = true\n# Address\naddress = 'localhost'\n# Storage\n[storage]\n# Compact\ncompact = false\n")
@@ -68,14 +75,14 @@ func TestSyncConfigFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
 	original := []byte("# operator\nmoniker='validator'\n[rpc]\nmax_concurrent_heavy_requests=3\n")
 	require.NoError(t, os.WriteFile(path, original, 0o640))
-	added, backup, err := syncConfigFile(path, true)
+	added, backup, err := syncConfigFile(path, consensusReference(t), true)
 	require.NoError(t, err)
 	require.NotEmpty(t, added)
 	require.Empty(t, backup)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
 	require.Equal(t, original, data)
-	added, backup, err = syncConfigFile(path, false)
+	added, backup, err = syncConfigFile(path, consensusReference(t), false)
 	require.NoError(t, err)
 	require.Contains(t, added, "storage.compact")
 	require.Contains(t, added, "storage.compaction_interval")
@@ -92,7 +99,7 @@ func TestSyncConfigFile(t *testing.T) {
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(0o640), info.Mode().Perm())
-	added, backup, err = syncConfigFile(path, false)
+	added, backup, err = syncConfigFile(path, consensusReference(t), false)
 	require.NoError(t, err)
 	require.Empty(t, added)
 	require.Empty(t, backup)
@@ -120,7 +127,7 @@ func TestSyncConfigRejectsUnsafeFiles(t *testing.T) {
 			case "hardlink":
 				require.NoError(t, os.Link(path, path+".link"))
 			}
-			_, _, err := syncConfigFile(path, false)
+			_, _, err := syncConfigFile(path, consensusReference(t), false)
 			require.Error(t, err)
 			data, err := os.ReadFile(path)
 			require.NoError(t, err)
@@ -136,7 +143,7 @@ func TestSyncConfigCommandDryRun(t *testing.T) {
 		t.Fatal("must not initialize config files")
 		return nil
 	}
-	root.SetArgs([]string{"config", "sync", "--home", home, "--dry-run"})
+	root.SetArgs([]string{"config", "sync", "--home", home, "--fibre-home", filepath.Join(home, "fibre"), "--dry-run"})
 	var out bytes.Buffer
 	root.SetOut(&out)
 	require.Error(t, root.Execute())
@@ -170,7 +177,7 @@ func TestSyncConfigPreservesEffectiveConfig(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, original, 0o600))
 	before, err := loadCometBFTConfig(path, home)
 	require.NoError(t, err)
-	_, _, err = syncConfigFile(path, false)
+	_, _, err = syncConfigFile(path, consensusReference(t), false)
 	require.NoError(t, err)
 	after, err := loadCometBFTConfig(path, home)
 	require.NoError(t, err)
@@ -191,7 +198,7 @@ func TestSyncConfigWriteFailure(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root bypasses directory permissions")
 	}
-	_, _, err := syncConfigFile(path, false)
+	_, _, err := syncConfigFile(path, consensusReference(t), false)
 	require.Error(t, err)
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
@@ -224,7 +231,7 @@ func TestSyncConfigDoesNotPersistFlagsOrEnvironment(t *testing.T) {
 			appBefore, err := os.ReadFile(appPath)
 			require.NoError(t, err)
 			syncCmd := syncConfigCmd()
-			syncCmd.SetArgs([]string{"--home", home})
+			syncCmd.SetArgs([]string{"--home", home, "--fibre-home", t.TempDir()})
 			require.NoError(t, syncCmd.Execute())
 			require.Equal(t, want, sctx.Config.RPC.MaxConcurrentHeavyRequests)
 			persisted, err := loadCometBFTConfig(path, home)
@@ -268,4 +275,109 @@ func TestMergeConfigPreservesOrder(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, added)
 	require.Equal(t, original, unchanged)
+}
+
+func TestSyncFibreConfigFile(t *testing.T) {
+	// Fibre rejects unknown keys on load, so the fixture only uses real ones.
+	original := []byte("# operator\nserver_listen_address = '0.0.0.0:9999' # custom\n")
+	wantAdded := []string{"app_grpc_address", "max_connections", "object_storage.bucket"}
+	reference, err := renderFibreConfig()
+	require.NoError(t, err)
+	path := filepath.Join(t.TempDir(), fibre.DefaultConfigFileName)
+	require.NoError(t, os.WriteFile(path, original, 0o640))
+
+	t.Log("dry run reports missing settings and writes nothing")
+	added, backup, err := syncConfigFile(path, reference, true)
+	require.NoError(t, err)
+	require.Subset(t, added, wantAdded, "dry run should list the missing keys")
+	require.Empty(t, backup, "dry run should not create a backup")
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.Equal(t, original, data, "dry run should not modify the file")
+
+	t.Log("real run adds settings and backs up the original")
+	added, backup, err = syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	require.Subset(t, added, wantAdded, "real run should add the missing keys")
+	saved, err := os.ReadFile(backup)
+	require.NoError(t, err, "backup file should exist")
+	require.Equal(t, original, saved, "backup should hold the original file")
+
+	t.Log("file gains the missing keys; existing comments, values and permissions are kept")
+	data, err = os.ReadFile(path)
+	require.NoError(t, err)
+	require.Contains(t, string(data), "\nmax_connections = ", "added key should be written to the file")
+	require.Contains(t, string(data), "# operator", "operator comment should be kept")
+	var before, after map[string]any
+	require.NoError(t, toml.Unmarshal(original, &before))
+	require.NoError(t, toml.Unmarshal(data, &after))
+	require.True(t, configValuesPreserved(before, after), "existing values should be unchanged")
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0o640), info.Mode().Perm(), "file permissions should be kept")
+
+	t.Log("Fibre loads the synced file with the custom value and defaults")
+	cfg := fibre.DefaultServerConfig()
+	require.NoError(t, cfg.Load(path), "Fibre should load the synced file")
+	require.Equal(t, "0.0.0.0:9999", cfg.ServerListenAddress, "custom value should survive sync")
+	require.Equal(t, fibre.DefaultServerConfig().MaxConnections, cfg.MaxConnections, "added key should carry the default")
+
+	t.Log("second sync is a no-op")
+	added, second, err := syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	require.Empty(t, added, "nothing should be missing after a sync")
+	require.Empty(t, second, "no backup should be written when nothing changes")
+
+	t.Log("a later sync never overwrites an earlier backup")
+	require.NoError(t, os.WriteFile(path, original, 0o640))
+	_, second, err = syncConfigFile(path, reference, false)
+	require.NoError(t, err)
+	require.NotEqual(t, backup, second, "each sync should write a new backup")
+	saved, err = os.ReadFile(backup)
+	require.NoError(t, err, "earlier backup should still exist")
+	require.Equal(t, original, saved, "earlier backup should be untouched")
+}
+
+func TestSyncConfigCommandAllFiles(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		useEnv    bool // pass the Fibre home via FIBRE_HOME instead of --fibre-home
+		fibreFile bool // whether a server_config.toml exists in the Fibre home
+	}{
+		{name: "fibre home from flag", fibreFile: true},
+		{name: "fibre home from env", useEnv: true, fibreFile: true},
+		{name: "no fibre file is skipped"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			home, fibreHome := t.TempDir(), t.TempDir()
+			require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("moniker='mine'\n"), 0o600))
+			if tc.fibreFile {
+				require.NoError(t, os.Mkdir(filepath.Join(fibreHome, "config"), 0o700))
+				require.NoError(t, os.WriteFile(fibre.DefaultConfigPath(fibreHome), []byte("server_listen_address='0.0.0.0:9999'\n"), 0o600))
+			}
+
+			args := []string{"config", "sync", "--home", home}
+			if tc.useEnv {
+				t.Setenv(fibre.EnvHome, fibreHome)
+			} else {
+				args = append(args, "--fibre-home", fibreHome)
+			}
+			root := NewRootCmd()
+			root.SetArgs(args)
+			var buf bytes.Buffer
+			root.SetOut(&buf)
+			require.NoError(t, root.Execute())
+			out := buf.String()
+
+			require.Contains(t, out, "Added settings to config.toml: ", "config.toml should be synced")
+			if tc.fibreFile {
+				require.Contains(t, out, "Added settings to server_config.toml: ", "Fibre file should be synced")
+			} else {
+				require.Contains(t, out, "server_config.toml not found at "+fibre.DefaultConfigPath(fibreHome), "missing Fibre file should be reported")
+				_, err := os.Stat(filepath.Join(fibreHome, "config"))
+				require.True(t, os.IsNotExist(err), "sync should not create a Fibre config dir")
+			}
+		})
+	}
 }

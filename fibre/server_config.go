@@ -24,7 +24,22 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const DefaultConfigFileName = "server_config.toml"
+const (
+	DefaultConfigFileName = "server_config.toml"
+	// EnvHome is the environment variable that overrides the Fibre home directory.
+	EnvHome = "FIBRE_HOME"
+	// DefaultHomeDir is the Fibre home directory name under the user's home.
+	DefaultHomeDir = ".celestia-fibre"
+)
+
+// DefaultHome returns the default Fibre home directory.
+func DefaultHome() string {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return DefaultHomeDir
+	}
+	return filepath.Join(userHome, DefaultHomeDir)
+}
 
 // DefaultConfigPath returns the default config file path for the given home directory.
 func DefaultConfigPath(home string) string {
