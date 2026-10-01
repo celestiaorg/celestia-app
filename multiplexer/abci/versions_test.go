@@ -3,11 +3,7 @@ package abci
 import (
 	"errors"
 	"fmt"
-<<<<<<< HEAD
-=======
-	"math"
 	"slices"
->>>>>>> 6f8c6b1 (fix(multiplexer): don't forward unsupported start flags to embedded binaries (#7991))
 	"testing"
 
 	"github.com/spf13/cobra"

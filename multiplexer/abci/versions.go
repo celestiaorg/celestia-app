@@ -1,12 +1,8 @@
 package abci
 
 import (
-<<<<<<< HEAD
-=======
 	"bytes"
 	"encoding/csv"
-	"errors"
->>>>>>> 6f8c6b1 (fix(multiplexer): don't forward unsupported start flags to embedded binaries (#7991))
 	"fmt"
 	"sort"
 	"strings"

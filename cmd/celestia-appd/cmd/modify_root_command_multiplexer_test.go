@@ -18,7 +18,7 @@ import (
 
 func TestUnsupportedFlags(t *testing.T) {
 	// v6-v9 lack only the flags added in v10.
-	require.Equal(t, map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}}, unsupportedFlags(9))
+	require.Equal(t, map[string]struct{}{"otel-endpoint": {}, "fibre-promise-cache": {}, "privval-grpc-allow-insecure": {}}, unsupportedFlags(9))
 	require.Equal(t, unsupportedFlags(9), unsupportedFlags(6))
 
 	// v4 and v5 also lack flags added in v6.
@@ -59,8 +59,7 @@ func TestUnsupportedFlagsMatchEmbeddedBinaries(t *testing.T) {
 		t.Run(version, func(t *testing.T) {
 			binary, err := appd.New(version, data)
 			require.NoError(t, err)
-			help, err := binary.CreateExecCommand("start", "--help")
-			require.NoError(t, err)
+			help := binary.CreateExecCommand("start", "--help")
 			help.Stdout, help.Stderr = nil, nil
 			output, err := help.CombinedOutput()
 			require.NoError(t, err, "%s", output)
@@ -73,8 +72,7 @@ func TestUnsupportedFlagsMatchEmbeddedBinaries(t *testing.T) {
 				if !supported[flag.Name] {
 					// Hidden and deprecated flags are absent from help. --help prevents
 					// node startup while still asking pflag to validate the flag name.
-					probe, err := binary.CreateExecCommand("start", "--help", "--"+flag.Name+"="+flag.DefValue)
-					require.NoError(t, err)
+					probe := binary.CreateExecCommand("start", "--help", "--"+flag.Name+"="+flag.DefValue)
 					probe.Stdout, probe.Stderr = nil, nil
 					output, err := probe.CombinedOutput()
 					if strings.Contains(string(output), "unknown flag: --"+flag.Name) {
