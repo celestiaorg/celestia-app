@@ -8,7 +8,7 @@ import (
 // StoreConfig contains configuration options for the [Store].
 type StoreConfig struct {
 	// StorageBackend selects the backend for new shards: local or object.
-	StorageBackend string `toml:"storage_backend"`
+	StorageBackend string `toml:"storage_backend" comment:"StorageBackend selects the backend for new shards: local or object."`
 	// ObjectStorage must remain configured until all object shards are pruned.
 	ObjectStorage ObjectStorageConfig `toml:"object_storage" comment:"Object storage is experimental.\nAfter switching storage_backend from object to local, keep object storage configured and accessible.\nThe pruner requires it until all shard markers for blob shards stored in object storage have been pruned."`
 	// Path is the path to the store directory.

@@ -8,15 +8,15 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Node operators MUST upgrade their binary to this version prior to the v10 activation height.
 
-#### Update config.toml
+#### Update config files
 
-Validators are recommended to run the following command with a v10.2.0 or later binary to add missing fields and their documentation to `config.toml` before changing settings:
+Validators are recommended to run the following command with a v10.3.0 or later binary to add missing fields and their documentation to `config.toml` and Fibre's `server_config.toml` before changing settings:
 
 ```sh
-celestia-appd config sync --home ~/.celestia-app
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-Use your node's home directory if it differs. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
+Use your node's and Fibre's home directories if they differ. A file is skipped if it does not exist, e.g. `config.toml` on a Fibre-only host. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
 
 #### Fibre
 
@@ -41,6 +41,12 @@ Fresh v10 configurations enable a privval gRPC endpoint, which the fibre server 
 
 Fibre also needs application gRPC enabled in the `[grpc]` section of `config/app.toml` (normally port `9090`). This is separate from `[rpc] grpc_laddr` in `config/config.toml` (normally port `9098`); preserve the latter for existing core RPC clients. See the [connection settings and address formats](../../fibre/cmd/README.md#node-connections).
 
+The default privval address, `127.0.0.1:26669`, allows unencrypted connections from the same host. No TLS certificates or extra flags are needed when Fibre connects to this address.
+
+If Fibre connects from another host or container, configure mutual TLS on both sides. Without it, the node refuses to start with a privval address such as `0.0.0.0:26669`, and Fibre refuses to connect to a remote signer. Follow the [core privval TLS guide](https://github.com/celestiaorg/celestia-core/blob/main/docs/guides/privval-grpc-tls.md) to generate certificates and configure the node and Fibre. The server certificate must match the IP address or DNS name Fibre connects to. Restart both services after configuring or replacing certificates.
+
+Keep the signing port on a private network and restrict access to the Fibre host. For local development only, `--privval-grpc-allow-insecure` on the node and `--signer-grpc-allow-insecure` on Fibre allow remote connections without TLS. Do not use these overrides in production: anyone who can reach the unprotected endpoint can request signatures from the validator key.
+
 #### Heavy RPC Requests Are Limited
 
 celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_search`, `unconfirmed_txs`, share and data-root proofs, and the gRPC block, validator-set, and proof endpoints) behind a process-wide concurrency limit. It is configurable via `max_concurrent_heavy_requests` in the `[rpc]` section of `config.toml` (default 20) and is shared across HTTP JSON-RPC, URI, WebSocket, and gRPC. Excess requests are rejected with HTTP 503 / gRPC `ResourceExhausted`. Public RPC providers may want to raise this limit.
@@ -55,9 +61,9 @@ Automatic compaction covers newly pruned blocks. To reclaim space from an existi
 
 At startup, missing fields use the binary's defaults without rewriting existing files. The deprecated `celestia-appd update-config` command only supports the v6 migration; use `celestia-appd config sync` to add missing v10 settings and their documentation.
 
-Run [`celestia-appd config sync`](#update-configtoml) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
+Run [`celestia-appd config sync`](#update-config-files) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
 
-The command only updates `config.toml`. Back up and edit `config/app.toml` and Fibre's `server_config.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
+The command updates `config.toml` and, if present, Fibre's `server_config.toml`. Back up and edit `config/app.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
 
 Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
