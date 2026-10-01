@@ -28,6 +28,8 @@ type PutResult struct {
 	TxHash string
 	// Height is the block height where the [types.MsgPayForFibre] transaction was included.
 	Height uint64
+	// RowRootSiblings are the [Blob.RowRootSiblings] for [VerifyCommitment].
+	RowRootSiblings [][]byte
 }
 
 // escrowReservation is a single Put's handle on its escrow admission. The zero
@@ -112,7 +114,7 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	)
 	defer span.End()
 
-	blobID, signedPromise, err := uploadPut(ctx, c, txClient, ns, data)
+	blobID, siblings, signedPromise, err := uploadPut(ctx, c, txClient, ns, data)
 	if err != nil {
 		return result, err
 	}
@@ -161,11 +163,12 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		ValidatorSignatures: signedPromise.ValidatorSignatures,
 		TxHash:              txResp.TxHash,
 		Height:              uint64(txResp.Height),
+		RowRootSiblings:     siblings,
 	}, nil
 }
 
 // uploadPut releases its blob ownership before transaction settlement.
-func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (BlobID, SignedPaymentPromise, error) {
+func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (BlobID, [][]byte, SignedPaymentPromise, error) {
 	span := trace.SpanFromContext(ctx)
 	if c.Config.PutLimiter != nil {
 		span.AddEvent("expanded_memory_wait_started")
@@ -174,7 +177,7 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "blob memory admission failed")
-		return nil, SignedPaymentPromise{}, err
+		return nil, nil, SignedPaymentPromise{}, err
 	}
 	if c.Config.PutLimiter != nil {
 		span.AddEvent("expanded_memory_acquired")
@@ -185,7 +188,7 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")
 		release()
-		return nil, SignedPaymentPromise{}, err
+		return nil, nil, SignedPaymentPromise{}, err
 	}
 	free := blob.releaseFn
 	blob.releaseFn = func() {
@@ -198,6 +201,10 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 	}()
 
 	blobID := blob.ID()
+	siblings, err := blob.RowRootSiblings()
+	if err != nil {
+		return nil, nil, SignedPaymentPromise{}, err
+	}
 	span.AddEvent("blob_encoded", trace.WithAttributes(
 		attribute.String("blob_id", blobID.String()),
 		attribute.Int("row_size", blob.RowSize()),
@@ -211,7 +218,7 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "escrow admission failed")
-		return nil, SignedPaymentPromise{}, err
+		return nil, nil, SignedPaymentPromise{}, err
 	}
 	defer reservation.abort()
 
@@ -227,13 +234,13 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to upload blob")
-		return nil, SignedPaymentPromise{}, err
+		return nil, nil, SignedPaymentPromise{}, err
 	}
 	span.AddEvent("blob_uploaded", trace.WithAttributes(
 		attribute.Int("sigs_amount", len(signedPromise.ValidatorSignatures)),
 	))
 
-	return blobID, signedPromise, nil
+	return blobID, siblings, signedPromise, nil
 }
 
 // pffBroadcastAttempts and pffBroadcastRetryDelay bound the re-broadcast of a
