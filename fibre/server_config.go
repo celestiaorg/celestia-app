@@ -23,7 +23,22 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const DefaultConfigFileName = "server_config.toml"
+const (
+	DefaultConfigFileName = "server_config.toml"
+	// EnvHome is the environment variable that overrides the Fibre home directory.
+	EnvHome = "FIBRE_HOME"
+	// DefaultHomeDir is the Fibre home directory name under the user's home.
+	DefaultHomeDir = ".celestia-fibre"
+)
+
+// DefaultHome returns the default Fibre home directory.
+func DefaultHome() string {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return DefaultHomeDir
+	}
+	return filepath.Join(userHome, DefaultHomeDir)
+}
 
 // DefaultConfigPath returns the default config file path for the given home directory.
 func DefaultConfigPath(home string) string {
@@ -88,7 +103,7 @@ type ServerConfig struct {
 	// UnlimitedBudget disables the storage limiter: an emergency off switch. When
 	// false, the server derives its per-node budget from the
 	// FullStakeStorageBudget governance parameter via the state client.
-	UnlimitedBudget bool `toml:"unlimited_budget"`
+	UnlimitedBudget bool `toml:"unlimited_budget" comment:"UnlimitedBudget disables the storage limiter: an emergency off switch. When false, the per-node budget comes from the FullStakeStorageBudget governance parameter."`
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`
