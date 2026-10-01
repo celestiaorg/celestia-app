@@ -24,6 +24,26 @@ v10 introduces fibre, a data availability protocol served by validator-operated 
 
 We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other.
 
+#### Fibre S3-Compatible Object Storage
+
+The v10.4.0 releases include experimental support for storing Fibre blob shards in S3-compatible object storage, such as Amazon S3 or Cloudflare R2. Validators can opt in; local storage remains the default. Fibre's metadata database and the consensus node's data still require persistent local storage.
+
+Run [config sync](#update-config-files), then set `storage_backend = "object"` and configure `[object_storage]` in Fibre's `config/server_config.toml`. For example, with an existing S3 bucket:
+
+```toml
+storage_backend = "object"
+
+[object_storage]
+endpoint = "https://s3.us-east-1.amazonaws.com"
+region = "us-east-1"
+bucket = "my-fibre-shards"
+prefix = "fibre"
+```
+
+Use your bucket's endpoint and region. For Cloudflare R2, use its S3 API endpoint and `region = "auto"`. Credentials are loaded through the AWS SDK credential chain, such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the Fibre service's environment. Grant read, write, and delete access to the configured bucket and prefix, then restart Fibre.
+
+Changing backends affects new shards only; it does not migrate existing shards. Keep the local data directory and access to the original object bucket and prefix for retained shards, including after switching back to local storage. See the [storage backend guide](../../fibre/cmd/README.md#switching-shard-storage-backends) before changing the backend or object namespace.
+
 #### Key Management Systems (KMS)
 
 The horcrux deprecation announced in the v7 release notes is superseded. Any KMS infrastructure may be used, provided it meets both requirements:
