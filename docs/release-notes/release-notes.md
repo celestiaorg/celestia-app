@@ -41,6 +41,12 @@ Fresh v10 configurations enable a privval gRPC endpoint, which the fibre server 
 
 Fibre also needs application gRPC enabled in the `[grpc]` section of `config/app.toml` (normally port `9090`). This is separate from `[rpc] grpc_laddr` in `config/config.toml` (normally port `9098`); preserve the latter for existing core RPC clients. See the [connection settings and address formats](../../fibre/cmd/README.md#node-connections).
 
+The default privval address, `127.0.0.1:26669`, allows unencrypted connections from the same host. No TLS certificates or extra flags are needed when Fibre connects to this address.
+
+If Fibre connects from another host or container, configure mutual TLS on both sides. Without it, the node refuses to start with a privval address such as `0.0.0.0:26669`, and Fibre refuses to connect to a remote signer. Follow the [core privval TLS guide](https://github.com/celestiaorg/celestia-core/blob/main/docs/guides/privval-grpc-tls.md) to generate certificates and configure the node and Fibre. The server certificate must match the IP address or DNS name Fibre connects to. Restart both services after configuring or replacing certificates.
+
+Keep the signing port on a private network and restrict access to the Fibre host. For local development only, `--privval-grpc-allow-insecure` on the node and `--signer-grpc-allow-insecure` on Fibre allow remote connections without TLS. Do not use these overrides in production: anyone who can reach the unprotected endpoint can request signatures from the validator key.
+
 #### Heavy RPC Requests Are Limited
 
 celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_search`, `unconfirmed_txs`, share and data-root proofs, and the gRPC block, validator-set, and proof endpoints) behind a process-wide concurrency limit. It is configurable via `max_concurrent_heavy_requests` in the `[rpc]` section of `config.toml` (default 20) and is shared across HTTP JSON-RPC, URI, WebSocket, and gRPC. Excess requests are rejected with HTTP 503 / gRPC `ResourceExhausted`. Public RPC providers may want to raise this limit.
