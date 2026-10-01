@@ -3,6 +3,10 @@ set -euo pipefail
 cd "$(dirname "$0")"
 ./up.sh
 docker compose run --rm --no-deps --entrypoint bash tools /opt/devnet/check.sh
+# Restart on the same volume to cover the existing-data startup path.
+docker compose stop fibre-1 fibre-2 validator-1 validator-2
+./up.sh
+docker compose run --rm --no-deps --entrypoint bash tools /opt/devnet/check.sh
 ./submit-pfbs.sh --count 3 --size 1024 --interval 100ms
 ./submit-pffs.sh --count 3 --size 1024 --interval 100ms --verify
 ./submit-pfbs.sh --size 262144
