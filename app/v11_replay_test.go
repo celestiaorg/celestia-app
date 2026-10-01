@@ -19,6 +19,7 @@ import (
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	ibctypes "github.com/cosmos/ibc-go/v8/modules/core/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,6 +45,11 @@ func initializeV10Replay(t *testing.T, a *app.App) {
 	fibreGenesis := fibretypes.DefaultGenesis()
 	fibreGenesis.Params = fibretypes.DefaultParamsForVersion(10)
 	genesis[fibretypes.ModuleName] = a.AppCodec().MustMarshalJSON(fibreGenesis)
+	// Preserve the IBC genesis parameter used to record the v10 replay hashes.
+	ibcGenesis := ibctypes.DefaultGenesisState()
+	a.AppCodec().MustUnmarshalJSON(genesis["ibc"], ibcGenesis)
+	ibcGenesis.ConnectionGenesis.Params.MaxExpectedTimePerBlock = uint64((13 * time.Second).Nanoseconds())
+	genesis["ibc"] = a.AppCodec().MustMarshalJSON(ibcGenesis)
 	raw, err := json.Marshal(genesis)
 	require.NoError(t, err)
 	cp := app.DefaultConsensusParams()
