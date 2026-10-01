@@ -25,8 +25,6 @@ import (
 type configFile struct {
 	path      string
 	reference func() ([]byte, error)
-	// optional files are skipped when absent, e.g. Fibre on a node without it.
-	optional bool
 }
 
 func syncConfigCmd() *cobra.Command {
@@ -57,14 +55,17 @@ func syncConfigCmd() *cobra.Command {
 			home := v.GetString(flags.FlagHome)
 			files := []configFile{
 				{path: filepath.Join(home, "config", "config.toml"), reference: renderConsensusConfig},
-				{path: fibre.DefaultConfigPath(fibreHome), reference: renderFibreConfig, optional: true},
+				{path: fibre.DefaultConfigPath(fibreHome), reference: renderFibreConfig},
 			}
+			// Hosts that run only the node or only Fibre have just one of the files.
+			found := false
 			for _, file := range files {
 				name := filepath.Base(file.path)
-				if _, err := os.Lstat(file.path); file.optional && os.IsNotExist(err) {
+				if _, err := os.Lstat(file.path); os.IsNotExist(err) {
 					cmd.Printf("%s not found at %s, skipping\n", name, file.path)
 					continue
 				}
+				found = true
 				reference, err := file.reference()
 				if err != nil {
 					return err
@@ -81,6 +82,9 @@ func syncConfigCmd() *cobra.Command {
 				default:
 					cmd.Printf("Added settings to %s: %s\nBackup: %s\n", name, strings.Join(added, ", "), backup)
 				}
+			}
+			if !found {
+				return fmt.Errorf("no config files found")
 			}
 			return nil
 		},

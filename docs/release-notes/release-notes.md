@@ -16,7 +16,7 @@ Validators are recommended to run the following command with a v10.2.0 or later 
 celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-Use your node's and Fibre's home directories if they differ. The Fibre file is skipped if it does not exist. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
+Use your node's and Fibre's home directories if they differ. A file is skipped if it does not exist, e.g. `config.toml` on a Fibre-only host. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
 
 #### Fibre
 

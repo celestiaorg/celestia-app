@@ -342,16 +342,20 @@ func TestSyncConfigCommandAllFiles(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		useEnv    bool // pass the Fibre home via FIBRE_HOME instead of --fibre-home
+		coreFile  bool // whether a config.toml exists in the node home
 		fibreFile bool // whether a server_config.toml exists in the Fibre home
 	}{
-		{name: "fibre home from flag", fibreFile: true},
-		{name: "fibre home from env", useEnv: true, fibreFile: true},
-		{name: "no fibre file is skipped"},
+		{name: "fibre home from flag", coreFile: true, fibreFile: true},
+		{name: "fibre home from env", useEnv: true, coreFile: true, fibreFile: true},
+		{name: "no fibre file is skipped", coreFile: true},
+		{name: "fibre-only host skips config.toml", fibreFile: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			home, fibreHome := t.TempDir(), t.TempDir()
-			require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
-			require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("moniker='mine'\n"), 0o600))
+			if tc.coreFile {
+				require.NoError(t, os.Mkdir(filepath.Join(home, "config"), 0o700))
+				require.NoError(t, os.WriteFile(filepath.Join(home, "config", "config.toml"), []byte("moniker='mine'\n"), 0o600))
+			}
 			if tc.fibreFile {
 				require.NoError(t, os.Mkdir(filepath.Join(fibreHome, "config"), 0o700))
 				require.NoError(t, os.WriteFile(fibre.DefaultConfigPath(fibreHome), []byte("server_listen_address='0.0.0.0:9999'\n"), 0o600))
@@ -370,7 +374,13 @@ func TestSyncConfigCommandAllFiles(t *testing.T) {
 			require.NoError(t, root.Execute())
 			out := buf.String()
 
-			require.Contains(t, out, "Added settings to config.toml: ", "config.toml should be synced")
+			if tc.coreFile {
+				require.Contains(t, out, "Added settings to config.toml: ", "config.toml should be synced")
+			} else {
+				require.Contains(t, out, "config.toml not found at "+filepath.Join(home, "config", "config.toml"), "missing config.toml should be reported")
+				_, err := os.Stat(filepath.Join(home, "config"))
+				require.True(t, os.IsNotExist(err), "sync should not create a node config dir")
+			}
 			if tc.fibreFile {
 				require.Contains(t, out, "Added settings to server_config.toml: ", "Fibre file should be synced")
 			} else {

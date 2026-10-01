@@ -161,7 +161,7 @@ celestia-appd start
 | `config/config.toml` (core)         | `--home`                                                      |
 | `config/server_config.toml` (Fibre) | `--fibre-home` (or `FIBRE_HOME`), default `~/.celestia-fibre` |
 
-The Fibre file is skipped if it does not exist, e.g. on nodes that do not run Fibre.
+A file is skipped if it does not exist, so the command works on hosts that run only the node or only Fibre.
 Synchronization runs only when this command is called, not on node startup.
 Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
 Flags and environment overrides are not saved.
