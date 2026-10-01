@@ -73,15 +73,22 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return next(ctx, tx, simulate)
 	}
 
-	cacheKey, err := msg.SigCacheKey()
-	if err != nil {
-		return ctx, err
+	// Reuse the key a decoded view already derived for this tx, if any.
+	var cacheKey sigcache.Key
+	if decoded := fibretypes.DecodedPayForFibreFromContext(ctx); decoded != nil && decoded.CertKeyed {
+		cacheKey = decoded.CertKey
+	} else {
+		var err error
+		cacheKey, err = msg.SigCacheKey()
+		if err != nil {
+			return ctx, err
+		}
 	}
 	if d.pffSigCache.Has(cacheKey) {
 		return next(ctx, tx, simulate)
 	}
 
-	if err = d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
+	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
 		return ctx, err
 	}
 	d.pffSigCache.Add(cacheKey)

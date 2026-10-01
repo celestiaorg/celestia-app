@@ -64,7 +64,7 @@ func TestOrderFibreTxsByAge(t *testing.T) {
 
 			raw := make([]string, 0, len(got))
 			for _, tx := range got {
-				raw = append(raw, string(tx))
+				raw = append(raw, string(tx.raw))
 			}
 			require.Equal(t, tc.want, raw)
 		})

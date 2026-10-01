@@ -38,8 +38,23 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	if k.sigCache == nil {
 		return
 	}
+	decoded := make([]*types.DecodedPayForFibre, 0, len(txs))
+	for _, rawTx := range txs {
+		if d := DecodePayForFibre(rawTx); d != nil {
+			decoded = append(decoded, d)
+		}
+	}
+	k.PreverifyDecoded(ctx, decoded, opts)
+}
 
-	work := k.collectVerifications(ctx, txs, opts)
+// PreverifyDecoded is PreverifySignatures over txs the caller already decoded,
+// so the phase decodes each tx once. nil entries are skipped.
+func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) {
+	if k.sigCache == nil {
+		return
+	}
+
+	work := k.collectVerifications(ctx, decoded, opts)
 	if len(work.items) == 0 {
 		return
 	}
@@ -116,43 +131,35 @@ func (p *preverification) record(cache SigCache, verified []bool) {
 
 // collectVerifications builds the work queue. Every state read happens here,
 // sequentially on ctx, so the workers touch nothing but their own inputs.
-func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts PreverifyOptions) *preverification {
+func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) *preverification {
 	work := &preverification{}
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
 	valSets := make(map[int64]*convertedValidatorSet)
 
-	for _, rawTx := range txs {
-		msg, ok := types.ParsePayForFibreMsg(rawTx)
-		if !ok {
+	for _, d := range decoded {
+		if d == nil || !d.PromiseKeyed {
 			continue
 		}
+		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}
 		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
 			continue
 		}
-		promiseKey, keyed := promiseSigCacheKey(promise)
-		if !keyed {
-			continue
-		}
 
-		promiseCached := k.sigCache.Has(promiseKey)
+		promiseCached := k.sigCache.Has(d.PromiseKey)
 		first := len(work.items)
 		if !promiseCached {
 			work.items = append(work.items, verification{promise: promise})
-			work.groups = append(work.groups, verificationGroup{key: promiseKey, first: first, end: first + 1})
+			work.groups = append(work.groups, verificationGroup{key: d.PromiseKey, first: first, end: first + 1})
 		}
 
-		if !opts.Certificates {
+		if !opts.Certificates || !d.CertKeyed || k.sigCache.Has(d.CertKey) {
 			continue
 		}
-		certKey, err := msg.SigCacheKey()
-		if err != nil || k.sigCache.Has(certKey) {
-			continue
-		}
-		if k.appendCertificateItems(ctx, work, valSets, promise, msg, first) {
-			work.groups = append(work.groups, verificationGroup{key: certKey, first: first, end: len(work.items)})
+		if k.appendCertificateItems(ctx, work, valSets, d.PromiseSignBytes, msg, first) {
+			work.groups = append(work.groups, verificationGroup{key: d.CertKey, first: first, end: len(work.items)})
 		}
 	}
 	return work
@@ -166,7 +173,7 @@ func (k Keeper) appendCertificateItems(
 	ctx sdk.Context,
 	work *preverification,
 	valSets map[int64]*convertedValidatorSet,
-	promise *fibre.PaymentPromise,
+	signBytes []byte,
 	msg *types.MsgPayForFibre,
 	first int,
 ) bool {
@@ -186,11 +193,6 @@ func (k Keeper) appendCertificateItems(
 	// The list is positional over the validator set, so more entries than
 	// validators is malformed.
 	if len(msg.ValidatorSignatures) > len(converted.validators) {
-		return false
-	}
-
-	signBytes, err := promise.SignBytes()
-	if err != nil {
 		return false
 	}
 

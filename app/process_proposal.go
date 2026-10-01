@@ -65,6 +65,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// mirrors PrepareProposal, which reads it before running any ante handler.
 	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 
+	// Reuse the artifacts this node produced in PrepareProposal when this is the
+	// block it proposed. The entry is keyed on the exact tx bytes, so a hit can
+	// only describe this block, but a hit is still not evidence of validity:
+	// every check below runs unchanged, and the square size and data root the
+	// proposer stated are still compared against what the cached artifacts
+	// imply. A node that misses recomputes everything and reaches the same
+	// result.
+	cached := app.proposalCache.Take(newProposalKey(ctx, blockHeader.Height, maxSquareSize), req.Txs)
+
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
 	// which pays out matured withdrawals and advances the freshness floor before
 	// any tx. Pay-for-fibre settlement below must see that escrow state. The
@@ -74,22 +83,53 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return reject(), nil
 	}
 
-	// Verify the block's pay-for-fibre signatures across every CPU before the
-	// sequential loop reaches them. This only warms the signature cache: a
-	// failed check is not recorded, so the loop below still performs it and
-	// still decides. Any failure rejects the whole block, so the pass stops
-	// claiming work at the first one.
-	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{
-		Certificates:       true,
-		StopOnFirstFailure: true,
-	})
-
 	var (
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
 		maxPFF          = appconsts.GetMaxPayForFibreMessages(ctx.ConsensusParams().Version.GetApp())
+		// blobTxs and decoded are the decode caches for this proposal: the blob
+		// tx decoded from req.Txs[i], or the pay-for-fibre tx decoded from it,
+		// or nil where that tx is neither. They are scoped to this call, so an
+		// entry can only ever describe the bytes it came from. On a cache hit
+		// the cached blob txs, bound to the same bytes, are used instead.
+		blobTxs = make([]*blobtx.BlobTx, len(req.Txs))
+		decoded = make([]*fibretypes.DecodedPayForFibre, len(req.Txs))
 	)
+	if cached != nil {
+		blobTxs = cached.blobTxs
+	}
+
+	// Decode every tx once, up front. Oversize txs are left to the loop, which
+	// rejects them without decoding.
+	for idx, rawTx := range req.Txs {
+		if len(rawTx) > appconsts.MaxTxSize {
+			continue
+		}
+		if cached == nil {
+			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+			if isBlobTx {
+				if err != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+					return reject(), nil
+				}
+				blobTxs[idx] = decodedBlob
+			}
+		}
+		if blobTxs[idx] == nil {
+			decoded[idx] = fibrekeeper.DecodePayForFibre(rawTx)
+		}
+	}
+
+	// Verify the block's pay-for-fibre signatures across every CPU before the
+	// sequential loop reaches them. This only warms the signature cache: a
+	// failed check is not recorded, so the loop below still performs it and
+	// still decides. Any failure rejects the whole block, so the pass stops
+	// claiming work at the first one.
+	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
+		Certificates:       true,
+		StopOnFirstFailure: true,
+	})
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -103,18 +143,19 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// BlobTx is the most common special type; check it first.
-		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+		// BlobTx is the most common special type; check it first. It was
+		// decoded above, or by PrepareProposal from these exact bytes.
+		blobTx := blobTxs[idx]
+		isBlobTx := blobTx != nil
 		if isBlobTx {
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject(), nil
-			}
 			sdkTxBytes = blobTx.Tx
 		}
 
 		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
 		ctx = ctx.WithTxBytes(sdkTxBytes)
+		// Hand the ante handler and the message server what was already
+		// decoded from this tx; nil clears the previous tx's value.
+		ctx = fibretypes.WithDecodedPayForFibre(ctx, decoded[idx])
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
@@ -215,15 +256,32 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
+	// On a hit the square, extended square and data availability header are a
+	// pure function of the tx bytes, the max square size and the subtree root
+	// threshold, all of which the cache key pins down, so PrepareProposal's
+	// results are exactly what recomputing here would produce. The proposer's
+	// stated square size and data root are still compared against them.
+	if cached != nil {
+		if cached.squareSize != req.SquareSize {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return reject(), nil
+		}
+		if !bytes.Equal(cached.dataRoot, req.DataRootHash) {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, cached.dataRoot))
+			return reject(), nil
+		}
+		return accept(), nil
+	}
+
 	// Classify txs (marking pay-for-fibre txs and synthesizing their system
 	// blobs) before constructing the square; go-square no longer decodes
 	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxs(req.Txs)
+	classifiedTxs, err := classifyTxs(req.Txs, blobTxs, decoded)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil
 	}
-	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
+	dataSquare, err := constructSquare(classifiedTxs, blobTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
 		return reject(), nil
@@ -259,6 +317,102 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 
 	return accept(), nil
+}
+
+// classifyTxs is fibretypes.ClassifyTxs with the blob and pay-for-fibre txs
+// already decoded. blobTxs and decoded are index aligned with txs; a tx that is
+// neither takes the parsing path, which also covers a pay-for-fibre tx the
+// decoded view could not parse.
+func classifyTxs(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre) ([]squarev4.ClassifiedTx, error) {
+	classified := make([]squarev4.ClassifiedTx, len(txs))
+	for i, rawTx := range txs {
+		var (
+			fibreTx   *blobtx.FibreTx
+			isFibreTx bool
+			err       error
+		)
+		switch {
+		case blobTxs[i] != nil:
+			classified[i] = squarev4.NewClassifiedTx(rawTx)
+			continue
+		case decoded[i] != nil:
+			isFibreTx = true
+			fibreTx, err = decoded[i].FibreTx()
+		default:
+			fibreTx, isFibreTx, err = fibretypes.TryParseFibreTx(rawTx)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
+		}
+		if !isFibreTx {
+			classified[i] = squarev4.NewClassifiedTx(rawTx)
+			continue
+		}
+		classified[i], err = squarev4.NewClassifiedFibreTx(fibreTx)
+		if err != nil {
+			return nil, fmt.Errorf("classifying fibre tx at index %d: %w", i, err)
+		}
+	}
+	return classified, nil
+}
+
+// constructSquare is squarev4.Construct with the blob tx decoding taken out:
+// that helper unmarshals every blob tx twice, once to check the ordering and
+// once to append it, and each unmarshal copies every blob. The ordering rules,
+// the append order and the resulting square are unchanged.
+//
+// blobTxs is index aligned with txs and non-nil exactly where the tx is a blob
+// tx that decoded, which the caller has already established.
+func constructSquare(txs []squarev4.ClassifiedTx, blobTxs []*blobtx.BlobTx, maxSquareSize, subtreeRootThreshold int) (squarev4.Square, error) {
+	builder, err := squarev4.NewBuilder(maxSquareSize, subtreeRootThreshold)
+	if err != nil {
+		return nil, err
+	}
+
+	var seenBlobTx, seenFibreTx bool
+	for idx, classified := range txs {
+		if err := classified.Validate(); err != nil {
+			return nil, fmt.Errorf("classified tx at index %d: %w", idx, err)
+		}
+
+		switch {
+		case classified.FibreTx != nil:
+			seenFibreTx = true
+			added, err := builder.AppendFibreTx(classified.FibreTx)
+			if err != nil {
+				return nil, fmt.Errorf("appending fibre tx at index %d: %w", idx, err)
+			}
+			if !added {
+				return nil, fmt.Errorf("not enough space to append fibre tx at index %d", idx)
+			}
+
+		case blobTxs[idx] != nil:
+			if seenFibreTx {
+				return nil, fmt.Errorf("blob tx at index %d cannot be appended after pay-for-fibre tx", idx)
+			}
+			seenBlobTx = true
+			added, err := builder.AppendBlobTx(blobTxs[idx])
+			if err != nil {
+				return nil, fmt.Errorf("appending blob tx at index %d: %w", idx, err)
+			}
+			if !added {
+				return nil, fmt.Errorf("not enough space to append blob tx at index %d", idx)
+			}
+
+		default:
+			if seenBlobTx {
+				return nil, fmt.Errorf("normal tx at index %d cannot be appended after blob tx", idx)
+			}
+			if seenFibreTx {
+				return nil, fmt.Errorf("normal tx at index %d cannot be appended after pay-for-fibre tx", idx)
+			}
+			if !builder.AppendTx(classified.Bytes) {
+				return nil, fmt.Errorf("not enough space to append tx at index %d", idx)
+			}
+		}
+	}
+
+	return builder.Export()
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {

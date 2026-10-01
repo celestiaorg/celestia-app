@@ -30,6 +30,20 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
 	}
 
+	// A recheck runs on the exact bytes a previous CheckTx admitted, so the
+	// decode, shape check and ValidateBasic recorded for them still hold and
+	// only the state dependent checks in the ante handler run again.
+	if req.Type == abci.CheckTxType_Recheck {
+		if sdkTx, ok := app.pffTxCache.Get(tx); ok {
+			res, err := app.forwardCheckTx(req, sdkTx)
+			if err != nil || res.Code != abci.CodeTypeOK {
+				// The mempool drops a tx whose recheck fails.
+				app.pffTxCache.Drop(tx)
+			}
+			return res, err
+		}
+	}
+
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
 		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
@@ -72,11 +86,23 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 	// reaches them. CometBFT serialises CheckTx, so spreading one transaction's
 	// signatures is the only lever on admission throughput. Recheck never
 	// verifies them again, so it is skipped.
-	if _, isPFF := payForFibreMsg(sdkTx); isPFF && req.Type == abci.CheckTxType_New {
+	_, isPFF := payForFibreMsg(sdkTx)
+	if isPFF && req.Type == abci.CheckTxType_New {
 		app.FibreKeeper.PreverifySignatures(checkTxCtx, [][]byte{tx}, fibrekeeper.PreverifyOptions{Certificates: true})
 	}
 
-	return app.forwardCheckTx(req, sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx)
+	if err != nil || res.Code != abci.CodeTypeOK {
+		return res, err
+	}
+
+	// Only a newly admitted PFF is recorded: a recheck that missed is walking
+	// a working set larger than the cache, and admitting each miss would evict
+	// the entries the same pass is about to ask for.
+	if isPFF && req.Type == abci.CheckTxType_New {
+		app.pffTxCache.Set(tx, sdkTx)
+	}
+	return res, nil
 }
 
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {

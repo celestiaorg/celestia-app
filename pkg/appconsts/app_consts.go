@@ -31,7 +31,7 @@ const (
 	TxSizeCostPerByte     uint64 = 10
 	GasPerBlobByte        uint32 = 8
 	MaxTxSize             int    = 8_388_608 // 8 MiB in bytes
-	TimeoutPropose               = time.Millisecond * 3000
+	TimeoutPropose               = time.Millisecond * 5000
 	TimeoutProposeDelta          = time.Millisecond * 500
 	TimeoutPrevote               = time.Millisecond * 2000
 	TimeoutPrevoteDelta          = time.Millisecond * 500

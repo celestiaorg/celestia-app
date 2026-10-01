@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -36,12 +37,13 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		app.sigCache,
 	)
 
+	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 	fsb, err := NewFilteredSquareBuilder(
 		handler,
 		app.MsgServiceRouter(),
 		app.encodingConfig.TxConfig,
 		app.IBCKeeper.ChannelKeeper,
-		app.MaxEffectiveSquareSize(ctx),
+		maxSquareSize,
 		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
@@ -49,6 +51,10 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	}
 
 	fsb.pffProposalLimit = app.pffProposalLimit
+	fsb.decodePFF = fibrekeeper.DecodePayForFibre
+	fsb.preverifyPFF = func(ctx sdk.Context, decoded []*fibretypes.DecodedPayForFibre) {
+		app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{Certificates: true})
+	}
 
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
 	// which pays out matured withdrawals and advances the freshness floor before
@@ -57,12 +63,6 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if err := app.FibreKeeper.BeginBlocker(ctx); err != nil {
 		return nil, fmt.Errorf("failed to run fibre begin blocker on proposal branch: %w", err)
 	}
-
-	// Warm the signature cache across every CPU before filling the square. A
-	// failed check is not recorded, so Fill still performs and decides it. A
-	// failure here only drops one tx, so the pass covers the whole mempool
-	// scan rather than stopping at the first.
-	app.FibreKeeper.PreverifySignatures(ctx, req.Txs, fibrekeeper.PreverifyOptions{Certificates: true})
 
 	txs := fsb.Fill(ctx, req.Txs, req.MaxTxBytes)
 
@@ -91,6 +91,19 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if err != nil {
 		return nil, fmt.Errorf("failure to get data square size: %w", err)
 	}
+
+	// Hand the artifacts to this node's own ProcessProposal so it compares
+	// instead of recomputing them. The entry is keyed on the exact inputs and
+	// is never treated as proof that the block is valid.
+	app.proposalCache.Store(&proposalArtifacts{
+		key:     newProposalKey(ctx, req.Height, maxSquareSize),
+		txs:     txs,
+		blobTxs: fsb.KeptBlobTxs(),
+		// Store the halved EDS width, the value ProcessProposal compares the
+		// proposer's square size against.
+		squareSize: uint64(eds.Width()) / 2,
+		dataRoot:   dah.Hash(),
+	})
 
 	// Tendermint doesn't need to use any of the erasure data because only the
 	// protobuf encoded version of the block data is gossiped. Therefore, the

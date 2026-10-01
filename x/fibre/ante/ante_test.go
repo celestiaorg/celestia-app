@@ -505,3 +505,43 @@ func nextRecorder(called *bool) sdk.AnteHandler {
 		return ctx, nil
 	}
 }
+
+// TestFibreSignatureVerificationDecoratorUsesDecodedKey checks the decorator
+// takes the certificate key from a decoded view attached to the context for
+// these exact tx bytes, and derives it itself otherwise.
+func TestFibreSignatureVerificationDecoratorUsesDecodedKey(t *testing.T) {
+	txBytes := []byte{0x01, 0x02, 0x03}
+	msg := newPayForFibreMsgWithSignatures(1)
+	tx := mockTx{msgs: []sdk.Msg{msg}}
+	decodedKey := sigcache.NewKey(sigcache.PffCertificate, []byte("precomputed"))
+
+	t.Run("decoded view for these bytes", func(t *testing.T) {
+		keeper := &fakeFibreKeeper{}
+		cache := &fakeSigCache{t: t, cacheHit: true, wantKey: decodedKey, failOnCacheWrite: true}
+		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+		ctx := fibretypes.WithDecodedPayForFibre(
+			sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes(txBytes),
+			&fibretypes.DecodedPayForFibre{Raw: txBytes, CertKey: decodedKey, CertKeyed: true},
+		)
+
+		_, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
+		require.NoError(t, err)
+		require.Equal(t, 1, cache.cacheLookups)
+		require.Zero(t, keeper.calls)
+	})
+
+	t.Run("decoded view for other bytes is ignored", func(t *testing.T) {
+		keeper := &fakeFibreKeeper{}
+		cache := &fakeSigCache{t: t, cacheHit: true, wantKey: mustPffSigCacheKey(t, msg), failOnCacheWrite: true}
+		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+		ctx := fibretypes.WithDecodedPayForFibre(
+			sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes(txBytes),
+			&fibretypes.DecodedPayForFibre{Raw: []byte{0x09}, CertKey: decodedKey, CertKeyed: true},
+		)
+
+		_, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
+		require.NoError(t, err)
+		require.Equal(t, 1, cache.cacheLookups)
+		require.Zero(t, keeper.calls)
+	})
+}

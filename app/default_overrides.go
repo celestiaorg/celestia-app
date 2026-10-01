@@ -278,6 +278,9 @@ func DefaultConsensusConfig() *tmcfg.Config {
 	cfg.Consensus.TimeoutPropose = appconsts.TimeoutPropose
 	cfg.Consensus.TimeoutCommit = appconsts.TimeoutCommit
 	cfg.Consensus.SkipTimeoutCommit = false
+	// Bounds how late a vote or block part reaches a peer that just became
+	// ready for it. The upstream 100ms is a large share of a one second block.
+	cfg.Consensus.PeerGossipSleepDuration = 10 * time.Millisecond
 
 	cfg.TxIndex.Indexer = "null"
 	cfg.Storage.DiscardABCIResponses = true
