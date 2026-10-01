@@ -28,6 +28,7 @@ func startTestServer(t *testing.T, pv types.PrivValidator) string {
 	srv := grpc.NewServer()
 	privvalproto.RegisterPrivValidatorAPIServer(srv, privval.NewPrivValidatorGRPCServer(
 		pv,
+		testChainID,
 		log.NewNopLogger(),
 	))
 	go func() { _ = srv.Serve(lis) }()
