@@ -99,8 +99,8 @@ func shardBinarySize(shard *types.BlobShard) int64 {
 	return size
 }
 
-// ErrShardTooLarge indicates that a stored shard exceeds the local RPC row limit.
-var ErrShardTooLarge = errors.New("stored shard exceeds max_rpc_shard_rows")
+// ErrShardTooLarge indicates that a stored shard exceeds the protocol row limit.
+var ErrShardTooLarge = errors.New("stored shard exceeds protocol row limit")
 
 func readUint32(r io.Reader, scratch []byte) (uint32, error) {
 	if _, err := io.ReadFull(r, scratch[:4]); err != nil {
@@ -124,14 +124,8 @@ func readBytes(r io.Reader, n uint32, limit int) ([]byte, error) {
 }
 
 func readShardBinary(r io.Reader) (*types.BlobShard, error) {
-	return readShardBinaryWithLimit(r, 0)
-}
-
-func readShardBinaryWithLimit(r io.Reader, maxRows int) (*types.BlobShard, error) {
 	p := DefaultProtocolParams
-	if maxRows == 0 {
-		maxRows = p.MaxRowsPerValidator()
-	}
+	maxRows := p.MaxRowsPerValidator()
 
 	var scratch [4]byte
 	version, err := readUint32(r, scratch[:])

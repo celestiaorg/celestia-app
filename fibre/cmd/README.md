@@ -161,12 +161,11 @@ RPC admission separately allows 52 operations across all connections, with 21 sl
 disable_rpc_admission = false
 max_inflight_rpcs = 52
 reserved_upload_slots = 21
-max_rpc_shard_rows = 1721
 ```
 
 Set `disable_rpc_admission = true` to bypass the global RPC cap and upload reservation, then restart Fibre.
 The admission settings are ignored while disabled. Transport, message-size and shard-row limits still apply.
-Disabling admission removes the combined RPC memory budget.
+Disabling admission removes the global operation limit.
 
 Reads can occupy at most 31 slots; uploads can use all 52.
 Excess requests receive `ResourceExhausted` before message decoding. Clients should retry with backoff and jitter.
@@ -176,14 +175,15 @@ Receive flow-control windows are fixed at 1 MiB per stream to bound buffering be
 Connection flow-control credit is fixed at 13 MiB, matching the 13 default streams; this is not a resident-memory limit.
 These limits reserve RPC capacity, not bandwidth or write throughput.
 
-The default row limit uses a fixed 14% voting-power reference: `ceil(4096 × 0.14 × 3) = 1721` rows.
-A maximum-sized shard at that reference is about 54.64 MiB, including metadata; the receive limit adds 2% framing slack.
-The 55.678 MiB message allowance × three payload representations × 52 operations estimates 8.48 GiB, before GC, pools and other allocations.
-This is a sizing estimate, not a process-memory ceiling. Size limits using memory available to Fibre, not total validator RAM.
+The default slot count uses a fixed 14% voting-power reference: `ceil(4096 × 0.14 × 3) = 1721` rows.
+At that reference, 55.678 MiB including metadata and framing slack × three payload representations × 52 operations estimates 8.48 GiB.
+This estimate excludes GC, pools and other allocations. It is not a process-memory ceiling.
+The server still accepts the protocol maximum of 4096 rows and approximately 132 MiB per message.
+At that maximum, the same three-copy estimate for 52 operations is about 20.1 GiB.
+Size concurrency using memory available to Fibre, not total validator RAM. Slot counts do not follow stake changes automatically.
 
-The row limit applies before decoding uploads and stored downloads. Larger stored shards remain intact but cannot be served at this setting.
-Validators with larger assignments or stored shards must raise `max_rpc_shard_rows` (up to 4096) and reassess their memory budget.
-The setting does not follow stake changes automatically. Add these settings to existing config files if needed, then restart Fibre.
+Protocol bounds apply before decoding uploads and stored downloads.
+Add the admission settings to existing config files if needed, then restart Fibre.
 
 ## Signing
 

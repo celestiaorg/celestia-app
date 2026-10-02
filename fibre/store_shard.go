@@ -54,17 +54,6 @@ func (s *routedStorage) setMetrics(metrics *serverMetrics) {
 	}
 }
 
-func (s *routedStorage) setReadLimit(rows int) {
-	for _, backend := range []shardBackend{s.primary, s.secondary} {
-		switch b := backend.(type) {
-		case *localBackend:
-			b.maxReadRows = rows
-		case *objectBackend:
-			b.maxReadRows = rows
-		}
-	}
-}
-
 func (s *routedStorage) marker(size int64) []byte {
 	return encodeShardMarkerForBackend(s.primary.backendTag(), size)
 }

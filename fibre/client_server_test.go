@@ -365,7 +365,6 @@ func makeTestServers(
 		privVal := newTestPrivValidator(privKeys[i])
 
 		serverCfg := fibre.NewServerConfigFromParams(params)
-		serverCfg.MaxRPCShardRows = params.MaxRowsPerValidator() // Small test networks exceed the 14% reference.
 		serverCfg.ServerListenAddress = "127.0.0.1:0"
 		serverCfg.StateClientFn = func() (state.Client, error) {
 			return &mockStateClient{

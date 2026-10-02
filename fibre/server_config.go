@@ -48,7 +48,6 @@ func DefaultConfigPath(home string) string {
 
 // ServerConfig contains configuration options for the Fibre [Server].
 type ServerConfig struct {
-	protocolParams ProtocolParams
 	// AppGRPCAddress is the gRPC address of the core/app node.
 	AppGRPCAddress string `toml:"app_grpc_address" comment:"AppGRPCAddress is the gRPC address of the core/app node."`
 	// ServerListenAddress is the TCP address where the server listens for requests.
@@ -75,13 +74,11 @@ type ServerConfig struct {
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). RPC admission separately limits payload allocations."`
 
 	// DisableRPCAdmission bypasses the global RPC cap and upload reservation.
-	DisableRPCAdmission bool `toml:"disable_rpc_admission" comment:"Disable the global RPC cap and upload reservation (default false). Transport and shard size limits still apply. This removes the combined RPC memory budget."`
+	DisableRPCAdmission bool `toml:"disable_rpc_admission" comment:"Disable the global RPC cap and upload reservation (default false). Transport and shard size limits still apply. This removes the global operation limit."`
 	// MaxInflightRPCs caps operations across connections, including retained response buffers.
 	MaxInflightRPCs int `toml:"max_inflight_rpcs" comment:"Maximum in-flight uploads and downloads (default 52)."`
 	// ReservedUploadSlots cannot be occupied by downloads.
 	ReservedUploadSlots int `toml:"reserved_upload_slots" comment:"Slots reserved for uploads within max_inflight_rpcs (default 21, about 40% of the default total)."`
-	// MaxRPCShardRows bounds uploads and stored downloads before decoding.
-	MaxRPCShardRows int `toml:"max_rpc_shard_rows" comment:"Maximum rows per RPC shard (default 1721, a 14% voting-power reference). Larger uploads and stored downloads are rejected. Raise up to 4096 if needed; this increases memory use."`
 
 	StoreConfig
 
@@ -135,7 +132,6 @@ func DefaultServerConfig() ServerConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 	cfg := ServerConfig{
-		protocolParams:       p,
 		AppGRPCAddress:       "127.0.0.1:9090",
 		ServerListenAddress:  "0.0.0.0:7980",
 		SignerGRPCAddress:    "127.0.0.1:26669",
@@ -147,9 +143,8 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:       p.MaxMessageSize(),
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
-		MaxInflightRPCs:      52, // 52 × 3 × 55.678 MiB estimates 8.48 GiB of RPC payloads.
+		MaxInflightRPCs:      52, // 14% stake estimate: 52 × 3 × 55.678 MiB ≈ 8.48 GiB; not a memory ceiling.
 		ReservedUploadSlots:  21,
-		MaxRPCShardRows:      min(p.MaxRowsPerValidator(), ceilDiv(p.Rows*14*int(p.LivenessThreshold.Denominator), 100*int(p.LivenessThreshold.Numerator))),
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}
@@ -207,10 +202,6 @@ func (cfg *ServerConfig) Validate() error {
 	if !cfg.DisableRPCAdmission && (cfg.MaxInflightRPCs < 1 || cfg.ReservedUploadSlots < 0 || cfg.ReservedUploadSlots > cfg.MaxInflightRPCs) {
 		return fmt.Errorf("max_inflight_rpcs must be positive and reserved_upload_slots must be between zero and max_inflight_rpcs")
 	}
-	if cfg.MaxRPCShardRows < 1 || cfg.MaxRPCShardRows > DefaultProtocolParams.MaxRowsPerValidator() {
-		return fmt.Errorf("max_rpc_shard_rows must be between 1 and %d", DefaultProtocolParams.MaxRowsPerValidator())
-	}
-	cfg.MaxMessageSize = cfg.protocolParams.maxMessageSize(cfg.MaxRPCShardRows)
 	if cfg.MinUploadSize < 1 || cfg.MinUploadSize > DefaultProtocolParams.MaxBlobSize {
 		return fmt.Errorf("min_upload_size must be between 1 and %d bytes, got %d", DefaultProtocolParams.MaxBlobSize, cfg.MinUploadSize)
 	}

@@ -343,26 +343,26 @@ func TestServerConfigAdmission(t *testing.T) {
 	require.Equal(t, 52, cfg.MaxInflightRPCs)
 	require.False(t, cfg.DisableRPCAdmission)
 	require.Equal(t, 21, cfg.ReservedUploadSlots)
-	require.Equal(t, 1721, cfg.MaxRPCShardRows)
-	require.Less(t, cfg.MaxMessageSize, 56<<20)
+	require.Equal(t, DefaultProtocolParams.MaxMessageSize(), cfg.MaxMessageSize)
 	path := DefaultConfigPath(t.TempDir())
 	require.NoError(t, cfg.Save(path))
 	loaded := DefaultServerConfig()
 	require.NoError(t, loaded.Load(path))
-	require.Equal(t, cfg.MaxRPCShardRows, loaded.MaxRPCShardRows)
-	cfg.MaxRPCShardRows = 4096
-	require.NoError(t, cfg.Validate())
-	require.Equal(t, DefaultProtocolParams.MaxMessageSize(), cfg.MaxMessageSize)
-	for _, limits := range [][3]int{{0, 0, 1721}, {20, -1, 1721}, {20, 21, 1721}, {20, 8, 0}, {20, 8, 4097}} {
-		cfg.MaxInflightRPCs, cfg.ReservedUploadSlots, cfg.MaxRPCShardRows = limits[0], limits[1], limits[2]
+	require.Equal(t, cfg.MaxMessageSize, loaded.MaxMessageSize)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "max_rpc_shard_rows")
+	for _, limits := range [][2]int{{0, 0}, {20, -1}, {20, 21}} {
+		cfg.MaxInflightRPCs, cfg.ReservedUploadSlots = limits[0], limits[1]
 		require.Error(t, cfg.Validate())
 	}
 	cfg.DisableRPCAdmission = true
-	cfg.MaxInflightRPCs, cfg.ReservedUploadSlots, cfg.MaxRPCShardRows = 0, -1, 1721
+	cfg.MaxInflightRPCs, cfg.ReservedUploadSlots = 0, -1
 	require.NoError(t, cfg.Validate())
 	require.NoError(t, cfg.Save(path))
 	require.NoError(t, loaded.Load(path))
 	require.True(t, loaded.DisableRPCAdmission)
-	loaded.MaxRPCShardRows = 4097
-	require.Error(t, loaded.Validate())
+	loaded.Path = cfg.Path
+	require.NoError(t, loaded.Validate())
+	require.Equal(t, DefaultProtocolParams.MaxMessageSize(), loaded.MaxMessageSize)
 }

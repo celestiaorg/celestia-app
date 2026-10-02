@@ -123,7 +123,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
 		// Reject too many rows or proofs before protobuf allocates for them.
 		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
-			s.Config.MaxRPCShardRows,
+			DefaultProtocolParams.MaxRowsPerValidator(),
 			DefaultProtocolParams.MerkleProofDepth(),
 		)),
 		grpclib.Creds(creds),
@@ -151,7 +151,6 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.log.Info("store ready", storeLogArgs...)
 	s.store.shards.setMetrics(s.metrics)
-	s.store.shards.setReadLimit(s.Config.MaxRPCShardRows)
 
 	if err := s.seedOccupancy(ctx); err != nil {
 		return err

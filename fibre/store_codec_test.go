@@ -263,10 +263,10 @@ func TestShardCodecTruncatedMidRow(t *testing.T) {
 
 func TestShardCodecReadLimit(t *testing.T) {
 	var header []byte
-	for _, value := range []uint32{shardCodecVersion, 0, 1722} {
+	for _, value := range []uint32{shardCodecVersion, 0, 4097} {
 		header = binary.BigEndian.AppendUint32(header, value)
 	}
-	_, err := readShardBinaryWithLimit(bytes.NewReader(header), 1721)
+	_, err := readShardBinary(bytes.NewReader(header))
 	require.ErrorIs(t, err, ErrShardTooLarge)
 	// Oversized fields must fail on their prefix, without reading a payload.
 	for _, values := range [][]uint32{
@@ -278,7 +278,7 @@ func TestShardCodecReadLimit(t *testing.T) {
 		for _, v := range values {
 			data = binary.BigEndian.AppendUint32(data, v)
 		}
-		_, err := readShardBinaryWithLimit(bytes.NewReader(data), 1721)
+		_, err := readShardBinary(bytes.NewReader(data))
 		require.ErrorContains(t, err, "exceeds shard limit")
 	}
 }
