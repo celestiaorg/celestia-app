@@ -173,6 +173,7 @@ Excess requests receive `ResourceExhausted` before message decoding. Clients sho
 Slots remain occupied until the handler finishes and all response-buffer references are released, including after connection closure.
 Downloads are sent uncompressed so their queued buffers remain tracked. Compressed requests are supported.
 Receive flow-control windows are fixed at 1 MiB per stream to bound buffering before admission.
+Connection flow-control credit is fixed at 13 MiB, matching the 13 default streams; this is not a resident-memory limit.
 These limits reserve RPC capacity, not bandwidth or write throughput.
 
 The default row limit uses a fixed 14% voting-power reference: `ceil(4096 × 0.14 × 3) = 1721` rows.

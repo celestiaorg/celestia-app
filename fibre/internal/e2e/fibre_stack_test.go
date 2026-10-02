@@ -38,6 +38,7 @@ func startFibreStack(t *testing.T, cctx testnode.Context, ecfg encoding.Config, 
 	filePV := privval.LoadFilePV(pvKeyFile, pvStateFile)
 
 	serverCfg := fibre.DefaultServerConfig()
+	serverCfg.MaxRPCShardRows = fibre.DefaultProtocolParams.MaxRowsPerValidator() // This test has one validator.
 	serverCfg.AppGRPCAddress = grpcAddr
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
 	serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) { return filePV, nil }

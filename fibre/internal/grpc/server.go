@@ -88,6 +88,8 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 	opts = append(opts,
 		// Bound buffering before admission, including peers that send before rejection.
 		grpc.StaticStreamWindowSize(1<<20),
+		// Static windows disable BDP growth; allow one stream window per default stream.
+		grpc.StaticConnWindowSize(DefaultMaxConcurrentStreams*(1<<20)),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
