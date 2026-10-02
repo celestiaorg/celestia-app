@@ -94,6 +94,7 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
+	// Acquire admission before receiving and decoding payloads; unary interceptors run after decoding.
 	s.admission.register(s.server, service)
 }
 

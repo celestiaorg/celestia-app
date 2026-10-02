@@ -63,9 +63,16 @@ func (a *admission) register(server *grpc.Server, service types.FibreServer) {
 		desc.Streams = append(desc.Streams, grpc.StreamDesc{
 			StreamName: method.MethodName,
 			Handler: func(srv any, stream grpc.ServerStream) error {
-				_, err := recoverUnaryInterceptor(stream.Context(), nil, &grpc.UnaryServerInfo{Server: srv, FullMethod: "/" + desc.ServiceName + "/" + method.MethodName}, func(context.Context, any) (any, error) {
-					return nil, a.serve(srv, stream, method)
-				})
+				info := &grpc.UnaryServerInfo{
+					Server:     srv,
+					FullMethod: "/" + desc.ServiceName + "/" + method.MethodName,
+				}
+				_, err := recoverUnaryInterceptor(
+					stream.Context(), nil, info,
+					func(context.Context, any) (any, error) {
+						return nil, a.serve(srv, stream, method)
+					},
+				)
 				return err
 			},
 		})
