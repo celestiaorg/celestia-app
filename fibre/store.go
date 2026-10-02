@@ -44,6 +44,9 @@ type Store struct {
 	probe chan struct{} // one slot, held while a health probe runs
 }
 
+// probeCloseWait is how long [Store.Close] waits for a running health probe.
+var probeCloseWait = 5 * time.Second
+
 // memStorePath is an arbitrary location inside the in-memory FS used by
 // [NewMemoryStore]; both pebble's files and our shards/staging subdirs live
 // under it so the layout matches the on-disk store.
@@ -550,16 +553,23 @@ func (s *Store) writeAndRead(value []byte) error {
 }
 
 // Close closes the underlying pebble database. For [NewMemoryStore] the
-// in-memory FS is dropped when the Store is garbage collected. Close waits
-// briefly for a running health probe and refuses if it is stuck, because pebble
-// must not be closed under a running operation.
+// in-memory FS is dropped when the Store is garbage collected. Pebble must not
+// be closed under a running operation, so Close waits briefly for a running
+// health probe. If the probe is stuck, Close returns an error and the database
+// is closed as soon as the probe returns.
 func (s *Store) Close() error {
 	select {
 	case s.probe <- struct{}{}:
-	case <-time.After(5 * time.Second):
-		return errors.New("a health probe is still running")
+		return s.db.Close()
+	case <-time.After(probeCloseWait):
+		go func() {
+			s.probe <- struct{}{}
+			if err := s.db.Close(); err != nil {
+				s.log.Error("closing store after a stuck health probe", "error", err)
+			}
+		}()
+		return errors.New("a health probe is still running; the store closes when it returns")
 	}
-	return s.db.Close()
 }
 
 // formatTimestamp formats t with minute precision (YYYYMMDDHHmm) for

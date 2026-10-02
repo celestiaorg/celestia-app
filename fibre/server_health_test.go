@@ -200,21 +200,43 @@ func TestServerHealth(t *testing.T) {
 }
 
 // TestStoreProbe checks that a probe gives up when its context ends, that no second probe starts
-// while one is in flight, and that Close waits for a running probe.
+// while one is in flight, and that Close waits for a running probe or, if it is stuck, closes the
+// database once the probe returns.
 func TestStoreProbe(t *testing.T) {
-	store := NewMemoryStore(StoreConfig{})
+	cfg := DefaultStoreConfig()
+	cfg.Path = t.TempDir()
+	store, err := NewStore(t.Context(), cfg)
+	require.NoError(t, err)
 	ctx := context.Background()
 	require.NoError(t, store.Probe(ctx, []byte("a")))
 
+	expired, cancel := context.WithCancel(ctx)
+	cancel()
+	require.ErrorIs(t, store.Probe(expired, []byte("b")), context.Canceled)
+
 	store.probe <- struct{}{} // as if a probe were still in pebble
-	require.ErrorContains(t, store.Probe(ctx, []byte("b")), "previous probe")
+	require.ErrorContains(t, store.Probe(ctx, []byte("c")), "previous probe")
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		<-store.probe
 	}()
 	require.NoError(t, store.Close(), "Close waits for the running probe")
 
-	expired, cancel := context.WithCancel(ctx)
-	cancel()
-	require.ErrorIs(t, NewMemoryStore(StoreConfig{}).Probe(expired, []byte("c")), context.Canceled)
+	// A stuck probe: Close gives up, then the database is closed once the probe returns,
+	// so the store can be opened again in the same process.
+	store, err = NewStore(t.Context(), cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { probeCloseWait = 5 * time.Second })
+	probeCloseWait = 20 * time.Millisecond
+	store.probe <- struct{}{}
+	require.ErrorContains(t, store.Close(), "still running")
+	<-store.probe
+	require.Eventually(t, func() bool {
+		reopened, err := NewStore(t.Context(), cfg)
+		if err != nil {
+			return false
+		}
+		require.NoError(t, reopened.Close())
+		return true
+	}, 5*time.Second, 20*time.Millisecond)
 }
