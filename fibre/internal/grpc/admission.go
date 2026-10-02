@@ -13,52 +13,64 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type admission struct {
-	disabled         bool
-	mu               sync.Mutex
-	total, reads     int
-	limit, readLimit int
+// rpcAdmission reserves part of the total RPC capacity for uploads.
+// Uploads can use all capacity; downloads cannot use the upload reserve.
+type rpcAdmission struct {
+	mu                             sync.Mutex
+	disabled                       bool
+	activeUploads, activeDownloads int
+	maxRPCs, reservedUploadSlots   int
 }
 
-func (a *admission) acquire(upload bool) (*rpcSlot, error) {
+func (a *rpcAdmission) acquire(methodName string) (*rpcLease, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if !a.disabled && (a.total == a.limit || (!upload && a.reads == a.readLimit)) {
-		return nil, status.Error(codes.ResourceExhausted, "fibre server busy; retry later")
+	var active *int
+	switch methodName {
+	case "UploadShard":
+		active = &a.activeUploads
+	case "DownloadShard":
+		active = &a.activeDownloads
+	default:
+		return nil, status.Error(codes.Unimplemented, "unknown Fibre RPC method")
 	}
-	a.total++
-	if !upload {
-		a.reads++
+	if !a.disabled {
+		if a.activeUploads+a.activeDownloads >= a.maxRPCs {
+			return nil, status.Error(codes.ResourceExhausted, "fibre server busy; retry later")
+		}
+		if methodName == "DownloadShard" && a.activeDownloads >= a.maxRPCs-a.reservedUploadSlots {
+			return nil, status.Error(codes.ResourceExhausted, "fibre download capacity full; retry later")
+		}
 	}
-	slot := &rpcSlot{admission: a, upload: upload}
-	slot.refs.Store(1)
-	return slot, nil
+	*active += 1
+	lease := &rpcLease{onLastRelease: func() {
+		a.mu.Lock()
+		*active -= 1
+		a.mu.Unlock()
+	}}
+	lease.refs.Store(1)
+	return lease, nil
 }
 
-type rpcSlot struct {
-	admission *admission
-	upload    bool
-	refs      atomic.Int32
+// rpcLease tracks handler and response-buffer ownership of an admitted RPC.
+type rpcLease struct {
+	refs          atomic.Int32
+	onLastRelease func()
 }
 
-func (s *rpcSlot) release() {
-	if s.refs.Add(-1) != 0 {
-		return
+func (l *rpcLease) retain() { l.refs.Add(1) }
+
+func (l *rpcLease) release() {
+	if l.refs.Add(-1) == 0 {
+		l.onLastRelease()
 	}
-	a := s.admission
-	a.mu.Lock()
-	a.total--
-	if !s.upload {
-		a.reads--
-	}
-	a.mu.Unlock()
 }
 
 // register keeps unary cardinality and wire messages, but acquires before RecvMsg.
-func (a *admission) register(server *grpc.Server, service types.FibreServer) {
+func (a *rpcAdmission) register(server *grpc.Server, service types.FibreServer) {
 	desc := types.Fibre_serviceDesc
+	// Remove unary registrations so gRPC cannot bypass admission. The loop adds their stream-handler replacements.
 	desc.Methods = nil
-	desc.Streams = nil
 	for _, method := range types.Fibre_serviceDesc.Methods {
 		desc.Streams = append(desc.Streams, grpc.StreamDesc{
 			StreamName: method.MethodName,
@@ -80,13 +92,13 @@ func (a *admission) register(server *grpc.Server, service types.FibreServer) {
 	server.RegisterService(&desc, service)
 }
 
-func (a *admission) serve(service any, stream grpc.ServerStream, method grpc.MethodDesc) error {
-	slot, err := a.acquire(method.MethodName == "UploadShard")
+func (a *rpcAdmission) serve(service any, stream grpc.ServerStream, method grpc.MethodDesc) error {
+	lease, err := a.acquire(method.MethodName)
 	if err != nil {
 		return err
 	}
-	defer slot.release()
-	// Compression would replace the buffer whose references own the slot.
+	defer lease.release()
+	// Compression would replace the buffer whose references own the lease.
 	if err := grpc.SetSendCompressor(stream.Context(), encoding.Identity); err != nil {
 		return err
 	}
@@ -96,6 +108,8 @@ func (a *admission) serve(service any, stream grpc.ServerStream, method grpc.Met
 			*upload = types.UploadShardRequest{}
 		}
 	}()
+	// Add future unary interceptors to the final argument below, after admission and decoding.
+	// grpc.UnaryInterceptor server options do not run for these stream registrations.
 	response, err := method.Handler(service, stream.Context(), func(v any) error {
 		upload, _ = v.(*types.UploadShardRequest)
 		return stream.RecvMsg(v)
@@ -103,12 +117,12 @@ func (a *admission) serve(service any, stream grpc.ServerStream, method grpc.Met
 	if err != nil {
 		return err
 	}
-	return stream.SendMsg(&rpcResponse{message: response.(sizedBufferMarshaler), slot: slot})
+	return stream.SendMsg(&rpcResponse{message: response.(sizedBufferMarshaler), lease: lease})
 }
 
 type rpcResponse struct {
 	message sizedBufferMarshaler
-	slot    *rpcSlot
+	lease   *rpcLease
 }
 
 func (r *rpcResponse) marshal() (out mem.BufferSlice, err error) {
@@ -121,23 +135,23 @@ func (r *rpcResponse) marshal() (out mem.BufferSlice, err error) {
 	for mem.IsBelowBufferPoolingThreshold(capacity) {
 		capacity *= 2
 	}
-	pool := &responsePool{slot: r.slot}
+	pool := &responsePool{lease: r.lease}
 	buf := pool.Get(capacity)
 	*buf = (*buf)[:size]
 	if _, err := r.message.MarshalToSizedBuffer(*buf); err != nil {
 		return nil, err
 	}
-	r.slot.refs.Add(1)
+	r.lease.retain()
 	return mem.BufferSlice{mem.NewBuffer(buf, pool)}, nil
 }
 
 // Response payloads are not cached after their last transport reference ends.
 type responsePool struct {
 	mem.NopBufferPool
-	slot *rpcSlot
+	lease *rpcLease
 }
 
 func (p *responsePool) Put(buf *[]byte) {
 	*buf = nil
-	p.slot.release()
+	p.lease.release()
 }

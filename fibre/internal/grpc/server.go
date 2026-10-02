@@ -48,7 +48,7 @@ type Server struct {
 	listener             net.Listener
 	done                 chan struct{}
 	maxConcurrentStreams uint32
-	admission            *admission
+	admission            *rpcAdmission
 }
 
 // Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
@@ -66,7 +66,15 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams, maxRPCs, re
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams), admission: &admission{disabled: disableAdmission, limit: maxRPCs, readLimit: maxRPCs - reservedUploads}}, nil
+	return &Server{
+		listener:             listener,
+		maxConcurrentStreams: uint32(maxConcurrentStreams),
+		admission: &rpcAdmission{
+			disabled:            disableAdmission,
+			maxRPCs:             maxRPCs,
+			reservedUploadSlots: reservedUploads,
+		},
+	}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
