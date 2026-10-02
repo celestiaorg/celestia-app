@@ -46,6 +46,7 @@ type ClientConfig struct {
     MaxMessageSize      int
     RPCTimeout          time.Duration
     HostRefreshInterval time.Duration
+    DetachBackgroundUploads bool
 
     StateClientFn func() (state.Client, error)
     NewClientFn   fibregrpc.NewClientFn
@@ -68,6 +69,7 @@ Defaults come from `DefaultProtocolParams`:
 * `SafetyThreshold = 2/3`
 * `LivenessThreshold = 1/3`
 * `RPCTimeout = 15s`
+* `DetachBackgroundUploads = true`
 * `MaxBlobSize = 128 MiB`
 * original rows `K = 4096`
 * total rows `K + N = 16384`
@@ -124,7 +126,7 @@ func (c *Client) Upload(
 
 `Upload` signs a payment promise with the configured key, uploads assigned row shards to validators, verifies validator signatures, and returns a `SignedPaymentPromise`.
 
-By default, `Upload` returns after the safety threshold by voting power is reached. Remaining validator uploads continue in background and are tracked by `Await`/`Stop`. `WithAwaitAllSignatures` changes the threshold to all validator voting power and waits for all successful signatures.
+By default, `Upload` returns after the safety threshold by voting power is reached. Remaining validator uploads continue in background and are tracked by `Await`/`Stop`. With `DetachBackgroundUploads` (on by default) they keep running when the caller cancels its context after `Upload` returns; without it, that cancel drops them. Cancelling before the threshold aborts the upload either way. `WithAwaitAllSignatures` changes the threshold to all validator voting power and waits for all successful signatures.
 
 ```go
 type SignedPaymentPromise struct {
