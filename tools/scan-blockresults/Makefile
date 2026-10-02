@@ -1,5 +1,5 @@
 # scan-blockresults — offline report of heights missing their stored block results.
-# Own module: it must link the celestia-core of the nodes it reads (v0.40.9 for
+# Own module: it must link the celestia-core of the nodes it reads (v0.40.11 for
 # celestia-appd v9), not the one celestia-app main uses.
 #
 # GOWORK=off keeps the build hermetic to this module's go.mod. CGO is disabled so

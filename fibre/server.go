@@ -181,7 +181,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return fmt.Errorf("app node reports chain ID %q but expected_chain_id is %q", chainID, expected)
 	}
 
-	s.signer, err = s.Config.SignerFn(chainID)
+	s.signer, err = s.Config.newSigner(chainID)
 	if err != nil {
 		return fmt.Errorf("creating signer: %w", err)
 	}
@@ -228,6 +228,17 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
+	storeLogArgs := []any{"storage_backend", s.Config.StorageBackend}
+	objectCfg := s.Config.ObjectStorage.canonical()
+	if s.Config.ObjectStorage.Endpoint != "" || s.Config.ObjectStorage.Bucket != "" || s.Config.ObjectStorage.Prefix != "" {
+		storeLogArgs = append(storeLogArgs, slog.Group("object_namespace",
+			slog.String("bucket", objectCfg.Bucket),
+			slog.String("prefix", objectCfg.Prefix),
+			slog.String("chain_id", objectCfg.ChainID),
+			slog.String("validator_address", objectCfg.ValidatorAddress),
+		))
+	}
+	s.log.Info("store ready", storeLogArgs...)
 	s.store.shards.setMetrics(s.metrics)
 
 	if err := s.seedOccupancy(ctx); err != nil {

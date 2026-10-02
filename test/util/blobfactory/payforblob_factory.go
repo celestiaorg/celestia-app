@@ -89,46 +89,6 @@ func RandMsgPayForBlobsWithNamespaceAndSigner(signer string, ns share.Namespace,
 	return msg, blob
 }
 
-func RandMsgPayForBlobs(rand *rand.Rand, size int) (*blobtypes.MsgPayForBlobs, *share.Blob) {
-	blob, err := share.NewBlob(testfactory.RandomBlobNamespaceWithPRG(rand), random.Bytes(size), share.ShareVersionZero, nil)
-	if err != nil {
-		panic(err)
-	}
-	msg, err := blobtypes.NewMsgPayForBlobs(
-		testfactory.TestAccAddr,
-		appconsts.Version,
-		blob,
-	)
-	if err != nil {
-		panic(err)
-	}
-	return msg, blob
-}
-
-func RandBlobTxsRandomlySized(signer *user.Signer, rand *rand.Rand, count, maxSize, maxBlobs int) coretypes.Txs {
-	opts := DefaultTxOpts()
-	txs := make([]coretypes.Tx, count)
-	for i := range count {
-		// pick a random non-zero size of max maxSize
-		size := rand.Intn(maxSize)
-		if size == 0 {
-			size = 1
-		}
-		blobCount := rand.Intn(maxBlobs)
-		if blobCount == 0 {
-			blobCount = 1
-		}
-		_, blobs := RandMsgPayForBlobsWithSigner(rand, testfactory.TestAccName, size, blobCount)
-		cTx, _, err := signer.CreatePayForBlobs(testfactory.TestAccName, blobs, opts...)
-		if err != nil {
-			panic(err)
-		}
-		txs[i] = cTx
-	}
-
-	return txs
-}
-
 // RandBlobTxsWithAccounts will create random blob transactions using the
 // provided configuration. If no grpc connection is provided, then it will not
 // update the account info. One blob transaction is generated per account
@@ -205,14 +165,6 @@ func RandBlobTxs(signer *user.Signer, r *rand.Rand, count, blobsPerTx, size int)
 
 func ManyRandBlobs(rand *rand.Rand, sizes ...int) []*share.Blob {
 	return ManyBlobs(rand, testfactory.RandomBlobNamespaces(rand, len(sizes)), sizes)
-}
-
-func Repeat[T any](s T, count int) []T {
-	ss := make([]T, count)
-	for i := range count {
-		ss[i] = s
-	}
-	return ss
 }
 
 func ManyBlobs(r *rand.Rand, namespaces []share.Namespace, sizes []int) []*share.Blob {

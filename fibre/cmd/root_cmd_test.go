@@ -11,7 +11,7 @@ import (
 )
 
 func TestNewRootCmdHomeFromEnv(t *testing.T) {
-	t.Setenv(envHome, "/tmp/fibre-home")
+	t.Setenv(fibre.EnvHome, "/tmp/fibre-home")
 
 	cmd := newRootCmd()
 
@@ -21,23 +21,23 @@ func TestNewRootCmdHomeFromEnv(t *testing.T) {
 }
 
 func TestNewRootCmdHomeEmptyEnv(t *testing.T) {
-	t.Setenv(envHome, "")
+	t.Setenv(fibre.EnvHome, "")
 
 	cmd := newRootCmd()
 
 	homeFlag := cmd.PersistentFlags().Lookup(flagHome)
 	require.NotNil(t, homeFlag)
-	assert.Equal(t, defaultHomePath(), homeFlag.Value.String())
+	assert.Equal(t, fibre.DefaultHome(), homeFlag.Value.String())
 }
 
 func TestNewRootCmdHomeFlagDefaultDoesNotUseEnv(t *testing.T) {
-	t.Setenv(envHome, "/tmp/fibre-home")
+	t.Setenv(fibre.EnvHome, "/tmp/fibre-home")
 
 	cmd := newRootCmd()
 
 	homeFlag := cmd.PersistentFlags().Lookup(flagHome)
 	require.NotNil(t, homeFlag)
-	assert.Equal(t, defaultHomePath(), homeFlag.DefValue)
+	assert.Equal(t, fibre.DefaultHome(), homeFlag.DefValue)
 	assert.Equal(t, "/tmp/fibre-home", homeFlag.Value.String())
 }
 

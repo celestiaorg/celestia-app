@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 1. [Install Go](https://go.dev/doc/install) 1.26.6
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v9.
 
     ```shell
     make install
@@ -134,6 +134,11 @@ make bbr-enable
 |---------------------|----------------------------------------------|------------------------------------------------------------|----------|
 | `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
+Most flags can also be set with environment variables prefixed by the binary name, e.g. `CELESTIA_APPD_PRUNING=nothing` for `--pruning`.
+Some command-specific flags, such as `config sync --dry-run`, ignore environment variables.
+Client flags such as `--node` also accept the `CELESTIA_APP_` prefix, e.g. `CELESTIA_APP_NODE`.
+`start` flags only accept the `CELESTIA_APPD_` prefix.
+
 ### Using celestia-appd
 
 ```sh
@@ -147,23 +152,30 @@ celestia-appd init test
 celestia-appd start
 ```
 
-### Updating config.toml
+### Updating config files
 
-`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults.
+`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults. It syncs these files:
+
+| File                                | Home directory                                                |
+|-------------------------------------|---------------------------------------------------------------|
+| `config/config.toml` (core)         | `--home`                                                      |
+| `config/server_config.toml` (Fibre) | `--fibre-home` (or `FIBRE_HOME`), default `~/.celestia-fibre` |
+
+A file is skipped if it does not exist, so the command works on hosts that run only the node or only Fibre.
 Synchronization runs only when this command is called, not on node startup.
 Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
 Flags and environment overrides are not saved.
-Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
+Before replacing a file, it creates a `<file>.backup-*` file in the same directory. Earlier backups are never overwritten.
 If nothing is missing, it leaves the file untouched.
 
-To inspect additions or update the file before restarting:
+To inspect additions or update the files before restarting:
 
 ```sh
-celestia-appd config sync --home ~/.celestia-app --dry-run
-celestia-appd config sync --home ~/.celestia-app
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre --dry-run
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-Then edit the fields in `config/config.toml` under your node's home directory to set the values you want before restarting the node.
+Then edit the fields under your node's and Fibre's home directories to set the values you want before restarting.
 
 Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.

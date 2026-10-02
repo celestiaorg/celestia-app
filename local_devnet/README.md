@@ -6,6 +6,10 @@ default. Chain ID: `local-devnet`.
 
 Validators use `--force-no-bbr` so Docker Desktop's default kernel works.
 
+Fibre servers reach their validator's signer over plaintext gRPC on the compose
+network. Validators start with `--privval-grpc-allow-insecure` and Fibre servers
+with `--signer-grpc-allow-insecure`. Never use these flags outside a local devnet.
+
 ## Run
 
 Install Docker with Compose v2, Bash, and curl. Give Docker at least 8 GB RAM.
@@ -31,7 +35,8 @@ Run the complete e2e flow:
 ```
 
 It starts the network, checks v10, both validators, host registration, funding,
-block agreement/progress, and endpoints. It submits four PFBs and four PFFs at two
+block agreement/progress, and endpoints, then restarts the nodes on the same data
+and checks again. It submits four PFBs and four PFFs at two
 sizes and downloads every PFF blob to check its contents. A failure exits nonzero;
 a successful run leaves the network running. It also works on an existing devnet.
 

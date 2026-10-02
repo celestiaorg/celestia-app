@@ -52,7 +52,7 @@ BUILD_FLAGS_FIBRE := -ldflags '$(LDFLAGS_FIBRE)'
 # internal/embedding/data.go
 # .goreleaser.yaml
 # docker/multiplexer.Dockerfile
-# dockerchain/config.go
+# scripts/embedded_checksums.txt
 CELESTIA_V3_VERSION := v3.13.0
 CELESTIA_V4_VERSION := v4.1.0
 CELESTIA_V5_VERSION := v5.0.12
@@ -69,7 +69,6 @@ help: Makefile
 
 ## build-standalone: Build the celestia-appd binary into the ./build directory.
 build-standalone: mod
-	@cd ./cmd/celestia-appd
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd"
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/celestia-appd ./cmd/celestia-appd
@@ -79,13 +78,7 @@ DOWNLOAD ?= true
 ## build: Build the celestia-appd binary into the ./build directory.
 build: mod
 ifeq ($(DOWNLOAD),true)
-	@$(MAKE) download-v3-binaries
-	@$(MAKE) download-v4-binaries
-	@$(MAKE) download-v5-binaries
-	@$(MAKE) download-v6-binaries
-	@$(MAKE) download-v7-binaries
-	@$(MAKE) download-v8-binaries
-	@$(MAKE) download-v9-binaries
+	@$(MAKE) download-embedded-binaries
 endif
 	@mkdir -p build/
 	@echo "--> Building build/celestia-appd with multiplexer enabled"
@@ -100,115 +93,33 @@ install-standalone:
 
 ## install: Build and install the multiplexer version of celestia-appd into the $GOPATH/bin directory.
 # TODO: Improve logic here and in goreleaser to make it future proof and less expensive.
-install: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
+install: download-embedded-binaries
 	@echo "--> Installing celestia-appd with multiplexer support"
 	@go install $(BUILD_FLAGS_MULTIPLEXER) ./cmd/celestia-appd
 .PHONY: install
 
-## download-v3-binaries: Download the celestia-app v3 binary for the current platform.
-download-v3-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V3_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app_Darwin_arm64.tar.gz; out=celestia-app_darwin_v3_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app_Linux_arm64.tar.gz; out=celestia-app_linux_v3_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v3_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app_Linux_x86_64.tar.gz; out=celestia-app_linux_v3_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V3_VERSION)"
-.PHONY: download-v3-binaries
+EMBEDDED_BINARY_TARGETS := $(foreach v,3 4 5 6 7 8 9,download-v$(v)-binaries)
+# v3 release tarballs are named celestia-app_*; later ones are celestia-app-standalone_*.
+EMBEDDED_TARBALL_PREFIX = $(if $(filter 3,$*),celestia-app,celestia-app-standalone)
 
-## download-v4-binaries: Download the celestia-app v4 binary for the current platform.
-download-v4-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V4_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v4_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v4_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v4_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v4_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V4_VERSION)"
-.PHONY: download-v4-binaries
+## download-embedded-binaries: Download the celestia-app v3-v9 binaries for the current platform.
+download-embedded-binaries: $(EMBEDDED_BINARY_TARGETS)
+.PHONY: download-embedded-binaries
 
-## download-v5-binaries: Download the celestia-app v5 binary for the current platform.
-download-v5-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V5_VERSION) binary"
+## download-vN-binaries: Download the celestia-app vN binary for the current platform.
+$(EMBEDDED_BINARY_TARGETS): download-v%-binaries:
+	@echo "--> Downloading celestia-app $(CELESTIA_V$*_VERSION) binary"
 	@mkdir -p internal/embedding
 	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
 	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v5_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v5_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v5_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v5_amd64.tar.gz ;; \
+		darwin-arm64) url=$(EMBEDDED_TARBALL_PREFIX)_Darwin_arm64.tar.gz; out=celestia-app_darwin_v$*_arm64.tar.gz ;; \
+		linux-arm64) url=$(EMBEDDED_TARBALL_PREFIX)_Linux_arm64.tar.gz; out=celestia-app_linux_v$*_arm64.tar.gz ;; \
+		darwin-amd64) url=$(EMBEDDED_TARBALL_PREFIX)_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v$*_amd64.tar.gz ;; \
+		linux-amd64) url=$(EMBEDDED_TARBALL_PREFIX)_Linux_x86_64.tar.gz; out=celestia-app_linux_v$*_amd64.tar.gz ;; \
 		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
 	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V5_VERSION)"
-.PHONY: download-v5-binaries
-
-## download-v6-binaries: Download the celestia-app v6 binary for the current platform.
-download-v6-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V6_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v6_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v6_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v6_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v6_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V6_VERSION)"
-.PHONY: download-v6-binaries
-
-## download-v7-binaries: Download the celestia-app v7 binary for the current platform.
-download-v7-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V7_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v7_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v7_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v7_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v7_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V7_VERSION)"
-.PHONY: download-v7-binaries
-
-## download-v8-binaries: Download the celestia-app v8 binary for the current platform.
-download-v8-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V8_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v8_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v8_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v8_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v8_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V8_VERSION)"
-.PHONY: download-v8-binaries
-
-## download-v9-binaries: Download the celestia-app v9 binary for the current platform.
-download-v9-binaries:
-	@echo "--> Downloading celestia-app $(CELESTIA_V9_VERSION) binary"
-	@mkdir -p internal/embedding
-	@os=$$(go env GOOS); arch=$$(go env GOARCH); \
-	case "$$os-$$arch" in \
-		darwin-arm64) url=celestia-app-standalone_Darwin_arm64.tar.gz; out=celestia-app_darwin_v9_arm64.tar.gz ;; \
-		linux-arm64) url=celestia-app-standalone_Linux_arm64.tar.gz; out=celestia-app_linux_v9_arm64.tar.gz ;; \
-		darwin-amd64) url=celestia-app-standalone_Darwin_x86_64.tar.gz; out=celestia-app_darwin_v9_amd64.tar.gz ;; \
-		linux-amd64) url=celestia-app-standalone_Linux_x86_64.tar.gz; out=celestia-app_linux_v9_amd64.tar.gz ;; \
-		*) echo "Unsupported platform: $$os-$$arch"; exit 1 ;; \
-	esac; \
-	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V9_VERSION)"
-.PHONY: download-v9-binaries
+	bash scripts/download_binary.sh "$$url" "$$out" "$(CELESTIA_V$*_VERSION)"
+.PHONY: $(EMBEDDED_BINARY_TARGETS)
 
 ## mod: Update all go.mod files.
 mod:
@@ -284,12 +195,6 @@ proto-swagger-gen:
 	@bash scripts/proto-swagger-gen.sh
 .PHONY: proto-swagger-gen
 
-## build-docker-standalone: Build the celestia-appd Docker image using the local Dockerfile.
-build-docker-standalone:
-	@echo "--> Building Docker image"
-	$(DOCKER) build -t celestiaorg/celestia-app -f docker/standalone.Dockerfile .
-.PHONY: build-docker-standalone
-
 ## docker-build: Build the celestia-appd docker image from the current branch. Requires docker.
 docker-build: build-docker-multiplexer
 .PHONY: docker-build
@@ -303,27 +208,6 @@ build-docker-multiplexer:
 		-t celestiaorg/celestia-app:$(COMMIT) \
 		-f docker/multiplexer.Dockerfile .
 .PHONY: build-docker-multiplexer
-
-## build-ghcr-docker: Build the celestia-appd Docker image tagged with the current commit hash for GitHub Container Registry.
-build-ghcr-docker:
-	@echo "--> Building Docker image"
-	$(DOCKER) build -t ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT) -f docker/standalone.Dockerfile .
-.PHONY: build-ghcr-docker
-
-## docker-build-ghcr: Build the celestia-appd docker image from the last commit. Requires docker.
-docker-build-ghcr: build-ghcr-docker
-.PHONY: docker-build-ghcr
-
-## publish-ghcr-docker: Push the celestia-appd Docker image to GitHub Container Registry with the current commit tag.
-publish-ghcr-docker:
-# Make sure you are logged in and authenticated to the ghcr.io registry.
-	@echo "--> Publishing Docker image"
-	$(DOCKER) push ghcr.io/celestiaorg/celestia-app-standalone:$(COMMIT)
-.PHONY: publish-ghcr-docker
-
-## docker-publish: Publish the celestia-appd docker image. Requires docker.
-docker-publish: publish-ghcr-docker
-.PHONY: docker-publish
 
 ## lint: Run all linters; golangci-lint, markdownlint, hadolint, yamllint.
 lint:
@@ -402,21 +286,17 @@ test-docker-e2e-upgrade-all:
 .PHONY: test-docker-e2e-upgrade-all
 
 ## test-multiplexer: Run unit tests for the multiplexer package.
-test-multiplexer: download-v3-binaries download-v4-binaries download-v5-binaries download-v6-binaries download-v7-binaries download-v8-binaries download-v9-binaries
+test-multiplexer: download-embedded-binaries
 	@echo "--> Running multiplexer tests"
-	@go test -tags multiplexer ./multiplexer/...
+	@go test -tags multiplexer ./multiplexer/... ./cmd/celestia-appd/cmd
 .PHONY: test-multiplexer
 
 ## test-race: Run tests in race mode.
 test-race:
-# TODO: Remove the -skip flag once the following tests no longer contain data races.
+# TODO: Remove exclusions as race-mode failures and resource limits are resolved.
 # https://github.com/celestiaorg/celestia-app/issues/1369
-# The TestTxsim* CLI tests spin up an in-process node via testnode.NewNetwork and
-# drive txsim against it, which races the consensus IAVL writes against the gRPC
-# query reads. The race lives in the test harness, not in production code, so the
-# tests still run (and provide coverage) outside of race mode.
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages|TestGasEstimatorE2E|TestSquareSizeIntegrationTest|TestClientServerUploadDownload|TestTxsimCommandFlags|TestTxsimCommandEnvVar|TestTxsimDefaultKeypath"
+	@go test -timeout 15m ./... -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
@@ -458,7 +338,6 @@ txsim-install:
 ## txsim-build: Build the tx simulator binary into the ./build directory.
 txsim-build:
 	@echo "--> Building tx simulator"
-	@cd ./test/cmd/txsim
 	@mkdir -p build/
 	@go build $(BUILD_FLAGS_STANDALONE) -o build/ ./test/cmd/txsim
 	@go mod tidy
@@ -658,39 +537,3 @@ disable-bbr:
 ## bbr-disable: Disable BBR congestion control algorithm and revert to default.
 bbr-disable: disable-bbr
 .PHONY: bbr-disable
-
-## enable-mptcp: Enable Multi-Path TCP over multiple ports (not interfaces). Improves connection reliability and throughput. Only works on Linux Kernel 5.6+.
-enable-mptcp:
-	@echo "Configuring system to use mptcp..."
-	@sudo sysctl -w net.mptcp.enabled=1
-	@sudo sysctl -w net.mptcp.mptcp_path_manager=ndiffports
-	@sudo sysctl -w net.mptcp.mptcp_ndiffports=16
-	@echo "Making MPTCP settings persistent across reboots..."
-	@echo "net.mptcp.enabled=1" | sudo tee -a /etc/sysctl.conf
-	@echo "net.mptcp.mptcp_path_manager=ndiffports" | sudo tee -a /etc/sysctl.conf
-	@echo "net.mptcp.mptcp_ndiffports=16" | sudo tee -a /etc/sysctl.conf
-	@echo "MPTCP configuration complete and persistent!"
-.PHONY: enable-mptcp
-
-## mptcp-enable: Enable mptcp over multiple ports (not interfaces). Only works on Linux Kernel 5.6 and above.
-mptcp-enable: enable-mptcp
-.PHONY: mptcp-enable
-
-## disable-mptcp: Disable Multi-Path TCP and revert to standard TCP. Removes all MPTCP settings from system. Only works on Linux Kernel 5.6+.
-disable-mptcp:
-	@echo "Disabling MPTCP..."
-	@sudo sysctl -w net.mptcp.enabled=0
-	@sudo sysctl -w net.mptcp.mptcp_path_manager=default
-	@echo "Removing MPTCP settings from /etc/sysctl.conf..."
-	@sudo sed -i '/net.mptcp.enabled=1/d' /etc/sysctl.conf
-	@sudo sed -i '/net.mptcp.mptcp_path_manager=ndiffports/d' /etc/sysctl.conf
-	@sudo sed -i '/net.mptcp.mptcp_ndiffports=16/d' /etc/sysctl.conf
-	@echo "MPTCP configuration reverted!"
-.PHONY: disable-mptcp
-
-## mptcp-disable: Disable mptcp over multiple ports. Only works on Linux Kernel 5.6 and above.
-mptcp-disable: disable-mptcp
-.PHONY: mptcp-disable
-
-CONFIG_FILE ?= ${HOME}/.celestia-app/config/config.toml
-SEND_RECV_RATE ?= 10485760  # 10 MiB
