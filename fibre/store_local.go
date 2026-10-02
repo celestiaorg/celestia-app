@@ -74,7 +74,7 @@ func (b *localBackend) Get(ctx context.Context, commitment Commitment, promiseHa
 	}
 	defer f.Close()
 	// Buffer small codec reads to avoid per-field file reads and metric updates.
-	return readShardBinary(bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendLocal, f), 1<<20))
+	return readShardBinary(bufio.NewReaderSize(ctxReader{ctx, b.metrics.backendReader(ctx, storageBackendLocal, f)}, 1<<20))
 }
 
 func (b *localBackend) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {

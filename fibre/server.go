@@ -36,8 +36,9 @@ type Server struct {
 
 	verifiers chan *rsema1d.Verifier // caps concurrent verifications
 
-	occ     *occupancy
-	uploads uploadCoordinator
+	occ       *occupancy
+	uploads   uploadCoordinator
+	downloads *downloadBudget
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -70,6 +71,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		metrics:   metrics,
 		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
 		occ:       occ,
+		downloads: newDownloadBudget(cfg.MaxDownloadBytes),
 	}
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)

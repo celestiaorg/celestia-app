@@ -109,6 +109,19 @@ func TestServerDownloadShard(t *testing.T) {
 	}
 }
 
+// A canceled download must stop instead of reading and returning the shard.
+func TestServerDownloadShardCanceled(t *testing.T) {
+	server, _, _ := makeTestServer(t)
+	blob := makeTestBlobV0(t, 256)
+	storeTestShard(t, server, blob)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	resp, err := server.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: blob.ID()})
+	require.Nil(t, resp)
+	require.Equal(t, codes.Canceled, status.Code(err))
+}
+
 func TestServerBackendGetMetrics(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))

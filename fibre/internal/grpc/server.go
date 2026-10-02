@@ -24,7 +24,8 @@ import (
 //
 // NewServerCodec separately limits rows and proofs before decoding allocates
 // memory for them, and rejects oversized DownloadShard requests before copying
-// them.
+// them. It encodes DownloadShard responses zero-copy, so a download stream
+// holds at most one shard under the same bound.
 const (
 	// DefaultMaxConnections is the default total connection cap.
 	DefaultMaxConnections = 16

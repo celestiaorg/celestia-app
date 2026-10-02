@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
+	"golang.org/x/sync/semaphore"
 	grpccodes "google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -41,11 +43,16 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("unsupported blob version: %v", err))
 	}
 
-	// retrieve blob shard from storage using commitment
+	// retrieve blob shard from storage using commitment, holding download
+	// budget for its stored size while it is read
 	storeGetStart := time.Now()
-	blobShard, err := s.store.Get(ctx, id.Commitment())
+	blobShard, release, err := s.store.getAdmitted(ctx, id.Commitment(), s.downloads.admit)
 	s.metrics.observeStoreOp(ctx, s.metrics.storeGetDuration, storeGetStart, err == nil)
 	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			span.SetStatus(codes.Error, "download canceled")
+			return nil, status.FromContextError(ctxErr).Err()
+		}
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.DebugContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")
@@ -55,6 +62,14 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to retrieve blob shard")
 		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to retrieve blob shard: %v", err))
+	}
+
+	defer release()
+
+	// don't hand a shard to the transport for a peer that already left
+	if err := ctx.Err(); err != nil {
+		span.SetStatus(codes.Error, "download canceled")
+		return nil, status.FromContextError(err).Err()
 	}
 
 	var rowSize int
@@ -81,4 +96,26 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	return &types.DownloadShardResponse{
 		Shard: blobShard,
 	}, nil
+}
+
+// downloadBudget bounds the stored bytes of shards that DownloadShard is
+// reading at once, so public downloads cannot exhaust memory or disk I/O
+// regardless of how many streams peers open.
+type downloadBudget struct {
+	sem      *semaphore.Weighted
+	capacity int64
+}
+
+func newDownloadBudget(capacity int64) *downloadBudget {
+	return &downloadBudget{sem: semaphore.NewWeighted(capacity), capacity: capacity}
+}
+
+// admit blocks until size bytes are available or ctx is done. Sizes above the
+// capacity are clamped so an oversized shard runs alone instead of never.
+func (b *downloadBudget) admit(ctx context.Context, size int64) (func(), error) {
+	weight := min(max(size, 1), b.capacity)
+	if err := b.sem.Acquire(ctx, weight); err != nil {
+		return nil, err
+	}
+	return sync.OnceFunc(func() { b.sem.Release(weight) }), nil
 }
