@@ -41,13 +41,12 @@ type ClientConfig struct {
 	// [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
-	// WaitForAllUploads makes [Client.Upload] keep waiting, once quorum is
-	// reached, for the remaining validators' uploads for up to 5s before
-	// returning, so a caller that cancels its context right after Upload does
-	// not drop them. Uploads still in flight after that continue in the
-	// background as without the flag. It adds up to 5s to Upload (and Put)
-	// latency when a validator is slow. Enabled in [DefaultClientConfig].
-	WaitForAllUploads bool
+	// DetachBackgroundUploads keeps the uploads still running past quorum
+	// going when the caller's context is cancelled after [Client.Upload]
+	// returns. They stay bounded by RPCTimeout and the retry limits and drain
+	// on [Client.Await] or [Client.Stop]. Cancelling before quorum still
+	// aborts the upload. Enabled in [DefaultClientConfig].
+	DetachBackgroundUploads bool
 
 	// HostRefreshInterval is the minimum time between on-chain host re-queries
 	// for a single validator when a request fails. Defaults to the expected
@@ -108,16 +107,16 @@ func DefaultClientConfig() ClientConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 	return ClientConfig{
-		DefaultKeyName:      DefaultKeyName,
-		StateAddress:        "127.0.0.1:9090",
-		SafetyThreshold:     p.SafetyThreshold,
-		LivenessThreshold:   p.LivenessThreshold,
-		MinRowsPerValidator: p.MinRowsPerValidator(),
-		MaxMessageSize:      p.MaxMessageSize(),
-		RPCTimeout:          15 * time.Second,
-		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
-		Escrow:              defaultEscrowConfig(p),
-		WaitForAllUploads:   true,
+		DefaultKeyName:          DefaultKeyName,
+		StateAddress:            "127.0.0.1:9090",
+		SafetyThreshold:         p.SafetyThreshold,
+		LivenessThreshold:       p.LivenessThreshold,
+		MinRowsPerValidator:     p.MinRowsPerValidator(),
+		MaxMessageSize:          p.MaxMessageSize(),
+		RPCTimeout:              15 * time.Second,
+		HostRefreshInterval:     fibregrpc.DefaultRefreshInterval,
+		Escrow:                  defaultEscrowConfig(p),
+		DetachBackgroundUploads: true,
 	}
 }
 
