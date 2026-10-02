@@ -198,3 +198,23 @@ func TestServerHealth(t *testing.T) {
 	require.NoError(t, srv.Stop(ctx))
 	assert.Equal(t, healthpb.HealthCheckResponse_UNKNOWN, check(""), "listener closed")
 }
+
+// TestStoreProbe checks that a probe gives up when its context ends, that no second probe starts
+// while one is in flight, and that Close waits for a running probe.
+func TestStoreProbe(t *testing.T) {
+	store := NewMemoryStore(StoreConfig{})
+	ctx := context.Background()
+	require.NoError(t, store.Probe(ctx, []byte("a")))
+
+	store.probe <- struct{}{} // as if a probe were still in pebble
+	require.ErrorContains(t, store.Probe(ctx, []byte("b")), "previous probe")
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		<-store.probe
+	}()
+	require.NoError(t, store.Close(), "Close waits for the running probe")
+
+	expired, cancel := context.WithCancel(ctx)
+	cancel()
+	require.ErrorIs(t, NewMemoryStore(StoreConfig{}).Probe(expired, []byte("c")), context.Canceled)
+}

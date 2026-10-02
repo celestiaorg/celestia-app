@@ -260,9 +260,9 @@ func (m *healthManager) checkRegistration(ctx context.Context) checkResult {
 	return passed()
 }
 
-func (m *healthManager) checkStore(context.Context) checkResult {
+func (m *healthManager) checkStore(ctx context.Context) checkResult {
 	value := binary.BigEndian.AppendUint64(nil, uint64(time.Now().UnixNano()))
-	if err := m.deps.store.Probe(value); err != nil {
+	if err := m.deps.store.Probe(ctx, value); err != nil {
 		return failed(reasonStoreFailed, "The store failed a small write and read. Check free disk space and permissions of the store directory.", err)
 	}
 	return passed()

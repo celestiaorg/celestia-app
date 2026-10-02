@@ -40,6 +40,8 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards *routedStorage
+
+	probe chan struct{} // one slot, held while a health probe runs
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -86,7 +88,7 @@ func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store,
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	s := &Store{db: db, log: cfg.Log}
+	s := &Store{db: db, log: cfg.Log, probe: make(chan struct{}, 1)}
 	s.shards, err = openRoutedStorage(ctx, cfg, db, filesystem)
 	if err != nil {
 		_ = s.Close()
@@ -509,8 +511,29 @@ func (s *Store) reconcile() error {
 }
 
 // Probe writes value under the reserved key /health/probe with fsync and reads
-// it back. The key lives outside the shard, promise and prune prefixes.
-func (s *Store) Probe(value []byte) error {
+// it back. The key lives outside the shard, promise and prune prefixes. Pebble
+// ignores ctx, so the work runs in the background and Probe gives up when ctx
+// ends; no new probe starts until the previous one returned.
+func (s *Store) Probe(ctx context.Context, value []byte) error {
+	select {
+	case s.probe <- struct{}{}:
+	default:
+		return errors.New("previous probe has not returned")
+	}
+	done := make(chan error, 1)
+	go func() {
+		defer func() { <-s.probe }()
+		done <- s.writeAndRead(value)
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Store) writeAndRead(value []byte) error {
 	key := []byte("/health/probe")
 	if err := s.db.Set(key, value, pebbledb.Sync); err != nil {
 		return fmt.Errorf("write: %w", err)
@@ -527,8 +550,15 @@ func (s *Store) Probe(value []byte) error {
 }
 
 // Close closes the underlying pebble database. For [NewMemoryStore] the
-// in-memory FS is dropped when the Store is garbage collected.
+// in-memory FS is dropped when the Store is garbage collected. Close waits
+// briefly for a running health probe and refuses if it is stuck, because pebble
+// must not be closed under a running operation.
 func (s *Store) Close() error {
+	select {
+	case s.probe <- struct{}{}:
+	case <-time.After(5 * time.Second):
+		return errors.New("a health probe is still running")
+	}
 	return s.db.Close()
 }
 
