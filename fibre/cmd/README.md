@@ -6,7 +6,7 @@ Standalone binary for the Fibre data availability server.
 
 Before starting, make sure:
 
-- [ ] A `celestia-appd` node runs on the same host (or a trusted host-local network). The server's app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected — see [Transport security](#transport-security-tls).
+- [ ] A `celestia-appd` node is available. The app link (`--app-grpc-address`) is not TLS-protected. The signer link (`--signer-grpc-address`) allows plaintext only on loopback and requires mutual TLS for a remote node — see [Signing](#signing).
 - [ ] The chain is on **app version 10 or later**. The `x/fibre` and `x/valaddr` modules the server depends on do not exist in earlier versions.
 - [ ] The node's application gRPC endpoint is enabled in `app.toml` — see [Node connections](#node-connections).
 - [ ] The node's privval gRPC endpoint is enabled — see [Signing](#signing). If the consensus key lives in an external KMS, the KMS must support the privval `SignRawBytes` message; see the [release notes](../../docs/release-notes/release-notes.md) for the KMS policy.
@@ -62,13 +62,15 @@ Fibre uses two connections to your validator's node. The application gRPC servic
 | Core RPC gRPC | `config/config.toml`, `[rpc] grpc_laddr` | `tcp://127.0.0.1:9098` | None |
 | Privval gRPC | `config/config.toml`, top-level `priv_validator_grpc_laddr` | `127.0.0.1:26669` | `--signer-grpc-address` |
 
-Paths are relative to your node's home directory. Enable application gRPC by editing the existing `[grpc]` section in `config/app.toml`:
+Paths are relative to your node's home directory. For a same-host deployment, enable application gRPC by editing the existing `[grpc]` section in `config/app.toml`:
 
 ```toml
 [grpc]
 enable = true
 address = "127.0.0.1:9090"
 ```
+
+For separate hosts, bind application gRPC to the validator's private IP instead, for example `address = "10.0.0.5:9090"`, and set Fibre's `--app-grpc-address 10.0.0.5:9090` to match. Replace the example IP with your validator's private address and restrict access to the Fibre host with a firewall. Keep this plaintext connection on a trusted private network or encrypted tunnel. `127.0.0.1` on the Fibre host refers to that machine, so it cannot reach the validator's loopback listener directly.
 
 Application gRPC is disabled in a freshly generated app config. Enable it explicitly so it remains available when the multiplexer switches to v10. Restart the node after changing its configuration; also check for service-manager flags that override these values.
 
@@ -101,7 +103,7 @@ fibre start --home /path/to/fibre-home
 FIBRE_HOME=/path/to/fibre-home fibre start
 ```
 
-Override config values with flags (flags take precedence over config file):
+Override config values with flags (flags take precedence over config file). This example uses same-host connections:
 
 ```sh
 fibre start \
@@ -109,6 +111,8 @@ fibre start \
   --server-listen-address 0.0.0.0:7980 \
   --signer-grpc-address 127.0.0.1:26669
 ```
+
+For separate hosts, replace both loopback addresses with the validator's private addresses and configure signer mutual TLS as described in [Node connections](#node-connections) and [Signing](#signing).
 
 ### Version
 
@@ -120,6 +124,8 @@ fibre version
 
 The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).
 
+After upgrading, add missing settings and their documentation with `celestia-appd config sync --fibre-home ~/.celestia-fibre`. It preserves existing values and backs up the file first; add `--dry-run` to preview.
+
 `min_upload_size` sets this validator's minimum padded Fibre upload size in bytes, including the header and excluding parity. It defaults to `262144` (256 KiB), including when the field is absent from an existing config. To require 32 MiB uploads, set:
 
 ```toml
@@ -129,6 +135,7 @@ min_upload_size = 33554432
 Restart Fibre to apply changes. Values must be positive and no greater than the 128 MiB protocol maximum. This is a local admission policy: it does not change encoding, block validation, settlement, or downloads of existing blobs. Clients are not automatically informed of the setting and smaller uploads are rejected rather than padded by the server. Coordinate settings across validators and clients; incompatible minimums can prevent clients from collecting enough signatures.
 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
+Unknown keys and tables cause startup to fail, so Fibre does not silently ignore misspelled settings.
 
 ### Switching shard storage backends
 
@@ -181,6 +188,36 @@ priv_validator_grpc_laddr = "127.0.0.1:26669"
 
 If you change the port, also update Fibre's `signer_grpc_address` in `server_config.toml` or its `--signer-grpc-address` flag, then restart the node and Fibre. A working custom port can be retained if it does not conflict with another listener and Fibre uses the same address. Update deployment-managed config templates too.
 
+This default loopback connection uses plaintext. To run Fibre on a separate
+host, use a dedicated certificate authority to issue a server certificate for
+the node and a client certificate for Fibre. The server certificate's subject
+alternative name must match the address Fibre uses to reach the node.
+
+Configure the node's `config.toml`:
+
+```toml
+priv_validator_grpc_laddr = "10.0.0.5:26669"
+priv_validator_grpc_cert_file = "/etc/celestia/privval/server.crt"
+priv_validator_grpc_key_file = "/etc/celestia/privval/server.key"
+priv_validator_grpc_client_ca_file = "/etc/celestia/privval/ca.crt"
+```
+
+Then configure Fibre's `server_config.toml` with the same CA and its client
+certificate:
+
+```toml
+signer_grpc_address = "10.0.0.5:26669"
+signer_grpc_ca_file = "/etc/celestia/privval/ca.crt"
+signer_grpc_cert_file = "/etc/celestia/privval/client.crt"
+signer_grpc_key_file = "/etc/celestia/privval/client.key"
+```
+
+All three TLS files must be set together on each side. Restart the node and
+Fibre after changing them. Fibre rejects a non-loopback plaintext signer unless
+`signer_grpc_allow_insecure` is explicitly enabled; this override is not
+recommended because anyone with network access to the endpoint can request
+signatures.
+
 **Fibre always connects to the node, never to the KMS directly, so the fibre config is the same for every key backend.**
 
 Whatever the backend, median signing latency must stay at or below 10ms. Nodes using a remote signer expose `cometbft_privval_signing_latency_*` metrics and log a warning when the median of the last 50 signatures exceeds it.
@@ -221,7 +258,7 @@ The Fibre server↔client link is always TLS-encrypted, and it is fully automati
 
 Two things to keep in mind:
 
-- The app link (`--app-grpc-address`) and signer link (`--signer-grpc-address`) are **not** TLS-protected. Keep them on the same host or a trusted local network. If you need to run fibre on a separate server, use its private IP or a closed network connection.
+- The app link (`--app-grpc-address`) is not TLS-protected, so keep it on the same host or a trusted network. The signer link (`--signer-grpc-address`) uses plaintext only on loopback; remote connections require the mutual TLS configuration described in [Signing](#signing).
 - There is no plaintext fallback, so every Fibre server and client on the network must run a TLS-capable build.
 
 For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
@@ -272,7 +309,7 @@ W3C TraceContext and Baggage propagators are registered globally, enabling distr
 
 Resource attributes exported with every trace: `service.name=fibre`, `service.version`, `service.instance.id` (hostname).
 
-**Metrics** — Exported via a periodic OTLP reader. Duration histograms carry a `success` or `outcome` attribute for error rate derivation from `_count`. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
+**Metrics** — Exported via a periodic OTLP reader. Duration histograms carry a `success` or `outcome` attribute for error rate derivation from `_count`. Size attributes (`blob_size`, `upload_size`, `shard_size`) are rounded up to the next power of two to bound cardinality. Exemplars are automatically attached to metric observations, linking metric datapoints to traces — in Grafana, clicking an exemplar on a metric panel opens the corresponding trace.
 
 #### Client metrics
 
@@ -299,11 +336,14 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.in_flight` | UpDownCounter | — | Concurrent UploadShard RPCs |
 | `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
+| `fibre.server.upload_shard.rejected` | Counter | `reason` | UploadShard RPCs rejected by the storage limiter |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
+| `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
+| `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |
 | `fibre.server.upload_shard.last_success_timestamp` | Gauge (s) | — | Unix time of the last successful UploadShard RPC; not reported before the first one |
 | `fibre.server.download_shard.in_flight` | UpDownCounter | — | Concurrent DownloadShard RPCs |
 | `fibre.server.download_shard.duration` | Histogram (s) | `success`, `shard_size` | DownloadShard RPC latency |
-| `fibre.server.download_shard.bytes` | Counter (By) | — | Total bytes sent |
+| `fibre.server.download_shard.bytes` | Counter (By) | — | Total shard row bytes served |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
 | `fibre.server.backend.get.duration` | Histogram (s) | `backend`, `outcome` | Backend GET latency through payload reading, decoding and closing |
@@ -319,7 +359,7 @@ Each observation covers one backend call. Object GET duration includes SDK retri
 
 #### Grafana dashboard
 
-A pre-built Grafana dashboard is available at [`fibre/dashboards/fibre-dashboards.json`](../dashboards/fibre-dashboards.json).
+A pre-built Grafana dashboard is available at [`observability/docker/grafana/dashboards/fibre.json`](../../observability/docker/grafana/dashboards/fibre.json).
 
 ### Profiling (pprof)
 

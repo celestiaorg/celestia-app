@@ -93,5 +93,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-// Match the celestia-core linked by celestia-appd v9.0.x, whose stores this tool reads.
-replace github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.9
+// Match the celestia-core linked by celestia-appd v9.x, whose stores this tool reads.
+replace github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.40.11
