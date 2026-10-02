@@ -62,13 +62,15 @@ Fibre uses two connections to your validator's node. The application gRPC servic
 | Core RPC gRPC | `config/config.toml`, `[rpc] grpc_laddr` | `tcp://127.0.0.1:9098` | None |
 | Privval gRPC | `config/config.toml`, top-level `priv_validator_grpc_laddr` | `127.0.0.1:26669` | `--signer-grpc-address` |
 
-Paths are relative to your node's home directory. Enable application gRPC by editing the existing `[grpc]` section in `config/app.toml`:
+Paths are relative to your node's home directory. For a same-host deployment, enable application gRPC by editing the existing `[grpc]` section in `config/app.toml`:
 
 ```toml
 [grpc]
 enable = true
 address = "127.0.0.1:9090"
 ```
+
+For separate hosts, bind application gRPC to the validator's private IP instead, for example `address = "10.0.0.5:9090"`, and set Fibre's `--app-grpc-address 10.0.0.5:9090` to match. Replace the example IP with your validator's private address and restrict access to the Fibre host with a firewall. Keep this plaintext connection on a trusted private network or encrypted tunnel. `127.0.0.1` on the Fibre host refers to that machine, so it cannot reach the validator's loopback listener directly.
 
 Application gRPC is disabled in a freshly generated app config. Enable it explicitly so it remains available when the multiplexer switches to v10. Restart the node after changing its configuration; also check for service-manager flags that override these values.
 
@@ -101,7 +103,7 @@ fibre start --home /path/to/fibre-home
 FIBRE_HOME=/path/to/fibre-home fibre start
 ```
 
-Override config values with flags (flags take precedence over config file):
+Override config values with flags (flags take precedence over config file). This example uses same-host connections:
 
 ```sh
 fibre start \
@@ -109,6 +111,8 @@ fibre start \
   --server-listen-address 0.0.0.0:7980 \
   --signer-grpc-address 127.0.0.1:26669
 ```
+
+For separate hosts, replace both loopback addresses with the validator's private addresses and configure signer mutual TLS as described in [Node connections](#node-connections) and [Signing](#signing).
 
 ### Version
 
