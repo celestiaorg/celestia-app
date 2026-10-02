@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"sync"
 	"time"
 
@@ -23,36 +21,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// gRPC health service names. Liveness means the gRPC server answers. Readiness
-// means initialization finished and every check passed.
-const (
-	HealthServiceLiveness  = "fibre-liveness"
-	HealthServiceReadiness = "fibre-readiness"
-)
+// HealthServiceLiveness is the gRPC health service name that is SERVING
+// whenever the gRPC server answers. The empty name and the Fibre service name
+// report readiness: initialization finished and every check passed.
+const HealthServiceLiveness = "fibre-liveness"
 
-// readinessServices are the gRPC health service names that report readiness.
-var readinessServices = []string{HealthServiceReadiness, "celestia.fibre.v1.Fibre", ""}
+var readinessServices = []string{"", "celestia.fibre.v1.Fibre"}
 
-// Check names.
+// Reason codes of failed checks, logged on every change.
 const (
-	checkApp          = "app"
-	checkModule       = "fibre_module"
-	checkSigner       = "signer"
-	checkValidator    = "validator"
-	checkRegistration = "registration"
-	checkStore        = "store"
-)
-
-// Server phases.
-const (
-	phaseStarting = "starting"
-	phaseRunning  = "running"
-	phaseStopping = "stopping"
-)
-
-// Reason codes of failed checks. Automation should key on these.
-const (
-	reasonNotChecked        = "not_checked"
 	reasonAppUnreachable    = "app_unreachable"
 	reasonAppSyncing        = "app_syncing"
 	reasonChainStalled      = "chain_stalled"
@@ -66,34 +43,22 @@ const (
 	reasonStoreFailed       = "store_failed"
 )
 
-// HealthReport is the JSON body served by GET /readyz.
-type HealthReport struct {
-	Status       string                 `json:"status"` // ready | not_ready
-	Phase        string                 `json:"phase"`  // starting | running | stopping
-	ChainID      string                 `json:"chain_id,omitempty"`
-	FailedChecks []string               `json:"failed_checks,omitempty"`
-	Checks       map[string]HealthCheck `json:"checks"`
+// checkResult is the outcome of one check. An empty reason means it passed.
+type checkResult struct {
+	reason  string
+	message string // what to do about it
+	err     error  // logged, never served
 }
 
-// HealthCheck is the last result of one check.
-type HealthCheck struct {
-	Status    string     `json:"status"` // ok | failed | unknown
-	Reason    string     `json:"reason,omitempty"`
-	Message   string     `json:"message,omitempty"`
-	CheckedAt *time.Time `json:"checked_at,omitempty"`
+func passed() checkResult { return checkResult{} }
 
-	err error // logged, never served
-}
-
-func ok() HealthCheck { return HealthCheck{Status: "ok"} }
-
-func fail(reason, message string, err error) HealthCheck {
-	return HealthCheck{Status: "failed", Reason: reason, Message: message, err: err}
+func failed(reason, message string, err error) checkResult {
+	return checkResult{reason: reason, message: message, err: err}
 }
 
 // healthDeps are the dependencies the checks probe.
 type healthDeps struct {
-	client state.Client // must not cache
+	client state.Client
 	signer core.PrivValidator
 	pubKey crypto.PubKey // the signer's key at startup
 	store  *Store
@@ -101,26 +66,25 @@ type healthDeps struct {
 
 type check struct {
 	name string
-	run  func(context.Context) HealthCheck
+	run  func(context.Context) checkResult
 }
 
-// healthManager runs the checks and publishes the result to the gRPC health
-// service and the HTTP handler. Health requests only read the last results.
+// healthManager runs the checks and publishes readiness to the gRPC health service.
 type healthManager struct {
 	settings healthSettings
 	log      *slog.Logger
 	hs       *health.Server
 
 	mu      sync.Mutex
-	phase   string
+	running bool // between start and stop
 	chainID string
 	deps    healthDeps
-	results map[string]HealthCheck
+	results map[string]checkResult
 	ready   bool
 }
 
 func newHealthManager(settings healthSettings, log *slog.Logger) *healthManager {
-	m := &healthManager{settings: settings, log: log, hs: health.NewServer(), phase: phaseStarting, results: map[string]HealthCheck{}}
+	m := &healthManager{settings: settings, log: log, hs: health.NewServer(), results: map[string]checkResult{}}
 	// health.NewServer marks the empty service SERVING; nothing is ready yet.
 	m.set(false, HealthServiceLiveness)
 	m.set(false, readinessServices...)
@@ -145,8 +109,16 @@ func (m *healthManager) registerGRPC(reg grpclib.ServiceRegistrar) {
 func (m *healthManager) start(deps healthDeps, chainID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.phase, m.chainID, m.deps = phaseRunning, chainID, deps
+	m.running, m.chainID, m.deps = true, chainID, deps
 	m.set(true, HealthServiceLiveness)
+}
+
+// stop publishes not-ready. Later results are ignored.
+func (m *healthManager) stop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.running = false
+	m.hs.Shutdown() // NOT_SERVING for every service; later status updates are ignored
 }
 
 // run executes the checks every check interval until ctx ends, the first time immediately.
@@ -163,12 +135,12 @@ func (m *healthManager) run(ctx context.Context) {
 
 func (m *healthManager) checks() []check {
 	return []check{
-		{checkApp, m.checkApp},
-		{checkModule, m.checkModule},
-		{checkSigner, m.checkSigner},
-		{checkValidator, m.checkValidator},
-		{checkRegistration, m.checkRegistration},
-		{checkStore, m.checkStore},
+		{"app", m.checkApp},
+		{"fibre_module", m.checkModule},
+		{"signer", m.checkSigner},
+		{"validator", m.checkValidator},
+		{"registration", m.checkRegistration},
+		{"store", m.checkStore},
 	}
 }
 
@@ -181,44 +153,23 @@ func (m *healthManager) cycle(ctx context.Context) {
 	}
 }
 
-// record stores a result, logs status changes and republishes readiness.
-// Results are dropped once the server is stopping.
-func (m *healthManager) record(name string, res HealthCheck) {
+// record stores a result, logs changes and republishes readiness.
+func (m *healthManager) record(name string, res checkResult) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.phase != phaseRunning {
+	if !m.running {
 		return
 	}
-	now := time.Now()
-	res.CheckedAt = &now
 	prev := m.results[name]
 	m.results[name] = res
-	if prev.Status != res.Status || prev.Reason != res.Reason {
-		if res.Status == "ok" {
+	if prev.reason != res.reason {
+		if res.reason == "" {
 			m.log.Info("health check passed", "check", name)
 		} else {
-			m.log.Warn("health check failed", "check", name, "reason", res.Reason, "message", res.Message, "error", res.err)
+			m.log.Warn("health check failed", "check", name, "reason", res.reason, "message", res.message, "error", res.err)
 		}
 	}
-	m.publish()
-}
 
-// evaluate returns whether the server is ready and which checks fail. The caller holds mu.
-func (m *healthManager) evaluate() (bool, []string) {
-	if m.phase != phaseRunning {
-		return false, nil
-	}
-	var failing []string
-	for _, c := range m.checks() {
-		if m.results[c.name].Status != "ok" {
-			failing = append(failing, c.name)
-		}
-	}
-	return len(failing) == 0, failing
-}
-
-// publish pushes readiness changes to the gRPC health service. The caller holds mu.
-func (m *healthManager) publish() {
 	ready, failing := m.evaluate()
 	if ready == m.ready {
 		return
@@ -232,127 +183,89 @@ func (m *healthManager) publish() {
 	}
 }
 
-// report returns the current readiness snapshot.
-func (m *healthManager) report() HealthReport {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	ready, failing := m.evaluate()
-	rep := HealthReport{Status: "not_ready", Phase: m.phase, ChainID: m.chainID, FailedChecks: failing, Checks: map[string]HealthCheck{}}
-	if ready {
-		rep.Status = "ready"
-	}
+// evaluate returns whether the server is ready and which checks fail. The caller holds mu.
+func (m *healthManager) evaluate() (bool, []string) {
+	var failing []string
 	for _, c := range m.checks() {
-		res, found := m.results[c.name]
-		if !found {
-			res = HealthCheck{Status: "unknown", Reason: reasonNotChecked}
+		if res, found := m.results[c.name]; !found || res.reason != "" {
+			failing = append(failing, c.name)
 		}
-		rep.Checks[c.name] = res
 	}
-	return rep
+	return m.running && len(failing) == 0, failing
 }
 
-// stop publishes not-ready. Later results are ignored.
-func (m *healthManager) stop() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.phase = phaseStopping
-	m.hs.Shutdown() // NOT_SERVING for every service; later status updates are ignored
-}
-
-// httpHandler serves GET /livez and GET /readyz.
-func (m *healthManager) httpHandler() http.Handler {
-	serve := func(w http.ResponseWriter, ok bool, body any) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Cache-Control", "no-store")
-		if !ok {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		}
-		_ = json.NewEncoder(w).Encode(body)
-	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) {
-		phase := m.report().Phase
-		serve(w, phase != phaseStopping, map[string]string{"phase": phase})
-	})
-	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
-		rep := m.report()
-		serve(w, rep.Status == "ready", rep)
-	})
-	return mux
-}
-
-func (m *healthManager) checkApp(ctx context.Context) HealthCheck {
+func (m *healthManager) checkApp(ctx context.Context) checkResult {
 	st, err := m.deps.client.NodeStatus(ctx)
 	if err != nil || st.ChainID == "" || st.Height == 0 || st.BlockTime.IsZero() {
-		return fail(reasonAppUnreachable, "The app node did not answer a valid status request. Check app_grpc_address and that the node is running.", err)
+		return failed(reasonAppUnreachable, "The app node did not answer a valid status request. Check app_grpc_address and that the node is running.", err)
 	}
 	if st.ChainID != m.chainID {
-		return fail(reasonChainMismatch, fmt.Sprintf("The app node reports chain ID %q, expected %q.", st.ChainID, m.chainID), nil)
+		return failed(reasonChainMismatch, fmt.Sprintf("The app node reports chain ID %q, expected %q.", st.ChainID, m.chainID), nil)
 	}
 	if st.CatchingUp {
-		return fail(reasonAppSyncing, "The app node is still syncing.", nil)
+		return failed(reasonAppSyncing, "The app node is still syncing.", nil)
 	}
 	if age := time.Since(st.BlockTime); age > m.settings.maxBlockAge {
-		return fail(reasonChainStalled, fmt.Sprintf("The latest block is %s old (limit %s).", age.Truncate(time.Second), m.settings.maxBlockAge), nil)
+		return failed(reasonChainStalled, fmt.Sprintf("The latest block is %s old (limit %s).", age.Truncate(time.Second), m.settings.maxBlockAge), nil)
 	}
-	return ok()
+	return passed()
 }
 
-func (m *healthManager) checkModule(ctx context.Context) HealthCheck {
+func (m *healthManager) checkModule(ctx context.Context) checkResult {
 	_, err := m.deps.client.FullStakeStorageBudget(ctx)
 	switch {
 	case err == nil:
-		return ok()
+		return passed()
 	case status.Code(err) == codes.Unimplemented:
-		return fail(reasonModuleUnavailable, "The app node has no Fibre module. Check that app_grpc_address is the application gRPC endpoint of a chain with Fibre enabled.", err)
+		return failed(reasonModuleUnavailable, "The app node has no Fibre module. Check that app_grpc_address is the application gRPC endpoint of a chain with Fibre enabled.", err)
 	default:
-		return fail(reasonAppUnreachable, "The app node did not answer the Fibre module query.", err)
+		return failed(reasonAppUnreachable, "The app node did not answer the Fibre module query.", err)
 	}
 }
 
 // checkSigner proves the signer is reachable and still holds the startup key.
 // It does not prove that signing works.
-func (m *healthManager) checkSigner(context.Context) HealthCheck {
+func (m *healthManager) checkSigner(context.Context) checkResult {
 	pk, err := m.deps.signer.GetPubKey()
 	if err != nil || pk == nil {
-		return fail(reasonSignerUnreachable, "The signer did not return a public key. Check signer_grpc_address and the node's priv_validator_grpc_laddr.", err)
+		return failed(reasonSignerUnreachable, "The signer did not return a public key. Check signer_grpc_address and the node's priv_validator_grpc_laddr.", err)
 	}
 	if !bytes.Equal(pk.Bytes(), m.deps.pubKey.Bytes()) {
-		return fail(reasonSignerKeyChanged, "The signer reports a different public key than at startup. Confirm the validator key and restart.", nil)
+		return failed(reasonSignerKeyChanged, "The signer reports a different public key than at startup. Confirm the validator key and restart.", nil)
 	}
-	return ok()
+	return passed()
 }
 
-func (m *healthManager) checkValidator(ctx context.Context) HealthCheck {
+func (m *healthManager) checkValidator(ctx context.Context) checkResult {
 	set, err := m.deps.client.Head(ctx)
 	if err != nil || set.ValidatorSet == nil {
-		return fail(reasonAppUnreachable, "Could not fetch the validator set from the app node.", err)
+		return failed(reasonAppUnreachable, "Could not fetch the validator set from the app node.", err)
 	}
 	if val, found := set.GetByAddress(m.deps.pubKey.Address()); !found || val.VotingPower <= 0 {
-		return fail(reasonValidatorInactive, fmt.Sprintf("Validator %s is not in the active set.", m.consAddress()), nil)
+		return failed(reasonValidatorInactive, fmt.Sprintf("Validator %s is not in the active set.", m.consAddress()), nil)
 	}
-	return ok()
+	return passed()
 }
 
-func (m *healthManager) checkRegistration(ctx context.Context) HealthCheck {
+func (m *healthManager) checkRegistration(ctx context.Context) checkResult {
 	reg, err := m.deps.client.ProviderRegistration(ctx, m.deps.pubKey.Address())
 	switch {
 	case err != nil:
-		return fail(reasonAppUnreachable, "Could not query the Fibre provider registration from the app node.", err)
+		return failed(reasonAppUnreachable, "Could not query the Fibre provider registration from the app node.", err)
 	case !reg.Found:
-		return fail(reasonNotRegistered, fmt.Sprintf("Register a Fibre provider host for validator %s with MsgSetFibreProviderInfo.", m.consAddress()), nil)
+		return failed(reasonNotRegistered, fmt.Sprintf("Register a Fibre provider host for validator %s with MsgSetFibreProviderInfo.", m.consAddress()), nil)
 	case valtypes.ValidateHost(reg.Host) != nil:
-		return fail(reasonHostInvalid, fmt.Sprintf("The registered provider host %q is not a valid host:port. Register it again.", reg.Host), nil)
+		return failed(reasonHostInvalid, fmt.Sprintf("The registered provider host %q is not a valid host:port. Register it again.", reg.Host), nil)
 	}
-	return ok()
+	return passed()
 }
 
-func (m *healthManager) checkStore(context.Context) HealthCheck {
+func (m *healthManager) checkStore(context.Context) checkResult {
 	value := binary.BigEndian.AppendUint64(nil, uint64(time.Now().UnixNano()))
 	if err := m.deps.store.Probe(value); err != nil {
-		return fail(reasonStoreFailed, "The store failed a small write and read. Check free disk space and permissions of the store directory.", err)
+		return failed(reasonStoreFailed, "The store failed a small write and read. Check free disk space and permissions of the store directory.", err)
 	}
-	return ok()
+	return passed()
 }
 
 func (m *healthManager) consAddress() string {

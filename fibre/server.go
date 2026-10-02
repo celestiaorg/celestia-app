@@ -8,9 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"math/bits"
-	"net"
-	"net/http"
-	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
@@ -43,8 +40,6 @@ type Server struct {
 	uploads uploadCoordinator
 
 	health     *healthManager
-	healthLn   net.Listener // optional HTTP health listener
-	healthHTTP *http.Server
 	healthDone chan struct{}
 
 	pruneDone chan struct{}
@@ -85,24 +80,8 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
-	if cfg.HealthListenAddress != "" {
-		server.healthLn, err = net.Listen("tcp", cfg.HealthListenAddress)
-		if err != nil {
-			server.grpc.Stop(context.Background())
-			return nil, fmt.Errorf("listen on health address %s: %w", cfg.HealthListenAddress, err)
-		}
-		server.healthHTTP = &http.Server{Handler: server.health.httpHandler(), ReadHeaderTimeout: 5 * time.Second}
-	}
 
 	return server, nil
-}
-
-// HealthListenAddress returns the HTTP health address, or "" when disabled.
-func (s *Server) HealthListenAddress() string {
-	if s.healthLn == nil {
-		return ""
-	}
-	return s.healthLn.Addr().String()
 }
 
 // Done is closed once the gRPC server stopped serving, through Stop or because
@@ -131,13 +110,7 @@ func (s *Server) Store() *Store {
 // starts serving gRPC requests, and kicks off background pruning and health checks.
 // NOTE: Order of operations is important. Start the state client first,
 // then create the signer, and finally start the pruning loop followed by the gRPC server.
-// The HTTP health endpoints answer from the start; the gRPC port opens last.
 func (s *Server) Start(ctx context.Context) (err error) {
-	if s.healthHTTP != nil {
-		go func() { _ = s.healthHTTP.Serve(s.healthLn) }()
-		s.log.Info("serving health HTTP", "addr", s.healthLn.Addr())
-	}
-
 	if err := s.state.Start(ctx); err != nil {
 		return err
 	}
@@ -217,12 +190,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
 
-	// Health checks must see the app node, not the validator set cache.
-	probeClient := s.state
-	if cc, ok := probeClient.(*state.CachingClient); ok {
-		probeClient = cc.Client
-	}
-	s.health.start(healthDeps{client: probeClient, signer: s.signer, pubKey: pubKey, store: s.store}, chainID)
+	s.health.start(healthDeps{client: s.state, signer: s.signer, pubKey: pubKey, store: s.store}, chainID)
 	s.healthDone = make(chan struct{})
 	go func() {
 		defer close(s.healthDone)
@@ -251,11 +219,6 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 	s.health.stop() // publish not ready before draining
 	if s.cancel != nil {
 		s.cancel()
-	}
-	if s.healthHTTP != nil {
-		err = errors.Join(err, s.healthHTTP.Shutdown(ctx))
-	} else if s.healthLn != nil {
-		_ = s.healthLn.Close()
 	}
 	s.grpc.Stop(ctx)
 	if s.pruneDone != nil {

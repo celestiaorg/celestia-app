@@ -3,11 +3,9 @@ package fibre
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
-	"net/http"
 	"sync"
 	"testing"
 	"time"
@@ -16,7 +14,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,7 +25,11 @@ import (
 )
 
 // fakeDeps is a state.Client and a core.PrivValidator whose answers tests change under mu.
+// Methods the health checks do not call are left to the embedded nil interfaces.
 type fakeDeps struct {
+	state.Client
+	core.PrivValidator
+
 	mu        sync.Mutex
 	status    state.NodeStatus
 	statusErr error
@@ -88,23 +89,9 @@ func (f *fakeDeps) SignRawBytes(chainID, uniqueID string, raw []byte) ([]byte, e
 	return f.priv.Sign(b)
 }
 
-func (f *fakeDeps) GetByHeight(ctx context.Context, _ uint64) (validator.Set, error) {
-	return f.Head(ctx)
-}
-
-func (f *fakeDeps) SignVote(string, *cmtproto.Vote) error         { return nil }
-func (f *fakeDeps) SignProposal(string, *cmtproto.Proposal) error { return nil }
-func (f *fakeDeps) ChainID() string                               { return "test-chain" }
-func (f *fakeDeps) Start(context.Context) error                   { return nil }
-func (f *fakeDeps) Stop(context.Context) error                    { return nil }
-
-func (f *fakeDeps) GetHost(context.Context, *core.Validator) (validator.Host, error) {
-	return "", errors.New("unused")
-}
-
-func (f *fakeDeps) VerifyPromise(context.Context, *state.PaymentPromise) (state.VerifiedPromise, error) {
-	return state.VerifiedPromise{}, nil
-}
+func (f *fakeDeps) ChainID() string             { return "test-chain" }
+func (f *fakeDeps) Start(context.Context) error { return nil }
+func (f *fakeDeps) Stop(context.Context) error  { return nil }
 
 // TestHealthManager drives every failure reason and its recovery through the checks.
 func TestHealthManager(t *testing.T) {
@@ -115,7 +102,7 @@ func TestHealthManager(t *testing.T) {
 	m := newHealthManager(healthSettings{probeTimeout: time.Second, maxBlockAge: time.Minute}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	readiness := func() healthpb.HealthCheckResponse_ServingStatus {
-		resp, err := m.hs.Check(ctx, &healthpb.HealthCheckRequest{Service: HealthServiceReadiness})
+		resp, err := m.hs.Check(ctx, &healthpb.HealthCheckRequest{})
 		require.NoError(t, err)
 		return resp.GetStatus()
 	}
@@ -124,7 +111,6 @@ func TestHealthManager(t *testing.T) {
 	m.start(healthDeps{client: deps, signer: deps, pubKey: deps.priv.PubKey(), store: store}, "test-chain")
 	m.cycle(ctx)
 	require.Equal(t, healthpb.HealthCheckResponse_SERVING, readiness())
-	require.Equal(t, "ready", m.report().Status)
 
 	healthy := newFakeDeps()
 	healthy.priv, healthy.set = deps.priv, deps.set
@@ -137,27 +123,28 @@ func TestHealthManager(t *testing.T) {
 		check, reason string
 		mutate        func()
 	}{
-		{checkApp, reasonAppUnreachable, func() { deps.statusErr = errors.New("down") }},
-		{checkApp, reasonChainMismatch, func() { deps.status.ChainID = "other" }},
-		{checkApp, reasonAppSyncing, func() { deps.status.CatchingUp = true }},
-		{checkApp, reasonChainStalled, func() { deps.status.BlockTime = time.Now().Add(-time.Hour) }},
-		{checkModule, reasonModuleUnavailable, func() { deps.moduleErr = status.Error(codes.Unimplemented, "unknown service") }},
-		{checkModule, reasonAppUnreachable, func() { deps.moduleErr = status.Error(codes.DeadlineExceeded, "timeout") }},
-		{checkSigner, reasonSignerUnreachable, func() { deps.signerErr = errors.New("down") }},
-		{checkSigner, reasonSignerKeyChanged, func() { deps.priv = ed25519.GenPrivKey() }},
-		{checkValidator, reasonAppUnreachable, func() { deps.setErr = errors.New("down") }},
-		{checkValidator, reasonValidatorInactive, func() { deps.set = validator.Set{ValidatorSet: core.NewValidatorSet(nil), Height: 42} }},
-		{checkRegistration, reasonNotRegistered, func() { deps.reg.Found = false }},
-		{checkRegistration, reasonHostInvalid, func() { deps.reg.Host = "no-port" }},
+		{"app", reasonAppUnreachable, func() { deps.statusErr = errors.New("down") }},
+		{"app", reasonChainMismatch, func() { deps.status.ChainID = "other" }},
+		{"app", reasonAppSyncing, func() { deps.status.CatchingUp = true }},
+		{"app", reasonChainStalled, func() { deps.status.BlockTime = time.Now().Add(-time.Hour) }},
+		{"fibre_module", reasonModuleUnavailable, func() { deps.moduleErr = status.Error(codes.Unimplemented, "unknown service") }},
+		{"fibre_module", reasonAppUnreachable, func() { deps.moduleErr = status.Error(codes.DeadlineExceeded, "timeout") }},
+		{"signer", reasonSignerUnreachable, func() { deps.signerErr = errors.New("down") }},
+		{"signer", reasonSignerKeyChanged, func() { deps.priv = ed25519.GenPrivKey() }},
+		{"validator", reasonAppUnreachable, func() { deps.setErr = errors.New("down") }},
+		{"validator", reasonValidatorInactive, func() { deps.set = validator.Set{ValidatorSet: core.NewValidatorSet(nil), Height: 42} }},
+		{"registration", reasonNotRegistered, func() { deps.reg.Found = false }},
+		{"registration", reasonHostInvalid, func() { deps.reg.Host = "no-port" }},
 	}
 	for _, tc := range failures {
 		deps.mu.Lock()
 		tc.mutate()
 		deps.mu.Unlock()
 		m.cycle(ctx)
-		rep := m.report()
-		assert.Equal(t, tc.reason, rep.Checks[tc.check].Reason, tc.check)
-		assert.Equal(t, []string{tc.check}, rep.FailedChecks, tc.reason)
+		ready, failing := m.evaluate()
+		assert.False(t, ready, tc.reason)
+		assert.Equal(t, []string{tc.check}, failing, tc.reason)
+		assert.Equal(t, tc.reason, m.results[tc.check].reason, tc.check)
 		assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, readiness(), tc.reason)
 		restore()
 		m.cycle(ctx)
@@ -166,16 +153,15 @@ func TestHealthManager(t *testing.T) {
 
 	// Stop publishes not-ready and ignores later results.
 	m.stop()
-	m.record(checkApp, ok())
+	m.record("app", passed())
 	assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, readiness())
-	assert.Equal(t, phaseStopping, m.report().Phase)
 }
 
-// TestServerHealth checks gRPC and HTTP health on a running server with real listeners.
+// TestServerHealth checks the health service on a running server over its TLS listener.
 func TestServerHealth(t *testing.T) {
 	deps := newFakeDeps()
 	cfg := DefaultServerConfig()
-	cfg.ServerListenAddress, cfg.HealthListenAddress, cfg.UnlimitedBudget = "127.0.0.1:0", "127.0.0.1:0", true
+	cfg.ServerListenAddress, cfg.UnlimitedBudget = "127.0.0.1:0", true
 	cfg.Health.CheckInterval = "50ms"
 	cfg.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.StateClientFn = func() (state.Client, error) { return deps, nil }
@@ -200,26 +186,15 @@ func TestServerHealth(t *testing.T) {
 		}
 		return resp.GetStatus()
 	}
-	readyz := func() (int, HealthReport) {
-		resp, err := http.Get("http://" + srv.HealthListenAddress() + "/readyz") //nolint:gosec // test URL
-		require.NoError(t, err)
-		defer resp.Body.Close()
-		var rep HealthReport
-		require.NoError(t, json.NewDecoder(resp.Body).Decode(&rep))
-		return resp.StatusCode, rep
-	}
 
 	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, check(HealthServiceLiveness))
 	require.Eventually(t, func() bool { return check("") == healthpb.HealthCheckResponse_SERVING }, 10*time.Second, 20*time.Millisecond)
-	code, rep := readyz()
-	assert.Equal(t, http.StatusOK, code)
-	assert.Equal(t, "ready", rep.Status)
 
-	stream, err := health.Watch(ctx, &healthpb.HealthCheckRequest{Service: HealthServiceReadiness})
+	stream, err := health.Watch(ctx, &healthpb.HealthCheckRequest{})
 	require.NoError(t, err)
 	_, err = stream.Recv()
 	assert.Equal(t, codes.Unimplemented, status.Code(err), "Watch is rejected so it cannot hold the drain")
 
 	require.NoError(t, srv.Stop(ctx))
-	assert.Equal(t, healthpb.HealthCheckResponse_UNKNOWN, check(HealthServiceReadiness), "listener closed")
+	assert.Equal(t, healthpb.HealthCheckResponse_UNKNOWN, check(""), "listener closed")
 }

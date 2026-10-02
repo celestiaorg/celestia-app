@@ -3,9 +3,9 @@ package e2e_test
 import (
 	"context"
 	"crypto/rand"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"path/filepath"
 	"testing"
 	"time"
@@ -29,6 +29,9 @@ import (
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // noEscrowKeyName is a genesis-funded account that never deposits
@@ -74,7 +77,6 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	serverCfg := fibre.DefaultServerConfig()
 	serverCfg.AppGRPCAddress = grpcAddr
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
-	serverCfg.HealthListenAddress = "127.0.0.1:0"
 	serverCfg.Health.CheckInterval = "1s"
 	serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) {
 		return filePV, nil
@@ -129,7 +131,7 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	require.Len(t, validatorsResp.Validators, 1)
 
 	valOperatorAddr := validatorsResp.Validators[0].OperatorAddress
-	require.Equal(t, http.StatusServiceUnavailable, s.readyz(), "not ready before the provider host is registered")
+	require.False(t, s.ready(), "not ready before the provider host is registered")
 
 	// submit MsgSetFibreProviderInfo to register the fibre server's gRPC address.
 	txClient, err := testnode.NewTxClientFromContext(s.cctx)
@@ -171,15 +173,20 @@ func (s *FibreE2ETestSuite) Test01RegisterValidator() {
 	require.NoError(t, err)
 
 	// the server becomes ready without a restart once the registration is on chain.
-	require.Eventually(t, func() bool { return s.readyz() == http.StatusOK }, 30*time.Second, 500*time.Millisecond)
+	require.Eventually(t, s.ready, 30*time.Second, 500*time.Millisecond)
 }
 
-// readyz returns the HTTP status of the server's readiness report.
-func (s *FibreE2ETestSuite) readyz() int {
-	resp, err := http.Get("http://" + s.fibreServer.HealthListenAddress() + "/readyz") //nolint:gosec // test URL
+// ready asks the server's gRPC health service whether it is ready.
+func (s *FibreE2ETestSuite) ready() bool {
+	conn, err := grpc.NewClient(s.fibreServer.ListenAddress(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // self-signed identity cert, as grpc_health_probe -tls-no-verify
+		MinVersion:         tls.VersionTLS13,
+	})))
 	s.Require().NoError(err)
-	defer resp.Body.Close()
-	return resp.StatusCode
+	defer conn.Close()
+	resp, err := healthpb.NewHealthClient(conn).Check(context.Background(), &healthpb.HealthCheckRequest{})
+	s.Require().NoError(err)
+	return resp.GetStatus() == healthpb.HealthCheckResponse_SERVING
 }
 
 func (s *FibreE2ETestSuite) Test02FundEscrowAccount() {

@@ -26,11 +26,9 @@ var _ state.Client = (*AppClient)(nil)
 type AppClient struct {
 	*SetGetter
 	*HostRegistry
-	conn          *grpclib.ClientConn
-	blockAPI      coregrpc.BlockAPIClient
-	queryClient   types.QueryClient
-	valaddrClient valtypes.QueryClient
-	log           *slog.Logger
+	conn        *grpclib.ClientConn
+	queryClient types.QueryClient
+	log         *slog.Logger
 
 	chainID string // resolved on Start
 }
@@ -48,15 +46,12 @@ func NewAppClient(addr string, log *slog.Logger, hostOpts ...HostRegistryOption)
 		return nil, fmt.Errorf("create app gRPC client (%s): %w", addr, err)
 	}
 
-	blockAPI, valaddrClient := coregrpc.NewBlockAPIClient(conn), valtypes.NewQueryClient(conn)
 	return &AppClient{
-		SetGetter:     NewSetGetter(blockAPI),
-		HostRegistry:  NewHostRegistry(valaddrClient, log, hostOpts...),
-		conn:          conn,
-		blockAPI:      blockAPI,
-		queryClient:   types.NewQueryClient(conn),
-		valaddrClient: valaddrClient,
-		log:           log,
+		SetGetter:    NewSetGetter(coregrpc.NewBlockAPIClient(conn)),
+		HostRegistry: NewHostRegistry(valtypes.NewQueryClient(conn), log, hostOpts...),
+		conn:         conn,
+		queryClient:  types.NewQueryClient(conn),
+		log:          log,
 	}, nil
 }
 
@@ -134,24 +129,22 @@ func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
 
 // NodeStatus implements [state.Client].
 func (c *AppClient) NodeStatus(ctx context.Context) (state.NodeStatus, error) {
-	resp, err := c.blockAPI.Status(ctx, &coregrpc.StatusRequest{})
+	resp, err := coregrpc.NewBlockAPIClient(c.conn).Status(ctx, &coregrpc.StatusRequest{})
 	if err != nil {
 		return state.NodeStatus{}, err
 	}
-	if resp.GetNodeInfo() == nil || resp.GetSyncInfo() == nil || resp.SyncInfo.LatestBlockHeight < 0 {
-		return state.NodeStatus{}, fmt.Errorf("incomplete status response from app node")
-	}
+	sync := resp.GetSyncInfo()
 	return state.NodeStatus{
-		ChainID:    strings.TrimSpace(resp.NodeInfo.Network),
-		Height:     uint64(resp.SyncInfo.LatestBlockHeight),
-		BlockTime:  resp.SyncInfo.LatestBlockTime,
-		CatchingUp: resp.SyncInfo.CatchingUp,
+		ChainID:    strings.TrimSpace(resp.GetNodeInfo().GetNetwork()),
+		Height:     uint64(max(0, sync.GetLatestBlockHeight())),
+		BlockTime:  sync.GetLatestBlockTime(),
+		CatchingUp: sync.GetCatchingUp(),
 	}, nil
 }
 
 // ProviderRegistration implements [state.Client]. Unlike [HostRegistry.GetHost] it never caches.
 func (c *AppClient) ProviderRegistration(ctx context.Context, addr core.Address) (state.ProviderRegistration, error) {
-	resp, err := c.valaddrClient.FibreProviderInfo(ctx, &valtypes.QueryFibreProviderInfoRequest{
+	resp, err := valtypes.NewQueryClient(c.conn).FibreProviderInfo(ctx, &valtypes.QueryFibreProviderInfoRequest{
 		ValidatorConsensusAddress: sdk.ConsAddress(addr.Bytes()).String(),
 	})
 	if err != nil {

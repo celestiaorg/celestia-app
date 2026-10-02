@@ -73,11 +73,8 @@ type ServerConfig struct {
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
-	// HealthListenAddress optionally serves GET /livez and GET /readyz over HTTP. Empty disables it;
-	// the gRPC health service on ServerListenAddress is always on.
-	HealthListenAddress string `toml:"health_listen_address" comment:"Optional HTTP address serving GET /livez and GET /readyz, e.g. 127.0.0.1:7981. Empty disables it; gRPC health on the server listen address is always on."`
-	// Health configures the readiness checks.
-	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service and the HTTP health endpoints."`
+	// Health configures the readiness checks behind the gRPC health service.
+	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service."`
 
 	StoreConfig
 

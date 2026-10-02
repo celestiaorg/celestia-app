@@ -56,24 +56,21 @@ func startServer(ctx context.Context, cfg fibre.ServerConfig) error {
 		"store", cfg.Path,
 	)
 
-	var serveErr error
 	select {
 	case <-startCtx.Done():
 	case <-server.Done(): // the gRPC server exited on its own: shut down and exit non-zero
-		serveErr = fmt.Errorf("server exited unexpectedly: %w", server.Err())
-		server.Config.Log.Error("server exited unexpectedly", "error", server.Err())
+		err = fmt.Errorf("server exited unexpectedly: %w", server.Err())
 	}
 	startCancel()
 
 	stopCtx, stopCancel := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stopCancel()
 
-	if err := server.Stop(stopCtx); err != nil {
-		return errors.Join(serveErr, fmt.Errorf("stopping server: %w", err))
+	if stopErr := server.Stop(stopCtx); stopErr != nil {
+		err = errors.Join(err, fmt.Errorf("stopping server: %w", stopErr))
 	}
-	if serveErr != nil {
-		return serveErr
+	if err == nil {
+		server.Config.Log.Info("server stopped")
 	}
-	server.Config.Log.Info("server stopped")
-	return nil
+	return err
 }
