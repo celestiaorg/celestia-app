@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -26,156 +25,125 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// gRPC health service names. Liveness only reflects the gRPC server; readiness
-// means initialization finished and every dependency check passed recently.
-// The Fibre service name and the empty name alias readiness.
+// gRPC health service names. Liveness means the gRPC server answers. Readiness
+// means initialization finished and every check passed recently.
 const (
 	HealthServiceLiveness  = "fibre-liveness"
 	HealthServiceReadiness = "fibre-readiness"
 )
 
-// Check names, phases and reason codes exposed by the readiness report. Automation should key on these.
+// readinessServices are the gRPC health service names that report readiness.
+var readinessServices = []string{HealthServiceReadiness, "celestia.fibre.v1.Fibre", ""}
+
+// Check names.
 const (
-	checkApp, checkModule, checkSigner, checkValidator, checkRegistration, checkStore = "app", "fibre_module", "signer", "validator", "registration", "store"
-	phaseStarting, phaseRunning, phaseStopping, phaseFailed                           = "starting", "running", "stopping", "failed"
-
-	reasonChecksFailed, reasonNotChecked, reasonStale, reasonTimeout, reasonUnsupported, reasonDependency                = "checks_failed", "not_checked", "stale", "probe_timeout", "unsupported", "dependency_failed"
-	reasonAppUnreachable, reasonAppSyncing, reasonChainStalled, reasonChainMismatch, reasonModuleUnavailable             = "app_unreachable", "app_syncing", "chain_stalled", "chain_id_mismatch", "fibre_module_unavailable"
-	reasonSignerUnreachable, reasonSignerKeyChanged, reasonValidatorSetUnavailable, reasonValidatorInactive              = "signer_unreachable", "signer_key_changed", "validator_set_unavailable", "validator_not_active"
-	reasonRegistrationUnavailable, reasonNotRegistered, reasonHostInvalid, reasonStoreWriteFailed, reasonStoreReadFailed = "registration_unavailable", "provider_not_registered", "provider_host_invalid", "store_write_failed", "store_read_failed"
+	checkApp          = "app"
+	checkModule       = "fibre_module"
+	checkSigner       = "signer"
+	checkValidator    = "validator"
+	checkRegistration = "registration"
+	checkStore        = "store"
 )
 
-var (
-	checkOrder        = []string{checkApp, checkModule, checkSigner, checkValidator, checkRegistration, checkStore}
-	readinessServices = []string{HealthServiceReadiness, "celestia.fibre.v1.Fibre", ""}
+var checkNames = []string{checkApp, checkModule, checkSigner, checkValidator, checkRegistration, checkStore}
+
+// Server phases.
+const (
+	phaseStarting = "starting"
+	phaseRunning  = "running"
+	phaseStopping = "stopping"
 )
 
-// HealthReport is the readiness snapshot served by GET /readyz. Reachability from
-// outside and end-to-end uploads cannot be verified from inside the process and
-// are reported as not_checked.
+// Reason codes of failed checks. Automation should key on these.
+const (
+	reasonNotChecked        = "not_checked"
+	reasonTimeout           = "probe_timeout"
+	reasonAppUnreachable    = "app_unreachable"
+	reasonAppSyncing        = "app_syncing"
+	reasonChainStalled      = "chain_stalled"
+	reasonChainMismatch     = "chain_id_mismatch"
+	reasonModuleUnavailable = "fibre_module_unavailable"
+	reasonSignerUnreachable = "signer_unreachable"
+	reasonSignerKeyChanged  = "signer_key_changed"
+	reasonValidatorInactive = "validator_not_active"
+	reasonNotRegistered     = "provider_not_registered"
+	reasonHostInvalid       = "provider_host_invalid"
+	reasonStoreFailed       = "store_failed"
+)
+
+// HealthReport is the JSON body served by GET /readyz.
 type HealthReport struct {
-	Status               string                 `json:"status"` // ready | not_ready
-	Reason               string                 `json:"reason,omitempty"`
-	FailedChecks         []string               `json:"failed_checks,omitempty"`
-	Phase                string                 `json:"phase"`
-	ChainID              string                 `json:"chain_id,omitempty"`
-	ChainIDSource        string                 `json:"chain_id_source"` // configured | auto_detected
-	CheckedAt            time.Time              `json:"checked_at"`
-	Checks               map[string]HealthCheck `json:"checks"`
-	Activity             HealthActivity         `json:"activity"`
-	ExternalReachability string                 `json:"external_reachability"`
-	EndToEndUpload       string                 `json:"end_to_end_upload"`
+	Status       string                 `json:"status"` // ready | not_ready
+	Phase        string                 `json:"phase"`  // starting | running | stopping
+	ChainID      string                 `json:"chain_id,omitempty"`
+	FailedChecks []string               `json:"failed_checks,omitempty"`
+	Checks       map[string]HealthCheck `json:"checks"`
 }
 
-// HealthActivity counts request traffic since startup. It is informational and
-// never affects readiness: a ready server with no uploads, or with many misses
-// for shards it does not hold, points at registration, reachability or clients.
-type HealthActivity struct {
-	Uploads        int64      `json:"uploads"`
-	UploadFailures int64      `json:"upload_failures"`
-	LastUploadAt   *time.Time `json:"last_upload_at,omitempty"`
-	Downloads      int64      `json:"downloads"`
-	DownloadMisses int64      `json:"download_misses"` // "no blob shard found" responses
-	LastDownloadAt *time.Time `json:"last_download_at,omitempty"`
-}
-
-// HealthCheck is one dependency check within a [HealthReport].
+// HealthCheck is the last result of one check.
 type HealthCheck struct {
-	Status           string     `json:"status"` // unknown | ok | failed
-	Reason           string     `json:"reason,omitempty"`
-	Message          string     `json:"message,omitempty"`
-	CheckedAt        *time.Time `json:"checked_at,omitempty"`
-	LastSuccess      *time.Time `json:"last_success,omitempty"`
-	Height           uint64     `json:"height,omitempty"`
-	ConsensusAddress string     `json:"consensus_address,omitempty"`
-	RegisteredHost   string     `json:"registered_host,omitempty"`
+	Status    string     `json:"status"` // ok | failed | unknown
+	Reason    string     `json:"reason,omitempty"`
+	Message   string     `json:"message,omitempty"`
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
 
-	err    error // logged locally, never exposed
-	pubKey crypto.PubKey
+	err error // logged, never served
 }
+
+func ok() HealthCheck { return HealthCheck{Status: "ok"} }
 
 func fail(reason, message string, err error) HealthCheck {
 	return HealthCheck{Status: "failed", Reason: reason, Message: message, err: err}
 }
 
-// healthDeps are the dependencies probed for readiness; a nil client keeps the server unready.
+// healthDeps are the dependencies the checks probe.
 type healthDeps struct {
-	client state.HealthClient
-	module func(context.Context) error // any Fibre module query
+	client state.Client // must not cache
 	signer core.PrivValidator
+	pubKey crypto.PubKey // the signer's key at startup
 	store  *Store
 }
 
-// healthManager owns the phase, the check results and the readiness decision; health requests
-// only read the snapshot and never trigger probes.
+// healthManager runs the checks and publishes the result to the gRPC health
+// service and the HTTP handler. Health requests only read the last results.
 type healthManager struct {
 	settings healthSettings
 	log      *slog.Logger
 	hs       *health.Server
-	shutdown chan struct{}
-	serving  atomic.Bool // gate for Fibre RPCs
+	shutdown chan struct{} // closed by stop, ends Watch streams
+	serving  atomic.Bool   // opens the gate for Fibre RPCs
 
 	mu       sync.Mutex
 	phase    string
 	chainID  string
 	deps     healthDeps
 	results  map[string]HealthCheck
-	running  map[string]bool
-	identity crypto.PubKey // first confirmed signer key
+	running  map[string]bool // checks whose probe has not returned yet
 	ready    bool
-	expiry   *time.Timer
 	loopStop context.CancelFunc
 	loopDone chan struct{}
 	probes   sync.WaitGroup
-
-	uploads, uploadFailures, lastUpload, downloads, downloadMisses, lastDownload atomic.Int64
-}
-
-// noteUpload and noteDownload record request outcomes for the activity block of
-// the report. They accept a nil manager so handlers work on a bare Server.
-func (m *healthManager) noteUpload(err error) {
-	switch {
-	case m == nil:
-	case err != nil:
-		m.uploadFailures.Add(1)
-	default:
-		m.uploads.Add(1)
-		m.lastUpload.Store(time.Now().UnixNano())
-	}
-}
-
-func (m *healthManager) noteDownload(err error) {
-	switch {
-	case m == nil:
-	case err == nil:
-		m.downloads.Add(1)
-		m.lastDownload.Store(time.Now().UnixNano())
-	case status.Code(err) == codes.NotFound:
-		m.downloadMisses.Add(1)
-	}
-}
-
-func unixPtr(ns int64) *time.Time {
-	if ns == 0 {
-		return nil
-	}
-	t := time.Unix(0, ns)
-	return &t
 }
 
 func newHealthManager(settings healthSettings, log *slog.Logger) *healthManager {
 	m := &healthManager{
-		settings: settings, log: log, hs: health.NewServer(), shutdown: make(chan struct{}),
-		phase: phaseStarting, results: map[string]HealthCheck{}, running: map[string]bool{},
+		settings: settings,
+		log:      log,
+		hs:       health.NewServer(),
+		shutdown: make(chan struct{}),
+		phase:    phaseStarting,
+		results:  map[string]HealthCheck{},
+		running:  map[string]bool{},
 	}
-	m.set(false, HealthServiceLiveness) // health.NewServer marks the empty service SERVING; nothing is ready yet
+	// health.NewServer marks the empty service SERVING; nothing is ready yet.
+	m.set(false, HealthServiceLiveness)
 	m.set(false, readinessServices...)
 	return m
 }
 
-func (m *healthManager) set(ok bool, services ...string) {
+func (m *healthManager) set(serving bool, services ...string) {
 	st := healthpb.HealthCheckResponse_NOT_SERVING
-	if ok {
+	if serving {
 		st = healthpb.HealthCheckResponse_SERVING
 	}
 	for _, s := range services {
@@ -187,7 +155,8 @@ func (m *healthManager) registerGRPC(reg grpclib.ServiceRegistrar) {
 	healthpb.RegisterHealthServer(reg, &healthService{Server: m.hs, shutdown: m.shutdown})
 }
 
-// start marks initialization complete, opens the RPC gate and runs check cycles, the first one immediately.
+// start marks initialization complete, opens the RPC gate and runs the checks
+// every check interval, the first time immediately.
 func (m *healthManager) start(ctx context.Context, deps healthDeps, chainID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -208,30 +177,16 @@ func (m *healthManager) start(ctx context.Context, deps healthDeps, chainID stri
 	}()
 }
 
-// cycle runs the independent checks concurrently, then the ones that need the signer identity and the app height.
+// cycle runs all checks concurrently and waits for them.
 func (m *healthManager) cycle(ctx context.Context) {
-	m.runAll(ctx, map[string]func(context.Context) HealthCheck{checkApp: m.checkApp, checkModule: m.checkModule, checkSigner: m.checkSigner, checkStore: m.checkStore})
-	m.mu.Lock()
-	identity, app := m.identity, m.results[checkApp]
-	signerOK := identity != nil && m.results[checkSigner].Status == "ok"
-	m.mu.Unlock()
-	skipped := func(dep string) func(context.Context) HealthCheck {
-		return func(context.Context) HealthCheck {
-			return fail(reasonDependency, "Not checked because the "+dep+" check failed.", nil)
-		}
+	checks := map[string]func(context.Context) HealthCheck{
+		checkApp:          m.checkApp,
+		checkModule:       m.checkModule,
+		checkSigner:       m.checkSigner,
+		checkValidator:    m.checkValidator,
+		checkRegistration: m.checkRegistration,
+		checkStore:        m.checkStore,
 	}
-	dependent := map[string]func(context.Context) HealthCheck{checkValidator: skipped(checkSigner), checkRegistration: skipped(checkSigner)}
-	if signerOK {
-		dependent[checkRegistration] = func(ctx context.Context) HealthCheck { return m.checkRegistration(ctx, identity.Address()) }
-		dependent[checkValidator] = skipped(checkApp)
-		if app.Status == "ok" {
-			dependent[checkValidator] = func(ctx context.Context) HealthCheck { return m.checkValidator(ctx, app.Height, identity.Address()) }
-		}
-	}
-	m.runAll(ctx, dependent)
-}
-
-func (m *healthManager) runAll(ctx context.Context, checks map[string]func(context.Context) HealthCheck) {
 	var wg sync.WaitGroup
 	for name, fn := range checks {
 		wg.Go(func() { m.run(ctx, name, fn) })
@@ -239,8 +194,9 @@ func (m *healthManager) runAll(ctx context.Context, checks map[string]func(conte
 	wg.Wait()
 }
 
-// run executes one check bounded by the probe timeout. A check that ignores its context keeps
-// running: the timeout is recorded now, its late result is discarded, and it is not started again.
+// run executes one check bounded by the probe timeout. A probe that ignores its
+// context keeps running: a timeout is recorded now, its late result is dropped,
+// and the check is not started again until it returns.
 func (m *healthManager) run(ctx context.Context, name string, fn func(context.Context) HealthCheck) {
 	m.mu.Lock()
 	if m.running[name] {
@@ -249,11 +205,12 @@ func (m *healthManager) run(ctx context.Context, name string, fn func(context.Co
 	}
 	m.running[name] = true
 	m.mu.Unlock()
-	pctx, cancel := context.WithTimeout(ctx, m.settings.probeTimeout)
+
+	ctx, cancel := context.WithTimeout(ctx, m.settings.probeTimeout)
 	defer cancel()
 	done := make(chan HealthCheck, 1)
 	m.probes.Go(func() {
-		res := fn(pctx)
+		res := fn(ctx)
 		m.mu.Lock()
 		m.running[name] = false
 		m.mu.Unlock()
@@ -262,140 +219,92 @@ func (m *healthManager) run(ctx context.Context, name string, fn func(context.Co
 	select {
 	case res := <-done:
 		m.record(name, res)
-	case <-pctx.Done():
-		m.record(name, fail(reasonTimeout, fmt.Sprintf("The %s check did not finish within %s; no new check starts until it returns.", name, m.settings.probeTimeout), pctx.Err()))
+	case <-ctx.Done():
+		m.record(name, fail(reasonTimeout, fmt.Sprintf("The %s check did not finish within %s.", name, m.settings.probeTimeout), ctx.Err()))
 	}
 }
 
-// record stores a result, logs transitions and republishes readiness; results are dropped after shutdown began.
+// record stores a result, logs status changes and republishes readiness.
+// Results are dropped once the server is stopping.
 func (m *healthManager) record(name string, res HealthCheck) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.phase != phaseRunning {
 		return
 	}
-	if name == checkSigner && res.Status == "ok" {
-		if m.identity == nil {
-			m.identity = res.pubKey
-		} else if !bytes.Equal(m.identity.Bytes(), res.pubKey.Bytes()) {
-			res = fail(reasonSignerKeyChanged, "The signer now reports a different public key than at startup. Confirm the validator key and restart.", nil)
-		}
-		if res.Status == "ok" {
-			res.ConsensusAddress = sdk.ConsAddress(res.pubKey.Address()).String()
-		}
-	}
 	now := time.Now()
+	res.CheckedAt = &now
 	prev := m.results[name]
-	res.CheckedAt, res.LastSuccess = &now, prev.LastSuccess
-	if res.Status == "ok" {
-		res.LastSuccess = &now
-	}
 	m.results[name] = res
 	if prev.Status != res.Status || prev.Reason != res.Reason {
-		if attrs := []any{"check", name, "reason", res.Reason, "message", res.Message}; res.Status == "ok" {
+		if res.Status == "ok" {
 			m.log.Info("health check passed", "check", name)
-		} else if res.err != nil {
-			m.log.Warn("health check failed", append(attrs, "error", res.err)...)
 		} else {
-			m.log.Warn("health check failed", attrs...)
+			m.log.Warn("health check failed", "check", name, "reason", res.Reason, "message", res.Message, "error", res.err)
 		}
 	}
 	m.publish()
 }
 
-func (m *healthManager) stale(c HealthCheck, now time.Time) bool {
-	return c.CheckedAt == nil || now.Sub(*c.CheckedAt) > m.settings.maxResultAge
-}
-
-func (m *healthManager) evaluate(now time.Time) (bool, []string) {
+// evaluate returns whether the server is ready and which checks fail.
+// The caller holds mu.
+func (m *healthManager) evaluate() (bool, []string) {
 	if m.phase != phaseRunning {
 		return false, nil
 	}
 	var failing []string
-	for _, name := range checkOrder {
-		if c := m.results[name]; c.Status != "ok" || m.stale(c, now) {
+	for _, name := range checkNames {
+		if m.results[name].Status != "ok" {
 			failing = append(failing, name)
 		}
 	}
 	return len(failing) == 0, failing
 }
 
-// publish pushes readiness changes to gRPC health and arms a timer that re-evaluates when results
-// exceed their maximum age, so stale results reach Watch subscribers even when no probe completes.
+// publish pushes readiness changes to the gRPC health service. The caller holds mu.
 func (m *healthManager) publish() {
-	now := time.Now()
-	ready, failing := m.evaluate(now)
-	if ready != m.ready {
-		m.ready = ready
-		m.set(ready, readinessServices...)
-		if ready {
-			m.log.Info("server ready", "chain_id", m.chainID)
-		} else {
-			m.log.Warn("server not ready", "phase", m.phase, "failed_checks", failing)
-		}
+	ready, failing := m.evaluate()
+	if ready == m.ready {
+		return
 	}
-	if m.expiry != nil {
-		m.expiry.Stop()
-		m.expiry = nil
-	}
-	if ready { // every result is at most one probe timeout old
-		m.expiry = time.AfterFunc(m.settings.maxResultAge+time.Millisecond, func() {
-			m.mu.Lock()
-			defer m.mu.Unlock()
-			if m.phase == phaseRunning {
-				m.publish()
-			}
-		})
+	m.ready = ready
+	m.set(ready, readinessServices...)
+	if ready {
+		m.log.Info("server ready")
+	} else {
+		m.log.Warn("server not ready", "failed_checks", failing)
 	}
 }
 
-// report builds the readiness snapshot; successful results past their maximum age are reported as failed/stale.
+// report returns the current readiness snapshot.
 func (m *healthManager) report() HealthReport {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	now := time.Now()
-	ready, failing := m.evaluate(now)
-	rep := HealthReport{
-		Status: "not_ready", Reason: m.phase, Phase: m.phase, ChainID: m.chainID, ChainIDSource: "auto_detected", CheckedAt: now,
-		Checks: make(map[string]HealthCheck, len(checkOrder)), ExternalReachability: "not_checked", EndToEndUpload: "not_checked",
-	}
-	if m.settings.expectedChainID != "" {
-		rep.ChainIDSource = "configured"
-	}
-	rep.Activity = HealthActivity{
-		Uploads: m.uploads.Load(), UploadFailures: m.uploadFailures.Load(), LastUploadAt: unixPtr(m.lastUpload.Load()),
-		Downloads: m.downloads.Load(), DownloadMisses: m.downloadMisses.Load(), LastDownloadAt: unixPtr(m.lastDownload.Load()),
-	}
+	ready, failing := m.evaluate()
+	rep := HealthReport{Status: "not_ready", Phase: m.phase, ChainID: m.chainID, FailedChecks: failing, Checks: make(map[string]HealthCheck, len(checkNames))}
 	if ready {
-		rep.Status, rep.Reason = "ready", ""
-	} else if m.phase == phaseRunning {
-		rep.Reason, rep.FailedChecks = reasonChecksFailed, failing
+		rep.Status = "ready"
 	}
-	for _, name := range checkOrder {
-		c, ok := m.results[name]
-		if !ok {
+	for _, name := range checkNames {
+		c, found := m.results[name]
+		if !found {
 			c = HealthCheck{Status: "unknown", Reason: reasonNotChecked}
-		} else if c.Status == "ok" && m.stale(c, now) {
-			c.Status, c.Reason = "failed", reasonStale
-			c.Message = fmt.Sprintf("The last successful %s check is %s old (limit %s); the check may be stalled.", name, now.Sub(*c.CheckedAt).Truncate(time.Second), m.settings.maxResultAge)
 		}
 		rep.Checks[name] = c
 	}
 	return rep
 }
 
-// stop publishes not-ready, ends Watch streams, stops the loop and waits for
-// running probes until ctx expires. It returns false when a probe is still stuck
-// in I/O; the caller must then not close the dependency it uses.
+// stop publishes not-ready, ends Watch streams, stops the check loop and waits
+// for running probes until ctx expires. It returns false if a probe is still
+// running; the caller must then not close the store.
 func (m *healthManager) stop(ctx context.Context) bool {
 	m.mu.Lock()
 	if m.phase != phaseStopping {
 		m.phase = phaseStopping
 		m.serving.Store(false)
-		m.publish()
-		m.hs.Shutdown() // NOT_SERVING everywhere; later status updates are ignored
+		m.hs.Shutdown() // NOT_SERVING for every service, later updates are ignored
 		close(m.shutdown)
-		m.log.Info("health: server stopping, published not ready")
 	}
 	loopStop, loopDone := m.loopStop, m.loopDone
 	m.mu.Unlock()
@@ -413,19 +322,6 @@ func (m *healthManager) stop(ctx context.Context) bool {
 	}
 }
 
-// serveFailed records an unexpected gRPC server exit: liveness and readiness both fail.
-func (m *healthManager) serveFailed(err error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.phase == phaseStarting || m.phase == phaseRunning {
-		m.log.Error("gRPC server stopped unexpectedly", "error", err)
-		m.phase = phaseFailed
-		m.serving.Store(false)
-		m.set(false, HealthServiceLiveness)
-		m.publish()
-	}
-}
-
 // unaryGate rejects Fibre RPCs until initialization completes and once shutdown began.
 func (m *healthManager) unaryGate(ctx context.Context, req any, info *grpclib.UnaryServerInfo, handler grpclib.UnaryHandler) (any, error) {
 	if m.serving.Load() || strings.HasPrefix(info.FullMethod, "/grpc.health.v1.Health/") {
@@ -434,7 +330,7 @@ func (m *healthManager) unaryGate(ctx context.Context, req any, info *grpclib.Un
 	return nil, status.Error(codes.Unavailable, "fibre server is not ready")
 }
 
-// httpHandler serves GET /livez and GET /readyz from the snapshot with Cache-Control: no-store.
+// httpHandler serves GET /livez and GET /readyz.
 func (m *healthManager) httpHandler() http.Handler {
 	serve := func(w http.ResponseWriter, ok bool, body any) {
 		w.Header().Set("Content-Type", "application/json")
@@ -447,7 +343,7 @@ func (m *healthManager) httpHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /livez", func(w http.ResponseWriter, _ *http.Request) {
 		phase := m.report().Phase
-		serve(w, phase == phaseStarting || phase == phaseRunning, map[string]string{"phase": phase})
+		serve(w, phase != phaseStopping, map[string]string{"phase": phase})
 	})
 	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, _ *http.Request) {
 		rep := m.report()
@@ -456,116 +352,92 @@ func (m *healthManager) httpHandler() http.Handler {
 	return mux
 }
 
-// unsupported reports a state client without probe support; the server then never becomes ready.
-func (m *healthManager) unsupported() (HealthCheck, bool) {
-	if m.deps.client != nil {
-		return HealthCheck{}, false
-	}
-	return fail(reasonUnsupported, "The configured state client cannot run health probes; use the default app client.", nil), true
-}
-
 func (m *healthManager) checkApp(ctx context.Context) HealthCheck {
-	if c, ok := m.unsupported(); ok {
-		return c
-	}
 	st, err := m.deps.client.NodeStatus(ctx)
-	age := time.Since(st.BlockTime)
-	switch {
-	case err != nil, st.ChainID == "" || st.Height == 0 || st.BlockTime.IsZero():
+	if err != nil || st.ChainID == "" || st.Height == 0 || st.BlockTime.IsZero() {
 		return fail(reasonAppUnreachable, "The app node did not answer a valid status request. Check app_grpc_address and that the node is running.", err)
-	case m.settings.expectedChainID != "" && st.ChainID != m.settings.expectedChainID:
-		return fail(reasonChainMismatch, fmt.Sprintf("The app node reports chain ID %q but expected_chain_id is %q.", st.ChainID, m.settings.expectedChainID), nil)
-	case st.ChainID != m.chainID:
-		return fail(reasonChainMismatch, fmt.Sprintf("The app node now reports chain ID %q but %q was detected at startup; restart if the endpoint changed on purpose.", st.ChainID, m.chainID), nil)
-	case st.CatchingUp:
-		return fail(reasonAppSyncing, "The app node is still syncing.", nil)
-	case age > m.settings.maxBlockAge:
-		return fail(reasonChainStalled, fmt.Sprintf("The latest block is %s old (limit %s); the app node may be stalled or disconnected.", age.Truncate(time.Second), m.settings.maxBlockAge), nil)
 	}
-	return HealthCheck{Status: "ok", Height: st.Height}
+	if st.ChainID != m.chainID {
+		return fail(reasonChainMismatch, fmt.Sprintf("The app node reports chain ID %q, expected %q.", st.ChainID, m.chainID), nil)
+	}
+	if st.CatchingUp {
+		return fail(reasonAppSyncing, "The app node is still syncing.", nil)
+	}
+	if age := time.Since(st.BlockTime); age > m.settings.maxBlockAge {
+		return fail(reasonChainStalled, fmt.Sprintf("The latest block is %s old (limit %s).", age.Truncate(time.Second), m.settings.maxBlockAge), nil)
+	}
+	return ok()
 }
 
-// checkModule queries the Fibre module. Unimplemented means the node answers but has no Fibre module; anything else means it did not answer.
 func (m *healthManager) checkModule(ctx context.Context) HealthCheck {
-	err := m.deps.module(ctx)
+	_, err := m.deps.client.FullStakeStorageBudget(ctx)
 	switch {
 	case err == nil:
-		return HealthCheck{Status: "ok"}
+		return ok()
 	case status.Code(err) == codes.Unimplemented:
-		return fail(reasonModuleUnavailable, "The app node does not serve celestia.fibre.v1.Query: the chain has not activated the Fibre module or app_grpc_address is not the application gRPC endpoint.", err)
+		return fail(reasonModuleUnavailable, "The app node has no Fibre module. Check that app_grpc_address is the application gRPC endpoint of a chain with Fibre enabled.", err)
 	default:
-		return fail(reasonAppUnreachable, "The app node did not answer the Fibre module query. Check app_grpc_address and that the node is running.", err)
+		return fail(reasonAppUnreachable, "The app node did not answer the Fibre module query.", err)
 	}
 }
 
-// checkSigner performs a real public key RPC. It proves signer access and identity, not that signing works.
-func (m *healthManager) checkSigner(ctx context.Context) HealthCheck {
-	var (
-		pk  crypto.PubKey
-		err error
-	)
-	if s, ok := m.deps.signer.(interface {
-		GetPubKeyContext(context.Context) (crypto.PubKey, error)
-	}); ok {
-		pk, err = s.GetPubKeyContext(ctx)
-	} else {
-		pk, err = m.deps.signer.GetPubKey()
+// checkSigner proves the signer is reachable and still holds the startup key.
+// It does not prove that signing works.
+func (m *healthManager) checkSigner(context.Context) HealthCheck {
+	pk, err := m.deps.signer.GetPubKey()
+	if err != nil || pk == nil {
+		return fail(reasonSignerUnreachable, "The signer did not return a public key. Check signer_grpc_address and the node's priv_validator_grpc_laddr.", err)
 	}
-	if err != nil || pk == nil || len(pk.Bytes()) == 0 {
-		return fail(reasonSignerUnreachable, "The signer did not return a valid public key. Check signer_grpc_address and the node's priv_validator_grpc_laddr.", err)
+	if !bytes.Equal(pk.Bytes(), m.deps.pubKey.Bytes()) {
+		return fail(reasonSignerKeyChanged, "The signer reports a different public key than at startup. Confirm the validator key and restart.", nil)
 	}
-	return HealthCheck{Status: "ok", Message: "Public key RPC succeeded; signing is only verified by real uploads.", pubKey: pk}
+	return ok()
 }
 
-func (m *healthManager) checkValidator(ctx context.Context, height uint64, addr crypto.Address) HealthCheck {
-	if c, ok := m.unsupported(); ok {
-		return c
-	}
-	set, err := m.deps.client.ValidatorSetAt(ctx, height)
+func (m *healthManager) checkValidator(ctx context.Context) HealthCheck {
+	set, err := m.deps.client.Head(ctx)
 	if err != nil || set.ValidatorSet == nil {
-		return fail(reasonValidatorSetUnavailable, fmt.Sprintf("Could not fetch the validator set at height %d; retried next cycle.", height), err)
+		return fail(reasonAppUnreachable, "Could not fetch the validator set from the app node.", err)
 	}
-	if val, found := set.GetByAddress(addr); !found || val.VotingPower <= 0 {
-		return fail(reasonValidatorInactive, fmt.Sprintf("The signer's validator is not in the active set at height %d with positive voting power.", height), nil)
+	if val, found := set.GetByAddress(m.deps.pubKey.Address()); !found || val.VotingPower <= 0 {
+		return fail(reasonValidatorInactive, fmt.Sprintf("Validator %s is not in the active set.", m.consAddress()), nil)
 	}
-	return HealthCheck{Status: "ok", Height: height}
+	return ok()
 }
 
-func (m *healthManager) checkRegistration(ctx context.Context, addr crypto.Address) HealthCheck {
-	if c, ok := m.unsupported(); ok {
-		return c
-	}
-	reg, err := m.deps.client.ProviderRegistration(ctx, addr)
+func (m *healthManager) checkRegistration(ctx context.Context) HealthCheck {
+	reg, err := m.deps.client.ProviderRegistration(ctx, m.deps.pubKey.Address())
 	switch {
 	case err != nil:
-		return fail(reasonRegistrationUnavailable, "Could not query the Fibre provider registration from the app node.", err)
+		return fail(reasonAppUnreachable, "Could not query the Fibre provider registration from the app node.", err)
 	case !reg.Found:
-		return fail(reasonNotRegistered, "Register this validator's Fibre provider host on chain with MsgSetFibreProviderInfo.", nil)
+		return fail(reasonNotRegistered, fmt.Sprintf("Register a Fibre provider host for validator %s with MsgSetFibreProviderInfo.", m.consAddress()), nil)
 	case valtypes.ValidateHost(reg.Host) != nil:
-		return fail(reasonHostInvalid, fmt.Sprintf("The registered provider host %q is not a valid host:port; re-register it.", reg.Host), nil)
+		return fail(reasonHostInvalid, fmt.Sprintf("The registered provider host %q is not a valid host:port. Register it again.", reg.Host), nil)
 	}
-	return HealthCheck{Status: "ok", RegisteredHost: reg.Host}
+	return ok()
 }
 
-func (m *healthManager) checkStore(ctx context.Context) HealthCheck {
-	err := m.deps.store.Probe(ctx, binary.BigEndian.AppendUint64(nil, uint64(time.Now().UnixNano())))
-	switch {
-	case err == nil:
-		return HealthCheck{Status: "ok"}
-	case errors.Is(err, ErrStoreProbeRead):
-		return fail(reasonStoreReadFailed, "The store could not read back the probe value; the database may be corrupted or closed.", err)
-	default:
-		return fail(reasonStoreWriteFailed, "The store rejected a small synced write. Check free disk space and permissions of the store directory.", err)
+func (m *healthManager) checkStore(context.Context) HealthCheck {
+	value := binary.BigEndian.AppendUint64(nil, uint64(time.Now().UnixNano()))
+	if err := m.deps.store.Probe(value); err != nil {
+		return fail(reasonStoreFailed, "The store failed a small write and read. Check free disk space and permissions of the store directory.", err)
 	}
+	return ok()
 }
 
-// healthService ends Watch streams at shutdown so GracefulStop cannot wait on them until the deadline.
+func (m *healthManager) consAddress() string {
+	return sdk.ConsAddress(m.deps.pubKey.Address()).String()
+}
+
+// healthService ends Watch streams when the server stops. Otherwise GracefulStop
+// would wait for them until the shutdown deadline.
 type healthService struct {
 	*health.Server
 	shutdown <-chan struct{}
 }
 
-func (h *healthService) Watch(in *healthpb.HealthCheckRequest, stream healthpb.Health_WatchServer) error {
+func (h *healthService) Watch(req *healthpb.HealthCheckRequest, stream healthpb.Health_WatchServer) error {
 	ctx, cancel := context.WithCancel(stream.Context())
 	defer cancel()
 	go func() {
@@ -575,11 +447,7 @@ func (h *healthService) Watch(in *healthpb.HealthCheckRequest, stream healthpb.H
 		case <-ctx.Done():
 		}
 	}()
-	err := h.Server.Watch(in, watchStream{stream, ctx})
-	if ctx.Err() != nil && stream.Context().Err() == nil {
-		_ = stream.Send(&healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_NOT_SERVING})
-	}
-	return err
+	return h.Server.Watch(req, watchStream{stream, ctx})
 }
 
 type watchStream struct {

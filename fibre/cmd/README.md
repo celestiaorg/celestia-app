@@ -277,7 +277,7 @@ For new node settings and their comments, see [Updating existing configuration f
 The server answers two questions:
 
 - **Alive**: is the process running and answering?
-- **Ready**: can it accept new uploads right now? Ready means startup finished and every dependency check below passed recently.
+- **Ready**: can it accept new uploads right now? Ready means startup finished and every check below passed.
 
 Downloads of stored shards keep working while the app node or signer is down. Readiness only covers new uploads and discovery.
 
@@ -318,33 +318,26 @@ Checks run in the background every `check_interval` (default `10s`), each with a
 | `app` | The app node does not answer, is still syncing, its latest block is older than `max_block_age` (default `2m`), or it reports a different chain ID. | `app_unreachable`, `app_syncing`, `chain_stalled`, `chain_id_mismatch` | Check `app_grpc_address` and the node. For a mismatch, check the network. |
 | `fibre_module` | The node answers but has no Fibre module. | `fibre_module_unavailable`, `app_unreachable` | Make sure `app_grpc_address` points at the application gRPC port of a chain with Fibre enabled. |
 | `signer` | The signer does not answer, or returns a different key than at startup. | `signer_unreachable`, `signer_key_changed` | Check the signer and `signer_grpc_address`. See [Signing](#signing). |
-| `validator` | The signer's validator is not in the active set, or the set cannot be read. | `validator_not_active`, `validator_set_unavailable` | Make sure the validator is bonded. |
-| `registration` | No Fibre provider is registered for this validator, or the registered `host:port` is invalid. | `provider_not_registered`, `provider_host_invalid`, `registration_unavailable` | [Register](#registration) the provider host. |
-| `store` | A small test write or read on the metadata store fails. | `store_write_failed`, `store_read_failed` | Check the disk and the store directory. |
+| `validator` | The validator is not in the active set. | `validator_not_active`, `app_unreachable` | Make sure the validator is bonded. |
+| `registration` | No Fibre provider is registered for this validator, or the registered `host:port` is invalid. | `provider_not_registered`, `provider_host_invalid`, `app_unreachable` | [Register](#registration) the provider host. |
+| `store` | A small test write or read on the metadata store fails. | `store_failed` | Check the disk and the store directory. |
 
-Notes:
-
-- A result older than two check intervals plus one probe timeout is reported as `stale` and fails readiness. This also catches a check that never returns.
-- `validator` and `registration` need the signer identity. Without it they report `dependency_failed`.
-- The `signer` check proves the signer is reachable, not that signing works. Only real uploads verify that.
-- The report never includes raw errors or file paths. Those go to the log, which records every check transition once.
+A check that does not finish within `probe_timeout` reports `probe_timeout` and is not started again until it returns. The `signer` check proves the signer is reachable, not that signing works; only real uploads verify that. The report never includes raw errors or file paths. Those go to the log, which records every check transition once.
 
 ### Reading the report
 
 Example `GET /readyz` body before the provider host is registered, other checks shortened:
 
 ```json
-{"status": "not_ready", "reason": "checks_failed", "failed_checks": ["registration"], "phase": "running",
- "chain_id": "mocha-4", "chain_id_source": "auto_detected", "checked_at": "2026-09-26T12:00:00Z",
- "checks": {"app": {"status": "ok", "checked_at": "2026-09-26T11:59:55Z", "last_success": "2026-09-26T11:59:55Z", "height": 123456},
-            "signer": {"status": "ok", "consensus_address": "celestiavalcons1...", "message": "Public key RPC succeeded; signing is only verified by real uploads."},
-            "registration": {"status": "failed", "reason": "provider_not_registered", "message": "Register this validator's Fibre provider host on chain with MsgSetFibreProviderInfo."}},
- "external_reachability": "not_checked", "end_to_end_upload": "not_checked"}
+{"status": "not_ready", "phase": "running", "chain_id": "mocha-4", "failed_checks": ["registration"],
+ "checks": {"app": {"status": "ok", "checked_at": "2026-09-26T12:00:00Z"},
+            "signer": {"status": "ok", "checked_at": "2026-09-26T12:00:00Z"},
+            "registration": {"status": "failed", "reason": "provider_not_registered",
+                             "message": "Register a Fibre provider host for validator celestiavalcons1... with MsgSetFibreProviderInfo.",
+                             "checked_at": "2026-09-26T12:00:00Z"}}}
 ```
 
-Look at `failed_checks` first, then the matching entry under `checks` for the reason and message.
-
-The `activity` block counts traffic since startup: `uploads`, `upload_failures`, `last_upload_at`, `downloads`, `download_misses` (requests for shards this server does not hold) and `last_download_at`. It never affects readiness. A ready server with no uploads usually points at registration, reachability or clients.
+Look at `failed_checks` first, then the matching entry under `checks` for the reason and message. `phase` is `starting`, `running` or `stopping`.
 
 ### Settings
 
@@ -356,8 +349,6 @@ All settings live in the `[health]` table of the config file.
 | `check_interval` | `10s` | How often checks run. |
 | `probe_timeout` | `3s` | Deadline of each check. |
 | `max_block_age` | `2m` | Oldest acceptable latest block before `app` reports `chain_stalled`. Tune it to the network's block time. |
-
-The metric `fibre.server.health.ready` exports readiness (`check=""`) and each check (`check=<name>`) as 1 or 0.
 
 ### Kubernetes
 

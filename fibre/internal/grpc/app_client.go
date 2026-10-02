@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
-	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
@@ -20,10 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-var (
-	_ state.Client       = (*AppClient)(nil)
-	_ state.HealthClient = (*AppClient)(nil)
-)
+var _ state.Client = (*AppClient)(nil)
 
 // AppClient manages a gRPC client connection to a celestia-app node
 // and provides the query methods needed by the Fibre server.
@@ -136,7 +132,7 @@ func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
 	return int64(budget), nil
 }
 
-// NodeStatus implements [state.HealthClient] with a fresh BlockAPI Status call.
+// NodeStatus implements [state.Client].
 func (c *AppClient) NodeStatus(ctx context.Context) (state.NodeStatus, error) {
 	resp, err := c.blockAPI.Status(ctx, &coregrpc.StatusRequest{})
 	if err != nil {
@@ -153,12 +149,7 @@ func (c *AppClient) NodeStatus(ctx context.Context) (state.NodeStatus, error) {
 	}, nil
 }
 
-// ValidatorSetAt implements [state.HealthClient]; [SetGetter] never caches.
-func (c *AppClient) ValidatorSetAt(ctx context.Context, height uint64) (validator.Set, error) {
-	return c.GetByHeight(ctx, height)
-}
-
-// ProviderRegistration implements [state.HealthClient], bypassing the [HostRegistry] cache.
+// ProviderRegistration implements [state.Client]. Unlike [HostRegistry.GetHost] it never caches.
 func (c *AppClient) ProviderRegistration(ctx context.Context, addr core.Address) (state.ProviderRegistration, error) {
 	resp, err := c.valaddrClient.FibreProviderInfo(ctx, &valtypes.QueryFibreProviderInfoRequest{
 		ValidatorConsensusAddress: sdk.ConsAddress(addr.Bytes()).String(),

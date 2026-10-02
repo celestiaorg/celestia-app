@@ -44,12 +44,6 @@ type Store struct {
 	closed atomic.Bool
 }
 
-// ErrStoreProbeWrite and ErrStoreProbeRead are wrapped by [Store.Probe].
-var (
-	ErrStoreProbeWrite = errors.New("store probe write failed")
-	ErrStoreProbeRead  = errors.New("store probe read failed")
-)
-
 // memStorePath is an arbitrary location inside the in-memory FS used by
 // [NewMemoryStore]; both pebble's files and our shards/staging subdirs live
 // under it so the layout matches the on-disk store.
@@ -516,23 +510,24 @@ func (s *Store) reconcile() error {
 	return nil
 }
 
-// Probe writes value under the reserved key /health/probe with fsync and reads it back. The
-// key lives outside the shard, promise and prune prefixes. Pebble ignores the context; callers
-// bound the call and must not Close while a probe runs.
-func (s *Store) Probe(_ context.Context, value []byte) error {
+// Probe writes value under the reserved key /health/probe with fsync and reads
+// it back. The key lives outside the shard, promise and prune prefixes. The
+// store must not be closed while a probe runs.
+func (s *Store) Probe(value []byte) error {
 	if s.closed.Load() {
-		return fmt.Errorf("%w: store is closed", ErrStoreProbeWrite)
+		return errors.New("store is closed")
 	}
-	if err := s.db.Set([]byte("/health/probe"), value, pebbledb.Sync); err != nil {
-		return fmt.Errorf("%w: %w", ErrStoreProbeWrite, err)
+	key := []byte("/health/probe")
+	if err := s.db.Set(key, value, pebbledb.Sync); err != nil {
+		return fmt.Errorf("write: %w", err)
 	}
-	got, closer, err := s.db.Get([]byte("/health/probe"))
+	got, closer, err := s.db.Get(key)
 	if err != nil {
-		return fmt.Errorf("%w: %w", ErrStoreProbeRead, err)
+		return fmt.Errorf("read: %w", err)
 	}
 	defer closer.Close()
 	if !bytes.Equal(got, value) {
-		return fmt.Errorf("%w: value mismatch after write", ErrStoreProbeRead)
+		return errors.New("read back a different value")
 	}
 	return nil
 }

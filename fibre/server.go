@@ -20,7 +20,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -45,10 +44,9 @@ type Server struct {
 	occ     *occupancy
 	uploads uploadCoordinator
 
-	health        *healthManager
-	healthMetrics metric.Registration
-	healthLn      net.Listener // optional HTTP health listener
-	healthHTTP    *http.Server
+	health     *healthManager
+	healthLn   net.Listener // optional HTTP health listener
+	healthHTTP *http.Server
 
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
@@ -90,15 +88,6 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		occ:       occ,
 		health:    newHealthManager(cfg.health, cfg.Log),
 	}
-	server.healthMetrics, err = metrics.registerHealthObserver(cfg.Meter, server.health.report)
-	if err != nil {
-		return nil, fmt.Errorf("registering health metrics: %w", err)
-	}
-	defer func() {
-		if err != nil {
-			_ = server.healthMetrics.Unregister()
-		}
-	}()
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
 	if err != nil {
@@ -145,13 +134,10 @@ func (s *Server) Store() *Store {
 	return s.store
 }
 
-// Start connects to the celestia-app node, creates the signer and TLS identity,
-// starts serving gRPC, opens the store, derives the storage budget and kicks off
-// background pruning and health checks. The HTTP health endpoints answer from
-// the first moment of Start and the gRPC health service as soon as the TLS
-// identity exists; Fibre RPCs return Unavailable until Start returns. On
-// failure every acquired resource is released. Stop waits for a running Start
-// to return; cancel ctx to abort a blocked Start.
+// Start connects to the celestia-app node, creates the signer, starts serving
+// gRPC, opens the store and kicks off background pruning and health checks.
+// Fibre RPCs return Unavailable until Start returns. On failure every acquired
+// resource is released.
 func (s *Server) Start(ctx context.Context) (err error) {
 	s.lifecycle.Lock()
 	defer s.lifecycle.Unlock()
@@ -210,12 +196,6 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	// Serve health (and gated Fibre RPCs) before the remaining, potentially slow initialization.
 	s.grpc.Serve()
 	s.health.set(true, HealthServiceLiveness)
-	go func() { // an unexpected Serve exit fails liveness until the CLI stops the process
-		<-s.grpc.Done()
-		if err := s.grpc.Err(); err != nil {
-			s.health.serveFailed(err)
-		}
-	}()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
 
 	pubKey, err := s.signer.GetPubKey()
@@ -254,13 +234,11 @@ func (s *Server) Start(ctx context.Context) (err error) {
 			"running without a storage limit until it is re-derived")
 	}
 
-	// Probes must bypass the validator set cache; a client without probe support
-	// leaves the server permanently not ready.
-	stateClient := s.state
-	if cc, ok := stateClient.(*state.CachingClient); ok {
-		stateClient = cc.Client
+	// Health checks must see the app node, not the validator set cache.
+	probeClient := s.state
+	if cc, ok := probeClient.(*state.CachingClient); ok {
+		probeClient = cc.Client
 	}
-	healthClient, _ := stateClient.(state.HealthClient)
 
 	bgCtx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel
@@ -271,12 +249,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		s.startPruneLoop(bgCtx)
 	}()
 
-	s.health.start(bgCtx, healthDeps{
-		client: healthClient,
-		module: func(ctx context.Context) error { _, err := s.state.FullStakeStorageBudget(ctx); return err },
-		signer: s.signer,
-		store:  s.store,
-	}, chainID)
+	s.health.start(bgCtx, healthDeps{client: probeClient, signer: s.signer, pubKey: pubKey, store: s.store}, chainID)
 	return nil
 }
 
@@ -324,7 +297,6 @@ func (s *Server) stop(ctx context.Context) (err error) {
 	if s.pruneDone != nil {
 		<-s.pruneDone
 	}
-	_ = s.healthMetrics.Unregister()
 
 	if closer, ok := s.signer.(io.Closer); ok {
 		if closeErr := closer.Close(); closeErr != nil {
