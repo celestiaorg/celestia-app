@@ -16,15 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Connection and stream caps bound receive memory: gRPC buffers a full
-// UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The defaults
-// are intentionally conservative for a 32 GiB-RAM validator; operators can
-// override both caps via config to trade RAM for throughput.
-//
-// NewServerCodec separately limits rows and proofs before decoding allocates
-// memory for them, and rejects oversized DownloadShard requests before copying
-// them.
+// Transport limits are separate from global RPC admission and its upload reserve.
 const (
 	// DefaultMaxConnections is the default total connection cap.
 	DefaultMaxConnections = 16
@@ -56,13 +48,17 @@ type Server struct {
 	listener             net.Listener
 	done                 chan struct{}
 	maxConcurrentStreams uint32
+	admission            *rpcAdmission
 }
 
 // Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
 // is created lazily by [Server.Register] so callers can defer building
 // credentials until after the listener address is known (e.g., for TLS certs
 // that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Server, error) {
+func Listen(listenAddr string, maxConnections, maxConcurrentStreams, maxRPCs, reservedUploads int, disableAdmission bool) (*Server, error) {
+	if !disableAdmission && (maxRPCs < 1 || reservedUploads < 0 || reservedUploads > maxRPCs) {
+		return nil, fmt.Errorf("invalid RPC admission limits")
+	}
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
@@ -70,7 +66,15 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
+	return &Server{
+		listener:             listener,
+		maxConcurrentStreams: uint32(maxConcurrentStreams),
+		admission: &rpcAdmission{
+			disabled:            disableAdmission,
+			maxRPCs:             maxRPCs,
+			reservedUploadSlots: reservedUploads,
+		},
+	}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
@@ -80,8 +84,12 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 // panic in any handler (e.g. a malformed request that slips past validation)
 // is converted into an Internal gRPC error instead of crashing the process.
 func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
+	opts = append([]grpc.ServerOption{grpc.ForceServerCodecV2(NewServerCodec(4096, 14))}, opts...)
 	opts = append(opts,
-		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
+		// Bound buffering before admission, including peers that send before rejection.
+		grpc.StaticStreamWindowSize(1<<20),
+		// Static windows disable BDP growth; allow one stream window per default stream.
+		grpc.StaticConnWindowSize(DefaultMaxConcurrentStreams*(1<<20)),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
@@ -96,7 +104,8 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
-	types.RegisterFibreServer(s.server, service)
+	// Acquire admission before receiving and decoding payloads; unary interceptors run after decoding.
+	s.admission.register(s.server, service)
 }
 
 // recoverUnaryInterceptor recovers from panics in unary handlers and returns an

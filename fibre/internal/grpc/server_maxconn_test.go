@@ -14,7 +14,7 @@ import (
 func TestListenCapsConnectionsAtConfiguredLimit(t *testing.T) {
 	for _, maxConns := range []int{2, 4} {
 		t.Run("", func(t *testing.T) {
-			srv, err := Listen("127.0.0.1:0", maxConns, DefaultMaxConcurrentStreams)
+			srv, err := Listen("127.0.0.1:0", maxConns, DefaultMaxConcurrentStreams, 20, 8, false)
 			require.NoError(t, err)
 			defer srv.listener.Close()
 

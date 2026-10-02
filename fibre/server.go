@@ -72,7 +72,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		occ:       occ,
 	}
 
-	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams, cfg.MaxInflightRPCs, cfg.ReservedUploadSlots, cfg.DisableRPCAdmission)
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}

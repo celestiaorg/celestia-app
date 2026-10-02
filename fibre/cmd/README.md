@@ -158,15 +158,36 @@ After all object shards are pruned, namespace changes need no override.
 
 ### Connection caps and memory
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+Transport limits remain `max_connections = 16` and `max_concurrent_streams = 13`.
+RPC admission separately allows 52 operations across all connections, with 21 slots (about 40%) reserved for uploads:
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```toml
+disable_rpc_admission = false
+max_inflight_rpcs = 52
+reserved_upload_slots = 21
 ```
 
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+Set `disable_rpc_admission = true` to bypass the global RPC cap and upload reservation, then restart Fibre.
+The admission settings are ignored while disabled. Transport, message-size and shard-row limits still apply.
+Disabling admission removes the global operation limit.
 
-An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+Reads can occupy at most 31 slots; uploads can use all 52.
+Excess requests receive `ResourceExhausted` before message decoding. Clients should retry with backoff and jitter.
+Slots remain occupied until the handler finishes and all response-buffer references are released, including after connection closure.
+Downloads are sent uncompressed so their queued buffers remain tracked. Compressed requests are supported.
+Receive flow-control windows are fixed at 1 MiB per stream to bound buffering before admission.
+Connection flow-control credit is fixed at 13 MiB, matching the 13 default streams; this is not a resident-memory limit.
+These limits reserve RPC capacity, not bandwidth or write throughput.
+
+The default slot count uses a fixed 14% voting-power reference: `ceil(4096 × 0.14 × 3) = 1721` rows.
+At that reference, 55.678 MiB including metadata and framing slack × three payload representations × 52 operations estimates 8.48 GiB.
+This estimate excludes GC, pools and other allocations. It is not a process-memory ceiling.
+The server still accepts the protocol maximum of 4096 rows and approximately 132 MiB per message.
+At that maximum, the same three-copy estimate for 52 operations is about 20.1 GiB.
+Size concurrency using memory available to Fibre, not total validator RAM. Slot counts do not follow stake changes automatically.
+
+Protocol bounds apply before decoding uploads and stored downloads.
+Add the admission settings to existing config files if needed, then restart Fibre.
 
 ## Signing
 

@@ -89,6 +89,8 @@ func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vec
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
 	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
+	defer clear(v.rowsScratch)
+	defer clear(v.proofScratch)
 	return v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)
 }
 

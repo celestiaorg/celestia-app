@@ -197,6 +197,7 @@ func (p ProtocolParams) MaxRowSize(blobVersion uint8) int {
 // MaxShardSize calculates the maximum size of a shard in bytes.
 // A shard contains: RLC vector + (rows_per_validator * (row_index + row_data + merkle_proof))
 func (p ProtocolParams) MaxShardSize() int {
+	rows := p.MaxRowsPerValidator()
 	const (
 		rowIndexSize = 4  // uint32 index per row
 		rlcEntrySize = 16 // uint128 RLC vector entry per row
@@ -206,7 +207,7 @@ func (p ProtocolParams) MaxShardSize() int {
 	rlcsSize := p.Rows * rlcEntrySize
 	proofSizePerRow := p.MerkleProofDepth() * sha256.Size
 
-	return rlcsSize + (p.MaxRowsPerValidator() * (rowIndexSize + maxRowSize + proofSizePerRow))
+	return rlcsSize + (rows * (rowIndexSize + maxRowSize + proofSizePerRow))
 }
 
 // MerkleProofDepth returns ceil(log2(TotalRows)), the number of sibling hashes

@@ -335,3 +335,34 @@ buckett = "fibre-shards"
 		})
 	}
 }
+
+func TestServerConfigAdmission(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.Path = t.TempDir()
+	require.NoError(t, cfg.Validate())
+	require.Equal(t, 52, cfg.MaxInflightRPCs)
+	require.False(t, cfg.DisableRPCAdmission)
+	require.Equal(t, 21, cfg.ReservedUploadSlots)
+	require.Equal(t, DefaultProtocolParams.MaxMessageSize(), cfg.MaxMessageSize)
+	path := DefaultConfigPath(t.TempDir())
+	require.NoError(t, cfg.Save(path))
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(path))
+	require.Equal(t, cfg.MaxMessageSize, loaded.MaxMessageSize)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "max_rpc_shard_rows")
+	for _, limits := range [][2]int{{0, 0}, {20, -1}, {20, 21}} {
+		cfg.MaxInflightRPCs, cfg.ReservedUploadSlots = limits[0], limits[1]
+		require.Error(t, cfg.Validate())
+	}
+	cfg.DisableRPCAdmission = true
+	cfg.MaxInflightRPCs, cfg.ReservedUploadSlots = 0, -1
+	require.NoError(t, cfg.Validate())
+	require.NoError(t, cfg.Save(path))
+	require.NoError(t, loaded.Load(path))
+	require.True(t, loaded.DisableRPCAdmission)
+	loaded.Path = cfg.Path
+	require.NoError(t, loaded.Validate())
+	require.Equal(t, DefaultProtocolParams.MaxMessageSize(), loaded.MaxMessageSize)
+}

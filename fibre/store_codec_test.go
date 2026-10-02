@@ -74,7 +74,7 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
 				b = binary.BigEndian.AppendUint32(b, 0) // rlcs_len
-				b = binary.BigEndian.AppendUint32(b, maxShardRows+1)
+				b = binary.BigEndian.AppendUint32(b, uint32(DefaultProtocolParams.MaxRowsPerValidator()+1))
 				return b
 			},
 			wantSub: "num rows",
@@ -88,17 +88,17 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 				b = binary.BigEndian.AppendUint32(b, 1) // numRows = 1
 				b = binary.BigEndian.AppendUint32(b, 0) // row index
 				b = binary.BigEndian.AppendUint32(b, 0) // row data_len
-				b = binary.BigEndian.AppendUint32(b, maxRowProofSegments+1)
+				b = binary.BigEndian.AppendUint32(b, uint32(DefaultProtocolParams.MerkleProofDepth()+1))
 				return b
 			},
 			wantSub: "num proof",
 		},
 		{
-			name: "byte length above 1 GiB cap",
+			name: "RLC byte length above cap",
 			buildFile: func() []byte {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
-				b = binary.BigEndian.AppendUint32(b, shardLengthLimit+1) // rlcs_len
+				b = binary.BigEndian.AppendUint32(b, uint32(DefaultProtocolParams.Rows*16+1)) // rlcs_len
 				return b
 			},
 			wantSub: "exceeds shard limit",
@@ -258,5 +258,27 @@ func TestShardCodecTruncatedMidRow(t *testing.T) {
 		_, err := readShardBinary(bytes.NewReader(full[:cut]))
 		require.Error(t, err, "cut at %d should fail", cut)
 		require.True(t, errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF), "cut at %d: got %v", cut, err)
+	}
+}
+
+func TestShardCodecReadLimit(t *testing.T) {
+	var header []byte
+	for _, value := range []uint32{shardCodecVersion, 0, 4097} {
+		header = binary.BigEndian.AppendUint32(header, value)
+	}
+	_, err := readShardBinary(bytes.NewReader(header))
+	require.ErrorIs(t, err, ErrShardTooLarge)
+	// Oversized fields must fail on their prefix, without reading a payload.
+	for _, values := range [][]uint32{
+		{shardCodecVersion, 65537},
+		{shardCodecVersion, 0, 1, 0, 32769},
+		{shardCodecVersion, 0, 1, 0, 0, 1, 33},
+	} {
+		var data []byte
+		for _, v := range values {
+			data = binary.BigEndian.AppendUint32(data, v)
+		}
+		_, err := readShardBinary(bytes.NewReader(data))
+		require.ErrorContains(t, err, "exceeds shard limit")
 	}
 }

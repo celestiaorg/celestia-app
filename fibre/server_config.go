@@ -69,9 +69,16 @@ type ServerConfig struct {
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// MaxConnections caps total concurrent gRPC connections.
-	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
+	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). RPC admission separately limits payload allocations."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
-	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). RPC admission separately limits payload allocations."`
+
+	// DisableRPCAdmission bypasses the global RPC cap and upload reservation.
+	DisableRPCAdmission bool `toml:"disable_rpc_admission" comment:"Disable the global RPC cap and upload reservation (default false). Transport and shard size limits still apply. This removes the global operation limit."`
+	// MaxInflightRPCs caps operations across connections, including retained response buffers.
+	MaxInflightRPCs int `toml:"max_inflight_rpcs" comment:"Maximum in-flight uploads and downloads (default 52)."`
+	// ReservedUploadSlots cannot be occupied by downloads.
+	ReservedUploadSlots int `toml:"reserved_upload_slots" comment:"Slots reserved for uploads within max_inflight_rpcs (default 21, about 40% of the default total)."`
 
 	StoreConfig
 
@@ -136,6 +143,8 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:       p.MaxMessageSize(),
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
+		MaxInflightRPCs:      52, // 14% stake estimate: 52 × 3 × 55.678 MiB ≈ 8.48 GiB; not a memory ceiling.
+		ReservedUploadSlots:  21,
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}
@@ -190,6 +199,9 @@ func (cfg *ServerConfig) Validate() error {
 		}
 	}
 
+	if !cfg.DisableRPCAdmission && (cfg.MaxInflightRPCs < 1 || cfg.ReservedUploadSlots < 0 || cfg.ReservedUploadSlots > cfg.MaxInflightRPCs) {
+		return fmt.Errorf("max_inflight_rpcs must be positive and reserved_upload_slots must be between zero and max_inflight_rpcs")
+	}
 	if cfg.MinUploadSize < 1 || cfg.MinUploadSize > DefaultProtocolParams.MaxBlobSize {
 		return fmt.Errorf("min_upload_size must be between 1 and %d bytes, got %d", DefaultProtocolParams.MaxBlobSize, cfg.MinUploadSize)
 	}
