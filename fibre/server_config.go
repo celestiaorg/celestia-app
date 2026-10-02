@@ -77,9 +77,9 @@ type ServerConfig struct {
 	// DisableRPCAdmission bypasses the global RPC cap and upload reservation.
 	DisableRPCAdmission bool `toml:"disable_rpc_admission" comment:"Disable the global RPC cap and upload reservation (default false). Transport and shard size limits still apply. This removes the combined RPC memory budget."`
 	// MaxInflightRPCs caps operations across connections, including retained response buffers.
-	MaxInflightRPCs int `toml:"max_inflight_rpcs" comment:"Maximum in-flight uploads and downloads (default 20)."`
+	MaxInflightRPCs int `toml:"max_inflight_rpcs" comment:"Maximum in-flight uploads and downloads (default 52)."`
 	// ReservedUploadSlots cannot be occupied by downloads.
-	ReservedUploadSlots int `toml:"reserved_upload_slots" comment:"Slots reserved for uploads within max_inflight_rpcs (default 8)."`
+	ReservedUploadSlots int `toml:"reserved_upload_slots" comment:"Slots reserved for uploads within max_inflight_rpcs (default 21, about 40% of the default total)."`
 	// MaxRPCShardRows bounds uploads and stored downloads before decoding.
 	MaxRPCShardRows int `toml:"max_rpc_shard_rows" comment:"Maximum rows per RPC shard (default 1721, a 14% voting-power reference). Larger uploads and stored downloads are rejected. Raise up to 4096 if needed; this increases memory use."`
 
@@ -147,8 +147,8 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:       p.MaxMessageSize(),
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
-		MaxInflightRPCs:      20,
-		ReservedUploadSlots:  8,
+		MaxInflightRPCs:      52, // 52 × 3 × 55.678 MiB estimates 8.48 GiB of RPC payloads.
+		ReservedUploadSlots:  21,
 		MaxRPCShardRows:      min(p.MaxRowsPerValidator(), ceilDiv(p.Rows*14*int(p.LivenessThreshold.Denominator), 100*int(p.LivenessThreshold.Numerator))),
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,

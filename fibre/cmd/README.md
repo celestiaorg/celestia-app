@@ -155,12 +155,12 @@ After all object shards are pruned, namespace changes need no override.
 ### Connection caps and memory
 
 Transport limits remain `max_connections = 16` and `max_concurrent_streams = 13`.
-RPC admission separately allows 20 operations across all connections, with 8 slots reserved for uploads:
+RPC admission separately allows 52 operations across all connections, with 21 slots (about 40%) reserved for uploads:
 
 ```toml
 disable_rpc_admission = false
-max_inflight_rpcs = 20
-reserved_upload_slots = 8
+max_inflight_rpcs = 52
+reserved_upload_slots = 21
 max_rpc_shard_rows = 1721
 ```
 
@@ -168,7 +168,7 @@ Set `disable_rpc_admission = true` to bypass the global RPC cap and upload reser
 The admission settings are ignored while disabled. Transport, message-size and shard-row limits still apply.
 Disabling admission removes the combined RPC memory budget.
 
-Reads can occupy at most 12 slots; uploads can use all 20.
+Reads can occupy at most 31 slots; uploads can use all 52.
 Excess requests receive `ResourceExhausted` before message decoding. Clients should retry with backoff and jitter.
 Slots remain occupied until the handler finishes and all response-buffer references are released, including after connection closure.
 Downloads are sent uncompressed so their queued buffers remain tracked. Compressed requests are supported.
@@ -178,7 +178,7 @@ These limits reserve RPC capacity, not bandwidth or write throughput.
 
 The default row limit uses a fixed 14% voting-power reference: `ceil(4096 × 0.14 × 3) = 1721` rows.
 A maximum-sized shard at that reference is about 54.64 MiB, including metadata; the receive limit adds 2% framing slack.
-Three payload representations across 20 operations estimate roughly 3.3 GiB, before GC, pools and other allocations.
+The 55.678 MiB message allowance × three payload representations × 52 operations estimates 8.48 GiB, before GC, pools and other allocations.
 This is a sizing estimate, not a process-memory ceiling. Size limits using memory available to Fibre, not total validator RAM.
 
 The row limit applies before decoding uploads and stored downloads. Larger stored shards remain intact but cannot be served at this setting.
