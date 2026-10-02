@@ -274,35 +274,64 @@ For new node settings and their comments, see [Updating existing configuration f
 
 ## Health
 
-The listener serves the standard [gRPC health service](https://grpc.io/docs/guides/health-checking/) (`Check` and `Watch`); an optional HTTP listener adds a JSON readiness report. **Ready** means the process responds, its dependencies passed recent checks, and its validator identity is set up to receive new uploads. Downloads of stored shards keep working while the app node or signer is down, so readiness only gates new uploads and discovery.
+The server answers two questions:
 
-| gRPC service name | `SERVING` means |
-|---|---|
-| `fibre-liveness` | The gRPC server runs and answers; dependency outages never affect it. `NOT_SERVING` during shutdown. |
-| `fibre-readiness` | Initialization finished and every check below passed within two check intervals plus one probe timeout. |
-| `celestia.fibre.v1.Fibre`, `""` | Aliases of `fibre-readiness`. |
+- **Alive**: is the process running and answering?
+- **Ready**: can it accept new uploads right now? Ready means startup finished and every dependency check below passed recently.
 
-The listener is TLS-only, so probes skip verification of the self-signed identity certificate, and it exists only once the app connection and signer are up (the TLS identity is endorsed by the consensus key). Until then the HTTP endpoints are the only health surface.
+Downloads of stored shards keep working while the app node or signer is down. Readiness only covers new uploads and discovery.
 
-```sh
-go install github.com/grpc-ecosystem/grpc-health-probe@latest
-grpc_health_probe -addr=127.0.0.1:7980 -tls -tls-no-verify -service=fibre-readiness
-fibre start --health-listen-address=127.0.0.1:7981   # or health_listen_address in the config; disabled by default
-curl -i http://127.0.0.1:7981/readyz                  # 200 when ready, else 503 with the report; /livez covers liveness
-```
+### How to check
 
-Every check is required. Checks run in the background on `check_interval`; health requests only read the snapshot, so polling adds no load. A result older than its maximum age reports `stale` and fails readiness, which also covers a check that never returns (`probe_timeout`: no second probe starts until it does). `validator` and `registration` need the signer identity and report `dependency_failed` when it is missing. With the defaults an app or signer failure is detected within about 13 seconds.
+Two ways, pick either:
 
-| Check | Passes when | Reason codes |
-|---|---|---|
-| `app` | A fresh `BlockAPI.Status` reports valid info, `catching_up == false`, a block younger than `max_block_age`, and the chain ID detected at startup (and `expected_chain_id` when set). | `app_unreachable`, `app_syncing`, `chain_stalled`, `chain_id_mismatch` |
-| `fibre_module` | The Fibre module query answers; `Unimplemented` means the chain has not activated the module or the address is not the application gRPC endpoint. | `fibre_module_unavailable`, `app_unreachable` |
-| `signer` | A real `GetPubKey` RPC returns a key that has not changed since startup. It proves access and identity, not signing; only uploads verify `SignRawBytes`. | `signer_unreachable`, `signer_key_changed` |
-| `validator` | The signer's consensus address is in the uncached validator set at the observed height with positive voting power. | `validator_not_active`, `validator_set_unavailable` |
-| `registration` | The validator's `FibreProviderInfo` is found (uncached) with a valid `host:port`. | `provider_not_registered`, `provider_host_invalid`, `registration_unavailable` |
-| `store` | The Pebble metadata store accepts a small synced write under the reserved key `/health/probe` and reads it back. No promises, markers or payloads are created. | `store_write_failed`, `store_read_failed` |
+1. **gRPC** on the normal server port (`server_listen_address`). Always on. The port is TLS-only with a self-signed identity certificate, so tell the probe not to verify it:
 
-Example `GET /readyz` body before the provider host is registered (other checks abbreviated):
+   ```sh
+   go install github.com/grpc-ecosystem/grpc-health-probe@latest
+   grpc_health_probe -addr=127.0.0.1:7980 -tls -tls-no-verify -service=fibre-readiness
+   ```
+
+   | Service name | `SERVING` means |
+   |---|---|
+   | `fibre-liveness` | The server runs and answers. `NOT_SERVING` only during shutdown. |
+   | `fibre-readiness` | Ready, as defined above. `celestia.fibre.v1.Fibre` and `""` mean the same. |
+
+2. **HTTP** on a separate port. Off by default. It also returns a JSON report that names the failing check, which is the fastest way to debug.
+
+   ```sh
+   fibre start --health-listen-address=127.0.0.1:7981   # or health_listen_address in the config
+   curl -i http://127.0.0.1:7981/livez                    # 200 while alive
+   curl -i http://127.0.0.1:7981/readyz                   # 200 when ready, else 503 with the report
+   ```
+
+   Bind it to localhost or the pod address. Do not expose it publicly.
+
+The gRPC port only exists once the app connection and signer are up, because the TLS certificate is built from the consensus key. Before that, the HTTP endpoints are the only way to see what the server is waiting on.
+
+### What is checked
+
+Checks run in the background every `check_interval` (default `10s`), each with a `probe_timeout` (default `3s`). Health requests only read the last results, so polling adds no load. All checks must pass. With the defaults an app or signer failure shows up within about 13 seconds.
+
+| Check | Fails when | Reason code | What to do |
+|---|---|---|---|
+| `app` | The app node does not answer, is still syncing, its latest block is older than `max_block_age` (default `2m`), or it reports a different chain ID. | `app_unreachable`, `app_syncing`, `chain_stalled`, `chain_id_mismatch` | Check `app_grpc_address` and the node. For a mismatch, check the network. |
+| `fibre_module` | The node answers but has no Fibre module. | `fibre_module_unavailable`, `app_unreachable` | Make sure `app_grpc_address` points at the application gRPC port of a chain with Fibre enabled. |
+| `signer` | The signer does not answer, or returns a different key than at startup. | `signer_unreachable`, `signer_key_changed` | Check the signer and `signer_grpc_address`. See [Signing](#signing). |
+| `validator` | The signer's validator is not in the active set, or the set cannot be read. | `validator_not_active`, `validator_set_unavailable` | Make sure the validator is bonded. |
+| `registration` | No Fibre provider is registered for this validator, or the registered `host:port` is invalid. | `provider_not_registered`, `provider_host_invalid`, `registration_unavailable` | [Register](#registration) the provider host. |
+| `store` | A small test write or read on the metadata store fails. | `store_write_failed`, `store_read_failed` | Check the disk and the store directory. |
+
+Notes:
+
+- A result older than two check intervals plus one probe timeout is reported as `stale` and fails readiness. This also catches a check that never returns.
+- `validator` and `registration` need the signer identity. Without it they report `dependency_failed`.
+- The `signer` check proves the signer is reachable, not that signing works. Only real uploads verify that.
+- The report never includes raw errors or file paths. Those go to the log, which records every check transition once.
+
+### Reading the report
+
+Example `GET /readyz` body before the provider host is registered, other checks shortened:
 
 ```json
 {"status": "not_ready", "reason": "checks_failed", "failed_checks": ["registration"], "phase": "running",
@@ -313,9 +342,30 @@ Example `GET /readyz` body before the provider host is registered (other checks 
  "external_reachability": "not_checked", "end_to_end_upload": "not_checked"}
 ```
 
-The `activity` block counts traffic since startup (`uploads`, `upload_failures`, `last_upload_at`, `downloads`, `download_misses` for "no blob shard found" responses, `last_download_at`). It never affects readiness: a ready server that receives no uploads points at registration, reachability or clients, and many misses mean clients ask for shards this server does not hold. Responses carry `Cache-Control: no-store` and never include raw upstream errors or paths; those go to the log, which records every check transition once. `chain_id_source` is `auto_detected` unless `expected_chain_id` is set; auto-detection cannot notice a wrong network at first startup, so set it in production. Configure the checks in the `[health]` table: `expected_chain_id` (flag `--expected-chain-id`), `check_interval` (`10s`), `probe_timeout` (`3s`), `max_block_age` (`2m`). The metric `fibre.server.health.ready` exports readiness (`check=""`) and each check (`check=<name>`) as 1 or 0.
+Look at `failed_checks` first, then the matching entry under `checks` for the reason and message.
 
-Kubernetes' built-in gRPC probes do not support TLS, so point `httpGet` probes at `/livez` (startup and liveness) and `/readyz` (readiness) on the health listener, bound to the pod address and kept off public services. App or signer outages only affect readiness, so they never cause restart loops. The report cannot verify reachability of the registered public `host:port` or the full upload path: probe the public address from another machine and run a small upload canary with a funded escrow account separately.
+The `activity` block counts traffic since startup: `uploads`, `upload_failures`, `last_upload_at`, `downloads`, `download_misses` (requests for shards this server does not hold) and `last_download_at`. It never affects readiness. A ready server with no uploads usually points at registration, reachability or clients.
+
+### Settings
+
+All settings live in the `[health]` table of the config file.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `expected_chain_id` (flag `--expected-chain-id`) | empty | Chain ID the app node must report. Empty auto-detects it at startup, which cannot notice a wrong network. Set it in production. |
+| `check_interval` | `10s` | How often checks run. |
+| `probe_timeout` | `3s` | Deadline of each check. |
+| `max_block_age` | `2m` | Oldest acceptable latest block before `app` reports `chain_stalled`. Tune it to the network's block time. |
+
+The metric `fibre.server.health.ready` exports readiness (`check=""`) and each check (`check=<name>`) as 1 or 0.
+
+### Kubernetes
+
+Kubernetes' built-in gRPC probes do not support TLS, so enable the HTTP listener and use `httpGet` probes: `/livez` for startup and liveness, `/readyz` for readiness. App or signer outages only affect readiness, so they never cause restart loops.
+
+### What it cannot check
+
+The server cannot verify from the inside that its registered public `host:port` is reachable, or that a full upload succeeds. Probe the public address from another machine and run a small upload canary with a funded escrow account separately.
 
 ## Observability
 
