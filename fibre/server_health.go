@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
@@ -26,7 +24,7 @@ import (
 )
 
 // gRPC health service names. Liveness means the gRPC server answers. Readiness
-// means initialization finished and every check passed recently.
+// means initialization finished and every check passed.
 const (
 	HealthServiceLiveness  = "fibre-liveness"
 	HealthServiceReadiness = "fibre-readiness"
@@ -45,8 +43,6 @@ const (
 	checkStore        = "store"
 )
 
-var checkNames = []string{checkApp, checkModule, checkSigner, checkValidator, checkRegistration, checkStore}
-
 // Server phases.
 const (
 	phaseStarting = "starting"
@@ -57,7 +53,6 @@ const (
 // Reason codes of failed checks. Automation should key on these.
 const (
 	reasonNotChecked        = "not_checked"
-	reasonTimeout           = "probe_timeout"
 	reasonAppUnreachable    = "app_unreachable"
 	reasonAppSyncing        = "app_syncing"
 	reasonChainStalled      = "chain_stalled"
@@ -104,37 +99,28 @@ type healthDeps struct {
 	store  *Store
 }
 
+type check struct {
+	name string
+	run  func(context.Context) HealthCheck
+}
+
 // healthManager runs the checks and publishes the result to the gRPC health
 // service and the HTTP handler. Health requests only read the last results.
 type healthManager struct {
 	settings healthSettings
 	log      *slog.Logger
 	hs       *health.Server
-	shutdown chan struct{} // closed by stop, ends Watch streams
-	serving  atomic.Bool   // opens the gate for Fibre RPCs
 
-	mu       sync.Mutex
-	phase    string
-	chainID  string
-	deps     healthDeps
-	results  map[string]HealthCheck
-	running  map[string]bool // checks whose probe has not returned yet
-	ready    bool
-	loopStop context.CancelFunc
-	loopDone chan struct{}
-	probes   sync.WaitGroup
+	mu      sync.Mutex
+	phase   string
+	chainID string
+	deps    healthDeps
+	results map[string]HealthCheck
+	ready   bool
 }
 
 func newHealthManager(settings healthSettings, log *slog.Logger) *healthManager {
-	m := &healthManager{
-		settings: settings,
-		log:      log,
-		hs:       health.NewServer(),
-		shutdown: make(chan struct{}),
-		phase:    phaseStarting,
-		results:  map[string]HealthCheck{},
-		running:  map[string]bool{},
-	}
+	m := &healthManager{settings: settings, log: log, hs: health.NewServer(), phase: phaseStarting, results: map[string]HealthCheck{}}
 	// health.NewServer marks the empty service SERVING; nothing is ready yet.
 	m.set(false, HealthServiceLiveness)
 	m.set(false, readinessServices...)
@@ -152,75 +138,46 @@ func (m *healthManager) set(serving bool, services ...string) {
 }
 
 func (m *healthManager) registerGRPC(reg grpclib.ServiceRegistrar) {
-	healthpb.RegisterHealthServer(reg, &healthService{Server: m.hs, shutdown: m.shutdown})
+	healthpb.RegisterHealthServer(reg, healthServer{m.hs})
 }
 
-// start marks initialization complete, opens the RPC gate and runs the checks
-// every check interval, the first time immediately.
-func (m *healthManager) start(ctx context.Context, deps healthDeps, chainID string) {
+// start marks initialization complete and publishes liveness.
+func (m *healthManager) start(deps healthDeps, chainID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.phase, m.chainID, m.deps = phaseRunning, chainID, deps
-	m.serving.Store(true)
-	ctx, m.loopStop = context.WithCancel(ctx)
-	m.loopDone = make(chan struct{})
-	go func() {
-		defer close(m.loopDone)
-		for {
-			m.cycle(ctx)
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(m.settings.checkInterval):
-			}
+	m.set(true, HealthServiceLiveness)
+}
+
+// run executes the checks every check interval until ctx ends, the first time immediately.
+func (m *healthManager) run(ctx context.Context) {
+	for {
+		m.cycle(ctx)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(m.settings.checkInterval):
 		}
-	}()
+	}
 }
 
-// cycle runs all checks concurrently and waits for them.
+func (m *healthManager) checks() []check {
+	return []check{
+		{checkApp, m.checkApp},
+		{checkModule, m.checkModule},
+		{checkSigner, m.checkSigner},
+		{checkValidator, m.checkValidator},
+		{checkRegistration, m.checkRegistration},
+		{checkStore, m.checkStore},
+	}
+}
+
+// cycle runs the checks one after another, each bounded by the probe timeout.
 func (m *healthManager) cycle(ctx context.Context) {
-	checks := map[string]func(context.Context) HealthCheck{
-		checkApp:          m.checkApp,
-		checkModule:       m.checkModule,
-		checkSigner:       m.checkSigner,
-		checkValidator:    m.checkValidator,
-		checkRegistration: m.checkRegistration,
-		checkStore:        m.checkStore,
-	}
-	var wg sync.WaitGroup
-	for name, fn := range checks {
-		wg.Go(func() { m.run(ctx, name, fn) })
-	}
-	wg.Wait()
-}
-
-// run executes one check bounded by the probe timeout. A probe that ignores its
-// context keeps running: a timeout is recorded now, its late result is dropped,
-// and the check is not started again until it returns.
-func (m *healthManager) run(ctx context.Context, name string, fn func(context.Context) HealthCheck) {
-	m.mu.Lock()
-	if m.running[name] {
-		m.mu.Unlock()
-		return
-	}
-	m.running[name] = true
-	m.mu.Unlock()
-
-	ctx, cancel := context.WithTimeout(ctx, m.settings.probeTimeout)
-	defer cancel()
-	done := make(chan HealthCheck, 1)
-	m.probes.Go(func() {
-		res := fn(ctx)
-		m.mu.Lock()
-		m.running[name] = false
-		m.mu.Unlock()
-		done <- res
-	})
-	select {
-	case res := <-done:
-		m.record(name, res)
-	case <-ctx.Done():
-		m.record(name, fail(reasonTimeout, fmt.Sprintf("The %s check did not finish within %s.", name, m.settings.probeTimeout), ctx.Err()))
+	for _, c := range m.checks() {
+		cctx, cancel := context.WithTimeout(ctx, m.settings.probeTimeout)
+		m.record(c.name, c.run(cctx))
+		cancel()
 	}
 }
 
@@ -246,16 +203,15 @@ func (m *healthManager) record(name string, res HealthCheck) {
 	m.publish()
 }
 
-// evaluate returns whether the server is ready and which checks fail.
-// The caller holds mu.
+// evaluate returns whether the server is ready and which checks fail. The caller holds mu.
 func (m *healthManager) evaluate() (bool, []string) {
 	if m.phase != phaseRunning {
 		return false, nil
 	}
 	var failing []string
-	for _, name := range checkNames {
-		if m.results[name].Status != "ok" {
-			failing = append(failing, name)
+	for _, c := range m.checks() {
+		if m.results[c.name].Status != "ok" {
+			failing = append(failing, c.name)
 		}
 	}
 	return len(failing) == 0, failing
@@ -281,53 +237,26 @@ func (m *healthManager) report() HealthReport {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ready, failing := m.evaluate()
-	rep := HealthReport{Status: "not_ready", Phase: m.phase, ChainID: m.chainID, FailedChecks: failing, Checks: make(map[string]HealthCheck, len(checkNames))}
+	rep := HealthReport{Status: "not_ready", Phase: m.phase, ChainID: m.chainID, FailedChecks: failing, Checks: map[string]HealthCheck{}}
 	if ready {
 		rep.Status = "ready"
 	}
-	for _, name := range checkNames {
-		c, found := m.results[name]
+	for _, c := range m.checks() {
+		res, found := m.results[c.name]
 		if !found {
-			c = HealthCheck{Status: "unknown", Reason: reasonNotChecked}
+			res = HealthCheck{Status: "unknown", Reason: reasonNotChecked}
 		}
-		rep.Checks[name] = c
+		rep.Checks[c.name] = res
 	}
 	return rep
 }
 
-// stop publishes not-ready, ends Watch streams, stops the check loop and waits
-// for running probes until ctx expires. It returns false if a probe is still
-// running; the caller must then not close the store.
-func (m *healthManager) stop(ctx context.Context) bool {
+// stop publishes not-ready. Later results are ignored.
+func (m *healthManager) stop() {
 	m.mu.Lock()
-	if m.phase != phaseStopping {
-		m.phase = phaseStopping
-		m.serving.Store(false)
-		m.hs.Shutdown() // NOT_SERVING for every service, later updates are ignored
-		close(m.shutdown)
-	}
-	loopStop, loopDone := m.loopStop, m.loopDone
-	m.mu.Unlock()
-	if loopStop != nil {
-		loopStop()
-		<-loopDone
-	}
-	drained := make(chan struct{})
-	go func() { m.probes.Wait(); close(drained) }()
-	select {
-	case <-drained:
-		return true
-	case <-ctx.Done():
-		return false
-	}
-}
-
-// unaryGate rejects Fibre RPCs until initialization completes and once shutdown began.
-func (m *healthManager) unaryGate(ctx context.Context, req any, info *grpclib.UnaryServerInfo, handler grpclib.UnaryHandler) (any, error) {
-	if m.serving.Load() || strings.HasPrefix(info.FullMethod, "/grpc.health.v1.Health/") {
-		return handler(ctx, req)
-	}
-	return nil, status.Error(codes.Unavailable, "fibre server is not ready")
+	defer m.mu.Unlock()
+	m.phase = phaseStopping
+	m.hs.Shutdown() // NOT_SERVING for every service; later status updates are ignored
 }
 
 // httpHandler serves GET /livez and GET /readyz.
@@ -430,29 +359,10 @@ func (m *healthManager) consAddress() string {
 	return sdk.ConsAddress(m.deps.pubKey.Address()).String()
 }
 
-// healthService ends Watch streams when the server stops. Otherwise GracefulStop
-// would wait for them until the shutdown deadline.
-type healthService struct {
-	*health.Server
-	shutdown <-chan struct{}
-}
+// healthServer serves Check from the standard health server and rejects Watch.
+// Open Watch streams would hold GracefulStop until the shutdown deadline.
+type healthServer struct{ *health.Server }
 
-func (h *healthService) Watch(req *healthpb.HealthCheckRequest, stream healthpb.Health_WatchServer) error {
-	ctx, cancel := context.WithCancel(stream.Context())
-	defer cancel()
-	go func() {
-		select {
-		case <-h.shutdown:
-			cancel()
-		case <-ctx.Done():
-		}
-	}()
-	return h.Server.Watch(req, watchStream{stream, ctx})
+func (healthServer) Watch(*healthpb.HealthCheckRequest, healthpb.Health_WatchServer) error {
+	return status.Error(codes.Unimplemented, "Watch is not supported, use Check")
 }
-
-type watchStream struct {
-	healthpb.Health_WatchServer
-	ctx context.Context
-}
-
-func (w watchStream) Context() context.Context { return w.ctx }

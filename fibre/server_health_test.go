@@ -9,13 +9,11 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/state"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
-	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -31,17 +29,15 @@ import (
 
 // fakeDeps is a state.Client and a core.PrivValidator whose answers tests change under mu.
 type fakeDeps struct {
-	mu          sync.Mutex
-	status      state.NodeStatus
-	statusErr   error
-	set         validator.Set
-	setErr      error
-	reg         state.ProviderRegistration
-	moduleErr   error
-	priv        crypto.PrivKey
-	signerErr   error
-	block       chan struct{} // GetPubKey waits on it when set
-	pubKeyCalls atomic.Int32
+	mu        sync.Mutex
+	status    state.NodeStatus
+	statusErr error
+	set       validator.Set
+	setErr    error
+	reg       state.ProviderRegistration
+	moduleErr error
+	priv      crypto.PrivKey
+	signerErr error
 }
 
 func newFakeDeps() *fakeDeps {
@@ -79,14 +75,9 @@ func (f *fakeDeps) FullStakeStorageBudget(context.Context) (int64, error) {
 }
 
 func (f *fakeDeps) GetPubKey() (crypto.PubKey, error) {
-	f.pubKeyCalls.Add(1)
 	f.mu.Lock()
-	block, priv, err := f.block, f.priv, f.signerErr
-	f.mu.Unlock()
-	if block != nil {
-		<-block
-	}
-	return priv.PubKey(), err
+	defer f.mu.Unlock()
+	return f.priv.PubKey(), f.signerErr
 }
 
 func (f *fakeDeps) SignRawBytes(chainID, uniqueID string, raw []byte) ([]byte, error) {
@@ -97,14 +88,16 @@ func (f *fakeDeps) SignRawBytes(chainID, uniqueID string, raw []byte) ([]byte, e
 	return f.priv.Sign(b)
 }
 
-func (f *fakeDeps) SignVote(string, *cmtproto.Vote) error         { return nil }
-func (f *fakeDeps) SignProposal(string, *cmtproto.Proposal) error { return nil }
 func (f *fakeDeps) GetByHeight(ctx context.Context, _ uint64) (validator.Set, error) {
 	return f.Head(ctx)
 }
-func (f *fakeDeps) ChainID() string             { return "test-chain" }
-func (f *fakeDeps) Start(context.Context) error { return nil }
-func (f *fakeDeps) Stop(context.Context) error  { return nil }
+
+func (f *fakeDeps) SignVote(string, *cmtproto.Vote) error         { return nil }
+func (f *fakeDeps) SignProposal(string, *cmtproto.Proposal) error { return nil }
+func (f *fakeDeps) ChainID() string                               { return "test-chain" }
+func (f *fakeDeps) Start(context.Context) error                   { return nil }
+func (f *fakeDeps) Stop(context.Context) error                    { return nil }
+
 func (f *fakeDeps) GetHost(context.Context, *core.Validator) (validator.Host, error) {
 	return "", errors.New("unused")
 }
@@ -113,14 +106,13 @@ func (f *fakeDeps) VerifyPromise(context.Context, *state.PaymentPromise) (state.
 	return state.VerifiedPromise{}, nil
 }
 
+// TestHealthManager drives every failure reason and its recovery through the checks.
 func TestHealthManager(t *testing.T) {
 	deps := newFakeDeps()
 	store := NewMemoryStore(StoreConfig{})
 	t.Cleanup(func() { _ = store.Close() })
-	settings := healthSettings{checkInterval: time.Hour, probeTimeout: 100 * time.Millisecond, maxBlockAge: time.Minute}
-	m := newHealthManager(settings, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	m.phase, m.chainID = phaseRunning, "test-chain"
-	m.deps = healthDeps{client: deps, signer: deps, pubKey: deps.priv.PubKey(), store: store}
+
+	m := newHealthManager(healthSettings{probeTimeout: time.Second, maxBlockAge: time.Minute}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	readiness := func() healthpb.HealthCheckResponse_ServingStatus {
 		resp, err := m.hs.Check(ctx, &healthpb.HealthCheckRequest{Service: HealthServiceReadiness})
@@ -129,21 +121,18 @@ func TestHealthManager(t *testing.T) {
 	}
 
 	require.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, readiness())
+	m.start(healthDeps{client: deps, signer: deps, pubKey: deps.priv.PubKey(), store: store}, "test-chain")
 	m.cycle(ctx)
 	require.Equal(t, healthpb.HealthCheckResponse_SERVING, readiness())
 	require.Equal(t, "ready", m.report().Status)
 
 	healthy := newFakeDeps()
+	healthy.priv, healthy.set = deps.priv, deps.set
 	restore := func() {
 		deps.mu.Lock()
 		deps.status, deps.statusErr, deps.set, deps.setErr, deps.reg, deps.moduleErr, deps.signerErr, deps.priv = healthy.status, nil, healthy.set, nil, healthy.reg, nil, nil, healthy.priv
 		deps.mu.Unlock()
-		m.deps.store = store
 	}
-	healthy.priv, healthy.set = deps.priv, deps.set
-	closedStore := NewMemoryStore(StoreConfig{})
-	require.NoError(t, closedStore.Close())
-
 	failures := []struct {
 		check, reason string
 		mutate        func()
@@ -160,7 +149,6 @@ func TestHealthManager(t *testing.T) {
 		{checkValidator, reasonValidatorInactive, func() { deps.set = validator.Set{ValidatorSet: core.NewValidatorSet(nil), Height: 42} }},
 		{checkRegistration, reasonNotRegistered, func() { deps.reg.Found = false }},
 		{checkRegistration, reasonHostInvalid, func() { deps.reg.Host = "no-port" }},
-		{checkStore, reasonStoreFailed, func() { m.deps.store = closedStore }},
 	}
 	for _, tc := range failures {
 		deps.mu.Lock()
@@ -176,67 +164,27 @@ func TestHealthManager(t *testing.T) {
 		assert.Equal(t, healthpb.HealthCheckResponse_SERVING, readiness(), "recovery after "+tc.reason)
 	}
 
-	// A probe that ignores its context times out and is not started again until it returns.
-	deps.mu.Lock()
-	deps.block = make(chan struct{})
-	deps.mu.Unlock()
-	calls := deps.pubKeyCalls.Load()
-	m.cycle(ctx)
-	assert.Equal(t, reasonTimeout, m.report().Checks[checkSigner].Reason)
-	m.cycle(ctx)
-	assert.Equal(t, calls+1, deps.pubKeyCalls.Load(), "no second probe while the first is blocked")
-	deps.mu.Lock()
-	close(deps.block)
-	deps.block = nil
-	deps.mu.Unlock()
-	require.Eventually(t, func() bool { m.cycle(ctx); return readiness() == healthpb.HealthCheckResponse_SERVING }, 5*time.Second, 20*time.Millisecond)
-
 	// Stop publishes not-ready and ignores later results.
-	require.True(t, m.stop(ctx))
+	m.stop()
 	m.record(checkApp, ok())
 	assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, readiness())
 	assert.Equal(t, phaseStopping, m.report().Phase)
 }
 
-// newTestServer builds a server on fake dependencies. A non-nil gate holds Start at the store open.
-func newTestServer(t *testing.T, deps *fakeDeps, gate chan struct{}) *Server {
-	t.Helper()
+// TestServerHealth checks gRPC and HTTP health on a running server with real listeners.
+func TestServerHealth(t *testing.T) {
+	deps := newFakeDeps()
 	cfg := DefaultServerConfig()
 	cfg.ServerListenAddress, cfg.HealthListenAddress, cfg.UnlimitedBudget = "127.0.0.1:0", "127.0.0.1:0", true
 	cfg.Health.CheckInterval = "50ms"
 	cfg.Log = slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg.StateClientFn = func() (state.Client, error) { return deps, nil }
 	cfg.SignerFn = func(string) (core.PrivValidator, error) { return deps, nil }
-	cfg.StoreFn = func(_ context.Context, scfg StoreConfig) (*Store, error) {
-		if gate != nil {
-			<-gate
-		}
-		return NewMemoryStore(scfg), nil
-	}
+	cfg.StoreFn = func(_ context.Context, scfg StoreConfig) (*Store, error) { return NewMemoryStore(scfg), nil }
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = srv.Stop(context.Background()) })
-	return srv
-}
-
-func httpStatus(t *testing.T, srv *Server, path string) (int, HealthReport) {
-	t.Helper()
-	resp, err := http.Get("http://" + srv.HealthListenAddress() + path) //nolint:gosec // test URL
-	require.NoError(t, err)
-	defer resp.Body.Close()
-	var rep HealthReport
-	require.NoError(t, json.NewDecoder(resp.Body).Decode(&rep))
-	return resp.StatusCode, rep
-}
-
-// TestServerHealth covers the lifecycle over real listeners: health answers before the store is
-// open while Fibre RPCs are gated, readiness follows the checks, HTTP agrees, and Watch streams
-// end at Stop.
-func TestServerHealth(t *testing.T) {
-	deps, gate := newFakeDeps(), make(chan struct{})
-	srv := newTestServer(t, deps, gate)
-	startErr := make(chan error, 1)
-	go func() { startErr <- srv.Start(context.Background()) }()
+	ctx := context.Background()
+	require.NoError(t, srv.Start(ctx))
 
 	conn, err := grpclib.NewClient(srv.ListenAddress(), grpclib.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 		InsecureSkipVerify: true, //nolint:gosec // self-signed identity cert, as grpc_health_probe -tls-no-verify
@@ -244,7 +192,7 @@ func TestServerHealth(t *testing.T) {
 	})))
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = conn.Close() })
-	health, ctx := healthpb.NewHealthClient(conn), context.Background()
+	health := healthpb.NewHealthClient(conn)
 	check := func(service string) healthpb.HealthCheckResponse_ServingStatus {
 		resp, err := health.Check(ctx, &healthpb.HealthCheckRequest{Service: service})
 		if err != nil {
@@ -252,54 +200,26 @@ func TestServerHealth(t *testing.T) {
 		}
 		return resp.GetStatus()
 	}
+	readyz := func() (int, HealthReport) {
+		resp, err := http.Get("http://" + srv.HealthListenAddress() + "/readyz") //nolint:gosec // test URL
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		var rep HealthReport
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&rep))
+		return resp.StatusCode, rep
+	}
 
-	require.Eventually(t, func() bool { return check(HealthServiceLiveness) == healthpb.HealthCheckResponse_SERVING }, 10*time.Second, 20*time.Millisecond)
-	assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, check(HealthServiceReadiness))
-	code, rep := httpStatus(t, srv, "/readyz")
-	assert.Equal(t, http.StatusServiceUnavailable, code)
-	assert.Equal(t, phaseStarting, rep.Phase)
-	_, err = types.NewFibreClient(conn).DownloadShard(ctx, &types.DownloadShardRequest{})
-	assert.Equal(t, codes.Unavailable, status.Code(err), "Fibre RPCs are gated until initialization completes")
-
-	close(gate)
-	require.NoError(t, <-startErr)
+	assert.Equal(t, healthpb.HealthCheckResponse_SERVING, check(HealthServiceLiveness))
 	require.Eventually(t, func() bool { return check("") == healthpb.HealthCheckResponse_SERVING }, 10*time.Second, 20*time.Millisecond)
-	_, err = types.NewFibreClient(conn).DownloadShard(ctx, &types.DownloadShardRequest{})
-	assert.Equal(t, codes.InvalidArgument, status.Code(err), "the gate is open")
-	code, rep = httpStatus(t, srv, "/readyz")
+	code, rep := readyz()
 	assert.Equal(t, http.StatusOK, code)
 	assert.Equal(t, "ready", rep.Status)
 
 	stream, err := health.Watch(ctx, &healthpb.HealthCheckRequest{Service: HealthServiceReadiness})
 	require.NoError(t, err)
 	_, err = stream.Recv()
-	require.NoError(t, err)
-	start := time.Now()
-	require.NoError(t, srv.Stop(ctx))
-	require.Less(t, time.Since(start), 5*time.Second, "an open Watch stream must not hold the drain")
-	for err == nil {
-		_, err = stream.Recv()
-	}
-	require.NoError(t, srv.Stop(ctx), "repeated stop")
-}
+	assert.Equal(t, codes.Unimplemented, status.Code(err), "Watch is rejected so it cannot hold the drain")
 
-// TestServerStopDuringStart checks that Stop waits for a blocked Start, then releases what Start
-// acquired, and that a stopped server cannot start again.
-func TestServerStopDuringStart(t *testing.T) {
-	gate := make(chan struct{})
-	srv := newTestServer(t, newFakeDeps(), gate)
-	startErr, stopErr := make(chan error, 1), make(chan error, 1)
-	go func() { startErr <- srv.Start(context.Background()) }()
-	require.Eventually(t, func() bool { code, _ := httpStatus(t, srv, "/livez"); return code == http.StatusOK }, 10*time.Second, 20*time.Millisecond)
-	go func() { stopErr <- srv.Stop(context.Background()) }()
-	select {
-	case err := <-stopErr:
-		t.Fatalf("Stop returned %v while Start was blocked", err)
-	case <-time.After(200 * time.Millisecond):
-	}
-	close(gate)
-	require.NoError(t, <-startErr)
-	require.NoError(t, <-stopErr)
-	assert.True(t, srv.store.closed.Load(), "Stop closes the store Start opened")
-	require.Error(t, srv.Start(context.Background()))
+	require.NoError(t, srv.Stop(ctx))
+	assert.Equal(t, healthpb.HealthCheckResponse_UNKNOWN, check(HealthServiceReadiness), "listener closed")
 }

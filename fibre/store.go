@@ -10,7 +10,6 @@ import (
 	"math"
 	"slices"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -41,7 +40,6 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards *routedStorage
-	closed atomic.Bool
 }
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
@@ -511,12 +509,8 @@ func (s *Store) reconcile() error {
 }
 
 // Probe writes value under the reserved key /health/probe with fsync and reads
-// it back. The key lives outside the shard, promise and prune prefixes. The
-// store must not be closed while a probe runs.
+// it back. The key lives outside the shard, promise and prune prefixes.
 func (s *Store) Probe(value []byte) error {
-	if s.closed.Load() {
-		return errors.New("store is closed")
-	}
 	key := []byte("/health/probe")
 	if err := s.db.Set(key, value, pebbledb.Sync); err != nil {
 		return fmt.Errorf("write: %w", err)
@@ -535,7 +529,6 @@ func (s *Store) Probe(value []byte) error {
 // Close closes the underlying pebble database. For [NewMemoryStore] the
 // in-memory FS is dropped when the Store is garbage collected.
 func (s *Store) Close() error {
-	s.closed.Store(true)
 	return s.db.Close()
 }
 

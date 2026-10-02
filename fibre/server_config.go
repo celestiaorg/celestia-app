@@ -126,14 +126,12 @@ type ServerConfig struct {
 
 // HealthConfig configures the readiness checks. Durations use Go syntax such as "10s".
 type HealthConfig struct {
-	ExpectedChainID string `toml:"expected_chain_id" comment:"Chain ID the app node must report. Empty auto-detects it, which cannot notice a wrong network at first startup."`
-	CheckInterval   string `toml:"check_interval" comment:"How often the app node, Fibre module, signer, validator membership, provider registration and store are checked."`
-	ProbeTimeout    string `toml:"probe_timeout" comment:"Deadline of each check."`
-	MaxBlockAge     string `toml:"max_block_age" comment:"Maximum age of the app node's latest block before the chain is reported as stalled. Tune it to the network's block time."`
+	CheckInterval string `toml:"check_interval" comment:"How often the app node, Fibre module, signer, validator membership, provider registration and store are checked."`
+	ProbeTimeout  string `toml:"probe_timeout" comment:"Deadline of each check."`
+	MaxBlockAge   string `toml:"max_block_age" comment:"Maximum age of the app node's latest block before the chain is reported as stalled. Tune it to the network's block time."`
 }
 
 type healthSettings struct {
-	expectedChainID                          string
 	checkInterval, probeTimeout, maxBlockAge time.Duration
 }
 
@@ -143,7 +141,7 @@ func DefaultHealthConfig() HealthConfig {
 }
 
 func (cfg HealthConfig) parse() (healthSettings, error) {
-	s := healthSettings{expectedChainID: cfg.ExpectedChainID}
+	var s healthSettings
 	var err error
 	if s.checkInterval, err = parsePositiveDuration("check_interval", cfg.CheckInterval); err != nil {
 		return s, err

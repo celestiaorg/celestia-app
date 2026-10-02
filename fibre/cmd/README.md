@@ -285,7 +285,7 @@ Downloads of stored shards keep working while the app node or signer is down. Re
 
 Two ways, pick either:
 
-1. **gRPC** on the normal server port (`server_listen_address`). Always on. The port is TLS-only with a self-signed identity certificate, so tell the probe not to verify it:
+1. **gRPC** on the normal server port (`server_listen_address`). Always on, `Check` only. The port is TLS-only with a self-signed identity certificate, so tell the probe not to verify it:
 
    ```sh
    go install github.com/grpc-ecosystem/grpc-health-probe@latest
@@ -307,7 +307,7 @@ Two ways, pick either:
 
    Bind it to localhost or the pod address. Do not expose it publicly.
 
-The gRPC port only exists once the app connection and signer are up, because the TLS certificate is built from the consensus key. Before that, the HTTP endpoints are the only way to see what the server is waiting on.
+The gRPC port opens when startup finishes. Before that, only the HTTP endpoints answer, with `phase: starting`.
 
 ### What is checked
 
@@ -322,7 +322,7 @@ Checks run in the background every `check_interval` (default `10s`), each with a
 | `registration` | No Fibre provider is registered for this validator, or the registered `host:port` is invalid. | `provider_not_registered`, `provider_host_invalid`, `app_unreachable` | [Register](#registration) the provider host. |
 | `store` | A small test write or read on the metadata store fails. | `store_failed` | Check the disk and the store directory. |
 
-A check that does not finish within `probe_timeout` reports `probe_timeout` and is not started again until it returns. The `signer` check proves the signer is reachable, not that signing works; only real uploads verify that. The report never includes raw errors or file paths. Those go to the log, which records every check transition once.
+Checks run one after another, each bounded by `probe_timeout`. The `signer` check proves the signer is reachable, not that signing works; only real uploads verify that. The report never includes raw errors or file paths. Those go to the log, which records every check transition once.
 
 ### Reading the report
 
@@ -345,7 +345,6 @@ All settings live in the `[health]` table of the config file.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `expected_chain_id` (flag `--expected-chain-id`) | empty | Chain ID the app node must report. Empty auto-detects it at startup, which cannot notice a wrong network. Set it in production. |
 | `check_interval` | `10s` | How often checks run. |
 | `probe_timeout` | `3s` | Deadline of each check. |
 | `max_block_age` | `2m` | Oldest acceptable latest block before `app` reports `chain_stalled`. Tune it to the network's block time. |
@@ -521,6 +520,6 @@ The server validates every upload's payment promise against the app node. A chai
 
 ## Signals
 
-- First `SIGINT`/`SIGTERM`: graceful shutdown. Readiness is published as `NOT_SERVING` first, then requests drain for at most 30 seconds.
+- First `SIGINT`/`SIGTERM`: graceful shutdown. Readiness is published as `NOT_SERVING` first, then requests drain.
 - Second signal: force shutdown
 - If the gRPC listener fails, the process shuts down and exits non-zero instead of lingering without a listener.

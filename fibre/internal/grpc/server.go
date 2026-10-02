@@ -2,12 +2,10 @@ package grpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"net"
 	"runtime/debug"
-	"sync"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -53,19 +51,12 @@ var (
 )
 
 // Server wraps a [grpc.Server] with TCP listener and lifecycle management.
-// Serve reports its exit through [Server.Done] and [Server.Err]; Stop is safe
-// before Register, before Serve and when repeated.
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
+	done                 chan struct{} // closed when Serve returns
+	err                  error         // why Serve returned; valid once done is closed
 	maxConcurrentStreams uint32
-
-	mu       sync.Mutex
-	served   bool
-	stopped  bool
-	stopOnce sync.Once
-	done     chan struct{} // closed once the server can no longer serve
-	err      error         // set before done is closed
 }
 
 // Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
@@ -80,7 +71,7 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	// Cap total connections so a peer cannot dodge the per-connection stream cap
 	// by opening many connections.
 	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams), done: make(chan struct{})}, nil
+	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
 }
 
 // Register builds the underlying [grpc.Server] with opts and registers the
@@ -109,20 +100,15 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 	types.RegisterFibreServer(s.server, service)
 }
 
-// Registrar exposes the [grpc.ServiceRegistrar] for extra services such as gRPC health; use it between Register and Serve.
+// Registrar exposes the [grpc.ServiceRegistrar] for extra services such as gRPC health.
+// Use it between Register and Serve.
 func (s *Server) Registrar() grpc.ServiceRegistrar { return s.server }
 
-// Done is closed once the server stopped serving; Err then reports why, nil for a clean stop.
+// Done is closed once Serve returned. Err then says why; nil after Stop.
 func (s *Server) Done() <-chan struct{} { return s.done }
 
-func (s *Server) Err() error {
-	select {
-	case <-s.done:
-		return s.err
-	default:
-		return nil
-	}
-}
+// Err returns the error Serve returned with. Only valid once Done is closed.
+func (s *Server) Err() error { return s.err }
 
 // recoverUnaryInterceptor recovers from panics in unary handlers and returns an
 // Internal error so a single malformed request cannot crash the server process.
@@ -146,55 +132,44 @@ func (s *Server) ListenAddress() string {
 }
 
 // Serve starts serving gRPC requests in a background goroutine.
-// [Server.Register] must have been called first. Repeated calls, or calls
-// after Stop, do nothing.
+// [Server.Register] must have been called first.
 func (s *Server) Serve() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.served || s.stopped || s.server == nil {
-		return
-	}
-	s.served = true
+	s.done = make(chan struct{})
 	go func() {
 		defer close(s.done)
-		err := s.server.Serve(s.listener)
-		s.mu.Lock()
-		if s.stopped || errors.Is(err, grpc.ErrServerStopped) {
-			err = nil // an exit caused by Stop is not a failure
-		}
-		s.mu.Unlock()
-		s.err = err
+		s.err = s.server.Serve(s.listener) // nil after Stop or GracefulStop
 	}()
 }
 
-// Stop gracefully stops the gRPC server and waits for it to exit. If the
-// context ends before draining completes, it forces an immediate stop. Before
-// Serve it only releases the listener, which grpc-go does not own yet.
+// Stop gracefully stops the gRPC server.
+// If the context is cancelled before draining completes, it forces an immediate stop.
+// If [Server.Register] was never called, Stop closes the listener and returns.
 func (s *Server) Stop(ctx context.Context) {
-	s.stopOnce.Do(func() {
-		s.mu.Lock()
-		s.stopped = true
-		served, server := s.served, s.server
-		s.mu.Unlock()
-		if !served {
-			if server != nil {
-				server.Stop()
-			}
-			_ = s.listener.Close()
-			close(s.done)
-			return
-		}
-		drained := make(chan struct{})
-		go func() {
-			server.GracefulStop()
-			close(drained)
-		}()
-		select {
-		case <-drained:
-		case <-ctx.Done():
-			server.Stop()
-			<-drained
-		}
-	})
+	if s.server == nil {
+		_ = s.listener.Close()
+		return
+	}
+
+	// Registered but never served: grpc-go only takes ownership of the listener
+	// in Serve, so GracefulStop/Stop would not close it. Close it ourselves to
+	// avoid leaking the file descriptor and port on a failed startup.
+	if s.done == nil {
+		s.server.Stop()
+		_ = s.listener.Close()
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		s.server.GracefulStop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-ctx.Done():
+		s.server.Stop()
+	}
+
 	<-s.done
 }
