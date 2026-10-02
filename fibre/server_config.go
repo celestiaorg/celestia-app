@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -72,6 +73,8 @@ type ServerConfig struct {
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	// Health configures the readiness checks behind the gRPC health service.
+	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service."`
 
 	StoreConfig
 
@@ -114,6 +117,47 @@ type ServerConfig struct {
 	// Meter is the OpenTelemetry meter for recording metrics.
 	// If nil, otel.Meter("fibre-server") will be used.
 	Meter metric.Meter `toml:"-"`
+
+	health healthSettings // parsed Health, populated by Validate
+}
+
+// HealthConfig configures the readiness checks. Durations use Go syntax such as "10s".
+type HealthConfig struct {
+	CheckInterval string `toml:"check_interval" comment:"How often the app node, Fibre module, signer, validator membership, provider registration and store are checked."`
+	ProbeTimeout  string `toml:"probe_timeout" comment:"Deadline of each check."`
+	MaxBlockAge   string `toml:"max_block_age" comment:"Maximum age of the app node's latest block before the chain is reported as stalled. Tune it to the network's block time."`
+}
+
+type healthSettings struct {
+	checkInterval, probeTimeout, maxBlockAge time.Duration
+}
+
+// DefaultHealthConfig returns the default [HealthConfig].
+func DefaultHealthConfig() HealthConfig {
+	return HealthConfig{CheckInterval: "10s", ProbeTimeout: "3s", MaxBlockAge: "2m"}
+}
+
+func (cfg HealthConfig) parse() (healthSettings, error) {
+	var s healthSettings
+	var err error
+	if s.checkInterval, err = parsePositiveDuration("check_interval", cfg.CheckInterval); err != nil {
+		return s, err
+	}
+	if s.probeTimeout, err = parsePositiveDuration("probe_timeout", cfg.ProbeTimeout); err != nil {
+		return s, err
+	}
+	if s.maxBlockAge, err = parsePositiveDuration("max_block_age", cfg.MaxBlockAge); err != nil {
+		return s, err
+	}
+	return s, nil
+}
+
+func parsePositiveDuration(name, value string) (time.Duration, error) {
+	d, err := time.ParseDuration(value)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("health.%s must be a positive duration, got %q", name, value)
+	}
+	return d, nil
 }
 
 // DefaultServerConfig returns a [ServerConfig] with default values.
@@ -128,6 +172,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		AppGRPCAddress:       "127.0.0.1:9090",
 		ServerListenAddress:  "0.0.0.0:7980",
 		SignerGRPCAddress:    "127.0.0.1:26669",
+		Health:               DefaultHealthConfig(),
 		StoreConfig:          DefaultStoreConfig(),
 		LivenessThreshold:    p.LivenessThreshold,
 		MinRowsPerValidator:  p.MinRowsPerValidator(),
@@ -147,6 +192,11 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")
 	}
+	health, err := cfg.Health.parse()
+	if err != nil {
+		return fmt.Errorf("health config: %w", err)
+	}
+	cfg.health = health
 
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	core "github.com/cometbft/cometbft/types"
 )
 
 // PaymentPromise is an alias for the protobuf PaymentPromise type.
@@ -35,9 +36,28 @@ type Client interface {
 	// FullStakeStorageBudget returns the FullStakeStorageBudget governance
 	// parameter in bytes.
 	FullStakeStorageBudget(context.Context) (int64, error)
+	// NodeStatus returns the app node's current status. Health checks use it.
+	NodeStatus(context.Context) (NodeStatus, error)
+	// ProviderRegistration returns the on-chain Fibre provider registration of
+	// the validator with the given consensus address. Health checks use it.
+	ProviderRegistration(context.Context, core.Address) (ProviderRegistration, error)
 
 	// Start initializes the client (e.g. detects chain ID).
 	Start(context.Context) error
 	// Stop clears up underlying resources.
 	Stop(context.Context) error
+}
+
+// NodeStatus is a snapshot of the app node's status.
+type NodeStatus struct {
+	ChainID    string
+	Height     uint64
+	BlockTime  time.Time
+	CatchingUp bool
+}
+
+// ProviderRegistration is the on-chain Fibre provider registration of a validator.
+type ProviderRegistration struct {
+	Found bool
+	Host  string // set only when Found
 }
