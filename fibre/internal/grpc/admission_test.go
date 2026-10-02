@@ -3,6 +3,7 @@ package grpc
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -109,11 +110,13 @@ func TestRPCResponseOwnership(t *testing.T) {
 		}
 		want, err := response.Marshal()
 		require.NoError(t, err)
-		wrapped := &rpcResponse{message: response, lease: lease}
-		data, err := NewServerCodec(1721, 14).Marshal(wrapped)
+		codec := &pooledCodec{pool: &responsePool{lease: lease}}
+		encoded, err := codec.Marshal(response)
+		require.NoError(t, err)
+		data, err := NewServerCodec(1721, 14).Marshal(&encoded)
 		require.NoError(t, err)
 		require.True(t, bytes.Equal(want, data.Materialize()))
-		require.Nil(t, wrapped.message)
+		require.Nil(t, encoded)
 		if size == 0 {
 			lease.release()
 			require.Zero(t, a.activeUploads+a.activeDownloads)
@@ -130,6 +133,26 @@ func TestRPCResponseOwnership(t *testing.T) {
 		tail.Free()
 		require.Zero(t, a.activeUploads+a.activeDownloads)
 	}
+}
+
+type failedResponse struct{}
+
+func (failedResponse) Size() int { return 1 }
+func (failedResponse) MarshalToSizedBuffer([]byte) (int, error) {
+	return 0, errors.New("marshal failed")
+}
+
+func TestRPCResponseMarshalFailure(t *testing.T) {
+	a := &rpcAdmission{maxRPCs: 1}
+	lease, err := a.acquire("DownloadShard")
+	require.NoError(t, err)
+	codec := &pooledCodec{pool: &responsePool{lease: lease}}
+	_, err = codec.Marshal(failedResponse{})
+	require.Error(t, err)
+	lease.release()
+	next, err := a.acquire("DownloadShard")
+	require.NoError(t, err, "marshal failure must return the admission slot")
+	next.release()
 }
 
 func TestRPCAdmissionDisabled(t *testing.T) {

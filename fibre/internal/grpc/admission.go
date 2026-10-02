@@ -117,38 +117,31 @@ func (a *rpcAdmission) serve(service any, stream grpc.ServerStream, method grpc.
 	if err != nil {
 		return err
 	}
-	return stream.SendMsg(&rpcResponse{message: response.(sizedBufferMarshaler), lease: lease})
+	codec := &pooledCodec{pool: &responsePool{lease: lease}}
+	data, err := codec.Marshal(response)
+	if err != nil {
+		return err
+	}
+	// SendMsg transfers ownership through the codec. Free any untransferred buffers on error.
+	defer func() { data.Free() }()
+	return stream.SendMsg(&data)
 }
 
-type rpcResponse struct {
-	message sizedBufferMarshaler
-	lease   *rpcLease
-}
-
-func (r *rpcResponse) marshal() (out mem.BufferSlice, err error) {
-	defer func() { r.message = nil }()
-	size := r.message.Size()
-	if size == 0 {
-		return mem.BufferSlice{}, nil
-	}
-	capacity := size
-	for mem.IsBelowBufferPoolingThreshold(capacity) {
-		capacity *= 2
-	}
-	pool := &responsePool{lease: r.lease}
-	buf := pool.Get(capacity)
-	*buf = (*buf)[:size]
-	if _, err := r.message.MarshalToSizedBuffer(*buf); err != nil {
-		return nil, err
-	}
-	r.lease.retain()
-	return mem.BufferSlice{mem.NewBuffer(buf, pool)}, nil
-}
-
-// Response payloads are not cached after their last transport reference ends.
+// responsePool releases admission when gRPC frees the last response-buffer reference.
+// Payload buffers are discarded, not cached.
 type responsePool struct {
-	mem.NopBufferPool
 	lease *rpcLease
+}
+
+func (p *responsePool) Get(size int) *[]byte {
+	capacity := size
+	// Small buffers otherwise bypass BufferPool.Put, which would leak the lease.
+	for mem.IsBelowBufferPoolingThreshold(capacity) {
+		capacity = max(1, capacity*2)
+	}
+	buf := make([]byte, size, capacity)
+	p.lease.retain()
+	return &buf
 }
 
 func (p *responsePool) Put(buf *[]byte) {

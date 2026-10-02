@@ -60,8 +60,11 @@ func NewServerCodec(maxShardRows, maxProofSegments int) encoding.CodecV2 {
 func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
-	if response, ok := v.(*rpcResponse); ok {
-		return response.marshal()
+	if encoded, ok := v.(*mem.BufferSlice); ok {
+		// Transfer ownership to gRPC and prevent tracing from retaining the payload.
+		data := *encoded
+		*encoded = nil
+		return data, nil
 	}
 	if req, ok := v.(*types.UploadShardRequest); ok {
 		return marshalUploadShardRequestScatter(req)
