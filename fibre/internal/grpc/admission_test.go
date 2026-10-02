@@ -110,7 +110,7 @@ func TestRPCResponseOwnership(t *testing.T) {
 		}
 		want, err := response.Marshal()
 		require.NoError(t, err)
-		codec := &pooledCodec{pool: &responsePool{lease: lease}}
+		codec := &pooledCodec{pool: lease}
 		encoded, err := codec.Marshal(response)
 		require.NoError(t, err)
 		data, err := NewServerCodec(1721, 14).Marshal(&encoded)
@@ -146,7 +146,7 @@ func TestRPCResponseMarshalFailure(t *testing.T) {
 	a := &rpcAdmission{maxRPCs: 1}
 	lease, err := a.acquire("DownloadShard")
 	require.NoError(t, err)
-	codec := &pooledCodec{pool: &responsePool{lease: lease}}
+	codec := &pooledCodec{pool: lease}
 	_, err = codec.Marshal(failedResponse{})
 	require.Error(t, err)
 	lease.release()

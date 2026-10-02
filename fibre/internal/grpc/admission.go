@@ -52,18 +52,37 @@ func (a *rpcAdmission) acquire(methodName string) (*rpcLease, error) {
 	return lease, nil
 }
 
-// rpcLease tracks handler and response-buffer ownership of an admitted RPC.
+// rpcLease holds one admission slot until its handler and response-buffer owners finish.
 type rpcLease struct {
 	refs          atomic.Int32
 	onLastRelease func()
 }
 
+// retain adds an owner of the same admission slot, not another slot.
 func (l *rpcLease) retain() { l.refs.Add(1) }
 
 func (l *rpcLease) release() {
 	if l.refs.Add(-1) == 0 {
 		l.onLastRelease()
 	}
+}
+
+// Get allocates a response buffer and adds an owner to the lease.
+func (l *rpcLease) Get(size int) *[]byte {
+	capacity := size
+	// Small buffers otherwise bypass BufferPool.Put, which would leak the lease.
+	for mem.IsBelowBufferPoolingThreshold(capacity) {
+		capacity = max(1, capacity*2)
+	}
+	buf := make([]byte, size, capacity)
+	l.retain()
+	return &buf
+}
+
+// Put discards the buffer and releases its ownership when gRPC frees its last reference.
+func (l *rpcLease) Put(buf *[]byte) {
+	*buf = nil
+	l.release()
 }
 
 // register keeps unary cardinality and wire messages, but acquires before RecvMsg.
@@ -98,7 +117,8 @@ func (a *rpcAdmission) serve(service any, stream grpc.ServerStream, method grpc.
 		return err
 	}
 	defer lease.release()
-	// Compression would replace the buffer whose references own the lease.
+	// Send all responses uncompressed; compressed incoming requests are still accepted.
+	// Compression could release the tracked buffer while its replacement remains queued.
 	if err := grpc.SetSendCompressor(stream.Context(), encoding.Identity); err != nil {
 		return err
 	}
@@ -117,7 +137,7 @@ func (a *rpcAdmission) serve(service any, stream grpc.ServerStream, method grpc.
 	if err != nil {
 		return err
 	}
-	codec := &pooledCodec{pool: &responsePool{lease: lease}}
+	codec := &pooledCodec{pool: lease}
 	data, err := codec.Marshal(response)
 	if err != nil {
 		return err
@@ -125,26 +145,4 @@ func (a *rpcAdmission) serve(service any, stream grpc.ServerStream, method grpc.
 	// SendMsg transfers ownership through the codec. Free any untransferred buffers on error.
 	defer func() { data.Free() }()
 	return stream.SendMsg(&data)
-}
-
-// responsePool releases admission when gRPC frees the last response-buffer reference.
-// Payload buffers are discarded, not cached.
-type responsePool struct {
-	lease *rpcLease
-}
-
-func (p *responsePool) Get(size int) *[]byte {
-	capacity := size
-	// Small buffers otherwise bypass BufferPool.Put, which would leak the lease.
-	for mem.IsBelowBufferPoolingThreshold(capacity) {
-		capacity = max(1, capacity*2)
-	}
-	buf := make([]byte, size, capacity)
-	p.lease.retain()
-	return &buf
-}
-
-func (p *responsePool) Put(buf *[]byte) {
-	*buf = nil
-	p.lease.release()
 }
