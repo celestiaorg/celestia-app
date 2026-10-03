@@ -265,8 +265,8 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
 
 	// Calculate required balance
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+	paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 
 	// Setup: Create escrow account with sufficient balance
 	escrowAccount := types.EscrowAccount{
@@ -304,7 +304,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
-		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		expectedBalance := requiredAmount.Sub(paymentAmount)
 		suite.Equal(expectedBalance, escrowAccount.Balance)
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
@@ -500,8 +500,8 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	paymentPromise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
 
 	// Calculate required balance
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+	paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+	requiredAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 
 	// Setup: Create escrow account with sufficient balance
 	escrowAccount := types.EscrowAccount{
@@ -535,7 +535,7 @@ func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 		// Verify balance was deducted
 		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
-		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		expectedBalance := requiredAmount.Sub(paymentAmount)
 		suite.Equal(expectedBalance, escrowAccount.Balance)
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
@@ -717,9 +717,9 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
 		promise := suite.createPaymentPromise(signerPubKey, privKey)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
 
 		transfers := suite.recordModuleTransfers()
@@ -745,9 +745,9 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		oldTime := suite.ctx.BlockTime().Add(-params.PaymentPromiseTimeout).Add(-time.Hour)
 		promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, oldTime)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
 
 		transfers := suite.recordModuleTransfers()
@@ -771,8 +771,8 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
 		promise := suite.createPaymentPromise(signerPubKey, privKey)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		// AvailableBalance is zero: the whole payment is a shortfall covered by a
 		// pending withdrawal. The full payment must still leave the module account.
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
@@ -806,8 +806,8 @@ func (suite *MsgServerTestSuite) TestSettlementRoutesPaymentToFeeCollector() {
 		signer := sdk.AccAddress(privKey.PubKey().Address()).String()
 		promise := suite.createPaymentPromise(signerPubKey, privKey)
 
-		gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-		balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)+1000)
+		paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+		balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{Signer: signer, Balance: balance, AvailableBalance: balance})
 
 		suite.bankKeeper.SendCoinsFromModuleToModuleFn = func(_ context.Context, _, _ string, _ sdk.Coins) error {
@@ -937,9 +937,9 @@ func (suite *MsgServerTestSuite) TestFutureDatedPromiseCannotBeReplayedAfterPrun
 	creation := suite.ctx.BlockTime().Add(types.MaxPromiseClockSkew)
 	promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creation)
 
-	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia*2)
 	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
 		Signer:           signer,
 		Balance:          balance,
@@ -1003,9 +1003,9 @@ func (suite *MsgServerTestSuite) TestRetentionWindowIncreaseCannotReplayPrunedPr
 	creation := suite.ctx.BlockTime()
 	promise := suite.createPaymentPromiseWithTime(signerPubKey, privKey, creation)
 
-	gas := keeper.EstimateGasForPayForFibre(promise.BlobSize)
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas))
-	balance := sdk.NewInt64Coin(appconsts.BondDenom, int64(gas)*2)
+	paymentUtia := types.PaymentAmount(promise.BlobSize).Amount.Int64()
+	payment := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
+	balance := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia*2)
 	suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
 		Signer:           signer,
 		Balance:          balance,
@@ -1070,8 +1070,8 @@ func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
 	suite.T().Run("payment succeeds when full withdrawal exists", func(t *testing.T) {
 		signerPubKey, privKey, signer := suite.newSigner()
 		paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
-		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired)+1000)
+		paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+		depositAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia+1000)
 
 		// Create escrow account with deposit
 		escrowAccount := types.EscrowAccount{
@@ -1103,7 +1103,7 @@ func (suite *MsgServerTestSuite) TestPayForFibreWithPendingWithdrawals() {
 		// Verify balance was deducted
 		updatedAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
 		suite.True(found)
-		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, int64(gasRequired))
+		paymentAmount := sdk.NewInt64Coin(appconsts.BondDenom, paymentUtia)
 		expectedBalance := depositAmount.Sub(paymentAmount)
 		suite.Equal(expectedBalance, updatedAccount.Balance)
 		suite.Equal(sdk.NewInt64Coin(appconsts.BondDenom, 0), updatedAccount.AvailableBalance)

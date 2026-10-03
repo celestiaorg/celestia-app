@@ -63,7 +63,8 @@ func TestGetAppSwitchesVersionInPlaceWhenBinaryIsShared(t *testing.T) {
 func TestGetAppRestartsWhenBinaryDiffers(t *testing.T) {
 	oldLogPath := filepath.Join(t.TempDir(), "old.log")
 	oldAppd := newMockAppd(t, "v0.0.0-old-binary-test", mockAppdScript(oldLogPath))
-	newAppd := newMockAppd(t, "v0.0.0-new-binary-test", mockAppdScript(filepath.Join(t.TempDir(), "new.log")))
+	newLogPath := filepath.Join(t.TempDir(), "new.log")
+	newAppd := newMockAppd(t, "v0.0.0-new-binary-test", mockAppdScript(newLogPath))
 
 	versions, err := NewVersions(
 		Version{AppVersion: 1, ABCIVersion: ABCIClientVersion1, Appd: oldAppd},
@@ -85,6 +86,9 @@ func TestGetAppRestartsWhenBinaryDiffers(t *testing.T) {
 	require.Equal(t, uint64(2), m.activeVersion.AppVersion)
 	require.True(t, oldAppd.IsStopped(), "the old binary must be stopped")
 	require.True(t, newAppd.IsRunning(), "the new binary must be started")
+	// Wait for the shutdown trap before cleanup interrupts the shell; otherwise
+	// its background sleep can outlive the test and keep the output pipes open.
+	require.Eventually(t, func() bool { return readFile(t, newLogPath) == "started\n" }, 5*time.Second, 10*time.Millisecond)
 }
 
 // mockAppdScript returns a shell script that appends "started" to logPath
