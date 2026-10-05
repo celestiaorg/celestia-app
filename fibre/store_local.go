@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cockroachdb/pebble/v2/vfs"
 )
@@ -74,7 +75,10 @@ func (b *localBackend) Get(ctx context.Context, commitment Commitment, promiseHa
 	}
 	defer f.Close()
 	// Buffer small codec reads to avoid per-field file reads and metric updates.
-	return readShardBinary(bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendLocal, f), 1<<20))
+	if err := fibregrpc.ReserveMemory(ctx, 1<<20); err != nil {
+		return nil, err
+	}
+	return readShardBinaryContext(ctx, bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendLocal, f), 1<<20))
 }
 
 func (b *localBackend) Has(_ context.Context, commitment Commitment, promiseHash []byte) (bool, error) {

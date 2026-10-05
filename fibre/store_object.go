@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go"
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 )
 
@@ -106,8 +107,11 @@ func (b *objectBackend) Get(ctx context.Context, commitment Commitment, promiseH
 	}
 	defer output.Body.Close()
 
+	if err := fibregrpc.ReserveMemory(ctx, 1<<20); err != nil {
+		return nil, err
+	}
 	reader := bufio.NewReaderSize(b.metrics.backendReader(ctx, storageBackendObject, output.Body), 1<<20)
-	shard, err := readShardBinary(reader)
+	shard, err := readShardBinaryContext(ctx, reader)
 	if err != nil {
 		return nil, fmt.Errorf("decoding shard object: %w", err)
 	}

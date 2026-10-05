@@ -198,8 +198,8 @@ func TestDownloadShardOversizedRequestRejected(t *testing.T) {
 	defer client.Close()
 
 	_, err = client.DownloadShard(t.Context(), &types.DownloadShardRequest{BlobId: make([]byte, 1<<20)})
-	require.Equal(t, codes.Internal, status.Code(err))
-	require.ErrorContains(t, err, "download request exceeds")
+	require.Equal(t, codes.ResourceExhausted, status.Code(err))
+	require.ErrorContains(t, err, "message size")
 
 	// A well-formed request still reaches the handler.
 	_, err = client.DownloadShard(t.Context(), &types.DownloadShardRequest{BlobId: makeTestBlobV0(t, 256).ID()})

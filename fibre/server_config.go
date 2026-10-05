@@ -69,9 +69,13 @@ type ServerConfig struct {
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// MaxConnections caps total concurrent gRPC connections.
-	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
+	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16)."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
-	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13)."`
+	// RPCMemoryBudget bounds accounted RPC working memory. Zero disables admission.
+	RPCMemoryBudget int64 `toml:"rpc_memory_budget" comment:"RPC working-memory budget in bytes (default 10737418240). Zero disables admission. This is not a process-memory ceiling."`
+	// UploadMemoryReserve is the portion of RPCMemoryBudget unavailable to downloads.
+	UploadMemoryReserve int64 `toml:"upload_memory_reserve" comment:"RPC memory reserved for uploads in bytes (default 6442450944). Uploads can also use the shared budget."`
 
 	StoreConfig
 
@@ -136,6 +140,8 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:       p.MaxMessageSize(),
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
+		RPCMemoryBudget:      10 << 30,
+		UploadMemoryReserve:  6 << 30,
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}
@@ -144,6 +150,9 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 
 // Validate validates the ServerConfig and sets default values for unset fields.
 func (cfg *ServerConfig) Validate() error {
+	if cfg.RPCMemoryBudget < 0 || (cfg.RPCMemoryBudget > 0 && (cfg.UploadMemoryReserve < 0 || cfg.UploadMemoryReserve > cfg.RPCMemoryBudget)) {
+		return fmt.Errorf("RPC memory budget must be non-negative and upload reserve must fit within it")
+	}
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")
 	}

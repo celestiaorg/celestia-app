@@ -7,6 +7,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/stretchr/testify/require"
 )
@@ -74,7 +75,7 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
 				b = binary.BigEndian.AppendUint32(b, 0) // rlcs_len
-				b = binary.BigEndian.AppendUint32(b, maxShardRows+1)
+				b = binary.BigEndian.AppendUint32(b, uint32(DefaultProtocolParams.MaxRowsPerValidator()+1))
 				return b
 			},
 			wantSub: "num rows",
@@ -88,17 +89,17 @@ func TestShardCodecRejectsBomb(t *testing.T) {
 				b = binary.BigEndian.AppendUint32(b, 1) // numRows = 1
 				b = binary.BigEndian.AppendUint32(b, 0) // row index
 				b = binary.BigEndian.AppendUint32(b, 0) // row data_len
-				b = binary.BigEndian.AppendUint32(b, maxRowProofSegments+1)
+				b = binary.BigEndian.AppendUint32(b, uint32(DefaultProtocolParams.MerkleProofDepth()+1))
 				return b
 			},
 			wantSub: "num proof",
 		},
 		{
-			name: "byte length above 1 GiB cap",
+			name: "RLC length above protocol cap",
 			buildFile: func() []byte {
 				var b []byte
 				b = binary.BigEndian.AppendUint32(b, shardCodecVersion)
-				b = binary.BigEndian.AppendUint32(b, shardLengthLimit+1) // rlcs_len
+				b = binary.BigEndian.AppendUint32(b, uint32(DefaultProtocolParams.Rows*field.GF128Size+1)) // rlcs_len
 				return b
 			},
 			wantSub: "exceeds shard limit",

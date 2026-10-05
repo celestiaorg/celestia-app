@@ -200,17 +200,37 @@ At startup, Fibre records the object endpoint, bucket, prefix, chain ID, and val
 
 Startup fails if the saved record is corrupt, or if retained object shards have no namespace record. After all object shards are pruned, namespace changes need no override.
 
-### Connection caps and memory
+### RPC memory admission
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+Fibre admits uploads and downloads against a shared working-memory budget:
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
+```toml
+rpc_memory_budget = 10737418240 # 10 GiB total
+upload_memory_reserve = 6442450944 # 6 GiB unavailable to downloads
 ```
 
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+Uploads can use the full budget. Downloads can use at most 4 GiB with these defaults.
+Smaller shards consume smaller reservations; the budget does not depend on validator stake or fixed RPC slots.
+The reserve protects memory for uploads, not network bandwidth or disk write speed.
 
-An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+Uploads reserve memory before receiving their payloads. Compressed requests reserve for the maximum decompressed size.
+Upload reservations use six times the bounded message size plus protocol-derived metadata overhead, including gRPC's default tiny-frame compaction costs.
+Downloads reserve memory before each storage-decoder allocation. A request can fail if a later allocation exceeds the remaining budget.
+Excess work receives `ResourceExhausted`; clients should retry with backoff and jitter.
+Reservations remain held while gRPC retains response buffers. Responses are sent uncompressed.
+
+Reservations include conservative allocation overhead, but are not a process-memory ceiling.
+Leave headroom for GC, persistent verifier state, transport buffers and other services.
+The protocol maximum of 4096 rows and approximately 132 MiB per message remains unchanged.
+Transport caps remain 16 connections and 13 streams per connection. gRPC keeps its automatic receive-window sizing.
+These windows can add several GiB of transport buffering at the default connection and stream caps, outside the admission budget.
+
+The metrics `fibre.server.rpc.reserved_bytes` and `fibre.server.rpc.memory_rejected` report reservations and budget rejections, labelled by `download`.
+
+#### Bypassing admission
+
+Set `rpc_memory_budget = 0` and restart Fibre to bypass the byte budget and upload reserve.
+Transport limits, protocol bounds and response tracking still apply.
 
 ## Signing
 

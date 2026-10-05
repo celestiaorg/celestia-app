@@ -16,15 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Connection and stream caps bound receive memory: gRPC buffers a full
-// UploadShard message (~132 MiB) before the handler runs, so the worst case is
-// maxConnections * maxConcurrentStreams * MaxRecvMsgSize (~27 GiB). The defaults
-// are intentionally conservative for a 32 GiB-RAM validator; operators can
-// override both caps via config to trade RAM for throughput.
-//
-// NewServerCodec separately limits rows and proofs before decoding allocates
-// memory for them, and rejects oversized DownloadShard requests before copying
-// them.
+// Transport limits bound connections and streams independently of RPC memory admission.
 const (
 	// DefaultMaxConnections is the default total connection cap.
 	DefaultMaxConnections = 16
@@ -79,7 +71,10 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 // A panic-recovery interceptor is always installed as defense in depth: a
 // panic in any handler (e.g. a malformed request that slips past validation)
 // is converted into an Internal gRPC error instead of crashing the process.
-func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) {
+func (s *Server) Register(service types.FibreServer, admission *Admission, opts ...grpc.ServerOption) {
+	if admission != nil {
+		opts = append(opts, grpc.ForceServerCodecV2(admission.codec))
+	}
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
@@ -96,7 +91,11 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
-	types.RegisterFibreServer(s.server, service)
+	if admission == nil {
+		types.RegisterFibreServer(s.server, service)
+	} else {
+		admission.register(s.server, service)
+	}
 }
 
 // recoverUnaryInterceptor recovers from panics in unary handlers and returns an

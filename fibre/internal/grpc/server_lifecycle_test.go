@@ -19,7 +19,7 @@ func TestServer_StopReleasesListenerWhenRegisteredButNotServed(t *testing.T) {
 	require.NoError(t, err)
 
 	addr := srv.ListenAddress()
-	srv.Register(nil) // server created, but Serve is never called
+	srv.Register(nil, nil) // server created, but Serve is never called
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

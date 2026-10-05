@@ -60,6 +60,11 @@ func NewServerCodec(maxShardRows, maxProofSegments int) encoding.CodecV2 {
 func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
+	if encoded, ok := v.(*mem.BufferSlice); ok {
+		data := *encoded
+		*encoded = nil
+		return data, nil
+	}
 	if req, ok := v.(*types.UploadShardRequest); ok {
 		return marshalUploadShardRequestScatter(req)
 	}
