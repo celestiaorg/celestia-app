@@ -1,0 +1,25 @@
+# Corto-10 fibre sidecar. Record of the live unit.
+# Memory is sized to the fibre worst case; see README.md ("Fibre memory").
+[Unit]
+Description=Corto-10 Fibre
+After=network-online.target corto-app.service
+Wants=network-online.target
+RequiresMountsFor=/var/lib/corto-10
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/fibre start --home /var/lib/corto-10/fibre
+Environment=GOMEMLIMIT=48GiB GOMAXPROCS=32 GOGC=100 AWS_REGION=eu-central-1 AWS_MAX_ATTEMPTS=3 AWS_RETRY_MODE=standard
+MemoryHigh=56G
+MemoryMax=64G
+LimitNOFILE=65536
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=330
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,29 @@
+# Corto-10 validator (celestia-appd). Record of the live unit.
+#
+# EXPERIMENT-ONLY, Corto-only, NOT recommended defaults:
+#   --timeout-commit=500ms  --delayed-precommit-timeout=1s  --pff-proposal-limit=500
+# These change consensus timing / proposal limits for a bounded throughput
+# testnet. Do not copy them to a production validator.
+[Unit]
+Description=Corto-10 validator
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/corto-10
+
+[Service]
+Type=simple
+User=root
+ExecStart=/usr/local/bin/celestia-appd start --home /var/lib/corto-10/app --delayed-precommit-timeout=1s --timeout-commit=500ms --pff-proposal-limit=500
+Environment=GOMEMLIMIT=8GiB GOMAXPROCS=8 GOGC=100 AWS_REGION=eu-central-1 AWS_MAX_ATTEMPTS=3 AWS_RETRY_MODE=standard
+MemoryHigh=12G
+MemoryMax=16G
+LimitNOFILE=65536
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=330
+UMask=0077
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

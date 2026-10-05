@@ -1,0 +1,24 @@
+# Corto-10 fibre server_config.toml (example). Values match the live validator-0
+# config; host-specific fields are placeholders. S3 credentials are NOT here;
+# they come from the instance IAM role.
+app_grpc_address = "<PRIVATE_IP>:9090"
+server_listen_address = "<PRIVATE_IP>:7980"
+signer_grpc_address = "127.0.0.1:26669"
+upload_verify_workers = 32
+max_connections = 32
+max_concurrent_streams = 16
+unlimited_budget = false
+storage_backend = "object"
+
+[object_storage]
+endpoint = "https://s3.eu-central-1.amazonaws.com"
+region = "eu-central-1"
+bucket = "corto-10-867703356141-20260929"
+prefix = "corto-10/generation-001/<validator-host>"
+batch_size = 1
+lifecycle_managed = true
+request_timeout = 30000000000
+packed_bucket = ""
+hash_first_bucket = ""
+hash_first_bucket_next = ""
+promise_hash_keys = false
