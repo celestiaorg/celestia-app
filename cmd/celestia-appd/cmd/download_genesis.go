@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/cosmos/cosmos-sdk/server"
@@ -24,7 +26,13 @@ var chainIDToSha256 = map[string]string{
 	appconsts.CortoChainID:   "4325c418ae9bd02e5b1c87aef2805243096a1951e7908b464675623f13cba1d2",
 }
 
+const downloadGenesisTimeout = 10 * time.Minute
+
 func downloadGenesisCommand() *cobra.Command {
+	return newDownloadGenesisCommand(downloadGenesisTimeout, downloadFile)
+}
+
+func newDownloadGenesisCommand(timeout time.Duration, download func(context.Context, string, string, string) error) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "download-genesis [chain-id]",
 		Short: "Download genesis file from https://github.com/celestiaorg/networks",
@@ -42,8 +50,10 @@ func downloadGenesisCommand() *cobra.Command {
 			fmt.Printf("Downloading genesis file for %s to %s\n", chainID, outputFile)
 
 			url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
-			if err := downloadFile(outputFile, url, knownHash); err != nil {
-				return fmt.Errorf("error downloading / persisting the genesis file: %s", err)
+			ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
+			defer cancel()
+			if err := download(ctx, outputFile, url, knownHash); err != nil {
+				return fmt.Errorf("error downloading / persisting the genesis file: %w", err)
 			}
 			fmt.Printf("Downloaded genesis file for %s to %s\n", chainID, outputFile)
 
@@ -75,8 +85,12 @@ func chainIDs() string {
 }
 
 // downloadFile downloads and verifies a URL before replacing the destination.
-func downloadFile(destination, url, expectedHash string) error {
-	resp, err := http.Get(url)
+func downloadFile(ctx context.Context, destination, url, expectedHash string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
