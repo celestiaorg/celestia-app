@@ -1,0 +1,18 @@
+{
+  "source_base": "f2d5874ba3f09de0ed597db938dbc73fcb8e2cce",
+  "candidate_patch": "../corto-10-app-candidate.patch",
+  "binary_sha256": "44c5b3aa2630da3e8059e58b645e0d7a7fe02741112fa2dbc7daba92f7d9408d",
+  "binary_platform": "darwin/arm64 multiplexer",
+  "init_command": [
+    "celestia-appd",
+    "init",
+    "corto-10-template",
+    "--chain-id",
+    "corto-10",
+    "--home",
+    "<private-scratch-home>"
+  ],
+  "normalization": "Only app_state/consensus.params and public TOML templates retained. No private keys or generated node identities retained.",
+  "candidate_patch_sha256": "6afdb30892f2ce5ba6c5e3122e758d070f4ef6a8504061efab261b03833190be",
+  "subsequent_source_change": "Historical replay test fixture only; runtime defaults unchanged."
+}

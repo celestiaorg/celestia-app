@@ -1,0 +1,36 @@
+{
+  "module_parameters": [
+    {
+      "path": "/fibre/params/full_stake_storage_budget",
+      "release": "2199023255552",
+      "deployment": "1688849860263936"
+    },
+    {
+      "path": "/fibre/params/shard_retention",
+      "release": "14400s",
+      "deployment": "86400s"
+    },
+    {
+      "path": "/staking/params/max_validators",
+      "release": 100,
+      "deployment": 10
+    }
+  ],
+  "consensus_parameters": [
+    {
+      "path": "/version/app",
+      "release": "10",
+      "deployment": "11"
+    }
+  ],
+  "runtime_decisions": "../corto-10-runtime-decisions-20260929.md",
+  "not_a_deployable_genesis": "Funding, account addresses, gentxs and chain generation are intentionally absent.",
+  "schema_adaptations": [
+    {
+      "path": "/valaddr/fibre_providers",
+      "release": [],
+      "experimental": "field absent",
+      "reason": "Experimental GenesisState has no fields; release empty provider list is not accepted by experimental codec. Register providers by transactions after startup."
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+44072b45490c3f1f3a2116e0b16637a2a84f8fb64e4be0223931ad4fcc86c602  celestia-app-standalone_Darwin_arm64.tar.gz

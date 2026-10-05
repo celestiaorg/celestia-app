@@ -1,0 +1,307 @@
+{
+  "06-solomachine": null,
+  "07-tendermint": null,
+  "auth": {
+    "accounts": [],
+    "params": {
+      "max_memo_characters": "256",
+      "sig_verify_cost_ed25519": "590",
+      "sig_verify_cost_secp256k1": "1000",
+      "tx_sig_limit": "7",
+      "tx_size_cost_per_byte": "10"
+    }
+  },
+  "authz": {
+    "authorization": []
+  },
+  "bank": {
+    "balances": [],
+    "denom_metadata": [
+      {
+        "base": "utia",
+        "denom_units": [
+          {
+            "aliases": [
+              "microtia"
+            ],
+            "denom": "utia",
+            "exponent": 0
+          },
+          {
+            "aliases": [],
+            "denom": "TIA",
+            "exponent": 6
+          }
+        ],
+        "description": "The native token of the Celestia network.",
+        "display": "TIA",
+        "name": "TIA",
+        "symbol": "TIA",
+        "uri": "",
+        "uri_hash": ""
+      }
+    ],
+    "params": {
+      "default_send_enabled": true,
+      "send_enabled": []
+    },
+    "send_enabled": [],
+    "supply": []
+  },
+  "blob": {
+    "params": {
+      "gas_per_blob_byte": 8,
+      "gov_max_square_size": "256"
+    }
+  },
+  "capability": {
+    "index": "1",
+    "owners": []
+  },
+  "circuit": {
+    "account_permissions": [],
+    "disabled_type_urls": [
+      "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+      "/cosmos.upgrade.v1beta1.MsgCancelUpgrade",
+      "/ibc.core.client.v1.MsgIBCSoftwareUpgrade"
+    ]
+  },
+  "consensus": null,
+  "distribution": {
+    "delegator_starting_infos": [],
+    "delegator_withdraw_infos": [],
+    "fee_pool": {
+      "community_pool": []
+    },
+    "outstanding_rewards": [],
+    "params": {
+      "base_proposer_reward": "0.000000000000000000",
+      "bonus_proposer_reward": "0.000000000000000000",
+      "community_tax": "0.020000000000000000",
+      "withdraw_addr_enabled": true
+    },
+    "previous_proposer": "",
+    "validator_accumulated_commissions": [],
+    "validator_current_rewards": [],
+    "validator_historical_rewards": [],
+    "validator_slash_events": []
+  },
+  "evidence": {
+    "evidence": []
+  },
+  "feegrant": {
+    "allowances": []
+  },
+  "fibre": {
+    "escrow_accounts": [],
+    "params": {
+      "full_stake_storage_budget": "2199023255552",
+      "payment_promise_height_window": "1000",
+      "payment_promise_timeout": "3600s",
+      "shard_retention": "14400s",
+      "withdrawal_delay": "86400s"
+    },
+    "processed_payments": [],
+    "promise_freshness_floor": "0001-01-01T00:00:00Z",
+    "withdrawals": []
+  },
+  "forwarding": {},
+  "genutil": {
+    "gen_txs": []
+  },
+  "gov": {
+    "constitution": "",
+    "deposit_params": null,
+    "deposits": [],
+    "params": {
+      "burn_proposal_deposit_prevote": false,
+      "burn_vote_quorum": false,
+      "burn_vote_veto": true,
+      "expedited_min_deposit": [
+        {
+          "amount": "50000000000",
+          "denom": "utia"
+        }
+      ],
+      "expedited_threshold": "0.667000000000000000",
+      "expedited_voting_period": "86400s",
+      "max_deposit_period": "604800s",
+      "min_deposit": [
+        {
+          "amount": "10000000000",
+          "denom": "utia"
+        }
+      ],
+      "min_deposit_ratio": "0.010000000000000000",
+      "min_initial_deposit_ratio": "0.000000000000000000",
+      "proposal_cancel_dest": "",
+      "proposal_cancel_ratio": "0.500000000000000000",
+      "quorum": "0.334000000000000000",
+      "threshold": "0.500000000000000000",
+      "veto_threshold": "0.334000000000000000",
+      "voting_period": "604800s"
+    },
+    "proposals": [],
+    "starting_proposal_id": "1",
+    "tally_params": null,
+    "votes": [],
+    "voting_params": null
+  },
+  "hyperlane": {
+    "app_sequence": "0",
+    "ism_genesis": {
+      "isms": [],
+      "validator_storage_locations": []
+    },
+    "ism_sequence": "0",
+    "mailboxes": [],
+    "messages": [],
+    "post_dispatch_genesis": {
+      "igp_gas_configs": [],
+      "igps": [],
+      "merkle_tree_hooks": [],
+      "noop_hooks": []
+    },
+    "post_dispatch_sequence": "0"
+  },
+  "ibc": {
+    "channel_genesis": {
+      "ack_sequences": [],
+      "acknowledgements": [],
+      "channels": [],
+      "commitments": [],
+      "next_channel_sequence": "0",
+      "params": {
+        "upgrade_timeout": {
+          "height": {
+            "revision_height": "0",
+            "revision_number": "0"
+          },
+          "timestamp": "600000000000"
+        }
+      },
+      "receipts": [],
+      "recv_sequences": [],
+      "send_sequences": []
+    },
+    "client_genesis": {
+      "clients": [],
+      "clients_consensus": [],
+      "clients_metadata": [],
+      "create_localhost": false,
+      "next_client_sequence": "0",
+      "params": {
+        "allowed_clients": [
+          "06-solomachine",
+          "07-tendermint"
+        ]
+      }
+    },
+    "connection_genesis": {
+      "client_connection_paths": [],
+      "connections": [],
+      "next_connection_sequence": "0",
+      "params": {
+        "max_expected_time_per_block": "5000000000"
+      }
+    }
+  },
+  "interchainaccounts": {
+    "controller_genesis_state": {
+      "active_channels": [],
+      "interchain_accounts": [],
+      "params": {
+        "controller_enabled": false
+      },
+      "ports": []
+    },
+    "host_genesis_state": {
+      "active_channels": [],
+      "interchain_accounts": [],
+      "params": {
+        "allow_messages": [
+          "/ibc.applications.transfer.v1.MsgTransfer",
+          "/cosmos.bank.v1beta1.MsgSend",
+          "/cosmos.staking.v1beta1.MsgDelegate",
+          "/cosmos.staking.v1beta1.MsgBeginRedelegate",
+          "/cosmos.staking.v1beta1.MsgUndelegate",
+          "/cosmos.staking.v1beta1.MsgCancelUnbondingDelegation",
+          "/cosmos.distribution.v1beta1.MsgSetWithdrawAddress",
+          "/cosmos.distribution.v1beta1.MsgWithdrawDelegatorReward",
+          "/cosmos.distribution.v1beta1.MsgFundCommunityPool",
+          "/cosmos.gov.v1.MsgVote",
+          "/cosmos.feegrant.v1beta1.MsgGrantAllowance",
+          "/cosmos.feegrant.v1beta1.MsgRevokeAllowance"
+        ],
+        "host_enabled": true
+      },
+      "port": "icahost"
+    }
+  },
+  "minfee": {
+    "network_min_gas_price": "0.000001000000000000",
+    "params": {
+      "network_min_gas_price": "0.000001000000000000"
+    }
+  },
+  "mint": {
+    "bond_denom": "utia"
+  },
+  "packetfowardmiddleware": {
+    "in_flight_packets": {}
+  },
+  "params": null,
+  "signal": {},
+  "slashing": {
+    "missed_blocks": [],
+    "params": {
+      "downtime_jail_duration": "60s",
+      "min_signed_per_window": "0.001000000000000000",
+      "signed_blocks_window": "10000",
+      "slash_fraction_double_sign": "0.020000000000000000",
+      "slash_fraction_downtime": "0.000000000000000000"
+    },
+    "signing_infos": []
+  },
+  "staking": {
+    "delegations": [],
+    "exported": false,
+    "last_total_power": "0",
+    "last_validator_powers": [],
+    "params": {
+      "bond_denom": "utia",
+      "historical_entries": 10000,
+      "max_entries": 7,
+      "max_validators": 100,
+      "min_commission_rate": "0.050000000000000000",
+      "unbonding_time": "1213200s"
+    },
+    "redelegations": [],
+    "unbonding_delegations": [],
+    "validators": []
+  },
+  "transfer": {
+    "denom_traces": [],
+    "params": {
+      "receive_enabled": true,
+      "send_enabled": true
+    },
+    "port_id": "transfer",
+    "total_escrowed": []
+  },
+  "upgrade": {},
+  "valaddr": {
+    "fibre_providers": []
+  },
+  "vesting": {},
+  "warp": {
+    "params": {},
+    "remote_routers": [],
+    "tokens": []
+  },
+  "zkism": {
+    "isms": [],
+    "messages": [],
+    "submissions": []
+  }
+}

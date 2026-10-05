@@ -1,0 +1,18 @@
+{
+  "_comment": "Redacted schema example of the manifest that generate.py prepare writes to <public-dir>/accounts.json and that generate.py finalize and bootstrap-transactions.py consume. Real addresses and node IDs are generated from the private keyrings and are never committed. Balances are in utia (1 TIA = 1_000_000 utia).",
+  "chain_id": "corto-10",
+  "cli_version": "<output of celestia-appd version>",
+  "binary_sha256": "<sha256 of the celestia-appd used for prepare>",
+  "accounts": [
+    {"host": "validator-0", "key_name": "validator", "address": "celestia1<redacted>", "utia": "100100000000", "active": false},
+    {"host": "encoder-0", "key_name": "fibre-0", "address": "celestia1<redacted>", "utia": "1000000000000", "active": true},
+    {"host": "encoder-0", "key_name": "fibre-32", "address": "celestia1<redacted>", "utia": "1000000000000", "active": false},
+    {"host": "treasury", "key_name": "treasury", "address": "celestia1<redacted>", "utia": "148718999000000000", "active": false}
+  ],
+  "validators": [
+    {"host": "validator-0", "address": "celestia1<redacted>", "node_id": "<redacted-node-id>"}
+  ],
+  "encoders": [
+    {"host": "encoder-0", "funded_accounts": 128, "active_keys": ["fibre-0", "...", "fibre-31"], "later_escrow_utia": "500000000000"}
+  ]
+}

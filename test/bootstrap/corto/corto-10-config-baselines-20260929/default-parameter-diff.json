@@ -1,0 +1,26 @@
+{
+  "module-genesis": [
+    {
+      "path": "/fibre/params/payment_promise_timeout",
+      "release": "3600s",
+      "candidate": "300s"
+    },
+    {
+      "path": "/fibre/params/shard_retention",
+      "release": "14400s",
+      "candidate": "300s"
+    },
+    {
+      "path": "/valaddr/fibre_providers",
+      "release": [],
+      "candidate": null
+    }
+  ],
+  "consensus-params": [
+    {
+      "path": "/version/app",
+      "release": "10",
+      "candidate": "11"
+    }
+  ]
+}

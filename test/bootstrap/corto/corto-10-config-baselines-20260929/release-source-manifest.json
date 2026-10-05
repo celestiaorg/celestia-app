@@ -1,0 +1,29 @@
+{
+  "archive_sha256": "44072b45490c3f1f3a2116e0b16637a2a84f8fb64e4be0223931ad4fcc86c602",
+  "asset_url": "https://github.com/celestiaorg/celestia-app/releases/download/v10.3.0-corto/celestia-app-standalone_Darwin_arm64.tar.gz",
+  "binary_sha256": "6538047fcf1490c3680067f406388588a49be133e181089c732ef1336268db59",
+  "candidate_snapshot": "Captured separately in candidate-source-manifest.json",
+  "captured_at_utc": "2026-09-29T11:18:35.686622+00:00",
+  "checksum_verification": "Archive SHA256 equals corresponding published checksums.txt entry; not an independent cryptographic signature verification.",
+  "checksums_url": "https://github.com/celestiaorg/celestia-app/releases/download/v10.3.0-corto/checksums.txt",
+  "files_sha256": {
+    "README.md": "a9872546e6d1b6ba6d3a5be86bae2bb0961236b434680ee81054e531629df4cf",
+    "release-app.toml": "a87e889f67ea305f8af8838edba410183ea8339ee36ff31146c860901db9c0ea",
+    "release-asset-checksum.txt": "4708452ddee35a6fcc174419f3d6bf243de8cdc2ab65186070abe74af887110b",
+    "release-client.toml": "db5b951b34f6f983ae5e43f2d8db0ffc88f1a6414d1499c9f0be19f36a6a6fd4",
+    "release-config.toml": "815727eafebe822ffbd12187f85d2e22ae9113042b9769fa81cb47ac873e9386",
+    "release-consensus-params.json": "54a27943fb395f5e965284b136cc6f89c6616e3f1f06954ff03371370492cef1",
+    "release-module-genesis.json": "720b1328f34bde407132a961e949b1510e046c1251a9dd8e86f6bf97ad007599",
+    "release-version.txt": "914cdf0c101cfcc14e6442d557abef2e2439d0d9c80da2def66d1d5a56fc8fa4"
+  },
+  "init_command": "celestia-appd init corto-release-baseline --chain-id corto-config-baseline --home <isolated-scratch-home>",
+  "normalization": "JSON keys sorted; module genesis is app_state exactly; consensus params is consensus.params exactly. Omitted genesis_time, chain_id, initial_height, app_hash, app_name/app_version wrappers, generated node ID and private keys. TOML templates are unchanged public CLI outputs; moniker is fixed corto-release-baseline.",
+  "release_commit": "861c71c845e155ab8bdbe49a1d1453bdb4a3ccd1",
+  "release_tag": "v10.3.0-corto",
+  "release_url": "https://github.com/celestiaorg/celestia-app/releases/tag/v10.3.0-corto",
+  "repository": "celestiaorg/celestia-app",
+  "scope": "Local scratch init only; no live environment operations. No private keys or node identity copied.",
+  "scratch_private_keys": "Generated scratch node_key.json and priv_validator_key.json deleted after extraction; never copied or displayed.",
+  "verified_cli_commit": "861c71c845e155ab8bdbe49a1d1453bdb4a3ccd1",
+  "verified_cli_version": "10.3.0-corto"
+}
