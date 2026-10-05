@@ -137,6 +137,47 @@ Restart Fibre to apply changes. Values must be positive and no greater than the 
 Config precedence: **flag > config file > default**. New fields added in a release do not appear in an existing config file automatically; add them by hand to override their default. Changes take effect on restart.
 Unknown keys and tables cause startup to fail, so Fibre does not silently ignore misspelled settings.
 
+### Object storage credentials
+
+Fibre needs credentials to reach the bucket configured in `[object_storage]`. It reads them from its environment using the standard AWS variables and refuses to start if none are found. There is no credentials field in `server_config.toml`.
+
+1. Create an access key in your storage provider with read, write, and delete permissions on the bucket:
+
+   - **Amazon S3**: create an IAM user with `s3:GetObject`, `s3:PutObject`, `s3:DeleteObject`, and `s3:ListBucket` on the bucket, then create an access key for it.
+   - **Cloudflare R2**: create an R2 API token with **Object Read & Write** permission scoped to the bucket. Use its Access Key ID and Secret Access Key below.
+
+2. Save the key in `/etc/fibre/s3.env`, readable only by root:
+
+   ```sh
+   sudo mkdir -p /etc/fibre
+   sudo tee /etc/fibre/s3.env > /dev/null <<'EOT'
+   AWS_ACCESS_KEY_ID=replace-with-your-access-key-id
+   AWS_SECRET_ACCESS_KEY=replace-with-your-secret-access-key
+   EOT
+   sudo chmod 0600 /etc/fibre/s3.env
+   ```
+
+   If AWS gave you temporary credentials, add a third line with `AWS_SESSION_TOKEN=...`.
+
+3. Point the Fibre systemd service at the file. Run `sudo systemctl edit fibre.service` (use your service name if it differs) and add:
+
+   ```ini
+   [Service]
+   EnvironmentFile=/etc/fibre/s3.env
+   ```
+
+4. Restart Fibre and check that it started:
+
+   ```sh
+   sudo systemctl daemon-reload
+   sudo systemctl restart fibre.service
+   sudo systemctl status fibre.service
+   ```
+
+   If Fibre exits with `loading object storage credentials`, the service did not receive the key. Check the file and the service override, then restart. A key with wrong permissions shows up later as access denied errors in the logs.
+
+To rotate keys, update `/etc/fibre/s3.env` and restart Fibre. If the host already has credentials from an IAM role or the shared AWS credentials file, Fibre uses them, and you can skip this section.
+
 ### Switching shard storage backends
 
 Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.

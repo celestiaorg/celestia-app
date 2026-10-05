@@ -46,7 +46,7 @@ bucket = "my-fibre-shards"
 prefix = "fibre"
 ```
 
-Use your bucket's endpoint and region. For Cloudflare R2, use its S3 API endpoint and `region = "auto"`. Credentials are loaded through the AWS SDK credential chain, such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the Fibre service's environment. Grant read, write, and delete access to the configured bucket and prefix, then restart Fibre.
+Use your bucket's endpoint and region. For Cloudflare R2, use its S3 API endpoint and `region = "auto"`. Credentials are loaded through the AWS SDK credential chain, such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the Fibre service's environment. See [object storage credentials](../../fibre/cmd/README.md#object-storage-credentials) for systemd setup. Grant read, write, and delete access to the configured bucket and prefix, then restart Fibre.
 
 Changing backends affects new shards only; it does not migrate existing shards. Keep the local data directory and access to the original object bucket and prefix for retained shards, including after switching back to local storage. See the [storage backend guide](../../fibre/cmd/README.md#switching-shard-storage-backends) before changing the backend or object namespace.
 
