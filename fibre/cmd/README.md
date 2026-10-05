@@ -141,20 +141,23 @@ Unknown keys and tables cause startup to fail, so Fibre does not silently ignore
 
 Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
 
-**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix.
+**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix. To move them, follow [Migrating to another bucket or prefix](#migrating-to-another-bucket-or-prefix).
 
 Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
 
-The store saves the object endpoint, bucket, prefix, chain ID, and validator address at startup, before accepting uploads.
-It updates this record only when an allowed namespace change occurs.
-While object shards remain, a change to this namespace prevents startup in either storage mode.
-Restore the previous configuration and signer to recover access.
-For an intentional migration, stop the server and move all retained objects to the new namespace first.
-Then start once with `--override-object-namespace`. The server logs the old and new namespaces and saves the new namespace.
-This flag does not move or verify objects. An incorrect override can make retained shards unavailable and leave orphaned objects after pruning.
-The flag is not saved in TOML. It only overrides a mismatch with a valid saved namespace.
-Startup fails if the saved record is corrupt, or if retained object shards have no namespace record.
-After all object shards are pruned, namespace changes need no override.
+### Migrating to another bucket or prefix
+
+At startup, Fibre records the object endpoint, bucket, prefix, chain ID, and validator address it uses. While object shards remain, starting with a different endpoint, bucket, or prefix fails in either storage mode. This stops retained shards from becoming unreachable by accident; if it happens, restore the previous configuration to recover access. To move them on purpose:
+
+1. Stop Fibre, so no new shards are written to the old bucket during the copy.
+2. Create the new bucket in the same region as the Fibre host. A bucket in another region adds latency to every upload and download.
+3. Copy every object under the old prefix to the new bucket with the same key layout, for example `aws s3 sync s3://<old-bucket>/<prefix> s3://<new-bucket>/<prefix>`. Fibre looks shards up by key, so a different layout makes them unavailable.
+4. Set the new endpoint, bucket, or prefix in `[object_storage]`. If the new bucket uses different keys, update the [credentials](../../docs/release-notes/release-notes.md#fibre-s3-compatible-object-storage) too.
+5. Start Fibre once with `--override-object-namespace`. It logs the old and new namespaces and records the new one. The flag does not copy or verify objects, so an override before the copy is complete makes shards unavailable and leaves orphaned objects after pruning.
+6. Remove the flag and restart Fibre. The flag is not saved in the config file, and leaving it in the start command would accept any future mismatch without protection.
+7. Once Fibre serves from the new bucket, delete the old bucket and revoke its credentials.
+
+Startup fails if the saved record is corrupt, or if retained object shards have no namespace record. After all object shards are pruned, namespace changes need no override.
 
 ### Connection caps and memory
 
