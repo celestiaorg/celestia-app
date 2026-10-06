@@ -8,6 +8,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
+	"github.com/celestiaorg/celestia-app/v10/pkg/user/utils"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -158,12 +159,8 @@ func claimRewards(t *testing.T, cctx *testnode.Context, txClient *user.TxClient,
 	txHash := withdrawRes.TxHash
 
 	txServiceClient := txtypes.NewServiceClient(cctx.GRPCClient)
-	// The tx indexer runs asynchronously, so poll until the tx is queryable.
-	var getTxResp *txtypes.GetTxResponse
-	require.Eventually(t, func() bool {
-		getTxResp, err = txServiceClient.GetTx(cctx.GoContext(), &txtypes.GetTxRequest{Hash: txHash})
-		return err == nil
-	}, 10*time.Second, 100*time.Millisecond)
+	getTxResp, err := utils.GetTxWithRetry(cctx.GoContext(), txServiceClient, txHash)
+	require.NoError(t, err)
 	require.NotNil(t, getTxResp.TxResponse)
 	require.Equal(t, abci.CodeTypeOK, getTxResp.TxResponse.Code)
 
