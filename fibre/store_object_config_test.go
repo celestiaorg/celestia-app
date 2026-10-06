@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"encoding/xml"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -45,6 +47,7 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 	}{
 		{"endpoint missing", func(c *ObjectStorageConfig) { c.Endpoint = "" }},
 		{"endpoint relative", func(c *ObjectStorageConfig) { c.Endpoint = "/r2" }},
+		{"endpoint without TLS", func(c *ObjectStorageConfig) { c.Endpoint = "http://localhost:9000" }},
 		{"endpoint scheme", func(c *ObjectStorageConfig) { c.Endpoint = "ftp://r2.example" }},
 		{"endpoint malformed", func(c *ObjectStorageConfig) { c.Endpoint = "https://%" }},
 		{"endpoint credentials", func(c *ObjectStorageConfig) { c.Endpoint = "https://user:secret@r2.example" }},
@@ -69,8 +72,6 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 	cfg.RequestTimeout = 0
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, defaultObjectRequestTimeout, cfg.RequestTimeout)
-	cfg.Endpoint = "http://localhost:9000"
-	require.NoError(t, cfg.Validate())
 }
 
 func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
@@ -280,7 +281,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	var mu sync.Mutex
 	rejectWrites := true
 	objects := make(map[string][]byte)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
 		assert.Contains(t, r.Header.Get("Authorization"), "Credential=test-key/")
@@ -324,6 +325,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 		}
 	}))
 	defer server.Close()
+	caBundle := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caBundle, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	t.Setenv("AWS_CA_BUNDLE", caBundle)
 	var logs bytes.Buffer
 	cfg := DefaultStoreConfig()
 	cfg.Log = slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))
