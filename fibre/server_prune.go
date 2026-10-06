@@ -48,18 +48,18 @@ func (s *Server) prune(ctx context.Context) {
 		}
 		if err != nil {
 			// Check the type directly so a joined database failure is not treated as a partial deletion failure.
-			if _, partial := err.(*partialDeleteError); partial {
+			if partial, ok := err.(*partialDeleteError); ok {
 				if deleteErr == nil {
-					deleteErr = err
+					deleteErr = partial.err
 				}
-			} else if errors.Is(err, ErrStoreIntegrity) {
-				if integrityErr == nil {
-					integrityErr = err
-				}
-			} else {
+				err = partial.integrityErr
+			} else if !errors.Is(err, ErrStoreIntegrity) || ctx.Err() != nil {
 				s.metrics.observePrune(ctx, start, totalPruned, err)
 				s.log.ErrorContext(ctx, "failed to prune store", "error", err, "elapsed (ms)", time.Since(start).Milliseconds())
 				return
+			}
+			if errors.Is(err, ErrStoreIntegrity) && integrityErr == nil {
+				integrityErr = err
 			}
 		}
 
