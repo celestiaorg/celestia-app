@@ -66,8 +66,8 @@ func TestBackendGetMetrics(t *testing.T) {
 }
 
 // TestServerDurationBucketsCoverObjectTimeout checks that every histogram
-// enclosing a shard store operation can resolve latencies up to the default
-// object request timeout instead of collapsing them into the overflow bucket.
+// enclosing a shard store operation can resolve latencies up to two default
+// object request timeouts instead of collapsing them into the overflow bucket.
 func TestServerDurationBucketsCoverObjectTimeout(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
@@ -99,7 +99,9 @@ func TestServerDurationBucketsCoverObjectTimeout(t *testing.T) {
 	} {
 		b := bounds[name]
 		require.NotEmpty(t, b, name)
-		require.GreaterOrEqual(t, b[len(b)-1], defaultObjectRequestTimeout.Seconds(), name)
+		// A failed Put may follow the payload write with a cleanup Delete under
+		// a second request timeout.
+		require.GreaterOrEqual(t, b[len(b)-1], 2*defaultObjectRequestTimeout.Seconds(), name)
 	}
 }
 
