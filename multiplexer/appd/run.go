@@ -64,6 +64,11 @@ func New(version string, compressedBinary []byte) (*Appd, error) {
 	return appd, nil
 }
 
+// Version returns the version of the celestia-appd binary.
+func (a *Appd) Version() string {
+	return a.version
+}
+
 // ensureExtracted extracts the binary on first use and sets its path.
 func (a *Appd) ensureExtracted() error {
 	a.extractMu.Lock()

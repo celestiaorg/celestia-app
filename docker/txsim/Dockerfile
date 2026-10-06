@@ -14,8 +14,15 @@ RUN apk update && apk add --no-cache \
     linux-headers \
     make \
     musl-dev
-COPY . /celestia-app
 WORKDIR /celestia-app
+
+# cache go module dependencies
+COPY go.mod go.sum ./
+COPY docker/download-go-modules.sh /usr/local/bin/download-go-modules.sh
+RUN sh /usr/local/bin/download-go-modules.sh
+
+# copy source code after downloading modules (to leverage caching)
+COPY . .
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \

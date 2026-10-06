@@ -4,26 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/spf13/cobra"
 )
 
-const (
-	envHome     = "FIBRE_HOME"
-	flagHome    = "home"
-	defaultHome = ".celestia-fibre"
-)
-
-func defaultHomePath() string {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return defaultHome
-	}
-	return filepath.Join(userHome, defaultHome)
-}
+const flagHome = "home"
 
 func newRootCmd() *cobra.Command {
 	var (
@@ -77,10 +65,10 @@ func newRootCmd() *cobra.Command {
 			return nil
 		},
 	}
-	rootCmd.PersistentFlags().String(flagHome, defaultHomePath(), fmt.Sprintf("fibre home directory (or set %s)", envHome))
-	if home, ok := os.LookupEnv(envHome); ok && home != "" {
+	rootCmd.PersistentFlags().String(flagHome, fibre.DefaultHome(), fmt.Sprintf("fibre home directory (or set %s)", fibre.EnvHome))
+	if home, ok := os.LookupEnv(fibre.EnvHome); ok && home != "" {
 		if err := rootCmd.PersistentFlags().Lookup(flagHome).Value.Set(home); err != nil {
-			fmt.Printf("Error setting home directory from %s: %v\n", envHome, err)
+			fmt.Printf("Error setting home directory from %s: %v\n", fibre.EnvHome, err)
 			os.Exit(1)
 		}
 	}
