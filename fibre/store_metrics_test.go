@@ -11,6 +11,7 @@ import (
 	"os"
 	"testing"
 	"testing/iotest"
+	"time"
 
 	"github.com/aws/smithy-go"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -62,6 +63,44 @@ func TestBackendGetMetrics(t *testing.T) {
 		}
 	}
 	require.Equal(t, 3, seen)
+}
+
+// TestServerDurationBucketsCoverObjectTimeout checks that every histogram
+// enclosing a shard store operation can resolve latencies up to the default
+// object request timeout instead of collapsing them into the overflow bucket.
+func TestServerDurationBucketsCoverObjectTimeout(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
+	metrics, err := newServerMetrics(provider.Meter("test"), newOccupancy(0))
+	require.NoError(t, err)
+	metrics.observeBackendGet(t.Context(), storageBackendObject)(nil)
+	metrics.observeUploadShard(t.Context())(0, nil)
+	metrics.observeDownloadShard(t.Context())(0, nil)
+	metrics.observeStoreOp(t.Context(), metrics.storePutDuration, time.Now(), true)
+	metrics.observeStoreOp(t.Context(), metrics.storeGetDuration, time.Now(), true)
+
+	var collected metricdata.ResourceMetrics
+	require.NoError(t, reader.Collect(t.Context(), &collected))
+	bounds := make(map[string][]float64)
+	for _, scope := range collected.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			if h, ok := m.Data.(metricdata.Histogram[float64]); ok && len(h.DataPoints) > 0 {
+				bounds[m.Name] = h.DataPoints[0].Bounds
+			}
+		}
+	}
+	for _, name := range []string{
+		"fibre.server.upload_shard.duration",
+		"fibre.server.download_shard.duration",
+		"fibre.server.store.put.duration",
+		"fibre.server.store.get.duration",
+		"fibre.server.backend.get.duration",
+	} {
+		b := bounds[name]
+		require.NotEmpty(t, b, name)
+		require.GreaterOrEqual(t, b[len(b)-1], defaultObjectRequestTimeout.Seconds(), name)
+	}
 }
 
 func TestBackendGetOutcome(t *testing.T) {
