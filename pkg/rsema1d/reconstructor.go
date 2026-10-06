@@ -14,11 +14,17 @@ import (
 // unique rows have been added to a Reconstructor.
 var ErrNotEnoughRows = errors.New("not enough rows to reconstruct")
 
-// Reconstructor is the download-path row collector: it collects RLC-verified
-// row proofs from many sources and recovers the K original rows once enough
-// unique indices have arrived. Because every contributing row is RLC-verified
-// against the target commitment as it lands, [Reconstructor.Reconstruct] runs
-// only Reed-Solomon data-shard recovery and skips the merkle/commitment rebuild.
+// ErrInvalidEncoding is returned when committed original rows do not match the
+// committed RLC values, so the blob was not encoded correctly.
+var ErrInvalidEncoding = errors.New("original rows do not match committed RLC values")
+
+// Reconstructor is the download-path row collector: it collects verified row
+// proofs from many sources and recovers the K original rows once enough unique
+// indices have arrived. Every row's Merkle proof is checked against the
+// commitment as it lands, and parity rows are RLC-checked too. Original rows
+// are RLC-checked once, in one batch, by [Reconstructor.Reconstruct]: a source
+// cannot change them without breaking their proofs, so a mismatch there means
+// the blob itself was encoded wrongly.
 //
 // Reconstructor does not own row storage. The caller supplies a row buffer to
 // [Reconstructor.Reconstruct]; dedup happens internally via a per-index seen
@@ -28,7 +34,7 @@ var ErrNotEnoughRows = errors.New("not enough rows to reconstruct")
 //
 //   - [Reconstructor.Add] is safe to call from many goroutines. The first
 //     successful Add installs the cached RLC under verifierMu; subsequent Adds
-//     take the lock-free fast path through VerifyShared. Dedup and the
+//     take the lock-free fast path. Dedup and the
 //     have-count update run under seenMu.
 //   - Concurrent Add calls return disjoint Index sets, so callers may store
 //     the returned novel proofs into their row buffer without further
@@ -124,6 +130,9 @@ func (r *Reconstructor) Reconstruct(rows [][]byte) error {
 	if want := r.Want(); want > 0 {
 		return fmt.Errorf("%w: need %d more rows", ErrNotEnoughRows, want)
 	}
+	if err := r.verifyOriginals(rows); err != nil {
+		return err
+	}
 	if err := r.coder.reconstructData(rows); err != nil {
 		return fmt.Errorf("reconstructing original rows: %w", err)
 	}
@@ -183,18 +192,41 @@ func (c *Coder) splittableReconstruct(rows [][]byte) (int, bool) {
 // validates it against the commitment.
 func (r *Reconstructor) verify(rlc rlc.Vector, proofs []*RowProof) error {
 	if r.verifierRLC.Load() {
-		return r.verifier.VerifyShared(r.commitment, proofs)
+		return r.verifier.verifyDeferred(r.commitment, proofs)
 	}
 
 	r.verifierMu.Lock()
 	defer r.verifierMu.Unlock()
 	if r.verifierRLC.Load() {
 		// another caller installed a validated RLC while we waited for the lock
-		return r.verifier.VerifyShared(r.commitment, proofs)
+		return r.verifier.verifyDeferred(r.commitment, proofs)
 	}
-	if err := r.verifier.Verify(r.commitment, proofs, rlc); err != nil {
+	if err := r.verifier.setRLCRoot(rlc); err != nil {
+		return err
+	}
+	if err := r.verifier.verifyDeferred(r.commitment, proofs); err != nil {
 		return err
 	}
 	r.verifierRLC.Store(true)
 	return nil
+}
+
+// verifyOriginals runs the deferred RLC check over the original rows present in rows.
+func (r *Reconstructor) verifyOriginals(rows [][]byte) error {
+	k := r.coder.config.K
+	if len(rows) < k {
+		return fmt.Errorf("expected %d rows, got %d", r.coder.config.K+r.coder.config.N, len(rows))
+	}
+	var present [][]byte
+	var indices []int
+	for i, row := range rows[:k] {
+		if len(row) > 0 {
+			present = append(present, row)
+			indices = append(indices, i)
+		}
+	}
+	if len(present) == 0 {
+		return nil
+	}
+	return r.verifier.verifyOriginalRLCs(present, indices)
 }
