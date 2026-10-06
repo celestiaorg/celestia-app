@@ -3,6 +3,8 @@ package fibre
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -62,13 +64,22 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	if err != nil {
 		return fmt.Errorf("encoding shard object: %w", err)
 	}
+	hash := sha256.New()
+	if _, err := io.Copy(hash, reader); err != nil {
+		return fmt.Errorf("checksumming shard object: %w", err)
+	}
+	checksum := base64.StdEncoding.EncodeToString(hash.Sum(nil))
+	if _, err := reader.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewinding shard object: %w", err)
+	}
 
 	_, putErr := b.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:        aws.String(b.namespace.Bucket),
-		Key:           aws.String(b.objectKey(commitment, promiseHash)),
-		Body:          reader,
-		ContentLength: aws.Int64(reader.size),
-		IfNoneMatch:   aws.String("*"),
+		Bucket:         aws.String(b.namespace.Bucket),
+		Key:            aws.String(b.objectKey(commitment, promiseHash)),
+		Body:           reader,
+		ContentLength:  aws.Int64(reader.size),
+		ChecksumSHA256: aws.String(checksum),
+		IfNoneMatch:    aws.String("*"),
 	}, func(options *s3.Options) {
 		options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 		// Avoid hashing the full shard for SigV4 signing.
@@ -76,11 +87,25 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 	})
 
 	if hasObjectErrorCode(putErr, "PreconditionFailed") {
-		// IfNoneMatch: "*" rejected this upload because a shard already exists for this commitment and promise hash.
-		return nil
+		return b.verifyObject(ctx, commitment, promiseHash, reader.size, checksum)
 	}
 	if putErr != nil {
 		return fmt.Errorf("putting shard object: %w", putErr)
+	}
+	return nil
+}
+
+func (b *objectBackend) verifyObject(ctx context.Context, commitment Commitment, promiseHash []byte, size int64, checksum string) error {
+	output, err := b.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket:       aws.String(b.namespace.Bucket),
+		Key:          aws.String(b.objectKey(commitment, promiseHash)),
+		ChecksumMode: s3types.ChecksumModeEnabled,
+	})
+	if err != nil {
+		return fmt.Errorf("checking existing shard object: %w", err)
+	}
+	if aws.ToInt64(output.ContentLength) != size || aws.ToString(output.ChecksumSHA256) != checksum {
+		return errors.New("existing shard object does not match uploaded shard")
 	}
 	return nil
 }

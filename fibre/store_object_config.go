@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -25,6 +26,8 @@ type ObjectStorageConfig struct {
 	Region string `toml:"region" comment:"Use auto for Cloudflare R2."`
 	// RequestTimeout bounds an object operation, including retries and response reads.
 	RequestTimeout time.Duration `toml:"request_timeout" comment:"Timeout per object operation in nanoseconds. Zero uses 30 seconds."`
+	// AllowInsecureHTTP permits plaintext object storage on a loopback endpoint.
+	AllowInsecureHTTP bool `toml:"allow_insecure_http" comment:"DANGER: allow plaintext object storage only on a loopback endpoint."`
 	// OverrideNamespace accepts a namespace change after operator migration.
 	OverrideNamespace bool `toml:"-"`
 }
@@ -37,6 +40,17 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	u, err := url.Parse(cfg.Endpoint)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 		return fmt.Errorf("object_storage.endpoint must be an absolute HTTP or HTTPS URL without credentials, query, or fragment")
+	}
+	if u.Scheme == "http" {
+		host := u.Hostname()
+		ip := net.ParseIP(host)
+		loopback := strings.EqualFold(host, "localhost") || ip != nil && ip.IsLoopback()
+		if !loopback {
+			return fmt.Errorf("object_storage.endpoint HTTP host must be a loopback address")
+		}
+		if !cfg.AllowInsecureHTTP {
+			return fmt.Errorf("object_storage.allow_insecure_http must be true for a plaintext endpoint")
+		}
 	}
 	if cfg.Region == "" {
 		return fmt.Errorf("object_storage.region is required")

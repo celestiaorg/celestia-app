@@ -46,7 +46,7 @@ func readObjectNamespace(db *pebbledb.DB) (objectNamespace, bool, error) {
 	}
 	// Reuse configuration validation without storing the region or credentials.
 	cfg := ObjectStorageConfig{
-		objectNamespace: namespace, Region: "unused",
+		objectNamespace: namespace, Region: "unused", AllowInsecureHTTP: true,
 	}
 	if err := cfg.Validate(); err != nil {
 		return namespace, false, fmt.Errorf("%w: invalid object namespace: %v", ErrStoreIntegrity, err)

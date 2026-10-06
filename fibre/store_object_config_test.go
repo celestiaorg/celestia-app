@@ -70,7 +70,11 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, defaultObjectRequestTimeout, cfg.RequestTimeout)
 	cfg.Endpoint = "http://localhost:9000"
+	require.ErrorContains(t, cfg.Validate(), "allow_insecure_http")
+	cfg.AllowInsecureHTTP = true
 	require.NoError(t, cfg.Validate())
+	cfg.Endpoint = "http://object.example:9000"
+	require.ErrorContains(t, cfg.Validate(), "loopback")
 }
 
 func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {

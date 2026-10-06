@@ -38,6 +38,10 @@ func TestObjectBackendPutContentLength(t *testing.T) {
 		if r.ContentLength != int64(encoded.Len()) {
 			t.Errorf("content length: got %d, want %d", r.ContentLength, encoded.Len())
 		}
+		checksum := sha256.Sum256(encoded.Bytes())
+		if got, want := r.Header.Get("X-Amz-Checksum-Sha256"), base64.StdEncoding.EncodeToString(checksum[:]); got != want {
+			t.Errorf("checksum: got %q, want %q", got, want)
+		}
 	}))
 	defer server.Close()
 	client := s3.New(s3.Options{
@@ -63,8 +67,15 @@ func TestObjectBackendPutRetry(t *testing.T) {
 			}
 			var encoded bytes.Buffer
 			require.NoError(t, writeShardBinary(&encoded, shard))
+			checksum := sha256.Sum256(encoded.Bytes())
+			checksumBase64 := base64.StdEncoding.EncodeToString(checksum[:])
 			var attempts atomic.Int32
 			server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodHead {
+					w.Header().Set("Content-Length", fmt.Sprint(encoded.Len()))
+					w.Header().Set("X-Amz-Checksum-Sha256", checksumBase64)
+					return
+				}
 				body, err := io.ReadAll(r.Body)
 				if err != nil || !bytes.Equal(encoded.Bytes(), body) {
 					t.Error("upload body does not match the encoded shard", err)
@@ -73,6 +84,9 @@ func TestObjectBackendPutRetry(t *testing.T) {
 				}
 				if r.ContentLength != int64(encoded.Len()) || r.Header.Get("If-None-Match") != "*" {
 					t.Error("upload length or conditional creation header changed")
+				}
+				if r.Header.Get("X-Amz-Checksum-Sha256") != checksumBase64 {
+					t.Error("upload checksum header changed")
 				}
 				status := secondStatus
 				if attempts.Add(1) == 1 {
@@ -130,6 +144,7 @@ func TestObjectBackendPut(t *testing.T) {
 				require.Equal(t, wantKey, aws.ToString(input.Key))
 				require.Equal(t, "*", aws.ToString(input.IfNoneMatch))
 				require.Equal(t, shardBinarySize(shard), aws.ToInt64(input.ContentLength))
+				require.NotEmpty(t, aws.ToString(input.ChecksumSHA256))
 
 				var options s3.Options
 				for _, fn := range optFns {
@@ -152,15 +167,34 @@ func TestObjectBackendPut(t *testing.T) {
 	})
 
 	t.Run("existing", func(t *testing.T) {
+		var checksum string
 		client := &s3ObjectClientStub{
-			putObject: func(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+			putObject: func(_ context.Context, input *s3.PutObjectInput, _ ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+				checksum = aws.ToString(input.ChecksumSHA256)
 				return nil, &smithy.GenericAPIError{Code: "PreconditionFailed", Fault: smithy.FaultClient}
+			},
+			headObject: func(_ context.Context, input *s3.HeadObjectInput, _ ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+				require.Equal(t, s3types.ChecksumModeEnabled, input.ChecksumMode)
+				return &s3.HeadObjectOutput{ContentLength: aws.Int64(shardBinarySize(shard)), ChecksumSHA256: aws.String(checksum)}, nil
 			},
 		}
 		backend := newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "fibre", ChainID: "test-chain", ValidatorAddress: "celestiavalcons1validator"})
 
 		err := backend.Put(t.Context(), commitment, promiseHash, shard)
 		require.NoError(t, err)
+	})
+
+	t.Run("existing mismatch", func(t *testing.T) {
+		client := &s3ObjectClientStub{
+			putObject: func(context.Context, *s3.PutObjectInput, ...func(*s3.Options)) (*s3.PutObjectOutput, error) {
+				return nil, &smithy.GenericAPIError{Code: "PreconditionFailed", Fault: smithy.FaultClient}
+			},
+			headObject: func(context.Context, *s3.HeadObjectInput, ...func(*s3.Options)) (*s3.HeadObjectOutput, error) {
+				return &s3.HeadObjectOutput{ContentLength: aws.Int64(shardBinarySize(shard)), ChecksumSHA256: aws.String("wrong")}, nil
+			},
+		}
+		backend := newObjectBackend(client, objectNamespace{Bucket: "bucket"})
+		require.ErrorContains(t, backend.Put(t.Context(), commitment, promiseHash, shard), "does not match")
 	})
 }
 
