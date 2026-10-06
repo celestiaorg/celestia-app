@@ -293,6 +293,18 @@ If you are a new contributor, please read [contributing to Celestia](https://git
 
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
 
+PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indicate the review thoroughness needed. For example: `fix!: [high] correct gas accounting` or `docs: [low] clarify setup instructions`. Include the same tag in the PR description and explain why you chose it. Contributors should write their own PR titles; Dependabot generates its titles from the configured prefix.
+
+- `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk.
+- `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
+- `[low]`: Focused review for straightforward docs, tests, or tooling changes with low risk.
+
+Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level.
+
+Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level and add it to the PR description with a brief explanation.
+
+External contributions must reference a meaningful issue. Open an issue explaining the value of your change before submitting unsolicited work. Trivial PRs limited to comment wording, typos, formatting, or irrelevant test updates may be closed. Low-effort AI-generated PRs will be closed; contributors using AI must understand, review, and revise its output before submission.
+
 This repo contains multiple go modules. When using it, rename `go.work.example` to `go.work` and run `go work sync`.
 
 ### Tools
