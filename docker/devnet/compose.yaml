@@ -1,0 +1,37 @@
+---
+services:
+  validator:
+    image: ghcr.io/celestiaorg/celestia-devnet-validator:${DEVNET_VERSION:?Set DEVNET_VERSION to an app release tag}
+    environment:
+      P2P_NETWORK: ${P2P_NETWORK:-devnet}
+      FIBRE_HOST: ${FIBRE_HOST:-localhost:7980}
+      BLOCK_TIME: ${BLOCK_TIME:-1s}
+    volumes:
+      - validator:/data
+    ports:
+      - '127.0.0.1:26657:26657'
+      - '127.0.0.1:1317:1317'
+      - '127.0.0.1:9090:9090'
+      - '127.0.0.1:7980:7980'
+    stop_grace_period: 30s
+
+  bridge:
+    image: ghcr.io/celestiaorg/celestia-devnet-bridge:${DEVNET_VERSION}
+    environment:
+      P2P_NETWORK: ${P2P_NETWORK:-devnet}
+      CORE_HOST: ${CORE_HOST:-validator}
+      CORE_RPC_PORT: ${CORE_RPC_PORT:-26657}
+      CORE_GRPC_PORT: ${CORE_GRPC_PORT:-9090}
+    volumes:
+      - bridge:/data/bridge
+    ports:
+      - '127.0.0.1:26658:26658'
+      - '127.0.0.1:2121:2121'
+    depends_on:
+      validator:
+        condition: service_healthy
+    stop_grace_period: 30s
+
+volumes:
+  validator:
+  bridge:

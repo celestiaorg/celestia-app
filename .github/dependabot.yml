@@ -11,7 +11,9 @@ version: 2
 updates:
   # Docker
   - package-ecosystem: docker
-    directory: "/docker"
+    directories:
+      - "/docker"
+      - "/docker/devnet"
     schedule:
       interval: weekly
       day: monday
