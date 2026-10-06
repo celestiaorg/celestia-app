@@ -196,7 +196,9 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 		promiseHashHex := string(iter.Key()[len(prefix):])
 		promiseHash, err := hex.DecodeString(promiseHashHex)
 		if err != nil {
-			rerr = errors.Join(rerr, fmt.Errorf("decoding promise hash from shard key: %w", err))
+			err = fmt.Errorf("decoding promise hash from shard key: %w", err)
+			s.log.Error("invalid shard key", "commitment", commitment.String(), "promise_hash", promiseHashHex, "error", err)
+			rerr = errors.Join(rerr, err)
 			continue
 		}
 
@@ -205,9 +207,14 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 			return shard, nil
 		}
 		if errors.Is(err, ErrStoreNotFound) {
-			continue
+			// The marker exists, so a missing payload is corruption rather than a miss.
+			err = fmt.Errorf("%w: shard payload missing", ErrStoreIntegrity)
 		}
-		rerr = errors.Join(rerr, fmt.Errorf("reading shard payload: %w", err))
+		err = fmt.Errorf("reading shard payload: %w", err)
+		if ctx.Err() == nil {
+			s.log.Error("failed to read shard payload", "commitment", commitment.String(), "promise_hash", promiseHashHex, "error", err)
+		}
+		rerr = errors.Join(rerr, err)
 	}
 
 	if err := iter.Error(); err != nil {

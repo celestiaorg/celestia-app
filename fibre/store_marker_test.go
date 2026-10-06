@@ -162,7 +162,11 @@ func TestGetSkipsInvalidMarkerAndReturnsValidShard(t *testing.T) {
 }
 
 func TestGetMissingPayloadKeepsPruneAccounting(t *testing.T) {
-	store := newMarkerTestStore(t)
+	var logs strings.Builder
+	cfg := DefaultStoreConfig()
+	cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+	store := NewMemoryStore(cfg)
+	t.Cleanup(func() { require.NoError(t, store.Close()) })
 	commitment := generateCommitment()
 	promiseHash := []byte{1}
 	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
@@ -173,7 +177,8 @@ func TestGetMissingPayloadKeepsPruneAccounting(t *testing.T) {
 	require.NoError(t, local.fs.Remove(local.shardPath(commitment, promiseHash)))
 
 	_, err := store.Get(t.Context(), commitment)
-	require.ErrorIs(t, err, ErrStoreNotFound)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Contains(t, logs.String(), "failed to read shard payload")
 
 	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
 	require.NoError(t, err)
@@ -539,7 +544,7 @@ func TestStoreMissingObjectPreservesMetadata(t *testing.T) {
 
 	store.shards.secondary = &shardStorageStub{missing: true}
 	_, err = store.Get(t.Context(), commitment)
-	require.ErrorIs(t, err, ErrStoreNotFound)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
 	has, err := store.Has(t.Context(), commitment, promiseHash)
 	require.NoError(t, err)
 	require.False(t, has)
