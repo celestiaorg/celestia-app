@@ -479,7 +479,7 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
 	}
 	if partial, ok := deleteErr.(*partialDeleteError); ok {
-		return pruned, prunedBytes, next, &partialDeleteError{errors.Join(partial.err, integrityErr)}
+		return pruned, prunedBytes, next, &partialDeleteError{err: partial.err, integrityErr: integrityErr}
 	}
 	return pruned, prunedBytes, next, errors.Join(deleteErr, integrityErr)
 }

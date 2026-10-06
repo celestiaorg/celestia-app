@@ -317,6 +317,16 @@ func TestPrunePreservesIntegrityAndDeletionErrors(t *testing.T) {
 				require.Contains(t, logs.String(), "prune skipped corrupt shard markers")
 				require.Contains(t, logs.String(), "prune retained failed payload deletions")
 				require.NotContains(t, logs.String(), "level=ERROR")
+				for line := range strings.SplitSeq(logs.String(), "\n") {
+					if strings.Contains(line, "prune skipped corrupt shard markers") {
+						require.Contains(t, line, "2 corrupt shard markers")
+						require.NotContains(t, line, os.ErrPermission.Error())
+					}
+					if strings.Contains(line, "prune retained failed payload deletions") {
+						require.Contains(t, line, os.ErrPermission.Error())
+						require.NotContains(t, line, ErrStoreIntegrity.Error())
+					}
+				}
 			} else {
 				pruned, freed, err := store.PruneBefore(t.Context(), time.Now())
 				require.ErrorIs(t, err, ErrStoreIntegrity)
