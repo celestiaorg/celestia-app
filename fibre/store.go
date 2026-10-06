@@ -475,13 +475,13 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 	if err := batch.Commit(pebbledb.NoSync); err != nil {
 		return 0, 0, nil, errors.Join(deleteErr, fmt.Errorf("committing batch: %w", err))
 	}
-	if deleteErr != nil {
-		return pruned, prunedBytes, next, deleteErr
-	}
 	if corruptMarkers > 1 {
 		integrityErr = fmt.Errorf("%w (%d corrupt shard markers)", integrityErr, corruptMarkers)
 	}
-	return pruned, prunedBytes, next, integrityErr
+	if partial, ok := deleteErr.(*partialDeleteError); ok {
+		return pruned, prunedBytes, next, &partialDeleteError{errors.Join(partial.err, integrityErr)}
+	}
+	return pruned, prunedBytes, next, errors.Join(deleteErr, integrityErr)
 }
 
 type pruneCandidate struct {
