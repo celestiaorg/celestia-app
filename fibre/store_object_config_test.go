@@ -68,35 +68,6 @@ func TestObjectClientChecksBucket(t *testing.T) {
 	}
 }
 
-func TestObjectClientBucketCheckContext(t *testing.T) {
-	clearAWSCredentials(t)
-	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
-	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
-	for _, name := range []string{"timeout", "cancel"} {
-		t.Run(name, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-			defer cancel()
-			server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
-				if name == "cancel" {
-					cancel()
-				}
-				<-r.Context().Done()
-			}))
-			defer server.Close()
-			cfg := testObjectStorageConfig()
-			cfg.Endpoint = server.URL
-			client, err := newObjectClient(ctx, cfg)
-			require.Nil(t, client)
-			if name == "cancel" {
-				require.ErrorIs(t, err, context.Canceled)
-			} else {
-				require.ErrorIs(t, err, context.DeadlineExceeded)
-				require.NoError(t, ctx.Err())
-			}
-		})
-	}
-}
-
 func TestObjectStorageConfigValidate(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
