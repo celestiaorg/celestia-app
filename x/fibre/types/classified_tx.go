@@ -2,6 +2,9 @@ package types
 
 import (
 	"fmt"
+	"runtime"
+	"sync"
+	"sync/atomic"
 
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -20,18 +23,69 @@ const MsgPayForFibreTypeURL = "/celestia.fibre.v1.MsgPayForFibre"
 func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 	classified := make([]square.ClassifiedTx, len(txs))
 	for i, rawTx := range txs {
-		fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
+		var err error
+		classified[i], err = classifyTx(rawTx, i)
 		if err != nil {
-			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
+			return nil, err
 		}
-		if !isFibreTx {
-			classified[i] = square.NewClassifiedTx(rawTx)
-			continue
+	}
+	return classified, nil
+}
+
+// ClassifyTxsForProposal classifies a full block on bounded workers. Entries
+// are independent and written to their original positions. The lowest-index
+// error is returned, matching ClassifyTxs even when workers finish out of order.
+func ClassifyTxsForProposal(txs [][]byte) ([]square.ClassifiedTx, error) {
+	if len(txs) < 128 || runtime.GOMAXPROCS(0) < 2 {
+		return ClassifyTxs(txs)
+	}
+	classified := make([]square.ClassifiedTx, len(txs))
+	errs := make([]error, len(txs))
+	workers := min(runtime.GOMAXPROCS(0), len(txs))
+	chunk := (len(txs) + workers - 1) / workers
+	var firstErr atomic.Int64
+	firstErr.Store(int64(len(txs)))
+	var wg sync.WaitGroup
+	for start := 0; start < len(txs); start += chunk {
+		end := min(start+chunk, len(txs))
+		wg.Go(func() {
+			for i := start; i < end && int64(i) < firstErr.Load(); i++ {
+				classified[i], errs[i] = classifyTxRecover(txs[i], i)
+				if errs[i] != nil {
+					for old := firstErr.Load(); int64(i) < old && !firstErr.CompareAndSwap(old, int64(i)); old = firstErr.Load() {
+					}
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	if i := int(firstErr.Load()); i < len(txs) {
+		return nil, errs[i]
+	}
+	return classified, nil
+}
+
+func classifyTxRecover(rawTx []byte, i int) (classified square.ClassifiedTx, err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("classifying tx at index %d: %v", i, recovered)
 		}
-		classified[i], err = square.NewClassifiedFibreTx(fibreTx)
-		if err != nil {
-			return nil, fmt.Errorf("classifying fibre tx at index %d: %w", i, err)
-		}
+	}()
+	return classifyTx(rawTx, i)
+}
+
+func classifyTx(rawTx []byte, i int) (square.ClassifiedTx, error) {
+	fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
+	if err != nil {
+		return square.ClassifiedTx{}, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
+	}
+	if !isFibreTx {
+		return square.NewClassifiedTx(rawTx), nil
+	}
+	classified, err := square.NewClassifiedFibreTx(fibreTx)
+	if err != nil {
+		return square.ClassifiedTx{}, fmt.Errorf("classifying fibre tx at index %d: %w", i, err)
 	}
 	return classified, nil
 }

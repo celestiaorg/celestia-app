@@ -172,6 +172,24 @@ func TestClassifyTxs(t *testing.T) {
 		_, err := fibretypes.ClassifyTxs([][]byte{normalTx, malformed})
 		require.ErrorContains(t, err, "index 1")
 	})
+
+	t.Run("parallel proposal classification matches serial order and errors", func(t *testing.T) {
+		txs := make([][]byte, 300)
+		for i := range txs {
+			txs[i] = normalTx
+		}
+		txs[0], txs[127], txs[299] = fibreTx, fibreTx, fibreTx
+		want, err := fibretypes.ClassifyTxs(txs)
+		require.NoError(t, err)
+		got, err := fibretypes.ClassifyTxsForProposal(txs)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+
+		malformed := fibreTxBytes(t, "not-a-bech32-address", testNamespace.Bytes(), testCommitment)
+		txs[13], txs[270] = malformed, malformed
+		_, err = fibretypes.ClassifyTxsForProposal(txs)
+		require.ErrorContains(t, err, "index 13")
+	})
 }
 
 // TestTryParseFibreTxSDKParity asserts that classification agrees with the

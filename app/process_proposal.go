@@ -203,7 +203,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Classify txs (marking pay-for-fibre txs and synthesizing their system
 	// blobs) before constructing the square; go-square no longer decodes
 	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxs(req.Txs)
+	classifiedTxs, err := fibretypes.ClassifyTxsForProposal(req.Txs)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil
