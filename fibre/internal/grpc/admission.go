@@ -8,6 +8,7 @@ import (
 	"math"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
@@ -17,6 +18,7 @@ import (
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/tap"
 )
 
 // Admission accounts for RPC working memory, including queued responses.
@@ -137,7 +139,34 @@ type transportReader interface {
 	RecvCompress() string
 }
 
-func (a *Admission) receive(ctx context.Context, target any, download bool) error {
+type receiveTimerKey struct{}
+
+var errReceiveTimeout = status.Error(codes.ResourceExhausted, "request receive timeout")
+
+// Install cancellation before gRPC builds its transport reader.
+func receiveTimeoutTap(ctx context.Context, _ *tap.Info) (context.Context, error) {
+	ctx, cancel := context.WithCancelCause(ctx)
+	var once sync.Once
+	timer := time.AfterFunc(receiveTimeout, func() { once.Do(func() { cancel(errReceiveTimeout) }) })
+	stop := func() {
+		// Wait for cancellation if it started; otherwise prevent it before handler work.
+		once.Do(func() {})
+		timer.Stop()
+	}
+	context.AfterFunc(ctx, stop)
+	return context.WithValue(ctx, receiveTimerKey{}, stop), nil
+}
+
+func (a *Admission) receive(ctx context.Context, target any, download bool) (err error) {
+	stopReceive, _ := ctx.Value(receiveTimerKey{}).(func())
+	defer func() {
+		if stopReceive != nil {
+			stopReceive()
+		}
+		if context.Cause(ctx) == errReceiveTimeout {
+			err = errReceiveTimeout
+		}
+	}()
 	r, ok := grpc.ServerTransportStreamFromContext(ctx).(transportReader)
 	if !ok {
 		return status.Error(codes.Internal, "gRPC transport reader unavailable")
@@ -173,6 +202,9 @@ func (a *Admission) receive(ctx context.Context, target any, download bool) erro
 	body := make([]byte, int(n))
 	if err := r.ReadMessageHeader(body); err != nil {
 		return status.Error(codes.Internal, err.Error())
+	}
+	if stopReceive != nil {
+		stopReceive()
 	}
 	if header[0] == 1 {
 		compressor := encoding.GetCompressor(r.RecvCompress())

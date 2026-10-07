@@ -38,6 +38,8 @@ const (
 // finish, which MaxConnectionIdle does not cover. The grace lets slow in-flight
 // uploads complete. Vars so tests can shorten them.
 var (
+	// receiveTimeout bounds receipt of the request header and body, excluding handler work.
+	receiveTimeout           = 15 * time.Second
 	keepAliveMaxConnAge      = 5 * time.Minute
 	keepAliveMaxConnAgeGrace = 2 * time.Minute
 )
@@ -73,7 +75,7 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 // is converted into an Internal gRPC error instead of crashing the process.
 func (s *Server) Register(service types.FibreServer, admission *Admission, opts ...grpc.ServerOption) {
 	if admission != nil {
-		opts = append(opts, grpc.ForceServerCodecV2(admission.codec))
+		opts = append(opts, grpc.ForceServerCodecV2(admission.codec), grpc.InTapHandle(receiveTimeoutTap))
 	}
 	opts = append(opts,
 		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),

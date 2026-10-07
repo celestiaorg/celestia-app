@@ -217,6 +217,9 @@ Uploads reserve memory before receiving their payloads. Compressed requests rese
 Upload reservations use six times the bounded message size plus protocol-derived metadata overhead, including gRPC's default tiny-frame compaction costs.
 Downloads reserve memory before each storage-decoder allocation. A request can fail if a later allocation exceeds the remaining budget.
 Excess work receives `ResourceExhausted`; clients should retry with backoff and jitter.
+Requests must deliver their message header and body within 15 seconds of stream admission, even without a client deadline.
+The server returns `ResourceExhausted` on receive timeout and releases the reservation after the read exits.
+This timeout excludes verification and storage. It bounds each stalled request, but does not prevent repeated admission starvation.
 Reservations remain held while gRPC retains response buffers. Responses are sent uncompressed.
 
 Reservations include conservative allocation overhead, but are not a process-memory ceiling.

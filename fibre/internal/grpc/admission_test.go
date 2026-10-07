@@ -97,6 +97,9 @@ func (s *admissionService) DownloadShard(ctx context.Context, req *types.Downloa
 }
 
 func TestMemoryAdmissionTLS(t *testing.T) {
+	previous := receiveTimeout
+	receiveTimeout = time.Second
+	t.Cleanup(func() { receiveTimeout = previous })
 	pv := core.NewMockPV()
 	cert, err := tlsid.BuildServerCert(pv, "admission-test")
 	require.NoError(t, err)
@@ -144,6 +147,11 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 	case <-entered:
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
+	}
+	select {
+	case err := <-finished:
+		t.Fatalf("receive timer cancelled a running handler: %v", err)
+	case <-time.After(2 * receiveTimeout):
 	}
 	stop()
 	require.Equal(t, codes.Canceled, status.Code(<-finished))
