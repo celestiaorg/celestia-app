@@ -45,7 +45,8 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 		if len(rawTx) > appconsts.MaxTxSize || !bytes.Contains(rawTx, []byte("MsgPayForFibre")) {
 			continue
 		}
-		if app.txCache.Exists(rawTx, nil) {
+		if cachedTx, found := app.txCache.PFFTx(rawTx); found {
+			decoded[i] = cachedTx
 			continue
 		}
 		tx, err := app.encodingConfig.TxConfig.TxDecoder()(rawTx)

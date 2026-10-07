@@ -9,9 +9,40 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/go-square/v4/share"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	protov2 "google.golang.org/protobuf/proto"
 )
+
+type cachedPFFTestTx struct{}
+
+func (*cachedPFFTestTx) GetMsgs() []sdk.Msg                    { return nil }
+func (*cachedPFFTestTx) GetMsgsV2() ([]protov2.Message, error) { return nil, nil }
+
+func TestTxCache_DecodedPFF(t *testing.T) {
+	cache := NewTxCache()
+	raw := []byte("admitted-pff")
+	decoded := &cachedPFFTestTx{}
+	cache.SetPFF(raw, decoded)
+
+	got, found := cache.PFFTx(raw)
+	require.True(t, found)
+	require.Same(t, decoded, got)
+	require.True(t, cache.Exists(raw, nil))
+	_, found = cache.PFFTx([]byte("different-pff"))
+	require.False(t, found)
+	large := bytes.Repeat([]byte{1}, maxCachedDecodedPFFBytes+1)
+	cache.SetPFF(large, decoded)
+	got, found = cache.PFFTx(large)
+	require.True(t, found)
+	require.Nil(t, got)
+	require.True(t, cache.Exists(large, nil))
+
+	cache.Set(raw, nil)
+	_, found = cache.PFFTx(raw)
+	require.False(t, found)
+}
 
 func TestNewTxCache(t *testing.T) {
 	cache := NewTxCache()

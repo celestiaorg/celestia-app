@@ -72,7 +72,7 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		if _, isPFF := payForFibreMsg(sdkTx); isPFF {
 			// A full CheckTx already populated the signature cache. Remember the
 			// exact tx so ProcessProposal need not decode it in the prepass.
-			app.txCache.Set(tx, nil)
+			app.txCache.SetPFF(tx, sdkTx)
 		}
 	}
 	return res, err
