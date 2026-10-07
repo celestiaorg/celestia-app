@@ -158,7 +158,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// FibreSignatureVerificationDecorator), so removing it would let a
 			// proposer settle promises without a validator quorum.
 			if isPFF {
-				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+				if execErr := executeProposalPFF(ctx, pffMsg, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}

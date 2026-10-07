@@ -450,6 +450,12 @@ func TestProcessProposalPayForFibreDoubleSpend(t *testing.T) {
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
 	}
+
+	// The first payment wrote to the rejected proposal branch. A later round
+	// must begin from committed state, so that payment remains settleable.
+	resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, overdrawTxs[:1]))
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 }
 
 // TestProcessProposalChargesTxSizeGas checks the ProcessProposal gas boundary.
