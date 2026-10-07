@@ -36,8 +36,29 @@ func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 // are independent and written to their original positions. The lowest-index
 // error is returned, matching ClassifyTxs even when workers finish out of order.
 func ClassifyTxsForProposal(txs [][]byte) ([]square.ClassifiedTx, error) {
+	return ClassifyTxsForProposalWithMessages(txs, nil)
+}
+
+// ClassifyTxsForProposalWithMessages uses PFF messages already decoded by the
+// proposal ante pass. A non-nil message must come from the corresponding raw
+// transaction; all other entries retain the regular classification path.
+func ClassifyTxsForProposalWithMessages(txs [][]byte, pffMessages []*MsgPayForFibre) ([]square.ClassifiedTx, error) {
+	if pffMessages != nil && len(pffMessages) != len(txs) {
+		return nil, fmt.Errorf("%d PFF message slots for %d transactions", len(pffMessages), len(txs))
+	}
 	if len(txs) < 128 || runtime.GOMAXPROCS(0) < 2 {
-		return ClassifyTxs(txs)
+		if pffMessages == nil {
+			return ClassifyTxs(txs)
+		}
+		classified := make([]square.ClassifiedTx, len(txs))
+		for i, rawTx := range txs {
+			var err error
+			classified[i], err = classifyTxWithMessage(rawTx, i, pffMessages[i])
+			if err != nil {
+				return nil, err
+			}
+		}
+		return classified, nil
 	}
 	classified := make([]square.ClassifiedTx, len(txs))
 	errs := make([]error, len(txs))
@@ -50,7 +71,11 @@ func ClassifyTxsForProposal(txs [][]byte) ([]square.ClassifiedTx, error) {
 		end := min(start+chunk, len(txs))
 		wg.Go(func() {
 			for i := start; i < end && int64(i) < firstErr.Load(); i++ {
-				classified[i], errs[i] = classifyTxRecover(txs[i], i)
+				var msg *MsgPayForFibre
+				if pffMessages != nil {
+					msg = pffMessages[i]
+				}
+				classified[i], errs[i] = classifyTxWithMessageRecover(txs[i], i, msg)
 				if errs[i] != nil {
 					for old := firstErr.Load(); int64(i) < old && !firstErr.CompareAndSwap(old, int64(i)); old = firstErr.Load() {
 					}
@@ -66,16 +91,31 @@ func ClassifyTxsForProposal(txs [][]byte) ([]square.ClassifiedTx, error) {
 	return classified, nil
 }
 
-func classifyTxRecover(rawTx []byte, i int) (classified square.ClassifiedTx, err error) {
+func classifyTxWithMessageRecover(rawTx []byte, i int, msg *MsgPayForFibre) (classified square.ClassifiedTx, err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			err = fmt.Errorf("classifying tx at index %d: %v", i, recovered)
 		}
 	}()
-	return classifyTx(rawTx, i)
+	return classifyTxWithMessage(rawTx, i, msg)
 }
 
 func classifyTx(rawTx []byte, i int) (square.ClassifiedTx, error) {
+	return classifyTxWithMessage(rawTx, i, nil)
+}
+
+func classifyTxWithMessage(rawTx []byte, i int, msg *MsgPayForFibre) (square.ClassifiedTx, error) {
+	if msg != nil {
+		systemBlob, err := msg.SystemBlob()
+		if err != nil {
+			return square.ClassifiedTx{}, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
+		}
+		classified, err := square.NewClassifiedFibreTx(&squaretx.FibreTx{Tx: rawTx, SystemBlob: systemBlob})
+		if err != nil {
+			return square.ClassifiedTx{}, fmt.Errorf("classifying fibre tx at index %d: %w", i, err)
+		}
+		return classified, nil
+	}
 	fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
 	if err != nil {
 		return square.ClassifiedTx{}, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)

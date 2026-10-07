@@ -67,6 +67,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		pfbMessageCount int
 		pffMessageCount int
 		maxPFF          = appconsts.MaxPayForFibreMessages
+		pffMessages     = make([]*fibretypes.MsgPayForFibre, len(req.Txs))
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -125,13 +126,14 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			_, isPFF := payForFibreMsg(sdkTx)
+			pffMsg, isPFF := payForFibreMsg(sdkTx)
 			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 					return reject(), nil
 				}
+				pffMessages[idx] = pffMsg
 			} else {
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
@@ -203,7 +205,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Classify txs (marking pay-for-fibre txs and synthesizing their system
 	// blobs) before constructing the square; go-square no longer decodes
 	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxsForProposal(req.Txs)
+	classifiedTxs, err := fibretypes.ClassifyTxsForProposalWithMessages(req.Txs, pffMessages)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil

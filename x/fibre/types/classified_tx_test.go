@@ -184,6 +184,17 @@ func TestClassifyTxs(t *testing.T) {
 		got, err := fibretypes.ClassifyTxsForProposal(txs)
 		require.NoError(t, err)
 		require.Equal(t, want, got)
+		decoded, err := encoding.MakeConfig(app.ModuleEncodingRegisters...).TxConfig.TxDecoder()(fibreTx)
+		require.NoError(t, err)
+		pffMsg, ok := decoded.GetMsgs()[0].(*fibretypes.MsgPayForFibre)
+		require.True(t, ok)
+		messages := make([]*fibretypes.MsgPayForFibre, len(txs))
+		messages[0], messages[127], messages[299] = pffMsg, pffMsg, pffMsg
+		got, err = fibretypes.ClassifyTxsForProposalWithMessages(txs, messages)
+		require.NoError(t, err)
+		require.Equal(t, want, got)
+		_, err = fibretypes.ClassifyTxsForProposalWithMessages(txs, messages[:1])
+		require.ErrorContains(t, err, "message slots")
 
 		malformed := fibreTxBytes(t, "not-a-bech32-address", testNamespace.Bytes(), testCommitment)
 		txs[13], txs[270] = malformed, malformed
