@@ -4,6 +4,7 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobante "github.com/celestiaorg/celestia-app/v10/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
@@ -29,6 +30,7 @@ func NewAnteHandler(
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
 	pffSigCache fibreante.PffSigCache,
+	txSigCache *sigcache.Cache,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -65,7 +67,7 @@ func NewAnteHandler(
 		// that the signature's sequence number (a.k.a nonce) matches the
 		// account sequence number of the signer.
 		// Note: does not consume gas from the gas meter.
-		ante.NewSigVerificationDecorator(accountKeeper, signModeHandler),
+		NewCachedSigVerificationDecorator(accountKeeper, signModeHandler, txSigCache),
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
 		NewNestedMsgDecorator(),

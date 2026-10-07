@@ -44,6 +44,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		a.GovParamFilters(),
 		a.FibreKeeper,
 		app.NewPffSigVerificationCache(),
+		nil, // This test app does not share an ABCI transaction signature cache.
 	)
 
 	fsb, err := app.NewFilteredSquareBuilder(

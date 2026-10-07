@@ -38,6 +38,7 @@ import (
 	celestiatx "github.com/celestiaorg/celestia-app/v10/app/grpc/tx"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/proof"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	"github.com/celestiaorg/celestia-app/v10/x/blob"
 	blobkeeper "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
@@ -217,6 +218,8 @@ type App struct {
 	// pffSigCache skips repeat PFF signature checks across ante passes.
 	// It is in memory only.
 	pffSigCache *PffSigVerificationCache
+	// txSigCache remembers successful direct-mode transaction signatures.
+	txSigCache *sigcache.Cache
 	// treePool used for ProcessProposal and PrepareProposal to optimize root calculation allocs
 	treePool                *wrapper.TreePool
 	delayedPrecommitTimeout time.Duration
@@ -268,6 +271,7 @@ func New(
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
 		pffSigCache:             NewPffSigVerificationCache(),
+		txSigCache:              sigcache.New(10_000),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
@@ -748,6 +752,7 @@ func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHa
 		app.GovParamFilters(),
 		app.FibreKeeper,
 		app.pffSigCache,
+		app.txSigCache,
 	)
 }
 
