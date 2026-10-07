@@ -289,6 +289,7 @@ func (suite *MsgServerTestSuite) TestPayForFibre() {
 		resp, err := suite.msgServer.PayForFibre(suite.ctx, msg)
 		suite.NoError(err)
 		suite.NotNil(resp)
+		suite.NotEmpty(suite.ctx.EventManager().Events())
 
 		// Verify payment was processed
 		pp := fibre.PaymentPromise{}
