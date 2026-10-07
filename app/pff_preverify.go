@@ -10,6 +10,7 @@ import (
 	appante "github.com/celestiaorg/celestia-app/v10/app/ante"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkante "github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -71,6 +72,7 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 	if len(jobs) == 0 {
 		return decoded
 	}
+	ctx = fibrekeeper.WithPreverifyValsetCache(ctx)
 	// A successful direct-mode tx signature can also be reused by the normal
 	// ante pass, which still checks account state and sequence in block order.
 	signatureHandler := sdk.ChainAnteDecorators(

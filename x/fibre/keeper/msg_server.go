@@ -9,9 +9,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
-	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -350,33 +348,13 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 
 // validateValidatorSignatures checks signatures against the validator set at height.
 func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
-	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
+	converted, err := k.validatorSetForSignatures(ctx, height)
 	if err != nil {
-		return errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
+		return err
 	}
-
-	// Convert SDK validators to CometBFT validators
-	cmtValidators := make([]*core.Validator, len(historicalInfo.Valset))
-	for i, val := range historicalInfo.Valset {
-		consPubKey, err := val.ConsPubKey()
-		if err != nil {
-			return errorsmod.Wrapf(err, "failed to get consensus public key for validator %s", val.GetOperator())
-		}
-
-		// Create CometBFT ed25519 public key from bytes
-		pubKeyBytes := consPubKey.Bytes()
-		if len(pubKeyBytes) != ed25519.PubKeySize {
-			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid ed25519 public key size for validator %s", val.GetOperator())
-		}
-
-		cmtPubKey := ed25519.PubKey(pubKeyBytes)
-		cmtValidators[i] = core.NewValidator(cmtPubKey, val.Tokens.Int64())
-	}
-
-	// Create validator set
-	cmtValSet := core.NewValidatorSet(cmtValidators)
+	cmtValidators := converted.validators
 	valSet := validator.Set{
-		ValidatorSet: cmtValSet,
+		ValidatorSet: converted.set,
 		Height:       uint64(height),
 	}
 
