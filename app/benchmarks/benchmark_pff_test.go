@@ -60,15 +60,19 @@ func BenchmarkProcessProposal_PFF(b *testing.B) {
 		}
 	})
 	b.Run("warm", func(b *testing.B) {
-		fixture.App.PurgeNodeCaches()
+		b.StopTimer()
+		// Each repetition needs fresh CheckTx state: admitting the same signer
+		// twice advances its mempool sequence and rejects the second pass.
+		warmApp := fixture.NewApp(b)
 		for _, tx := range rawTxs {
-			resp, err := fixture.App.CheckTx(&abci.RequestCheckTx{Tx: tx, Type: abci.CheckTxType_New})
+			resp, err := warmApp.CheckTx(&abci.RequestCheckTx{Tx: tx, Type: abci.CheckTxType_New})
 			if err != nil || resp.Code != 0 {
 				b.Fatalf("CheckTx rejected PFF: %v: %s", err, resp.Log)
 			}
 		}
+		b.StartTimer()
 		for b.Loop() {
-			acceptPFFProposal(b, fixture.App, req)
+			acceptPFFProposal(b, warmApp, req)
 		}
 	})
 }
