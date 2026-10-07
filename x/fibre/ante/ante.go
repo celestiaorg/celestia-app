@@ -74,7 +74,22 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		slot.valid = false
 	}
 	msg := PayForFibreMessage(tx)
-	if msg == nil || simulate || ctx.ExecMode() == sdk.ExecModeFinalize {
+	if msg == nil || simulate {
+		return next(ctx, tx, simulate)
+	}
+	if ctx.ExecMode() == sdk.ExecModeFinalize {
+		if slot == nil && ctx.Context() != nil {
+			ctx = WithVerifiedPFFSlot(ctx)
+			slot = verifiedPFFSlotFrom(ctx)
+		}
+		// FinalizeBlock does not verify validator certificates again. A
+		// certificate that was already checked also proves its payment-promise
+		// signature, which the message server may safely reuse.
+		if slot != nil {
+			if key, err := NewPffSigCacheKey(msg); err == nil && d.pffSigCache.IsCached(key) {
+				markVerifiedPFF(slot, key)
+			}
+		}
 		return next(ctx, tx, simulate)
 	}
 
@@ -103,13 +118,13 @@ type (
 	}
 )
 
-// WithVerifiedPFFSlot gives one proposal pass a reusable ante-to-message marker.
+// WithVerifiedPFFSlot gives an ante-to-message pass a reusable validation marker.
 func WithVerifiedPFFSlot(ctx sdk.Context) sdk.Context {
 	return ctx.WithValue(verifiedPFFKey{}, &verifiedPFFSlot{})
 }
 
 func verifiedPFFSlotFrom(ctx sdk.Context) *verifiedPFFSlot {
-	if (ctx.ExecMode() != sdk.ExecModeProcessProposal && ctx.ExecMode() != sdk.ExecModePrepareProposal) || ctx.Context() == nil {
+	if (ctx.ExecMode() != sdk.ExecModeProcessProposal && ctx.ExecMode() != sdk.ExecModePrepareProposal && ctx.ExecMode() != sdk.ExecModeFinalize) || ctx.Context() == nil {
 		return nil
 	}
 	slot, _ := ctx.Value(verifiedPFFKey{}).(*verifiedPFFSlot)
@@ -123,7 +138,7 @@ func markVerifiedPFF(slot *verifiedPFFSlot, key PffSigCacheKey) {
 	}
 }
 
-// VerifiedPayForFibre reports whether the proposal ante handler verified this
+// VerifiedPayForFibre reports whether the ante handler verified this exact
 // certificate, including a valid certificate found in the signature cache.
 func VerifiedPayForFibre(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) bool {
 	slot := verifiedPFFSlotFrom(ctx)

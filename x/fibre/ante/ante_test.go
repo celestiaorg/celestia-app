@@ -98,6 +98,30 @@ func TestFibreSignatureVerificationDecoratorFinalizeModeSkipsVerification(t *tes
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
+func TestFibreSignatureVerificationDecoratorFinalizeReusesExactCertificate(t *testing.T) {
+	msg := keyTestMsg()
+	cache := newMemorySigCache()
+	decorator := FibreSignatureVerificationDecorator{k: &fakeFibreKeeper{}, pffSigCache: cache}
+	ctx := sdk.Context{}.
+		WithContext(context.Background()).
+		WithGasMeter(storetypes.NewGasMeter(1)).
+		WithExecMode(sdk.ExecModeFinalize)
+	key := mustPffSigCacheKey(t, msg)
+
+	withoutProof, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextNoop)
+	require.NoError(t, err)
+	require.False(t, VerifiedPayForFibre(withoutProof, msg))
+
+	cache.Cache(key)
+	withProof, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextNoop)
+	require.NoError(t, err)
+	require.True(t, VerifiedPayForFibre(withProof, msg))
+
+	changed := *msg
+	changed.PaymentPromise.Signature = []byte("another signature")
+	require.False(t, VerifiedPayForFibre(withProof, &changed))
+}
+
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
 	msg := newPayForFibreMsgWithSignatures(1)
 	tx := mockTx{msgs: []sdk.Msg{msg}}
