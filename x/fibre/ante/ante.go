@@ -69,6 +69,10 @@ func NewFibreSigVerificationDecorator(
 }
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	slot := verifiedPFFSlotFrom(ctx)
+	if slot != nil {
+		slot.valid = false
+	}
 	msg := PayForFibreMessage(tx)
 	if msg == nil || simulate || ctx.ExecMode() == sdk.ExecModeFinalize {
 		return next(ctx, tx, simulate)
@@ -79,6 +83,7 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return ctx, err
 	}
 	if d.pffSigCache.IsCached(cacheKey) {
+		markVerifiedPFF(slot, cacheKey)
 		return next(ctx, tx, simulate)
 	}
 
@@ -86,7 +91,45 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return ctx, err
 	}
 	d.pffSigCache.Cache(cacheKey)
+	markVerifiedPFF(slot, cacheKey)
 	return next(ctx, tx, simulate)
+}
+
+type verifiedPFFKey struct{}
+type verifiedPFFSlot struct {
+	key   PffSigCacheKey
+	valid bool
+}
+
+// WithVerifiedPFFSlot gives one proposal pass a reusable ante-to-message marker.
+func WithVerifiedPFFSlot(ctx sdk.Context) sdk.Context {
+	return ctx.WithValue(verifiedPFFKey{}, &verifiedPFFSlot{})
+}
+
+func verifiedPFFSlotFrom(ctx sdk.Context) *verifiedPFFSlot {
+	if ctx.ExecMode() != sdk.ExecModeProcessProposal || ctx.Context() == nil {
+		return nil
+	}
+	slot, _ := ctx.Value(verifiedPFFKey{}).(*verifiedPFFSlot)
+	return slot
+}
+
+func markVerifiedPFF(slot *verifiedPFFSlot, key PffSigCacheKey) {
+	if slot != nil {
+		slot.key = key
+		slot.valid = true
+	}
+}
+
+// VerifiedPayForFibre reports whether the proposal ante handler verified this
+// certificate, including a valid certificate found in the signature cache.
+func VerifiedPayForFibre(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) bool {
+	slot := verifiedPFFSlotFrom(ctx)
+	if slot == nil || !slot.valid {
+		return false
+	}
+	key, err := NewPffSigCacheKey(msg)
+	return err == nil && key == slot.key
 }
 
 // NewPffSigCacheKey derives the cache key for msg's certificate: the message

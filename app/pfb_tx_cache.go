@@ -9,8 +9,9 @@ import (
 
 const defaultTxCacheCapacity = 10_000
 
-// TxCache caches blob transactions validated in CheckTx so ProcessProposal
-// can skip re-validating them. Its fixed capacity bounds memory use.
+// TxCache caches transactions validated in CheckTx so ProcessProposal can
+// skip redundant validation. A nil blobs value marks an admitted PFF tx.
+// Its fixed capacity bounds memory use.
 type TxCache struct {
 	entries *lru.Cache[[sha256.Size]byte, [sha256.Size]byte]
 }

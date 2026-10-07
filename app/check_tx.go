@@ -67,7 +67,15 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
-	return app.forwardCheckTx(req, sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx)
+	if err == nil && res.Code == abci.CodeTypeOK && req.Type == abci.CheckTxType_New {
+		if _, isPFF := payForFibreMsg(sdkTx); isPFF {
+			// A full CheckTx already populated the signature cache. Remember the
+			// exact tx so ProcessProposal need not decode it in the prepass.
+			app.txCache.Set(tx, nil)
+		}
+	}
+	return res, err
 }
 
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {

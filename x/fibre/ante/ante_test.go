@@ -1,6 +1,7 @@
 package ante
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"testing"
@@ -121,6 +122,24 @@ func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing
 	require.Equal(t, 1, cache.cacheLookups)
 	require.Zero(t, keeper.calls)
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
+}
+
+func TestVerifiedPayForFibreMatchesTheExactCertificate(t *testing.T) {
+	msg := keyTestMsg()
+	cache := newMemorySigCache()
+	key := mustPffSigCacheKey(t, msg)
+	cache.Cache(key)
+	decorator := FibreSignatureVerificationDecorator{k: &fakeFibreKeeper{}, pffSigCache: cache}
+	plainCtx := sdk.Context{}.WithContext(context.Background()).WithExecMode(sdk.ExecModeProcessProposal)
+	ctx := WithVerifiedPFFSlot(plainCtx)
+	got, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextNoop)
+	require.NoError(t, err)
+	require.True(t, VerifiedPayForFibre(got, msg))
+
+	changed := *msg
+	changed.PaymentPromise.Height++
+	require.False(t, VerifiedPayForFibre(got, &changed))
+	require.False(t, VerifiedPayForFibre(plainCtx, msg))
 }
 
 func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *testing.T) {

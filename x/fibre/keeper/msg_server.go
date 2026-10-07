@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
@@ -131,8 +132,10 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := pp.Validate(); err != nil {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
+	if !fibreante.VerifiedPayForFibre(ctx, msg) {
+		if err := pp.Validate(); err != nil {
+			return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
+		}
 	}
 
 	// Perform stateful verification (escrow account, balance, not already processed)

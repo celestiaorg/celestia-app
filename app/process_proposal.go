@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -58,6 +59,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to run fibre begin blocker on proposal branch", err)
 		return reject(), nil
 	}
+	decodedPFF := app.preverifyPFFSignatures(ctx, req.Txs)
+	ctx = fibreante.WithVerifiedPFFSlot(ctx)
 
 	var (
 		sdkMessageCount int
@@ -88,10 +91,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			sdkTxBytes = blobTx.Tx
 		}
 
-		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
+		var sdkTx sdk.Tx
+		if idx < len(decodedPFF) {
+			sdkTx = decodedPFF[idx]
+		}
+		var decodeErr error
+		if sdkTx == nil {
+			sdkTx, decodeErr = app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
+		}
 		ctx = ctx.WithTxBytes(sdkTxBytes)
 
-		if err != nil {
+		if decodeErr != nil {
 			// An error here means that a tx was included in the block that is not decodable.
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("tx %d is not decodable", idx))
 			return reject(), nil
