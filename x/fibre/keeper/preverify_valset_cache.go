@@ -8,6 +8,7 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
+	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 type preverifyValsetCacheKey struct{}
@@ -28,6 +29,20 @@ type cachedValset struct {
 type convertedValset struct {
 	validators []*core.Validator // historical info order, which binds signature positions
 	set        *core.ValidatorSet
+	expandOnce sync.Once
+	expanded   []*voied25519.ExpandedPublicKey
+}
+
+// expandedKeys are immutable after first construction and are shared by the
+// concurrent preverification workers for this proposal only.
+func (v *convertedValset) expandedKeys() []*voied25519.ExpandedPublicKey {
+	v.expandOnce.Do(func() {
+		v.expanded = make([]*voied25519.ExpandedPublicKey, len(v.validators))
+		for i, validator := range v.validators {
+			v.expanded[i], _ = voied25519.NewExpandedPublicKey(validator.PubKey.Bytes())
+		}
+	})
+	return v.expanded
 }
 
 // WithPreverifyValsetCache lets workers share immutable validator sets for one

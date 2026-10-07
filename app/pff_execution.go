@@ -7,9 +7,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// executeProposalPFF settles one PFF on the proposal branch. A failed PFF
-// rejects the whole proposal, and BaseApp resets that branch before the next
-// ProcessProposal call, so a second per-message state cache is unnecessary.
+// executeProposalPFF settles one PFF on a disposable proposal branch. The
+// caller discards that branch on failure, so a second cache is unnecessary.
 func executeProposalPFF(ctx sdk.Context, msg sdk.Msg, router baseapp.MessageRouter) (err error) {
 	if router == nil {
 		return nil

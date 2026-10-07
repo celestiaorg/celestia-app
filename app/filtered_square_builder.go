@@ -354,7 +354,14 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		// behind. A promise that cannot settle (overdraw, duplicate, out of
 		// gas) would commit its blob to the square without payment in
 		// FinalizeBlock, so drop the tx.
-		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
+		msg, isPFF := payForFibreMsg(sdkTx)
+		if !isPFF {
+			if revertErr := fsb.builder.RevertLastPayForFibreTx(); revertErr != nil {
+				logger.Error("reverting malformed pay-for-fibre transaction", "error", revertErr)
+			}
+			continue
+		}
+		if err := executeProposalPFF(txCtx, msg, fsb.msgRouter); err != nil {
 			logger.Error(
 				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
 				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),

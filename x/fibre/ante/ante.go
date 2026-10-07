@@ -109,7 +109,7 @@ func WithVerifiedPFFSlot(ctx sdk.Context) sdk.Context {
 }
 
 func verifiedPFFSlotFrom(ctx sdk.Context) *verifiedPFFSlot {
-	if ctx.ExecMode() != sdk.ExecModeProcessProposal || ctx.Context() == nil {
+	if (ctx.ExecMode() != sdk.ExecModeProcessProposal && ctx.ExecMode() != sdk.ExecModePrepareProposal) || ctx.Context() == nil {
 		return nil
 	}
 	slot, _ := ctx.Value(verifiedPFFKey{}).(*verifiedPFFSlot)

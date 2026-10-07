@@ -2,6 +2,8 @@ package keeper
 
 import (
 	"context"
+	"runtime"
+	"sync"
 
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
@@ -13,6 +15,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -169,7 +172,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	ms.SetProcessedPayment(ctx, processedPayment)
 
 	// Proposal events are discarded; FinalizeBlock emits the committed event.
-	if ctx.ExecMode() != sdk.ExecModeProcessProposal {
+	if ctx.ExecMode() != sdk.ExecModeProcessProposal && ctx.ExecMode() != sdk.ExecModePrepareProposal {
 		signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 		event := types.NewEventPayForFibre(signerAddr, msg.PaymentPromise.Namespace, msg.PaymentPromise.Commitment, uint32(len(msg.ValidatorSignatures)))
 		if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
@@ -353,14 +356,6 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 		return err
 	}
 	cmtValidators := converted.validators
-	valSet := validator.Set{
-		ValidatorSet: converted.set,
-		Height:       uint64(height),
-	}
-
-	// Create signature set with 2/3+ thresholds
-	twoThirds := cmtmath.Fraction{Numerator: 2, Denominator: 3}
-	sigSet := valSet.NewSignatureSet(twoThirds, signBytes)
 
 	// The list is positional over the validator set, so more entries than
 	// validators is malformed. Rejecting up front also guarantees every index is
@@ -368,6 +363,18 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 	if len(signatures) > len(cmtValidators) {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(cmtValidators))
 	}
+	if _, preverify := ctx.Value(preverifyValsetCacheKey{}).(*preverifyValsetCache); preverify {
+		return validateExpandedPositionalSignatures(converted, signBytes, signatures)
+	}
+	if ctx.IsCheckTx() && len(signatures) >= 16 {
+		return validateCheckTxPositionalSignatures(converted, signBytes, signatures)
+	}
+	valSet := validator.Set{
+		ValidatorSet: converted.set,
+		Height:       uint64(height),
+	}
+	twoThirds := cmtmath.Fraction{Numerator: 2, Denominator: 3}
+	sigSet := valSet.NewSignatureSet(twoThirds, signBytes)
 
 	// Add all provided signatures to the signature set
 	for i, signature := range signatures {
@@ -392,4 +399,62 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 	}
 
 	return nil
+}
+
+// validateExpandedPositionalSignatures preserves SignatureSet's validation
+// order and quorum short circuit. The proposal-scoped key expansions avoid a
+// contended global LRU lookup for each signature across concurrent workers.
+func validateExpandedPositionalSignatures(converted *convertedValset, signBytes []byte, signatures [][]byte) error {
+	expanded := converted.expandedKeys()
+	required := converted.set.TotalVotingPower() * 2 / 3
+	var power int64
+	options := &voied25519.Options{Verify: voied25519.VerifyOptionsStdLib}
+	for i, signature := range signatures {
+		if len(signature) == 0 {
+			continue
+		}
+		if expanded[i] == nil || !voied25519.VerifyExpandedWithOptions(expanded[i], signBytes, signature, options) {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid signature at index %d: invalid signature from validator %s", i, converted.validators[i].Address.String())
+		}
+		power += converted.validators[i].VotingPower
+		if power >= required {
+			return nil
+		}
+	}
+	return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature validation failed: %s", (&validator.NotEnoughSignaturesError{CollectedPower: power, RequiredPower: required}).Error())
+}
+
+// CheckTx processes transactions serially, but the positional validator
+// signatures within one transaction are independent. Verify them in parallel
+// and apply the original quorum and first-invalid rules in index order.
+func validateCheckTxPositionalSignatures(converted *convertedValset, signBytes []byte, signatures [][]byte) error {
+	valid := make([]bool, len(signatures))
+	workers := min(runtime.NumCPU(), 16, len(signatures))
+	var wg sync.WaitGroup
+	for worker := range workers {
+		wg.Go(func() {
+			defer func() { _ = recover() }()
+			for i := worker; i < len(signatures); i += workers {
+				if len(signatures[i]) != 0 {
+					valid[i] = validator.VerifySignature(converted.validators[i], signBytes, signatures[i])
+				}
+			}
+		})
+	}
+	wg.Wait()
+	required := converted.set.TotalVotingPower() * 2 / 3
+	var power int64
+	for i, signature := range signatures {
+		if len(signature) == 0 {
+			continue
+		}
+		if !valid[i] {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid signature at index %d: invalid signature from validator %s", i, converted.validators[i].Address.String())
+		}
+		power += converted.validators[i].VotingPower
+		if power >= required {
+			return nil
+		}
+	}
+	return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature validation failed: %s", (&validator.NotEnoughSignaturesError{CollectedPower: power, RequiredPower: required}).Error())
 }

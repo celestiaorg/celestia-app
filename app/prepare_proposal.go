@@ -1,11 +1,14 @@
 package app
 
 import (
+	"bytes"
 	"fmt"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
@@ -20,13 +23,14 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
 	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
+	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 
 	fsb, err := NewFilteredSquareBuilder(
 		handler,
 		app.MsgServiceRouter(),
 		app.encodingConfig.TxConfig,
 		app.IBCKeeper.ChannelKeeper,
-		app.MaxEffectiveSquareSize(ctx),
+		maxSquareSize,
 		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
@@ -40,8 +44,70 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if err := app.FibreKeeper.BeginBlocker(ctx); err != nil {
 		return nil, fmt.Errorf("failed to run fibre begin blocker on proposal branch: %w", err)
 	}
+	// Warm certificate and transaction-signature caches on independent state
+	// branches. Fill still performs all stateful checks in transaction order.
+	decodedPFF, waitPFF, finishPFF := app.startPFFPreverification(ctx, req.Txs)
+	defer finishPFF()
+	ctx = fibreante.WithVerifiedPFFSlot(ctx)
+	var squareDone chan preparedSquareResult
+	if len(req.Txs) > 0 && len(req.Txs) <= appconsts.MaxPayForFibreMessages && len(decodedPFF) == len(req.Txs) {
+		messages := make([]*fibretypes.MsgPayForFibre, len(req.Txs))
+		candidate := true
+		var bytesUsed int64
+		for i, rawTx := range req.Txs {
+			if len(rawTx) > appconsts.MaxTxSize || bytesUsed+int64(len(rawTx))+10 > 32<<20 {
+				candidate = false
+				break
+			}
+			bytesUsed += int64(len(rawTx)) + 10
+			if req.MaxTxBytes > 0 && bytesUsed > req.MaxTxBytes {
+				candidate = false
+				break
+			}
+			if decodedPFF[i] == nil {
+				candidate = false
+				break
+			}
+			messages[i], candidate = payForFibreMsg(decodedPFF[i])
+			if !candidate {
+				break
+			}
+		}
+		if candidate {
+			squareDone = make(chan preparedSquareResult, 1)
+			go func() {
+				squareDone <- app.computePreparedSquare(req.Txs, maxSquareSize, messages)
+			}()
+		}
+	}
+	if squareDone != nil {
+		if write, ok := app.preparePFFFast(ctx, req.Txs, decodedPFF, handler, waitPFF); ok {
+			finishPFF()
+			candidate := <-squareDone
+			squareDone = nil
+			if candidate.err == nil {
+				write()
+				return &abci.ResponsePrepareProposal{
+					Txs:          req.Txs,
+					SquareSize:   candidate.size,
+					DataRootHash: candidate.root,
+				}, nil
+			}
+		}
+	}
 
+	finishPFF()
 	txs := fsb.Fill(ctx, req.Txs, req.MaxTxBytes)
+	if squareDone != nil {
+		candidate := <-squareDone
+		if candidate.err == nil && sameTransactions(txs, req.Txs) {
+			return &abci.ResponsePrepareProposal{
+				Txs:          txs,
+				SquareSize:   candidate.size,
+				DataRootHash: candidate.root,
+			}, nil
+		}
+	}
 
 	// Build the square from the set of valid and prioritised transactions.
 	dataSquare, err := fsb.Build()
@@ -77,4 +143,16 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		SquareSize:   uint64(squareSize),
 		DataRootHash: dah.Hash(), // also known as the data root
 	}, nil
+}
+
+func sameTransactions(a, b [][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !bytes.Equal(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }

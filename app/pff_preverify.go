@@ -18,14 +18,22 @@ import (
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
-// preverifyPFFSignatures warms the certificate cache before the sequential ante
-// pass. A failed or skipped check remains the ante handler's responsibility.
-func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
+// startPFFPreverification decodes candidate PFFs before returning. wait(i)
+// joins the worker responsible for transaction i; finish joins all workers.
+// Callers must finish before returning so no worker outlives the proposal.
+func (app *App) startPFFPreverification(ctx sdk.Context, txs [][]byte) (decoded []sdk.Tx, wait func(int), finish func()) {
 	const maxPreverified = 6000
-	decoded := make([]sdk.Tx, min(len(txs), maxPreverified))
+	decoded = make([]sdk.Tx, min(len(txs), maxPreverified))
+	done := make([]chan struct{}, len(decoded))
+	wait = func(i int) {
+		if i < len(done) && done[i] != nil {
+			<-done[i]
+		}
+	}
+	finish = func() {}
 	limit := min(len(decoded), appconsts.MaxPayForFibreMessages)
 	if limit == 0 {
-		return decoded
+		return decoded, wait, finish
 	}
 
 	type job struct {
@@ -33,6 +41,7 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 		key            fibreante.PffSigCacheKey
 		tx             sdk.Tx
 		rawTx          []byte
+		done           chan struct{}
 		preverifyTxSig bool
 	}
 	jobs := make([]job, 0, min(limit, 256))
@@ -71,10 +80,11 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 			continue
 		}
 		seen[key] = struct{}{}
-		jobs = append(jobs, job{msg: msg, key: key, tx: tx, rawTx: rawTx, preverifyTxSig: hasCacheableDirectSignature(tx)})
+		done[i] = make(chan struct{})
+		jobs = append(jobs, job{msg: msg, key: key, tx: tx, rawTx: rawTx, done: done[i], preverifyTxSig: hasCacheableDirectSignature(tx)})
 	}
 	if len(jobs) == 0 {
-		return decoded
+		return decoded, wait, finish
 	}
 	ctx = fibrekeeper.WithPreverifyValsetCache(ctx)
 	// A successful direct-mode tx signature can also be reused by the normal
@@ -85,7 +95,7 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 	)
 
 	workers := min(runtime.NumCPU(), len(jobs))
-	work := make(chan job, workers)
+	work := make(chan job, len(jobs))
 	var wg sync.WaitGroup
 	var aborted atomic.Bool
 	for range workers {
@@ -94,27 +104,34 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 		workerCtx, _ := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()).CacheContext()
 		wg.Go(func() {
 			for item := range work {
-				if aborted.Load() {
-					continue
-				}
-				valid := func() (ok bool) {
-					// A malformed item must not crash a worker or strand the sender.
-					defer func() { _ = recover() }()
-					return app.FibreKeeper.ValidatePayForFibreSignatures(workerCtx, item.msg) == nil
-				}()
-				if valid {
-					app.pffSigCache.Cache(item.key)
-					// The worker's cache context isolates SetPubKey writes. Failure
-					// leaves the sequential ante pass to reject the transaction.
-					if item.preverifyTxSig {
-						func() {
-							defer func() { _ = recover() }()
-							_, _ = signatureHandler(workerCtx.WithTxBytes(item.rawTx).WithEventManager(sdk.NewEventManager()), item.tx, false)
-						}()
+				func() {
+					defer func() {
+						// A malformed candidate must never strand the ordered ante pass.
+						_ = recover()
+						close(item.done)
+					}()
+					if aborted.Load() {
+						return
 					}
-				} else {
-					aborted.Store(true)
-				}
+					valid := func() (ok bool) {
+						// A malformed item must not crash a worker or strand the sender.
+						defer func() { _ = recover() }()
+						return app.FibreKeeper.ValidatePayForFibreSignatures(workerCtx, item.msg) == nil
+					}()
+					if valid {
+						app.pffSigCache.Cache(item.key)
+						// The worker's cache context isolates SetPubKey writes. Failure
+						// leaves the sequential ante pass to reject the transaction.
+						if item.preverifyTxSig {
+							func() {
+								defer func() { _ = recover() }()
+								_, _ = signatureHandler(workerCtx.WithTxBytes(item.rawTx).WithEventManager(sdk.NewEventManager()), item.tx, false)
+							}()
+						}
+					} else {
+						aborted.Store(true)
+					}
+				}()
 			}
 		})
 	}
@@ -122,8 +139,8 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 		work <- item
 	}
 	close(work)
-	wg.Wait()
-	return decoded
+	finish = wg.Wait
+	return decoded, wait, finish
 }
 
 func hasCacheableDirectSignature(tx sdk.Tx) bool {

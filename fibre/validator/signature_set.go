@@ -58,24 +58,7 @@ func (s Set) NewSignatureSet(targetVotingPower cmtmath.Fraction, requiredBytesSi
 // Returns true if enough signatures have been collected to meet both thresholds.
 func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error) {
 	// verify signature
-	pubKey := val.PubKey.Bytes()
-	var valid bool
-	if len(pubKey) == voied25519.PublicKeySize {
-		var key [32]byte
-		copy(key[:], pubKey)
-		expanded, ok := expandedValidatorKeys.Get(key)
-		if !ok {
-			var err error
-			expanded, err = voied25519.NewExpandedPublicKey(pubKey)
-			if err == nil {
-				expandedValidatorKeys.Add(key, expanded)
-			}
-		}
-		if expanded != nil {
-			valid = voied25519.VerifyExpandedWithOptions(expanded, ss.requiredBytesSigned, signature, &voied25519.Options{Verify: voied25519.VerifyOptionsStdLib})
-		}
-	}
-	if !valid {
+	if !VerifySignature(val, ss.requiredBytesSigned, signature) {
 		return false, fmt.Errorf("invalid signature from validator %s", val.Address.String())
 	}
 
@@ -95,6 +78,29 @@ func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error)
 
 	// check if thresholds are met
 	return ss.votingPower >= ss.minRequiredVotingPower, nil
+}
+
+// VerifySignature performs the same Ed25519 check used by SignatureSet.Add.
+// It is safe to call concurrently for distinct positional signatures.
+func VerifySignature(val *core.Validator, signBytes, signature []byte) bool {
+	pubKey := val.PubKey.Bytes()
+	var valid bool
+	if len(pubKey) == voied25519.PublicKeySize {
+		var key [32]byte
+		copy(key[:], pubKey)
+		expanded, ok := expandedValidatorKeys.Get(key)
+		if !ok {
+			var err error
+			expanded, err = voied25519.NewExpandedPublicKey(pubKey)
+			if err == nil {
+				expandedValidatorKeys.Add(key, expanded)
+			}
+		}
+		if expanded != nil {
+			valid = voied25519.VerifyExpandedWithOptions(expanded, signBytes, signature, &voied25519.Options{Verify: voied25519.VerifyOptionsStdLib})
+		}
+	}
+	return valid
 }
 
 // Signatures returns collected signatures ordered by validator set position if thresholds are met.

@@ -56,7 +56,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to run fibre begin blocker on proposal branch", err)
 		return reject(), nil
 	}
-	decodedPFF := app.preverifyPFFSignatures(ctx, req.Txs)
+	decodedPFF, waitPFF, finishPFF := app.startPFFPreverification(ctx, req.Txs)
+	defer finishPFF()
 	ctx = fibreante.WithVerifiedPFFSlot(ctx)
 	// Square construction reads only proposal bytes. Start it while the serial
 	// ante pass checks account state, then use its result after every tx passes.
@@ -89,6 +90,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
+		waitPFF(idx)
 		sdkTxBytes := rawTx
 
 		// all txs must be less than or equal to the max tx size limit

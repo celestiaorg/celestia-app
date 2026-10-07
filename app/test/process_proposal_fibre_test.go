@@ -450,6 +450,37 @@ func TestProcessProposalPayForFibreDoubleSpend(t *testing.T) {
 			require.Equal(t, tc.expectedStatus, resp.Status)
 		})
 	}
+	for _, tc := range []struct {
+		name string
+		txs  [][]byte
+		kept int
+	}{
+		{"overdraw falls back to first PFF", overdrawTxs, 1},
+		{"duplicate falls back to first PFF", duplicateTxs, 1},
+		{"valid pair keeps both PFFs", affordableTxs, 2},
+	} {
+		t.Run("prepare "+tc.name, func(t *testing.T) {
+			prepared, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Height: testApp.LastBlockHeight() + 1,
+				Time:   base,
+				Txs:    tc.txs,
+			})
+			require.NoError(t, err)
+			require.Len(t, prepared.Txs, tc.kept)
+			for i := range prepared.Txs {
+				require.Equal(t, tc.txs[i], prepared.Txs[i])
+			}
+			resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+				Height:       testApp.LastBlockHeight() + 1,
+				Time:         base,
+				Txs:          prepared.Txs,
+				SquareSize:   prepared.SquareSize,
+				DataRootHash: prepared.DataRootHash,
+			})
+			require.NoError(t, err)
+			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
+		})
+	}
 
 	// The first payment wrote to the rejected proposal branch. A later round
 	// must begin from committed state, so that payment remains settleable.
