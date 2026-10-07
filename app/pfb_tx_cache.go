@@ -8,8 +8,10 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-const defaultTxCacheCapacity = 10_000
-const maxCachedDecodedPFFBytes = 8 << 10
+const (
+	defaultTxCacheCapacity   = 10_000
+	maxCachedDecodedPFFBytes = 8 << 10
+)
 
 // TxCache caches transactions validated in CheckTx so ProcessProposal can
 // skip redundant validation. A nil blobs value marks an admitted PFF tx.

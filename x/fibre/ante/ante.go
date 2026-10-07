@@ -95,11 +95,13 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 	return next(ctx, tx, simulate)
 }
 
-type verifiedPFFKey struct{}
-type verifiedPFFSlot struct {
-	key   PffSigCacheKey
-	valid bool
-}
+type (
+	verifiedPFFKey  struct{}
+	verifiedPFFSlot struct {
+		key   PffSigCacheKey
+		valid bool
+	}
+)
 
 // WithVerifiedPFFSlot gives one proposal pass a reusable ante-to-message marker.
 func WithVerifiedPFFSlot(ctx sdk.Context) sdk.Context {

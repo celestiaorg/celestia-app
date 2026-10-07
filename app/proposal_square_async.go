@@ -30,38 +30,38 @@ func (app *App) computeProposalSquare(req *abci.RequestProcessProposal, maxSquar
 	classified, err := fibretypes.ClassifyTxsForProposalWithMessages(req.Txs, decodedMessages)
 	if err != nil {
 		result.stage, result.err = "failed to classify transactions", err
-		return
+		return result
 	}
 	if proposalSquareCanceled(canceled) {
-		return
+		return result
 	}
 	dataSquare, err := square.Construct(classified, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		result.stage, result.err = "failed to build data square", err
-		return
+		return result
 	}
 	if proposalSquareCanceled(canceled) {
-		return
+		return result
 	}
 	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
 	if err != nil {
 		result.stage, result.err = "failure to compute extended data square from transactions", err
-		return
+		return result
 	}
 	if uint64(eds.Width())/2 != req.SquareSize {
 		result.sizeMismatch = true
-		return
+		return result
 	}
 	if proposalSquareCanceled(canceled) {
-		return
+		return result
 	}
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
 		result.stage, result.err = "failure to create new data availability header", err
-		return
+		return result
 	}
 	result.root = dah.Hash()
-	return
+	return result
 }
 
 func proposalSquareCanceled(canceled <-chan struct{}) bool {
