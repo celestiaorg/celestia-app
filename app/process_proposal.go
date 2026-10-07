@@ -9,12 +9,9 @@ import (
 	"cosmossdk.io/log"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	squarev4 "github.com/celestiaorg/go-square/v4"
-	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -61,13 +58,32 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 	decodedPFF := app.preverifyPFFSignatures(ctx, req.Txs)
 	ctx = fibreante.WithVerifiedPFFSlot(ctx)
+	// Square construction reads only proposal bytes. Start it while the serial
+	// ante pass checks account state, then use its result after every tx passes.
+	decodedForSquare := make([]*fibretypes.MsgPayForFibre, len(req.Txs))
+	for i, tx := range decodedPFF {
+		if tx != nil {
+			decodedForSquare[i], _ = payForFibreMsg(tx)
+		}
+	}
+	cancelSquare := make(chan struct{})
+	squareDone := make(chan proposalSquareResult, 1)
+	go func() {
+		squareDone <- app.computeProposalSquare(req, maxSquareSize, decodedForSquare, cancelSquare)
+	}()
+	squareRead := false
+	defer func() {
+		close(cancelSquare)
+		if !squareRead {
+			<-squareDone
+		}
+	}()
 
 	var (
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
 		maxPFF          = appconsts.MaxPayForFibreMessages
-		pffMessages     = make([]*fibretypes.MsgPayForFibre, len(req.Txs))
 	)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -133,7 +149,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 					return reject(), nil
 				}
-				pffMessages[idx] = pffMsg
 			} else {
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
@@ -202,46 +217,22 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	// Classify txs (marking pay-for-fibre txs and synthesizing their system
-	// blobs) before constructing the square; go-square no longer decodes
-	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxsForProposalWithMessages(req.Txs, pffMessages)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
+	squareResult := <-squareDone
+	squareRead = true
+	if squareResult.err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, squareResult.stage, squareResult.err)
 		return reject(), nil
 	}
-	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
-		return reject(), nil
-	}
-
-	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
-		return reject(), nil
-	}
-
-	// Assert that the square size stated by the proposer is correct. Compare
-	// the halved EDS width rather than the doubled proposer value: doubling an
-	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
-	// otherwise be indistinguishable.
-	if uint64(eds.Width())/2 != req.SquareSize {
+	if squareResult.sizeMismatch {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
 		return reject(), nil
 	}
 
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+	if !bytes.Equal(squareResult.root, req.DataRootHash) {
+		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, squareResult.root))
 		return reject(), nil
 	}
 
