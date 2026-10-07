@@ -16,7 +16,14 @@ func TestEd25519VerifierMatchesStdLib(t *testing.T) {
 	opts := &voied25519.Options{Verify: voied25519.VerifyOptionsStdLib}
 	verify := func(pub, msg, sig []byte) {
 		t.Helper()
-		require.Equal(t, ed25519.Verify(pub, msg, sig), voied25519.VerifyWithOptions(pub, msg, sig, opts))
+		want := ed25519.Verify(pub, msg, sig)
+		require.Equal(t, want, voied25519.VerifyWithOptions(pub, msg, sig, opts))
+		expanded, err := voied25519.NewExpandedPublicKey(pub)
+		if err != nil {
+			require.False(t, want)
+		} else {
+			require.Equal(t, want, voied25519.VerifyExpandedWithOptions(expanded, msg, sig, opts))
+		}
 	}
 	for range 256 {
 		seed := make([]byte, ed25519.SeedSize)

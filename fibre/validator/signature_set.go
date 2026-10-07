@@ -6,8 +6,23 @@ import (
 
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
+	lru "github.com/hashicorp/golang-lru/v2"
 	voied25519 "github.com/oasisprotocol/curve25519-voi/primitives/ed25519"
 )
+
+var expandedValidatorKeys = func() *lru.Cache[[32]byte, *voied25519.ExpandedPublicKey] {
+	cache, err := lru.New[[32]byte, *voied25519.ExpandedPublicKey](1024)
+	if err != nil {
+		panic(err)
+	}
+	return cache
+}()
+
+// PurgeExpandedValidatorKeys removes process-local public key expansions.
+// It is used to establish a genuinely cold validator benchmark.
+func PurgeExpandedValidatorKeys() {
+	expandedValidatorKeys.Purge()
+}
 
 // SignatureSet collects and validates signatures from validators.
 // It is safe for concurrent use.
@@ -44,7 +59,23 @@ func (s Set) NewSignatureSet(targetVotingPower cmtmath.Fraction, requiredBytesSi
 func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error) {
 	// verify signature
 	pubKey := val.PubKey.Bytes()
-	if !voied25519.VerifyWithOptions(voied25519.PublicKey(pubKey), ss.requiredBytesSigned, signature, &voied25519.Options{Verify: voied25519.VerifyOptionsStdLib}) {
+	var valid bool
+	if len(pubKey) == voied25519.PublicKeySize {
+		var key [32]byte
+		copy(key[:], pubKey)
+		expanded, ok := expandedValidatorKeys.Get(key)
+		if !ok {
+			var err error
+			expanded, err = voied25519.NewExpandedPublicKey(pubKey)
+			if err == nil {
+				expandedValidatorKeys.Add(key, expanded)
+			}
+		}
+		if expanded != nil {
+			valid = voied25519.VerifyExpandedWithOptions(expanded, ss.requiredBytesSigned, signature, &voied25519.Options{Verify: voied25519.VerifyOptionsStdLib})
+		}
+	}
+	if !valid {
 		return false, fmt.Errorf("invalid signature from validator %s", val.Address.String())
 	}
 
