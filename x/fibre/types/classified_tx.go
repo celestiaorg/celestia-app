@@ -9,6 +9,7 @@ import (
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cosmos/btcutil/bech32"
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // MsgPayForFibreTypeURL is the Cosmos SDK message type URL for MsgPayForFibre.
@@ -57,17 +58,19 @@ func (msg *MsgPayForFibre) SigCacheKey() (sigcache.Key, error) {
 // bytes, or false when there is none or it is malformed. It decodes with plain
 // proto, so it is safe to call concurrently and needs no SDK tx decoder.
 func ParsePayForFibreMsg(txBytes []byte) (*MsgPayForFibre, bool) {
-	msg, isFibreTx, err := parsePayForFibre(txBytes)
+	msg, _, isFibreTx, err := parsePayForFibre(txBytes)
 	if !isFibreTx || err != nil {
 		return nil, false
 	}
 	return msg, true
 }
 
-// ParsePayForFibreTx decodes the single MsgPayForFibre carried by txBytes. The
-// second result reports whether txBytes is a fibre tx at all; an error means it
-// is one but the message is malformed.
-func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, bool, error) {
+// ParsePayForFibreTx decodes the single MsgPayForFibre carried by txBytes, and
+// the gas limit the transaction declared, from one decode. The third result
+// reports whether txBytes is a fibre tx at all; an error means it is one but
+// the message is malformed. The gas limit is zero when the auth info cannot be
+// read.
+func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, uint64, bool, error) {
 	return parsePayForFibre(txBytes)
 }
 
@@ -79,7 +82,7 @@ func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, bool, error) {
 //   - (nil, true, err): txBytes contain a MsgPayForFibre but it is malformed.
 //   - (ft, true, nil): successfully parsed and synthesized a FibreTx.
 func TryParseFibreTx(txBytes []byte) (fibreTx *squaretx.FibreTx, isFibreTx bool, err error) {
-	msg, isFibreTx, err := parsePayForFibre(txBytes)
+	msg, _, isFibreTx, err := parsePayForFibre(txBytes)
 	if !isFibreTx || err != nil {
 		return nil, isFibreTx, err
 	}
@@ -98,14 +101,16 @@ func TryParseFibreTx(txBytes []byte) (fibreTx *squaretx.FibreTx, isFibreTx bool,
 // parsePayForFibre decodes the single MsgPayForFibre carried by txBytes. The
 // second result reports whether txBytes is a fibre tx at all; an error means it
 // is one but the message is malformed.
-func parsePayForFibre(txBytes []byte) (*MsgPayForFibre, bool, error) {
+// parsePayForFibre also reports the declared gas limit, so callers that need it
+// do not have to unmarshal the transaction a second time.
+func parsePayForFibre(txBytes []byte) (*MsgPayForFibre, uint64, bool, error) {
 	// BlobTx bytes are wire-compatible with TxRaw and would decode
 	// successfully below, so short-circuit them first: a BlobTx is never a
 	// fibre tx, even one crafted so that its inner tx carries a
 	// MsgPayForFibre. This also avoids copying blob payloads into throwaway
 	// TxRaw buffers.
 	if _, isBlobTx, _ := squaretx.UnmarshalBlobTx(txBytes); isBlobTx {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 
 	// Decode the way the SDK's tx decoder does: the outer TxRaw carries
@@ -118,28 +123,112 @@ func parsePayForFibre(txBytes []byte) (*MsgPayForFibre, bool, error) {
 	// non-SDK transaction bytes through here.
 	var raw cosmostx.TxRaw
 	if err := raw.Unmarshal(txBytes); err != nil {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 	var body cosmostx.TxBody
 	if err := body.Unmarshal(raw.BodyBytes); err != nil {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 	// A fibre tx contains exactly one message, matching
 	// validatePayForFibreTxShape.
 	if len(body.Messages) != 1 {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 
 	anyMsg := body.Messages[0]
 	if anyMsg.TypeUrl != MsgPayForFibreTypeURL {
-		return nil, false, nil
+		return nil, 0, false, nil
 	}
 
 	var msg MsgPayForFibre
 	if err := msg.Unmarshal(anyMsg.Value); err != nil {
-		return nil, true, fmt.Errorf("unmarshalling MsgPayForFibre: %w", err)
+		return nil, 0, true, fmt.Errorf("unmarshalling MsgPayForFibre: %w", err)
 	}
-	return &msg, true, nil
+
+	return &msg, gasLimitFromAuthInfo(raw.AuthInfoBytes), true, nil
+}
+
+// Field numbers in cosmos.tx.v1beta1, used to read the declared gas without
+// materialising the messages around it.
+const (
+	authInfoFeeField = 2 // AuthInfo.fee
+	feeGasLimitField = 2 // Fee.gas_limit
+)
+
+// gasLimitFromAuthInfo reads auth_info.fee.gas_limit without decoding AuthInfo.
+// The bytes are attacker controlled and a full decode allocates many times what
+// it is handed, which this path must not do: it runs on every pay-for-fibre
+// shaped transaction in a proposal, before anything has charged for it.
+//
+// Zero means the field is absent or the bytes are malformed. Callers treat that
+// as unable to pay, which only costs a pre-verification. For the same reason
+// this does not need to agree with the SDK decoder on adversarial encodings:
+// disagreeing can only add or skip optional work, never change a verdict.
+func gasLimitFromAuthInfo(authInfoBytes []byte) uint64 {
+	fee, found := lastProtoSubMessage(authInfoBytes, authInfoFeeField)
+	if !found {
+		return 0
+	}
+
+	var gasLimit uint64
+	for len(fee) > 0 {
+		num, typ, n := protowire.ConsumeTag(fee)
+		if n < 0 {
+			return 0
+		}
+		fee = fee[n:]
+		// proto3 has no groups, and walking them would recurse as deep as the
+		// input is long. Reject rather than walk, as countProtoMsgs does.
+		if typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+			return 0
+		}
+		if num == feeGasLimitField && typ == protowire.VarintType {
+			value, n := protowire.ConsumeVarint(fee)
+			if n < 0 {
+				return 0
+			}
+			gasLimit = value
+			fee = fee[n:]
+			continue
+		}
+		if n = protowire.ConsumeFieldValue(num, typ, fee); n < 0 {
+			return 0
+		}
+		fee = fee[n:]
+	}
+	return gasLimit
+}
+
+// lastProtoSubMessage returns the bytes of the last occurrence of field, which
+// is how a decoder resolves a repeated scalar occurrence.
+func lastProtoSubMessage(bz []byte, field protowire.Number) ([]byte, bool) {
+	var (
+		value []byte
+		found bool
+	)
+	for len(bz) > 0 {
+		num, typ, n := protowire.ConsumeTag(bz)
+		if n < 0 {
+			return nil, false
+		}
+		bz = bz[n:]
+		if typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+			return nil, false
+		}
+		if num == field && typ == protowire.BytesType {
+			if value, n = protowire.ConsumeBytes(bz); n < 0 {
+				return nil, false
+			}
+			found = true
+			bz = bz[n:]
+			continue
+		}
+		if n = protowire.ConsumeFieldValue(num, typ, bz); n < 0 {
+			return nil, false
+		}
+		bz = bz[n:]
+	}
+	return value, found
 }
 
 // SystemBlob synthesizes the share version two system blob that represents

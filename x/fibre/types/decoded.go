@@ -25,6 +25,9 @@ type DecodedPayForFibre struct {
 	PromiseSignBytes []byte
 	PromiseKey       sigcache.Key
 	PromiseKeyed     bool
+	// GasLimit is the gas the transaction declared, read at decode time. Zero
+	// when the auth info could not be read.
+	GasLimit uint64
 
 	fibreTx *squaretx.FibreTx
 }
