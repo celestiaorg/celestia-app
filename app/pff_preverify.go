@@ -13,7 +13,9 @@ import (
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	sdkante "github.com/cosmos/cosmos-sdk/x/auth/ante"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 // preverifyPFFSignatures warms the certificate cache before the sequential ante
@@ -27,10 +29,11 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 	}
 
 	type job struct {
-		msg   *fibretypes.MsgPayForFibre
-		key   fibreante.PffSigCacheKey
-		tx    sdk.Tx
-		rawTx []byte
+		msg            *fibretypes.MsgPayForFibre
+		key            fibreante.PffSigCacheKey
+		tx             sdk.Tx
+		rawTx          []byte
+		preverifyTxSig bool
 	}
 	jobs := make([]job, 0, min(limit, 256))
 	seen := make(map[fibreante.PffSigCacheKey]struct{}, min(limit, 256))
@@ -67,7 +70,7 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 			continue
 		}
 		seen[key] = struct{}{}
-		jobs = append(jobs, job{msg: msg, key: key, tx: tx, rawTx: rawTx})
+		jobs = append(jobs, job{msg: msg, key: key, tx: tx, rawTx: rawTx, preverifyTxSig: hasCacheableDirectSignature(tx)})
 	}
 	if len(jobs) == 0 {
 		return decoded
@@ -102,10 +105,12 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 					app.pffSigCache.Cache(item.key)
 					// The worker's cache context isolates SetPubKey writes. Failure
 					// leaves the sequential ante pass to reject the transaction.
-					func() {
-						defer func() { _ = recover() }()
-						_, _ = signatureHandler(workerCtx.WithTxBytes(item.rawTx).WithEventManager(sdk.NewEventManager()), item.tx, false)
-					}()
+					if item.preverifyTxSig {
+						func() {
+							defer func() { _ = recover() }()
+							_, _ = signatureHandler(workerCtx.WithTxBytes(item.rawTx).WithEventManager(sdk.NewEventManager()), item.tx, false)
+						}()
+					}
 				} else {
 					aborted.Store(true)
 				}
@@ -118,4 +123,17 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 	close(work)
 	wg.Wait()
 	return decoded
+}
+
+func hasCacheableDirectSignature(tx sdk.Tx) bool {
+	sigTx, ok := tx.(authsigning.Tx)
+	if !ok {
+		return false
+	}
+	sigs, err := sigTx.GetSignaturesV2()
+	if err != nil || len(sigs) != 1 {
+		return false
+	}
+	single, ok := sigs[0].Data.(*signing.SingleSignatureData)
+	return ok && single.SignMode == signing.SignMode_SIGN_MODE_DIRECT
 }
