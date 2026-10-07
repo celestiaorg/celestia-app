@@ -124,19 +124,30 @@ func (s *download) ready() bool {
 // must invoke [download.SkipShard] on error; successful adds release the
 // reservation internally.
 func (s *download) AddShard(from validator.SelectedValidator, proofs []*rsema1d.RowProof, rlc rlc.Vector) error {
+	// Reject rows larger than the reader's configured maximum before they reach
+	// the Reconstructor. Reconstructor.Add verifies and, as a side effect, marks
+	// each novel index as seen and increments have; checking the size only
+	// afterwards would let an oversized-but-verifiable shard permanently record
+	// those indices (and bump have) without ever storing the rows. SkipShard
+	// cannot roll that back, so a misbehaving or malicious validator could drive
+	// Want() to 0 and make ShardSources stop dispatching before enough valid
+	// rows arrived — a download that should succeed fails, or reconstructs from
+	// empty rows. The DataPool is sized for MaxRowSize and would also panic on
+	// the oversized row.
+	if s.cfg.MaxRowSize > 0 {
+		for _, p := range proofs {
+			if len(p.Row) > s.cfg.MaxRowSize {
+				return fmt.Errorf("row size %d exceeds maximum %d", len(p.Row), s.cfg.MaxRowSize)
+			}
+		}
+	}
+
 	novel, err := s.reconstructor.Add(proofs, rlc)
 	if err != nil {
 		return err
 	}
 	if len(novel) > 0 {
 		rowLn := len(novel[0].Row)
-		// Reject rows larger than the reader's configured maximum before they
-		// reach the DataPool, which is sized for MaxRowSize and would otherwise
-		// panic. A malicious or custom uploader can serve an oversized row whose
-		// proof still verifies against the (attacker-chosen) commitment.
-		if s.cfg.MaxRowSize > 0 && rowLn > s.cfg.MaxRowSize {
-			return fmt.Errorf("row size %d exceeds maximum %d", rowLn, s.cfg.MaxRowSize)
-		}
 		s.acquireSlab(rowLn)
 		s.store(novel)
 	}

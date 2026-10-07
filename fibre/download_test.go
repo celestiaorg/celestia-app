@@ -155,6 +155,109 @@ func TestDownload_OversizedRowReturnsError(t *testing.T) {
 	err = d.AddShard(from, proofs, rlcVec)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "row size")
+
+	// The caller releases the reservation on error, mirroring real usage.
+	d.SkipShard(from)
+
+	// The oversized rejection must not have advanced the Reconstructor's
+	// progress: Reconstructor.Add would otherwise have marked the indices as
+	// seen and incremented have before the size check, leaving Want() at 0 and
+	// stopping dispatch with no rows stored.
+	require.Equal(t, 0, d.reconstructor.Have(), "oversized rejection must not mark rows seen")
+	require.Equal(t, testK, d.reconstructor.Want(), "oversized rejection must not advance Want")
+}
+
+// An oversized shard must not poison the download enough to stop dispatch:
+// after the first (oversized) validator is rejected and skipped, the second
+// validator is still dispatched, its valid rows are accepted, and the blob
+// reconstructs successfully. This exercises the bug where a size-rejected but
+// already-verified shard had incremented have, making ShardSources believe the
+// download was complete and dispatch no further validators.
+func TestDownload_OversizedShardFallsBackToValidValidator(t *testing.T) {
+	cfg := &rsema1d.Config{K: testK, N: testN, WorkerCount: 1}
+	coder, err := rsema1d.NewCoder(cfg)
+	require.NoError(t, err)
+
+	data := make([][]byte, testK)
+	r := rand.New(rand.NewPCG(1, 2))
+	for i := range data {
+		data[i] = make([]byte, testRowSize)
+		for j := range data[i] {
+			data[i][j] = byte(r.IntN(256))
+		}
+	}
+	hdr := newBlobHeaderV0(testK*testRowSize - blobHeaderLen)
+	hdr.marshalTo(data[0])
+	rows := make([][]byte, cfg.K+cfg.N)
+	copy(rows, data)
+	for i := cfg.K; i < cfg.K+cfg.N; i++ {
+		rows[i] = make([]byte, testRowSize)
+	}
+	ed, err := coder.Encode(rows)
+	require.NoError(t, err)
+	commitment, rlcVec := ed.Commitment(), ed.RLC()
+
+	proofs := make([]*rsema1d.RowProof, testK)
+	for i := range proofs {
+		p, err := ed.GenerateRowProof(i)
+		require.NoError(t, err)
+		proofs[i] = p
+	}
+
+	// Reader pool/MaxRowSize accommodate the real 256-byte rows, so a honest
+	// validator's shard is accepted. The oversized validator serves rows well
+	// above MaxRowSize; the size guard rejects them before verification.
+	const readerMaxRowSize = testRowSize
+	priv0, priv1 := cmted25519.GenPrivKey(), cmted25519.GenPrivKey()
+	selected := []validator.SelectedValidator{
+		{Validator: &core.Validator{Address: priv0.PubKey().Address(), PubKey: priv0.PubKey(), VotingPower: 1}, ExpectedRows: testK},
+		{Validator: &core.Validator{Address: priv1.PubKey().Address(), PubKey: priv1.PubKey(), VotingPower: 1}, ExpectedRows: testK},
+	}
+	blobCfg := BlobConfig{
+		OriginalRows: testK,
+		ParityRows:   testN,
+		MaxDataSize:  testK*testRowSize - blobHeaderLen,
+		MaxRowSize:   readerMaxRowSize,
+		Coder:        coder,
+		DataPool:     row.NewPool(readerMaxRowSize, testK),
+	}
+	d, err := newDownload(blobCfg, NewBlobID(0, commitment), selected)
+	require.NoError(t, err)
+	t.Cleanup(d.freeSlab)
+
+	// Oversized rows that exceed MaxRowSize; never verified because the size
+	// guard rejects them first.
+	oversized := make([]*rsema1d.RowProof, testK)
+	for i := range oversized {
+		oversized[i] = &rsema1d.RowProof{Index: i, Row: make([]byte, readerMaxRowSize*2)}
+	}
+
+	ctx := context.Background()
+	yields := 0
+	for from := range d.ShardSources(ctx) {
+		yields++
+		if yields == 1 {
+			err := d.AddShard(from, oversized, rlcVec)
+			require.Error(t, err)
+			require.Contains(t, err.Error(), "row size")
+			// Right after the rejection the Reconstructor must still believe it
+			// needs every original row — no pollution from the oversized shard.
+			require.Equal(t, 0, d.reconstructor.Have())
+			require.Equal(t, testK, d.reconstructor.Want())
+			d.SkipShard(from)
+			continue
+		}
+		require.NoError(t, d.AddShard(from, proofs[:testK], rlcVec))
+	}
+
+	// Both validators were dispatched: the oversized one was rejected, the valid
+	// one delivered and stored.
+	require.Equal(t, 2, yields)
+
+	blob, err := d.Blob(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, blob)
+	require.Equal(t, testK, d.RowsCount())
 }
 
 // First validator's reservation overshoots K; the K-budget gate prevents
