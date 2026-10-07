@@ -7,10 +7,12 @@ import (
 	"sync/atomic"
 
 	storetypes "cosmossdk.io/store/types"
+	appante "github.com/celestiaorg/celestia-app/v10/app/ante"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkante "github.com/cosmos/cosmos-sdk/x/auth/ante"
 )
 
 // preverifyPFFSignatures warms the certificate cache before the sequential ante
@@ -24,8 +26,10 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 	}
 
 	type job struct {
-		msg *fibretypes.MsgPayForFibre
-		key fibreante.PffSigCacheKey
+		msg   *fibretypes.MsgPayForFibre
+		key   fibreante.PffSigCacheKey
+		tx    sdk.Tx
+		rawTx []byte
 	}
 	jobs := make([]job, 0, min(limit, 256))
 	seen := make(map[fibreante.PffSigCacheKey]struct{}, min(limit, 256))
@@ -62,11 +66,17 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 			continue
 		}
 		seen[key] = struct{}{}
-		jobs = append(jobs, job{msg: msg, key: key})
+		jobs = append(jobs, job{msg: msg, key: key, tx: tx, rawTx: rawTx})
 	}
 	if len(jobs) == 0 {
 		return decoded
 	}
+	// A successful direct-mode tx signature can also be reused by the normal
+	// ante pass, which still checks account state and sequence in block order.
+	signatureHandler := sdk.ChainAnteDecorators(
+		sdkante.NewSetPubKeyDecorator(app.AccountKeeper),
+		appante.NewCachedSigVerificationDecorator(app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.txSigCache),
+	)
 
 	workers := min(runtime.NumCPU(), len(jobs))
 	work := make(chan job, workers)
@@ -88,6 +98,12 @@ func (app *App) preverifyPFFSignatures(ctx sdk.Context, txs [][]byte) []sdk.Tx {
 				}()
 				if valid {
 					app.pffSigCache.Cache(item.key)
+					// The worker's cache context isolates SetPubKey writes. Failure
+					// leaves the sequential ante pass to reject the transaction.
+					func() {
+						defer func() { _ = recover() }()
+						_, _ = signatureHandler(workerCtx.WithTxBytes(item.rawTx).WithEventManager(sdk.NewEventManager()), item.tx, false)
+					}()
 				} else {
 					aborted.Store(true)
 				}

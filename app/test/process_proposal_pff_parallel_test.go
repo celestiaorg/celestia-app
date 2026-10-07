@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/test/util/fibrefactory"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,4 +42,28 @@ func TestProcessProposalParallelPayForFibre(t *testing.T) {
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
 	}
 	process() // Warm: CheckTx admitted every transaction.
+
+	// A valid validator certificate must not let a bad outer transaction
+	// signature through, even when preverification runs in parallel.
+	badValidator := fixture.NewApp(t)
+	var raw cosmostx.TxRaw
+	require.NoError(t, raw.Unmarshal(txs[0]))
+	require.Len(t, raw.Signatures, 1)
+	raw.Signatures[0] = append([]byte(nil), raw.Signatures[0]...)
+	raw.Signatures[0][0] ^= 1
+	badTx, err := raw.Marshal()
+	require.NoError(t, err)
+	badReq := processProposalRequest(t, badValidator, [][]byte{badTx})
+	badReq.Time = fixture.BlockTime
+	badResp, err := badValidator.ProcessProposal(badReq)
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, badResp.Status)
+	checkResp, err := badValidator.CheckTx(&abci.RequestCheckTx{Tx: badTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.NotEqual(t, abci.CodeTypeOK, checkResp.Code)
+	goodReq := processProposalRequest(t, badValidator, [][]byte{txs[0]})
+	goodReq.Time = fixture.BlockTime
+	goodResp, err := badValidator.ProcessProposal(goodReq)
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, goodResp.Status)
 }
