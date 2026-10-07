@@ -5,6 +5,7 @@ This package contains benchmarks for the ABCI methods with the following transac
 - Message send
 - IBC update client
 - PayForBlobs
+- PayForFibre
 
 ## How to Run
 
@@ -14,9 +15,47 @@ To run the benchmarks, run the following in the root directory:
 go test -tags=benchmarks -bench=<benchmark_name> app/benchmarks/...
 ```
 
+## PayForFibre
+
+`benchmark_pff_test.go` measures each ABCI call over a block of PayForFibre
+messages carrying a real quorum certificate, swept over messages per block and
+over validator set size.
+
+The sweep tops out at 5,848 messages, the most that fit a 256 square; see the
+comment on `pffCounts`. The protocol limit is lower still - 2,000 at app v11 -
+so the points above it measure capacity the chain does not yet allow, which is
+the point of the exercise.
+
+Every benchmark is swept over two cache states, and the gap between them is
+what the signature caching work is worth:
+
+- `cache=cold` is a restarted or lagging node. Every cache the node keeps in
+  memory is emptied - signatures, blob txs, PayForFibre txs, proposal
+  artifacts and converted validator sets - so every transaction is processed
+  in full. For `FinalizeBlock` this is the block replay path, which never ran
+  ProcessProposal.
+- `cache=warm` is a validator whose mempool already admitted every transaction
+  in the block. It is not the proposer: setup takes the artifacts
+  PrepareProposal left behind, so the measured calls are the ones every other
+  validator makes.
+
+Pin cores with `taskset`, not `go test -cpu`: the parallel verifier sizes its
+fan-out from `runtime.NumCPU()`, which `GOMAXPROCS` does not change.
+
+```shell
+taskset -c 0-15 go test -tags=benchmarks -run='^$' -bench=_PFF -count=10 ./app/benchmarks/
+```
+
+Unlike the older benchmarks in this package, these iterate with `b.Loop()`, so
+`ns/op` is a real per-operation time at any `-benchtime`.
+
 ## Results
 
 The results are outlined in the [results](results.md) document.
+
+Note: the figures in `results.md` come from benchmarks that ignore `b.N`, so
+the framework divides by a count that never ran - hence a single `checkTx`
+recorded there as "0.0003585 ns". Do not copy that style.
 
 ## Key takeaways
 

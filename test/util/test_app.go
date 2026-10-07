@@ -48,6 +48,21 @@ func GenesisValidatorPrivateKey() ed25519.PrivKey {
 	return ed25519.GenPrivKeyFromSecret([]byte("celestia-app test genesis validator"))
 }
 
+// GenesisValidatorPrivateKeys returns n deterministic genesis validator keys.
+// Index 0 is GenesisValidatorPrivateKey, so a single-validator genesis is
+// byte-identical to what it was before.
+func GenesisValidatorPrivateKeys(n int) []ed25519.PrivKey {
+	keys := make([]ed25519.PrivKey, n)
+	for i := range keys {
+		if i == 0 {
+			keys[i] = GenesisValidatorPrivateKey()
+			continue
+		}
+		keys[i] = ed25519.GenPrivKeyFromSecret([]byte(fmt.Sprintf("celestia-app test genesis validator %d", i)))
+	}
+	return keys
+}
+
 // Get flags every time the simulator is run
 func init() {
 	simulationcli.GetSimulatorFlags()
@@ -165,10 +180,21 @@ func InitialiseTestAppWithGenesis(testApp *app.App, cparams *tmproto.ConsensusPa
 // GenesisStateWithSingleValidator initializes GenesisState with a single
 // validator and genesis accounts that also act as delegators.
 func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, keyring.Keyring) {
-	// create validator set with single validator
-	validatorPubKey := GenesisValidatorPrivateKey().PubKey()
-	validator := tmtypes.NewValidator(validatorPubKey, 1)
-	valSet := tmtypes.NewValidatorSet([]*tmtypes.Validator{validator})
+	genesisState, valSet, _, kr := GenesisStateWithValidators(testApp, 1, genAccounts...)
+	return genesisState, valSet, kr
+}
+
+// GenesisStateWithValidators initializes GenesisState with n bonded validators
+// of equal voting power and genesis accounts that also act as delegators. It
+// returns the validator consensus keys alongside the set.
+func GenesisStateWithValidators(testApp *app.App, n int, genAccounts ...string) (app.GenesisState, *tmtypes.ValidatorSet, []ed25519.PrivKey, keyring.Keyring) {
+	// create the validator set, every validator holding equal voting power
+	valPrivs := GenesisValidatorPrivateKeys(n)
+	validators := make([]*tmtypes.Validator, n)
+	for i, valPriv := range valPrivs {
+		validators[i] = tmtypes.NewValidator(valPriv.PubKey(), 1)
+	}
+	valSet := tmtypes.NewValidatorSet(validators)
 
 	// generate sender account
 	senderPrivKey := secp256k1.GenPrivKeyFromSecret([]byte("09876543210987654321098765432109"))
@@ -193,7 +219,7 @@ func GenesisStateWithSingleValidator(testApp *app.App, genAccounts ...string) (a
 	genesisState := testApp.DefaultGenesis()
 	genesisState = genesisStateWithValSet(testApp, genesisState, valSet, accs, balances...)
 
-	return genesisState, valSet, kr
+	return genesisState, valSet, valPrivs, kr
 }
 
 func genesisStateWithValSet(
@@ -277,10 +303,12 @@ func genesisStateWithValSet(
 		totalSupply = totalSupply.Add(sdk.NewCoin(params.BondDenom, bondAmt))
 	}
 
-	// add bonded amount to bonded pool module account
+	// add bonded amount to bonded pool module account, one bondAmt per
+	// delegation, matching the delegated tokens added to the total supply above
+	bondedPool := bondAmt.MulRaw(int64(len(delegations)))
 	balances = append(balances, banktypes.Balance{
 		Address: authtypes.NewModuleAddress(stakingtypes.BondedPoolName).String(),
-		Coins:   sdk.Coins{sdk.NewCoin(params.BondDenom, bondAmt)},
+		Coins:   sdk.Coins{sdk.NewCoin(params.BondDenom, bondedPool)},
 	})
 
 	// update total supply
