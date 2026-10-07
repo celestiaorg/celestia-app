@@ -151,10 +151,6 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		}
 	}
 
-	// Get escrow account for the payment promise signer
-	signerPubKey := msg.PaymentPromise.SignerPublicKey
-	signerAddr := sdk.AccAddress(signerPubKey.Address()).String()
-
 	escrowAccount := validated.escrowAccount
 
 	// Calculate payment amount based on blob size and gas per byte
@@ -174,6 +170,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 
 	// Proposal events are discarded; FinalizeBlock emits the committed event.
 	if ctx.ExecMode() != sdk.ExecModeProcessProposal {
+		signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 		event := types.NewEventPayForFibre(signerAddr, msg.PaymentPromise.Namespace, msg.PaymentPromise.Commitment, uint32(len(msg.ValidatorSignatures)))
 		if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 			return nil, err
