@@ -20,8 +20,8 @@ func TestMemoryAdmission(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
 	require.NoError(t, a.RegisterMetrics(provider.Meter("admission-test")))
 	download, upload := newMemoryLease(a, true), newMemoryLease(a, false)
-	require.NoError(t, download.reserve(t.Context(), 40))
-	require.NoError(t, upload.reserve(t.Context(), 60))
+	require.NoError(t, download.reserve(t.Context(), 25))
+	require.NoError(t, upload.reserve(t.Context(), 50))
 	var metrics metricdata.ResourceMetrics
 	require.NoError(t, reader.Collect(t.Context(), &metrics))
 	values := make(map[string]int64)
@@ -32,11 +32,14 @@ func TestMemoryAdmission(t *testing.T) {
 			}
 		}
 	}
-	require.EqualValues(t, 100, values["fibre.server.rpc.reserved_bytes"])
-	require.EqualValues(t, 60, values["fibre.server.rpc.upload_reserved_bytes"])
+	require.EqualValues(t, 75, values["fibre.server.rpc.reserved_bytes"])
+	require.EqualValues(t, 50, values["fibre.server.rpc.upload_reserved_bytes"])
 	require.Equal(t, codes.ResourceExhausted, status.Code(upload.reserve(t.Context(), 1)))
+	require.NoError(t, download.reserve(t.Context(), 25), "downloads can fill the remaining budget")
+	require.Equal(t, codes.ResourceExhausted, status.Code(download.reserve(t.Context(), 1)))
 	download.release()
-	require.NoError(t, upload.reserve(t.Context(), 40), "uploads can use the entire budget")
+	require.NoError(t, upload.reserve(t.Context(), 25), "uploads can use three quarters of the budget")
+	require.Equal(t, codes.ResourceExhausted, status.Code(upload.reserve(t.Context(), 1)))
 	upload.release()
 	require.Zero(t, a.used)
 	require.Zero(t, a.downloads)
