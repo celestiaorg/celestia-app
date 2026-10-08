@@ -58,12 +58,19 @@ type memoryLease struct {
 	refs     atomic.Int32
 }
 
+// newMemoryLease starts a lease with the handler's reference already held.
+func newMemoryLease(budget *memoryBudget, download bool) *memoryLease {
+	l := &memoryLease{budget: budget, download: download}
+	l.refs.Store(1)
+	return l
+}
+
 // reserve acquires the complete estimated working memory before the handler runs.
 func (l *memoryLease) reserve(n int64) error {
 	a := l.budget
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if n < 0 || n > math.MaxInt64-l.bytes {
+	if n < 0 || n > math.MaxInt64-a.used {
 		return status.Error(codes.ResourceExhausted, "invalid RPC memory reservation")
 	}
 	if a.total > 0 && (n > a.total-a.used || (l.download && n > a.downloadLimit-a.downloads)) {
@@ -72,11 +79,9 @@ func (l *memoryLease) reserve(n int64) error {
 		}
 		return status.Error(codes.ResourceExhausted, "fibre memory budget exhausted; retry later")
 	}
-	if a.total > 0 {
-		a.used += n
-		if l.download {
-			a.downloads += n
-		}
+	a.used += n
+	if l.download {
+		a.downloads += n
 	}
 	l.bytes += n
 	return nil
@@ -90,11 +95,9 @@ func (l *memoryLease) release() {
 	a := l.budget
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if a.total > 0 {
-		a.used -= l.bytes
-		if l.download {
-			a.downloads -= l.bytes
-		}
+	a.used -= l.bytes
+	if l.download {
+		a.downloads -= l.bytes
 	}
 }
 
