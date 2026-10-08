@@ -13,19 +13,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-func testLease(a *memoryBudget, download bool) *memoryLease {
-	l := &memoryLease{budget: a, download: download}
-	l.refs.Store(1)
-	return l
-}
-
 func TestMemoryAdmission(t *testing.T) {
 	a := newMemoryBudget(100, 60)
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
 	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
 	require.NoError(t, a.RegisterMetrics(provider.Meter("admission-test")))
-	download, upload := testLease(a, true), testLease(a, false)
+	download, upload := newMemoryLease(a, true), newMemoryLease(a, false)
 	require.NoError(t, download.reserve(40))
 	require.Equal(t, codes.ResourceExhausted, status.Code(download.reserve(1)))
 	require.NoError(t, upload.reserve(60))
@@ -50,7 +44,7 @@ func TestMemoryAdmission(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 100 {
 		wg.Go(func() {
-			l := testLease(a, true)
+			l := newMemoryLease(a, true)
 			_ = l.reserve(10)
 			l.release()
 		})
@@ -58,14 +52,18 @@ func TestMemoryAdmission(t *testing.T) {
 	wg.Wait()
 	require.Zero(t, a.used)
 	disabled := newMemoryBudget(0, 60)
-	l := testLease(disabled, true)
+	l := newMemoryLease(disabled, true)
 	require.NoError(t, l.reserve(1000))
+	require.EqualValues(t, 1000, disabled.used)
+	require.EqualValues(t, 1000, disabled.downloads)
 	l.release()
+	require.Zero(t, disabled.used)
+	require.Zero(t, disabled.downloads)
 }
 
 func TestMemoryResponseLifetime(t *testing.T) {
 	a := newMemoryBudget(100, 0)
-	l := testLease(a, true)
+	l := newMemoryLease(a, true)
 	require.NoError(t, l.reserve(100))
 	codec := &pooledCodec{pool: l}
 	data, err := codec.Marshal(&types.UploadShardResponse{ValidatorSignature: []byte{1}})
