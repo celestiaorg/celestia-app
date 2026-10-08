@@ -19,7 +19,7 @@ type Admission struct {
 	DownloadSize func(context.Context, []byte) (int64, error)
 }
 
-// NewAdmission shares memory between RPCs, with a quarter reserved for downloads. Zero total disables admission.
+// NewAdmission shares memory between RPCs, with a quarter reserved for uploads. Zero total disables admission.
 func NewAdmission(total int64, maxMessage, maxRows, maxProofs int) *Admission {
 	return &Admission{
 		memoryBudget: newMemoryBudget(total), maxMessage: maxMessage,
