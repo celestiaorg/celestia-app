@@ -53,8 +53,7 @@ func (a *Admission) streamHandler(method grpc.MethodDesc, interceptor grpc.Unary
 
 // serve holds one reservation from request receipt until the response buffers are released.
 func (a *Admission) serve(srv any, stream grpc.ServerStream, method grpc.MethodDesc, interceptor grpc.UnaryServerInterceptor) error {
-	lease := &memoryLease{budget: a.memoryBudget, download: method.MethodName == "DownloadShard"}
-	lease.refs.Store(1)
+	lease := newMemoryLease(a.memoryBudget, method.MethodName == "DownloadShard")
 	defer lease.release()
 	ctx := stream.Context()
 	if err := grpc.SetSendCompressor(ctx, encoding.Identity); err != nil {
