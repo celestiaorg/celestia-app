@@ -79,6 +79,43 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			<-squareDone
 		}
 	}()
+	checkSquare := func() bool {
+		squareResult := <-squareDone
+		squareRead = true
+		if squareResult.err != nil {
+			logInvalidPropBlockError(app.Logger(), blockHeader, squareResult.stage, squareResult.err)
+			return false
+		}
+		if squareResult.sizeMismatch {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return false
+		}
+		if !bytes.Equal(squareResult.root, req.DataRootHash) {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, squareResult.root))
+			return false
+		}
+		return true
+	}
+
+	// On a candidate containing only PFFs, the same ordered branch replay as
+	// PrepareProposal covers all ante and settlement checks with less per-tx
+	// classification work. Any failure falls through to the general path so its
+	// rejection behavior remains unchanged.
+	allPFF := len(req.Txs) > 0 && len(req.Txs) <= appconsts.MaxPayForFibreMessages && len(decodedPFF) == len(req.Txs)
+	if allPFF {
+		for _, tx := range decodedPFF {
+			if tx == nil {
+				allPFF = false
+				break
+			}
+		}
+	}
+	if allPFF && app.preparePFFFast(ctx, req.Txs, decodedPFF, handler, waitPFF) {
+		if !checkSquare() {
+			return reject(), nil
+		}
+		return accept(), nil
+	}
 
 	var (
 		sdkMessageCount int
@@ -101,7 +138,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 
 		// BlobTx is the most common special type; check it first.
-		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+		blobTx, isBlobTx, err := unmarshalBlobTxIfPresent(rawTx)
 		if isBlobTx {
 			if err != nil {
 				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
@@ -219,22 +256,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	squareResult := <-squareDone
-	squareRead = true
-	if squareResult.err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, squareResult.stage, squareResult.err)
-		return reject(), nil
-	}
-	if squareResult.sizeMismatch {
-		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
-	// are identical and that square layout is consistent. This also means that the share commitment rules
-	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(squareResult.root, req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, squareResult.root))
+	if !checkSquare() {
 		return reject(), nil
 	}
 

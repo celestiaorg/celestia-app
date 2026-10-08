@@ -46,33 +46,72 @@ func (app *App) startPFFPreverification(ctx sdk.Context, txs [][]byte) (decoded 
 	}
 	jobs := make([]job, 0, min(limit, 256))
 	seen := make(map[fibreante.PffSigCacheKey]struct{}, min(limit, 256))
+	type candidate struct {
+		tx     sdk.Tx
+		msg    *fibretypes.MsgPayForFibre
+		cached bool
+	}
+	candidates := make([]candidate, len(decoded))
+	decodeTx := app.encodingConfig.TxConfig.TxDecoder()
+	decodeCandidate := func(i int) {
+		// A malformed candidate must not crash a decoder worker. The ordered
+		// proposal path still decodes and rejects it in the usual way.
+		defer func() { _ = recover() }()
+		rawTx := txs[i]
+		if len(rawTx) > appconsts.MaxTxSize || !bytes.Contains(rawTx, []byte("MsgPayForFibre")) {
+			return
+		}
+		if cachedTx, found := app.txCache.PFFTx(rawTx); found {
+			candidates[i] = candidate{tx: cachedTx, cached: true}
+			return
+		}
+		tx, err := decodeTx(rawTx)
+		if err != nil {
+			return
+		}
+		msg, ok := payForFibreMsg(tx)
+		if ok {
+			candidates[i] = candidate{tx: tx, msg: msg}
+		}
+	}
+	parallelDecode := len(decoded) >= 128 && len(decoded) <= limit && runtime.GOMAXPROCS(0) > 1
+	if parallelDecode {
+		workers := min(max(1, runtime.NumCPU()/2), len(decoded))
+		chunk := (len(decoded) + workers - 1) / workers
+		var decodeWG sync.WaitGroup
+		for start := 0; start < len(decoded); start += chunk {
+			end := min(start+chunk, len(decoded))
+			decodeWG.Go(func() {
+				for i := start; i < end; i++ {
+					decodeCandidate(i)
+				}
+			})
+		}
+		decodeWG.Wait()
+	}
 	covered := 0
 	for i, rawTx := range txs[:len(decoded)] {
 		if covered >= limit {
 			break
 		}
-		if len(rawTx) > appconsts.MaxTxSize || !bytes.Contains(rawTx, []byte("MsgPayForFibre")) {
+		if !parallelDecode {
+			decodeCandidate(i)
+		}
+		item := candidates[i]
+		if item.cached {
+			decoded[i] = item.tx
 			continue
 		}
-		if cachedTx, found := app.txCache.PFFTx(rawTx); found {
-			decoded[i] = cachedTx
-			continue
-		}
-		tx, err := app.encodingConfig.TxConfig.TxDecoder()(rawTx)
-		if err != nil {
-			continue
-		}
-		msg, ok := payForFibreMsg(tx)
-		if !ok {
+		if item.msg == nil {
 			continue
 		}
 		covered++
-		decoded[i] = tx
-		feeTx, ok := tx.(sdk.FeeTx)
-		if !ok || feeTx.GetGas() < fibretypes.EstimateGasForPayForFibreSignatureVerification(uint64(len(msg.ValidatorSignatures))) {
+		decoded[i] = item.tx
+		feeTx, ok := item.tx.(sdk.FeeTx)
+		if !ok || feeTx.GetGas() < fibretypes.EstimateGasForPayForFibreSignatureVerification(uint64(len(item.msg.ValidatorSignatures))) {
 			continue
 		}
-		key, err := fibreante.NewPffSigCacheKey(msg)
+		key, err := fibreante.NewPffSigCacheKey(item.msg)
 		if err != nil || app.pffSigCache.IsCached(key) {
 			continue
 		}
@@ -81,7 +120,7 @@ func (app *App) startPFFPreverification(ctx sdk.Context, txs [][]byte) (decoded 
 		}
 		seen[key] = struct{}{}
 		done[i] = make(chan struct{})
-		jobs = append(jobs, job{msg: msg, key: key, tx: tx, rawTx: rawTx, done: done[i], preverifyTxSig: hasCacheableDirectSignature(tx)})
+		jobs = append(jobs, job{msg: item.msg, key: key, tx: item.tx, rawTx: rawTx, done: done[i], preverifyTxSig: hasCacheableDirectSignature(item.tx)})
 	}
 	if len(jobs) == 0 {
 		return decoded, wait, finish
@@ -94,7 +133,7 @@ func (app *App) startPFFPreverification(ctx sdk.Context, txs [][]byte) (decoded 
 		appante.NewCachedSigVerificationDecorator(app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.txSigCache),
 	)
 
-	workers := min(runtime.NumCPU(), len(jobs))
+	workers := min(max(1, runtime.NumCPU()/2), len(jobs))
 	work := make(chan job, len(jobs))
 	var wg sync.WaitGroup
 	var aborted atomic.Bool

@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	errorsmod "cosmossdk.io/errors"
+	naryaed25519 "github.com/Overclock-Validator/narya-ed25519/ed25519"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -29,6 +30,8 @@ type cachedValset struct {
 type convertedValset struct {
 	validators []*core.Validator // historical info order, which binds signature positions
 	set        *core.ValidatorSet
+	pubs       [][32]byte
+	naryaCache naryaed25519.Cache
 	expandOnce sync.Once
 	expanded   []*voied25519.ExpandedPublicKey
 }
@@ -83,5 +86,14 @@ func (k Keeper) loadValidatorSetForSignatures(ctx sdk.Context, height int64) (*c
 	}
 	set := core.NewValidatorSet(validators)
 	set.TotalVotingPower() // Force lazy memoization before sharing across workers.
-	return &convertedValset{validators: validators, set: set}, nil
+	pubs := make([][32]byte, len(validators))
+	for i, val := range validators {
+		copy(pubs[i][:], val.PubKey.Bytes())
+	}
+	return &convertedValset{
+		validators: validators,
+		set:        set,
+		pubs:       pubs,
+		naryaCache: naryaed25519.Cache{MaxTableBytes: 8 << 20},
+	}, nil
 }

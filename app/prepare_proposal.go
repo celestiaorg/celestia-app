@@ -81,12 +81,11 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 		}
 	}
 	if squareDone != nil {
-		if write, ok := app.preparePFFFast(ctx, req.Txs, decodedPFF, handler, waitPFF); ok {
+		if app.preparePFFFast(ctx, req.Txs, decodedPFF, handler, waitPFF) {
 			finishPFF()
 			candidate := <-squareDone
 			squareDone = nil
 			if candidate.err == nil {
-				write()
 				return &abci.ResponsePrepareProposal{
 					Txs:          req.Txs,
 					SquareSize:   candidate.size,

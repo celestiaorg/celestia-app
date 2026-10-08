@@ -405,6 +405,13 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 // order and quorum short circuit. The proposal-scoped key expansions avoid a
 // contended global LRU lookup for each signature across concurrent workers.
 func validateExpandedPositionalSignatures(converted *convertedValset, signBytes []byte, signatures [][]byte) error {
+	if err, used := naryaPositionalSignatures(converted, signBytes, signatures); used {
+		return err
+	}
+	return validateExpandedPositionalSignaturesVOI(converted, signBytes, signatures)
+}
+
+func validateExpandedPositionalSignaturesVOI(converted *convertedValset, signBytes []byte, signatures [][]byte) error {
 	expanded := converted.expandedKeys()
 	required := converted.set.TotalVotingPower() * 2 / 3
 	var power int64

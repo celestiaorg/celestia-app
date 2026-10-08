@@ -18,6 +18,7 @@ require (
 	cosmossdk.io/x/feegrant v0.1.1
 	cosmossdk.io/x/tx v0.13.8
 	cosmossdk.io/x/upgrade v0.1.4
+	github.com/Overclock-Validator/narya-ed25519 v0.0.0-20260730051143-c265ee966713
 	github.com/aws/aws-sdk-go-v2 v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5

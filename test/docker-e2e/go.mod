@@ -55,6 +55,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.55.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/Overclock-Validator/narya-ed25519 v0.0.0-20260730051143-c265ee966713 // indirect
 	github.com/ProjectZKM/Ziren/crates/go-runtime/zkvm_runtime v0.0.0-20251001021608-1fe7b43fc4d6 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/RaduBerinde/axisds v0.1.0 // indirect
