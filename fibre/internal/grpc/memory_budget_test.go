@@ -34,12 +34,18 @@ func TestMemoryAdmission(t *testing.T) {
 	}
 	require.EqualValues(t, 75, values["fibre.server.rpc.reserved_bytes"])
 	require.EqualValues(t, 50, values["fibre.server.rpc.upload_reserved_bytes"])
+	require.NoError(t, download.reserve(t.Context(), 25), "downloads can share capacity above 75% total usage")
 	require.Equal(t, codes.ResourceExhausted, status.Code(upload.reserve(t.Context(), 1)))
-	require.NoError(t, download.reserve(t.Context(), 25), "downloads can fill the remaining budget")
 	require.Equal(t, codes.ResourceExhausted, status.Code(download.reserve(t.Context(), 1)))
 	download.release()
-	require.NoError(t, upload.reserve(t.Context(), 25), "uploads can use three quarters of the budget")
+	require.NoError(t, upload.reserve(t.Context(), 50), "uploads can fill the budget")
 	require.Equal(t, codes.ResourceExhausted, status.Code(upload.reserve(t.Context(), 1)))
+	upload.release()
+	download, upload = newMemoryLease(a, true), newMemoryLease(a, false)
+	require.NoError(t, download.reserve(t.Context(), 75))
+	require.Equal(t, codes.ResourceExhausted, status.Code(download.reserve(t.Context(), 1)), "downloads cannot use the upload reserve")
+	require.NoError(t, upload.reserve(t.Context(), 25), "uploads can use their reserved quarter")
+	download.release()
 	upload.release()
 	require.Zero(t, a.used)
 	require.Zero(t, a.downloads)
@@ -65,7 +71,7 @@ func TestMemoryAdmission(t *testing.T) {
 
 func TestMemoryResponseLifetime(t *testing.T) {
 	a := newMemoryBudget(100)
-	l := newMemoryLease(a, true)
+	l := newMemoryLease(a, false)
 	require.NoError(t, l.reserve(t.Context(), 100))
 	codec := &pooledCodec{pool: l}
 	data, err := codec.Marshal(&types.UploadShardResponse{ValidatorSignature: []byte{1}})
