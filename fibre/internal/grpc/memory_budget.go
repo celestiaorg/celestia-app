@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// memoryBudget reserves a quarter of shared capacity for downloads.
+// memoryBudget reserves a quarter of shared capacity for uploads.
 type memoryBudget struct {
 	mu                     sync.Mutex
 	total, used, downloads int64
@@ -77,11 +77,11 @@ func (l *memoryLease) reserve(ctx context.Context, n int64) error {
 		return status.Error(codes.ResourceExhausted, "invalid RPC memory reservation")
 	}
 	if a.total > 0 {
-		limit := a.total
-		if !l.download {
-			limit -= a.total / 4
+		limit := a.total - a.used
+		if l.download {
+			limit = min(limit, a.total-a.total/4-a.downloads)
 		}
-		if n > limit-a.used {
+		if n > limit {
 			return l.reject(ctx)
 		}
 	}
