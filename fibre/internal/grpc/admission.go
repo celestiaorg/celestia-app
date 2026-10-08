@@ -19,10 +19,10 @@ type Admission struct {
 	DownloadSize func(context.Context, []byte) (int64, error)
 }
 
-// NewAdmission reserves uploadReserve bytes exclusively for uploads. Zero total disables admission.
-func NewAdmission(total, uploadReserve int64, maxMessage, maxRows, maxProofs int) *Admission {
+// NewAdmission shares memory between RPCs, with priority for waiting downloads. Zero total disables admission.
+func NewAdmission(total int64, maxMessage, maxRows, maxProofs int) *Admission {
 	return &Admission{
-		memoryBudget: newMemoryBudget(total, uploadReserve), maxMessage: maxMessage,
+		memoryBudget: newMemoryBudget(total), maxMessage: maxMessage,
 		codec: NewServerCodec(maxRows, maxProofs).(*pooledCodec),
 	}
 }

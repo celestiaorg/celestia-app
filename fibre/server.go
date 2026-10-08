@@ -117,7 +117,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
-	admission := fibregrpc.NewAdmission(s.Config.RPCMemoryBudget, s.Config.UploadMemoryReserve,
+	admission := fibregrpc.NewAdmission(s.Config.RPCMemoryBudget,
 		s.Config.MaxMessageSize, DefaultProtocolParams.MaxRowsPerValidator(), DefaultProtocolParams.MerkleProofDepth())
 	if err := admission.RegisterMetrics(s.Config.Meter); err != nil {
 		return fmt.Errorf("registering admission metrics: %w", err)

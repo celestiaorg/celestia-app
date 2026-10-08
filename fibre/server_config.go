@@ -73,9 +73,7 @@ type ServerConfig struct {
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13)."`
 	// RPCMemoryBudget bounds accounted RPC working memory. Zero disables admission.
-	RPCMemoryBudget int64 `toml:"rpc_memory_budget" comment:"RPC working-memory budget in bytes (default 10737418240 = 10 GiB).\nSizing reference for a large Celestia validator: 14% stake, 1721 rows at maximum row size, about 55.7 MiB per uncompressed upload.\nThe current reservation estimate is about 340 MiB per upload, so 10 GiB covers about 30 concurrent uploads without downloads.\nActual capacity depends on request size, compression and upload/download mix; this is not a fixed RPC count.\nIncrease or decrease for available memory, then restart Fibre. Zero disables admission. Leave additional process-memory headroom."`
-	// UploadMemoryReserve is the portion of RPCMemoryBudget unavailable to downloads.
-	UploadMemoryReserve int64 `toml:"upload_memory_reserve" comment:"Portion of rpc_memory_budget reserved for uploads (default 6442450944 = 6 GiB, leaving 4 GiB shared).\nThis protects memory for about 18 uploads at the sizing reference above, even when downloads fill the shared portion.\nUploads can use the full budget. This reserves memory, not bandwidth or verifier workers."`
+	RPCMemoryBudget int64 `toml:"rpc_memory_budget" comment:"RPC working-memory budget in bytes (default 10737418240 = 10 GiB).\nSizing reference for a large Celestia validator: 14% stake, 1721 rows at maximum row size, about 55.7 MiB per uncompressed upload.\nThe current reservation estimate is about 340 MiB per upload, so 10 GiB covers about 30 concurrent uploads without downloads.\nActual capacity depends on request size, compression and upload/download mix; this is not a fixed RPC count.\nUploads can borrow the whole budget. Under contention, waiting downloads get priority until they hold 25%.\nIncrease or decrease for available memory, then restart Fibre. Zero disables admission. Leave additional process-memory headroom."`
 
 	StoreConfig
 
@@ -141,7 +139,6 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
 		RPCMemoryBudget:      10 << 30,
-		UploadMemoryReserve:  6 << 30,
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
 	}
@@ -150,8 +147,8 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 
 // Validate validates the ServerConfig and sets default values for unset fields.
 func (cfg *ServerConfig) Validate() error {
-	if cfg.RPCMemoryBudget < 0 || (cfg.RPCMemoryBudget > 0 && (cfg.UploadMemoryReserve < 0 || cfg.UploadMemoryReserve > cfg.RPCMemoryBudget)) {
-		return fmt.Errorf("RPC memory budget must be non-negative and upload reserve must fit within it")
+	if cfg.RPCMemoryBudget < 0 {
+		return fmt.Errorf("RPC memory budget must be non-negative")
 	}
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")

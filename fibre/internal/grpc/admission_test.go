@@ -49,7 +49,7 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 	require.NoError(t, err)
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	a := NewAdmission(128<<20, 96<<20, 8<<20, 4096, 14)
+	a := NewAdmission(128<<20, 8<<20, 4096, 14)
 	a.DownloadSize = func(_ context.Context, id []byte) (int64, error) {
 		if len(id) == 1 {
 			return 8 << 20, nil
@@ -98,8 +98,11 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 		require.Equal(t, []byte{64}, response.ValidatorSignature)
 		require.Positive(t, intercepted.Load(), "configured unary interceptors must run")
 	}
+	busy := newMemoryLease(a.memoryBudget, false)
+	require.NoError(t, busy.reserve(ctx, 100<<20))
 	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: []byte{1}})
 	require.Equal(t, codes.ResourceExhausted, status.Code(err))
+	busy.release()
 	_, err = client.UploadShard(ctx, &types.UploadShardRequest{})
 	require.Equal(t, codes.Internal, status.Code(err))
 	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{})

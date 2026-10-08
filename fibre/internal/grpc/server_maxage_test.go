@@ -39,7 +39,7 @@ func TestMaxConnectionAgeFreesStalledSlot(t *testing.T) {
 	srv, err := Listen("127.0.0.1:0", 1, DefaultMaxConcurrentStreams)
 	require.NoError(t, err)
 	service := &stallingServer{stalled: make(chan struct{})}
-	srv.Register(service, NewAdmission(0, 0, 8<<20, 4096, 14), nil, nil)
+	srv.Register(service, NewAdmission(0, 8<<20, 4096, 14), nil, nil)
 	srv.Serve()
 	t.Cleanup(func() { srv.Stop(context.Background()) })
 

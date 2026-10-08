@@ -70,7 +70,7 @@ func (a *Admission) receive(ctx context.Context, target any, lease *memoryLease)
 		if compressed {
 			charge = limit // Compressed length does not bound the decoded payload.
 		}
-		if err := lease.reserve(a.estimateMemory(int64(charge))); err != nil {
+		if err := lease.reserve(ctx, a.estimateMemory(int64(charge))); err != nil {
 			return err
 		}
 	}
@@ -97,7 +97,7 @@ func (a *Admission) receive(ctx context.Context, target any, lease *memoryLease)
 				return err
 			}
 		}
-		return lease.reserve(a.estimateMemory(size))
+		return lease.reserve(ctx, a.estimateMemory(size))
 	}
 	return nil
 }
