@@ -3,8 +3,10 @@ package grpc
 import (
 	"context"
 	"math"
+	"slices"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -13,16 +15,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// memoryBudget limits total reservations and the portion available to downloads.
+const (
+	// downloadQueueLimit bounds requests waiting without a payload reservation.
+	downloadQueueLimit = 32
+	// downloadWaitTimeout bounds admission delay independently of client deadlines.
+	downloadWaitTimeout = time.Second
+)
+
+// memoryBudget shares capacity and gives waiting downloads priority up to a quarter of the budget.
 type memoryBudget struct {
-	mu                                    sync.Mutex
-	total, downloadLimit, used, downloads int64
-	rejected                              metric.Int64Counter
+	mu                     sync.Mutex
+	total, used, downloads int64
+	waiters                []*memoryLease
+	changed                chan struct{}
+	rejected               metric.Int64Counter
 }
 
-// newMemoryBudget keeps uploadReserve bytes unavailable to downloads; zero total disables enforcement.
-func newMemoryBudget(total, uploadReserve int64) *memoryBudget {
-	return &memoryBudget{total: total, downloadLimit: total - uploadReserve}
+// newMemoryBudget creates a shared budget; zero total disables enforcement.
+func newMemoryBudget(total int64) *memoryBudget {
+	return &memoryBudget{total: total, changed: make(chan struct{})}
 }
 
 // RegisterMetrics exposes total and upload reservations, plus budget rejections by direction.
@@ -66,18 +77,31 @@ func newMemoryLease(budget *memoryBudget, download bool) *memoryLease {
 }
 
 // reserve acquires the complete estimated working memory before the handler runs.
-func (l *memoryLease) reserve(n int64) error {
+func (l *memoryLease) reserve(ctx context.Context, n int64) error {
 	a := l.budget
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	if err := ctx.Err(); err != nil {
+		return status.FromContextError(err).Err()
+	}
 	if n < 0 || n > math.MaxInt64-a.used {
 		return status.Error(codes.ResourceExhausted, "invalid RPC memory reservation")
 	}
-	if a.total > 0 && (n > a.total-a.used || (l.download && n > a.downloadLimit-a.downloads)) {
-		if a.rejected != nil {
-			a.rejected.Add(context.Background(), 1, metric.WithAttributes(attribute.Bool("download", l.download)))
+	if a.total > 0 {
+		if n > a.total {
+			return l.reject(ctx)
 		}
-		return status.Error(codes.ResourceExhausted, "fibre memory budget exhausted; retry later")
+		if l.download {
+			if err := l.waitDownload(ctx, n); err != nil {
+				return err
+			}
+		} else {
+			// Only protect unused download capacity while downloads actually wait.
+			priority := len(a.waiters) > 0 && a.downloads < a.total/4
+			if n > a.total-a.used || (priority && n > a.total-a.total/4-a.used) {
+				return l.reject(ctx)
+			}
+		}
 	}
 	a.used += n
 	if l.download {
@@ -85,6 +109,57 @@ func (l *memoryLease) reserve(n int64) error {
 	}
 	l.bytes += n
 	return nil
+}
+
+// waitDownload waits in FIFO order for capacity, with the budget lock held on entry and return.
+func (l *memoryLease) waitDownload(ctx context.Context, n int64) error {
+	a := l.budget
+	if len(a.waiters) == 0 && n <= a.total-a.used {
+		return nil
+	}
+	if len(a.waiters) == downloadQueueLimit {
+		return l.reject(ctx)
+	}
+	waitCtx, cancel := context.WithTimeout(ctx, downloadWaitTimeout)
+	defer cancel()
+	a.waiters = append(a.waiters, l)
+	defer func() {
+		i := slices.Index(a.waiters, l)
+		a.waiters = slices.Delete(a.waiters, i, i+1)
+		a.notifyWaiters()
+	}()
+	for {
+		if err := ctx.Err(); err != nil {
+			return status.FromContextError(err).Err()
+		}
+		if waitCtx.Err() != nil {
+			return l.reject(ctx)
+		}
+		if a.waiters[0] == l && n <= a.total-a.used {
+			return nil
+		}
+		changed := a.changed
+		a.mu.Unlock()
+		select {
+		case <-changed:
+		case <-waitCtx.Done():
+		}
+		a.mu.Lock()
+	}
+}
+
+// reject counts a refused reservation and tells the caller to retry later.
+func (l *memoryLease) reject(ctx context.Context) error {
+	if l.budget.rejected != nil {
+		l.budget.rejected.Add(ctx, 1, metric.WithAttributes(attribute.Bool("download", l.download)))
+	}
+	return status.Error(codes.ResourceExhausted, "fibre memory budget exhausted; retry later")
+}
+
+// notifyWaiters wakes queued downloads after a budget or queue change; the caller holds the lock.
+func (a *memoryBudget) notifyWaiters() {
+	close(a.changed)
+	a.changed = make(chan struct{})
 }
 
 // release returns the reservation after the handler and response buffers finish.
@@ -95,6 +170,7 @@ func (l *memoryLease) release() {
 	a := l.budget
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	a.notifyWaiters()
 	a.used -= l.bytes
 	if l.download {
 		a.downloads -= l.bytes
