@@ -14,6 +14,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// estimateDownloadSize uses stored size markers before admission reads a shard payload.
+func (s *Server) estimateDownloadSize(ctx context.Context, blobID []byte) (int64, error) {
+	id := BlobID(blobID)
+	if err := id.Validate(); err != nil {
+		return 0, status.Error(grpccodes.InvalidArgument, err.Error())
+	}
+	// A 14% stake validator receives about 42% of the original rows at the 1/3 reconstruction threshold.
+	fallback := int64(s.Config.MaxMessageSize) * 42 / 100
+	size, err := s.store.estimateShardSize(ctx, id.Commitment(), fallback)
+	if err != nil {
+		return 0, status.Errorf(grpccodes.Internal, "reading shard size: %v", err)
+	}
+	return size, nil
+}
+
 // DownloadShard handles the [types.FibreServer.DownloadShard] RPC call.
 // It retrieves [types.BlobShard] for the given blob ID.
 func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (_ *types.DownloadShardResponse, err error) {
@@ -46,9 +61,6 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 	blobShard, err := s.store.Get(ctx, id.Commitment())
 	s.metrics.observeStoreOp(ctx, s.metrics.storeGetDuration, storeGetStart, err == nil)
 	if err != nil {
-		if grpccodes.ResourceExhausted == status.Code(err) {
-			return nil, err
-		}
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.DebugContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")

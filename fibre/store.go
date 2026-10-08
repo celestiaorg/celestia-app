@@ -219,6 +219,28 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 	return nil, ErrStoreNotFound
 }
 
+// estimateShardSize reads size markers without loading shard payloads.
+// It uses Get's first candidate; legacy or corrupt markers use fallback, and later copies can differ.
+func (s *Store) estimateShardSize(ctx context.Context, commitment Commitment, fallback int64) (int64, error) {
+	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
+	iter, err := s.db.NewIter(&pebbledb.IterOptions{LowerBound: prefix, UpperBound: prefixUpperBound(prefix)})
+	if err != nil {
+		return 0, err
+	}
+	defer iter.Close()
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	if !iter.First() {
+		return 0, iter.Error()
+	}
+	_, size, err := decodeShardMarkerBackend(iter.Value())
+	if err != nil || size == 0 {
+		return fallback, nil
+	}
+	return size, nil
+}
+
 // Has verifies that shard exists without reading the whole file
 func (s *Store) Has(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, error) {
 	has, _, err := s.shardStatus(ctx, commitment, promiseHash)

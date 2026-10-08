@@ -3,7 +3,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -15,57 +15,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/encoding/gzip"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
-
-func testLease(a *Admission, download bool) *memoryLease {
-	l := &memoryLease{budget: a, download: download}
-	l.refs.Store(1)
-	return l
-}
-
-func TestMemoryAdmission(t *testing.T) {
-	a := NewAdmission(100, 60, 8<<20, 4096, 14)
-	download, upload := testLease(a, true), testLease(a, false)
-	require.NoError(t, download.reserve(40))
-	require.Equal(t, codes.ResourceExhausted, status.Code(download.reserve(1)))
-	require.NoError(t, upload.reserve(60))
-	require.Equal(t, codes.ResourceExhausted, status.Code(upload.reserve(1)))
-	download.release()
-	require.NoError(t, upload.reserve(40), "uploads can use the entire budget")
-	upload.release()
-	require.Zero(t, a.used)
-	require.Zero(t, a.downloads)
-	var wg sync.WaitGroup
-	for range 100 {
-		wg.Go(func() {
-			l := testLease(a, true)
-			_ = l.reserve(10)
-			l.release()
-		})
-	}
-	wg.Wait()
-	require.Zero(t, a.used)
-	disabled := NewAdmission(0, 60, 8<<20, 4096, 14)
-	l := testLease(disabled, true)
-	require.NoError(t, l.reserve(1000))
-	l.release()
-}
-
-func TestMemoryResponseLifetime(t *testing.T) {
-	a := NewAdmission(100, 0, 8<<20, 4096, 14)
-	l := testLease(a, true)
-	require.NoError(t, l.reserve(100))
-	codec := &pooledCodec{pool: l}
-	data, err := codec.Marshal(&types.UploadShardResponse{ValidatorSignature: []byte{1}})
-	require.NoError(t, err)
-	data.Ref()
-	l.release()
-	data.Free()
-	require.EqualValues(t, 100, a.used)
-	data.Free()
-	require.Zero(t, a.used)
-}
 
 type admissionService struct {
 	types.UnimplementedFibreServer
@@ -81,17 +33,9 @@ func (*admissionService) UploadShard(_ context.Context, req *types.UploadShardRe
 
 func (s *admissionService) DownloadShard(ctx context.Context, req *types.DownloadShardRequest) (*types.DownloadShardResponse, error) {
 	if len(req.BlobId) == 2 {
-		if err := ReserveMemory(ctx, 1<<20); err != nil {
-			return nil, err
-		}
 		close(s.entered)
 		<-ctx.Done()
 		return nil, ctx.Err()
-	}
-	if len(req.BlobId) == 1 {
-		if err := ReserveMemory(ctx, 128<<20); err != nil {
-			return nil, err
-		}
 	}
 	return &types.DownloadShardResponse{}, nil
 }
@@ -105,11 +49,33 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 	require.NoError(t, err)
 	pub, err := pv.GetPubKey()
 	require.NoError(t, err)
-	a := NewAdmission(128<<20, 64<<20, 8<<20, 4096, 14)
+	a := NewAdmission(128<<20, 96<<20, 8<<20, 4096, 14)
+	a.DownloadSize = func(_ context.Context, id []byte) (int64, error) {
+		if len(id) == 1 {
+			return 8 << 20, nil
+		}
+		return 1024, nil
+	}
+
 	srv, err := Listen("127.0.0.1:0", 2, 13)
 	require.NoError(t, err)
 	entered := make(chan struct{})
-	srv.Register(&admissionService{entered: entered}, a, grpc.Creds(credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13})))
+	var intercepted atomic.Int32
+	interceptor := func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		intercepted.Add(1)
+		if download, ok := req.(*types.DownloadShardRequest); ok && len(download.BlobId) >= 3 {
+			if len(download.BlobId) == 3 {
+				if err := grpc.SetSendCompressor(ctx, gzip.Name); err != nil {
+					return nil, err
+				}
+			}
+			if err := grpc.SendHeader(ctx, metadata.Pairs("test", "early-header")); err != nil {
+				return nil, err
+			}
+		}
+		return handler(ctx, req)
+	}
+	srv.Register(&admissionService{entered: entered}, a, credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}), interceptor)
 	srv.Serve()
 	t.Cleanup(func() { srv.Stop(context.Background()) })
 	conn, err := grpc.NewClient(srv.ListenAddress(), grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
@@ -130,6 +96,7 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 		response, err := client.UploadShard(ctx, request, grpc.UseCompressor(compression))
 		require.NoError(t, err)
 		require.Equal(t, []byte{64}, response.ValidatorSignature)
+		require.Positive(t, intercepted.Load(), "configured unary interceptors must run")
 	}
 	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: []byte{1}})
 	require.Equal(t, codes.ResourceExhausted, status.Code(err))
@@ -137,6 +104,11 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 	require.Equal(t, codes.Internal, status.Code(err))
 	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{})
 	require.NoError(t, err)
+	require.EqualValues(t, 4, intercepted.Load(), "rejected downloads must not enter the interceptor or handler")
+	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: []byte{1, 2, 3}})
+	require.Equal(t, codes.Internal, status.Code(err), "compressed headers must not bypass response lease tracking")
+	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: []byte{1, 2, 3, 4}})
+	require.NoError(t, err, "early identity headers remain supported")
 	cancelCtx, stop := context.WithCancel(ctx)
 	finished := make(chan error, 1)
 	go func() {

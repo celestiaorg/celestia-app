@@ -89,6 +89,7 @@ func (v *Verifier) Verify(commitment Commitment, proofs []*RowProof, rlc rlc.Vec
 	}
 	v.rowsScratch = resizeRows(v.rowsScratch, len(proofs))
 	v.proofScratch = resizeProofInputs(v.proofScratch, len(proofs))
+	// Drop borrowed request data before the pooled verifier outlives the RPC's memory lease.
 	defer clear(v.rowsScratch)
 	defer clear(v.proofScratch)
 	return v.verify(commitment, proofs, rowSize, v.rowsScratch, v.proofScratch)

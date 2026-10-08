@@ -161,6 +161,24 @@ func TestGetSkipsInvalidMarkerAndReturnsValidShard(t *testing.T) {
 	require.NoError(t, closer.Close())
 }
 
+func TestEstimateShardSizeWithoutPayload(t *testing.T) {
+	store := newMarkerTestStore(t)
+	commitment := generateCommitment()
+	for i, size := range []int64{100, 200} {
+		marker := encodeShardMarkerForBackend(localBackendTag, size)
+		require.NoError(t, store.db.Set(shardKey(commitment, []byte{byte(i)}), marker, pebbledb.NoSync))
+	}
+	size, err := store.estimateShardSize(t.Context(), commitment, 900)
+	require.NoError(t, err)
+	require.EqualValues(t, 100, size, "inspect only the first candidate without reading payloads")
+	for _, marker := range [][]byte{nil, {255}} {
+		require.NoError(t, store.db.Set(shardKey(commitment, []byte{0}), marker, pebbledb.NoSync))
+		size, err = store.estimateShardSize(t.Context(), commitment, 900)
+		require.NoError(t, err)
+		require.EqualValues(t, 900, size, "legacy and corrupt markers use the fallback")
+	}
+}
+
 func TestGetMissingPayloadKeepsPruneAccounting(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()

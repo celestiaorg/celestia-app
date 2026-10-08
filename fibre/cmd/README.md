@@ -209,31 +209,18 @@ rpc_memory_budget = 10737418240 # 10 GiB total
 upload_memory_reserve = 6442450944 # 6 GiB unavailable to downloads
 ```
 
-Uploads can use the full budget. Downloads can use at most 4 GiB with these defaults.
-Smaller shards consume smaller reservations; the budget does not depend on validator stake or fixed RPC slots.
-The reserve protects memory for uploads, not network bandwidth or disk write speed.
+Uploads can use all 10 GiB; downloads share 4 GiB. Admission reserves estimated memory once, before receiving an upload or reading a stored shard.
+Uploads use the message size; downloads use stored size markers, with a 14% stake sizing fallback for missing metadata.
+Excess work receives `ResourceExhausted`. Reservations remain held until the handler and gRPC response buffers finish.
 
-Uploads reserve memory before receiving their payloads. Compressed requests reserve for the maximum decompressed size.
-Upload reservations use six times the bounded message size plus protocol-derived metadata overhead, including gRPC's default tiny-frame compaction costs.
-Downloads reserve memory before each storage-decoder allocation. A request can fail if a later allocation exceeds the remaining budget.
-Excess work receives `ResourceExhausted`; clients should retry with backoff and jitter.
-Requests must deliver their message header and body within 15 seconds of stream admission, even without a client deadline.
-The server returns `ResourceExhausted` on receive timeout and releases the reservation after the read exits.
-This timeout excludes verification and storage. It bounds each stalled request, but does not prevent repeated admission starvation.
-Reservations remain held while gRPC retains response buffers. Responses are sent uncompressed.
-
-Reservations include conservative allocation overhead, but are not a process-memory ceiling.
-Leave headroom for GC, persistent verifier state, transport buffers and other services.
-The protocol maximum of 4096 rows and approximately 132 MiB per message remains unchanged.
-Transport caps remain 16 connections and 13 streams per connection. gRPC keeps its automatic receive-window sizing.
-These windows can add several GiB of transport buffering at the default connection and stream caps, outside the admission budget.
-
-The metrics `fibre.server.rpc.reserved_bytes` and `fibre.server.rpc.memory_rejected` report reservations and budget rejections, labelled by `download`.
+Requests must arrive within 15 seconds; this receive timeout excludes verification and storage.
+These are memory estimates, not bandwidth guarantees or a process-memory ceiling. Leave headroom for transport buffers, GC and persistent state.
+The gauges `fibre.server.rpc.reserved_bytes` and `fibre.server.rpc.upload_reserved_bytes` show total and upload reservations.
+The counter `fibre.server.rpc.memory_rejected` records budget rejections.
 
 #### Bypassing admission
 
-Set `rpc_memory_budget = 0` and restart Fibre to bypass the byte budget and upload reserve.
-Transport limits, protocol bounds and response tracking still apply.
+Set `rpc_memory_budget = 0` and restart Fibre. Protocol limits and the receive timeout still apply.
 
 ## Signing
 

@@ -61,6 +61,7 @@ func (c *pooledCodec) Name() string { return codecName }
 
 func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 	if encoded, ok := v.(*mem.BufferSlice); ok {
+		// Transfer the admitted response to gRPC without copying or losing its lease-release callback.
 		data := *encoded
 		*encoded = nil
 		return data, nil

@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 )
@@ -67,18 +68,19 @@ func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Serve
 	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
 }
 
-// Register builds the underlying [grpc.Server] with opts and registers the
-// fibre service. It must be called exactly once before [Server.Serve].
-//
-// A panic-recovery interceptor is always installed as defense in depth: a
-// panic in any handler (e.g. a malformed request that slips past validation)
-// is converted into an Internal gRPC error instead of crashing the process.
-func (s *Server) Register(service types.FibreServer, admission *Admission, opts ...grpc.ServerOption) {
-	if admission != nil {
-		opts = append(opts, grpc.ForceServerCodecV2(admission.codec), grpc.InTapHandle(receiveTimeoutTap))
+// Register builds the gRPC server with admission, credentials and an optional unary interceptor.
+// Set the admission budget to zero to bypass budgeting; admission itself must be non-nil.
+func (s *Server) Register(service types.FibreServer, admission *Admission, creds credentials.TransportCredentials, interceptor grpc.UnaryServerInterceptor) {
+	opts := []grpc.ServerOption{
+		grpc.ForceServerCodecV2(admission.codec),
+		grpc.InTapHandle(receiveTimeoutTap),
+		grpc.MaxRecvMsgSize(admission.maxMessage),
+		grpc.MaxSendMsgSize(admission.maxMessage),
+	}
+	if creds != nil {
+		opts = append(opts, grpc.Creds(creds))
 	}
 	opts = append(opts,
-		grpc.ChainUnaryInterceptor(recoverUnaryInterceptor),
 		grpc.MaxConcurrentStreams(s.maxConcurrentStreams),
 		grpc.ConnectionTimeout(connectionTimeout),
 		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
@@ -93,11 +95,7 @@ func (s *Server) Register(service types.FibreServer, admission *Admission, opts 
 		}),
 	)
 	s.server = grpc.NewServer(opts...)
-	if admission == nil {
-		types.RegisterFibreServer(s.server, service)
-	} else {
-		admission.register(s.server, service)
-	}
+	admission.register(s.server, service, interceptor)
 }
 
 // recoverUnaryInterceptor recovers from panics in unary handlers and returns an

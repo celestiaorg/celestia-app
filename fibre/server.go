@@ -16,7 +16,6 @@ import (
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/trace"
-	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -123,11 +122,8 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err := admission.RegisterMetrics(s.Config.Meter); err != nil {
 		return fmt.Errorf("registering admission metrics: %w", err)
 	}
-	s.grpc.Register(s, admission,
-		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
-		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
-		grpclib.Creds(creds),
-	)
+	admission.DownloadSize = s.estimateDownloadSize
+	s.grpc.Register(s, admission, creds, nil)
 
 	pubKey, err := s.signer.GetPubKey()
 	if err != nil {

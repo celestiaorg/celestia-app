@@ -1,14 +1,12 @@
 package fibre
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 )
@@ -110,16 +108,12 @@ func readUint32(r io.Reader, scratch []byte) (uint32, error) {
 	return binary.BigEndian.Uint32(scratch[:4]), nil
 }
 
-func readBytes(ctx context.Context, r io.Reader, n uint32, limit int) ([]byte, error) {
+func readBytes(r io.Reader, n uint32, limit int) ([]byte, error) {
 	if uint64(n) > uint64(limit) {
 		return nil, fmt.Errorf("length %d exceeds shard limit %d", n, limit)
 	}
 	if n == 0 {
 		return nil, nil
-	}
-	// Include allocator size-class rounding.
-	if err := fibregrpc.ReserveMemory(ctx, 2*int64(n)+16); err != nil {
-		return nil, err
 	}
 	out := make([]byte, n)
 	if _, err := io.ReadFull(r, out); err != nil {
@@ -128,11 +122,8 @@ func readBytes(ctx context.Context, r io.Reader, n uint32, limit int) ([]byte, e
 	return out, nil
 }
 
+// readShardBinary checks protocol bounds before allocating stored row and proof data.
 func readShardBinary(r io.Reader) (*types.BlobShard, error) {
-	return readShardBinaryContext(context.Background(), r)
-}
-
-func readShardBinaryContext(ctx context.Context, r io.Reader) (*types.BlobShard, error) {
 	p := DefaultProtocolParams
 	var scratch [4]byte
 	version, err := readUint32(r, scratch[:])
@@ -147,7 +138,8 @@ func readShardBinaryContext(ctx context.Context, r io.Reader) (*types.BlobShard,
 	if err != nil {
 		return nil, fmt.Errorf("reading rlcs len: %w", err)
 	}
-	rlcs, err := readBytes(ctx, r, rlcsLen, p.Rows*field.GF128Size)
+	// One GF128 field element (16 bytes) per original row.
+	rlcs, err := readBytes(r, rlcsLen, p.Rows*field.GF128Size)
 	if err != nil {
 		return nil, fmt.Errorf("reading rlcs: %w", err)
 	}
@@ -158,10 +150,6 @@ func readShardBinaryContext(ctx context.Context, r io.Reader) (*types.BlobShard,
 	}
 	if uint64(numRows) > uint64(p.MaxRowsPerValidator()) {
 		return nil, fmt.Errorf("num rows %d exceeds limit %d", numRows, p.MaxRowsPerValidator())
-	}
-	// Each row needs a pointer, a BlobRow, and allocator overhead.
-	if err := fibregrpc.ReserveMemory(ctx, int64(numRows)*128); err != nil {
-		return nil, err
 	}
 
 	shard := &types.BlobShard{
@@ -177,7 +165,8 @@ func readShardBinaryContext(ctx context.Context, r io.Reader) (*types.BlobShard,
 		if err != nil {
 			return nil, fmt.Errorf("reading row %d data len: %w", i, err)
 		}
-		data, err := readBytes(ctx, r, dataLen, p.MaxRowSize(0))
+		// Version 0 is the only supported Fibre encoding version.
+		data, err := readBytes(r, dataLen, p.MaxRowSize(0))
 		if err != nil {
 			return nil, fmt.Errorf("reading row %d data: %w", i, err)
 		}
@@ -190,16 +179,13 @@ func readShardBinaryContext(ctx context.Context, r io.Reader) (*types.BlobShard,
 			if uint64(numProof) > uint64(p.MerkleProofDepth()) {
 				return nil, fmt.Errorf("row %d num proof %d exceeds limit %d", i, numProof, p.MerkleProofDepth())
 			}
-			if err := fibregrpc.ReserveMemory(ctx, int64(numProof)*32); err != nil {
-				return nil, err
-			}
 			proof = make([][]byte, numProof)
 			for j := range numProof {
 				segLen, err := readUint32(r, scratch[:])
 				if err != nil {
 					return nil, fmt.Errorf("reading row %d proof %d len: %w", i, j, err)
 				}
-				seg, err := readBytes(ctx, r, segLen, sha256.Size)
+				seg, err := readBytes(r, segLen, sha256.Size)
 				if err != nil {
 					return nil, fmt.Errorf("reading row %d proof %d: %w", i, j, err)
 				}

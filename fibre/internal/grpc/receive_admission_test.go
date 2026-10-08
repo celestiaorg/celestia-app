@@ -32,7 +32,7 @@ func testReceiveAdmission(t *testing.T, budget int64, waitForReservation bool) {
 	server, err := Listen("127.0.0.1:0", 2, 13)
 	require.NoError(t, err)
 	admission := NewAdmission(budget, 0, 8<<20, 4096, 14)
-	server.Register(&types.UnimplementedFibreServer{}, admission)
+	server.Register(&types.UnimplementedFibreServer{}, admission, nil, nil)
 	server.Serve()
 	t.Cleanup(func() { server.Stop(context.Background()) })
 	conn, err := (&net.Dialer{}).DialContext(context.Background(), "tcp", server.ListenAddress())

@@ -242,7 +242,8 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	// validate PP chain ID matches the connected app chain ID
 	chainID := s.state.ChainID()
 	if promise.ChainID != chainID {
-		return nil, BlobConfig{}, nil, time.Time{}, errors.New("payment promise chain ID mismatch")
+		// Error trailers outlive admission; do not copy an unbounded client field into them.
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise chain ID mismatch: expected %s, got %.*s", chainID, maxChainIDSize, promise.ChainID)
 	}
 	// validate blob version is supported
 	blobCfg, err := BlobConfigForVersion(uint8(promise.BlobVersion))
