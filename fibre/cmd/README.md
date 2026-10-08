@@ -208,10 +208,10 @@ Fibre admits uploads and downloads against a shared working-memory budget:
 rpc_memory_budget = 10737418240 # 10 GiB total
 ```
 
-Both directions can use the whole budget. While downloads wait and hold less than 25%, uploads cannot increase total usage above 75%.
-Up to 32 downloads can wait for one second; existing RPCs finish normally. Admission reserves memory before upload receipt or stored-shard reads.
+Downloads can fill the budget. Uploads cannot increase total usage above 75%.
+Requests that exceed these limits fail immediately with `ResourceExhausted`. Admission reserves memory before upload receipt or stored-shard reads.
 Uploads use the message size; downloads use stored size markers, with a 14% stake sizing fallback for missing metadata.
-Excess work receives `ResourceExhausted`. Reservations remain held until the handler and gRPC response buffers finish.
+Reservations remain held until the handler and gRPC response buffers finish.
 
 Requests must arrive within 15 seconds; this receive timeout excludes verification and storage.
 These are memory estimates, not bandwidth guarantees or a process-memory ceiling. Leave headroom for transport buffers, GC and persistent state.

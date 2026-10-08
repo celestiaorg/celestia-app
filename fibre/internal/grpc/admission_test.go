@@ -99,7 +99,7 @@ func TestMemoryAdmissionTLS(t *testing.T) {
 		require.Positive(t, intercepted.Load(), "configured unary interceptors must run")
 	}
 	busy := newMemoryLease(a.memoryBudget, false)
-	require.NoError(t, busy.reserve(ctx, 100<<20))
+	require.NoError(t, busy.reserve(ctx, 96<<20))
 	_, err = client.DownloadShard(ctx, &types.DownloadShardRequest{BlobId: []byte{1}})
 	require.Equal(t, codes.ResourceExhausted, status.Code(err))
 	busy.release()
