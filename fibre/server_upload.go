@@ -127,12 +127,14 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	ctx, span := s.tracer.Start(ctx, "store_shard")
 	defer span.End()
 
-	mu := s.uploadLock(promiseHash)
-	mu.Lock()
-	defer mu.Unlock()
+	release, err := s.uploads.acquire(ctx, promiseHash)
+	if err != nil {
+		return status.Error(cancellationCode(err), fmt.Sprintf("waiting for existing upload: %v", err))
+	}
+	defer release()
 
 	// Re-check now that we have the lock, to avoid TOCTOU
-	has, err := s.store.Has(ctx, promise.Commitment, promiseHash)
+	has, accounted, err := s.store.shardStatus(ctx, promise.Commitment, promiseHash)
 	if err != nil {
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
@@ -145,7 +147,8 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	}
 
 	size := shardBinarySize(shard)
-	if !s.occ.reserve(size) {
+	newReservation := !accounted
+	if newReservation && !s.occ.reserve(size) {
 		s.metrics.uploadShardRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("reason", "budget_exceeded")))
 		st := status.New(grpccodes.ResourceExhausted, "fibre storage budget exceeded")
 		st, _ = st.WithDetails(&errdetails.RetryInfo{
@@ -157,7 +160,9 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 	// store payment promise and shard with RLC roots
 	storePutStart := time.Now()
 	if err := s.store.Put(ctx, promise, shard, pruneAt); err != nil {
-		s.occ.release(size)
+		if newReservation {
+			s.occ.release(size)
+		}
 		s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, false)
 		// A cancelled/expired client context means the store deliberately
 		// skipped the commit; report it as such rather than as an Internal
@@ -219,6 +224,16 @@ func cancellationCode(cause error) grpccodes.Code {
 // It does both stateless and stateful verification.
 // Returns the BlobConfig for the blob version and the pruneAt time computed by shardPruneAt.
 func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, []byte, time.Time, error) {
+	// Reject anything the chain's stateless checks would reject: a promise that
+	// fails ValidateBasic can never be settled by MsgPayForFibre or
+	// MsgPaymentPromiseTimeout, so storing and signing for it is unpaid work.
+	if promisePb == nil {
+		return nil, BlobConfig{}, nil, time.Time{}, errors.New("nil payment promise")
+	}
+	if err := promisePb.ValidateBasic(); err != nil {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise: %w", err)
+	}
+
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)
@@ -238,6 +253,12 @@ func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentProm
 	// stateless validation
 	if err := promise.Validate(); err != nil {
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("payment promise validation failed: %w", err)
+	}
+
+	// Reject below the local minimum before reserving escrow through the state
+	// query or doing shard verification, storage, and signing.
+	if uint64(promise.UploadSize) < uint64(s.Config.MinUploadSize) {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("upload size %d is below local minimum %d bytes", promise.UploadSize, s.Config.MinUploadSize)
 	}
 
 	// validate stateful constraints

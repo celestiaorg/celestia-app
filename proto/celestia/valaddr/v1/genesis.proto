@@ -1,7 +1,13 @@
 syntax = "proto3";
 package celestia.valaddr.v1;
 
+import "gogoproto/gogo.proto";
+import "celestia/valaddr/v1/query.proto";
+
 option go_package = "github.com/celestiaorg/celestia-app/x/valaddr/types";
 
 // GenesisState defines the valaddr module's genesis state.
-message GenesisState {}
+message GenesisState {
+  // fibre_providers contains all stored validator to fibre host registrations.
+  repeated FibreProvider fibre_providers = 1 [(gogoproto.nullable) = false];
+}

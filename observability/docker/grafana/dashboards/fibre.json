@@ -859,6 +859,11 @@
           "interval": "1m",
           "legendFormat": "Server DownloadShard",
           "refId": "D"
+        },
+        {
+          "expr": "sum(rate(fibre_pff_included_bytes_total[$__rate_interval]))",
+          "legendFormat": "Successful PFF Inclusion",
+          "refId": "E"
         }
       ],
       "title": "Throughput",

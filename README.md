@@ -36,7 +36,7 @@ node            |  |                               |  |
 
 1. [Install Go](https://go.dev/doc/install) 1.26.6
 1. Clone this repo
-1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for the latest celestia-app v3.x.x and v4.x.x release.
+1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v9.
 
     ```shell
     make install
@@ -134,6 +134,11 @@ make bbr-enable
 |---------------------|----------------------------------------------|------------------------------------------------------------|----------|
 | `CELESTIA_APP_HOME` | Where the application files should be saved. | [`$HOME/.celestia-app`](https://pkg.go.dev/os#UserHomeDir) | Optional |
 
+Most flags can also be set with environment variables prefixed by the binary name, e.g. `CELESTIA_APPD_PRUNING=nothing` for `--pruning`.
+Some command-specific flags, such as `config sync --dry-run`, ignore environment variables.
+Client flags such as `--node` also accept the `CELESTIA_APP_` prefix, e.g. `CELESTIA_APP_NODE`.
+`start` flags only accept the `CELESTIA_APPD_` prefix.
+
 ### Using celestia-appd
 
 ```sh
@@ -147,23 +152,30 @@ celestia-appd init test
 celestia-appd start
 ```
 
-### Updating config.toml
+### Updating config files
 
-`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults.
+`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults. It syncs these files:
+
+| File                                | Home directory                                                |
+|-------------------------------------|---------------------------------------------------------------|
+| `config/config.toml` (core)         | `--home`                                                      |
+| `config/server_config.toml` (Fibre) | `--fibre-home` (or `FIBRE_HOME`), default `~/.celestia-fibre` |
+
+A file is skipped if it does not exist, so the command works on hosts that run only the node or only Fibre.
 Synchronization runs only when this command is called, not on node startup.
 Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
 Flags and environment overrides are not saved.
-Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
+Before replacing a file, it creates a `<file>.backup-*` file in the same directory. Earlier backups are never overwritten.
 If nothing is missing, it leaves the file untouched.
 
-To inspect additions or update the file before restarting:
+To inspect additions or update the files before restarting:
 
 ```sh
-celestia-appd config sync --home ~/.celestia-app --dry-run
-celestia-appd config sync --home ~/.celestia-app
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre --dry-run
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-Then edit the fields in `config/config.toml` under your node's home directory to set the values you want before restarting the node.
+Then edit the fields under your node's and Fibre's home directories to set the values you want before restarting.
 
 Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.
@@ -225,29 +237,73 @@ Fibre (available from app v10) is Celestia's data availability protocol served b
 
 ## Server Architecture
 
-celestia-app and celestia-core start multiple servers to handle different types of network communication and requests. Here's an overview of each server and their default addresses:
+`celestia-appd` runs celestia-core and the Cosmos SDK application in one process when the native application version is active. Core handles consensus and networking; the application executes transactions and maintains module state. They communicate through ABCI. The servers below expose different services from that process.
+
+```mermaid
+flowchart TB
+    subgraph Appd["celestia-appd process — native application"]
+        Core["Core: consensus and networking<br/>RPC :26657 · gRPC :9098 · P2P :26656"]
+        App["Application: transaction execution and state<br/>gRPC :9090 · REST / gRPC-Web :1317"]
+        Signer["PrivValidator: local key or remote signer<br/>PrivVal gRPC :26669"]
+        Core <-->|"ABCI via multiplexer"| App
+        App -->|"Block API calls"| Core
+        Core -->|"Sign proposals and votes"| Signer
+    end
+    Peers["Other consensus nodes"] <-->|"P2P"| Core
+    Client["Fibre client"] <-->|"gRPC over TLS"| Fibre["Separate fibre process :7980<br/>Stores and serves blob shards"]
+    Fibre -->|"Query state via app gRPC"| App
+    Fibre -->|"Sign via PrivVal gRPC"| Signer
+    Signer -.->|"Optional remote-signing connection"| KMS["Separate KMS process"]
+```
+
+When replaying older application versions, the [multiplexer](multiplexer/README.md) runs an embedded application binary in a child process and forwards ABCI calls over gRPC. Core remains in the parent process.
+
+The addresses below are configurable defaults. Application gRPC also exposes Core's Block API on the same listener, so clients can query both application state and block data through one connection. Core gRPC does not expose application module queries.
 
 ### Celestia-Core (CometBFT) Servers
 
-| Server   | Default Address         | Configuration               | Purpose                                                                                               |
-|----------|-------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
-| **RPC**  | `tcp://127.0.0.1:26657` | `config.toml` under `[rpc]` | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions. |
-| **gRPC** | `tcp://127.0.0.1:9098`  | `config.toml` under `[rpc]` | gRPC API for broadcasting txs, querying blocks, and querying blobstream data                          |
-| **P2P**  | `tcp://0.0.0.0:26656`   | `config.toml` under `[p2p]` | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.               |
+| Server     | Default Address           | Configuration                 | Purpose                                                                                                                                        |
+|------------|---------------------------|-------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| **RPC**    | `tcp://127.0.0.1:26657`   | `config.toml` under `[rpc]`   | HTTP/WebSocket API for blockchain queries, transaction submission, and real-time event subscriptions.                                          |
+| **gRPC**   | `tcp://127.0.0.1:9098`    | `config.toml` under `[rpc]`   | Core services for transaction broadcast, blocks, commits, validator sets, new-height subscriptions, and Blobstream data-root inclusion proofs. |
+| **P2P**    | `tcp://0.0.0.0:26656`     | `config.toml` under `[p2p]`   | Peer-to-peer networking layer for consensus, block synchronization, and mempool gossip.                                                        |
 
 ### Celestia-App (Cosmos SDK) Servers
 
-| Server       | Default Address                | Configuration                 | Purpose                                                                                                                                      |
-|--------------|--------------------------------|-------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-| **gRPC**     | `localhost:9090`               | `app.toml` under `[grpc]`     | gRPC for application-specific queries. Provides access to Cosmos SDK modules (bank, governance, etc.) and Celestia-specific modules (blob).  |
-| **REST API** | `tcp://localhost:1317`         | `app.toml` under `[api]`      | RESTful HTTP API that proxies requests to the gRPC server via gRPC-gateway. Provides the same functionality as gRPC but over HTTP with JSON. |
-| **gRPC-Web** | *Uses REST API server address* | `app.toml` under `[grpc-web]` | Browser-compatible gRPC API that allows web applications to interact with the gRPC server.                                                   |
+| Server         | Default Address                  | Configuration                   | Purpose                                                                                                                                        |
+|----------------|----------------------------------|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| **gRPC**       | `localhost:9090`                 | `app.toml` under `[grpc]`       | Application module queries, transaction simulation and broadcast, node information, and Core's Block API.                                      |
+| **REST API**   | `tcp://localhost:1317`           | `app.toml` under `[api]`        | HTTP/JSON access to registered gRPC-gateway routes. Not every gRPC service has a REST route.                                                   |
+| **gRPC-Web**   | *Uses REST API server address*   | `app.toml` under `[grpc-web]`   | Browser-compatible gRPC API that allows web applications to interact with the gRPC server.                                                     |
+
+### Validator Signing and Fibre
+
+| Server           | Default Address   | Configuration                                         | Purpose                                                                                                        |
+|------------------|-------------------|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------|
+| **PrivVal gRPC** | `127.0.0.1:26669` | `config.toml`: `priv_validator_grpc_laddr`            | Core endpoint that lets Fibre request payment-promise and TLS-identity signatures from the validator's signer. |
+| **Fibre gRPC**   | `0.0.0.0:7980`    | Fibre's `server_config.toml`: `server_listen_address` | Separate server for uploading and downloading blob shards over TLS.                                            |
+
+PrivValidator is Core's signing interface. It uses a local consensus key or an external signer configured through `priv_validator_laddr`. That remote-signing connection is separate from the PrivVal gRPC endpoint exposed to Fibre.
+
+Fibre connects to application gRPC for chain state and to PrivVal gRPC for signatures. It always requests signatures through the node, even when the key is held by an external KMS. See the [Fibre server guide](fibre/cmd/README.md) for connection and deployment details.
 
 ## Contributing
 
 If you are a new contributor, please read [contributing to Celestia](https://github.com/celestiaorg/.github/blob/main/CONTRIBUTING.md).
 
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
+
+PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indicate the review thoroughness needed. For example: `fix!: [high] correct gas accounting` or `docs: [low] clarify setup instructions`. Include the same tag in the PR description and explain why you chose it. Contributors should write their own PR titles; Dependabot generates its titles from the configured prefix.
+
+- `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk.
+- `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
+- `[low]`: Focused review for straightforward docs, tests, or tooling changes with low risk.
+
+Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level.
+
+Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level and add it to the PR description with a brief explanation.
+
+External contributions must reference a meaningful issue. Open an issue explaining the value of your change before submitting unsolicited work. Trivial PRs limited to comment wording, typos, formatting, or irrelevant test updates may be closed. Low-effort AI-generated PRs will be closed; contributors using AI must understand, review, and revise its output before submission.
 
 This repo contains multiple go modules. When using it, rename `go.work.example` to `go.work` and run `go work sync`.
 

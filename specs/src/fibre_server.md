@@ -118,7 +118,7 @@ signer_grpc_address = "127.0.0.1:26669"
 upload_verify_workers = runtime.GOMAXPROCS(0)
 ```
 
-`StoreConfig.Path` is not a TOML field; the standalone `fibre start` command sets it from `--home`. The default state client is a gRPC app client connected to `AppGRPCAddress`. The default signer is a PrivValidatorAPI gRPC client connected to `SignerGRPCAddress`. Both app-node gRPC and signer gRPC use insecure local transport and are expected to be loopback or otherwise protected.
+`StoreConfig.Path` is not a TOML field; the standalone `fibre start` command sets it from `--home`. The default state client is a gRPC app client connected to `AppGRPCAddress`. The default signer is a PrivValidatorAPI gRPC client connected to `SignerGRPCAddress`. App-node gRPC uses insecure local transport and is expected to be loopback or otherwise protected. Signer gRPC defaults to the same insecure local transport and is only allowed to a loopback `SignerGRPCAddress`. To reach a remote node, set `signer_grpc_ca_file`, `signer_grpc_cert_file` and `signer_grpc_key_file` together to enable mutual TLS: the CA verifies the node's server certificate and the client certificate is presented to the node. Validation rejects a non-loopback address without all three files unless `signer_grpc_allow_insecure` is set.
 
 ## Lifecycle
 
@@ -214,16 +214,17 @@ Current gRPC status behavior is intentionally simple:
 | `UploadShard` | payment promise conversion, chain ID, blob version, stateless validation, or stateful validation fails | `InvalidArgument` |
 | `UploadShard` | assignment verification fails | `InvalidArgument` |
 | `UploadShard` | row, proof, RLC, upload-size, or commitment verification fails | `InvalidArgument` |
+| `UploadShard` | storage budget exceeded | `ResourceExhausted` with a `RetryInfo` detail |
 | `UploadShard` | store write or validator signing fails | `Internal` |
 | `DownloadShard` | invalid blob ID or unsupported blob version | `InvalidArgument` |
 | `DownloadShard` | no shard found for commitment | `NotFound` |
 | `DownloadShard` | store read failure | `Internal` |
 
-The implementation does not currently return `FailedPrecondition`, `PermissionDenied`, `AlreadyExists`, or `ResourceExhausted` for the cases described by older target designs, and responses do not include machine-readable error details or backoff hints.
+The implementation does not currently return `FailedPrecondition`, `PermissionDenied`, or `AlreadyExists` for the cases described by older target designs. The only machine-readable error detail is the `RetryInfo` backoff hint on `ResourceExhausted`.
 
 ## Concurrency And DoS Controls
 
-The server does not implement per-peer token buckets, throughput caps, request backoff hints, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by `UploadVerifyWorkers`, which is the size of the pooled `rsema1d.Verifier` channel. gRPC receive/send message size is bounded by `MaxMessageSize` from protocol params.
+The server does not implement per-peer token buckets, throughput caps, or explicit upload/download RPC concurrency limits. Upload verification concurrency is bounded by `UploadVerifyWorkers`, which is the size of the pooled `rsema1d.Verifier` channel. gRPC receive/send message size is bounded by `MaxMessageSize` from protocol params.
 
 ## Metrics
 
@@ -232,11 +233,23 @@ The server records OpenTelemetry metrics for:
 - `fibre.server.upload_shard.in_flight`
 - `fibre.server.upload_shard.duration`
 - `fibre.server.upload_shard.bytes`
+- `fibre.server.upload_shard.rejected`
+- `fibre.server.upload_shard.dupe_hits`
+- `fibre.server.upload_shard.occupancy_bytes`
+- `fibre.server.upload_shard.budget_bytes`
 - `fibre.server.download_shard.in_flight`
 - `fibre.server.download_shard.duration`
 - `fibre.server.download_shard.bytes`
 - `fibre.server.store.put.duration`
 - `fibre.server.store.get.duration`
+- `fibre.server.backend.get.duration`
+- `fibre.server.backend.get.in_flight`
+- `fibre.server.backend.get.bytes`
 - `fibre.server.sign.duration`
 - `fibre.server.prune.entries`
 - `fibre.server.prune.duration`
+
+Backend GET metrics record only the primary backend and use `backend=local|object`.
+Duration is measured in seconds through payload reading, decoding and closing, with `outcome=success|not_found|timeout|canceled|throttled|error`.
+The in-flight metric counts concurrent backend GET calls. The byte counter records encoded bytes consumed, including partial failures and buffered reads.
+Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.

@@ -22,8 +22,8 @@ GitHub Actions should automatically build and publish a Docker image for each re
 
     # Tell docker to use buildx for the multiple platform support
     docker buildx create --use
-    # Build the image, in this example the v2.2.0-mocha image
-    docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/celestiaorg/celestia-app:v2.2.0-mocha --push .
+    # Build the image, replacing vX.Y.Z with the release tag
+    docker buildx build --platform linux/amd64,linux/arm64 -f docker/multiplexer.Dockerfile -t ghcr.io/celestiaorg/celestia-app:vX.Y.Z --push .
     ```
 
 1. Verify that a Docker image with the correct tag was published on [GHCR](https://github.com/celestiaorg/celestia-app/pkgs/container/celestia-app/versions).

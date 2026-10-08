@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	grpcfibre "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
@@ -72,7 +73,10 @@ func TestClientServerUploadDownload(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			env := makeTestEnv(t, tt.numValidators, tt.numClients, nil, nil)
+			env := makeTestEnv(t, tt.numValidators, tt.numClients, func(cfg *fibre.ClientConfig) {
+				// Shard uploads are slower under the race detector and CPU contention.
+				cfg.RPCTimeout = 2 * time.Minute
+			}, nil)
 			defer env.Close()
 
 			totalBlobs := tt.numClients * tt.blobsPerClient
@@ -386,7 +390,7 @@ func makeTestServers(
 			modifyServerConfig(&serverCfg)
 		}
 
-		serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+		serverCfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 			return fibre.NewMemoryStore(scfg), nil
 		}
 		srv, err := fibre.NewServer(serverCfg)

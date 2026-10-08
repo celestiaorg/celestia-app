@@ -68,8 +68,9 @@ func WithAwaitAllSignatures() UploadOption {
 // May keep uploading data in background after returning successfully; use [Client.Await]
 // or [Client.Stop] to drain.
 //
-// Canceling Context right after Upload drops remaining background uploads.
-// Avoid immediate cancels if uploads redundancy matters (it usually does).
+// With [ClientConfig.DetachBackgroundUploads] (on by default) cancelling ctx
+// after Upload returns does not stop them; without it, an immediate cancel
+// drops them. Cancelling before quorum aborts the upload either way.
 //
 // The blob must not be reused after calling [Blob.Free].
 // Returns [ErrClientClosed] if the client has been closed.
@@ -420,7 +421,8 @@ func retryAfter(err error) time.Duration {
 // uploadShards fans out shard requests to all validators and returns when
 // quorum is reached, all responses are in, or ctx is done. Background
 // goroutines continue best-effort delivery to remaining peers past quorum;
-// they are tracked via [c.closeWg] and unwind on client stop or caller cancel.
+// they are tracked via [c.closeWg] and unwind on client stop or, without
+// [ClientConfig.DetachBackgroundUploads], caller cancel.
 // The terminal goroutine releases the internal refcount via [Blob.release];
 // pool storage is freed once both that release and Client.Upload's deferred
 // [Blob.Free] of the user reference have fired.
@@ -444,6 +446,21 @@ func (c *Client) uploadShards(
 		sigsCollectedCh      = make(chan struct{})
 	)
 
+	// The fan-out goroutines run on uploadCtx, which follows ctx until quorum.
+	// With DetachBackgroundUploads the uploads remaining past quorum outlive a
+	// cancel of ctx; each stays bounded by RPCTimeout and the retry limits.
+	uploadCtx, cancelUploads := context.WithCancel(context.WithoutCancel(ctx))
+	go func() {
+		defer cancelUploads()
+		select {
+		case <-responsesExhaustedCh:
+		case <-ctx.Done():
+			if c.Config.DetachBackgroundUploads && sigsCollectedOnce.Load() {
+				<-responsesExhaustedCh
+			}
+		}
+	}()
+
 	// spawn unconditionally even under ctx cancellation: each goroutine exits
 	// fast via uploadTo(ctx) and runs its defer, so the "last one frees" path
 	// fires naturally without a separate drain step.
@@ -458,7 +475,7 @@ func (c *Client) uploadShards(
 				c.closeWg.Done()
 			}()
 
-			hasEnough := c.uploadTo(ctx, val, shardMap[val], req, blob, sigSet)
+			hasEnough := c.uploadTo(uploadCtx, val, shardMap[val], req, blob, sigSet)
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
 				close(sigsCollectedCh)
 			}

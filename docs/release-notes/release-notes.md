@@ -8,21 +8,47 @@ This guide provides notes for major version releases. These notes may be helpful
 
 Node operators MUST upgrade their binary to this version prior to the v10 activation height.
 
-#### Update config.toml
+#### Update config files
 
-Validators are recommended to run the following command with a v10.2.0 or later binary to add missing fields and their documentation to `config.toml` before changing settings:
+Validators are recommended to run the following command with a v10.3.0 or later binary to add missing fields and their documentation to `config.toml` and Fibre's `server_config.toml` before changing settings:
 
 ```sh
-celestia-appd config sync --home ~/.celestia-app
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-Use your node's home directory if it differs. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
+Use your node's and Fibre's home directories if they differ. A file is skipped if it does not exist, e.g. `config.toml` on a Fibre-only host. The command preserves existing values and creates a backup before making changes. Add `--dry-run` to preview additions. Synchronization does not run automatically on startup.
 
 #### Fibre
 
 v10 introduces fibre, a data availability protocol served by validator-operated fibre servers. Validators should follow the [fibre server guide](../../fibre/cmd/README.md) — prerequisites, setup, and the on-chain host registration via [`x/valaddr`](../../x/valaddr/README.md) — to start serving fibre traffic once v10 is live.
 
+We recommend running the fibre server on a separate machine with its own public IP address. Fibre's endpoint is advertised on-chain and serves public client traffic. Register the Fibre host's public address in `x/valaddr`; using the validator node's IP exposes it to direct traffic and denial-of-service attacks. A separate Fibre host avoids disclosing the validator's IP through Fibre, but other services, including P2P, can still expose it.
+
+Connect Fibre to the validator's application gRPC and privval signer gRPC endpoints over a trusted private network or encrypted tunnel, and restrict access to the Fibre host. Configure [mutual TLS for the signer connection](../../fibre/cmd/README.md#signing) on both sides. Application gRPC is plaintext, so keep it off the public internet. Only Fibre's client port (default `7980`) needs to be publicly reachable for Fibre clients.
+
+For separate hosts, edit the validator's `config/app.toml`: in the existing `[grpc]` section, set `enable = true` and bind `address` to its restricted private IP, for example `address = "10.0.0.5:9090"`. Restart the validator and set Fibre's `--app-grpc-address 10.0.0.5:9090` to match. Replace the example IP with your validator's private address. The guide's `127.0.0.1:9090` examples apply to same-host deployments; on a separate Fibre host, loopback points to Fibre's own machine.
+
 We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other.
+
+#### Fibre S3-Compatible Object Storage
+
+The v10.4.0 releases include experimental support for storing Fibre blob shards in S3-compatible object storage, such as Amazon S3 or Cloudflare R2. Validators can opt in; local storage remains the default. Fibre's metadata database and the consensus node's data still require persistent local storage.
+
+Run [config sync](#update-config-files), then set `storage_backend = "object"` and configure `[object_storage]` in Fibre's `config/server_config.toml`. For example, with an existing S3 bucket:
+
+```toml
+storage_backend = "object"
+
+[object_storage]
+endpoint = "https://s3.us-east-1.amazonaws.com"
+region = "us-east-1"
+bucket = "my-fibre-shards"
+prefix = "fibre"
+```
+
+Create the bucket in the same region as the Fibre host; a bucket in another region adds latency to every upload and download. Use your bucket's endpoint and region. For Cloudflare R2, use its S3 API endpoint and `region = "auto"`. Credentials are loaded through the AWS SDK credential chain, such as `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in the Fibre service's environment. See [object storage credentials](../../fibre/cmd/README.md#object-storage-credentials) for systemd setup. Grant read, write, and delete access to the configured bucket and prefix, then restart Fibre.
+
+Changing backends affects new shards only; it does not migrate existing shards. Keep the local data directory and access to the original object bucket and prefix for retained shards, including after switching back to local storage. See the [storage backend guide](../../fibre/cmd/README.md#switching-shard-storage-backends) before changing the backend or object namespace.
 
 #### Key Management Systems (KMS)
 
@@ -41,9 +67,33 @@ Fresh v10 configurations enable a privval gRPC endpoint, which the fibre server 
 
 Fibre also needs application gRPC enabled in the `[grpc]` section of `config/app.toml` (normally port `9090`). This is separate from `[rpc] grpc_laddr` in `config/config.toml` (normally port `9098`); preserve the latter for existing core RPC clients. See the [connection settings and address formats](../../fibre/cmd/README.md#node-connections).
 
+The default privval address, `127.0.0.1:26669`, allows unencrypted connections from the same host. No TLS certificates or extra flags are needed when Fibre connects to this address.
+
+If Fibre connects from another host or container, configure mutual TLS on both sides. Without it, the node refuses to start with a privval address such as `0.0.0.0:26669`, and Fibre refuses to connect to a remote signer. Follow the [core privval TLS guide](https://github.com/celestiaorg/celestia-core/blob/main/docs/guides/privval-grpc-tls.md) to generate certificates and configure the node and Fibre. The server certificate must match the IP address or DNS name Fibre connects to. Restart both services after configuring or replacing certificates.
+
+Keep the signing port on a private network and restrict access to the Fibre host. For local development only, `--privval-grpc-allow-insecure` on the node and `--signer-grpc-allow-insecure` on Fibre allow remote connections without TLS. Do not use these overrides in production: anyone who can reach the unprotected endpoint can request signatures from the validator key.
+
 #### Heavy RPC Requests Are Limited
 
 celestia-core v0.41.0 gates heavy RPC responses (`block`, `block_results`, `tx_search`, `unconfirmed_txs`, share and data-root proofs, and the gRPC block, validator-set, and proof endpoints) behind a process-wide concurrency limit. It is configurable via `max_concurrent_heavy_requests` in the `[rpc]` section of `config.toml` (default 20) and is shared across HTTP JSON-RPC, URI, WebSocket, and gRPC. Excess requests are rejected with HTTP 503 / gRPC `ResourceExhausted`. Public RPC providers may want to raise this limit.
+
+#### Fibre Connection Lifetimes
+
+Fibre gRPC connections rotate after approximately five minutes, with a two-minute grace period for unfinished RPCs. gRPC adds jitter to the connection age. Custom clients must reconnect and handle requests interrupted when the grace period expires. This bounds stalled streams that previously held connection slots indefinitely; it does not change shard retention or promise expiry.
+
+Fibre now applies the chain's stateless payment-promise checks before storing and signing uploads. Clients submitting invalid promises receive an error instead of an endorsement that cannot be settled. No server configuration change is required.
+
+#### Multiplexer Startup Flags
+
+During genesis sync and pre-v10 operation, the multiplexer forwards only explicitly set start flags supported by the selected embedded binary. Flags specific to the outer v10 node are not passed to older binaries. Supported values are preserved, including values containing spaces, commas, or text that looks like another flag. Mandatory child-process overrides still take precedence.
+
+#### Restart After an Interrupted Commit
+
+The updated SDK store discards an incomplete IAVL version left by an interrupted commit and replays the block on restart. If a node was killed during a commit, try restarting with the updated binary before attempting a manual rollback. This recovery applies to an incomplete commit; it is not a general repair for database corruption.
+
+#### Genesis Exports
+
+Genesis export now includes all message IDs for each zkISM. Older binaries exported at most 100 IDs per ISM without reporting an error. If an ISM has more than 100 IDs, regenerate any export intended for a restart or migration using the updated binary. Updating the binary cannot restore IDs already omitted from an old export.
 
 #### Blockstore Compaction
 
@@ -55,9 +105,9 @@ Automatic compaction covers newly pruned blocks. To reclaim space from an existi
 
 At startup, missing fields use the binary's defaults without rewriting existing files. The deprecated `celestia-appd update-config` command only supports the v6 migration; use `celestia-appd config sync` to add missing v10 settings and their documentation.
 
-Run [`celestia-appd config sync`](#update-configtoml) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
+Run [`celestia-appd config sync`](#update-config-files) first, then edit the resulting fields in `config/config.toml`. For example, change `[rpc] max_concurrent_heavy_requests` to adjust the heavy RPC limit, or `[storage] compact` and `compaction_interval` to configure compaction. Existing values, including disabled services and custom ports, are preserved by synchronization; change them explicitly when needed.
 
-The command only updates `config.toml`. Back up and edit `config/app.toml` and Fibre's `server_config.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
+The command updates `config.toml` and, if present, Fibre's `server_config.toml`. Back up and edit `config/app.toml` separately. If configuration is managed by deployment tooling, update its source templates too.
 
 Review the diff, restart the node, and verify that it resumes syncing and its configured services are reachable. If a configuration edit causes a problem, restore the backed-up settings and restart. Leaving these new fields absent requires no config rewrite.
 
@@ -76,6 +126,10 @@ Review the diff, restart the node, and verify that it resumes syncing and its co
 #### Evidence Window
 
 `MaxAgeNumBlocks` is reduced from 559,940 to 404,400 so the evidence window stays within the unbonding period at block times up to 3s ([#7706](https://github.com/celestiaorg/celestia-app/pull/7706)). Equivocation evidence naming a validator no longer in staking state is ignored instead of erroring out of FinalizeBlock ([#7718](https://github.com/celestiaorg/celestia-app/pull/7718)).
+
+### Library Consumers (v10.0.0)
+
+Custom multiplexer integrations must update calls to `abci.NewMultiplexer` and `cmd.New` for their new arguments. `Version.GetStartArgs` now takes a parsed `*pflag.FlagSet` instead of a raw argument slice. These Go API changes do not require changes to the normal `celestia-appd start` command.
 
 ## v9.0.0
 
@@ -366,19 +420,6 @@ These two configs must match in order for the multiplexer to work correctly. Ple
 ```diff
 -proxy_app = "tcp://127.0.0.1:26658"
 +proxy_app = "tcp://127.0.0.1:36658"
-```
-
-#### Custom build flags
-
-`make install` currently downloads a v3.x binary with only one custom build flag, `ledger`. If you use any additional custom build flags (i.e. `pebbledb`, `rocksdb`, `badgerdb`, `cleveldb`, `boltdb`), you will need to build the v3.x binary from source (with custom build tags) and include it in the app's embedded binary directory (by default: `~/.celestia-app/bin/`). The embedded binary directory layout:
-
-```bash
-$ tree bin
-bin
-└── v3.10.2-mocha
-    ├── celestia-appd
-    ├── LICENSE
-    └── README.md
 ```
 
 #### `rpc.grpc_laddr`
