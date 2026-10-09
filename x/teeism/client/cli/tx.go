@@ -16,21 +16,46 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// identitySpec is an enclave identity as JSON, every value hex.
+type identitySpec struct {
+	MrTd        string `json:"mr_td"`
+	OsImageHash string `json:"os_image_hash"`
+	ComposeHash string `json:"compose_hash"`
+	MrKms       string `json:"mr_kms"`
+	KeyProvider string `json:"key_provider"`
+}
+
+func (spec identitySpec) decode() (*types.EnclaveIdentity, error) {
+	identity := &types.EnclaveIdentity{}
+	for _, f := range []struct {
+		name string
+		src  string
+		dst  *[]byte
+	}{
+		{"mr_td", spec.MrTd, &identity.MrTd},
+		{"os_image_hash", spec.OsImageHash, &identity.OsImageHash},
+		{"compose_hash", spec.ComposeHash, &identity.ComposeHash},
+		{"mr_kms", spec.MrKms, &identity.MrKms},
+		{"key_provider", spec.KeyProvider, &identity.KeyProvider},
+	} {
+		v, err := decodeHexString(f.src)
+		if err != nil {
+			return nil, fmt.Errorf("identity.%s: %w", f.name, err)
+		}
+		*f.dst = v
+	}
+	return identity, nil
+}
+
 // ismSpec is the JSON an ISM is created from.
 //
 // A file rather than positional arguments: an enclave identity is five
 // measurements, and the tooling that reads them off a running CVM can write this
 // file directly.
 type ismSpec struct {
-	State             string `json:"state"`
-	MerkleTreeAddress string `json:"merkle_tree_address"`
-	Identity          struct {
-		MrTd        string `json:"mr_td"`
-		OsImageHash string `json:"os_image_hash"`
-		ComposeHash string `json:"compose_hash"`
-		MrKms       string `json:"mr_kms"`
-		KeyProvider string `json:"key_provider"`
-	} `json:"identity"`
+	State             string       `json:"state"`
+	MerkleTreeAddress string       `json:"merkle_tree_address"`
+	Identity          identitySpec `json:"identity"`
 }
 
 // attestationSpec is the JSON an attestation is submitted from, as the enclave
@@ -94,23 +119,9 @@ Every value is hex, with or without a 0x prefix.
 				return fmt.Errorf("merkle_tree_address: %w", err)
 			}
 
-			identity := &types.EnclaveIdentity{}
-			for _, f := range []struct {
-				name string
-				src  string
-				dst  *[]byte
-			}{
-				{"mr_td", spec.Identity.MrTd, &identity.MrTd},
-				{"os_image_hash", spec.Identity.OsImageHash, &identity.OsImageHash},
-				{"compose_hash", spec.Identity.ComposeHash, &identity.ComposeHash},
-				{"mr_kms", spec.Identity.MrKms, &identity.MrKms},
-				{"key_provider", spec.Identity.KeyProvider, &identity.KeyProvider},
-			} {
-				v, err := decodeHexString(f.src)
-				if err != nil {
-					return fmt.Errorf("identity.%s: %w", f.name, err)
-				}
-				*f.dst = v
+			identity, err := spec.Identity.decode()
+			if err != nil {
+				return err
 			}
 
 			msg := types.MsgCreateInterchainSecurityModule{
@@ -120,6 +131,56 @@ Every value is hex, with or without a 0x prefix.
 				Identity:          identity,
 			}
 
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// NewUpdateEnclaveIdentityCmd creates and returns the cmd that re-pins an ism.
+func NewUpdateEnclaveIdentityCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update-identity [ism-id] [identity-file]",
+		Short: "Re-pin a TEE ism to a different enclave (owner only)",
+		Long: strings.TrimSpace(`Point a Hyperlane TEE ism at a different enclave identity.
+
+Only the ism's owner may. The trusted state keeps its root, height and light
+client store, so nothing in flight is lost. The identity file is JSON, every
+value hex, with or without a 0x prefix:
+
+  {
+    "mr_td": "0x...",
+    "os_image_hash": "0x...",
+    "compose_hash": "0x...",
+    "mr_kms": "0x...",
+    "key_provider": "0x..."
+  }`),
+		Example: fmt.Sprintf("%s tx %s update-identity 0x...2b ./identity.json --from owner", version.AppName, types.ModuleName),
+		Args:    cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			ismId, err := util.DecodeHexAddress(args[0])
+			if err != nil {
+				return err
+			}
+			var spec identitySpec
+			if err := readJSONFile(args[1], &spec); err != nil {
+				return err
+			}
+			identity, err := spec.decode()
+			if err != nil {
+				return err
+			}
+			msg := types.MsgUpdateEnclaveIdentity{
+				Owner:    clientCtx.GetFromAddress().String(),
+				Id:       ismId,
+				Identity: identity,
+			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), &msg)
 		},
 	}

@@ -37,6 +37,7 @@ func GetTxCmd() *cobra.Command {
 
 	cmd.AddCommand(NewCreateInterchainSecurityModuleCmd())
 	cmd.AddCommand(NewSubmitAttestationCmd())
+	cmd.AddCommand(NewUpdateEnclaveIdentityCmd())
 
 	return cmd
 }

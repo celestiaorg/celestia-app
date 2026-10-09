@@ -19,6 +19,9 @@ service Msg {
   // SubmitAttestation advances the ism state and authorizes a batch of messages
   // in a single step.
   rpc SubmitAttestation(MsgSubmitAttestation) returns (MsgSubmitAttestationResponse);
+
+  // UpdateEnclaveIdentity re-pins an ism to a different enclave. Owner only.
+  rpc UpdateEnclaveIdentity(MsgUpdateEnclaveIdentity) returns (MsgUpdateEnclaveIdentityResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -78,3 +81,27 @@ message MsgSubmitAttestationResponse {
   // list of authorized message ids
   repeated string messages = 3;
 }
+
+// MsgUpdateEnclaveIdentity is the request type for UpdateEnclaveIdentity.
+//
+// The owner's emergency control: when the enclave's platform changes under it (a
+// new OS image, new firmware), or the enclave has to be replaced, the owner points
+// the ism at the new identity in place. The trusted state keeps its root, height
+// and light client store; only the identity digest it carries is swapped, so
+// nothing in flight is lost.
+message MsgUpdateEnclaveIdentity {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the enclave permitted to advance this ism from now on
+  EnclaveIdentity identity = 3;
+}
+
+// MsgUpdateEnclaveIdentityResponse is the response type for UpdateEnclaveIdentity.
+message MsgUpdateEnclaveIdentityResponse {}

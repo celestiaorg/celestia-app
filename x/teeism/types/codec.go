@@ -12,6 +12,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		(*sdk.Msg)(nil),
 		&MsgCreateInterchainSecurityModule{},
 		&MsgSubmitAttestation{},
+		&MsgUpdateEnclaveIdentity{},
 	)
 
 	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)

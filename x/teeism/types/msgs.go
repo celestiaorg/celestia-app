@@ -9,7 +9,19 @@ import (
 var (
 	_ sdk.HasValidateBasic = (*MsgCreateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitAttestation)(nil)
+	_ sdk.HasValidateBasic = (*MsgUpdateEnclaveIdentity)(nil)
 )
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgUpdateEnclaveIdentity) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "owner: %s", err)
+	}
+	return msg.Identity.Validate()
+}
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
 func (msg *MsgCreateInterchainSecurityModule) ValidateBasic() error {

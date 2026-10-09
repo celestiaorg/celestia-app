@@ -135,3 +135,30 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 		Messages:  messages,
 	}, nil
 }
+
+// UpdateEnclaveIdentity implements types.MsgServer.
+//
+// The owner's emergency control over which enclave advances an ISM, for when the
+// enclave's platform changes under it (a new OS image, new firmware) or the
+// enclave has to be replaced. The trusted state keeps its root, height and light
+// client store; only the identity digest it carries is swapped, which is what the
+// enclave copies forward into every state it attests. So nothing in flight is
+// lost, and no new ISM or router change is needed.
+func (m msgServer) UpdateEnclaveIdentity(ctx context.Context, msg *types.MsgUpdateEnclaveIdentity) (*types.MsgUpdateEnclaveIdentityResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+	previous, err := ism.Repin(msg.Owner, msg.Identity)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	if err := EmitUpdateEnclaveIdentityEvent(sdk.UnwrapSDKContext(ctx), ism, previous); err != nil {
+		return nil, err
+	}
+	return &types.MsgUpdateEnclaveIdentityResponse{}, nil
+}

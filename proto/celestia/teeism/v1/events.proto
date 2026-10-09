@@ -44,3 +44,20 @@ message EventSubmitAttestation {
   // list of authorized message ids (hex-encoded)
   repeated string message_ids = 5;
 }
+
+// EventUpdateEnclaveIdentity is emitted when an owner re-pins an ism.
+message EventUpdateEnclaveIdentity {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner who made the change
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // digest of the identity pinned before (hex-encoded)
+  string previous_identity_digest = 3;
+  // digest of the identity pinned now (hex-encoded)
+  string identity_digest = 4;
+}

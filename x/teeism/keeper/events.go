@@ -20,6 +20,17 @@ func EmitCreateISMEvent(ctx sdk.Context, ism types.InterchainSecurityModule) err
 	})
 }
 
+// EmitUpdateEnclaveIdentityEvent emits a typed event when an owner re-pins an ISM.
+func EmitUpdateEnclaveIdentityEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous [32]byte) error {
+	digest := ism.Identity.Digest()
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateEnclaveIdentity{
+		Id:                     ism.Id,
+		Owner:                  ism.Owner,
+		PreviousIdentityDigest: types.EncodeHex(previous[:]),
+		IdentityDigest:         types.EncodeHex(digest[:]),
+	})
+}
+
 // EmitSubmitAttestationEvent emits a typed event when an attestation advances an ISM.
 func EmitSubmitAttestationEvent(ctx sdk.Context, ism types.InterchainSecurityModule, state *types.IsmState, ids [][32]byte) error {
 	messages := make([]string, 0, len(ids))
