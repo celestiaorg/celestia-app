@@ -320,7 +320,7 @@ func UnsignedPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 
 // NewMsgPayForFibre creates a MsgPayForFibre with the given public key and
 // chain ID for testing. Uses sensible defaults for all other fields.
-func NewMsgPayForFibre(t *testing.T, pubKey *secp256k1.PubKey, chainID string) *fibretypes.MsgPayForFibre {
+func NewMsgPayForFibre(t testing.TB, pubKey *secp256k1.PubKey, chainID string) *fibretypes.MsgPayForFibre {
 	t.Helper()
 	addr := sdk.AccAddress(pubKey.Address())
 	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{0x01}, share.NamespaceVersionZeroIDSize))
