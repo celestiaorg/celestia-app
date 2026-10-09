@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"bytes"
+	"runtime"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
@@ -14,6 +15,7 @@ import (
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 var (
@@ -261,4 +263,93 @@ func marshalTx(t *testing.T, msgs ...*codectypes.Any) []byte {
 	txBytes, err := (&cosmostx.Tx{Body: &cosmostx.TxBody{Messages: msgs}}).Marshal()
 	require.NoError(t, err)
 	return txBytes
+}
+
+// authInfoWithFee encodes an AuthInfo carrying gasLimit, preceded by padding
+// empty signer_infos entries. Each entry is two bytes on the wire and decodes
+// into a struct many times that size, which is the shape of the amplification
+// the gas read must not be vulnerable to.
+func authInfoWithFee(t *testing.T, gasLimit uint64, padEntries int) []byte {
+	t.Helper()
+	feeBytes, err := (&cosmostx.Fee{GasLimit: gasLimit}).Marshal()
+	require.NoError(t, err)
+
+	authInfo := bytes.Repeat([]byte{0x0a, 0x00}, padEntries) // field 1, length 0
+	authInfo = protowire.AppendTag(authInfo, 2, protowire.BytesType)
+	return protowire.AppendBytes(authInfo, feeBytes)
+}
+
+// payForFibreTxWithAuthInfo wraps a minimal MsgPayForFibre in a tx carrying
+// authInfo.
+func payForFibreTxWithAuthInfo(t *testing.T, authInfo []byte) []byte {
+	t.Helper()
+	value, err := (&fibretypes.MsgPayForFibre{}).Marshal()
+	require.NoError(t, err)
+	body, err := (&cosmostx.TxBody{Messages: []*codectypes.Any{{
+		TypeUrl: fibretypes.MsgPayForFibreTypeURL,
+		Value:   value,
+	}}}).Marshal()
+	require.NoError(t, err)
+	raw, err := (&cosmostx.TxRaw{BodyBytes: body, AuthInfoBytes: authInfo}).Marshal()
+	require.NoError(t, err)
+	return raw
+}
+
+// allocatedBy reports the bytes f allocates.
+func allocatedBy(f func()) uint64 {
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	f()
+	runtime.ReadMemStats(&after)
+	return after.TotalAlloc - before.TotalAlloc
+}
+
+// TestParsePayForFibreTxReadsGasWithoutExpandingAuthInfo pins that the declared
+// gas is read without decoding the auth info around it. These bytes are
+// attacker controlled and reach this parser on every pay-for-fibre shaped tx in
+// a proposal, before anything has charged for them.
+func TestParsePayForFibreTxReadsGasWithoutExpandingAuthInfo(t *testing.T) {
+	const gasLimit = 123456
+	const padEntries = 1 << 19 // 1 MiB of empty signer_infos
+
+	small := payForFibreTxWithAuthInfo(t, authInfoWithFee(t, gasLimit, 0))
+	padded := payForFibreTxWithAuthInfo(t, authInfoWithFee(t, gasLimit, padEntries))
+
+	for name, raw := range map[string][]byte{"small": small, "padded": padded} {
+		_, gas, isPFF, err := fibretypes.ParsePayForFibreTx(raw)
+		require.NoError(t, err, name)
+		require.True(t, isPFF, name)
+		require.Equal(t, uint64(gasLimit), gas, name)
+	}
+
+	parse := func(raw []byte) func() {
+		return func() { _, _, _, _ = fibretypes.ParsePayForFibreTx(raw) }
+	}
+	// The padded tx carries 1 MiB more auth info than the small one. Copying it
+	// out of TxRaw is unavoidable; decoding it is what must not happen, and a
+	// decode would cost many times the bytes rather than a small multiple.
+	require.Less(t, allocatedBy(parse(padded)), allocatedBy(parse(small))+4*uint64(len(padded)),
+		"parsing allocated in proportion to the auth info it was handed")
+}
+
+// TestParsePayForFibreTxMalformedAuthInfo checks arbitrary auth info bytes
+// neither panic nor report a gas limit.
+func TestParsePayForFibreTxMalformedAuthInfo(t *testing.T) {
+	valid := authInfoWithFee(t, 9999, 0)
+	malformed := map[string][]byte{
+		"truncated":       valid[:len(valid)-1],
+		"random":          {0xff, 0xfe, 0xfd, 0x07, 0x41},
+		"group":           {0x0b, 0x0c},
+		"overlong varint": bytes.Repeat([]byte{0xff}, 32),
+		"empty":           {},
+	}
+	for name, authInfo := range malformed {
+		t.Run(name, func(t *testing.T) {
+			_, gas, isPFF, err := fibretypes.ParsePayForFibreTx(payForFibreTxWithAuthInfo(t, authInfo))
+			require.NoError(t, err)
+			require.True(t, isPFF, "a malformed fee must not change how the tx is classified")
+			require.Zero(t, gas)
+		})
+	}
 }
