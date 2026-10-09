@@ -93,18 +93,22 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 }
 
 func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
-	msg, ok := v.(protoUnmarshaler)
-	if !ok {
-		return fmt.Errorf("fibre-proto codec: %T does not implement protoUnmarshaler", v)
-	}
-	if data.Len() == 0 {
-		return msg.Unmarshal(nil)
-	}
 	// Reject oversized download requests before Materialize copies them.
 	if _, ok := v.(*types.DownloadShardRequest); ok && data.Len() > maxDownloadShardRequestSize {
 		return fmt.Errorf("fibre-proto codec: download request exceeds %d bytes", maxDownloadShardRequestSize)
 	}
-	buf := data.Materialize()
+	return c.unmarshalBytes(data.Materialize(), v)
+}
+
+// unmarshalBytes also accepts the admission reader's contiguous body without copying it.
+func (c *pooledCodec) unmarshalBytes(buf []byte, v any) error {
+	msg, ok := v.(protoUnmarshaler)
+	if !ok {
+		return fmt.Errorf("fibre-proto codec: %T does not implement protoUnmarshaler", v)
+	}
+	if len(buf) == 0 {
+		return msg.Unmarshal(nil)
+	}
 	// Check row and proof counts before the generated decoder allocates for them.
 	if _, ok := v.(*types.UploadShardRequest); ok && c.maxShardRows > 0 {
 		if err := c.validateUploadShard(buf); err != nil {

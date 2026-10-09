@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/encoding"
-	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
 )
@@ -66,11 +65,7 @@ func (a *Admission) receive(ctx context.Context, target any, lease *memoryLease)
 		return err
 	}
 	if !lease.download {
-		charge := size
-		if compressed {
-			charge = limit // Compressed length does not bound the decoded payload.
-		}
-		if err := lease.reserve(ctx, a.estimateMemory(int64(charge))); err != nil {
+		if err := lease.reserve(ctx, int64(size)); err != nil {
 			return err
 		}
 	}
@@ -79,13 +74,22 @@ func (a *Admission) receive(ctx context.Context, target any, lease *memoryLease)
 	if err != nil {
 		return err
 	}
+	if !lease.download {
+		charge := size
+		if compressed {
+			charge = limit // Compressed length does not bound the decoded payload.
+		}
+		if err := lease.reserve(ctx, a.estimateMemory(int64(charge))-int64(size)); err != nil {
+			return err
+		}
+	}
 	if compressed {
 		body, err = decompressMessage(body, reader.RecvCompress(), limit)
 		if err != nil {
 			return err
 		}
 	}
-	if err := a.codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(body)}, target); err != nil {
+	if err := a.codec.unmarshalBytes(body, target); err != nil {
 		return err
 	}
 	if lease.download {

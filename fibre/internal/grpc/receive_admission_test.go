@@ -64,8 +64,8 @@ func testReceiveAdmission(t *testing.T, budget int64, waitForReservation bool) {
 		require.Eventually(t, func() bool {
 			admission.mu.Lock()
 			defer admission.mu.Unlock()
-			return admission.used > 0
-		}, time.Second, time.Millisecond)
+			return admission.used == 1<<20
+		}, time.Second, time.Millisecond, "an idle upload reserves only its declared body")
 	}
 	for {
 		frame, err := framer.ReadFrame()

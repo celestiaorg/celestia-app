@@ -209,8 +209,9 @@ rpc_memory_budget = 10737418240 # 10 GiB total
 ```
 
 Uploads have a 25% reserve and can also use the shared 75%. Downloads can use only the shared 75%.
-Requests that exceed these limits fail immediately with `ResourceExhausted`. Admission reserves memory before upload receipt or stored-shard reads.
-Uploads use the message size; downloads use stored size markers, with a 14% stake sizing fallback for missing metadata.
+Requests that exceed these limits fail immediately with `ResourceExhausted`.
+Uploads reserve one wire body before receipt, then the remaining working-memory estimate before decompression and decoding.
+Downloads reserve from stored size markers before each payload read, with a 14% stake sizing fallback for missing metadata.
 Reservations remain held until the handler and gRPC response buffers finish.
 
 Requests must arrive within 15 seconds; this receive timeout excludes verification and storage.

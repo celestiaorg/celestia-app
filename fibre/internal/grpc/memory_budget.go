@@ -66,7 +66,7 @@ func newMemoryLease(budget *memoryBudget, download bool) *memoryLease {
 	return l
 }
 
-// reserve acquires the complete estimated working memory before the handler runs.
+// reserve adds to the RPC's memory reservation before allocation.
 func (l *memoryLease) reserve(ctx context.Context, n int64) error {
 	a := l.budget
 	a.mu.Lock()
