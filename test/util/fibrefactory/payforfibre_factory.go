@@ -71,7 +71,7 @@ func NewFixture(tb testing.TB, accounts, validators int) *Fixture {
 
 	fixture := &Fixture{
 		Accounts:        names,
-		BlockTime:       time.Now(),
+		BlockTime:       testutil.GenesisTime.Add(time.Minute),
 		genesisState:    genesisState,
 		escrowAddresses: make([]sdk.AccAddress, accounts),
 		valSet:          valSet,

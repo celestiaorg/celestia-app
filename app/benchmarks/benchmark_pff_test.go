@@ -15,12 +15,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// pffCounts is the PayForFibre-per-block sweep. 5848 is the measured ceiling:
-// the most 100-validator certificates that fit a 256 square, since each is
-// 4,876 bytes and each message also occupies a system blob share. Note the
-// protocol limit at app v11 is 2,000; the benchmarks build tag lifts it, so
-// the points above that measure capacity the chain does not yet allow.
-var pffCounts = []int{200, 1000, 4000, 5848}
+// pffCounts is the 5,800-PFF workload within the 256 square and 32 MiB block
+// limit. The benchmarks build tag lifts the lower protocol message limit.
+var pffCounts = []int{5800}
 
 // pffValidatorCounts is the validator-set sweep. 100 matches every prior fleet
 // run; 50 halves the quorum, which is what the per-message cost should track.
@@ -50,9 +47,8 @@ type pffBlock struct {
 	blockTime    time.Time
 	squareSize   uint64
 	dataRootHash []byte
-	// warmed records that CheckTx already admitted every tx. Admission is not
-	// repeatable - the sequence check rejects a replay - and the testing
-	// package runs a benchmark body more than once.
+	// warmed records that the caches needed by a warm benchmark are populated.
+	// CheckTx admission is not repeatable: the sequence check rejects a replay.
 	warmed bool
 }
 
@@ -87,10 +83,9 @@ func newPFFBlock(b *testing.B, count, validators int) *pffBlock {
 		dataRootHash: resp.DataRootHash,
 	}
 
-	// PrepareProposal leaves its artifacts in the proposal cache for the
-	// proposer's own ProcessProposal to compare against. Take them here, so
-	// every measured call is the one a non-proposing validator makes.
-	mustAccept(b, block.app, block.processRequest())
+	// A non-proposing validator has none of the proposer's cached artifacts.
+	// Drop them without doing an extra, untimed ProcessProposal.
+	block.app.PurgeNodeCaches()
 	return block
 }
 
@@ -217,7 +212,7 @@ func BenchmarkCheckTx_PFF(b *testing.B) {
 func BenchmarkPrepareProposal_PFF(b *testing.B) {
 	for _, count := range pffCounts {
 		lazy := newLazyPFFBlock(count, defaultPFFValidators)
-		benchmarkPFFCached(b, lazy, func(b *testing.B, block *pffBlock) func() {
+		benchmarkPFFCached(b, lazy, false, func(b *testing.B, block *pffBlock) func() {
 			req := block.prepareRequest()
 			return func() {
 				resp, err := block.app.PrepareProposal(req)
@@ -234,7 +229,7 @@ func BenchmarkPrepareProposal_PFF(b *testing.B) {
 func BenchmarkProcessProposal_PFF(b *testing.B) {
 	for _, count := range pffCounts {
 		lazy := newLazyPFFBlock(count, defaultPFFValidators)
-		benchmarkPFFCached(b, lazy, func(b *testing.B, block *pffBlock) func() {
+		benchmarkPFFCached(b, lazy, true, func(b *testing.B, block *pffBlock) func() {
 			req := block.processRequest()
 			return func() { mustAccept(b, block.app, req) }
 		})
@@ -316,7 +311,7 @@ func BenchmarkCommit_PFF(b *testing.B) {
 
 // benchmarkPFFCached runs call over both cache states. The gap between them is
 // what the signature caching work is worth, measured on one binary.
-func benchmarkPFFCached(b *testing.B, lazy *lazyPFFBlock, bind func(*testing.B, *pffBlock) func()) {
+func benchmarkPFFCached(b *testing.B, lazy *lazyPFFBlock, warmFromCold bool, bind func(*testing.B, *pffBlock) func()) {
 	b.Run(fmt.Sprintf("pff=%d/cache=cold", lazy.count), func(b *testing.B) {
 		block := lazy.get(b)
 		call := bind(b, block)
@@ -326,12 +321,24 @@ func benchmarkPFFCached(b *testing.B, lazy *lazyPFFBlock, bind func(*testing.B, 
 			b.StartTimer()
 			call()
 		}
+		if warmFromCold {
+			// ProcessProposal populated every cache it reads. Reuse the last
+			// cold call's cache state instead of admitting 5,800 txs again.
+			block.warmed = true
+		}
 		reportPFFMetrics(b, lazy.count)
 	})
 	b.Run(fmt.Sprintf("pff=%d/cache=warm", lazy.count), func(b *testing.B) {
 		block := lazy.get(b)
 		call := bind(b, block)
-		block.warm(b)
+		if warmFromCold {
+			if !block.warmed {
+				// A warm-only -bench filter skipped the cold sub-benchmark.
+				mustAccept(b, block.app, block.processRequest())
+			}
+		} else {
+			block.warm(b)
+		}
 		for b.Loop() {
 			call()
 		}

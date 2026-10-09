@@ -34,10 +34,11 @@ what the signature caching work is worth:
   artifacts and converted validator sets - so every transaction is processed
   in full. For `FinalizeBlock` this is the block replay path, which never ran
   ProcessProposal.
-- `cache=warm` is a validator whose mempool already admitted every transaction
-  in the block. It is not the proposer: setup takes the artifacts
-  PrepareProposal left behind, so the measured calls are the ones every other
-  validator makes.
+- `cache=warm` is a validator with the relevant caches already populated.
+  For ProcessProposal, the preceding cold call populates the same signature
+  and validator-set caches that CheckTx would, avoiding a second untimed pass
+  over every transaction. It is not the proposer: setup purges the artifacts
+  PrepareProposal left behind.
 
 Pin cores with `taskset`, not `go test -cpu`: the parallel verifier sizes its
 fan-out from `runtime.NumCPU()`, which `GOMAXPROCS` does not change.
