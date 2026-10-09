@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"regexp"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -32,4 +33,9 @@ func init() {
 		fmt.Printf("Warning userHome err: %s\n", err)
 	}
 	sdk.DefaultBondDenom = appconsts.BondDenom
+	// The native denomination is already in the default language. Checking
+	// it first avoids the character-class walk on repeated bank operations.
+	sdk.SetCoinDenomRegex(func() string {
+		return "(?:" + regexp.QuoteMeta(appconsts.BondDenom) + "|" + sdk.DefaultCoinDenomRegex() + ")"
+	})
 }

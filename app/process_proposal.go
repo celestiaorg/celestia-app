@@ -14,6 +14,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
+	"github.com/celestiaorg/celestia-app/v10/pkg/txutil"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -49,7 +50,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
-	handler := app.newAnteHandler(app.proposalAccountKeeper(), app.GetTxConfig().SignModeHandler())
+	proposalAccounts := app.proposalAccountKeeper()
+	handler := app.newAnteHandler(proposalAccounts, app.GetTxConfig().SignModeHandler())
 	blockHeader := ctx.BlockHeader()
 
 	// Read the max square size before the ante loop. The loop reassigns ctx to
@@ -95,6 +97,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 		if cached == nil {
+			if _, plain := txutil.PlainSDKBody(rawTx); plain {
+				continue
+			}
 			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
 			if isBlobTx {
 				if err != nil {
@@ -105,54 +110,21 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 		}
 	}
-	// Each pay-for-fibre decode depends only on its own bytes. The blob scan
-	// above already reported malformed blob txs, in block order.
-	var fibreNext atomic.Int64
-	var fibreDecodeWG sync.WaitGroup
-	var fibreDecodePanicked atomic.Bool
-	for range min(runtime.NumCPU(), len(req.Txs)) {
-		fibreDecodeWG.Go(func() {
-			for {
-				idx := int(fibreNext.Add(1)) - 1
-				if idx >= len(req.Txs) {
-					return
-				}
-				if len(req.Txs[idx]) > appconsts.MaxTxSize || blobTxs[idx] != nil {
-					continue
-				}
-				func() {
-					defer func() {
-						if recover() != nil {
-							fibreDecodePanicked.Store(true)
-						}
-					}()
-					decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
-				}()
-			}
-		})
-	}
-	fibreDecodeWG.Wait()
-	if fibreDecodePanicked.Load() {
-		logInvalidPropBlock(app.Logger(), blockHeader, "caught panic while decoding PayForFibre tx")
-		return reject(), nil
-	}
-
-	// SDK decoding is independent per tx. Prefetch only parseable PayForFibre
-	// txs, capped at the block limit so a rejected block cannot make us decode
-	// an unbounded number. Results are consumed in block order below.
+	// Inspect the envelope before scheduling bounded SDK decoding. Certificate
+	// inputs are then derived from that same decoded message.
 	decodeCandidates := make([]int, 0, min(len(req.Txs), max(0, maxPFF)))
-	for idx, d := range decoded {
-		if d != nil && (maxPFF <= 0 || len(decodeCandidates) < maxPFF) {
-			decodeCandidates = append(decodeCandidates, idx)
-		}
-		if decoded[idx] == nil {
+	for idx, rawTx := range req.Txs {
+		if len(rawTx) > appconsts.MaxTxSize || blobTxs[idx] != nil || !pffDecodeCandidate(rawTx) {
 			continue
 		}
+		decodeCandidates = append(decodeCandidates, idx)
 
 		// Reject an over-full proposal here rather than in the loop below,
 		// which only runs after every tx is decoded and pre-verified. Same
-		// verdict, same bound: DecodePayForFibre accepts a tx only when it
+		// verdict, same bound: pffDecodeCandidate recognizes a tx only when it
 		// carries exactly one MsgPayForFibre, which is what the loop counts.
+		// Counting rather than stopping at the cap keeps the bound a rejection:
+		// an over-full proposal is refused, not silently truncated.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
@@ -181,6 +153,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					}()
 					sdkTxs[idx], decodeErrs[idx] = decoder(rawTx)
 					if decodeErrs[idx] == nil {
+						if msg, isPFF := payForFibreMsg(sdkTxs[idx]); isPFF {
+							if feeTx, ok := sdkTxs[idx].(sdk.FeeTx); ok {
+								decoded[idx] = fibrekeeper.DerivePayForFibre(rawTx, msg, feeTx.GetGas())
+								sdkTxs[idx] = cacheProposalViews(sdkTxs[idx])
+							}
+						}
 						// The SDK wrapper computes signers lazily. Prime its
 						// byte-bound cache here while each tx has one worker;
 						// ante still reports any signer error in block order.
@@ -196,24 +174,34 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		})
 	}
 
-	// Verify the block's pay-for-fibre signatures across every CPU before the
-	// sequential loop reaches them. This only warms the signature cache: a
+	decodeWG.Wait()
+
+	// Verify the block's pay-for-fibre signatures across every CPU alongside the
+	// sequential loop. This only warms the signature cache: a
 	// failed check is not recorded, so the loop below still performs it and
 	// still decides. Any failure rejects the whole block, so the pass stops
 	// claiming work at the first one.
 	// A block may repeat one certificate across many PayForFibre txs;
 	// SeenCertificates holds that to one verification per distinct certificate.
-	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
+	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
 		SeenCertificates:   make(map[sigcache.Key]struct{}, len(req.Txs)),
 	})
 	decodeWG.Wait()
-	// Gated on there being candidates at all, not on the fibre pass queuing
-	// work: it queues nothing when every certificate is already cached, but
+	// Gated on there being candidates at all, not on the fibre pass preparing
+	// work: it prepares nothing when every certificate is already cached, but
 	// the tx signatures still are not.
-	if len(decodeCandidates) > 0 {
+	if verifyPFF != nil || len(decodeCandidates) > 0 {
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
+		if verifyPFF != nil {
+			var verificationWG sync.WaitGroup
+			verificationWG.Go(func() {
+				defer func() { _ = recover() }()
+				verifyPFF()
+			})
+			defer verificationWG.Wait()
+		}
 	}
 
 	// One holder for the whole walk, so the context does not grow by a value
@@ -252,6 +240,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 	}
 
+	proposalContext := ctx.Context()
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
@@ -276,7 +265,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if sdkTx == nil && err == nil {
 			sdkTx, err = decoder(sdkTxBytes)
 		}
-		ctx = ctx.WithTxBytes(sdkTxBytes)
+		ctx = ctx.WithContext(proposalContext).WithTxBytes(sdkTxBytes)
 		// Hand the ante handler and the message server what was already
 		// decoded from this tx; nil clears the previous tx's value.
 		decodedHolder.Set(decoded[idx])
