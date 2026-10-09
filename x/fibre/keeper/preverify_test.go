@@ -307,8 +307,16 @@ const batchBoundaryValidators = 100
 func (f *preverifyFixture) newSecondMessage(t *testing.T) *types.MsgPayForFibre {
 	t.Helper()
 
+	return f.newSecondMessageWithSize(t, 1)
+}
+
+// newSecondMessageWithSize is newSecondMessage with a chosen blob size offset,
+// so one call can carry several distinct certificates.
+func (f *preverifyFixture) newSecondMessageWithSize(t *testing.T, offset uint32) *types.MsgPayForFibre {
+	t.Helper()
+
 	promise := f.msg.PaymentPromise
-	promise.BlobSize = f.msg.PaymentPromise.BlobSize + 1
+	promise.BlobSize = f.msg.PaymentPromise.BlobSize + offset
 
 	pp := fibre.PaymentPromise{}
 	require.NoError(t, pp.FromProto(&promise))
@@ -362,9 +370,19 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
+// pffTxBytes encodes msg with the gas its own signature work costs.
+func pffTxBytes(t *testing.T, msg *types.MsgPayForFibre) []byte {
+	t.Helper()
+
+	return txBytesWithGas(t, msg,
+		types.EstimateGasForPayForFibreSignatureVerification(uint64(len(msg.ValidatorSignatures))))
+}
+
 // TestPreverifySignaturesRecordsEachTransaction covers a call carrying two
-// certificates: a failure in one must not keep the other from being recorded,
-// and must not record the failing one.
+// certificates where one is invalid. A chunk is verified as a single combined
+// batch, so a failure costs the whole chunk its cache entries - but it must
+// never record the failing certificate, and must not change what the ordered
+// verifier decides about the valid one.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	second := f.newSecondMessage(t)
@@ -374,11 +392,49 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	secondKey, err := second.SigCacheKey()
 	require.NoError(t, err)
 
-	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t), txBytesWithGas(t, second, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(second.ValidatorSignatures))))},
+	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t), pffTxBytes(t, second)},
 		keeper.PreverifyOptions{Certificates: true})
 
 	require.False(t, f.cache.Has(f.certKey), "the invalid certificate must not be recorded")
-	require.True(t, f.cache.Has(secondKey), "the valid certificate must still be recorded")
+	require.False(t, f.cache.Has(secondKey),
+		"a chunk is all or nothing, so the valid certificate in it is not recorded either")
+	// Losing a cache entry costs work, never correctness: the ordered verifier
+	// still accepts it.
+	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, second))
+}
+
+// TestPreverifySignaturesReusesVerifierAfterFailure covers a chunk that fails
+// followed by one that succeeds: the batch verifier is shared across chunks, so
+// a failure must not leave it unusable.
+func TestPreverifySignaturesReusesVerifierAfterFailure(t *testing.T) {
+	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	f.msg.ValidatorSignatures[65] = make([]byte, 64)
+	f.refreshCertKey(t)
+
+	// Each certificate makes two batch items at this validator count, so five
+	// transactions produce more items than one chunk holds.
+	messages := make([]*types.MsgPayForFibre, 0, 5)
+	messages = append(messages, f.msg)
+	for i := range 4 {
+		messages = append(messages, f.newSecondMessageWithSize(t, uint32(i)+1))
+	}
+
+	txs := make([][]byte, 0, len(messages))
+	for _, msg := range messages {
+		txs = append(txs, pffTxBytes(t, msg))
+	}
+	f.keeper.PreverifySignatures(f.ctx, txs, keeper.PreverifyOptions{Certificates: true})
+
+	require.False(t, f.cache.Has(f.certKey), "the invalid certificate must not be recorded")
+	recorded := 0
+	for _, msg := range messages[1:] {
+		key, err := msg.SigCacheKey()
+		require.NoError(t, err)
+		if f.cache.Has(key) {
+			recorded++
+		}
+	}
+	require.Positive(t, recorded, "a chunk after the failed one must still record its certificates")
 }
 
 // TestPreverifySignaturesLeavesCachedCertificateAlone covers a second pre-pass
