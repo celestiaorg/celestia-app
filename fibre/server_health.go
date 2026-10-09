@@ -224,8 +224,21 @@ func (m *healthManager) checkModule(ctx context.Context) checkResult {
 }
 
 // checkSigner proves the signer is reachable and still holds the startup key.
-// It does not prove that signing works.
-func (m *healthManager) checkSigner(context.Context) checkResult {
+// It does not prove that signing works. GetPubKey takes no context and uses its
+// own timeout, so it runs in the background and the check gives up when ctx
+// ends; a late answer lands in the buffered channel and is dropped.
+func (m *healthManager) checkSigner(ctx context.Context) checkResult {
+	done := make(chan checkResult, 1)
+	go func() { done <- m.signerKey() }()
+	select {
+	case res := <-done:
+		return res
+	case <-ctx.Done():
+		return failed(reasonSignerUnreachable, "The signer did not answer within the probe timeout. Check signer_grpc_address and the node's priv_validator_grpc_laddr.", ctx.Err())
+	}
+}
+
+func (m *healthManager) signerKey() checkResult {
 	pk, err := m.deps.signer.GetPubKey()
 	if err != nil || pk == nil {
 		return failed(reasonSignerUnreachable, "The signer did not return a public key. Check signer_grpc_address and the node's priv_validator_grpc_laddr.", err)

@@ -39,6 +39,8 @@ type fakeDeps struct {
 	moduleErr error
 	priv      crypto.PrivKey
 	signerErr error
+
+	signerBlock chan struct{} // if set, GetPubKey waits for it
 }
 
 func newFakeDeps() *fakeDeps {
@@ -76,6 +78,9 @@ func (f *fakeDeps) FullStakeStorageBudget(context.Context) (int64, error) {
 }
 
 func (f *fakeDeps) GetPubKey() (crypto.PubKey, error) {
+	if f.signerBlock != nil {
+		<-f.signerBlock
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return f.priv.PubKey(), f.signerErr
@@ -155,6 +160,37 @@ func TestHealthManager(t *testing.T) {
 	m.stop()
 	m.record("app", passed())
 	assert.Equal(t, healthpb.HealthCheckResponse_NOT_SERVING, readiness())
+}
+
+// TestCheckSignerTimeout checks that a stalled signer gives up with the probe deadline
+// instead of waiting for the signer client's own timeout, and that the check loop still
+// returns on cancellation so shutdown is not held back.
+func TestCheckSignerTimeout(t *testing.T) {
+	deps := newFakeDeps()
+	deps.signerBlock = make(chan struct{})
+	t.Cleanup(func() { close(deps.signerBlock) })
+	store := NewMemoryStore(StoreConfig{})
+	t.Cleanup(func() { _ = store.Close() })
+
+	m := newHealthManager(healthSettings{probeTimeout: 20 * time.Millisecond, maxBlockAge: time.Minute}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	m.start(healthDeps{client: deps, signer: deps, pubKey: deps.priv.PubKey(), store: store}, "test-chain")
+
+	ctx, cancel := context.WithTimeout(context.Background(), m.settings.probeTimeout)
+	defer cancel()
+	start := time.Now()
+	res := m.checkSigner(ctx)
+	assert.Equal(t, reasonSignerUnreachable, res.reason)
+	assert.Less(t, time.Since(start), time.Second, "the check does not wait for the signer's own timeout")
+
+	cancelled, stop := context.WithCancel(context.Background())
+	stop()
+	done := make(chan struct{})
+	go func() { defer close(done); m.run(cancelled) }()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("the check loop did not return on cancellation")
+	}
 }
 
 // TestServerHealth checks the health service on a running server over its TLS listener.
