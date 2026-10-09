@@ -108,6 +108,9 @@ func (v *Verifier) VerifyBatchOnly(random io.Reader) bool {
 		v.scalarValues = make([]scalar.Scalar, terms)
 	}
 	v.scalarValues = v.scalarValues[:terms]
+	// The buffer is reused across batches and the coefficients below are
+	// accumulated into it with Add, so a stale value from a previous batch
+	// would be folded into this one.
 	clear(v.scalarValues)
 	if cap(v.scalarPointers) < terms {
 		v.scalarPointers = make([]*scalar.Scalar, terms)

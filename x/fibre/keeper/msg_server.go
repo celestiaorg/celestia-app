@@ -139,7 +139,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise stateful verification failed: %s", err)
 	}
 
-	promiseHash, err := pp.Hash()
+	promiseHash, err := proposalPromiseHash(ctx, &msg.PaymentPromise, &pp)
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
 	}
