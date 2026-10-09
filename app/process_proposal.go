@@ -44,7 +44,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
-	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
+	handler := app.newAnteHandler(app.proposalAccountKeeper(), app.GetTxConfig().SignModeHandler())
 	blockHeader := ctx.BlockHeader()
 
 	// Read the max square size before the ante loop. The loop reassigns ctx to

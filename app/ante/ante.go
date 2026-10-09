@@ -1,6 +1,8 @@
 package ante
 
 import (
+	"fmt"
+
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -9,6 +11,7 @@ import (
 	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	minfeekeeper "github.com/celestiaorg/celestia-app/v10/x/minfee/keeper"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -31,7 +34,7 @@ func NewAnteHandler(
 	fibreKeeper *fibrekeeper.Keeper,
 	sigCache *sigcache.Cache,
 ) sdk.AnteHandler {
-	return sdk.ChainAnteDecorators(
+	return newAppAnteChain(
 		// Wraps the panic with the string format of the transaction
 		NewHandlePanicDecorator(),
 		// Set up the context with a gas meter.
@@ -95,3 +98,57 @@ func NewAnteHandler(
 }
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
+
+// newAppAnteChain flattens the proposal PFF walk after the two panic-handling
+// wrappers. All remaining decorators above only return next or an error;
+// decorators with work after next must stay outside the flat walk.
+func newAppAnteChain(chain ...sdk.AnteDecorator) sdk.AnteHandler {
+	// The flat walk calls chain[2:] with a terminal next, so the panic handler
+	// and gas-meter setup must sit exactly here. Asserting it turns a reorder
+	// of NewAnteHandler into a startup panic, not a silent divergence.
+	if len(chain) < 2 {
+		panic("ante chain must start with the panic handler and the context setup")
+	}
+	if _, ok := chain[0].(HandlePanicDecorator); !ok {
+		panic(fmt.Sprintf("ante chain[0] must be HandlePanicDecorator, got %T", chain[0]))
+	}
+	if _, ok := chain[1].(ante.SetUpContextDecorator); !ok {
+		panic(fmt.Sprintf("ante chain[1] must be ante.SetUpContextDecorator, got %T", chain[1]))
+	}
+
+	regular := sdk.ChainAnteDecorators(chain...)
+	pffChain := make([]sdk.AnteDecorator, 0, len(chain)-2)
+	for _, decorator := range chain[2:] {
+		switch decorator.(type) {
+		case *NestedMsgDecorator, ParamFilterDecorator,
+			blobante.MinGasPFBDecorator, blobante.BlobShareDecorator,
+			fibreante.FibreStatefulValidationDecorator, ibcante.RedundantRelayDecorator:
+			// These perform no checks, writes, or gas consumption for a
+			// single PFF in ProcessProposal outside CheckTx/ReCheckTx.
+		default:
+			pffChain = append(pffChain, decorator)
+		}
+	}
+	terminal := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+	walk := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		for _, decorator := range pffChain {
+			var err error
+			ctx, err = decorator.AnteHandle(ctx, tx, simulate, terminal)
+			if err != nil {
+				return ctx, err
+			}
+		}
+		return ctx, nil
+	}
+	setup := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		return chain[1].AnteHandle(ctx, tx, simulate, walk)
+	}
+	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		if ctx.ExecMode() != sdk.ExecModeProcessProposal || ctx.IsCheckTx() || ctx.IsReCheckTx() || fibretypes.PayForFibreMsg(tx) == nil {
+			return regular(ctx, tx, simulate)
+		}
+		return chain[0].AnteHandle(ctx, tx, simulate, setup)
+	}
+}

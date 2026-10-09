@@ -84,7 +84,7 @@ type verification struct {
 // run reports whether every check in this item passed.
 func (v verification) run() bool {
 	if v.promise != nil {
-		return v.promise.Validate() == nil
+		return verifyPromise(v.promise)
 	}
 	if len(v.pubKeys) == 1 {
 		// A batch of one costs more than a plain verification.
@@ -357,7 +357,7 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 	for i := start; i < end; i++ {
 		item := items[i]
 		if item.promise != nil {
-			if item.run() {
+			if verifyPromise(item.promise) {
 				results[i].Store(true)
 			} else {
 				allValid = false
