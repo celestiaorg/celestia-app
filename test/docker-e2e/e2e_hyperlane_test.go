@@ -469,6 +469,17 @@ func (s *HyperlaneTestSuite) TestHyperlaneZKIsmStateMembership() {
 	s.Require().Equal(expMsgs, msgs)
 }
 
+// hyperlaneAgentImage returns the Hyperlane agent image used for the relayer.
+// HYPERLANE_AGENT_IMAGE (repo:tag) overrides the default, e.g. to run a relayer built from a branch.
+func hyperlaneAgentImage() container.Image {
+	if v := os.Getenv("HYPERLANE_AGENT_IMAGE"); v != "" {
+		if repo, tag, ok := strings.Cut(v, ":"); ok {
+			return container.NewImage(repo, tag, "1000:1000")
+		}
+	}
+	return container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000")
+}
+
 func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hyperlane.Deployer) {
 	s.T().Helper()
 
@@ -476,7 +487,7 @@ func (s *HyperlaneTestSuite) StartRelayerAgent(ctx context.Context, deployer *hy
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		HyperlaneImage:  container.NewImage("gcr.io/abacus-labs-dev/hyperlane-agent", "agents-v1.7.0", "1000:1000"),
+		HyperlaneImage:  hyperlaneAgentImage(),
 	}
 
 	agent, err := hyperlane.NewAgent(ctx, cfg, s.T().Name(), hyperlane.AgentTypeRelayer, deployer)
