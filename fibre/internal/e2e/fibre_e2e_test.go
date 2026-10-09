@@ -280,6 +280,7 @@ func (s *FibreE2ETestSuite) Test04Download() {
 	}{
 		{"SmallBlob", share.MustNewV0Namespace([]byte{0xBE, 0xEF}), 4 * 1024},
 		{"LargeBlob", share.MustNewV0Namespace([]byte{0xCA, 0xFE}), 256 * 1024},
+		{"100MiB", share.MustNewV0Namespace([]byte{0xCA, 0xFF}), 100 << 20},
 	}
 
 	for _, tc := range cases {
@@ -317,6 +318,21 @@ func (s *FibreE2ETestSuite) Test04Download() {
 				"escrow Balance should drop by the payment amount")
 			require.Equal(t, wantDebit, before.AvailableBalance.Sub(after.AvailableBalance),
 				"escrow AvailableBalance should drop by the payment amount")
+			if tc.size == 100<<20 {
+				require.Equal(t, int64(74_780), wantDebit.Amount.Int64())
+				txResult, err := s.cctx.WaitForTx(result.TxHash, 5)
+				require.NoError(t, err)
+				ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+				tx, err := ecfg.TxConfig.TxDecoder()(txResult.Tx)
+				require.NoError(t, err)
+				feeTx, ok := tx.(sdk.FeeTx)
+				require.True(t, ok)
+				// Include both funding transactions from Test02, at 5,000 utia each.
+				total := wantDebit.Amount.Add(feeTx.GetFee().AmountOf(appconsts.BondDenom)).AddRaw(10_000)
+				// 100 one-MiB vanilla transactions at the default gas price.
+				require.Less(t, total.Int64(), int64(3_595_500))
+				t.Logf("100 MiB: settlement=%s, PFF fee=%s, total with funding=%s utia", wantDebit, feeTx.GetFee(), total)
+			}
 		})
 	}
 }

@@ -45,8 +45,8 @@ func (f *fakeStateReader) GetParams(_ sdk.Context) types.Params {
 	return types.Params{WithdrawalDelay: delay}
 }
 
-// gas for a zero-size blob; used to size test balances.
-var zeroBlobGas = math.NewIntFromUint64(EstimateGasForPayForFibre(0))
+// Payment for a zero-size blob; used to size test balances.
+var zeroBlobPayment = types.PaymentAmount(0).Amount
 
 func ctxAtHeight(h int64) sdk.Context { return sdk.Context{}.WithBlockHeight(h) }
 
@@ -55,15 +55,15 @@ func ctxAtHeight(h int64) sdk.Context { return sdk.Context{}.WithBlockHeight(h) 
 var promiseTS = time.Unix(1_000_000, 0).UTC()
 
 func TestReserveWithinBudget(t *testing.T) {
-	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobPayment.MulRaw(2)}}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
-	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
+	require.Equal(t, zeroBlobPayment, c.budgets["a"].remaining)
 }
 
 func TestReserveDoubleSpendRejected(t *testing.T) {
-	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobPayment}}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
@@ -73,24 +73,24 @@ func TestReserveDoubleSpendRejected(t *testing.T) {
 }
 
 func TestReserveIdempotent(t *testing.T) {
-	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobPayment.MulRaw(2)}}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
 	// Budget is decremented once despite two identical submissions.
-	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
+	require.Equal(t, zeroBlobPayment, c.budgets["a"].remaining)
 }
 
 func TestSweepDropsProcessed(t *testing.T) {
 	r := &fakeStateReader{
-		available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)},
+		available: map[string]math.Int{"a": zeroBlobPayment.MulRaw(2)},
 		processed: map[string]bool{},
 	}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
-	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
+	require.Equal(t, zeroBlobPayment, c.budgets["a"].remaining)
 
 	// The promise settles on-chain; a sweep should drop it and free its budget.
 	r.processed[hex.EncodeToString([]byte{0x01})] = true
@@ -98,7 +98,7 @@ func TestSweepDropsProcessed(t *testing.T) {
 	c.sweep(ctxAtHeight(1), "a")
 	c.mu.Unlock()
 
-	require.Equal(t, zeroBlobGas.MulRaw(2), c.budgets["a"].remaining)
+	require.Equal(t, zeroBlobPayment.MulRaw(2), c.budgets["a"].remaining)
 	require.Empty(t, c.pending)
 }
 
@@ -123,7 +123,7 @@ func TestFailingSweepsRateLimited(t *testing.T) {
 func TestConcurrentReserveNoOversubscribe(t *testing.T) {
 	const budgetUnits = 5
 	const promises = 50
-	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(budgetUnits)}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobPayment.MulRaw(budgetUnits)}}
 	c := NewLocalPromiseCache(r)
 
 	results := make(chan error, promises)
@@ -145,7 +145,7 @@ func TestConcurrentReserveNoOversubscribe(t *testing.T) {
 }
 
 func TestEvictIdle(t *testing.T) {
-	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobGas.MulRaw(2)}}
+	r := &fakeStateReader{available: map[string]math.Int{"a": zeroBlobPayment.MulRaw(2)}}
 	c := NewLocalPromiseCache(r)
 
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, promiseTS))
@@ -164,14 +164,14 @@ func TestEvictIdle(t *testing.T) {
 // shrinking a signer's cached budget.
 func TestSweepDropsExpired(t *testing.T) {
 	r := &fakeStateReader{
-		available:       map[string]math.Int{"a": zeroBlobGas.MulRaw(2)},
+		available:       map[string]math.Int{"a": zeroBlobPayment.MulRaw(2)},
 		withdrawalDelay: 24 * time.Hour,
 	}
 	c := NewLocalPromiseCache(r)
 
 	created := time.Unix(1_000_000, 0).UTC()
 	require.NoError(t, c.Reserve(ctxAtHeight(1), "a", []byte{0x01}, 0, created))
-	require.Equal(t, zeroBlobGas, c.budgets["a"].remaining)
+	require.Equal(t, zeroBlobPayment, c.budgets["a"].remaining)
 
 	// A block whose time is past the promise's settleability window; the reservation
 	// can never settle, so the sweep must drop it and restore the full budget.
@@ -180,6 +180,6 @@ func TestSweepDropsExpired(t *testing.T) {
 	c.sweep(ctx, "a")
 	c.mu.Unlock()
 
-	require.Equal(t, zeroBlobGas.MulRaw(2), c.budgets["a"].remaining)
+	require.Equal(t, zeroBlobPayment.MulRaw(2), c.budgets["a"].remaining)
 	require.Empty(t, c.pending)
 }
