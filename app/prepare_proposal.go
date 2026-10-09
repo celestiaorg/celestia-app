@@ -21,7 +21,7 @@ import (
 func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepareProposal) (*abci.ResponsePrepareProposal, error) {
 	defer telemetry.MeasureSince(time.Now(), "prepare_proposal")
 	// Create a context using a branch of the state.
-	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
+	handler := app.newAnteHandler(app.AccountKeeper, app.GetTxConfig().SignModeHandler())
 
 	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 	fsb, err := NewFilteredSquareBuilder(

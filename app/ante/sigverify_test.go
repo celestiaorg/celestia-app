@@ -11,6 +11,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/ed25519"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	"github.com/stretchr/testify/require"
@@ -200,6 +201,39 @@ func TestCachedVerifierWithoutCache(t *testing.T) {
 
 	inputs.sigData.Signature = []byte("not a signature")
 	require.Error(t, inputs.verify(cachedVerifier(nil), handler))
+}
+
+// TestCachedVerifierExecModeTolerateNonSDKContext pins that reading the exec
+// mode never assumes an SDK context. ante.SignatureVerifier is typed on a
+// plain context.Context and the SDK does not promise to attach an sdk.Context,
+// so sdk.UnwrapSDKContext would panic here. Swapping in the native
+// verification key is a pure optimisation, so the ordinary key is kept
+// instead.
+func TestCachedVerifierExecModeTolerateNonSDKContext(t *testing.T) {
+	handler := txsigning.NewHandlerMap(direct.SignModeHandler{})
+	inputs := signedInputs(t, handler)
+
+	require.NotPanics(t, func() {
+		require.NoError(t, inputs.verify(cachedVerifier(sigcache.New(8)), handler))
+	})
+	require.False(t, inProcessProposal(context.Background()))
+}
+
+// TestCachedVerifierExecModeReadsSDKContext covers the other side: when an SDK
+// context is attached, ProcessProposal is recognised either as the context
+// itself or through the context value, and no other exec mode is.
+func TestCachedVerifierExecModeReadsSDKContext(t *testing.T) {
+	handler := txsigning.NewHandlerMap(direct.SignModeHandler{})
+	inputs := signedInputs(t, handler)
+	sdkCtx := sdk.Context{}.WithExecMode(sdk.ExecModeProcessProposal)
+
+	require.True(t, inProcessProposal(sdkCtx))
+	require.True(t, inProcessProposal(context.WithValue(context.Background(), sdk.SdkContextKey, sdkCtx)))
+	require.False(t, inProcessProposal(sdk.Context{}.WithExecMode(sdk.ExecModeFinalize)))
+
+	// The swapped key must reach the same verdict as the ordinary one.
+	cache := sigcache.New(8)
+	require.NoError(t, cachedVerifier(cache)(sdkCtx, inputs.pubKey, inputs.signerData, inputs.sigData, handler, inputs.txData))
 }
 
 // TestCachedVerifierDoesNotCacheUnkeyable covers an unkeyable signature
