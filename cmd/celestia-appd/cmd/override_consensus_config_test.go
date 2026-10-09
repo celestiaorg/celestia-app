@@ -23,9 +23,11 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 	configDir := filepath.Join(tempDir, "config")
 	require.NoError(t, os.MkdirAll(configDir, 0o755))
 
-	// Create a config with test-specific values
+	// Create a config with test-specific values, including a gossip sleep
+	// written by an older binary.
 	cfg := app.DefaultConsensusConfig()
 	cfg.SetRoot(tempDir)
+	cfg.Consensus.PeerGossipSleepDuration = 100 * time.Millisecond
 
 	// Write the config to disk
 	configPath := filepath.Join(configDir, "config.toml")
@@ -63,6 +65,7 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 	assert.Equal(t, appconsts.TimeoutPrecommit, modifiedCfg.Consensus.TimeoutPrecommit)
 	assert.Equal(t, appconsts.TimeoutPrecommitDelta, modifiedCfg.Consensus.TimeoutPrecommitDelta)
 	assert.Equal(t, appconsts.TimeoutCommit, modifiedCfg.Consensus.TimeoutCommit)
+	assert.Equal(t, 10*time.Millisecond, modifiedCfg.Consensus.PeerGossipSleepDuration)
 }
 
 func TestOverrideConsensusTimeoutsLogsChangedValues(t *testing.T) {

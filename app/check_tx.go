@@ -29,6 +29,22 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
 	}
 
+	// A recheck runs on the exact bytes a previous CheckTx admitted, so this
+	// wrapper's work is reused: the blob-tx unmarshal, the decode, the SDK
+	// message count and the PayForFibre shape check. BaseApp still decodes the
+	// bytes and re-runs message ValidateBasic, so what is skipped is the
+	// wrapper, not the SDK.
+	if req.Type == abci.CheckTxType_Recheck {
+		if sdkTx, ok := app.pffTxCache.Get(tx); ok {
+			res, err := app.forwardCheckTx(req, sdkTx)
+			if err != nil || res.Code != abci.CodeTypeOK {
+				// The mempool drops a tx whose recheck fails.
+				app.pffTxCache.Drop(tx)
+			}
+			return res, err
+		}
+	}
+
 	btx, isBlob, err := blobtx.UnmarshalBlobTx(tx)
 	if isBlob && err != nil {
 		if errors.IsOf(err, blobtx.ErrNonCanonicalBlobTx, blobtx.ErrNestedBlobTx) {
@@ -67,7 +83,19 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil
 	}
 
-	return app.forwardCheckTx(req, sdkTx)
+	_, isPFF := payForFibreMsg(sdkTx)
+	res, err := app.forwardCheckTx(req, sdkTx)
+	if err != nil || res.Code != abci.CodeTypeOK {
+		return res, err
+	}
+
+	// Only a newly admitted PFF is recorded: a recheck that missed is walking
+	// a working set larger than the cache, and admitting each miss would evict
+	// the entries the same pass is about to ask for.
+	if isPFF && req.Type == abci.CheckTxType_New {
+		app.pffTxCache.Set(tx, sdkTx)
+	}
+	return res, nil
 }
 
 func (app *App) handleBlobCheckTx(req *abci.RequestCheckTx, btx *blobtx.BlobTx) (*abci.ResponseCheckTx, error) {

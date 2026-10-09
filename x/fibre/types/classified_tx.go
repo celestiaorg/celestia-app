@@ -64,6 +64,13 @@ func ParsePayForFibreMsg(txBytes []byte) (*MsgPayForFibre, bool) {
 	return msg, true
 }
 
+// ParsePayForFibreTx decodes the single MsgPayForFibre carried by txBytes. The
+// second result reports whether txBytes is a fibre tx at all; an error means it
+// is one but the message is malformed.
+func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, bool, error) {
+	return parsePayForFibre(txBytes)
+}
+
 // TryParseFibreTx attempts to detect a MsgPayForFibre message inside plain
 // Cosmos SDK Tx bytes and synthesize the corresponding FibreTx.
 //
