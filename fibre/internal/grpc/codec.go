@@ -5,6 +5,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"google.golang.org/grpc/encoding"
+	_ "google.golang.org/grpc/encoding/proto" // standard codec, used for non-gogoproto messages
 	"google.golang.org/grpc/mem"
 )
 
@@ -66,7 +67,9 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 
 	msg, ok := v.(sizedBufferMarshaler)
 	if !ok {
-		return nil, fmt.Errorf("fibre-proto codec: %T does not implement sizedBufferMarshaler", v)
+		// The server forces this codec for every RPC on its listener, including
+		// the gRPC health service whose messages are not gogoproto types.
+		return encoding.GetCodecV2("proto").Marshal(v)
 	}
 
 	size := msg.Size()
@@ -89,7 +92,7 @@ func (c *pooledCodec) Marshal(v any) (mem.BufferSlice, error) {
 func (c *pooledCodec) Unmarshal(data mem.BufferSlice, v any) error {
 	msg, ok := v.(protoUnmarshaler)
 	if !ok {
-		return fmt.Errorf("fibre-proto codec: %T does not implement protoUnmarshaler", v)
+		return encoding.GetCodecV2("proto").Unmarshal(data, v)
 	}
 	if data.Len() == 0 {
 		return msg.Unmarshal(nil)

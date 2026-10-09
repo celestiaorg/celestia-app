@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"errors"
@@ -39,7 +40,12 @@ type Store struct {
 	db     *pebbledb.DB
 	log    *slog.Logger
 	shards *routedStorage
+
+	probe chan struct{} // one slot, held while a health probe runs
 }
+
+// probeCloseWait is how long [Store.Close] waits for a running health probe.
+var probeCloseWait = 5 * time.Second
 
 // memStorePath is an arbitrary location inside the in-memory FS used by
 // [NewMemoryStore]; both pebble's files and our shards/staging subdirs live
@@ -85,7 +91,7 @@ func openStore(ctx context.Context, cfg StoreConfig, filesystem vfs.FS) (*Store,
 		return nil, fmt.Errorf("opening pebble database: %w", err)
 	}
 
-	s := &Store{db: db, log: cfg.Log}
+	s := &Store{db: db, log: cfg.Log, probe: make(chan struct{}, 1)}
 	s.shards, err = openRoutedStorage(ctx, cfg, db, filesystem)
 	if err != nil {
 		_ = s.Close()
@@ -507,10 +513,63 @@ func (s *Store) reconcile() error {
 	return nil
 }
 
+// Probe writes value under the reserved key /health/probe with fsync and reads
+// it back. The key lives outside the shard, promise and prune prefixes. Pebble
+// ignores ctx, so the work runs in the background and Probe gives up when ctx
+// ends; no new probe starts until the previous one returned.
+func (s *Store) Probe(ctx context.Context, value []byte) error {
+	select {
+	case s.probe <- struct{}{}:
+	default:
+		return errors.New("previous probe has not returned")
+	}
+	done := make(chan error, 1)
+	go func() {
+		defer func() { <-s.probe }()
+		done <- s.writeAndRead(value)
+	}()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (s *Store) writeAndRead(value []byte) error {
+	key := []byte("/health/probe")
+	if err := s.db.Set(key, value, pebbledb.Sync); err != nil {
+		return fmt.Errorf("write: %w", err)
+	}
+	got, closer, err := s.db.Get(key)
+	if err != nil {
+		return fmt.Errorf("read: %w", err)
+	}
+	defer closer.Close()
+	if !bytes.Equal(got, value) {
+		return errors.New("read back a different value")
+	}
+	return nil
+}
+
 // Close closes the underlying pebble database. For [NewMemoryStore] the
-// in-memory FS is dropped when the Store is garbage collected.
+// in-memory FS is dropped when the Store is garbage collected. Pebble must not
+// be closed under a running operation, so Close waits briefly for a running
+// health probe. If the probe is stuck, Close returns an error and the database
+// is closed as soon as the probe returns.
 func (s *Store) Close() error {
-	return s.db.Close()
+	select {
+	case s.probe <- struct{}{}:
+		return s.db.Close()
+	case <-time.After(probeCloseWait):
+		go func() {
+			s.probe <- struct{}{}
+			if err := s.db.Close(); err != nil {
+				s.log.Error("closing store after a stuck health probe", "error", err)
+			}
+		}()
+		return errors.New("a health probe is still running; the store closes when it returns")
+	}
 }
 
 // formatTimestamp formats t with minute precision (YYYYMMDDHHmm) for
