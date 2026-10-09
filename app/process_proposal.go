@@ -132,6 +132,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	sdkTxs := make([]sdk.Tx, len(req.Txs))
 	decodeErrs := make([]error, len(req.Txs))
 	decoder := app.encodingConfig.TxConfig.TxDecoder()
+	pffSignerCodec := app.encodingConfig.PFFSignerAddressCodec
 	var decodeNext atomic.Int64
 	var decodeWG sync.WaitGroup
 	for range min(runtime.NumCPU(), len(decodeCandidates)) {
@@ -154,7 +155,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 						if msg, isPFF := payForFibreMsg(sdkTxs[idx]); isPFF {
 							if feeTx, ok := sdkTxs[idx].(sdk.FeeTx); ok {
 								decoded[idx] = fibrekeeper.DerivePayForFibre(rawTx, msg, feeTx.GetGas())
-								sdkTxs[idx] = cacheProposalViews(sdkTxs[idx])
+								sdkTxs[idx] = cacheProposalViews(sdkTxs[idx], pffSignerCodec(sdkTxs[idx]))
 							}
 						}
 						// The SDK wrapper computes signers lazily. Prime its
@@ -179,22 +180,24 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// failed check is not recorded, so the loop below still performs it and
 	// still decides. Any failure rejects the whole block, so the pass stops
 	// claiming work at the first one.
+	unique := make(map[sigcache.Key]struct{}, len(decodeCandidates))
 	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
+		SeenCertificates:   unique,
 	})
 	// Gated on there being PayForFibre candidates at all as well: the fibre
 	// pass prepares nothing when every promise and certificate is already
 	// cached, and the transaction signatures still are not.
 	if verifyPFF != nil || len(decodeCandidates) > 0 {
-		ante.NewCachedSigVerificationDecorator(app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache).
-			PreverifyTxSignatures(ctx, sdkTxs)
 		var verificationWG sync.WaitGroup
 		verificationWG.Go(func() {
 			defer func() { _ = recover() }()
 			verifyPFF()
 		})
 		defer verificationWG.Wait()
+		ante.NewCachedSigVerificationDecorator(app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache).
+			PreverifyTxSignatures(ctx, sdkTxs)
 	}
 
 	// One holder for the whole walk: the decoded view of the transaction being

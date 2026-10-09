@@ -2,6 +2,7 @@ package keeper
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	core "github.com/cometbft/cometbft/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -20,6 +21,7 @@ type convertedValidatorSet struct {
 	// validators is in historical info order. Validator signatures are
 	// positional over this slice.
 	validators []*core.Validator
+	publicKeys []crypto.PubKey
 	set        *core.ValidatorSet
 }
 
@@ -36,6 +38,7 @@ func (k Keeper) validatorSetAtHeight(height int64, valset []stakingtypes.Validat
 	}
 
 	validators := make([]*core.Validator, len(valset))
+	publicKeys := make([]crypto.PubKey, len(valset))
 	for i, val := range valset {
 		consPubKey, err := val.ConsPubKey()
 		if err != nil {
@@ -49,10 +52,12 @@ func (k Keeper) validatorSetAtHeight(height int64, valset []stakingtypes.Validat
 		}
 
 		validators[i] = core.NewValidator(ed25519.PubKey(pubKeyBytes), val.Tokens.Int64())
+		publicKeys[i] = validators[i].PubKey
 	}
 
 	converted := &convertedValidatorSet{
 		validators: validators,
+		publicKeys: publicKeys,
 		set:        core.NewValidatorSet(validators),
 	}
 	// TotalVotingPower is computed lazily and memoized on the set. Force it

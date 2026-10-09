@@ -348,8 +348,8 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 
 	// If AvailableBalance couldn't cover the full payment, cancel/reduce pending withdrawals (FIFO)
 	// by the shortfall amount so that Balance and AvailableBalance stay consistent.
-	shortfall := paymentAmount.Sub(availableDeduction)
-	if shortfall.IsPositive() {
+	if availableDeduction.IsLT(paymentAmount) {
+		shortfall := paymentAmount.Sub(availableDeduction)
 		if err := ms.ReduceWithdrawalsForPayment(ctx, escrowAccount.Signer, shortfall); err != nil {
 			return err
 		}

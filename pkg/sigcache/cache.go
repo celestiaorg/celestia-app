@@ -22,6 +22,8 @@ const (
 	PromiseSignature
 	// TxSignature covers a transaction signature.
 	TxSignature
+	// TxSignaturePayload commits to immutable transaction and signature bytes.
+	TxSignaturePayload
 )
 
 // NewKey hashes parts under domain. Every part is length-prefixed, so two

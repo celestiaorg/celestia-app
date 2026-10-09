@@ -1,6 +1,8 @@
 package encoding
 
 import (
+	"reflect"
+
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
 	"github.com/celestiaorg/celestia-app/v10/pkg/txutil"
@@ -26,6 +28,18 @@ type Config struct {
 	AddressCodec          addresscodec.Codec
 	ValidatorAddressCodec addresscodec.Codec
 	ConsensusAddressCodec addresscodec.Codec
+	pffSignerContext      *signing.Context
+	pffTxConfig           client.TxConfig
+	pffTxType             reflect.Type
+}
+
+// PFFSignerAddressCodec returns the codec only while the default signer context
+// created by MakeConfig is still installed.
+func (c Config) PFFSignerAddressCodec(tx sdk.Tx) addresscodec.Codec {
+	if c.pffSignerContext == nil || c.TxConfig != c.pffTxConfig || reflect.TypeOf(tx) != c.pffTxType || c.InterfaceRegistry.SigningContext() != c.pffSignerContext {
+		return nil
+	}
+	return c.pffSignerContext.AddressCodec()
 }
 
 // MakeConfig returns an encoding config for the app.
@@ -77,6 +91,9 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 
 	return Config{
 		InterfaceRegistry:     interfaceRegistry,
+		pffSignerContext:      interfaceRegistry.SigningContext(),
+		pffTxConfig:           txConfig,
+		pffTxType:             reflect.TypeOf(txConfig.NewTxBuilder().GetTx()),
 		Codec:                 protoCodec,
 		TxConfig:              txConfig,
 		Amino:                 amino,

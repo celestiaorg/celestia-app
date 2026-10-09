@@ -25,6 +25,9 @@ type PreverifyOptions struct {
 	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
 	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
+	// SeenCertificates optionally deduplicates collected certificates. The
+	// caller supplies an empty map, populated synchronously during collection.
+	SeenCertificates map[sigcache.Key]struct{}
 }
 
 // PreverifySignatures verifies the MsgPayForFibre signatures in txs across
@@ -148,6 +151,12 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		if covered >= limit {
 			break
 		}
+		if opts.SeenCertificates != nil && d.CertKeyed {
+			if _, seen := opts.SeenCertificates[d.CertKey]; seen {
+				continue
+			}
+			opts.SeenCertificates[d.CertKey] = struct{}{}
+		}
 
 		// A pre-pass must not run signature work a transaction cannot pay for.
 		// Skipping only leaves the authoritative sequential check uncached.
@@ -168,6 +177,11 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		promiseCached := k.sigCache.Has(d.PromiseKey)
 		first := len(work.items)
 		if !promiseCached {
+			if work.items == nil {
+				capacity := 2 * min(len(decoded), limit)
+				work.items = make([]verification, 0, capacity)
+				work.groups = make([]verificationGroup, 0, capacity)
+			}
 			work.items = append(work.items, verification{promise: promise})
 			work.groups = append(work.groups, verificationGroup{key: d.PromiseKey, first: first, end: first + 1})
 		}
@@ -228,6 +242,22 @@ func (k Keeper) appendCertificateItems(
 		return false
 	}
 
+	// A contiguous quorum fitting one item can borrow both immutable slices.
+	if prefix > 0 && prefix <= batchSize {
+		dense := true
+		for _, signature := range msg.ValidatorSignatures[:prefix] {
+			if len(signature) == 0 {
+				dense = false
+				break
+			}
+		}
+		if dense {
+			work.items = append(work.items, verification{
+				message: signBytes, pubKeys: converted.publicKeys[:prefix], signatures: msg.ValidatorSignatures[:prefix],
+			})
+			return true
+		}
+	}
 	certFirst := len(work.items)
 	batch := verification{
 		message:    signBytes,

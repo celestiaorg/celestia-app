@@ -48,15 +48,16 @@ func (d CachedSigVerificationDecorator) PreverifyTxSignatures(ctx sdk.Context, t
 		signerData txsigning.SignerData
 		sigData    signing.SignatureData
 		txData     txsigning.TxData
+		tx         sdk.Tx
 	}
 	jobs := make(chan workItem, 2*runtime.NumCPU())
 	var wg sync.WaitGroup
-	for range min(runtime.NumCPU(), len(txs)) {
+	for range min(max(1, runtime.NumCPU()/2), len(txs)) {
 		wg.Go(func() {
 			for item := range jobs {
 				func() {
 					defer func() { _ = recover() }()
-					_ = d.verifySignature(ctx, item.pubKey, item.signerData, item.sigData, item.txData)
+					_ = d.verifySignature(ctx, item.pubKey, item.signerData, item.sigData, item.txData, item.tx)
 				}()
 			}
 		})
@@ -113,6 +114,7 @@ func (d CachedSigVerificationDecorator) PreverifyTxSignatures(ctx sdk.Context, t
 			},
 			sigData: sigs[0].Data,
 			txData:  adaptableTx.GetSigningTxData(),
+			tx:      tx,
 		}
 	}
 }
@@ -175,7 +177,7 @@ func (d CachedSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 				return ctx, fmt.Errorf("expected tx to implement V2AdaptableTx, got %T", tx)
 			}
 			txData := adaptableTx.GetSigningTxData()
-			if err := d.verifySignature(ctx, pubKey, signerData, sig.Data, txData); err != nil {
+			if err := d.verifySignature(ctx, pubKey, signerData, sig.Data, txData, tx); err != nil {
 				var errMsg string
 				if ante.OnlyLegacyAminoSigners(sig.Data) {
 					// If all signers are using SIGN_MODE_LEGACY_AMINO, we rely on VerifySignature to check account sequence number,
@@ -201,8 +203,19 @@ func (d CachedSigVerificationDecorator) verifySignature(
 	signerData txsigning.SignerData,
 	sigData signing.SignatureData,
 	txData txsigning.TxData,
+	tx sdk.Tx,
 ) error {
-	key, keyed := txSigCacheKey(pubKey, signerData, sigData, txData)
+	var payload sigcache.Key
+	cached := false
+	if source, ok := tx.(interface {
+		SignaturePayloadKey(signing.SignatureData, txsigning.TxData) (sigcache.Key, bool)
+	}); ok {
+		payload, cached = source.SignaturePayloadKey(sigData, txData)
+	}
+	if single, ok := sigData.(*signing.SingleSignatureData); ok && !cached {
+		payload = sigcache.NewKey(sigcache.TxSignaturePayload, txData.BodyBytes, txData.AuthInfoBytes, single.Signature)
+	}
+	key, keyed := txSigCacheKey(pubKey, signerData, sigData, txData, payload)
 	if keyed && d.sigCache != nil && d.sigCache.Has(key) {
 		return nil
 	}
@@ -238,7 +251,7 @@ var keyableSignModes = map[signing.SignMode]struct{}{
 // txSigCacheKey covers every input the sign bytes are derived from, plus the
 // signature itself. Multi-signatures are not keyed: they are rare and each
 // inner signature would need its own entry.
-func txSigCacheKey(pubKey cryptotypes.PubKey, signerData txsigning.SignerData, sigData signing.SignatureData, txData txsigning.TxData) (sigcache.Key, bool) {
+func txSigCacheKey(pubKey cryptotypes.PubKey, signerData txsigning.SignerData, sigData signing.SignatureData, txData txsigning.TxData, payload sigcache.Key) (sigcache.Key, bool) {
 	single, ok := sigData.(*signing.SingleSignatureData)
 	if !ok || pubKey == nil {
 		return sigcache.Key{}, false
@@ -261,8 +274,6 @@ func txSigCacheKey(pubKey cryptotypes.PubKey, signerData txsigning.SignerData, s
 		[]byte(signerData.Address),
 		[]byte(signerData.ChainID),
 		scalars[:],
-		txData.BodyBytes,
-		txData.AuthInfoBytes,
-		single.Signature,
+		payload[:],
 	), true
 }

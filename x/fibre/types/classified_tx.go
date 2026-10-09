@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	square "github.com/celestiaorg/go-square/v4"
@@ -38,6 +39,8 @@ func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 	return classified, nil
 }
 
+var certificateScratch = sync.Pool{New: func() any { return new([8192]byte) }}
+
 // SigCacheKey derives the signature cache key for msg's certificate: the
 // message without its signer, so the key covers exactly the inputs to signature
 // verification. Proto encoding length-prefixes every field, so distinct
@@ -46,6 +49,16 @@ func (msg *MsgPayForFibre) SigCacheKey() (sigcache.Key, error) {
 	certificate := MsgPayForFibre{
 		PaymentPromise:      msg.PaymentPromise,
 		ValidatorSignatures: msg.ValidatorSignatures,
+	}
+	size := certificate.Size()
+	if size <= 8192 {
+		scratch := certificateScratch.Get().(*[8192]byte)
+		defer certificateScratch.Put(scratch)
+		n, err := certificate.MarshalToSizedBuffer(scratch[:size])
+		if err != nil {
+			return sigcache.Key{}, err
+		}
+		return sigcache.NewKey(sigcache.PffCertificate, scratch[:n]), nil
 	}
 	bz, err := certificate.Marshal()
 	if err != nil {
