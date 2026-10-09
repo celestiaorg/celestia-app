@@ -61,7 +61,7 @@ func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayFor
 // Batching amortises the fixed cost of the multiscalar multiplication; keeping
 // items small still leaves far more of them than there are CPUs, so no core
 // idles waiting on a transaction with few signatures.
-const batchSize = 64
+const batchSize = 128
 
 // verification is one independent unit of work: either a payment promise's
 // stateless validation, which carries its secp256k1 check, or a batch of
@@ -254,7 +254,7 @@ func (k Keeper) appendCertificateItems(
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
 func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
-	results := make([]atomic.Bool, len(items))
+	results := make([]bool, len(items))
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
 	workers := min(runtime.GOMAXPROCS(0), len(items))
@@ -283,7 +283,7 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 					return
 				}
 				if items[i].run() {
-					results[i].Store(true)
+					results[i] = true
 					continue
 				}
 				if stopOnFirstFailure {
@@ -294,9 +294,5 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	}
 	wg.Wait()
 
-	verified := make([]bool, len(items))
-	for i := range results {
-		verified[i] = results[i].Load()
-	}
-	return verified
+	return results
 }

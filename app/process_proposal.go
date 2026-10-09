@@ -3,10 +3,14 @@ package app
 import (
 	"bytes"
 	"fmt"
+	"runtime"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"cosmossdk.io/errors"
 	"cosmossdk.io/log"
+	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
@@ -20,6 +24,7 @@ import (
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 )
 
 const rejectedPropBlockLog = "Rejected proposal block:"
@@ -102,9 +107,85 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				blobTxs[idx] = decodedBlob
 			}
 		}
-		if blobTxs[idx] == nil {
-			decoded[idx] = fibrekeeper.DecodePayForFibre(rawTx)
+	}
+	// Each pay-for-fibre decode depends only on its transaction bytes. The blob
+	// scan above still reports malformed blob transactions in their original
+	// order before this speculative work starts.
+	var fibreNext atomic.Int64
+	var fibreDecodeWG sync.WaitGroup
+	var fibreDecodePanicked atomic.Bool
+	for range min(runtime.NumCPU(), len(req.Txs)) {
+		fibreDecodeWG.Go(func() {
+			for {
+				idx := int(fibreNext.Add(1)) - 1
+				if idx >= len(req.Txs) {
+					return
+				}
+				if len(req.Txs[idx]) > appconsts.MaxTxSize || blobTxs[idx] != nil {
+					continue
+				}
+				func() {
+					defer func() {
+						if recover() != nil {
+							fibreDecodePanicked.Store(true)
+						}
+					}()
+					decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
+				}()
+			}
+		})
+	}
+	fibreDecodeWG.Wait()
+	if fibreDecodePanicked.Load() {
+		logInvalidPropBlock(app.Logger(), blockHeader, "caught panic while decoding PayForFibre tx")
+		return reject(), nil
+	}
+
+	// SDK decoding is independent per transaction. Prefetch only parseable
+	// PayForFibre txs, up to the versioned block limit: a rejected block must
+	// not make us decode an unbounded number of otherwise skipped SDK txs.
+	// Consume the results in block order below.
+	decodeCandidates := make([]int, 0, min(len(req.Txs), max(0, maxPFF)))
+	for idx, d := range decoded {
+		if d != nil && (maxPFF <= 0 || len(decodeCandidates) < maxPFF) {
+			decodeCandidates = append(decodeCandidates, idx)
 		}
+	}
+	sdkTxs := make([]sdk.Tx, len(req.Txs))
+	decodeErrs := make([]error, len(req.Txs))
+	decoder := app.encodingConfig.TxConfig.TxDecoder()
+	var decodeNext atomic.Int64
+	var decodeWG sync.WaitGroup
+	for range min(runtime.NumCPU(), len(decodeCandidates)) {
+		decodeWG.Go(func() {
+			for {
+				candidate := int(decodeNext.Add(1)) - 1
+				if candidate >= len(decodeCandidates) {
+					return
+				}
+				idx := decodeCandidates[candidate]
+				rawTx := req.Txs[idx]
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							decodeErrs[idx] = fmt.Errorf("transaction decoder panic: %v", r)
+						}
+					}()
+					sdkTxs[idx], decodeErrs[idx] = decoder(rawTx)
+					if decodeErrs[idx] == nil {
+						// The SDK wrapper computes signers lazily. Prime its
+						// byte-bound cache here while each tx has one worker;
+						// ante still reports any signer error in block order.
+						func() {
+							defer func() { _ = recover() }()
+							if sigTx, ok := sdkTxs[idx].(authsigning.SigVerifiableTx); ok {
+								_, _ = sigTx.GetSigners()
+							}
+						}()
+					}
+				}()
+			}
+		})
 	}
 
 	// Verify the block's pay-for-fibre signatures across every CPU before the
@@ -116,6 +197,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
+	decodeWG.Wait()
+	// Gated on there being PayForFibre candidates at all, not on whether the
+	// fibre pass queued work: it queues nothing when every promise and
+	// certificate is already cached, and the transaction signatures still are
+	// not.
+	if len(decodeCandidates) > 0 {
+		ante.NewCachedSigVerificationDecorator(app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache).
+			PreverifyTxSignatures(ctx, sdkTxs)
+	}
 
 	// One holder for the whole walk: the decoded view of the transaction being
 	// processed is handed over by setting its field, not by attaching a new
@@ -144,7 +234,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			sdkTxBytes = blobTx.Tx
 		}
 
-		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
+		sdkTx, err := sdkTxs[idx], decodeErrs[idx]
+		if sdkTx == nil && err == nil {
+			sdkTx, err = decoder(sdkTxBytes)
+		}
 		ctx = ctx.WithTxBytes(sdkTxBytes)
 		// Hand the ante handler and the message server what was already
 		// decoded from this tx; nil clears the previous tx's value.
@@ -174,7 +267,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			_, isPFF := payForFibreMsg(sdkTx)
+			pffMsg, isPFF := payForFibreMsg(sdkTx)
 			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
@@ -205,7 +298,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// FibreSignatureVerificationDecorator), so removing it would let a
 			// proposer settle promises without a validator quorum.
 			if isPFF {
-				if execErr := executeTxMsgs(ctx, sdkTx, app.MsgServiceRouter()); execErr != nil {
+				if execErr := executeProposalPFF(ctx, pffMsg, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}

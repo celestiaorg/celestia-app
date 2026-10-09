@@ -3,6 +3,8 @@ package ante
 import (
 	"encoding/binary"
 	"fmt"
+	"runtime"
+	"sync"
 
 	errorsmod "cosmossdk.io/errors"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -32,6 +34,92 @@ type CachedSigVerificationDecorator struct {
 // NewCachedSigVerificationDecorator returns a caching signature verification decorator.
 func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache) CachedSigVerificationDecorator {
 	return CachedSigVerificationDecorator{ak: ak, signModeHandler: signModeHandler, sigCache: sigCache}
+}
+
+// PreverifyTxSignatures fills the signature cache for single-signer direct-sign
+// transactions. A miss or a failed check just leaves the decision to the
+// ordered ante handler.
+func (d CachedSigVerificationDecorator) PreverifyTxSignatures(ctx sdk.Context, txs []sdk.Tx) {
+	if d.sigCache == nil {
+		return
+	}
+	type workItem struct {
+		pubKey     cryptotypes.PubKey
+		signerData txsigning.SignerData
+		sigData    signing.SignatureData
+		txData     txsigning.TxData
+	}
+	jobs := make(chan workItem, 2*runtime.NumCPU())
+	var wg sync.WaitGroup
+	for range min(runtime.NumCPU(), len(txs)) {
+		wg.Go(func() {
+			for item := range jobs {
+				func() {
+					defer func() { _ = recover() }()
+					_ = d.verifySignature(ctx, item.pubKey, item.signerData, item.sigData, item.txData)
+				}()
+			}
+		})
+	}
+	defer func() {
+		close(jobs)
+		wg.Wait()
+		_ = recover() // malformed txs remain for the ante handler
+	}()
+	for _, tx := range txs {
+		if tx == nil {
+			continue
+		}
+		sigTx, ok := tx.(authsigning.Tx)
+		if !ok {
+			continue
+		}
+		sigs, err := sigTx.GetSignaturesV2()
+		if err != nil || len(sigs) != 1 {
+			continue
+		}
+		single, ok := sigs[0].Data.(*signing.SingleSignatureData)
+		if !ok || single.SignMode != signing.SignMode_SIGN_MODE_DIRECT {
+			continue
+		}
+		signers, err := sigTx.GetSigners()
+		if err != nil || len(signers) != 1 {
+			continue
+		}
+		acc, err := ante.GetSignerAcc(ctx, d.ak, signers[0])
+		if err != nil {
+			continue
+		}
+		pubKey := acc.GetPubKey()
+		if pubKey == nil {
+			pubKey = sigs[0].PubKey
+		}
+		if pubKey == nil {
+			continue
+		}
+		anyPk, err := codectypes.NewAnyWithValue(pubKey)
+		if err != nil {
+			continue
+		}
+		var accNum uint64
+		if ctx.BlockHeight() != 0 {
+			accNum = acc.GetAccountNumber()
+		}
+		adaptableTx, ok := tx.(authsigning.V2AdaptableTx)
+		if !ok {
+			continue
+		}
+		jobs <- workItem{
+			pubKey: pubKey,
+			signerData: txsigning.SignerData{
+				Address: acc.GetAddress().String(), ChainID: ctx.ChainID(),
+				AccountNumber: accNum, Sequence: sigs[0].Sequence,
+				PubKey: &anypb.Any{TypeUrl: anyPk.TypeUrl, Value: anyPk.Value},
+			},
+			sigData: sigs[0].Data,
+			txData:  adaptableTx.GetSigningTxData(),
+		}
+	}
 }
 
 func (d CachedSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
