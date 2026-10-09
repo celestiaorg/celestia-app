@@ -56,6 +56,7 @@ type memoryLease struct {
 	download bool
 	bytes    int64
 	refs     atomic.Int32
+	conn     *connectionBudget
 }
 
 // newMemoryLease starts a lease with the handler's reference already held.
@@ -103,7 +104,11 @@ func (l *memoryLease) reject(ctx context.Context) error {
 
 // release returns the reservation after the handler and response buffers finish.
 func (l *memoryLease) release() {
-	if l.refs.Add(-1) != 0 {
+	l.releaseRefs(1)
+}
+
+func (l *memoryLease) releaseRefs(n int32) {
+	if l.refs.Add(-n) != 0 {
 		return
 	}
 	a := l.budget
@@ -126,6 +131,14 @@ func responseCapacity(size int) int {
 // Get allocates a response buffer and retains its lease until gRPC calls Put.
 func (l *memoryLease) Get(size int) *[]byte {
 	buf := make([]byte, size, responseCapacity(size))
+	if l.conn != nil {
+		l.conn.mu.Lock()
+		defer l.conn.mu.Unlock()
+		if l.conn.closed && l.conn.handlers == 0 {
+			return &buf
+		}
+		l.conn.leases[l]++
+	}
 	l.refs.Add(1)
 	return &buf
 }
@@ -133,5 +146,16 @@ func (l *memoryLease) Get(size int) *[]byte {
 // Put releases a response buffer and its reference to the lease.
 func (l *memoryLease) Put(buf *[]byte) {
 	*buf = nil
+	if l.conn != nil {
+		l.conn.mu.Lock()
+		defer l.conn.mu.Unlock()
+		if l.conn.leases[l] == 0 {
+			return
+		}
+		l.conn.leases[l]--
+		if l.conn.leases[l] == 0 {
+			delete(l.conn.leases, l)
+		}
+	}
 	l.release()
 }

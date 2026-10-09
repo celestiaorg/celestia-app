@@ -74,6 +74,7 @@ func (s *Server) Register(service types.FibreServer, admission *Admission, creds
 	opts := []grpc.ServerOption{
 		grpc.ForceServerCodecV2(admission.codec),
 		grpc.InTapHandle(receiveTimeoutTap),
+		grpc.StatsHandler(connectionBudgetStats{}),
 		grpc.MaxRecvMsgSize(admission.maxMessage),
 		grpc.MaxSendMsgSize(admission.maxMessage),
 	}

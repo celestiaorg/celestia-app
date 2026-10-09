@@ -56,6 +56,13 @@ func (a *Admission) serve(srv any, stream grpc.ServerStream, method grpc.MethodD
 	lease := newMemoryLease(a.memoryBudget, method.MethodName == "DownloadShard")
 	defer lease.release()
 	ctx := stream.Context()
+	lease.conn, _ = ctx.Value(connectionBudgetKey{}).(*connectionBudget)
+	if lease.conn != nil {
+		lease.conn.mu.Lock()
+		lease.conn.handlers++
+		lease.conn.mu.Unlock()
+		defer lease.conn.releaseHandler()
+	}
 	if err := grpc.SetSendCompressor(ctx, encoding.Identity); err != nil {
 		return err
 	}
