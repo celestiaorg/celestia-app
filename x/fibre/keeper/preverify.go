@@ -73,28 +73,6 @@ type verification struct {
 	signatures [][]byte
 }
 
-// run reports whether every check in this item passed.
-func (v verification) run() bool {
-	if v.promise != nil {
-		return v.promise.Validate() == nil
-	}
-	if len(v.pubKeys) == 1 {
-		// A batch of one costs more than a plain verification.
-		return v.pubKeys[0].VerifySignature(v.message, v.signatures[0])
-	}
-
-	batch := ed25519.NewBatchVerifier()
-	for i, pubKey := range v.pubKeys {
-		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
-			return false
-		}
-	}
-	// A failing batch falls back to verifying each entry, so the verdict is the
-	// same one the sequential walk reaches.
-	allValid, _ := batch.Verify()
-	return allValid
-}
-
 // verificationGroup is a cache entry that may be recorded once every item in
 // [first, end) succeeded.
 type verificationGroup struct {
@@ -227,7 +205,11 @@ func (k Keeper) appendCertificateItems(
 	}
 
 	certFirst := len(work.items)
-	batch := verification{message: signBytes}
+	batch := verification{
+		message:    signBytes,
+		pubKeys:    make([]crypto.PubKey, 0, min(prefix, batchSize)),
+		signatures: make([][]byte, 0, min(prefix, batchSize)),
+	}
 	for i := range prefix {
 		signature := msg.ValidatorSignatures[i]
 		if len(signature) == 0 {
@@ -307,10 +289,24 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 // and remains the authority on the block's validity.
 func runVerificationChunk(items []verification, results []bool, start, end int, batch *ed25519.BatchVerifier) bool {
 	if batch == nil {
-		// The per-item path the caller's comma-ok assertion falls back to.
+		// The per-item path the caller's comma-ok assertion falls back to:
+		// slower, same verdicts, and it keeps a failed assertion from turning
+		// every chunk into a nil dereference.
 		allValid := true
 		for i := start; i < end; i++ {
-			if items[i].run() {
+			item := items[i]
+			ok := true
+			if item.promise != nil {
+				ok = verifyPromise(item.promise)
+			} else {
+				for j, key := range item.pubKeys {
+					if !key.VerifySignature(item.message, item.signatures[j]) {
+						ok = false
+						break
+					}
+				}
+			}
+			if ok {
 				results[i] = true
 				continue
 			}
@@ -325,7 +321,7 @@ func runVerificationChunk(items []verification, results []bool, start, end int, 
 	for i := start; i < end; i++ {
 		item := items[i]
 		if item.promise != nil {
-			if item.run() {
+			if verifyPromise(item.promise) {
 				results[i] = true
 			} else {
 				allValid = false
@@ -347,7 +343,7 @@ func runVerificationChunk(items []verification, results []bool, start, end int, 
 		return allValid
 	}
 	if batchReady {
-		if valid, _ := batch.Verify(); valid {
+		if batch.VerifyBatchOnly(crypto.CReader()) {
 			for i := start; i < end; i++ {
 				if items[i].promise == nil {
 					results[i] = true

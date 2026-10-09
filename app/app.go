@@ -565,7 +565,7 @@ func New(
 	app.SetPrepareProposal(app.PrepareProposalHandler)
 	app.SetProcessProposal(app.ProcessProposalHandler)
 
-	app.SetAnteHandler(app.newAnteHandler(encodingConfig.TxConfig.SignModeHandler()))
+	app.SetAnteHandler(app.newAnteHandler(app.AccountKeeper, encodingConfig.TxConfig.SignModeHandler()))
 
 	protoFiles, err := proto.MergedRegistry()
 	if err != nil {
@@ -747,10 +747,11 @@ func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
 }
 
 // newAnteHandler returns the ante handler that validates transactions,
-// including in PrepareProposal and ProcessProposal.
-func (app *App) newAnteHandler(signModeHandler *txsigning.HandlerMap) sdk.AnteHandler {
+// including in PrepareProposal and ProcessProposal. accountKeeper is a
+// parameter so a proposal path can hand in a reader of its own.
+func (app *App) newAnteHandler(accountKeeper authkeeper.AccountKeeper, signModeHandler *txsigning.HandlerMap) sdk.AnteHandler {
 	return ante.NewAnteHandler(
-		app.AccountKeeper,
+		accountKeeper,
 		app.BankKeeper,
 		app.BlobKeeper,
 		app.FeeGrantKeeper,
