@@ -2,16 +2,17 @@ package keeper
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v10/pkg/ed25519batch"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -46,15 +47,31 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 // PreverifyDecoded is PreverifySignatures over txs the caller already decoded,
 // so the phase decodes each tx once. nil entries are skipped.
 func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) {
-	if k.sigCache == nil {
+	verify := k.PreparePreverification(ctx, decoded, opts)
+	if verify == nil {
 		return
 	}
+	verify()
+}
 
+// PreparePreverification collects state-dependent inputs synchronously. The
+// returned work reads no SDK state and may run alongside the ordered ante walk.
+// A nil function means all requested verifications were already cached or skipped.
+func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) func() {
+	if k.sigCache == nil {
+		return nil
+	}
 	work := k.collectVerifications(ctx, decoded, opts)
 	if len(work.items) == 0 {
-		return
+		return nil
 	}
-	work.record(k.sigCache, runVerifications(work.items, opts.StopOnFirstFailure))
+	return func() {
+		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(verified []bool, start, end int) {
+			work.record(k.sigCache, verified, start, end)
+		})
+		// Groups crossing worker boundaries are published after all workers finish.
+		work.record(k.sigCache, verified, 0, len(work.items))
+	}
 }
 
 // batchSize is how many validator signatures one work item verifies together.
@@ -88,8 +105,15 @@ type preverification struct {
 }
 
 // record adds the cache entry of every group whose items all succeeded.
-func (p *preverification) record(cache SigCache, verified []bool) {
-	for _, group := range p.groups {
+func (p *preverification) record(cache SigCache, verified []bool, start, end int) {
+	first := sort.Search(len(p.groups), func(i int) bool { return p.groups[i].first >= start })
+	for _, group := range p.groups[first:] {
+		if group.first >= end {
+			break
+		}
+		if group.end > end {
+			continue
+		}
 		complete := true
 		for i := group.first; i < group.end; i++ {
 			if !verified[i] {
@@ -235,7 +259,7 @@ func (k Keeper) appendCertificateItems(
 // Items are independent and each result is stored at its own index, so the
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
-func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
+func runVerifications(items []verification, stopOnFirstFailure bool, publish func([]bool, int, int)) []bool {
 	results := make([]bool, len(items))
 	const chunkSize = 8
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
@@ -260,22 +284,17 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 					panicked.CompareAndSwap(nil, r)
 				}
 			}()
-			// Comma-ok: a failed assertion here would panic every worker on
-			// its first line, leave every result false, and show up only as a
-			// cache that never warms. Falling back to the per-item path keeps
-			// the pass working.
-			batch, batchOK := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
-			if !batchOK {
-				batch = nil
-			}
+			batch := new(ed25519batch.Verifier)
 			for {
 				i := int(next.Add(chunkSize)) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
-				if !runVerificationChunk(items, results, i, min(i+chunkSize, len(items)), batch) && stopOnFirstFailure {
+				end := min(i+chunkSize, len(items))
+				if !runVerificationChunk(items, results, i, end, batch) && stopOnFirstFailure {
 					aborted.Store(true)
 				}
+				publish(results, i, end)
 			}
 		})
 	}
@@ -287,7 +306,7 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 // runVerificationChunk combines a few certificate batches. A failed combined
 // batch leaves their cache entries unset; the ordered path verifies them again
 // and remains the authority on the block's validity.
-func runVerificationChunk(items []verification, results []bool, start, end int, batch *ed25519.BatchVerifier) bool {
+func runVerificationChunk(items []verification, results []bool, start, end int, batch *ed25519batch.Verifier) bool {
 	if batch == nil {
 		// The per-item path the caller's comma-ok assertion falls back to:
 		// slower, same verdicts, and it keeps a failed assertion from turning
