@@ -24,16 +24,41 @@ type SignatureSet struct {
 	signatures  map[string][]byte
 }
 
+// MinRequiredVotingPower returns the voting power a [SignatureSet] over this
+// set must collect to reach targetVotingPower.
+func (s Set) MinRequiredVotingPower(targetVotingPower cmtmath.Fraction) int64 {
+	return s.TotalVotingPower() * int64(targetVotingPower.Numerator) / int64(targetVotingPower.Denominator)
+}
+
 // NewSignatureSet creates a new [SignatureSet] for collecting and validating signatures.
 func (s Set) NewSignatureSet(targetVotingPower cmtmath.Fraction, requiredBytesSigned []byte) *SignatureSet {
-	minRequiredVotingPower := s.TotalVotingPower() * int64(targetVotingPower.Numerator) / int64(targetVotingPower.Denominator)
-
 	return &SignatureSet{
 		requiredBytesSigned:    requiredBytesSigned,
-		minRequiredVotingPower: minRequiredVotingPower,
+		minRequiredVotingPower: s.MinRequiredVotingPower(targetVotingPower),
 		validators:             s.Validators,
 		signatures:             make(map[string][]byte, s.Size()),
 	}
+}
+
+// QuorumPrefix returns how many leading entries of signatures a sequential
+// [SignatureSet.Add] walk inspects before reaching minRequiredVotingPower, and
+// whether that power is reached at all. The walk stops as soon as the threshold
+// is met, so entries past the prefix are never verified and a parallel verifier
+// must not inspect them either.
+//
+// signatures is positional over validators and must not be longer than it.
+func QuorumPrefix(validators []*core.Validator, signatures [][]byte, minRequiredVotingPower int64) (prefix int, quorumMet bool) {
+	var votingPower int64
+	for i, signature := range signatures {
+		if len(signature) == 0 {
+			continue
+		}
+		votingPower += validators[i].VotingPower
+		if votingPower >= minRequiredVotingPower {
+			return i + 1, true
+		}
+	}
+	return len(signatures), votingPower >= minRequiredVotingPower
 }
 
 // Add validates and adds a signature from the given validator.
