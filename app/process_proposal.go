@@ -478,10 +478,11 @@ func classifyTxs(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.D
 			classified[i] = squarev4.NewClassifiedTx(rawTx)
 			continue
 		}
-		classified[i], err = squarev4.NewClassifiedFibreTx(fibreTx)
-		if err != nil {
-			return nil, fmt.Errorf("classifying fibre tx at index %d: %w", i, err)
+		if fibreTx == nil {
+			return nil, fmt.Errorf("classifying fibre tx at index %d: nil fibre tx", i)
 		}
+		// constructSquare validates every classification before appending it.
+		classified[i] = squarev4.ClassifiedTx{Bytes: fibreTx.Tx, FibreTx: fibreTx}
 	}
 	return classified, nil
 }

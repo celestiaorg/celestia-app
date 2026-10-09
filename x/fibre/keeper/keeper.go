@@ -300,11 +300,27 @@ func (k Keeper) DeleteProcessedPayment(ctx sdk.Context, payment types.ProcessedP
 
 // IsPaymentPromiseProcessed returns true if a payment has been processed for the given promise.
 func (k Keeper) IsPaymentPromiseProcessed(ctx sdk.Context, promise *types.PaymentPromise) bool {
-	hash, err := promiseHash(promise)
+	hash, err := proposalPromiseHash(ctx, promise, nil)
 	if err != nil {
 		return false
 	}
 	return k.IsPaymentProcessedByHash(ctx, hash)
+}
+
+// proposalPromiseHash reuses bytes only for the decoded promise supplied by
+// this transaction. Other messages retain their own conversion and hash.
+func proposalPromiseHash(ctx sdk.Context, promise *types.PaymentPromise, converted *fibre.PaymentPromise) ([]byte, error) {
+	if ctx.ExecMode() == sdk.ExecModeProcessProposal {
+		if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.Msg != nil && &d.Msg.PaymentPromise == promise {
+			if hash := d.PromiseHash(); hash != nil {
+				return hash, nil
+			}
+		}
+	}
+	if converted != nil {
+		return converted.Hash()
+	}
+	return promiseHash(promise)
 }
 
 // promiseHash returns the canonical hash of a payment promise.

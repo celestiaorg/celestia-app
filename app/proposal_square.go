@@ -52,23 +52,19 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 	if cancel.Load() {
 		return result
 	}
-	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
+	size, rows, columns, err := app.TreePool().ComputeRoots(share.ToBytes(dataSquare), expectedSize)
 	if err != nil {
-		result.stage, result.err = "failure to compute extended data square from transactions:", err
+		result.stage, result.err = "failure to compute data roots from transactions:", err
 		return result
 	}
-	result.size = uint64(eds.Width()) / 2
+	result.size = size
 	if result.size != expectedSize {
 		return result
 	}
 	if cancel.Load() {
 		return result
 	}
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		result.stage, result.err = "failure to create new data availability header", err
-		return result
-	}
+	dah := da.DataAvailabilityHeader{RowRoots: rows, ColumnRoots: columns}
 	result.root = dah.Hash()
 	return result
 }

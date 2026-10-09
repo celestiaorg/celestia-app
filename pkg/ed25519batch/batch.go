@@ -112,7 +112,6 @@ func (v *Verifier) VerifyBatchOnly(random io.Reader) bool {
 		v.scalarValues = make([]scalar.Scalar, terms)
 	}
 	v.scalarValues = v.scalarValues[:terms]
-	clear(v.scalarValues)
 	if cap(v.scalarPointers) < terms {
 		v.scalarPointers = make([]*scalar.Scalar, terms)
 		v.points = make([]*curve.EdwardsPoint, terms)

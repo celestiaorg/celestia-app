@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"sync"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
@@ -12,7 +13,8 @@ import (
 
 // DecodedPayForFibre is a MsgPayForFibre tx decoded once per ABCI phase, with
 // the values later steps of that phase would otherwise derive again from the
-// same bytes. Everything in it is a pure function of Raw.
+// same bytes. Raw, Msg, and the derived verification inputs must remain
+// immutable for the phase.
 type DecodedPayForFibre struct {
 	Raw []byte
 	Msg *MsgPayForFibre
@@ -36,6 +38,23 @@ type DecodedPayForFibre struct {
 	fibreTxOnce sync.Once
 	fibreTx     *squaretx.FibreTx
 	fibreTxErr  error
+	hashOnce    sync.Once
+	promiseHash [sha256.Size]byte
+}
+
+// PromiseHash hashes the already derived sign bytes and signature once.
+// A nil result leaves malformed inputs to the ordinary promise validator.
+func (d *DecodedPayForFibre) PromiseHash() []byte {
+	if d.Msg == nil || !d.PromiseKeyed || len(d.Msg.PaymentPromise.Signature) == 0 {
+		return nil
+	}
+	d.hashOnce.Do(func() {
+		hash := sha256.New()
+		hash.Write(d.PromiseSignBytes)
+		hash.Write(d.Msg.PaymentPromise.Signature)
+		hash.Sum(d.promiseHash[:0])
+	})
+	return d.promiseHash[:]
 }
 
 // FibreTx returns the tx with its synthesized system blob, built on first use.
