@@ -19,6 +19,18 @@ type Admission struct {
 	DownloadSize func(context.Context, []byte) (int64, error)
 }
 
+type downloadReservationKey struct{}
+
+// ReserveDownload raises the current RPC reservation before reading a selected shard copy.
+// Zero size uses the stake estimate. Calls outside an admitted download do nothing.
+func ReserveDownload(ctx context.Context, size int64) error {
+	reserve, ok := ctx.Value(downloadReservationKey{}).(func(context.Context, int64) error)
+	if !ok {
+		return nil
+	}
+	return reserve(ctx, size)
+}
+
 // NewAdmission shares memory between RPCs, with a quarter reserved for uploads. Zero total disables admission.
 func NewAdmission(total int64, maxMessage, maxRows, maxProofs int) *Admission {
 	return &Admission{
@@ -65,6 +77,14 @@ func (a *Admission) serve(srv any, stream grpc.ServerStream, method grpc.MethodD
 	}
 	if err := grpc.SetSendCompressor(ctx, encoding.Identity); err != nil {
 		return err
+	}
+	if lease.download {
+		ctx = context.WithValue(ctx, downloadReservationKey{}, func(ctx context.Context, size int64) error {
+			if size == 0 {
+				size = int64(a.maxMessage) * 42 / 100
+			}
+			return lease.reserve(ctx, max(0, a.estimateMemory(size)-lease.bytes))
+		})
 	}
 	response, err := method.Handler(srv, ctx, func(request any) error {
 		return a.receive(ctx, request, lease)

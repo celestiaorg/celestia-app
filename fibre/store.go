@@ -181,6 +181,11 @@ func (s *Store) commitAndStore(
 // A marker with a missing payload remains until pruning so its recorded size
 // can be released from occupancy.
 func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShard, error) {
+	return s.get(ctx, commitment, nil)
+}
+
+// get reserves each candidate's memory before reading its payload, including fallback copies.
+func (s *Store) get(ctx context.Context, commitment Commitment, reserve func(int64) error) (*types.BlobShard, error) {
 	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{
 		LowerBound: prefix,
@@ -200,6 +205,14 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 			continue
 		}
 
+		if reserve != nil {
+			_, size, err := decodeShardMarkerBackend(iter.Value())
+			if err == nil {
+				if err := reserve(size); err != nil {
+					return nil, err
+				}
+			}
+		}
 		shard, err := s.shards.Get(ctx, iter.Value(), commitment, promiseHash)
 		if err == nil {
 			return shard, nil
@@ -220,7 +233,7 @@ func (s *Store) Get(ctx context.Context, commitment Commitment) (*types.BlobShar
 }
 
 // estimateShardSize reads size markers without loading shard payloads.
-// It uses Get's first candidate; legacy or corrupt markers use fallback, and later copies can differ.
+// Later candidates are reserved by get before reading; legacy or corrupt markers use fallback.
 func (s *Store) estimateShardSize(ctx context.Context, commitment Commitment, fallback int64) (int64, error) {
 	prefix := fmt.Appendf(nil, "%s%s/", shardKeyPrefix, commitment.String())
 	iter, err := s.db.NewIter(&pebbledb.IterOptions{LowerBound: prefix, UpperBound: prefixUpperBound(prefix)})

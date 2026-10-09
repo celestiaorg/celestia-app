@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -58,9 +59,14 @@ func (s *Server) DownloadShard(ctx context.Context, req *types.DownloadShardRequ
 
 	// retrieve blob shard from storage using commitment
 	storeGetStart := time.Now()
-	blobShard, err := s.store.Get(ctx, id.Commitment())
+	blobShard, err := s.store.get(ctx, id.Commitment(), func(size int64) error {
+		return fibregrpc.ReserveDownload(ctx, size)
+	})
 	s.metrics.observeStoreOp(ctx, s.metrics.storeGetDuration, storeGetStart, err == nil)
 	if err != nil {
+		if status.Code(err) == grpccodes.ResourceExhausted {
+			return nil, err
+		}
 		if errors.Is(err, ErrStoreNotFound) {
 			s.log.DebugContext(ctx, "no blob shard found for commitment", "blob_commitment", id.Commitment().String())
 			span.SetStatus(codes.Error, "no blob shard found")
