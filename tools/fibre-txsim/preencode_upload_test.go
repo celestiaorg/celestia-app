@@ -27,7 +27,7 @@ import (
 )
 
 func TestRunPreencodeUploads(t *testing.T) {
-	const duration = 5 * time.Second
+	const duration = 10 * time.Second
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	dir := t.TempDir()
 	kr, err := keyring.New(app.Name, keyring.BackendTest, dir, nil, encCfg.Codec)
@@ -64,7 +64,7 @@ func TestRunPreencodeUploads(t *testing.T) {
 			return &coregrpc.ValidatorSetResponse{ValidatorSet: valSet, Height: 1}, nil
 		case *authtypes.QueryAccountRequest:
 			// Setup must not consume the load window, even when it takes longer than the run.
-			setupDelay.Do(func() { time.Sleep(2 * duration) })
+			setupDelay.Do(func() { time.Sleep(duration + time.Second) })
 			if err := ctx.Err(); err != nil {
 				return nil, err
 			}

@@ -163,16 +163,19 @@ func (s *routedStorage) DeleteBatch(ctx context.Context, shards []markedShard) (
 		}
 	}
 	if deleteErr != nil {
-		return successful, &partialDeleteError{deleteErr}
+		return successful, &partialDeleteError{err: deleteErr}
 	}
 	return successful, nil
 }
 
 // partialDeleteError reports payload failures after all deletions were attempted.
-type partialDeleteError struct{ err error }
+type partialDeleteError struct {
+	err          error
+	integrityErr error
+}
 
-func (e *partialDeleteError) Error() string { return e.err.Error() }
-func (e *partialDeleteError) Unwrap() error { return e.err }
+func (e *partialDeleteError) Error() string { return e.Unwrap().Error() }
+func (e *partialDeleteError) Unwrap() error { return errors.Join(e.err, e.integrityErr) }
 
 func (s *routedStorage) size(marker []byte, commitment Commitment, promiseHash []byte) (int64, error) {
 	tag, size, err := decodeShardMarkerBackend(marker)
