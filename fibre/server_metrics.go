@@ -25,6 +25,15 @@ const (
 	metricOutcomeError     = "error"
 )
 
+// storeDurationBuckets are the boundaries, in seconds, shared by the
+// histograms that enclose a shard store operation: the UploadShard and
+// DownloadShard RPCs, the store Put/Get wrappers and the backend GET. In
+// object mode each backend call is bounded by object_storage.request_timeout
+// (30s default) and a failed Put may issue a cleanup Delete under a second
+// timeout, so the buckets reach 60s instead of collapsing slow requests into
+// the overflow bucket.
+var storeDurationBuckets = []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60}
+
 // serverMetrics holds OTel metric instruments for the Fibre [Server].
 type serverMetrics struct {
 	// UploadShard RPC
@@ -74,7 +83,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	sm.uploadShardDuration, err = m.Float64Histogram("fibre.server.upload_shard.duration",
 		metric.WithDescription("Duration of UploadShard RPCs in seconds"),
 		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+		metric.WithExplicitBucketBoundaries(storeDurationBuckets...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating upload_shard duration histogram: %w", err)
@@ -148,7 +157,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	sm.downloadShardDuration, err = m.Float64Histogram("fibre.server.download_shard.duration",
 		metric.WithDescription("Duration of DownloadShard RPCs in seconds"),
 		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5),
+		metric.WithExplicitBucketBoundaries(storeDurationBuckets...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating download_shard duration histogram: %w", err)
@@ -166,7 +175,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	sm.storePutDuration, err = m.Float64Histogram("fibre.server.store.put.duration",
 		metric.WithDescription("Duration of store Put operations in seconds"),
 		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1),
+		metric.WithExplicitBucketBoundaries(storeDurationBuckets...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating store put duration histogram: %w", err)
@@ -175,7 +184,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	sm.storeGetDuration, err = m.Float64Histogram("fibre.server.store.get.duration",
 		metric.WithDescription("Duration of store Get operations in seconds"),
 		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1),
+		metric.WithExplicitBucketBoundaries(storeDurationBuckets...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating store get duration histogram: %w", err)
@@ -184,7 +193,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	sm.backendGetDuration, err = m.Float64Histogram("fibre.server.backend.get.duration",
 		metric.WithDescription("Duration of backend GET calls through payload reading, decoding and closing"),
 		metric.WithUnit("s"),
-		metric.WithExplicitBucketBoundaries(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60),
+		metric.WithExplicitBucketBoundaries(storeDurationBuckets...),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("creating backend get duration histogram: %w", err)
