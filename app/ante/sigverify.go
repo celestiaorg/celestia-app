@@ -97,10 +97,6 @@ func (d CachedSigVerificationDecorator) PreverifyTxSignatures(ctx sdk.Context, t
 		if pubKey == nil {
 			continue
 		}
-		anyPk, err := codectypes.NewAnyWithValue(pubKey)
-		if err != nil {
-			continue
-		}
 		var accNum uint64
 		if ctx.BlockHeight() != 0 {
 			accNum = acc.GetAccountNumber()
@@ -114,7 +110,6 @@ func (d CachedSigVerificationDecorator) PreverifyTxSignatures(ctx sdk.Context, t
 			signerData: txsigning.SignerData{
 				Address: acc.GetAddress().String(), ChainID: ctx.ChainID(),
 				AccountNumber: accNum, Sequence: sigs[0].Sequence,
-				PubKey: &anypb.Any{TypeUrl: anyPk.TypeUrl, Value: anyPk.Value},
 			},
 			sigData: sigs[0].Data,
 			txData:  adaptableTx.GetSigningTxData(),
@@ -169,17 +164,11 @@ func (d CachedSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, s
 
 		// no need to verify signatures on recheck tx
 		if !simulate && !ctx.IsReCheckTx() && ctx.IsSigverifyTx() {
-			anyPk, _ := codectypes.NewAnyWithValue(pubKey)
-
 			signerData := txsigning.SignerData{
 				Address:       acc.GetAddress().String(),
 				ChainID:       chainID,
 				AccountNumber: accNum,
 				Sequence:      acc.GetSequence(),
-				PubKey: &anypb.Any{
-					TypeUrl: anyPk.TypeUrl,
-					Value:   anyPk.Value,
-				},
 			}
 			adaptableTx, ok := tx.(authsigning.V2AdaptableTx)
 			if !ok {
@@ -217,7 +206,16 @@ func (d CachedSigVerificationDecorator) verifySignature(
 	if keyed && d.sigCache != nil && d.sigCache.Has(key) {
 		return nil
 	}
-	if err := authsigning.VerifySignature(ctx, pubKey, signerData, sigData, d.signModeHandler, txData); err != nil {
+	anyPk, err := codectypes.NewAnyWithValue(pubKey)
+	if err != nil {
+		return err
+	}
+	signerData.PubKey = &anypb.Any{TypeUrl: anyPk.TypeUrl, Value: anyPk.Value}
+	verificationKey := pubKey
+	if _, single := sigData.(*signing.SingleSignatureData); single && ctx.ExecMode() == sdk.ExecModeProcessProposal {
+		verificationKey = txVerificationPubKey(pubKey)
+	}
+	if err := authsigning.VerifySignature(ctx, verificationKey, signerData, sigData, d.signModeHandler, txData); err != nil {
 		return err
 	}
 	if keyed && d.sigCache != nil {

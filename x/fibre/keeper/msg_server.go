@@ -134,7 +134,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateful verification (escrow account, balance, not already processed)
-	_, err := ms.ValidatePaymentPromiseStateful(ctx, &msg.PaymentPromise)
+	_, _, err := ms.validatePaymentPromiseStatefulInternal(ctx, &msg.PaymentPromise, false)
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise stateful verification failed: %s", err)
 	}
@@ -144,10 +144,12 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
 	}
 
-	// Get escrow account for the payment promise signer
-	signerPubKey := msg.PaymentPromise.SignerPublicKey
-	signerAddr := sdk.AccAddress(signerPubKey.Address()).String()
-
+	// Read the escrow account again rather than reusing the one the stateful
+	// validation already loaded. The read is metered, so dropping it lowers
+	// what this message costs and changes the outcome for a transaction whose
+	// gas limit sits between the two totals - a state transition change, which
+	// has to be gated behind an app version rather than ride along here.
+	signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 	escrowAccount, found := ms.GetEscrowAccount(ctx, signerAddr)
 	if !found {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", signerAddr)
@@ -171,6 +173,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	// ProcessProposal returns only ACCEPT or REJECT, and its per-transaction
 	// event manager is discarded. FinalizeBlock still emits the payment event.
 	if ctx.ExecMode() != sdk.ExecModeProcessProposal {
+		signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 		// PayForFibreEvent rather than EmitTypedEvent: the two are pinned
 		// equivalent by TestPayForFibreEventMatchesTypedEvent, and this is the
 		// FinalizeBlock path, where a protobuf JSON marshal and map decode per

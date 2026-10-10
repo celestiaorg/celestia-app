@@ -137,8 +137,8 @@ func (p *PaymentPromise) Validate() error {
 	if p.ChainID == "" {
 		return errors.New("chain id must not be empty")
 	}
-	if len(p.ChainID) > maxChainIDSize {
-		return fmt.Errorf("chain id length %d exceeds maximum %d", len(p.ChainID), maxChainIDSize)
+	if len(p.ChainID) > MaxChainIDSize {
+		return fmt.Errorf("chain id length %d exceeds maximum %d", len(p.ChainID), MaxChainIDSize)
 	}
 
 	// upload size must be positive
@@ -182,7 +182,7 @@ func (p *PaymentPromise) Validate() error {
 const (
 	// MaxPaymentPromiseSize is the theoretical maximum size of all PaymentPromise fields
 	// (excluding encoding overhead, like protobuf)
-	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + maxChainIDSize
+	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + MaxChainIDSize
 
 	// signBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
 	// can't be confused with a consensus message (domain separation).
@@ -191,9 +191,13 @@ const (
 	// Format: signerPubKey(33) + namespace(29) + blobSize(4) + commitment(32) + blobVersion(4) + height(8) + timestamp(15)
 	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8 + 15
 
-	// maxChainIDSize is the maximum allowed chain ID length.
+	// MaxChainIDSize is the maximum allowed chain ID length.
 	// Examples: "celestia" (8), "mocha-4" (7), "corto-1" (7)
-	maxChainIDSize = 20
+	//
+	// Exported because the native secp256k1 fast path in x/fibre/keeper has to
+	// apply exactly the field checks Validate applies before it may skip it;
+	// a bound that drifts between the two is a cgo/nocgo acceptance split.
+	MaxChainIDSize = 20
 
 	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)
 	signatureSize = 64

@@ -48,6 +48,7 @@ require (
 	github.com/cosmos/ibc-go/v8 v8.7.0
 	github.com/creachadair/tomledit v0.0.29
 	github.com/digitalocean/godo v1.210.0
+	github.com/ethereum/go-ethereum v1.17.0
 	github.com/filecoin-project/go-clock v0.1.0
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.1
@@ -219,7 +220,6 @@ require (
 	github.com/emicklei/dot v1.6.2 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.37.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
-	github.com/ethereum/go-ethereum v1.17.0 // indirect
 	github.com/ettle/strcase v0.2.0 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fatih/structtag v1.2.0 // indirect
