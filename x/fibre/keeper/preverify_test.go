@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -151,17 +153,51 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 	}
 }
 
+// signedMessage returns a fully signed message distinguished by nonce, so a
+// test can build as many distinct certificates as it needs.
+func (f *preverifyFixture) signedMessage(t *testing.T, nonce int) *types.MsgPayForFibre {
+	t.Helper()
+
+	promise := f.msg.PaymentPromise
+	promise.Commitment = make([]byte, len(f.msg.PaymentPromise.Commitment))
+	binary.BigEndian.PutUint64(promise.Commitment, uint64(nonce))
+	promise.Signature = make([]byte, 64)
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&promise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	promise.Signature, err = f.signerPrivKey.Sign(signBytes)
+	require.NoError(t, err)
+
+	signatures := make([][]byte, len(f.valPrivKeys))
+	for i, valPrivKey := range f.valPrivKeys {
+		signatures[i], err = valPrivKey.Sign(signBytes)
+		require.NoError(t, err)
+	}
+	return &types.MsgPayForFibre{PaymentPromise: promise, ValidatorSignatures: signatures}
+}
+
+// decodedMessage encodes msg into a transaction declaring gasLimit and decodes
+// it the way every pre-verification caller does.
+func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibre, gasLimit uint64) *types.DecodedPayForFibre {
+	t.Helper()
+	d := keeper.DecodePayForFibre(txBytesWithGas(t, msg, gasLimit))
+	require.NotNil(t, d)
+	return d
+}
+
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
 // ParsePayForFibreMsg reads.
 func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	t.Helper()
-
-	return f.txBytesFor(t, f.msg)
+	return txBytesWithGas(t, f.msg, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(f.msg.ValidatorSignatures))))
 }
 
-// txBytesFor wraps any message in the same encoding, so one call can carry
-// several transactions.
-func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) []byte {
+// txBytesWithGas encodes msg in a tx declaring gasLimit. The pre-pass skips a
+// transaction that cannot pay for its own signature checks, so the declared
+// limit is part of what a fixture has to get right.
+func txBytesWithGas(t *testing.T, msg *types.MsgPayForFibre, gasLimit uint64) []byte {
 	t.Helper()
 
 	value, err := msg.Marshal()
@@ -171,7 +207,9 @@ func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) [
 		Value:   value,
 	}}}).Marshal()
 	require.NoError(t, err)
-	raw, err := (&cosmostx.TxRaw{BodyBytes: body}).Marshal()
+	authInfo, err := (&cosmostx.AuthInfo{Fee: &cosmostx.Fee{GasLimit: gasLimit}}).Marshal()
+	require.NoError(t, err)
+	raw, err := (&cosmostx.TxRaw{BodyBytes: body, AuthInfoBytes: authInfo}).Marshal()
 	require.NoError(t, err)
 	return raw
 }
@@ -336,7 +374,7 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	secondKey, err := second.SigCacheKey()
 	require.NoError(t, err)
 
-	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t), f.txBytesFor(t, second)},
+	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t), txBytesWithGas(t, second, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(second.ValidatorSignatures))))},
 		keeper.PreverifyOptions{Certificates: true})
 
 	require.False(t, f.cache.Has(f.certKey), "the invalid certificate must not be recorded")
@@ -424,10 +462,18 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	require.NoError(t, plain.keeper.ValidatePayForFibreSignatures(plain.ctx, f.msg))
 
 	decoded := f.withFreshCache(t)
-	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw), d)
+	// A real CheckTx context: the pre-pass is gated on IsCheckTx, not on the
+	// zero ExecMode, so a bare context must not reach it.
+	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw).WithIsCheckTx(true), d)
 	require.NoError(t, decoded.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
-	require.Equal(t, plain.cache.Len(), decoded.cache.Len())
+
+	// Both paths reach the same verdict and leave the promise verified. The
+	// CheckTx path additionally warms the certificate, because it runs the
+	// parallel pre-pass over the transaction once admission has let it through.
+	require.True(t, plain.cache.Has(d.PromiseKey))
 	require.True(t, decoded.cache.Has(d.PromiseKey))
+	require.True(t, decoded.cache.Has(d.CertKey))
+	require.False(t, plain.cache.Has(d.CertKey))
 
 	// A tampered promise signature fails on both paths.
 	bad := *f.msg
@@ -435,7 +481,92 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	bad.PaymentPromise.Signature[0] ^= 0xff
 	badRaw := (&preverifyFixture{msg: &bad}).txBytes(t)
 	badDecoded := keeper.DecodePayForFibre(badRaw)
-	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw), badDecoded)
+	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw).WithIsCheckTx(true), badDecoded)
 	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(badCtx, &bad))
 	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(f.withFreshCache(t).ctx, &bad))
+}
+
+// TestPreverifyCapsAtBlockLimit pins the bound the pass runs under: it
+// covers at most as many messages as a block may carry, however many the caller
+// hands it. PrepareProposal is handed everything the mempool holds within block
+// max bytes, which is far more than any block can include.
+func TestPreverifyCapsAtBlockLimit(t *testing.T) {
+	f := newPreverifyFixture(t)
+	limit := appconsts.MaxPayForFibreMessages
+	gas := types.EstimateGasForPayForFibreSignatureVerification(numPreverifyValidators)
+
+	decoded := make([]*types.DecodedPayForFibre, 0, limit+1)
+	for i := range limit + 1 {
+		decoded = append(decoded, f.decodedMessage(t, f.signedMessage(t, i), gas))
+	}
+
+	f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{Certificates: true})
+
+	// The pass walks its input in order, so the bound falls in a fixed place.
+	for i, d := range decoded[:limit] {
+		require.True(t, f.cache.Has(d.CertKey), "message %d is within the bound and should be covered", i)
+	}
+	require.False(t, f.cache.Has(decoded[limit].CertKey), "the message past the bound must not be covered")
+
+	// Being left out of the pass changes nothing: the sequential verifier still
+	// accepts it, which is the only thing that decides.
+	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, decoded[limit].Msg))
+}
+
+// TestPreverifySkipsUnderfundedGas checks the pass does no signature work for a
+// transaction that did not declare enough gas to pay for it. The ante handler
+// is still the authority: skipping only leaves the check uncached.
+func TestPreverifySkipsUnderfundedGas(t *testing.T) {
+	enough := types.EstimateGasForPayForFibreSignatureVerification(numPreverifyValidators)
+
+	f := newPreverifyFixture(t)
+
+	funded := f.withFreshCache(t)
+	d := funded.decodedMessage(t, funded.msg, enough)
+	funded.keeper.PreverifyDecoded(funded.ctx, []*types.DecodedPayForFibre{d}, keeper.PreverifyOptions{Certificates: true})
+	require.True(t, funded.cache.Has(d.CertKey))
+	require.True(t, funded.cache.Has(d.PromiseKey))
+
+	underfunded := f.withFreshCache(t)
+	short := underfunded.decodedMessage(t, underfunded.msg, enough-1)
+	underfunded.keeper.PreverifyDecoded(underfunded.ctx, []*types.DecodedPayForFibre{short}, keeper.PreverifyOptions{Certificates: true})
+	require.Equal(t, 0, underfunded.cache.Len(), "an underfunded tx must cost the pass no signature work")
+
+	// The verdict is unchanged: the sequential verifier still accepts it.
+	require.NoError(t, underfunded.keeper.ValidatePayForFibreSignatures(underfunded.ctx, underfunded.msg))
+}
+
+// TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx pins where the
+// parallel pre-pass may run. Anywhere but CheckTx it must verify sequentially
+// and leave the certificate uncached: the pass exists to spread one admission's
+// work, and the other phases have their own block-level pass.
+func TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx(t *testing.T) {
+	f := newPreverifyFixture(t)
+	raw := f.txBytes(t)
+	d := keeper.DecodePayForFibre(raw)
+
+	for _, tc := range []struct {
+		name      string
+		prepare   func(sdk.Context) sdk.Context
+		preverify bool
+	}{
+		{"check", func(ctx sdk.Context) sdk.Context { return ctx.WithIsCheckTx(true) }, true},
+		{"recheck", func(ctx sdk.Context) sdk.Context { return ctx.WithIsReCheckTx(true) }, false},
+		{"prepare proposal", func(ctx sdk.Context) sdk.Context {
+			return ctx.WithExecMode(sdk.ExecModePrepareProposal)
+		}, false},
+		{"process proposal", func(ctx sdk.Context) sdk.Context {
+			return ctx.WithExecMode(sdk.ExecModeProcessProposal)
+		}, false},
+		{"finalize", func(ctx sdk.Context) sdk.Context { return ctx.WithExecMode(sdk.ExecModeFinalize) }, false},
+		{"bare context", func(ctx sdk.Context) sdk.Context { return ctx }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := f.withFreshCache(t)
+			ctx := types.WithDecodedPayForFibre(tc.prepare(fixture.ctx.WithTxBytes(raw)), d)
+			require.NoError(t, fixture.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
+			require.Equal(t, tc.preverify, fixture.cache.Has(d.CertKey),
+				"certificate cached only where the pre-pass may run")
+		})
+	}
 }

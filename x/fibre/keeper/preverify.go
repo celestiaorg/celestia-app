@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -127,6 +128,12 @@ func (p *preverification) record(cache SigCache, verified []bool) {
 // collectVerifications builds the work queue. Every state read happens here,
 // sequentially on ctx, so the workers touch nothing but their own inputs.
 func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) *preverification {
+	// A block carries at most this many PayForFibre messages, so the pass never
+	// covers more. PrepareProposal is handed everything the mempool offers
+	// within block max bytes, which is far more than any block can include.
+	limit := appconsts.MaxPayForFibreMessages
+	covered := 0
+
 	work := &preverification{}
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
@@ -136,12 +143,25 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		if d == nil || !d.PromiseKeyed {
 			continue
 		}
+		if covered >= limit {
+			break
+		}
+
+		// A pre-pass must not run signature work a transaction cannot pay for.
+		// Skipping only leaves the authoritative sequential check uncached.
+		if !hasPreverificationGas(d) {
+			continue
+		}
 		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}
 		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
 			continue
 		}
+
+		// Count only what the pass actually takes on. Spending the budget on
+		// entries it skipped would starve the ones that need verifying.
+		covered++
 
 		promiseCached := k.sigCache.Has(d.PromiseKey)
 		first := len(work.items)
@@ -158,6 +178,14 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		}
 	}
 	return work
+}
+
+// hasPreverificationGas reports whether the transaction declared enough gas for
+// the signature checks this pass would run for it. It is a lower bound: the
+// ante handler charges for more than signatures and remains the authority on
+// whether the transaction can pay.
+func hasPreverificationGas(d *types.DecodedPayForFibre) bool {
+	return d.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(uint64(len(d.Msg.ValidatorSignatures)))
 }
 
 // appendCertificateItems queues one ed25519 check per signature in the quorum
