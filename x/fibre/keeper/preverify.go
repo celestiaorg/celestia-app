@@ -177,6 +177,10 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		promiseCached := k.sigCache.Has(d.PromiseKey)
 		first := len(work.items)
 		if !promiseCached {
+			promise := &fibre.PaymentPromise{}
+			if err := promise.FromProto(&msg.PaymentPromise); err != nil {
+				continue
+			}
 			if work.items == nil {
 				capacity := 2 * min(len(decoded), limit)
 				work.items = make([]verification, 0, capacity)
