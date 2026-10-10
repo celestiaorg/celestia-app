@@ -454,6 +454,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 
 Backend GET metrics record only the primary backend and use `backend=local|object`.
 The duration metric uses `outcome=success|not_found|timeout|canceled|throttled|error`.
+Backends are only read for existing shard markers, so `not_found` means the payload is missing for a marker. The store reports this as an integrity error.
 Each observation covers one backend call. Object GET duration includes SDK retries; the outcome describes the final result.
 
 #### Grafana dashboard

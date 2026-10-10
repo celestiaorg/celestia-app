@@ -149,10 +149,10 @@ For each matching shard marker, `Store` will use this flow:
 2. `routedStorage` selects the configured backend from the marker tag.
 3. For a local marker, `localBackend` reads the local flat file.
 4. For an object marker, `objectBackend` reads the object with `GetObject`.
-5. If local storage returns `NotFound`, keep the marker for occupancy accounting and try the next matching shard marker.
-6. If object storage returns `NotFound`, keep the marker and try the next matching shard marker.
+5. If local storage returns `NotFound`, keep the marker for occupancy accounting, record an integrity error, and try the next matching shard marker.
+6. If object storage returns `NotFound`, keep the marker, record an integrity error, and try the next matching shard marker.
 7. If another durable-storage error occurs, record it and try the next matching shard marker.
-8. If no matching shard marker succeeds, return the recorded error, or `ErrStoreNotFound` if no other error occurred.
+8. If no matching shard marker succeeds, return the recorded error, or `ErrStoreNotFound` if no marker matched.
 
 Every read of an object-backed shard accesses object storage.
 

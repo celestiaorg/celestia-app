@@ -400,7 +400,7 @@ func TestStoreReconcileStaging(t *testing.T) {
 	require.Len(t, got.Rows, 2)
 }
 
-// Get skips a marker whose backing file is missing.
+// Get reports a marker whose backing file is missing as an integrity error.
 func testStoreGetSkipsMissingPayload(t *testing.T, store *fibre.Store, path string) {
 	blob := makeTestBlobV0(t, 256)
 	shard := makeShardFrom(t, blob, 0, 1)
@@ -414,7 +414,7 @@ func testStoreGetSkipsMissingPayload(t *testing.T, store *fibre.Store, path stri
 	require.NoError(t, os.Remove(filePath))
 
 	_, err = store.Get(t.Context(), blob.ID().Commitment())
-	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
+	require.ErrorIs(t, err, fibre.ErrStoreIntegrity)
 
 	// A fresh Put with a different promise must still be the one Get finds.
 	promise2 := makeTestPaymentPromise(101, blob.ID())
@@ -454,7 +454,7 @@ func testStoreGetSkipsOrphanToSibling(t *testing.T, store *fibre.Store, path str
 	require.Equal(t, validRow, got.Rows[0].Index)
 }
 
-// If all payloads for a commitment are missing, Get returns NotFound.
+// If all payloads for a commitment are missing, Get returns an integrity error.
 func testStoreGetAllOrphans(t *testing.T, store *fibre.Store, path string) {
 	blob := makeTestBlobV0(t, 256)
 	for i := range 3 {
@@ -465,7 +465,7 @@ func testStoreGetAllOrphans(t *testing.T, store *fibre.Store, path string) {
 			blob.ID().Commitment().String()+"-"+hex.EncodeToString(h))))
 	}
 	_, err := store.Get(t.Context(), blob.ID().Commitment())
-	require.ErrorIs(t, err, fibre.ErrStoreNotFound)
+	require.ErrorIs(t, err, fibre.ErrStoreIntegrity)
 }
 
 // Has reports present for a stored shard, absent for an unknown promise, and
