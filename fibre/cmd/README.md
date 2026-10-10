@@ -220,17 +220,6 @@ Two things to keep in mind:
 
 For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
 
-<<<<<<< HEAD
-=======
-## Troubleshooting connections
-
-- **`unknown service cosmos.base.tendermint.v1beta1.Service`**: Fibre could not query node information from its application connection. Check `--app-grpc-address`, the `[grpc]` section of `app.toml`, and the chain's active app version. The core RPC listener is not a substitute for application gRPC. This error alone does not establish that the only problem is pending v10 activation.
-- **Missing Fibre or valaddr services before activation**: prepare the configuration now, but start Fibre and register its host only once app version 10 is active.
-- **Application connection refused**: enable application gRPC, restart the node, and check that Fibre uses the same address and port. Flags passed by the service manager can override the file.
-- **Signer connection failed**: compare Fibre's signer address with the node's top-level `priv_validator_grpc_laddr`. Check for an empty value, the old port, or a listener conflict.
-
-For new node settings and their comments, see [Updating existing configuration files](../../docs/release-notes/release-notes.md#updating-existing-configuration-files). `update-config` has no v10 migration.
-
 ## Health
 
 The server exposes the standard [gRPC health service](https://grpc.io/docs/guides/health-checking/) on its normal port (`server_listen_address`). It answers two questions:
@@ -286,7 +275,6 @@ All settings live in the `[health]` table of the config file.
 
 The server cannot verify from the inside that its registered public `host:port` is reachable, or that a full upload succeeds. Probe the public address from another machine and run a small upload canary with a funded escrow account separately.
 
->>>>>>> 4610686 (feat(fibre): [high] add gRPC health and readiness diagnostics to the fibre server (#8009))
 ## Observability
 
 All observability flags are persistent and apply to every subcommand.
