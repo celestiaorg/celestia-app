@@ -350,6 +350,22 @@ func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.
 // can only skip a check that would have succeeded.
 func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
 	key, keyed := promiseSigCacheKey(pp)
+	return k.validatePromiseStatelessKeyed(pp, key, keyed)
+}
+
+// validatePromiseStatelessDecoded is ValidatePromiseStateless reusing the key
+// a decoded view already derived for this tx, when ctx carries one for exactly
+// this promise. source is the proto promise pp was converted from: the view is
+// bound to the transaction bytes, and this binds it to the message inside them,
+// so a caller validating some other promise can never borrow the key.
+func (k Keeper) validatePromiseStatelessDecoded(ctx sdk.Context, pp *fibre.PaymentPromise, source *types.PaymentPromise) error {
+	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.PromiseKeyed && d.Msg != nil && &d.Msg.PaymentPromise == source {
+		return k.validatePromiseStatelessKeyed(pp, d.PromiseKey, true)
+	}
+	return k.ValidatePromiseStateless(pp)
+}
+
+func (k Keeper) validatePromiseStatelessKeyed(pp *fibre.PaymentPromise, key sigcache.Key, keyed bool) error {
 	if keyed && k.sigCache != nil && k.sigCache.Has(key) {
 		return nil
 	}
@@ -373,7 +389,11 @@ func promiseSigCacheKey(pp *fibre.PaymentPromise) (sigcache.Key, bool) {
 	if err != nil {
 		return sigcache.Key{}, false
 	}
-	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature), true
+	return promiseSigCacheKeyFromSignBytes(pp, signBytes), true
+}
+
+func promiseSigCacheKeyFromSignBytes(pp *fibre.PaymentPromise, signBytes []byte) sigcache.Key {
+	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature)
 }
 
 // GetProcessedPaymentsByTimeIterator returns an iterator for all processed payments up to the given time

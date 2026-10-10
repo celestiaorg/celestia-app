@@ -358,3 +358,84 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 	require.Equal(t, before, f.cache.Len(), "a repeat pre-pass must not add entries")
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg))
 }
+
+// TestDecodePayForFibre checks the decoded view carries exactly the values the
+// verification path derives for itself, and is nil for anything else.
+func TestDecodePayForFibre(t *testing.T) {
+	f := newPreverifyFixture(t)
+	// The system blob carries the signer, which the fixture leaves unset.
+	f.msg.Signer = sdk.AccAddress(bytes.Repeat([]byte{0x2}, 20)).String()
+	raw := f.txBytes(t)
+
+	d := keeper.DecodePayForFibre(raw)
+	require.NotNil(t, d)
+	require.Equal(t, raw, d.Raw)
+	require.Equal(t, f.msg.PaymentPromise.String(), d.Msg.PaymentPromise.String())
+	require.Equal(t, f.msg.ValidatorSignatures, d.Msg.ValidatorSignatures)
+	require.True(t, d.CertKeyed)
+	require.Equal(t, f.certKey, d.CertKey)
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&f.msg.PaymentPromise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	require.True(t, d.PromiseKeyed)
+	require.Equal(t, signBytes, d.PromiseSignBytes)
+
+	fibreTx, err := d.FibreTx()
+	require.NoError(t, err)
+	require.Equal(t, raw, fibreTx.Tx)
+	expected, isFibreTx, err := types.TryParseFibreTx(raw)
+	require.NoError(t, err)
+	require.True(t, isFibreTx)
+	require.Equal(t, expected.SystemBlob, fibreTx.SystemBlob)
+
+	require.Nil(t, keeper.DecodePayForFibre([]byte("not a transaction")))
+	require.Nil(t, keeper.DecodePayForFibre(raw[:len(raw)/2]))
+}
+
+// TestPreverifyDecodedMatchesPreverifySignatures checks the decoded entry point
+// records the same cache entries as the byte-level one.
+func TestPreverifyDecodedMatchesPreverifySignatures(t *testing.T) {
+	f := newPreverifyFixture(t)
+	raw := f.txBytes(t)
+	opts := keeper.PreverifyOptions{Certificates: true}
+
+	f.keeper.PreverifySignatures(f.ctx, [][]byte{raw}, opts)
+	require.True(t, f.cache.Has(f.certKey))
+
+	fresh := f.withFreshCache(t)
+	d := keeper.DecodePayForFibre(raw)
+	fresh.keeper.PreverifyDecoded(fresh.ctx, []*types.DecodedPayForFibre{nil, d}, opts)
+	require.True(t, fresh.cache.Has(f.certKey))
+	require.True(t, fresh.cache.Has(d.PromiseKey))
+	require.Equal(t, f.cache.Len(), fresh.cache.Len())
+}
+
+// TestValidatePayForFibreSignaturesWithDecodedContext checks that a context
+// carrying the decoded view reaches the same verdict and cache state as one
+// without it.
+func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
+	f := newPreverifyFixture(t)
+	raw := f.txBytes(t)
+	d := keeper.DecodePayForFibre(raw)
+
+	plain := f.withFreshCache(t)
+	require.NoError(t, plain.keeper.ValidatePayForFibreSignatures(plain.ctx, f.msg))
+
+	decoded := f.withFreshCache(t)
+	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw), d)
+	require.NoError(t, decoded.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
+	require.Equal(t, plain.cache.Len(), decoded.cache.Len())
+	require.True(t, decoded.cache.Has(d.PromiseKey))
+
+	// A tampered promise signature fails on both paths.
+	bad := *f.msg
+	bad.PaymentPromise.Signature = append([]byte{}, bad.PaymentPromise.Signature...)
+	bad.PaymentPromise.Signature[0] ^= 0xff
+	badRaw := (&preverifyFixture{msg: &bad}).txBytes(t)
+	badDecoded := keeper.DecodePayForFibre(badRaw)
+	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw), badDecoded)
+	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(badCtx, &bad))
+	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(f.withFreshCache(t).ctx, &bad))
+}
