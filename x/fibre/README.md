@@ -11,7 +11,7 @@ The flow around the module:
 1. Once signatures representing more than 2/3 of the voting power are collected, a `MsgPayForFibre` carrying the promise and the signatures is submitted on chain, which deducts the payment from the escrow account (`PayForFibre` transactions are also referred to as "PFFs").
 1. If a promise was handed out but never settled, anyone may submit `MsgPaymentPromiseTimeout` after the promise's timeout to settle it — so a promise is never free to issue.
 
-Settled payments are routed to the fee collector and distributed like regular fees. The amount charged for a blob is `1 utia` per gas of `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` (see [`EstimateGasForPayForFibre`](./types/gas.go), the shared source of truth for the chain and the client-side escrow accounting).
+Settled payments are routed to the fee collector and distributed like regular fees. The amount charged for a blob is `0.004 utia` per gas of `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` rounded up to whole utia (see [`PaymentAmount`](./types/gas.go), shared by the chain and client-side escrow accounting). The blob size is the padded upload size, without parity. A 100 MiB payload with the default client configuration has a 100.25 MiB upload size and costs 74,780 utia in escrow settlement, plus transaction fees.
 
 Which host serves each validator's fibre traffic is tracked separately, in the [`x/valaddr`](../../x/valaddr/README.md) registry. The protocol-level specification of this module lives in [specs/src/fibre_module.md](../../specs/src/fibre_module.md).
 

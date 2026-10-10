@@ -582,9 +582,9 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		signerAddrStr := signerAddr.String()
 
 		// Create escrow account with insufficient balance
-		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-		requiredAmount := sdk.NewInt64Coin("utia", int64(gasRequired))
-		insufficientBalance := sdk.NewInt64Coin("utia", int64(gasRequired)-1) // Less than required
+		paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+		requiredAmount := sdk.NewInt64Coin("utia", paymentUtia)
+		insufficientBalance := sdk.NewInt64Coin("utia", paymentUtia-1) // Less than required
 
 		escrowAccount := types.EscrowAccount{
 			Signer:           signerAddrStr,
@@ -603,6 +603,24 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
+	suite.T().Run("exact payment is independent of local gas price", func(t *testing.T) {
+		promise := suite.createPaymentPromise()
+		payment := types.PaymentAmount(promise.BlobSize)
+		signer := sdk.AccAddress(promise.SignerPublicKey.Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer: signer, Balance: payment, AvailableBalance: payment,
+		})
+		for _, price := range []string{"0.001utia", "1utia"} {
+			prices, err := sdk.ParseDecCoins(price)
+			suite.Require().NoError(err)
+			ctx := suite.ctx.WithMinGasPrices(prices)
+			_, err = suite.keeper.ValidatePaymentPromiseStateful(ctx, &promise)
+			suite.NoError(err)
+			_, err = suite.keeper.ValidatePaymentPromiseStatefulForTimeout(ctx, &promise)
+			suite.NoError(err)
+		}
+	})
+
 	suite.T().Run("payment promise within clock-skew tolerance should be accepted", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		suite.createEscrowAccount(paymentPromise)
@@ -846,8 +864,8 @@ func (suite *KeeperTestSuite) createEscrowAccount(paymentPromise types.PaymentPr
 	signerAddrStr := signerAddr.String()
 	extraBalance := int64(1000)
 
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	availableBalance := sdk.NewInt64Coin("utia", int64(gasRequired)+extraBalance)
+	paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+	availableBalance := sdk.NewInt64Coin("utia", paymentUtia+extraBalance)
 
 	escrowAccount := types.EscrowAccount{
 		Signer:           signerAddrStr,
