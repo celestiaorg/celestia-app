@@ -101,9 +101,8 @@ func queryAccountWithRetry(ctx context.Context, attempts int, delay time.Duratio
 
 func newTxQueue(client *TxClient, numWorkers int) *txQueue {
 	pool := &txQueue{
-		client:   client,
-		jobQueue: make(chan *SubmissionJob, defaultParallelQueueSize),
-		workers:  make([]*txWorker, numWorkers),
+		client:  client,
+		workers: make([]*txWorker, numWorkers),
 	}
 
 	// Create workers: first worker always uses existing signer account
@@ -131,7 +130,6 @@ func newTxQueue(client *TxClient, numWorkers int) *txQueue {
 			accountName: accountName,
 			address:     address,
 			client:      client,
-			jobQueue:    pool.jobQueue,
 		}
 		pool.workers[i] = worker
 	}
@@ -147,7 +145,7 @@ func (p *txQueue) start(ctx context.Context) error {
 	}
 
 	// Recreate job queue channel if it was closed during previous stop
-	p.jobQueue = make(chan *SubmissionJob, defaultParallelQueueSize)
+	p.jobQueue = make(chan *SubmissionJob, p.client.parallelQueueSize)
 	// Update workers to use new job queue BEFORE starting goroutines
 	for _, worker := range p.workers {
 		worker.jobQueue = p.jobQueue

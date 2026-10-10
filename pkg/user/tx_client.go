@@ -207,9 +207,7 @@ func WithTxWorkers(numWorkers int) Option {
 // Default is 100 if not specified.
 func WithParallelQueueSize(size int) Option {
 	return func(c *TxClient) {
-		if c.txQueue != nil {
-			c.txQueue.jobQueue = make(chan *SubmissionJob, size)
-		}
+		c.parallelQueueSize = size
 	}
 }
 
@@ -234,6 +232,8 @@ type TxClient struct {
 	gasEstimationClient gasestimation.GasEstimatorClient
 	// txQueue manages parallel transaction submission when enabled
 	txQueue *txQueue
+	// parallelQueueSize is the buffer size used when starting the tx queue.
+	parallelQueueSize int
 }
 
 // NewTxClient returns a new TxClient
@@ -268,6 +268,7 @@ func NewTxClient(
 		txTracker:           make(map[string]txInfo),
 		cdc:                 cdc,
 		gasEstimationClient: gasestimation.NewGasEstimatorClient(conn),
+		parallelQueueSize:   defaultParallelQueueSize,
 	}
 
 	for _, opt := range options {
