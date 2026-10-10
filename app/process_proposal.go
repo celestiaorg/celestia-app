@@ -13,12 +13,11 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
-	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -214,6 +213,65 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	decodedHolder := &fibretypes.DecodedHolder{}
 	ctx = fibretypes.WithDecodedHolder(ctx, decodedHolder)
 
+	// For a large block of distinct, decoded PFF txs, the data root depends
+	// only on immutable tx bytes. Build it while the ordered ante and settlement
+	// walk runs. Duplicate transactions and malformed txs take the sequential
+	// path so cheap rejected proposals do not start extra square work.
+	var (
+		squareDone   chan proposalSquareResult
+		squareCancel atomic.Bool
+	)
+	if cached == nil && len(req.Txs) >= 100 && (maxPFF <= 0 || len(req.Txs) <= maxPFF) {
+		uniqueCerts := make(map[sigcache.Key]struct{}, len(req.Txs))
+		uniquePromises := make(map[sigcache.Key]struct{}, len(req.Txs))
+		parallel := true
+		for i, d := range decoded {
+			if d == nil || !d.CertKeyed || !d.PromiseKeyed || sdkTxs[i] == nil || decodeErrs[i] != nil {
+				parallel = false
+				break
+			}
+			// Both keys, not just the certificate: the walk rejects a repeated
+			// promise on its hash, which covers the promise alone, so two txs
+			// carrying one promise under different signature sets have
+			// distinct certificate keys and would otherwise slip through to
+			// the parallel path and be rejected anyway.
+			_, certSeen := uniqueCerts[d.CertKey]
+			_, promiseSeen := uniquePromises[d.PromiseKey]
+			if certSeen || promiseSeen {
+				parallel = false
+				break
+			}
+			uniqueCerts[d.CertKey] = struct{}{}
+			uniquePromises[d.PromiseKey] = struct{}{}
+		}
+		if parallel {
+			squareDone = make(chan proposalSquareResult, 1)
+			go func(done chan<- proposalSquareResult) {
+				// The send must happen on every path: a goroutine that died
+				// without sending would leave the drain below blocking
+				// forever, which is a silent node halt.
+				result := proposalSquareResult{
+					stage: "panic while building proposal square",
+					err:   fmt.Errorf("proposal square builder did not finish"),
+				}
+				defer func() {
+					_ = recover()
+					done <- result
+				}()
+				result = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+			}(squareDone)
+			defer func() {
+				if squareDone != nil {
+					// Tell the builder to stop before waiting for it, so a
+					// proposal rejected at its first transaction does not pay
+					// for a whole square and extended square first.
+					squareCancel.Store(true)
+					<-squareDone
+				}
+			}()
+		}
+	}
+
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
@@ -359,23 +417,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return accept(), nil
 	}
 
-	// Classify txs (marking pay-for-fibre txs and synthesizing their system
-	// blobs) before constructing the square; go-square no longer decodes
-	// Cosmos SDK transactions itself.
-	classifiedTxs, err := classifyTxs(req.Txs, blobTxs, decoded)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
-		return reject(), nil
+	var square proposalSquareResult
+	if squareDone == nil {
+		square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+	} else {
+		square = <-squareDone
+		squareDone = nil
 	}
-	dataSquare, err := constructSquare(classifiedTxs, blobTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
-		return reject(), nil
-	}
-
-	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
+	if square.err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, square.stage, square.err)
 		return reject(), nil
 	}
 
@@ -383,22 +433,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// the halved EDS width rather than the doubled proposer value: doubling an
 	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
 	// otherwise be indistinguishable.
-	if uint64(eds.Width())/2 != req.SquareSize {
+	if square.size != req.SquareSize {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
 		return reject(), nil
 	}
 
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+	if !bytes.Equal(square.root, req.DataRootHash) {
+		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, square.root))
 		return reject(), nil
 	}
 

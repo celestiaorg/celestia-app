@@ -52,6 +52,6 @@ func executeProposalPFF(ctx sdk.Context, msg sdk.Msg, router baseapp.MessageRout
 	if handler == nil {
 		return fmt.Errorf("no message handler found for %s", sdk.MsgTypeURL(msg))
 	}
-	_, err = handler(ctx.WithEventManager(sdk.NewEventManager()), msg)
+	_, err = handler(ctx, msg)
 	return err
 }

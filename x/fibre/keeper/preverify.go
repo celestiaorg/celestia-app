@@ -255,9 +255,10 @@ func (k Keeper) appendCertificateItems(
 // which only costs a cache entry.
 func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	results := make([]bool, len(items))
+	const chunkSize = 8
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
-	workers := min(runtime.GOMAXPROCS(0), len(items))
+	workers := min(runtime.GOMAXPROCS(0), (len(items)+chunkSize-1)/chunkSize)
 
 	var (
 		next     atomic.Int64
@@ -277,16 +278,20 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 					panicked.CompareAndSwap(nil, r)
 				}
 			}()
+			// Comma-ok: a failed assertion here would panic every worker on
+			// its first line, leave every result false, and show up only as a
+			// cache that never warms. Falling back to the per-item path keeps
+			// the pass working.
+			batch, batchOK := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
+			if !batchOK {
+				batch = nil
+			}
 			for {
-				i := int(next.Add(1)) - 1
+				i := int(next.Add(chunkSize)) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
-				if items[i].run() {
-					results[i] = true
-					continue
-				}
-				if stopOnFirstFailure {
+				if !runVerificationChunk(items, results, i, min(i+chunkSize, len(items)), batch) && stopOnFirstFailure {
 					aborted.Store(true)
 				}
 			}
@@ -295,4 +300,61 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	wg.Wait()
 
 	return results
+}
+
+// runVerificationChunk combines a few certificate batches. A failed combined
+// batch leaves their cache entries unset; the ordered path verifies them again
+// and remains the authority on the block's validity.
+func runVerificationChunk(items []verification, results []bool, start, end int, batch *ed25519.BatchVerifier) bool {
+	if batch == nil {
+		// The per-item path the caller's comma-ok assertion falls back to.
+		allValid := true
+		for i := start; i < end; i++ {
+			if items[i].run() {
+				results[i] = true
+				continue
+			}
+			allValid = false
+		}
+		return allValid
+	}
+	batch.Reset()
+	allValid := true
+	batchReady := true
+	certificates := 0
+	for i := start; i < end; i++ {
+		item := items[i]
+		if item.promise != nil {
+			if item.run() {
+				results[i] = true
+			} else {
+				allValid = false
+			}
+			continue
+		}
+		certificates++
+		if !batchReady {
+			continue
+		}
+		for j, pubKey := range item.pubKeys {
+			if batch.Add(pubKey, item.message, item.signatures[j]) != nil {
+				batchReady = false
+				break
+			}
+		}
+	}
+	if certificates == 0 {
+		return allValid
+	}
+	if batchReady {
+		if valid, _ := batch.Verify(); valid {
+			for i := start; i < end; i++ {
+				if items[i].promise == nil {
+					results[i] = true
+				}
+			}
+			return allValid
+		}
+	}
+	return false
 }

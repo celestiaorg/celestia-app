@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"context"
+	"sync"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
@@ -29,20 +30,25 @@ type DecodedPayForFibre struct {
 	// when the auth info could not be read.
 	GasLimit uint64
 
-	fibreTx *squaretx.FibreTx
+	// fibreTx is built on first use and guarded: the proposal square is built
+	// on a goroutine that runs alongside the ordered walk, and both may reach
+	// it.
+	fibreTxOnce sync.Once
+	fibreTx     *squaretx.FibreTx
+	fibreTxErr  error
 }
 
 // FibreTx returns the tx with its synthesized system blob, built on first use.
 func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
-	if d.fibreTx != nil {
-		return d.fibreTx, nil
-	}
-	systemBlob, err := d.Msg.SystemBlob()
-	if err != nil {
-		return nil, err
-	}
-	d.fibreTx = &squaretx.FibreTx{Tx: d.Raw, SystemBlob: systemBlob}
-	return d.fibreTx, nil
+	d.fibreTxOnce.Do(func() {
+		systemBlob, err := d.Msg.SystemBlob()
+		if err != nil {
+			d.fibreTxErr = err
+			return
+		}
+		d.fibreTx = &squaretx.FibreTx{Tx: d.Raw, SystemBlob: systemBlob}
+	})
+	return d.fibreTx, d.fibreTxErr
 }
 
 type decodedPayForFibreKey struct{}
