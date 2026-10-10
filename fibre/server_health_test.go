@@ -104,7 +104,9 @@ func TestHealthManager(t *testing.T) {
 	store := NewMemoryStore(StoreConfig{})
 	t.Cleanup(func() { _ = store.Close() })
 
-	m := newHealthManager(healthSettings{probeTimeout: time.Second, maxBlockAge: time.Minute}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	// The probe timeout is generous: the store check does a real pebble write and read, and
+	// under -race on a loaded machine that can take far longer than a production probe would.
+	m := newHealthManager(healthSettings{probeTimeout: 30 * time.Second, maxBlockAge: time.Minute}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	ctx := context.Background()
 	readiness := func() healthpb.HealthCheckResponse_ServingStatus {
 		resp, err := m.hs.Check(ctx, &healthpb.HealthCheckRequest{})
@@ -235,9 +237,9 @@ func TestServerHealth(t *testing.T) {
 	assert.Equal(t, healthpb.HealthCheckResponse_UNKNOWN, check(""), "listener closed")
 }
 
-// TestStoreProbe checks that a probe gives up when its context ends, that no second probe starts
-// while one is in flight, and that Close waits for a running probe or, if it is stuck, closes the
-// database once the probe returns.
+// TestStoreProbe checks that a probe gives up when its context ends, that a probe started while
+// another is in flight waits for it rather than failing, and that Close waits for a running probe
+// or, if it is stuck, closes the database once the probe returns.
 func TestStoreProbe(t *testing.T) {
 	cfg := DefaultStoreConfig()
 	cfg.Path = t.TempDir()
@@ -251,7 +253,16 @@ func TestStoreProbe(t *testing.T) {
 	require.ErrorIs(t, store.Probe(expired, []byte("b")), context.Canceled)
 
 	store.probe <- struct{}{} // as if a probe were still in pebble
-	require.ErrorContains(t, store.Probe(ctx, []byte("c")), "previous probe")
+	busy, cancelBusy := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancelBusy()
+	require.ErrorIs(t, store.Probe(busy, []byte("c")), context.DeadlineExceeded, "a waiting probe gives up with its context")
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		<-store.probe
+	}()
+	require.NoError(t, store.Probe(ctx, []byte("c")), "a probe waits for the one in flight instead of failing")
+
+	store.probe <- struct{}{}
 	go func() {
 		time.Sleep(50 * time.Millisecond)
 		<-store.probe
