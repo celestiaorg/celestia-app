@@ -14,6 +14,15 @@ func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 	if !isPFF || err != nil {
 		return nil
 	}
+	return DerivePayForFibre(raw, msg, gasLimit)
+}
+
+// DerivePayForFibre derives cache inputs from an already decoded transaction.
+// The caller must supply the message and gas limit decoded from raw.
+func DerivePayForFibre(raw []byte, msg *types.MsgPayForFibre, gasLimit uint64) *types.DecodedPayForFibre {
+	if msg == nil {
+		return nil
+	}
 	d := &types.DecodedPayForFibre{Raw: raw, Msg: msg, GasLimit: gasLimit}
 	if key, err := msg.SigCacheKey(); err == nil {
 		d.CertKey, d.CertKeyed = key, true

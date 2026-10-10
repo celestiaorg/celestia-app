@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"slices"
 
 	"cosmossdk.io/collections"
 	collectionscodec "cosmossdk.io/collections/codec"
@@ -23,12 +24,17 @@ func (app *App) proposalAccountKeeper() authkeeper.AccountKeeper {
 
 type proposalAccountCodec struct {
 	collectionscodec.ValueCodec[sdk.AccountI]
-	raw     []byte
-	account authtypes.BaseAccount
-	valid   bool
+	raw       []byte
+	account   authtypes.BaseAccount
+	valid     bool
+	moduleRaw []byte
+	module    *authtypes.ModuleAccount
 }
 
 func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
+	if c.module != nil && bytes.Equal(raw, c.moduleRaw) {
+		return cloneModuleAccount(c.module), nil
+	}
 	if c.valid && bytes.Equal(raw, c.raw) {
 		// Ante changes sequence and replaces the PubKey field; it does not
 		// mutate the public key itself. Give each caller its own account.
@@ -38,6 +44,11 @@ func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
 	account, err := c.ValueCodec.Decode(raw)
 	if err != nil {
 		return nil, err
+	}
+	if module, ok := account.(*authtypes.ModuleAccount); ok && module.BaseAccount != nil && module.PubKey == nil && len(raw) <= 4096 {
+		c.moduleRaw = append(c.moduleRaw[:0], raw...)
+		c.module = cloneModuleAccount(module)
+		return account, nil
 	}
 	base, ok := account.(*authtypes.BaseAccount)
 	if ok && len(raw) <= 4096 {
@@ -65,4 +76,12 @@ func (c *proposalAccountCodec) Encode(account sdk.AccountI) ([]byte, error) {
 		c.valid = false
 	}
 	return raw, nil
+}
+
+func cloneModuleAccount(source *authtypes.ModuleAccount) *authtypes.ModuleAccount {
+	account := *source
+	base := *source.BaseAccount
+	account.BaseAccount = &base
+	account.Permissions = slices.Clone(source.Permissions)
+	return &account
 }

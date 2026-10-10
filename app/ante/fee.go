@@ -91,8 +91,10 @@ func ValidateTxFee(ctx sdk.Context, tx sdk.Tx, minfeeKeeper *minfeekeeper.Keeper
 func verifyMinFee(fee math.Int, gas uint64, minGasPrice math.LegacyDec, errMsg string) error {
 	// Determine the required fee by multiplying required minimum gas
 	// price by the gas limit, where fee = minGasPrice * gas.
-	minFee := minGasPrice.MulInt(math.NewIntFromUint64(gas)).Ceil()
-	if fee.LT(minFee.TruncateInt()) {
+	minFee := minGasPrice.MulInt(math.NewIntFromUint64(gas))
+	// An integer fee meets ceil(minFee) exactly when its decimal value meets minFee.
+	if math.LegacyNewDecFromInt(fee).LT(minFee) {
+		minFee = minFee.Ceil()
 		denom := appconsts.BondDenom
 		return errors.Wrapf(sdkerror.ErrInsufficientFee,
 			"%s; got: %s%s, required: %s%s (min gas price: %s %s/gas)",

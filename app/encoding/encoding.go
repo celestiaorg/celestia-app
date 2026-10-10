@@ -3,6 +3,7 @@ package encoding
 import (
 	addresscodec "cosmossdk.io/core/address"
 	"cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v10/pkg/txutil"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/codec/address"
@@ -53,10 +54,14 @@ func MakeConfig(moduleBasics ...sdkmodule.AppModuleBasic) Config {
 	}
 
 	protoCodec := codec.NewProtoCodec(interfaceRegistry)
-	txDecoder := authtx.DefaultTxDecoder(protoCodec)
-	txDecoder = indexWrapperDecoder(txDecoder)
-	txDecoder = blobTxDecoder(txDecoder)
-	txDecoder = rejectEmptyTxDecoder(txDecoder)
+	sdkDecoder := authtx.DefaultTxDecoder(protoCodec)
+	wrappedDecoder := blobTxDecoder(indexWrapperDecoder(sdkDecoder))
+	txDecoder := rejectEmptyTxDecoder(func(raw []byte) (sdk.Tx, error) {
+		if _, plain := txutil.PlainSDKBody(raw); plain {
+			return sdkDecoder(raw)
+		}
+		return wrappedDecoder(raw)
+	})
 
 	txConfig, err := authtx.NewTxConfigWithOptions(protoCodec, authtx.ConfigOptions{
 		EnabledSignModes: authtx.DefaultSignModes,
