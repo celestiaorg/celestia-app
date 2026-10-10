@@ -1,7 +1,6 @@
 package validator
 
 import (
-	"crypto/ed25519"
 	"fmt"
 	"sync"
 
@@ -14,9 +13,8 @@ import (
 // Signatures are returned in validator set order by [Signatures],
 // with nil entries for validators that did not sign.
 type SignatureSet struct {
-	// requiredBytesSigned is the message that each validator's signature is
-	// verified against. A signature is only accepted if it is a valid Ed25519
-	// signature of these bytes by the validator's public key.
+	// requiredBytesSigned is the message each validator's signature is verified
+	// against, under ZIP-215.
 	requiredBytesSigned    []byte
 	minRequiredVotingPower int64
 	validators             []*core.Validator
@@ -41,10 +39,12 @@ func (s Set) NewSignatureSet(targetVotingPower cmtmath.Fraction, requiredBytesSi
 // Add validates and adds a signature from the given validator.
 // Returns an error if the signature is invalid.
 // Returns true if enough signatures have been collected to meet both thresholds.
+//
+// Verification applies ZIP-215, which accepts strictly more signatures than
+// crypto/ed25519 did. See fibre/validator/zip215_test.go.
 func (ss *SignatureSet) Add(val *core.Validator, signature []byte) (bool, error) {
 	// verify signature
-	pubKey := val.PubKey.Bytes()
-	if !ed25519.Verify(ed25519.PublicKey(pubKey), ss.requiredBytesSigned, signature) {
+	if !val.PubKey.VerifySignature(ss.requiredBytesSigned, signature) {
 		return false, fmt.Errorf("invalid signature from validator %s", val.Address.String())
 	}
 
