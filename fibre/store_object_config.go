@@ -127,9 +127,13 @@ func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, 
 	if _, err := awsConfig.Credentials.Retrieve(ctx); err != nil {
 		return nil, fmt.Errorf("loading object storage credentials: %w", err)
 	}
-	return s3.NewFromConfig(awsConfig, func(options *s3.Options) {
+	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.BaseEndpoint = aws.String(cfg.Endpoint)
-	}), nil
+	})
+	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(cfg.Bucket)}); err != nil {
+		return nil, fmt.Errorf("checking object storage bucket %q: %w", cfg.Bucket, err)
+	}
+	return client, nil
 }
 
 // hasObjectMarkers stops at the first valid object marker without reading payloads.

@@ -40,6 +40,36 @@ func testObjectStorageConfig() ObjectStorageConfig {
 	}
 }
 
+func TestObjectClientChecksBucket(t *testing.T) {
+	clearAWSCredentials(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	for _, status := range []int{http.StatusOK, http.StatusForbidden, http.StatusNotFound} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			requested := make(chan struct{}, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodHead, r.Method)
+				assert.Equal(t, "/fibre-shards", strings.TrimSuffix(r.URL.Path, "/"))
+				assert.Contains(t, r.Header.Get("Authorization"), "Credential=test-key/")
+				requested <- struct{}{}
+				w.WriteHeader(status)
+			}))
+			defer server.Close()
+			cfg := testObjectStorageConfig()
+			cfg.Endpoint = server.URL
+			client, err := newObjectClient(t.Context(), cfg)
+			if status == http.StatusOK {
+				require.NoError(t, err)
+				require.NotNil(t, client)
+			} else {
+				require.ErrorContains(t, err, "checking object storage bucket")
+				require.Nil(t, client)
+			}
+			require.Len(t, requested, 1)
+		})
+	}
+}
+
 func TestObjectStorageConfigValidate(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -88,10 +118,15 @@ func TestStoreRejectsUnstablePrefix(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
 	cfg := DefaultStoreConfig()
 	cfg.Path = t.TempDir()
 	cfg.StorageBackend = "object"
 	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.Endpoint = server.URL
 	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
 	cfg.ObjectStorage.Prefix = "fibre /"
 	store, err := NewStore(t.Context(), cfg)
@@ -195,12 +230,17 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
 	for _, operation := range []string{"put", "get", "has", "delete", "delete batch", "read body", "cancel body"} {
 		t.Run(operation, func(t *testing.T) {
 			cfg := DefaultStoreConfig()
 			cfg.Path = t.TempDir()
 			cfg.StorageBackend = storageBackendObject
 			cfg.ObjectStorage = testObjectStorageConfig()
+			cfg.ObjectStorage.Endpoint = server.URL
 			cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "chain", "validator"
 			require.NoError(t, toml.Unmarshal([]byte("request_timeout = 100000000"), &cfg.ObjectStorage))
 			store, err := NewStore(t.Context(), cfg)
@@ -297,6 +337,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 			assert.Equal(t, int64(len(data)), r.ContentLength)
 			objects[r.URL.Path] = data
 		case http.MethodGet, http.MethodHead:
+			if r.Method == http.MethodHead && strings.TrimSuffix(r.URL.Path, "/") == "/fibre-shards" {
+				return
+			}
 			data, ok := objects[r.URL.Path]
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)
