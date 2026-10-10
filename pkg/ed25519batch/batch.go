@@ -3,8 +3,10 @@ package ed25519batch
 
 import (
 	"crypto/sha512"
+	"encoding/binary"
 	"errors"
 	"io"
+	"math/bits"
 
 	"github.com/cometbft/cometbft/crypto"
 	cmted25519 "github.com/cometbft/cometbft/crypto/ed25519"
@@ -29,6 +31,7 @@ type Verifier struct {
 	scalarPointers []*scalar.Scalar
 	points         []*curve.EdwardsPoint
 	random         []byte
+	sums           []scalarSum
 }
 
 // Reset discards the batch while retaining bounded worker storage.
@@ -130,6 +133,11 @@ func (v *Verifier) VerifyBatchOnly(random io.Reader) bool {
 	if _, err := io.ReadFull(random, v.random); err != nil {
 		return false
 	}
+	if cap(v.sums) < 1+len(v.publicPoints) {
+		v.sums = make([]scalarSum, 1+len(v.publicPoints))
+	}
+	v.sums = v.sums[:1+len(v.publicPoints)]
+	clear(v.sums)
 	for i := range v.entries {
 		e := &v.entries[i]
 		var raw [32]byte
@@ -142,15 +150,59 @@ func (v *Verifier) VerifyBatchOnly(random io.Reader) bool {
 			return false
 		}
 		v.points[1+i] = &e.r
-		var coefficient scalar.Scalar
-		coefficient.Mul(z, &e.s)
-		v.scalarValues[0].Add(&v.scalarValues[0], &coefficient)
-		coefficient.Mul(z, &e.challenge)
-		a := &v.scalarValues[1+n+e.key]
-		a.Add(a, &coefficient)
+		v.sums[0].addProduct(&raw, &e.s)
+		v.sums[1+e.key].addProduct(&raw, &e.challenge)
+	}
+	v.sums[0].reduce(&v.scalarValues[0])
+	for i := range v.publicPoints {
+		v.sums[1+i].reduce(&v.scalarValues[1+n+i])
 	}
 	v.scalarValues[0].Neg(&v.scalarValues[0])
 	var result curve.EdwardsPoint
 	result.MultiscalarMulVartime(v.scalarPointers, v.points)
 	return result.IsSmallOrder()
+}
+
+// scalarSum accumulates unreduced products of a coefficient at most 2^128
+// and a scalar below 2^253. Seven limbs hold MaxInt such products.
+type scalarSum [7]uint64
+
+func (s *scalarSum) addProduct(coefficient *[32]byte, value *scalar.Scalar) {
+	var encoded [32]byte
+	_ = value.ToBytes(encoded[:])
+	for i := range 3 {
+		word := binary.LittleEndian.Uint64(coefficient[8*i:])
+		if word == 0 {
+			continue
+		}
+		var carry uint64
+		for j := range 4 {
+			hi, lo := bits.Mul64(word, binary.LittleEndian.Uint64(encoded[8*j:]))
+			var c uint64
+			lo, c = bits.Add64(lo, s[i+j], 0)
+			hi += c
+			lo, c = bits.Add64(lo, carry, 0)
+			hi += c
+			s[i+j] = lo
+			carry = hi
+		}
+		// Bounded rather than trusting the headroom: a future change to the
+		// coefficient width or the batch size would otherwise turn this into
+		// an index-out-of-range inside a worker, which the worker's recover
+		// hides as a cache that never warms.
+		for j := i + 4; carry != 0; j++ {
+			if j >= len(s) {
+				panic("ed25519batch: scalar accumulator overflowed; batch size and coefficient width are out of step")
+			}
+			s[j], carry = bits.Add64(s[j], carry, 0)
+		}
+	}
+}
+
+func (s *scalarSum) reduce(out *scalar.Scalar) {
+	var encoded [64]byte
+	for i, limb := range s {
+		binary.LittleEndian.PutUint64(encoded[8*i:], limb)
+	}
+	_, _ = out.SetBytesModOrderWide(encoded[:])
 }
