@@ -43,7 +43,7 @@ func (a *App) OutOfOrderPrepareProposal(req *abci.RequestPrepareProposal) (*abci
 		&a.CircuitKeeper,
 		a.GovParamFilters(),
 		a.FibreKeeper,
-		app.NewPffSigVerificationCache(),
+		app.NewSigCache(),
 	)
 
 	fsb, err := app.NewFilteredSquareBuilder(
