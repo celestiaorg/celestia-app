@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -490,4 +491,62 @@ func (r *fixedHostRegistry) GetHost(_ context.Context, _ *core.Validator) (valid
 		return "", fmt.Errorf("no address configured")
 	}
 	return validator.Host(r.addr), nil
+}
+
+func (s *FibreE2ETestSuite) Test09PutWithTxWorkers() {
+	t := s.T()
+	ctx := s.cctx.GoContext()
+	ecfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	// Creates, funds, and fee-grants the non-primary worker account from the default account.
+	txClient, err := user.SetupTxClient(ctx, s.cctx.Keyring, s.cctx.GRPCClient, ecfg,
+		user.WithDefaultAccount(fibre.DefaultKeyName), user.WithTxWorkers(2))
+	require.NoError(t, err)
+	require.Equal(t, 2, txClient.TxQueueWorkerCount())
+
+	require.NoError(t, s.cctx.WaitForNextBlock())
+	before := s.escrowAccount(ctx)
+
+	const puts = 2
+	results := make([]fibre.PutResult, puts)
+	errs := make([]error, puts)
+	var wg sync.WaitGroup
+	for i := range puts {
+		wg.Go(func() {
+			data := make([]byte, 4*1024)
+			if _, errs[i] = rand.Read(data); errs[i] != nil {
+				return
+			}
+			ns := share.MustNewV0Namespace([]byte{0xF1, byte(i)})
+			results[i], errs[i] = fibre.Put(ctx, s.fibreClient, txClient, ns, data)
+		})
+	}
+	wg.Wait()
+	for i := range puts {
+		require.NoError(t, errs[i])
+	}
+
+	workerAddrs := []string{txClient.TxQueueWorkerAddress(0), txClient.TxQueueWorkerAddress(1)}
+	var maxHeight int64
+	for _, result := range results {
+		res, err := s.cctx.WaitForTx(result.TxHash, 5)
+		require.NoError(t, err)
+		maxHeight = max(maxHeight, res.Height)
+
+		sdkTx, err := ecfg.TxConfig.TxDecoder()(res.Tx)
+		require.NoError(t, err)
+		require.Len(t, sdkTx.GetMsgs(), 1)
+		msg, ok := sdkTx.GetMsgs()[0].(*fibretypes.MsgPayForFibre)
+		require.True(t, ok)
+		require.Contains(t, workerAddrs, msg.Signer)
+
+		promiseSigner := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
+		require.Equal(t, txClient.DefaultAddress().String(), promiseSigner, "promise must be signed by the default key")
+	}
+	_, err = s.cctx.WaitForHeight(maxHeight)
+	require.NoError(t, err)
+	uploadSize := uint32(fibre.DefaultBlobConfigV0().UploadSize(4 * 1024))
+	wantDebit := fibretypes.PaymentAmount(uploadSize).Amount.MulRaw(puts)
+	after := s.escrowAccount(ctx)
+	require.Equal(t, wantDebit, before.Balance.Amount.Sub(after.Balance.Amount), "both blobs must be charged to the default escrow")
 }

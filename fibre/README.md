@@ -109,6 +109,7 @@ The charge per blob is `650,000 + 45,000 × ⌈blob_size / 256 KiB⌉` utia (see
 
 ## Notes
 
-- `Put` is the convenience path: one blob, one `MsgPayForFibre`, submitted through the provided tx client. For custom transaction handling — fee grants, batching several blobs into a single PFF — use `Client.Upload` and submit the message yourself.
+- `Put` is the convenience path: one blob, one `MsgPayForFibre`, submitted with the tx client's default account. If the tx client was set up with `user.WithTxWorkers(n)` and n > 1, `Put` submits through the worker queue instead, where each worker account submits one `MsgPayForFibre` at a time. Every promise is signed by the default key, so a single escrow account is charged.
+- For custom transaction handling, use `Client.Upload` and submit the promise yourself, e.g. with `TxClient.QueuePayForFibre`.
 - Uploaded data is retained by fibre servers for a limited window (the `shard_retention` chain parameter, plus whatever servers keep voluntarily). Fibre is not archival storage: download soon after publishing, or persist the data elsewhere.
 - The full API and configuration reference (`ClientConfig`, thresholds, timeouts, retries) is specified in [specs/src/fibre_client.md](../specs/src/fibre_client.md).
