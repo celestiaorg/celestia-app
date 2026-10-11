@@ -516,12 +516,17 @@ func (s *Store) reconcile() error {
 // Probe writes value under the reserved key /health/probe with fsync and reads
 // it back. The key lives outside the shard, promise and prune prefixes. Pebble
 // ignores ctx, so the work runs in the background and Probe gives up when ctx
-// ends; no new probe starts until the previous one returned.
+// ends. Only one probe runs at a time: while one is in flight the next waits
+// for it until ctx ends, rather than failing straight away, so a single slow
+// probe does not fail every health check that follows it.
 func (s *Store) Probe(ctx context.Context, value []byte) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	select {
 	case s.probe <- struct{}{}:
-	default:
-		return errors.New("previous probe has not returned")
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 	done := make(chan error, 1)
 	go func() {
