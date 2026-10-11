@@ -19,6 +19,7 @@ type Config struct {
 	// RPC requests.
 	AuthToken string
 	Seeds     string
+	Peers     string
 }
 
 // mochaPeers are persistent peers for mocha-5 that retain the full block
@@ -58,11 +59,8 @@ func NewMochaConfig() *Config {
 		// more resilient than hardcoded persistent peers which go stale.
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/main/mocha-5/seeds.txt
 		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656",
-<<<<<<< HEAD
-=======
 		// Archive nodes (earliest_block_height = 1 on their RPC /status).
 		Peers: mochaPeers,
->>>>>>> 58b7511 (test(docker-e2e): [medium] refresh mocha archive peers for genesis sync (#8134))
 	}
 }
 

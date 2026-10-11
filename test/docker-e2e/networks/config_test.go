@@ -3,7 +3,17 @@ package networks
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
+
+func TestMochaConfigPeers(t *testing.T) {
+	config := NewMochaConfig()
+
+	require.NotEmpty(t, config.Peers)
+	require.Equal(t, mochaPeers, config.Peers)
+	require.Contains(t, config.Peers, "daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656")
+}
 
 func TestMochaConfigUpdate(t *testing.T) {
 	config := NewMochaConfig()
