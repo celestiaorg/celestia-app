@@ -412,6 +412,11 @@ func (s *FibreE2ETestSuite) Test07DuplicatePayment() {
 		ValidatorSignatures: signed.ValidatorSignatures,
 	}
 
+	// The promise height comes from CometBFT, which can lead app state. Wait
+	// for the next block so the app has committed the promise height.
+	_, err = s.cctx.WaitForHeight(int64(signed.Height) + 1)
+	require.NoError(t, err)
+
 	resp, err := s.txClient.BroadcastTx(ctx, []sdk.Msg{msg})
 	require.NoError(t, err)
 	_, err = s.txClient.ConfirmTx(ctx, resp.TxHash)
