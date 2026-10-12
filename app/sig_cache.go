@@ -1,10 +1,9 @@
 package app
 
 import (
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/spf13/cast"
-
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 )
 
 // DefaultMempoolMaxTxs mirrors cfg.Mempool.Size from celestia-core's
