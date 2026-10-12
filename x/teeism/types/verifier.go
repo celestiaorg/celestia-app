@@ -128,16 +128,9 @@ func VerifyQuote(quote []byte, collateral *Collateral, blockTime time.Time) (*Me
 	return VerifyQuoteWith(quote, collateral, blockTime, nil)
 }
 
-// VerifyQuoteWith is VerifyQuote with an ism owner's overrides of Intel's verdict:
-//
-//   - trusted_root_certs replace the Intel root the signature chain must end at.
-//   - collateral_grace_secs: when the quote fails at block time, it is verified
-//     again as of that many seconds earlier, so collateral (and certificates) that
-//     lapsed within the window still verify. Verifying at block time first keeps
-//     freshly issued collateral working, whose validity starts after the earlier
-//     instant.
-//
-// Neither skips Intel's verdict: the quote must always chain to a trusted root.
+// VerifyQuoteWith is VerifyQuote with an ism owner's overrides: trusted_root_certs
+// replace the Intel root the signature chain must end at. Verification is
+// otherwise unchanged.
 func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, overrides *VerifierOverrides) (*Measurements, []byte, error) {
 	if err := collateral.Validate(); err != nil {
 		return nil, nil, err
@@ -158,25 +151,14 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 	if err != nil {
 		return nil, nil, err
 	}
-	verifyAt := func(at time.Time) error {
-		return verify.TdxQuote(quoteV4, &verify.Options{
-			CheckRevocations: true,
-			GetCollateral:    true,
-			Getter:           offlineGetter{collateral: collateral},
-			Now:              at,
-			TrustedRoots:     roots,
-		})
-	}
-	if err := verifyAt(blockTime); err != nil {
-		grace := overrides.collateralGraceSecs()
-		if grace == 0 {
-			return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
-		}
-		earlier := blockTime.Add(-time.Duration(grace) * time.Second)
-		if graceErr := verifyAt(earlier); graceErr != nil {
-			return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed at block time (%s) and %ds earlier (%s)",
-				err.Error(), grace, graceErr.Error())
-		}
+	if err := verify.TdxQuote(quoteV4, &verify.Options{
+		CheckRevocations: true,
+		GetCollateral:    true,
+		Getter:           offlineGetter{collateral: collateral},
+		Now:              blockTime,
+		TrustedRoots:     roots,
+	}); err != nil {
+		return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
 	}
 
 	body := quoteV4.GetTdQuoteBody()

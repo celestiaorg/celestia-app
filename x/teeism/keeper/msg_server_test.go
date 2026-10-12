@@ -2,6 +2,12 @@ package keeper_test
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"math/big"
 	"testing"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
@@ -106,7 +112,7 @@ func (s *KeeperTestSuite) TestUpdateOwner() {
 
 func (s *KeeperTestSuite) TestSetVerifierOverrides() {
 	id := s.createIsm()
-	overrides := &types.VerifierOverrides{CollateralGraceSecs: 72 * 60 * 60}
+	overrides := &types.VerifierOverrides{TrustedRootCerts: [][]byte{s.root()}}
 
 	_, err := s.msgServer.SetVerifierOverrides(s.ctx, &types.MsgSetVerifierOverrides{Owner: s.stranger, Id: id, Overrides: overrides})
 	s.Require().ErrorIs(err, sdkerrors.ErrUnauthorized)
@@ -126,7 +132,7 @@ func (s *KeeperTestSuite) TestGenesisKeepsOwnerAndOverrides() {
 	id := s.createIsm()
 	_, err := s.msgServer.UpdateOwner(s.ctx, &types.MsgUpdateOwner{Owner: s.owner, Id: id, NewOwner: s.next})
 	s.Require().NoError(err)
-	overrides := &types.VerifierOverrides{CollateralGraceSecs: 3600}
+	overrides := &types.VerifierOverrides{TrustedRootCerts: [][]byte{s.root()}}
 	_, err = s.msgServer.SetVerifierOverrides(s.ctx, &types.MsgSetVerifierOverrides{Owner: s.next, Id: id, Overrides: overrides})
 	s.Require().NoError(err)
 
@@ -152,6 +158,16 @@ func (s *KeeperTestSuite) TestGenesisRejectsInvalidOwnerAndOverrides() {
 	s.Require().ErrorIs(bad.Validate(), sdkerrors.ErrInvalidAddress, "ism %s", id)
 
 	bad.Isms[0].Owner = s.owner
-	bad.Isms[0].VerifierOverrides = &types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs + 1}
+	bad.Isms[0].VerifierOverrides = &types.VerifierOverrides{TrustedRootCerts: [][]byte{{0x30, 0x01}}}
 	s.Require().ErrorIs(bad.Validate(), types.ErrInvalidVerifierOverrides)
+}
+
+// root returns a DER root certificate that is not Intel's.
+func (s *KeeperTestSuite) root() []byte {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	s.Require().NoError(err)
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "Intel SGX Root CA"}, IsCA: true, BasicConstraintsValid: true}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	s.Require().NoError(err)
+	return der
 }

@@ -26,8 +26,7 @@ func TestAminoJSONSigning(t *testing.T) {
 		"MsgUpdateEnclaveIdentity": &types.MsgUpdateEnclaveIdentity{Owner: owner, Id: ismID, Identity: identityFor(1)},
 		"MsgUpdateOwner":           &types.MsgUpdateOwner{Owner: owner, Id: ismID, NewOwner: owner},
 		"MsgSetVerifierOverrides": &types.MsgSetVerifierOverrides{Owner: owner, Id: ismID, Overrides: &types.VerifierOverrides{
-			TrustedRootCerts:    [][]byte{{0x30, 0x01}},
-			CollateralGraceSecs: 3600,
+			TrustedRootCerts: [][]byte{{0x30, 0x01}},
 		}},
 		"MsgSubmitAttestation": &types.MsgSubmitAttestation{
 			Id: ismID, Signer: owner, Quote: []byte{1}, EventLog: []byte{2}, Payload: []byte{3},

@@ -55,28 +55,20 @@ message InterchainSecurityModule {
   VerifierOverrides verifier_overrides = 6;
 }
 
-// VerifierOverrides is the owner's emergency control over Intel's side of
-// verification, for when something Intel publishes or anchors breaks while an ism
-// is live. Every field is off when unset.
-//
-// Each one makes the ism accept attestations Intel would not vouch for, so each
-// one asks routers to trust the owner further. There is deliberately no way to
-// skip Intel's verification: every attestation must carry a quote that chains to
-// a trusted root. Re-pinning the enclave identity is separate
-// (MsgUpdateEnclaveIdentity) and needs none of these.
+// VerifierOverrides lets the owner update what Intel can change over time and
+// the verifier would otherwise have built in. It never relaxes verification:
+// every attestation must carry a quote that fully verifies, with unexpired
+// collateral, against a trusted root. Re-pinning the enclave identity is separate
+// (MsgUpdateEnclaveIdentity).
 message VerifierOverrides {
-  // A skip_dcap flag was removed before release. Its number stays reserved.
-  reserved 3;
-  reserved "skip_dcap";
+  // Fields removed before release. Their numbers stay reserved.
+  reserved 2, 3;
+  reserved "collateral_grace_secs", "skip_dcap";
 
   // DER-encoded certificates that replace the Intel SGX Root CA embedded in the
   // verifier, for a root rotation. The verifier still requires Intel's
   // certificate names and key types.
   repeated bytes trusted_root_certs = 1;
-  // Also accept collateral and certificates that were valid at most this many
-  // seconds before block time, for when Intel cannot publish fresh collateral in
-  // time. This also accepts a platform revoked within the window.
-  uint64 collateral_grace_secs = 2;
 }
 
 // Collateral carries the Intel PCS artifacts a quote is verified against.

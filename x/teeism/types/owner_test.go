@@ -34,20 +34,20 @@ func TestOnlyTheOwnerTransfersOwnership(t *testing.T) {
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized, "the previous owner keeps no control")
 	_, err = ism.Repin("celestia1next", identityFor(2))
 	require.NoError(t, err)
-	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{CollateralGraceSecs: 60})
+	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{TrustedRootCerts: [][]byte{selfSignedRoot(t)}})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
-	_, err = ism.SetVerifierOverrides("celestia1next", &types.VerifierOverrides{CollateralGraceSecs: 60})
+	_, err = ism.SetVerifierOverrides("celestia1next", &types.VerifierOverrides{TrustedRootCerts: [][]byte{selfSignedRoot(t)}})
 	require.NoError(t, err)
 }
 
 func TestOnlyTheOwnerSetsVerifierOverrides(t *testing.T) {
 	ism := ismPinnedTo(identityFor(1))
 
-	_, err := ism.SetVerifierOverrides("celestia1someoneelse", &types.VerifierOverrides{CollateralGraceSecs: 60})
+	_, err := ism.SetVerifierOverrides("celestia1someoneelse", &types.VerifierOverrides{TrustedRootCerts: [][]byte{selfSignedRoot(t)}})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
 	require.Nil(t, ism.VerifierOverrides)
 
-	set := &types.VerifierOverrides{CollateralGraceSecs: 3600}
+	set := &types.VerifierOverrides{TrustedRootCerts: [][]byte{selfSignedRoot(t)}}
 	previous, err := ism.SetVerifierOverrides("celestia1owner", set)
 	require.NoError(t, err)
 	require.Nil(t, previous)
@@ -59,7 +59,7 @@ func TestOnlyTheOwnerSetsVerifierOverrides(t *testing.T) {
 	require.Equal(t, set, previous)
 	require.Nil(t, ism.VerifierOverrides)
 
-	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs + 1})
+	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{TrustedRootCerts: [][]byte{{0x30, 0x01}}})
 	require.ErrorIs(t, err, types.ErrInvalidVerifierOverrides)
 	require.Nil(t, ism.VerifierOverrides, "refused overrides change nothing")
 }
@@ -73,8 +73,6 @@ func TestVerifierOverridesValidation(t *testing.T) {
 	}{
 		"none":                   {nil, true},
 		"root":                   {&types.VerifierOverrides{TrustedRootCerts: [][]byte{root}}, true},
-		"grace at the cap":       {&types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs}, true},
-		"grace over the cap":     {&types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs + 1}, false},
 		"root that is not DER":   {&types.VerifierOverrides{TrustedRootCerts: [][]byte{{0x30, 0x01}}}, false},
 		"too many roots":         {&types.VerifierOverrides{TrustedRootCerts: [][]byte{root, root, root, root, root}}, false},
 		"root over the size cap": {&types.VerifierOverrides{TrustedRootCerts: [][]byte{make([]byte, types.MaxTrustedRootCertBytes+1)}}, false},

@@ -5,13 +5,6 @@ import (
 )
 
 const (
-	// MaxCollateralGraceSecs caps VerifierOverrides.CollateralGraceSecs.
-	//
-	// Intel publishes CRLs, TCB info and QE identity with a validity of about a
-	// month, so a lapse longer than this is not an outage the grace window should
-	// bridge.
-	MaxCollateralGraceSecs = 30 * 24 * 60 * 60
-
 	// MaxTrustedRootCerts and MaxTrustedRootCertBytes bound what an override may
 	// store in state.
 	MaxTrustedRootCerts     = 4
@@ -21,7 +14,7 @@ const (
 // IsEmpty reports whether the overrides change nothing, in which case they are
 // not stored at all.
 func (o *VerifierOverrides) IsEmpty() bool {
-	return o == nil || (len(o.TrustedRootCerts) == 0 && o.CollateralGraceSecs == 0)
+	return o == nil || len(o.TrustedRootCerts) == 0
 }
 
 // Validate rejects overrides the verifier could not apply. Nil overrides are valid
@@ -41,9 +34,6 @@ func (o *VerifierOverrides) Validate() error {
 			return ErrInvalidVerifierOverrides.Wrapf("trusted root cert %d is not a DER certificate: %s", i, err)
 		}
 	}
-	if o.CollateralGraceSecs > MaxCollateralGraceSecs {
-		return ErrInvalidVerifierOverrides.Wrapf("collateral grace is %ds, limit is %ds", o.CollateralGraceSecs, MaxCollateralGraceSecs)
-	}
 	return nil
 }
 
@@ -62,11 +52,4 @@ func (o *VerifierOverrides) trustedRoots() (*x509.CertPool, error) {
 		pool.AddCert(cert)
 	}
 	return pool, nil
-}
-
-func (o *VerifierOverrides) collateralGraceSecs() uint64 {
-	if o == nil {
-		return 0
-	}
-	return o.CollateralGraceSecs
 }

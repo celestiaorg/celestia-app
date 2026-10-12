@@ -65,36 +65,19 @@ func TestTrustedRootOverride(t *testing.T) {
 	})
 }
 
-func TestCollateralGrace(t *testing.T) {
+func TestExpiredCollateralNeverVerifies(t *testing.T) {
 	quote, _, collateral, at := loadRealQuote(t)
-	lapsed := at.Add(fixtureCollateralValidity + 5*24*time.Hour)
+	lapsed := at.Add(fixtureCollateralValidity + time.Hour)
 
-	_, _, err := types.VerifyQuoteWith(quote, collateral, lapsed, nil)
-	require.ErrorIs(t, err, types.ErrInvalidQuote, "collateral lapsed 5 days ago")
-
-	t.Run("a window covering the lapse verifies", func(t *testing.T) {
-		_, _, err := types.VerifyQuoteWith(quote, collateral, lapsed, &types.VerifierOverrides{CollateralGraceSecs: 7 * 24 * 60 * 60})
-		require.NoError(t, err)
-	})
-
-	t.Run("a window short of the lapse does not", func(t *testing.T) {
-		_, _, err := types.VerifyQuoteWith(quote, collateral, lapsed, &types.VerifierOverrides{CollateralGraceSecs: 3 * 24 * 60 * 60})
-		require.ErrorIs(t, err, types.ErrInvalidQuote)
-	})
-
-	t.Run("fresh collateral still verifies with a window set", func(t *testing.T) {
-		// Block time is tried first, so collateral issued inside the window,
-		// whose validity starts after the earlier instant, keeps working.
-		_, _, err := types.VerifyQuoteWith(quote, collateral, at, &types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs})
-		require.NoError(t, err)
-	})
-
-	t.Run("the window does not make up for a bad quote", func(t *testing.T) {
-		bad := append([]byte{}, quote...)
-		bad[len(bad)-256] ^= 0x01
-		_, _, err := types.VerifyQuoteWith(bad, collateral, at, &types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs})
-		require.ErrorIs(t, err, types.ErrInvalidQuote)
-	})
+	for name, overrides := range map[string]*types.VerifierOverrides{
+		"none":       nil,
+		"intel root": {TrustedRootCerts: [][]byte{intelRootFrom(t, collateral)}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := types.VerifyQuoteWith(quote, collateral, lapsed, overrides)
+			require.ErrorIs(t, err, types.ErrInvalidQuote)
+		})
+	}
 }
 
 // No override, alone or combined, lets a quote through that Intel's verification
@@ -107,12 +90,7 @@ func TestNoOverrideSkipsIntel(t *testing.T) {
 	for name, overrides := range map[string]*types.VerifierOverrides{
 		"none":       nil,
 		"empty":      {},
-		"max grace":  {CollateralGraceSecs: types.MaxCollateralGraceSecs},
 		"intel root": {TrustedRootCerts: [][]byte{intelRootFrom(t, collateral)}},
-		"all": {
-			TrustedRootCerts:    [][]byte{intelRootFrom(t, collateral)},
-			CollateralGraceSecs: types.MaxCollateralGraceSecs,
-		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, _, err := types.VerifyQuoteWith(badChain, collateral, at, overrides)

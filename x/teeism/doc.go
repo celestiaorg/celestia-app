@@ -12,11 +12,9 @@
 //     ISM's state, for a new image, a platform update or a replacement enclave.
 //   - MsgUpdateOwner (tx teeism update-owner): hand the ISM and these controls to a new owner,
 //     such as a multisig. There is no renouncing.
-//   - MsgSetVerifierOverrides (tx teeism set-verifier-overrides): override Intel's side of
-//     verification when something Intel publishes or anchors breaks: trust a different root
-//     CA, or accept collateral that lapsed within a grace window. Nothing skips Intel's
-//     verification: every attestation must carry a quote that chains to a trusted root.
+//   - MsgSetVerifierOverrides (tx teeism set-verifier-overrides): replace the Intel root CA
+//     quotes must chain to, for when Intel rotates it.
 //
-// The overrides make an ISM accept attestations Intel would not vouch for, so they extend the
-// trust routers place in the owner. Each change emits an event.
+// None of these relaxes verification: every attestation must carry a quote that fully
+// verifies, with unexpired collateral, against a trusted root. Each change emits an event.
 package teeism

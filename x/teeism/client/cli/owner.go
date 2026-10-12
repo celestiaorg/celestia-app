@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v10/x/teeism/types"
@@ -18,7 +17,6 @@ import (
 
 const (
 	flagTrustedRootCert = "trusted-root-cert"
-	flagCollateralGrace = "collateral-grace"
 	flagClear           = "clear"
 )
 
@@ -62,23 +60,16 @@ renouncing: an ism always has an owner who can act in an emergency.`),
 func NewSetVerifierOverridesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set-verifier-overrides [ism-id]",
-		Short: "Override Intel's side of verification for a TEE ism (owner only)",
-		Long: strings.TrimSpace(`Set or clear an ism's overrides of Intel's verdict on a quote, for when
-something Intel publishes or anchors breaks while the ism is live.
+		Short: "Update the Intel root CA a TEE ism verifies against (owner only)",
+		Long: strings.TrimSpace(`Set or clear the Intel root CA an ism's quotes must chain to, for when Intel
+rotates its root while the ism is live. Verification is otherwise unchanged.
 
-Each call replaces all overrides: flags left out are switched off. --clear
-switches every override off. Every change emits EventSetVerifierOverrides.
+Each call replaces the previous setting. --clear goes back to the root built
+into the verifier. Every change emits EventSetVerifierOverrides.
 
   --trusted-root-cert  Intel root CA certificate file (PEM or DER) to trust
-                       instead of the embedded one, for a root rotation.
-                       Repeat for several.
-  --collateral-grace   Also accept collateral and certificates that lapsed at
-                       most this long ago (e.g. 72h, at most 720h), for when
-                       Intel cannot publish fresh collateral in time.
-
-Every override makes the ism accept attestations Intel would not vouch for.`),
+                       instead of the embedded one. Repeat for several.`),
 		Example: strings.Join([]string{
-			fmt.Sprintf("%s tx %s set-verifier-overrides 0x...2b --collateral-grace 72h --from owner", version.AppName, types.ModuleName),
 			fmt.Sprintf("%s tx %s set-verifier-overrides 0x...2b --trusted-root-cert ./Intel_SGX_RootCA.cer --from owner", version.AppName, types.ModuleName),
 			fmt.Sprintf("%s tx %s set-verifier-overrides 0x...2b --clear --from owner", version.AppName, types.ModuleName),
 		}, "\n"),
@@ -106,8 +97,7 @@ Every override makes the ism accept attestations Intel would not vouch for.`),
 	}
 
 	cmd.Flags().StringArray(flagTrustedRootCert, nil, "root CA certificate file (PEM or DER) to trust instead of the embedded Intel root; repeatable")
-	cmd.Flags().Duration(flagCollateralGrace, 0, "also accept collateral that lapsed at most this long ago, e.g. 72h")
-	cmd.Flags().Bool(flagClear, false, "switch every override off")
+	cmd.Flags().Bool(flagClear, false, "go back to the root built into the verifier")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -121,27 +111,18 @@ func overridesFromFlags(cmd *cobra.Command) (*types.VerifierOverrides, error) {
 	if err != nil {
 		return nil, err
 	}
-	grace, err := cmd.Flags().GetDuration(flagCollateralGrace)
-	if err != nil {
-		return nil, err
-	}
 
 	if clear {
-		if len(rootFiles) > 0 || grace != 0 {
-			return nil, fmt.Errorf("--%s cannot be combined with other overrides", flagClear)
+		if len(rootFiles) > 0 {
+			return nil, fmt.Errorf("--%s cannot be combined with --%s", flagClear, flagTrustedRootCert)
 		}
 		return nil, nil
 	}
-	if len(rootFiles) == 0 && grace == 0 {
-		return nil, fmt.Errorf("set at least one override, or --%s to switch them all off", flagClear)
-	}
-	if grace < 0 || grace%time.Second != 0 {
-		return nil, fmt.Errorf("--%s must be a positive whole number of seconds", flagCollateralGrace)
+	if len(rootFiles) == 0 {
+		return nil, fmt.Errorf("set --%s, or --%s to go back to the built-in root", flagTrustedRootCert, flagClear)
 	}
 
-	overrides := &types.VerifierOverrides{
-		CollateralGraceSecs: uint64(grace / time.Second),
-	}
+	overrides := &types.VerifierOverrides{}
 	for _, path := range rootFiles {
 		der, err := readCertificate(path)
 		if err != nil {
