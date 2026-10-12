@@ -127,7 +127,7 @@ jobs:
       tag: ${{ steps.tag.outputs.value }}
 
   build-hyperlane-agent-image:
-    # Builds the Hyperlane agent image used by TestHyperlaneAggregationISMTokenTransfer.
+    # Builds the Hyperlane agent image every Hyperlane E2E test runs.
     # Released agents do not support Aggregation ISMs on cosmos-native chains yet, so the
     # relayer is built from hyperlane-monorepo jonas/cosmos-aggregation-ism.
     # Run only in the merge queue and on release branches since E2E tests only run there.
@@ -186,9 +186,6 @@ jobs:
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneAggregationISMTokenTransfer
             entrypoint: TestHyperlaneTestSuite
-            # built by build-hyperlane-agent-image from hyperlane-monorepo jonas/cosmos-aggregation-ism,
-            # which adds Aggregation ISM support for cosmos-native chains to the relayer.
-            hyperlane_agent_image: hyperlane-agent:cosmos-aggregation-ism
           - testcase: TestHyperlaneForwarding
             entrypoint: TestHyperlaneTestSuite
           - testcase: TestHyperlaneForwardingCustomHook
@@ -219,15 +216,16 @@ jobs:
       - name: Load Docker image
         run: docker load < /tmp/e2e-image.tar.gz
 
+      # Every Hyperlane test runs the relayer built by build-hyperlane-agent-image.
       - name: Download Hyperlane agent image artifact
-        if: matrix.hyperlane_agent_image != ''
+        if: startsWith(matrix.testcase, 'TestHyperlane')
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c #v8.0.1
         with:
           name: hyperlane-agent-image
           path: /tmp
 
       - name: Load Hyperlane agent image
-        if: matrix.hyperlane_agent_image != ''
+        if: startsWith(matrix.testcase, 'TestHyperlane')
         run: docker load < /tmp/hyperlane-agent-image.tar.gz
 
       - name: Run E2E test
@@ -237,9 +235,9 @@ jobs:
           # Only set for the custom-hook case; empty elsewhere so the test falls
           # back to the default forwarding-relayer image.
           FORWARDING_RELAYER_IMAGE: ${{ matrix.forwarding_relayer_image }}
-          # Only set for the aggregation ISM case; empty elsewhere so the test falls
-          # back to the default hyperlane agent image.
-          HYPERLANE_AGENT_IMAGE: ${{ matrix.hyperlane_agent_image }}
+          # Only set for the Hyperlane tests, which all run the relayer built by
+          # build-hyperlane-agent-image; empty elsewhere.
+          HYPERLANE_AGENT_IMAGE: ${{ startsWith(matrix.testcase, 'TestHyperlane') && 'hyperlane-agent:cosmos-aggregation-ism' || '' }}
         run: |
           if [ -n "${{ matrix.entrypoint }}" ]; then
             make test-docker-e2e test=${{ matrix.testcase }} entrypoint=${{ matrix.entrypoint }}
