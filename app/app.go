@@ -268,7 +268,7 @@ func New(
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
-		sigCache:                NewSigCache(),
+		sigCache:                NewSigCache(mempoolMaxTxs(appOpts)),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},
