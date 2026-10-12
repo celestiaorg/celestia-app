@@ -36,7 +36,12 @@ type realQuoteBundle struct {
 
 func loadRealQuote(t *testing.T) (quote []byte, eventLog []byte, collateral *types.Collateral, at time.Time) {
 	t.Helper()
-	raw, err := os.ReadFile("../internal/testdata/real_quote.json")
+	return loadQuoteFixture(t, "real_quote.json")
+}
+
+func loadQuoteFixture(t *testing.T, name string) (quote []byte, eventLog []byte, collateral *types.Collateral, at time.Time) {
+	t.Helper()
+	raw, err := os.ReadFile("../internal/testdata/" + name)
 	require.NoError(t, err)
 
 	var b realQuoteBundle
@@ -191,4 +196,20 @@ func TestRealQuoteRejectsTampering(t *testing.T) {
 		err = types.VerifyEnclaveIdentity(other, measured, log, types.ReplayEventLogs(log))
 		require.ErrorIs(t, err, types.ErrIdentityMismatch)
 	})
+}
+
+// Intel's sample TDX 1.5 quote v5 verifies through the same path as the
+// enclave's v4 quotes, against the Intel collateral captured with it.
+func TestVerifyQuoteV5Offline(t *testing.T) {
+	quote, _, collateral, at := loadQuoteFixture(t, "real_quote_v5.json")
+
+	measured, reportData, err := types.VerifyQuote(quote, collateral, at)
+	require.NoError(t, err)
+	require.NotNil(t, measured)
+	require.Len(t, reportData, 64)
+
+	tampered := append([]byte{}, quote...)
+	tampered[200] ^= 0x01 // inside the signed TD quote body
+	_, _, err = types.VerifyQuote(tampered, collateral, at)
+	require.ErrorIs(t, err, types.ErrInvalidQuote)
 }

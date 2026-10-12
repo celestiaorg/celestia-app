@@ -87,19 +87,20 @@ func run(quotePath, outPath string) error {
 	if err != nil {
 		return fmt.Errorf("parsing quote: %w", err)
 	}
-	quoteV4, ok := parsed.(*pb.QuoteV4)
-	if !ok {
-		return fmt.Errorf("only TDX quote v4 is supported")
+	switch parsed.(type) {
+	case *pb.QuoteV4, *pb.QuoteV5:
+	default:
+		return fmt.Errorf("only TDX quotes v4 and v5 are supported")
 	}
 
 	// Verify online once, recording everything the verifier reaches for.
 	getter := &recordingGetter{inner: trust.DefaultHTTPSGetter()}
 	now := time.Now()
-	if err := verify.TdxQuote(quoteV4, &verify.Options{
+	if err := verify.TdxQuote(parsed, &verify.Options{
 		CheckRevocations: true,
 		GetCollateral:    true,
 		Getter:           getter,
-		Now:              now,
+		Now:              &verify.TimeSet{PckCertChain: now, TcbInfo: now, QeIdentity: now, PckCrl: now, RootCaCrl: now},
 	}); err != nil {
 		return fmt.Errorf("the quote does not verify against live Intel collateral: %w", err)
 	}

@@ -140,9 +140,23 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 	if err != nil {
 		return nil, nil, ErrInvalidQuote.Wrapf("could not parse quote: %s", err.Error())
 	}
-	quoteV4, ok := parsed.(*pb.QuoteV4)
-	if !ok {
-		return nil, nil, ErrInvalidQuote.Wrap("only TDX quote v4 is supported")
+	// Both versions carry the same TD report fields; v5 wraps the body in a
+	// descriptor and adds TDX 1.5 fields this module does not read.
+	var body tdReport
+	switch q := parsed.(type) {
+	case *pb.QuoteV4:
+		if b := q.GetTdQuoteBody(); b != nil {
+			body = b
+		}
+	case *pb.QuoteV5:
+		if b := q.GetTdQuoteBodyDescriptor().GetTdQuoteBodyV5(); b != nil {
+			body = b
+		}
+	default:
+		return nil, nil, ErrInvalidQuote.Wrap("only TDX quotes v4 and v5 are supported")
+	}
+	if body == nil {
+		return nil, nil, ErrInvalidQuote.Wrap("quote has no TD report body")
 	}
 
 	// Signature chain, PCK certificate chain, CRLs and TCB status, all evaluated
@@ -151,19 +165,14 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 	if err != nil {
 		return nil, nil, err
 	}
-	if err := verify.TdxQuote(quoteV4, &verify.Options{
+	if err := verify.TdxQuote(parsed, &verify.Options{
 		CheckRevocations: true,
 		GetCollateral:    true,
 		Getter:           offlineGetter{collateral: collateral},
-		Now:              blockTime,
+		Now:              timeSet(blockTime),
 		TrustedRoots:     roots,
 	}); err != nil {
 		return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
-	}
-
-	body := quoteV4.GetTdQuoteBody()
-	if body == nil {
-		return nil, nil, ErrInvalidQuote.Wrap("quote has no TD report body")
 	}
 
 	// A debug TD is transparent to its host, so its measurements mean nothing.
@@ -186,4 +195,20 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 		return nil, nil, ErrInvalidQuote.Wrapf("report_data must be 64 bytes, got %d", len(reportData))
 	}
 	return measured, reportData, nil
+}
+
+// tdReport is the part of a TD quote body the checks above read, which v4
+// (*pb.TDQuoteBody) and v5 (*pb.TDQuoteBodyV5) bodies both provide.
+type tdReport interface {
+	GetTdAttributes() []byte
+	GetMrTd() []byte
+	GetRtmrs() [][]byte
+	GetReportData() []byte
+}
+
+// timeSet evaluates every certificate, CRL and collateral validity window at
+// the same instant. go-tdx-guest has no wall-clock fallback for a nil set, so
+// verification stays deterministic.
+func timeSet(at time.Time) *verify.TimeSet {
+	return &verify.TimeSet{PckCertChain: at, TcbInfo: at, QeIdentity: at, PckCrl: at, RootCaCrl: at}
 }

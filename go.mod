@@ -49,7 +49,7 @@ require (
 	github.com/go-kit/log v0.2.1
 	github.com/gofrs/flock v0.13.1
 	github.com/golang/protobuf v1.5.4
-	github.com/google/go-tdx-guest v0.3.1
+	github.com/google/go-tdx-guest v0.3.2-0.20261003001058-b0a2dd8100a0
 	github.com/google/pprof v0.0.0-20260802141513-ef3492d7dac3
 	github.com/grafana/otel-profiling-go v0.6.0
 	github.com/grafana/pyroscope-go v1.4.2
