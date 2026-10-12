@@ -56,11 +56,6 @@ func mempoolMaxTxs(appOpts servertypes.AppOptions) int {
 // reads it to decide validity, so an eviction costs a re-verification, never a
 // wrong answer. That is why the capacity may be taken from node configuration at
 // all: two nodes sized differently still reach the same decisions.
-//
-// Measured cost is about 166 bytes per entry including the LRU list node and map
-// overhead, so the default capacity is roughly 3 MB. The capacity is a ceiling
-// rather than an allocation: the underlying map takes no size hint and grows
-// with the entries actually stored.
 func SigCacheCapacity(mempoolMaxTxs int) int {
 	return sigCacheEntriesPerTx * mempoolMaxTxs * (100 + sigCacheHeadroomPercent) / 100
 }
