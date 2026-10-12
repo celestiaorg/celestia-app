@@ -92,20 +92,31 @@ func promiseKey(t *testing.T, pp *fibre.PaymentPromise) sigcache.Key {
 	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature)
 }
 
-// TestValidatePromiseStatelessRecordsSuccess pins that a passing validation is
-// recorded once and that the second call is served from the cache.
-func TestValidatePromiseStatelessRecordsSuccess(t *testing.T) {
+// protoPromiseKey is promiseKey for a promise still in its proto form.
+func protoPromiseKey(t *testing.T, promise *types.PaymentPromise) sigcache.Key {
+	t.Helper()
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(promise))
+	return promiseKey(t, &pp)
+}
+
+// TestValidatePromiseStatelessRecordsNothing pins that a passing validation on
+// its own leaves no entry: the promise signature is the submitter's own, so it
+// alone says nothing about whether the message around it will be accepted.
+// Recording is the caller's decision, taken behind the remaining checks (see
+// TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum and
+// TestValidatePaymentPromiseRecordsPromiseBehindReservation).
+func TestValidatePromiseStatelessRecordsNothing(t *testing.T) {
 	cache := newCountingSigCache()
 	k := newPromiseKeeper(cache)
 	pp := newSignedPromise(t)
 
 	require.NoError(t, k.ValidatePromiseStateless(pp))
-	require.Equal(t, 1, cache.adds)
-	require.Contains(t, cache.entries, promiseKey(t, pp))
-
 	require.NoError(t, k.ValidatePromiseStateless(pp))
-	require.Equal(t, 1, cache.adds, "a cached promise must not be recorded twice")
-	require.Equal(t, 2, cache.lookups)
+	require.Equal(t, 2, cache.lookups, "every call consults the cache")
+	require.Zero(t, cache.adds)
+	require.Empty(t, cache.entries)
 }
 
 // TestValidatePromiseStatelessHitSkipsValidation pins that a hit really does
@@ -144,8 +155,8 @@ func TestValidatePromiseStatelessKeyCoversSignature(t *testing.T) {
 	cache := newCountingSigCache()
 	k := newPromiseKeeper(cache)
 	pp := newSignedPromise(t)
-	require.NoError(t, k.ValidatePromiseStateless(pp))
 	recorded := promiseKey(t, pp)
+	cache.Add(recorded)
 
 	pp.Signature = bytes.Repeat([]byte{0x3}, len(pp.Signature))
 	forged := promiseKey(t, pp)

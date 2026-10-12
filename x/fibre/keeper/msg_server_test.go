@@ -485,6 +485,54 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 	})
 }
 
+// TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum pins where the
+// promise entry is written: behind the validator quorum check, not behind the
+// promise signature alone. The promise signature is the submitter's own and
+// verifies by construction, so an entry written any earlier would let a
+// transaction the node rejects fill the cache and evict accepted ones.
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	validSignatures := suite.generateValidatorSignatures(&paymentPromise)
+	key := protoPromiseKey(suite.T(), &paymentPromise)
+
+	cache := newCountingSigCache()
+	// Signature verification reads no module state, so the store is never mounted.
+	k := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
+
+	suite.T().Run("forged certificate buys no entry", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		err := k.ValidatePayForFibreSignatures(suite.ctx, msg)
+		require.ErrorContains(t, err, "validator signature validation failed")
+		require.Equal(t, 1, cache.lookups, "the promise is looked up before it is verified")
+		require.Zero(t, cache.adds)
+		require.Empty(t, cache.entries)
+	})
+
+	suite.T().Run("certificate short of quorum buys no entry", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{},
+		}
+		require.Error(t, k.ValidatePayForFibreSignatures(suite.ctx, msg))
+		require.Zero(t, cache.adds)
+	})
+
+	suite.T().Run("accepted certificate records the promise", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		require.NoError(t, k.ValidatePayForFibreSignatures(suite.ctx, msg))
+		require.Equal(t, 1, cache.adds)
+		require.Contains(t, cache.entries, key)
+	})
+}
+
 // TestPaymentPromiseTimeout tests the PaymentPromiseTimeout message handler
 func (suite *MsgServerTestSuite) TestPaymentPromiseTimeout() {
 	privKey := secp256k1.GenPrivKey()

@@ -345,20 +345,31 @@ func (k Keeper) ValidatePaymentPromiseStateless(ctx sdk.Context, promise *types.
 }
 
 // ValidatePromiseStateless runs pp.Validate, skipping it when an identical
-// promise already passed. Validate is a pure function of the promise, so a hit
-// can only skip a check that would have succeeded.
+// promise was already recorded. Validate is a pure function of the promise, so
+// a hit can only skip a check that would have succeeded.
+//
+// A pass is not recorded here. The promise signature is the submitter's own,
+// so it verifies by construction; what makes an entry legitimate is the
+// message around it passing every check it still faces. Callers record with
+// recordVerifiedPromise once that is settled, so a rejected message buys no
+// entry and cannot evict the entries of accepted ones.
 func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
-	key, keyed := promiseSigCacheKey(pp)
-	if keyed && k.sigCache != nil && k.sigCache.Has(key) {
+	if key, keyed := promiseSigCacheKey(pp); keyed && k.sigCache != nil && k.sigCache.Has(key) {
 		return nil
 	}
-	if err := pp.Validate(); err != nil {
-		return err
+	return pp.Validate()
+}
+
+// recordVerifiedPromise records pp as verified. Call it only after pp passed
+// ValidatePromiseStateless and the message carrying it passed every other
+// check, so that nothing a node will reject can take up cache space.
+func (k Keeper) recordVerifiedPromise(pp *fibre.PaymentPromise) {
+	if k.sigCache == nil {
+		return
 	}
-	if keyed && k.sigCache != nil {
+	if key, keyed := promiseSigCacheKey(pp); keyed {
 		k.sigCache.Add(key)
 	}
-	return nil
 }
 
 // promiseSigCacheKey covers every input to pp.Validate: the signer key, the sign

@@ -41,9 +41,11 @@ func NewKey(domain Domain, parts ...[]byte) Key {
 	return key
 }
 
-// Cache remembers verifications that succeeded. Only successes are admitted, so
-// unverifiable spam cannot evict legitimate entries and a hit can only skip
-// work that would have passed.
+// Cache remembers verifications that succeeded. Only successes are admitted,
+// and a caller admits one only once the message carrying it has passed every
+// other check it faces, so a rejected message buys no entry: unverifiable spam
+// cannot evict legitimate entries, and a hit can only skip work that would
+// have passed.
 type Cache struct {
 	entries *lru.Cache[Key, struct{}]
 }

@@ -193,6 +193,10 @@ func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPay
 	if err := k.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
 	}
+	// Recorded only behind the quorum check: a genuine promise wrapped in a
+	// forged certificate is rejected, and a rejected message must not buy an
+	// entry.
+	k.recordVerifiedPromise(&pp)
 	return nil
 }
 
