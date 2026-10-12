@@ -4,6 +4,7 @@ import (
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobante "github.com/celestiaorg/celestia-app/v10/x/blob/ante"
 	blob "github.com/celestiaorg/celestia-app/v10/x/blob/keeper"
 	fibreante "github.com/celestiaorg/celestia-app/v10/x/fibre/ante"
@@ -28,7 +29,7 @@ func NewAnteHandler(
 	circuitkeeper *circuitkeeper.Keeper,
 	paramFilters map[string]ParamFilter,
 	fibreKeeper *fibrekeeper.Keeper,
-	pffSigCache fibreante.PffSigCache,
+	sigCache *sigcache.Cache,
 ) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Wraps the panic with the string format of the transaction
@@ -82,7 +83,7 @@ func NewAnteHandler(
 		// replayed or stale promises out of the mempool.
 		fibreante.NewFibreStatefulValidationDecorator(fibreKeeper),
 		// Verify uncached MsgPayForFibre validator signatures.
-		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, pffSigCache),
+		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, sigCache),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
 		NewParamFilterDecorator(paramFilters),
 		// Side effect: increment the nonce for all tx signers.
