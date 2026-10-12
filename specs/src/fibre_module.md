@@ -257,6 +257,15 @@ message MsgPayForFibre {
 
 Validator signatures are interpreted as a slice indexed by the validator-set order at `payment_promise.height`. Empty signatures are skipped, non-empty signatures whose index exceeds the validator count are invalid, each non-empty signature must verify with the corresponding CometBFT ed25519 validator public key over the payment-promise sign bytes, and the only threshold enforced is collected voting power at least `floor(2/3 * total_voting_power)`. This means exactly two thirds can pass when the integer voting power calculation allows it, for example 2 of 3 total power. The implementation does not enforce a separate validator-count threshold. `EventPayForFibre.validator_count` is the length of the submitted signature slice.
 
+A validator signature verifies under ZIP-215: the cofactored equation
+`[8][s]B = [8]R + [8][k]A`, with `S` required to be reduced modulo the group
+order, and with non-canonical and small-order encodings of `A` and `R`
+permitted. This is the rule CometBFT applies to every other Ed25519 signature
+it checks, and the only one batch verification can implement. It accepts
+strictly more signatures than the cofactorless equation `[s]B = R + [k]A`; a
+re-implementation that checks the cofactorless equation will reject
+certificates this rule accepts.
+
 Payment deduction first requires total escrow `balance >= payment_amount`. It subtracts the full payment from total `balance`, subtracts `min(available_balance, payment_amount)` from `available_balance`, and if the payment uses funds that were locked in pending withdrawals, it calls `ReduceWithdrawalsForPayment` to delete or reduce the signer's pending withdrawals in signer-index iteration order.
 Stateful Processing:
 
