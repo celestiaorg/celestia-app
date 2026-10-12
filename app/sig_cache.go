@@ -14,10 +14,11 @@ import (
 // nothing beyond a cache that is slightly the wrong size.
 const DefaultMempoolMaxTxs = 5_000
 
-// sigCacheEntriesPerTx is how many entries one PayForFibre transaction can take
-// in the cache: its certificate, its payment promise and its transaction
-// signature. A transaction carrying several PayForFibre messages takes more,
-// which the headroom below absorbs.
+// sigCacheEntriesPerTx is how many entries one PayForFibre transaction takes in
+// the cache: its certificate, its payment promise and its transaction
+// signature. This is exact rather than typical - parsePayForFibre accepts only
+// a transaction carrying exactly one PayForFibre message, matching
+// validatePayForFibreTxShape - so the headroom below is for churn alone.
 const sigCacheEntriesPerTx = 3
 
 // sigCacheHeadroomPercent widens the capacity past a full mempool so churn -
