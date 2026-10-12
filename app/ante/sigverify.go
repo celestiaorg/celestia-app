@@ -1,141 +1,50 @@
 package ante
 
 import (
+	"context"
 	"encoding/binary"
-	"fmt"
 
-	errorsmod "cosmossdk.io/errors"
 	txsigning "cosmossdk.io/x/tx/signing"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
-	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"google.golang.org/protobuf/types/known/anypb"
 )
 
-var _ sdk.AnteDecorator = CachedSigVerificationDecorator{}
-
-// CachedSigVerificationDecorator is the SDK's SigVerificationDecorator with a
-// cache of signatures that already verified. It replaces the SDK decorator in
-// the chain, so the sequence check, the error messages and the recheck skip are
-// deliberate copies. Keep them in sync when bumping the SDK.
-type CachedSigVerificationDecorator struct {
-	ak              ante.AccountKeeper
-	signModeHandler *txsigning.HandlerMap
-	sigCache        *sigcache.Cache
+// NewCachedSigVerificationDecorator returns the SDK's signature verification
+// decorator with a cache of signatures that already verified, so a signature
+// checked by an earlier ante pass skips the curve operation. Everything else -
+// the sequence check, the error messages, the recheck skip - is the SDK's.
+func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache) ante.SigVerificationDecorator {
+	return ante.NewSigVerificationDecorator(ak, signModeHandler, ante.WithSignatureVerifier(cachedVerifier(sigCache)))
 }
 
-// NewCachedSigVerificationDecorator returns a caching signature verification decorator.
-func NewCachedSigVerificationDecorator(ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache) CachedSigVerificationDecorator {
-	return CachedSigVerificationDecorator{ak: ak, signModeHandler: signModeHandler, sigCache: sigCache}
-}
-
-func (d CachedSigVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	sigTx, ok := tx.(authsigning.Tx)
-	if !ok {
-		return ctx, errorsmod.Wrap(sdkerrors.ErrTxDecode, "invalid transaction type")
-	}
-
-	sigs, err := sigTx.GetSignaturesV2()
-	if err != nil {
-		return ctx, err
-	}
-
-	signers, err := sigTx.GetSigners()
-	if err != nil {
-		return ctx, err
-	}
-
-	if len(sigs) != len(signers) {
-		return ctx, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "invalid number of signer;  expected: %d, got %d", len(signers), len(sigs))
-	}
-
-	for i, sig := range sigs {
-		acc, err := ante.GetSignerAcc(ctx, d.ak, signers[i])
-		if err != nil {
-			return ctx, err
+// cachedVerifier wraps authsigning.VerifySignature with a lookup in sigCache.
+// The sign bytes are a pure function of the keyed inputs, so a hit skips a
+// check that would have produced the same result. Only successful
+// verifications are recorded, so a rejected signature is rejected again.
+func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
+	return func(
+		ctx context.Context,
+		pubKey cryptotypes.PubKey,
+		signerData txsigning.SignerData,
+		sigData signing.SignatureData,
+		handler *txsigning.HandlerMap,
+		txData txsigning.TxData,
+	) error {
+		key, keyed := txSigCacheKey(pubKey, signerData, sigData, txData)
+		if keyed && sigCache != nil && sigCache.Has(key) {
+			return nil
 		}
-
-		pubKey := acc.GetPubKey()
-		if !simulate && pubKey == nil {
-			return ctx, errorsmod.Wrap(sdkerrors.ErrInvalidPubKey, "pubkey on account is not set")
+		if err := authsigning.VerifySignature(ctx, pubKey, signerData, sigData, handler, txData); err != nil {
+			return err
 		}
-
-		if sig.Sequence != acc.GetSequence() {
-			return ctx, errorsmod.Wrapf(
-				sdkerrors.ErrWrongSequence,
-				"account sequence mismatch, expected %d, got %d", acc.GetSequence(), sig.Sequence,
-			)
+		if keyed && sigCache != nil {
+			sigCache.Add(key)
 		}
-
-		genesis := ctx.BlockHeight() == 0
-		chainID := ctx.ChainID()
-		var accNum uint64
-		if !genesis {
-			accNum = acc.GetAccountNumber()
-		}
-
-		// no need to verify signatures on recheck tx
-		if !simulate && !ctx.IsReCheckTx() && ctx.IsSigverifyTx() {
-			anyPk, _ := codectypes.NewAnyWithValue(pubKey)
-
-			signerData := txsigning.SignerData{
-				Address:       acc.GetAddress().String(),
-				ChainID:       chainID,
-				AccountNumber: accNum,
-				Sequence:      acc.GetSequence(),
-				PubKey: &anypb.Any{
-					TypeUrl: anyPk.TypeUrl,
-					Value:   anyPk.Value,
-				},
-			}
-			adaptableTx, ok := tx.(authsigning.V2AdaptableTx)
-			if !ok {
-				return ctx, fmt.Errorf("expected tx to implement V2AdaptableTx, got %T", tx)
-			}
-			txData := adaptableTx.GetSigningTxData()
-			if err := d.verifySignature(ctx, pubKey, signerData, sig.Data, txData); err != nil {
-				var errMsg string
-				if ante.OnlyLegacyAminoSigners(sig.Data) {
-					// If all signers are using SIGN_MODE_LEGACY_AMINO, we rely on VerifySignature to check account sequence number,
-					// and therefore communicate sequence number as a potential cause of error.
-					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d), sequence (%d) and chain-id (%s)", accNum, acc.GetSequence(), chainID)
-				} else {
-					errMsg = fmt.Sprintf("signature verification failed; please verify account number (%d) and chain-id (%s): (%s)", accNum, chainID, err.Error())
-				}
-				return ctx, errorsmod.Wrap(sdkerrors.ErrUnauthorized, errMsg)
-			}
-		}
-	}
-
-	return next(ctx, tx, simulate)
-}
-
-// verifySignature skips the curve operation when the same signature already
-// verified. The sign bytes are a pure function of the key inputs below, so a
-// hit skips a check that would have produced the same result.
-func (d CachedSigVerificationDecorator) verifySignature(
-	ctx sdk.Context,
-	pubKey cryptotypes.PubKey,
-	signerData txsigning.SignerData,
-	sigData signing.SignatureData,
-	txData txsigning.TxData,
-) error {
-	key, keyed := txSigCacheKey(pubKey, signerData, sigData, txData)
-	if keyed && d.sigCache != nil && d.sigCache.Has(key) {
 		return nil
 	}
-	if err := authsigning.VerifySignature(ctx, pubKey, signerData, sigData, d.signModeHandler, txData); err != nil {
-		return err
-	}
-	if keyed && d.sigCache != nil {
-		d.sigCache.Add(key)
-	}
-	return nil
 }
 
 // keyableSignModes are the sign modes whose sign bytes are a pure function of
