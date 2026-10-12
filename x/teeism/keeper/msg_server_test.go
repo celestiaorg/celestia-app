@@ -122,32 +122,11 @@ func (s *KeeperTestSuite) TestSetVerifierOverrides() {
 	s.Require().Nil(s.getIsm(id).VerifierOverrides, "unset overrides clear them")
 }
 
-func (s *KeeperTestSuite) TestOnlyTheOwnerSubmitsWhileSkippingDcap() {
-	id := s.createIsm()
-	_, err := s.msgServer.SetVerifierOverrides(s.ctx, &types.MsgSetVerifierOverrides{
-		Owner: s.owner, Id: id, Overrides: &types.VerifierOverrides{SkipDcap: true},
-	})
-	s.Require().NoError(err)
-
-	submit := func(signer string) error {
-		_, err := s.msgServer.SubmitAttestation(s.ctx, &types.MsgSubmitAttestation{
-			Id: id, Signer: signer, Quote: []byte{1}, EventLog: []byte{2}, Payload: []byte{3},
-			Collateral: &types.Collateral{PckCrl: []byte{4}, RootCaCrl: []byte{5}},
-		})
-		return err
-	}
-
-	// Anyone but the owner is refused before the quote is even looked at.
-	s.Require().ErrorIs(submit(s.stranger), sdkerrors.ErrUnauthorized)
-	// The owner gets past authorization, and this junk quote then fails to parse.
-	s.Require().ErrorIs(submit(s.owner), types.ErrInvalidCollateral)
-}
-
 func (s *KeeperTestSuite) TestGenesisKeepsOwnerAndOverrides() {
 	id := s.createIsm()
 	_, err := s.msgServer.UpdateOwner(s.ctx, &types.MsgUpdateOwner{Owner: s.owner, Id: id, NewOwner: s.next})
 	s.Require().NoError(err)
-	overrides := &types.VerifierOverrides{CollateralGraceSecs: 3600, SkipDcap: true}
+	overrides := &types.VerifierOverrides{CollateralGraceSecs: 3600}
 	_, err = s.msgServer.SetVerifierOverrides(s.ctx, &types.MsgSetVerifierOverrides{Owner: s.next, Id: id, Overrides: overrides})
 	s.Require().NoError(err)
 

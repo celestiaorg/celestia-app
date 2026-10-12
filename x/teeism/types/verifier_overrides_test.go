@@ -97,41 +97,26 @@ func TestCollateralGrace(t *testing.T) {
 	})
 }
 
-func TestSkipDcap(t *testing.T) {
+// No override, alone or combined, lets a quote through that Intel's verification
+// rejects: a broken signature fails however the owner has configured the ism.
+func TestNoOverrideSkipsIntel(t *testing.T) {
 	quote, _, collateral, at := loadRealQuote(t)
-	skip := &types.VerifierOverrides{SkipDcap: true}
+	badChain := append([]byte{}, quote...)
+	badChain[len(badChain)-256] ^= 0x01
 
-	want, _, err := types.VerifyQuote(quote, collateral, at)
-	require.NoError(t, err)
-
-	t.Run("intel's verdict is skipped", func(t *testing.T) {
-		badChain := append([]byte{}, quote...)
-		badChain[len(badChain)-256] ^= 0x01
-		_, _, err := types.VerifyQuote(badChain, collateral, at)
-		require.Error(t, err)
-
-		measured, _, err := types.VerifyQuoteWith(badChain, collateral, at, skip)
-		require.NoError(t, err)
-		require.Equal(t, want, measured, "the measurements are still read from the quote")
-
-		_, _, err = types.VerifyQuoteWith(quote, collateral, at.Add(365*24*time.Hour), skip)
-		require.NoError(t, err, "expired collateral no longer matters")
-	})
-
-	t.Run("the measurements are still the quote's", func(t *testing.T) {
-		// Skipping Intel does not skip the identity check that follows: a quote
-		// with other measurements yields them, and the pinned identity refuses it.
-		// mr_td is bytes 184..232: a 48 byte header, then tee_tcb_svn, mr_seam,
-		// mr_signer_seam, seam_attributes, td_attributes and xfam.
-		otherTd := append([]byte{}, quote...)
-		otherTd[184] ^= 0x01
-		measured, _, err := types.VerifyQuoteWith(otherTd, collateral, at, skip)
-		require.NoError(t, err)
-		require.NotEqual(t, want.MrTd, measured.MrTd)
-	})
-
-	t.Run("the quote must still parse", func(t *testing.T) {
-		_, _, err := types.VerifyQuoteWith(quote[:100], collateral, at, skip)
-		require.ErrorIs(t, err, types.ErrInvalidQuote)
-	})
+	for name, overrides := range map[string]*types.VerifierOverrides{
+		"none":       nil,
+		"empty":      {},
+		"max grace":  {CollateralGraceSecs: types.MaxCollateralGraceSecs},
+		"intel root": {TrustedRootCerts: [][]byte{intelRootFrom(t, collateral)}},
+		"all": {
+			TrustedRootCerts:    [][]byte{intelRootFrom(t, collateral)},
+			CollateralGraceSecs: types.MaxCollateralGraceSecs,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := types.VerifyQuoteWith(badChain, collateral, at, overrides)
+			require.ErrorIs(t, err, types.ErrInvalidQuote)
+		})
+	}
 }

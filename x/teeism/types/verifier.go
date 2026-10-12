@@ -136,8 +136,8 @@ func VerifyQuote(quote []byte, collateral *Collateral, blockTime time.Time) (*Me
 //     lapsed within the window still verify. Verifying at block time first keeps
 //     freshly issued collateral working, whose validity starts after the earlier
 //     instant.
-//   - skip_dcap skips Intel's verdict entirely. The quote must still parse, and
-//     the debug check below still applies.
+//
+// Neither skips Intel's verdict: the quote must always chain to a trusted root.
 func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, overrides *VerifierOverrides) (*Measurements, []byte, error) {
 	if err := collateral.Validate(); err != nil {
 		return nil, nil, err
@@ -154,30 +154,28 @@ func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, 
 
 	// Signature chain, PCK certificate chain, CRLs and TCB status, all evaluated
 	// against collateral carried in the transaction at block time.
-	if !overrides.skipsDcap() {
-		roots, err := overrides.trustedRoots()
-		if err != nil {
-			return nil, nil, err
+	roots, err := overrides.trustedRoots()
+	if err != nil {
+		return nil, nil, err
+	}
+	verifyAt := func(at time.Time) error {
+		return verify.TdxQuote(quoteV4, &verify.Options{
+			CheckRevocations: true,
+			GetCollateral:    true,
+			Getter:           offlineGetter{collateral: collateral},
+			Now:              at,
+			TrustedRoots:     roots,
+		})
+	}
+	if err := verifyAt(blockTime); err != nil {
+		grace := overrides.collateralGraceSecs()
+		if grace == 0 {
+			return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
 		}
-		verifyAt := func(at time.Time) error {
-			return verify.TdxQuote(quoteV4, &verify.Options{
-				CheckRevocations: true,
-				GetCollateral:    true,
-				Getter:           offlineGetter{collateral: collateral},
-				Now:              at,
-				TrustedRoots:     roots,
-			})
-		}
-		if err := verifyAt(blockTime); err != nil {
-			grace := overrides.collateralGraceSecs()
-			if grace == 0 {
-				return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
-			}
-			earlier := blockTime.Add(-time.Duration(grace) * time.Second)
-			if graceErr := verifyAt(earlier); graceErr != nil {
-				return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed at block time (%s) and %ds earlier (%s)",
-					err.Error(), grace, graceErr.Error())
-			}
+		earlier := blockTime.Add(-time.Duration(grace) * time.Second)
+		if graceErr := verifyAt(earlier); graceErr != nil {
+			return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed at block time (%s) and %ds earlier (%s)",
+				err.Error(), grace, graceErr.Error())
 		}
 	}
 

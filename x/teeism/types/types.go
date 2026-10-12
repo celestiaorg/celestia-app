@@ -122,19 +122,3 @@ func (ism *InterchainSecurityModule) SetVerifierOverrides(owner string, override
 	}
 	return previous, nil
 }
-
-// AuthorizeSubmitter refuses a submission the ism may not accept from `signer`.
-//
-// Anyone may submit while Intel vouches for the quote. With skip_dcap set nothing
-// vouches for it but the submitter, so only the owner may submit: anyone else
-// could otherwise write a quote with the pinned (public) measurements around any
-// payload they like.
-func (ism *InterchainSecurityModule) AuthorizeSubmitter(signer string) error {
-	if !ism.VerifierOverrides.skipsDcap() {
-		return nil
-	}
-	if err := ism.authorize(signer); err != nil {
-		return errorsmod.Wrap(err, "skip_dcap is set, so only the owner may submit attestations")
-	}
-	return nil
-}

@@ -14,8 +14,8 @@
 //     such as a multisig. There is no renouncing.
 //   - MsgSetVerifierOverrides (tx teeism set-verifier-overrides): override Intel's side of
 //     verification when something Intel publishes or anchors breaks: trust a different root
-//     CA, accept collateral that lapsed within a grace window, or skip Intel's verdict
-//     entirely (skip_dcap), in which case only the owner may submit attestations.
+//     CA, or accept collateral that lapsed within a grace window. Nothing skips Intel's
+//     verification: every attestation must carry a quote that chains to a trusted root.
 //
 // The overrides make an ISM accept attestations Intel would not vouch for, so they extend the
 // trust routers place in the owner. Each change emits an event.

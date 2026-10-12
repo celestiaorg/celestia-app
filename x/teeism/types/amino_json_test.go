@@ -28,7 +28,6 @@ func TestAminoJSONSigning(t *testing.T) {
 		"MsgSetVerifierOverrides": &types.MsgSetVerifierOverrides{Owner: owner, Id: ismID, Overrides: &types.VerifierOverrides{
 			TrustedRootCerts:    [][]byte{{0x30, 0x01}},
 			CollateralGraceSecs: 3600,
-			SkipDcap:            true,
 		}},
 		"MsgSubmitAttestation": &types.MsgSubmitAttestation{
 			Id: ismID, Signer: owner, Quote: []byte{1}, EventLog: []byte{2}, Payload: []byte{3},

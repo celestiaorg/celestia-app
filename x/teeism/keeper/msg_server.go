@@ -72,9 +72,6 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	if ism.Identity == nil {
 		return nil, types.ErrInvalidEnclaveIdentity.Wrapf("ism %s has no pinned enclave identity", ism.Id.String())
 	}
-	if err := ism.AuthorizeSubmitter(msg.Signer); err != nil {
-		return nil, err
-	}
 
 	// Meter before verifying, so a submission that fails verification still pays
 	// for the work it caused.

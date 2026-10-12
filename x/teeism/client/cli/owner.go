@@ -19,7 +19,6 @@ import (
 const (
 	flagTrustedRootCert = "trusted-root-cert"
 	flagCollateralGrace = "collateral-grace"
-	flagSkipDcap        = "skip-dcap"
 	flagClear           = "clear"
 )
 
@@ -76,8 +75,6 @@ switches every override off. Every change emits EventSetVerifierOverrides.
   --collateral-grace   Also accept collateral and certificates that lapsed at
                        most this long ago (e.g. 72h, at most 720h), for when
                        Intel cannot publish fresh collateral in time.
-  --skip-dcap          Break glass: skip Intel's verdict entirely. Only the
-                       owner may then submit attestations.
 
 Every override makes the ism accept attestations Intel would not vouch for.`),
 		Example: strings.Join([]string{
@@ -110,7 +107,6 @@ Every override makes the ism accept attestations Intel would not vouch for.`),
 
 	cmd.Flags().StringArray(flagTrustedRootCert, nil, "root CA certificate file (PEM or DER) to trust instead of the embedded Intel root; repeatable")
 	cmd.Flags().Duration(flagCollateralGrace, 0, "also accept collateral that lapsed at most this long ago, e.g. 72h")
-	cmd.Flags().Bool(flagSkipDcap, false, "break glass: skip Intel's verdict on the quote; only the owner may then submit")
 	cmd.Flags().Bool(flagClear, false, "switch every override off")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
@@ -129,18 +125,14 @@ func overridesFromFlags(cmd *cobra.Command) (*types.VerifierOverrides, error) {
 	if err != nil {
 		return nil, err
 	}
-	skipDcap, err := cmd.Flags().GetBool(flagSkipDcap)
-	if err != nil {
-		return nil, err
-	}
 
 	if clear {
-		if len(rootFiles) > 0 || grace != 0 || skipDcap {
+		if len(rootFiles) > 0 || grace != 0 {
 			return nil, fmt.Errorf("--%s cannot be combined with other overrides", flagClear)
 		}
 		return nil, nil
 	}
-	if len(rootFiles) == 0 && grace == 0 && !skipDcap {
+	if len(rootFiles) == 0 && grace == 0 {
 		return nil, fmt.Errorf("set at least one override, or --%s to switch them all off", flagClear)
 	}
 	if grace < 0 || grace%time.Second != 0 {
@@ -149,7 +141,6 @@ func overridesFromFlags(cmd *cobra.Command) (*types.VerifierOverrides, error) {
 
 	overrides := &types.VerifierOverrides{
 		CollateralGraceSecs: uint64(grace / time.Second),
-		SkipDcap:            skipDcap,
 	}
 	for _, path := range rootFiles {
 		der, err := readCertificate(path)

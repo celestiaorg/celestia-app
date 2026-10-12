@@ -34,16 +34,16 @@ func TestOnlyTheOwnerTransfersOwnership(t *testing.T) {
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized, "the previous owner keeps no control")
 	_, err = ism.Repin("celestia1next", identityFor(2))
 	require.NoError(t, err)
-	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{SkipDcap: true})
+	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{CollateralGraceSecs: 60})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
-	_, err = ism.SetVerifierOverrides("celestia1next", &types.VerifierOverrides{SkipDcap: true})
+	_, err = ism.SetVerifierOverrides("celestia1next", &types.VerifierOverrides{CollateralGraceSecs: 60})
 	require.NoError(t, err)
 }
 
 func TestOnlyTheOwnerSetsVerifierOverrides(t *testing.T) {
 	ism := ismPinnedTo(identityFor(1))
 
-	_, err := ism.SetVerifierOverrides("celestia1someoneelse", &types.VerifierOverrides{SkipDcap: true})
+	_, err := ism.SetVerifierOverrides("celestia1someoneelse", &types.VerifierOverrides{CollateralGraceSecs: 60})
 	require.ErrorIs(t, err, sdkerrors.ErrUnauthorized)
 	require.Nil(t, ism.VerifierOverrides)
 
@@ -74,7 +74,6 @@ func TestVerifierOverridesValidation(t *testing.T) {
 		"none":                   {nil, true},
 		"root":                   {&types.VerifierOverrides{TrustedRootCerts: [][]byte{root}}, true},
 		"grace at the cap":       {&types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs}, true},
-		"skip dcap":              {&types.VerifierOverrides{SkipDcap: true}, true},
 		"grace over the cap":     {&types.VerifierOverrides{CollateralGraceSecs: types.MaxCollateralGraceSecs + 1}, false},
 		"root that is not DER":   {&types.VerifierOverrides{TrustedRootCerts: [][]byte{{0x30, 0x01}}}, false},
 		"too many roots":         {&types.VerifierOverrides{TrustedRootCerts: [][]byte{root, root, root, root, root}}, false},
@@ -89,21 +88,6 @@ func TestVerifierOverridesValidation(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestOnlyTheOwnerSubmitsWhileSkippingDcap(t *testing.T) {
-	ism := ismPinnedTo(identityFor(1))
-
-	require.NoError(t, ism.AuthorizeSubmitter("celestia1anyone"), "anyone may submit while Intel vouches for the quote")
-
-	_, err := ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{SkipDcap: true})
-	require.NoError(t, err)
-	require.ErrorIs(t, ism.AuthorizeSubmitter("celestia1anyone"), sdkerrors.ErrUnauthorized)
-	require.NoError(t, ism.AuthorizeSubmitter("celestia1owner"))
-
-	_, err = ism.SetVerifierOverrides("celestia1owner", &types.VerifierOverrides{CollateralGraceSecs: 60})
-	require.NoError(t, err)
-	require.NoError(t, ism.AuthorizeSubmitter("celestia1anyone"), "other overrides keep submission open")
 }
 
 // selfSignedRoot returns a DER root certificate that is not Intel's.

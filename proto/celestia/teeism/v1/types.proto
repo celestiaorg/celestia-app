@@ -60,9 +60,15 @@ message InterchainSecurityModule {
 // is live. Every field is off when unset.
 //
 // Each one makes the ism accept attestations Intel would not vouch for, so each
-// one asks routers to trust the owner further. Re-pinning the enclave identity is
-// separate (MsgUpdateEnclaveIdentity) and needs none of these.
+// one asks routers to trust the owner further. There is deliberately no way to
+// skip Intel's verification: every attestation must carry a quote that chains to
+// a trusted root. Re-pinning the enclave identity is separate
+// (MsgUpdateEnclaveIdentity) and needs none of these.
 message VerifierOverrides {
+  // A skip_dcap flag was removed before release. Its number stays reserved.
+  reserved 3;
+  reserved "skip_dcap";
+
   // DER-encoded certificates that replace the Intel SGX Root CA embedded in the
   // verifier, for a root rotation. The verifier still requires Intel's
   // certificate names and key types.
@@ -71,11 +77,6 @@ message VerifierOverrides {
   // seconds before block time, for when Intel cannot publish fresh collateral in
   // time. This also accepts a platform revoked within the window.
   uint64 collateral_grace_secs = 2;
-  // Skip Intel's verdict on the quote entirely (break glass). While set, only the
-  // owner may submit attestations, so the owner vouches for each one in Intel's
-  // place. The quote must still parse, and the debug, enclave identity, payload and
-  // state checks still apply.
-  bool skip_dcap = 3;
 }
 
 // Collateral carries the Intel PCS artifacts a quote is verified against.
