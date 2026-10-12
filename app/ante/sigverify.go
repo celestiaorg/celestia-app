@@ -50,20 +50,23 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 // txSigCacheKey covers every input the sign bytes are derived from, plus the
 // signature itself.
 //
-// This assumes the sign mode handler derives those bytes from the transaction
-// alone. Every enabled mode does: SIGN_MODE_DIRECT, DIRECT_AUX and
-// LEGACY_AMINO_JSON all discard the context they are handed. A handler that
-// reads state must not be cached here - SIGN_MODE_TEXTUAL queries bank denom
-// metadata, so the key would not see a metadata change, and skipping the reads
-// would make gas differ between a warm and a cold node. Check this before
-// enabling a new sign mode. Nothing guards it at runtime: a mode that fails to
-// verify is simply never admitted, since the cache holds successes only.
+// The key is sound only while the sign mode handler derives those bytes from
+// the transaction alone. Every mode the app enables does: SIGN_MODE_DIRECT,
+// DIRECT_AUX and LEGACY_AMINO_JSON all discard the context they are handed. A
+// handler that reads state is excluded below and verified the ordinary way.
+// Check this before enabling a new sign mode.
 //
 // Multi-signatures are not keyed: they are rare and each inner signature would
 // need its own entry.
 func txSigCacheKey(pubKey cryptotypes.PubKey, signerData txsigning.SignerData, sigData signing.SignatureData, txData txsigning.TxData) (sigcache.Key, bool) {
 	single, ok := sigData.(*signing.SingleSignatureData)
 	if !ok || pubKey == nil {
+		return sigcache.Key{}, false
+	}
+	// SIGN_MODE_TEXTUAL renders coins using bank denom metadata read from
+	// state, so its sign bytes are not a function of the inputs below and the
+	// reads are metered. Never cache it.
+	if single.SignMode == signing.SignMode_SIGN_MODE_TEXTUAL {
 		return sigcache.Key{}, false
 	}
 
