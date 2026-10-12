@@ -45,3 +45,23 @@ func EmitSubmitAttestationEvent(ctx sdk.Context, ism types.InterchainSecurityMod
 		MessageIds: messages,
 	})
 }
+
+// EmitUpdateOwnerEvent emits a typed event when an ism changes owner.
+func EmitUpdateOwnerEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous string) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventUpdateOwner{
+		Id:            ism.Id,
+		PreviousOwner: previous,
+		NewOwner:      ism.Owner,
+	})
+}
+
+// EmitSetVerifierOverridesEvent emits a typed event when an owner sets or clears
+// an ism's verifier overrides.
+func EmitSetVerifierOverridesEvent(ctx sdk.Context, ism types.InterchainSecurityModule, previous *types.VerifierOverrides) error {
+	return ctx.EventManager().EmitTypedEvent(&types.EventSetVerifierOverrides{
+		Id:        ism.Id,
+		Owner:     ism.Owner,
+		Previous:  previous,
+		Overrides: ism.VerifierOverrides,
+	})
+}

@@ -52,6 +52,9 @@ type AttestationResult struct {
 // blockTime is the deterministic clock: every validator evaluates the same
 // certificate and TCB validity windows, so every validator reaches the same
 // verdict.
+//
+// overrides are the ism owner's overrides of step 1 (see VerifyQuoteWith); nil
+// means none. Steps 2 to 4 are never overridden.
 func VerifyAttestation(
 	quote []byte,
 	eventLogRaw []byte,
@@ -59,8 +62,9 @@ func VerifyAttestation(
 	payload []byte,
 	identity *EnclaveIdentity,
 	blockTime time.Time,
+	overrides *VerifierOverrides,
 ) (*AttestationResult, error) {
-	measured, reportData, err := VerifyQuote(quote, collateral, blockTime)
+	measured, reportData, err := VerifyQuoteWith(quote, collateral, blockTime, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -121,6 +125,20 @@ func VerifyAttestation(
 // actually verifies through the same path consensus will use, rather than
 // through a near-copy of it.
 func VerifyQuote(quote []byte, collateral *Collateral, blockTime time.Time) (*Measurements, []byte, error) {
+	return VerifyQuoteWith(quote, collateral, blockTime, nil)
+}
+
+// VerifyQuoteWith is VerifyQuote with an ism owner's overrides of Intel's verdict:
+//
+//   - trusted_root_certs replace the Intel root the signature chain must end at.
+//   - collateral_grace_secs: when the quote fails at block time, it is verified
+//     again as of that many seconds earlier, so collateral (and certificates) that
+//     lapsed within the window still verify. Verifying at block time first keeps
+//     freshly issued collateral working, whose validity starts after the earlier
+//     instant.
+//   - skip_dcap skips Intel's verdict entirely. The quote must still parse, and
+//     the debug check below still applies.
+func VerifyQuoteWith(quote []byte, collateral *Collateral, blockTime time.Time, overrides *VerifierOverrides) (*Measurements, []byte, error) {
 	if err := collateral.Validate(); err != nil {
 		return nil, nil, err
 	}
@@ -136,13 +154,31 @@ func VerifyQuote(quote []byte, collateral *Collateral, blockTime time.Time) (*Me
 
 	// Signature chain, PCK certificate chain, CRLs and TCB status, all evaluated
 	// against collateral carried in the transaction at block time.
-	if err := verify.TdxQuote(quoteV4, &verify.Options{
-		CheckRevocations: true,
-		GetCollateral:    true,
-		Getter:           offlineGetter{collateral: collateral},
-		Now:              blockTime,
-	}); err != nil {
-		return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
+	if !overrides.skipsDcap() {
+		roots, err := overrides.trustedRoots()
+		if err != nil {
+			return nil, nil, err
+		}
+		verifyAt := func(at time.Time) error {
+			return verify.TdxQuote(quoteV4, &verify.Options{
+				CheckRevocations: true,
+				GetCollateral:    true,
+				Getter:           offlineGetter{collateral: collateral},
+				Now:              at,
+				TrustedRoots:     roots,
+			})
+		}
+		if err := verifyAt(blockTime); err != nil {
+			grace := overrides.collateralGraceSecs()
+			if grace == 0 {
+				return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed: %s", err.Error())
+			}
+			earlier := blockTime.Add(-time.Duration(grace) * time.Second)
+			if graceErr := verifyAt(earlier); graceErr != nil {
+				return nil, nil, ErrInvalidQuote.Wrapf("dcap verification failed at block time (%s) and %ds earlier (%s)",
+					err.Error(), grace, graceErr.Error())
+			}
+		}
 	}
 
 	body := quoteV4.GetTdQuoteBody()

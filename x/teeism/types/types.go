@@ -61,8 +61,8 @@ func (ism *InterchainSecurityModule) IdentityDigest() ([32]byte, error) {
 // it carries is swapped too, because the enclave copies it forward into every state
 // it attests and the next attestation is checked against the new pin.
 func (ism *InterchainSecurityModule) Repin(owner string, identity *EnclaveIdentity) ([32]byte, error) {
-	if ism.Owner == "" || owner != ism.Owner {
-		return [32]byte{}, errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "%s does not own ism %s", owner, ism.Id.String())
+	if err := ism.authorize(owner); err != nil {
+		return [32]byte{}, err
 	}
 	if err := identity.Validate(); err != nil {
 		return [32]byte{}, err
@@ -76,4 +76,65 @@ func (ism *InterchainSecurityModule) Repin(owner string, identity *EnclaveIdenti
 	ism.State = EncodeIsmState(state)
 	ism.Identity = identity
 	return previous, nil
+}
+
+// authorize refuses anyone but the ism's owner. An ism without an owner refuses
+// everyone.
+func (ism *InterchainSecurityModule) authorize(owner string) error {
+	if ism.Owner == "" || owner != ism.Owner {
+		return errorsmod.Wrapf(sdkerrors.ErrUnauthorized, "%s does not own ism %s", owner, ism.Id.String())
+	}
+	return nil
+}
+
+// TransferOwnership hands the ism to `newOwner` on behalf of `owner`, and returns
+// the owner before.
+//
+// There is no renouncing: an ism without an owner could never again be re-pinned
+// or have its verifier overridden, which are the controls an emergency needs.
+func (ism *InterchainSecurityModule) TransferOwnership(owner, newOwner string) (string, error) {
+	if err := ism.authorize(owner); err != nil {
+		return "", err
+	}
+	if newOwner == "" {
+		return "", errorsmod.Wrap(sdkerrors.ErrInvalidAddress, "new owner must not be empty")
+	}
+	previous := ism.Owner
+	ism.Owner = newOwner
+	return previous, nil
+}
+
+// SetVerifierOverrides replaces the ism's overrides of Intel's side of
+// verification on behalf of `owner`, and returns the overrides before. Empty
+// overrides clear them.
+func (ism *InterchainSecurityModule) SetVerifierOverrides(owner string, overrides *VerifierOverrides) (*VerifierOverrides, error) {
+	if err := ism.authorize(owner); err != nil {
+		return nil, err
+	}
+	if err := overrides.Validate(); err != nil {
+		return nil, err
+	}
+	previous := ism.VerifierOverrides
+	if overrides.IsEmpty() {
+		ism.VerifierOverrides = nil
+	} else {
+		ism.VerifierOverrides = overrides
+	}
+	return previous, nil
+}
+
+// AuthorizeSubmitter refuses a submission the ism may not accept from `signer`.
+//
+// Anyone may submit while Intel vouches for the quote. With skip_dcap set nothing
+// vouches for it but the submitter, so only the owner may submit: anyone else
+// could otherwise write a quote with the pinned (public) measurements around any
+// payload they like.
+func (ism *InterchainSecurityModule) AuthorizeSubmitter(signer string) error {
+	if !ism.VerifierOverrides.skipsDcap() {
+		return nil
+	}
+	if err := ism.authorize(signer); err != nil {
+		return errorsmod.Wrap(err, "skip_dcap is set, so only the owner may submit attestations")
+	}
+	return nil
 }

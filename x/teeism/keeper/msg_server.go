@@ -72,6 +72,9 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 	if ism.Identity == nil {
 		return nil, types.ErrInvalidEnclaveIdentity.Wrapf("ism %s has no pinned enclave identity", ism.Id.String())
 	}
+	if err := ism.AuthorizeSubmitter(msg.Signer); err != nil {
+		return nil, err
+	}
 
 	// Meter before verifying, so a submission that fails verification still pays
 	// for the work it caused.
@@ -84,6 +87,7 @@ func (m msgServer) SubmitAttestation(ctx context.Context, msg *types.MsgSubmitAt
 		msg.Payload,
 		ism.Identity,
 		sdkCtx.BlockTime(),
+		ism.VerifierOverrides,
 	)
 	if err != nil {
 		return nil, err
@@ -161,4 +165,51 @@ func (m msgServer) UpdateEnclaveIdentity(ctx context.Context, msg *types.MsgUpda
 		return nil, err
 	}
 	return &types.MsgUpdateEnclaveIdentityResponse{}, nil
+}
+
+// UpdateOwner implements types.MsgServer.
+//
+// Hands the ism, and with it every owner control (re-pinning, verifier
+// overrides), to a new owner, typically a multisig.
+func (m msgServer) UpdateOwner(ctx context.Context, msg *types.MsgUpdateOwner) (*types.MsgUpdateOwnerResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+	previous, err := ism.TransferOwnership(msg.Owner, msg.NewOwner)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	if err := EmitUpdateOwnerEvent(sdk.UnwrapSDKContext(ctx), ism, previous); err != nil {
+		return nil, err
+	}
+	return &types.MsgUpdateOwnerResponse{}, nil
+}
+
+// SetVerifierOverrides implements types.MsgServer.
+//
+// The owner's emergency control over Intel's side of verification, for when
+// something Intel publishes or anchors breaks while the ism is live. Every change
+// is an event, so an override is never silent.
+func (m msgServer) SetVerifierOverrides(ctx context.Context, msg *types.MsgSetVerifierOverrides) (*types.MsgSetVerifierOverridesResponse, error) {
+	ism, err := m.isms.Get(ctx, msg.Id.GetInternalId())
+	if err != nil {
+		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
+	}
+	previous, err := ism.SetVerifierOverrides(msg.Owner, msg.Overrides)
+	if err != nil {
+		return nil, err
+	}
+	if err := m.isms.Set(ctx, ism.Id.GetInternalId(), ism); err != nil {
+		return nil, err
+	}
+
+	if err := EmitSetVerifierOverridesEvent(sdk.UnwrapSDKContext(ctx), ism, previous); err != nil {
+		return nil, err
+	}
+	return &types.MsgSetVerifierOverridesResponse{}, nil
 }

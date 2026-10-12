@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package celestia.teeism.v1;
 
+import "celestia/teeism/v1/types.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
 
@@ -60,4 +61,37 @@ message EventUpdateEnclaveIdentity {
   string previous_identity_digest = 3;
   // digest of the identity pinned now (hex-encoded)
   string identity_digest = 4;
+}
+
+// EventUpdateOwner is emitted when an ism changes owner.
+message EventUpdateOwner {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner before
+  string previous_owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // the owner now
+  string new_owner = 3 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+// EventSetVerifierOverrides is emitted when an owner sets or clears an ism's
+// overrides of Intel's side of verification.
+message EventSetVerifierOverrides {
+  option (gogoproto.goproto_getters) = false;
+
+  // unique hyperlane identifier
+  string id = 1 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner who made the change
+  string owner = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // the overrides before, unset if there were none
+  VerifierOverrides previous = 3;
+  // the overrides now, unset if cleared
+  VerifierOverrides overrides = 4;
 }

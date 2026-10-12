@@ -10,7 +10,34 @@ var (
 	_ sdk.HasValidateBasic = (*MsgCreateInterchainSecurityModule)(nil)
 	_ sdk.HasValidateBasic = (*MsgSubmitAttestation)(nil)
 	_ sdk.HasValidateBasic = (*MsgUpdateEnclaveIdentity)(nil)
+	_ sdk.HasValidateBasic = (*MsgUpdateOwner)(nil)
+	_ sdk.HasValidateBasic = (*MsgSetVerifierOverrides)(nil)
 )
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgUpdateOwner) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "owner: %s", err)
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.NewOwner); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "new owner: %s", err)
+	}
+	return nil
+}
+
+// ValidateBasic implements stateless validation for the HasValidateBasic interface.
+func (msg *MsgSetVerifierOverrides) ValidateBasic() error {
+	if msg.Id.IsZeroAddress() {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "ism identifier must be non-zero")
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "owner: %s", err)
+	}
+	return msg.Overrides.Validate()
+}
 
 // ValidateBasic implements stateless validation for the HasValidateBasic interface.
 func (msg *MsgUpdateEnclaveIdentity) ValidateBasic() error {

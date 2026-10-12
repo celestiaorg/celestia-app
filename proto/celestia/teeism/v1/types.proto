@@ -51,6 +51,31 @@ message InterchainSecurityModule {
   bytes merkle_tree_address = 4;
   // the enclave permitted to advance this ism
   EnclaveIdentity identity = 5;
+  // the owner's overrides of Intel's side of verification. Unset means none.
+  VerifierOverrides verifier_overrides = 6;
+}
+
+// VerifierOverrides is the owner's emergency control over Intel's side of
+// verification, for when something Intel publishes or anchors breaks while an ism
+// is live. Every field is off when unset.
+//
+// Each one makes the ism accept attestations Intel would not vouch for, so each
+// one asks routers to trust the owner further. Re-pinning the enclave identity is
+// separate (MsgUpdateEnclaveIdentity) and needs none of these.
+message VerifierOverrides {
+  // DER-encoded certificates that replace the Intel SGX Root CA embedded in the
+  // verifier, for a root rotation. The verifier still requires Intel's
+  // certificate names and key types.
+  repeated bytes trusted_root_certs = 1;
+  // Also accept collateral and certificates that were valid at most this many
+  // seconds before block time, for when Intel cannot publish fresh collateral in
+  // time. This also accepts a platform revoked within the window.
+  uint64 collateral_grace_secs = 2;
+  // Skip Intel's verdict on the quote entirely (break glass). While set, only the
+  // owner may submit attestations, so the owner vouches for each one in Intel's
+  // place. The quote must still parse, and the debug, enclave identity, payload and
+  // state checks still apply.
+  bool skip_dcap = 3;
 }
 
 // Collateral carries the Intel PCS artifacts a quote is verified against.

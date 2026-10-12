@@ -22,6 +22,13 @@ service Msg {
 
   // UpdateEnclaveIdentity re-pins an ism to a different enclave. Owner only.
   rpc UpdateEnclaveIdentity(MsgUpdateEnclaveIdentity) returns (MsgUpdateEnclaveIdentityResponse);
+
+  // UpdateOwner transfers an ism to a new owner. Owner only.
+  rpc UpdateOwner(MsgUpdateOwner) returns (MsgUpdateOwnerResponse);
+
+  // SetVerifierOverrides sets or clears an ism's overrides of Intel's side of
+  // verification. Owner only.
+  rpc SetVerifierOverrides(MsgSetVerifierOverrides) returns (MsgSetVerifierOverridesResponse);
 }
 
 // MsgCreateInterchainSecurityModule is the request type for CreateInterchainSecurityModule.
@@ -105,3 +112,39 @@ message MsgUpdateEnclaveIdentity {
 
 // MsgUpdateEnclaveIdentityResponse is the response type for UpdateEnclaveIdentity.
 message MsgUpdateEnclaveIdentityResponse {}
+
+// MsgUpdateOwner is the request type for UpdateOwner.
+message MsgUpdateOwner {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the owner from now on
+  string new_owner = 3;
+}
+
+// MsgUpdateOwnerResponse is the response type for UpdateOwner.
+message MsgUpdateOwnerResponse {}
+
+// MsgSetVerifierOverrides is the request type for SetVerifierOverrides.
+message MsgSetVerifierOverrides {
+  option (cosmos.msg.v1.signer) = "owner";
+
+  // the ism owner
+  string owner = 1;
+  // ism identifier
+  string id = 2 [
+    (gogoproto.customtype) = "github.com/bcp-innovations/hyperlane-cosmos/util.HexAddress",
+    (gogoproto.nullable)   = false
+  ];
+  // the overrides from now on; unset or empty clears them
+  VerifierOverrides overrides = 3;
+}
+
+// MsgSetVerifierOverridesResponse is the response type for SetVerifierOverrides.
+message MsgSetVerifierOverridesResponse {}

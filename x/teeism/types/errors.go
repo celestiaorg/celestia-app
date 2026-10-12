@@ -20,4 +20,5 @@ var (
 	ErrInvalidTrustedState      = errorsmod.Register(ModuleName, 12, "invalid trusted state")
 	ErrInvalidMerkleTreeAddress = errorsmod.Register(ModuleName, 13, "invalid merkle tree address")
 	ErrMessageTooLarge          = errorsmod.Register(ModuleName, 14, "submitted field exceeds its maximum size")
+	ErrInvalidVerifierOverrides = errorsmod.Register(ModuleName, 15, "invalid verifier overrides")
 )

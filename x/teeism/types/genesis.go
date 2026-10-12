@@ -2,6 +2,7 @@ package types
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -32,6 +33,14 @@ func (gs GenesisState) Validate() error {
 			return errorsmod.Wrapf(ErrInvalidMerkleTreeAddress, "ism %s merkle tree address must be 32 bytes", ism.Id.String())
 		}
 		if err := ism.Identity.Validate(); err != nil {
+			return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
+		}
+		if ism.Owner != "" {
+			if _, err := sdk.AccAddressFromBech32(ism.Owner); err != nil {
+				return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "ism %s owner: %s", ism.Id.String(), err)
+			}
+		}
+		if err := ism.VerifierOverrides.Validate(); err != nil {
 			return errorsmod.Wrapf(err, "ism %s", ism.Id.String())
 		}
 
