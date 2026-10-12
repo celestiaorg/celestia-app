@@ -47,26 +47,23 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 	}
 }
 
-// keyableSignModes are the sign modes whose sign bytes are a pure function of
-// the inputs txSigCacheKey covers. SIGN_MODE_TEXTUAL is deliberately absent: its
-// handler reads bank denom metadata from state, so a cached result would both
-// skip state-dependent sign bytes and skip the reads that pay for them. A sign
-// mode enabled later must be added here consciously rather than inherited.
-var keyableSignModes = map[signing.SignMode]struct{}{
-	signing.SignMode_SIGN_MODE_DIRECT:            {},
-	signing.SignMode_SIGN_MODE_DIRECT_AUX:        {},
-	signing.SignMode_SIGN_MODE_LEGACY_AMINO_JSON: {},
-}
-
 // txSigCacheKey covers every input the sign bytes are derived from, plus the
-// signature itself. Multi-signatures are not keyed: they are rare and each
-// inner signature would need its own entry.
+// signature itself.
+//
+// This assumes the sign mode handler derives those bytes from the transaction
+// alone. Every enabled mode does: SIGN_MODE_DIRECT, DIRECT_AUX and
+// LEGACY_AMINO_JSON all discard the context they are handed. A handler that
+// reads state must not be cached here - SIGN_MODE_TEXTUAL queries bank denom
+// metadata, so the key would not see a metadata change, and skipping the reads
+// would make gas differ between a warm and a cold node. Check this before
+// enabling a new sign mode. Nothing guards it at runtime: a mode that fails to
+// verify is simply never admitted, since the cache holds successes only.
+//
+// Multi-signatures are not keyed: they are rare and each inner signature would
+// need its own entry.
 func txSigCacheKey(pubKey cryptotypes.PubKey, signerData txsigning.SignerData, sigData signing.SignatureData, txData txsigning.TxData) (sigcache.Key, bool) {
 	single, ok := sigData.(*signing.SingleSignatureData)
 	if !ok || pubKey == nil {
-		return sigcache.Key{}, false
-	}
-	if _, ok := keyableSignModes[single.SignMode]; !ok {
 		return sigcache.Key{}, false
 	}
 
