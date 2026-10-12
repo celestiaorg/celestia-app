@@ -701,6 +701,40 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 }
 
+// TestCheckTxPayForFibreRecheck admits a payment promise and rechecks it, so
+// the recheck is served from the admitted bytes, and checks that bytes that
+// differ from the admitted ones take the full path.
+func TestCheckTxPayForFibreRecheck(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	txBytes := newSignedPayForFibreTx(t, signer, accounts[0], true)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+
+	// Each committed block resets the check state and the mempool rechecks
+	// the still pending tx against it.
+	for range 3 {
+		commitBlock(t, testApp)
+		resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	}
+
+	// Truncated bytes cannot be served from the admitted entry: they take the
+	// full path and fail to decode.
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes[:len(txBytes)-1], Type: abci.CheckTxType_Recheck})
+	require.True(t, err != nil || resp.Code != abci.CodeTypeOK)
+}
+
 // TestCheckTxPayForFibreReplay settles a payment promise in a committed block
 // and then rejects a fresh wrapper around the same promise in CheckTx, so
 // replayed promises neither enter the mempool nor survive recheck.

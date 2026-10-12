@@ -215,6 +215,9 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
+	// pffTxCache remembers admitted PayForFibre txs so a recheck skips the
+	// stateless work. It is in memory only.
+	pffTxCache *pffTxCache
 	// sigCache skips repeat signature verification across ante passes, the
 	// fibre message server and every ABCI phase. It is in memory only.
 	sigCache *sigcache.Cache
@@ -268,6 +271,7 @@ func New(
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
+		pffTxCache:              newPffTxCache(),
 		sigCache:                NewSigCache(mempoolMaxTxs(appOpts)),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
