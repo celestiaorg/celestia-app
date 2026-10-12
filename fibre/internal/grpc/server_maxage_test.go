@@ -36,10 +36,10 @@ func TestMaxConnectionAgeFreesStalledSlot(t *testing.T) {
 	keepAliveMaxConnAge, keepAliveMaxConnAgeGrace = 200*time.Millisecond, 200*time.Millisecond
 	t.Cleanup(func() { keepAliveMaxConnAge, keepAliveMaxConnAgeGrace = origAge, origGrace })
 
-	srv, err := Listen("127.0.0.1:0", 1, DefaultMaxConcurrentStreams)
+	srv, err := Listen("127.0.0.1:0")
 	require.NoError(t, err)
 	service := &stallingServer{stalled: make(chan struct{})}
-	srv.Register(service)
+	srv.Register(service, 1, 9)
 	srv.Serve()
 	t.Cleanup(func() { srv.Stop(context.Background()) })
 

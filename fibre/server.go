@@ -66,17 +66,16 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 	}
 
 	server := &Server{
-		Config:    cfg,
-		state:     stateClient,
-		log:       cfg.Log,
-		tracer:    cfg.Tracer,
-		metrics:   metrics,
-		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
-		occ:       occ,
-		health:    newHealthManager(cfg.health, cfg.Log),
+		Config:  cfg,
+		state:   stateClient,
+		log:     cfg.Log,
+		tracer:  cfg.Tracer,
+		metrics: metrics,
+		occ:     occ,
+		health:  newHealthManager(cfg.health, cfg.Log),
 	}
 
-	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress)
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
@@ -130,17 +129,6 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
 	})
-	s.grpc.Register(s,
-		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
-		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
-		// Reject too many rows or proofs before protobuf allocates for them.
-		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
-			DefaultProtocolParams.MaxRowsPerValidator(),
-			DefaultProtocolParams.MerkleProofDepth(),
-		)),
-		grpclib.Creds(creds),
-	)
-	s.health.registerGRPC(s.grpc.Registrar())
 
 	pubKey, err := s.signer.GetPubKey()
 	if err != nil {
@@ -177,6 +165,22 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		s.log.Warn("derived storage budget is 0 (validator not in the active set?); " +
 			"running without a storage limit until it is re-derived")
 	}
+
+	if err := s.configureRPCLimits(ctx); err != nil {
+		return fmt.Errorf("sizing RPC concurrency: %w", err)
+	}
+	s.verifiers = newVerifierPool(s.Config.UploadVerifyWorkers)
+	s.grpc.Register(s, s.Config.MaxConnections, s.Config.MaxConcurrentStreams,
+		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
+		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
+		// Reject too many rows or proofs before protobuf allocates for them.
+		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
+			DefaultProtocolParams.MaxRowsPerValidator(),
+			DefaultProtocolParams.MerkleProofDepth(),
+		)),
+		grpclib.Creds(creds),
+	)
+	s.health.registerGRPC(s.grpc.Registrar())
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancel = cancel

@@ -251,3 +251,70 @@ func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
 	require.Contains(t, output, `msg="store ready" storage_backend=local`)
 	require.NotContains(t, output, "object_namespace")
 }
+
+func TestServerStartSizesRPCsFromStake(t *testing.T) {
+	var logs bytes.Buffer
+	server, _, _ := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.UploadVerifyWorkers = 32
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		newState := cfg.StateClientFn
+		signer, err := cfg.SignerFn("celestia")
+		require.NoError(t, err)
+		key, err := signer.GetPubKey()
+		require.NoError(t, err)
+		cfg.StateClientFn = func() (state.Client, error) {
+			client, err := newState()
+			if err != nil {
+				return nil, err
+			}
+			otherKey, err := core.NewMockPV().GetPubKey()
+			require.NoError(t, err)
+			client.(*mockStateClient).SetGetter = &mockValidatorSetGetter{set: validator.Set{
+				ValidatorSet: core.NewValidatorSet([]*core.Validator{
+					core.NewValidator(key, 14), core.NewValidator(otherKey, 86),
+				}),
+				Height: 100,
+			}}
+			return client, nil
+		}
+	})
+	require.Equal(t, 7, server.Config.MaxConnections)
+	require.Equal(t, 9, server.Config.MaxConcurrentStreams)
+	require.Contains(t, logs.String(), "assigned_rows=1721")
+	require.Contains(t, logs.String(), "memory_budget_mib=15360")
+}
+
+func TestServerStartSizesRPCsWithoutActiveAssignment(t *testing.T) {
+	var logs bytes.Buffer
+	server, _, _ := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.UploadVerifyWorkers = 32
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.SignerFn = func(string) (core.PrivValidator, error) { return core.NewMockPV(), nil }
+	})
+	require.Equal(t, 2, server.Config.MaxConnections)
+	require.Equal(t, 9, server.Config.MaxConcurrentStreams)
+	require.Contains(t, logs.String(), "validator absent from startup set")
+	require.Contains(t, logs.String(), "assigned_rows=4096")
+}
+
+func TestServerStartRejectsInsufficientRPCMemory(t *testing.T) {
+	cfg := fibre.DefaultServerConfig()
+	cfg.ServerListenAddress = "127.0.0.1:0"
+	cfg.UnlimitedBudget = true
+	cfg.RPCMemoryBudgetMiB = 2049
+	cfg.UploadVerifyWorkers = 1
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "celestia", SetGetter: &mockValidatorSetGetter{set: validator.Set{
+			ValidatorSet: core.NewValidatorSet(nil),
+		}}}, nil
+	}
+	cfg.SignerFn = func(string) (core.PrivValidator, error) { return core.NewMockPV(), nil }
+	cfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
+		return fibre.NewMemoryStore(scfg), nil
+	}
+	server, err := fibre.NewServer(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, server.Stop(context.Background())) })
+	require.ErrorContains(t, server.Start(t.Context()), "sizing RPC concurrency")
+	require.Nil(t, server.Done(), "gRPC must not serve before sizing succeeds")
+}

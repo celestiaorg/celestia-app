@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -87,32 +86,40 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestServerConfigConnectionDefaults(t *testing.T) {
+func TestServerConfigMemoryBudget(t *testing.T) {
 	cfg := DefaultServerConfig()
-	assert.Equal(t, fibregrpc.DefaultMaxConnections, cfg.MaxConnections)
-	assert.Equal(t, fibregrpc.DefaultMaxConcurrentStreams, cfg.MaxConcurrentStreams)
+	require.EqualValues(t, 15360, cfg.RPCMemoryBudgetMiB)
+	path := DefaultConfigPath(t.TempDir())
+	cfg.RPCMemoryBudgetMiB = 8192
+	require.NoError(t, cfg.Save(path))
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(path))
+	require.Equal(t, cfg.RPCMemoryBudgetMiB, loaded.RPCMemoryBudgetMiB)
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	require.NotContains(t, string(data), "max_connections")
+	require.NotContains(t, string(data), "max_concurrent_streams")
+
+	for _, budget := range []int64{-1, 0, 2048, 2049, 15360, math.MaxInt64 >> 20, math.MaxInt64} {
+		cfg.RPCMemoryBudgetMiB = budget
+		cfg.Path = t.TempDir()
+		err := cfg.Validate()
+		if budget <= 2048 || budget > math.MaxInt64>>20 {
+			require.ErrorContains(t, err, "rpc_memory_budget_mib")
+		} else {
+			require.NoError(t, err)
+		}
+	}
 }
 
-func TestServerConfigValidateConnectionCaps(t *testing.T) {
+func TestServerConfigLoadLegacyConnectionCaps(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	require.NoError(t, os.WriteFile(path, []byte("max_connections = 16\nmax_concurrent_streams = 13\n"), 0o600))
 	cfg := DefaultServerConfig()
-	cfg.Path = t.TempDir()
-	cfg.MaxConnections = 0
-
-	err := cfg.Validate()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "max_connections must be at least 1")
-
-	cfg.MaxConnections = fibregrpc.DefaultMaxConnections
-	cfg.MaxConcurrentStreams = 0
-	err = cfg.Validate()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "max_concurrent_streams must be at least 1")
-
-	tooBig := uint64(math.MaxUint32) + 1
-	cfg.MaxConcurrentStreams = int(tooBig)
-	err = cfg.Validate()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must not exceed")
+	require.NoError(t, cfg.Load(path))
+	require.EqualValues(t, 15360, cfg.RPCMemoryBudgetMiB)
+	require.Zero(t, cfg.MaxConnections)
+	require.Zero(t, cfg.MaxConcurrentStreams)
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {

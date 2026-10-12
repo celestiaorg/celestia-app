@@ -202,15 +202,30 @@ Startup fails if the saved record is corrupt, or if retained object shards have 
 
 ### Connection caps and memory
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+Set `rpc_memory_budget_mib` in `server_config.toml` to the memory available to Fibre.
+The default is `15360` MiB (15 GiB). Keep separate memory available for the validator process.
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
-```
+At startup, Fibre reads its row assignment from the current validator set and estimates
+memory for maximum-size blobs. Smaller assignments allow more concurrent RPCs.
+It allows up to nine streams per connection and rounds the connection count down to fit.
+Uploads and downloads share these transport limits; neither has reserved slots.
 
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
+The estimate allows three message copies plus 5 MiB per RPC. It reserves 2 GiB for
+runtime and storage overhead, plus one message and 4 MiB for each upload verifier.
+The message estimate scales the protocol limit by assigned rows and adds 1 MiB for fixed metadata.
+For example, 14% stake and 32 upload verifiers give seven connections and nine streams
+per connection: 63 concurrent RPCs with the default memory estimate.
 
-An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+This is a soft estimate, not an allocation limit or an OOM guarantee. It assumes local
+storage and expected shard sizes. Larger historical shards, invalid uploads, object
+storage buffers and delayed garbage collection can exceed it. Monitor process memory
+and reduce the setting if necessary. Restart after material stake changes to recalculate.
+If the validator is absent from the set, Fibre sizes for the maximum shard. A failed
+validator-set query or insufficient memory estimate prevents startup.
+
+Startup logs show assigned rows, estimated bytes per RPC and the resulting limits.
+Old `max_connections` and `max_concurrent_streams` keys load with a warning and are ignored.
+Remove them from existing files; new config files contain only `rpc_memory_budget_mib`.
 
 ## Signing
 
