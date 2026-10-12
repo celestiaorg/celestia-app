@@ -299,11 +299,7 @@ replace (
 	github.com/bcp-innovations/hyperlane-cosmos => github.com/celestiaorg/hyperlane-cosmos v1.3.0
 	github.com/celestiaorg/celestia-app/v10 => ../..
 	github.com/cometbft/cometbft => github.com/celestiaorg/celestia-core v0.42.3
-	// TEMPORARY: must match the root go.mod. Pinned to the head of
-	// celestiaorg/cosmos-sdk#781, which adds the WithSignatureVerifier option
-	// app/ante/sigverify.go uses. Replace with the tagged release (v0.52.13)
-	// before merging; this pseudo-version must not reach a release branch.
-	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v1.29.6-sdk-v0.50.14.0.20261012085202-7227e34521d3
+	github.com/cosmos/cosmos-sdk => github.com/celestiaorg/cosmos-sdk v0.52.13
 	github.com/cosmos/ibc-go/v8 => github.com/celestiaorg/ibc-go/v8 v8.7.2
 	// Use ledger-cosmos-go v0.16.0 because v0.15.0 causes "hidapi: unknown failure"
 	// See https://github.com/celestiaorg/celestia-app/issues/5453
