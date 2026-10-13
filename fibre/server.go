@@ -141,11 +141,17 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("building TLS cert: %w", err)
 	}
-	// Plaintext HTTP/2 is accepted next to TLS; see fibregrpc.NewDetectingServerCreds.
-	creds := fibregrpc.NewDetectingServerCreds(credentials.NewTLS(&tls.Config{
+	tlsCreds := credentials.NewTLS(&tls.Config{
 		Certificates: []tls.Certificate{cert},
 		MinVersion:   tls.VersionTLS13,
-	}))
+	})
+	// By default plaintext HTTP/2 is accepted next to TLS; see
+	// fibregrpc.NewDetectingServerCreds. ForceTLS keeps a TLS-only listener that
+	// rejects plaintext.
+	creds := tlsCreds
+	if !s.Config.ForceTLS {
+		creds = fibregrpc.NewDetectingServerCreds(tlsCreds, fibregrpc.WithAcceptObserver(s.metrics.observeAccept))
+	}
 	s.grpc.RegisterWithUploadBufferReuse(s,
 		s.Config.MaxMessageSize,
 		DefaultProtocolParams.MaxRowsPerValidator(),

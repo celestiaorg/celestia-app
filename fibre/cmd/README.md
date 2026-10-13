@@ -360,9 +360,10 @@ celestia-appd query valaddr provider <celestiavalcons-address>
 
 ## Transport security (TLS)
 
-The Fibre server↔client link is always TLS-encrypted, and it is fully automatic: there are no certificates to obtain, configure, or renew.
+Shards move over plaintext HTTP/2 by default, falling back to TLS automatically. Shard data is public and integrity comes from the payment-promise receipts (ed25519 signatures checked against the validator set) and from row proofs against the commitment, so plaintext only drops the TLS CPU cost. TLS stays fully automatic: there are no certificates to obtain, configure, or renew.
 
-- On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set, so the connection proves it belongs to your validator — no certificate authority involved.
+- Servers accept both plaintext and TLS on the same port, chosen by the first bytes of each connection. Clients try plaintext per validator and fall back to TLS for servers that only speak TLS, re-probing after 10 minutes. Old and new nodes interoperate with no configuration.
+- On startup the server generates its own certificate and has it endorsed once by your validator's consensus key (through the signer). Clients verify that endorsement against the validator set on the TLS path, so the connection proves it belongs to your validator — no certificate authority involved.
 - Identity is bound to the consensus key, not the network address, so the host you register on-chain can be an IP literal or a DNS name.
 - A restart generates a fresh certificate automatically. After changing the signer (`--signer-grpc-address`), restart the server so the certificate is endorsed with the right key.
 - Downloads are public — any peer can read shards. Uploads are still gated by the payment-promise check.
@@ -370,7 +371,7 @@ The Fibre server↔client link is always TLS-encrypted, and it is fully automati
 Two things to keep in mind:
 
 - The app link (`--app-grpc-address`) is not TLS-protected, so keep it on the same host or a trusted network. The signer link (`--signer-grpc-address`) uses plaintext only on loopback; remote connections require the mutual TLS configuration described in [Signing](#signing).
-- There is no plaintext fallback, so every Fibre server and client on the network must run a TLS-capable build.
+- With plaintext shards, an on-path observer can see blob data shortly before its `MsgPayForFibre` inclusion makes it public anyway. If that window matters, set `force_tls = true` (or `--force-tls`) on the server to reject plaintext and serve TLS only, and `ForceTLS` on the client to never probe plaintext. Both sides can be forced independently; a forced client still interoperates with a plaintext-serving server.
 
 For the full design (endorsement scheme, certificate format, OIDs), see the [Fibre server spec](../../specs/src/fibre_server.md).
 
@@ -394,7 +395,7 @@ Downloads of stored shards keep working while the app node or signer is down. Re
 
 ### How to check
 
-The port is TLS-only with a self-signed identity certificate, so tell the probe not to verify it:
+The port speaks TLS with a self-signed identity certificate, so tell the probe not to verify it:
 
 ```sh
 go install github.com/grpc-ecosystem/grpc-health-probe@latest
