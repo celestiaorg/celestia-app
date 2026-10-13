@@ -306,7 +306,7 @@ amount = gas utia
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 </code></pre>
-<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin. The handler gets or creates the escrow account, sends the coin from the signer account to the <code>fibre</code> module account, adds the amount to both <code>balance</code> and <code>available_balance</code>, stores the escrow account, and emits <code>EventDepositToEscrow</code>.</p>
+<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin in the bond denom (<code>utia</code>). The handler gets or creates the escrow account, sends the coin from the signer account to the <code>fibre</code> module account, adds the amount to both <code>balance</code> and <code>available_balance</code>, stores the escrow account, and emits <code>EventDepositToEscrow</code>.</p>
 <h3 id="msgrequestwithdrawal"><a class="header" href="#msgrequestwithdrawal">MsgRequestWithdrawal</a></h3>
 <pre><code class="language-proto">message MsgRequestWithdrawal {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
@@ -314,7 +314,7 @@ amount = gas utia
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 </code></pre>
-<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin. The handler requires an existing escrow account, requires <code>available_balance &gt;= amount</code>, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with <code>requested_timestamp = block_time</code> and <code>available_timestamp = block_time + withdrawal_delay</code>, subtracts the amount from <code>available_balance</code>, and emits <code>EventWithdrawFromEscrowRequest</code>.</p>
+<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin in the bond denom (<code>utia</code>). The handler requires an existing escrow account, requires <code>available_balance &gt;= amount</code>, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with <code>requested_timestamp = block_time</code> and <code>available_timestamp = block_time + withdrawal_delay</code>, subtracts the amount from <code>available_balance</code>, and emits <code>EventWithdrawFromEscrowRequest</code>.</p>
 <h3 id="msgpayforfibre"><a class="header" href="#msgpayforfibre">MsgPayForFibre</a></h3>
 <pre><code class="language-proto">message MsgPayForFibre {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
