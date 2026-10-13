@@ -75,6 +75,9 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 	filePV := privval.LoadFilePV(pvKeyFile, pvStateFile)
 
 	serverCfg := fibre.DefaultServerConfig()
+	// Allow separate uploader and reader connections for the single validator.
+	serverCfg.RPCMemoryBudgetMiB = 15 * 1024
+	serverCfg.UploadVerifyWorkers = 32
 	serverCfg.AppGRPCAddress = grpcAddr
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
 	serverCfg.Health.CheckInterval = "1s"
