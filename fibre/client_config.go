@@ -42,6 +42,8 @@ type ClientConfig struct {
 	// throughput and falls back to TLS per host; set true to require TLS, e.g.
 	// to keep blob data confidential from on-path observers before its
 	// MsgPayForFibre inclusion.
+	// It applies only when [NewClientFn] is nil; a custom NewClientFn owns its
+	// transport and ignores this setting.
 	ForceTLS bool
 
 	// RPCTimeout bounds a single UploadShard/DownloadShard call to one peer

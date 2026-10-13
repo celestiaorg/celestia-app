@@ -156,7 +156,7 @@ func newClientMetrics(m metric.Meter) (*clientMetrics, error) {
 	}
 
 	// Transport metrics
-	cm.dialTotal, err = m.Int64Counter("fibre.client.dial.total",
+	cm.dialTotal, err = m.Int64Counter("fibre.client.dials",
 		metric.WithDescription("Client gRPC dials by transport mode (plaintext or tls)"),
 	)
 	if err != nil {

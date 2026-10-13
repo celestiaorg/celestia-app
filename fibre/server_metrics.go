@@ -254,7 +254,7 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	}
 
 	// Transport metrics
-	sm.acceptTotal, err = m.Int64Counter("fibre.server.accept.total",
+	sm.acceptTotal, err = m.Int64Counter("fibre.server.accepts",
 		metric.WithDescription("Accepted connections by transport mode (plaintext or tls)"),
 	)
 	if err != nil {
