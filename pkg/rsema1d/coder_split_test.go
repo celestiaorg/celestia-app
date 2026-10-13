@@ -30,6 +30,7 @@ func TestSplitParts(t *testing.T) {
 		{64, 16, 1},
 		{4160, 16, 1}, // 65 chunks: not evenly divisible
 		{6144, 16, want6144},
+		{8192, 16, 4}, // 32 MiB blob: at the amd64 floor, splits 4 ways on both arches
 	} {
 		if got := splitParts(tc.rowSize, tc.workers); got != tc.want {
 			t.Errorf("splitParts(%d, %d) = %d, want %d", tc.rowSize, tc.workers, got, tc.want)
