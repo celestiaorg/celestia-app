@@ -37,7 +37,7 @@ const (
 
 	// KeepAlive drops idle or abusive connections.
 	keepAliveMinTime     = 10 * time.Second // reject clients that ping more often
-	keepAliveMaxConnIdle = 5 * time.Minute  // close idle connections
+	keepAliveMaxConnIdle = 30 * time.Second // close idle connections
 	keepAlivePingTime    = 2 * time.Minute  // ping interval to detect dead peers
 	keepAlivePingTimeout = 20 * time.Second // ping ack deadline before drop
 )
