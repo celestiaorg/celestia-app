@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"math"
 	"time"
 
 	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -68,6 +69,12 @@ const (
 	// MaxPaymentPromiseTimeout is the upper bound of the payment promise timeout
 	// parameter.
 	MaxPaymentPromiseTimeout = 12 * time.Hour
+
+	// MaxPaymentPromiseHeightWindow is the upper bound of the payment promise
+	// height window parameter. The window is compared against a difference of
+	// block heights, which are int64, so a larger value would wrap negative in
+	// that conversion and reject every promise.
+	MaxPaymentPromiseHeightWindow uint64 = math.MaxInt64
 
 	// MinShardRetention is the lower bound of the shard retention parameter.
 	MinShardRetention = 10 * time.Minute
@@ -195,6 +202,10 @@ func validatePaymentPromiseHeightWindow(v any) error {
 
 	if heightWindow == 0 {
 		return fmt.Errorf("payment promise height window cannot be 0")
+	}
+
+	if heightWindow > MaxPaymentPromiseHeightWindow {
+		return fmt.Errorf("payment promise height window must be at most %d: %d", MaxPaymentPromiseHeightWindow, heightWindow)
 	}
 
 	return nil

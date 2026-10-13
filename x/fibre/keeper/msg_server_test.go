@@ -1003,6 +1003,17 @@ func (suite *MsgServerTestSuite) TestUpdateFibreParams() {
 		suite.Contains(err.Error(), "invalid parameters")
 	})
 
+	suite.T().Run("invalid params PaymentPromiseHeightWindow above the upper bound", func(t *testing.T) {
+		msg := &types.MsgUpdateFibreParams{
+			Authority: suite.authority,
+			Params:    types.NewParams(24*time.Hour, time.Hour, types.MaxPaymentPromiseHeightWindow+1, 4*time.Hour, types.DefaultFullStakeStorageBudget),
+		}
+		resp, err := suite.msgServer.UpdateFibreParams(suite.ctx, msg)
+		suite.Error(err)
+		suite.Nil(resp)
+		suite.Contains(err.Error(), "invalid parameters")
+	})
+
 	suite.T().Run("invalid params zero ShardRetention", func(t *testing.T) {
 		msg := &types.MsgUpdateFibreParams{
 			Authority: suite.authority,
