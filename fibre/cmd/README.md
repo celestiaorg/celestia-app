@@ -203,28 +203,36 @@ Startup fails if the saved record is corrupt, or if retained object shards have 
 ### Connection caps and memory
 
 Set `rpc_memory_budget_mib` in `server_config.toml` to the memory available to Fibre.
-The default is `15360` MiB (15 GiB). Keep separate memory available for the validator process.
+The default is `10240` MiB (10 GiB). Keep separate memory available for the validator process.
 
 At startup, Fibre reads its row assignment from the current validator set and estimates
-memory for maximum-size blobs. Smaller assignments allow more concurrent RPCs.
+memory for maximum-size blobs. Smaller assignments allow more concurrent RPCs
+within the allotted budget given smaller blob shard size.
 It allows up to nine streams per connection and rounds the connection count down to fit.
 Uploads and downloads share these transport limits; neither has reserved slots.
 
 The estimate allows three message copies plus 5 MiB per RPC. It reserves 2 GiB for
 runtime and storage overhead, plus one message and 4 MiB for each upload verifier.
 The message estimate scales the protocol limit by assigned rows and adds 1 MiB for fixed metadata.
-For example, 14% stake and 32 upload verifiers give seven connections and nine streams
-per connection: 63 concurrent RPCs with the default memory estimate.
+For example, 14% stake and 32 upload verifiers give three connections and nine streams
+per connection: 27 concurrent RPCs with the default memory estimate.
 
-This is a soft estimate, not an allocation limit or an OOM guarantee. It assumes local
+This is a soft estimate based on rough memory accounting. It assumes local
 storage and expected shard sizes. Larger historical shards, invalid uploads, object
 storage buffers and delayed garbage collection can exceed it. Monitor process memory
 and reduce the setting if necessary. Restart after material stake changes to recalculate.
-If the validator is absent from the set, Fibre sizes for the maximum shard. A failed
-validator-set query or insufficient memory estimate prevents startup.
+Fibre can remain running after its validator leaves the active set, for example to serve
+stored shards. Its readiness check reports that the validator is inactive. If started
+outside the active set, Fibre sizes concurrency for the maximum shard.
+A failed startup validator-set query or insufficient memory estimate prevents startup.
+Upload assignment validation still uses the validator set at each payment promise's height.
 
 Startup logs show assigned rows, estimated bytes per RPC and the resulting limits.
-Old `max_connections` and `max_concurrent_streams` keys load with a warning and are ignored.
+If only one connection fits, Fibre warns that an idle client can block other clients.
+Consider increasing `rpc_memory_budget_mib` if memory is available, including on small
+validator test networks where each validator receives a maximum-size shard.
+Old `max_connections` and `max_concurrent_streams` keys are deprecated.
+They load with a warning and are ignored; support will be removed in a future release.
 Remove them from existing files; new config files contain only `rpc_memory_budget_mib`.
 
 ## Signing

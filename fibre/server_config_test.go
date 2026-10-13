@@ -88,7 +88,7 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 
 func TestServerConfigMemoryBudget(t *testing.T) {
 	cfg := DefaultServerConfig()
-	require.EqualValues(t, 15360, cfg.RPCMemoryBudgetMiB)
+	require.EqualValues(t, 10240, cfg.RPCMemoryBudgetMiB)
 	path := DefaultConfigPath(t.TempDir())
 	cfg.RPCMemoryBudgetMiB = 8192
 	require.NoError(t, cfg.Save(path))
@@ -100,7 +100,7 @@ func TestServerConfigMemoryBudget(t *testing.T) {
 	require.NotContains(t, string(data), "max_connections")
 	require.NotContains(t, string(data), "max_concurrent_streams")
 
-	for _, budget := range []int64{-1, 0, 2048, 2049, 15360, math.MaxInt64 >> 20, math.MaxInt64} {
+	for _, budget := range []int64{-1, 0, 2048, 2049, 10240, math.MaxInt64 >> 20, math.MaxInt64} {
 		cfg.RPCMemoryBudgetMiB = budget
 		cfg.Path = t.TempDir()
 		err := cfg.Validate()
@@ -117,9 +117,7 @@ func TestServerConfigLoadLegacyConnectionCaps(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("max_connections = 16\nmax_concurrent_streams = 13\n"), 0o600))
 	cfg := DefaultServerConfig()
 	require.NoError(t, cfg.Load(path))
-	require.EqualValues(t, 15360, cfg.RPCMemoryBudgetMiB)
-	require.Zero(t, cfg.MaxConnections)
-	require.Zero(t, cfg.MaxConcurrentStreams)
+	require.EqualValues(t, 10240, cfg.RPCMemoryBudgetMiB)
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {

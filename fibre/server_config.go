@@ -70,11 +70,7 @@ type ServerConfig struct {
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// RPCMemoryBudgetMiB is the soft memory estimate used to size inbound RPC concurrency.
-	RPCMemoryBudgetMiB int64 `toml:"rpc_memory_budget_mib" comment:"Soft Fibre server memory estimate in MiB (default 15360 = 15 GiB). Sizes connections from startup stake, including verifier and runtime headroom. Not an enforced memory limit. Restart after changing."`
-	// MaxConnections is calculated at startup from RPCMemoryBudgetMiB and assigned rows.
-	MaxConnections int `toml:"-"`
-	// MaxConcurrentStreams is calculated at startup with MaxConnections.
-	MaxConcurrentStreams int `toml:"-"`
+	RPCMemoryBudgetMiB int64 `toml:"rpc_memory_budget_mib" comment:"Soft Fibre server memory estimate in MiB (default 10240 = 10 GiB). Sizes connections from startup stake, including verifier and runtime headroom. Uses rough memory accounting. Restart after changing."`
 	// Health configures the readiness checks behind the gRPC health service.
 	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service."`
 
@@ -183,7 +179,7 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		MaxMessageSize:      p.MaxMessageSize(),
 		MinUploadSize:       p.Rows * p.MinRowSize,
 		UploadVerifyWorkers: runtime.GOMAXPROCS(0),
-		RPCMemoryBudgetMiB:  15 * 1024,
+		RPCMemoryBudgetMiB:  10 * 1024,
 	}
 	return cfg
 }
@@ -329,8 +325,8 @@ func (cfg *ServerConfig) Load(path string) error {
 	}
 	loaded := struct {
 		ServerConfig
-		MaxConnections       *int `toml:"max_connections"`
-		MaxConcurrentStreams *int `toml:"max_concurrent_streams"`
+		LegacyMaxConnections       *int `toml:"max_connections"`
+		LegacyMaxConcurrentStreams *int `toml:"max_concurrent_streams"`
 	}{ServerConfig: *cfg}
 	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
 	if err := decoder.Decode(&loaded); err != nil {
@@ -339,12 +335,12 @@ func (cfg *ServerConfig) Load(path string) error {
 		}
 		return fmt.Errorf("decode config file %s: %w", path, err)
 	}
-	if loaded.MaxConnections != nil || loaded.MaxConcurrentStreams != nil {
+	if loaded.LegacyMaxConnections != nil || loaded.LegacyMaxConcurrentStreams != nil {
 		log := cfg.Log
 		if log == nil {
 			log = slog.Default()
 		}
-		log.Warn("max_connections and max_concurrent_streams are ignored; use rpc_memory_budget_mib")
+		log.Warn("max_connections and max_concurrent_streams are deprecated and ignored; support will be removed; use rpc_memory_budget_mib")
 	}
 	*cfg = loaded.ServerConfig
 	return nil

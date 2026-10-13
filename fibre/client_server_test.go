@@ -223,7 +223,11 @@ func TestClientServerUploadDownload(t *testing.T) {
 }
 
 func TestClientServerDownloadWithoutKeyring(t *testing.T) {
-	env := makeTestEnv(t, 3, 1, nil, nil)
+	env := makeTestEnv(t, 3, 1, nil, func(cfg *fibre.ServerConfig) {
+		// Each validator has one-third stake; allow separate uploader and reader connections.
+		cfg.RPCMemoryBudgetMiB = 15 * 1024
+		cfg.UploadVerifyWorkers = 32
+	})
 	t.Cleanup(env.Close)
 	uploader := env.clients[0]
 	blob := makeTestBlobV0(t, 256*1024)

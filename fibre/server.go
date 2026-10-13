@@ -157,8 +157,17 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		return err
 	}
 
+	valSet, err := s.state.Head(ctx)
+	if err != nil {
+		return fmt.Errorf("fetching startup validator set: %w", err)
+	}
+	assignedRows := 0
+	if val, found := valSet.GetByAddress(pubKey.Address()); found {
+		assignedRows = valSet.AssignedRows(val, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
+	}
+
 	// Derive the budget once at startup.
-	if err := s.recomputeBudget(ctx); err != nil {
+	if err := s.updateStorageBudget(ctx, assignedRows); err != nil {
 		return fmt.Errorf("deriving initial storage budget: %w", err)
 	}
 	if !s.Config.UnlimitedBudget && s.occ.budgetBytes() <= 0 {
@@ -166,11 +175,30 @@ func (s *Server) Start(ctx context.Context) (err error) {
 			"running without a storage limit until it is re-derived")
 	}
 
-	if err := s.configureRPCLimits(ctx); err != nil {
+	memoryRows := assignedRows
+	if memoryRows == 0 {
+		memoryRows = s.Config.OriginalRows
+		s.log.Warn("validator absent from startup set; sizing RPC concurrency for the maximum shard")
+	}
+	limits, err := calculateRPCLimits(&s.Config, memoryRows)
+	if err != nil {
 		return fmt.Errorf("sizing RPC concurrency: %w", err)
 	}
+	s.log.Info("RPC concurrency sized from startup assignment",
+		"memory_budget_mib", s.Config.RPCMemoryBudgetMiB,
+		"assigned_rows", memoryRows, "validator_set_height", valSet.Height,
+		"estimated_bytes_per_rpc", limits.bytesPerRPC,
+		"max_connections", limits.connections, "max_concurrent_streams", limits.streams,
+	)
+
+	if limits.connections == 1 {
+		s.log.Warn("RPC memory estimate permits only one connection; idle clients can block other clients. Consider increasing rpc_memory_budget_mib if memory is available.",
+			"memory_budget_mib", s.Config.RPCMemoryBudgetMiB, "assigned_rows", memoryRows,
+		)
+	}
+
 	s.verifiers = newVerifierPool(s.Config.UploadVerifyWorkers)
-	s.grpc.Register(s, s.Config.MaxConnections, s.Config.MaxConcurrentStreams,
+	s.grpc.Register(s, limits.connections, limits.streams,
 		grpclib.MaxRecvMsgSize(s.Config.MaxMessageSize),
 		grpclib.MaxSendMsgSize(s.Config.MaxMessageSize),
 		// Reject too many rows or proofs before protobuf allocates for them.
@@ -253,13 +281,35 @@ func (s *Server) Stop(ctx context.Context) (err error) {
 	return err
 }
 
-// recomputeBudget derives this node's occupancy budget from the governance
-// parameter and its current stake (FullStakeStorageBudget * assignedRows /
-// OriginalRows) and applies it to the counter. It applies an unlimited (zero)
-// budget when the limiter is disabled — via UnlimitedBudget or a non-positive
-// governance parameter — and returns an error when the parameter, validator
-// set, or signer cannot be read.
+// recomputeBudget refreshes the storage budget using the current validator set.
 func (s *Server) recomputeBudget(ctx context.Context) error {
+	if s.Config.UnlimitedBudget {
+		s.occ.setBudget(0)
+		return nil
+	}
+
+	valSet, err := s.state.Head(ctx)
+	if err != nil {
+		return fmt.Errorf("fetching head validator set: %w", err)
+	}
+
+	key, err := s.signer.GetPubKey()
+	if err != nil {
+		return fmt.Errorf("getting validator public key: %w", err)
+	}
+
+	ourVal, found := valSet.GetByAddress(key.Address())
+	if !found {
+		// Keep the previous budget for shards assigned at earlier heights.
+		return s.updateStorageBudget(ctx, 0)
+	}
+
+	assignedRows := valSet.AssignedRows(ourVal, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
+	return s.updateStorageBudget(ctx, assignedRows)
+}
+
+// updateStorageBudget applies the budget for assignedRows; zero rows retain the previous budget.
+func (s *Server) updateStorageBudget(ctx context.Context, assignedRows int) error {
 	if s.Config.UnlimitedBudget {
 		s.occ.setBudget(0)
 		return nil
@@ -277,27 +327,10 @@ func (s *Server) recomputeBudget(ctx context.Context) error {
 		return fmt.Errorf("full-stake storage budget must be positive (got %d); pass --unlimited-budget to disable the limiter", fullStake)
 	}
 
-	valSet, err := s.state.Head(ctx)
-	if err != nil {
-		return fmt.Errorf("fetching head validator set: %w", err)
-	}
-
-	key, err := s.signer.GetPubKey()
-	if err != nil {
-		return fmt.Errorf("getting validator public key: %w", err)
-	}
-
-	ourVal, found := valSet.GetByAddress(key.Address())
-	if !found {
-		// Not in the active set: no new assignments. Keep whatever budget is
-		// already applied. During a periodic recompute that preserves the last
-		// derived budget, so promises from heights we were assigned to are still
-		// bounded; at startup nothing has been derived yet, so the budget stays 0
-		// and Start refuses to boot a node that cannot derive its budget.
+	if assignedRows == 0 {
 		return nil
 	}
 
-	assignedRows := valSet.AssignedRows(ourVal, s.Config.OriginalRows, s.Config.MinRowsPerValidator, s.Config.LivenessThreshold)
 	budget := deriveBudget(fullStake, assignedRows, s.Config.OriginalRows)
 
 	if fullStake < int64(s.Config.MaxShardSize) {
