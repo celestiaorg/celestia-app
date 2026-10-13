@@ -208,22 +208,25 @@ The default is `10240` MiB (10 GiB). Keep separate memory available for the vali
 At startup, Fibre reads its row assignment from the current validator set and estimates
 memory for maximum-size blobs. Smaller assignments allow more concurrent RPCs
 within the allotted budget given smaller blob shard size.
-It allows up to nine streams per connection and rounds the connection count down to fit.
+It balances connections and streams per connection near the original 16:13 ratio,
+rounding their counts so the total concurrency fits the estimate.
 Uploads and downloads share these transport limits; neither has reserved slots.
 
 The estimate allows three message copies plus 5 MiB per RPC. It reserves 2 GiB for
 runtime and storage overhead, plus one message and 4 MiB for each upload verifier.
 The message estimate scales the protocol limit by assigned rows and adds 1 MiB for fixed metadata.
-For example, 14% stake and 32 upload verifiers give three connections and nine streams
-per connection: 27 concurrent RPCs with the default memory estimate.
+For example, 14% stake and 32 upload verifiers give seven connections and five streams
+per connection: 35 concurrent RPCs with the default memory estimate.
+Maximum-shard sizing with 32 upload verifiers gives four connections and two streams
+per connection with the same default budget.
 
 This is a soft estimate based on rough memory accounting. It assumes local
 storage and expected shard sizes. Larger historical shards, invalid uploads, object
 storage buffers and delayed garbage collection can exceed it. Monitor process memory
 and reduce the setting if necessary. Restart after material stake changes to recalculate.
-Fibre can remain running after its validator leaves the active set, for example to serve
-stored shards. Its readiness check reports that the validator is inactive. If started
-outside the active set, Fibre sizes concurrency for the maximum shard.
+Fibre can start or remain running outside the active validator set, for example to serve
+stored shards. Its readiness check reports that the validator is inactive. At startup,
+an inactive validator uses maximum-shard sizing for RPC concurrency.
 A failed startup validator-set query or insufficient memory estimate prevents startup.
 Upload assignment validation still uses the validator set at each payment promise's height.
 

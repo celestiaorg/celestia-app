@@ -293,7 +293,7 @@ func TestServerStartSizesRPCsFromStake(t *testing.T) {
 		}
 	})
 	require.Equal(t, 1, startupHeadCalls, "startup should share one validator-set query")
-	require.Contains(t, logs.String(), "max_connections=3 max_concurrent_streams=9")
+	require.Contains(t, logs.String(), "max_connections=7 max_concurrent_streams=5")
 	require.Contains(t, logs.String(), "assigned_rows=1721")
 	require.Contains(t, logs.String(), "memory_budget_mib=10240")
 	require.NotContains(t, logs.String(), "only one connection")
@@ -306,10 +306,10 @@ func TestServerStartSizesRPCsWithoutActiveAssignment(t *testing.T) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.SignerFn = func(string) (core.PrivValidator, error) { return core.NewMockPV(), nil }
 	})
-	require.Contains(t, logs.String(), "max_connections=1 max_concurrent_streams=9")
+	require.Contains(t, logs.String(), "max_connections=4 max_concurrent_streams=2")
 	require.Contains(t, logs.String(), "validator absent from startup set")
 	require.Contains(t, logs.String(), "assigned_rows=4096")
-	require.Contains(t, logs.String(), "level=WARN msg=\"RPC memory estimate permits only one connection")
+	require.NotContains(t, logs.String(), "only one connection")
 }
 
 func TestServerStartRejectsInsufficientRPCMemory(t *testing.T) {
