@@ -16,24 +16,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestProcessProposalRebuildsSquareAfterReverts pins the equivalence between the
-// square FilteredSquareBuilder builds incrementally in PrepareProposal and the
-// one constructSquare rebuilds in a single pass in ProcessProposal, across the
-// builder's three revert paths.
-//
-// The proposal cache makes this worth pinning explicitly. The proposer's own
-// ProcessProposal used to rebuild the square and compare the result against the
-// data root it had stated, which cross-checked the two builders on every block
-// it proposed. On a cache hit it no longer rebuilds, so the round trips in this
-// package that take a hit have stopped covering that equivalence, and
-// RevertLastTx, RevertLastBlobTx and RevertLastPayForFibreTx are not
-// round-tripped through a rebuild anywhere else.
-//
-// Each case builds a proposal whose second transaction is appended to the square
-// and then reverted, and asserts the rebuild accepts it. The second
-// ProcessProposal call is the one that matters: Take empties the cache on every
-// call, so the first reuses PrepareProposal's artifacts and the second
-// recomputes them from the tx bytes.
+// TestProcessProposalRebuildsSquareAfterReverts checks that ProcessProposal
+// accepts a proposal built through each of the builder's three revert paths,
+// both when it reuses PrepareProposal's artifacts and when it rebuilds the
+// square from the tx bytes.
 func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
