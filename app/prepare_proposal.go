@@ -23,12 +23,13 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	// Create a context using a branch of the state.
 	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
 
+	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 	fsb, err := NewFilteredSquareBuilder(
 		handler,
 		app.MsgServiceRouter(),
 		app.encodingConfig.TxConfig,
 		app.IBCKeeper.ChannelKeeper,
-		app.MaxEffectiveSquareSize(ctx),
+		maxSquareSize,
 		appconsts.SubtreeRootThreshold,
 	)
 	if err != nil {
@@ -75,6 +76,19 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if err != nil {
 		return nil, fmt.Errorf("failure to get data square size: %w", err)
 	}
+
+	// Hand the artifacts to this node's own ProcessProposal so it compares
+	// instead of recomputing them. The entry is keyed on the exact inputs and
+	// is never treated as proof that the block is valid.
+	app.proposalCache.Store(&proposalArtifacts{
+		key:     newProposalKey(ctx, req.Height, maxSquareSize),
+		txs:     txs,
+		blobTxs: fsb.KeptBlobTxs(),
+		// Store the halved EDS width, the value ProcessProposal compares the
+		// proposer's square size against.
+		squareSize: uint64(eds.Width()) / 2,
+		dataRoot:   dah.Hash(),
+	})
 
 	// Tendermint doesn't need to use any of the erasure data because only the
 	// protobuf encoded version of the block data is gossiped. Therefore, the
