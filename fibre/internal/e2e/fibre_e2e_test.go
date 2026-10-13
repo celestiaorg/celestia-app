@@ -96,6 +96,8 @@ func (s *FibreE2ETestSuite) SetupSuite() {
 
 	clientCfg := fibre.DefaultClientConfig()
 	clientCfg.StateAddress = grpcAddr
+	// The single validator receives every row, so 100 MiB shard uploads exceed the default under the race detector.
+	clientCfg.RPCTimeout = 2 * time.Minute
 	// connect all validators to the single fibre server address
 	fibreAddr := s.fibreServer.ListenAddress()
 	clientCfg.NewClientFn = grpcfibre.DefaultNewClientFn(
