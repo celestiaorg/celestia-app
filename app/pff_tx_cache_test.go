@@ -39,6 +39,14 @@ func TestPffTxCache(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, signer, again)
 
+	// Nor through what Set was handed: the caller's buffer is a response field
+	// the mempool reads back.
+	signer.addr[0] ^= 0xff
+	again, ok = c.Get(raw)
+	require.True(t, ok)
+	require.NotEqual(t, signer, again)
+	signer.addr[0] ^= 0xff
+
 	// Dropping another byte string leaves the entry; dropping the entry's
 	// bytes removes it.
 	c.Drop(mutated)

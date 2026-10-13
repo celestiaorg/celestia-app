@@ -82,3 +82,11 @@ func (c *pffTxCache) Drop(raw []byte) {
 func (c *pffTxCache) Len() int {
 	return c.entries.Len()
 }
+
+// PffTxCacheLen reports how many admitted PayForFibre txs are remembered for
+// recheck. What the wrapper records is otherwise invisible from outside this
+// package: a hit and a miss reach the same answer by construction, which is
+// the point, so tests assert on the cache rather than on the response.
+func (app *App) PffTxCacheLen() int {
+	return app.pffTxCache.Len()
+}
