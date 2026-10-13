@@ -9,6 +9,8 @@ import (
 	"time"
 
 	pebbledb "github.com/cockroachdb/pebble/v2"
+	"github.com/cockroachdb/pebble/v2/vfs"
+	"github.com/cockroachdb/pebble/v2/vfs/atomicfs"
 )
 
 const storageBackendInvalid = "invalid"
@@ -88,19 +90,21 @@ func OpenStoreInspector(path string) (*StoreInspector, error) {
 }
 
 func pebbleStoreExists(path string) (bool, error) {
-	entries, err := os.ReadDir(path)
+	manifest, err := atomicfs.ReadMarker(vfs.Default, path, "manifest")
 	if os.IsNotExist(err) {
 		return false, nil
 	}
 	if err != nil {
 		return false, fmt.Errorf("checking Fibre store at %s: %w", path, err)
 	}
-	for _, entry := range entries {
-		if entry.Name() == "CURRENT" || strings.HasPrefix(entry.Name(), "marker.manifest.") {
-			return true, nil
-		}
+	if manifest == "" {
+		return false, nil
 	}
-	return false, nil
+	_, err = vfs.Default.Stat(vfs.Default.PathJoin(path, manifest))
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return err == nil, err
 }
 
 // Close closes the read-only store handle.

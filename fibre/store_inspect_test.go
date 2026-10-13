@@ -85,15 +85,15 @@ func TestOpenStoreInspectorExplainsLockedStore(t *testing.T) {
 	require.ErrorContains(t, err, "stop the Fibre server")
 }
 
-func TestStoreInspectorDoesNotCreateMissingPath(t *testing.T) {
+func TestStoreInspectorDoesNotModifyIncompleteStore(t *testing.T) {
 	path := t.TempDir()
-	require.NoError(t, os.Mkdir(filepath.Join(path, "config"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(path, "CURRENT"), nil, 0o600))
 	_, err := OpenStoreInspector(path)
 	require.Error(t, err)
 	entries, err := os.ReadDir(path)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
-	require.Equal(t, "config", entries[0].Name())
+	require.Equal(t, "CURRENT", entries[0].Name())
 }
 
 func TestStoreInspectorMarkersFilterAndLimit(t *testing.T) {
