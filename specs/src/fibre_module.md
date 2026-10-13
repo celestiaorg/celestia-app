@@ -228,7 +228,7 @@ message MsgDepositToEscrow {
 }
 ```
 
-`ValidateBasic` requires a valid bech32 signer address and a valid positive coin. The handler gets or creates the escrow account, sends the coin from the signer account to the `fibre` module account, adds the amount to both `balance` and `available_balance`, stores the escrow account, and emits `EventDepositToEscrow`.
+`ValidateBasic` requires a valid bech32 signer address and a valid positive coin in the bond denom (`utia`). The handler gets or creates the escrow account, sends the coin from the signer account to the `fibre` module account, adds the amount to both `balance` and `available_balance`, stores the escrow account, and emits `EventDepositToEscrow`.
 
 ### MsgRequestWithdrawal
 
@@ -240,7 +240,7 @@ message MsgRequestWithdrawal {
 }
 ```
 
-`ValidateBasic` requires a valid bech32 signer address and a valid positive coin. The handler requires an existing escrow account, requires `available_balance >= amount`, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with `requested_timestamp = block_time` and `available_timestamp = block_time + withdrawal_delay`, subtracts the amount from `available_balance`, and emits `EventWithdrawFromEscrowRequest`.
+`ValidateBasic` requires a valid bech32 signer address and a valid positive coin in the bond denom (`utia`). The handler requires an existing escrow account, requires `available_balance >= amount`, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with `requested_timestamp = block_time` and `available_timestamp = block_time + withdrawal_delay`, subtracts the amount from `available_balance`, and emits `EventWithdrawFromEscrowRequest`.
 
 ### MsgPayForFibre
 

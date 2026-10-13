@@ -28,6 +28,10 @@ func (msg *MsgDepositToEscrow) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, "amount must be positive")
 	}
 
+	if err := validateEscrowDenom(msg.Amount.Denom); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -43,6 +47,10 @@ func (msg *MsgRequestWithdrawal) ValidateBasic() error {
 
 	if !msg.Amount.IsPositive() {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidCoins, "amount must be positive")
+	}
+
+	if err := validateEscrowDenom(msg.Amount.Denom); err != nil {
+		return err
 	}
 
 	return nil
@@ -152,6 +160,16 @@ func (msg *MsgUpdateFibreParams) ValidateBasic() error {
 		return errorsmod.Wrap(err, "invalid params")
 	}
 
+	return nil
+}
+
+// validateEscrowDenom rejects any denom other than the bond denom. Escrow
+// balances are charged in the bond denom, and an escrow account takes the denom
+// of its first deposit, so another denom would leave the account unusable.
+func validateEscrowDenom(denom string) error {
+	if denom != appconsts.BondDenom {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidCoins, "denom must be %s, got %s", appconsts.BondDenom, denom)
+	}
 	return nil
 }
 
