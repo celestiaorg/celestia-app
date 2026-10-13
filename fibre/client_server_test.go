@@ -76,7 +76,11 @@ func TestClientServerUploadDownload(t *testing.T) {
 			env := makeTestEnv(t, tt.numValidators, tt.numClients, func(cfg *fibre.ClientConfig) {
 				// Shard uploads are slower under the race detector and CPU contention.
 				cfg.RPCTimeout = 2 * time.Minute
-			}, nil)
+			}, func(cfg *fibre.ServerConfig) {
+				// Allow ten cached client connections even with maximum-sized shard assignments.
+				cfg.RPCMemoryBudgetMiB = 64 * 1024
+				cfg.UploadVerifyWorkers = 32
+			})
 			defer env.Close()
 
 			totalBlobs := tt.numClients * tt.blobsPerClient
