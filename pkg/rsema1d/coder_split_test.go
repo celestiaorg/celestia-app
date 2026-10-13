@@ -8,17 +8,28 @@ import (
 )
 
 func TestSplitParts(t *testing.T) {
+	// 4096 and 6144 B/row (16 and 24 MiB blobs) split only where
+	// minSplitRowBytes permits: on arm64 (floor = minSplitBytes) they split,
+	// off arm64 (floor 8192) they do not. Derive the expectation from the gate
+	// so the table holds on either architecture.
+	want4096, want6144 := 2, 2
+	if minSplitRowBytes > 4096 {
+		want4096 = 1
+	}
+	if minSplitRowBytes > 6144 {
+		want6144 = 1
+	}
 	for _, tc := range []struct{ rowSize, workers, want int }{
 		{32768, 16, 16},
 		{32768, 32, 16},
 		{32768, 5, 4},
 		{32768, 1, 1},
 		{32768, 0, 1},
-		{4096, 16, 2},
+		{4096, 16, want4096},
 		{2048, 16, 1},
 		{64, 16, 1},
 		{4160, 16, 1}, // 65 chunks: not evenly divisible
-		{6144, 16, 2},
+		{6144, 16, want6144},
 	} {
 		if got := splitParts(tc.rowSize, tc.workers); got != tc.want {
 			t.Errorf("splitParts(%d, %d) = %d, want %d", tc.rowSize, tc.workers, got, tc.want)
