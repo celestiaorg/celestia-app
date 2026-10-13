@@ -531,6 +531,60 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 		require.Equal(t, 1, cache.adds)
 		require.Contains(t, cache.entries, key)
 	})
+
+	// The decoded path must land the entry in the same place. The subtests
+	// above only reach the fallback: a plain context carries no decoded view,
+	// so validatePromiseStatelessDecoded forwards to ValidatePromiseStateless.
+	// Reuse of a precomputed key and precomputed sign bytes must not move
+	// where recording happens, only what it costs.
+	suite.T().Run("decoded view does not move where the entry is written", func(t *testing.T) {
+		decodedCache := newCountingSigCache()
+		dk := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, decodedCache)
+
+		pp := fibre.PaymentPromise{}
+		require.NoError(t, pp.FromProto(&paymentPromise))
+		signBytes, err := pp.SignBytes()
+		require.NoError(t, err)
+
+		withView := func(msg *types.MsgPayForFibre) sdk.Context {
+			return types.WithDecodedPayForFibre(suite.ctx, &types.DecodedPayForFibre{
+				Msg:              msg,
+				PromiseSignBytes: signBytes,
+				PromiseKey:       key,
+				PromiseKeyed:     true,
+			})
+		}
+
+		forged := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		require.ErrorContains(t, dk.ValidatePayForFibreSignatures(withView(forged), forged), "validator signature validation failed")
+		require.Zero(t, decodedCache.adds, "a forged certificate buys no entry on the decoded path either")
+		require.Empty(t, decodedCache.entries)
+
+		accepted := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		require.NoError(t, dk.ValidatePayForFibreSignatures(withView(accepted), accepted))
+		require.Equal(t, 1, decodedCache.adds)
+		require.Contains(t, decodedCache.entries, key)
+
+		// Prove the key carried by the view is the one consulted, so this
+		// subtest cannot pass by silently falling back. The entry for the
+		// untampered promise is in the cache now, so a view still carrying
+		// that key short-circuits even though the promise signature no longer
+		// verifies - the same short-circuit TestValidatePromiseStatelessHitSkipsValidation
+		// pins for the keyed form. A recomputed key would miss and reject.
+		tampered := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		tampered.PaymentPromise.Signature = append([]byte(nil), paymentPromise.Signature...)
+		tampered.PaymentPromise.Signature[0] ^= 0xff
+		require.NoError(t, dk.ValidatePayForFibreSignatures(withView(tampered), tampered))
+	})
 }
 
 // TestPaymentPromiseTimeout tests the PaymentPromiseTimeout message handler
