@@ -174,6 +174,14 @@ func (s *stubStateClient) FullStakeStorageBudget(context.Context) (int64, error)
 	return 0, nil
 }
 
+func (s *stubStateClient) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, nil
+}
+
+func (s *stubStateClient) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, nil
+}
+
 func TestStartCmdGRPCSignerFlags(t *testing.T) {
 	tests := []struct {
 		name            string

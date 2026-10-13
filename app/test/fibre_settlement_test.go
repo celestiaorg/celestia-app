@@ -62,7 +62,7 @@ func TestFibreSettlementRoutesToFeeCollector(t *testing.T) {
 	// not enforce the height window, so any positive height works.
 	promise := buildSignedPromise(t, 1, creation, *ownerPub, ownerPriv)
 
-	payment := sdk.NewInt64Coin(appconsts.BondDenom, int64(fibrekeeper.EstimateGasForPayForFibre(promise.BlobSize)))
+	payment := fibretypes.PaymentAmount(promise.BlobSize)
 	feeBefore := testApp.BankKeeper.GetBalance(ctx, feeCollectorAddr, appconsts.BondDenom)
 
 	// Anyone can submit the timeout settlement.

@@ -54,7 +54,8 @@ var (
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
-	done                 chan struct{}
+	done                 chan struct{} // closed when Serve returns
+	err                  error         // why Serve returned; valid once done is closed
 	maxConcurrentStreams uint32
 }
 
@@ -99,6 +100,16 @@ func (s *Server) Register(service types.FibreServer, opts ...grpc.ServerOption) 
 	types.RegisterFibreServer(s.server, service)
 }
 
+// Registrar exposes the [grpc.ServiceRegistrar] for extra services such as gRPC health.
+// Use it between Register and Serve.
+func (s *Server) Registrar() grpc.ServiceRegistrar { return s.server }
+
+// Done is closed once Serve returned. Err then says why; nil after Stop.
+func (s *Server) Done() <-chan struct{} { return s.done }
+
+// Err returns the error Serve returned with. Only valid once Done is closed.
+func (s *Server) Err() error { return s.err }
+
 // recoverUnaryInterceptor recovers from panics in unary handlers and returns an
 // Internal error so a single malformed request cannot crash the server process.
 func recoverUnaryInterceptor(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
@@ -126,7 +137,7 @@ func (s *Server) Serve() {
 	s.done = make(chan struct{})
 	go func() {
 		defer close(s.done)
-		_ = s.server.Serve(s.listener)
+		s.err = s.server.Serve(s.listener) // nil after Stop or GracefulStop
 	}()
 }
 

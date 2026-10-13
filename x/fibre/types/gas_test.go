@@ -60,8 +60,26 @@ func TestEstimateGasForPayForFibreSignatureVerification(t *testing.T) {
 }
 
 func TestPaymentAmount(t *testing.T) {
-	const blobSize = 5 * appconsts.PFBFibreChunkSize
-	amount := types.PaymentAmount(blobSize)
-	require.Equal(t, appconsts.BondDenom, amount.Denom)
-	require.Equal(t, int64(types.EstimateGasForPayForFibre(blobSize)), amount.Amount.Int64())
+	const chunk = appconsts.PFBFibreChunkSize
+	for _, tt := range []struct {
+		name string
+		size uint32
+		want int64
+	}{
+		{"zero", 0, 2_600},
+		{"one byte", 1, 2_780},
+		{"one chunk", chunk, 2_780},
+		{"chunk boundary", chunk + 1, 2_960},
+		{"1 MiB payload padded", 5 * chunk, 3_500},
+		{"10 MiB payload padded", 41 * chunk, 9_980},
+		{"100 MiB payload padded", 401 * chunk, 74_780},
+		{"128 MiB upload", 128 << 20, 94_760},
+		{"max uint32", ^uint32(0), 2_951_720},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			amount := types.PaymentAmount(tt.size)
+			require.Equal(t, appconsts.BondDenom, amount.Denom)
+			require.Equal(t, tt.want, amount.Amount.Int64())
+		})
+	}
 }

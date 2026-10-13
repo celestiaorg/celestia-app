@@ -39,6 +39,9 @@ type Server struct {
 	occ     *occupancy
 	uploads uploadCoordinator
 
+	health     *healthManager
+	healthDone chan struct{}
+
 	pruneDone chan struct{}
 	cancel    context.CancelFunc
 }
@@ -70,6 +73,7 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		metrics:   metrics,
 		verifiers: newVerifierPool(cfg.UploadVerifyWorkers),
 		occ:       occ,
+		health:    newHealthManager(cfg.health, cfg.Log),
 	}
 
 	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
@@ -79,6 +83,13 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 
 	return server, nil
 }
+
+// Done is closed once the gRPC server stopped serving, through Stop or because
+// it failed. Err tells the two apart.
+func (s *Server) Done() <-chan struct{} { return s.grpc.Done() }
+
+// Err returns the error the gRPC server exited with, or nil.
+func (s *Server) Err() error { return s.grpc.Err() }
 
 // ListenAddress returns the actual address the server is listening on.
 func (s *Server) ListenAddress() string {
@@ -96,21 +107,22 @@ func (s *Server) Store() *Store {
 }
 
 // Start connects to the celestia-app node, creates the signer,
-// starts serving gRPC requests, and kicks off background pruning.
+// starts serving gRPC requests, and kicks off background pruning and health checks.
 // NOTE: Order of operations is important. Start the state client first,
 // then create the signer, and finally start the pruning loop followed by the gRPC server.
 func (s *Server) Start(ctx context.Context) (err error) {
 	if err := s.state.Start(ctx); err != nil {
 		return err
 	}
+	chainID := s.state.ChainID()
 
-	s.signer, err = s.Config.newSigner(s.state.ChainID())
+	s.signer, err = s.Config.newSigner(chainID)
 	if err != nil {
 		return fmt.Errorf("creating signer: %w", err)
 	}
 	s.log.Info("signer ready")
 
-	cert, err := tlsid.BuildServerCert(s.signer, s.state.ChainID())
+	cert, err := tlsid.BuildServerCert(s.signer, chainID)
 	if err != nil {
 		return fmt.Errorf("building TLS cert: %w", err)
 	}
@@ -128,12 +140,13 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		)),
 		grpclib.Creds(creds),
 	)
+	s.health.registerGRPC(s.grpc.Registrar())
 
 	pubKey, err := s.signer.GetPubKey()
 	if err != nil {
 		return fmt.Errorf("getting validator public key: %w", err)
 	}
-	s.Config.ObjectStorage.ChainID = s.state.ChainID()
+	s.Config.ObjectStorage.ChainID = chainID
 	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
 	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
@@ -176,6 +189,13 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 	s.grpc.Serve()
 	s.log.Info("serving gRPC", "addr", s.grpc.ListenAddress())
+
+	s.health.start(healthDeps{client: s.state, signer: s.signer, pubKey: pubKey, store: s.store}, chainID)
+	s.healthDone = make(chan struct{})
+	go func() {
+		defer close(s.healthDone)
+		s.health.run(ctx)
+	}()
 	return nil
 }
 
@@ -196,12 +216,16 @@ func (s *Server) seedOccupancy(ctx context.Context) error {
 // Cancelling the context forces an immediate stop without waiting for in-flight requests.
 func (s *Server) Stop(ctx context.Context) (err error) {
 	s.log.Info("stopping server")
+	s.health.stop() // publish not ready before draining
 	if s.cancel != nil {
 		s.cancel()
 	}
 	s.grpc.Stop(ctx)
 	if s.pruneDone != nil {
 		<-s.pruneDone
+	}
+	if s.healthDone != nil {
+		<-s.healthDone
 	}
 
 	if closer, ok := s.signer.(io.Closer); ok {

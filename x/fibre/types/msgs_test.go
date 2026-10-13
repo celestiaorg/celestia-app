@@ -70,6 +70,14 @@ func TestMsgDepositToEscrowValidateBasic(t *testing.T) {
 			},
 			wantErr: sdkerrors.ErrInvalidCoins,
 		},
+		{
+			name: "non-bond denom",
+			msg: MsgDepositToEscrow{
+				Signer: signer,
+				Amount: sdk.NewCoin("hyperlane/foo", math.NewInt(1)),
+			},
+			wantErr: sdkerrors.ErrInvalidCoins,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -129,6 +137,14 @@ func TestMsgRequestWithdrawalValidateBasic(t *testing.T) {
 			msg: MsgRequestWithdrawal{
 				Signer: signer,
 				Amount: negativeCoin,
+			},
+			wantErr: sdkerrors.ErrInvalidCoins,
+		},
+		{
+			name: "non-bond denom",
+			msg: MsgRequestWithdrawal{
+				Signer: signer,
+				Amount: sdk.NewCoin("hyperlane/foo", math.NewInt(1)),
 			},
 			wantErr: sdkerrors.ErrInvalidCoins,
 		},

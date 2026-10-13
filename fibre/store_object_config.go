@@ -35,8 +35,8 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	cfg.Bucket = strings.TrimSpace(cfg.Bucket)
 	cfg.Prefix = strings.TrimSpace(cfg.Prefix)
 	u, err := url.Parse(cfg.Endpoint)
-	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-		return fmt.Errorf("object_storage.endpoint must be an absolute HTTP or HTTPS URL without credentials, query, or fragment")
+	if err != nil || u.Hostname() == "" || u.Scheme != "https" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
+		return fmt.Errorf("object_storage.endpoint must be an absolute HTTPS URL without credentials, query, or fragment")
 	}
 	if cfg.Region == "" {
 		return fmt.Errorf("object_storage.region is required")
