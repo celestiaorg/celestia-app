@@ -63,6 +63,24 @@ func TestEncodeParityMatchesSingle(t *testing.T) {
 	}
 }
 
+func TestEncodeRejectsUnequalRows(t *testing.T) {
+	const k, n, rowSize = 4, 12, 4096
+	c, err := NewCoder(&Config{K: k, N: n, WorkerCount: 16})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := make([][]byte, k+n)
+	for i := range rows {
+		rows[i] = make([]byte, rowSize)
+	}
+	// A short row would panic inside a split worker goroutine; validateRows
+	// must turn it into a returned error instead.
+	rows[k+1] = make([]byte, rowSize-64)
+	if _, err := c.Encode(rows); err == nil {
+		t.Fatal("expected error for unequal row lengths, got nil")
+	}
+}
+
 func TestEncodeConcurrent(t *testing.T) {
 	const k, n, rowSize, encodes = 64, 192, 8192, 8
 	c, err := NewCoder(&Config{K: k, N: n, WorkerCount: 16})

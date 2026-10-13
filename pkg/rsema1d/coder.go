@@ -68,6 +68,11 @@ const (
 // encodeParity runs Reed-Solomon over column ranges in parallel. Columns are
 // independent, so the parity equals a single Encode. Workers are shared among
 // in-flight encodes, so a saturated Coder encodes each blob on one goroutine.
+//
+// Each range runs its own Encode, so the codec work allocator can hold up to
+// parts work sets at once — maxSplitParts for a lone large encode. Sharing
+// workers across in-flight encodes keeps the total parts (hence the peak work
+// sets) ≈ WorkerCount regardless of how many encodes run concurrently.
 func (c *Coder) encodeParity(rows [][]byte) error {
 	active := int(c.active.Add(1))
 	defer c.active.Add(-1)
@@ -111,6 +116,13 @@ func splitParts(rowSize, workers int) int {
 func (c *Coder) validateRows(rows [][]byte) error {
 	if len(rows) != c.config.K+c.config.N {
 		return fmt.Errorf("expected %d rows, got %d", c.config.K+c.config.N, len(rows))
+	}
+	// encodeParity slices every row to rows[0]'s length, so an unequal row
+	// would panic inside a worker goroutine; reject it here instead.
+	for i, r := range rows {
+		if len(r) != len(rows[0]) {
+			return fmt.Errorf("row %d has length %d, want %d", i, len(r), len(rows[0]))
+		}
 	}
 	return nil
 }
