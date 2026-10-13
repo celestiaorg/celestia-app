@@ -74,3 +74,6 @@ This approach enables better iteration on code and helps catch issues early.
 ## Pull Request Rules
 
 - When naming a PR or commits, always follow conventional commits <https://www.conventionalcommits.org/en/v1.0.0/#summary>
+- PR titles must start the subject with exactly one review thoroughness tag, e.g., `docs: [low] clarify setup`, `fix(api): [medium] handle missing input`, or `fix!: [high] correct gas accounting`. Preserve optional scopes and the `!` for breaking changes; consensus-breaking changes require `!`.
+- Use `[low]` for focused review of straightforward, low-risk docs, tests, or tooling; `[medium]` for standard review of code with limited impact and well-understood behavior; and `[high]` for deep review of consensus, state transitions, security, or other significant risk. Choose the higher level when unsure, regardless of diff size, and reassess if scope changes.
+- Include the same tag in the PR description with a brief reason. See [the contributing guide](../README.md#contributing) for details.

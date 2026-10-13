@@ -228,7 +228,7 @@ message MsgDepositToEscrow {
 }
 ```
 
-`ValidateBasic` requires a valid bech32 signer address and a valid positive coin. The handler gets or creates the escrow account, sends the coin from the signer account to the `fibre` module account, adds the amount to both `balance` and `available_balance`, stores the escrow account, and emits `EventDepositToEscrow`.
+`ValidateBasic` requires a valid bech32 signer address and a valid positive coin in the bond denom (`utia`). The handler gets or creates the escrow account, sends the coin from the signer account to the `fibre` module account, adds the amount to both `balance` and `available_balance`, stores the escrow account, and emits `EventDepositToEscrow`.
 
 ### MsgRequestWithdrawal
 
@@ -240,7 +240,7 @@ message MsgRequestWithdrawal {
 }
 ```
 
-`ValidateBasic` requires a valid bech32 signer address and a valid positive coin. The handler requires an existing escrow account, requires `available_balance >= amount`, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with `requested_timestamp = block_time` and `available_timestamp = block_time + withdrawal_delay`, subtracts the amount from `available_balance`, and emits `EventWithdrawFromEscrowRequest`.
+`ValidateBasic` requires a valid bech32 signer address and a valid positive coin in the bond denom (`utia`). The handler requires an existing escrow account, requires `available_balance >= amount`, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with `requested_timestamp = block_time` and `available_timestamp = block_time + withdrawal_delay`, subtracts the amount from `available_balance`, and emits `EventWithdrawFromEscrowRequest`.
 
 ### MsgPayForFibre
 
@@ -256,6 +256,15 @@ message MsgPayForFibre {
 `ValidateBasic` requires a valid transaction signer, a valid payment promise by `PaymentPromise.ValidateBasic`, and at least one validator signature. The handler converts the promise to the internal Fibre type, verifies the internal stateless validation and escrow-owner secp256k1 signature, runs normal stateful validation, verifies validator signatures, hashes the promise, derives the escrow signer from `payment_promise.signer_public_key`, deducts the calculated payment amount from escrow, stores the processed payment, and emits `EventPayForFibre`.
 
 Validator signatures are interpreted as a slice indexed by the validator-set order at `payment_promise.height`. Empty signatures are skipped, non-empty signatures whose index exceeds the validator count are invalid, each non-empty signature must verify with the corresponding CometBFT ed25519 validator public key over the payment-promise sign bytes, and the only threshold enforced is collected voting power at least `floor(2/3 * total_voting_power)`. This means exactly two thirds can pass when the integer voting power calculation allows it, for example 2 of 3 total power. The implementation does not enforce a separate validator-count threshold. `EventPayForFibre.validator_count` is the length of the submitted signature slice.
+
+A validator signature verifies under ZIP-215: the cofactored equation
+`[8][s]B = [8]R + [8][k]A`, with `S` required to be reduced modulo the group
+order, and with non-canonical and small-order encodings of `A` and `R`
+permitted. This is the rule CometBFT applies to every other Ed25519 signature
+it checks, and the only one batch verification can implement. It accepts
+strictly more signatures than the cofactorless equation `[s]B = R + [k]A`; a
+re-implementation that checks the cofactorless equation will reject
+certificates this rule accepts.
 
 Payment deduction first requires total escrow `balance >= payment_amount`. It subtracts the full payment from total `balance`, subtracts `min(available_balance, payment_amount)` from `available_balance`, and if the payment uses funds that were locked in pending withdrawals, it calls `ReduceWithdrawalsForPayment` to delete or reduce the signer's pending withdrawals in signer-index iteration order.
 Stateful Processing:

@@ -235,5 +235,5 @@ func isStale(b *signerBudget) bool {
 
 // requiredAmount is the escrow amount a promise for the given blob size reserves.
 func requiredAmount(blobSize uint32) math.Int {
-	return math.NewIntFromUint64(EstimateGasForPayForFibre(blobSize))
+	return types.PaymentAmount(blobSize).Amount
 }

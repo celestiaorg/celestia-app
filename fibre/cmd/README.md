@@ -120,6 +120,26 @@ For separate hosts, replace both loopback addresses with the validator's private
 fibre version
 ```
 
+### Store inspection
+
+Stop the Fibre server before inspecting its store. The inspection commands open
+Pebble read-only and do not access shard payloads or object storage.
+
+```sh
+fibre store stats
+fibre store markers
+fibre store markers --backend object --limit 100
+fibre store markers --backend invalid --limit 0
+```
+
+`stats` reports marker counts and recorded bytes by backend, malformed metadata,
+the prune backlog, and the saved object namespace. Byte totals are the sizes
+recorded in versioned markers; legacy markers do not record their size.
+`markers` lists individual markers in key order and reports when its output is
+truncated. Set `--limit 0` to list all matching markers. Both commands require
+the Fibre server to be stopped because Pebble allows only one process to hold
+the store lock.
+
 ## Config
 
 The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).
@@ -182,20 +202,23 @@ To rotate keys, update `/etc/fibre/s3.env` and restart Fibre. If the host alread
 
 Changing `storage_backend` between `local` and `object` only changes where new shards are stored. Existing shards stay on their original backend.
 
-**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix.
+**Warning:** After switching back to `local`, keep `[object_storage]` configured until all object shards are pruned. Keep access to the same bucket and prefix, with valid credentials, throughout the retention window. While these shards remain, do not remove the object data or change the configured bucket or prefix. To move them, follow [Migrating to another bucket or prefix](#migrating-to-another-bucket-or-prefix).
 
 Local mode still uses object storage to read and prune retained object shards. Missing object storage configuration or credentials prevents startup.
 
-The store saves the object endpoint, bucket, prefix, chain ID, and validator address at startup, before accepting uploads.
-It updates this record only when an allowed namespace change occurs.
-While object shards remain, a change to this namespace prevents startup in either storage mode.
-Restore the previous configuration and signer to recover access.
-For an intentional migration, stop the server and move all retained objects to the new namespace first.
-Then start once with `--override-object-namespace`. The server logs the old and new namespaces and saves the new namespace.
-This flag does not move or verify objects. An incorrect override can make retained shards unavailable and leave orphaned objects after pruning.
-The flag is not saved in TOML. It only overrides a mismatch with a valid saved namespace.
-Startup fails if the saved record is corrupt, or if retained object shards have no namespace record.
-After all object shards are pruned, namespace changes need no override.
+### Migrating to another bucket or prefix
+
+At startup, Fibre records the object endpoint, bucket, prefix, chain ID, and validator address it uses. While object shards remain, starting with a different endpoint, bucket, or prefix fails in either storage mode. This stops retained shards from becoming unreachable by accident; if it happens, restore the previous configuration to recover access. To move them on purpose:
+
+1. Stop Fibre, so no new shards are written to the old bucket during the copy.
+2. Create the new bucket in the same region as the Fibre host. A bucket in another region adds latency to every upload and download.
+3. Copy every object under the old prefix to the new bucket with the same key layout, for example `aws s3 sync s3://<old-bucket>/<prefix> s3://<new-bucket>/<prefix>`. Fibre looks shards up by key, so a different layout makes them unavailable.
+4. Set the new endpoint, bucket, or prefix in `[object_storage]`. If the new bucket uses different keys, update the [credentials](#object-storage-credentials) too.
+5. Start Fibre once with `--override-object-namespace`. It logs the old and new namespaces and records the new one. The flag does not copy or verify objects, so an override before the copy is complete makes shards unavailable and leaves orphaned objects after pruning.
+6. Remove the flag and restart Fibre. The flag is not saved in the config file, and leaving it in the start command would accept any future mismatch without protection.
+7. Once Fibre serves from the new bucket, delete the old bucket and revoke its credentials.
+
+Startup fails if the saved record is corrupt, or if retained object shards have no namespace record. After all object shards are pruned, namespace changes need no override.
 
 ### Connection caps and memory
 
@@ -312,6 +335,61 @@ For the full design (endorsement scheme, certificate format, OIDs), see the [Fib
 - **Signer connection failed**: compare Fibre's signer address with the node's top-level `priv_validator_grpc_laddr`. Check for an empty value, the old port, or a listener conflict.
 
 For new node settings and their comments, see [Updating existing configuration files](../../docs/release-notes/release-notes.md#updating-existing-configuration-files). `update-config` has no v10 migration.
+
+## Health
+
+The server exposes the standard [gRPC health service](https://grpc.io/docs/guides/health-checking/) on its normal port (`server_listen_address`). It answers two questions:
+
+- **Alive**: is the process running and answering? Service name `fibre-liveness`.
+- **Ready**: can it accept new uploads right now? Service name `""` (the default) or `celestia.fibre.v1.Fibre`. Ready means startup finished and every check below passed.
+
+Downloads of stored shards keep working while the app node or signer is down. Readiness only covers new uploads and discovery.
+
+### How to check
+
+The port is TLS-only with a self-signed identity certificate, so tell the probe not to verify it:
+
+```sh
+go install github.com/grpc-ecosystem/grpc-health-probe@latest
+grpc_health_probe -addr=127.0.0.1:7980 -tls -tls-no-verify                          # readiness
+grpc_health_probe -addr=127.0.0.1:7980 -tls -tls-no-verify -service=fibre-liveness   # liveness
+```
+
+The probe exits 0 on `SERVING`. Only `Check` is supported, not `Watch`. When the server is not ready, the log says which check failed, why, and what to do:
+
+```text
+WARN health check failed check=registration reason=provider_not_registered message="Register a Fibre provider host for validator celestiavalcons1... with MsgSetFibreProviderInfo."
+WARN server not ready failed_checks=[registration]
+```
+
+### What is checked
+
+Checks run one after another every `check_interval` (default `10s`), each bounded by `probe_timeout` (default `3s`). Health requests only read the last results, so polling adds no load. All checks must pass. With the defaults an app or signer failure shows up within about 13 seconds.
+
+| Check | Fails when | Reason code | What to do |
+|---|---|---|---|
+| `app` | The app node does not answer, is still syncing, its latest block is older than `max_block_age` (default `2m`), or it reports a different chain ID than at startup. | `app_unreachable`, `app_syncing`, `chain_stalled`, `chain_id_mismatch` | Check `app_grpc_address` and the node. |
+| `fibre_module` | The node answers but has no Fibre module. | `fibre_module_unavailable`, `app_unreachable` | Make sure `app_grpc_address` points at the application gRPC port of a chain with Fibre enabled. |
+| `signer` | The signer does not answer, or returns a different key than at startup. | `signer_unreachable`, `signer_key_changed` | Check the signer and `signer_grpc_address`. See [Signing](#signing). |
+| `validator` | The validator is not in the active set. | `validator_not_active`, `app_unreachable` | Make sure the validator is bonded. |
+| `registration` | No Fibre provider is registered for this validator, or the registered `host:port` is invalid. | `provider_not_registered`, `provider_host_invalid`, `app_unreachable` | [Register](#registration) the provider host. |
+| `store` | A small test write or read on the metadata store fails. | `store_failed` | Check the disk and the store directory. |
+
+The `signer` check proves the signer is reachable, not that signing works; only real uploads verify that. The log records every check transition once.
+
+### Settings
+
+All settings live in the `[health]` table of the config file.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `check_interval` | `10s` | How often checks run. |
+| `probe_timeout` | `3s` | Deadline of each check. |
+| `max_block_age` | `2m` | Oldest acceptable latest block before `app` reports `chain_stalled`. Tune it to the network's block time. |
+
+### What it cannot check
+
+The server cannot verify from the inside that its registered public `host:port` is reachable, or that a full upload succeeds. Probe the public address from another machine and run a small upload canary with a funded escrow account separately.
 
 ## Observability
 
@@ -460,7 +538,7 @@ The server started, but the app node reports no stake for your validator. Either
 
 ### Server runs but no uploads arrive
 
-Clients only dial registered, bonded validators. In order:
+Clients only dial registered, bonded validators. Start with the health check (see [Health](#health)): when it is not ready, the log names the failing check. Then, in order:
 
 1. `celestia-appd query valaddr provider <celestiavalcons-address>` — if `found: false`, [register](#registration).
 2. Check the registered `host:port` actually routes to this server's `server_listen_address` port through your firewall — from an outside machine, a TCP connect to it must succeed.
@@ -476,5 +554,6 @@ The server validates every upload's payment promise against the app node. A chai
 
 ## Signals
 
-- First `SIGINT`/`SIGTERM`: graceful shutdown
+- First `SIGINT`/`SIGTERM`: graceful shutdown. Readiness is published as `NOT_SERVING` first, then requests drain.
 - Second signal: force shutdown
+- If the gRPC listener fails, the process shuts down and exits non-zero instead of lingering without a listener.

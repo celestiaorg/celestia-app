@@ -68,7 +68,7 @@ All branches use forked cosmos-sdk and celestia-core. The exact versions are pin
 ## Development Workflow
 
 1. **Multi-module repo**: Copy `go.work.example` to `go.work` and run `go work sync`
-2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) (e.g., `feat:`, `fix:`, `chore:`, `feat!:` for breaking changes). Any consensus-breaking change (one that alters deterministic state-machine behavior and requires a coordinated network upgrade) must include a `!` in the PR title, e.g. `fix!:`.
+2. **Conventional commits**: PR titles must follow [conventionalcommits.org](https://www.conventionalcommits.org/) and start the subject with exactly one review thoroughness tag: `[low]`, `[medium]`, or `[high]` (e.g., `docs: [low] clarify setup`, `fix(api): [medium] handle missing input`, `fix!: [high] correct gas accounting`). Any consensus-breaking change (one that alters deterministic state-machine behavior and requires a coordinated network upgrade) must include a `!` in the PR title, e.g. `fix!: [high] correct gas accounting`. Choose the tag using the PR rules below.
 3. **Linking issues**: PR descriptions must start with a `Closes <link>` line when an issue exists, and the link must be clickable. Linear issues use `Closes [PROTOCO-1234](https://linear.app/celestia/issue/PROTOCO-1234)` — a bare `Closes PROTOCO-1234` is not acceptable because GitHub does not linkify it.
 4. **Hacken bug bounty PRs**: When creating a PR that resolves a Hacken bug bounty report, do NOT include details about the bug in the PR description. Instead, link to a Linear issue (as a clickable link, per the previous item) that contains more details on the bug and the link to the Hacken bug bounty report.
 
@@ -89,6 +89,12 @@ Every code change must respect the invariants in [docs/ai/invariants.md](docs/ai
 
 ### PRs
 
+- Choose the review thoroughness needed for the full change, following [README.md#contributing](README.md#contributing):
+  - `[low]`: Focused review for straightforward docs, tests, or tooling changes with low risk.
+  - `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
+  - `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk.
+- Choose the higher level when unsure; a small diff can still need deep review. Reassess the title tag if the PR scope changes.
+- Include the same tag in the PR description with a brief reason, e.g., `Review level: [low] — documentation only.`
 - PR descriptions are as simple as possible. Omit unnecessary details.
 - Keep PRs under 700 lines of code. If more is needed, propose a split into separate PRs that can each be implemented, tested, and reviewed independently.
 

@@ -102,6 +102,14 @@ func (m *mockStateClient) FullStakeStorageBudget(context.Context) (int64, error)
 	return m.budget, nil
 }
 
+func (m *mockStateClient) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, nil
+}
+
+func (m *mockStateClient) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, nil
+}
+
 // withStateBudget returns a ServerConfig hook that sets the storage budget the
 // server derives. It wraps the harness's default StateClientFn — which already
 // wires the validator-set getter — and overrides only the mock's budget, so the
