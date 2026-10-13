@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"unsafe"
 )
 
 // Test shape — small values so tests stay fast.
@@ -445,4 +446,20 @@ func TestPool_Concurrent(t *testing.T) {
 		}(g)
 	}
 	wg.Wait()
+}
+
+func TestWorkPoolPadsRows(t *testing.T) {
+	p := NewWorkPool(4096, 8)
+	bufs := p.Get(8, 4096)
+	for i := range bufs {
+		if len(bufs[i]) != 4096 || cap(bufs[i]) != 4096 {
+			t.Fatalf("row %d: len %d cap %d", i, len(bufs[i]), cap(bufs[i]))
+		}
+		if i > 0 {
+			if stride := int(uintptr(unsafe.Pointer(&bufs[i][0])) - uintptr(unsafe.Pointer(&bufs[i-1][0]))); stride != 4096+rowSizeAlign {
+				t.Fatalf("row %d: stride %d", i, stride)
+			}
+		}
+	}
+	p.Put(bufs)
 }
