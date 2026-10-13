@@ -120,6 +120,26 @@ For separate hosts, replace both loopback addresses with the validator's private
 fibre version
 ```
 
+### Store inspection
+
+Stop the Fibre server before inspecting its store. The inspection commands open
+Pebble read-only and do not access shard payloads or object storage.
+
+```sh
+fibre store stats
+fibre store markers
+fibre store markers --backend object --limit 100
+fibre store markers --backend invalid --limit 0
+```
+
+`stats` reports marker counts and recorded bytes by backend, malformed metadata,
+the prune backlog, and the saved object namespace. Byte totals are the sizes
+recorded in versioned markers; legacy markers do not record their size.
+`markers` lists individual markers in key order and reports when its output is
+truncated. Set `--limit 0` to list all matching markers. Both commands require
+the Fibre server to be stopped because Pebble allows only one process to hold
+the store lock.
+
 ## Config
 
 The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).
