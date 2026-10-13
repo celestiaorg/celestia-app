@@ -2,118 +2,75 @@ package app
 
 import (
 	"bytes"
-	"hash/maphash"
-	"sync"
+	"crypto/sha256"
 
-	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-const (
-	// pffTxCacheCapacity bounds the number of admitted PayForFibre txs
-	// remembered for recheck.
-	pffTxCacheCapacity = 100_000
-	// pffTxCacheMaxBytes bounds the raw tx bytes the cache keeps alive. It
-	// matches the mempool, which is the working set a recheck pass walks.
-	pffTxCacheMaxBytes = int64(appconsts.MempoolSize)
-)
+// pffTxCacheCapacity bounds the number of admitted PayForFibre txs remembered
+// for recheck. An entry is a fixed ~200 bytes whatever the tx size, so a full
+// cache is around 20 MiB and the count is the whole bound.
+const pffTxCacheCapacity = 100_000
 
-// pffTxKey is a cheap fingerprint of a raw tx. A collision only costs a miss,
-// because an entry is used only after its bytes are confirmed identical.
-type pffTxKey struct {
-	size int
-	hash uint64
+// pffSignerData is the signer address and sequence CheckTx derived for a tx,
+// which is everything the recheck path reads back.
+type pffSignerData struct {
+	addr []byte
+	seq  uint64
 }
 
-// pffTxEntry is what CheckTx concluded about one exact byte string: the tx
-// decodes, carries exactly one MsgPayForFibre, and passes ValidateBasic. raw
-// is kept so a lookup can prove the entry belongs to the bytes being checked.
-type pffTxEntry struct {
-	raw []byte
-	tx  sdk.Tx
-}
-
-var pffTxSeed = maphash.MakeSeed()
-
-func pffTxFingerprint(raw []byte) pffTxKey {
-	return pffTxKey{size: len(raw), hash: maphash.Bytes(pffTxSeed, raw)}
-}
-
-// pffTxCache remembers the stateless results CheckTx reached for the exact
-// bytes of a MsgPayForFibre tx it admitted. A recheck runs on those same
-// bytes, so the decode, shape check and ValidateBasic cannot have changed and
-// only the state dependent checks have to run again.
+// pffTxCache remembers the signer data CheckTx derived for a MsgPayForFibre tx
+// it admitted, so a recheck of those same bytes can skip the decode, the shape
+// check and ValidateBasic and run only the state dependent checks.
+//
+// Entries are keyed by the sha256 of the raw tx, the same identity the mempool
+// gives it, so reaching an entry with bytes that were never admitted takes a
+// sha256 collision.
 type pffTxCache struct {
-	mu       sync.Mutex
-	entries  *lru.Cache[pffTxKey, pffTxEntry]
-	bytes    int64
-	maxBytes int64
+	entries *lru.Cache[[sha256.Size]byte, pffSignerData]
 }
 
 func newPffTxCache() *pffTxCache {
-	return newPffTxCacheSized(pffTxCacheCapacity, pffTxCacheMaxBytes)
+	return newPffTxCacheSized(pffTxCacheCapacity)
 }
 
-func newPffTxCacheSized(capacity int, maxBytes int64) *pffTxCache {
-	c := &pffTxCache{maxBytes: maxBytes}
-	entries, err := lru.NewWithEvict(capacity, func(_ pffTxKey, e pffTxEntry) {
-		c.bytes -= int64(len(e.raw))
-	})
+func newPffTxCacheSized(capacity int) *pffTxCache {
+	entries, err := lru.New[[sha256.Size]byte, pffSignerData](capacity)
 	if err != nil {
 		panic(err)
 	}
-	c.entries = entries
-	return c
+	return &pffTxCache{entries: entries}
 }
 
-// Get returns the decoded tx recorded for raw, and only if raw is byte for
-// byte the tx it was recorded for.
-func (c *pffTxCache) Get(raw []byte) (sdk.Tx, bool) {
+// Get returns the signer data recorded for raw.
+func (c *pffTxCache) Get(raw []byte) (pffSignerData, bool) {
 	if len(raw) == 0 {
-		return nil, false
+		return pffSignerData{}, false
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	entry, ok := c.entries.Get(pffTxFingerprint(raw))
-	if !ok || !bytes.Equal(raw, entry.raw) {
-		return nil, false
+	entry, ok := c.entries.Get(sha256.Sum256(raw))
+	if !ok {
+		return pffSignerData{}, false
 	}
-	return entry.tx, true
+	// Hand out a copy, so a caller writing the address into a response cannot
+	// reach the cached entry.
+	return pffSignerData{addr: bytes.Clone(entry.addr), seq: entry.seq}, true
 }
 
-// Set records tx as the decoded form of raw.
-func (c *pffTxCache) Set(raw []byte, tx sdk.Tx) {
-	if len(raw) == 0 || int64(len(raw)) > c.maxBytes {
+// Set records signer as the signer data CheckTx derived for raw.
+func (c *pffTxCache) Set(raw []byte, signer pffSignerData) {
+	if len(raw) == 0 || len(signer.addr) == 0 {
 		return
 	}
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	key := pffTxFingerprint(raw)
-	// Replace rather than add, so the eviction callback accounts for the old
-	// entry's bytes exactly once.
-	c.entries.Remove(key)
-	for c.bytes+int64(len(raw)) > c.maxBytes && c.entries.Len() > 0 {
-		c.entries.RemoveOldest()
-	}
-	c.entries.Add(key, pffTxEntry{raw: raw, tx: tx})
-	c.bytes += int64(len(raw))
+	c.entries.Add(sha256.Sum256(raw), pffSignerData{addr: bytes.Clone(signer.addr), seq: signer.seq})
 }
 
-// Drop forgets raw. The mempool removes a tx whose recheck fails, so its entry
-// would otherwise only leave by eviction.
+// Drop forgets raw, so an entry whose tx just failed a recheck does not sit in
+// the cache until it is evicted.
 func (c *pffTxCache) Drop(raw []byte) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	key := pffTxFingerprint(raw)
-	if entry, ok := c.entries.Peek(key); ok && bytes.Equal(raw, entry.raw) {
-		c.entries.Remove(key)
-	}
+	c.entries.Remove(sha256.Sum256(raw))
 }
 
 // Len returns the number of cached txs.
 func (c *pffTxCache) Len() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	return c.entries.Len()
 }

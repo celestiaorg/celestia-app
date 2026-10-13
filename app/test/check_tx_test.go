@@ -719,14 +719,19 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	require.NotEmpty(t, resp.Address)
+	admittedAddr, admittedSeq := resp.Address, resp.Sequence
 
 	// Each committed block resets the check state and the mempool rechecks
-	// the still pending tx against it.
+	// the still pending tx against it. A recheck reports the signer data the
+	// admitting CheckTx derived, which the mempool keys its sender on.
 	for range 3 {
 		commitBlock(t, testApp)
 		resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+		require.Equal(t, admittedAddr, resp.Address)
+		require.Equal(t, admittedSeq, resp.Sequence)
 	}
 
 	// Truncated bytes cannot be served from the admitted entry: they take the
