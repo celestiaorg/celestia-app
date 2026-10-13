@@ -51,23 +51,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// mirrors PrepareProposal, which reads it before running any ante handler.
 	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 
-	// Reuse the artifacts this node produced in PrepareProposal, when it built a
-	// block at this height from exactly these tx bytes.
-	//
-	// A hit does not necessarily describe the block this node proposed: the key
-	// carries no round and no proposer, so an entry can also be taken for
-	// another proposer's block carrying the same transactions at the same
-	// height. That is still correct, because the artifacts are a pure function
-	// of what the key and the tx snapshot pin down - see proposalArtifacts.
-	//
-	// Every per-tx check below runs on both paths. What a hit skips is the
-	// square construction, the erasure coding and the data availability header
-	// at the end of this function. For the block this node proposed that work
-	// has already run here, in PrepareProposal, and the square size and data
-	// root the proposer stated were derived from it - so comparing against the
-	// cached values is a reuse of this node's own result, not an independent
-	// re-derivation of it. The independent re-derivation is what every other
-	// validator performs, and it is what this node performs on a miss.
+	// Reuse what PrepareProposal already built for this height and these txs.
+	// The artifacts only depend on the key and the txs, so a hit is safe even
+	// if another node proposed the block. A hit skips the square, erasure
+	// coding and DAH below; every per-tx check still runs.
 	cached := app.proposalCache.Take(newProposalKey(ctx, blockHeader.Height, maxSquareSize), req.Txs)
 
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
@@ -255,25 +242,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	// On a hit the square, extended square and data availability header are a
-	// pure function of the tx bytes, the max square size and the subtree root
-	// threshold, all of which the cache key pins down, so PrepareProposal's
-	// results are exactly what recomputing here would produce.
-	//
-	// The two comparisons below are therefore not an independent check of the
-	// proposer's claims when this node is the proposer: CometBFT puts the
-	// SquareSize and DataRootHash that PrepareProposal returned into the block
-	// and hands them back here, so both sides of each comparison came from the
-	// same PrepareProposal call. They do their work when the entry is taken for
-	// a block someone else proposed from the same transactions.
-	//
-	// What the miss path adds for the proposer is a cross-check between the
-	// incremental square built by FilteredSquareBuilder and the one
-	// constructSquare rebuilds in a single pass. That cross-check is a self
-	// test of two implementations on this node, not verification of the block,
-	// and TestProcessProposalRebuildsSquareAfterReverts pins the equivalence it
-	// used to cover - including the builder's revert paths, which nothing else
-	// round-trips through a rebuild.
+	// Compare the proposer's claims against the cached values. When we are the
+	// proposer both sides come from our own PrepareProposal, so this really
+	// only checks someone else's block built from the same txs. The old
+	// builder-vs-rebuild check now lives in
+	// TestProcessProposalRebuildsSquareAfterReverts.
 	if cached != nil {
 		if cached.squareSize != req.SquareSize {
 			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
