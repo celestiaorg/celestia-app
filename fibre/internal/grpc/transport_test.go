@@ -159,3 +159,178 @@ func TestTransportRejectsBadInput(t *testing.T) {
 	_, err := dialTransport(t, addr, auto).DownloadShard(t.Context(), &types.DownloadShardRequest{})
 	require.NoError(t, err)
 }
+
+// plaintextOnlyCreds dials plaintext HTTP/2 and never falls back to TLS. It
+// asserts that a force-TLS server refuses plaintext.
+type plaintextOnlyCreds struct {
+	credentials.TransportCredentials
+}
+
+func (plaintextOnlyCreds) ClientHandshake(ctx context.Context, _ string, raw net.Conn) (net.Conn, credentials.AuthInfo, error) {
+	conn, err := probePlaintext(ctx, raw)
+	if err != nil {
+		return nil, nil, err
+	}
+	return conn, plaintextAuth, nil
+}
+
+func (c plaintextOnlyCreds) Clone() credentials.TransportCredentials { return c }
+
+// TestTransportForceTLSServerRejectsPlaintext checks that the TLS-only
+// credentials a force-TLS server uses (plain TLS, no plaintext sniffing) refuse
+// a plaintext-only client.
+func TestTransportForceTLSServerRejectsPlaintext(t *testing.T) {
+	addr, _, pub := startTransportServer(t, true) // tlsOnly: the force-TLS listener.
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	_, err := dialTransport(t, addr, plaintextOnlyCreds{clientTLS(pub)}).DownloadShard(ctx, &types.DownloadShardRequest{})
+	require.Error(t, err)
+}
+
+// firstByteOnWire returns the first byte creds writes when handshaking over a
+// fresh TCP connection, so a test can tell a TLS ClientHello from a cleartext
+// HTTP/2 preface.
+func firstByteOnWire(t *testing.T, creds credentials.TransportCredentials) byte {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	got := make(chan byte, 1)
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		var b [1]byte
+		if _, err := io.ReadFull(conn, b[:]); err == nil {
+			got <- b[0]
+		}
+	}()
+
+	raw, err := net.Dial("tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer raw.Close()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	go func() { _, _, _ = creds.ClientHandshake(ctx, "authority", raw) }()
+
+	select {
+	case b := <-got:
+		return b
+	case <-time.After(3 * time.Second):
+		t.Fatal("client wrote no bytes")
+		return 0
+	}
+}
+
+// TestTransportForceTLSClientNeverSendsPreface checks that a force-TLS client
+// opens with a TLS ClientHello and never writes the HTTP/2 preface in clear,
+// while the default plaintext-first client does send the preface.
+func TestTransportForceTLSClientNeverSendsPreface(t *testing.T) {
+	pub, err := core.NewMockPV().GetPubKey()
+	require.NoError(t, err)
+
+	forced := autoCreds{TransportCredentials: clientTLS(pub), modes: newTransportModes(), host: "h", forceTLS: true}
+	require.Equal(t, byte(tlsHandshakeRecord), firstByteOnWire(t, forced),
+		"a force-TLS client must open with a TLS ClientHello, never the HTTP/2 preface")
+
+	plain := autoCreds{TransportCredentials: clientTLS(pub), modes: newTransportModes(), host: "h"}
+	require.Equal(t, http2Preface[0], firstByteOnWire(t, plain),
+		"the default client probes plaintext first")
+}
+
+// dialRecorder records the (mode, fallback) pairs reported to a DialObserver.
+type dialRecorder struct {
+	mu   sync.Mutex
+	recs []struct {
+		mode     string
+		fallback bool
+	}
+}
+
+func (r *dialRecorder) observe(mode string, fallback bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.recs = append(r.recs, struct {
+		mode     string
+		fallback bool
+	}{mode, fallback})
+}
+
+func (r *dialRecorder) has(mode string, fallback bool) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, x := range r.recs {
+		if x.mode == mode && x.fallback == fallback {
+			return true
+		}
+	}
+	return false
+}
+
+// TestTransportFallbackObserved checks that the dial observer records a
+// plaintext->TLS fallback against a TLS-only server, and a plain plaintext dial
+// against a detecting server.
+func TestTransportFallbackObserved(t *testing.T) {
+	t.Run("fallback to tls", func(t *testing.T) {
+		addr, rec, pub := startTransportServer(t, true)
+		var dr dialRecorder
+		auto := autoCreds{TransportCredentials: clientTLS(pub), modes: newTransportModes(), host: addr, observe: dr.observe}
+		_, err := dialTransport(t, addr, auto).DownloadShard(t.Context(), &types.DownloadShardRequest{})
+		require.NoError(t, err)
+		require.Equal(t, "tls", rec.last())
+		require.True(t, dr.has(transportModeTLS, true), "a fallback dial must be observed")
+	})
+
+	t.Run("plaintext without fallback", func(t *testing.T) {
+		addr, rec, pub := startTransportServer(t, false)
+		var dr dialRecorder
+		auto := autoCreds{TransportCredentials: clientTLS(pub), modes: newTransportModes(), host: addr, observe: dr.observe}
+		_, err := dialTransport(t, addr, auto).DownloadShard(t.Context(), &types.DownloadShardRequest{})
+		require.NoError(t, err)
+		require.Equal(t, "insecure", rec.last())
+		require.True(t, dr.has(transportModePlaintext, false), "a plaintext dial must be observed")
+	})
+}
+
+// TestDetectingCredsAcceptObserved checks that the server accept observer
+// records the transport mode of plaintext and TLS connections on one port.
+func TestDetectingCredsAcceptObserved(t *testing.T) {
+	pv := core.NewMockPV()
+	cert, err := tlsid.BuildServerCert(pv, transportTestChainID)
+	require.NoError(t, err)
+	pub, err := pv.GetPubKey()
+	require.NoError(t, err)
+
+	var mu sync.Mutex
+	var modes []string
+	creds := NewDetectingServerCreds(
+		credentials.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13}),
+		WithAcceptObserver(func(mode string) {
+			mu.Lock()
+			modes = append(modes, mode)
+			mu.Unlock()
+		}),
+	)
+	srv, err := Listen("127.0.0.1:0", 16, 16)
+	require.NoError(t, err)
+	rec := &authRecorder{}
+	srv.Register(rec, grpclib.Creds(creds))
+	srv.Serve()
+	t.Cleanup(func() { srv.Stop(context.Background()) })
+	addr := srv.ListenAddress()
+
+	auto := autoCreds{TransportCredentials: clientTLS(pub), modes: newTransportModes(), host: addr}
+	_, err = dialTransport(t, addr, auto).DownloadShard(t.Context(), &types.DownloadShardRequest{})
+	require.NoError(t, err)
+	_, err = dialTransport(t, addr, clientTLS(pub)).DownloadShard(t.Context(), &types.DownloadShardRequest{})
+	require.NoError(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.Contains(t, modes, transportModePlaintext)
+	require.Contains(t, modes, transportModeTLS)
+}

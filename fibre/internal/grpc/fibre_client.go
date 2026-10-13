@@ -68,10 +68,31 @@ func dialTarget(host validator.Host) string {
 	return "dns:///" + host.String()
 }
 
+// ClientDialOption configures the dialer returned by [DefaultNewClientFn].
+type ClientDialOption func(*clientDialConfig)
+
+type clientDialConfig struct {
+	forceTLS bool
+	observe  DialObserver
+}
+
+// WithForceTLS makes the dialer always use TLS and never probe plaintext
+// HTTP/2. Passing false keeps the default plaintext-first behaviour.
+func WithForceTLS(force bool) ClientDialOption {
+	return func(c *clientDialConfig) { c.forceTLS = force }
+}
+
+// WithDialObserver registers o to observe the transport mode of each dial. A
+// nil observer is ignored.
+func WithDialObserver(o DialObserver) ClientDialOption {
+	return func(c *clientDialConfig) { c.observe = o }
+}
+
 // DefaultNewClientFn returns the default [NewClientFn]. It resolves the
 // validator's network host through hostReg, then dials over plaintext HTTP/2,
 // falling back to TLS with the peer identity bound to the validator's consensus
-// pubkey via [tlsid.VerifyConnection] for servers that only speak TLS.
+// pubkey via [tlsid.VerifyConnection] for servers that only speak TLS. Pass
+// [WithForceTLS] to always dial over TLS.
 //
 // log records TLS identity-verification failures with peer context. Because
 // grpc.NewClient dials lazily, verification runs on the first RPC and a failure
@@ -80,12 +101,16 @@ func dialTarget(host validator.Host) string {
 //
 // chainID is evaluated lazily per dial because the state client resolves it
 // during Start, which can run after this constructor.
-func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int, log *slog.Logger) NewClientFn {
+func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int, log *slog.Logger, opts ...ClientDialOption) NewClientFn {
 	if log == nil {
 		log = slog.Default()
 	}
 	if chainID == nil {
 		chainID = func() string { return "" }
+	}
+	var dialCfg clientDialConfig
+	for _, opt := range opts {
+		opt(&dialCfg)
 	}
 	modes := newTransportModes()
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
@@ -127,6 +152,8 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 				TransportCredentials: batchingCreds{credentials.NewTLS(tlsCfg)},
 				modes:                modes,
 				host:                 host.String(),
+				forceTLS:             dialCfg.forceTLS,
+				observe:              dialCfg.observe,
 			}),
 			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),

@@ -39,6 +39,22 @@ const (
 	plaintextRetryInterval = 10 * time.Minute
 )
 
+// Transport mode names reported to the metrics observers.
+const (
+	transportModePlaintext = "plaintext"
+	transportModeTLS       = "tls"
+)
+
+// DialObserver is called once per client handshake with the transport mode
+// used (one of the transportMode* values) and whether the dial fell back from
+// a failed plaintext probe to TLS. It must be safe for concurrent use.
+type DialObserver func(mode string, fallback bool)
+
+// AcceptObserver is called once per accepted server connection with the
+// transport mode used (one of the transportMode* values). It must be safe for
+// concurrent use.
+type AcceptObserver func(mode string)
+
 // plaintextInfo is the [credentials.AuthInfo] of a plaintext connection.
 type plaintextInfo struct{ credentials.CommonAuthInfo }
 
@@ -65,12 +81,33 @@ func (c *prefixConn) Read(p []byte) (int, error) {
 // chosen by the first byte of the connection.
 type detectingCreds struct {
 	credentials.TransportCredentials
+	observe AcceptObserver
+}
+
+// ServerCredsOption configures the credentials returned by
+// [NewDetectingServerCreds].
+type ServerCredsOption func(*detectingCreds)
+
+// WithAcceptObserver registers o to observe the transport mode of each
+// accepted connection. A nil observer is ignored.
+func WithAcceptObserver(o AcceptObserver) ServerCredsOption {
+	return func(c *detectingCreds) { c.observe = o }
 }
 
 // NewDetectingServerCreds returns server credentials accepting both tls and
 // plaintext HTTP/2 connections.
-func NewDetectingServerCreds(tls credentials.TransportCredentials) credentials.TransportCredentials {
-	return detectingCreds{tls}
+func NewDetectingServerCreds(tls credentials.TransportCredentials, opts ...ServerCredsOption) credentials.TransportCredentials {
+	c := detectingCreds{TransportCredentials: tls}
+	for _, opt := range opts {
+		opt(&c)
+	}
+	return c
+}
+
+func (c detectingCreds) observeAccept(mode string) {
+	if c.observe != nil {
+		c.observe(mode)
+	}
 }
 
 func (c detectingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.AuthInfo, error) {
@@ -87,7 +124,11 @@ func (c detectingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.Aut
 		if err := raw.SetReadDeadline(time.Now().Add(connectionTimeout)); err != nil {
 			return nil, nil, err
 		}
-		return c.TransportCredentials.ServerHandshake(&prefixConn{Conn: raw, prefix: first[:]})
+		conn, info, err := c.TransportCredentials.ServerHandshake(&prefixConn{Conn: raw, prefix: first[:]})
+		if err == nil {
+			c.observeAccept(transportModeTLS)
+		}
+		return conn, info, err
 	case http2Preface[0]:
 		preface := make([]byte, len(http2Preface))
 		preface[0] = first[0]
@@ -100,6 +141,7 @@ func (c detectingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.Aut
 		if err := raw.SetReadDeadline(time.Now().Add(connectionTimeout)); err != nil {
 			return nil, nil, err
 		}
+		c.observeAccept(transportModePlaintext)
 		return &prefixConn{Conn: raw, prefix: preface}, plaintextAuth, nil
 	default:
 		return nil, nil, fmt.Errorf("unknown protocol: first byte %#x", first[0])
@@ -107,7 +149,7 @@ func (c detectingCreds) ServerHandshake(raw net.Conn) (net.Conn, credentials.Aut
 }
 
 func (c detectingCreds) Clone() credentials.TransportCredentials {
-	return detectingCreds{c.TransportCredentials.Clone()}
+	return detectingCreds{TransportCredentials: c.TransportCredentials.Clone(), observe: c.observe}
 }
 
 // transportModes remembers servers that failed the plaintext probe.
@@ -138,19 +180,33 @@ func (m *transportModes) markTLS(host string) {
 }
 
 // autoCreds connects over plaintext HTTP/2 and falls back to tls for servers
-// that do not answer the HTTP/2 preface.
+// that do not answer the HTTP/2 preface. When forceTLS is set it never probes
+// plaintext and dials over tls directly.
 type autoCreds struct {
 	credentials.TransportCredentials // tls
 	modes                            *transportModes
 	host                             string
+	forceTLS                         bool
+	observe                          DialObserver
+}
+
+func (c autoCreds) observeDial(mode string, fallback bool) {
+	if c.observe != nil {
+		c.observe(mode, fallback)
+	}
 }
 
 func (c autoCreds) ClientHandshake(ctx context.Context, authority string, raw net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	if c.modes.useTLS(c.host) {
-		return c.TransportCredentials.ClientHandshake(ctx, authority, raw)
+	if c.forceTLS || c.modes.useTLS(c.host) {
+		conn, info, err := c.TransportCredentials.ClientHandshake(ctx, authority, raw)
+		if err == nil {
+			c.observeDial(transportModeTLS, false)
+		}
+		return conn, info, err
 	}
 	conn, err := probePlaintext(ctx, raw)
 	if err == nil {
+		c.observeDial(transportModePlaintext, false)
 		return conn, plaintextAuth, nil
 	}
 	// The server most likely speaks only TLS. Redial from the same local IP
@@ -165,11 +221,21 @@ func (c autoCreds) ClientHandshake(ctx context.Context, authority string, raw ne
 	if err != nil {
 		return nil, nil, fmt.Errorf("redialing for TLS after plaintext probe failed: %w", err)
 	}
-	return c.TransportCredentials.ClientHandshake(ctx, authority, tcp)
+	tlsConn, info, err := c.TransportCredentials.ClientHandshake(ctx, authority, tcp)
+	if err == nil {
+		c.observeDial(transportModeTLS, true)
+	}
+	return tlsConn, info, err
 }
 
 func (c autoCreds) Clone() credentials.TransportCredentials {
-	return autoCreds{TransportCredentials: c.TransportCredentials.Clone(), modes: c.modes, host: c.host}
+	return autoCreds{
+		TransportCredentials: c.TransportCredentials.Clone(),
+		modes:                c.modes,
+		host:                 c.host,
+		forceTLS:             c.forceTLS,
+		observe:              c.observe,
+	}
 }
 
 // probePlaintext sends the HTTP/2 preface and expects a SETTINGS frame back.
