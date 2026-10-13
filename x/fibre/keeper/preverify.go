@@ -79,10 +79,13 @@ func (v verification) run() bool {
 	return allValid
 }
 
-// verificationGroup is a cache entry that may be recorded once every item in
-// [first, end) succeeded.
+// verificationGroup is one message's contribution to the pass. Its keys are
+// recorded together, and only when every item in [first, end) succeeded: a
+// message that fails a check the pass performed for it must buy no cache
+// entry at all, or unverifiable spam could evict the entries of accepted
+// messages.
 type verificationGroup struct {
-	key   sigcache.Key
+	keys  []sigcache.Key
 	first int
 	end   int
 }
@@ -93,7 +96,7 @@ type preverification struct {
 	groups []verificationGroup
 }
 
-// record adds the cache entry of every group whose items all succeeded.
+// record adds the cache entries of every group whose items all succeeded.
 func (p *preverification) record(cache SigCache, verified []bool) {
 	for _, group := range p.groups {
 		complete := true
@@ -103,8 +106,11 @@ func (p *preverification) record(cache SigCache, verified []bool) {
 				break
 			}
 		}
-		if complete {
-			cache.Add(group.key)
+		if !complete {
+			continue
+		}
+		for _, key := range group.keys {
+			cache.Add(key)
 		}
 	}
 }
@@ -132,22 +138,39 @@ func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts Preveri
 			continue
 		}
 
-		promiseCached := k.sigCache.Has(promiseKey)
 		first := len(work.items)
-		if !promiseCached {
+		var keys []sigcache.Key
+		if !k.sigCache.Has(promiseKey) {
 			work.items = append(work.items, verification{promise: promise})
-			work.groups = append(work.groups, verificationGroup{key: promiseKey, first: first, end: first + 1})
+			keys = append(keys, promiseKey)
 		}
 
-		if !opts.Certificates {
-			continue
+		if opts.Certificates {
+			certKey, err := msg.SigCacheKey()
+			if err != nil {
+				// A certificate the pass cannot name is one it cannot gate the
+				// promise on. The sequential verifier still decides.
+				work.items = work.items[:first]
+				continue
+			}
+			if !k.sigCache.Has(certKey) {
+				if !k.appendCertificateItems(ctx, work, valSets, promise, msg, first) {
+					// Returns false exactly where the sequential verifier
+					// rejects the message, so this message records nothing -
+					// its promise included.
+					work.items = work.items[:first]
+					continue
+				}
+				keys = append(keys, certKey)
+			}
+			// A cached certificate is already settled, so the promise is all
+			// that is left to warm.
 		}
-		certKey, err := msg.SigCacheKey()
-		if err != nil || k.sigCache.Has(certKey) {
-			continue
-		}
-		if k.appendCertificateItems(ctx, work, valSets, promise, msg, first) {
-			work.groups = append(work.groups, verificationGroup{key: certKey, first: first, end: len(work.items)})
+
+		if len(keys) > 0 {
+			work.groups = append(work.groups, verificationGroup{
+				keys: keys, first: first, end: len(work.items),
+			})
 		}
 	}
 	return work

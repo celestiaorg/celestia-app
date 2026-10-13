@@ -2,6 +2,8 @@ package keeper_test
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -43,6 +45,7 @@ type preverifyFixture struct {
 	cache         *sigcache.Cache
 	msg           *types.MsgPayForFibre
 	certKey       sigcache.Key
+	promiseKey    sigcache.Key
 	valPrivKeys   []ed25519.PrivKey
 	signerPrivKey *secp256k1.PrivKey
 }
@@ -58,6 +61,21 @@ func (f *preverifyFixture) withFreshCache(t *testing.T) *preverifyFixture {
 	fresh.keeper = keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), f.storeKey,
 		&MockBankKeeper{}, f.stakingKeeper, authtypes.NewModuleAddress("gov").String(), false, fresh.cache)
 	return &fresh
+}
+
+// promiseSigCacheKey mirrors the keeper's unexported derivation of a promise's
+// cache key, so a test can name the exact entries a pass is allowed to leave
+// behind rather than only asking whether the certificate is there.
+// TestPreverifySignaturesSkipsCertificatesWhenNotRequested pins it against the
+// keeper's own derivation, so the two cannot drift apart unnoticed.
+func promiseSigCacheKey(t *testing.T, msg *types.MsgPayForFibre) sigcache.Key {
+	t.Helper()
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature)
 }
 
 // refreshCertKey re-derives the certificate key after the message was mutated.
@@ -146,6 +164,7 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 		cache:         cache,
 		msg:           msg,
 		certKey:       certKey,
+		promiseKey:    promiseSigCacheKey(t, msg),
 		valPrivKeys:   valPrivKeys,
 		signerPrivKey: signerPrivKey,
 	}
@@ -176,11 +195,12 @@ func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) [
 	return raw
 }
 
-// TestPreverifySignaturesRecordsOnlyValidCertificates pins the property the
-// whole pre-pass rests on: it records a certificate exactly when the sequential
-// verifier would accept it, and records nothing otherwise, so the sequential
-// verifier stays the one that decides.
-func TestPreverifySignaturesRecordsOnlyValidCertificates(t *testing.T) {
+// TestPreverifySignaturesRecordsOnlyWhatTheSequentialVerifierAccepts pins the
+// property the whole pre-pass rests on, over the whole cache rather than the
+// certificate alone: a message records every key it is entitled to exactly
+// when the sequential verifier would accept it, and records nothing at all
+// otherwise, so the sequential verifier stays the one that decides.
+func TestPreverifySignaturesRecordsOnlyWhatTheSequentialVerifierAccepts(t *testing.T) {
 	tests := map[string]struct {
 		corrupt    int // index of the validator signature to corrupt, -1 for none
 		wantCached bool
@@ -217,7 +237,14 @@ func TestPreverifySignaturesRecordsOnlyValidCertificates(t *testing.T) {
 			prepass := f.withFreshCache(t)
 			prepass.keeper.PreverifySignatures(prepass.ctx, [][]byte{prepass.txBytes(t)}, keeper.PreverifyOptions{Certificates: true})
 
-			require.Equal(t, tc.wantCached, prepass.cache.Has(prepass.certKey))
+			if !tc.wantCached {
+				require.Zero(t, prepass.cache.Len(),
+					"a rejected message must buy no cache entry, its promise included")
+				return
+			}
+			require.True(t, prepass.cache.Has(prepass.certKey), "the certificate must be recorded")
+			require.True(t, prepass.cache.Has(prepass.promiseKey), "the promise must be recorded")
+			require.Equal(t, 2, prepass.cache.Len(), "exactly the promise and the certificate")
 		})
 	}
 }
@@ -236,6 +263,8 @@ func TestPreverifySignaturesSkipsCertificatesWhenNotRequested(t *testing.T) {
 	require.NoError(t, pp.FromProto(&f.msg.PaymentPromise))
 	require.NoError(t, f.keeper.ValidatePromiseStateless(&pp))
 	require.Equal(t, 1, f.cache.Len())
+	// The one entry is the promise's, under the key the keeper itself derives.
+	require.True(t, f.cache.Has(f.promiseKey))
 }
 
 // TestPreverifySignaturesIsSafeToSkip pins that the pre-pass changes no
@@ -264,13 +293,14 @@ func TestPreverifySignaturesIsSafeToSkip(t *testing.T) {
 // certificate is split across a full 64-signature batch and a short one.
 const batchBoundaryValidators = 100
 
-// newSecondMessage returns a second valid message for the same validator set,
-// distinguished by its blob size, so one call can carry two certificates.
-func (f *preverifyFixture) newSecondMessage(t *testing.T) *types.MsgPayForFibre {
+// newMessage returns a valid message for the same validator set, set apart
+// from the fixture's by adding delta to its blob size, so one call can carry
+// several distinct promises and certificates.
+func (f *preverifyFixture) newMessage(t *testing.T, delta uint32) *types.MsgPayForFibre {
 	t.Helper()
 
 	promise := f.msg.PaymentPromise
-	promise.BlobSize = f.msg.PaymentPromise.BlobSize + 1
+	promise.BlobSize = f.msg.PaymentPromise.BlobSize + delta
 
 	pp := fibre.PaymentPromise{}
 	require.NoError(t, pp.FromProto(&promise))
@@ -324,23 +354,116 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
-// TestPreverifySignaturesRecordsEachTransaction covers a call carrying two
-// certificates: a failure in one must not keep the other from being recorded,
-// and must not record the failing one.
+// TestPreverifySignaturesRecordsEachTransaction covers a call carrying three
+// messages: one accepted, one whose certificate carries a forged signature,
+// and one the pass bails out of before it queues anything. A failure in one
+// must not keep the accepted one from being recorded, must record neither of
+// the failing messages' keys, and must not let either message's rollback
+// truncate the accepted message's items - which is why the accepted message
+// is placed first.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
-	second := f.newSecondMessage(t)
-
-	f.msg.ValidatorSignatures[65] = make([]byte, 64)
-	f.refreshCertKey(t)
-	secondKey, err := second.SigCacheKey()
+	accepted := f.newMessage(t, 1)
+	acceptedKey, err := accepted.SigCacheKey()
 	require.NoError(t, err)
 
-	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t), f.txBytesFor(t, second)},
-		keeper.PreverifyOptions{Certificates: true})
+	// The pass queues this one's items and then fails one of them.
+	forged := f.newMessage(t, 2)
+	forged.ValidatorSignatures[65] = make([]byte, 64)
+	forgedKey, err := forged.SigCacheKey()
+	require.NoError(t, err)
 
-	require.False(t, f.cache.Has(f.certKey), "the invalid certificate must not be recorded")
-	require.True(t, f.cache.Has(secondKey), "the valid certificate must still be recorded")
+	// The pass bails on this one before queueing any certificate item, so it
+	// is the message whose promise item has to be rolled back.
+	bailed := f.newMessage(t, 3)
+	bailed.ValidatorSignatures = nil
+	bailedKey, err := bailed.SigCacheKey()
+	require.NoError(t, err)
+
+	f.keeper.PreverifySignatures(f.ctx, [][]byte{
+		f.txBytesFor(t, accepted), f.txBytesFor(t, forged), f.txBytesFor(t, bailed),
+	}, keeper.PreverifyOptions{Certificates: true})
+
+	require.True(t, f.cache.Has(acceptedKey), "the valid certificate must still be recorded")
+	require.True(t, f.cache.Has(promiseSigCacheKey(t, accepted)), "and so must its promise")
+	require.False(t, f.cache.Has(forgedKey), "the forged certificate must not be recorded")
+	require.False(t, f.cache.Has(promiseSigCacheKey(t, forged)), "nor the promise it carried")
+	require.False(t, f.cache.Has(bailedKey), "the bailed-out certificate must not be recorded")
+	require.False(t, f.cache.Has(promiseSigCacheKey(t, bailed)), "nor the promise it carried")
+	require.Equal(t, 2, f.cache.Len(), "exactly the accepted message's two entries")
+}
+
+// TestPreverifySignaturesRecordsNothingForRejectedMessages covers the shapes in
+// which a message the sequential verifier rejects can reach the pass. The
+// promise is valid in every one, so a pass that gated the promise on nothing
+// but its own check would warm it - and the node would be paying cache space
+// for traffic it is about to throw away.
+func TestPreverifySignaturesRecordsNothingForRejectedMessages(t *testing.T) {
+	tests := map[string]func(f *preverifyFixture){
+		"forged signature inside the quorum prefix": func(f *preverifyFixture) {
+			f.msg.ValidatorSignatures[0] = make([]byte, 64)
+		},
+		"no validator signatures": func(f *preverifyFixture) {
+			f.msg.ValidatorSignatures = nil
+		},
+		"height with no historical info": func(f *preverifyFixture) {
+			f.stakingKeeper.GetHistoricalInfoFn = func(context.Context, int64) (stakingtypes.HistoricalInfo, error) {
+				return stakingtypes.HistoricalInfo{}, errors.New("no historical info at height")
+			}
+		},
+		"more signatures than validators": func(f *preverifyFixture) {
+			f.msg.ValidatorSignatures = append(f.msg.ValidatorSignatures, make([]byte, 64))
+		},
+	}
+
+	for name, reject := range tests {
+		t.Run(name, func(t *testing.T) {
+			f := newPreverifyFixture(t)
+			reject(f)
+			f.refreshCertKey(t)
+
+			// Assert the rejection first, so the case cannot go vacuous: a
+			// shape the sequential verifier happens to accept would make the
+			// empty cache below prove nothing.
+			reference := f.withFreshCache(t)
+			require.Error(t, reference.keeper.ValidatePayForFibreSignatures(reference.ctx, reference.msg))
+
+			prepass := f.withFreshCache(t)
+			prepass.keeper.PreverifySignatures(prepass.ctx, [][]byte{prepass.txBytes(t)},
+				keeper.PreverifyOptions{Certificates: true})
+
+			require.Zero(t, prepass.cache.Len(), "a rejected message must buy no cache entry")
+		})
+	}
+}
+
+// TestPreverifySignaturesWarmsPromiseWhenCertificateCached pins the branch
+// where the certificate is already settled and the promise is all that is left
+// to warm. Gating the promise on a certificate this pass no longer checks
+// would be an over-correction that stops the cache warming.
+func TestPreverifySignaturesWarmsPromiseWhenCertificateCached(t *testing.T) {
+	f := newPreverifyFixture(t)
+	f.cache.Add(f.certKey)
+
+	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t)}, keeper.PreverifyOptions{Certificates: true})
+
+	require.True(t, f.cache.Has(f.promiseKey), "the promise must still be recorded")
+	require.Equal(t, 2, f.cache.Len(), "the seeded certificate and the promise")
+}
+
+// TestPreverifySignaturesRecordsCertificateWhenPromiseCached pins the opposite
+// edge: with the promise already cached the message's span starts at its first
+// certificate item, and the group must still cover exactly that span. A
+// rollback that over-truncated, or a span computed from a promise item that
+// was never queued, would show up here.
+func TestPreverifySignaturesRecordsCertificateWhenPromiseCached(t *testing.T) {
+	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	f.cache.Add(f.promiseKey)
+
+	f.keeper.PreverifySignatures(f.ctx, [][]byte{f.txBytes(t)}, keeper.PreverifyOptions{Certificates: true})
+
+	require.True(t, f.cache.Has(f.certKey), "the certificate must still be recorded")
+	require.Equal(t, 2, f.cache.Len(), "the seeded promise and the certificate")
 }
 
 // TestPreverifySignaturesLeavesCachedCertificateAlone covers a second pre-pass
