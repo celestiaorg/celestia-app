@@ -128,7 +128,28 @@ func RootFromProofs(inputs []ProofInput, workers int) (Root, error) {
 // reduceProofs recomputes the root of inputs[start:end] (a non-empty range) and
 // returns it, erroring if any input yields a different root than the range's first.
 // Leaves are hashed two at a time so [hashLeaf2] can overlap them.
+//
+// Without the two-way kernel (non-arm64, or -tags purego) there is nothing to
+// overlap, so these builds take the original per-input [RootFromProof] loop and
+// run exactly the pre-change code. hasSHA2x2 is a build-time const false off
+// arm64, so the compiler drops the paired path entirely there.
 func reduceProofs(inputs []ProofInput, start, end int) (Root, error) {
+	if !hasSHA2x2 {
+		want, err := RootFromProof(inputs[start].Leaf, inputs[start].Index, inputs[start].Path)
+		if err != nil {
+			return Root{}, fmt.Errorf("input %d (tree index %d): %w", start, inputs[start].Index, err)
+		}
+		for i := start + 1; i < end; i++ {
+			root, err := RootFromProof(inputs[i].Leaf, inputs[i].Index, inputs[i].Path)
+			if err != nil {
+				return Root{}, fmt.Errorf("input %d (tree index %d): %w", i, inputs[i].Index, err)
+			}
+			if root != want {
+				return Root{}, fmt.Errorf("input %d (tree index %d): root mismatch", i, inputs[i].Index)
+			}
+		}
+		return want, nil
+	}
 	var want Root
 	var leaves [2]Root
 	for i := start; i < end; i += 2 {

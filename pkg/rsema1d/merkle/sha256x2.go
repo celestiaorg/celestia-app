@@ -49,7 +49,19 @@ func hashLeaf2(a, b, da, db []byte) {
 
 // hashLeafPairs writes hashLeaf(leaves[i]) into node(i) for every i in [0,n),
 // two leaves at a time so [hashLeaf2] can overlap them.
+//
+// Without the two-way kernel (non-arm64, or -tags purego) there is nothing to
+// overlap, so pairing would only change the parallelization grain for no gain.
+// Those builds take the original per-leaf [parallelize] schedule instead, so
+// they run exactly the pre-change code. hasSHA2x2 is a build-time const false
+// off arm64, so the compiler drops the pairing path entirely there.
 func hashLeafPairs(n, workers int, leaves [][]byte, node func(i int) []byte) {
+	if !hasSHA2x2 {
+		parallelize(n, workers, func(i int) {
+			hashLeaf(leaves[i], node(i))
+		})
+		return
+	}
 	parallelize(n/2, workers, func(j int) {
 		i := 2 * j
 		hashLeaf2(leaves[i], leaves[i+1], node(i), node(i+1))
