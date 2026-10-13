@@ -669,3 +669,54 @@ func TestPrepareProposalPayForFibreDoubleSpend(t *testing.T) {
 		})
 	}
 }
+
+// TestProcessProposalReusesOwnProposal runs ProcessProposal on the block this
+// node just prepared, which reuses PrepareProposal's artifacts, and checks that
+// the reuse neither changes the verdict nor weakens the data root check.
+func TestProcessProposalReusesOwnProposal(t *testing.T) {
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+	height := testApp.LastBlockHeight() + 1
+	txs := createBlobTxs(t, testApp, encConf, kr, accounts)
+
+	prepare := func() *abci.ResponsePrepareProposal {
+		resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{Txs: txs, Height: height, Time: time.Now()})
+		require.NoError(t, err)
+		return resp
+	}
+	process := func(prepared *abci.ResponsePrepareProposal, dataRoot []byte) abci.ResponseProcessProposal_ProposalStatus {
+		resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Header: &cmtproto.Header{
+				Version:  version.Consensus{Block: 1, App: 3},
+				ChainID:  testutil.ChainID,
+				Height:   height,
+				Time:     time.Now(),
+				DataHash: dataRoot,
+			},
+			Height:       height,
+			Txs:          prepared.Txs,
+			SquareSize:   prepared.SquareSize,
+			DataRootHash: dataRoot,
+		})
+		require.NoError(t, err)
+		return resp.Status
+	}
+
+	// First ProcessProposal after PrepareProposal reuses the artifacts; the
+	// second recomputes them (the entry is taken once). Both accept.
+	prepared := prepare()
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(prepared, prepared.DataRootHash))
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(prepared, prepared.DataRootHash))
+
+	// A wrong data root is rejected on the reuse path too.
+	prepared = prepare()
+	wrongRoot := bytes.Clone(prepared.DataRootHash)
+	wrongRoot[0] ^= 0xff
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, process(prepared, wrongRoot))
+
+	// A changed tx list misses the entry and is validated from scratch.
+	prepared = prepare()
+	prepared.Txs = prepared.Txs[:len(prepared.Txs)-1]
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, process(prepared, prepared.DataRootHash))
+}
