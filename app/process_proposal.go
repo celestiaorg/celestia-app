@@ -237,12 +237,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Classify txs (marking pay-for-fibre txs and synthesizing their system
 	// blobs) before constructing the square; go-square no longer decodes
 	// Cosmos SDK transactions itself.
-	classifiedTxs, err := classifyTxs(req.Txs, blobTxs, decoded)
+	classifiedTxs, err := fibretypes.ClassifyTxsDecoded(req.Txs, blobTxs, decoded)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil
 	}
-	dataSquare, err := constructSquare(classifiedTxs, blobTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
+	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
 		return reject(), nil
@@ -278,102 +278,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 
 	return accept(), nil
-}
-
-// classifyTxs is fibretypes.ClassifyTxs with the blob and pay-for-fibre txs
-// already decoded. blobTxs and decoded are index aligned with txs; a tx that is
-// neither takes the parsing path, which also covers a pay-for-fibre tx the
-// decoded view could not parse.
-func classifyTxs(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre) ([]squarev4.ClassifiedTx, error) {
-	classified := make([]squarev4.ClassifiedTx, len(txs))
-	for i, rawTx := range txs {
-		var (
-			fibreTx   *blobtx.FibreTx
-			isFibreTx bool
-			err       error
-		)
-		switch {
-		case blobTxs[i] != nil:
-			classified[i] = squarev4.NewClassifiedTx(rawTx)
-			continue
-		case decoded[i] != nil:
-			isFibreTx = true
-			fibreTx, err = decoded[i].FibreTx()
-		default:
-			fibreTx, isFibreTx, err = fibretypes.TryParseFibreTx(rawTx)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
-		}
-		if !isFibreTx {
-			classified[i] = squarev4.NewClassifiedTx(rawTx)
-			continue
-		}
-		classified[i], err = squarev4.NewClassifiedFibreTx(fibreTx)
-		if err != nil {
-			return nil, fmt.Errorf("classifying fibre tx at index %d: %w", i, err)
-		}
-	}
-	return classified, nil
-}
-
-// constructSquare is squarev4.Construct with the blob tx decoding taken out:
-// that helper unmarshals every blob tx twice, once to check the ordering and
-// once to append it, and each unmarshal copies every blob. The ordering rules,
-// the append order and the resulting square are unchanged.
-//
-// blobTxs is index aligned with txs and non-nil exactly where the tx is a blob
-// tx that decoded, which the caller has already established.
-func constructSquare(txs []squarev4.ClassifiedTx, blobTxs []*blobtx.BlobTx, maxSquareSize, subtreeRootThreshold int) (squarev4.Square, error) {
-	builder, err := squarev4.NewBuilder(maxSquareSize, subtreeRootThreshold)
-	if err != nil {
-		return nil, err
-	}
-
-	var seenBlobTx, seenFibreTx bool
-	for idx, classified := range txs {
-		if err := classified.Validate(); err != nil {
-			return nil, fmt.Errorf("classified tx at index %d: %w", idx, err)
-		}
-
-		switch {
-		case classified.FibreTx != nil:
-			seenFibreTx = true
-			added, err := builder.AppendFibreTx(classified.FibreTx)
-			if err != nil {
-				return nil, fmt.Errorf("appending fibre tx at index %d: %w", idx, err)
-			}
-			if !added {
-				return nil, fmt.Errorf("not enough space to append fibre tx at index %d", idx)
-			}
-
-		case blobTxs[idx] != nil:
-			if seenFibreTx {
-				return nil, fmt.Errorf("blob tx at index %d cannot be appended after pay-for-fibre tx", idx)
-			}
-			seenBlobTx = true
-			added, err := builder.AppendBlobTx(blobTxs[idx])
-			if err != nil {
-				return nil, fmt.Errorf("appending blob tx at index %d: %w", idx, err)
-			}
-			if !added {
-				return nil, fmt.Errorf("not enough space to append blob tx at index %d", idx)
-			}
-
-		default:
-			if seenBlobTx {
-				return nil, fmt.Errorf("normal tx at index %d cannot be appended after blob tx", idx)
-			}
-			if seenFibreTx {
-				return nil, fmt.Errorf("normal tx at index %d cannot be appended after pay-for-fibre tx", idx)
-			}
-			if !builder.AppendTx(classified.Bytes) {
-				return nil, fmt.Errorf("not enough space to append tx at index %d", idx)
-			}
-		}
-	}
-
-	return builder.Export()
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {

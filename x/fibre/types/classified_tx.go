@@ -19,9 +19,53 @@ const MsgPayForFibreTypeURL = "/celestia.fibre.v1.MsgPayForFibre"
 // no longer decodes Cosmos SDK transactions, so the application classifies
 // them and passes the result in.
 func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
+	return ClassifyTxsDecoded(txs, nil, nil)
+}
+
+// ClassifyTxsDecoded is ClassifyTxs for a caller that has already decoded the
+// transactions, so that neither the classification nor go-square decodes them
+// again.
+//
+// blobTxs and decoded are index aligned with txs and either may be nil. A nil
+// blobTxs[i] takes the pay-for-fibre path; a nil decoded[i] there takes the
+// parsing path, which also covers a pay-for-fibre tx the decoded view could
+// not parse.
+//
+// blobTxs[i] must be what squaretx.UnmarshalBlobTx(txs[i]) returns: it is
+// handed to go-square as the decode of those bytes and is not re-checked
+// against them. Supplying anything else changes the square, and with it the
+// data root.
+func ClassifyTxsDecoded(txs [][]byte, blobTxs []*squaretx.BlobTx, decoded []*DecodedPayForFibre) ([]square.ClassifiedTx, error) {
+	if len(blobTxs) != 0 && len(blobTxs) != len(txs) {
+		return nil, fmt.Errorf("blob txs (%d) are not index aligned with txs (%d)", len(blobTxs), len(txs))
+	}
+	if len(decoded) != 0 && len(decoded) != len(txs) {
+		return nil, fmt.Errorf("decoded pay-for-fibre txs (%d) are not index aligned with txs (%d)", len(decoded), len(txs))
+	}
+	hasBlobTxs, hasDecoded := len(blobTxs) != 0, len(decoded) != 0
+
 	classified := make([]square.ClassifiedTx, len(txs))
 	for i, rawTx := range txs {
-		fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
+		var (
+			fibreTx   *squaretx.FibreTx
+			isFibreTx bool
+			err       error
+		)
+		switch {
+		case hasBlobTxs && blobTxs[i] != nil:
+			// A blob tx is never a pay-for-fibre tx, so there is nothing left
+			// to classify; hand go-square the decode the caller already has.
+			classified[i], err = square.NewClassifiedBlobTx(rawTx, blobTxs[i])
+			if err != nil {
+				return nil, fmt.Errorf("classifying blob tx at index %d: %w", i, err)
+			}
+			continue
+		case hasDecoded && decoded[i] != nil:
+			isFibreTx = true
+			fibreTx, err = decoded[i].FibreTx()
+		default:
+			fibreTx, isFibreTx, err = TryParseFibreTx(rawTx)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
 		}
