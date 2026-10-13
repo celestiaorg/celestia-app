@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
+	"golang.org/x/sys/cpu"
 )
 
 // TestPolyBasisMatchesField checks that the polynomial-basis product equals
@@ -39,6 +40,13 @@ func TestPolyBasisMatchesField(t *testing.T) {
 // TestComputeFastMatchesTranspose checks the PMULL RLC against the
 // transpose path and the scalar reference, including odd K and short rows.
 func TestComputeFastMatchesTranspose(t *testing.T) {
+	origUsePoly := usePoly
+	t.Cleanup(func() { usePoly = origUsePoly })
+	// computeFast executes the PMULL/EOR3 asm unconditionally; skip the
+	// fast-path assertions on CPUs that lack those instructions to avoid SIGILL.
+	if !(cpu.ARM64.HasASIMD && cpu.ARM64.HasPMULL && cpu.ARM64.HasSHA3) {
+		t.Skip("PMULL/EOR3 unavailable on this CPU")
+	}
 	cases := []struct{ k, rowSize int }{{1, 64}, {3, 128}, {17, 2112}, {32, 64}, {100, 4096}, {1024, 32768}}
 	for _, tc := range cases {
 		r := rand.New(rand.NewPCG(uint64(tc.k), uint64(tc.rowSize)))
