@@ -18,8 +18,8 @@ func TestClientMetricsObserveDial(t *testing.T) {
 	m.observeDial("tls", true) // a plaintext->TLS fallback
 	m.observeDial("tls", false)
 
-	require.Equal(t, int64(1), sumCounter(t, reader, "fibre.client.dial.total", "plaintext"))
-	require.Equal(t, int64(2), sumCounter(t, reader, "fibre.client.dial.total", "tls"))
+	require.Equal(t, int64(1), sumCounter(t, reader, "fibre.client.dials", "plaintext"))
+	require.Equal(t, int64(2), sumCounter(t, reader, "fibre.client.dials", "tls"))
 	require.Equal(t, int64(1), sumCounter(t, reader, "fibre.client.dial.fallbacks", ""))
 }
 
@@ -32,8 +32,8 @@ func TestServerMetricsObserveAccept(t *testing.T) {
 	m.observeAccept("plaintext")
 	m.observeAccept("tls")
 
-	require.Equal(t, int64(2), sumCounter(t, reader, "fibre.server.accept.total", "plaintext"))
-	require.Equal(t, int64(1), sumCounter(t, reader, "fibre.server.accept.total", "tls"))
+	require.Equal(t, int64(2), sumCounter(t, reader, "fibre.server.accepts", "plaintext"))
+	require.Equal(t, int64(1), sumCounter(t, reader, "fibre.server.accepts", "tls"))
 }
 
 // sumCounter returns the value of the named Int64 sum counter, restricted to
