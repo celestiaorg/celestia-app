@@ -265,14 +265,16 @@ func New(
 		timeoutCommit = appconsts.TimeoutCommit
 	}
 
+	maxTxs := mempoolMaxTxs(appOpts)
+
 	app := &App{
 		BaseApp:                 baseApp,
 		keys:                    keys,
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
-		pffTxCache:              newPffTxCache(),
-		sigCache:                NewSigCache(mempoolMaxTxs(appOpts)),
+		pffTxCache:              newPffTxCache(maxTxs),
+		sigCache:                NewSigCache(maxTxs),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
 		timeoutCommit:           timeoutCommit,
 		checkStateMu:            &sync.RWMutex{},

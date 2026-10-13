@@ -11,7 +11,7 @@ func TestPffTxCache(t *testing.T) {
 	raw := []byte("a payforfibre tx")
 	signer := pffSignerData{addr: bytes.Repeat([]byte{0xab}, 20), seq: 7}
 
-	c := newPffTxCache()
+	c := newPffTxCache(DefaultMempoolMaxTxs)
 
 	_, ok := c.Get(raw)
 	require.False(t, ok, "empty cache must miss")
@@ -79,4 +79,13 @@ func TestPffTxCacheCapacity(t *testing.T) {
 		_, ok := c.Get(entries[i])
 		require.True(t, ok, "entry %d should be present", i)
 	}
+}
+
+func TestPffTxCacheCapacityFromMempool(t *testing.T) {
+	require.Equal(t, 6_000, pffTxCacheCapacity(DefaultMempoolMaxTxs))
+	require.Equal(t, 24_000, pffTxCacheCapacity(20_000))
+
+	// lru.New panics below 1, and mempoolMaxTxs is the only source of this
+	// argument.
+	require.Positive(t, pffTxCacheCapacity(mempoolMaxTxs(nil)))
 }

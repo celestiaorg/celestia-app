@@ -7,10 +7,9 @@ import (
 	lru "github.com/hashicorp/golang-lru/v2"
 )
 
-// pffTxCacheCapacity bounds the number of admitted PayForFibre txs remembered
-// for recheck. An entry is a fixed ~200 bytes whatever the tx size, so a full
-// cache is around 20 MiB and the count is the whole bound.
-const pffTxCacheCapacity = 100_000
+// pffTxCacheHeadroomPercent widens the capacity past a full mempool, so churn
+// between CheckTx and the recheck that reads an entry does not evict it first.
+const pffTxCacheHeadroomPercent = 20
 
 // pffSignerData is the signer address and sequence CheckTx derived for a tx,
 // which is everything the recheck path reads back.
@@ -30,8 +29,17 @@ type pffTxCache struct {
 	entries *lru.Cache[[sha256.Size]byte, pffSignerData]
 }
 
-func newPffTxCache() *pffTxCache {
-	return newPffTxCacheSized(pffTxCacheCapacity)
+// pffTxCacheCapacity bounds the number of admitted PayForFibre txs remembered
+// for recheck, one entry per tx the mempool can hold plus headroom. An entry is
+// a fixed ~200 bytes whatever the tx size, so the count is the whole bound.
+// Nothing reads the cache to decide validity, so nodes sized differently still
+// agree.
+func pffTxCacheCapacity(mempoolMaxTxs int) int {
+	return mempoolMaxTxs * (100 + pffTxCacheHeadroomPercent) / 100
+}
+
+func newPffTxCache(mempoolMaxTxs int) *pffTxCache {
+	return newPffTxCacheSized(pffTxCacheCapacity(mempoolMaxTxs))
 }
 
 func newPffTxCacheSized(capacity int) *pffTxCache {
