@@ -56,6 +56,17 @@ func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayFor
 	work.record(k.sigCache, runVerifications(work.items, opts.StopOnFirstFailure))
 }
 
+// PreverifyPayForFibreMsg runs the pass over one message the caller holds, and
+// records it when every check passes. certKey must be msg's own key, or the
+// entry would claim verification of a message the pass never saw.
+func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFibre, certKey sigcache.Key) {
+	if k.sigCache == nil {
+		return
+	}
+	k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{DecodedFromMsg(msg, certKey)},
+		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
+}
+
 // batchSize is how many validator signatures one work item verifies together.
 // Batching amortises the fixed cost of the multiscalar multiplication; keeping
 // items small still leaves far more of them than there are CPUs, so no core

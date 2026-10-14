@@ -702,9 +702,11 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 }
 
-// TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails checks a tx rejected
-// before the fibre handler runs has neither of its signatures verified.
-func TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails(t *testing.T) {
+// TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission covers the ante
+// ordering the pre-pass depends on: the fibre signature decorator runs behind
+// every decorator that rejects a transaction more cheaply, so a tx rejected for
+// gas, fees or admission is never charged for its signature work.
+func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
