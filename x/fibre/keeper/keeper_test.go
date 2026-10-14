@@ -804,12 +804,10 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend(
 	suite.NoError(err)
 }
 
-// TestValidatePaymentPromiseRecordsPromiseBehindReservation pins where the
-// query path writes the promise entry: behind the budget reservation. The
-// endpoint is adversarial and the promise signature is the submitter's own, so
-// an entry written any earlier would let a signer refused for lack of budget
-// fill the cache for free.
-func (suite *KeeperTestSuite) TestValidatePaymentPromiseRecordsPromiseBehindReservation() {
+// TestValidatePaymentPromiseRecordsNothing pins that the query never writes
+// the shared signature cache. The endpoint is public, so entries written here
+// could evict the entries the transaction path relies on.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseRecordsNothing() {
 	cache := newCountingSigCache()
 	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, cache)
 
@@ -817,15 +815,12 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseRecordsPromiseBehindRese
 
 	_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
 	suite.NoError(err)
-	suite.Equal(1, cache.adds)
-	suite.Contains(cache.entries, protoPromiseKey(suite.T(), &promise1))
 
-	// The second promise passes the stateless and stateful checks - the escrow
-	// balance is compared, not debited - and is refused only at the reservation.
 	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
 	suite.Equal(codes.ResourceExhausted, status.Code(err))
-	suite.Equal(1, cache.adds, "a promise refused a signature must not buy an entry")
-	suite.NotContains(cache.entries, protoPromiseKey(suite.T(), &promise2))
+
+	suite.Zero(cache.adds)
+	suite.Empty(cache.entries)
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStatefulForTimeout() {

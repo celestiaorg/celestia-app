@@ -125,9 +125,6 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 		if err := k.promiseCache.Reserve(ctx, signer, hash, req.Promise.BlobSize, req.Promise.CreationTimestamp); err != nil {
 			return nil, status.Error(codes.ResourceExhausted, err.Error())
 		}
-		// Recorded only once the budget is reserved: an unfunded promise is
-		// refused a signature, and a refused promise must not buy an entry.
-		k.recordVerifiedPromise(&pp)
 	}
 
 	return &types.QueryValidatePaymentPromiseResponse{
