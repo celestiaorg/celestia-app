@@ -56,6 +56,7 @@ func TestOfferSnapshot(t *testing.T) {
 
 		// Note this error message is not ideal. The multiplexer should not try to enable the GRPC and API servers for an unsupported version.
 		require.ErrorContains(t, err, "failed to get app for version 100: failed to enable gRPC and API servers: unable to enable grpc and api servers, app is nil")
+		require.Equal(t, uint64(100), multiplexer.nextAppVersion)
 	})
 }
 
