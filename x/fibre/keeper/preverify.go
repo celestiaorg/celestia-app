@@ -20,8 +20,9 @@ type PreverifyOptions struct {
 	// Certificates also verifies validator signature sets. FinalizeBlock never
 	// checks them, so it leaves this off.
 	Certificates bool
-	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
-	// single bad signature rejects the whole block, so the rest is wasted.
+	// StopOnFirstFailure abandons a round once a check in it fails. It skips
+	// only items no worker has claimed yet, so it saves nothing where the items
+	// are fewer than the workers - one transaction's quorum prefix, say.
 	StopOnFirstFailure bool
 }
 
@@ -35,10 +36,16 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	}
 
 	work := k.collectVerifications(ctx, txs, opts)
-	if len(work.items) == 0 {
+	if len(work.promiseItems) == 0 && len(work.certItems) == 0 {
 		return
 	}
-	work.record(k.sigCache, runVerifications(work.items, opts.StopOnFirstFailure))
+
+	// Promises first: a message whose promise fails is rejected before the
+	// sequential verifier reaches its certificate, so verifying that
+	// certificate is work no path needs.
+	promiseVerified := runVerifications(work.promiseItems, opts.StopOnFirstFailure)
+	certVerified := work.verifyCertificates(promiseVerified, opts.StopOnFirstFailure)
+	work.record(k.sigCache, promiseVerified, certVerified)
 }
 
 // batchSize is how many validator signatures one work item verifies together.
@@ -73,35 +80,84 @@ func (v verification) run() bool {
 			return false
 		}
 	}
-	// A failing batch falls back to verifying each entry, so the verdict is the
-	// same one the sequential walk reaches.
+	// The pass needs one bit, not which entry failed, and Verify's fallback
+	// re-verifies every entry serially to build a vector this discards. A
+	// batch-equation false negative only costs a cache entry.
+	if bv, ok := batch.(*ed25519.BatchVerifier); ok {
+		return bv.VerifyBatchOnly(crypto.CReader())
+	}
 	allValid, _ := batch.Verify()
 	return allValid
 }
 
 // verificationGroup is one message's contribution to the pass. Its keys are
-// recorded together, and only when every item in [first, end) succeeded: a
-// message that fails a check the pass performed for it must buy no cache
-// entry at all, or unverifiable spam could evict the entries of accepted
-// messages.
+// recorded together, and only when every item it queued succeeded: a message
+// that fails a check the pass performed for it must buy no cache entry at all,
+// or unverifiable spam could evict the entries of accepted messages.
 type verificationGroup struct {
-	keys  []sigcache.Key
-	first int
-	end   int
+	keys []sigcache.Key
+	// promiseIdx indexes promiseItems, or is -1 when the promise is cached.
+	promiseIdx int
+	// certFirst and certEnd bound this message's items in certItems.
+	certFirst int
+	certEnd   int
 }
 
-// preverification is the work collected for one block.
+// preverification is the work collected for one block, split into the rounds it
+// runs in: a certificate is verified only once its message's promise has been.
 type preverification struct {
-	items  []verification
-	groups []verificationGroup
+	promiseItems []verification
+	certItems    []verification
+	groups       []verificationGroup
 }
 
-// record adds the cache entries of every group whose items all succeeded.
-func (p *preverification) record(cache SigCache, verified []bool) {
+// rollback drops the items group queued, so a message the pass abandons leaves
+// no work behind.
+func (p *preverification) rollback(group verificationGroup) {
+	if group.promiseIdx >= 0 {
+		p.promiseItems = p.promiseItems[:group.promiseIdx]
+	}
+	p.certItems = p.certItems[:group.certFirst]
+}
+
+// verifyCertificates runs the certificate items of every message whose promise
+// passed, and reports the verdict per item. The items of a failed promise never
+// run and stay false.
+func (p *preverification) verifyCertificates(promiseVerified []bool, stopOnFirstFailure bool) []bool {
+	verified := make([]bool, len(p.certItems))
+	var (
+		selected []int
+		items    []verification
+	)
 	for _, group := range p.groups {
+		if group.promiseIdx >= 0 && !promiseVerified[group.promiseIdx] {
+			continue
+		}
+		for i := group.certFirst; i < group.certEnd; i++ {
+			selected = append(selected, i)
+			items = append(items, p.certItems[i])
+		}
+	}
+	if len(items) == 0 {
+		return verified
+	}
+	for i, ok := range runVerifications(items, stopOnFirstFailure) {
+		verified[selected[i]] = ok
+	}
+	return verified
+}
+
+// record adds the cache entries of every group whose items all succeeded. Never
+// cache the negatives: a false verdict also covers an item no worker claimed,
+// and a batch-equation false negative, and both would reject a valid tx.
+func (p *preverification) record(cache SigCache, promiseVerified, certVerified []bool) {
+	for _, group := range p.groups {
+		if group.promiseIdx >= 0 && !promiseVerified[group.promiseIdx] {
+			continue
+		}
 		complete := true
-		for i := group.first; i < group.end; i++ {
-			if !verified[i] {
+		for i := group.certFirst; i < group.certEnd; i++ {
+			if !certVerified[i] {
 				complete = false
 				break
 			}
@@ -138,11 +194,12 @@ func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts Preveri
 			continue
 		}
 
-		first := len(work.items)
-		var keys []sigcache.Key
+		group := verificationGroup{promiseIdx: -1, certFirst: len(work.certItems)}
+		group.certEnd = group.certFirst
 		if !k.sigCache.Has(promiseKey) {
-			work.items = append(work.items, verification{promise: promise})
-			keys = append(keys, promiseKey)
+			group.promiseIdx = len(work.promiseItems)
+			work.promiseItems = append(work.promiseItems, verification{promise: promise})
+			group.keys = append(group.keys, promiseKey)
 		}
 
 		if opts.Certificates {
@@ -150,27 +207,26 @@ func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts Preveri
 			if err != nil {
 				// A certificate the pass cannot name is one it cannot gate the
 				// promise on. The sequential verifier still decides.
-				work.items = work.items[:first]
+				work.rollback(group)
 				continue
 			}
 			if !k.sigCache.Has(certKey) {
-				if !k.appendCertificateItems(ctx, work, valSets, promise, msg, first) {
+				if !k.appendCertificateItems(ctx, work, valSets, promise, msg) {
 					// Returns false exactly where the sequential verifier
 					// rejects the message, so this message records nothing -
 					// its promise included.
-					work.items = work.items[:first]
+					work.rollback(group)
 					continue
 				}
-				keys = append(keys, certKey)
+				group.certEnd = len(work.certItems)
+				group.keys = append(group.keys, certKey)
 			}
 			// A cached certificate is already settled, so the promise is all
 			// that is left to warm.
 		}
 
-		if len(keys) > 0 {
-			work.groups = append(work.groups, verificationGroup{
-				keys: keys, first: first, end: len(work.items),
-			})
+		if len(group.keys) > 0 {
+			work.groups = append(work.groups, group)
 		}
 	}
 	return work
@@ -186,7 +242,6 @@ func (k Keeper) appendCertificateItems(
 	valSets map[int64]*convertedValidatorSet,
 	promise *fibre.PaymentPromise,
 	msg *types.MsgPayForFibre,
-	first int,
 ) bool {
 	height := msg.PaymentPromise.Height
 	converted, ok := valSets[height]
@@ -219,7 +274,7 @@ func (k Keeper) appendCertificateItems(
 		return false
 	}
 
-	certFirst := len(work.items)
+	certFirst := len(work.certItems)
 	batch := verification{message: signBytes}
 	for i := range prefix {
 		signature := msg.ValidatorSignatures[i]
@@ -229,17 +284,16 @@ func (k Keeper) appendCertificateItems(
 		batch.pubKeys = append(batch.pubKeys, converted.validators[i].PubKey)
 		batch.signatures = append(batch.signatures, signature)
 		if len(batch.pubKeys) == batchSize {
-			work.items = append(work.items, batch)
+			work.certItems = append(work.certItems, batch)
 			batch = verification{message: signBytes}
 		}
 	}
 	if len(batch.pubKeys) > 0 {
-		work.items = append(work.items, batch)
+		work.certItems = append(work.certItems, batch)
 	}
 	// Guard against a certificate whose quorum prefix carried no signature at
-	// all: recording its key would claim verification of nothing. first is the
-	// promise item, which is why the count starts after it.
-	return len(work.items) > certFirst
+	// all: recording its key would claim verification of nothing.
+	return len(work.certItems) > certFirst
 }
 
 // runVerifications runs items across every CPU and reports which succeeded.
