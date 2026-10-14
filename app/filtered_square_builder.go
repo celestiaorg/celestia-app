@@ -116,7 +116,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		// Branch the state per tx so a rejected tx leaves no partial writes
+		// behind for the txs that follow it.
+		txCtx, commit := ctx.CacheContext()
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
@@ -134,6 +137,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			}
 			continue
 		}
+		commit()
+		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
 		// Replay fibre escrow effects (e.g. a timeout debit) so later pay-for-fibre
 		// settlement sees the same balance it will in FinalizeBlock. A failed
@@ -174,7 +179,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		ctx, err = fsb.handler(ctx, sdkTx, false)
+		txCtx, commit := ctx.CacheContext()
+		txCtx, err = fsb.handler(txCtx, sdkTx, false)
 		// either the transaction is invalid (ie incorrect nonce) and we
 		// simply want to remove this tx, or we're catching a panic from one
 		// of the anteHandlers which is logged.
@@ -189,6 +195,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			}
 			continue
 		}
+		commit()
+		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
 		rawBlobTxs[m] = rawBlobTxs[i]
