@@ -61,9 +61,8 @@ func PayForFibreEvent(signer string, namespace, commitment []byte, validatorCoun
 	commitmentJSON, _ := json.Marshal(commitment)
 	namespaceJSON, _ := json.Marshal(namespace)
 	signerJSON, _ := json.Marshal(signer)
-	// proto.MessageName at call time, not the EventType... vars above: those
-	// are package-level variables initialised before the generated init()
-	// registers the types, so they are empty strings. See the equivalence test.
+	// proto.MessageName at call time, not the EventType vars above: those are
+	// initialised before the generated init() registers the types.
 	return sdk.NewEvent(proto.MessageName(&EventPayForFibre{}),
 		sdk.NewAttribute("commitment", string(commitmentJSON)),
 		sdk.NewAttribute("namespace", string(namespaceJSON)),

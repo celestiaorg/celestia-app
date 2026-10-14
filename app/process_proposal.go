@@ -103,9 +103,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 		}
 	}
-	// Each pay-for-fibre decode depends only on its transaction bytes. The blob
-	// scan above still reports malformed blob transactions in their original
-	// order before this speculative work starts.
+	// Each pay-for-fibre decode depends only on its own bytes. The blob scan
+	// above already reported malformed blob txs, in block order.
 	var fibreNext atomic.Int64
 	var fibreDecodeWG sync.WaitGroup
 	var fibreDecodePanicked atomic.Bool
@@ -136,10 +135,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return reject(), nil
 	}
 
-	// SDK decoding is independent per transaction. Prefetch only parseable
-	// PayForFibre txs, up to the versioned block limit: a rejected block must
-	// not make us decode an unbounded number of otherwise skipped SDK txs.
-	// Consume the results in block order below.
+	// SDK decoding is independent per tx. Prefetch only parseable PayForFibre
+	// txs, capped at the block limit so a rejected block cannot make us decode
+	// an unbounded number. Results are consumed in block order below.
 	decodeCandidates := make([]int, 0, min(len(req.Txs), max(0, maxPFF)))
 	for idx, d := range decoded {
 		if d != nil && (maxPFF <= 0 || len(decodeCandidates) < maxPFF) {
@@ -209,10 +207,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		SeenCertificates:   make(map[sigcache.Key]struct{}, len(req.Txs)),
 	})
 	decodeWG.Wait()
-	// Gated on there being PayForFibre candidates at all, not on whether the
-	// fibre pass queued work: it queues nothing when every promise and
-	// certificate is already cached, and the transaction signatures still are
-	// not.
+	// Gated on there being candidates at all, not on the fibre pass queuing
+	// work: it queues nothing when every certificate is already cached, but
+	// the tx signatures still are not.
 	if len(decodeCandidates) > 0 {
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	}
