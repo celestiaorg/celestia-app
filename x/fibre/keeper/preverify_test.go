@@ -53,7 +53,7 @@ type preverifyFixture struct {
 // withFreshCache returns a second view of the same chain state and message with
 // an empty signature cache, so a run with the pre-pass can be compared against
 // one without it.
-func (f *preverifyFixture) withFreshCache(t *testing.T) *preverifyFixture {
+func (f *preverifyFixture) withFreshCache(t testing.TB) *preverifyFixture {
 	t.Helper()
 
 	fresh := *f
@@ -68,7 +68,7 @@ func (f *preverifyFixture) withFreshCache(t *testing.T) *preverifyFixture {
 // behind rather than only asking whether the certificate is there.
 // TestPreverifySignaturesSkipsCertificatesWhenNotRequested pins it against the
 // keeper's own derivation, so the two cannot drift apart unnoticed.
-func promiseSigCacheKey(t *testing.T, msg *types.MsgPayForFibre) sigcache.Key {
+func promiseSigCacheKey(t testing.TB, msg *types.MsgPayForFibre) sigcache.Key {
 	t.Helper()
 
 	pp := fibre.PaymentPromise{}
@@ -79,7 +79,7 @@ func promiseSigCacheKey(t *testing.T, msg *types.MsgPayForFibre) sigcache.Key {
 }
 
 // refreshCertKey re-derives the certificate key after the message was mutated.
-func (f *preverifyFixture) refreshCertKey(t *testing.T) {
+func (f *preverifyFixture) refreshCertKey(t testing.TB) {
 	t.Helper()
 
 	certKey, err := f.msg.SigCacheKey()
@@ -87,7 +87,7 @@ func (f *preverifyFixture) refreshCertKey(t *testing.T) {
 	f.certKey = certKey
 }
 
-func newPreverifyFixture(t *testing.T) *preverifyFixture {
+func newPreverifyFixture(t testing.TB) *preverifyFixture {
 	t.Helper()
 
 	return newPreverifyFixtureWithValidators(t, numPreverifyValidators)
@@ -95,7 +95,7 @@ func newPreverifyFixture(t *testing.T) *preverifyFixture {
 
 // newPreverifyFixtureWithValidators builds the fixture with a chosen validator
 // count, so a certificate can be made to span more than one verification batch.
-func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyFixture {
+func newPreverifyFixtureWithValidators(t testing.TB, validators int) *preverifyFixture {
 	t.Helper()
 
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
@@ -172,7 +172,7 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
 // ParsePayForFibreMsg reads.
-func (f *preverifyFixture) txBytes(t *testing.T) []byte {
+func (f *preverifyFixture) txBytes(t testing.TB) []byte {
 	t.Helper()
 
 	return f.txBytesFor(t, f.msg)
@@ -180,7 +180,7 @@ func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 
 // txBytesFor wraps any message in the same encoding, so one call can carry
 // several transactions.
-func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) []byte {
+func (f *preverifyFixture) txBytesFor(t testing.TB, msg *types.MsgPayForFibre) []byte {
 	t.Helper()
 
 	value, err := msg.Marshal()
@@ -296,7 +296,7 @@ const batchBoundaryValidators = 100
 // newMessage returns a valid message for the same validator set, set apart
 // from the fixture's by adding delta to its blob size, so one call can carry
 // several distinct promises and certificates.
-func (f *preverifyFixture) newMessage(t *testing.T, delta uint32) *types.MsgPayForFibre {
+func (f *preverifyFixture) newMessage(t testing.TB, delta uint32) *types.MsgPayForFibre {
 	t.Helper()
 
 	promise := f.msg.PaymentPromise
