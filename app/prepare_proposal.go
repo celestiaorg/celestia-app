@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -32,6 +33,10 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
+	}
+	fsb.ValidateBlobTx = func(blobTx *tx.BlobTx) error {
+		_, err := app.ValidateBlobTxWithCache(blobTx)
+		return err
 	}
 
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
