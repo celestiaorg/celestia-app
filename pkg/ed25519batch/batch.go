@@ -95,10 +95,9 @@ func (v *Verifier) Add(key crypto.PubKey, message, signature []byte) error {
 	return nil
 }
 
-// VerifyBatchOnly checks [-sum(z*s)]B + sum([z]R) + sum([z*k]A)
-// after multiplication by the cofactor. Each z is independently sampled from
-// {1,...,2^128}; coefficients for each repeated A are summed modulo the order.
-// Failed batches remain uncached for the authoritative sequential verifier.
+// VerifyBatchOnly checks [-sum(z*s)]B + sum([z]R) + sum([z*k]A) after the
+// cofactor. Each z is sampled from {1,...,2^128}; coefficients for a repeated
+// A are summed modulo the order. A failed batch stays uncached.
 func (v *Verifier) VerifyBatchOnly(random io.Reader) bool {
 	n := len(v.entries)
 	if v.invalid || n == 0 {

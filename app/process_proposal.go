@@ -119,12 +119,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 		decodeCandidates = append(decodeCandidates, idx)
 
-		// Reject an over-full proposal here rather than in the loop below,
-		// which only runs after every tx is decoded and pre-verified. Same
-		// verdict, same bound: pffDecodeCandidate recognizes a tx only when it
-		// carries exactly one MsgPayForFibre, which is what the loop counts.
-		// Counting rather than stopping at the cap keeps the bound a rejection:
-		// an over-full proposal is refused, not silently truncated.
+		// Reject an over-full proposal here rather than after decoding every
+		// tx. Same verdict and same bound, since pffDecodeCandidate counts
+		// exactly what the loop counts: one MsgPayForFibre per tx.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
@@ -177,10 +174,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	decodeWG.Wait()
 
 	// Verify the block's pay-for-fibre signatures across every CPU alongside the
-	// sequential loop. This only warms the signature cache: a
-	// failed check is not recorded, so the loop below still performs it and
-	// still decides. Any failure rejects the whole block, so the pass stops
-	// claiming work at the first one.
+	// sequential loop. This only warms the cache; the loop still decides. Any
+	// failure rejects the block, so the pass stops at the first one.
 	// A block may repeat one certificate across many PayForFibre txs;
 	// SeenCertificates holds that to one verification per distinct certificate.
 	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{

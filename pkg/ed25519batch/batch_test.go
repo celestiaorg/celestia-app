@@ -11,19 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// smallOrderPoint is a canonical encoding of a point of order 8. ZIP-215
-// accepts signatures built from it that the cofactorless equation rejects, so
-// it is the sharpest available probe of whether the batch verifier and the
-// single verifier share an acceptance rule.
+// smallOrderPoint is a canonical encoding of a point of order 8: ZIP-215 accepts
+// signatures from it that the cofactorless equation rejects, so it is the
+// sharpest probe of whether the batch and single verifiers agree.
 const smallOrderPoint = "26e8958fc2b227b045c3f489f2ef98f0d5dfac05d3c63339b13802886d53fc05"
 
-// TestBatchAgreesWithSingleVerifier is the correctness gate for batching.
-//
-// A batch that accepts a signature the single verifier rejects would let a
-// cache-warm node accept a certificate a cache-cold node rejects - a consensus
-// fault. This asserts the two decide identically over honest, tampered,
-// malformed and adversarial inputs, and that a batch accepts only when every
-// member does.
+// TestBatchAgreesWithSingleVerifier is the correctness gate for batching: a
+// batch accepting what the single verifier rejects is a consensus fault. The
+// two must decide identically, and a batch accepts only if every member does.
 func TestBatchAgreesWithSingleVerifier(t *testing.T) {
 	rng := mathrand.New(mathrand.NewSource(3))
 	smallOrder, err := hex.DecodeString(smallOrderPoint)
@@ -101,9 +96,8 @@ func TestBatchAgreesWithSingleVerifier(t *testing.T) {
 	}
 }
 
-// TestBatchRepeatedKeysCannotCancel pins the aggregation of repeated public
-// keys: combining coefficients for one key must not let a forged signature
-// cancel against a valid one.
+// TestBatchRepeatedKeysCannotCancel checks combining coefficients for one key
+// cannot let a forged signature cancel against a valid one.
 func TestBatchRepeatedKeysCannotCancel(t *testing.T) {
 	priv := ed25519.GenPrivKey()
 	pub := priv.PubKey().(ed25519.PubKey)
