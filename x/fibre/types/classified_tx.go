@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
@@ -34,6 +35,22 @@ func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 		}
 	}
 	return classified, nil
+}
+
+// SigCacheKey derives the signature cache key for msg's certificate: the
+// message without its signer, so the key covers exactly the inputs to signature
+// verification. Proto encoding length-prefixes every field, so distinct
+// certificates cannot collide.
+func (msg *MsgPayForFibre) SigCacheKey() (sigcache.Key, error) {
+	certificate := MsgPayForFibre{
+		PaymentPromise:      msg.PaymentPromise,
+		ValidatorSignatures: msg.ValidatorSignatures,
+	}
+	bz, err := certificate.Marshal()
+	if err != nil {
+		return sigcache.Key{}, err
+	}
+	return sigcache.NewKey(sigcache.PffCertificate, bz), nil
 }
 
 // TryParseFibreTx attempts to detect a MsgPayForFibre message inside plain
