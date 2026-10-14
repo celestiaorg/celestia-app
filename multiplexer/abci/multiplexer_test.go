@@ -1,9 +1,15 @@
 package abci
 
 import (
+	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/stretchr/testify/require"
 )
@@ -45,4 +51,33 @@ func TestOpenTraceWriter(t *testing.T) {
 		_, err := openTraceWriter("")
 		require.NoError(t, err)
 	})
+}
+
+// commitApp is a native app whose FinalizeBlock reports no consensus param updates.
+type commitApp struct {
+	servertypes.Application
+}
+
+func (commitApp) FinalizeBlock(*abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	return &abci.ResponseFinalizeBlock{}, nil
+}
+
+func (commitApp) Commit() (*abci.ResponseCommit, error) {
+	return &abci.ResponseCommit{}, nil
+}
+
+// TestCommitWithoutVersionUpdateKeepsAppVersion verifies that Commit keeps the
+// current app version when FinalizeBlock does not report one.
+func TestCommitWithoutVersionUpdateKeepsAppVersion(t *testing.T) {
+	versions, err := NewVersions(Version{Appd: &appd.Appd{}, ABCIVersion: ABCIClientVersion1, AppVersion: 3})
+	require.NoError(t, err)
+	m, err := NewMultiplexer(server.NewDefaultContext(), serverconfig.Config{}, client.Context{}, nil, versions, "test", 10, nil)
+	require.NoError(t, err)
+	m.nativeApp = commitApp{}
+
+	_, err = m.FinalizeBlock(context.Background(), &abci.RequestFinalizeBlock{Height: 1})
+	require.NoError(t, err)
+	_, err = m.Commit(context.Background(), &abci.RequestCommit{})
+	require.NoError(t, err)
+	require.Equal(t, uint64(10), m.appVersion)
 }
