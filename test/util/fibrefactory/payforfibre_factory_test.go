@@ -28,18 +28,15 @@ func TestHistoricalInfoAtPromiseHeight(t *testing.T) {
 	require.Len(t, info.Valset, validators)
 }
 
-// TestQuorumSize pins the quorum the keeper actually demands. With equal voting
-// power the threshold is two thirds of the total, which 66 of 100 validators do
-// not reach.
+// TestQuorumSize pins the quorum the keeper demands: two thirds of total voting
+// power, which 66 of 100 equal-power validators do not reach.
 func TestQuorumSize(t *testing.T) {
 	fixture := fibrefactory.NewFixture(t, 1, validators)
 	require.Equal(t, 67, fixture.Quorum(t))
 }
 
-// TestCheckTxAcceptsQuorumCertificate is the correctness gate for every
-// benchmark built on this factory: the certificates must be ones the real
-// keeper accepts, which proves the signatures are positional over the set
-// ordering staking imposes, not over genesis order.
+// TestCheckTxAcceptsQuorumCertificate is the correctness gate for every benchmark
+// here: the real keeper must accept these certificates.
 func TestCheckTxAcceptsQuorumCertificate(t *testing.T) {
 	const count = 4
 	fixture := fibrefactory.NewFixture(t, count, validators)
@@ -100,9 +97,7 @@ func TestNewAppAcceptsTheSameTxs(t *testing.T) {
 }
 
 // TestDecodedGasLimitMatchesSignedTx checks the declared gas is read correctly
-// from a real signed transaction. The pre-verification pass skips transactions
-// that cannot pay for their own signature checks, and it reads that limit by
-// scanning the auth info rather than decoding it.
+// from a real signed tx, since the pre-pass skips txs that cannot pay.
 func TestDecodedGasLimitMatchesSignedTx(t *testing.T) {
 	const gasLimit = 1_000_000
 

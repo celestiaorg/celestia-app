@@ -40,9 +40,8 @@ type Fixture struct {
 	// ValPrivs holds the validator consensus keys in the order the fibre
 	// keeper reads the validator set. Certificates are positional over it.
 	ValPrivs []ed25519.PrivKey
-	// Signer holds every funded escrow account. It is one signer rather than
-	// one per account because user.NewSigner lists the whole keyring on
-	// construction, which makes a signer per account quadratic.
+	// Signer holds every funded escrow account. One signer, not one per
+	// account: user.NewSigner lists the whole keyring, which would be quadratic.
 	Signer *user.Signer
 	// Accounts names the funded escrow accounts.
 	Accounts []string
@@ -97,11 +96,9 @@ func NewFixture(tb testing.TB, accounts, validators int) *Fixture {
 	return fixture
 }
 
-// NewApp returns a fresh app at the same genesis, with the same escrow funding
-// and the same promise height, so transactions already built from this fixture
-// stay valid against it. FinalizeBlock writes into the root store even without
-// Commit, so benchmarking either one needs a new app per measurement; this
-// rebuilds only the app and leaves the certificates alone.
+// NewApp returns a fresh app at the same genesis, funding and promise height,
+// so txs already built from this fixture stay valid. FinalizeBlock writes to
+// the root store without Commit, so benchmarking it needs a new app each time.
 func (f *Fixture) NewApp(tb testing.TB) *app.App {
 	tb.Helper()
 	return f.initApp(tb, testutil.NewTestApp())
@@ -153,10 +150,9 @@ func (f *Fixture) Txs(tb testing.TB, quorum int) [][]byte {
 	return txs
 }
 
-// NewMsgPayForFibreWithQuorum returns a MsgPayForFibre whose promise is signed
-// by the signer account, and whose certificate carries the promise sign bytes
-// signed by the first `quorum` keys of valPrivs. The signatures are positional
-// over the validator set, so valPrivs must already be in set order.
+// NewMsgPayForFibreWithQuorum signs the promise with the signer account and the
+// certificate with the first `quorum` keys of valPrivs. Signatures are
+// positional over the validator set, so valPrivs must be in set order.
 func NewMsgPayForFibreWithQuorum(
 	tb testing.TB,
 	signer *user.Signer,
@@ -200,10 +196,9 @@ func NewMsgPayForFibreWithQuorum(
 	return msg
 }
 
-// ValidatorKeysInSetOrder returns valPrivs reordered to match the validator set
-// the fibre keeper reads at height. Staking re-sorts HistoricalInfo by voting
-// power and then consensus address, and certificates are positional over that
-// order, so genesis order is not the order that counts.
+// ValidatorKeysInSetOrder reorders valPrivs to match the validator set the
+// keeper reads at height. Staking re-sorts by voting power then consensus
+// address, and certificates are positional over that, not over genesis order.
 func ValidatorKeysInSetOrder(tb testing.TB, testApp *app.App, height int64, valPrivs []ed25519.PrivKey) []ed25519.PrivKey {
 	tb.Helper()
 	valset := historicalValset(tb, testApp, height)

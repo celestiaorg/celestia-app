@@ -109,10 +109,9 @@ func (l *lazyPFFBlock) get(b *testing.B) *pffBlock {
 }
 
 func (p *pffBlock) prepareRequest() *abci.RequestPrepareProposal {
-	// MaxTxBytes is what CometBFT passes, and a non-positive value makes the
-	// square builder skip its cumulative size accounting over every candidate -
-	// a real part of the proposer's work, and the bound that makes this a
-	// 32 MiB block rather than an unbounded one.
+	// MaxTxBytes is what CometBFT passes. A non-positive value would skip the
+	// builder's size accounting, which is real proposer work and the bound
+	// that makes this a 32 MiB block.
 	return &abci.RequestPrepareProposal{
 		Height:     p.height,
 		Time:       p.blockTime,
@@ -168,10 +167,8 @@ func (p *pffBlock) warm(b *testing.B) {
 	p.warmed = true
 }
 
-// resetCheckState commits an empty block, which rebuilds the CheckTx state from
-// committed state so the same transactions can be admitted again. It also drops
-// the signature cache, because a transaction arriving at a mempool for the
-// first time is always a cache miss.
+// resetCheckState commits an empty block so the same txs can be admitted again.
+// It also drops the signature cache: a tx arriving for the first time misses.
 func (p *pffBlock) resetCheckState(b *testing.B) {
 	_, err := p.app.FinalizeBlock(&abci.RequestFinalizeBlock{
 		Height: p.app.LastBlockHeight() + 1,
@@ -184,9 +181,8 @@ func (p *pffBlock) resetCheckState(b *testing.B) {
 	p.app.PurgeNodeCaches()
 }
 
-// BenchmarkCheckTx_PFF measures per-transaction admission cost, which sets the
-// rate at which a node can take PayForFibre in from its mempool. Every
-// iteration admits a distinct transaction: the sequence check rejects a replay.
+// BenchmarkCheckTx_PFF measures per-tx admission cost, the rate a node can take
+// PayForFibre in at. Each iteration admits a distinct tx; a replay is rejected.
 func BenchmarkCheckTx_PFF(b *testing.B) {
 	for _, validators := range pffValidatorCounts {
 		lazy := newLazyPFFBlock(checkTxPoolSize, validators)
@@ -262,10 +258,8 @@ func BenchmarkProcessProposal_PFF_Validators(b *testing.B) {
 	}
 }
 
-// BenchmarkFinalizeBlock_PFF measures execution and state writes. FinalizeBlock
-// never verifies certificates, so its cold and warm cases differ only by the
-// payment promise checks: warm is a validator that just ran ProcessProposal,
-// cold is a node replaying history, which never did.
+// BenchmarkFinalizeBlock_PFF measures execution and state writes. It never
+// verifies certificates, so cold and warm differ only by the promise checks.
 func BenchmarkFinalizeBlock_PFF(b *testing.B) {
 	for _, count := range pffCounts {
 		lazy := newLazyPFFBlock(count, defaultPFFValidators)
@@ -291,9 +285,8 @@ func BenchmarkFinalizeBlock_PFF(b *testing.B) {
 	}
 }
 
-// BenchmarkCommit_PFF measures the app side of the commit tail. It runs on
-// memDB, so it does not see the disk cost that dominates on a real node.
-// Committing settles the promises, so every iteration needs a fresh app.
+// BenchmarkCommit_PFF measures the app side of the commit tail, on memDB, so
+// it misses the disk cost. Committing settles, so each iteration needs a new app.
 func BenchmarkCommit_PFF(b *testing.B) {
 	for _, count := range pffCounts {
 		lazy := newLazyPFFBlock(count, defaultPFFValidators)
