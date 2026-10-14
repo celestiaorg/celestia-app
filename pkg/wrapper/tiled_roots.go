@@ -20,8 +20,6 @@ const rootTileWidth = 16
 
 type tiledNode [2*share.NamespaceSize + sha256.Size]byte
 
-// ComputeRoots extends a square and computes its roots, sharing leaf hashes
-// between rows and columns. Nondefault trees use the original implementation.
 // paritySharesNamespace is the namespace nmt collapses rather than propagates
 // when it is a node's maximum. Derived from share, not spelled out: a literal
 // would stop matching if the namespace size changed, giving a different root.
@@ -33,6 +31,8 @@ func init() {
 	}
 }
 
+// ComputeRoots extends a square and computes its roots, sharing leaf hashes
+// between rows and columns. Nondefault trees use the original implementation.
 func (p *TreePool) ComputeRoots(data [][]byte, expectedSize uint64) (uint64, [][]byte, [][]byte, error) {
 	if len(data) == 0 || len(data)&(len(data)-1) != 0 {
 		return 0, nil, nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(data))
