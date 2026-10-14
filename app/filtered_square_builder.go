@@ -22,8 +22,8 @@ type FilteredSquareBuilder struct {
 	txConfig  client.TxConfig
 	chanKeep  channelKeeper
 	builder   *square.Builder
-	// ValidateBlobTx, when set, drops blob txs it returns an error for.
-	ValidateBlobTx func(*tx.BlobTx) error
+	// validateBlobTx, when set, drops blob txs it returns an error for.
+	validateBlobTx func(*tx.BlobTx) (bool, error)
 }
 
 func NewFilteredSquareBuilder(
@@ -166,8 +166,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
-		if fsb.ValidateBlobTx != nil {
-			if err := fsb.ValidateBlobTx(tx); err != nil {
+		if fsb.validateBlobTx != nil {
+			if _, err := fsb.validateBlobTx(tx); err != nil {
 				logger.Error("dropping invalid blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
 				continue
 			}
