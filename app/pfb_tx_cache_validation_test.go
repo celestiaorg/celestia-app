@@ -145,22 +145,32 @@ func TestBlobTxCacheConcurrentValidation(t *testing.T) {
 	app, vectors := blobTxCacheVectors(t)
 	valid := vectors[0].btx
 
-	var wg sync.WaitGroup
+	// Writers run until every reader finishes, so reads overlap with writes.
+	done := make(chan struct{})
+	var writers sync.WaitGroup
 	for w := range 4 {
-		wg.Go(func() {
-			for i := range 50 {
+		writers.Go(func() {
+			for i := 0; ; i++ {
+				select {
+				case <-done:
+					return
+				default:
+				}
 				app.txCache.Set(valid.Tx, valid.Blobs)
 				app.txCache.Set(fmt.Appendf(nil, "filler-%d-%d", w, i), valid.Blobs)
 			}
 		})
 	}
+	var readers sync.WaitGroup
 	for _, v := range vectors {
-		wg.Go(func() {
+		readers.Go(func() {
 			for range 5 {
 				_, err := app.ValidateBlobTxWithCache(v.btx)
 				assert.ErrorIs(t, err, v.wantErr, v.name)
 			}
 		})
 	}
-	wg.Wait()
+	readers.Wait()
+	close(done)
+	writers.Wait()
 }
