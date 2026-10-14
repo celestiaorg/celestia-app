@@ -17,6 +17,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
@@ -699,6 +700,77 @@ func TestCheckTxPayForFibre(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, apperr.ErrInvalidPayForFibreTx.ABCICode(), resp.Code)
 	})
+}
+
+// TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails checks that a tx
+// rejected before the fibre handler runs is never charged for its signature
+// work: neither the certificate nor the promise signature is verified.
+func TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	// Gas that covers the signature checks but not the rest of the ante pass,
+	// so the rejection cannot be mistaken for the signature bound itself.
+	signatureGas := fibretypes.EstimateGasForPayForFibreSignatureVerification(1)
+
+	tests := map[string]struct {
+		account   int
+		escrow    bool
+		opts      []user.TxOption
+		wantAdmit bool
+	}{
+		"no escrow account": {
+			account: 0,
+			escrow:  false,
+			opts:    []user.TxOption{user.SetGasLimit(1_000_000), user.SetFee(4_000)},
+		},
+		"gas above the signature estimate but below the ante total": {
+			account: 1,
+			escrow:  true,
+			opts:    []user.TxOption{user.SetGasLimit(signatureGas + 1), user.SetFee(4_000)},
+		},
+		// The control: an admitted tx does reach the signature checks, so the
+		// two cases above are not vacuous.
+		"admitted tx": {
+			account:   2,
+			escrow:    true,
+			opts:      []user.TxOption{user.SetGasLimit(1_000_000), user.SetFee(4_000)},
+			wantAdmit: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tc.escrow {
+				seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[tc.account]), 1_000_000)
+			}
+			txBytes := newSignedPayForFibreTxWithOpts(t, newSigner(tc.account), accounts[tc.account], true, tc.opts...)
+
+			decoded := fibrekeeper.DecodePayForFibre(txBytes)
+			require.NotNil(t, decoded)
+			require.True(t, decoded.CertKeyed)
+			require.True(t, decoded.PromiseKeyed)
+
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+			require.NoError(t, err)
+			if tc.wantAdmit {
+				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+				require.True(t, testApp.HasVerifiedSignature(decoded.CertKey))
+				require.True(t, testApp.HasVerifiedSignature(decoded.PromiseKey))
+				return
+			}
+
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code, resp.Log)
+			require.False(t, testApp.HasVerifiedSignature(decoded.CertKey),
+				"a rejected tx must not have its certificate verified")
+			require.False(t, testApp.HasVerifiedSignature(decoded.PromiseKey),
+				"a rejected tx must not have its promise signature verified")
+		})
+	}
 }
 
 // TestCheckTxPayForFibreRecheck admits a payment promise and rechecks it, so
