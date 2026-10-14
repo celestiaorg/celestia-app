@@ -320,10 +320,8 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 					panicked.CompareAndSwap(nil, r)
 				}
 			}()
-			// Comma-ok: a failed assertion here would panic every worker on
-			// its first line, leave every result false, and show up only as a
-			// cache that never warms. Falling back to the per-item path keeps
-			// the pass working.
+			// Comma-ok: a failed assertion would panic every worker and show up
+			// only as a cache that never warms. Fall back to the per-item path.
 			batch, batchOK := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			if !batchOK {
 				batch = nil

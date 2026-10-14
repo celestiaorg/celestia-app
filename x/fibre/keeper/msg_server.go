@@ -171,10 +171,9 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	// ProcessProposal returns only ACCEPT or REJECT, and its per-transaction
 	// event manager is discarded. FinalizeBlock still emits the payment event.
 	if ctx.ExecMode() != sdk.ExecModeProcessProposal {
-		// PayForFibreEvent rather than EmitTypedEvent: the two are pinned
-		// equivalent by TestPayForFibreEventMatchesTypedEvent, and this is the
-		// FinalizeBlock path, where a protobuf JSON marshal and map decode per
-		// payment is exactly the cost this campaign is removing.
+		// PayForFibreEvent rather than EmitTypedEvent: equivalent (see
+		// TestPayForFibreEventMatchesTypedEvent) without the per-payment
+		// protobuf JSON marshal and map decode.
 		ctx.EventManager().EmitEvent(types.PayForFibreEvent(
 			signerAddr,
 			msg.PaymentPromise.Namespace,

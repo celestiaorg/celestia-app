@@ -28,9 +28,8 @@ type DecodedPayForFibre struct {
 	// when the auth info could not be read.
 	GasLimit uint64
 
-	// fibreTx is built on first use and guarded: the proposal square is built
-	// on a goroutine that runs alongside the ordered walk, and both may reach
-	// it.
+	// fibreTx is built on first use and guarded: the square builder goroutine
+	// and the ordered walk may both reach it.
 	fibreTxOnce sync.Once
 	fibreTx     *squaretx.FibreTx
 	fibreTxErr  error

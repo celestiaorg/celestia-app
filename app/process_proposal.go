@@ -216,10 +216,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	decodedHolder := &fibretypes.DecodedHolder{}
 	ctx = fibretypes.WithDecodedHolder(ctx, decodedHolder)
 
-	// For a large block of distinct, decoded PFF txs, the data root depends
-	// only on immutable tx bytes. Build it while the ordered ante and settlement
-	// walk runs. Duplicate transactions and malformed txs take the sequential
-	// path so cheap rejected proposals do not start extra square work.
+	// The data root depends only on immutable tx bytes, so build it while the
+	// ordered walk runs. Duplicate and malformed txs take the sequential path,
+	// so a cheap rejection does not start extra square work.
 	var (
 		squareDone   chan proposalSquareResult
 		squareCancel atomic.Bool
@@ -233,11 +232,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				parallel = false
 				break
 			}
-			// Both keys, not just the certificate: the walk rejects a repeated
-			// promise on its hash, which covers the promise alone, so two txs
-			// carrying one promise under different signature sets have
-			// distinct certificate keys and would otherwise slip through to
-			// the parallel path and be rejected anyway.
+			// Both keys, not just the certificate: two txs sharing a promise
+			// under different signature sets have distinct certificate keys,
+			// and the walk rejects the repeated promise anyway.
 			_, certSeen := uniqueCerts[d.CertKey]
 			_, promiseSeen := uniquePromises[d.PromiseKey]
 			if certSeen || promiseSeen {
@@ -251,8 +248,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			squareDone = make(chan proposalSquareResult, 1)
 			go func(done chan<- proposalSquareResult) {
 				// The send must happen on every path: a goroutine that died
-				// without sending would leave the drain below blocking
-				// forever, which is a silent node halt.
+				// without sending would block the drain below forever.
 				result := proposalSquareResult{
 					stage: "panic while building proposal square",
 					err:   fmt.Errorf("proposal square builder did not finish"),
@@ -265,9 +261,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}(squareDone)
 			defer func() {
 				if squareDone != nil {
-					// Tell the builder to stop before waiting for it, so a
-					// proposal rejected at its first transaction does not pay
-					// for a whole square and extended square first.
+					// Cancel before waiting, so a proposal rejected at its
+					// first tx does not pay for a whole square first.
 					squareCancel.Store(true)
 					<-squareDone
 				}

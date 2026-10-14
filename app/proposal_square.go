@@ -20,14 +20,9 @@ type proposalSquareResult struct {
 }
 
 // buildProposalSquare computes the exact square and DAH ProcessProposal checks.
-// It reads transaction bytes and decoded views only; any panic is returned to
-// the proposal handler so a background builder cannot crash the node.
-//
-// cancel is checked between stages. When the ordered walk has already rejected
-// the proposal nothing will read the result, and each remaining stage - the
-// square, the extended square, the data availability header - is expensive
-// enough that finishing them would delay the rejection the walk already
-// reached. A cancelled build returns a zero result, which the caller discards.
+// It reads tx bytes and decoded views only; a panic is returned to the caller
+// so a background builder cannot crash the node. cancel is checked between
+// stages, and a cancelled build returns a zero result the caller discards.
 func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre, maxSquareSize int, expectedSize uint64, cancel *atomic.Bool) (result proposalSquareResult) {
 	defer func() {
 		if r := recover(); r != nil {
