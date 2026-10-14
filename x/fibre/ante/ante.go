@@ -51,6 +51,7 @@ type FibreSignatureVerificationDecorator struct {
 // FibreKeeper verifies PFF signatures.
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
+	ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error
 }
 
 // PffSigCache tracks PFF certificates whose signatures were already checked.
@@ -78,6 +79,11 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return ctx, err
 	}
 	if d.pffSigCache.Has(cacheKey) {
+		// The cache covers the signatures, not whether the validator set they
+		// were checked against is still stored.
+		if err = d.k.ValidateValidatorSetAvailable(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
+			return ctx, err
+		}
 		return next(ctx, tx, simulate)
 	}
 
