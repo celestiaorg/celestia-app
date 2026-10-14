@@ -12,9 +12,16 @@ for DIR in "${EXCLUDE_DIRS[@]}"; do
     PKGS=$(echo "$PKGS" | grep -v "$DIR")
 done
 
-# Use the same scope for instrumentation and test selection. In particular,
-# imported test utilities must not re-enter the profile through -coverpkg.
-COVER_PKGS=$(printf '%s\n' "$PKGS" | paste -sd, -)
+# Eligible coverage scope: production packages only. Keep this in sync with the
+# ignore list in .github/codecov.yml. Generated *.pb.go and *.pb.gw.go files are
+# dropped from the merged profile below.
+OUT_OF_SCOPE="^$(GOWORK=off go list -m)/(test|tools|scripts|local_devnet|pkg/rsema1d/cmd/testvectors)(/|$)"
+SCOPE_PKGS=$(printf '%s\n' "$PKGS" | grep -Ev "$OUT_OF_SCOPE")
+
+# Only eligible packages are instrumented, so test utilities, tools and scripts
+# never enter the profile. Tests in every package in PKGS still run and credit
+# the eligible code they exercise.
+COVER_PKGS=$(printf '%s\n' "$SCOPE_PKGS" | paste -sd, -)
 
 # Keep the previous report intact if tests fail. Create the temporary profile
 # beside the destination so publishing it is an atomic rename.
@@ -32,7 +39,7 @@ go test -p 1 -timeout 60m -coverprofile="$COVER_DIR/coverage.txt" -covermode=ato
 # entries for packages without tests. Count each block once in the denominator.
 {
     echo 'mode: atomic'
-    awk 'NR > 1 {
+    awk 'NR > 1 && $1 !~ /\.pb(\.gw)?\.go:/ {
         statements[$1] = $2
         counts[$1] += $3
     }
