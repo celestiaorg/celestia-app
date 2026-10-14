@@ -12,6 +12,12 @@ import (
 
 const (
 	BlobVersionZero = uint32(0)
+
+	// MaxChainIDSize is the longest chain ID a payment promise can carry, and
+	// PromiseSignatureSize the size of its secp256k1 signature in compact
+	// format. Both are what the promise sign-bytes layout allows.
+	MaxChainIDSize       = 20
+	PromiseSignatureSize = 64
 )
 
 // ValidateBasic performs stateless validation for MsgDepositToEscrow
@@ -62,6 +68,10 @@ func (msg *PaymentPromise) ValidateBasic() error {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "chain ID cannot be empty")
 	}
 
+	if len(msg.ChainId) > MaxChainIDSize {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "chain ID must be at most %d bytes, got %d", MaxChainIDSize, len(msg.ChainId))
+	}
+
 	if len(msg.Namespace) == 0 {
 		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "namespace cannot be empty")
 	}
@@ -103,8 +113,11 @@ func (msg *PaymentPromise) ValidateBasic() error {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidPubKey, "signer public key must be %d bytes, got %d", secp256k1.PubKeySize, len(msg.SignerPublicKey.Key))
 	}
 
-	if len(msg.Signature) == 0 {
-		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, "signature cannot be empty")
+	// Nothing of another length could ever verify: secp256k1 accepts the
+	// compact form only. Rejecting it here keeps 8 MiB of transaction from
+	// reaching any hashing or decoding first.
+	if len(msg.Signature) != PromiseSignatureSize {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature must be %d bytes, got %d", PromiseSignatureSize, len(msg.Signature))
 	}
 
 	return nil
