@@ -179,16 +179,15 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 
 // ValidatePayForFibreSignatures verifies the payment promise and validator signatures.
 func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPayForFibre) error {
-	// Pre-verify only in CheckTx, which reaches this once gas, fees, account
-	// authentication and fibre admission have passed, so the parallel pass is
-	// spent only on an otherwise admissible transaction.
+	// Pre-verify only in CheckTx, which reaches this once gas, fees, accounts
+	// and fibre admission have passed, so the parallel pass is spent only on
+	// a transaction that is otherwise admissible.
 	if ctx.IsCheckTx() && !ctx.IsReCheckTx() && len(ctx.TxBytes()) > 0 && k.sigCache != nil {
 		if d := DecodePayForFibre(ctx.TxBytes()); d != nil {
 			k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{d}, PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
 		}
-		// The key has to come from msg, not from the decoded transaction. This
-		// function is contracted to verify msg, so a caller whose msg is not
-		// the message inside ctx.TxBytes() must never be told it verified.
+		// The key comes from msg, not from the decoded tx: this function only
+		// promises to verify msg.
 		if key, err := msg.SigCacheKey(); err == nil && k.sigCache.Has(key) {
 			return nil
 		}
