@@ -10,6 +10,7 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -119,9 +120,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// failed check is not recorded, so the loop below still performs it and
 	// still decides. Any failure rejects the whole block, so the pass stops
 	// claiming work at the first one.
+	// The pass runs on at most a block's worth of messages: the decode loop
+	// above rejected the proposal otherwise. Within that, a block may still
+	// repeat one certificate across many PayForFibre transactions, and without
+	// deduplication the pass verifies each repeat, so SeenCertificates holds it
+	// to one verification per distinct certificate.
 	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
+		SeenCertificates:   make(map[sigcache.Key]struct{}, len(req.Txs)),
 	})
 
 	// One holder for the whole walk, so the context does not grow by a value

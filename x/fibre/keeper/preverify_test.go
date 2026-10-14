@@ -518,6 +518,59 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg))
 }
 
+// TestPreverifyDeduplicatesRepeatedCertificates pins the amplification bound
+// SeenCertificates provides: a block repeating one certificate across many
+// PayForFibre transactions must cost the pre-pass one verification of it, not
+// one per repeat. Deduplication may only remove queued work, never create a
+// cache hit, so the cache must end in exactly the state a single copy leaves.
+func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
+	const repeats = 8
+
+	collect := func(seen map[sigcache.Key]struct{}, n int) *preverifyFixture {
+		f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+		decoded := make([]*types.DecodedPayForFibre, n)
+		for i := range decoded {
+			decoded[i] = f.decodedMessage(t, f.msg)
+		}
+		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{
+			Certificates:     true,
+			SeenCertificates: seen,
+		})
+		return f
+	}
+
+	single := collect(nil, 1)
+
+	seen := make(map[sigcache.Key]struct{}, repeats)
+	deduped := collect(seen, repeats)
+	require.Len(t, seen, 1, "one distinct certificate, however many times it repeats")
+	require.True(t, deduped.cache.Has(deduped.certKey))
+	require.Equal(t, single.cache.Len(), deduped.cache.Len(),
+		"deduplication must not change what ends up cached")
+
+	// Without the map every repeat is collected again. The verdict is the same
+	// either way - only the work differs - which is why this is a bound and
+	// not a correctness fix.
+	unbounded := collect(nil, repeats)
+	require.Equal(t, deduped.cache.Len(), unbounded.cache.Len())
+	require.True(t, unbounded.cache.Has(unbounded.certKey))
+
+	// The map is consulted, not merely populated: a certificate already in it
+	// is skipped. Note this skips the whole entry, promise included, so a
+	// repeat is left entirely uncached - safe, because the sequential loop
+	// still performs and decides every check the pass leaves uncached.
+	preseeded := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	preseeded.keeper.PreverifyDecoded(preseeded.ctx,
+		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg)},
+		keeper.PreverifyOptions{
+			Certificates:     true,
+			SeenCertificates: map[sigcache.Key]struct{}{preseeded.certKey: {}},
+		})
+	require.Zero(t, preseeded.cache.Len(), "a certificate already seen is not collected again")
+	require.NoError(t, preseeded.keeper.ValidatePayForFibreSignatures(preseeded.ctx, preseeded.msg),
+		"and the sequential path still accepts it")
+}
+
 // TestDecodePayForFibre checks the decoded view carries the same values the
 // verification path derives itself, and is nil for anything else.
 func TestDecodePayForFibre(t *testing.T) {
