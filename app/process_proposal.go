@@ -51,10 +51,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// mirrors PrepareProposal, which reads it before running any ante handler.
 	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 
-	// Reuse what PrepareProposal already built for this height and these txs.
-	// The artifacts only depend on the key and the txs, so a hit is safe even
-	// if another node proposed the block. A hit skips the square, erasure
-	// coding and DAH below; every per-tx check still runs.
+	// Reuse what PrepareProposal built for this height and these txs. A hit
+	// skips the square, erasure coding and DAH; every per-tx check still runs.
 	cached := app.proposalCache.Take(newProposalKey(ctx, blockHeader.Height, maxSquareSize), req.Txs)
 
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
@@ -242,9 +240,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
-	// Compare the proposer's claims against the cached values. When we are the
-	// proposer both sides come from our own PrepareProposal, so this really
-	// only checks someone else's block built from the same txs.
+	// Compare the proposer's claims against the cached values.
 	if cached != nil {
 		if cached.squareSize != req.SquareSize {
 			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")

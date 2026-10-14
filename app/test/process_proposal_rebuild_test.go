@@ -16,16 +16,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestProcessProposalRebuildsSquareAfterReverts checks that ProcessProposal
-// accepts a proposal built through each of the builder's three revert paths,
-// both when it reuses PrepareProposal's artifacts and when it rebuilds the
-// square from the tx bytes.
+// TestProcessProposalRebuildsSquareAfterReverts checks ProcessProposal accepts a
+// proposal built through each revert path, on both the reuse and rebuild paths.
 func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
-	// Every transaction below is small enough to fit the square and stays well
-	// inside the message caps, so the only path that can drop the second one is
-	// an append followed by a revert.
+	// Every tx fits the square and the message caps, so the only way to drop
+	// the second one is an append followed by a revert.
 	tests := []struct {
 		name   string
 		revert string
@@ -94,10 +91,8 @@ func TestProcessProposalRebuildsSquareAfterReverts(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			// The revert fired: the first tx was kept and the second was
-			// appended and taken back out. If this ever reports 2, the case has
-			// stopped exercising tc.revert and the rebuild below proves nothing
-			// about it.
+			// The revert fired. If this ever reports 2, the case has stopped
+			// exercising tc.revert.
 			require.Len(t, prepared.Txs, 1, "second tx must be dropped via %s", tc.revert)
 			require.Equal(t, txs[0], prepared.Txs[0])
 

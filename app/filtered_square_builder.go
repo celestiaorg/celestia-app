@@ -228,9 +228,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
 
-	// Record where the decoded blob txs ended up so the proposer's own
-	// ProcessProposal can reuse them instead of unmarshalling the same bytes
-	// again. Only blob txs occupy this range; normal and fibre txs stay nil.
+	// Record where the decoded blob txs ended up so ProcessProposal reuses
+	// them. Only blob txs occupy this range; normal and fibre txs stay nil.
 	fsb.keptBlobTxs = make([]*tx.BlobTx, len(kept))
 	copy(fsb.keptBlobTxs[n:n+m], blobTxs[:m])
 	return kept

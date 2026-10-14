@@ -8,10 +8,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// proposalKey identifies the inputs a proposal's artifacts were derived from.
-// The square depends on the max square size, so it is part of the key. App
-// version and chain id are there so an entry can never be reused across an
-// upgrade boundary or a chain, even though the height already rules that out.
+// proposalKey identifies the inputs a proposal's artifacts were derived from,
+// so an entry is never reused across a chain, upgrade, height or square size.
 type proposalKey struct {
 	chainID       string
 	appVersion    uint64
@@ -35,16 +33,10 @@ func newProposalKey(ctx sdk.Context, height int64, maxSquareSize int) proposalKe
 // ProcessProposal would otherwise repeat.
 type proposalArtifacts struct {
 	key proposalKey
-	// txs is a private snapshot of the exact tx list the artifacts were derived
-	// from. Reuse requires a byte for byte match against it, so an entry can
-	// never describe a different list of transactions. It can describe another
-	// proposer's block carrying the same transactions at the same height - the
-	// artifacts are a pure function of what the key and this snapshot pin
-	// down, so reusing them there is still correct.
+	// txs is a private snapshot of the tx list the artifacts came from. Reuse
+	// requires a byte for byte match, so an entry never describes other txs.
 	txs [][]byte
-	// blobTxs holds the decoded blob tx for each index in txs, and nil where
-	// the tx is not a blob tx. Every entry was decoded from the bytes at the
-	// same index.
+	// blobTxs holds the blob tx decoded from txs[i], nil where there is none.
 	blobTxs []*blobtx.BlobTx
 	// squareSize and dataRoot are what the square, extended square and data
 	// availability header built from txs imply.
@@ -52,13 +44,9 @@ type proposalArtifacts struct {
 	dataRoot   []byte
 }
 
-// proposalCache holds the artifacts of the single proposal this node built most
-// recently, so its own ProcessProposal compares instead of recomputing.
-//
-// It is a local optimization only: a node that misses recomputes everything and
-// reaches the same result. One entry is kept because a full block's decoded
-// blobs are large; PrepareProposal overwrites it each round and ProcessProposal
-// empties it, so nothing outlives the height that produced it.
+// proposalCache holds the artifacts of the one proposal this node built most
+// recently. It is a local optimization: a miss recomputes everything and
+// reaches the same result. One entry, so nothing outlives its height.
 type proposalCache struct {
 	mu    sync.Mutex
 	entry *proposalArtifacts
@@ -88,8 +76,7 @@ func cloneTxs(txs [][]byte) [][]byte {
 }
 
 // Take empties the cache and returns the entry only if it was built for key
-// from exactly these tx bytes. Emptying on every call, hit or miss, bounds
-// retention to a single height.
+// from exactly these tx bytes. Emptying on every call bounds it to one height.
 func (c *proposalCache) Take(key proposalKey, txs [][]byte) *proposalArtifacts {
 	c.mu.Lock()
 	entry := c.entry
