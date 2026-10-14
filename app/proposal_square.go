@@ -19,10 +19,9 @@ type proposalSquareResult struct {
 	err   error
 }
 
-// buildProposalSquare computes the exact square and DAH ProcessProposal checks.
-// It reads tx bytes and decoded views only; a panic is returned to the caller
-// so a background builder cannot crash the node. cancel is checked between
-// stages, and a cancelled build returns a zero result the caller discards.
+// buildProposalSquare computes the exact square and DAH ProcessProposal checks,
+// reading tx bytes and decoded views only. A panic is returned rather than
+// crashing the node; a build cancelled between stages returns a zero result.
 func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre, maxSquareSize int, expectedSize uint64, cancel *atomic.Bool) (result proposalSquareResult) {
 	defer func() {
 		if r := recover(); r != nil {

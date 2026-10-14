@@ -398,12 +398,9 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
-// TestPreverifySignaturesRecordsEachTransaction covers a call carrying three
-// messages: one accepted, one whose certificate carries a forged signature,
-// and one the pass bails out of before it queues anything. All three share one
-// combined batch, so the forged signature costs every certificate in it its
-// cache entry - a cost in work, never in correctness. The accepted message is
-// placed first so a rollback by either of the others would be visible.
+// TestPreverifySignaturesRecordsEachTransaction covers one accepted message, one
+// with a forged certificate and one the pass bails out of. All three share a
+// combined batch, so the forgery costs every entry in it - work, not correctness.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	accepted := f.newMessage(t, 1)
