@@ -134,7 +134,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateful verification (escrow account, balance, not already processed)
-	_, err := ms.ValidatePaymentPromiseStateful(ctx, &msg.PaymentPromise)
+	_, _, err := ms.validatePaymentPromiseStatefulInternal(ctx, &msg.PaymentPromise, false)
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise stateful verification failed: %s", err)
 	}
@@ -144,10 +144,10 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
 	}
 
-	// Get escrow account for the payment promise signer
-	signerPubKey := msg.PaymentPromise.SignerPublicKey
-	signerAddr := sdk.AccAddress(signerPubKey.Address()).String()
-
+	// Read the escrow account again rather than reusing the loaded one. The
+	// read is metered, so dropping it would change what this message costs -
+	// a state transition change that needs an app version gate.
+	signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 	escrowAccount, found := ms.GetEscrowAccount(ctx, signerAddr)
 	if !found {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", signerAddr)
@@ -171,6 +171,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	// ProcessProposal returns only ACCEPT or REJECT, and its per-transaction
 	// event manager is discarded. FinalizeBlock still emits the payment event.
 	if ctx.ExecMode() != sdk.ExecModeProcessProposal {
+		signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 		// PayForFibreEvent rather than EmitTypedEvent: equivalent (see
 		// TestPayForFibreEventMatchesTypedEvent) without the per-payment
 		// protobuf JSON marshal and map decode.

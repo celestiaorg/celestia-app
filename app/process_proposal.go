@@ -27,6 +27,11 @@ import (
 
 const rejectedPropBlockLog = "Rejected proposal block:"
 
+// parallelSquarePrefix is how many transactions the ordered walk must clear
+// before the square is built alongside it, and the smallest proposal that takes
+// the parallel path at all. Below it, overlapping buys nothing.
+const parallelSquarePrefix = 100
+
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
 	defer telemetry.MeasureSince(time.Now(), "process_proposal")
 	// In the case of a panic resulting from an unexpected condition, it is
@@ -44,7 +49,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// transactions. All transactions need to be equally validated here
 	// so that the nonce number is always correctly incremented (which
 	// may affect the validity of future transactions).
-	handler := app.newAnteHandler(app.GetTxConfig().SignModeHandler())
+	handler := app.newAnteHandler(app.proposalAccountKeeper(), app.GetTxConfig().SignModeHandler())
 	blockHeader := ctx.BlockHeader()
 
 	// Read the max square size before the ante loop. The loop reassigns ctx to
@@ -223,13 +228,14 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		squareDone   chan proposalSquareResult
 		squareCancel atomic.Bool
 	)
-	if cached == nil && len(req.Txs) >= 100 && (maxPFF <= 0 || len(req.Txs) <= maxPFF) {
+	parallelSquare := false
+	if cached == nil && len(req.Txs) >= parallelSquarePrefix && (maxPFF <= 0 || len(req.Txs) <= maxPFF) {
 		uniqueCerts := make(map[sigcache.Key]struct{}, len(req.Txs))
 		uniquePromises := make(map[sigcache.Key]struct{}, len(req.Txs))
-		parallel := true
+		parallelSquare = true
 		for i, d := range decoded {
 			if d == nil || !d.CertKeyed || !d.PromiseKeyed || sdkTxs[i] == nil || decodeErrs[i] != nil {
-				parallel = false
+				parallelSquare = false
 				break
 			}
 			// Both keys, not just the certificate: two txs sharing a promise
@@ -238,35 +244,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			_, certSeen := uniqueCerts[d.CertKey]
 			_, promiseSeen := uniquePromises[d.PromiseKey]
 			if certSeen || promiseSeen {
-				parallel = false
+				parallelSquare = false
 				break
 			}
 			uniqueCerts[d.CertKey] = struct{}{}
 			uniquePromises[d.PromiseKey] = struct{}{}
-		}
-		if parallel {
-			squareDone = make(chan proposalSquareResult, 1)
-			go func(done chan<- proposalSquareResult) {
-				// The send must happen on every path: a goroutine that died
-				// without sending would block the drain below forever.
-				result := proposalSquareResult{
-					stage: "panic while building proposal square",
-					err:   fmt.Errorf("proposal square builder did not finish"),
-				}
-				defer func() {
-					_ = recover()
-					done <- result
-				}()
-				result = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
-			}(squareDone)
-			defer func() {
-				if squareDone != nil {
-					// Cancel before waiting, so a proposal rejected at its
-					// first tx does not pay for a whole square first.
-					squareCancel.Store(true)
-					<-squareDone
-				}
-			}()
 		}
 	}
 
@@ -357,6 +339,34 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				if execErr := executeProposalPFF(ctx, pffMsg, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
+				}
+				// Start the square once the walk has cleared a prefix: an
+				// early rejection then costs no square work, and the builder
+				// does not compete with the pre-verification pass for CPU.
+				if parallelSquare && idx == parallelSquarePrefix-1 {
+					squareDone = make(chan proposalSquareResult, 1)
+					go func(done chan<- proposalSquareResult) {
+						// The send must happen on every path: a goroutine that
+						// died without sending would block the drain forever.
+						result := proposalSquareResult{
+							stage: "panic while building proposal square",
+							err:   fmt.Errorf("proposal square builder did not finish"),
+						}
+						defer func() {
+							_ = recover()
+							done <- result
+						}()
+						result = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+					}(squareDone)
+					defer func() {
+						if squareDone != nil {
+							// Cancel before waiting, so a proposal rejected
+							// later in the walk does not wait for a square and
+							// extended square nobody will read.
+							squareCancel.Store(true)
+							<-squareDone
+						}
+					}()
 				}
 			} else if containsFibreStateMsg(sdkTx) {
 				// Replay fibre escrow effects in block order so later settlement
