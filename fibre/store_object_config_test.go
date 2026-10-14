@@ -118,10 +118,13 @@ func TestStoreRejectsUnstablePrefix(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
+	caBundle := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caBundle, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	t.Setenv("AWS_CA_BUNDLE", caBundle)
 	cfg := DefaultStoreConfig()
 	cfg.Path = t.TempDir()
 	cfg.StorageBackend = "object"
@@ -230,10 +233,13 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
+	caBundle := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caBundle, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	t.Setenv("AWS_CA_BUNDLE", caBundle)
 	for _, operation := range []string{"put", "get", "has", "delete", "delete batch", "read body", "cancel body"} {
 		t.Run(operation, func(t *testing.T) {
 			cfg := DefaultStoreConfig()
