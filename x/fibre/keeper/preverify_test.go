@@ -546,14 +546,13 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	require.NoError(t, plain.keeper.ValidatePayForFibreSignatures(plain.ctx, f.msg))
 
 	decoded := f.withFreshCache(t)
-	// A real CheckTx context: the pre-pass is gated on IsCheckTx, not on the
-	// zero ExecMode, so a bare context must not reach it.
+	// A real CheckTx context: the pre-pass is gated on IsCheckTx, so a bare
+	// context must not reach it.
 	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw).WithIsCheckTx(true), d)
 	require.NoError(t, decoded.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
 
-	// Both paths reach the same verdict and leave the promise verified. The
-	// CheckTx path additionally warms the certificate, because it runs the
-	// parallel pre-pass over the transaction once admission has let it through.
+	// Both paths verify the promise; only the CheckTx path also warms the
+	// certificate, because only it runs the pre-pass.
 	require.True(t, plain.cache.Has(d.PromiseKey))
 	require.True(t, decoded.cache.Has(d.PromiseKey))
 	require.True(t, decoded.cache.Has(d.CertKey))
@@ -571,9 +570,8 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 }
 
 // TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx pins where the
-// parallel pre-pass may run. Anywhere but CheckTx it must verify sequentially
-// and leave the certificate uncached: the pass exists to spread one admission's
-// work, and the other phases have their own block-level pass.
+// pre-pass may run: anywhere else verifies sequentially and caches no
+// certificate, because the other phases have their own block-level pass.
 func TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx(t *testing.T) {
 	f := newPreverifyFixture(t)
 	raw := f.txBytes(t)

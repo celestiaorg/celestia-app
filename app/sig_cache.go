@@ -66,8 +66,8 @@ func NewSigCache(mempoolMaxTxs int) *sigcache.Cache {
 	return sigcache.New(SigCacheCapacity(mempoolMaxTxs))
 }
 
-// HasVerifiedSignature reports whether key is in the signature cache. It exists
-// so tests can assert what a path did and did not verify.
+// HasVerifiedSignature reports whether key is in the signature cache, so tests
+// can assert what a path did and did not verify.
 func (app *App) HasVerifiedSignature(key sigcache.Key) bool {
 	return app.sigCache.Has(key)
 }

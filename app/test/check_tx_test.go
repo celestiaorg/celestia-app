@@ -785,9 +785,8 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 }
 
-// TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails checks that a tx
-// rejected before the fibre handler runs is never charged for its signature
-// work: neither the certificate nor the promise signature is verified.
+// TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails checks a tx rejected
+// before the fibre handler runs has neither of its signatures verified.
 func TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(3)
@@ -797,7 +796,7 @@ func TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails(t *testing.T) {
 	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
 
 	// Gas that covers the signature checks but not the rest of the ante pass,
-	// so the rejection cannot be mistaken for the signature bound itself.
+	// so the rejection cannot be mistaken for the signature bound.
 	signatureGas := fibretypes.EstimateGasForPayForFibreSignatureVerification(1)
 
 	tests := map[string]struct {
@@ -816,8 +815,7 @@ func TestCheckTxPayForFibreSkipsSignaturesWhenAdmissionFails(t *testing.T) {
 			escrow:  true,
 			opts:    []user.TxOption{user.SetGasLimit(signatureGas + 1), user.SetFee(4_000)},
 		},
-		// The control: an admitted tx does reach the signature checks, so the
-		// two cases above are not vacuous.
+		// The control: an admitted tx does reach the signature checks.
 		"admitted tx": {
 			account:   2,
 			escrow:    true,
