@@ -10,11 +10,11 @@ import (
 // pay-for-fibre tx or is too malformed to decode; the validation path then
 // reports the error itself.
 func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
-	msg, isPFF, err := types.ParsePayForFibreTx(raw)
+	msg, gasLimit, isPFF, err := types.ParsePayForFibreTx(raw)
 	if !isPFF || err != nil {
 		return nil
 	}
-	d := &types.DecodedPayForFibre{Raw: raw, Msg: msg}
+	d := &types.DecodedPayForFibre{Raw: raw, Msg: msg, GasLimit: gasLimit}
 	if key, err := msg.SigCacheKey(); err == nil {
 		d.CertKey, d.CertKeyed = key, true
 	}
