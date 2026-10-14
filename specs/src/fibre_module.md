@@ -95,7 +95,7 @@ The module store key is `fibre`. Module params are stored under the raw key `par
 
 ### EscrowAccount
 
-An escrow account is keyed by the escrow signer address with `0x02 || signer`. `balance` is the total amount held in the module account for that signer and `available_balance` is the amount that has not been reserved by pending withdrawal requests.
+An escrow account is keyed by the escrow signer address with `0x02 || signer`, where `signer` is the canonical bech32 string of the address (`sdk.AccAddress.String()`); a message signer given in the uppercase bech32 form resolves to the same account. `balance` is the total amount held in the module account for that signer and `available_balance` is the amount that has not been reserved by pending withdrawal requests.
 
 ```proto
 message EscrowAccount {
@@ -148,7 +148,7 @@ message GenesisState {
 }
 ```
 
-Genesis validation checks params, rejects empty or duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a signer, positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero `processed_at`.
+Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero `processed_at`.
 
 ## PaymentPromise
 

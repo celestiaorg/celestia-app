@@ -35,12 +35,16 @@ func (ms msgServer) DepositToEscrow(goCtx context.Context, msg *types.MsgDeposit
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
 	}
+	// Key the escrow account by the canonical address string. msg.Signer may be
+	// the uppercase form of the same bech32 address, and settlement looks the
+	// account up by sdk.AccAddress(pubKey.Address()).String().
+	signer := signerAddr.String()
 
 	// Get or create escrow account
-	escrowAccount, found := ms.GetEscrowAccount(ctx, msg.Signer)
+	escrowAccount, found := ms.GetEscrowAccount(ctx, signer)
 	if !found {
 		escrowAccount = types.EscrowAccount{
-			Signer:           msg.Signer,
+			Signer:           signer,
 			Balance:          sdk.NewCoin(msg.Amount.Denom, math.ZeroInt()),
 			AvailableBalance: sdk.NewCoin(msg.Amount.Denom, math.ZeroInt()),
 		}
@@ -59,7 +63,7 @@ func (ms msgServer) DepositToEscrow(goCtx context.Context, msg *types.MsgDeposit
 	ms.SetEscrowAccount(ctx, escrowAccount)
 
 	// Emit event
-	event := types.NewEventDepositToEscrow(msg.Signer, msg.Amount)
+	event := types.NewEventDepositToEscrow(signer, msg.Amount)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		return nil, err
 	}
@@ -71,10 +75,17 @@ func (ms msgServer) DepositToEscrow(goCtx context.Context, msg *types.MsgDeposit
 func (ms msgServer) RequestWithdrawal(goCtx context.Context, msg *types.MsgRequestWithdrawal) (*types.MsgRequestWithdrawalResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
+	// Use the canonical address string, see DepositToEscrow.
+	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
+	}
+	signer := signerAddr.String()
+
 	// Get escrow account
-	escrowAccount, found := ms.GetEscrowAccount(ctx, msg.Signer)
+	escrowAccount, found := ms.GetEscrowAccount(ctx, signer)
 	if !found {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", msg.Signer)
+		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", signer)
 	}
 
 	// Check if sufficient available balance
@@ -87,16 +98,16 @@ func (ms msgServer) RequestWithdrawal(goCtx context.Context, msg *types.MsgReque
 	requestedTimestamp := ctx.BlockTime()
 
 	// Verify no existing withdrawal request at current timestamp (prevents key collision)
-	_, existing := ms.GetWithdrawal(ctx, msg.Signer, requestedTimestamp)
+	_, existing := ms.GetWithdrawal(ctx, signer, requestedTimestamp)
 	if existing {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "withdrawal request already exists for signer %s at timestamp %v", msg.Signer, requestedTimestamp)
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "withdrawal request already exists for signer %s at timestamp %v", signer, requestedTimestamp)
 	}
 
 	availableTimestamp := requestedTimestamp.Add(params.WithdrawalDelay)
 
 	// Create withdrawal request with available timestamp
 	withdrawal := types.Withdrawal{
-		Signer:             msg.Signer,
+		Signer:             signer,
 		Amount:             msg.Amount,
 		RequestedTimestamp: requestedTimestamp,
 		AvailableTimestamp: availableTimestamp,
@@ -110,7 +121,7 @@ func (ms msgServer) RequestWithdrawal(goCtx context.Context, msg *types.MsgReque
 	ms.SetWithdrawal(ctx, withdrawal)
 
 	// Emit event
-	event := types.NewEventWithdrawFromEscrowRequest(msg.Signer, msg.Amount, requestedTimestamp, availableTimestamp)
+	event := types.NewEventWithdrawFromEscrowRequest(signer, msg.Amount, requestedTimestamp, availableTimestamp)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		return nil, err
 	}
