@@ -117,6 +117,28 @@ func VerifyTransition(prev, next *IsmState) error {
 	return nil
 }
 
+// EmptyBatchMinIntervalSecs is how far an attestation with no messages must move the origin's
+// verified clock. An empty batch keeps a quiet route's trusted height close to its origin's
+// head, so the next proof starts from recent state. It cannot skip a message: the enclave
+// replays the batch from the tree proven under this ISM's own root, and zero ids reproduce the
+// head's tree only when nothing was dispatched. The interval bounds how often anyone, using
+// the public enclave, can advance the ISM with nothing in it, which would otherwise let them
+// keep invalidating the relayer's attestations in flight. The relayer sends one every hour.
+const EmptyBatchMinIntervalSecs = 30 * 60
+
+// VerifyBatchCadence refuses an empty batch that advances the origin's clock by less than
+// EmptyBatchMinIntervalSecs. A batch that carries messages is never held back.
+func VerifyBatchCadence(prev, next *IsmState, messages int) error {
+	if messages > 0 {
+		return nil
+	}
+	if next.Timestamp < prev.Timestamp+EmptyBatchMinIntervalSecs {
+		return ErrInvalidTransition.Wrapf("an empty batch must advance the origin clock by at least %ds, this one advances it by %ds",
+			EmptyBatchMinIntervalSecs, next.Timestamp-prev.Timestamp)
+	}
+	return nil
+}
+
 // AttestedUpdate is the single payload an enclave hashes into a quote's
 // report_data.
 //

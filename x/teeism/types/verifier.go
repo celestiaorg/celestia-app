@@ -98,6 +98,9 @@ func VerifyAttestation(
 	if err := VerifyTransition(update.PrevState, update.NewState); err != nil {
 		return nil, err
 	}
+	if err := VerifyBatchCadence(update.PrevState, update.NewState, len(update.MessageIDs)); err != nil {
+		return nil, err
+	}
 
 	now := uint64(blockTime.Unix())
 	if now < update.AttestedAt {
