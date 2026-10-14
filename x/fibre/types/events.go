@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+	"strconv"
 	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -51,6 +53,22 @@ func NewEventPayForFibre(signer string, namespace []byte, commitment []byte, val
 		Commitment:     commitment,
 		ValidatorCount: validatorCount,
 	}
+}
+
+// PayForFibreEvent constructs the same sorted JSON attributes as the SDK's
+// TypedEventToEvent without a protobuf JSON marshal and map decode per payment.
+func PayForFibreEvent(signer string, namespace, commitment []byte, validatorCount uint32) sdk.Event {
+	commitmentJSON, _ := json.Marshal(commitment)
+	namespaceJSON, _ := json.Marshal(namespace)
+	signerJSON, _ := json.Marshal(signer)
+	// proto.MessageName at call time, not the EventType vars above: those are
+	// initialised before the generated init() registers the types.
+	return sdk.NewEvent(proto.MessageName(&EventPayForFibre{}),
+		sdk.NewAttribute("commitment", string(commitmentJSON)),
+		sdk.NewAttribute("namespace", string(namespaceJSON)),
+		sdk.NewAttribute("signer", string(signerJSON)),
+		sdk.NewAttribute("validator_count", strconv.FormatUint(uint64(validatorCount), 10)),
+	)
 }
 
 // NewEventPaymentPromiseTimeout returns a new EventPaymentPromiseTimeout
