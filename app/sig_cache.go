@@ -52,10 +52,10 @@ func mempoolMaxTxs(appOpts servertypes.AppOptions) int {
 // block then does not evict an entry before PrepareProposal or ProcessProposal
 // reads it.
 //
-// None of this is consensus critical. The cache holds successes only and nothing
-// reads it to decide validity, so an eviction costs a re-verification, never a
-// wrong answer. That is why the capacity may be taken from node configuration at
-// all: two nodes sized differently still reach the same decisions.
+// None of this is consensus critical. A key is admitted only once the message
+// carrying it passed every other check, so a hit can only skip a check that
+// would have passed, and an eviction costs a re-verification, never a verdict.
+// That is why the capacity may come from node configuration at all.
 func SigCacheCapacity(mempoolMaxTxs int) int {
 	return sigCacheEntriesPerTx * mempoolMaxTxs * (100 + sigCacheHeadroomPercent) / 100
 }
