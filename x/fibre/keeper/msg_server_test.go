@@ -115,7 +115,14 @@ func (suite *MsgServerTestSuite) TestDepositToEscrow() {
 	})
 
 	suite.T().Run("uppercase signer deposits to the same escrow account", func(t *testing.T) {
-		upperSigner := strings.ToUpper(signer)
+		upperTestSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           upperTestSigner,
+			Balance:          depositAmount,
+			AvailableBalance: depositAmount,
+		})
+
+		upperSigner := strings.ToUpper(upperTestSigner)
 		msg := &types.MsgDepositToEscrow{
 			Signer: upperSigner,
 			Amount: depositAmount,
@@ -130,10 +137,10 @@ func (suite *MsgServerTestSuite) TestDepositToEscrow() {
 		suite.False(found)
 
 		// The deposit landed in the account settlement reads
-		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, signer)
+		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, upperTestSigner)
 		suite.True(found)
-		suite.Equal(signer, escrowAccount.Signer)
-		expectedBalance := depositAmount.Add(depositAmount).Add(depositAmount)
+		suite.Equal(upperTestSigner, escrowAccount.Signer)
+		expectedBalance := depositAmount.Add(depositAmount)
 		suite.Equal(expectedBalance, escrowAccount.Balance)
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
 	})
