@@ -670,9 +670,8 @@ func TestPrepareProposalPayForFibreDoubleSpend(t *testing.T) {
 	}
 }
 
-// TestProcessProposalReusesOwnProposal runs ProcessProposal on the block this
-// node just prepared, which reuses PrepareProposal's artifacts, and checks that
-// the reuse neither changes the verdict nor weakens the data root check.
+// TestProcessProposalReusesOwnProposal runs ProcessProposal on the block this node
+// just prepared and checks the reuse changes neither the verdict nor the root check.
 func TestProcessProposalReusesOwnProposal(t *testing.T) {
 	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)

@@ -64,9 +64,8 @@ func TestProposalCacheMissOnDifferentTxs(t *testing.T) {
 	require.Nil(t, cache.Take(testProposalKey(), [][]byte{[]byte("a"), []byte("c")}))
 }
 
-// TestProposalCacheMissOnMutatedTxs covers the reason the cache snapshots the
-// tx bytes: without a private copy, rewriting the caller's buffer would compare
-// the new bytes against themselves and hit.
+// TestProposalCacheMissOnMutatedTxs covers why the cache snapshots the tx bytes:
+// without a copy, a rewritten caller buffer would compare against itself and hit.
 func TestProposalCacheMissOnMutatedTxs(t *testing.T) {
 	cache := newProposalCache()
 	txs := [][]byte{[]byte("a"), []byte("b")}

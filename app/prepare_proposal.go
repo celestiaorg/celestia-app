@@ -78,8 +78,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	}
 
 	// Hand the artifacts to this node's own ProcessProposal so it compares
-	// instead of recomputing them. The entry is keyed on the exact inputs and
-	// is never treated as proof that the block is valid.
+	// instead of recomputing them. Never treated as proof the block is valid.
 	app.proposalCache.Store(&proposalArtifacts{
 		key:     newProposalKey(ctx, req.Height, maxSquareSize),
 		txs:     txs,
