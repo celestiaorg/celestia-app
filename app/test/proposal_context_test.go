@@ -62,9 +62,10 @@ func TestNewProposalContext(t *testing.T) {
 	})
 }
 
-// TestProposalBeginBlockParity checks that ProcessProposal sees the fibre
-// BeginBlocker effects without committing them, and that FinalizeBlock commits
-// the same effects.
+// TestProposalBeginBlockParity checks that ProcessProposal does not commit the
+// fibre BeginBlocker effects, and that FinalizeBlock commits the same effects
+// as a proposal branch. TestProcessProposalMaturingWithdrawalThenPayForFibre
+// checks that ProcessProposal applies them before txs.
 func TestProposalBeginBlockParity(t *testing.T) {
 	accounts := []string{"owner"}
 	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
