@@ -103,6 +103,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// Warm the signature cache across every CPU before the square is filled.
 	// A failed check is not recorded, so the fill still performs and decides
 	// it; a failure only drops one tx, so the pass covers every candidate.
+	// separateTxsDecoded bounds that candidate list.
 	if fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, len(payForFibreTxs))
 		for i, fibreTx := range payForFibreTxs {
@@ -304,6 +305,13 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 		}
 
 		if countMsgPayForFibre(sdkTx) > 0 {
+			// Bound the candidate list so the pre-verification pass that
+			// reads it is bounded too. Candidates arrive in mempool priority
+			// order, so the drop takes the lowest priority first.
+			if len(payForFibreTxs) >= appconsts.MaxPayForFibreCandidates {
+				logger.Debug("dropping pay-for-fibre tx because the candidate bound was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+				continue
+			}
 			// Reuse the predicate ProcessProposal enforces so a proposer never
 			// builds a block its own ProcessProposal would reject.
 			if err := validatePayForFibreTxShape(sdkTx); err != nil {

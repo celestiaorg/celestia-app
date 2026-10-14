@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"testing"
@@ -14,6 +15,7 @@ import (
 	"cosmossdk.io/store/metrics"
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -168,6 +170,40 @@ func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyF
 		valPrivKeys:   valPrivKeys,
 		signerPrivKey: signerPrivKey,
 	}
+}
+
+// signedMessage returns a fully signed message distinguished by nonce, so a
+// test can build as many distinct certificates as it needs.
+func (f *preverifyFixture) signedMessage(t *testing.T, nonce int) *types.MsgPayForFibre {
+	t.Helper()
+
+	promise := f.msg.PaymentPromise
+	promise.Commitment = make([]byte, len(f.msg.PaymentPromise.Commitment))
+	binary.BigEndian.PutUint64(promise.Commitment, uint64(nonce))
+	promise.Signature = make([]byte, 64)
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&promise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	promise.Signature, err = f.signerPrivKey.Sign(signBytes)
+	require.NoError(t, err)
+
+	signatures := make([][]byte, len(f.valPrivKeys))
+	for i, valPrivKey := range f.valPrivKeys {
+		signatures[i], err = valPrivKey.Sign(signBytes)
+		require.NoError(t, err)
+	}
+	return &types.MsgPayForFibre{PaymentPromise: promise, ValidatorSignatures: signatures}
+}
+
+// decodedMessage encodes msg into a transaction and decodes it the way every
+// pre-verification caller does.
+func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
+	t.Helper()
+	d := keeper.DecodePayForFibre(f.txBytesFor(t, msg))
+	require.NotNil(t, d)
+	return d
 }
 
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
@@ -569,6 +605,30 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw).WithIsCheckTx(true), badDecoded)
 	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(badCtx, &bad))
 	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(f.withFreshCache(t).ctx, &bad))
+}
+
+// TestPreverifyCapsAtCandidateBound pins the backstop: the pass covers at most
+// MaxPayForFibreCandidates messages however many the caller hands it.
+func TestPreverifyCapsAtCandidateBound(t *testing.T) {
+	f := newPreverifyFixture(t)
+	limit := appconsts.MaxPayForFibreCandidates
+
+	decoded := make([]*types.DecodedPayForFibre, 0, limit+1)
+	for i := range limit + 1 {
+		decoded = append(decoded, f.decodedMessage(t, f.signedMessage(t, i)))
+	}
+
+	f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{Certificates: true})
+
+	// The pass walks its input in order, so the bound falls in a fixed place.
+	for i, d := range decoded[:limit] {
+		require.True(t, f.cache.Has(d.CertKey), "message %d is within the bound and should be covered", i)
+	}
+	require.False(t, f.cache.Has(decoded[limit].CertKey), "the message past the bound must not be covered")
+
+	// Being left out of the pass changes nothing: the sequential verifier still
+	// accepts it, which is the only thing that decides.
+	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, decoded[limit].Msg))
 }
 
 // TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx pins where the
