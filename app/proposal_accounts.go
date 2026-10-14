@@ -24,11 +24,13 @@ func (app *App) proposalAccountKeeper() authkeeper.AccountKeeper {
 
 type proposalAccountCodec struct {
 	collectionscodec.ValueCodec[sdk.AccountI]
-	raw       []byte
-	account   authtypes.BaseAccount
-	valid     bool
-	moduleRaw []byte
-	module    *authtypes.ModuleAccount
+	raw         []byte
+	account     authtypes.BaseAccount
+	valid       bool
+	moduleRaw   []byte
+	module      *authtypes.ModuleAccount
+	addressText string
+	address     sdk.AccAddress
 }
 
 func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
@@ -38,8 +40,7 @@ func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
 	if c.valid && bytes.Equal(raw, c.raw) {
 		// Ante changes sequence and replaces the PubKey field; it does not
 		// mutate the public key itself. Give each caller its own account.
-		account := c.account
-		return &account, nil
+		return &proposalBaseAccount{BaseAccount: c.account, codec: c}, nil
 	}
 	account, err := c.ValueCodec.Decode(raw)
 	if err != nil {
@@ -55,6 +56,7 @@ func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
 		c.raw = append(c.raw[:0], raw...)
 		c.account = *base
 		c.valid = true
+		account = &proposalBaseAccount{BaseAccount: *base, codec: c}
 	} else {
 		c.valid = false
 	}
@@ -63,6 +65,9 @@ func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
 
 // Encode primes the same byte-checked cache for the account just written.
 func (c *proposalAccountCodec) Encode(account sdk.AccountI) ([]byte, error) {
+	if wrapped, ok := account.(*proposalBaseAccount); ok {
+		account = &wrapped.BaseAccount
+	}
 	raw, err := c.ValueCodec.Encode(account)
 	if err != nil {
 		return nil, err
@@ -84,4 +89,19 @@ func cloneModuleAccount(source *authtypes.ModuleAccount) *authtypes.ModuleAccoun
 	account.BaseAccount = &base
 	account.Permissions = slices.Clone(source.Permissions)
 	return &account
+}
+
+// proposalBaseAccount keeps the account inline while reusing address decoding.
+// Encoding unwraps the original protobuf type, and callers own returned bytes.
+type proposalBaseAccount struct {
+	authtypes.BaseAccount
+	codec *proposalAccountCodec
+}
+
+func (a *proposalBaseAccount) GetAddress() sdk.AccAddress {
+	if a.Address != a.codec.addressText {
+		a.codec.address = a.BaseAccount.GetAddress()
+		a.codec.addressText = a.Address
+	}
+	return bytes.Clone(a.codec.address)
 }

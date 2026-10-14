@@ -181,17 +181,19 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		}
 		msg := d.Msg
 
-		promise := &fibre.PaymentPromise{}
-		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
-			continue
-		}
-
 		// Count only what the pass takes on, not what it skipped.
 		covered++
 
 		first := len(work.items)
 		var keys []sigcache.Key
 		if !k.sigCache.Has(d.PromiseKey) {
+			// Converted only when the promise needs verifying; a cached one
+			// never reads this. Nothing is queued yet, so bailing here leaves
+			// nothing to roll back.
+			promise := &fibre.PaymentPromise{}
+			if err := promise.FromProto(&msg.PaymentPromise); err != nil {
+				continue
+			}
 			work.items = append(work.items, verification{promise: promise})
 			keys = append(keys, d.PromiseKey)
 		}
