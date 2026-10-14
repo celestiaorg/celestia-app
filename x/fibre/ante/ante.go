@@ -51,6 +51,9 @@ type FibreSignatureVerificationDecorator struct {
 // FibreKeeper verifies PFF signatures.
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
+	// ValidateHistoricalValidatorSet reports whether height still resolves to
+	// the validator set a certificate over it is verified against.
+	ValidateHistoricalValidatorSet(ctx sdk.Context, height int64) error
 }
 
 // PffSigCache tracks PFF certificates whose signatures were already checked.
@@ -78,6 +81,13 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return ctx, err
 	}
 	if d.pffSigCache.Has(cacheKey) {
+		// The hit skips the signature checks, not the one state read they
+		// depended on: once staking prunes the height, a node holding the
+		// entry would accept what a node without it must reject. Infinite gas,
+		// like the verification it stands in for, so a memo cannot change gas.
+		if err := d.k.ValidateHistoricalValidatorSet(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
+			return ctx, err
+		}
 		return next(ctx, tx, simulate)
 	}
 

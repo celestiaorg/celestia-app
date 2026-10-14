@@ -34,6 +34,9 @@ type Keeper struct {
 	sigCache SigCache
 	// valSetCache memoizes the validator set conversion per height.
 	valSetCache *lru.Cache[int64, *convertedValidatorSet]
+	// historicalHeights memoizes, per block, whether a promise height still
+	// resolves to a historical validator set. See ValidateHistoricalValidatorSet.
+	historicalHeights *lru.Cache[historicalHeightKey, bool]
 }
 
 // SigCache remembers signatures that already verified successfully.
@@ -50,13 +53,14 @@ type SigCache interface {
 // the ABCI path.
 func NewKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper types.BankKeeper, stakingKeeper types.StakingKeeper, authority string, enableCache bool, sigCache SigCache) *Keeper {
 	k := &Keeper{
-		cdc:           cdc,
-		storeKey:      storeKey,
-		bankKeeper:    bankKeeper,
-		stakingKeeper: stakingKeeper,
-		authority:     authority,
-		sigCache:      sigCache,
-		valSetCache:   newValidatorSetCache(),
+		cdc:               cdc,
+		storeKey:          storeKey,
+		bankKeeper:        bankKeeper,
+		stakingKeeper:     stakingKeeper,
+		authority:         authority,
+		sigCache:          sigCache,
+		valSetCache:       newValidatorSetCache(),
+		historicalHeights: newHistoricalHeightCache(),
 	}
 	if enableCache {
 		k.promiseCache = NewLocalPromiseCache(k)

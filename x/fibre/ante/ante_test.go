@@ -386,6 +386,20 @@ type fakeFibreKeeper struct {
 	infiniteGasCalls int
 	gasToConsume     uint64
 	err              error
+	// historicalCalls counts the historical validator set assertion.
+	historicalCalls    int
+	historicalInfinite int
+	historicalHeights  []int64
+	historicalErr      error
+}
+
+func (f *fakeFibreKeeper) ValidateHistoricalValidatorSet(ctx sdk.Context, height int64) error {
+	f.historicalCalls++
+	if ctx.GasMeter().Limit() == ^uint64(0) {
+		f.historicalInfinite++
+	}
+	f.historicalHeights = append(f.historicalHeights, height)
+	return f.historicalErr
 }
 
 func (f *fakeFibreKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
@@ -504,4 +518,59 @@ func nextRecorder(called *bool) sdk.AnteHandler {
 		*called = true
 		return ctx, nil
 	}
+}
+
+// TestFibreSignatureVerificationDecoratorChecksHistoryOnACacheHit pins the one
+// state read a cache hit may not skip: a warm node that skipped it would accept
+// a transaction a cold node rejects, and the two vote differently on a block.
+func TestFibreSignatureVerificationDecoratorChecksHistoryOnACacheHit(t *testing.T) {
+	msg := newPayForFibreMsgWithSignatures(1)
+	msg.PaymentPromise.Height = 7
+
+	t.Run("height still resolves", func(t *testing.T) {
+		keeper := &fakeFibreKeeper{}
+		cache := newMemorySigCache()
+		cache.Add(mustPffSigCacheKey(t, msg))
+		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+		nextCalled := false
+		ctx := sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes([]byte{0x01})
+
+		_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextRecorder(&nextCalled))
+
+		require.NoError(t, err)
+		require.True(t, nextCalled)
+		require.Zero(t, keeper.calls, "a cache hit still skips the signature checks")
+		require.Equal(t, []int64{7}, keeper.historicalHeights)
+		require.Equal(t, 1, keeper.historicalInfinite,
+			"the read stands in for verification, which the tx's gas limit never bounded")
+	})
+
+	t.Run("height was pruned", func(t *testing.T) {
+		expectedErr := errors.New("no historical info found")
+		keeper := &fakeFibreKeeper{historicalErr: expectedErr}
+		cache := newMemorySigCache()
+		cache.Add(mustPffSigCacheKey(t, msg))
+		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+		nextCalled := false
+		ctx := sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes([]byte{0x01})
+
+		_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextRecorder(&nextCalled))
+
+		require.ErrorIs(t, err, expectedErr)
+		require.False(t, nextCalled, "the warm node must reject exactly where a cold one does")
+	})
+
+	t.Run("cache miss leaves the read to the verifier", func(t *testing.T) {
+		// On a miss the verification performs the read itself, so the
+		// decorator must not pay for it twice.
+		keeper := &fakeFibreKeeper{}
+		decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: newMemorySigCache()}
+		ctx := sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)).WithTxBytes([]byte{0x01})
+
+		_, err := decorator.AnteHandle(ctx, mockTx{msgs: []sdk.Msg{msg}}, false, nextNoop)
+
+		require.NoError(t, err)
+		require.Equal(t, 1, keeper.calls)
+		require.Zero(t, keeper.historicalCalls)
+	})
 }

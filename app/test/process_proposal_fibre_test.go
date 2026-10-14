@@ -245,9 +245,10 @@ func TestProcessProposalRejectsIndexWrappedPFF(t *testing.T) {
 	squareSize, err := dataSquare.Size()
 	require.NoError(t, err)
 
+	height := testApp.LastBlockHeight() + 1
 	resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
-		Height:       testApp.LastBlockHeight() + 1,
-		Time:         time.Now(),
+		Height:       height,
+		Time:         testutil.GenesisTime.Add(time.Duration(height) * time.Second),
 		Txs:          txs,
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
@@ -535,4 +536,69 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
 	}
+}
+
+// TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned pins the
+// invariant behind the signature cache: a promise still inside the settleable
+// window must have resolvable historical info, or the node that admitted the
+// transaction and a node that never saw it vote differently on the same block.
+func TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	// Keep only the two most recent historical entries, so the promise height
+	// (1) is pruned while the promise is still well inside
+	// PaymentPromiseHeightWindow.
+	setHistoricalEntries(t, testApp, 2)
+	// The promise is created at the chain's own clock, which runs from the
+	// genesis time rather than the wall clock.
+	pffTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true,
+		testutil.GenesisTime.Add(time.Second),
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+
+	// Admitting it warms the cache, the only difference between the two nodes.
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: pffTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+
+	// The control: with the height still stored, the block is accepted. Without
+	// it the rejection below would prove nothing.
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processProposalStatus(t, testApp, pffTx))
+
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	_, err = testApp.StakingKeeper.GetHistoricalInfo(uncachedContext(testApp), 1)
+	require.Error(t, err, "the promise height must be pruned for this test to mean anything")
+
+	// A node that never ran CheckTx reaches "no historical info found" here, so
+	// the node that did must reach it too.
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, testApp, pffTx))
+}
+
+// processProposalStatus proposes a block carrying txs and returns the vote.
+func processProposalStatus(t *testing.T, testApp *app.App, txs ...[]byte) abci.ResponseProcessProposal_ProposalStatus {
+	t.Helper()
+
+	classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+	require.NoError(t, err)
+	dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	squareSize, err := dataSquare.Size()
+	require.NoError(t, err)
+
+	height := testApp.LastBlockHeight() + 1
+	resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       height,
+		Time:         testutil.GenesisTime.Add(time.Duration(height) * time.Second),
+		Txs:          txs,
+		DataRootHash: calculateNewDataHash(t, txs),
+		SquareSize:   uint64(squareSize),
+	})
+	require.NoError(t, err)
+	return resp.Status
 }
