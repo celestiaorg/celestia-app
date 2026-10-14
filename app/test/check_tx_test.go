@@ -701,6 +701,81 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 }
 
+// TestCheckTxPayForFibreRecheck admits a payment promise and rechecks it, so
+// the recheck is served from the admitted bytes, and checks that bytes that
+// differ from the admitted ones take the full path.
+func TestCheckTxPayForFibreRecheck(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	// One account per case: CheckTx bumps the signer's sequence in the check
+	// state, so cases cannot share a signer within a block.
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	for _, account := range accounts {
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	// Both cases below run before anything is admitted, so the cache is known
+	// empty and what they assert is that nothing was recorded.
+
+	// A recheck that missed is walking a working set larger than the cache, so
+	// recording it would evict the entries that same pass is about to ask for.
+	t.Run("a recheck that was never admitted is not recorded", func(t *testing.T) {
+		txBytes := newSignedPayForFibreTx(t, newSigner(1), accounts[1], true)
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+		require.Zero(t, testApp.PffTxCacheLen())
+	})
+
+	// Only a PayForFibre is recorded. Skipping countExecutableMsgs is sound
+	// for that shape alone, so a tx of any other shape must take the full path
+	// on every recheck.
+	t.Run("a non PayForFibre tx is not recorded", func(t *testing.T) {
+		addr := testfactory.GetAddress(kr, accounts[2])
+		send := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
+		txBytes, _, err := newSigner(2).CreateTx([]sdk.Msg{send}, user.SetGasLimit(200_000), user.SetFee(4_000))
+		require.NoError(t, err)
+
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+		require.Zero(t, testApp.PffTxCacheLen())
+	})
+
+	txBytes := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	require.NotEmpty(t, resp.Address)
+	require.Equal(t, 1, testApp.PffTxCacheLen(), "an admitted PayForFibre is recorded")
+	admittedAddr, admittedSeq := resp.Address, resp.Sequence
+
+	// Each committed block resets the check state and the mempool rechecks
+	// the still pending tx against it. A recheck reports the signer data the
+	// admitting CheckTx derived, which the mempool keys its sender on.
+	for range 3 {
+		commitBlock(t, testApp)
+		resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
+		require.NoError(t, err)
+		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+		require.Equal(t, admittedAddr, resp.Address)
+		require.Equal(t, admittedSeq, resp.Sequence)
+		require.Equal(t, 1, testApp.PffTxCacheLen(), "a passing recheck keeps the entry")
+	}
+
+	// Truncated bytes cannot be served from the admitted entry: they take the
+	// full path and fail to decode, and leave the entry they missed alone.
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes[:len(txBytes)-1], Type: abci.CheckTxType_Recheck})
+	require.True(t, err != nil || resp.Code != abci.CodeTypeOK)
+	require.Equal(t, 1, testApp.PffTxCacheLen())
+}
+
 // TestCheckTxPayForFibreReplay settles a payment promise in a committed block
 // and then rejects a fresh wrapper around the same promise in CheckTx, so
 // replayed promises neither enter the mempool nor survive recheck.
@@ -743,7 +818,9 @@ func TestCheckTxPayForFibreReplay(t *testing.T) {
 
 // TestCheckTxPayForFibreRecheckExpiry admits a payment promise and then
 // advances block time past its timeout, so recheck must reject the expired
-// promise and the mempool evicts it instead of proposing a stale PFF.
+// promise and the mempool evicts it instead of proposing a stale PFF. The
+// rejected recheck is also the one case the two paths are told apart by: it is
+// served from the entry, and serving it is what drops it.
 func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)
@@ -759,6 +836,7 @@ func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	require.Equal(t, 1, testApp.PffTxCacheLen())
 
 	// Commit an empty block timestamped past the promise timeout but within
 	// the freshness window, so the promise is expired rather than too old.
@@ -768,6 +846,7 @@ func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 	require.Contains(t, resp.Log, "payment promise expired")
+	require.Zero(t, testApp.PffTxCacheLen(), "a failed recheck drops the entry")
 }
 
 // commitBlock finalizes and commits a block of txs stamped time.Now, so the

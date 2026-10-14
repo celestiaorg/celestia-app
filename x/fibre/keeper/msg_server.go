@@ -8,9 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
-	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -131,7 +129,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := pp.Validate(); err != nil {
+	if err := ms.ValidatePromiseStateless(&pp); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 
@@ -185,7 +183,7 @@ func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPay
 	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
 	}
-	if err := pp.Validate(); err != nil {
+	if err := k.ValidatePromiseStateless(&pp); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 	signBytes, err := pp.SignBytes()
@@ -195,6 +193,10 @@ func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPay
 	if err := k.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
 	}
+	// Recorded only behind the quorum check: a genuine promise wrapped in a
+	// forged certificate is rejected, and a rejected message must not buy an
+	// entry.
+	k.recordVerifiedPromise(&pp)
 	return nil
 }
 
@@ -209,7 +211,7 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := pp.Validate(); err != nil {
+	if err := ms.ValidatePromiseStateless(&pp); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 
@@ -333,7 +335,6 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 }
 
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.
-// TODO: this assumes 1 utia per gas which may not be correct.
 func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.Coin {
 	return types.PaymentAmount(blobSize)
 }
@@ -352,28 +353,16 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 		return errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
 	}
 
-	// Convert SDK validators to CometBFT validators
-	cmtValidators := make([]*core.Validator, len(historicalInfo.Valset))
-	for i, val := range historicalInfo.Valset {
-		consPubKey, err := val.ConsPubKey()
-		if err != nil {
-			return errorsmod.Wrapf(err, "failed to get consensus public key for validator %s", val.GetOperator())
-		}
-
-		// Create CometBFT ed25519 public key from bytes
-		pubKeyBytes := consPubKey.Bytes()
-		if len(pubKeyBytes) != ed25519.PubKeySize {
-			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid ed25519 public key size for validator %s", val.GetOperator())
-		}
-
-		cmtPubKey := ed25519.PubKey(pubKeyBytes)
-		cmtValidators[i] = core.NewValidator(cmtPubKey, val.Tokens.Int64())
+	// Convert SDK validators to CometBFT validators, reusing an earlier
+	// conversion of the same height.
+	converted, err := k.validatorSetAtHeight(height, historicalInfo.Valset)
+	if err != nil {
+		return err
 	}
+	cmtValidators := converted.validators
 
-	// Create validator set
-	cmtValSet := core.NewValidatorSet(cmtValidators)
 	valSet := validator.Set{
-		ValidatorSet: cmtValSet,
+		ValidatorSet: converted.set,
 		Height:       uint64(height),
 	}
 

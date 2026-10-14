@@ -64,7 +64,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	mockStakingKeeper := &MockStakingKeeper{}
 	suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority = storeKey, mockBankKeeper, mockStakingKeeper, authority
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority, false)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 }
 
@@ -582,9 +582,9 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 		signerAddrStr := signerAddr.String()
 
 		// Create escrow account with insufficient balance
-		gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-		requiredAmount := sdk.NewInt64Coin("utia", int64(gasRequired))
-		insufficientBalance := sdk.NewInt64Coin("utia", int64(gasRequired)-1) // Less than required
+		paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+		requiredAmount := sdk.NewInt64Coin("utia", paymentUtia)
+		insufficientBalance := sdk.NewInt64Coin("utia", paymentUtia-1) // Less than required
 
 		escrowAccount := types.EscrowAccount{
 			Signer:           signerAddrStr,
@@ -603,6 +603,24 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseInternal() {
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStateful() {
+	suite.T().Run("exact payment is independent of local gas price", func(t *testing.T) {
+		promise := suite.createPaymentPromise()
+		payment := types.PaymentAmount(promise.BlobSize)
+		signer := sdk.AccAddress(promise.SignerPublicKey.Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer: signer, Balance: payment, AvailableBalance: payment,
+		})
+		for _, price := range []string{"0.001utia", "1utia"} {
+			prices, err := sdk.ParseDecCoins(price)
+			suite.Require().NoError(err)
+			ctx := suite.ctx.WithMinGasPrices(prices)
+			_, err = suite.keeper.ValidatePaymentPromiseStateful(ctx, &promise)
+			suite.NoError(err)
+			_, err = suite.keeper.ValidatePaymentPromiseStatefulForTimeout(ctx, &promise)
+			suite.NoError(err)
+		}
+	})
+
 	suite.T().Run("payment promise within clock-skew tolerance should be accepted", func(t *testing.T) {
 		paymentPromise := suite.createPaymentPromise()
 		suite.createEscrowAccount(paymentPromise)
@@ -769,7 +787,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseWithoutCacheAllowsDouble
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend() {
 	// Rebuild the keeper with the promise cache enabled; it shares the same store.
-	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true)
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, nil)
 
 	promise1, promise2 := suite.twoPromisesFundedForOne()
 
@@ -784,6 +802,30 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend(
 	// Re-submitting the first promise is idempotent (already reserved).
 	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
 	suite.NoError(err)
+}
+
+// TestValidatePaymentPromiseRecordsPromiseBehindReservation pins where the
+// query path writes the promise entry: behind the budget reservation. The
+// endpoint is adversarial and the promise signature is the submitter's own, so
+// an entry written any earlier would let a signer refused for lack of budget
+// fill the cache for free.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseRecordsPromiseBehindReservation() {
+	cache := newCountingSigCache()
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, cache)
+
+	promise1, promise2 := suite.twoPromisesFundedForOne()
+
+	_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
+	suite.Equal(1, cache.adds)
+	suite.Contains(cache.entries, protoPromiseKey(suite.T(), &promise1))
+
+	// The second promise passes the stateless and stateful checks - the escrow
+	// balance is compared, not debited - and is refused only at the reservation.
+	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
+	suite.Equal(codes.ResourceExhausted, status.Code(err))
+	suite.Equal(1, cache.adds, "a promise refused a signature must not buy an entry")
+	suite.NotContains(cache.entries, protoPromiseKey(suite.T(), &promise2))
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStatefulForTimeout() {
@@ -846,8 +888,8 @@ func (suite *KeeperTestSuite) createEscrowAccount(paymentPromise types.PaymentPr
 	signerAddrStr := signerAddr.String()
 	extraBalance := int64(1000)
 
-	gasRequired := keeper.EstimateGasForPayForFibre(paymentPromise.BlobSize)
-	availableBalance := sdk.NewInt64Coin("utia", int64(gasRequired)+extraBalance)
+	paymentUtia := types.PaymentAmount(paymentPromise.BlobSize).Amount.Int64()
+	availableBalance := sdk.NewInt64Coin("utia", paymentUtia+extraBalance)
 
 	escrowAccount := types.EscrowAccount{
 		Signer:           signerAddrStr,

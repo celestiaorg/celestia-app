@@ -79,6 +79,7 @@ func newRootCmd() *cobra.Command {
 
 	rootCmd.AddCommand(
 		newStartCmd(startServer),
+		newStoreCmd(),
 		newVersionCmd(),
 	)
 
