@@ -66,7 +66,7 @@ func TestIndexWrapperDecoder(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Len(t, tx.GetMsgs(), 1)
-			require.Equal(t, sdk.MsgTypeURL(tc.wantMsg), sdk.MsgTypeURL(tx.GetMsgs()[0]))
+			require.Equal(t, tc.wantMsg, tx.GetMsgs()[0])
 		})
 	}
 }
