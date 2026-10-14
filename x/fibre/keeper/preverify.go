@@ -161,6 +161,11 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 			opts.SeenCertificates[d.CertKey] = struct{}{}
 		}
 
+		// A pre-pass must not run signature work a transaction cannot pay for.
+		// Skipping only leaves the authoritative sequential check uncached.
+		if !hasPreverificationGas(d) {
+			continue
+		}
 		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}
@@ -206,6 +211,14 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		}
 	}
 	return work
+}
+
+// hasPreverificationGas reports whether the transaction declared enough gas for
+// the signature checks this pass would run for it. It is a lower bound: the
+// ante handler charges for more than signatures and remains the authority on
+// whether the transaction can pay.
+func hasPreverificationGas(d *types.DecodedPayForFibre) bool {
+	return d.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(uint64(len(d.Msg.ValidatorSignatures)))
 }
 
 // appendCertificateItems queues one ed25519 check per signature in the quorum
