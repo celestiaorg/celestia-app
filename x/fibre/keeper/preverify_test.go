@@ -518,11 +518,9 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg))
 }
 
-// TestPreverifyDeduplicatesRepeatedCertificates pins the amplification bound
-// SeenCertificates provides: a block repeating one certificate across many
-// PayForFibre transactions must cost the pre-pass one verification of it, not
-// one per repeat. Deduplication may only remove queued work, never create a
-// cache hit, so the cache must end in exactly the state a single copy leaves.
+// TestPreverifyDeduplicatesRepeatedCertificates checks a repeated certificate
+// costs one verification, and that deduplication leaves the cache exactly as a
+// single copy would.
 func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	const repeats = 8
 
@@ -548,17 +546,15 @@ func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	require.Equal(t, single.cache.Len(), deduped.cache.Len(),
 		"deduplication must not change what ends up cached")
 
-	// Without the map every repeat is collected again. The verdict is the same
-	// either way - only the work differs - which is why this is a bound and
-	// not a correctness fix.
+	// Without the map every repeat is collected again. Same verdict either
+	// way, so this is a bound and not a correctness fix.
 	unbounded := collect(nil, repeats)
 	require.Equal(t, deduped.cache.Len(), unbounded.cache.Len())
 	require.True(t, unbounded.cache.Has(unbounded.certKey))
 
-	// The map is consulted, not merely populated: a certificate already in it
-	// is skipped. Note this skips the whole entry, promise included, so a
-	// repeat is left entirely uncached - safe, because the sequential loop
-	// still performs and decides every check the pass leaves uncached.
+	// The map is consulted, not merely populated. Skipping drops the whole
+	// entry, promise included, which is safe: the sequential loop still
+	// decides every check the pass leaves uncached.
 	preseeded := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	preseeded.keeper.PreverifyDecoded(preseeded.ctx,
 		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg)},

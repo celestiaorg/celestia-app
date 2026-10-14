@@ -24,9 +24,8 @@ type PreverifyOptions struct {
 	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
 	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
-	// SeenCertificates optionally skips certificates already collected, so one
-	// block repeating a certificate costs a single verification. The caller
-	// supplies an empty map; skipping only ever removes queued work.
+	// SeenCertificates skips certificates already collected, so a repeated
+	// certificate costs one verification. The caller supplies an empty map.
 	SeenCertificates map[sigcache.Key]struct{}
 }
 
