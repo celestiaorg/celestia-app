@@ -213,17 +213,15 @@ func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	return txBytesWithGas(t, f.msg, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(f.msg.ValidatorSignatures))))
 }
 
-// txBytesFor wraps any message in the same encoding, so one call can carry
-// several transactions. It declares the gas the message's own signature checks
-// cost, which is what the pre-pass needs to take the transaction on at all.
+// txBytesFor wraps any message in the same encoding, declaring exactly the gas
+// its own signature checks cost.
 func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) []byte {
 	t.Helper()
 	return txBytesWithGas(t, msg, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(msg.ValidatorSignatures))))
 }
 
 // txBytesWithGas encodes msg in a tx declaring gasLimit. The pre-pass skips a
-// transaction that cannot pay for its own signature checks, so the declared
-// limit is part of what a fixture has to get right.
+// tx that cannot pay for its own signature checks.
 func txBytesWithGas(t *testing.T, msg *types.MsgPayForFibre, gasLimit uint64) []byte {
 	t.Helper()
 
@@ -685,8 +683,7 @@ func TestPreverifyCapsAtCandidateBound(t *testing.T) {
 }
 
 // TestPreverifySkipsUnderfundedGas checks the pass does no signature work for a
-// transaction that did not declare enough gas to pay for it. The ante handler
-// is still the authority: skipping only leaves the check uncached.
+// tx that declared too little gas. Skipping only leaves the check uncached.
 func TestPreverifySkipsUnderfundedGas(t *testing.T) {
 	enough := types.EstimateGasForPayForFibreSignatureVerification(numPreverifyValidators)
 

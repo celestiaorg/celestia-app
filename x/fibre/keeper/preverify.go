@@ -223,10 +223,9 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 	return work
 }
 
-// hasPreverificationGas reports whether the transaction declared enough gas for
-// the signature checks this pass would run for it. It is a lower bound: the
-// ante handler charges for more than signatures and remains the authority on
-// whether the transaction can pay.
+// hasPreverificationGas reports whether the tx declared enough gas for the
+// signature checks this pass would run. A lower bound: the ante handler
+// charges for more and stays the authority on whether the tx can pay.
 func hasPreverificationGas(d *types.DecodedPayForFibre) bool {
 	return d.GasLimit >= types.EstimateGasForPayForFibreSignatureVerification(uint64(len(d.Msg.ValidatorSignatures)))
 }
