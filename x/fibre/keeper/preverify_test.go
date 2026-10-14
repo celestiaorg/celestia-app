@@ -197,11 +197,11 @@ func (f *preverifyFixture) signedMessage(t *testing.T, nonce int) *types.MsgPayF
 	return &types.MsgPayForFibre{PaymentPromise: promise, ValidatorSignatures: signatures}
 }
 
-// decodedMessage encodes msg into a transaction and decodes it the way every
-// pre-verification caller does.
-func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
+// decodedMessage encodes msg into a transaction declaring gasLimit and decodes
+// it the way every pre-verification caller does.
+func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibre, gasLimit uint64) *types.DecodedPayForFibre {
 	t.Helper()
-	d := keeper.DecodePayForFibre(f.txBytesFor(t, msg))
+	d := keeper.DecodePayForFibre(txBytesWithGas(t, msg, gasLimit))
 	require.NotNil(t, d)
 	return d
 }
@@ -210,13 +210,21 @@ func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibr
 // ParsePayForFibreMsg reads.
 func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	t.Helper()
-
-	return f.txBytesFor(t, f.msg)
+	return txBytesWithGas(t, f.msg, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(f.msg.ValidatorSignatures))))
 }
 
 // txBytesFor wraps any message in the same encoding, so one call can carry
-// several transactions.
+// several transactions. It declares the gas the message's own signature checks
+// cost, which is what the pre-pass needs to take the transaction on at all.
 func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) []byte {
+	t.Helper()
+	return txBytesWithGas(t, msg, types.EstimateGasForPayForFibreSignatureVerification(uint64(len(msg.ValidatorSignatures))))
+}
+
+// txBytesWithGas encodes msg in a tx declaring gasLimit. The pre-pass skips a
+// transaction that cannot pay for its own signature checks, so the declared
+// limit is part of what a fixture has to get right.
+func txBytesWithGas(t *testing.T, msg *types.MsgPayForFibre, gasLimit uint64) []byte {
 	t.Helper()
 
 	value, err := msg.Marshal()
@@ -226,7 +234,9 @@ func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) [
 		Value:   value,
 	}}}).Marshal()
 	require.NoError(t, err)
-	raw, err := (&cosmostx.TxRaw{BodyBytes: body}).Marshal()
+	authInfo, err := (&cosmostx.AuthInfo{Fee: &cosmostx.Fee{GasLimit: gasLimit}}).Marshal()
+	require.NoError(t, err)
+	raw, err := (&cosmostx.TxRaw{BodyBytes: body, AuthInfoBytes: authInfo}).Marshal()
 	require.NoError(t, err)
 	return raw
 }
@@ -526,9 +536,10 @@ func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 
 	collect := func(seen map[sigcache.Key]struct{}, n int) *preverifyFixture {
 		f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+		gas := types.EstimateGasForPayForFibreSignatureVerification(uint64(len(f.msg.ValidatorSignatures)))
 		decoded := make([]*types.DecodedPayForFibre, n)
 		for i := range decoded {
-			decoded[i] = f.decodedMessage(t, f.msg)
+			decoded[i] = f.decodedMessage(t, f.msg, gas)
 		}
 		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{
 			Certificates:     true,
@@ -556,8 +567,9 @@ func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	// entry, promise included, which is safe: the sequential loop still
 	// decides every check the pass leaves uncached.
 	preseeded := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	gas := types.EstimateGasForPayForFibreSignatureVerification(uint64(len(preseeded.msg.ValidatorSignatures)))
 	preseeded.keeper.PreverifyDecoded(preseeded.ctx,
-		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg)},
+		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg, gas)},
 		keeper.PreverifyOptions{
 			Certificates:     true,
 			SeenCertificates: map[sigcache.Key]struct{}{preseeded.certKey: {}},
@@ -652,10 +664,11 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 func TestPreverifyCapsAtCandidateBound(t *testing.T) {
 	f := newPreverifyFixture(t)
 	limit := appconsts.MaxPayForFibreCandidates
+	gas := types.EstimateGasForPayForFibreSignatureVerification(numPreverifyValidators)
 
 	decoded := make([]*types.DecodedPayForFibre, 0, limit+1)
 	for i := range limit + 1 {
-		decoded = append(decoded, f.decodedMessage(t, f.signedMessage(t, i)))
+		decoded = append(decoded, f.decodedMessage(t, f.signedMessage(t, i), gas))
 	}
 
 	f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{Certificates: true})
@@ -669,4 +682,27 @@ func TestPreverifyCapsAtCandidateBound(t *testing.T) {
 	// Being left out of the pass changes nothing: the sequential verifier still
 	// accepts it, which is the only thing that decides.
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, decoded[limit].Msg))
+}
+
+// TestPreverifySkipsUnderfundedGas checks the pass does no signature work for a
+// transaction that did not declare enough gas to pay for it. The ante handler
+// is still the authority: skipping only leaves the check uncached.
+func TestPreverifySkipsUnderfundedGas(t *testing.T) {
+	enough := types.EstimateGasForPayForFibreSignatureVerification(numPreverifyValidators)
+
+	f := newPreverifyFixture(t)
+
+	funded := f.withFreshCache(t)
+	d := funded.decodedMessage(t, funded.msg, enough)
+	funded.keeper.PreverifyDecoded(funded.ctx, []*types.DecodedPayForFibre{d}, keeper.PreverifyOptions{Certificates: true})
+	require.True(t, funded.cache.Has(d.CertKey))
+	require.True(t, funded.cache.Has(d.PromiseKey))
+
+	underfunded := f.withFreshCache(t)
+	short := underfunded.decodedMessage(t, underfunded.msg, enough-1)
+	underfunded.keeper.PreverifyDecoded(underfunded.ctx, []*types.DecodedPayForFibre{short}, keeper.PreverifyOptions{Certificates: true})
+	require.Equal(t, 0, underfunded.cache.Len(), "an underfunded tx must cost the pass no signature work")
+
+	// The verdict is unchanged: the sequential verifier still accepts it.
+	require.NoError(t, underfunded.keeper.ValidatePayForFibreSignatures(underfunded.ctx, underfunded.msg))
 }
