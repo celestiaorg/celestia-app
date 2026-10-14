@@ -329,14 +329,17 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 	deposit1, deposit2 := newDepositToEscrowTx(t, txConfig), newDepositToEscrowTx(t, txConfig)
 
 	tests := []struct {
-		name        string
-		squareSize  int
-		txs         [][]byte
-		anteReject  [][]byte
-		settleErr   [][]byte
-		settleOOG   [][]byte
-		wantKept    [][]byte
-		wantEscrows [][]byte
+		name       string
+		squareSize int
+		txs        [][]byte
+		anteReject [][]byte
+		// anteWriteReject txs bump their sequence before the ante handler
+		// rejects them.
+		anteWriteReject [][]byte
+		settleErr       [][]byte
+		settleOOG       [][]byte
+		wantKept        [][]byte
+		wantEscrows     [][]byte
 	}{
 		{
 			name:        "keeps every tx in type order",
@@ -376,6 +379,14 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			anteReject:  [][]byte{norm2, blob2, pff2},
 			wantKept:    [][]byte{norm1, norm3, blob1, blob3, pff1, pff3},
 			wantEscrows: [][]byte{pff1, pff3},
+		},
+		{
+			name:            "ante write before rejection is discarded for pay-for-fibre",
+			squareSize:      64,
+			txs:             [][]byte{pff1, pff2, pff3},
+			anteWriteReject: [][]byte{pff2},
+			wantKept:        [][]byte{pff1, pff3},
+			wantEscrows:     [][]byte{pff1, pff3},
 		},
 		{
 			name:        "consecutive settlement and ante failures",
@@ -419,6 +430,9 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 				}
 				ctx = ctx.WithGasMeter(storetypes.NewGasMeter(1_000_000))
 				ctx.KVStore(storeKey).Set(seqKey(ctx.TxBytes()), []byte{1})
+				if matches(tc.anteWriteReject, ctx) {
+					return ctx, errors.New("ante handler rejected tx after writing")
+				}
 				return ctx, nil
 			}
 			router := stubMsgRouter{handler: func(ctx sdk.Context, _ sdk.Msg) (*sdk.Result, error) {
