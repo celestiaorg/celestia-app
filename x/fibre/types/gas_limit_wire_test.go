@@ -8,12 +8,8 @@ import (
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
-// TestGasLimitFromAuthInfoMatchesDecoder pins the wire read against what a
-// protobuf decoder produces, including for encodings a transaction is free to
-// choose. A disagreement is not cosmetic: a gas limit read as zero makes the
-// pre-verification pass skip the transaction, so an encoding that reads zero
-// here but non-zero to the SDK would let anyone force their certificates onto
-// the sequential verification path.
+// TestGasLimitFromAuthInfoMatchesDecoder checks the wire read agrees with a
+// protobuf decoder on every encoding a transaction is free to choose.
 func TestGasLimitFromAuthInfoMatchesDecoder(t *testing.T) {
 	const (
 		authInfoFee  = 2
@@ -33,8 +29,7 @@ func TestGasLimitFromAuthInfoMatchesDecoder(t *testing.T) {
 
 	// an empty Fee message: present, but with no gas_limit field
 	emptyFee := []byte{}
-	// a Fee carrying only an (empty) amount, so it is non-empty but still
-	// declares no gas_limit
+	// a non-empty Fee that still declares no gas_limit
 	amountOnlyFee := protowire.AppendBytes(
 		protowire.AppendTag(nil, feeAmountFld, protowire.BytesType), nil)
 

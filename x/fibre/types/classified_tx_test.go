@@ -265,10 +265,8 @@ func marshalTx(t *testing.T, msgs ...*codectypes.Any) []byte {
 	return txBytes
 }
 
-// authInfoWithFee encodes an AuthInfo carrying gasLimit, preceded by padding
-// empty signer_infos entries. Each entry is two bytes on the wire and decodes
-// into a struct many times that size, which is the shape of the amplification
-// the gas read must not be vulnerable to.
+// authInfoWithFee encodes an AuthInfo carrying gasLimit, padded with empty
+// signer_infos entries: two bytes each on the wire, far more once decoded.
 func authInfoWithFee(t *testing.T, gasLimit uint64, padEntries int) []byte {
 	t.Helper()
 	feeBytes, err := (&cosmostx.Fee{GasLimit: gasLimit}).Marshal()
@@ -305,10 +303,8 @@ func allocatedBy(f func()) uint64 {
 	return after.TotalAlloc - before.TotalAlloc
 }
 
-// TestParsePayForFibreTxReadsGasWithoutExpandingAuthInfo pins that the declared
-// gas is read without decoding the auth info around it. These bytes are
-// attacker controlled and reach this parser on every pay-for-fibre shaped tx in
-// a proposal, before anything has charged for them.
+// TestParsePayForFibreTxReadsGasWithoutExpandingAuthInfo checks the declared gas
+// is read without decoding the attacker-controlled auth info around it.
 func TestParsePayForFibreTxReadsGasWithoutExpandingAuthInfo(t *testing.T) {
 	const gasLimit = 123456
 	const padEntries = 1 << 19 // 1 MiB of empty signer_infos
@@ -326,9 +322,8 @@ func TestParsePayForFibreTxReadsGasWithoutExpandingAuthInfo(t *testing.T) {
 	parse := func(raw []byte) func() {
 		return func() { _, _, _, _ = fibretypes.ParsePayForFibreTx(raw) }
 	}
-	// The padded tx carries 1 MiB more auth info than the small one. Copying it
-	// out of TxRaw is unavoidable; decoding it is what must not happen, and a
-	// decode would cost many times the bytes rather than a small multiple.
+	// The padded tx carries 1 MiB more auth info. Copying it out of TxRaw is
+	// unavoidable; decoding it would cost many times that, not a small multiple.
 	require.Less(t, allocatedBy(parse(padded)), allocatedBy(parse(small))+4*uint64(len(padded)),
 		"parsing allocated in proportion to the auth info it was handed")
 }
