@@ -130,11 +130,9 @@ func TryParseFibreTx(txBytes []byte) (fibreTx *squaretx.FibreTx, isFibreTx bool,
 	}, true, nil
 }
 
-// parsePayForFibre decodes the single MsgPayForFibre carried by txBytes. The
-// second result reports whether txBytes is a fibre tx at all; an error means it
-// is one but the message is malformed.
-// parsePayForFibre also reports the declared gas limit, so callers that need it
-// do not have to unmarshal the transaction a second time.
+// parsePayForFibre decodes the single MsgPayForFibre carried by txBytes, plus
+// the declared gas limit. The bool reports whether txBytes is a fibre tx; an
+// error means it is one but malformed.
 func parsePayForFibre(txBytes []byte) (*MsgPayForFibre, uint64, bool, error) {
 	// Decode the way the SDK's tx decoder does: the outer TxRaw carries
 	// body_bytes as an opaque scalar (a repeated occurrence resolves to the
@@ -192,12 +190,9 @@ const (
 // decoding AuthInfo: these are attacker-controlled bytes and a full decode
 // allocates many times what it is handed. Zero means absent or malformed.
 func gasLimitFromAuthInfo(authInfoBytes []byte) uint64 {
-	// Protobuf merges repeated occurrences of a singular message field, so
-	// gas_limit is the last value explicitly present across all `fee`
-	// occurrences, not the value in the last occurrence. Reading only the last
-	// one reports zero for a transaction the SDK sees as well funded, and a
-	// zero here makes the pre-verification pass skip it - a switch anyone
-	// could use to force their certificates onto the sequential path.
+	// Protobuf merges repeated `fee` occurrences, so gas_limit is the last
+	// value present across all of them, not the one in the last occurrence.
+	// Reading only the last would report zero for a well funded tx.
 	var gasLimit uint64
 	rest := authInfoBytes
 	for {
@@ -210,9 +205,8 @@ func gasLimitFromAuthInfo(authInfoBytes []byte) uint64 {
 	}
 }
 
-// mergeFeeGasLimit returns the gas limit after merging one `fee` occurrence
-// into a value already merged from earlier occurrences: a gas_limit present in
-// this occurrence replaces it, an absent one leaves it.
+// mergeFeeGasLimit merges one `fee` occurrence into the gas limit so far: a
+// gas_limit present in it replaces the value, an absent one leaves it.
 func mergeFeeGasLimit(fee []byte, gasLimit uint64) uint64 {
 	for len(fee) > 0 {
 		num, typ, n := protowire.ConsumeTag(fee)
@@ -243,9 +237,7 @@ func mergeFeeGasLimit(fee []byte, gasLimit uint64) uint64 {
 }
 
 // nextProtoSubMessage returns the bytes of the first occurrence of field and
-// what follows it, so a caller can walk every occurrence. A decoder merges
-// repeated occurrences of a singular message field rather than keeping only
-// the last, which is why callers must not stop at the first one.
+// what follows it, so a caller can walk every occurrence.
 func nextProtoSubMessage(bz []byte, field protowire.Number) (value, rest []byte, found bool) {
 	for len(bz) > 0 {
 		num, typ, n := protowire.ConsumeTag(bz)
