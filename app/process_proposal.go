@@ -68,6 +68,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
+		pffTxCount      int
 		maxPFF          = appconsts.MaxPayForFibreMessages
 		// Decode caches for this proposal, index aligned with req.Txs: the
 		// blob tx or pay-for-fibre tx decoded from req.Txs[i], nil if neither.
@@ -97,6 +98,19 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 		if blobTxs[idx] == nil {
 			decoded[idx] = fibrekeeper.DecodePayForFibre(rawTx)
+		}
+		if decoded[idx] == nil {
+			continue
+		}
+
+		// Reject an over-full proposal here rather than in the loop below,
+		// which only runs after every tx is decoded and pre-verified. Same
+		// verdict, same bound: DecodePayForFibre accepts a tx only when it
+		// carries exactly one MsgPayForFibre, which is what the loop counts.
+		pffTxCount++
+		if maxPFF > 0 && pffTxCount > maxPFF {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
+			return reject(), nil
 		}
 	}
 

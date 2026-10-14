@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -144,6 +145,10 @@ func (p *preverification) record(cache SigCache, verified []bool) {
 // collectVerifications builds the work queue. Every state read happens here,
 // sequentially on ctx, so the workers touch nothing but their own inputs.
 func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) *preverification {
+	// Backstop for a caller that does not bound its input. Both proposal
+	// callers already do, so this never truncates a legitimate pass.
+	covered := 0
+
 	work := &preverification{}
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
@@ -153,12 +158,18 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		if d == nil || !d.PromiseKeyed {
 			continue
 		}
+		if covered >= appconsts.MaxPayForFibreCandidates {
+			break
+		}
 		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}
 		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
 			continue
 		}
+
+		// Count only what the pass takes on, not what it skipped.
+		covered++
 
 		first := len(work.items)
 		var keys []sigcache.Key
