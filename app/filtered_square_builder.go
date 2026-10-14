@@ -22,6 +22,9 @@ type FilteredSquareBuilder struct {
 	txConfig  client.TxConfig
 	chanKeep  channelKeeper
 	builder   *square.Builder
+	// keptBlobTxs is index aligned with the list Fill returned: the decoded
+	// blob tx at each position, or nil where the tx is not a blob tx.
+	keptBlobTxs []*tx.BlobTx
 	// decodePFF decodes a pay-for-fibre tx once for the whole Fill;
 	// preverifyPFF warms the signature cache. Both are optional.
 	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
@@ -55,6 +58,12 @@ func (fsb *FilteredSquareBuilder) Build() (square.Square, error) {
 
 func (fsb *FilteredSquareBuilder) Builder() *square.Builder {
 	return fsb.builder
+}
+
+// KeptBlobTxs returns the decoded blob txs of the last Fill, index aligned with
+// the list it returned and nil where a tx is not a blob tx.
+func (fsb *FilteredSquareBuilder) KeptBlobTxs() []*tx.BlobTx {
+	return fsb.keptBlobTxs
 }
 
 func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes int64) [][]byte {
@@ -206,6 +215,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
 		rawBlobTxs[m] = rawBlobTxs[i]
+		blobTxs[m] = blobTxs[i]
 		m++
 	}
 
@@ -217,6 +227,11 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// are identical to re-marshaling the decoded blob txs and can be reused.
 	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
+
+	// Record where the decoded blob txs ended up so ProcessProposal reuses
+	// them. Only blob txs occupy this range; normal and fibre txs stay nil.
+	fsb.keptBlobTxs = make([]*tx.BlobTx, len(kept))
+	copy(fsb.keptBlobTxs[n:n+m], blobTxs[:m])
 	return kept
 }
 

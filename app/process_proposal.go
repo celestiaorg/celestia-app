@@ -51,6 +51,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// mirrors PrepareProposal, which reads it before running any ante handler.
 	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 
+	// Reuse what PrepareProposal built for this height and these txs. A hit
+	// skips the square, erasure coding and DAH; every per-tx check still runs.
+	cached := app.proposalCache.Take(newProposalKey(ctx, blockHeader.Height, maxSquareSize), req.Txs)
+
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
 	// which pays out matured withdrawals and advances the freshness floor before
 	// any tx. Pay-for-fibre settlement below must see that escrow state. The
@@ -67,9 +71,13 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		maxPFF          = appconsts.MaxPayForFibreMessages
 		// Decode caches for this proposal, index aligned with req.Txs: the
 		// blob tx or pay-for-fibre tx decoded from req.Txs[i], nil if neither.
+		// On a cache hit the proposer's own decodes are reused instead.
 		blobTxs = make([]*blobtx.BlobTx, len(req.Txs))
 		decoded = make([]*fibretypes.DecodedPayForFibre, len(req.Txs))
 	)
+	if cached != nil {
+		blobTxs = cached.blobTxs
+	}
 
 	// Decode every tx once, up front. Oversize txs are left to the loop, which
 	// rejects them without decoding.
@@ -77,13 +85,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if len(rawTx) > appconsts.MaxTxSize {
 			continue
 		}
-		decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
-		if isBlobTx {
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject(), nil
+		if cached == nil {
+			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+			if isBlobTx {
+				if err != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+					return reject(), nil
+				}
+				blobTxs[idx] = decodedBlob
 			}
-			blobTxs[idx] = decodedBlob
 		}
 		if blobTxs[idx] == nil {
 			decoded[idx] = fibrekeeper.DecodePayForFibre(rawTx)
@@ -118,7 +128,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 
 		// BlobTx is the most common special type; check it first. It was
-		// decoded above, from these exact bytes.
+		// decoded above, or by PrepareProposal from these exact bytes.
 		blobTx := blobTxs[idx]
 		isBlobTx := blobTx != nil
 		if isBlobTx {
@@ -228,6 +238,19 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
+	}
+
+	// Compare the proposer's claims against the cached values.
+	if cached != nil {
+		if cached.squareSize != req.SquareSize {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return reject(), nil
+		}
+		if !bytes.Equal(cached.dataRoot, req.DataRootHash) {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, cached.dataRoot))
+			return reject(), nil
+		}
+		return accept(), nil
 	}
 
 	// Classify txs (marking pay-for-fibre txs and synthesizing their system
