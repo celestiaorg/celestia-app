@@ -120,11 +120,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// failed check is not recorded, so the loop below still performs it and
 	// still decides. Any failure rejects the whole block, so the pass stops
 	// claiming work at the first one.
-	// The pass runs on at most a block's worth of messages: the decode loop
-	// above rejected the proposal otherwise. Within that, a block may still
-	// repeat one certificate across many PayForFibre transactions, and without
-	// deduplication the pass verifies each repeat, so SeenCertificates holds it
-	// to one verification per distinct certificate.
+	// A block may repeat one certificate across many PayForFibre txs;
+	// SeenCertificates holds that to one verification per distinct certificate.
 	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
