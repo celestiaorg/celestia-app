@@ -21,12 +21,14 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -627,6 +629,87 @@ func TestCheckTxBlobTxCacheAdmission(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
 	assert.True(t, fromCacheAfterCheckTx(validTx), "a blob tx passing CheckTx must be cached")
+}
+
+// TestBlobTxCacheAcrossABCIPhases checks that a blob tx cached by CheckTx gets
+// the same proposal validity, gas and state as an uncached one, and that a
+// committed tx is still rejected while it remains cached.
+func TestBlobTxCacheAcrossABCIPhases(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, queryAccountInfo(testApp, accounts, kr))
+	coldAddr, warmAddr := testfactory.GetAddress(kr, accounts[0]), testfactory.GetAddress(kr, accounts[1])
+
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	coldTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(0), []share.Namespace{ns}, []int{100})[0]
+	warmTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(1), []share.Namespace{ns}, []int{100})[0]
+	require.Len(t, warmTx, len(coldTx), "equal tx sizes make gas comparable")
+
+	// mutatedTx keeps warmTx's signed tx bytes but swaps in a same-size blob.
+	warmBlobTx, _, err := tx.UnmarshalBlobTx(warmTx)
+	require.NoError(t, err)
+	mutatedBlob, err := share.NewV0Blob(ns, bytes.Repeat([]byte{0xFF}, 100))
+	require.NoError(t, err)
+	mutatedTx, err := tx.MarshalBlobTx(warmBlobTx.Tx, mutatedBlob)
+	require.NoError(t, err)
+
+	fromCache := func(rawTx []byte) bool {
+		blobTx, _, err := tx.UnmarshalBlobTx(rawTx)
+		require.NoError(t, err)
+		cached, err := testApp.ValidateBlobTxWithCache(blobTx)
+		require.NoError(t, err)
+		return cached
+	}
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: warmTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	_, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: mutatedTx})
+	require.ErrorIs(t, err, blobtypes.ErrInvalidShareCommitment)
+	require.True(t, fromCache(warmTx))
+	require.False(t, fromCache(coldTx))
+
+	for _, tc := range []struct {
+		txs  [][]byte
+		want abci.ResponseProcessProposal_ProposalStatus
+	}{
+		{txs: [][]byte{coldTx, warmTx}, want: abci.ResponseProcessProposal_ACCEPT},
+		{txs: [][]byte{coldTx, mutatedTx}, want: abci.ResponseProcessProposal_REJECT},
+	} {
+		res, err := testApp.ProcessProposal(processProposalRequest(t, testApp, tc.txs))
+		require.NoError(t, err)
+		require.Equal(t, tc.want, res.Status)
+	}
+
+	balance := func(addr sdk.AccAddress) sdkmath.Int {
+		ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
+		return testApp.BankKeeper.GetBalance(ctx, addr, appconsts.BondDenom).Amount
+	}
+	coldBefore, warmBefore := balance(coldAddr), balance(warmAddr)
+	// Separate blocks keep each tx first in its block, so gas is comparable.
+	coldRes := commitBlock(t, testApp, coldTx).TxResults
+	warmRes := commitBlock(t, testApp, warmTx).TxResults
+	require.Len(t, coldRes, 1)
+	require.Len(t, warmRes, 1)
+	require.Equal(t, abci.CodeTypeOK, coldRes[0].Code, coldRes[0].Log)
+	require.Equal(t, abci.CodeTypeOK, warmRes[0].Code, warmRes[0].Log)
+	assert.Equal(t, coldRes[0].GasWanted, warmRes[0].GasWanted)
+	assert.Equal(t, coldRes[0].GasUsed, warmRes[0].GasUsed)
+	assert.Equal(t, coldBefore.Sub(balance(coldAddr)), warmBefore.Sub(balance(warmAddr)))
+	assert.Equal(t, uint64(1), testutil.DirectQueryAccount(testApp, coldAddr).GetSequence())
+	assert.Equal(t, uint64(1), testutil.DirectQueryAccount(testApp, warmAddr).GetSequence())
+
+	// The committed tx stays cached, yet every phase rejects its replay.
+	require.True(t, fromCache(warmTx))
+	res, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{warmTx}))
+	require.NoError(t, err)
+	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status)
+	for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: warmTx})
+		require.NoError(t, err)
+		assert.Equal(t, sdkerrors.ErrWrongSequence.ABCICode(), resp.Code, resp.Log)
+	}
 }
 
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
