@@ -12,13 +12,8 @@ import (
 )
 
 // TestComputeRootsMatchesUntiledRoots is the correctness gate for sharing NMT
-// leaf hashes between the row and column trees.
-//
-// The tiled path computes the row and column roots - and therefore the data
-// root every validator compares against the proposer's - a different way. A
-// single square where it disagrees with the established path would fork the
-// network, so this asserts byte-identical roots across every square size the
-// guard admits, over random, repeated and adversarial namespace layouts.
+// leaf hashes: one square where the tiled path disagrees with the established
+// one forks the network. Roots must be byte-identical at every square size.
 func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 	pool, err := wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 	require.NoError(t, err)
@@ -48,9 +43,8 @@ func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 	}
 }
 
-// TestComputeRootsRejectsNonSquareInput pins the guard: anything the tiled
-// path was not derived for must error or fall back, never produce a root of
-// its own.
+// TestComputeRootsRejectsNonSquareInput checks anything the tiled path was not
+// derived for errors or falls back, never producing a root of its own.
 func TestComputeRootsRejectsNonSquareInput(t *testing.T) {
 	pool, err := wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 	require.NoError(t, err)

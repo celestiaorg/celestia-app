@@ -23,9 +23,8 @@ type tiledNode [2*share.NamespaceSize + sha256.Size]byte
 // ComputeRoots extends a square and computes its roots, sharing leaf hashes
 // between rows and columns. Nondefault trees use the original implementation.
 // paritySharesNamespace is the namespace nmt collapses rather than propagates
-// when it is a node's maximum. Derived from share rather than spelled out: a
-// literal would silently stop matching if the namespace size ever changed, and
-// the only symptom would be a different data root.
+// when it is a node's maximum. Derived from share, not spelled out: a literal
+// would stop matching if the namespace size changed, giving a different root.
 var paritySharesNamespace = share.ParitySharesNamespace.Bytes()
 
 func init() {
