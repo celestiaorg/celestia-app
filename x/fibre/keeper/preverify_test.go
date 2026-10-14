@@ -547,10 +547,18 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	require.NoError(t, plain.keeper.ValidatePayForFibreSignatures(plain.ctx, f.msg))
 
 	decoded := f.withFreshCache(t)
-	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw), d)
+	// A real CheckTx context: the pre-pass is gated on IsCheckTx, not on the
+	// zero ExecMode, so a bare context must not reach it.
+	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw).WithIsCheckTx(true), d)
 	require.NoError(t, decoded.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
-	require.Equal(t, plain.cache.Len(), decoded.cache.Len())
+
+	// Both paths reach the same verdict and leave the promise verified. The
+	// CheckTx path additionally warms the certificate, because it runs the
+	// parallel pre-pass over the transaction once admission has let it through.
+	require.True(t, plain.cache.Has(d.PromiseKey))
 	require.True(t, decoded.cache.Has(d.PromiseKey))
+	require.True(t, decoded.cache.Has(d.CertKey))
+	require.False(t, plain.cache.Has(d.CertKey))
 
 	// A tampered promise signature fails on both paths.
 	bad := *f.msg
@@ -558,7 +566,42 @@ func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	bad.PaymentPromise.Signature[0] ^= 0xff
 	badRaw := (&preverifyFixture{msg: &bad}).txBytes(t)
 	badDecoded := keeper.DecodePayForFibre(badRaw)
-	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw), badDecoded)
+	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw).WithIsCheckTx(true), badDecoded)
 	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(badCtx, &bad))
 	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(f.withFreshCache(t).ctx, &bad))
+}
+
+// TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx pins where the
+// parallel pre-pass may run. Anywhere but CheckTx it must verify sequentially
+// and leave the certificate uncached: the pass exists to spread one admission's
+// work, and the other phases have their own block-level pass.
+func TestValidatePayForFibreSignaturesPreverifiesOnlyInCheckTx(t *testing.T) {
+	f := newPreverifyFixture(t)
+	raw := f.txBytes(t)
+	d := keeper.DecodePayForFibre(raw)
+
+	for _, tc := range []struct {
+		name      string
+		prepare   func(sdk.Context) sdk.Context
+		preverify bool
+	}{
+		{"check", func(ctx sdk.Context) sdk.Context { return ctx.WithIsCheckTx(true) }, true},
+		{"recheck", func(ctx sdk.Context) sdk.Context { return ctx.WithIsReCheckTx(true) }, false},
+		{"prepare proposal", func(ctx sdk.Context) sdk.Context {
+			return ctx.WithExecMode(sdk.ExecModePrepareProposal)
+		}, false},
+		{"process proposal", func(ctx sdk.Context) sdk.Context {
+			return ctx.WithExecMode(sdk.ExecModeProcessProposal)
+		}, false},
+		{"finalize", func(ctx sdk.Context) sdk.Context { return ctx.WithExecMode(sdk.ExecModeFinalize) }, false},
+		{"bare context", func(ctx sdk.Context) sdk.Context { return ctx }, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fixture := f.withFreshCache(t)
+			ctx := types.WithDecodedPayForFibre(tc.prepare(fixture.ctx.WithTxBytes(raw)), d)
+			require.NoError(t, fixture.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
+			require.Equal(t, tc.preverify, fixture.cache.Has(d.CertKey),
+				"certificate cached only where the pre-pass may run")
+		})
+	}
 }
