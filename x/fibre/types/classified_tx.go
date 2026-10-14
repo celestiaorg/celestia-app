@@ -19,9 +19,43 @@ const MsgPayForFibreTypeURL = "/celestia.fibre.v1.MsgPayForFibre"
 // no longer decodes Cosmos SDK transactions, so the application classifies
 // them and passes the result in.
 func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
+	return ClassifyTxsDecoded(txs, nil, nil)
+}
+
+// ClassifyTxsDecoded is ClassifyTxs for a caller that already decoded the txs.
+// blobTxs and decoded are index aligned with txs; nil entries fall back to parsing.
+// blobTxs[i] is trusted as the decode of txs[i]: a wrong one changes the data root.
+func ClassifyTxsDecoded(txs [][]byte, blobTxs []*squaretx.BlobTx, decoded []*DecodedPayForFibre) ([]square.ClassifiedTx, error) {
+	if len(blobTxs) != 0 && len(blobTxs) != len(txs) {
+		return nil, fmt.Errorf("blob txs (%d) are not index aligned with txs (%d)", len(blobTxs), len(txs))
+	}
+	if len(decoded) != 0 && len(decoded) != len(txs) {
+		return nil, fmt.Errorf("decoded pay-for-fibre txs (%d) are not index aligned with txs (%d)", len(decoded), len(txs))
+	}
+	hasBlobTxs, hasDecoded := len(blobTxs) != 0, len(decoded) != 0
+
 	classified := make([]square.ClassifiedTx, len(txs))
 	for i, rawTx := range txs {
-		fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
+		var (
+			fibreTx   *squaretx.FibreTx
+			isFibreTx bool
+			err       error
+		)
+		switch {
+		case hasBlobTxs && blobTxs[i] != nil:
+			// A blob tx is never a pay-for-fibre tx; hand go-square the
+			// decode the caller already has.
+			classified[i], err = square.NewClassifiedBlobTx(rawTx, blobTxs[i])
+			if err != nil {
+				return nil, fmt.Errorf("classifying blob tx at index %d: %w", i, err)
+			}
+			continue
+		case hasDecoded && decoded[i] != nil:
+			isFibreTx = true
+			fibreTx, err = decoded[i].FibreTx()
+		default:
+			fibreTx, isFibreTx, err = TryParseFibreTx(rawTx)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
 		}
@@ -62,6 +96,12 @@ func ParsePayForFibreMsg(txBytes []byte) (*MsgPayForFibre, bool) {
 		return nil, false
 	}
 	return msg, true
+}
+
+// ParsePayForFibreTx decodes the single MsgPayForFibre carried by txBytes. The
+// bool reports whether txBytes is a fibre tx; an error means it is one but malformed.
+func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, bool, error) {
+	return parsePayForFibre(txBytes)
 }
 
 // TryParseFibreTx attempts to detect a MsgPayForFibre message inside plain
