@@ -6,11 +6,18 @@ This directory contains a handful of scripts that may be helpful for contributor
 
 Run `make test-coverage` from the repository root to generate `coverage.txt`.
 The script runs the full test suite serially, excluding `test/util` packages
-from both test selection and instrumentation. Cross-package tests contribute
-coverage to the packages they exercise. Packages without tests remain in scope.
+from test selection. Cross-package tests contribute coverage to the packages
+they exercise. Packages without tests remain in scope.
 Duplicate profile blocks are combined so their statements are counted once.
-Codecov applies the additional reporting exclusions in `.github/codecov.yml`;
-the local profile is not filtered by that configuration.
+
+Only production code is in scope. The script does not instrument `test/`,
+`tools/`, `scripts/`, `local_devnet/` or `pkg/rsema1d/cmd/testvectors`, and drops
+generated `*.pb.go` and `*.pb.gw.go` files. `.github/codecov.yml` ignores the
+same paths, so local and Codecov reports agree.
+
+The script also writes `coverage-unit.txt` from a `-short` run, which skips the
+in-process network (`testnode`) tests. It shows unit coverage; `coverage.txt`
+adds in-process integration coverage.
 
 The report is replaced only after all tests pass. A failed run leaves an existing
 report unchanged, so check the command's exit status before using the report.
