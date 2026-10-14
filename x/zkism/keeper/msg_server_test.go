@@ -352,18 +352,20 @@ func (suite *KeeperTestSuite) TestSubmitMessagesAfterUpdate() {
 
 // ismSnapshot holds the ISM state that a rejected message must not change.
 type ismSnapshot struct {
-	ism       types.InterchainSecurityModule
-	submitted bool
-	messages  []bool
+	ism          types.InterchainSecurityModule
+	hasSubmitted bool
+	submitted    bool
+	messages     []bool
 }
 
-// snapshotIsm reads the ISM, its submission flag and whether each message id is stored.
+// snapshotIsm reads the ISM, whether its submission flag is stored and its value, and whether each message id is stored.
 func (suite *KeeperTestSuite) snapshotIsm(id util.HexAddress, messageIds [][32]byte) ismSnapshot {
 	ism, err := suite.zkISMKeeper.GetIsm(suite.ctx, id)
 	suite.Require().NoError(err)
 
 	submitted, err := suite.zkISMKeeper.GetMessageProofSubmitted(suite.ctx, id)
-	if !errors.Is(err, collections.ErrNotFound) {
+	hasSubmitted := !errors.Is(err, collections.ErrNotFound)
+	if hasSubmitted {
 		suite.Require().NoError(err)
 	}
 
@@ -373,7 +375,7 @@ func (suite *KeeperTestSuite) snapshotIsm(id util.HexAddress, messageIds [][32]b
 		suite.Require().NoError(err)
 	}
 
-	return ismSnapshot{ism: ism, submitted: submitted, messages: messages}
+	return ismSnapshot{ism: ism, hasSubmitted: hasSubmitted, submitted: submitted, messages: messages}
 }
 
 // marshalStateTransitionValues decodes bz, applies modify and re-encodes it.
