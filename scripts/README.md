@@ -15,10 +15,6 @@ Only production code is in scope. The script does not instrument `test/`,
 generated `*.pb.go` and `*.pb.gw.go` files. `.github/codecov.yml` ignores the
 same paths, so local and Codecov reports agree.
 
-The script also writes `coverage-unit.txt` from a `-short` run, which skips the
-in-process network (`testnode`) tests. It shows unit coverage; `coverage.txt`
-adds in-process integration coverage.
-
 The report is replaced only after all tests pass. A failed run leaves an existing
 report unchanged, so check the command's exit status before using the report.
 Run `bash scripts/test_cover_test.sh` for a small regression check of the script.

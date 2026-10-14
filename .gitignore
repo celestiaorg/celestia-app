@@ -4,7 +4,6 @@ frontend/.cache
 secret.yml
 build
 coverage.txt
-coverage-unit.txt
 .idea
 .vscode
 tools/lumina-latency-monitor/target
