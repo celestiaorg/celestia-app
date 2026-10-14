@@ -27,8 +27,7 @@ func decodeCaches(txs [][]byte) (blobTxs []*squaretx.BlobTx, decoded []*fibretyp
 		decodedBlob, isBlobTx, err := squaretx.UnmarshalBlobTx(rawTx)
 		if isBlobTx {
 			if err != nil {
-				// ProcessProposal rejects the proposal here and never
-				// classifies; leaving the entry nil is what the loop does.
+				// ProcessProposal rejects here and never classifies.
 				continue
 			}
 			blobTxs[idx] = decodedBlob
@@ -57,15 +56,9 @@ func blobTxBytes(t *testing.T, rng *rand.Rand, blobSizes ...int) []byte {
 	return raw
 }
 
-// TestClassifyTxsDecodedMatchesClassifyTxs is the consensus property behind
-// ProcessProposal's decode caches: classifying from them must decide exactly
-// what classifying from the raw bytes decides, down to the square the result
-// builds. The two sides are what a proposing validator and a node replaying
-// the block each run, so a disagreement here is a chain split.
-//
-// The corpus reaches every branch of the classification - normal txs, blob
-// txs that decode, blob txs that are recognized but rejected, pay-for-fibre
-// txs, a malformed pay-for-fibre tx, and bytes that are none of those.
+// TestClassifyTxsDecodedMatchesClassifyTxs checks classifying from the decode
+// caches builds the same square as classifying from raw bytes. A disagreement
+// here is a chain split, so the corpus covers every classification branch.
 func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 	signer, err := bech32.EncodeFromBase256("celestia", testSignerRaw)
 	require.NoError(t, err)
@@ -117,8 +110,7 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 			for i := range want {
 				require.Equal(t, want[i].Bytes, got[i].Bytes, "bytes at %d: %s", i, where)
 				require.Equal(t, want[i].FibreTx, got[i].FibreTx, "fibre tx at %d: %s", i, where)
-				// The one intended difference: the decoded form carries the
-				// blob tx, and carries it exactly where the cache has one.
+				// The one intended difference: the decoded form carries the blob tx.
 				require.Nil(t, want[i].BlobTx, "index %d: %s", i, where)
 				require.Equal(t, blobTxs[i], got[i].BlobTx, "blob tx at %d: %s", i, where)
 			}
@@ -134,8 +126,8 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 	}
 }
 
-// TestClassifyTxsDecodedRejectsMisalignedCaches covers the guard that keeps a
-// caller from silently reading the wrong cache entry for a transaction.
+// TestClassifyTxsDecodedRejectsMisalignedCaches covers the guard against
+// reading the wrong cache entry for a transaction.
 func TestClassifyTxsDecodedRejectsMisalignedCaches(t *testing.T) {
 	txs := [][]byte{[]byte("one"), []byte("two")}
 

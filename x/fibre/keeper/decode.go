@@ -5,10 +5,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 )
 
-// DecodePayForFibre decodes a MsgPayForFibre tx once and derives the signature
-// cache keys the rest of the phase needs. It returns nil when raw is not a
-// pay-for-fibre tx or is too malformed to decode; the validation path then
-// reports the error itself.
+// DecodePayForFibre decodes a MsgPayForFibre tx once and derives its signature
+// cache keys. Returns nil if raw is not a decodable pay-for-fibre tx.
 func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 	msg, isPFF, err := types.ParsePayForFibreTx(raw)
 	if !isPFF || err != nil {

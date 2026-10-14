@@ -9,9 +9,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// DecodedPayForFibre is a MsgPayForFibre tx decoded once per ABCI phase, with
-// the values later steps of that phase would otherwise derive again from the
-// same bytes. Everything in it is a pure function of Raw.
+// DecodedPayForFibre is a MsgPayForFibre tx decoded once per ABCI phase, so
+// later steps reuse it instead of deriving it again. Every field comes from Raw.
 type DecodedPayForFibre struct {
 	Raw []byte
 	Msg *MsgPayForFibre
@@ -19,9 +18,8 @@ type DecodedPayForFibre struct {
 	// CertKeyed is false when the certificate could not be keyed.
 	CertKey   sigcache.Key
 	CertKeyed bool
-	// PromiseSignBytes is what the validators signed and PromiseKey the
-	// signature cache key of the promise. PromiseKeyed is false when the
-	// promise is too malformed to derive them; validation then reports it.
+	// PromiseSignBytes is what the validators signed, PromiseKey the promise's
+	// cache key. PromiseKeyed is false when the promise is too malformed.
 	PromiseSignBytes []byte
 	PromiseKey       sigcache.Key
 	PromiseKeyed     bool
@@ -44,9 +42,9 @@ func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
 
 type decodedPayForFibreKey struct{}
 
-// DecodedHolder carries the current transaction's decoded view through a
-// sequential walk, which attaches one holder rather than a context value per
-// transaction. It is not safe for concurrent use.
+// DecodedHolder carries the current tx's decoded view through a sequential
+// walk, so the context takes one value for the walk instead of one per tx.
+// Not safe for concurrent use.
 type DecodedHolder struct {
 	decoded *DecodedPayForFibre
 }
@@ -71,9 +69,8 @@ func WithDecodedPayForFibre(ctx sdk.Context, d *DecodedPayForFibre) sdk.Context 
 	return WithDecodedHolder(ctx, &DecodedHolder{decoded: d})
 }
 
-// DecodedPayForFibreFromContext returns the decoded view attached to ctx, and
-// only if it was decoded from exactly ctx.TxBytes(), so a value left behind by
-// another tx is never used.
+// DecodedPayForFibreFromContext returns the view attached to ctx, but only if
+// it was decoded from exactly ctx.TxBytes(), never one left by another tx.
 func DecodedPayForFibreFromContext(ctx sdk.Context) *DecodedPayForFibre {
 	if ctx.Context() == nil {
 		return nil

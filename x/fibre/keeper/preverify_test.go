@@ -482,8 +482,8 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg))
 }
 
-// TestDecodePayForFibre checks the decoded view carries exactly the values the
-// verification path derives for itself, and is nil for anything else.
+// TestDecodePayForFibre checks the decoded view carries the same values the
+// verification path derives itself, and is nil for anything else.
 func TestDecodePayForFibre(t *testing.T) {
 	f := newPreverifyFixture(t)
 	// The system blob carries the signer, which the fixture leaves unset.
@@ -535,9 +535,8 @@ func TestPreverifyDecodedMatchesPreverifySignatures(t *testing.T) {
 	require.Equal(t, f.cache.Len(), fresh.cache.Len())
 }
 
-// TestValidatePayForFibreSignaturesWithDecodedContext checks that a context
-// carrying the decoded view reaches the same verdict and cache state as one
-// without it.
+// TestValidatePayForFibreSignaturesWithDecodedContext checks a context carrying
+// the decoded view reaches the same verdict and cache state as one without it.
 func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
 	f := newPreverifyFixture(t)
 	raw := f.txBytes(t)

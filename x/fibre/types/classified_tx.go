@@ -22,19 +22,9 @@ func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
 	return ClassifyTxsDecoded(txs, nil, nil)
 }
 
-// ClassifyTxsDecoded is ClassifyTxs for a caller that has already decoded the
-// transactions, so that neither the classification nor go-square decodes them
-// again.
-//
-// blobTxs and decoded are index aligned with txs and either may be nil. A nil
-// blobTxs[i] takes the pay-for-fibre path; a nil decoded[i] there takes the
-// parsing path, which also covers a pay-for-fibre tx the decoded view could
-// not parse.
-//
-// blobTxs[i] must be what squaretx.UnmarshalBlobTx(txs[i]) returns: it is
-// handed to go-square as the decode of those bytes and is not re-checked
-// against them. Supplying anything else changes the square, and with it the
-// data root.
+// ClassifyTxsDecoded is ClassifyTxs for a caller that already decoded the txs.
+// blobTxs and decoded are index aligned with txs; nil entries fall back to parsing.
+// blobTxs[i] is trusted as the decode of txs[i]: a wrong one changes the data root.
 func ClassifyTxsDecoded(txs [][]byte, blobTxs []*squaretx.BlobTx, decoded []*DecodedPayForFibre) ([]square.ClassifiedTx, error) {
 	if len(blobTxs) != 0 && len(blobTxs) != len(txs) {
 		return nil, fmt.Errorf("blob txs (%d) are not index aligned with txs (%d)", len(blobTxs), len(txs))
@@ -53,8 +43,8 @@ func ClassifyTxsDecoded(txs [][]byte, blobTxs []*squaretx.BlobTx, decoded []*Dec
 		)
 		switch {
 		case hasBlobTxs && blobTxs[i] != nil:
-			// A blob tx is never a pay-for-fibre tx, so there is nothing left
-			// to classify; hand go-square the decode the caller already has.
+			// A blob tx is never a pay-for-fibre tx; hand go-square the
+			// decode the caller already has.
 			classified[i], err = square.NewClassifiedBlobTx(rawTx, blobTxs[i])
 			if err != nil {
 				return nil, fmt.Errorf("classifying blob tx at index %d: %w", i, err)
@@ -109,8 +99,7 @@ func ParsePayForFibreMsg(txBytes []byte) (*MsgPayForFibre, bool) {
 }
 
 // ParsePayForFibreTx decodes the single MsgPayForFibre carried by txBytes. The
-// second result reports whether txBytes is a fibre tx at all; an error means it
-// is one but the message is malformed.
+// bool reports whether txBytes is a fibre tx; an error means it is one but malformed.
 func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, bool, error) {
 	return parsePayForFibre(txBytes)
 }

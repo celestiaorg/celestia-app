@@ -506,9 +506,8 @@ func nextRecorder(called *bool) sdk.AnteHandler {
 	}
 }
 
-// TestFibreSignatureVerificationDecoratorUsesDecodedKey checks the decorator
-// takes the certificate key from a decoded view attached to the context for
-// these exact tx bytes, and derives it itself otherwise.
+// TestFibreSignatureVerificationDecoratorUsesDecodedKey checks the decorator uses
+// the context's certificate key only when the view matches these tx bytes.
 func TestFibreSignatureVerificationDecoratorUsesDecodedKey(t *testing.T) {
 	txBytes := []byte{0x01, 0x02, 0x03}
 	msg := newPayForFibreMsgWithSignatures(1)

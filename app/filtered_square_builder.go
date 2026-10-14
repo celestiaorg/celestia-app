@@ -22,9 +22,8 @@ type FilteredSquareBuilder struct {
 	txConfig  client.TxConfig
 	chanKeep  channelKeeper
 	builder   *square.Builder
-	// decodePFF decodes a pay-for-fibre tx once for the whole Fill, and
-	// preverifyPFF warms the signature cache for the decoded txs. Both are
-	// optional; without them Fill parses as it goes.
+	// decodePFF decodes a pay-for-fibre tx once for the whole Fill;
+	// preverifyPFF warms the signature cache. Both are optional.
 	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
 	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
 }
@@ -91,9 +90,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// note that there is an additional filter step for tx size of raw txs here
 	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, fsb.decodePFF, filteredByMaxBytes)
 
-	// Warm the signature cache across every CPU before the square is filled.
-	// A failed check is not recorded, so the fill still performs and decides
-	// it; a failure only drops one tx, so the pass covers every candidate.
+	// Warm the signature cache across every CPU before filling. Failures are
+	// not recorded, so the fill still performs and decides each check itself.
 	if fsb.preverifyPFF != nil {
 		decoded := make([]*fibretypes.DecodedPayForFibre, len(payForFibreTxs))
 		for i, fibreTx := range payForFibreTxs {
@@ -231,8 +229,7 @@ func msgTypes(sdkTx sdk.Tx) []string {
 	return msgNames
 }
 
-// decodedFibreTx pairs a raw pay-for-fibre tx with the decoded forms the fill
-// and the steps after it reuse.
+// decodedFibreTx pairs a raw pay-for-fibre tx with its decoded forms.
 type decodedFibreTx struct {
 	raw     []byte
 	sdkTx   sdk.Tx
@@ -248,8 +245,8 @@ type decodedFibreTx struct {
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
 //
-// Pay-for-fibre txs are returned with their decoded forms so later steps do not
-// decode them again. decodePFF may be nil.
+// Pay-for-fibre txs carry their decoded forms so later steps reuse them.
+// decodePFF may be nil.
 func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF func([]byte) *fibretypes.DecodedPayForFibre, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
@@ -329,9 +326,8 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	for _, entry := range payForFibreTxs {
 		rawTx, sdkTx := entry.raw, entry.sdkTx
 
-		// The system blob comes from the decoded view when there is one;
-		// otherwise TryParseFibreTx parses the MsgPayForFibre proto fields and
-		// builds it. separateTxsDecoded guarantees rawTx contains exactly one
+		// The system blob comes from the decoded view, or from parsing when
+		// there is none. separateTxsDecoded guarantees exactly one
 		// MsgPayForFibre, so isFibreTx is always true.
 		var (
 			fibreTx   *tx.FibreTx

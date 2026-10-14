@@ -532,11 +532,8 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 		require.Contains(t, cache.entries, key)
 	})
 
-	// The decoded path must land the entry in the same place. The subtests
-	// above only reach the fallback: a plain context carries no decoded view,
-	// so validatePromiseStatelessDecoded forwards to ValidatePromiseStateless.
-	// Reuse of a precomputed key and precomputed sign bytes must not move
-	// where recording happens, only what it costs.
+	// The decoded path must record the entry in the same place as the fallback
+	// path the subtests above take.
 	suite.T().Run("decoded view does not move where the entry is written", func(t *testing.T) {
 		decodedCache := newCountingSigCache()
 		dk := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, decodedCache)
@@ -571,12 +568,8 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 		require.Equal(t, 1, decodedCache.adds)
 		require.Contains(t, decodedCache.entries, key)
 
-		// Prove the key carried by the view is the one consulted, so this
-		// subtest cannot pass by silently falling back. The entry for the
-		// untampered promise is in the cache now, so a view still carrying
-		// that key short-circuits even though the promise signature no longer
-		// verifies - the same short-circuit TestValidatePromiseStatelessHitSkipsValidation
-		// pins for the keyed form. A recomputed key would miss and reject.
+		// The view's key is the one consulted: a tampered promise still passes
+		// off the cached entry, where a recomputed key would miss and reject.
 		tampered := &types.MsgPayForFibre{
 			PaymentPromise:      paymentPromise,
 			ValidatorSignatures: validSignatures,

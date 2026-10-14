@@ -359,10 +359,8 @@ func (k Keeper) ValidatePromiseStateless(pp *fibre.PaymentPromise) error {
 }
 
 // validatePromiseStatelessDecoded is ValidatePromiseStateless reusing the key
-// a decoded view already derived for this tx, when ctx carries one for exactly
-// this promise. source is the proto promise pp was converted from: the view is
-// bound to the transaction bytes, and this binds it to the message inside them,
-// so a caller validating some other promise can never borrow the key.
+// from ctx's decoded view. source is the proto promise pp came from: matching
+// it stops a caller from borrowing the key for a different promise.
 func (k Keeper) validatePromiseStatelessDecoded(ctx sdk.Context, pp *fibre.PaymentPromise, source *types.PaymentPromise) error {
 	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.PromiseKeyed && d.Msg != nil && &d.Msg.PaymentPromise == source {
 		return k.validatePromiseStatelessKeyed(pp, d.PromiseKey, true)

@@ -65,10 +65,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		pfbMessageCount int
 		pffMessageCount int
 		maxPFF          = appconsts.MaxPayForFibreMessages
-		// blobTxs and decoded are the decode caches for this proposal: the blob
-		// tx decoded from req.Txs[i], or the pay-for-fibre tx decoded from it,
-		// or nil where that tx is neither. They are scoped to this call, so an
-		// entry can only ever describe the bytes it came from.
+		// Decode caches for this proposal, index aligned with req.Txs: the
+		// blob tx or pay-for-fibre tx decoded from req.Txs[i], nil if neither.
 		blobTxs = make([]*blobtx.BlobTx, len(req.Txs))
 		decoded = make([]*fibretypes.DecodedPayForFibre, len(req.Txs))
 	)
@@ -102,10 +100,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		StopOnFirstFailure: true,
 	})
 
-	// One holder for the whole walk: the decoded view of the transaction being
-	// processed is handed over by setting its field, not by attaching a new
-	// context value per transaction, which would grow the context chain by one
-	// node per transaction.
+	// One holder for the whole walk, so the context does not grow by a value
+	// per transaction.
 	decodedHolder := &fibretypes.DecodedHolder{}
 	ctx = fibretypes.WithDecodedHolder(ctx, decodedHolder)
 
