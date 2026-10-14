@@ -244,9 +244,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	// Compare the proposer's claims against the cached values. When we are the
 	// proposer both sides come from our own PrepareProposal, so this really
-	// only checks someone else's block built from the same txs. The old
-	// builder-vs-rebuild check now lives in
-	// TestProcessProposalRebuildsSquareAfterReverts.
+	// only checks someone else's block built from the same txs.
 	if cached != nil {
 		if cached.squareSize != req.SquareSize {
 			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
