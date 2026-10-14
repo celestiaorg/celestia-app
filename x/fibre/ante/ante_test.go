@@ -7,6 +7,7 @@ import (
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
@@ -73,28 +74,39 @@ func TestFibreSignatureVerificationDecoratorSimulationSkipsVerification(t *testi
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
-func TestFibreSignatureVerificationDecoratorFinalizeModeSkipsVerification(t *testing.T) {
-	tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
-	keeper := &fakeFibreKeeper{err: errors.New("verification must not run in finalize mode")}
-	cache := &fakeSigCache{
-		t:                 t,
-		failOnCacheLookup: true,
-		failOnCacheWrite:  true,
+func TestFibreSignatureVerificationDecoratorSkipsVerificationModes(t *testing.T) {
+	// Finalize never verifies PFF signatures; recheck would only redo a check
+	// CheckTx already made over immutable promise bytes.
+	modes := map[string]sdk.ExecMode{
+		"finalize": sdk.ExecModeFinalize,
+		"recheck":  sdk.ExecModeReCheck,
 	}
-	decorator := FibreSignatureVerificationDecorator{
-		k:           keeper,
-		pffSigCache: cache,
+
+	for name, mode := range modes {
+		t.Run(name, func(t *testing.T) {
+			tx := mockTx{msgs: []sdk.Msg{newPayForFibreMsgWithSignatures(1)}}
+			keeper := &fakeFibreKeeper{err: errors.New("verification must not run")}
+			cache := &fakeSigCache{
+				t:                 t,
+				failOnCacheLookup: true,
+				failOnCacheWrite:  true,
+			}
+			decorator := FibreSignatureVerificationDecorator{
+				k:           keeper,
+				pffSigCache: cache,
+			}
+			ctx := sdk.Context{}.
+				WithGasMeter(storetypes.NewGasMeter(1)).
+				WithTxBytes([]byte{0x01}).
+				WithExecMode(mode)
+
+			gotCtx, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
+
+			require.NoError(t, err)
+			require.Zero(t, keeper.calls)
+			require.Zero(t, gotCtx.GasMeter().GasConsumed())
+		})
 	}
-	ctx := sdk.Context{}.
-		WithGasMeter(storetypes.NewGasMeter(1)).
-		WithTxBytes([]byte{0x01}).
-		WithExecMode(sdk.ExecModeFinalize)
-
-	gotCtx, err := decorator.AnteHandle(ctx, tx, false, nextNoop)
-
-	require.NoError(t, err)
-	require.Zero(t, keeper.calls)
-	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
 func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing.T) {
@@ -403,29 +415,29 @@ type fakeSigCache struct {
 	cacheLookups      int
 	cachedTxs         int
 	cacheHit          bool
-	wantKey           PffSigCacheKey
+	wantKey           sigcache.Key
 	failOnCacheLookup bool
 	failOnCacheWrite  bool
 }
 
 type memorySigCache struct {
-	entries map[PffSigCacheKey]struct{}
+	entries map[sigcache.Key]struct{}
 }
 
 func newMemorySigCache() *memorySigCache {
-	return &memorySigCache{entries: make(map[PffSigCacheKey]struct{})}
+	return &memorySigCache{entries: make(map[sigcache.Key]struct{})}
 }
 
-func (c *memorySigCache) IsCached(key PffSigCacheKey) bool {
+func (c *memorySigCache) Has(key sigcache.Key) bool {
 	_, ok := c.entries[key]
 	return ok
 }
 
-func (c *memorySigCache) Cache(key PffSigCacheKey) {
+func (c *memorySigCache) Add(key sigcache.Key) {
 	c.entries[key] = struct{}{}
 }
 
-func (f *fakeSigCache) IsCached(key PffSigCacheKey) bool {
+func (f *fakeSigCache) Has(key sigcache.Key) bool {
 	if f.failOnCacheLookup {
 		f.t.Fatal("cache lookup should be skipped")
 	}
@@ -434,7 +446,7 @@ func (f *fakeSigCache) IsCached(key PffSigCacheKey) bool {
 	return f.cacheHit
 }
 
-func (f *fakeSigCache) Cache(key PffSigCacheKey) {
+func (f *fakeSigCache) Add(key sigcache.Key) {
 	if f.failOnCacheWrite {
 		f.t.Fatal("cache write should be skipped")
 	}
@@ -442,8 +454,8 @@ func (f *fakeSigCache) Cache(key PffSigCacheKey) {
 	f.requireKey(key)
 }
 
-func (f *fakeSigCache) requireKey(key PffSigCacheKey) {
-	if f.t != nil && f.wantKey != (PffSigCacheKey{}) {
+func (f *fakeSigCache) requireKey(key sigcache.Key) {
+	if f.t != nil && f.wantKey != (sigcache.Key{}) {
 		require.Equal(f.t, f.wantKey, key)
 	}
 }
@@ -475,9 +487,9 @@ func keyTestMsg() *fibretypes.MsgPayForFibre {
 	return msg
 }
 
-func mustPffSigCacheKey(t *testing.T, msg *fibretypes.MsgPayForFibre) PffSigCacheKey {
+func mustPffSigCacheKey(t *testing.T, msg *fibretypes.MsgPayForFibre) sigcache.Key {
 	t.Helper()
-	key, err := NewPffSigCacheKey(msg)
+	key, err := msg.SigCacheKey()
 	require.NoError(t, err)
 	return key
 }

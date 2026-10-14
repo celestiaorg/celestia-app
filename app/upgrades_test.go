@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"cosmossdk.io/collections"
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -139,6 +140,15 @@ func TestSetEvidenceParams(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, int64(appconsts.MaxAgeNumBlocks), got.Evidence.MaxAgeNumBlocks)
 	require.Equal(t, appconsts.MaxAgeDuration, got.Evidence.MaxAgeDuration)
+}
+
+func TestV10UpgradeFailsWithoutConsensusParams(t *testing.T) {
+	testApp, _, _ := util.NewTestAppWithGenesisSet(app.DefaultConsensusParams())
+	ctx := testApp.NewContext(false).WithBlockHeight(1)
+	require.NoError(t, testApp.ConsensusKeeper.ParamsStore.Remove(ctx))
+
+	require.ErrorIs(t, testApp.SetEvidenceParams(ctx), collections.ErrNotFound)
+	require.ErrorIs(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v10", Height: 1}), collections.ErrNotFound)
 }
 
 // createValidatorWithCommission creates a validator with specific commission
