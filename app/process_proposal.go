@@ -28,9 +28,8 @@ import (
 const rejectedPropBlockLog = "Rejected proposal block:"
 
 // parallelSquarePrefix is how many transactions the ordered walk must clear
-// before the square is built alongside it, and the smallest proposal that
-// takes the parallel path at all. Below it the square is cheap enough that
-// overlapping buys nothing.
+// before the square is built alongside it, and the smallest proposal that takes
+// the parallel path at all. Below it, overlapping buys nothing.
 const parallelSquarePrefix = 100
 
 func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcessProposal) (resp *abci.ResponseProcessProposal, err error) {
