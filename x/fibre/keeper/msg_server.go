@@ -144,11 +144,9 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to hash payment promise: %s", err)
 	}
 
-	// Read the escrow account again rather than reusing the one the stateful
-	// validation already loaded. The read is metered, so dropping it lowers
-	// what this message costs and changes the outcome for a transaction whose
-	// gas limit sits between the two totals - a state transition change, which
-	// has to be gated behind an app version rather than ride along here.
+	// Read the escrow account again rather than reusing the loaded one. The
+	// read is metered, so dropping it would change what this message costs -
+	// a state transition change that needs an app version gate.
 	signerAddr := sdk.AccAddress(msg.PaymentPromise.SignerPublicKey.Address()).String()
 	escrowAccount, found := ms.GetEscrowAccount(ctx, signerAddr)
 	if !found {

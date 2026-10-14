@@ -341,16 +341,14 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}
-				// Start the square once the walk has cleared a prefix: a
-				// proposal that is invalid early is then rejected without any
-				// square work at all, and the builder does not compete with
-				// the pre-verification pass for CPU at the start of the block.
+				// Start the square once the walk has cleared a prefix: an
+				// early rejection then costs no square work, and the builder
+				// does not compete with the pre-verification pass for CPU.
 				if parallelSquare && idx == parallelSquarePrefix-1 {
 					squareDone = make(chan proposalSquareResult, 1)
 					go func(done chan<- proposalSquareResult) {
 						// The send must happen on every path: a goroutine that
-						// died without sending would leave the drain below
-						// blocking forever, which is a silent node halt.
+						// died without sending would block the drain forever.
 						result := proposalSquareResult{
 							stage: "panic while building proposal square",
 							err:   fmt.Errorf("proposal square builder did not finish"),

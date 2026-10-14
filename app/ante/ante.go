@@ -102,11 +102,9 @@ var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 // wrappers. All remaining decorators above only return next or an error;
 // decorators with work after next must stay outside the flat walk.
 func newAppAnteChain(chain ...sdk.AnteDecorator) sdk.AnteHandler {
-	// The flat walk calls chain[2:] with a terminal next, so the two
-	// decorators that must wrap it - the panic handler and the gas-meter setup,
-	// which recovers out-of-gas - have to be exactly where this assumes they
-	// are. Asserting it here turns a reordering of NewAnteHandler into a
-	// startup panic rather than a silent divergence from FinalizeBlock.
+	// The flat walk calls chain[2:] with a terminal next, so the panic handler
+	// and gas-meter setup must sit exactly here. Asserting it turns a reorder
+	// of NewAnteHandler into a startup panic, not a silent divergence.
 	if len(chain) < 2 {
 		panic("ante chain must start with the panic handler and the context setup")
 	}

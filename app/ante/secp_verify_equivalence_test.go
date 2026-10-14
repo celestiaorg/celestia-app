@@ -13,10 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNativeSecp256k1AcceptanceIsSubsetOfSDK asserts that a cgo build accepts
-// exactly what a nocgo build accepts. The native verifier is tried first and
-// the SDK verifier is the fallback, so the two builds agree iff every native
-// acceptance is also an SDK acceptance.
+// TestNativeSecp256k1AcceptanceIsSubsetOfSDK checks a cgo build accepts exactly
+// what a nocgo build accepts: every native acceptance is also an SDK one.
 func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
 	order, ok := new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
 	require.True(t, ok)
@@ -25,9 +23,8 @@ func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
 	sdkAccepts := func(key *secp256k1.PubKey, msg, sig []byte) bool {
 		return key.VerifySignature(msg, sig)
 	}
-	// The raw native predicate, used only to classify a result. What the union
-	// below asserts is the production wrapper, so the guard inside
-	// txVerificationPubKey is under test rather than a copy of it.
+	// The raw native predicate, used only to classify a result; the union below
+	// asserts the production wrapper.
 	nativeAccepts := func(key *secp256k1.PubKey, msg, sig []byte) bool {
 		if len(key.Key) != secp256k1.PubKeySize || (key.Key[0] != 2 && key.Key[0] != 3) {
 			return false
@@ -39,9 +36,8 @@ func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
 		return txVerificationPubKey(key).VerifySignature(msg, sig)
 	}
 
-	// setScalar writes v into one half of a signature. A value that needs more
-	// than 32 bytes cannot be encoded in a compact signature at all, so those
-	// variants are skipped rather than truncated.
+	// setScalar writes v into one half of a signature. Values needing more than
+	// 32 bytes cannot be encoded compactly, so they are skipped.
 	setScalar := func(sig []byte, half int, v *big.Int) ([]byte, bool) {
 		if v.BitLen() > 256 || v.Sign() < 0 {
 			return nil, false

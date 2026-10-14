@@ -203,12 +203,8 @@ func TestCachedVerifierWithoutCache(t *testing.T) {
 	require.Error(t, inputs.verify(cachedVerifier(nil), handler))
 }
 
-// TestCachedVerifierExecModeTolerateNonSDKContext pins that reading the exec
-// mode never assumes an SDK context. ante.SignatureVerifier is typed on a
-// plain context.Context and the SDK does not promise to attach an sdk.Context,
-// so sdk.UnwrapSDKContext would panic here. Swapping in the native
-// verification key is a pure optimisation, so the ordinary key is kept
-// instead.
+// TestCachedVerifierExecModeTolerateNonSDKContext checks reading the exec mode
+// never assumes an SDK context, since unwrapping one that is absent panics.
 func TestCachedVerifierExecModeTolerateNonSDKContext(t *testing.T) {
 	handler := txsigning.NewHandlerMap(direct.SignModeHandler{})
 	inputs := signedInputs(t, handler)

@@ -330,8 +330,7 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 func runVerificationChunk(items []verification, results []bool, start, end int, batch *ed25519.BatchVerifier) bool {
 	if batch == nil {
 		// The per-item path the caller's comma-ok assertion falls back to:
-		// slower, same verdicts, and it keeps a failed assertion from turning
-		// every chunk into a nil dereference.
+		// slower, same verdicts.
 		allValid := true
 		for i := start; i < end; i++ {
 			item := items[i]

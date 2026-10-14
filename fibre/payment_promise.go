@@ -194,9 +194,8 @@ const (
 	// MaxChainIDSize is the maximum allowed chain ID length.
 	// Examples: "celestia" (8), "mocha-4" (7), "corto-1" (7)
 	//
-	// Exported because the native secp256k1 fast path in x/fibre/keeper has to
-	// apply exactly the field checks Validate applies before it may skip it;
-	// a bound that drifts between the two is a cgo/nocgo acceptance split.
+	// Exported because the native secp256k1 fast path must apply exactly these
+	// checks; a drifting bound is a cgo/nocgo acceptance split.
 	MaxChainIDSize = types.MaxChainIDSize
 
 	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)

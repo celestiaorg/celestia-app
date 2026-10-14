@@ -144,11 +144,8 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 }
 
 // inProcessProposal reports whether ctx is an SDK context running in
-// ProcessProposal. ante.SignatureVerifier is handed a plain context.Context,
-// so an SDK context is not guaranteed to be attached and sdk.UnwrapSDKContext
-// would panic. Swapping in the native verification key is a pure
-// optimisation, so when the exec mode cannot be read the caller simply keeps
-// the ordinary key.
+// ProcessProposal. The verifier takes a plain context.Context, so unwrapping
+// could panic; an unreadable exec mode just keeps the ordinary key.
 func inProcessProposal(ctx context.Context) bool {
 	sdkCtx, ok := ctx.(sdk.Context)
 	if !ok {
