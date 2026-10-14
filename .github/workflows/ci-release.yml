@@ -16,6 +16,16 @@ on:
   merge_group:
   workflow_dispatch:
 
+# Supersede in-flight runs for a pull request when it is pushed again. Stacked
+# PRs are restacked as a unit, so a single rebase force-pushes every branch in
+# the stack and would otherwise leave a full obsolete run per branch burning
+# runners alongside the new one. Only pull_request runs are cancelled: a
+# merge_group run gates the queue, and push/release runs record results against
+# protected refs, so neither may be interrupted.
+concurrency:
+  group: ci-release-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     uses: ./.github/workflows/lint.yml
