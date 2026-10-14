@@ -6,9 +6,23 @@ version: 2
 # queue small; major bumps are deliberately left ungrouped so a breaking change
 # gets its own pull request rather than being buried in a batch.
 #
-# Every entry runs on Monday so the batches land together instead of trickling
+# Version-update entries run on Monday so the batches land together instead of trickling
 # in across the week.
 updates:
+  # Rust: configure security-update titles without enabling version updates.
+  - package-ecosystem: cargo
+    directories:
+      - "/tools/rust-fibre-txsim"
+      - "/tools/lumina-latency-monitor"
+    commit-message:
+      prefix: "chore(deps): [medium] "
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+
   # Docker
   - package-ecosystem: docker
     directory: "/docker"
