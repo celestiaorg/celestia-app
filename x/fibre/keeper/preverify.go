@@ -7,6 +7,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
@@ -23,6 +24,9 @@ type PreverifyOptions struct {
 	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
 	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
+	// SeenCertificates skips certificates already collected, so a repeated
+	// certificate costs one verification. The caller supplies an empty map.
+	SeenCertificates map[sigcache.Key]struct{}
 }
 
 // PreverifySignatures verifies the MsgPayForFibre signatures in txs across
@@ -54,6 +58,17 @@ func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayFor
 		return
 	}
 	work.record(k.sigCache, runVerifications(work.items, opts.StopOnFirstFailure))
+}
+
+// PreverifyPayForFibreMsg runs the pass over one message the caller holds, and
+// records it when every check passes. certKey must be msg's own key, or the
+// entry would claim verification of a message the pass never saw.
+func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFibre, certKey sigcache.Key) {
+	if k.sigCache == nil {
+		return
+	}
+	k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{DecodedFromMsg(msg, certKey)},
+		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
 }
 
 // batchSize is how many validator signatures one work item verifies together.
@@ -133,6 +148,10 @@ func (p *preverification) record(cache SigCache, verified []bool) {
 // collectVerifications builds the work queue. Every state read happens here,
 // sequentially on ctx, so the workers touch nothing but their own inputs.
 func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) *preverification {
+	// Backstop for a caller that does not bound its input. Both proposal
+	// callers already do, so this never truncates a legitimate pass.
+	covered := 0
+
 	work := &preverification{}
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
@@ -142,12 +161,25 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		if d == nil || !d.PromiseKeyed {
 			continue
 		}
+		if covered >= appconsts.MaxPayForFibreCandidates {
+			break
+		}
+		if opts.SeenCertificates != nil && d.CertKeyed {
+			if _, seen := opts.SeenCertificates[d.CertKey]; seen {
+				continue
+			}
+			opts.SeenCertificates[d.CertKey] = struct{}{}
+		}
+
 		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}
 		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
 			continue
 		}
+
+		// Count only what the pass takes on, not what it skipped.
+		covered++
 
 		first := len(work.items)
 		var keys []sigcache.Key

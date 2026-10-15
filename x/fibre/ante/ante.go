@@ -52,6 +52,10 @@ type FibreSignatureVerificationDecorator struct {
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
 	ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error
+	// PreverifyPayForFibreMsg verifies msg's signatures across every CPU and
+	// records them if they all pass. It reports nothing: the caller reads the
+	// cache, and ValidatePayForFibreSignatures still decides.
+	PreverifyPayForFibreMsg(ctx sdk.Context, msg *fibretypes.MsgPayForFibre, certKey sigcache.Key)
 }
 
 // PffSigCache tracks PFF certificates whose signatures were already checked.
@@ -92,6 +96,17 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 			return ctx, err
 		}
 		return next(ctx, tx, simulate)
+	}
+
+	// CheckTx reaches this once gas, fees, authentication and fibre admission
+	// have passed, so the pass is spent on an otherwise admissible tx. After
+	// the lookup, never before: warming a cached entry is pure loss. The other
+	// phases pre-verify their whole block, and recheck has nothing to warm.
+	if ctx.IsCheckTx() && !ctx.IsReCheckTx() {
+		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(ctx), msg, cacheKey)
+		if d.pffSigCache.Has(cacheKey) {
+			return next(ctx, tx, simulate)
+		}
 	}
 
 	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
