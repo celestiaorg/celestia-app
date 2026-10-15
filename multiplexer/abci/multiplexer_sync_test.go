@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
-	abci "github.com/cometbft/cometbft/abci/types"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -17,16 +16,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
-
-// infoApp is a native app whose Info reports appVersion.
-type infoApp struct {
-	servertypes.Application
-	appVersion uint64
-}
-
-func (a *infoApp) Info(*abci.RequestInfo) (*abci.ResponseInfo, error) {
-	return &abci.ResponseInfo{AppVersion: a.appVersion}, nil
-}
 
 // infoServer is an embedded ABCI v1 app whose Info reports appVersion.
 type infoServer struct {
@@ -59,7 +48,7 @@ func newInfoConn(t *testing.T, appVersion uint64) *grpc.ClientConn {
 // TestSyncAppVersionSwitchesFromEmbeddedToNative verifies that the multiplexer
 // starts the native app when the embedded app has committed a newer app version.
 func TestSyncAppVersionSwitchesFromEmbeddedToNative(t *testing.T) {
-	native := &infoApp{appVersion: 3}
+	native := &fakeApp{infoAppVersion: 3}
 	svrCtx := server.NewDefaultContext()
 	svrCtx.Config.RootDir = t.TempDir()
 
@@ -92,9 +81,8 @@ func TestSyncAppVersionWithNativeApp(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			native := &infoApp{appVersion: tc.infoAppVersion}
-			m := newActivationTestMultiplexer(nil, tc.appVersion)
-			m.nativeApp = native
+			native := &fakeApp{infoAppVersion: tc.infoAppVersion}
+			m := newActivationTestMultiplexer(native, tc.appVersion)
 
 			require.NoError(t, m.syncAppVersion())
 			require.Equal(t, tc.want, m.appVersion)
