@@ -412,6 +412,20 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			wantEscrows:     [][]byte{pff1, pff3},
 		},
 		{
+			name:            "ante write before rejection is discarded for a normal tx",
+			squareSize:      64,
+			txs:             [][]byte{norm1, norm2, norm3},
+			anteWriteReject: [][]byte{norm2},
+			wantKept:        [][]byte{norm1, norm3},
+		},
+		{
+			name:            "ante write before rejection is discarded for a blob tx",
+			squareSize:      64,
+			txs:             [][]byte{blob1, blob2, blob3},
+			anteWriteReject: [][]byte{blob2},
+			wantKept:        [][]byte{blob1, blob3},
+		},
+		{
 			name:        "consecutive settlement and ante failures",
 			squareSize:  64,
 			txs:         [][]byte{pff1, pff2, pff3},
