@@ -482,6 +482,15 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
 		suite.Error(err)
 		suite.Contains(err.Error(), "failed to get historical validator set")
+
+		// A sig cache hit checks only availability and must fail the same way.
+		availErr := suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height)
+		suite.ErrorIs(availErr, sdkerrors.ErrInvalidRequest)
+		suite.Equal(err.Error(), availErr.Error())
+	})
+
+	suite.T().Run("validator set available", func(t *testing.T) {
+		suite.NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height))
 	})
 }
 
