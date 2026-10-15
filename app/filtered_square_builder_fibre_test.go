@@ -3,17 +3,22 @@
 package app
 
 import (
+	"bytes"
 	"errors"
 	"math"
+	"slices"
+	"strings"
 	"testing"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
 	"cosmossdk.io/store/metrics"
+	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v9/app/encoding"
 	"github.com/celestiaorg/celestia-app/v9/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v9/test/util/blobfactory"
 	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/go-square/v4/tx"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -281,6 +286,133 @@ func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	txBytes, err := txConfig.TxEncoder()(builder.GetTx())
 	require.NoError(t, err)
 	return txBytes
+}
+
+// TestFilteredSquareBuilderFillRollback checks that a tx dropped by the square
+// or the ante handler leaves no state or square contents behind, and that the
+// txs after it are still kept.
+func TestFilteredSquareBuilderFillRollback(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	storeKey := storetypes.NewKVStoreKey("test")
+
+	// The fake ante handler bumps a per-tx "sequence" keyed by the SDK tx bytes.
+	seqKey := func(txBytes []byte) []byte { return append([]byte("seq/"), txBytes...) }
+
+	norm1, norm2, norm3 := newNormalTx(t, txConfig), newNormalTx(t, txConfig), newNormalTx(t, txConfig)
+	midNorm := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 1000)) // 3 compact shares
+	bigNorm := newNormalTxWithMemo(t, txConfig, strings.Repeat("a", 2500)) // larger than a 2x2 square
+	blob1, blob2, blob3 := newBlobTx(t, txConfig), newBlobTx(t, txConfig), newBlobTx(t, txConfig)
+	pff1, pff2, pff3 := blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig), blobfactory.UnsignedPayForFibreTx(t, txConfig)
+
+	tests := []struct {
+		name       string
+		squareSize int
+		txs        [][]byte
+		anteReject [][]byte
+		// anteWriteReject txs bump their sequence before the ante handler
+		// rejects them.
+		anteWriteReject [][]byte
+		wantKept        [][]byte
+	}{
+		{
+			name:       "keeps every tx in type order",
+			squareSize: 64,
+			txs:        [][]byte{pff1, blob1, norm1, pff2, blob2, norm2},
+			wantKept:   [][]byte{norm1, norm2, blob1, blob2, pff1, pff2},
+		},
+		{
+			name:       "ante rejection drops the tx of each type and keeps the next one",
+			squareSize: 64,
+			txs:        [][]byte{norm1, norm2, norm3, blob1, blob2, blob3, pff1, pff2, pff3},
+			anteReject: [][]byte{norm2, blob2, pff2},
+			wantKept:   [][]byte{norm1, norm3, blob1, blob3, pff1, pff3},
+		},
+		{
+			name:            "ante write before rejection is discarded for a normal tx",
+			squareSize:      64,
+			txs:             [][]byte{norm1, norm2, norm3},
+			anteWriteReject: [][]byte{norm2},
+			wantKept:        [][]byte{norm1, norm3},
+		},
+		{
+			name:            "ante write before rejection is discarded for a blob tx",
+			squareSize:      64,
+			txs:             [][]byte{blob1, blob2, blob3},
+			anteWriteReject: [][]byte{blob2},
+			wantKept:        [][]byte{blob1, blob3},
+		},
+		{
+			name:       "full square skips each tx type that does not fit",
+			squareSize: 2,
+			txs:        [][]byte{bigNorm, midNorm, blob1, pff1},
+			wantKept:   [][]byte{midNorm},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// matches reports whether the SDK tx on ctx belongs to one of txs.
+			matches := func(txs [][]byte, ctx sdk.Context) bool {
+				for _, rawTx := range txs {
+					if bytes.Equal(sdkTxBytes(t, rawTx), ctx.TxBytes()) {
+						return true
+					}
+				}
+				return false
+			}
+			ante := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+				if matches(tc.anteReject, ctx) {
+					return ctx, errors.New("ante handler rejected tx")
+				}
+				ctx.KVStore(storeKey).Set(seqKey(ctx.TxBytes()), []byte{1})
+				if matches(tc.anteWriteReject, ctx) {
+					return ctx, errors.New("ante handler rejected tx after writing")
+				}
+				return ctx, nil
+			}
+
+			db := dbm.NewMemDB()
+			cms := store.NewCommitMultiStore(db, log.NewNopLogger(), metrics.NewNoOpMetrics())
+			cms.MountStoreWithDB(storeKey, storetypes.StoreTypeIAVL, db)
+			require.NoError(t, cms.LoadLatestVersion())
+			ctx := sdk.NewContext(cms, cmtproto.Header{}, false, log.NewNopLogger())
+
+			fsb, err := NewFilteredSquareBuilder(ante, txConfig, tc.squareSize, appconsts.SubtreeRootThreshold)
+			require.NoError(t, err)
+			kept := fsb.Fill(ctx, tc.txs, math.MaxInt64)
+			require.Equal(t, tc.wantKept, kept)
+
+			// Only kept txs leave a sequence bump behind.
+			kv := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter()).KVStore(storeKey)
+			for i, rawTx := range tc.txs {
+				require.Equal(t, slices.ContainsFunc(tc.wantKept, func(b []byte) bool { return bytes.Equal(b, rawTx) }), kv.Has(seqKey(sdkTxBytes(t, rawTx))), "sequence of tx %d", i)
+			}
+
+			// The square must match one built from only the kept txs, so no
+			// dropped tx or system blob is left behind.
+			got, err := fsb.Build()
+			require.NoError(t, err)
+			alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
+			ref, err := NewFilteredSquareBuilder(alwaysPass, txConfig, tc.squareSize, appconsts.SubtreeRootThreshold)
+			require.NoError(t, err)
+			require.Equal(t, tc.wantKept, ref.Fill(ctx, tc.wantKept, math.MaxInt64))
+			want, err := ref.Build()
+			require.NoError(t, err)
+			require.Equal(t, want, got)
+		})
+	}
+}
+
+// sdkTxBytes returns the SDK tx bytes Fill sets on the context: the inner tx
+// of a blob tx, otherwise the raw tx.
+func sdkTxBytes(t *testing.T, rawTx []byte) []byte {
+	t.Helper()
+	bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
+	if !isBlob {
+		return rawTx
+	}
+	require.NoError(t, err)
+	return bTx.Tx
 }
 
 // newMixedPayForFibreTx creates an unsigned SDK tx containing one MsgPayForFibre
