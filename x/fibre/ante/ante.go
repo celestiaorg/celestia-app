@@ -88,7 +88,7 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 	if d.pffSigCache.Has(cacheKey) {
 		// The cache covers the signatures, not whether the validator set they
 		// were checked against is still stored.
-		if err = d.k.ValidateValidatorSetAvailable(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
+		if err := d.k.ValidateValidatorSetAvailable(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
 			return ctx, err
 		}
 		return next(ctx, tx, simulate)
