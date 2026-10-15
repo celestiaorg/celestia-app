@@ -123,6 +123,27 @@ func TestFibreSignatureVerificationDecoratorCacheHitSkipsVerification(t *testing
 	require.Zero(t, gotCtx.GasMeter().GasConsumed())
 }
 
+func TestFibreSignatureVerificationDecoratorCacheHitRequiresValidatorSet(t *testing.T) {
+	msg := newPayForFibreMsgWithSignatures(1)
+	expectedErr := errors.New("no historical info")
+	keeper := &fakeFibreKeeper{validatorSetErr: expectedErr}
+	cache := &fakeSigCache{
+		t:                t,
+		cacheHit:         true,
+		failOnCacheWrite: true,
+	}
+	decorator := FibreSignatureVerificationDecorator{k: keeper, pffSigCache: cache}
+	nextCalled := false
+
+	_, err := decorator.AnteHandle(sdk.Context{}.WithGasMeter(storetypes.NewGasMeter(1)), mockTx{msgs: []sdk.Msg{msg}}, false, nextRecorder(&nextCalled))
+
+	require.ErrorIs(t, err, expectedErr)
+	require.False(t, nextCalled)
+	require.Equal(t, 1, keeper.validatorSetCalls)
+	require.Equal(t, 1, keeper.infiniteGasCalls)
+	require.Zero(t, keeper.calls)
+}
+
 func TestFibreSignatureVerificationDecoratorVerifiesCacheMissWithInfiniteGas(t *testing.T) {
 	txBytes := []byte{0x01, 0x02, 0x03}
 	msg := newPayForFibreMsgWithSignatures(2)
@@ -374,6 +395,18 @@ type fakeFibreKeeper struct {
 	infiniteGasCalls int
 	gasToConsume     uint64
 	err              error
+<<<<<<< HEAD
+=======
+
+	validatorSetCalls int
+	validatorSetErr   error
+	// preverifyCalls counts the pre-pass and preverified records its keys.
+	// records, when set, is the cache the pass warms.
+	preverifyCalls    int
+	preverifyInfinite int
+	preverified       []sigcache.Key
+	records           PffSigCache
+>>>>>>> ce1e4d1 (fix(fibre): [high] check validator set on pff sig cache hit (#8191))
 }
 
 func (f *fakeFibreKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibretypes.MsgPayForFibre) error {
@@ -381,6 +414,28 @@ func (f *fakeFibreKeeper) ValidatePayForFibreSignatures(ctx sdk.Context, _ *fibr
 	return f.err
 }
 
+<<<<<<< HEAD
+=======
+func (f *fakeFibreKeeper) ValidateValidatorSetAvailable(ctx sdk.Context, _ int64) error {
+	f.validatorSetCalls++
+	if ctx.GasMeter().Limit() == ^uint64(0) {
+		f.infiniteGasCalls++
+	}
+	return f.validatorSetErr
+}
+
+func (f *fakeFibreKeeper) PreverifyPayForFibreMsg(ctx sdk.Context, _ *fibretypes.MsgPayForFibre, certKey sigcache.Key) {
+	f.preverifyCalls++
+	if ctx.GasMeter().Limit() == ^uint64(0) {
+		f.preverifyInfinite++
+	}
+	f.preverified = append(f.preverified, certKey)
+	if f.records != nil {
+		f.records.Add(certKey)
+	}
+}
+
+>>>>>>> ce1e4d1 (fix(fibre): [high] check validator set on pff sig cache hit (#8191))
 func (f *fakeFibreKeeper) ValidatePaymentPromiseStateful(ctx sdk.Context, _ *fibretypes.PaymentPromise) (time.Time, error) {
 	f.observe(ctx)
 	return time.Time{}, f.err

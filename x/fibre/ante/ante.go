@@ -49,6 +49,14 @@ type FibreSignatureVerificationDecorator struct {
 // FibreKeeper verifies PFF signatures.
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
+<<<<<<< HEAD
+=======
+	ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error
+	// PreverifyPayForFibreMsg verifies msg's signatures across every CPU and
+	// records them if they all pass. It reports nothing: the caller reads the
+	// cache, and ValidatePayForFibreSignatures still decides.
+	PreverifyPayForFibreMsg(ctx sdk.Context, msg *fibretypes.MsgPayForFibre, certKey sigcache.Key)
+>>>>>>> ce1e4d1 (fix(fibre): [high] check validator set on pff sig cache hit (#8191))
 }
 
 // PffSigCacheKey identifies all inputs to PFF signature verification.
@@ -74,8 +82,43 @@ func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.
 		return next(ctx, tx, simulate)
 	}
 
+<<<<<<< HEAD
 	cacheKey, err := NewPffSigCacheKey(msg)
 	if err != nil {
+=======
+	// Reuse the key a decoded view already derived for this tx, if any.
+	var cacheKey sigcache.Key
+	if decoded := fibretypes.DecodedPayForFibreFromContext(ctx); decoded != nil && decoded.CertKeyed {
+		cacheKey = decoded.CertKey
+	} else {
+		var err error
+		cacheKey, err = msg.SigCacheKey()
+		if err != nil {
+			return ctx, err
+		}
+	}
+	if d.pffSigCache.Has(cacheKey) {
+		// The cache covers the signatures, not whether the validator set they
+		// were checked against is still stored.
+		if err := d.k.ValidateValidatorSetAvailable(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
+			return ctx, err
+		}
+		return next(ctx, tx, simulate)
+	}
+
+	// CheckTx reaches this once gas, fees, authentication and fibre admission
+	// have passed, so the pass is spent on an otherwise admissible tx. After
+	// the lookup, never before: warming a cached entry is pure loss. The other
+	// phases pre-verify their whole block, and recheck has nothing to warm.
+	if ctx.IsCheckTx() && !ctx.IsReCheckTx() {
+		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(ctx), msg, cacheKey)
+		if d.pffSigCache.Has(cacheKey) {
+			return next(ctx, tx, simulate)
+		}
+	}
+
+	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
+>>>>>>> ce1e4d1 (fix(fibre): [high] check validator set on pff sig cache hit (#8191))
 		return ctx, err
 	}
 	if d.pffSigCache.IsCached(cacheKey) {
