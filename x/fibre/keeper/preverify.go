@@ -24,6 +24,9 @@ type PreverifyOptions struct {
 	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
 	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
+	// SeenCertificates skips certificates already collected, so a repeated
+	// certificate costs one verification. The caller supplies an empty map.
+	SeenCertificates map[sigcache.Key]struct{}
 }
 
 // PreverifySignatures verifies the MsgPayForFibre signatures in txs across
@@ -161,6 +164,13 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 		if covered >= appconsts.MaxPayForFibreCandidates {
 			break
 		}
+		if opts.SeenCertificates != nil && d.CertKeyed {
+			if _, seen := opts.SeenCertificates[d.CertKey]; seen {
+				continue
+			}
+			opts.SeenCertificates[d.CertKey] = struct{}{}
+		}
+
 		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}

@@ -518,6 +518,55 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, f.msg))
 }
 
+// TestPreverifyDeduplicatesRepeatedCertificates checks a repeated certificate
+// costs one verification, and that deduplication leaves the cache exactly as a
+// single copy would.
+func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
+	const repeats = 8
+
+	collect := func(seen map[sigcache.Key]struct{}, n int) *preverifyFixture {
+		f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+		decoded := make([]*types.DecodedPayForFibre, n)
+		for i := range decoded {
+			decoded[i] = f.decodedMessage(t, f.msg)
+		}
+		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{
+			Certificates:     true,
+			SeenCertificates: seen,
+		})
+		return f
+	}
+
+	single := collect(nil, 1)
+
+	seen := make(map[sigcache.Key]struct{}, repeats)
+	deduped := collect(seen, repeats)
+	require.Len(t, seen, 1, "one distinct certificate, however many times it repeats")
+	require.True(t, deduped.cache.Has(deduped.certKey))
+	require.Equal(t, single.cache.Len(), deduped.cache.Len(),
+		"deduplication must not change what ends up cached")
+
+	// Without the map every repeat is collected again. Same verdict either
+	// way, so this is a bound and not a correctness fix.
+	unbounded := collect(nil, repeats)
+	require.Equal(t, deduped.cache.Len(), unbounded.cache.Len())
+	require.True(t, unbounded.cache.Has(unbounded.certKey))
+
+	// The map is consulted, not merely populated. Skipping drops the whole
+	// entry, promise included, which is safe: the sequential loop still
+	// decides every check the pass leaves uncached.
+	preseeded := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	preseeded.keeper.PreverifyDecoded(preseeded.ctx,
+		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg)},
+		keeper.PreverifyOptions{
+			Certificates:     true,
+			SeenCertificates: map[sigcache.Key]struct{}{preseeded.certKey: {}},
+		})
+	require.Zero(t, preseeded.cache.Len(), "a certificate already seen is not collected again")
+	require.NoError(t, preseeded.keeper.ValidatePayForFibreSignatures(preseeded.ctx, preseeded.msg),
+		"and the sequential path still accepts it")
+}
+
 // TestDecodePayForFibre checks the decoded view carries the same values the
 // verification path derives itself, and is nil for anything else.
 func TestDecodePayForFibre(t *testing.T) {
