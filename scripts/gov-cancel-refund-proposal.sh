@@ -29,12 +29,12 @@ jq -e '
         messages: [{
           "@type": "/cosmos.gov.v1.MsgUpdateParams",
           authority: "celestia10d07y265gmmuvt4z0w9aw880jnsr700jtgz4v7",
-          params: ($params + {proposal_cancel_ratio: "0.000000000000000000"})
+          params: ($params + {proposal_cancel_ratio: "0.050000000000000000"})
         }],
         metadata: "",
         deposit: ($params.min_deposit | map(.amount + .denom) | join(",")),
-        title: "Refund deposits in full on voluntary proposal cancellation",
-        summary: "Set proposal_cancel_ratio to zero so voluntary proposal cancellation returns the full deposit to each depositor. Preserve all other governance parameters, including the quorum, prevote and veto burn settings.",
+        title: "Reduce the proposal cancellation penalty to 5%",
+        summary: "Set proposal_cancel_ratio to 0.05 so voluntary proposal cancellation returns 95% of each deposit while retaining a 5% cancellation charge during both deposit and voting periods. Preserve all other governance parameters, including the quorum, prevote and veto burn settings.",
         expedited: false
       }
     end
