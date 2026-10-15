@@ -295,6 +295,29 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
 }
 
+// TestSeparateTxsDecodedBoundsPayForFibreCandidates pins the bound on the
+// candidate list, which is what bounds the pre-verification pass that reads it.
+func TestSeparateTxsDecodedBoundsPayForFibreCandidates(t *testing.T) {
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := encConf.TxConfig
+
+	require.Greater(t, appconsts.MaxPayForFibreCandidates, appconsts.MaxPayForFibreMessages,
+		"the candidate bound must leave headroom over the block limit")
+
+	rawTxs := make([][]byte, appconsts.MaxPayForFibreCandidates+1)
+	for i := range rawTxs {
+		rawTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
+	}
+
+	_, _, _, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, rawTxs)
+	require.Len(t, payForFibreTxs, appconsts.MaxPayForFibreCandidates)
+
+	// The bound drops the tail, so the kept candidates are the highest priority.
+	for i, entry := range payForFibreTxs {
+		require.Equal(t, rawTxs[i], entry.raw, "candidate %d is not the one at that position in the input", i)
+	}
+}
+
 // newMultiPayForFibreTx creates an unsigned SDK tx containing two MsgPayForFibre messages for testing.
 func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	t.Helper()

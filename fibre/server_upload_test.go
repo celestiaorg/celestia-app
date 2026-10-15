@@ -50,7 +50,7 @@ func TestServerUploadShard(t *testing.T) {
 			},
 			check: func(t *testing.T, resp *types.UploadShardResponse, err error) {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), "signature cannot be empty")
+				require.Contains(t, err.Error(), "signature must be 64 bytes")
 			},
 		},
 		{

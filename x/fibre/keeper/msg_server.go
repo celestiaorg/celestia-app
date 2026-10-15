@@ -353,6 +353,15 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 	return types.EstimateGasForPayForFibre(blobSize)
 }
 
+// ValidateValidatorSetAvailable returns an error if the validator set at height
+// is no longer stored, matching the error ValidatePayForFibreSignatures returns.
+func (k Keeper) ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error {
+	if _, err := k.stakingKeeper.GetHistoricalInfo(ctx, height); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: failed to get historical validator set at height %d: %s", height, err)
+	}
+	return nil
+}
+
 // validateValidatorSignatures checks signatures against the validator set at height.
 func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
 	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
