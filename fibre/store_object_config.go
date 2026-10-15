@@ -59,30 +59,46 @@ func (cfg *ObjectStorageConfig) Validate() error {
 	return nil
 }
 
+// validated returns a normalized copy when all object storage settings are structurally valid.
+func (cfg ObjectStorageConfig) validated() (ObjectStorageConfig, bool) {
+	if err := cfg.Validate(); err != nil {
+		return ObjectStorageConfig{}, false
+	}
+	return cfg, true
+}
+
+func (cfg ObjectStorageConfig) endpointHost() string {
+	endpoint, err := url.Parse(cfg.Endpoint)
+	if err != nil {
+		return ""
+	}
+	return endpoint.Hostname()
+}
+
 // openObjectBackend opens the backend for object mode or existing object markers.
 // Local mode still needs it to read and prune shards written before a mode change.
-func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (shardBackend, error) {
+func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (shardBackend, bool, error) {
 	hasObjects, err := hasObjectMarkers(ctx, db)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	saved, recorded, err := readObjectNamespace(db)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if hasObjects && !recorded {
-		return nil, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
+		return nil, false, fmt.Errorf("%w: object markers exist without an object namespace", ErrStoreIntegrity)
 	}
 	if !hasObjects && cfg.StorageBackend != storageBackendObject {
-		return nil, nil
+		return nil, false, nil
 	}
 	cfg.Log.Warn("Changing storage_backend only affects new shards. Keep object storage configured and accessible until all object shards are pruned.",
 		"storage_backend", cfg.StorageBackend)
 	if err := cfg.ObjectStorage.Validate(); err != nil {
-		return nil, fmt.Errorf("object storage must remain configured until all object shards are pruned: %w", err)
+		return nil, false, fmt.Errorf("object storage must remain configured until all object shards are pruned: %w", err)
 	}
 	if cfg.ObjectStorage.ChainID == "" || cfg.ObjectStorage.ValidatorAddress == "" {
-		return nil, fmt.Errorf("chain ID and validator address are required for object storage")
+		return nil, false, fmt.Errorf("chain ID and validator address are required for object storage")
 	}
 	namespace := cfg.ObjectStorage.canonical()
 	mismatch := hasObjects && saved != namespace
@@ -90,21 +106,21 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 		cfg.Log.Warn("Object storage namespace changed", "old", saved, "new", namespace,
 			"override", cfg.ObjectStorage.OverrideNamespace)
 		if !cfg.ObjectStorage.OverrideNamespace {
-			return nil, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
+			return nil, false, fmt.Errorf("%w: object namespace mismatch; restore the previous configuration or migrate objects before using --override-object-namespace", ErrStoreIntegrity)
 		}
 	}
 	client, err := newObjectClient(ctx, cfg.ObjectStorage)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if !recorded || saved != namespace {
 		if err := saveObjectNamespace(db, namespace); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 	}
 	backend := newObjectBackend(client, namespace)
 	backend.requestTimeout = cfg.ObjectStorage.RequestTimeout
-	return backend, nil
+	return backend, hasObjects, nil
 }
 
 func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {

@@ -24,6 +24,8 @@ type shardBackend interface {
 type routedStorage struct {
 	primary   shardBackend
 	secondary shardBackend
+	// objectMarkersPresent is captured when the store opens.
+	objectMarkersPresent bool
 }
 
 func newRoutedStorage(primary, secondary shardBackend) *routedStorage {
@@ -35,14 +37,18 @@ func openRoutedStorage(ctx context.Context, cfg StoreConfig, db *pebbledb.DB, fi
 	if err != nil {
 		return nil, fmt.Errorf("opening local shard storage: %w", err)
 	}
-	object, err := openObjectBackend(ctx, cfg, db)
+	object, objectMarkersPresent, err := openObjectBackend(ctx, cfg, db)
 	if err != nil {
 		return nil, fmt.Errorf("opening object shard storage: %w", err)
 	}
+	var storage *routedStorage
 	if cfg.StorageBackend == storageBackendObject {
-		return newRoutedStorage(object, local), nil
+		storage = newRoutedStorage(object, local)
+	} else {
+		storage = newRoutedStorage(local, object)
 	}
-	return newRoutedStorage(local, object), nil
+	storage.objectMarkersPresent = objectMarkersPresent
+	return storage, nil
 }
 
 func (s *routedStorage) setMetrics(metrics *serverMetrics) {

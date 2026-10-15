@@ -242,6 +242,23 @@ func newServerMetrics(m metric.Meter, occ *occupancy) (*serverMetrics, error) {
 	return &sm, nil
 }
 
+func registerStoreBackendMetric(m metric.Meter, backend string, objectConfigured bool) error {
+	_, err := m.Int64ObservableGauge("fibre.server.store.backend",
+		metric.WithDescription("Configured primary shard storage backend"),
+		metric.WithInt64Callback(func(_ context.Context, o metric.Int64Observer) error {
+			o.Observe(1, metric.WithAttributes(
+				attribute.String("backend", backend),
+				attribute.Bool("object_configured", objectConfigured),
+			))
+			return nil
+		}),
+	)
+	if err != nil {
+		return fmt.Errorf("creating store backend gauge: %w", err)
+	}
+	return nil
+}
+
 // observeUploadShard records in-flight increment and returns a function that records
 // duration and decrements in-flight. Call the returned function in a defer.
 func (m *serverMetrics) observeUploadShard(ctx context.Context) (done func(uploadSize int64, err error)) {
