@@ -2,6 +2,48 @@
 
 This directory contains a handful of scripts that may be helpful for contributors.
 
+## gov-cancel-refund-proposal.sh
+
+Generate a governance proposal that sets only `proposal_cancel_ratio` to zero.
+This refunds the full deposit to each depositor on voluntary cancellation.
+The script requires `jq` and writes JSON without submitting a transaction.
+
+Query a trusted mainnet node with a mainnet-compatible `celestia-appd` binary:
+
+```sh
+celestia-appd query gov params --node "$NODE" --output json > gov-params.json
+sh scripts/gov-cancel-refund-proposal.sh gov-params.json > gov-cancel-refund.json
+jq '.messages[0].params' gov-cancel-refund.json
+```
+
+`MsgUpdateParams` replaces the entire parameter set. The script copies all queried
+parameters, changes only the cancellation ratio, and uses the current minimum
+deposit for an ordinary proposal. Re-query immediately before submission and
+compare the full parameter set with the generated proposal to avoid reverting
+intervening governance changes. Add the final discussion link to `metadata`.
+
+After reviewing the payload, an operator can submit it for governance approval:
+
+```sh
+celestia-appd tx gov submit-proposal gov-cancel-refund.json \
+  --chain-id celestia --node "$NODE" --from "$KEY" \
+  --gas auto --gas-adjustment 1.5 --fees "$FEES"
+```
+
+The change activates only if the proposal passes and executes. Afterwards, query
+`gov params` again and verify `proposal_cancel_ratio` is zero and all other
+parameters retain their expected values. Cancellation transaction fees still
+apply. The separate quorum, prevote and veto burn settings are preserved.
+
+This uses the existing `/cosmos.gov.v1.MsgUpdateParams` handler. On
+[v9.0.4](https://github.com/celestiaorg/celestia-app/blob/v9.0.4/app/param_filters.go),
+governance parameter updates are not among the restricted parameter messages.
+The [SDK parameter validation](https://github.com/celestiaorg/cosmos-sdk/blob/v0.52.8/x/gov/types/v1/params.go)
+accepts a zero cancellation ratio, and its
+[deposit handler](https://github.com/celestiaorg/cosmos-sdk/blob/v0.52.8/x/gov/keeper/deposit.go)
+then refunds the full deposit. A binary upgrade or v11 migration is unnecessary.
+This does not reimburse deposits burned before the parameter change.
+
 ## test_cover.sh
 
 Run `make test-coverage` from the repository root to generate `coverage.txt`.
