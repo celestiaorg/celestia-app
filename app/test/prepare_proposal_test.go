@@ -1,6 +1,7 @@
 package app_test
 
 import (
+	"bytes"
 	"crypto/rand"
 	"strings"
 	"testing"
@@ -22,6 +23,7 @@ import (
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cometbft/cometbft/proto/tendermint/version"
 	coretypes "github.com/cometbft/cometbft/types"
+	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -404,9 +406,10 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			expectedTransactions: pfbTxs[:appconsts.MaxPFBMessages],
 		},
 		{
-			name:                 "capping only PFB transactions with multiple messages",
+			// A blob tx must contain exactly one PFB, so these are all dropped.
+			name:                 "drops blob transactions with multiple PFB messages",
 			inputTransactions:    multiPFBsPerTxs[:appconsts.MaxPFBMessages],
-			expectedTransactions: multiPFBsPerTxs[:appconsts.MaxPFBMessages/numberOfMsgsPerTx],
+			expectedTransactions: [][]byte{},
 		},
 		{
 			name:                 "capping only msg send transactions",
@@ -476,4 +479,64 @@ func repeat[T any](n int, val T) []T {
 		result[i] = val
 	}
 	return result
+}
+
+// newSignerFactory returns a function that builds a signer for the account at
+// the given index.
+func newSignerFactory(t *testing.T, kr keyring.Keyring, txConfig client.TxConfig, accounts []string, infos []blobfactory.AccountInfo) func(int) *user.Signer {
+	return func(index int) *user.Signer {
+		t.Helper()
+		signer, err := user.NewSigner(kr, txConfig, testutil.ChainID,
+			user.NewAccount(accounts[index], infos[index].AccountNum, infos[index].Sequence))
+		require.NoError(t, err)
+		return signer
+	}
+}
+
+// TestPrepareProposalDropsTxsProcessProposalRejects checks that PrepareProposal
+// drops a non-blob tx with a PFB and a blob tx whose blobs don't match its PFB.
+func TestPrepareProposalDropsTxsProcessProposalRejects(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	ns := share.RandomBlobNamespace()
+
+	// A normal (non-BlobTx) signed tx containing a MsgPayForBlobs.
+	pfbSigner := newSigner(0)
+	pfb, _ := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(pfbSigner.Accounts()[0].Address().String(), ns, 100)
+	pfbNormalTx, _, err := pfbSigner.CreateTx([]sdk.Msg{pfb}, blobfactory.DefaultTxOpts()...)
+	require.NoError(t, err)
+
+	// A blob tx whose PFB declares a 100 byte blob but wraps a 101 byte blob.
+	validBlobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(1), []share.Namespace{ns}, []int{100})[0]
+	btx, _, err := blobtx.UnmarshalBlobTx(validBlobTx)
+	require.NoError(t, err)
+	wrongBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{1}, 101), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+	mismatchedBlobTx, err := blobtx.MarshalBlobTx(btx.Tx, wrongBlob)
+	require.NoError(t, err)
+
+	keptBlobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(2), []share.Namespace{ns}, []int{100})[0]
+
+	height := testApp.LastBlockHeight() + 1
+	now := time.Now()
+	prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{pfbNormalTx, mismatchedBlobTx, keptBlobTx},
+		Height: height,
+		Time:   now,
+	})
+	require.NoError(t, err)
+	require.Equal(t, [][]byte{keptBlobTx}, prepareResp.Txs)
+
+	processResp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       height,
+		Time:         now,
+		Txs:          prepareResp.Txs,
+		DataRootHash: prepareResp.DataRootHash,
+		SquareSize:   prepareResp.SquareSize,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status)
 }
