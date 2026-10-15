@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	abci "github.com/cometbft/cometbft/abci/types"
 	db "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/server"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -66,6 +67,10 @@ func TestSyncAppVersionSwitchesFromEmbeddedToNative(t *testing.T) {
 	require.Equal(t, uint64(3), m.appVersion)
 	require.Equal(t, uint64(3), m.nextAppVersion)
 	require.Same(t, native, m.nativeApp)
+
+	_, err := m.FinalizeBlock(context.Background(), &abci.RequestFinalizeBlock{Height: 2})
+	require.NoError(t, err)
+	require.Equal(t, 1, native.finalizeCalls, "the next block must be routed to the native app")
 }
 
 func TestSyncAppVersionWithNativeApp(t *testing.T) {
