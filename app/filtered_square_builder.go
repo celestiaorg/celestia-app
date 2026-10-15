@@ -15,9 +15,26 @@ import (
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
 // rules before adding it the square.
 type FilteredSquareBuilder struct {
+<<<<<<< HEAD
 	handler  sdk.AnteHandler
 	txConfig client.TxConfig
 	builder  *square.Builder
+=======
+	handler   sdk.AnteHandler
+	msgRouter baseapp.MessageRouter
+	txConfig  client.TxConfig
+	chanKeep  channelKeeper
+	builder   *square.Builder
+	// validateBlobTx, when set, drops blob txs it returns an error for.
+	validateBlobTx func(*tx.BlobTx) (bool, error)
+	// keptBlobTxs is index aligned with the list Fill returned: the decoded
+	// blob tx at each position, or nil where the tx is not a blob tx.
+	keptBlobTxs []*tx.BlobTx
+	// decodePFF decodes a pay-for-fibre tx once for the whole Fill;
+	// preverifyPFF warms the signature cache. Both are optional.
+	decodePFF    func([]byte) *fibretypes.DecodedPayForFibre
+	preverifyPFF func(sdk.Context, []*fibretypes.DecodedPayForFibre)
+>>>>>>> 8fcee49 (fix(app): [high] align prepare proposal tx filtering with process proposal (#8193))
 }
 
 func NewFilteredSquareBuilder(
@@ -140,6 +157,13 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
+		if fsb.validateBlobTx != nil {
+			if _, err := fsb.validateBlobTx(tx); err != nil {
+				logger.Error("dropping invalid blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+				continue
+			}
+		}
+
 		ok, err := fsb.builder.AppendBlobTx(tx)
 		if err != nil {
 			logger.Debug("skipping blob tx due to error", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "err", err)
@@ -206,6 +230,7 @@ func encodeBlobTxs(blobTxs []*tx.BlobTx) [][]byte {
 // This function filters out:
 //   - transactions that exceed MaxTxSize
 //   - transactions that fail SDK decoding
+//   - non-blob transactions containing MsgPayForBlobs
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //
@@ -258,6 +283,7 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 			continue
 		}
 
+<<<<<<< HEAD
 		// A valid PayForFibre tx must contain exactly one message: the MsgPayForFibre.
 		// This is consistent with BlobTx which also requires exactly one MsgPayForBlobs.
 		pffCount := countMsgPayForFibre(sdkTx)
@@ -267,6 +293,32 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 		}
 		if pffCount > 0 {
 			// Drop invalid txs: multiple MsgPayForFibre or mixed with other messages.
+=======
+		if _, has := hasPFB(sdkTx.GetMsgs()); has {
+			// ProcessProposal rejects non-blob txs that contain a PFB.
+			continue
+		}
+
+		if countMsgPayForFibre(sdkTx) > 0 {
+			// Bound the candidate list so the pre-verification pass that
+			// reads it is bounded too. Candidates arrive in mempool priority
+			// order, so the drop takes the lowest priority first.
+			if len(payForFibreTxs) >= appconsts.MaxPayForFibreCandidates {
+				logger.Debug("dropping pay-for-fibre tx because the candidate bound was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+				continue
+			}
+			// Reuse the predicate ProcessProposal enforces so a proposer never
+			// builds a block its own ProcessProposal would reject.
+			if err := validatePayForFibreTxShape(sdkTx); err != nil {
+				logger.Debug("dropping invalid pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
+				continue
+			}
+			entry := decodedFibreTx{raw: rawTx, sdkTx: sdkTx}
+			if decodePFF != nil {
+				entry.decoded = decodePFF(rawTx)
+			}
+			payForFibreTxs = append(payForFibreTxs, entry)
+>>>>>>> 8fcee49 (fix(app): [high] align prepare proposal tx filtering with process proposal (#8193))
 			continue
 		}
 
