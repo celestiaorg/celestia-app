@@ -1,9 +1,15 @@
 package abci
 
 import (
+	"context"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v9/multiplexer/appd"
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/stretchr/testify/require"
 )
@@ -85,4 +91,55 @@ func TestRemoveStart(t *testing.T) {
 		got := removeStart(test.input)
 		require.Equal(t, test.want, got)
 	}
+}
+
+// commitApp is a native app whose FinalizeBlock reports no consensus param updates.
+type commitApp struct {
+	servertypes.Application
+}
+
+func (commitApp) FinalizeBlock(*abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
+	return &abci.ResponseFinalizeBlock{}, nil
+}
+
+func (commitApp) Commit() (*abci.ResponseCommit, error) {
+	return &abci.ResponseCommit{}, nil
+}
+
+func (commitApp) OfferSnapshot(*abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
+	return &abci.ResponseOfferSnapshot{Result: abci.ResponseOfferSnapshot_ACCEPT}, nil
+}
+
+// TestCommitWithoutVersionUpdateKeepsAppVersion verifies that Commit keeps the
+// current app version when FinalizeBlock does not report one.
+func TestCommitWithoutVersionUpdateKeepsAppVersion(t *testing.T) {
+	versions, err := NewVersions(Version{Appd: &appd.Appd{}, ABCIVersion: ABCIClientVersion1, AppVersion: 3})
+	require.NoError(t, err)
+	m, err := NewMultiplexer(server.NewDefaultContext(), serverconfig.Config{}, client.Context{}, nil, versions, "test", 10)
+	require.NoError(t, err)
+	m.nativeApp = commitApp{}
+
+	_, err = m.FinalizeBlock(context.Background(), &abci.RequestFinalizeBlock{Height: 1})
+	require.NoError(t, err)
+	_, err = m.Commit(context.Background(), &abci.RequestCommit{})
+	require.NoError(t, err)
+	require.Equal(t, uint64(10), m.appVersion)
+}
+
+// TestCommitAfterSnapshotKeepsSnapshotAppVersion verifies that the first Commit
+// after state sync keeps the app version from the snapshot.
+func TestCommitAfterSnapshotKeepsSnapshotAppVersion(t *testing.T) {
+	versions, err := NewVersions(Version{Appd: &appd.Appd{}, ABCIVersion: ABCIClientVersion1, AppVersion: 3})
+	require.NoError(t, err)
+	m, err := NewMultiplexer(server.NewDefaultContext(), serverconfig.Config{}, client.Context{}, nil, versions, "test", 10)
+	require.NoError(t, err)
+	m.nativeApp = commitApp{}
+
+	_, err = m.OfferSnapshot(context.Background(), &abci.RequestOfferSnapshot{AppVersion: 11})
+	require.NoError(t, err)
+	_, err = m.FinalizeBlock(context.Background(), &abci.RequestFinalizeBlock{Height: 1})
+	require.NoError(t, err)
+	_, err = m.Commit(context.Background(), &abci.RequestCommit{})
+	require.NoError(t, err)
+	require.Equal(t, uint64(11), m.appVersion)
 }
