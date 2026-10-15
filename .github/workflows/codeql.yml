@@ -2,7 +2,9 @@
 #
 # This workflow addresses celestiaorg/celestia-app#5864 (the prior workflow did
 # not run on PRs). It runs on:
-#   - pull_request to main            -> catches regressions before merge
+#   - pull_request to any base        -> catches regressions before merge,
+#                                        including on stacked PRs whose base is
+#                                        another PR branch rather than main
 #   - push to main and v* branches    -> records results against protected refs
 #   - weekly schedule                 -> picks up new CodeQL rule releases
 #
@@ -14,9 +16,15 @@ on:
   push:
     branches: ["main", "v*"]
   pull_request:
-    branches: ["main"]
   schedule:
     - cron: "24 20 * * 4"
+
+# Same rationale as ci-release.yml: a restack force-pushes every branch in a
+# stack at once, so obsolete pull_request runs are superseded. Scheduled and
+# push runs are never cancelled.
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   actions: read

@@ -540,6 +540,53 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromise
 		require.Equal(t, 1, cache.adds)
 		require.Contains(t, cache.entries, key)
 	})
+
+	// The decoded path must record the entry in the same place as the fallback
+	// path the subtests above take.
+	suite.T().Run("decoded view does not move where the entry is written", func(t *testing.T) {
+		decodedCache := newCountingSigCache()
+		dk := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, decodedCache)
+
+		pp := fibre.PaymentPromise{}
+		require.NoError(t, pp.FromProto(&paymentPromise))
+		signBytes, err := pp.SignBytes()
+		require.NoError(t, err)
+
+		withView := func(msg *types.MsgPayForFibre) sdk.Context {
+			return types.WithDecodedPayForFibre(suite.ctx, &types.DecodedPayForFibre{
+				Msg:              msg,
+				PromiseSignBytes: signBytes,
+				PromiseKey:       key,
+				PromiseKeyed:     true,
+			})
+		}
+
+		forged := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		require.ErrorContains(t, dk.ValidatePayForFibreSignatures(withView(forged), forged), "validator signature validation failed")
+		require.Zero(t, decodedCache.adds, "a forged certificate buys no entry on the decoded path either")
+		require.Empty(t, decodedCache.entries)
+
+		accepted := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		require.NoError(t, dk.ValidatePayForFibreSignatures(withView(accepted), accepted))
+		require.Equal(t, 1, decodedCache.adds)
+		require.Contains(t, decodedCache.entries, key)
+
+		// The view's key is the one consulted: a tampered promise still passes
+		// off the cached entry, where a recomputed key would miss and reject.
+		tampered := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		tampered.PaymentPromise.Signature = append([]byte(nil), paymentPromise.Signature...)
+		tampered.PaymentPromise.Signature[0] ^= 0xff
+		require.NoError(t, dk.ValidatePayForFibreSignatures(withView(tampered), tampered))
+	})
 }
 
 // TestPaymentPromiseTimeout tests the PaymentPromiseTimeout message handler

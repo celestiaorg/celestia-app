@@ -129,7 +129,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := ms.ValidatePromiseStateless(&pp); err != nil {
+	if err := ms.validatePromiseStatelessDecoded(ctx, &pp, &msg.PaymentPromise); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 
@@ -183,12 +183,19 @@ func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPay
 	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
 	}
-	if err := k.ValidatePromiseStateless(&pp); err != nil {
+	if err := k.validatePromiseStatelessDecoded(ctx, &pp, &msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
-	signBytes, err := pp.SignBytes()
-	if err != nil {
-		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
+	// Reuse the sign bytes a decoded view already derived for this tx.
+	var signBytes []byte
+	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.Msg == msg && d.PromiseSignBytes != nil {
+		signBytes = d.PromiseSignBytes
+	} else {
+		var err error
+		signBytes, err = pp.SignBytes()
+		if err != nil {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
+		}
 	}
 	if err := k.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
