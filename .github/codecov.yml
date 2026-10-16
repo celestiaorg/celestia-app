@@ -13,3 +13,83 @@ ignore:
   - "scripts/**/*"
   - "local_devnet/**/*"
   - "pkg/rsema1d/cmd/testvectors/**/*"
+
+# Stage 1: limit regressions against the base report. Goals stay informational
+# until each corrected full-suite baseline reaches them; see docs/coverage.md.
+coverage:
+  status:
+    patch: false
+    project:
+      default: &non_regression
+        target: auto
+        # Allow small run-to-run coverage fluctuations (percentage points).
+        threshold: 0.5%
+        if_ci_failed: error
+        if_no_uploads: error
+        if_not_found: failure
+      production-goal:
+        target: 80%
+        informational: true
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        name_prefix: non-regression
+        <<: *non_regression
+      - type: project
+        name_prefix: goal
+        target: 90%
+        informational: true
+  individual_components:
+    - component_id: prepare-proposal
+      paths: ["app/prepare_proposal.go"]
+      statuses: &proposal_statuses
+        - type: project
+          name_prefix: non-regression
+          <<: *non_regression
+        - type: project
+          name_prefix: goal
+          target: 95%
+          informational: true
+    - component_id: process-proposal
+      paths: ["app/process_proposal.go"]
+      statuses: *proposal_statuses
+    - component_id: square-builder
+      paths: ["app/filtered_square_builder.go"]
+    - component_id: ante
+      paths: ["app/ante/**"]
+    - component_id: app-lifecycle
+      paths: ["app/app.go", "app/modules.go"]
+    - component_id: da
+      paths: ["pkg/da/**"]
+    - component_id: inclusion
+      paths: ["pkg/inclusion/**"]
+    - component_id: proof
+      paths: ["pkg/proof/**"]
+    - component_id: wrapper
+      paths: ["pkg/wrapper/**"]
+    - component_id: appconsts
+      paths: ["pkg/appconsts/**"]
+    - component_id: rsema1d
+      paths: ["pkg/rsema1d/**"]
+    - component_id: sigcache
+      paths: ["pkg/sigcache/**"]
+    - component_id: multiplexer
+      paths: ["multiplexer/**"]
+    - component_id: x-blob
+      paths: ["x/blob/**"]
+    - component_id: x-fibre
+      paths: ["x/fibre/**"]
+    - component_id: x-forwarding
+      paths: ["x/forwarding/**"]
+    - component_id: x-minfee
+      paths: ["x/minfee/**"]
+    - component_id: x-mint
+      paths: ["x/mint/**"]
+    - component_id: x-signal
+      paths: ["x/signal/**"]
+    - component_id: x-valaddr
+      paths: ["x/valaddr/**"]
+    - component_id: x-zkism
+      paths: ["x/zkism/**"]

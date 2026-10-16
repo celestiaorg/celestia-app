@@ -13,7 +13,16 @@ module example.com/coveragefixture
 
 go 1.26.0
 EOF
-mkdir -p library consumer second untested test/util tools/tool
+mkdir -p app library consumer second untested test/util tools/tool
+cat > app/prepare_proposal.go <<'EOF'
+package app
+func PrepareProposalHandler() int { return 1 }
+func Helper() int { return 2 }
+EOF
+cat > app/process_proposal.go <<'EOF'
+package app
+func ProcessProposalHandler() int { return 3 }
+EOF
 cat > library/library.go <<'EOF'
 package library
 func Value() int { return 42 }
@@ -45,10 +54,12 @@ cat > consumer/consumer_test.go <<'EOF'
 package consumer_test
 import (
     "testing"
+    "example.com/coveragefixture/app"
     "example.com/coveragefixture/library"
     "example.com/coveragefixture/test/util"
 )
 func TestValue(t *testing.T) {
+    _ = app.PrepareProposalHandler() + app.ProcessProposalHandler() + app.Helper()
     if library.Value() != util.Want() { t.Fatal("wrong value") }
 }
 EOF
@@ -69,6 +80,27 @@ awk '
     END { if (!covered || !uncovered || !untested) exit 1 }
 ' coverage.txt
 go tool cover -func=coverage.txt > /dev/null
+bash "$SCRIPT_DIR/check_proposal_coverage.sh"
+# Helper execution must not mask an unexecuted or uninstrumented handler.
+for handler in prepare process; do
+    awk -v file="/app/${handler}_proposal.go:" '
+        index($1, file) && $1 ~ /:2\./ { $3 = 0 }
+        { print }
+    ' coverage.txt > zero.txt
+    if bash "$SCRIPT_DIR/check_proposal_coverage.sh" zero.txt; then
+        echo "unexecuted $handler handler unexpectedly passed" >&2
+        exit 1
+    fi
+    awk -v file="/app/${handler}_proposal.go:" '!index($1, file)' coverage.txt > missing.txt
+    if bash "$SCRIPT_DIR/check_proposal_coverage.sh" missing.txt; then
+        echo "missing $handler handler unexpectedly passed" >&2
+        exit 1
+    fi
+done
+if bash "$SCRIPT_DIR/check_proposal_coverage.sh" nonexistent.txt; then
+    echo "missing coverage profile unexpectedly passed" >&2
+    exit 1
+fi
 
 assert_no_temporary_profile() {
     local profiles=(coverage.??????)
