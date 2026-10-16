@@ -39,7 +39,7 @@ COPY . .
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build-standalone
+    make -o mod build-standalone
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.

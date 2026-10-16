@@ -10,7 +10,7 @@ RUN apk update && apk add --no-cache git
 COPY . /celestia-app
 WORKDIR /celestia-app
 
-RUN uname -a && \
+RUN sh docker/download-go-modules.sh && uname -a && \
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -o /celestia-app/build/latency-monitor ./tools/latency-monitor
 
