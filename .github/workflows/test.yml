@@ -20,6 +20,20 @@ jobs:
           make test-short
         timeout-minutes: 20
 
+  test-e2e-compile:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
+      - uses: ./.github/actions/setup-go
+        with:
+          module-directory: test/docker-e2e
+      - name: Compile E2E tests and run network helper tests
+        working-directory: test/docker-e2e
+        run: |
+          go test -run '^$' ./...
+          go test ./networks
+
   go-test:
     runs-on: ubuntu-latest
     strategy:
@@ -70,7 +84,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: [go-test, test-short, test-multiplexer, build-e2e-image, test-docker-e2e]
+    needs: [go-test, test-short, test-e2e-compile, test-multiplexer, build-e2e-image, test-docker-e2e]
     if: always()
     steps:
       - name: Check test results
