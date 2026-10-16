@@ -12,6 +12,7 @@ on:
     paths:
       - specs/**
   merge_group:
+  workflow_dispatch:
 
 jobs:
   deploy:
