@@ -1,11 +1,13 @@
 name: test-coverage
 
-# Run on push to main to track coverage trends after merging. Coverage is not a
-# merge gate so it does not need to run on PRs or in the merge queue.
+# Full profiles on main seed the base for PR and merge-queue non-regression checks.
 on:
   push:
     branches:
       - "main"
+  pull_request:
+    branches: ["main"]
+  merge_group:
   workflow_dispatch:
 
 jobs:
@@ -24,10 +26,35 @@ jobs:
       - name: Generate coverage.txt
         run: make test-coverage
 
+      - name: Verify proposal handler instrumentation
+        run: bash scripts/check_proposal_coverage.sh | tee coverage-summary.txt
+
+      - name: Publish coverage summary
+        if: always()
+        run: |
+          if [ -f coverage-summary.txt ]; then
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            cat coverage-summary.txt >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Save coverage reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 #v7.0.2
+        with:
+          name: coverage
+          path: |
+            coverage.txt
+            coverage-summary.txt
+          if-no-files-found: ignore
+
       - name: Upload coverage.txt
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 #v7.1.1
         with:
           disable_search: true
           fail_ci_if_error: true
           files: ./coverage.txt
-          use_oidc: true
+          # Public fork PRs use Codecov tokenless uploads.
+          use_oidc: >-
+            ${{ github.event_name != 'pull_request' ||
+                github.event.pull_request.head.repo.full_name == github.repository }}
