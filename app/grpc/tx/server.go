@@ -13,6 +13,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// MaxTxStatusBatchIDs is the maximum number of IDs in a status batch.
+const MaxTxStatusBatchIDs = 20
+
 // RegisterTxService registers the tx service on the gRPC router.
 func RegisterTxService(
 	qrt gogogrpc.Server,
@@ -96,8 +99,8 @@ func (s *txServer) TxStatusBatch(ctx context.Context, req *TxStatusBatchRequest)
 		return nil, status.Error(codes.InvalidArgument, "request cannot be nil")
 	}
 
-	if len(req.TxIds) > 20 {
-		return nil, status.Error(codes.InvalidArgument, "maximum of 20 tx ids allowed")
+	if len(req.TxIds) > MaxTxStatusBatchIDs {
+		return nil, status.Errorf(codes.InvalidArgument, "maximum of %d tx ids allowed", MaxTxStatusBatchIDs)
 	}
 
 	if len(req.TxIds) == 0 {

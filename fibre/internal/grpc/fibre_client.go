@@ -49,13 +49,14 @@ func (f *fibreClientCloser) Close() error {
 //
 // chainID is evaluated lazily per dial because the state client resolves it
 // during Start, which can run after this constructor.
-func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize int, log *slog.Logger) NewClientFn {
+func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, maxMsgSize, maxRows, maxProofs int, log *slog.Logger) NewClientFn {
 	if log == nil {
 		log = slog.Default()
 	}
 	if chainID == nil {
 		chainID = func() string { return "" }
 	}
+	boundedCodec := NewClientCodec(maxRows, maxProofs, maxMsgSize)
 	return func(ctx context.Context, val *core.Validator) (Client, error) {
 		host, err := hostReg.GetHost(ctx, val)
 		if err != nil {
@@ -96,6 +97,7 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 				grpclib.MaxCallSendMsgSize(maxMsgSize),
 				// Pooled + scatter-gather codec; see codec.go.
 				grpclib.CallContentSubtype(codecName),
+				grpclib.ForceCodecV2(boundedCodec),
 			),
 		)
 		if err != nil {

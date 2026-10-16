@@ -134,7 +134,7 @@ func TestValidateUploadShard(t *testing.T) {
 // TestCodecUnmarshalLimits checks server limits and confirms the client codec
 // remains unrestricted.
 func TestCodecUnmarshalLimits(t *testing.T) {
-	codec := NewServerCodec(testMaxRows, testMaxProofs)
+	codec := NewServerCodec(testMaxRows, testMaxProofs, 1<<20)
 
 	t.Run("rejects too many rows", func(t *testing.T) {
 		require.ErrorContains(t, unmarshalUpload(codec, marshalShard(t, testMaxRows+1, 0)), "rows")
@@ -160,8 +160,8 @@ func TestCodecUnmarshalLimits(t *testing.T) {
 	})
 
 	t.Run("panics on non-positive limits", func(t *testing.T) {
-		require.Panics(t, func() { NewServerCodec(0, testMaxProofs) })
-		require.Panics(t, func() { NewServerCodec(testMaxRows, 0) })
+		require.Panics(t, func() { NewServerCodec(0, testMaxProofs, 1<<20) })
+		require.Panics(t, func() { NewServerCodec(testMaxRows, 0, 1<<20) })
 	})
 }
 
@@ -233,7 +233,7 @@ func TestCountingAllocations(t *testing.T) {
 // TestCodecUnmarshalDownloadShardLimit checks that oversized download requests
 // are rejected before the codec copies them.
 func TestCodecUnmarshalDownloadShardLimit(t *testing.T) {
-	codec := NewServerCodec(testMaxRows, testMaxProofs)
+	codec := NewServerCodec(testMaxRows, testMaxProofs, 1<<20)
 
 	t.Run("round-trips a valid request", func(t *testing.T) {
 		wire, err := codec.Marshal(&types.DownloadShardRequest{BlobId: bytes.Repeat([]byte{1}, 33)})
@@ -265,4 +265,36 @@ type readCountingBuffer struct {
 func (b *readCountingBuffer) ReadOnlyData() []byte {
 	b.reads++
 	return b.Buffer.ReadOnlyData()
+}
+
+func TestClientShardPreflight(t *testing.T) {
+	codec := NewClientCodec(testMaxRows, testMaxProofs, 1<<20)
+	for _, rows := range []int{testMaxRows, testMaxRows + 1} {
+		req := makeUploadShard(rows, testMaxProofs)
+		wire, err := (&types.DownloadShardResponse{Shard: req.Shard}).Marshal()
+		require.NoError(t, err)
+		var got types.DownloadShardResponse
+		err = codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(wire)}, &got)
+		if rows > testMaxRows {
+			require.Error(t, err)
+			require.Nil(t, got.Shard)
+		} else {
+			require.NoError(t, err)
+			require.Len(t, got.Shard.Rows, rows)
+		}
+	}
+	// Singular shard occurrences merge, so their resource counts must accumulate.
+	wire, err := (&types.DownloadShardResponse{Shard: makeUploadShard(testMaxRows, 0).Shard}).Marshal()
+	require.NoError(t, err)
+	var got types.DownloadShardResponse
+	require.Error(t, codec.Unmarshal(mem.BufferSlice{mem.SliceBuffer(append(wire, wire...))}, &got))
+	require.Nil(t, got.Shard)
+}
+
+func TestShardPreflightBeforeMaterialize(t *testing.T) {
+	codec := NewClientCodec(testMaxRows, testMaxProofs, 128)
+	tracked := &readCountingBuffer{Buffer: mem.SliceBuffer(make([]byte, 129))}
+	err := codec.Unmarshal(mem.BufferSlice{tracked}, &types.DownloadShardResponse{})
+	require.Error(t, err)
+	require.Zero(t, tracked.reads)
 }
