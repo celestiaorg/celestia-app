@@ -2,7 +2,10 @@ package rsema1d
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
+	"sync"
+	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/field"
 	"github.com/celestiaorg/celestia-app/v10/pkg/rsema1d/merkle"
@@ -15,6 +18,7 @@ import (
 type Coder struct {
 	config *Config
 	enc    reedsolomon.Encoder
+	active atomic.Int32 // encodes in flight, used to share workers
 }
 
 // NewCoder creates a Coder with cached Reed-Solomon encoder.
@@ -50,15 +54,91 @@ func (c *Coder) EncodeWithTree(rows [][]byte, treeBuffer []byte) (*ExtendedData,
 	if err := c.validateRows(rows); err != nil {
 		return nil, err
 	}
-	if err := c.enc.Encode(rows); err != nil {
+	if err := c.encodeParity(rows); err != nil {
 		return nil, fmt.Errorf("failed to encode: %w", err)
 	}
 	return c.commit(rows, treeBuffer), nil
 }
 
+const (
+	maxSplitParts = 16
+	minSplitBytes = 2 << 10
+)
+
+// encodeParity runs Reed-Solomon over column ranges in parallel. Columns are
+// independent, so the parity equals a single Encode. Workers are shared among
+// in-flight encodes, so a saturated Coder encodes each blob on one goroutine.
+//
+// Each range runs its own Encode, so the codec work allocator can hold up to
+// parts work sets at once — maxSplitParts for a lone large encode. Sharing
+// workers across in-flight encodes keeps the total parts (hence the peak work
+// sets) ≈ WorkerCount regardless of how many encodes run concurrently.
+func (c *Coder) encodeParity(rows [][]byte) error {
+	active := int(c.active.Add(1))
+	defer c.active.Add(-1)
+
+	parts := splitParts(len(rows[0]), c.config.WorkerCount/active)
+	if parts == 1 {
+		return c.enc.Encode(rows)
+	}
+	size := len(rows[0]) / parts
+	// One slab of row views for all parts (each part owns a disjoint window),
+	// instead of a make([][]byte, len(rows)) per part — fewer allocations when
+	// splitting a large blob.
+	subs := make([][]byte, parts*len(rows))
+	errs := make([]error, parts)
+	var wg sync.WaitGroup
+	for p := range parts {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sub := subs[p*len(rows) : (p+1)*len(rows)]
+			for i, r := range rows {
+				sub[i] = r[p*size : (p+1)*size]
+			}
+			errs[p] = c.enc.Encode(sub)
+		}()
+	}
+	wg.Wait()
+	return errors.Join(errs...)
+}
+
+// splitParts returns the power-of-two number of column ranges to encode a row
+// of rowSize bytes in, using at most workers goroutines. Each range stays a
+// multiple of the Leopard chunk and at least minSplitBytes long, and the whole
+// row must be at least minSplitRowBytes before any split (see below).
+func splitParts(rowSize, workers int) int {
+	// Splitting trades per-part setup and an extra codec work set per part for
+	// parallelism across idle workers, so it only pays above a size floor — and
+	// that floor is architecture dependent (see minSplitRowBytes). Real-path
+	// fibre.BenchmarkClient_Upload, Apple M5 Pro (arm64) and AMD Genoa (amd64):
+	// arm64's latency/bandwidth-bound encode already wins from 16 MiB blobs
+	// (4096 B/row single upload −48%, every larger size better, no regression),
+	// while amd64's already-fast encode regresses on a 16 MiB 2-way split
+	// (+61% single, +18/+37% conc) and only wins from 32 MiB up.
+	if rowSize < minSplitRowBytes {
+		return 1
+	}
+	parts := 1
+	for next := 2; next <= min(workers, maxSplitParts); next *= 2 {
+		if rowSize%(next*field.LeopardChunkSize) != 0 || rowSize/next < minSplitBytes {
+			break
+		}
+		parts = next
+	}
+	return parts
+}
+
 func (c *Coder) validateRows(rows [][]byte) error {
 	if len(rows) != c.config.K+c.config.N {
 		return fmt.Errorf("expected %d rows, got %d", c.config.K+c.config.N, len(rows))
+	}
+	// encodeParity slices every row to rows[0]'s length, so an unequal row
+	// would panic inside a worker goroutine; reject it here instead.
+	for i, r := range rows {
+		if len(r) != len(rows[0]) {
+			return fmt.Errorf("row %d has length %d, want %d", i, len(r), len(rows[0]))
+		}
 	}
 	return nil
 }
