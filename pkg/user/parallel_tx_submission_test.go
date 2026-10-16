@@ -7,6 +7,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/celestiaorg/celestia-app/v10/test/util/random"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -33,7 +35,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 )
 
-func newMockTxClientWithCustomHandlers(t *testing.T, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), workerAccounts []string) (*user.TxClient, *grpc.ClientConn) {
+func newMockTxClientWithCustomHandlers(t *testing.T, broadcastHandler func(context.Context, *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error), txStatusHandler func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error), workerAccounts []string, extraOpts ...user.Option) (*user.TxClient, *grpc.ClientConn) {
 	t.Helper()
 
 	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
@@ -65,6 +67,7 @@ func newMockTxClientWithCustomHandlers(t *testing.T, broadcastHandler func(conte
 		option := user.WithTxWorkers(len(workerAccounts))
 		options = append(options, option)
 	}
+	options = append(options, extraOpts...)
 
 	return setupTxClientWithMockGRPCServerAndSigner(t, make(map[string][]*tx.TxStatusResponse), broadcastHandler, txStatusHandler, encCfg, signer, options...)
 }
@@ -382,7 +385,7 @@ func TestParallelPoolRestart(t *testing.T) {
 	require.True(t, client.TxQueueWorkerCount() > 0)
 
 	ctx := context.Background()
-	require.True(t, client.IsTxQueueStartedForTest())
+	require.True(t, client.IsTxQueueStarted())
 
 	blob := randomBlob(t)
 
@@ -398,10 +401,10 @@ func TestParallelPoolRestart(t *testing.T) {
 	submitAndAssert(t)
 
 	client.StopTxQueueForTest()
-	require.False(t, client.IsTxQueueStartedForTest())
+	require.False(t, client.IsTxQueueStarted())
 
 	require.NoError(t, client.StartTxQueueForTest(ctx))
-	require.True(t, client.IsTxQueueStartedForTest())
+	require.True(t, client.IsTxQueueStarted())
 
 	submitAndAssert(t)
 }
@@ -447,10 +450,12 @@ func TestParallelSubmitPayForBlobContextCancellation(t *testing.T) {
 
 	select {
 	case err := <-errCh:
-		require.Error(t, err)
-		st, ok := status.FromError(err)
-		require.True(t, ok, "expected gRPC status error")
-		require.Equal(t, codes.Canceled, st.Code())
+		// Either the caller's own cancellation or the worker's cancelled broadcast wins.
+		if st, ok := status.FromError(err); ok {
+			require.Equal(t, codes.Canceled, st.Code())
+		} else {
+			require.ErrorIs(t, err, context.Canceled)
+		}
 	case <-time.After(5 * time.Second):
 		t.Fatalf("timeout waiting for cancellation result")
 	}
@@ -566,5 +571,262 @@ func TestParallelSubmissionV1BlobSignerOverride(t *testing.T) {
 		for _, blob := range blobTx.Blobs {
 			require.Equal(t, txSigner.Bytes(), blob.Signer())
 		}
+	}
+}
+
+// testPaymentPromise returns a placeholder promise; the mock server does not validate it.
+func testPaymentPromise() *fibretypes.PaymentPromise {
+	return &fibretypes.PaymentPromise{ChainId: "test-chain", BlobSize: 1}
+}
+
+// decodePayForFibreTx returns the tx's single MsgPayForFibre, its signer, and its fee granter.
+func decodePayForFibreTx(t *testing.T, encCfg encoding.Config, txBytes []byte) (*fibretypes.MsgPayForFibre, sdktypes.AccAddress, sdktypes.AccAddress) {
+	t.Helper()
+	sdkTx, err := encCfg.TxConfig.TxDecoder()(txBytes)
+	require.NoError(t, err)
+	require.Len(t, sdkTx.GetMsgs(), 1)
+	msg, ok := sdkTx.GetMsgs()[0].(*fibretypes.MsgPayForFibre)
+	require.True(t, ok, "expected MsgPayForFibre, got %T", sdkTx.GetMsgs()[0])
+
+	signers, _, err := encCfg.Codec.GetMsgV1Signers(msg)
+	require.NoError(t, err)
+	feeTx, ok := sdkTx.(sdktypes.FeeTx)
+	require.True(t, ok)
+	return msg, sdktypes.AccAddress(signers[0]), feeTx.FeeGranter()
+}
+
+func TestParallelSubmitPayForFibre(t *testing.T) {
+	t.Parallel()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	var mu sync.Mutex
+	txBytes := make([][]byte, 0)
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		mu.Lock()
+		txBytes = append(txBytes, req.TxBytes)
+		mu.Unlock()
+		return &sdktx.BroadcastTxResponse{
+			TxResponse: &sdktypes.TxResponse{Code: abci.CodeTypeOK, TxHash: hashTxBytes(req.TxBytes)},
+		}, nil
+	}
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		return &tx.TxStatusResponse{Status: core.TxStatusCommitted, ExecutionCode: abci.CodeTypeOK}, nil
+	}
+
+	workerAccounts := []string{"parallel-worker-1", "parallel-worker-2"}
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, workerAccounts)
+	defer conn.Close()
+
+	jobCount := 4
+	sigs := [][]byte{make([]byte, 64)}
+	resps := make([]*user.TxResponse, jobCount)
+	errs := make([]error, jobCount)
+	var wg sync.WaitGroup
+	for i := range jobCount {
+		wg.Go(func() {
+			resps[i], errs[i] = client.SubmitPayForFibreToQueue(context.Background(), testPaymentPromise(), sigs)
+		})
+	}
+	wg.Wait()
+	for i := range jobCount {
+		require.NoError(t, errs[i])
+		require.Equal(t, abci.CodeTypeOK, resps[i].Code)
+	}
+
+	require.Len(t, txBytes, jobCount)
+	workerAddresses := make(map[string]bool)
+	for i := range client.TxQueueWorkerCount() {
+		workerAddresses[client.TxQueueWorkerAddress(i)] = true
+	}
+	master := client.DefaultAddress()
+	for _, raw := range txBytes {
+		msg, txSigner, feeGranter := decodePayForFibreTx(t, encCfg, raw)
+		require.Equal(t, txSigner.String(), msg.Signer, "MsgPayForFibre signer must match the tx signer")
+		require.True(t, workerAddresses[msg.Signer], "signer %s is not a worker account", msg.Signer)
+		if txSigner.Equals(master) {
+			require.Nil(t, feeGranter)
+		} else {
+			require.Equal(t, master, feeGranter, "non-primary workers must use the master account as fee granter")
+		}
+	}
+
+	var totalSequence uint64
+	for i := range client.TxQueueWorkerCount() {
+		totalSequence += client.Signer().Account(client.TxQueueWorkerAccountName(i)).Sequence()
+	}
+	require.Equal(t, uint64(jobCount), totalSequence)
+}
+
+func TestSingleWorkerSubmitPayForFibre(t *testing.T) {
+	t.Parallel()
+	encCfg := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+
+	var captured []byte
+	broadcastHandler := func(ctx context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		captured = req.TxBytes
+		return &sdktx.BroadcastTxResponse{
+			TxResponse: &sdktypes.TxResponse{Code: abci.CodeTypeOK, TxHash: hashTxBytes(req.TxBytes)},
+		}, nil
+	}
+	txStatusHandler := func(ctx context.Context, req *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		return &tx.TxStatusResponse{Status: core.TxStatusCommitted, ExecutionCode: abci.CodeTypeOK}, nil
+	}
+
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, nil)
+	defer conn.Close()
+	require.Equal(t, 1, client.TxQueueWorkerCount())
+
+	resp, err := client.SubmitPayForFibreToQueue(context.Background(), testPaymentPromise(), [][]byte{make([]byte, 64)})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code)
+
+	msg, txSigner, feeGranter := decodePayForFibreTx(t, encCfg, captured)
+	require.Equal(t, client.DefaultAddress(), txSigner)
+	require.Equal(t, client.DefaultAddress().String(), msg.Signer)
+	require.Nil(t, feeGranter, "single worker must not use a fee granter")
+	require.Equal(t, uint64(1), client.Signer().Account(client.DefaultAccountName()).Sequence())
+}
+
+func TestQueuePayForFibreNotStarted(t *testing.T) {
+	t.Parallel()
+
+	client, conn := newMockTxClientWithCustomHandlers(t, nil, nil, nil)
+	defer conn.Close()
+	client.StopTxQueueForTest()
+
+	_, err := client.SubmitPayForFibreToQueue(context.Background(), testPaymentPromise(), nil)
+	require.ErrorContains(t, err, "tx queue not started")
+}
+
+func TestSubmitPayForFibreNilPromise(t *testing.T) {
+	t.Parallel()
+
+	client, conn := newMockTxClientWithCustomHandlers(t, nil, nil, nil)
+	defer conn.Close()
+
+	_, err := client.SubmitPayForFibreToQueue(context.Background(), nil, nil)
+	require.ErrorContains(t, err, "payment promise is nil")
+}
+
+// pendingUntilReleased returns handlers that accept every broadcast and report
+// transactions as pending until release is closed, keeping workers busy.
+func pendingUntilReleased(release <-chan struct{}, broadcasts *atomic.Int32) (BroadcastHandler, TxStatusHandler) {
+	broadcastHandler := func(_ context.Context, req *sdktx.BroadcastTxRequest) (*sdktx.BroadcastTxResponse, error) {
+		broadcasts.Add(1)
+		return &sdktx.BroadcastTxResponse{
+			TxResponse: &sdktypes.TxResponse{Code: abci.CodeTypeOK, TxHash: hashTxBytes(req.TxBytes)},
+		}, nil
+	}
+	txStatusHandler := func(context.Context, *tx.TxStatusRequest) (*tx.TxStatusResponse, error) {
+		select {
+		case <-release:
+			return &tx.TxStatusResponse{Status: core.TxStatusCommitted, ExecutionCode: abci.CodeTypeOK}, nil
+		default:
+			return &tx.TxStatusResponse{Status: core.TxStatusPending}, nil
+		}
+	}
+	return broadcastHandler, txStatusHandler
+}
+
+func awaitErr(t *testing.T, errC <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-errC:
+		return err
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for a queued submission to return")
+		return nil
+	}
+}
+
+// TestSubmitToQueueCancelledCaller checks that a caller whose context ends while
+// its job is buffered, or while waiting for a buffer slot, returns promptly.
+func TestSubmitToQueueCancelledCaller(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	var broadcasts atomic.Int32
+	broadcastHandler, txStatusHandler := pendingUntilReleased(release, &broadcasts)
+	client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, nil, user.WithParallelQueueSize(1))
+	defer conn.Close()
+
+	// Occupy the single worker.
+	busy := make(chan error, 1)
+	go func() {
+		_, err := client.SubmitPayForFibreToQueue(context.Background(), testPaymentPromise(), nil)
+		busy <- err
+	}()
+	require.Eventually(t, func() bool { return broadcasts.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
+
+	// Buffered behind the busy worker.
+	ctx, cancel := context.WithCancel(context.Background())
+	buffered := make(chan error, 1)
+	go func() {
+		_, err := client.SubmitPayForBlobToQueue(ctx, []*share.Blob{randomBlob(t)})
+		buffered <- err
+	}()
+	require.Eventually(t, func() bool { return client.QueuedJobsForTest() == 1 }, 5*time.Second, 10*time.Millisecond)
+	cancel()
+	require.ErrorIs(t, awaitErr(t, buffered), context.Canceled)
+
+	// Blocked waiting for a buffer slot, which the cancelled job still holds.
+	ctx, cancel = context.WithCancel(context.Background())
+	blocked := make(chan error, 1)
+	go func() {
+		_, err := client.SubmitPayForFibreToQueue(ctx, testPaymentPromise(), nil)
+		blocked <- err
+	}()
+	cancel()
+	require.ErrorIs(t, awaitErr(t, blocked), context.Canceled)
+
+	close(release)
+	require.NoError(t, awaitErr(t, busy))
+}
+
+// TestTxQueueStopFailsBufferedJobs checks that stopping the queue delivers an
+// error to jobs that were accepted but never picked up by a worker. The worker
+// picks randomly between a buffered job and the stop signal, so the scenario is
+// repeated to exercise the drain path.
+func TestTxQueueStopFailsBufferedJobs(t *testing.T) {
+	t.Parallel()
+
+	for range 10 {
+		release := make(chan struct{})
+		var broadcasts atomic.Int32
+		broadcastHandler, txStatusHandler := pendingUntilReleased(release, &broadcasts)
+		client, conn := newMockTxClientWithCustomHandlers(t, broadcastHandler, txStatusHandler, nil)
+
+		ctx, cancel := context.WithCancel(context.Background())
+		busy := make(chan error, 1)
+		go func() {
+			_, err := client.SubmitPayForFibreToQueue(ctx, testPaymentPromise(), nil)
+			busy <- err
+		}()
+		require.Eventually(t, func() bool { return broadcasts.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
+
+		resultC := make(chan user.SubmissionResult, 1)
+		client.QueuePayForFibre(ctx, resultC, testPaymentPromise(), nil)
+
+		stopped := make(chan struct{})
+		go func() {
+			client.StopTxQueueForTest()
+			close(stopped)
+		}()
+		cancel()
+		require.Error(t, awaitErr(t, busy))
+
+		select {
+		case result := <-resultC:
+			require.Error(t, result.Error)
+		case <-time.After(5 * time.Second):
+			t.Fatal("buffered job received no result after the queue stopped")
+		}
+		select {
+		case <-stopped:
+		case <-time.After(5 * time.Second):
+			t.Fatal("queue did not stop")
+		}
+		require.False(t, client.IsTxQueueStarted())
+		require.NoError(t, conn.Close())
 	}
 }

@@ -391,10 +391,12 @@ Signature collection currently enforces voting-power threshold only. It does not
 1. Create a v0 `Blob` from `data`.
 2. Call `Client.Upload` using `WithKeyName(txClient.DefaultAccountName())` to upload assigned shards to validators and collect validator signatures.
 3. Convert the signed promise to proto.
-4. Build `x/fibre` `MsgPayForFibre` with validator signatures.
-5. Broadcast through `txClient.BroadcastTx`.
-6. Wait for inclusion with `txClient.ConfirmTx`.
-7. Return `PutResult`.
+4. Submit a `MsgPayForFibre` with the validator signatures and wait for inclusion:
+   * If the tx client's queue is running with more than one worker (`user.WithTxWorkers`), through `txClient.SubmitPayForFibreToQueue`. The worker that picks up the job signs the transaction with its own account.
+   * Otherwise, through `txClient.SubmitPayForFibre`, signed by the default account.
+5. Return `PutResult`.
+
+The promise is always signed by the default account, so its escrow pays for the blob either way.
 
 The implementation does not submit PFF through a Fibre payment relay service and does not implement DFSP fallback.
 
