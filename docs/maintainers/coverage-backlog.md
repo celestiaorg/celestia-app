@@ -257,10 +257,13 @@ large message export, and proof-rejection regressions.
 Schedule these after the consensus priorities. Retain eligible production code
 in the denominator even when it has no package-local tests.
 
-1. **Committed account sequence query**: [QuerySequence](../../app/query_sequence.go),
-   currently 0/12 statements. Test the committed account sequence, an unknown
-   account returning zero, missing check state, and other account-query errors.
-   Include a pending CheckTx sequence to distinguish committed from mempool state.
+1. **Check-state account sequence query**: [QuerySequence](../../app/query_sequence.go),
+   currently 0/12 statements. Despite its committed-state comment, the query reads
+   `app.CheckState()` and includes sequence increments from successful pending
+   CheckTx transactions. Pin that behavior, an unknown account returning zero,
+   missing check state, and other account-query errors. Credit the existing
+   [pending-transaction integration test](../../test/util/testnode/query_sequence_test.go).
+   Any switch to committed-state semantics needs a separate behavior-change PR.
 2. **Transaction status RPC**: [TxStatus and TxStatusBatch](../../app/grpc/tx/server.go).
    Add direct fake-node tests for nil/empty/malformed IDs, batch size 20/21,
    unsupported clients, RPC errors, and response field/order mapping. Existing
