@@ -88,6 +88,8 @@ Marker decoding will use these validation rules:
 
 These rules apply to `Store.Get`, `Store.Has`, `Store.Size`, and `Store.PruneBefore`. A method must not select a backend from an invalid marker or modify that marker's payload or metadata. `Store.PruneBefore` skips invalid entries, continues pruning valid entries, and returns integrity errors after committing the valid metadata deletions.
 
+Server startup requires `Store.Size` to succeed. An integrity error can leave occupancy incomplete, so the server refuses to start until the invalid metadata is repaired instead of admitting uploads against a partial total.
+
 ### Design overview
 
 ```text

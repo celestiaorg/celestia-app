@@ -208,24 +208,34 @@ func TestSizeRejectsMalformedShardKeyWithValidMarker(t *testing.T) {
 	require.Zero(t, size)
 }
 
-func TestServerSeedsPartialSizeAfterIntegrityError(t *testing.T) {
+func TestServerRejectsPartialSizeAfterIntegrityError(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
 	validHash := []byte{1}
 	validSize := writeMarkerTestShard(t, store, commitment, validHash)
 	validMarker := encodeShardMarkerForBackend(localBackendTag, validSize)
 	require.NoError(t, store.db.Set(shardKey(commitment, validHash), validMarker, pebbledb.NoSync))
+	writeMarkerTestShard(t, store, commitment, []byte{2})
 	require.NoError(t, store.db.Set(shardKey(commitment, []byte{2}), []byte{1, 2}, pebbledb.NoSync))
 
-	var logs strings.Builder
-	server := &Server{
-		store: store,
-		occ:   newOccupancy(0),
-		log:   slog.New(slog.NewTextHandler(&logs, nil)),
+	server := &Server{store: store, occ: newOccupancy(0)}
+	server.occ.seed(123)
+	require.ErrorIs(t, server.seedOccupancy(t.Context()), ErrStoreIntegrity)
+	require.Equal(t, int64(123), server.occ.usage())
+	local := storeLocalBackend(t, store)
+	_, err := local.fs.Stat(local.shardPath(commitment, []byte{2}))
+	require.NoError(t, err)
+}
+
+func TestServerRejectsOverflowedStoreSize(t *testing.T) {
+	store := newMarkerTestStore(t)
+	for i, size := range []int64{math.MaxInt64, 1} {
+		require.NoError(t, store.db.Set(shardKey(Commitment{1}, []byte{byte(i)}), encodeShardMarkerForBackend(localBackendTag, size), pebbledb.NoSync))
 	}
-	require.NoError(t, server.seedOccupancy(t.Context()))
-	require.Equal(t, validSize, server.occ.usage())
-	require.Contains(t, logs.String(), "store size may be incorrect due to corrupt shard marker")
+	server := &Server{store: store, occ: newOccupancy(0)}
+	server.occ.seed(123)
+	require.ErrorIs(t, server.seedOccupancy(t.Context()), ErrStoreIntegrity)
+	require.Equal(t, int64(123), server.occ.usage())
 }
 
 func TestShardStatus(t *testing.T) {

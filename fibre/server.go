@@ -201,11 +201,8 @@ func (s *Server) Start(ctx context.Context) (err error) {
 
 func (s *Server) seedOccupancy(ctx context.Context) error {
 	size, err := s.store.Size(ctx)
-	if err != nil && !errors.Is(err, ErrStoreIntegrity) {
-		return fmt.Errorf("getting store size: %w", err)
-	}
 	if err != nil {
-		s.log.Warn("store size may be incorrect due to corrupt shard marker", "error", err)
+		return fmt.Errorf("getting store size: %w", err)
 	}
 	s.occ.seed(size)
 	return nil
