@@ -109,5 +109,9 @@ jobs:
             yaml:
               - '**/*.yml'
               - '**/*.yaml'
-      - uses: celestiaorg/.github/.github/actions/yamllint@33bbeb98fdf8d910a236e365b5f013cdfb81c082 #v0.6.5
+      - name: Run yamllint
         if: steps.changes.outputs.yaml == 'true'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/yamllint"
+          "$RUNNER_TEMP/yamllint/bin/pip" install yamllint==1.38.0
+          "$RUNNER_TEMP/yamllint/bin/yamllint" --no-warnings .
