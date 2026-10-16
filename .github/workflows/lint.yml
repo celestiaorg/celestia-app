@@ -12,16 +12,18 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
         with:
           go-version-file: "go.mod"
-      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
+        id: changes
         with:
-          # This job will pass without running if go.mod, go.sum, and *.go
-          # wasn't modified.
-          PATTERNS: |
-            **/**.go
-            go.mod
-            go.sum
+          token: ''
+          base: ${{ github.event_name == 'push' && github.ref || '' }}
+          filters: |
+            go:
+              - '**/*.go'
+              - 'go.mod'
+              - 'go.sum'
       - run: go tool golangci-lint run --timeout 10m
-        if: env.GIT_DIFF
+        if: steps.changes.outputs.go == 'true'
 
   govulncheck:
     runs-on: ubuntu-latest
@@ -37,20 +39,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
-      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
+        id: changes
         with:
-          PATTERNS: |
-            docker/**
+          token: ''
+          base: ${{ github.event_name == 'push' && github.ref || '' }}
+          filters: |
+            docker:
+              - 'docker/**'
       - uses: hadolint/hadolint-action@v3.5.0
-        if: env.GIT_DIFF
+        if: steps.changes.outputs.docker == 'true'
         with:
           dockerfile: docker/standalone.Dockerfile
       - uses: hadolint/hadolint-action@v3.5.0
-        if: env.GIT_DIFF
+        if: steps.changes.outputs.docker == 'true'
         with:
           dockerfile: docker/multiplexer.Dockerfile
       - uses: hadolint/hadolint-action@v3.5.0
-        if: env.GIT_DIFF
+        if: steps.changes.outputs.docker == 'true'
         with:
           dockerfile: docker/txsim/Dockerfile
 
@@ -94,10 +100,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
-      - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d #v4.0.3
+        id: changes
         with:
-          PATTERNS: |
-            **/*.yml
-            **/*.yaml
-      - uses: celestiaorg/.github/.github/actions/yamllint@33bbeb98fdf8d910a236e365b5f013cdfb81c082 #v0.6.5
-        if: env.GIT_DIFF
+          token: ''
+          base: ${{ github.event_name == 'push' && github.ref || '' }}
+          filters: |
+            yaml:
+              - '**/*.yml'
+              - '**/*.yaml'
+      - name: Run yamllint
+        if: steps.changes.outputs.yaml == 'true'
+        run: |
+          python3 -m venv "$RUNNER_TEMP/yamllint"
+          "$RUNNER_TEMP/yamllint/bin/pip" install yamllint==1.38.0
+          "$RUNNER_TEMP/yamllint/bin/yamllint" --no-warnings .
