@@ -1,0 +1,325 @@
+# Based on celestiaorg/.github reusable_dockerfile_pipeline.yml at
+# 33bbeb98fdf8d910a236e365b5f013cdfb81c082; kept local for app-specific QEMU setup.
+name: Docker Build & Publish
+
+on:
+  workflow_call:
+    inputs:
+      dockerfile:
+        required: false
+        type: string
+        description: "Path to Dockerfile"
+        default: "Dockerfile"
+      packageName:
+        required: false
+        type: string
+        description: "You can specify a different package name."
+      dockerContext:
+        required: false
+        type: string
+        description: "The docker context"
+        default: "."
+      checkout_ref:
+        required: false
+        type: string
+        description: "Specific checkout reference"
+      buildArgs:
+        required: false
+        type: string
+        description: 'string containing a space separated list build of args e.g. "TARGETOS=linux TARGETARCH=amd64"'
+        default: ""
+      runner-label:
+        required: false
+        type: string
+        description: "The runner label to use for the job"
+        default: "ubuntu-latest"
+
+env:
+  GITHUB_REG: ghcr.io
+  MAINTAINER: ${{ github.repository_owner }}
+  DESCRIPTION: "${{ github.repository_owner }} repository ${{ github.repository }}"
+
+jobs:
+  prepare-env:
+    runs-on: ${{ inputs.runner-label || 'ubuntu-latest' }}
+    outputs:
+      repo_owner: ${{ steps.setting_env.outputs.repo_owner }}
+      output_short_sha: ${{ steps.setting_env.outputs.short_sha }}
+      output_image_name: ${{ steps.setting_env.outputs.image_name }}
+      build_for_pr: ${{ steps.setting_logic.outputs.build_for_pr }}
+      build_for_merge: ${{ steps.setting_logic.outputs.build_for_merge }}
+      not_a_fork: ${{ steps.setting_logic.outputs.not_a_fork }}
+    steps:
+      - name: Checkout
+        uses: "actions/checkout@v6"
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Add vars to ENV
+        id: setting_env
+        run: |
+          # Extract both the repository owner and repository name
+          # According to docs, github.repository is in the format of owner/repo, not just repo
+          # https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
+          REPO_OWNER=$(echo "${{ github.repository }}" | awk -F'/' '{print $1}' | tr '[:upper:]' '[:lower:]')
+          REPO_NAME=$(echo "${{ github.repository }}" | awk -F'/' '{print $2}' | tr '[:upper:]' '[:lower:]')
+
+          # Check repo name for .github use to test this workflow
+          if [[ $REPO_NAME == ".github" ]]; then
+            # Remove the leading . to avoid failing the character check
+            REPO_NAME="github"
+          fi
+
+          # Log variables for debugging
+          echo "Repository Owner: $REPO_OWNER"
+          echo "Repository Name: $REPO_NAME"
+          echo "INPUT PACKAGE NAME: ${{ inputs.packageName }}"
+
+          # Set environment variables and outputs
+          echo "REPO_OWNER=$REPO_OWNER" >> $GITHUB_ENV
+          echo "repo_owner=$REPO_OWNER" >> "$GITHUB_OUTPUT"
+          echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
+          echo "short_sha=`echo ${GITHUB_SHA} | cut -c1-8`" >> "$GITHUB_OUTPUT"
+
+          if [[ "${{ inputs.packageName }}" == "${{ github.repository }}" ]]; then
+            # If a user submitted package name that has the naming containing
+            # both the repository owner and repository name, we fail
+            # e.g: inputs.packageName = "celestiaorg/celestiaorg" is not allowed
+            echo "------------------------------------------------------------"
+            echo "ERROR: Package name not valid! => [ ${{ inputs.packageName }} ]"
+            echo "Don't use the repository owner and repository name in the package name."
+            echo "------------------------------------------------------------"
+            exit 1
+          fi
+
+          # Set the default package name to the repository name
+          PACKAGE_NAME=$REPO_NAME
+
+          # If there is a user submitted package name, use it
+          if [[ -n "${{ inputs.packageName }}" ]]; then
+            PACKAGE_NAME=$(echo "${{ inputs.packageName }}" | tr '[:upper:]' '[:lower:]')
+          fi
+
+          # validate the package name characters
+          if [[ ! $PACKAGE_NAME =~ ^[A-Za-z0-9\-]+$ ]]; then
+            echo "------------------------------------------------------------"
+            echo "ERROR: Package name not valid! => [ $PACKAGE_NAME ]"
+            echo "ONLY can use: A-Za-z0-9\-"
+            echo "------------------------------------------------------------"
+            exit 1
+          fi
+
+          # Log the package name for debugging
+          echo "PACKAGE_NAME: $PACKAGE_NAME"
+
+          # Set environment variables and outputs
+          echo "IMAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
+          echo "image_name=$PACKAGE_NAME" >> "$GITHUB_OUTPUT"
+
+      # The key logic that we want to determine is whether or not we are working
+      # on a fork and if this is a pull request or merge to main.
+      #
+      # We care about forks because of github's security policies that prevent
+      # forks from pushing images. So we only want to build images on forks
+      #
+      # The distinction between pull requests and merges to main is that on pull
+      # requests we want a single image available quickly for testing. On merges
+      # to main we want all the images built and are ok waiting longer to ensure
+      # there are not bugs.
+      - name: Add logic to ENV
+        id: setting_logic
+        run: |
+          # yamllint disable
+          echo "build_for_pr=${{ github.event_name == 'pull_request' }}" >> "$GITHUB_OUTPUT"
+          echo "build_for_merge=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v') }}" >> "$GITHUB_OUTPUT"
+          echo "not_a_fork=${{ github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name }}" >> "$GITHUB_OUTPUT"
+          # yamllint enable
+
+  # Log the key inputs to the logic as well a the outputs. We check that
+  # build_for_pr and build_for_merge are never equal when they are true as that
+  # would indicate a bug. If they are both false, this is ok, as this is the
+  # case on pushing commits to a PR.
+  logic-check:
+    needs: prepare-env
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: Log logic
+        run: |
+          echo "github.event_name: ${{ github.event_name }}"
+          echo "github.ref: ${{ github.ref }}"
+          echo "head repo: ${{ github.event.pull_request.head.repo.full_name }}"
+          echo "base repo: ${{ github.event.pull_request.base.repo.full_name }}"
+          echo "build_for_pr: ${{ needs.prepare-env.outputs.build_for_pr }}"
+          echo "build_for_merge: ${{ needs.prepare-env.outputs.build_for_merge }}"
+          echo "not_a_fork: ${{ needs.prepare-env.outputs.not_a_fork }}"
+      - name: Check logic
+        if: |
+          (needs.prepare-env.outputs.build_for_pr == needs.prepare-env.outputs.build_for_merge)
+          && needs.prepare-env.outputs.build_for_pr != 'false'
+        run: |
+          echo "Failing step due to build_for_pr == build_for_merge"
+          exit 1
+
+  docker-build:
+    name: docker-build (${{ matrix.registry.name }}; ${{ matrix.registry.registry-url }}/${{ matrix.registry.registry-owner }}/${{ needs.prepare-env.outputs.output_image_name }})
+    runs-on: "ubuntu-latest"
+    # Multi-arch builds (linux/arm64 under QEMU emulation) are long-running.
+    # Cap the job so a hung emulated build fails in ~90 min instead of running
+    # to the 6 hour GitHub default.
+    timeout-minutes: 90
+    # wait until the jobs are finished.
+    needs: ["prepare-env", "logic-check"]
+    # We only want to run this step if one of the build flags is true. We don't
+    # run if both logic flags are false. This is the case for push events on PR
+    # commits. The logic-check job protects us from the case of both build flags
+    # being equal to true.
+    if: needs.prepare-env.outputs.not_a_fork == 'true'
+    permissions:
+      contents: write
+      packages: write
+    strategy:
+      matrix:
+        # run-on-pr is used to skip running registries that are expected to fail
+        # due to github permission issues with org wide secrets.
+        registry:
+          - name: DockerHub
+            user-secret: DOCKERHUB_USERNAME
+            token-secret: DOCKERHUB_TOKEN
+            registry-url: docker.io
+            registry-owner: celestiaorg
+            run-on-pr: "false"
+          - name: GHCR
+            user-secret: ${{ github.repository_owner }}
+            token-secret: GITHUB_TOKEN
+            registry-url: ghcr.io
+            registry-owner: ${{ needs.prepare-env.outputs.repo_owner }}
+            run-on-pr: "true"
+      fail-fast: false
+    steps:
+      - name: Check run conditions
+        id: run_check
+        # We only want to run when the registry is able to run on PR or if it is a merge event
+        run: echo "run=${{ matrix.registry.run-on-pr == needs.prepare-env.outputs.build_for_pr || needs.prepare-env.outputs.build_for_merge == 'true'}}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        if: ${{ steps.run_check.outputs.run == 'true'}}
+        uses: "actions/checkout@v6"
+        with:
+          ref: ${{ inputs.checkout_ref }}
+
+      - name: Login to ${{ matrix.registry.name }}
+        if: ${{ steps.run_check.outputs.run == 'true'}}
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ matrix.registry.registry-url }}
+          username: ${{ matrix.registry.registry-url == env.GITHUB_REG && matrix.registry.user-secret || secrets[matrix.registry.user-secret] }}
+          password: ${{ secrets[matrix.registry.token-secret] }}
+
+      - name: Extract Docker Metadata
+        if: ${{ steps.run_check.outputs.run == 'true'}}
+        id: meta
+        uses: docker/metadata-action@v6
+        env:
+          OUTPUT_SHORT_SHA: ${{ needs.prepare-env.outputs.output_short_sha }}
+          OUTPUT_IMAGE_NAME: ${{ needs.prepare-env.outputs.output_image_name }}
+        with:
+          images: ${{ matrix.registry.registry-url }}/${{ matrix.registry.registry-owner }}/${{ env.OUTPUT_IMAGE_NAME }}
+          # yamllint disable
+          labels: |
+            maintainer=${{ env.MAINTAINER }}
+            commitUrl=https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            dockerPull=docker pull ${{ matrix.registry.registry-url }}/${{ matrix.registry.registry-owner }}/${{ env.OUTPUT_IMAGE_NAME }}:${{ env.OUTPUT_SHORT_SHA }}
+            org.opencontainers.image.description=${{ env.DESCRIPTION }}
+          tags: |
+            # output minimal (short sha)
+            type=raw,value={{sha}}
+            # output v0.2.1/v*-* (or sha of no tag)
+            type=semver,pattern={{raw}}
+            # pull request event
+            type=ref,enable=true,prefix=pr-,suffix=,event=pr
+            # This if for the workflow dispath events, it is type=raw and should be empty by default
+            ${{ inputs.checkout_ref }}
+          # yamllint enable
+
+      # Wrapped with a retry because Docker Hub sometimes throttles authenticated
+      # pulls of `tonistiigi/binfmt` to the shared `celestiaorg` account, which
+      # fails this step with `toomanyrequests`. Rate-limit errors are transient.
+      - name: Set up QEMU
+        if: ${{ steps.run_check.outputs.run == 'true'}}
+        env:
+          BINFMT_IMAGE: tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
+        run: |
+          for attempt in {1..5}; do
+            if docker run --privileged --rm "$BINFMT_IMAGE" --install all; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              echo "QEMU setup failed (attempt $attempt/5); retrying in 30 seconds..."
+              sleep 30
+            fi
+          done
+          echo "::error::QEMU setup failed after 5 attempts"
+          exit 1
+
+      - name: Set up Docker Buildx
+        if: ${{ steps.run_check.outputs.run == 'true'}}
+        uses: docker/setup-buildx-action@v4
+
+        # the build-push-action.build-args argument expects a newline separated string.
+        # when you pass a string to a re-usable workflow, it is interpreted as a single line.
+        # this step converts that single line into a multi line string so it is correctly interpreted as
+        # build arguments.
+      - name: Convert buildArgs to newline-delimited string
+        if: ${{ inputs.buildArgs && steps.run_check.outputs.run == 'true' }}
+        id: convert_args
+        run: |
+          {
+            echo 'converted<<EOF'
+            echo "${{ inputs.buildArgs }}" | xargs -n1
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      # Build and Publish images on main, master, and versioned branches.
+      #
+      # The build is wrapped with a single retry: multi-arch builds (linux/arm64
+      # runs under QEMU emulation) are long-running and occasionally fail on
+      # transient errors such as registry pull/push timeouts, `toomanyrequests`
+      # throttling, or emulation hiccups. The retry reuses the buildx layer cache
+      # so it is fast, and re-pushing layers is idempotent.
+      - name: "Build and Push All Docker Images"
+        id: build
+        if: ${{ steps.run_check.outputs.run == 'true'}}
+        continue-on-error: true
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        env:
+          OUTPUT_SHORT_SHA: ${{ needs.prepare-env.outputs.output_short_sha }}
+          OUTPUT_IMAGE_NAME: ${{ needs.prepare-env.outputs.output_image_name }}
+        with:
+          context: ${{ inputs.dockerContext }}
+          platforms: linux/arm64,linux/amd64
+          provenance: false
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          file: ${{ inputs.dockerfile }}
+          build-args: ${{ steps.convert_args.outputs.converted }}
+
+      - name: Wait before retrying the build
+        if: ${{ steps.run_check.outputs.run == 'true' && steps.build.outcome == 'failure' }}
+        run: sleep 30
+
+      - name: "Build and Push All Docker Images (retry)"
+        if: ${{ steps.run_check.outputs.run == 'true' && steps.build.outcome == 'failure' }}
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        env:
+          OUTPUT_SHORT_SHA: ${{ needs.prepare-env.outputs.output_short_sha }}
+          OUTPUT_IMAGE_NAME: ${{ needs.prepare-env.outputs.output_image_name }}
+        with:
+          context: ${{ inputs.dockerContext }}
+          platforms: linux/arm64,linux/amd64
+          provenance: false
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          file: ${{ inputs.dockerfile }}
+          build-args: ${{ steps.convert_args.outputs.converted }}
