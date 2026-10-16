@@ -472,21 +472,22 @@ func (b *cancelAfterDeleteBackend) Delete(ctx context.Context, commitment Commit
 	return nil
 }
 
-func TestPruneBeforeOverflowReturnsNoUncommittedCounts(t *testing.T) {
+func TestPruneBeforeRejectsImplausibleSizeAndPrunesValidEntry(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
 	pruneAt := time.Date(2025, 1, 1, 10, 0, 0, 0, time.UTC)
 	for i, size := range []int64{math.MaxInt64, 1} {
 		promiseHash := []byte{byte(i)}
-		require.NoError(t, store.db.Set(shardKey(commitment, promiseHash), encodeShardMarkerForBackend(localBackendTag, size), pebbledb.NoSync))
-		require.NoError(t, store.db.Set(pruneKey(pruneAt, commitment, promiseHash), nil, pebbledb.NoSync))
+		setPruneEntry(t, store, pruneAt, commitment, promiseHash, encodeShardMarkerForBackend(localBackendTag, size))
 	}
 
 	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
 	require.Error(t, err)
-	require.NotErrorIs(t, err, ErrStoreIntegrity)
-	require.Zero(t, pruned)
-	require.Zero(t, freed)
+	require.ErrorIs(t, err, ErrStoreIntegrity)
+	require.Equal(t, 1, pruned)
+	require.Equal(t, int64(1), freed)
+	requirePruneEntry(t, store, pruneAt, commitment, []byte{0}, true)
+	requirePruneEntry(t, store, pruneAt, commitment, []byte{1}, false)
 }
 
 func TestServerPruneDrainsBacklog(t *testing.T) {
