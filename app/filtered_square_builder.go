@@ -22,6 +22,8 @@ type FilteredSquareBuilder struct {
 	txConfig  client.TxConfig
 	chanKeep  channelKeeper
 	builder   *square.Builder
+	// validateBlobTx, when set, drops blob txs it returns an error for.
+	validateBlobTx func(*tx.BlobTx) (bool, error)
 }
 
 func NewFilteredSquareBuilder(
@@ -164,6 +166,13 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 			continue
 		}
 
+		if fsb.validateBlobTx != nil {
+			if _, err := fsb.validateBlobTx(tx); err != nil {
+				logger.Error("dropping invalid blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+				continue
+			}
+		}
+
 		ok, err := fsb.builder.AppendBlobTx(tx)
 		if err != nil {
 			logger.Debug("skipping blob tx due to error", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "err", err)
@@ -219,6 +228,7 @@ func msgTypes(sdkTx sdk.Tx) []string {
 // This function filters out:
 //   - transactions that exceed MaxTxSize
 //   - transactions that fail SDK decoding
+//   - non-blob transactions containing MsgPayForBlobs
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
@@ -256,6 +266,11 @@ func separateTxs(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (
 		if err != nil {
 			// Skip txs that fail decoding. ProcessProposal rejects
 			// undecodable txs, so there is no reason to include them.
+			continue
+		}
+
+		if _, has := hasPFB(sdkTx.GetMsgs()); has {
+			// ProcessProposal rejects non-blob txs that contain a PFB.
 			continue
 		}
 
