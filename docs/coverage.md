@@ -26,9 +26,10 @@ bash scripts/check_proposal_coverage.sh
 ## Stages
 
 1. **Non-regression:** the production total and every component compare against
-   the base report (`target: auto`, zero allowed decrease). Missing reports fail
-   the checks. Main uploads supply the corrected baseline. The 80% production,
-   95% proposal, and 90% other-component goals are informational initially.
+   the base report (`target: auto`), allowing a decrease of up to 0.5 percentage
+   points to absorb small run-to-run fluctuations. Larger decreases and missing
+   reports fail the checks. Main uploads supply the corrected baseline. The 80%
+   production, 95% proposal, and 90% other-component goals are informational initially.
 2. **Ratchet:** as existing or new tests raise coverage, `auto` uses the improved
    base on subsequent PRs. Review the full profile before promoting a goal;
    remove `informational: true` for a component once its goal is sustainable.
