@@ -1,0 +1,91 @@
+//go:build arm64 && !noasm && !nopshufb && !race
+
+#include "textflag.h"
+
+// Transpose the low and high planes as 8x8 byte tiles. All loads and
+// stores are eight bytes, so neither alignment nor padding is required.
+TEXT ·transposeTileNEON(SB), NOSPLIT, $0-16
+	MOVD dst+0(FP), R0
+	MOVD $64, R1
+	MOVD tile+8(FP), R2
+	MOVD $2, R3
+plane:
+	MOVD R0, R4
+	MOVD R2, R5
+	MOVD $4, R6
+columns:
+	MOVD R4, R7
+	MOVD R5, R8
+	MOVD $4, R9
+rows:
+	MOVD R8, R10
+	VLD1 (R10), [V0.B8]
+	ADD $64, R10
+	VLD1 (R10), [V1.B8]
+	ADD $64, R10
+	VLD1 (R10), [V2.B8]
+	ADD $64, R10
+	VLD1 (R10), [V3.B8]
+	ADD $64, R10
+	VLD1 (R10), [V4.B8]
+	ADD $64, R10
+	VLD1 (R10), [V5.B8]
+	ADD $64, R10
+	VLD1 (R10), [V6.B8]
+	ADD $64, R10
+	VLD1 (R10), [V7.B8]
+	ADD $64, R10
+	VTRN1 V1.B8, V0.B8, V8.B8
+	VTRN2 V1.B8, V0.B8, V9.B8
+	VTRN1 V3.B8, V2.B8, V10.B8
+	VTRN2 V3.B8, V2.B8, V11.B8
+	VTRN1 V5.B8, V4.B8, V12.B8
+	VTRN2 V5.B8, V4.B8, V13.B8
+	VTRN1 V7.B8, V6.B8, V14.B8
+	VTRN2 V7.B8, V6.B8, V15.B8
+	VTRN1 V10.H4, V8.H4, V0.H4
+	VTRN2 V10.H4, V8.H4, V2.H4
+	VTRN1 V11.H4, V9.H4, V1.H4
+	VTRN2 V11.H4, V9.H4, V3.H4
+	VTRN1 V14.H4, V12.H4, V4.H4
+	VTRN2 V14.H4, V12.H4, V6.H4
+	VTRN1 V15.H4, V13.H4, V5.H4
+	VTRN2 V15.H4, V13.H4, V7.H4
+	VTRN1 V4.S2, V0.S2, V8.S2
+	VTRN2 V4.S2, V0.S2, V12.S2
+	VTRN1 V5.S2, V1.S2, V9.S2
+	VTRN2 V5.S2, V1.S2, V13.S2
+	VTRN1 V6.S2, V2.S2, V10.S2
+	VTRN2 V6.S2, V2.S2, V14.S2
+	VTRN1 V7.S2, V3.S2, V11.S2
+	VTRN2 V7.S2, V3.S2, V15.S2
+	MOVD R7, R10
+	VST1 [V8.B8], (R10)
+	ADD R1, R10
+	VST1 [V9.B8], (R10)
+	ADD R1, R10
+	VST1 [V10.B8], (R10)
+	ADD R1, R10
+	VST1 [V11.B8], (R10)
+	ADD R1, R10
+	VST1 [V12.B8], (R10)
+	ADD R1, R10
+	VST1 [V13.B8], (R10)
+	ADD R1, R10
+	VST1 [V14.B8], (R10)
+	ADD R1, R10
+	VST1 [V15.B8], (R10)
+	ADD R1, R10
+	ADD $512, R8
+	ADD $8, R7
+	SUB $1, R9
+	CBNZ R9, rows
+	ADD $8, R5
+	ADD R1<<3, R4, R4
+	SUB $1, R6
+	CBNZ R6, columns
+	ADD $32, R0
+	ADD $32, R2
+	SUB $1, R3
+	CBNZ R3, plane
+	RET
