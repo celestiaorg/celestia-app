@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -92,7 +93,7 @@ func TestGovCancellationRatioQueuedBeforeV11(t *testing.T) {
 	testApp, keyring := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), proposer)
 	consensusParams := *app.DefaultConsensusParams()
 	consensusParams.Version.App = 10
-	ctx := testApp.NewContext(false).WithConsensusParams(consensusParams).WithBlockHeight(1)
+	ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1, Time: util.GenesisTime}).WithConsensusParams(consensusParams)
 	params, err := testApp.GovKeeper.Params.Get(ctx)
 	require.NoError(t, err)
 	params.ProposalCancelRatio = "0.500000000000000000"
@@ -101,7 +102,7 @@ func TestGovCancellationRatioQueuedBeforeV11(t *testing.T) {
 	proposal, err := testApp.GovKeeper.SubmitProposal(ctx, []sdk.Msg{msg}, "", "Restore old params", "Restore the previous cancellation ratio", testfactory.GetAddress(keyring, proposer), false)
 	require.NoError(t, err)
 
-	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v11", Height: 1}))
+	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()}))
 	consensusParams.Version.App = 11
 	ctx = ctx.WithConsensusParams(consensusParams)
 	messages, err := proposal.GetMsgs()
@@ -130,7 +131,7 @@ func TestGovCancellationRatioSubmission(t *testing.T) {
 			testApp, keyring := util.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), proposer)
 			consensusParams := *app.DefaultConsensusParams()
 			consensusParams.Version.App = tc.version
-			ctx := testApp.NewContext(false).WithConsensusParams(consensusParams)
+			ctx := testApp.NewUncachedContext(false, cmtproto.Header{Height: testApp.LastBlockHeight() + 1, Time: util.GenesisTime}).WithConsensusParams(consensusParams)
 			params, err := testApp.GovKeeper.Params.Get(ctx)
 			require.NoError(t, err)
 			deposit := sdk.NewCoins(params.MinDeposit...)

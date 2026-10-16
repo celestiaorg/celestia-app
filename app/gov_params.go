@@ -32,7 +32,7 @@ type govParamsRegistrar struct {
 	grpc.Server
 }
 
-func (r govParamsRegistrar) RegisterService(desc *googlegrpc.ServiceDesc, server interface{}) {
+func (r govParamsRegistrar) RegisterService(desc *googlegrpc.ServiceDesc, server any) {
 	if msgServer, ok := server.(govv1.MsgServer); ok {
 		server = govParamsMsgServer{msgServer}
 	}
