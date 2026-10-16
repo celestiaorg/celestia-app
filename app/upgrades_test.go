@@ -36,6 +36,7 @@ func TestUpgrades(t *testing.T) {
 
 		require.False(t, testApp.UpgradeKeeper.HasHandler("v9"))
 		require.True(t, testApp.UpgradeKeeper.HasHandler("v10"))
+		require.True(t, testApp.UpgradeKeeper.HasHandler("v11"))
 	})
 }
 

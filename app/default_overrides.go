@@ -199,6 +199,9 @@ func (govModule) DefaultGenesis(cdc codec.JSONCodec) json.RawMessage {
 	genState.Params.MaxDepositPeriod = &oneWeek
 	genState.Params.VotingPeriod = &oneWeek
 	genState.Params.ExpeditedMinDeposit = expeditedMinDeposit
+	if appconsts.Version >= 11 {
+		genState.Params.ProposalCancelRatio = proposalCancelRatioV11
+	}
 
 	return cdc.MustMarshalJSON(genState)
 }

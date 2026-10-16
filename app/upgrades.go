@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 
 	storetypes "cosmossdk.io/store/types"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
@@ -70,7 +69,7 @@ func (app App) RegisterUpgradeHandlers() {
 		}
 	}
 
-	upgradeName := fmt.Sprintf("v%d", appconsts.Version)
+	upgradeName := "v10"
 	app.UpgradeKeeper.SetUpgradeHandler(
 		upgradeName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
@@ -85,6 +84,21 @@ func (app App) RegisterUpgradeHandlers() {
 			return app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
 		},
 	)
+	app.UpgradeKeeper.SetUpgradeHandler("v11", func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		versionMap, err := app.ModuleManager.RunMigrations(ctx, app.configurator, fromVM)
+		if err != nil {
+			return nil, err
+		}
+		params, err := app.GovKeeper.Params.Get(ctx)
+		if err != nil {
+			return nil, err
+		}
+		params.ProposalCancelRatio = proposalCancelRatioV11
+		if err := app.GovKeeper.Params.Set(ctx, params); err != nil {
+			return nil, err
+		}
+		return versionMap, nil
+	})
 
 	upgradeInfo, err := app.UpgradeKeeper.ReadUpgradeInfoFromDisk()
 	if err != nil {
