@@ -96,6 +96,7 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 	}
 
 	mp := &Multiplexer{
+<<<<<<< HEAD
 		svrCtx:        svrCtx,
 		svrCfg:        svrCfg,
 		clientContext: clientCtx,
@@ -105,6 +106,19 @@ func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCt
 		versions:      versions,
 		chainID:       chainID,
 		appVersion:    applicationVersion,
+=======
+		svrCtx:         svrCtx,
+		svrCfg:         svrCfg,
+		clientContext:  clientCtx,
+		appCreator:     appCreator,
+		logger:         svrCtx.Logger.With("multiplexer"),
+		nativeApp:      nil, // app will be initialized if required by the multiplexer.
+		versions:       versions,
+		startFlags:     startFlags,
+		chainID:        chainID,
+		appVersion:     applicationVersion,
+		nextAppVersion: applicationVersion,
+>>>>>>> b3c37a2 (fix(multiplexer): [medium] initialize nextAppVersion (#8190))
 	}
 
 	return mp, nil
