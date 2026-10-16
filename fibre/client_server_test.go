@@ -326,6 +326,7 @@ func makeTestEnv(
 			&testHostRegistry{addresses: addresses},
 			func() string { return "celestia" },
 			clientCfg.MaxMessageSize,
+			testParams.MaxRowsPerValidator(), testParams.MerkleProofDepth(),
 			nil,
 		)
 		clientCfg.StateClientFn = func() (state.Client, error) {
@@ -487,6 +488,7 @@ func TestTLSIdentityMismatchIsRejected(t *testing.T) {
 		&testHostRegistry{addresses: addresses},
 		func() string { return "celestia" },
 		fibre.DefaultProtocolParams.MaxMessageSize(),
+		fibre.DefaultProtocolParams.MaxRowsPerValidator(), fibre.DefaultProtocolParams.MerkleProofDepth(),
 		nil,
 	)
 
