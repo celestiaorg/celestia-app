@@ -148,6 +148,61 @@ func Test_validatePaymentPromiseTimeout(t *testing.T) {
 	}
 }
 
+func Test_validatePaymentPromiseHeightWindow(t *testing.T) {
+	type test struct {
+		name      string
+		input     any
+		expectErr bool
+	}
+	tests := []test{
+		{
+			name:      "default",
+			input:     DefaultPaymentPromiseHeightWindow,
+			expectErr: false,
+		},
+		{
+			name:      "wrong type",
+			input:     int64(DefaultPaymentPromiseHeightWindow),
+			expectErr: true,
+		},
+		{
+			name:      "zero",
+			input:     uint64(0),
+			expectErr: true,
+		},
+		{
+			name:      "one",
+			input:     uint64(1),
+			expectErr: false,
+		},
+		{
+			name:      "exactly at the upper bound",
+			input:     MaxPaymentPromiseHeightWindow,
+			expectErr: false,
+		},
+		{
+			name:      "above the upper bound",
+			input:     MaxPaymentPromiseHeightWindow + 1,
+			expectErr: true,
+		},
+		{
+			name:      "max uint64",
+			input:     uint64(math.MaxUint64),
+			expectErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePaymentPromiseHeightWindow(tt.input)
+			if tt.expectErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func Test_validateShardRetention(t *testing.T) {
 	type test struct {
 		name      string
