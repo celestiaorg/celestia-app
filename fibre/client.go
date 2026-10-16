@@ -86,7 +86,7 @@ func NewClient(kr keyring.Keyring, cfg ClientConfig) (*Client, error) {
 	// dial through its own state client.
 	newClientFn := cfg.NewClientFn
 	if newClientFn == nil {
-		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, cfg.Log)
+		newClientFn = fibregrpc.DefaultNewClientFn(stateClient, stateClient.ChainID, cfg.MaxMessageSize, DefaultProtocolParams.MaxRowsPerValidator(), DefaultProtocolParams.MerkleProofDepth(), cfg.Log)
 	}
 
 	metrics, err := newClientMetrics(cfg.Meter)

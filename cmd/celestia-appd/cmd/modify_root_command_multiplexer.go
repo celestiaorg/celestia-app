@@ -62,7 +62,7 @@ func unsupportedFlags(appVersion uint64) map[string]struct{} {
 }
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
-func modifyRootCommand(rootCommand *cobra.Command) {
+func modifyRootCommand(rootCommand *cobra.Command, _ *app.App) {
 	v3Tag, v3CompressedBinary, err := embedding.CelestiaAppV3()
 	if err != nil {
 		panic(err)
