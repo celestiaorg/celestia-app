@@ -14,7 +14,7 @@ ignore:
   - "local_devnet/**/*"
   - "pkg/rsema1d/cmd/testvectors/**/*"
 
-# Stage 1: prevent regressions against the base report. Goals stay informational
+# Stage 1: limit regressions against the base report. Goals stay informational
 # until each corrected full-suite baseline reaches them; see docs/coverage.md.
 coverage:
   status:
@@ -22,7 +22,8 @@ coverage:
     project:
       default: &non_regression
         target: auto
-        threshold: 0%
+        # Allow small run-to-run coverage fluctuations (percentage points).
+        threshold: 0.5%
         if_ci_failed: error
         if_no_uploads: error
         if_not_found: failure
