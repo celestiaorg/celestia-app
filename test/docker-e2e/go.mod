@@ -8,7 +8,7 @@ require (
 	github.com/celestiaorg/celestia-app/v10 v10.0.0-rc0
 	github.com/celestiaorg/go-square/v3 v3.0.2
 	github.com/celestiaorg/go-square/v4 v4.1.0
-	github.com/celestiaorg/tastora v0.21.1
+	github.com/celestiaorg/tastora v0.21.2
 	github.com/cometbft/cometbft v1.0.1
 	github.com/cosmos/cosmos-sdk v0.50.13
 	github.com/cosmos/gogoproto v1.7.2
@@ -289,7 +289,7 @@ replace (
 	cosmossdk.io/api => github.com/celestiaorg/cosmos-sdk/api v0.7.7
 	cosmossdk.io/log => github.com/celestiaorg/cosmos-sdk/log v1.3.0
 	// Pin to the celestia fork's store to pick up the lastCommitInfoMu fix
-	// from celestiaorg/cosmos-sdk#705, which closes a data race between
+	// from celestiaorg/cosmos-sdk-archive#705, which closes a data race between
 	// BaseApp.LastBlockHeight and concurrent Commits. Upstream store/v1.1.2
 	// does not have this fix.
 	cosmossdk.io/store => github.com/celestiaorg/cosmos-sdk/store v1.1.3-celestia.3

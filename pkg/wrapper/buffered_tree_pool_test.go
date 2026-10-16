@@ -2,6 +2,7 @@ package wrapper
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -195,4 +196,56 @@ func TestTreePoolAcquireIsSafeWithCallerOpts(t *testing.T) {
 		})
 	}
 	wg.Wait()
+}
+
+func TestNewTreePoolRejectsInvalidArgs(t *testing.T) {
+	_, err := NewTreePool(2, 0)
+	require.ErrorContains(t, err, "pool size must be positive")
+	_, err = NewTreePool(2, -1)
+	require.ErrorContains(t, err, "pool size must be positive")
+	_, err = NewTreePool(0, 1)
+	require.ErrorContains(t, err, "square size must be positive")
+}
+
+func TestResizeableBufferTreePushErrors(t *testing.T) {
+	const squareSize = 2
+	pool, err := NewTreePool(squareSize, 1)
+	require.NoError(t, err)
+	construct := pool.NewConstructor(squareSize)
+
+	t.Run("axis index past boundary", func(t *testing.T) {
+		tree := construct(rsmt2d.Row, 2*squareSize)
+		require.ErrorContains(t, tree.Push(newShareWithNamespaceID(1)), "pushed past predetermined square size")
+	})
+	t.Run("share index past boundary", func(t *testing.T) {
+		tree := construct(rsmt2d.Row, 0)
+		for range 2 * squareSize {
+			require.NoError(t, tree.Push(newShareWithNamespaceID(1)))
+		}
+		require.ErrorContains(t, tree.Push(newShareWithNamespaceID(1)), "pushed past predetermined square size")
+	})
+	t.Run("data too short for namespace", func(t *testing.T) {
+		tree := construct(rsmt2d.Row, 0)
+		require.ErrorContains(t, tree.Push(make([]byte, share.NamespaceSize-1)), "too short")
+	})
+	t.Run("data too large for buffer", func(t *testing.T) {
+		tree := construct(rsmt2d.Row, 0)
+		require.ErrorContains(t, tree.Push(make([]byte, share.ShareSize+1)), "too large")
+	})
+}
+
+// TestTreePoolRootsMatchFreshAcrossResizeAndFailure reuses one pool across
+// growing and shrinking square sizes, each after a failed root computation.
+func TestTreePoolRootsMatchFreshAcrossResizeAndFailure(t *testing.T) {
+	pool, err := NewTreePool(1, 2)
+	require.NoError(t, err)
+
+	for _, squareSize := range []int{1, 8, 2, 16, 4} {
+		t.Run(fmt.Sprintf("size_%d", squareSize), func(t *testing.T) {
+			err := computeRoots(descendingNamespaceSquare(), pool)
+			require.Error(t, err)
+			require.NotErrorIs(t, err, errTimeout)
+			comparePoolAndNonPoolEDS(t, squareSize, pool)
+		})
+	}
 }
