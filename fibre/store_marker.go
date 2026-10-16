@@ -3,12 +3,15 @@ package fibre
 import (
 	"encoding/binary"
 	"fmt"
-	"math"
 )
 
 const (
 	shardMarkerVersion = 1
 	shardMarkerSize    = 10
+
+	// Largest serialized shard readable under the codec's per-field limits:
+	// version, RLC length/data, row count, then row and proof headers/data.
+	maxPlausibleShardSize int64 = 12 + shardLengthLimit + int64(maxShardRows)*(12+shardLengthLimit+int64(maxRowProofSegments)*(4+shardLengthLimit))
 )
 
 type shardBackendTag byte
@@ -47,7 +50,7 @@ func decodeShardMarkerBackend(data []byte) (shardBackendTag, int64, error) {
 		return 0, 0, fmt.Errorf("%w: unsupported shard backend tag 0x%02x", ErrStoreIntegrity, data[1])
 	}
 	size := binary.BigEndian.Uint64(data[2:])
-	if size == 0 || size > math.MaxInt64 {
+	if size == 0 || size > uint64(maxPlausibleShardSize) {
 		return 0, 0, fmt.Errorf("%w: invalid shard size %d", ErrStoreIntegrity, size)
 	}
 	return backend, int64(size), nil
