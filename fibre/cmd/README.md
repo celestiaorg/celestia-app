@@ -465,6 +465,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total shard row bytes served |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
+| `fibre.server.store.backend` | Gauge | `backend`, `object_configured` | Configured primary shard storage backend |
 | `fibre.server.backend.get.duration` | Histogram (s) | `backend`, `outcome` | Backend GET latency through payload reading, decoding and closing |
 | `fibre.server.backend.get.in_flight` | UpDownCounter | `backend` | Concurrent backend GET calls |
 | `fibre.server.backend.get.bytes` | Counter (By) | `backend` | Encoded bytes consumed, including partial failures and buffered reads |

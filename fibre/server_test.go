@@ -227,7 +227,8 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.StorageBackend = "object"
-		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com/api"
+		cfg.ObjectStorage.Region = "auto"
 		cfg.ObjectStorage.Bucket = "fibre-shards"
 		cfg.ObjectStorage.Prefix = "/fibre/./"
 	})
@@ -235,11 +236,47 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 	output := logs.String()
 	require.Contains(t, output, `msg="store ready"`)
 	require.Contains(t, output, "storage_backend=object")
+	require.Contains(t, output, "object_configured=true")
+	require.Contains(t, output, "object_markers_present=false")
+	require.Contains(t, output, "object_namespace.endpoint_host=account.r2.cloudflarestorage.com")
+	require.NotContains(t, output, "https://account.r2.cloudflarestorage.com/api")
 	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
 	require.Contains(t, output, "object_namespace.prefix=fibre")
 	require.NotContains(t, output, "object_namespace.prefix=/fibre/./")
 	require.Contains(t, output, "object_namespace.chain_id=celestia")
 	require.Contains(t, output, "object_namespace.validator_address="+sdk.ConsAddress(validator.Address).String())
+}
+
+func TestServerStartLogsNormalizedObjectConfig(t *testing.T) {
+	var logs bytes.Buffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Region = " auto "
+		cfg.ObjectStorage.Bucket = " fibre-shards "
+		cfg.ObjectStorage.Prefix = " /fibre/./ "
+	})
+
+	output := logs.String()
+	require.Contains(t, output, "object_configured=true")
+	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
+	require.Contains(t, output, "object_namespace.prefix=fibre")
+	require.NotContains(t, output, `object_namespace.bucket=" fibre-shards "`)
+	require.NotContains(t, output, `object_namespace.prefix=" /fibre/./ "`)
+}
+
+func TestServerStartDoesNotLogPartialObjectConfig(t *testing.T) {
+	var logs bytes.Buffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Bucket = "fibre-shards"
+		cfg.ObjectStorage.Prefix = "fibre"
+	})
+
+	output := logs.String()
+	require.Contains(t, output, "object_configured=false")
+	require.NotContains(t, output, "object_namespace")
 }
 
 func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
@@ -249,7 +286,7 @@ func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
 	})
 
 	output := logs.String()
-	require.Contains(t, output, `msg="store ready" storage_backend=local`)
+	require.Contains(t, output, `msg="store ready" storage_backend=local object_configured=false object_markers_present=false`)
 	require.NotContains(t, output, "object_namespace")
 }
 

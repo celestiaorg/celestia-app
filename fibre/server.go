@@ -148,18 +148,27 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	}
 	s.Config.ObjectStorage.ChainID = chainID
 	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
+	objectCfg, objectConfigured := s.Config.ObjectStorage.validated()
+	if err := registerStoreBackendMetric(s.Config.Meter, s.Config.StorageBackend, objectConfigured); err != nil {
+		return fmt.Errorf("creating metrics: %w", err)
+	}
 	s.store, err = s.Config.StoreFn(ctx, s.Config.StoreConfig)
 	if err != nil {
 		return fmt.Errorf("opening store: %w", err)
 	}
-	storeLogArgs := []any{"storage_backend", s.Config.StorageBackend}
-	objectCfg := s.Config.ObjectStorage.canonical()
-	if s.Config.ObjectStorage.Endpoint != "" || s.Config.ObjectStorage.Bucket != "" || s.Config.ObjectStorage.Prefix != "" {
+	storeLogArgs := []any{
+		"storage_backend", s.Config.StorageBackend,
+		"object_configured", objectConfigured,
+		"object_markers_present", s.store.shards.objectMarkersPresent,
+	}
+	if objectConfigured {
+		objectNamespace := objectCfg.canonical()
 		storeLogArgs = append(storeLogArgs, slog.Group("object_namespace",
-			slog.String("bucket", objectCfg.Bucket),
-			slog.String("prefix", objectCfg.Prefix),
-			slog.String("chain_id", objectCfg.ChainID),
-			slog.String("validator_address", objectCfg.ValidatorAddress),
+			slog.String("endpoint_host", objectCfg.endpointHost()),
+			slog.String("bucket", objectNamespace.Bucket),
+			slog.String("prefix", objectNamespace.Prefix),
+			slog.String("chain_id", objectNamespace.ChainID),
+			slog.String("validator_address", objectNamespace.ValidatorAddress),
 		))
 	}
 	s.log.Info("store ready", storeLogArgs...)
