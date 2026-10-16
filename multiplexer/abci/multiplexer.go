@@ -13,8 +13,14 @@ import (
 	"sync"
 
 	"cosmossdk.io/log"
+<<<<<<< HEAD
 	"github.com/celestiaorg/celestia-app/v9/app/observability"
 	"github.com/celestiaorg/celestia-app/v9/multiplexer/internal"
+=======
+	"github.com/celestiaorg/celestia-app/v10/app/observability"
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
+	abci "github.com/cometbft/cometbft/abci/types"
+>>>>>>> 478f887 (fix(multiplexer): [high] start on the app's committed app version (#8203))
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -135,6 +141,10 @@ func (m *Multiplexer) Start() error {
 		return err
 	}
 
+	if err := m.syncAppVersion(); err != nil {
+		return err
+	}
+
 	if m.isGrpcOnly() {
 		m.logger.Info("starting node in gRPC only mode; CometBFT is disabled")
 		m.svrCfg.GRPC.Enable = true
@@ -238,6 +248,7 @@ func (m *Multiplexer) startApp() error {
 	return m.initRemoteGrpcConn()
 }
 
+<<<<<<< HEAD
 // removeStart removes the first argument (the binary name) and the start argument from args.
 func removeStart(args []string) []string {
 	if len(args) == 0 {
@@ -248,6 +259,83 @@ func removeStart(args []string) []string {
 	for _, arg := range args {
 		if arg != "start" {
 			result = append(result, arg)
+=======
+// syncAppVersion switches to the app version in the app's committed state when
+// it is newer than the one from CometBFT state. This happens when the node
+// stopped after the app committed an upgrade but before CometBFT saved its state.
+func (m *Multiplexer) syncAppVersion() error {
+	app, err := m.getApp()
+	if err != nil {
+		return fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
+	}
+	info, err := app.Info(&abci.RequestInfo{})
+	if err != nil {
+		return fmt.Errorf("failed to get app info: %w", err)
+	}
+	if info.AppVersion <= m.appVersion {
+		return nil
+	}
+
+	m.logger.Info("switching to app version from committed app state", "from_app_version", m.appVersion, "to_app_version", info.AppVersion)
+	m.appVersion = info.AppVersion
+	m.nextAppVersion = info.AppVersion
+	if m.isNativeApp() {
+		return nil
+	}
+
+	if _, err := m.versions.GetForAppVersion(m.appVersion); errors.Is(err, ErrNoVersionFound) {
+		// Start enables the gRPC and API servers for the native app after the comet node starts.
+		if err := m.stopEmbeddedApp(); err != nil {
+			return fmt.Errorf("failed to stop embedded app: %w", err)
+		}
+		_, err := m.startNativeApp()
+		return err
+	}
+
+	_, err = m.getApp()
+	return err
+}
+
+// watchEmbeddedApp watches a just-started embedded app and surfaces an
+// unexpected exit as an error on the multiplexer's errgroup, so the parent
+// process exits instead of hanging silently. Exits that are part of an
+// operator-initiated stop (a version switch or a graceful shutdown) are not
+// errors: stopEmbeddedApp cancels the watcher before interrupting the child,
+// and an OS quit signal cancels m.ctx, which the watch context is derived
+// from.
+func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
+	watchCtx, cancel := context.WithCancel(m.ctx)
+	m.cancelEmbeddedAppWatcher = cancel
+
+	m.g.Go(func() error {
+		select {
+		case err := <-exited:
+			// The watch context may have been cancelled concurrently with the
+			// exit being delivered; if so, the exit is expected.
+			select {
+			case <-watchCtx.Done():
+				return nil
+			default:
+			}
+
+			// Close the ABCI connection so a handshake already in flight fails
+			// instead of queueing forever against the dead child: the remote
+			// clients call with grpc.WaitForReady(true), so without this the
+			// main goroutine stays parked in startCmtNode and never observes
+			// the error below.
+			m.mu.Lock()
+			if closeErr := m.stopGRPCConnection(); closeErr != nil {
+				m.logger.Error("failed to close gRPC connection after embedded app exited", "err", closeErr)
+			}
+			m.mu.Unlock()
+
+			if err != nil {
+				return fmt.Errorf("embedded app for version %d exited unexpectedly: %w", appVersion, err)
+			}
+			return fmt.Errorf("embedded app for version %d exited unexpectedly", appVersion)
+		case <-watchCtx.Done():
+			return nil
+>>>>>>> 478f887 (fix(multiplexer): [high] start on the app's committed app version (#8203))
 		}
 	}
 	return result
