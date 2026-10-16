@@ -91,7 +91,10 @@ func testClientUploadNoKeyring(t *testing.T) {
 }
 
 func testClientUploadContextCancellation(t *testing.T) {
-	client := makeTestUploadClient(t, 100, nil)
+	var calls *atomic.Int64
+	client := makeTestUploadClient(t, 100, func(cfg *fibre.ClientConfig) {
+		cfg.NewClientFn, calls = countingClientFn(cfg.NewClientFn)
+	})
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -102,6 +105,8 @@ func testClientUploadContextCancellation(t *testing.T) {
 
 	_, err := client.Upload(ctx, testNamespace, blob)
 	require.ErrorIs(t, err, context.Canceled)
+	client.Await()
+	require.Zero(t, calls.Load(), "cancelled uploads must not dispatch shards")
 }
 
 func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
