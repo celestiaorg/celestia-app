@@ -17,4 +17,4 @@ runs:
       shell: bash
       env:
         MODULE_DIRECTORY: ${{ inputs.module-directory }}
-      run: bash scripts/ci-download-modules.sh "$MODULE_DIRECTORY"
+      run: sh docker/download-go-modules.sh "$MODULE_DIRECTORY"
