@@ -61,7 +61,7 @@ jobs:
             go test -timeout 30m -skip "${{ matrix.skip }}" ${{ matrix.package }}
           elif [ -n "${{ matrix.pattern }}" ]; then
             # run specific test patterns
-            go test -timeout 30m -run "${{ matrix.pattern }}" ${{ matrix.package }}
+            go test -timeout 30m -run "^(${{ matrix.pattern }})$" ${{ matrix.package }}
           else
             # run specific package
             make test PACKAGES="${{ matrix.package }}"
