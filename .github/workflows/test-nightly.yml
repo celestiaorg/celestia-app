@@ -227,7 +227,7 @@ jobs:
           set -o pipefail
           if [ "$RACE_PACKAGE" = unit ]; then
             excluded=$(go list ./app/test ./fibre/... ./tools/fibre-txsim)
-            packages=$(go list ./... | grep -Fxv -f <(printf '%s\n' "$excluded"))
+            packages=$(go list ./... | grep -Fxv -f <(printf '%s\n' "$excluded") | tr '\n' ' ')
             make test-race PACKAGES="$packages"
           else
             make test-race PACKAGES="$RACE_PACKAGE"

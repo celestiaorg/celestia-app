@@ -16,6 +16,7 @@ jobs:
       - name: Run tests in short mode
         # Verify cross-package coverage without running the full coverage suite.
         run: |
+          bash scripts/test_race_recipe_test.sh
           bash scripts/test_cover_test.sh
           make test-short
         timeout-minutes: 20

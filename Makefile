@@ -296,7 +296,7 @@ test-race:
 # TODO: Remove exclusions as race-mode failures and resource limits are resolved.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -count=1 -timeout 15m $(if $(PACKAGES),$(PACKAGES),./...) -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages"
+	@go test -count=1 -timeout 15m $(if $(PACKAGES),$(strip $(PACKAGES)),./...) -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
