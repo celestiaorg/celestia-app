@@ -224,8 +224,10 @@ jobs:
           # Avoid compiling and running several memory-heavy packages together.
           GOFLAGS: -p=2
         run: |
+          set -o pipefail
           if [ "$RACE_PACKAGE" = unit ]; then
-            packages=$(go list ./... | grep -Ev '/app/test$|/fibre(/|$)|/tools/fibre-txsim$')
+            excluded=$(go list ./app/test ./fibre/... ./tools/fibre-txsim)
+            packages=$(go list ./... | grep -Fxv -f <(printf '%s\n' "$excluded"))
             make test-race PACKAGES="$packages"
           else
             make test-race PACKAGES="$RACE_PACKAGE"
