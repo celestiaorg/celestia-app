@@ -6,12 +6,10 @@ jobs:
   golangci-lint:
     name: golangci-lint
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
       - uses: technote-space/get-diff-action@f27caffdd0fb9b13f4fc191c016bb4e0632844af #v6.1.2
         with:
           # This job will pass without running if go.mod, go.sum, and *.go
@@ -25,12 +23,10 @@ jobs:
 
   govulncheck:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
       - run: make govulncheck
 
   hadolint:
@@ -59,9 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e #v7.0.0
-        with:
-          go-version-file: "go.mod"
+      - uses: ./.github/actions/setup-go
       - name: Check go mod tidy
         run: |
           # `go mod tidy -diff` exits non-zero for ANY error, including transient
