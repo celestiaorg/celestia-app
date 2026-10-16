@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -102,9 +103,12 @@ func TestGovCancellationRatioQueuedBeforeV11(t *testing.T) {
 	proposal, err := testApp.GovKeeper.SubmitProposal(ctx, []sdk.Msg{msg}, "", "Restore old params", "Restore the previous cancellation ratio", testfactory.GetAddress(keyring, proposer), false)
 	require.NoError(t, err)
 
-	require.NoError(t, testApp.UpgradeKeeper.ApplyUpgrade(ctx, upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()}))
-	consensusParams.Version.App = 11
-	ctx = ctx.WithConsensusParams(consensusParams)
+	// Schedule directly through x/upgrade, without the signal module setting the version.
+	require.NoError(t, testApp.UpgradeKeeper.ScheduleUpgrade(ctx.WithBlockHeight(testApp.LastBlockHeight()), upgradetypes.Plan{Name: "v11", Height: ctx.BlockHeight()}))
+	_, err = testApp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: ctx.BlockHeight(), Time: util.GenesisTime})
+	require.NoError(t, err)
+	ctx = testApp.GetContextForFinalizeBlock(nil)
+	require.Equal(t, uint64(11), ctx.ConsensusParams().Version.App)
 	messages, err := proposal.GetMsgs()
 	require.NoError(t, err)
 	// Governance dispatches queued proposal messages through this same router.

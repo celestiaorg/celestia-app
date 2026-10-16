@@ -97,6 +97,9 @@ func (app App) RegisterUpgradeHandlers() {
 		if err := app.GovKeeper.Params.Set(ctx, params); err != nil {
 			return nil, err
 		}
+		if err := app.SetAppVersion(ctx, 11); err != nil {
+			return nil, err
+		}
 		return versionMap, nil
 	})
 
