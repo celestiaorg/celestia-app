@@ -21,6 +21,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	consensustypes "github.com/cosmos/cosmos-sdk/x/consensus/types"
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -85,7 +86,13 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	loadDone := make(chan struct{})
+	defer func() {
+		cancel()
+		<-loadDone
+	}()
 	go func() {
+		defer close(loadDone)
 		// this for loop is a hack to restart txsim on failures
 		for {
 			select {
@@ -117,7 +124,8 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 			// capture the starting height before waiting for blocks
 			startHeight, err := s.cctx.LatestHeight()
 			require.NoError(t, err)
-			require.NoError(t, s.cctx.WaitForBlocks(waitBlocks))
+			_, err = s.cctx.WaitForHeightWithTimeout(startHeight+waitBlocks, 2*time.Minute)
+			require.NoError(t, err)
 			endHeight, err := s.cctx.LatestHeight()
 			require.NoError(t, err)
 
@@ -125,7 +133,7 @@ func (s *SquareSizeIntegrationTest) TestSquareSizeUpperBound() {
 
 			// check that we're not going above the specified upper bound and that we hit the expected size
 			// only check blocks created after the parameter change took effect
-			for i := startHeight; i <= endHeight; i++ {
+			for i := startHeight + 1; i <= endHeight; i++ {
 				block, err := s.cctx.Client.Block(s.cctx.GoContext(), &i)
 				require.NoError(t, err)
 				require.LessOrEqual(t, block.Block.SquareSize, uint64(tc.govMaxSquareSize))
@@ -225,23 +233,20 @@ func (s *SquareSizeIntegrationTest) SetupBlockSizeParams(t *testing.T, squareSiz
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), res.Code)
 
-	// try to query a few times until the voting period has passed
-	for range 20 {
-		// check that the parameters were updated as expected
-		blobQueryClient := blobtypes.NewQueryClient(s.cctx.GRPCClient)
+	// Observe both changes before measuring blocks produced with the new limits.
+	blobQueryClient := blobtypes.NewQueryClient(s.cctx.GRPCClient)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		blobParamsResp, err := blobQueryClient.Params(s.cctx.GoContext(), &blobtypes.QueryParamsRequest{})
-		require.NoError(t, err)
-		if uint64(squareSize) != blobParamsResp.Params.GovMaxSquareSize {
-			time.Sleep(time.Millisecond * 500)
-			continue
+		if !assert.NoError(c, err) {
+			return
 		}
-		require.Equal(t, uint64(squareSize), blobParamsResp.Params.GovMaxSquareSize)
-
-		consParamsResp, err = consQueryClient.Params(s.cctx.GoContext(), &consensustypes.QueryParamsRequest{})
-		require.NoError(t, err)
-		require.Equal(t, int64(maxBytes), consParamsResp.Params.Block.MaxBytes)
-		break
-	}
+		assert.Equal(c, uint64(squareSize), blobParamsResp.Params.GovMaxSquareSize)
+		consParamsResp, err := consQueryClient.Params(s.cctx.GoContext(), &consensustypes.QueryParamsRequest{})
+		if !assert.NoError(c, err) {
+			return
+		}
+		assert.Equal(c, int64(maxBytes), consParamsResp.Params.Block.MaxBytes)
+	}, time.Minute, 100*time.Millisecond)
 
 	// Wait for at least one block to be produced with the new parameters
 	require.NoError(t, s.cctx.WaitForNextBlock())
