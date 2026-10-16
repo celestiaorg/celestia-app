@@ -29,6 +29,7 @@ jobs:
         run: make test-coverage
 
       - name: Verify proposal handler instrumentation
+        shell: bash
         run: bash scripts/check_proposal_coverage.sh | tee coverage-summary.txt
 
       - name: Publish coverage summary
