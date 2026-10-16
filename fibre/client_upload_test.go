@@ -91,9 +91,16 @@ func testClientUploadNoKeyring(t *testing.T) {
 }
 
 func testClientUploadContextCancellation(t *testing.T) {
-	var calls *atomic.Int64
+	var calls atomic.Int64
 	client := makeTestUploadClient(t, 100, func(cfg *fibre.ClientConfig) {
-		cfg.NewClientFn, calls = countingClientFn(cfg.NewClientFn)
+		newClient := cfg.NewClientFn
+		cfg.NewClientFn = func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
+			client, err := newClient(ctx, val)
+			if err != nil {
+				return nil, err
+			}
+			return uploadAttemptClient{Client: client, calls: &calls}, nil
+		}
 	})
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
@@ -107,6 +114,17 @@ func testClientUploadContextCancellation(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	client.Await()
 	require.Zero(t, calls.Load(), "cancelled uploads must not dispatch shards")
+}
+
+// uploadAttemptClient counts attempts even when the RPC fails or is cancelled.
+type uploadAttemptClient struct {
+	grpc.Client
+	calls *atomic.Int64
+}
+
+func (c uploadAttemptClient) UploadShard(ctx context.Context, req *types.UploadShardRequest, opts ...grpclib.CallOption) (*types.UploadShardResponse, error) {
+	c.calls.Add(1)
+	return c.Client.UploadShard(ctx, req, opts...)
 }
 
 func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
