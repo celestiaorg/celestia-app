@@ -191,6 +191,7 @@ func TestDownloadShardOversizedRequestRejected(t *testing.T) {
 		&testHostRegistry{addresses: addresses},
 		func() string { return "celestia" },
 		fibre.DefaultProtocolParams.MaxMessageSize(),
+		fibre.DefaultProtocolParams.MaxRowsPerValidator(), fibre.DefaultProtocolParams.MerkleProofDepth(),
 		nil,
 	)
 	client, err := newClient(t.Context(), validators[0])

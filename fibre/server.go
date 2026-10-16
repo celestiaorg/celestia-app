@@ -137,6 +137,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		grpclib.ForceServerCodecV2(fibregrpc.NewServerCodec(
 			DefaultProtocolParams.MaxRowsPerValidator(),
 			DefaultProtocolParams.MerkleProofDepth(),
+			s.Config.MaxMessageSize,
 		)),
 		grpclib.Creds(creds),
 	)
