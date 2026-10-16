@@ -68,7 +68,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
-		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+		return nil, status.Error(grpccodes.Internal, "failed to check if store has the commitment")
 	}
 
 	if has {
@@ -139,7 +139,7 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
-		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+		return status.Error(grpccodes.Internal, "failed to check if store has the commitment")
 	}
 	if has {
 		s.observeDuplicateUpload(ctx, log, "after_verification")
@@ -172,12 +172,12 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "store upload aborted")
-			return status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+			return status.Error(cancellationCode(ctxErr), "store upload aborted")
 		}
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
-		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+		return status.Error(grpccodes.Internal, "failed to store upload data")
 	}
 	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
 	span.AddEvent("shard_stored")
