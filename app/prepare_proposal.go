@@ -42,6 +42,7 @@ func (app *App) PrepareProposalHandler(ctx sdk.Context, req *abci.RequestPrepare
 	if err != nil {
 		return nil, fmt.Errorf("failed to create FilteredSquareBuilder: %w", err)
 	}
+	fsb.validateBlobTx = app.ValidateBlobTxWithCache
 
 	txs := fsb.Fill(ctx, req.Txs, req.MaxTxBytes)
 

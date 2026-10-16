@@ -404,9 +404,10 @@ func TestPrepareProposalCappingNumberOfMessages(t *testing.T) {
 			expectedTransactions: pfbTxs[:appconsts.MaxPFBMessages],
 		},
 		{
-			name:                 "capping only PFB transactions with multiple messages",
+			// A blob tx must contain exactly one PFB, so these are all dropped.
+			name:                 "drops blob transactions with multiple PFB messages",
 			inputTransactions:    multiPFBsPerTxs[:appconsts.MaxPFBMessages],
-			expectedTransactions: multiPFBsPerTxs[:appconsts.MaxPFBMessages/numberOfMsgsPerTx],
+			expectedTransactions: [][]byte{},
 		},
 		{
 			name:                 "capping only msg send transactions",
@@ -477,3 +478,202 @@ func repeat[T any](n int, val T) []T {
 	}
 	return result
 }
+<<<<<<< HEAD
+=======
+
+// TestPrepareProposalFiltersPayForFibre checks invalid signatures and low gas.
+func TestPrepareProposalFiltersPayForFibre(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	signers := make([]*user.Signer, len(accounts))
+	for i, account := range accounts {
+		signers[i] = newSigner(i)
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+	}
+
+	validTx := newSignedPayForFibreTx(t, signers[0], accounts[0], true)
+	invalidSigTx := newSignedPayForFibreTx(t, signers[1], accounts[1], false)
+	// Below the fixed verification gas, the tx must be filtered.
+	lowGasLimit := fibretypes.EstimateGasForPayForFibreSignatureVerification(1) - 1
+	lowGasTx := newSignedPayForFibreTxWithOpts(t, signers[2], accounts[2], true,
+		user.SetGasLimit(lowGasLimit), user.SetFee(4_000))
+
+	resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{validTx, invalidSigTx, lowGasTx},
+		Height: testApp.LastBlockHeight() + 1,
+		Time:   time.Now(),
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Txs, 1)
+	require.True(t, bytes.Equal(validTx, resp.Txs[0]))
+}
+
+func TestPrepareProposalPayForFibreDoubleSpend(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	payment := fibretypes.PaymentAmount(100).Amount.Int64()
+
+	// accounts[0] affords one payment, accounts[1] and accounts[2] afford two.
+	// Funding the duplicate pair's account for both payments makes its second
+	// tx fail on the processed-payment record rather than the balance.
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), payment)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[1]), 2*payment)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[2]), 2*payment)
+
+	base := time.Now()
+	tests := []struct {
+		name     string
+		txs      [][]byte
+		wantKept int
+	}{
+		{
+			name:     "drops second promise that would overdraw the escrow",
+			txs:      newPayForFibreTxPair(t, newSigner(0), accounts[0], base.Add(-2*time.Second), base.Add(-time.Second)),
+			wantKept: 1,
+		},
+		{
+			name:     "drops second tx carrying a duplicate promise",
+			txs:      newPayForFibreTxPair(t, newSigner(1), accounts[1], base, base),
+			wantKept: 1,
+		},
+		{
+			name:     "keeps both promises the escrow can cover",
+			txs:      newPayForFibreTxPair(t, newSigner(2), accounts[2], base.Add(-2*time.Second), base.Add(-time.Second)),
+			wantKept: 2,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// Prepare and process must see the same block time: promise
+			// freshness and expiry are judged against it.
+			now := time.Now()
+			height := testApp.LastBlockHeight() + 1
+
+			prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+				Txs:    tc.txs,
+				Height: height,
+				Time:   now,
+			})
+			require.NoError(t, err)
+			require.Equal(t, tc.txs[:tc.wantKept], prepareResp.Txs)
+
+			processResp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+				Height:       height,
+				Time:         now,
+				Txs:          prepareResp.Txs,
+				DataRootHash: prepareResp.DataRootHash,
+				SquareSize:   prepareResp.SquareSize,
+			})
+			require.NoError(t, err)
+			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status, "prepared block must pass process")
+		})
+	}
+}
+
+// TestPrepareProposalDropsTxsProcessProposalRejects checks that PrepareProposal
+// drops a non-blob tx with a PFB and a blob tx whose blobs don't match its PFB.
+func TestPrepareProposalDropsTxsProcessProposalRejects(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+	ns := share.RandomBlobNamespace()
+
+	// A normal (non-BlobTx) signed tx containing a MsgPayForBlobs.
+	pfbSigner := newSigner(0)
+	pfb, _ := blobfactory.RandMsgPayForBlobsWithNamespaceAndSigner(pfbSigner.Accounts()[0].Address().String(), ns, 100)
+	pfbNormalTx, _, err := pfbSigner.CreateTx([]sdk.Msg{pfb}, blobfactory.DefaultTxOpts()...)
+	require.NoError(t, err)
+
+	// A blob tx whose PFB declares a 100 byte blob but wraps a 101 byte blob.
+	validBlobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(1), []share.Namespace{ns}, []int{100})[0]
+	btx, _, err := blobtx.UnmarshalBlobTx(validBlobTx)
+	require.NoError(t, err)
+	wrongBlob, err := share.NewBlob(ns, bytes.Repeat([]byte{1}, 101), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+	mismatchedBlobTx, err := blobtx.MarshalBlobTx(btx.Tx, wrongBlob)
+	require.NoError(t, err)
+
+	keptBlobTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(2), []share.Namespace{ns}, []int{100})[0]
+
+	height := testApp.LastBlockHeight() + 1
+	now := time.Now()
+	prepareResp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{
+		Txs:    [][]byte{pfbNormalTx, mismatchedBlobTx, keptBlobTx},
+		Height: height,
+		Time:   now,
+	})
+	require.NoError(t, err)
+	require.Equal(t, [][]byte{keptBlobTx}, prepareResp.Txs)
+
+	processResp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+		Height:       height,
+		Time:         now,
+		Txs:          prepareResp.Txs,
+		DataRootHash: prepareResp.DataRootHash,
+		SquareSize:   prepareResp.SquareSize,
+	})
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processResp.Status)
+}
+
+// TestProcessProposalReusesOwnProposal runs ProcessProposal on the block this node
+// just prepared and checks the reuse changes neither the verdict nor the root check.
+func TestProcessProposalReusesOwnProposal(t *testing.T) {
+	encConf := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+	height := testApp.LastBlockHeight() + 1
+	txs := createBlobTxs(t, testApp, encConf, kr, accounts)
+
+	prepare := func() *abci.ResponsePrepareProposal {
+		resp, err := testApp.PrepareProposal(&abci.RequestPrepareProposal{Txs: txs, Height: height, Time: time.Now()})
+		require.NoError(t, err)
+		return resp
+	}
+	process := func(prepared *abci.ResponsePrepareProposal, dataRoot []byte) abci.ResponseProcessProposal_ProposalStatus {
+		resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Header: &cmtproto.Header{
+				Version:  version.Consensus{Block: 1, App: 3},
+				ChainID:  testutil.ChainID,
+				Height:   height,
+				Time:     time.Now(),
+				DataHash: dataRoot,
+			},
+			Height:       height,
+			Txs:          prepared.Txs,
+			SquareSize:   prepared.SquareSize,
+			DataRootHash: dataRoot,
+		})
+		require.NoError(t, err)
+		return resp.Status
+	}
+
+	// First ProcessProposal after PrepareProposal reuses the artifacts; the
+	// second recomputes them (the entry is taken once). Both accept.
+	prepared := prepare()
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(prepared, prepared.DataRootHash))
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(prepared, prepared.DataRootHash))
+
+	// A wrong data root is rejected on the reuse path too.
+	prepared = prepare()
+	wrongRoot := bytes.Clone(prepared.DataRootHash)
+	wrongRoot[0] ^= 0xff
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, process(prepared, wrongRoot))
+
+	// A changed tx list misses the entry and is validated from scratch.
+	prepared = prepare()
+	prepared.Txs = prepared.Txs[:len(prepared.Txs)-1]
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, process(prepared, prepared.DataRootHash))
+}
+>>>>>>> 8fcee49 (fix(app): [high] align prepare proposal tx filtering with process proposal (#8193))
