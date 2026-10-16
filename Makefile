@@ -274,7 +274,7 @@ test-docker-e2e:
 	fi
 	@ENTRYPOINT=$${entrypoint:-TestCelestiaTestSuite}; \
 	echo "--> Running: $$ENTRYPOINT/$(test)"; \
-	cd test/docker-e2e && go test -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
+	cd test/docker-e2e && go test -count=1 -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
 .PHONY: test-docker-e2e
 
 ## test-docker-e2e-upgrade-all: Build image from current branch and run the upgrade test for all app versions starting from v2.
@@ -296,7 +296,7 @@ test-race:
 # TODO: Remove exclusions as race-mode failures and resource limits are resolved.
 # https://github.com/celestiaorg/celestia-app/issues/1369
 	@echo "--> Running tests in race mode"
-	@go test -timeout 15m $(if $(PACKAGES),$(PACKAGES),./...) -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages"
+	@go test -count=1 -timeout 15m $(if $(PACKAGES),$(PACKAGES),./...) -v -race -skip "TestPrepareProposalConsistency|TestIntegrationTestSuite|TestEvictions|TestPrepareProposalCappingNumberOfMessages"
 .PHONY: test-race
 
 ## test-bench: Run benchmark unit tests.
