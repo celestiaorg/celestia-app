@@ -60,9 +60,9 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 	if netCfg.Seeds != "" {
 		startArgs = append(startArgs, "--p2p.seeds="+netCfg.Seeds)
 	}
-	if netCfg.Peers != "" {
-		startArgs = append(startArgs, "--p2p.persistent_peers="+netCfg.Peers)
-	}
+	peers := s.archivePeers(ctx, netCfg)
+	s.Require().NotEmpty(peers, "no %s archive peer to block sync from", netCfg.Name)
+	startArgs = append(startArgs, "--p2p.persistent_peers="+peers)
 
 	chain, err := networks.NewChainBuilder(t, netCfg, dockerCfg).
 		WithAdditionalStartArgs(startArgs...).
@@ -108,6 +108,23 @@ func (s *CelestiaTestSuite) runGenesisSync(netCfg *networks.Config, extraStartAr
 	s.Require().Equal(netCfg.ChainID, block.Block.ChainID, "block 1 has unexpected chain ID")
 }
 
+// archivePeers returns the peers to block sync genesis from: the addresses the
+// configured RPCs report for themselves, ahead of the hardcoded fallback. The
+// hardcoded list rots whenever an operator turns on pruning or moves a port,
+// and the node gives no sign of it — it stalls at height 0 with a healthy peer
+// count until the test times out — so the live addresses are preferred.
+func (s *CelestiaTestSuite) archivePeers(ctx context.Context, netCfg *networks.Config) string {
+	t := s.T()
+	fetched, err := networks.FetchArchivePeers(ctx, netCfg)
+	if err != nil {
+		t.Logf("falling back to the hardcoded %s archive peers: %v", netCfg.Name, err)
+		return netCfg.Peers
+	}
+	peers := networks.MergePeers(fetched, netCfg.Peers)
+	t.Logf("%s archive peers: %s", netCfg.Name, peers)
+	return peers
+}
+
 // logNodeDiagnostics logs each node's sync status, peer count, and the tail of
 // its container logs so a failed start can be diagnosed from CI output alone.
 func (s *CelestiaTestSuite) logNodeDiagnostics(ctx context.Context, nodes []tastoratypes.ChainNode) {
@@ -124,7 +141,14 @@ func (s *CelestiaTestSuite) logNodeDiagnostics(ctx context.Context, nodes []tast
 				t.Logf("%s status: height=%d catching_up=%t", node.Name(), status.SyncInfo.LatestBlockHeight, status.SyncInfo.CatchingUp)
 			}
 			if netInfo, err := client.NetInfo(ctx); err == nil {
-				t.Logf("%s peers: %d", node.Name(), netInfo.NPeers)
+				// Name the peers: a stalled sync with a healthy peer count
+				// means the node connected to pruned peers only, which the
+				// count alone does not show.
+				peers := make([]string, 0, len(netInfo.Peers))
+				for _, p := range netInfo.Peers {
+					peers = append(peers, fmt.Sprintf("%s@%s (%s)", p.NodeInfo.DefaultNodeID, p.RemoteIP, p.NodeInfo.Moniker))
+				}
+				t.Logf("%s peers: %d %v", node.Name(), netInfo.NPeers, peers)
 			}
 		}
 		logs := s.containerLogs(ctx, node.Name())
