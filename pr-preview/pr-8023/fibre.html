@@ -150,23 +150,7 @@
 </div>
 <p>The publisher and the account submitting the settlement transaction can be different accounts. The promise owner pays the blob charge from escrow; the transaction submitter pays the transaction fee.</p>
 <h2 id="follow-a-blob"><a class="header" href="#follow-a-blob">Follow a blob</a></h2>
-<pre><code class="language-mermaid">sequenceDiagram
-    participant P as Publisher
-    participant A as Celestia app
-    participant S as Fibre servers
-    participant R as Reader
-    P-&gt;&gt;A: Deposit funds into escrow
-    P-&gt;&gt;P: Encode blob and sign payment promise
-    P-&gt;&gt;S: Upload assigned rows, proofs, RLC vector, and promise
-    S-&gt;&gt;A: Validate promise and reserve local budget
-    S-&gt;&gt;S: Verify assigned rows and store shard
-    S--&gt;&gt;P: Validator signatures
-    P-&gt;&gt;A: Submit PayForFibre with promise and signatures
-    A-&gt;&gt;A: Validate proposal, settle payment, include metadata
-    R-&gt;&gt;S: Request shards by BlobID
-    S--&gt;&gt;R: Stored rows, proofs, and RLC vector
-    R-&gt;&gt;R: Verify rows and reconstruct payload
-</code></pre>
+<p><img src="./figures/fibre-lifecycle.svg" alt="Fibre lifecycle: fund escrow, encode and upload, collect signatures, settle on chain, then retrieve and reconstruct." /></p>
 <h3 id="1-fund-escrow"><a class="header" href="#1-fund-escrow">1. Fund escrow</a></h3>
 <p>The publisher deposits tokens into <code>x/fibre</code>. A payment promise authorizes a later charge against that escrow for one blob. It names the chain, namespace, blob commitment and version, padded upload size, creation time, and the validator-set height used for assignment.</p>
 <p>A promise is a signed liability, even if an upload fails. Anyone holding it can submit a timeout settlement once it expires, subject to the freshness and balance checks. Expiry does not automatically charge the account: someone must submit a transaction. The standalone Fibre server currently has no timeout-submission worker.</p>
@@ -202,7 +186,7 @@
 <p>Timeout settlement remains possible after promise expiry until the freshness cutoff rejects the promise. A persisted freshness floor prevents governance from reviving old promises. This is why waiting one promise timeout after a client restart does not, by itself, make outstanding promises harmless.</p>
 <p>Servers prune periodically. Settlement does not restart the retention clock, and <code>PutResult.TTL</code> is currently unpopulated. Applications needing long-term access must retain a copy elsewhere.</p>
 <h2 id="what-is-paid-for"><a class="header" href="#what-is-paid-for">What is paid for?</a></h2>
-<p>The charge uses the padded original rows, including the header, but excludes parity rows, proofs, and RLC overhead. Rows are aligned to 64 bytes, so the smallest paid upload is 256 KiB even for a tiny payload. The current escrow charge is <code>650,000 + 45,000 * ceil(upload_size / 262,144)</code> utia, separate from the settlement transaction fee.</p>
+<p>The charge uses the padded original rows, including the header, but excludes parity rows, proofs, and RLC overhead. Rows are aligned to 64 bytes, so the smallest paid upload is 256 KiB even for a tiny payload. The current escrow charge is <code>ceil(0.004 * (650000 + 45000 * ceil(upload_size / 262144)))</code> utia, separate from the settlement transaction fee.</p>
 <p><code>Put</code> can opt into local budget tracking and automatic deposits with <code>Escrow.AutoFund</code>. Direct <code>Upload</code> calls do not use that ledger. Neither the client ledger nor a validator's local promise cache is a global reservation on escrow; see the <a href="./fibre_client.html#escrow-ledger-accounting-and-limits">client accounting limits</a>.</p>
 <h2 id="reference-map"><a class="header" href="#reference-map">Reference map</a></h2>
 <ul>
