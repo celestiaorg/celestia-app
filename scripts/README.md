@@ -18,8 +18,8 @@ same paths, so local and Codecov reports agree.
 The report is replaced only after all tests pass. A failed run leaves an existing
 report unchanged, so check the command's exit status before using the report.
 Run `bash scripts/test_cover_test.sh` for a small regression check of the script.
-See [coverage reports and staged checks](../docs/coverage.md) for component
-reports, the handler execution assertion, and the accept/reject invariant matrix.
+See [coverage reports and staged checks](../docs/coverage.md) for the global rule,
+proposal exceptions, the handler execution assertion, and the accept/reject invariant matrix.
 
 ## build-run-single-node.sh
 

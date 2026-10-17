@@ -6,12 +6,12 @@ on main, PRs targeting main, and the merge queue. It preserves the corrected
 Tests in other packages credit the production code they execute. Generated code,
 test utilities, and developer tools remain excluded.
 
-[Codecov configuration](../.github/codecov.yml) reports PrepareProposal and
-ProcessProposal separately, plus square building, ante, application lifecycle,
-DA, inclusion, proofs, NMT wrapping, erasure coding, signature caching, version
-constants, the multiplexer, and each application module. Component paths can
-overlap; they are views, not partitions of the production total. Proposal
-components include helpers in their respective files.
+[Codecov configuration](../.github/codecov.yml) sets an 80% goal for all production
+code. New production packages enter this scope automatically; no component entry
+is needed. PrepareProposal and ProcessProposal are the two explicit critical
+exceptions, each with a separate 95% goal so one cannot mask gaps in the other.
+These components include helpers in their respective files and are also counted
+in the production total.
 
 CI also checks the **actual handler functions** with `go tool cover -func`.
 Missing instrumentation or zero executed statements in either handler fails the
@@ -25,19 +25,20 @@ bash scripts/check_proposal_coverage.sh
 
 ## Stages
 
-1. **Non-regression:** the production total and every component compare against
+1. **Non-regression:** the production total and each proposal component compare against
    the base report (`target: auto`), allowing a decrease of up to 0.5 percentage
    points to absorb small run-to-run fluctuations. Larger decreases and missing
    reports fail the checks. Main uploads supply the corrected baseline. The 80%
-   production, 95% proposal, and 90% other-component goals are informational initially.
+   production and 95% proposal goals are informational initially.
 2. **Ratchet:** as existing or new tests raise coverage, `auto` uses the improved
    base on subsequent PRs. Review the full profile before promoting a goal;
    remove `informational: true` for a component once its goal is sustainable.
    Raise the production check to 80% the same way. Keep non-regression checks.
 3. **Maintain:** require the coverage job and non-regression statuses in repository
    rules when adopting these as merge requirements. A workflow PR does not
-   change GitHub branch protection. Add new consensus components to the config
-   when their code is introduced.
+   change GitHub branch protection. Ordinary packages inherit the global rule.
+   Add a separate component only when a critical area needs a stricter target;
+   do not maintain an inventory of all packages.
 
 Codecov percentages follow Codecov report semantics. Native Go percentages are
 statement-weighted; the handler summary records those independently. Neither
