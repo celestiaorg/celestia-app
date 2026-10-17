@@ -1,0 +1,26 @@
+name: review-policy-events
+
+# This workflow has no write token. Its completion wakes the trusted evaluator.
+on:
+  pull_request:
+  pull_request_review:
+    types: [submitted, edited, dismissed]
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    name: review-policy-tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify trusted evaluator
+        run: echo 'Review policy event received'
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: github.event_name != 'pull_request_review'
+        with:
+          persist-credentials: false
+      - name: Test review policy
+        if: github.event_name != 'pull_request_review'
+        run: node --test .github/scripts/review-policy.test.cjs
