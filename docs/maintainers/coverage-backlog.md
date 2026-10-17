@@ -1,11 +1,13 @@
 # Production coverage backlog
 
-This inventory addresses [PROTOCO-2971](https://linear.app/celestia/issue/PROTOCO-2971).
-It is based on main at `494baf5d41ebca925dad7a3a29f1799c0cdbe292` (2026-10-16).
+This testing plan addresses [PROTOCO-2971](https://linear.app/celestia/issue/PROTOCO-2971).
+The audit was based on main at `494baf5d41ebca925dad7a3a29f1799c0cdbe292` (2026-10-16).
+Before starting a follow-up, check current tests and rerun coverage to confirm
+which work remains.
 Each numbered follow-up below is a separate PR scope. Prioritize state and money
 movement before CLI, RPC, and off-chain client coverage.
 
-## Baseline and scope
+## Measuring coverage and scope
 
 Use [the coverage script](../../scripts/test_cover.sh), including its current
 production exclusions. It instruments eligible packages across test binaries,
@@ -34,79 +36,10 @@ The default build profile does not measure multiplexer-tagged paths or external
 Docker E2E binaries. Measure those separately and identify their build tags.
 Tools, scripts, generated code, and test infrastructure are outside this backlog.
 
-## Measured inventory
-
-The full baseline passed with Go 1.26.9 on Linux/amd64, default build tags and
-atomic cross-package instrumentation: **10,033 / 12,909 statements (77.72%)**.
-This documentation change leaves those counts unchanged. At a fixed denominator,
-80% requires 295 additional covered statements. This is a sizing estimate, not a
-reason to add artificial tests for unreachable branches.
-
-| Scope (including module/client CLI code) | Covered / total | Coverage |
-| --- | --- | --- |
-| `app/` | 1,397 / 1,584 | 88.19% |
-| `x/fibre/` | 1,028 / 1,268 | 81.07% |
-| `x/forwarding/` | 245 / 346 | 70.81% |
-| `x/minfee/` | 77 / 101 | 76.24% |
-| `x/mint/` | 158 / 189 | 83.60% |
-| `x/valaddr/` | 160 / 215 | 74.42% |
-| `x/blob/` | 367 / 463 | 79.27% |
-| `x/signal/` | 188 / 242 | 77.69% |
-| `x/zkism/` | 419 / 569 | 73.64% |
-| `fibre/` | 3,367 / 3,976 | 84.68% |
-| `pkg/user/` | 723 / 922 | 78.42% |
-| `multiplexer/` | 436 / 934 | 46.68% |
-| `cmd/` | 452 / 982 | 46.03% |
-
-[The complete ranked function inventory](coverage-functions.json) records all
-703 functions/initializers with uncovered statements across 212 files. Its rows
-are grouped by file; `columns` defines each row. Priority 1 covers app/module and
-shared consensus paths; priority 2 covers other production code. Within each
-priority, rank is by uncovered statements, then path and line. Counts come from
-normalized profile blocks mapped to Go AST function ranges; nested closures count
-toward their enclosing function. The one package-level initializer is named
-explicitly. The inventory accounts for all 2,876 uncovered statements.
-
-The following are the largest candidates in each priority. The behavioral
-follow-ups below override statement-count ordering where funds or state are at
-risk. A row records executed statements, not branch or assertion completeness.
-
-| Priority / rank | Function | Source | Covered / total | Uncovered |
-| --- | --- | --- | --- | --- |
-| 1 / 1 | `App.prepForZeroHeightGenesis` | [app/export.go:54](../../app/export.go#L54) | 64 / 107 | 43 |
-| 1 / 2 | `GenesisState.Validate` | [x/fibre/types/genesis.go:15](../../x/fibre/types/genesis.go#L15) | 0 / 33 | 33 |
-| 1 / 3 | `New` | [app/app.go:241](../../app/app.go#L241) | 97 / 105 | 8 |
-| 1 / 4 | `FilteredSquareBuilder.Fill` | [app/filtered_square_builder.go:71](../../app/filtered_square_builder.go#L71) | 85 / 93 | 8 |
-| 1 / 5 | `processFibreTxsForSquare` | [app/filtered_square_builder.go:367](../../app/filtered_square_builder.go#L367) | 37 / 45 | 8 |
-| 1 / 6 | `App.ProcessProposalHandler` | [app/process_proposal.go:28](../../app/process_proposal.go#L28) | 118 / 126 | 8 |
-| 1 / 7 | `Keeper.processAvailableWithdrawals` | [x/fibre/keeper/abci.go:52](../../x/fibre/keeper/abci.go#L52) | 27 / 35 | 8 |
-| 1 / 8 | `msgServer.Forward` | [x/forwarding/keeper/msg_server.go:25](../../x/forwarding/keeper/msg_server.go#L25) | 39 / 47 | 8 |
-| 1 / 9 | `Keeper.InitGenesis` | [x/zkism/keeper/genesis.go:15](../../x/zkism/keeper/genesis.go#L15) | 18 / 26 | 8 |
-| 1 / 10 | `Keeper.ExportGenesis` | [x/fibre/keeper/genesis.go:33](../../x/fibre/keeper/genesis.go#L33) | 9 / 16 | 7 |
-| 1 / 11 | `Minter.Validate` | [x/mint/types/minter.go:28](../../x/mint/types/minter.go#L28) | 0 / 7 | 7 |
-| 1 / 12 | `Keeper.TallyVotingPower` | [x/signal/keeper.go:245](../../x/signal/keeper.go#L245) | 20 / 27 | 7 |
-| 1 / 13 | `msgServer.PaymentPromiseTimeout` | [x/fibre/keeper/msg_server.go:211](../../x/fibre/keeper/msg_server.go#L211) | 24 / 29 | 5 |
-| 1 / 14 | `msgServer.SetFibreProviderInfo` | [x/valaddr/keeper/msg_server.go:23](../../x/valaddr/keeper/msg_server.go#L23) | 15 / 20 | 5 |
-| 1 / 15 | `signerDataFromTx` | [app/check_tx.go:187](../../app/check_tx.go#L187) | 10 / 14 | 4 |
-| 1 / 16 | `App.PrepareProposalHandler` | [app/prepare_proposal.go:21](../../app/prepare_proposal.go#L21) | 25 / 29 | 4 |
-| 1 / 17 | `PaymentPromise.Hash` | [fibre/payment_promise.go:264](../../fibre/payment_promise.go#L264) | 10 / 14 | 4 |
-| 1 / 18 | `AppModule.ValidateGenesis` | [x/blob/module.go:69](../../x/blob/module.go#L69) | 0 / 4 | 4 |
-| 2 / 212 | `CheckVersionCmd` | [cmd/celestia-appd/cmd/check_version.go:38](../../cmd/celestia-appd/cmd/check_version.go#L38) | 2 / 93 | 91 |
-| 2 / 213 | `initCmd` | [cmd/celestia-appd/cmd/init.go:46](../../cmd/celestia-appd/cmd/init.go#L46) | 7 / 62 | 55 |
-| 2 / 214 | `listTypesCmd` | [cmd/celestia-appd/cmd/list_types.go:17](../../cmd/celestia-appd/cmd/list_types.go#L17) | 2 / 51 | 49 |
-| 2 / 215 | `initAppForTestnet` | [cmd/celestia-appd/cmd/testnet.go:77](../../cmd/celestia-appd/cmd/testnet.go#L77) | 0 / 48 | 48 |
-| 2 / 216 | `setupOTelMetrics` | [cmd/celestia-appd/cmd/otel_metrics.go:65](../../cmd/celestia-appd/cmd/otel_metrics.go#L65) | 0 / 30 | 30 |
-| 2 / 217 | `Multiplexer.startGRPCServer` | [multiplexer/abci/multiplexer.go:386](../../multiplexer/abci/multiplexer.go#L386) | 0 / 28 | 28 |
-| 2 / 218 | `CmdForward` | [x/forwarding/client/cli/tx.go:32](../../x/forwarding/client/cli/tx.go#L32) | 6 / 34 | 28 |
-| 2 / 219 | `txServer.TxStatusBatch` | [app/grpc/tx/server.go:94](../../app/grpc/tx/server.go#L94) | 0 / 25 | 25 |
-| 2 / 220 | `getCommandArgs` | [cmd/celestia-appd/cmd/testnet.go:191](../../cmd/celestia-appd/cmd/testnet.go#L191) | 0 / 24 | 24 |
-| 2 / 221 | `setupProfiling` | [fibre/cmd/profiling.go:91](../../fibre/cmd/profiling.go#L91) | 4 / 28 | 24 |
-| 2 / 222 | `Multiplexer.startApp` | [multiplexer/abci/multiplexer.go:219](../../multiplexer/abci/multiplexer.go#L219) | 0 / 24 | 24 |
-| 2 / 223 | `getState` | [multiplexer/cmd/start.go:75](../../multiplexer/cmd/start.go#L75) | 0 / 23 | 23 |
-
-Low-level error returns, impossible marshal failures, constructors, and service
-wiring remain visible in the inventory. Inspect their reachability before adding
-tests; do not remove production code from the denominator to reach the target.
+Inspect low-level error returns, impossible marshal failures, constructors, and
+service wiring for reachability before adding tests. Do not remove production
+code from the denominator to reach the target. Generate current function coverage
+with the commands above instead of maintaining counts or rankings in this plan.
 
 ## Existing coverage to retain
 
@@ -129,8 +62,8 @@ tests; do not remove production code from the denominator to reach the target.
 
 These scopes describe missing assertions found by reading the existing suites.
 An executed function may still need a behavioral test. Conversely, an unexecuted
-defensive branch may not warrant fault injection. The measured inventory below
-separates these cases.
+defensive branch may not warrant fault injection. Use current coverage results
+and review the existing assertions before choosing a follow-up.
 
 ### 1. Forwarding transaction rollback and conservation
 
@@ -160,9 +93,9 @@ bank fake and assert previous time is not advanced after an error. Verify the
 outer cached context discards prior mint writes on failure. Preserve the existing
 yearly schedule and random accumulated-error test.
 Include a small `Minter.Validate`/genesis table for valid state, negative inflation
-or provisions, and empty denom: `Minter.Validate` is currently 0/7 statements.
-`CalculateBlockProvision` and `yearsSinceGenesis` already have 100% statement
-coverage; their new cases add boundary assertions rather than statement gain.
+or provisions, and empty denom. The `CalculateBlockProvision` and
+`yearsSinceGenesis` cases should pin boundary behavior even when they do not
+increase statement coverage.
 
 ### 3. Minfee parameter policy and store precedence
 
@@ -189,8 +122,8 @@ withdrawals, and processed payments. Import into a fresh keeper; check every
 record and the derived withdrawal/payment indexes, then run withdrawal processing
 and replay rejection. Add early-stop iterator assertions. Keep this separate from
 app upgrade changes. Credit the existing withdrawal, timeout, and pruning suites.
-Exercise [genesis validation](../../x/fibre/types/genesis.go), currently 0/33
-statements, through the module's JSON validation entry point. Pin existing
+Exercise [genesis validation](../../x/fibre/types/genesis.go) through the module's
+JSON validation entry point. Pin existing
 rejections for invalid params, empty/duplicate signers, invalid balances or
 available balance above total, invalid withdrawal amounts/timestamps, and
 empty/duplicate processed hashes or zero processing times. Keep a valid populated
@@ -236,7 +169,7 @@ its own reviewed fix. Do not repeat the existing module-account upgrade matrix.
 
 ### 8. Signal voting-power cleanup and read errors
 
-Target: `TallyVotingPower` in [keeper.go](../../x/signal/keeper.go), 20/27 statements.
+Target: `TallyVotingPower` in [keeper.go](../../x/signal/keeper.go).
 Extend the existing [keeper suite](../../x/signal/keeper_test.go) with removed and
 unbonded validators, non-not-found validator lookup errors, and last-power read
 errors. Assert stale signals are removed only for definitively missing validators
@@ -245,8 +178,8 @@ upgrade scheduling tests.
 
 ### 9. ZK ISM genesis rejection
 
-Target: `InitGenesis` in [genesis.go](../../x/zkism/keeper/genesis.go), 18/26
-statements. Extend the existing [genesis suite](../../x/zkism/keeper/genesis_test.go)
+Target: `InitGenesis` in [genesis.go](../../x/zkism/keeper/genesis.go).
+Extend the existing [genesis suite](../../x/zkism/keeper/genesis_test.go)
 with messages/submissions for an unknown ISM, malformed message IDs, and store
 write/read error propagation. Assert each current error and exercise the outer
 cached import boundary for rollback. Credit the existing populated round-trip,
@@ -258,7 +191,7 @@ Schedule these after the consensus priorities. Retain eligible production code
 in the denominator even when it has no package-local tests.
 
 1. **Check-state account sequence query**: [QuerySequence](../../app/query_sequence.go),
-   currently 0/12 statements. Despite its committed-state comment, the query reads
+   despite its committed-state comment, the query reads
    `app.CheckState()` and includes sequence increments from successful pending
    CheckTx transactions. Pin that behavior, an unknown account returning zero,
    missing check state, and other account-query errors. Credit the existing
@@ -278,7 +211,7 @@ in the denominator even when it has no package-local tests.
    [retry tests](../../pkg/user/worker_account_retry_test.go) for uncovered funding,
    fee-grant, and partial-initialization errors. Assert sequence/account state and
    worker cleanup; retain existing cancellation, restart, and broadcast-error tests.
-5. **Fibre storage/client errors**: use the measured function list to select one
+5. **Fibre storage/client errors**: use current coverage results to select one
    failing read/write or cancellation path per PR. Credit existing object-store,
    cleanup, upload lifetime/detach, escrow, and coordinator regressions. Use fake
    backends and deterministic cancellation rather than another full network suite.
