@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -222,7 +223,7 @@ func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
 }
 
 func TestServerStartLogsStoreConfig(t *testing.T) {
-	var logs bytes.Buffer
+	var logs synchronizedLogBuffer
 	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.StorageBackend = "object"
@@ -242,7 +243,7 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 }
 
 func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
-	var logs bytes.Buffer
+	var logs synchronizedLogBuffer
 	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 	})
@@ -250,4 +251,22 @@ func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
 	output := logs.String()
 	require.Contains(t, output, `msg="store ready" storage_backend=local`)
 	require.NotContains(t, output, "object_namespace")
+}
+
+// synchronizedLogBuffer allows assertions while background health checks log.
+type synchronizedLogBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *synchronizedLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *synchronizedLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }

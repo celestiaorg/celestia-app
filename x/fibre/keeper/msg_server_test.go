@@ -64,7 +64,7 @@ func (suite *MsgServerTestSuite) SetupTest() {
 	suite.stakingKeeper = &MockStakingKeeper{}
 	suite.authority = authtypes.NewModuleAddress("gov").String()
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 	suite.msgServer = keeper.NewMsgServerImpl(*suite.keeper)
 }
@@ -482,6 +482,110 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
 		suite.Error(err)
 		suite.Contains(err.Error(), "failed to get historical validator set")
+
+		// A sig cache hit checks only availability and must fail the same way.
+		availErr := suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height)
+		suite.ErrorIs(availErr, sdkerrors.ErrInvalidRequest)
+		suite.Equal(err.Error(), availErr.Error())
+	})
+
+	suite.T().Run("validator set available", func(t *testing.T) {
+		suite.NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height))
+	})
+}
+
+// TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum pins where the
+// promise entry is written: behind the validator quorum check, not behind the
+// promise signature alone. The promise signature is the submitter's own and
+// verifies by construction, so an entry written any earlier would let a
+// transaction the node rejects fill the cache and evict accepted ones.
+func (suite *MsgServerTestSuite) TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum() {
+	signerPubKey, privKey, _ := suite.newSigner()
+	suite.setupValidatorSet()
+	paymentPromise := suite.createPaymentPromise(signerPubKey, privKey)
+	validSignatures := suite.generateValidatorSignatures(&paymentPromise)
+	key := protoPromiseKey(suite.T(), &paymentPromise)
+
+	cache := newCountingSigCache()
+	// Signature verification reads no module state, so the store is never mounted.
+	k := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, cache)
+
+	suite.T().Run("forged certificate buys no entry", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		err := k.ValidatePayForFibreSignatures(suite.ctx, msg)
+		require.ErrorContains(t, err, "validator signature validation failed")
+		require.Equal(t, 1, cache.lookups, "the promise is looked up before it is verified")
+		require.Zero(t, cache.adds)
+		require.Empty(t, cache.entries)
+	})
+
+	suite.T().Run("certificate short of quorum buys no entry", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{},
+		}
+		require.Error(t, k.ValidatePayForFibreSignatures(suite.ctx, msg))
+		require.Zero(t, cache.adds)
+	})
+
+	suite.T().Run("accepted certificate records the promise", func(t *testing.T) {
+		msg := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		require.NoError(t, k.ValidatePayForFibreSignatures(suite.ctx, msg))
+		require.Equal(t, 1, cache.adds)
+		require.Contains(t, cache.entries, key)
+	})
+
+	// The decoded path must record the entry in the same place as the fallback
+	// path the subtests above take.
+	suite.T().Run("decoded view does not move where the entry is written", func(t *testing.T) {
+		decodedCache := newCountingSigCache()
+		dk := keeper.NewKeeper(suite.cdc, storetypes.NewKVStoreKey(types.StoreKey), suite.bankKeeper, suite.stakingKeeper, suite.authority, false, decodedCache)
+
+		pp := fibre.PaymentPromise{}
+		require.NoError(t, pp.FromProto(&paymentPromise))
+		signBytes, err := pp.SignBytes()
+		require.NoError(t, err)
+
+		withView := func(msg *types.MsgPayForFibre) sdk.Context {
+			return types.WithDecodedPayForFibre(suite.ctx, &types.DecodedPayForFibre{
+				Msg:              msg,
+				PromiseSignBytes: signBytes,
+				PromiseKey:       key,
+				PromiseKeyed:     true,
+			})
+		}
+
+		forged := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: [][]byte{make([]byte, 64)},
+		}
+		require.ErrorContains(t, dk.ValidatePayForFibreSignatures(withView(forged), forged), "validator signature validation failed")
+		require.Zero(t, decodedCache.adds, "a forged certificate buys no entry on the decoded path either")
+		require.Empty(t, decodedCache.entries)
+
+		accepted := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		require.NoError(t, dk.ValidatePayForFibreSignatures(withView(accepted), accepted))
+		require.Equal(t, 1, decodedCache.adds)
+		require.Contains(t, decodedCache.entries, key)
+
+		// The view's key is the one consulted: a tampered promise still passes
+		// off the cached entry, where a recomputed key would miss and reject.
+		tampered := &types.MsgPayForFibre{
+			PaymentPromise:      paymentPromise,
+			ValidatorSignatures: validSignatures,
+		}
+		tampered.PaymentPromise.Signature = append([]byte(nil), paymentPromise.Signature...)
+		tampered.PaymentPromise.Signature[0] ^= 0xff
+		require.NoError(t, dk.ValidatePayForFibreSignatures(withView(tampered), tampered))
 	})
 }
 

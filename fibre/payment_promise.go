@@ -193,10 +193,10 @@ const (
 
 	// maxChainIDSize is the maximum allowed chain ID length.
 	// Examples: "celestia" (8), "mocha-4" (7), "corto-1" (7)
-	maxChainIDSize = 20
+	maxChainIDSize = types.MaxChainIDSize
 
 	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)
-	signatureSize = 64
+	signatureSize = types.PromiseSignatureSize
 )
 
 // strippedSignBytes returns the payload-only bytes for this [PaymentPromise],

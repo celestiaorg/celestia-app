@@ -64,7 +64,7 @@ func (suite *KeeperTestSuite) SetupTest() {
 	suite.ctx = sdk.NewContext(stateStore, cmtproto.Header{ChainID: "test-chain", Time: time.Now().UTC(), Height: 100}, false, nil)
 	mockStakingKeeper := &MockStakingKeeper{}
 	suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority = storeKey, mockBankKeeper, mockStakingKeeper, authority
-	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority, false)
+	suite.keeper = keeper.NewKeeper(suite.cdc, storeKey, mockBankKeeper, mockStakingKeeper, authority, false, nil)
 	suite.keeper.SetParams(suite.ctx, types.DefaultParams())
 }
 
@@ -787,7 +787,7 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseWithoutCacheAllowsDouble
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend() {
 	// Rebuild the keeper with the promise cache enabled; it shares the same store.
-	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true)
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, nil)
 
 	promise1, promise2 := suite.twoPromisesFundedForOne()
 
@@ -802,6 +802,25 @@ func (suite *KeeperTestSuite) TestValidatePaymentPromiseCacheRejectsDoubleSpend(
 	// Re-submitting the first promise is idempotent (already reserved).
 	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
 	suite.NoError(err)
+}
+
+// TestValidatePaymentPromiseRecordsNothing pins that the query never writes
+// the shared signature cache. The endpoint is public, so entries written here
+// could evict the entries the transaction path relies on.
+func (suite *KeeperTestSuite) TestValidatePaymentPromiseRecordsNothing() {
+	cache := newCountingSigCache()
+	suite.keeper = keeper.NewKeeper(suite.cdc, suite.storeKey, suite.bankKeeper, suite.stakingKeeper, suite.authority, true, cache)
+
+	promise1, promise2 := suite.twoPromisesFundedForOne()
+
+	_, err := suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise1})
+	suite.NoError(err)
+
+	_, err = suite.keeper.ValidatePaymentPromise(suite.ctx, &types.QueryValidatePaymentPromiseRequest{Promise: promise2})
+	suite.Equal(codes.ResourceExhausted, status.Code(err))
+
+	suite.Zero(cache.adds)
+	suite.Empty(cache.entries)
 }
 
 func (suite *KeeperTestSuite) TestValidatePaymentPromiseStatefulForTimeout() {

@@ -10,7 +10,9 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	squarev4 "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -50,6 +52,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// mirrors PrepareProposal, which reads it before running any ante handler.
 	maxSquareSize := app.MaxEffectiveSquareSize(ctx)
 
+	// Reuse what PrepareProposal built for this height and these txs. A hit
+	// skips the square, erasure coding and DAH; every per-tx check still runs.
+	cached := app.proposalCache.Take(newProposalKey(ctx, blockHeader.Height, maxSquareSize), req.Txs)
+
 	// Run the fibre BeginBlocker on the proposal branch, mirroring FinalizeBlock,
 	// which pays out matured withdrawals and advances the freshness floor before
 	// any tx. Pay-for-fibre settlement below must see that escrow state. The
@@ -63,8 +69,69 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		sdkMessageCount int
 		pfbMessageCount int
 		pffMessageCount int
+		pffTxCount      int
 		maxPFF          = appconsts.MaxPayForFibreMessages
+		// Decode caches for this proposal, index aligned with req.Txs: the
+		// blob tx or pay-for-fibre tx decoded from req.Txs[i], nil if neither.
+		// On a cache hit the proposer's own decodes are reused instead.
+		blobTxs = make([]*blobtx.BlobTx, len(req.Txs))
+		decoded = make([]*fibretypes.DecodedPayForFibre, len(req.Txs))
 	)
+	if cached != nil {
+		blobTxs = cached.blobTxs
+	}
+
+	// Decode every tx once, up front. Oversize txs are left to the loop, which
+	// rejects them without decoding.
+	for idx, rawTx := range req.Txs {
+		if len(rawTx) > appconsts.MaxTxSize {
+			continue
+		}
+		if cached == nil {
+			decodedBlob, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+			if isBlobTx {
+				if err != nil {
+					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
+					return reject(), nil
+				}
+				blobTxs[idx] = decodedBlob
+			}
+		}
+		if blobTxs[idx] == nil {
+			decoded[idx] = fibrekeeper.DecodePayForFibre(rawTx)
+		}
+		if decoded[idx] == nil {
+			continue
+		}
+
+		// Reject an over-full proposal here rather than in the loop below,
+		// which only runs after every tx is decoded and pre-verified. Same
+		// verdict, same bound: DecodePayForFibre accepts a tx only when it
+		// carries exactly one MsgPayForFibre, which is what the loop counts.
+		pffTxCount++
+		if maxPFF > 0 && pffTxCount > maxPFF {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
+			return reject(), nil
+		}
+	}
+
+	// Verify the block's pay-for-fibre signatures across every CPU before the
+	// sequential loop reaches them. This only warms the signature cache: a
+	// failed check is not recorded, so the loop below still performs it and
+	// still decides. Any failure rejects the whole block, so the pass stops
+	// claiming work at the first one.
+	// A block may repeat one certificate across many PayForFibre txs;
+	// SeenCertificates holds that to one verification per distinct certificate.
+	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
+		Certificates:       true,
+		StopOnFirstFailure: true,
+		SeenCertificates:   make(map[sigcache.Key]struct{}, len(req.Txs)),
+	})
+
+	// One holder for the whole walk, so the context does not grow by a value
+	// per transaction.
+	decodedHolder := &fibretypes.DecodedHolder{}
+	ctx = fibretypes.WithDecodedHolder(ctx, decodedHolder)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -78,18 +145,19 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			return reject(), nil
 		}
 
-		// BlobTx is the most common special type; check it first.
-		blobTx, isBlobTx, err := blobtx.UnmarshalBlobTx(rawTx)
+		// BlobTx is the most common special type; check it first. It was
+		// decoded above, or by PrepareProposal from these exact bytes.
+		blobTx := blobTxs[idx]
+		isBlobTx := blobTx != nil
 		if isBlobTx {
-			if err != nil {
-				logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("err with blob tx %d", idx), err)
-				return reject(), nil
-			}
 			sdkTxBytes = blobTx.Tx
 		}
 
 		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
 		ctx = ctx.WithTxBytes(sdkTxBytes)
+		// Hand the ante handler and the message server what was already
+		// decoded from this tx; nil clears the previous tx's value.
+		decodedHolder.Set(decoded[idx])
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
@@ -190,10 +258,23 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	}
 
+	// Compare the proposer's claims against the cached values.
+	if cached != nil {
+		if cached.squareSize != req.SquareSize {
+			logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
+			return reject(), nil
+		}
+		if !bytes.Equal(cached.dataRoot, req.DataRootHash) {
+			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, cached.dataRoot))
+			return reject(), nil
+		}
+		return accept(), nil
+	}
+
 	// Classify txs (marking pay-for-fibre txs and synthesizing their system
 	// blobs) before constructing the square; go-square no longer decodes
 	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxs(req.Txs)
+	classifiedTxs, err := fibretypes.ClassifyTxsDecoded(req.Txs, blobTxs, decoded)
 	if err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
 		return reject(), nil

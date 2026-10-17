@@ -13,11 +13,25 @@ module example.com/coveragefixture
 
 go 1.26.0
 EOF
-mkdir -p library consumer second untested test/util
+mkdir -p library consumer second untested test/util tools/tool
 cat > library/library.go <<'EOF'
 package library
 func Value() int { return 42 }
 func Unused() int { return 0 }
+EOF
+# Generated code and tools are out of scope even when tests execute them.
+cat > library/library.pb.go <<'EOF'
+package library
+func Generated() int { return 1 }
+EOF
+cat > tools/tool/tool.go <<'EOF'
+package tool
+func Value() int { return 3 }
+EOF
+cat > tools/tool/tool_test.go <<'EOF'
+package tool
+import "testing"
+func TestValue(t *testing.T) { _ = Value() }
 EOF
 cat > untested/untested.go <<'EOF'
 package untested
@@ -48,6 +62,7 @@ awk '
     NR == 1 { if ($0 != "mode: atomic") exit 1; next }
     seen[$1]++ { exit 1 }
     /\/test\/util\// { exit 1 }
+    /\/tools\// || /\.pb\.go:/ { exit 1 }
     /\/library\/library.go:2\./ && $3 == 2 { covered = 1 }
     /\/library\/library.go:3\./ && $3 == 0 { uncovered = 1 }
     /\/untested\/untested.go:/ && $3 == 0 { untested = 1 }

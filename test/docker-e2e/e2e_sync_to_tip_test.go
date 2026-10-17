@@ -36,21 +36,12 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 	defer metrics.push(t)
 
 	mochaConfig := networks.NewMochaConfig()
-	mochaClient, err := networks.NewClient(mochaConfig.RPCs[0])
-	s.Require().NoError(err, "failed to create mocha RPC client")
-
-	latestHeight, err := s.GetLatestBlockHeight(ctx, mochaClient)
-	s.Require().NoError(err, "failed to get latest height from mocha")
-
-	trustHeight := latestHeight - mochaTrustOffset
-	s.Require().Greater(trustHeight, int64(0), "calculated trust height %d is too low", trustHeight)
-
-	trustBlock, err := mochaClient.Block(ctx, &trustHeight)
-	s.Require().NoError(err, "failed to get block at trust height %d from mocha", trustHeight)
+	trustBlock, err := networks.FetchTrustBlock(ctx, mochaConfig, mochaTrustOffset)
+	s.Require().NoError(err, "failed to fetch a trust block from mocha RPC providers")
+	trustHeight := trustBlock.Block.Height
 
 	trustHash := trustBlock.BlockID.Hash.String()
 
-	t.Logf("Mocha latest height: %d", latestHeight)
 	t.Logf("Using trust height: %d", trustHeight)
 	t.Logf("Using trust hash: %s", trustHash)
 
@@ -84,17 +75,18 @@ func (s *CelestiaTestSuite) TestSyncToTipMocha() {
 
 	s.Require().NoError(err, "failed to create chain")
 
-	t.Log("Starting mocha sync-to-tip node")
-	startTime := time.Now()
-
-	err = mochaChain.Start(ctx)
-	s.Require().NoError(err, "failed to start chain")
-
 	t.Cleanup(func() {
 		if err := mochaChain.Remove(ctx); err != nil {
 			t.Logf("Error stopping chain: %v", err)
 		}
 	})
+
+	t.Log("Starting mocha sync-to-tip node")
+	startTime := time.Now()
+	if err := mochaChain.Start(ctx); err != nil {
+		s.logNodeDiagnostics(ctx, mochaChain.GetNodes())
+		s.Require().NoError(err, "failed to start chain")
+	}
 
 	allNodes := mochaChain.GetNodes()
 	s.Require().Len(allNodes, 1, "expected exactly one node")

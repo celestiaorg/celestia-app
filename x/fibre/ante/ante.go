@@ -1,10 +1,10 @@
 package ante
 
 import (
-	"crypto/sha256"
 	"time"
 
 	storetypes "cosmossdk.io/store/types"
+	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -40,7 +40,9 @@ func consumeDeterministicFibreSignatureGas(ctx sdk.Context, msg *fibretypes.MsgP
 // signatures in CheckTx and ProcessProposal. FinalizeBlock always skips:
 // a committed block already had its PFF signatures verified by honest
 // validators in ProcessProposal, and the outcome must not depend on the
-// node-local cache.
+// node-local cache. Recheck also skips: the signatures cover immutable
+// promise bytes, so nothing recheck observes can invalidate a result CheckTx
+// already reached.
 type FibreSignatureVerificationDecorator struct {
 	k           FibreKeeper
 	pffSigCache PffSigCache
@@ -49,15 +51,17 @@ type FibreSignatureVerificationDecorator struct {
 // FibreKeeper verifies PFF signatures.
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
+	ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error
+	// PreverifyPayForFibreMsg verifies msg's signatures across every CPU and
+	// records them if they all pass. It reports nothing: the caller reads the
+	// cache, and ValidatePayForFibreSignatures still decides.
+	PreverifyPayForFibreMsg(ctx sdk.Context, msg *fibretypes.MsgPayForFibre, certKey sigcache.Key)
 }
-
-// PffSigCacheKey identifies all inputs to PFF signature verification.
-type PffSigCacheKey [sha256.Size]byte
 
 // PffSigCache tracks PFF certificates whose signatures were already checked.
 type PffSigCache interface {
-	IsCached(key PffSigCacheKey) bool
-	Cache(key PffSigCacheKey)
+	Has(key sigcache.Key) bool
+	Add(key sigcache.Key)
 }
 
 // NewFibreSigVerificationDecorator returns a PFF signature verification decorator.
@@ -70,39 +74,52 @@ func NewFibreSigVerificationDecorator(
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	msg := PayForFibreMessage(tx)
-	if msg == nil || simulate || ctx.ExecMode() == sdk.ExecModeFinalize {
+	if msg == nil || simulate || skipsSignatureVerification(ctx.ExecMode()) {
 		return next(ctx, tx, simulate)
 	}
 
-	cacheKey, err := NewPffSigCacheKey(msg)
-	if err != nil {
-		return ctx, err
+	// Reuse the key a decoded view already derived for this tx, if any.
+	var cacheKey sigcache.Key
+	if decoded := fibretypes.DecodedPayForFibreFromContext(ctx); decoded != nil && decoded.CertKeyed {
+		cacheKey = decoded.CertKey
+	} else {
+		var err error
+		cacheKey, err = msg.SigCacheKey()
+		if err != nil {
+			return ctx, err
+		}
 	}
-	if d.pffSigCache.IsCached(cacheKey) {
+	if d.pffSigCache.Has(cacheKey) {
+		// The cache covers the signatures, not whether the validator set they
+		// were checked against is still stored.
+		if err := d.k.ValidateValidatorSetAvailable(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
+			return ctx, err
+		}
 		return next(ctx, tx, simulate)
 	}
 
-	if err = d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
+	// CheckTx reaches this once gas, fees, authentication and fibre admission
+	// have passed, so the pass is spent on an otherwise admissible tx. After
+	// the lookup, never before: warming a cached entry is pure loss. The other
+	// phases pre-verify their whole block, and recheck has nothing to warm.
+	if ctx.IsCheckTx() && !ctx.IsReCheckTx() {
+		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(ctx), msg, cacheKey)
+		if d.pffSigCache.Has(cacheKey) {
+			return next(ctx, tx, simulate)
+		}
+	}
+
+	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
 		return ctx, err
 	}
-	d.pffSigCache.Cache(cacheKey)
+	d.pffSigCache.Add(cacheKey)
 	return next(ctx, tx, simulate)
 }
 
-// NewPffSigCacheKey derives the cache key for msg's certificate: the message
-// without its signer, so the key covers exactly the inputs to signature
-// verification. Proto encoding length-prefixes every field, so distinct
-// certificates cannot collide.
-func NewPffSigCacheKey(msg *fibretypes.MsgPayForFibre) (PffSigCacheKey, error) {
-	certificate := fibretypes.MsgPayForFibre{
-		PaymentPromise:      msg.PaymentPromise,
-		ValidatorSignatures: msg.ValidatorSignatures,
-	}
-	bz, err := certificate.Marshal()
-	if err != nil {
-		return PffSigCacheKey{}, err
-	}
-	return sha256.Sum256(bz), nil
+// skipsSignatureVerification reports whether mode never verifies PFF validator
+// signatures. See FibreSignatureVerificationDecorator for why.
+func skipsSignatureVerification(mode sdk.ExecMode) bool {
+	return mode == sdk.ExecModeFinalize || mode == sdk.ExecModeReCheck
 }
 
 // FibrePromiseKeeper checks whether a payment promise can still settle.
