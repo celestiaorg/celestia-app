@@ -23,7 +23,7 @@ import (
 // legacy markers use local storage.
 const (
 	shardKeyPrefix = "/shard/"
-	// maxPruneBatchSize bounds each Pebble commit. The server drains full
+	// maxPruneBatchSize bounds each index scan and Pebble commit. The server drains full
 	// batches during one prune pass.
 	maxPruneBatchSize = 1000
 )
@@ -368,7 +368,7 @@ func (s *Store) PruneBefore(ctx context.Context, before time.Time) (int, int64, 
 	return pruned, freed, err
 }
 
-// pruneBefore resumes after the given prune-index key and returns the last selected key for the next batch.
+// pruneBefore resumes after the given prune-index key and returns the last scanned key for the next batch.
 // A nil returned key means the pass is complete.
 func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte) (int, int64, []byte, error) {
 	prefix := []byte("/prune/")
@@ -392,6 +392,7 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		corruptMarkers int
 		invalidKeys    int
 		lastSelected   []byte
+		scanned        int
 	)
 	beforeStr := formatTimestamp(before.UTC())
 	valid := iter.First()
@@ -399,11 +400,13 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 		// When a cursor is supplied, resume at the first key after it, skipping entries attempted in the previous batch.
 		valid = iter.SeekGE(append(slices.Clone(after), 0))
 	}
-	for ; valid && len(candidates)+invalidKeys < maxPruneBatchSize; valid = iter.Next() {
+	for ; valid && scanned < maxPruneBatchSize; valid = iter.Next() {
 		if err := ctx.Err(); err != nil {
 			return 0, 0, nil, err
 		}
 		key := iter.Key()
+		scanned++
+		lastSelected = slices.Clone(key)
 
 		keyStr := string(key)
 		pruneAt, validTime := parsePruneTime(keyStr)
@@ -413,12 +416,11 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 				return 0, 0, nil, fmt.Errorf("deleting malformed prune index: %w", err)
 			}
 			invalidKeys++
-			lastSelected = slices.Clone(key)
 			continue
 		}
-		// Valid keys are sorted; stop at the first timestamp reaching the cutoff.
+		// Keep future payloads while scanning for malformed index entries.
 		if formatTimestamp(pruneAt) >= beforeStr {
-			break
+			continue
 		}
 
 		markerData, closer, err := s.db.Get(shardKey(commitment, promiseHash))
@@ -449,7 +451,6 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 			return 0, 0, nil, errors.New("pruned shard size overflows int64")
 		}
 		selectedBytes += size
-		lastSelected = slices.Clone(key)
 		candidates = append(candidates, pruneCandidate{
 			markedShard: markedShard{
 				id: shardID{commitment: commitment, promiseHash: promiseHash}, marker: markerData,
@@ -463,7 +464,7 @@ func (s *Store) pruneBefore(ctx context.Context, before time.Time, after []byte)
 	}
 
 	var next []byte
-	if len(candidates)+invalidKeys == maxPruneBatchSize {
+	if scanned == maxPruneBatchSize {
 		next = lastSelected
 	}
 	shards := make([]markedShard, len(candidates))

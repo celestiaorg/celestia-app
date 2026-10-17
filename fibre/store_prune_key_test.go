@@ -38,9 +38,6 @@ func TestPruneBeforeRemovesMalformedKeys(t *testing.T) {
 			require.Equal(t, size, freed)
 			requirePruneEntry(t, store, pruneAt, commitment, []byte{1}, false)
 			requirePruneEntry(t, store, future, commitment, []byte{2}, true)
-			// A key sorting after the first future entry is checked on a later pass.
-			_, _, err = store.PruneBefore(t.Context(), future.Add(time.Hour))
-			require.NoError(t, err)
 			_, closer, err := store.db.Get([]byte(malformed))
 			if closer != nil {
 				require.NoError(t, closer.Close())
@@ -76,4 +73,37 @@ func TestPruneMalformedKeysRespectBatchLimit(t *testing.T) {
 	require.Zero(t, pruned)
 	require.Zero(t, freed)
 	require.Empty(t, cursor)
+	iter, err = store.db.NewIter(nil)
+	require.NoError(t, err)
+	require.False(t, iter.First())
+	require.NoError(t, iter.Error())
+	require.NoError(t, iter.Close())
+}
+
+func TestPruneMalformedKeysAfterFutureBatch(t *testing.T) {
+	store := newMarkerTestStore(t)
+	before := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	future := before.Add(time.Hour)
+	commitment := Commitment{1}
+	for i := range maxPruneBatchSize {
+		setPruneEntry(t, store, future, commitment, []byte(fmt.Sprint(i)), encodeShardMarkerForBackend(localBackendTag, 7))
+	}
+	malformed := []byte("/prune/not-a-time/bad/01")
+	require.NoError(t, store.db.Set(malformed, nil, pebbledb.NoSync))
+	pruned, freed, cursor, err := store.pruneBefore(t.Context(), before, nil)
+	require.NoError(t, err)
+	require.Zero(t, pruned)
+	require.Zero(t, freed)
+	require.NotEmpty(t, cursor)
+	pruned, freed, cursor, err = store.pruneBefore(t.Context(), before, cursor)
+	require.NoError(t, err)
+	require.Zero(t, pruned)
+	require.Zero(t, freed)
+	require.Empty(t, cursor)
+	_, closer, err := store.db.Get(malformed)
+	if closer != nil {
+		require.NoError(t, closer.Close())
+	}
+	require.ErrorIs(t, err, pebbledb.ErrNotFound)
+	requirePruneEntry(t, store, future, commitment, []byte("0"), true)
 }
