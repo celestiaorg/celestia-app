@@ -226,7 +226,7 @@ message MsgDepositToEscrow {
 }
 ```
 
-`ValidateBasic` requires a valid bech32 signer address and a valid positive coin. The handler gets or creates the escrow account, sends the coin from the signer account to the `fibre` module account, adds the amount to both `balance` and `available_balance`, stores the escrow account, and emits `EventDepositToEscrow`.
+`ValidateBasic` requires a valid bech32 signer address and a valid positive coin in the bond denom (`utia`). The handler gets or creates the escrow account, sends the coin from the signer account to the `fibre` module account, adds the amount to both `balance` and `available_balance`, stores the escrow account, and emits `EventDepositToEscrow`.
 
 ### MsgRequestWithdrawal
 
@@ -238,7 +238,7 @@ message MsgRequestWithdrawal {
 }
 ```
 
-`ValidateBasic` requires a valid bech32 signer address and a valid positive coin. The handler requires an existing escrow account, requires `available_balance >= amount`, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with `requested_timestamp = block_time` and `available_timestamp = block_time + withdrawal_delay`, subtracts the amount from `available_balance`, and emits `EventWithdrawFromEscrowRequest`.
+`ValidateBasic` requires a valid bech32 signer address and a valid positive coin in the bond denom (`utia`). The handler requires an existing escrow account, requires `available_balance >= amount`, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with `requested_timestamp = block_time` and `available_timestamp = block_time + withdrawal_delay`, subtracts the amount from `available_balance`, and emits `EventWithdrawFromEscrowRequest`.
 
 ### MsgPayForFibre
 
@@ -256,6 +256,15 @@ message MsgPayForFibre {
 Validator-signature verification runs in the ante handler in CheckTx and ProcessProposal, with a cache keyed by the payment promise and validator signatures, excluding the transaction submitter. CheckTx and recheck also run read-only stateful promise validation to keep unsettleable PFFs out of the mempool; proposal execution remains the authoritative settlement check. It is skipped during simulation and FinalizeBlock; the message server does not repeat it. Deterministic signature gas is charged separately. See [`x/fibre/ante/ante.go`](../../x/fibre/ante/ante.go).
 
 Signatures are positional in the historical validator set. A slice longer than that set is rejected, including trailing empty entries. Empty entries are skipped. Verification stops once verified signatures reach `floor(2 * total_voting_power / 3)`, so later entries within the allowed slice length are not necessarily checked. Exactly two thirds can pass; there is no separate validator-count threshold. `EventPayForFibre.validator_count` is the submitted slice length, including empty entries. See [`validateValidatorSignatures`](../../x/fibre/keeper/msg_server.go) and [`SignatureSet`](../../fibre/validator/signature_set.go).
+
+A validator signature verifies under ZIP-215: the cofactored equation
+`[8][s]B = [8]R + [8][k]A`, with `S` required to be reduced modulo the group
+order, and with non-canonical and small-order encodings of `A` and `R`
+permitted. This is the rule CometBFT applies to every other Ed25519 signature
+it checks, and the only one batch verification can implement. It accepts
+strictly more signatures than the cofactorless equation `[s]B = R + [k]A`; a
+re-implementation that checks the cofactorless equation will reject
+certificates this rule accepts.
 
 Payment deduction first requires total escrow `balance >= payment_amount`. It subtracts the full payment from total `balance`, subtracts `min(available_balance, payment_amount)` from `available_balance`, and if the payment uses funds that were locked in pending withdrawals, it calls `ReduceWithdrawalsForPayment` to delete or reduce the signer's pending withdrawals in signer-index iteration order.
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"google.golang.org/grpc/codes"
@@ -109,10 +110,14 @@ func (k Keeper) ValidatePaymentPromise(c context.Context, req *types.QueryValida
 	if k.promiseCache != nil {
 		// The gRPC endpoint is adversarial: verify the signature before mutating the
 		// cache so a forged promise cannot poison a signer's budget.
-		if err := k.ValidatePaymentPromiseStateless(ctx, &req.Promise); err != nil {
+		pp := fibre.PaymentPromise{}
+		if err := pp.FromProto(&req.Promise); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid payment promise format: %v", err)
+		}
+		if err := k.ValidatePromiseStateless(&pp); err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}
-		hash, err := promiseHash(&req.Promise)
+		hash, err := pp.Hash()
 		if err != nil {
 			return nil, status.Error(codes.InvalidArgument, err.Error())
 		}

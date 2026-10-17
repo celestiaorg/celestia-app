@@ -224,6 +224,16 @@ func cancellationCode(cause error) grpccodes.Code {
 // It does both stateless and stateful verification.
 // Returns the BlobConfig for the blob version and the pruneAt time computed by shardPruneAt.
 func (s *Server) verifyPromise(ctx context.Context, promisePb *types.PaymentPromise) (*PaymentPromise, BlobConfig, []byte, time.Time, error) {
+	// Reject anything the chain's stateless checks would reject: a promise that
+	// fails ValidateBasic can never be settled by MsgPayForFibre or
+	// MsgPaymentPromiseTimeout, so storing and signing for it is unpaid work.
+	if promisePb == nil {
+		return nil, BlobConfig{}, nil, time.Time{}, errors.New("nil payment promise")
+	}
+	if err := promisePb.ValidateBasic(); err != nil {
+		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise: %w", err)
+	}
+
 	promise := &PaymentPromise{}
 	if err := promise.FromProto(promisePb); err != nil {
 		return nil, BlobConfig{}, nil, time.Time{}, fmt.Errorf("invalid payment promise proto: %w", err)

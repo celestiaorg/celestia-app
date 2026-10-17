@@ -74,10 +74,8 @@ func TestClientServerUploadDownload(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			env := makeTestEnv(t, tt.numValidators, tt.numClients, func(cfg *fibre.ClientConfig) {
-				if tt.blobSize == fibre.DefaultBlobConfigV0().MaxDataSize {
-					// Maximum-size shard verification is slower under the race detector.
-					cfg.RPCTimeout = 2 * time.Minute
-				}
+				// Shard uploads are slower under the race detector and CPU contention.
+				cfg.RPCTimeout = 2 * time.Minute
 			}, nil)
 			defer env.Close()
 

@@ -41,6 +41,13 @@ type ClientConfig struct {
 	// [DefaultClientConfig] for the default value.
 	RPCTimeout time.Duration
 
+	// DetachBackgroundUploads keeps the uploads still running past quorum
+	// going when the caller's context is cancelled after [Client.Upload]
+	// returns. They stay bounded by RPCTimeout and the retry limits and drain
+	// on [Client.Await] or [Client.Stop]. Cancelling before quorum still
+	// aborts the upload. Enabled in [DefaultClientConfig].
+	DetachBackgroundUploads bool
+
 	// HostRefreshInterval is the minimum time between on-chain host re-queries
 	// for a single validator when a request fails. Defaults to the expected
 	// block time, since registry state cannot change faster than one block.
@@ -100,15 +107,16 @@ func DefaultClientConfig() ClientConfig {
 // Use this when you need a config with non-default protocol parameters (e.g., for testing).
 func NewClientConfigFromParams(p ProtocolParams) ClientConfig {
 	return ClientConfig{
-		DefaultKeyName:      DefaultKeyName,
-		StateAddress:        "127.0.0.1:9090",
-		SafetyThreshold:     p.SafetyThreshold,
-		LivenessThreshold:   p.LivenessThreshold,
-		MinRowsPerValidator: p.MinRowsPerValidator(),
-		MaxMessageSize:      p.MaxMessageSize(),
-		RPCTimeout:          15 * time.Second,
-		HostRefreshInterval: fibregrpc.DefaultRefreshInterval,
-		Escrow:              defaultEscrowConfig(p),
+		DefaultKeyName:          DefaultKeyName,
+		StateAddress:            "127.0.0.1:9090",
+		SafetyThreshold:         p.SafetyThreshold,
+		LivenessThreshold:       p.LivenessThreshold,
+		MinRowsPerValidator:     p.MinRowsPerValidator(),
+		MaxMessageSize:          p.MaxMessageSize(),
+		RPCTimeout:              15 * time.Second,
+		HostRefreshInterval:     fibregrpc.DefaultRefreshInterval,
+		Escrow:                  defaultEscrowConfig(p),
+		DetachBackgroundUploads: true,
 	}
 }
 

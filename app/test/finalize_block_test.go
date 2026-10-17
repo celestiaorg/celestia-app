@@ -1,19 +1,24 @@
 package app_test
 
 import (
+	"encoding/hex"
 	"testing"
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	abci "github.com/cometbft/cometbft/abci/types"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 )
@@ -122,4 +127,226 @@ func buildGasParityTxs(t *testing.T, testApp *app.App, kr keyring.Keyring, newSi
 	}
 	require.Equal(t, len(pffTxs[0]), len(pffTxs[1]), "PayForFibre txs must be identically sized for gas parity")
 	return sendTx, pffTxs
+}
+
+// TestPayForFibreSigCacheRejectsMutatedCertificates checks that a cached
+// certificate never lets a mutated copy of it pass ProcessProposal.
+func TestPayForFibreSigCacheRejectsMutatedCertificates(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	account := accounts[0]
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), pffTestEscrowAmount)
+
+	// Warm the cache with the original certificate.
+	cachedTx := newSignedPayForFibreTx(t, signer, account, true)
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: cachedTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	requireProcessProposalStatus(t, testApp, cachedTx, abci.ResponseProcessProposal_ACCEPT)
+
+	signPromise := func(msg *fibretypes.MsgPayForFibre) {
+		var err error
+		msg.PaymentPromise.Signature, _, err = signer.Keyring().Sign(account, promiseSignBytes(t, msg), signing.SignMode_SIGN_MODE_DIRECT)
+		require.NoError(t, err)
+	}
+	signValidators := func(msg *fibretypes.MsgPayForFibre) {
+		signature, err := testutil.GenesisValidatorPrivateKey().Sign(promiseSignBytes(t, msg))
+		require.NoError(t, err)
+		msg.ValidatorSignatures = [][]byte{signature}
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*fibretypes.MsgPayForFibre)
+		want   abci.ResponseProcessProposal_ProposalStatus
+	}{
+		{
+			name: "fully re-signed changed promise is accepted",
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.BlobSize++
+				signPromise(msg)
+				signValidators(msg)
+			},
+			want: abci.ResponseProcessProposal_ACCEPT,
+		},
+		{
+			name:   "flipped validator signature byte",
+			mutate: func(msg *fibretypes.MsgPayForFibre) { msg.ValidatorSignatures[0][0] ^= 1 },
+			want:   abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:   "empty validator signature misses quorum",
+			mutate: func(msg *fibretypes.MsgPayForFibre) { msg.ValidatorSignatures = [][]byte{{}} },
+			want:   abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "trailing entry beyond the validator set",
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.ValidatorSignatures = append(msg.ValidatorSignatures, []byte{})
+			},
+			want: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "validator signature reused for a re-signed promise",
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.BlobSize++
+				signPromise(msg)
+			},
+			want: abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name:   "flipped promise signature byte",
+			mutate: func(msg *fibretypes.MsgPayForFibre) { msg.PaymentPromise.Signature[0] ^= 1 },
+			want:   abci.ResponseProcessProposal_REJECT,
+		},
+		{
+			name: "promise height without historical validator set",
+			mutate: func(msg *fibretypes.MsgPayForFibre) {
+				msg.PaymentPromise.Height = testApp.LastBlockHeight() + 1
+				signPromise(msg)
+				signValidators(msg)
+			},
+			want: abci.ResponseProcessProposal_REJECT,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			msg := payForFibreMsg(t, enc, cachedTx)
+			tc.mutate(msg)
+			mutatedTx, _, err := signer.CreateTx([]sdk.Msg{msg}, user.SetGasLimit(1_000_000), user.SetFee(4_000))
+			require.NoError(t, err)
+			requireProcessProposalStatus(t, testApp, mutatedTx, tc.want)
+		})
+	}
+
+	// Rejections must not evict or poison the cached certificate.
+	requireProcessProposalStatus(t, testApp, cachedTx, abci.ResponseProcessProposal_ACCEPT)
+}
+
+// TestPayForFibreFinalizeBlockCacheParity checks that a node's signature cache
+// state does not change FinalizeBlock results, gas, or app hash.
+func TestPayForFibreFinalizeBlockCacheParity(t *testing.T) {
+	blockTime := time.Now().Truncate(time.Second)
+	modes := []struct {
+		name    string
+		prepare func(t *testing.T, testApp *app.App, txs [][]byte)
+	}{
+		{
+			name: "warm cache from CheckTx and ProcessProposal",
+			prepare: func(t *testing.T, testApp *app.App, txs [][]byte) {
+				for _, tx := range txs {
+					resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: tx, Type: abci.CheckTxType_New})
+					require.NoError(t, err)
+					require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+				}
+				requireProcessProposalAccepts(t, testApp, txs, blockTime)
+			},
+		},
+		{
+			name: "empty cache at ProcessProposal",
+			prepare: func(t *testing.T, testApp *app.App, txs [][]byte) {
+				requireProcessProposalAccepts(t, testApp, txs, blockTime)
+			},
+		},
+		{
+			name:    "cold cache replay",
+			prepare: func(*testing.T, *app.App, [][]byte) {},
+		},
+	}
+
+	var (
+		txs        [][]byte
+		wantHash   []byte
+		wantResult *abci.ResponseFinalizeBlock
+	)
+	for _, mode := range modes {
+		t.Run(mode.name, func(t *testing.T) {
+			testApp, signer, account := newSenderApp(t)
+			seedFibreEscrow(t, testApp, signer.Account(account).Address(), pffTestEscrowAmount)
+			commitBlockAt(t, testApp, blockTime.Add(-time.Second))
+
+			if txs == nil {
+				txs = newPayForFibreTxPair(t, signer, account, blockTime.Add(-2*time.Second), blockTime.Add(-time.Second))
+				wantHash = testApp.LastCommitID().Hash
+			}
+			require.Equal(t, wantHash, testApp.LastCommitID().Hash, "apps must start from identical state")
+
+			mode.prepare(t, testApp, txs)
+			resp := commitBlockAt(t, testApp, blockTime, txs...)
+			require.Len(t, resp.TxResults, len(txs))
+			for i, result := range resp.TxResults {
+				require.Equal(t, abci.CodeTypeOK, result.Code, "tx %d: %s", i, result.Log)
+			}
+
+			if wantResult == nil {
+				wantResult = resp
+				return
+			}
+			require.Equal(t, wantResult.TxResults, resp.TxResults)
+			require.Equal(t, wantResult.AppHash, resp.AppHash)
+		})
+	}
+}
+
+// newSenderApp returns a test app and a signer for its fixed-key genesis
+// sender, so separately built apps start from identical state.
+func newSenderApp(t *testing.T) (*app.App, *user.Signer, string) {
+	t.Helper()
+	const account = "sender"
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+
+	// Same secret as the sender in testutil.GenesisStateWithSingleValidator.
+	privKey := secp256k1.GenPrivKeyFromSecret([]byte("09876543210987654321098765432109"))
+	require.NoError(t, kr.ImportPrivKeyHex(account, hex.EncodeToString(privKey.Key), "secp256k1"))
+	acc := testutil.DirectQueryAccount(testApp, sdk.AccAddress(privKey.PubKey().Address()))
+	require.NotNil(t, acc, "sender must be a genesis account")
+
+	signer, err := user.NewSigner(kr, enc.TxConfig, testutil.ChainID,
+		user.NewAccount(account, acc.GetAccountNumber(), acc.GetSequence()))
+	require.NoError(t, err)
+	return testApp, signer, account
+}
+
+// payForFibreMsg decodes the MsgPayForFibre in txBytes.
+func payForFibreMsg(t *testing.T, enc encoding.Config, txBytes []byte) *fibretypes.MsgPayForFibre {
+	t.Helper()
+	sdkTx, err := enc.TxConfig.TxDecoder()(txBytes)
+	require.NoError(t, err)
+	msgs := sdkTx.GetMsgs()
+	require.Len(t, msgs, 1)
+	msg, ok := msgs[0].(*fibretypes.MsgPayForFibre)
+	require.True(t, ok)
+	return msg
+}
+
+// promiseSignBytes returns the bytes signed by msg's promise signer and validators.
+func promiseSignBytes(t *testing.T, msg *fibretypes.MsgPayForFibre) []byte {
+	t.Helper()
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
+	signBytes, err := pp.SignBytes()
+	require.NoError(t, err)
+	return signBytes
+}
+
+func requireProcessProposalStatus(t *testing.T, testApp *app.App, tx []byte, want abci.ResponseProcessProposal_ProposalStatus) {
+	t.Helper()
+	resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{tx}))
+	require.NoError(t, err)
+	require.Equal(t, want, resp.Status)
+}
+
+func requireProcessProposalAccepts(t *testing.T, testApp *app.App, txs [][]byte, blockTime time.Time) {
+	t.Helper()
+	req := processProposalRequest(t, testApp, txs)
+	req.Time = blockTime
+	resp, err := testApp.ProcessProposal(req)
+	require.NoError(t, err)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, resp.Status)
 }

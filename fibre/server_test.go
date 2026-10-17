@@ -1,9 +1,12 @@
 package fibre_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -98,6 +101,14 @@ func (m *mockStateClient) ChainID() string             { return m.chainID }
 
 func (m *mockStateClient) FullStakeStorageBudget(context.Context) (int64, error) {
 	return m.budget, nil
+}
+
+func (m *mockStateClient) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, nil
+}
+
+func (m *mockStateClient) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, nil
 }
 
 // withStateBudget returns a ServerConfig hook that sets the storage budget the
@@ -209,4 +220,53 @@ func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, server.Stop(context.Background())) })
 	require.ErrorIs(t, server.Start(t.Context()), wantErr)
 	require.Nil(t, server.Store())
+}
+
+func TestServerStartLogsStoreConfig(t *testing.T) {
+	var logs synchronizedLogBuffer
+	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.StorageBackend = "object"
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Bucket = "fibre-shards"
+		cfg.ObjectStorage.Prefix = "/fibre/./"
+	})
+
+	output := logs.String()
+	require.Contains(t, output, `msg="store ready"`)
+	require.Contains(t, output, "storage_backend=object")
+	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
+	require.Contains(t, output, "object_namespace.prefix=fibre")
+	require.NotContains(t, output, "object_namespace.prefix=/fibre/./")
+	require.Contains(t, output, "object_namespace.chain_id=celestia")
+	require.Contains(t, output, "object_namespace.validator_address="+sdk.ConsAddress(validator.Address).String())
+}
+
+func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
+	var logs synchronizedLogBuffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+	})
+
+	output := logs.String()
+	require.Contains(t, output, `msg="store ready" storage_backend=local`)
+	require.NotContains(t, output, "object_namespace")
+}
+
+// synchronizedLogBuffer allows assertions while background health checks log.
+type synchronizedLogBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *synchronizedLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *synchronizedLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }

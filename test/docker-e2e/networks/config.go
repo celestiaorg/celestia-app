@@ -3,6 +3,7 @@ package networks
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 )
@@ -20,9 +21,21 @@ type Config struct {
 	Seeds     string
 	// Peers are persistent peers that keep the full block history. Block
 	// syncing from genesis needs at least one of them because most public
-	// peers are pruned and cannot serve block 1.
+	// peers are pruned and cannot serve block 1. They are a fallback for
+	// FetchArchivePeers, which reads the live addresses off the RPCs.
 	Peers string
 }
+
+// mochaPeers is the fallback archive peer for mocha-5, used when the RPCs
+// cannot be reached. Only one node on mocha-5 still serves block 1: a scan of
+// every peer the public RPCs know about found the rest pruned to roughly the
+// last 3000 blocks. Do not grow this list with peers whose RPC /status reports
+// earliest_block_height = 1 without checking what the p2p address itself
+// serves — a node can expose the full history over RPC and still run in seed
+// mode, which disconnects before sending a block.
+var mochaPeers = strings.Join([]string{
+	"daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:26656",
+}, ",")
 
 // NewMochaConfig returns a Config for the mocha testnet
 func NewMochaConfig() *Config {
@@ -42,8 +55,8 @@ func NewMochaConfig() *Config {
 		// more resilient than hardcoded persistent peers which go stale.
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/main/mocha-5/seeds.txt
 		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656",
-		// Archive nodes (earliest_block_height = 1 on their RPC /status).
-		Peers: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,0b6bb5c485d071cc1b9f826edf89e4726849f139@195.154.212.42:26656,b3a728c618174cf227004489a14521721ef5841a@62.210.93.173:26656,43e9da043318a4ea0141259c17fcb06ecff816af@49.12.92.82:43656",
+		// Fallback archive peer; FetchArchivePeers is preferred.
+		Peers: mochaPeers,
 	}
 }
 

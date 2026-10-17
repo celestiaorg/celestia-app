@@ -131,7 +131,8 @@ func FetchPeers(t *testing.T, rpcs []string, maxPeers int) string {
 // downloadGenesis downloads the genesis file for the given chain ID from the celestia networks repo
 func downloadGenesis(chainID string) ([]byte, error) {
 	url := fmt.Sprintf("https://raw.githubusercontent.com/celestiaorg/networks/master/%s/genesis.json", chainID)
-	resp, err := http.Get(url)
+	client := &http.Client{Timeout: time.Minute}
+	resp, err := client.Get(url)
 	if err != nil {
 		return nil, err
 	}

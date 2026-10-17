@@ -34,7 +34,7 @@ node            |  |                               |  |
 
 ### From source
 
-1. [Install Go](https://go.dev/doc/install) 1.26.6
+1. [Install Go](https://go.dev/doc/install) 1.26.9
 1. Clone this repo
 1. Install the celestia-appd binary. This installs a "multiplexer" binary that will also download embedded binaries for celestia-app v3 through v9.
 
@@ -152,23 +152,30 @@ celestia-appd init test
 celestia-appd start
 ```
 
-### Updating config.toml
+### Updating config files
 
-`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults.
+`celestia-appd config sync` adds missing settings and their documentation using the binary's defaults. It syncs these files:
+
+| File                                | Home directory                                                |
+|-------------------------------------|---------------------------------------------------------------|
+| `config/config.toml` (core)         | `--home`                                                      |
+| `config/server_config.toml` (Fibre) | `--fibre-home` (or `FIBRE_HOME`), default `~/.celestia-fibre` |
+
+A file is skipped if it does not exist, so the command works on hosts that run only the node or only Fibre.
 Synchronization runs only when this command is called, not on node startup.
 Existing values, comments, ordering, and unknown settings are preserved; whitespace may be normalized when settings are added.
 Flags and environment overrides are not saved.
-Before replacing the file, it creates a `config.toml.backup-*` file in the same directory.
+Before replacing a file, it creates a `<file>.backup-*` file in the same directory. Earlier backups are never overwritten.
 If nothing is missing, it leaves the file untouched.
 
-To inspect additions or update the file before restarting:
+To inspect additions or update the files before restarting:
 
 ```sh
-celestia-appd config sync --home ~/.celestia-app --dry-run
-celestia-appd config sync --home ~/.celestia-app
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre --dry-run
+celestia-appd config sync --home ~/.celestia-app --fibre-home ~/.celestia-fibre
 ```
 
-Then edit the fields in `config/config.toml` under your node's home directory to set the values you want before restarting the node.
+Then edit the fields under your node's and Fibre's home directories to set the values you want before restarting.
 
 Read-only files, linked files, and TOML layouts that cannot be safely extended are left untouched.
 For deployment-managed configurations, add the reported settings to the source configuration.
@@ -285,6 +292,18 @@ Fibre connects to application gRPC for chain state and to PrivVal gRPC for signa
 If you are a new contributor, please read [contributing to Celestia](https://github.com/celestiaorg/.github/blob/main/CONTRIBUTING.md).
 
 This repo attempts to conform to [conventional commits](https://www.conventionalcommits.org/en/v1.0.0/) so PR titles should ideally start with `fix:`, `feat:`, `build:`, `chore:`, `ci:`, `docs:`, `style:`, `refactor:`, `perf:`, or `test:` because this helps with semantic versioning and changelog generation. It is especially important to include an `!` (e.g. `feat!:`) if the PR includes a breaking change.
+
+PR titles must start the subject with `[high]`, `[medium]`, or `[low]` to indicate the review thoroughness needed. For example: `fix!: [high] correct gas accounting` or `docs: [low] clarify setup instructions`. Include the same tag in the PR description and explain why you chose it. Contributors should write their own PR titles; Dependabot generates its titles from the configured prefix.
+
+- `[high]`: Deep review for consensus, state transitions, security, or other changes with significant risk.
+- `[medium]`: Standard review for code changes with limited impact and well-understood behavior.
+- `[low]`: Focused review for straightforward docs, tests, or tooling changes with low risk.
+
+Choose the higher level when unsure. A small diff can still need deep review. CI checks the title format; reviewers should confirm the chosen level.
+
+Dependabot defaults to `[high]` for the app's Go dependencies and `[medium]` for Docker, GitHub Actions, and test dependencies. Maintainers should confirm the level and add it to the PR description with a brief explanation.
+
+External contributions must reference a meaningful issue. Open an issue explaining the value of your change before submitting unsolicited work. Trivial PRs limited to comment wording, typos, formatting, or irrelevant test updates may be closed. Low-effort AI-generated PRs will be closed; contributors using AI must understand, review, and revise its output before submission.
 
 This repo contains multiple go modules. When using it, rename `go.work.example` to `go.work` and run `go work sync`.
 

@@ -37,7 +37,7 @@ func TestOfferSnapshot(t *testing.T) {
 	chainId := appconsts.TestChainID
 	applicationVersion := uint64(3)
 
-	multiplexer, err := NewMultiplexer(serverContext, serverConfig, clientContext, appCreator, versions, chainId, applicationVersion)
+	multiplexer, err := NewMultiplexer(serverContext, serverConfig, clientContext, appCreator, versions, chainId, applicationVersion, nil)
 	require.NoError(t, err)
 
 	t.Run("should return an error if the app version in the snapshot is not supported", func(t *testing.T) {

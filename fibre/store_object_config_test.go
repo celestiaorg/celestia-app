@@ -5,15 +5,18 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"encoding/xml"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
@@ -37,6 +40,36 @@ func testObjectStorageConfig() ObjectStorageConfig {
 	}
 }
 
+func TestObjectClientChecksBucket(t *testing.T) {
+	clearAWSCredentials(t)
+	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	for _, status := range []int{http.StatusOK, http.StatusForbidden, http.StatusNotFound} {
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			requested := make(chan struct{}, 1)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, http.MethodHead, r.Method)
+				assert.Equal(t, "/fibre-shards", strings.TrimSuffix(r.URL.Path, "/"))
+				assert.Contains(t, r.Header.Get("Authorization"), "Credential=test-key/")
+				requested <- struct{}{}
+				w.WriteHeader(status)
+			}))
+			defer server.Close()
+			cfg := testObjectStorageConfig()
+			cfg.Endpoint = server.URL
+			client, err := newObjectClient(t.Context(), cfg)
+			if status == http.StatusOK {
+				require.NoError(t, err)
+				require.NotNil(t, client)
+			} else {
+				require.ErrorContains(t, err, "checking object storage bucket")
+				require.Nil(t, client)
+			}
+			require.Len(t, requested, 1)
+		})
+	}
+}
+
 func TestObjectStorageConfigValidate(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
@@ -44,6 +77,7 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 	}{
 		{"endpoint missing", func(c *ObjectStorageConfig) { c.Endpoint = "" }},
 		{"endpoint relative", func(c *ObjectStorageConfig) { c.Endpoint = "/r2" }},
+		{"endpoint without TLS", func(c *ObjectStorageConfig) { c.Endpoint = "http://localhost:9000" }},
 		{"endpoint scheme", func(c *ObjectStorageConfig) { c.Endpoint = "ftp://r2.example" }},
 		{"endpoint malformed", func(c *ObjectStorageConfig) { c.Endpoint = "https://%" }},
 		{"endpoint credentials", func(c *ObjectStorageConfig) { c.Endpoint = "https://user:secret@r2.example" }},
@@ -68,8 +102,6 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 	cfg.RequestTimeout = 0
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, defaultObjectRequestTimeout, cfg.RequestTimeout)
-	cfg.Endpoint = "http://localhost:9000"
-	require.NoError(t, cfg.Validate())
 }
 
 func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
@@ -86,10 +118,18 @@ func TestStoreRejectsUnstablePrefix(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	caBundle := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caBundle, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	t.Setenv("AWS_CA_BUNDLE", caBundle)
 	cfg := DefaultStoreConfig()
 	cfg.Path = t.TempDir()
 	cfg.StorageBackend = "object"
 	cfg.ObjectStorage = testObjectStorageConfig()
+	cfg.ObjectStorage.Endpoint = server.URL
 	cfg.ObjectStorage.ChainID, cfg.ObjectStorage.ValidatorAddress = "test-chain", "test-validator"
 	cfg.ObjectStorage.Prefix = "fibre /"
 	store, err := NewStore(t.Context(), cfg)
@@ -193,25 +233,15 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 	clearAWSCredentials(t)
 	t.Setenv("AWS_ACCESS_KEY_ID", "test-key")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test-secret")
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+	caBundle := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caBundle, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	t.Setenv("AWS_CA_BUNDLE", caBundle)
 	for _, operation := range []string{"put", "get", "has", "delete", "delete batch", "read body", "cancel body"} {
 		t.Run(operation, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
-			defer cancel()
-			release := make(chan struct{})
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				_, _ = io.Copy(io.Discard, r.Body)
-				if strings.HasSuffix(operation, "body") {
-					w.Header().Set("Content-Length", "100")
-					w.WriteHeader(http.StatusOK)
-					w.(http.Flusher).Flush()
-				}
-				if operation == "cancel body" {
-					cancel()
-				}
-				<-release
-			}))
-			defer server.Close()
-			defer close(release)
 			cfg := DefaultStoreConfig()
 			cfg.Path = t.TempDir()
 			cfg.StorageBackend = storageBackendObject
@@ -223,26 +253,66 @@ func TestObjectStorageRequestTimeout(t *testing.T) {
 			require.NoError(t, err)
 			defer store.Close()
 			backend := store.shards.primary.(*objectBackend)
-			switch operation {
-			case "put":
-				err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
-			case "get", "read body", "cancel body":
-				_, err = backend.Get(ctx, Commitment{}, []byte{1})
-			case "has":
-				_, err = backend.Has(ctx, Commitment{}, []byte{1})
-			case "delete":
-				err = backend.Delete(ctx, Commitment{}, []byte{1})
-			case "delete batch":
-				_, err = backend.DeleteObjects(ctx, []shardID{{promiseHash: []byte{1}}})
-			}
-			if operation == "cancel body" {
-				require.ErrorIs(t, err, context.Canceled)
-			} else {
-				require.ErrorIs(t, err, context.DeadlineExceeded)
-				require.NoError(t, ctx.Err(), "the backend must time out before its caller")
-			}
+			// Fake time ensures the request starts before either deadline, even under load.
+			synctest.Test(t, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+				defer cancel()
+				requests := 0
+				options := backend.client.(*s3.Client).Options()
+				options.HTTPClient = timeoutHTTPClient(func(r *http.Request) (*http.Response, error) {
+					requests++
+					if r.Body != nil {
+						defer r.Body.Close()
+						_, _ = io.Copy(io.Discard, r.Body)
+					}
+					if strings.HasSuffix(operation, "body") {
+						reader, writer := io.Pipe()
+						go func() {
+							if operation == "cancel body" {
+								cancel()
+							}
+							<-r.Context().Done()
+							_ = writer.CloseWithError(r.Context().Err())
+						}()
+						return &http.Response{
+							StatusCode:    http.StatusOK,
+							Header:        http.Header{"Content-Length": {"100"}},
+							Body:          reader,
+							ContentLength: 100,
+						}, nil
+					}
+					<-r.Context().Done()
+					return nil, r.Context().Err()
+				})
+				backend.client = s3.New(options)
+				switch operation {
+				case "put":
+					err = backend.Put(ctx, Commitment{}, []byte{1}, &types.BlobShard{})
+				case "get", "read body", "cancel body":
+					_, err = backend.Get(ctx, Commitment{}, []byte{1})
+				case "has":
+					_, err = backend.Has(ctx, Commitment{}, []byte{1})
+				case "delete":
+					err = backend.Delete(ctx, Commitment{}, []byte{1})
+				case "delete batch":
+					_, err = backend.DeleteObjects(ctx, []shardID{{promiseHash: []byte{1}}})
+				}
+				if operation == "cancel body" {
+					require.ErrorIs(t, err, context.Canceled)
+				} else {
+					require.ErrorIs(t, err, context.DeadlineExceeded)
+					require.NoError(t, ctx.Err(), "the backend must time out before its caller")
+				}
+				require.Equal(t, 1, requests, "the operation must send one request without retrying")
+			})
 		})
 	}
+}
+
+type timeoutHTTPClient func(*http.Request) (*http.Response, error)
+
+func (f timeoutHTTPClient) Do(r *http.Request) (*http.Response, error) {
+	return f(r)
 }
 
 // TestStoreConfiguredBackendSwitch checks reads and pruning across local-to-object-to-local restarts.
@@ -257,7 +327,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	var mu sync.Mutex
 	rejectWrites := true
 	objects := make(map[string][]byte)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mu.Lock()
 		defer mu.Unlock()
 		assert.Contains(t, r.Header.Get("Authorization"), "Credential=test-key/")
@@ -273,6 +343,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 			assert.Equal(t, int64(len(data)), r.ContentLength)
 			objects[r.URL.Path] = data
 		case http.MethodGet, http.MethodHead:
+			if r.Method == http.MethodHead && strings.TrimSuffix(r.URL.Path, "/") == "/fibre-shards" {
+				return
+			}
 			data, ok := objects[r.URL.Path]
 			if !ok {
 				w.WriteHeader(http.StatusNotFound)
@@ -301,6 +374,9 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 		}
 	}))
 	defer server.Close()
+	caBundle := filepath.Join(t.TempDir(), "ca.pem")
+	require.NoError(t, os.WriteFile(caBundle, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw}), 0o600))
+	t.Setenv("AWS_CA_BUNDLE", caBundle)
 	var logs bytes.Buffer
 	cfg := DefaultStoreConfig()
 	cfg.Log = slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelWarn}))

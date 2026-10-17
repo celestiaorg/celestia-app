@@ -12,7 +12,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	valtypes "github.com/celestiaorg/celestia-app/v10/x/valaddr/types"
 	coregrpc "github.com/cometbft/cometbft/rpc/grpc"
+	core "github.com/cometbft/cometbft/types"
 	tmservice "github.com/cosmos/cosmos-sdk/client/grpc/cmtservice"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -123,6 +125,35 @@ func (c *AppClient) FullStakeStorageBudget(ctx context.Context) (int64, error) {
 		return math.MaxInt64, nil
 	}
 	return int64(budget), nil
+}
+
+// NodeStatus implements [state.Client].
+func (c *AppClient) NodeStatus(ctx context.Context) (state.NodeStatus, error) {
+	resp, err := coregrpc.NewBlockAPIClient(c.conn).Status(ctx, &coregrpc.StatusRequest{})
+	if err != nil {
+		return state.NodeStatus{}, err
+	}
+	sync := resp.GetSyncInfo()
+	return state.NodeStatus{
+		ChainID:    strings.TrimSpace(resp.GetNodeInfo().GetNetwork()),
+		Height:     uint64(max(0, sync.GetLatestBlockHeight())),
+		BlockTime:  sync.GetLatestBlockTime(),
+		CatchingUp: sync.GetCatchingUp(),
+	}, nil
+}
+
+// ProviderRegistration implements [state.Client]. Unlike [HostRegistry.GetHost] it never caches.
+func (c *AppClient) ProviderRegistration(ctx context.Context, addr core.Address) (state.ProviderRegistration, error) {
+	resp, err := valtypes.NewQueryClient(c.conn).FibreProviderInfo(ctx, &valtypes.QueryFibreProviderInfoRequest{
+		ValidatorConsensusAddress: sdk.ConsAddress(addr.Bytes()).String(),
+	})
+	if err != nil {
+		return state.ProviderRegistration{}, err
+	}
+	if !resp.GetFound() || resp.Info == nil {
+		return state.ProviderRegistration{}, nil
+	}
+	return state.ProviderRegistration{Found: true, Host: resp.Info.Host}, nil
 }
 
 func detectChainID(ctx context.Context, conn *grpclib.ClientConn) (string, error) {

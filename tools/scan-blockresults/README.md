@@ -12,7 +12,7 @@ copy. `/block` keeps working for those heights while `/block_results` fails.
 
 - Stop the node or run against a copy. The stores are opened read-only, but the database lock
   still has to be free.
-- The module links celestia-core v0.40.9, the version used by `celestia-appd` v9.0.x, and reads
+- The module links celestia-core v0.40.11, the version used by `celestia-appd` v9.x, and reads
   Pebble v1 stores. For another version, change the `replace` in `go.mod` and run `make tidy`.
 
 ## Usage

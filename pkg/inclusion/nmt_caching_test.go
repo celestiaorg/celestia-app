@@ -136,6 +136,47 @@ func TestEDSSubRootCacher(t *testing.T) {
 	}
 }
 
+// TestEDSSubRootCacherMatchesDataRoot checks that caching subtree roots does
+// not change the data root.
+func TestEDSSubRootCacherMatchesDataRoot(t *testing.T) {
+	squareSize := 8
+	d := generateRandNamespacedRawData(squareSize * squareSize)
+	stc := NewSubtreeCacher(uint64(squareSize))
+
+	cachedEDS, err := rsmt2d.ComputeExtendedDataSquare(d, appconsts.DefaultCodec(), stc.Constructor)
+	require.NoError(t, err)
+	cachedDAH, err := da.NewDataAvailabilityHeader(cachedEDS)
+	require.NoError(t, err)
+
+	eds, err := da.ExtendShares(d)
+	require.NoError(t, err)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	require.Equal(t, dah.RowRoots, cachedDAH.RowRoots)
+	require.Equal(t, dah.ColumnRoots, cachedDAH.ColumnRoots)
+}
+
+func TestEDSSubRootCacherGetSubTreeRootErrors(t *testing.T) {
+	squareSize := 2
+	stc := NewSubtreeCacher(uint64(squareSize))
+	eds, err := rsmt2d.ComputeExtendedDataSquare(generateRandNamespacedRawData(squareSize*squareSize), appconsts.DefaultCodec(), stc.Constructor)
+	require.NoError(t, err)
+	dah, err := da.NewDataAvailabilityHeader(eds)
+	require.NoError(t, err)
+
+	_, err = stc.getSubTreeRoot(da.MinDataAvailabilityHeader(), 0, []WalkInstruction{WalkLeft})
+	require.ErrorContains(t, err, "unexpected number of row roots")
+
+	_, err = stc.getSubTreeRoot(dah, len(dah.RowRoots), []WalkInstruction{WalkLeft})
+	require.ErrorContains(t, err, "row exceeds range of cache")
+}
+
+func TestSubTreeRootCacherVisitPanicsOnUnexpectedChildren(t *testing.T) {
+	strc := newSubTreeRootCacher()
+	require.Panics(t, func() { strc.Visit([]byte("hash")) })
+}
+
 // calculateSubTreeRoots generates the subtree roots for a given row. If the
 // selected depth is too deep for the tree, nil is returned. It relies on
 // passing a row whose length is a power of 2 and assumes that the row is

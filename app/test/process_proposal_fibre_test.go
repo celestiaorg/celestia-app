@@ -13,6 +13,7 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
@@ -96,6 +97,21 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Equal(t, tc.expectedResult, resp.Status)
+
+			if tc.expectedResult != abci.ResponseProcessProposal_REJECT {
+				return
+			}
+			// The count is reached in the decode loop, before the
+			// pre-verification pass. Nothing ran CheckTx on these txs, so a
+			// cache entry could only have come from that pass.
+			for i, rawTx := range tc.txs {
+				d := fibrekeeper.DecodePayForFibre(rawTx)
+				require.NotNil(t, d)
+				require.False(t, testApp.HasVerifiedSignature(d.CertKey),
+					"tx %d: certificate verified for a proposal rejected on its message count", i)
+				require.False(t, testApp.HasVerifiedSignature(d.PromiseKey),
+					"tx %d: promise verified for a proposal rejected on its message count", i)
+			}
 		})
 	}
 }
