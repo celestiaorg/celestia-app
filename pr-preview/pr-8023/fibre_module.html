@@ -304,7 +304,7 @@ amount = gas utia
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 </code></pre>
-<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin. The handler gets or creates the escrow account, sends the coin from the signer account to the <code>fibre</code> module account, adds the amount to both <code>balance</code> and <code>available_balance</code>, stores the escrow account, and emits <code>EventDepositToEscrow</code>.</p>
+<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin in the bond denom (<code>utia</code>). The handler gets or creates the escrow account, sends the coin from the signer account to the <code>fibre</code> module account, adds the amount to both <code>balance</code> and <code>available_balance</code>, stores the escrow account, and emits <code>EventDepositToEscrow</code>.</p>
 <h3 id="msgrequestwithdrawal"><a class="header" href="#msgrequestwithdrawal">MsgRequestWithdrawal</a></h3>
 <pre><code class="language-proto">message MsgRequestWithdrawal {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
@@ -312,7 +312,7 @@ amount = gas utia
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 </code></pre>
-<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin. The handler requires an existing escrow account, requires <code>available_balance &gt;= amount</code>, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with <code>requested_timestamp = block_time</code> and <code>available_timestamp = block_time + withdrawal_delay</code>, subtracts the amount from <code>available_balance</code>, and emits <code>EventWithdrawFromEscrowRequest</code>.</p>
+<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin in the bond denom (<code>utia</code>). The handler requires an existing escrow account, requires <code>available_balance &gt;= amount</code>, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with <code>requested_timestamp = block_time</code> and <code>available_timestamp = block_time + withdrawal_delay</code>, subtracts the amount from <code>available_balance</code>, and emits <code>EventWithdrawFromEscrowRequest</code>.</p>
 <h3 id="msgpayforfibre"><a class="header" href="#msgpayforfibre">MsgPayForFibre</a></h3>
 <pre><code class="language-proto">message MsgPayForFibre {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
@@ -324,6 +324,14 @@ amount = gas utia
 <p><code>ValidateBasic</code> requires a valid transaction signer, a valid payment promise by <code>PaymentPromise.ValidateBasic</code>, and at least one validator signature. The handler converts the promise to the internal Fibre type, verifies the internal stateless validation and escrow-owner secp256k1 signature, runs normal stateful validation, hashes the promise, derives the escrow signer from <code>payment_promise.signer_public_key</code>, deducts the calculated payment amount from escrow, stores the processed payment, and emits <code>EventPayForFibre</code>.</p>
 <p>Validator-signature verification runs in the ante handler in CheckTx and ProcessProposal, with a cache keyed by the payment promise and validator signatures, excluding the transaction submitter. CheckTx and recheck also run read-only stateful promise validation to keep unsettleable PFFs out of the mempool; proposal execution remains the authoritative settlement check. It is skipped during simulation and FinalizeBlock; the message server does not repeat it. Deterministic signature gas is charged separately. See <a href="../../x/fibre/ante/ante.go"><code>x/fibre/ante/ante.go</code></a>.</p>
 <p>Signatures are positional in the historical validator set. A slice longer than that set is rejected, including trailing empty entries. Empty entries are skipped. Verification stops once verified signatures reach <code>floor(2 * total_voting_power / 3)</code>, so later entries within the allowed slice length are not necessarily checked. Exactly two thirds can pass; there is no separate validator-count threshold. <code>EventPayForFibre.validator_count</code> is the submitted slice length, including empty entries. See <a href="../../x/fibre/keeper/msg_server.go"><code>validateValidatorSignatures</code></a> and <a href="../../fibre/validator/signature_set.go"><code>SignatureSet</code></a>.</p>
+<p>A validator signature verifies under ZIP-215: the cofactored equation
+<code>[8][s]B = [8]R + [8][k]A</code>, with <code>S</code> required to be reduced modulo the group
+order, and with non-canonical and small-order encodings of <code>A</code> and <code>R</code>
+permitted. This is the rule CometBFT applies to every other Ed25519 signature
+it checks, and the only one batch verification can implement. It accepts
+strictly more signatures than the cofactorless equation <code>[s]B = R + [k]A</code>; a
+re-implementation that checks the cofactorless equation will reject
+certificates this rule accepts.</p>
 <p>Payment deduction first requires total escrow <code>balance &gt;= payment_amount</code>. It subtracts the full payment from total <code>balance</code>, subtracts <code>min(available_balance, payment_amount)</code> from <code>available_balance</code>, and if the payment uses funds that were locked in pending withdrawals, it calls <code>ReduceWithdrawalsForPayment</code> to delete or reduce the signer's pending withdrawals in signer-index iteration order.</p>
 <p>The app proposal path synthesizes data-square metadata for accepted PFF transactions; see <a href="#data-square-construction">Data Square Construction</a>. The message handler itself does not insert a blob into the square.</p>
 <h3 id="msgpaymentpromisetimeout"><a class="header" href="#msgpaymentpromisetimeout">MsgPaymentPromiseTimeout</a></h3>

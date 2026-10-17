@@ -4814,6 +4814,7 @@ defer client.Stop(ctx)
     MaxMessageSize      int
     RPCTimeout          time.Duration
     HostRefreshInterval time.Duration
+    DetachBackgroundUploads bool
 
     StateClientFn func() (state.Client, error)
     NewClientFn   fibregrpc.NewClientFn
@@ -4834,6 +4835,7 @@ defer client.Stop(ctx)
 <li><code>SafetyThreshold = 2/3</code></li>
 <li><code>LivenessThreshold = 1/3</code></li>
 <li><code>RPCTimeout = 15s</code></li>
+<li><code>DetachBackgroundUploads = true</code></li>
 <li><code>MaxBlobSize = 128 MiB</code></li>
 <li>original rows <code>K = 4096</code></li>
 <li>total rows <code>K + N = 16384</code></li>
@@ -4875,7 +4877,7 @@ func (c *Client) Upload(
 ) (SignedPaymentPromise, error)
 </code></pre>
 <p><code>Upload</code> signs a payment promise with the configured key, uploads assigned row shards to validators, verifies validator signatures, and returns a <code>SignedPaymentPromise</code>.</p>
-<p>By default, <code>Upload</code> returns after the safety threshold by voting power is reached. Remaining validator uploads continue in background and are tracked by <code>Await</code>/<code>Stop</code>. <code>WithAwaitAllSignatures</code> changes the threshold to all validator voting power and waits for all successful signatures.</p>
+<p>By default, <code>Upload</code> returns after the safety threshold by voting power is reached. Remaining validator uploads continue in background and are tracked by <code>Await</code>/<code>Stop</code>. With <code>DetachBackgroundUploads</code> (on by default) they keep running when the caller cancels its context after <code>Upload</code> returns; without it, that cancel drops them. Cancelling before the threshold aborts the upload either way. <code>WithAwaitAllSignatures</code> changes the threshold to all validator voting power and waits for all successful signatures.</p>
 <pre><code class="language-go">type SignedPaymentPromise struct {
     *PaymentPromise
     ValidatorSignatures [][]byte
@@ -5266,7 +5268,7 @@ max_connections = 16
 max_concurrent_streams = 13
 storage_backend = &quot;local&quot;
 </code></pre>
-<p><code>StoreConfig.Path</code> is not a TOML field; the standalone <code>fibre start</code> command sets it from <code>--home</code>. The default state client is a gRPC app client connected to <code>AppGRPCAddress</code>. The default signer is a PrivValidatorAPI gRPC client connected to <code>SignerGRPCAddress</code>. Both app-node gRPC and signer gRPC use insecure local transport and are expected to be loopback or otherwise protected.</p>
+<p><code>StoreConfig.Path</code> is not a TOML field; the standalone <code>fibre start</code> command sets it from <code>--home</code>. The default state client is a gRPC app client connected to <code>AppGRPCAddress</code>. The default signer is a PrivValidatorAPI gRPC client connected to <code>SignerGRPCAddress</code>. App-node gRPC uses insecure local transport and is expected to be loopback or otherwise protected. Signer gRPC defaults to the same insecure local transport and is only allowed to a loopback <code>SignerGRPCAddress</code>. To reach a remote node, set <code>signer_grpc_ca_file</code>, <code>signer_grpc_cert_file</code> and <code>signer_grpc_key_file</code> together to enable mutual TLS: the CA verifies the node's server certificate and the client certificate is presented to the node. Validation rejects a non-loopback address without all three files unless <code>signer_grpc_allow_insecure</code> is set.</p>
 <h2 id="lifecycle"><a class="header" href="#lifecycle">Lifecycle</a></h2>
 <p><code>Server.Start</code> starts the state client first, detects the chain ID, creates the signer, builds a TLS certificate endorsed by the validator consensus key, registers the Fibre gRPC service with TLS 1.3 credentials and max send/receive message sizes, opens the store, seeds occupancy from shard markers (falling back to file sizes for legacy local markers), derives its storage budget, starts the prune loop, and starts serving gRPC in the background.</p>
 <p><code>Server.Stop</code> cancels the prune loop, stops the gRPC server, closes the signer if it implements <code>io.Closer</code>, closes the store, and stops the state client.</p>
@@ -5338,6 +5340,7 @@ staging/&lt;random&gt;                            temporary in-flight write
 </tbody></table>
 </div>
 <p>Storage-budget rejection includes a retry delay of one prune interval plus jitter: at least 60 seconds and less than 90 seconds. Errors returned by app-side promise validation, including local promise-cache budget rejection, are wrapped as <code>InvalidArgument</code> by <code>UploadShard</code>; they do not use this storage retry response.</p>
+<p>The implementation does not currently return <code>FailedPrecondition</code>, <code>PermissionDenied</code>, or <code>AlreadyExists</code> for the cases described by older target designs. The only machine-readable error detail is the <code>RetryInfo</code> backoff hint on <code>ResourceExhausted</code>.</p>
 <h2 id="concurrency-and-dos-controls"><a class="header" href="#concurrency-and-dos-controls">Concurrency And DoS Controls</a></h2>
 <p>The server limits stored and in-flight shard bytes. Its budget is <code>FullStakeStorageBudget * assignedRows / OriginalRows</code>, using the current validator set and the same row-count calculation as assignment. <code>UnlimitedBudget</code> disables this limiter. This is a shard-payload occupancy budget, not a limit on total filesystem usage including Pebble metadata. The transport defaults to 16 connections and 13 concurrent HTTP/2 streams per connection, configurable through <code>MaxConnections</code> and <code>MaxConcurrentStreams</code>, with a 15-second connection setup timeout and keepalive limits. These limits apply before shard verification. There are no per-peer token buckets or throughput caps. Upload verification concurrency is bounded by <code>UploadVerifyWorkers</code>, which is the size of the pooled <code>rsema1d.Verifier</code> channel. gRPC receive/send message size is bounded by <code>MaxMessageSize</code> from protocol params.</p>
 <h2 id="metrics"><a class="header" href="#metrics">Metrics</a></h2>
@@ -5534,7 +5537,7 @@ amount = gas utia
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 </code></pre>
-<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin. The handler gets or creates the escrow account, sends the coin from the signer account to the <code>fibre</code> module account, adds the amount to both <code>balance</code> and <code>available_balance</code>, stores the escrow account, and emits <code>EventDepositToEscrow</code>.</p>
+<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin in the bond denom (<code>utia</code>). The handler gets or creates the escrow account, sends the coin from the signer account to the <code>fibre</code> module account, adds the amount to both <code>balance</code> and <code>available_balance</code>, stores the escrow account, and emits <code>EventDepositToEscrow</code>.</p>
 <h3 id="msgrequestwithdrawal"><a class="header" href="#msgrequestwithdrawal">MsgRequestWithdrawal</a></h3>
 <pre><code class="language-proto">message MsgRequestWithdrawal {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
@@ -5542,7 +5545,7 @@ amount = gas utia
   cosmos.base.v1beta1.Coin amount = 2 [(gogoproto.nullable) = false];
 }
 </code></pre>
-<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin. The handler requires an existing escrow account, requires <code>available_balance &gt;= amount</code>, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with <code>requested_timestamp = block_time</code> and <code>available_timestamp = block_time + withdrawal_delay</code>, subtracts the amount from <code>available_balance</code>, and emits <code>EventWithdrawFromEscrowRequest</code>.</p>
+<p><code>ValidateBasic</code> requires a valid bech32 signer address and a valid positive coin in the bond denom (<code>utia</code>). The handler requires an existing escrow account, requires <code>available_balance &gt;= amount</code>, rejects a key collision with an existing withdrawal at the current block timestamp, stores a withdrawal with <code>requested_timestamp = block_time</code> and <code>available_timestamp = block_time + withdrawal_delay</code>, subtracts the amount from <code>available_balance</code>, and emits <code>EventWithdrawFromEscrowRequest</code>.</p>
 <h3 id="msgpayforfibre"><a class="header" href="#msgpayforfibre">MsgPayForFibre</a></h3>
 <pre><code class="language-proto">message MsgPayForFibre {
   option (cosmos.msg.v1.signer) = &quot;signer&quot;;
@@ -5554,6 +5557,14 @@ amount = gas utia
 <p><code>ValidateBasic</code> requires a valid transaction signer, a valid payment promise by <code>PaymentPromise.ValidateBasic</code>, and at least one validator signature. The handler converts the promise to the internal Fibre type, verifies the internal stateless validation and escrow-owner secp256k1 signature, runs normal stateful validation, hashes the promise, derives the escrow signer from <code>payment_promise.signer_public_key</code>, deducts the calculated payment amount from escrow, stores the processed payment, and emits <code>EventPayForFibre</code>.</p>
 <p>Validator-signature verification runs in the ante handler in CheckTx and ProcessProposal, with a cache keyed by the payment promise and validator signatures, excluding the transaction submitter. CheckTx and recheck also run read-only stateful promise validation to keep unsettleable PFFs out of the mempool; proposal execution remains the authoritative settlement check. It is skipped during simulation and FinalizeBlock; the message server does not repeat it. Deterministic signature gas is charged separately. See <a href="../../x/fibre/ante/ante.go"><code>x/fibre/ante/ante.go</code></a>.</p>
 <p>Signatures are positional in the historical validator set. A slice longer than that set is rejected, including trailing empty entries. Empty entries are skipped. Verification stops once verified signatures reach <code>floor(2 * total_voting_power / 3)</code>, so later entries within the allowed slice length are not necessarily checked. Exactly two thirds can pass; there is no separate validator-count threshold. <code>EventPayForFibre.validator_count</code> is the submitted slice length, including empty entries. See <a href="../../x/fibre/keeper/msg_server.go"><code>validateValidatorSignatures</code></a> and <a href="../../fibre/validator/signature_set.go"><code>SignatureSet</code></a>.</p>
+<p>A validator signature verifies under ZIP-215: the cofactored equation
+<code>[8][s]B = [8]R + [8][k]A</code>, with <code>S</code> required to be reduced modulo the group
+order, and with non-canonical and small-order encodings of <code>A</code> and <code>R</code>
+permitted. This is the rule CometBFT applies to every other Ed25519 signature
+it checks, and the only one batch verification can implement. It accepts
+strictly more signatures than the cofactorless equation <code>[s]B = R + [k]A</code>; a
+re-implementation that checks the cofactorless equation will reject
+certificates this rule accepts.</p>
 <p>Payment deduction first requires total escrow <code>balance &gt;= payment_amount</code>. It subtracts the full payment from total <code>balance</code>, subtracts <code>min(available_balance, payment_amount)</code> from <code>available_balance</code>, and if the payment uses funds that were locked in pending withdrawals, it calls <code>ReduceWithdrawalsForPayment</code> to delete or reduce the signer's pending withdrawals in signer-index iteration order.</p>
 <p>The app proposal path synthesizes data-square metadata for accepted PFF transactions; see <a href="fibre_module.html#data-square-construction">Data Square Construction</a>. The message handler itself does not insert a blob into the square.</p>
 <h3 id="msgpaymentpromisetimeout"><a class="header" href="#msgpaymentpromisetimeout">MsgPaymentPromiseTimeout</a></h3>
