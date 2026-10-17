@@ -17,24 +17,7 @@ The publisher and the account submitting the settlement transaction can be diffe
 
 ## Follow a blob
 
-```mermaid
-sequenceDiagram
-    participant P as Publisher
-    participant A as Celestia app
-    participant S as Fibre servers
-    participant R as Reader
-    P->>A: Deposit funds into escrow
-    P->>P: Encode blob and sign payment promise
-    P->>S: Upload assigned rows, proofs, RLC vector, and promise
-    S->>A: Validate promise and reserve local budget
-    S->>S: Verify assigned rows and store shard
-    S-->>P: Validator signatures
-    P->>A: Submit PayForFibre with promise and signatures
-    A->>A: Validate proposal, settle payment, include metadata
-    R->>S: Request shards by BlobID
-    S-->>R: Stored rows, proofs, and RLC vector
-    R->>R: Verify rows and reconstruct payload
-```
+![Fibre lifecycle: fund escrow, encode and upload, collect signatures, settle on chain, then retrieve and reconstruct.](./figures/fibre-lifecycle.svg)
 
 ### 1. Fund escrow
 
@@ -95,7 +78,7 @@ Servers prune periodically. Settlement does not restart the retention clock, and
 
 ## What is paid for?
 
-The charge uses the padded original rows, including the header, but excludes parity rows, proofs, and RLC overhead. Rows are aligned to 64 bytes, so the smallest paid upload is 256 KiB even for a tiny payload. The current escrow charge is `650,000 + 45,000 * ceil(upload_size / 262,144)` utia, separate from the settlement transaction fee.
+The charge uses the padded original rows, including the header, but excludes parity rows, proofs, and RLC overhead. Rows are aligned to 64 bytes, so the smallest paid upload is 256 KiB even for a tiny payload. The current escrow charge is `ceil(0.004 * (650000 + 45000 * ceil(upload_size / 262144)))` utia, separate from the settlement transaction fee.
 
 `Put` can opt into local budget tracking and automatic deposits with `Escrow.AutoFund`. Direct `Upload` calls do not use that ledger. Neither the client ledger nor a validator's local promise cache is a global reservation on escrow; see the [client accounting limits](./fibre_client.md#escrow-ledger-accounting-and-limits).
 
