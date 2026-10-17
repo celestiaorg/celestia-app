@@ -29,4 +29,9 @@ const (
 	// This ensures all blocks in the snapshot window (SnapshotInterval × SnapshotKeepRecent)
 	// are retained so other nodes can sync from snapshots.
 	MinRetainBlocks uint64 = 3000
+
+	// DefaultMinRetainBlocks is the default number of blocks to retain in the
+	// block store. This value is large enough for bridge nodes to sync while
+	// still bounding block store growth for operators who don't change the default.
+	DefaultMinRetainBlocks uint64 = 100_000
 )
