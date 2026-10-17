@@ -75,6 +75,7 @@ func WithAwaitAllSignatures() UploadOption {
 // The blob must not be reused after calling [Blob.Free].
 // Returns [ErrClientClosed] if the client has been closed.
 // Returns [ErrNoKeyring] if the client has no keyring.
+// Returns ctx.Err() without dispatching anything if ctx is already done.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
 		return result, errors.New("fibre: client is not started")
@@ -84,6 +85,14 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	}
 	if c.keyring == nil {
 		return result, ErrNoKeyring
+	}
+	// The fan-out below runs on a context detached from ctx (see uploadShards),
+	// so a cancellation that is already in effect here would only reach the
+	// uploads through the watcher goroutine — losing a race against fast
+	// validators means dispatching a promise, and committing escrow, for a
+	// caller that already gave up. Refuse up front instead.
+	if err = ctx.Err(); err != nil {
+		return result, err
 	}
 	if !blob.retain() {
 		return result, errors.New("fibre: blob already released; create a new blob to upload")

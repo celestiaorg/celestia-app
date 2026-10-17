@@ -91,7 +91,17 @@ func testClientUploadNoKeyring(t *testing.T) {
 }
 
 func testClientUploadContextCancellation(t *testing.T) {
-	client := makeTestUploadClient(t, 100, nil)
+	// Count the validators dialed: the fan-out runs on a context detached from
+	// ctx, so a cancelled caller must be refused before dispatch rather than
+	// racing the uploads for it.
+	var dialed atomic.Int64
+	client := makeTestUploadClient(t, 100, func(cfg *fibre.ClientConfig) {
+		clientFn := cfg.NewClientFn
+		cfg.NewClientFn = func(ctx context.Context, val *core.Validator) (grpc.Client, error) {
+			dialed.Add(1)
+			return clientFn(ctx, val)
+		}
+	})
 	t.Cleanup(func() { require.NoError(t, client.Stop(t.Context())) })
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -102,6 +112,7 @@ func testClientUploadContextCancellation(t *testing.T) {
 
 	_, err := client.Upload(ctx, testNamespace, blob)
 	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, dialed.Load(), "a cancelled upload must not dispatch to validators")
 }
 
 func testClientUploadSucceedsWithOneThirdFailures(t *testing.T) {
