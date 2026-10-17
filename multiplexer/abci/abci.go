@@ -140,6 +140,7 @@ func (m *Multiplexer) LoadSnapshotChunk(_ context.Context, req *abci.RequestLoad
 func (m *Multiplexer) OfferSnapshot(_ context.Context, req *abci.RequestOfferSnapshot) (*abci.ResponseOfferSnapshot, error) {
 	m.mu.Lock()
 	m.appVersion = req.AppVersion
+	m.nextAppVersion = req.AppVersion
 	m.mu.Unlock()
 
 	app, err := m.getApp()
