@@ -27,7 +27,7 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/evstack/reth"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	"github.com/celestiaorg/tastora/framework/testutil/evm"
-	"github.com/cosmos/cosmos-sdk/crypto"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/cosmos/gogoproto/proto"
@@ -292,20 +292,12 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 	amount := sdkmath.NewInt(1000000)
 	sendAmount := sdk.NewCoins(sdk.NewCoin(chain.Config.Denom, amount))
 
-	relayerWallet, err := chain.CreateWallet(ctx, "forward-rly")
-	s.Require().NoError(err)
-
-	s.SendBankSendTx(ctx, chain, chain.GetFaucetWallet().Address, relayerWallet.Address, sendAmount)
-
-	chainNode := chain.GetNode()
-	keyring, err := chainNode.GetKeyring()
-	s.Require().NoError(err)
-
-	armor, err := keyring.ExportPrivKeyArmor("forward-rly", "")
-	s.Require().NoError(err)
-
-	privKey, _, err := crypto.UnarmorDecryptPrivKey(armor, "")
-	s.Require().NoError(err)
+	// The relayer only needs a private key, not a key in the node's keyring.
+	// Creating one through the node starts a helper container that publishes
+	// the image's ports and can collide with the running chain.
+	privKey := secp256k1.GenPrivKey()
+	relayerAddress := sdk.AccAddress(privKey.PubKey().Address())
+	s.SendBankSendTx(ctx, chain, chain.GetFaucetWallet().Address, relayerAddress, sendAmount)
 
 	networkInfo, err := chain.GetNetworkInfo(ctx)
 	s.Require().NoError(err)

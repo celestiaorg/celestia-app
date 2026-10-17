@@ -18,11 +18,13 @@ import (
 type fakeApp struct {
 	servertypes.Application
 	// upgradeTo is the app version FinalizeBlock reports. Zero reports none.
-	upgradeTo     uint64
-	finalizeErr   error
-	commitErr     error
-	finalizeCalls int
-	commitCalls   int
+	upgradeTo uint64
+	// infoAppVersion is the app version Info reports.
+	infoAppVersion uint64
+	finalizeErr    error
+	commitErr      error
+	finalizeCalls  int
+	commitCalls    int
 }
 
 func (f *fakeApp) FinalizeBlock(*abci.RequestFinalizeBlock) (*abci.ResponseFinalizeBlock, error) {
@@ -35,6 +37,10 @@ func (f *fakeApp) FinalizeBlock(*abci.RequestFinalizeBlock) (*abci.ResponseFinal
 		resp.ConsensusParamUpdates = &cmtproto.ConsensusParams{Version: &cmtproto.VersionParams{App: f.upgradeTo}}
 	}
 	return resp, nil
+}
+
+func (f *fakeApp) Info(*abci.RequestInfo) (*abci.ResponseInfo, error) {
+	return &abci.ResponseInfo{AppVersion: f.infoAppVersion}, nil
 }
 
 func (f *fakeApp) Commit() (*abci.ResponseCommit, error) {
