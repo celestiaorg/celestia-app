@@ -5434,7 +5434,7 @@ Each observation covers one backend call. Object GET duration includes SDK retri
 <h2 id="state-2"><a class="header" href="#state-2">State</a></h2>
 <p>The module store key is <code>fibre</code>. Module params are stored under the raw key <code>params</code>. The other state objects use byte prefixes from <code>x/fibre/types/keys.go</code>: escrow accounts use <code>0x02</code>, withdrawals-by-signer use <code>0x03</code>, withdrawals-by-available-time use <code>0x04</code>, processed-payments-by-hash use <code>0x05</code>, and processed-payments-by-time use <code>0x06</code>. The promise freshness floor is stored under <code>0x07</code>.</p>
 <h3 id="escrowaccount"><a class="header" href="#escrowaccount">EscrowAccount</a></h3>
-<p>An escrow account is keyed by the escrow signer address with <code>0x02 || signer</code>. <code>balance</code> is the total amount held in the module account for that signer and <code>available_balance</code> is the amount that has not been reserved by pending withdrawal requests.</p>
+<p>An escrow account is keyed by the escrow signer address with <code>0x02 || signer</code>, where <code>signer</code> is the canonical bech32 string of the address (<code>sdk.AccAddress.String()</code>); a message signer given in the uppercase bech32 form resolves to the same account. <code>balance</code> is the total amount held in the module account for that signer and <code>available_balance</code> is the amount that has not been reserved by pending withdrawal requests.</p>
 <pre><code class="language-proto">message EscrowAccount {
   string signer = 1 [(cosmos_proto.scalar) = &quot;cosmos.AddressString&quot;];
   cosmos.base.v1beta1.Coin balance = 2 [(gogoproto.nullable) = false];
@@ -5470,7 +5470,7 @@ Each observation covers one backend call. Object GET duration includes SDK retri
   google.protobuf.Timestamp promise_freshness_floor = 5 [(gogoproto.nullable) = false, (gogoproto.stdtime) = true];
 }
 </code></pre>
-<p>Genesis validation checks params, rejects empty or duplicate escrow signers, requires escrow balances to be valid with <code>available_balance &lt;= balance</code>, requires withdrawals to have a signer, positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero <code>processed_at</code>.</p>
+<p>Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with <code>available_balance &lt;= balance</code>, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero <code>processed_at</code>. <code>InitGenesis</code> also checks the escrow and withdrawal signers and panics on failure, so a non-canonical signer cannot start a chain.</p>
 <h2 id="paymentpromise-1"><a class="header" href="#paymentpromise-1">PaymentPromise</a></h2>
 <p><code>PaymentPromise</code> is the on-chain protobuf representation of an off-chain promise signed by the escrow owner. The signer public key is a concrete <code>cosmos.crypto.secp256k1.PubKey</code>, not an <code>Any</code>.</p>
 <pre><code class="language-proto">message PaymentPromise {
