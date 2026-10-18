@@ -8,6 +8,8 @@ set -euo pipefail
 
 cmd=$(jq -r '.tool_input.command // empty')
 [[ "$cmd" == *git* ]] || exit 0
+# Drop shell quotes so quoted arguments such as -c 'user.name=x' still match.
+cmd=${cmd//[\"\']/}
 
 patterns=(
   '-c[[:space:]]+user\.(name|email|signingkey)='
