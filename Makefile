@@ -274,7 +274,7 @@ test-docker-e2e:
 	fi
 	@ENTRYPOINT=$${entrypoint:-TestCelestiaTestSuite}; \
 	echo "--> Running: $$ENTRYPOINT/$(test)"; \
-	cd test/docker-e2e && go test -count=1 -v -run ^$$ENTRYPOINT/$(test)$$ ./... -timeout 30m
+	cd test/docker-e2e && go test -count=1 -v -run ^$$ENTRYPOINT/$(test)$$ . -timeout 30m
 .PHONY: test-docker-e2e
 
 ## test-docker-e2e-upgrade-all: Build image from current branch and run the upgrade test for all app versions starting from v2.

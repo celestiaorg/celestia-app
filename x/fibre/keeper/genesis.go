@@ -1,6 +1,8 @@
 package keeper
 
 import (
+	"fmt"
+
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,11 +12,18 @@ import (
 func (k Keeper) InitGenesis(ctx sdk.Context, genesisState types.GenesisState) {
 	k.SetParams(ctx, genesisState.Params)
 
+	// InitChainer does not run ValidateGenesis, so check signers before writing them.
 	for _, escrowAccount := range genesisState.EscrowAccounts {
+		if err := types.ValidateGenesisSigner(escrowAccount.Signer); err != nil {
+			panic(fmt.Errorf("invalid %s genesis escrow account: %w", types.ModuleName, err))
+		}
 		k.SetEscrowAccount(ctx, escrowAccount)
 	}
 
 	for _, withdrawal := range genesisState.Withdrawals {
+		if err := types.ValidateGenesisSigner(withdrawal.Signer); err != nil {
+			panic(fmt.Errorf("invalid %s genesis withdrawal: %w", types.ModuleName, err))
+		}
 		k.SetWithdrawal(ctx, withdrawal)
 	}
 
