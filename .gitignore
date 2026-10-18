@@ -42,6 +42,8 @@ talis-setup/
 .claude/*
 !.claude/skills
 !.claude/agents/
+!.claude/hooks/
+!.claude/settings.json
 # AI assumptions notes are never committed
 docs/plans/
 # Swagger UI page (override **/*.html)
