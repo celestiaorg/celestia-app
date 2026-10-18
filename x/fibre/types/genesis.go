@@ -26,7 +26,7 @@ func (gs GenesisState) Validate() error {
 	// Validate escrow accounts
 	signerMap := make(map[string]bool)
 	for _, account := range gs.EscrowAccounts {
-		if err := validateGenesisSigner(account.Signer); err != nil {
+		if err := ValidateGenesisSigner(account.Signer); err != nil {
 			return err
 		}
 		if signerMap[account.Signer] {
@@ -47,7 +47,7 @@ func (gs GenesisState) Validate() error {
 
 	// Validate withdrawals
 	for _, withdrawal := range gs.Withdrawals {
-		if err := validateGenesisSigner(withdrawal.Signer); err != nil {
+		if err := ValidateGenesisSigner(withdrawal.Signer); err != nil {
 			return err
 		}
 		if !withdrawal.Amount.IsValid() || !withdrawal.Amount.IsPositive() {
@@ -78,10 +78,10 @@ func (gs GenesisState) Validate() error {
 	return nil
 }
 
-// validateGenesisSigner requires a signer in the canonical bech32 form, which is
+// ValidateGenesisSigner requires a signer in the canonical bech32 form, which is
 // what the keeper uses as the store key. The uppercase form of the same address
 // would be stored under a different key that settlement never reads.
-func validateGenesisSigner(signer string) error {
+func ValidateGenesisSigner(signer string) error {
 	addr, err := sdk.AccAddressFromBech32(signer)
 	if err != nil {
 		return errorsmod.Wrapf(ErrInvalidSigner, "%q: %s", signer, err)

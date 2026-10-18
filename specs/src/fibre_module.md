@@ -148,7 +148,7 @@ message GenesisState {
 }
 ```
 
-Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero `processed_at`.
+Genesis validation checks params, requires escrow and withdrawal signers to be valid bech32 addresses in canonical form, rejects duplicate escrow signers, requires escrow balances to be valid with `available_balance <= balance`, requires withdrawals to have a positive valid amount, and nonzero requested timestamp, and requires processed payments to have a non-empty unique hash and nonzero `processed_at`. `InitGenesis` also checks the escrow and withdrawal signers and panics on failure, so a non-canonical signer cannot start a chain.
 
 ## PaymentPromise
 
