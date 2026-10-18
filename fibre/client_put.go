@@ -3,14 +3,12 @@ package fibre
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -83,11 +81,9 @@ func (r *escrowReservation) abort() {
 // Put uploads given data to the Fibre network.
 // It encodes the data into a [Blob], calls [Client.Upload] to upload it,
 // and submits a MsgPayForFibre transaction using the provided [user.TxClient].
+// The transaction goes through the tx client's worker queue when it is running with more than one
+// worker (see [user.WithTxWorkers]), and is signed by the default account otherwise.
 // Returns [ErrNoKeyring] if the Fibre client has no keyring.
-//
-// TODO(@Wondertan): This does not belong here. Fibre protocol in it's core doesn't need to know about transactions.
-// Furthermore, this function cannot be generalized for all the cases with fee grants, multiple key managements, etc.
-// And users are strongly advised to use [fibre.Upload] with custom TX submission logic instead, ideally batching multiple blobs in a single PFF.
 func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (result PutResult, err error) {
 	if c.keyring == nil {
 		return result, ErrNoKeyring
@@ -113,31 +109,16 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 		span.SetStatus(codes.Error, "failed to convert payment promise to proto")
 		return result, fmt.Errorf("converting payment promise to proto: %w", err)
 	}
-	signerAddr := txClient.DefaultAddress()
-	msg := &types.MsgPayForFibre{
-		Signer:              signerAddr.String(),
-		PaymentPromise:      *promiseProto,
-		ValidatorSignatures: signedPromise.ValidatorSignatures,
+	var txResp *user.TxResponse
+	if txClient.TxQueueWorkerCount() > 1 && txClient.IsTxQueueStarted() {
+		txResp, err = txClient.SubmitPayForFibreToQueue(ctx, promiseProto, signedPromise.ValidatorSignatures)
+	} else {
+		txResp, err = txClient.SubmitPayForFibre(ctx, promiseProto, signedPromise.ValidatorSignatures)
 	}
-
-	broadcastResp, err := retryPFFBroadcast(ctx, func(ctx context.Context) (*sdk.TxResponse, error) {
-		return txClient.BroadcastTx(ctx, []sdk.Msg{msg})
-	})
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to broadcast PayForFibre transaction")
-		return result, fmt.Errorf("broadcasting PayForFibre transaction: %w", err)
-	}
-	span.AddEvent("pff_broadcasted", trace.WithAttributes(
-		attribute.String("pff_hash", broadcastResp.TxHash),
-	))
-
-	// confirm transaction inclusion
-	txResp, err := txClient.ConfirmTx(ctx, broadcastResp.TxHash)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to confirm PayForFibre transaction")
-		return result, fmt.Errorf("confirming PayForFibre transaction: %w", err)
+		span.SetStatus(codes.Error, "failed to submit PayForFibre transaction")
+		return result, fmt.Errorf("submitting PayForFibre transaction: %w", err)
 	}
 	span.AddEvent("pff_confirmed", trace.WithAttributes(
 		attribute.Int64("height", txResp.Height),
@@ -200,36 +181,4 @@ func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share
 	))
 
 	return blobID, signedPromise, nil
-}
-
-// pffBroadcastAttempts and pffBroadcastRetryDelay bound the re-broadcast of a
-// PayForFibre rejected because the promise's signing height is not yet
-// committed app-side.
-const (
-	pffBroadcastAttempts   = 4
-	pffBroadcastRetryDelay = 500 * time.Millisecond
-)
-
-// isMissingHistoricalInfo reports whether a broadcast rejection means the
-// promise's signing height is not yet committed app-side. The head is
-// observable from CometBFT's blockstore before the app finishes executing the
-// block, so this rejection is transient: the tx verifies once the app catches
-// up, moments later. See #7774.
-func isMissingHistoricalInfo(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "failed to get historical validator set")
-}
-
-// retryPFFBroadcast broadcasts a PayForFibre, re-broadcasting after a short
-// delay while the rejection is the transient missing-historical-info one.
-func retryPFFBroadcast(ctx context.Context, broadcast func(context.Context) (*sdk.TxResponse, error)) (*sdk.TxResponse, error) {
-	resp, err := broadcast(ctx)
-	for attempt := 1; attempt < pffBroadcastAttempts && isMissingHistoricalInfo(err); attempt++ {
-		select {
-		case <-ctx.Done():
-			return resp, err
-		case <-time.After(pffBroadcastRetryDelay):
-		}
-		resp, err = broadcast(ctx)
-	}
-	return resp, err
 }

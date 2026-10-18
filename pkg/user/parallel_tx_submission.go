@@ -20,12 +20,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// SubmissionJob represents a transaction submission task for parallel processing
+// SubmissionJob represents a transaction submission task for parallel processing.
+// Exactly one of Blobs or PayForFibre is set.
 type SubmissionJob struct {
-	Blobs    []*share.Blob
-	Options  []TxOption
-	Ctx      context.Context
-	ResultsC chan SubmissionResult
+	Blobs       []*share.Blob
+	PayForFibre *payForFibreJob
+	Options     []TxOption
+	Ctx         context.Context
+	ResultsC    chan SubmissionResult
 }
 
 // SubmissionResult contains the result of a parallel transaction submission
@@ -43,6 +45,7 @@ type txQueue struct {
 
 	client   *TxClient
 	jobQueue chan *SubmissionJob
+	size     int
 	workers  []*txWorker
 }
 
@@ -103,6 +106,7 @@ func newTxQueue(client *TxClient, numWorkers int) *txQueue {
 	pool := &txQueue{
 		client:   client,
 		jobQueue: make(chan *SubmissionJob, defaultParallelQueueSize),
+		size:     defaultParallelQueueSize,
 		workers:  make([]*txWorker, numWorkers),
 	}
 
@@ -147,7 +151,7 @@ func (p *txQueue) start(ctx context.Context) error {
 	}
 
 	// Recreate job queue channel if it was closed during previous stop
-	p.jobQueue = make(chan *SubmissionJob, defaultParallelQueueSize)
+	p.jobQueue = make(chan *SubmissionJob, p.size)
 	// Update workers to use new job queue BEFORE starting goroutines
 	for _, worker := range p.workers {
 		worker.jobQueue = p.jobQueue
@@ -192,8 +196,14 @@ func (p *txQueue) submitJob(job *SubmissionJob) {
 		return
 	}
 
+	var callerDone <-chan struct{}
+	if job.Ctx != nil {
+		callerDone = job.Ctx.Done()
+	}
 	select {
 	case p.jobQueue <- job:
+	case <-callerDone:
+		job.ResultsC <- SubmissionResult{Error: job.Ctx.Err()}
 	case <-p.ctx.Done():
 		job.ResultsC <- SubmissionResult{Error: errors.New("tx queue full or has stopped")}
 	}
@@ -202,6 +212,11 @@ func (p *txQueue) submitJob(job *SubmissionJob) {
 // isStarted returns whether the tx queue is started
 func (p *txQueue) isStarted() bool {
 	return p.ctx != nil && p.cancel != nil
+}
+
+// isRunning returns whether the tx queue is started and its context has not ended.
+func (p *txQueue) isRunning() bool {
+	return p.isStarted() && p.ctx.Err() == nil
 }
 
 // start begins the worker's job processing loop
@@ -215,6 +230,22 @@ func (w *txWorker) start(ctx context.Context) {
 			}
 			w.processJob(job, ctx)
 		case <-ctx.Done():
+			w.drain(ctx.Err())
+			return
+		}
+	}
+}
+
+// drain fails the jobs still buffered in the queue so their callers are not left waiting.
+func (w *txWorker) drain(cause error) {
+	for {
+		select {
+		case job, ok := <-w.jobQueue:
+			if !ok {
+				return
+			}
+			job.ResultsC <- SubmissionResult{Signer: w.address, Error: fmt.Errorf("tx queue stopped: %w", cause)}
+		default:
 			return
 		}
 	}
@@ -243,6 +274,12 @@ func (w *txWorker) processJob(job *SubmissionJob, workerCtx context.Context) {
 	if w.id != 0 {
 		// Add fee granter option so master account pays for worker transaction fees
 		options = append([]TxOption{SetFeeGranter(w.client.DefaultAddress())}, options...)
+	}
+
+	if pff := job.PayForFibre; pff != nil {
+		txResponse, err := w.client.submitPayForFibre(jobCtx, w.address, pff.Promise, pff.ValidatorSignatures, options...)
+		job.ResultsC <- SubmissionResult{Signer: w.address, TxResponse: txResponse, Error: err}
+		return
 	}
 
 	// Fill in the signer for v1 blobs to match the transaction signer
