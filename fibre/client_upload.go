@@ -85,6 +85,9 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	if c.keyring == nil {
 		return result, ErrNoKeyring
 	}
+	if err := ctx.Err(); err != nil {
+		return result, err
+	}
 	if !blob.retain() {
 		return result, errors.New("fibre: blob already released; create a new blob to upload")
 	}
