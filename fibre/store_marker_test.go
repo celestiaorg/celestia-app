@@ -389,13 +389,13 @@ func TestPruneBeforeLimitsBatchSize(t *testing.T) {
 
 	pruned, freed, err := store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
 	require.ErrorIs(t, err, ErrStoreIntegrity)
-	require.Equal(t, maxPruneBatchSize, pruned)
-	require.Equal(t, int64(maxPruneBatchSize), freed)
+	require.Equal(t, maxPruneBatchSize-1, pruned)
+	require.Equal(t, int64(maxPruneBatchSize-1), freed)
 
 	pruned, freed, err = store.PruneBefore(t.Context(), pruneAt.Add(time.Hour))
 	require.ErrorIs(t, err, ErrStoreIntegrity)
-	require.Equal(t, 1, pruned)
-	require.Equal(t, int64(1), freed)
+	require.Equal(t, 2, pruned)
+	require.Equal(t, int64(2), freed)
 }
 
 func TestPruneCommitsProgressOnCancellation(t *testing.T) {

@@ -144,6 +144,49 @@ func TestScatterMarshalWireParity(t *testing.T) {
 	}
 }
 
+func TestScatterMarshalWireParity128MiB(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping 128 MiB scatter codec test in short mode")
+	}
+
+	const rowCount, rowSize = 512, 256 << 10
+	rows := make([]*types.BlobRow, rowCount)
+	for i := range rows {
+		rows[i] = &types.BlobRow{
+			Index: uint32(i),
+			Data:  bytes.Repeat([]byte{byte(i), byte(i >> 8)}, rowSize/2),
+			Proof: [][]byte{bytes.Repeat([]byte{byte(i)}, 32)},
+		}
+	}
+	req := &types.UploadShardRequest{
+		Promise: &types.PaymentPromise{ChainId: "scatter-test", BlobSize: rowCount * rowSize},
+		Shard:   &types.BlobShard{Rows: rows, Rlcs: bytes.Repeat([]byte{0xa5}, rowSize)},
+	}
+
+	canonical, err := req.Marshal()
+	if err != nil {
+		t.Fatalf("canonical marshal: %v", err)
+	}
+	scattered, err := marshalUploadShardRequestScatter(req)
+	if err != nil {
+		t.Fatalf("scatter marshal: %v", err)
+	}
+	defer scattered.Free()
+	if scattered.Len() != len(canonical) {
+		t.Fatalf("wire length mismatch: canonical %d, scattered %d", len(canonical), scattered.Len())
+	}
+	// Compare segments directly to avoid another 128 MiB allocation and a huge
+	// hex dump on failure.
+	offset := 0
+	for i, segment := range scattered {
+		data := segment.ReadOnlyData()
+		if !bytes.Equal(data, canonical[offset:offset+len(data)]) {
+			t.Fatalf("wire mismatch at segment %d (offset %d)", i, offset)
+		}
+		offset += len(data)
+	}
+}
+
 // FuzzScatterMarshalParity drives the scatter marshaler with random message
 // shapes and asserts byte equality against gogoproto's canonical marshal.
 // Catches drift if new fields are added to UploadShardRequest / BlobShard /
