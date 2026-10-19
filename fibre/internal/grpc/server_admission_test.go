@@ -41,7 +41,7 @@ func (f *fakeFibre) DownloadShard(context.Context, *types.DownloadShardRequest) 
 
 func startAdmission(t *testing.T, budget, msg int64, svc types.FibreServer) *Server {
 	t.Helper()
-	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, 100)
+	srv, err := Listen("127.0.0.1:0", 0, 100) // per-IP disabled
 	require.NoError(t, err)
 	srv.Register(svc, AdmissionConfig{Budget: budget, MaxMessage: msg})
 	srv.Serve()

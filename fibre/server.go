@@ -78,7 +78,10 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		health:    newHealthManager(cfg.health, cfg.Log),
 	}
 
-	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
+	if cfg.MaxConnections != 0 {
+		cfg.Log.Warn("max_connections is deprecated and ignored; the global connection cap is fixed internally", "max_connections", cfg.MaxConnections)
+	}
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnectionsPerIP, cfg.MaxConcurrentStreams)
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
