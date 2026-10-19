@@ -105,6 +105,32 @@ func TestServerDurationBucketsCoverObjectTimeout(t *testing.T) {
 	}
 }
 
+func TestStoreBackendMetric(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
+	t.Cleanup(func() { require.NoError(t, provider.Shutdown(context.Background())) })
+	require.NoError(t, registerStoreBackendMetric(provider.Meter("test"), storageBackendLocal, true))
+
+	var collected metricdata.ResourceMetrics
+	require.NoError(t, reader.Collect(t.Context(), &collected))
+	for _, scope := range collected.ScopeMetrics {
+		for _, m := range scope.Metrics {
+			if m.Name != "fibre.server.store.backend" {
+				continue
+			}
+			points := m.Data.(metricdata.Gauge[int64]).DataPoints
+			require.Len(t, points, 1)
+			require.Equal(t, int64(1), points[0].Value)
+			require.Equal(t, attribute.NewSet(
+				attribute.String("backend", "local"),
+				attribute.Bool("object_configured", true),
+			), points[0].Attributes)
+			return
+		}
+	}
+	t.Fatal("store backend metric not found")
+}
+
 func TestBackendGetOutcome(t *testing.T) {
 	for _, tc := range []struct {
 		name, outcome string

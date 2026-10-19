@@ -258,6 +258,7 @@ The server records OpenTelemetry metrics for:
 - `fibre.server.download_shard.bytes`
 - `fibre.server.store.put.duration`
 - `fibre.server.store.get.duration`
+- `fibre.server.store.backend`
 - `fibre.server.backend.get.duration`
 - `fibre.server.backend.get.in_flight`
 - `fibre.server.backend.get.bytes`
