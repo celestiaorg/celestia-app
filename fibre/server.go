@@ -149,6 +149,12 @@ func (s *Server) Start(ctx context.Context) (err error) {
 	s.Config.ObjectStorage.ChainID = chainID
 	s.Config.ObjectStorage.ValidatorAddress = sdk.ConsAddress(pubKey.Address()).String()
 	objectCfg, objectConfigured := s.Config.ObjectStorage.validated()
+	if !objectConfigured {
+		partial := s.Config.ObjectStorage
+		if partial.Endpoint != "" || partial.Bucket != "" || partial.Prefix != "" {
+			s.log.Warn("object storage configuration is invalid", "error", partial.Validate())
+		}
+	}
 	if err := registerStoreBackendMetric(s.Config.Meter, s.Config.StorageBackend, objectConfigured); err != nil {
 		return fmt.Errorf("creating metrics: %w", err)
 	}

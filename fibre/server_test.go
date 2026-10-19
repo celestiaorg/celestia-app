@@ -276,6 +276,8 @@ func TestServerStartDoesNotLogPartialObjectConfig(t *testing.T) {
 
 	output := logs.String()
 	require.Contains(t, output, "object_configured=false")
+	require.Contains(t, output, `msg="object storage configuration is invalid"`)
+	require.Contains(t, output, "object_storage.region is required")
 	require.NotContains(t, output, "object_namespace")
 }
 
@@ -287,6 +289,7 @@ func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
 
 	output := logs.String()
 	require.Contains(t, output, `msg="store ready" storage_backend=local object_configured=false object_markers_present=false`)
+	require.NotContains(t, output, "object storage configuration is invalid")
 	require.NotContains(t, output, "object_namespace")
 }
 
