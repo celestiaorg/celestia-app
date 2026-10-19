@@ -18,7 +18,7 @@ import (
 type Coder struct {
 	config *Config
 	enc    reedsolomon.Encoder
-	active atomic.Int32 // encodes in flight, used to share workers
+	busy   atomic.Int32 // worker slots reserved by in-flight encodes
 }
 
 // NewCoder creates a Coder with cached Reed-Solomon encoder.
@@ -66,56 +66,49 @@ const (
 )
 
 // encodeParity runs Reed-Solomon over column ranges in parallel. Columns are
-// independent, so the parity equals a single Encode. Workers are shared among
-// in-flight encodes, so a saturated Coder encodes each blob on one goroutine.
-//
-// Each range runs its own Encode, so the codec work allocator can hold up to
-// parts work sets at once — maxSplitParts for a lone large encode. Sharing
-// workers across in-flight encodes keeps the total parts (hence the peak work
-// sets) ≈ WorkerCount regardless of how many encodes run concurrently.
+// independent, so the parity equals a single Encode.
 func (c *Coder) encodeParity(rows [][]byte) error {
-	active := int(c.active.Add(1))
-	defer c.active.Add(-1)
-
-	parts := splitParts(len(rows[0]), c.config.WorkerCount/active)
+	parts := c.reserveParts(len(rows[0]))
+	defer c.busy.Add(-int32(parts))
 	if parts == 1 {
 		return c.enc.Encode(rows)
 	}
 	size := len(rows[0]) / parts
-	// One slab of row views for all parts (each part owns a disjoint window),
-	// instead of a make([][]byte, len(rows)) per part — fewer allocations when
-	// splitting a large blob.
+	// One slab of row views shared by all parts; each part owns a disjoint window.
 	subs := make([][]byte, parts*len(rows))
 	errs := make([]error, parts)
 	var wg sync.WaitGroup
 	for p := range parts {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			sub := subs[p*len(rows) : (p+1)*len(rows)]
 			for i, r := range rows {
 				sub[i] = r[p*size : (p+1)*size]
 			}
 			errs[p] = c.enc.Encode(sub)
-		}()
+		})
 	}
 	wg.Wait()
 	return errors.Join(errs...)
 }
 
+// reserveParts reserves worker slots for one encode and returns how many parts
+// to split it into. Slots held by other encodes are not available, so the total
+// across concurrent encodes stays within WorkerCount, except that every encode
+// always gets one slot to run on its own goroutine.
+func (c *Coder) reserveParts(rowSize int) int {
+	for {
+		busy := c.busy.Load()
+		parts := splitParts(rowSize, c.config.WorkerCount-int(busy))
+		if c.busy.CompareAndSwap(busy, busy+int32(parts)) {
+			return parts
+		}
+	}
+}
+
 // splitParts returns the power-of-two number of column ranges to encode a row
 // of rowSize bytes in, using at most workers goroutines. Each range stays a
-// multiple of the Leopard chunk and at least minSplitBytes long, and the whole
-// row must be at least minSplitRowBytes before any split (see below).
+// multiple of the Leopard chunk and at least minSplitBytes long.
 func splitParts(rowSize, workers int) int {
-	// Splitting trades per-part setup and an extra codec work set per part for
-	// parallelism across idle workers, so it only pays above a size floor — and
-	// that floor is architecture dependent (see minSplitRowBytes). Real-path
-	// fibre.BenchmarkClient_Upload, Apple M5 Pro (arm64) and AMD Genoa (amd64):
-	// arm64's latency/bandwidth-bound encode already wins from 16 MiB blobs
-	// (4096 B/row single upload −48%, every larger size better, no regression),
-	// while amd64's already-fast encode regresses on a 16 MiB 2-way split
-	// (+61% single, +18/+37% conc) and only wins from 32 MiB up.
 	if rowSize < minSplitRowBytes {
 		return 1
 	}

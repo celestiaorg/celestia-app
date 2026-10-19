@@ -122,14 +122,36 @@ func TestEncodeConcurrent(t *testing.T) {
 	}
 	var wg sync.WaitGroup
 	for i := range encodes {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			ed, err := c.Encode(mk(uint64(i)))
 			if err != nil || ed.Commitment() != want[i] {
 				t.Errorf("encode %d: err=%v or commitment mismatch", i, err)
 			}
-		}()
+		})
 	}
 	wg.Wait()
+}
+
+func TestReservePartsSharesWorkers(t *testing.T) {
+	const rowSize = 32768
+	c, err := NewCoder(&Config{K: 4, N: 12, WorkerCount: 16})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Overlapping encodes must not split beyond the slots left by earlier ones.
+	if got := c.reserveParts(rowSize); got != 16 {
+		t.Fatalf("first reserve = %d, want 16", got)
+	}
+	for i := range 3 {
+		if got := c.reserveParts(rowSize); got != 1 {
+			t.Fatalf("overlapping reserve %d = %d, want 1", i, got)
+		}
+	}
+	c.busy.Add(-16)
+	if got := c.reserveParts(rowSize); got != 8 {
+		t.Fatalf("reserve after release = %d, want 8", got)
+	}
+	if got := c.busy.Load(); got != 11 {
+		t.Fatalf("busy = %d, want 11", got)
+	}
 }
