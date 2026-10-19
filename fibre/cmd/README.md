@@ -220,17 +220,11 @@ At startup, Fibre records the object endpoint, bucket, prefix, chain ID, and val
 
 Startup fails if the saved record is corrupt, or if retained object shards have no namespace record. After all object shards are pruned, namespace changes need no override.
 
-### Connection caps and memory
+### Request memory and connection caps
 
-`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound the server's worst-case receive memory, since gRPC buffers a full upload message (~132 MiB) per in-flight stream:
+`max_request_memory` (default 16 GiB) bounds the bytes of request messages buffered in memory: every request is admitted against this budget before it is read, and rejected (retryably) when it is full. It is not an RSS bound — decode and verification allocate on top — so leave host headroom. See ADR-031.
 
-```text
-worst-case RAM ≈ max_connections × max_concurrent_streams × 132 MiB
-```
-
-The defaults suit a 32 GiB validator (≈ 27 GiB). On a larger host, raise the caps in proportion to the extra RAM.
-
-An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
+`max_connections` (default 16) and `max_concurrent_streams` (default 13) bound how many requests run at once; they no longer bound memory. An upload uses 16 signers, so it fills all 16 connection slots and blocks concurrent downloads. Raise `max_connections` above 16 to keep slots free for downloads.
 
 ## Signing
 
@@ -457,6 +451,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.duration` | Histogram (s) | `success`, `upload_size` | UploadShard RPC latency |
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
 | `fibre.server.upload_shard.rejected` | Counter | `reason` | UploadShard RPCs rejected by the storage limiter |
+| `fibre.server.request.rejected` | Counter | `method`, `reason` | gRPC requests rejected by memory admission (`per_ip`, `memory_timeout`, `memory_overflow`) |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
 | `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
 | `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |

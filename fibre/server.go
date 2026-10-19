@@ -15,6 +15,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v11/pkg/rsema1d"
 	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -76,7 +78,13 @@ func NewServer(cfg ServerConfig) (*Server, error) {
 		health:    newHealthManager(cfg.health, cfg.Log),
 	}
 
-	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams)
+	server.grpc, err = fibregrpc.Listen(cfg.ServerListenAddress, cfg.MaxConnections, cfg.MaxConcurrentStreams, fibregrpc.AdmissionConfig{
+		Budget:     cfg.MaxRequestMemory,
+		MaxMessage: int64(cfg.MaxMessageSize),
+		OnReject: func(ctx context.Context, method, reason string) {
+			metrics.requestRejected.Add(ctx, 1, metric.WithAttributes(attribute.String("method", method), attribute.String("reason", reason)))
+		},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("opening gRPC listener: %w", err)
 	}
@@ -140,7 +148,7 @@ func (s *Server) Start(ctx context.Context) (err error) {
 		)),
 		grpclib.Creds(creds),
 	)
-	s.health.registerGRPC(s.grpc.Registrar())
+	s.health.registerGRPC(s.grpc)
 
 	pubKey, err := s.signer.GetPubKey()
 	if err != nil {

@@ -10,7 +10,7 @@ import (
 
 // TestServerServeFailureIsReported checks that a listener failure closes Done and sets Err.
 func TestServerServeFailureIsReported(t *testing.T) {
-	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, DefaultMaxConcurrentStreams)
+	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, DefaultMaxConcurrentStreams, testAdmission)
 	require.NoError(t, err)
 	srv.Register(nil)
 	srv.Serve()
