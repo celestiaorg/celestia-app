@@ -91,7 +91,8 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 
 		conn, err := grpclib.NewClient(host.String(),
 			grpclib.WithIdleTimeout(20*time.Second),
-			grpclib.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
+			grpclib.WithTransportCredentials(batchingCreds{credentials.NewTLS(tlsCfg)}),
+			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),
