@@ -108,4 +108,5 @@ func TestMainnetConfig(t *testing.T) {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
 	}
+	assertNoSeedsInPeers(t, config)
 }

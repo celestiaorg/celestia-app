@@ -95,6 +95,9 @@ func NewMainnetConfig() *Config {
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/master/celestia/seeds.txt
 		Seeds: "acca7837e4eb5f9dc7f5a94ed1d82edda6931ff8@seed.celestia.pops.one:26656,12ad7c73c7e1f2460941326937a039139aa78884@celestia-mainnet-seed.itrocket.net:40656,9b1d22c3a78487d1a664a4b6a331fce527d14fb4@seed.celestia.mainnet.dteam.tech:27656",
 		// Archive nodes (earliest_block_height = 1 on their RPC /status).
-		Peers: "acca7837e4eb5f9dc7f5a94ed1d82edda6931ff8@seed.celestia.pops.one:26656,d535cbf8d0efd9100649aa3f53cb5cbab33ef2d6@celestia-mainnet-peer.itrocket.net:26656,ff016c95251136c729a1f6e60d6dda6db0aeb666@195.154.218.184:26656,e0c570997f9c4ecc3b1c4c0f5fbb2681031e5353@157.180.10.38:40656",
+		// Seeds stay out of this list even when they keep the full history:
+		// they disconnect right after the address exchange and never serve a
+		// block, so as persistent peers they only cause a reconnect loop.
+		Peers: "d535cbf8d0efd9100649aa3f53cb5cbab33ef2d6@celestia-mainnet-peer.itrocket.net:26656,ff016c95251136c729a1f6e60d6dda6db0aeb666@195.154.218.184:26656,e0c570997f9c4ecc3b1c4c0f5fbb2681031e5353@157.180.10.38:40656",
 	}
 }
