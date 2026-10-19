@@ -135,6 +135,27 @@ func TestAdmissionDisabled(t *testing.T) {
 	r.release() // no-op
 }
 
+// TestStatsAccessors: the metric accessors report live counts and are nil-safe.
+func TestStatsAccessors(t *testing.T) {
+	var nilAdm *admission
+	require.Zero(t, nilAdm.Reserved())
+	require.Zero(t, nilAdm.Waiting())
+
+	a := newTestAdmission(10*testMsg, testMsg)
+	r, err := a.admit(context.Background(), "")
+	require.NoError(t, err)
+	require.Equal(t, testMsg, a.Reserved())
+	r.release()
+	require.Zero(t, a.Reserved())
+
+	cl := newConnLimiter(1, 0)
+	require.True(t, cl.acquire("a"))
+	require.False(t, cl.acquire("b"))
+	require.Equal(t, int64(1), cl.OpenConns())
+	require.Equal(t, int64(1), cl.RejectedGlobal())
+	require.Zero(t, cl.RejectedPerIP())
+}
+
 func TestKeyedCounter(t *testing.T) {
 	c := newKeyedCounter(2)
 	require.True(t, c.tryAcquire("a"))

@@ -278,6 +278,23 @@ func msgSize(v any) int64 {
 	return 0
 }
 
+// AdmissionStats and ConnStats expose the limiters' counters for metrics.
+type (
+	AdmissionStats interface {
+		Reserved() int64
+		Waiting() int64
+	}
+	ConnStats interface {
+		OpenConns() int64
+		RejectedGlobal() int64
+		RejectedPerIP() int64
+	}
+)
+
+// Stats returns the admission and connection limiters' live counters. The
+// admission is nil until [Server.Register]; its accessors are nil-safe.
+func (s *Server) Stats() (AdmissionStats, ConnStats) { return s.adm, s.connLimiter }
+
 // Done is closed once Serve returned. Err then says why; nil after Stop.
 func (s *Server) Done() <-chan struct{} { return s.done }
 

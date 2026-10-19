@@ -63,6 +63,22 @@ func newAdmission(cfg AdmissionConfig) *admission {
 	}
 }
 
+// Reserved returns the bytes currently reserved (0 when admission is disabled).
+func (a *admission) Reserved() int64 {
+	if a == nil {
+		return 0
+	}
+	return a.reserved.Load()
+}
+
+// Waiting returns the requests currently parked waiting for budget.
+func (a *admission) Waiting() int64 {
+	if a == nil {
+		return 0
+	}
+	return a.waiting.Load()
+}
+
 // admit reserves one max-size message of budget plus a per-IP slot. A nil
 // admission (disabled) returns a nil reservation.
 func (a *admission) admit(ctx context.Context, ipKey string) (*reservation, error) {

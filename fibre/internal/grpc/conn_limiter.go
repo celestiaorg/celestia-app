@@ -23,6 +23,19 @@ func newConnLimiter(globalMax, perIPMax int) *ConnLimiter {
 	return &ConnLimiter{globalMax: globalMax, perIP: newKeyedCounter(perIPMax)}
 }
 
+// OpenConns returns the open admitted connections.
+func (cl *ConnLimiter) OpenConns() int64 {
+	cl.mu.Lock()
+	defer cl.mu.Unlock()
+	return int64(cl.open)
+}
+
+// RejectedGlobal returns connections rejected by the global cap.
+func (cl *ConnLimiter) RejectedGlobal() int64 { return cl.rejectedGlobal.Load() }
+
+// RejectedPerIP returns connections rejected by the per-IP cap.
+func (cl *ConnLimiter) RejectedPerIP() int64 { return cl.rejectedPerIP.Load() }
+
 func (cl *ConnLimiter) acquire(key string) bool {
 	cl.mu.Lock()
 	if cl.globalMax > 0 && cl.open >= cl.globalMax {
