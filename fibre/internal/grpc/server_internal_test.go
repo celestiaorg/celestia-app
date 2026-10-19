@@ -12,7 +12,7 @@ import (
 func TestServerServeFailureIsReported(t *testing.T) {
 	srv, err := Listen("127.0.0.1:0", DefaultMaxConnections, DefaultMaxConcurrentStreams)
 	require.NoError(t, err)
-	srv.Register(nil)
+	srv.Register(nil, AdmissionConfig{})
 	srv.Serve()
 
 	require.NoError(t, srv.listener.Close())
