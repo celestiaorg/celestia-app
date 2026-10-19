@@ -42,7 +42,6 @@ type BlobConfig struct {
 	Assembler *row.Assembler
 	// DataPool pools blob downloads allocations.
 	DataPool *row.Pool
-	workPool *row.Pool
 }
 
 // defaultBlobConfigV0 is the shared default config, created at init time.
@@ -110,7 +109,6 @@ func NewBlobConfigFromParams(blobVersion uint8, params ProtocolParams) (BlobConf
 		Coder:         coder,
 		Assembler:     assembler,
 		DataPool:      dataPool,
-		workPool:      workPool,
 	}, nil
 }
 

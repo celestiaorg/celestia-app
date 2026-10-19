@@ -26,7 +26,6 @@ package row
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -88,11 +87,7 @@ type Pool struct {
 	maxRowSize int
 
 	// buckets[sizeIdx] is the bucket for rowSize (sizeIdx+1)*rowSizeAlign.
-	buckets              []bucket
-	requests             atomic.Uint64
-	allocations          atomic.Uint64
-	lastRequestedRowSize atomic.Int64
-	maxRequestedRowSize  atomic.Int64
+	buckets []bucket
 }
 
 // bucket holds free and in-use slabs for one (rowCount, rowSize)
@@ -156,16 +151,8 @@ func (p *Pool) acquire(n, size int) *slab {
 	}
 
 	bk, s := p.pop(size)
-	p.requests.Add(1)
-	p.lastRequestedRowSize.Store(int64(size))
-	for old := p.maxRequestedRowSize.Load(); int64(size) > old; old = p.maxRequestedRowSize.Load() {
-		if p.maxRequestedRowSize.CompareAndSwap(old, int64(size)) {
-			break
-		}
-	}
 	if s == nil {
 		s = bk.new(n * size)
-		p.allocations.Add(1)
 	}
 	return s
 }
@@ -228,7 +215,7 @@ func (p *Pool) pop(size int) (*bucket, *slab) {
 // into bk.used. alloc runs outside the lock — a multi-MiB mmap would
 // dominate Get p95 if held across it.
 func (bk *bucket) new(dataSize int) *slab {
-	region, free, mapped := alloc(headerSize + dataSize)
+	region, free := alloc(headerSize + dataSize)
 
 	bk.Lock()
 	defer bk.Unlock()
@@ -237,7 +224,6 @@ func (bk *bucket) new(dataSize int) *slab {
 		bucket: bk,
 		region: region,
 		free:   free,
-		mapped: mapped,
 	}
 	writeSlabPtr(region, s)
 	bk.use(s)
@@ -365,7 +351,6 @@ func (bk *bucket) dropIdle() {
 // Put can recover it from any carved buffer by subtracting headerSize.
 type slab struct {
 	bucket *bucket
-	mapped bool
 
 	region []byte       // full backing region including the header
 	free   func([]byte) // releases region; mmapFree for off-heap, noopFree for Go-heap
@@ -411,13 +396,13 @@ func (b *slab) carve(n, size int) [][]byte {
 // Large allocations go through mmap (off-heap, invisible to GC) and
 // pair with [mmapFree]; smaller ones use the SIMD-aligned Go-heap
 // allocator and pair with noopFree (GC reclaims).
-func alloc(size int) (data []byte, free func([]byte), mapped bool) {
+func alloc(size int) (data []byte, free func([]byte)) {
 	if !disableMmap && size >= mmapThreshold {
 		if d, err := mmapAlloc(size); err == nil {
-			return d, mmapFree, true
+			return d, mmapFree
 		}
 	}
-	return reedsolomon.AllocAligned(1, size)[0], noopFree, false
+	return reedsolomon.AllocAligned(1, size)[0], noopFree
 }
 
 func noopFree([]byte) {}

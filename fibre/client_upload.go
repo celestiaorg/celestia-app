@@ -77,7 +77,7 @@ func WithAwaitAllSignatures() UploadOption {
 // Returns [ErrNoKeyring] if the client has no keyring.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
-		return result, errors.New("fibre: client is not started")
+		return result, errClientNotStarted
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
@@ -276,10 +276,8 @@ func (c *Client) uploadTo(
 	req *types.UploadShardRequest,
 	blob *Blob,
 	sigSet *validator.SignatureSet,
-	timing *uploadFanoutTiming,
 ) bool {
 	if ctx.Err() != nil {
-		timing.recordValidator(0, false)
 		return false
 	}
 
@@ -305,7 +303,6 @@ func (c *Client) uploadTo(
 	defer span.End()
 	defer func() {
 		c.metrics.observeUploadTo(ctx, uploadStart, uploadOk, blob.UploadSize(), valAddrStr)
-		timing.recordValidator(time.Since(uploadStart), uploadOk)
 	}()
 
 	// Generating row proofs is non-trivial, so build them lazily — only once
@@ -318,8 +315,6 @@ func (c *Client) uploadTo(
 		if req.Shard.Rows != nil {
 			return nil
 		}
-		proofStart := time.Now()
-		defer func() { timing.proofNanos.Add(int64(time.Since(proofStart))) }()
 		blobRows := make([]types.BlobRow, len(rowIndices))
 		req.Shard.Rows = make([]*types.BlobRow, len(rowIndices))
 		i := 0
@@ -347,10 +342,7 @@ func (c *Client) uploadTo(
 			defer rpcCancel()
 			var err error
 			rpcStart := time.Now()
-			timing.rpcCalls.Add(1)
-			timing.rpcDataBytes.Add(int64(len(rowIndices) * blob.RowSize()))
 			resp, err = client.UploadShard(rpcCtx, req)
-			timing.rpcNanos.Add(int64(time.Since(rpcStart)))
 			c.metrics.observeUploadToRPC(ctx, rpcStart, err == nil, valAddrStr)
 			return err
 		})
@@ -371,7 +363,6 @@ func (c *Client) uploadTo(
 		case <-c.stopCh:
 			return false
 		case <-time.After(delay):
-			timing.retries.Add(1)
 		}
 	}
 	span.AddEvent("rows_uploaded")
@@ -450,11 +441,6 @@ func (c *Client) uploadShards(
 		blob.release()
 		return nil
 	}
-	ctx, fanoutSpan := c.tracer.Start(ctx, "fibre.Client.UploadFanout", trace.WithAttributes(
-		attribute.Int("data_size", blob.DataSize()),
-		attribute.Int("validator_count", len(requests)),
-	))
-	timing := newUploadFanoutTiming(fanoutSpan)
 
 	var (
 		responses            atomic.Uint32
@@ -488,14 +474,12 @@ func (c *Client) uploadShards(
 				if int(responses.Add(1)) == len(requests) {
 					close(responsesExhaustedCh)
 					blob.release()
-					timing.end()
 				}
 				c.closeWg.Done()
 			}()
 
-			hasEnough := c.uploadTo(uploadCtx, val, shardMap[val], req, blob, sigSet, timing)
+			hasEnough := c.uploadTo(uploadCtx, val, shardMap[val], req, blob, sigSet)
 			if hasEnough && sigsCollectedOnce.CompareAndSwap(false, true) {
-				fanoutSpan.AddEvent("upload_quorum")
 				close(sigsCollectedCh)
 			}
 		}(val, req)
