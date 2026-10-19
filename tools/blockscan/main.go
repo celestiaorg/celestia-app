@@ -160,7 +160,7 @@ func PrintTx(tx authsigning.Tx) {
 func printMessages(msgs []sdk.Msg) string {
 	var output strings.Builder
 	for _, msg := range msgs {
-		output.WriteString(fmt.Sprintf("  - %s\n", sdk.MsgTypeURL(msg)))
+		fmt.Fprintf(&output, "  - %s\n", sdk.MsgTypeURL(msg))
 	}
 	return output.String()
 }

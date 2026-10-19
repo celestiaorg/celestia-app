@@ -91,7 +91,7 @@ func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opt
 	// uploads through the watcher goroutine — losing a race against fast
 	// validators means dispatching a promise, and committing escrow, for a
 	// caller that already gave up. Refuse up front instead.
-	if err = ctx.Err(); err != nil {
+	if err := ctx.Err(); err != nil {
 		return result, err
 	}
 	if !blob.retain() {

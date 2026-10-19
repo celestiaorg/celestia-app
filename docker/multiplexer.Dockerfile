@@ -114,7 +114,7 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v9_${TARGETARCH}.tar.g
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build DOWNLOAD=false
+    make -o mod build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.
