@@ -4,7 +4,7 @@
 
 The `x/valaddr` module lets a validator operator register the Fibre server host for its consensus validator. Fibre clients use these records to resolve the gRPC endpoint for validators selected from a validator set.
 
-The module is wired into the app only when the `fibre` build tag is enabled.
+The module is compiled into the app by default and is available starting with app version 10.
 
 ## Contents
 
@@ -25,7 +25,7 @@ A Fibre provider host is the dial target for a validator-operated Fibre gRPC ser
 
 The registry is keyed by validator consensus address, but registration is submitted by the validator operator address (`celestiavaloper...`). The message handler looks up the staking validator, derives its consensus public key, and stores the host under the derived consensus address.
 
-The registry does not compute validator-set membership. `AllFibreProviders` returns all stored provider records; clients combine these records with the current validator set when selecting providers.
+The registry does not compute validator-set membership. `AllBondedFibreProviders` returns registered hosts whose validators are currently bonded. Clients still use the validator set at the payment promise height for shard assignment.
 
 ## State
 
@@ -99,7 +99,7 @@ attributes:
 
 ## Queries
 
-The module supports a query for one validator consensus address and a query for all stored provider records.
+The module supports a query for one validator consensus address and a query for all registered providers of bonded validators. EndBlock removes records whose staking validator no longer exists, or whose validator is jailed, unbonded, and past its unbonding time plus a seven-day grace period.
 
 ### FibreProviderInfo
 
@@ -126,15 +126,15 @@ HTTP gateway route:
 GET /valaddr/v1/fibre-provider-info/{validator_consensus_address}
 ```
 
-### AllFibreProviders
+### AllBondedFibreProviders
 
-Queries all stored Fibre provider records. This is not filtered to the active validator set and has no pagination argument.
+Queries registered Fibre providers whose validators are currently bonded. Records without a staking validator or with an unbonded validator are omitted. There is no pagination argument.
 
 ```protobuf
-message QueryAllFibreProvidersRequest {}
+message QueryAllBondedFibreProvidersRequest {}
 
-message QueryAllFibreProvidersResponse {
-  // providers contains all fibre providers with a host defined.
+message QueryAllBondedFibreProvidersResponse {
+  // providers contains registered fibre providers of currently bonded validators.
   repeated FibreProvider providers = 1;
 }
 
@@ -150,7 +150,7 @@ message FibreProvider {
 HTTP gateway route:
 
 ```text
-GET /valaddr/v1/all-fibre-providers
+GET /valaddr/v1/all-bonded-fibre-providers
 ```
 
 ## Parameters
@@ -177,7 +177,7 @@ Query commands:
 # Query one validator's Fibre provider info by consensus address.
 celestia-appd query valaddr provider <validator-consensus-address>
 
-# Query all stored Fibre provider records.
+# Query registered Fibre providers of currently bonded validators.
 celestia-appd query valaddr providers
 ```
 
