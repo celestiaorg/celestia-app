@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 # Define the directories to exclude
 EXCLUDE_DIRS=("/test/util")
@@ -12,11 +12,40 @@ for DIR in "${EXCLUDE_DIRS[@]}"; do
     PKGS=$(echo "$PKGS" | grep -v "$DIR")
 done
 
-echo "mode: atomic" > coverage.txt
-for pkg in ${PKGS[@]}; do
-    go test -v -timeout 30m -test.short -coverprofile=profile.out -covermode=atomic "$pkg"
-    if [ -f profile.out ]; then
-        tail -n +2 profile.out >> coverage.txt;
-        rm profile.out
-    fi
-done
+# Eligible coverage scope: production packages only. Keep this in sync with the
+# ignore list in .github/codecov.yml. Generated *.pb.go and *.pb.gw.go files are
+# dropped from the merged profile below.
+OUT_OF_SCOPE="^$(GOWORK=off go list -m)/(test|tools|scripts|local_devnet|pkg/rsema1d/cmd/testvectors)(/|$)"
+SCOPE_PKGS=$(printf '%s\n' "$PKGS" | grep -Ev "$OUT_OF_SCOPE")
+
+# Only eligible packages are instrumented, so test utilities, tools and scripts
+# never enter the profile. Tests in every package in PKGS still run and credit
+# the eligible code they exercise.
+COVER_PKGS=$(printf '%s\n' "$SCOPE_PKGS" | paste -sd, -)
+
+# Keep the previous report intact if tests fail. Create the temporary profile
+# beside the destination so publishing it is an atomic rename.
+COVER_DIR=$(mktemp -d ./coverage.XXXXXX)
+trap 'rm -rf "$COVER_DIR"' EXIT
+
+# -coverpkg credits coverage to the package that owns the code rather than the
+# package whose tests exercised it, so tests in app/test count toward app/.
+# -p 1 runs packages serially because the testnode-based suites collide on
+# ports and time out when run concurrently.
+# shellcheck disable=SC2086
+go test -p 1 -timeout 60m -coverprofile="$COVER_DIR/coverage.txt" -covermode=atomic -coverpkg="$COVER_PKGS" $PKGS
+
+# Go can emit the same block from several test binaries, including zero-count
+# entries for packages without tests. Count each block once in the denominator.
+{
+    echo 'mode: atomic'
+    awk 'NR > 1 && $1 !~ /\.pb(\.gw)?\.go:/ {
+        statements[$1] = $2
+        counts[$1] += $3
+    }
+    END {
+        for (block in statements)
+            printf "%s %d %.0f\n", block, statements[block], counts[block]
+    }' "$COVER_DIR/coverage.txt" | LC_ALL=C sort
+} > "$COVER_DIR/merged.txt"
+mv "$COVER_DIR/merged.txt" coverage.txt

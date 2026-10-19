@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/creachadair/tomledit"
@@ -20,10 +21,16 @@ import (
 	"github.com/spf13/viper"
 )
 
+// configFile is a config file that sync can extend with the binary's defaults.
+type configFile struct {
+	path      string
+	reference []byte
+}
+
 func syncConfigCmd() *cobra.Command {
 	var dryRun bool
 	cmd := &cobra.Command{
-		Use: "sync", Short: "Add missing config.toml settings and their documentation", Args: cobra.NoArgs,
+		Use: "sync", Short: "Add missing config.toml and Fibre server_config.toml settings and their documentation", Args: cobra.NoArgs,
 		// Skip the root loader, which can create files even for a dry run.
 		PersistentPreRunE: func(*cobra.Command, []string) error { return nil },
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -38,26 +45,83 @@ func syncConfigCmd() *cobra.Command {
 			if err := v.BindPFlag(flags.FlagHome, cmd.Flags().Lookup(flags.FlagHome)); err != nil {
 				return err
 			}
-			path := filepath.Join(v.GetString(flags.FlagHome), "config", "config.toml")
-			added, backup, err := syncConfigFile(path, dryRun)
+			fibreHome, err := cmd.Flags().GetString(flagFibreHome)
 			if err != nil {
 				return err
 			}
-			if len(added) == 0 {
-				cmd.Println("config.toml is up to date")
-				return nil
+			if !cmd.Flags().Changed(flagFibreHome) && os.Getenv(fibre.EnvHome) != "" {
+				fibreHome = os.Getenv(fibre.EnvHome)
 			}
-			if dryRun {
-				cmd.Printf("Settings to add: %s\n", strings.Join(added, ", "))
-			} else {
-				cmd.Printf("Added settings: %s\nBackup: %s\n", strings.Join(added, ", "), backup)
+			consensus, err := renderConsensusConfig()
+			if err != nil {
+				return err
+			}
+			fibreReference, err := renderFibreConfig()
+			if err != nil {
+				return err
+			}
+			home := v.GetString(flags.FlagHome)
+			files := []configFile{
+				{path: filepath.Join(home, "config", "config.toml"), reference: consensus},
+				{path: fibre.DefaultConfigPath(fibreHome), reference: fibreReference},
+			}
+			// Hosts that run only the node or only Fibre have just one of the files.
+			var present []configFile
+			for _, file := range files {
+				info, err := os.Lstat(file.path)
+				if os.IsNotExist(err) {
+					cmd.Printf("%s not found at %s, skipping\n", filepath.Base(file.path), file.path)
+					continue
+				}
+				// Dry run every file first, so a broken one leaves the others untouched.
+				added, _, err := syncConfigFile(file.path, file.reference, true)
+				if err != nil {
+					return err
+				}
+				willWrite := len(added) > 0 && !dryRun
+				if willWrite && isReadOnly(info) {
+					return fmt.Errorf("config is read-only: %s", file.path)
+				}
+				present = append(present, file)
+			}
+			if len(present) == 0 {
+				return fmt.Errorf("no config files found")
+			}
+			for _, file := range present {
+				name := filepath.Base(file.path)
+				added, backup, err := syncConfigFile(file.path, file.reference, dryRun)
+				if err != nil {
+					return err
+				}
+				switch {
+				case len(added) == 0:
+					cmd.Printf("%s is up to date\n", name)
+				case dryRun:
+					cmd.Printf("Settings to add to %s: %s\n", name, strings.Join(added, ", "))
+				default:
+					cmd.Printf("Added settings to %s: %s\nBackup: %s\n", name, strings.Join(added, ", "), backup)
+				}
 			}
 			return nil
 		},
 	}
 	cmd.Flags().String(flags.FlagHome, app.NodeHome, "The application home directory")
+	cmd.Flags().String(flagFibreHome, fibre.DefaultHome(), fmt.Sprintf("The Fibre home directory (or set %s)", fibre.EnvHome))
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Show missing settings without modifying files")
 	return cmd
+}
+
+const flagFibreHome = "fibre-home"
+
+func renderConsensusConfig() ([]byte, error) {
+	var reference bytes.Buffer
+	err := cmtcfg.RenderConfig(&reference, app.DefaultConsensusConfig())
+	return reference.Bytes(), err
+}
+
+// renderFibreConfig renders server_config.toml as the Fibre server saves it.
+func renderFibreConfig() ([]byte, error) {
+	return toml.Marshal(fibre.DefaultServerConfig())
 }
 
 // mergeConfig adds missing documented settings while preserving existing values and comments.
@@ -172,7 +236,7 @@ func configKey(values map[string]any, key string) (string, bool, error) {
 	return actual, found, nil
 }
 
-func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
+func syncConfigFile(path string, reference []byte, dryRun bool) ([]string, string, error) {
 	info, err := os.Lstat(path)
 	if err != nil {
 		return nil, "", err
@@ -185,11 +249,7 @@ func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	var reference bytes.Buffer
-	if err := cmtcfg.RenderConfig(&reference, app.DefaultConsensusConfig()); err != nil {
-		return nil, "", err
-	}
-	updated, added, err := mergeConfig(original, reference.Bytes())
+	updated, added, err := mergeConfig(original, reference)
 	if err != nil || len(added) == 0 || dryRun {
 		return added, "", err
 	}
@@ -197,9 +257,13 @@ func syncConfigFile(path string, dryRun bool) ([]string, string, error) {
 	return added, backup, err
 }
 
+func isReadOnly(info os.FileInfo) bool {
+	return info.Mode().Perm()&0o222 == 0
+}
+
 func replaceConfigFile(path string, original, updated []byte, info os.FileInfo) (string, error) {
 	stat := info.Sys().(*syscall.Stat_t)
-	if info.Mode().Perm()&0o222 == 0 {
+	if isReadOnly(info) {
 		return "", fmt.Errorf("config is read-only: %s", path)
 	}
 	temp, err := writeConfigTemp(path, ".tmp-*", updated, info)

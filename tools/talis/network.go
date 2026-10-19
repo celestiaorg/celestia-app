@@ -1,19 +1,15 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
-	sdkmath "cosmossdk.io/math"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/test/util/genesis"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	minfeetypes "github.com/celestiaorg/celestia-app/v10/x/minfee/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtconfig "github.com/cometbft/cometbft/config"
 	cmtjson "github.com/cometbft/cometbft/libs/json"
@@ -21,7 +17,6 @@ import (
 	"github.com/cometbft/cometbft/p2p"
 	"github.com/cometbft/cometbft/p2p/pex"
 	"github.com/cometbft/cometbft/privval"
-	"github.com/cosmos/cosmos-sdk/codec"
 	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
@@ -85,19 +80,6 @@ func fibreParamsModifier(fullStakeStorageBudget uint64, shardRetention time.Dura
 		params.ShardRetention = shardRetention
 	}
 	return genesis.SetFibreParams(c.Codec, params)
-}
-
-func SetMinFee(codec codec.Codec, minFee float64) genesis.Modifier {
-	return func(state map[string]json.RawMessage) map[string]json.RawMessage {
-		minFeeGenState := minfeetypes.DefaultGenesis()
-		gasPrice, err := sdkmath.LegacyNewDecFromStr(fmt.Sprintf("%f", minFee))
-		if err != nil {
-			panic(err)
-		}
-		minFeeGenState.NetworkMinGasPrice = gasPrice
-		state[minfeetypes.ModuleName] = codec.MustMarshalJSON(minFeeGenState)
-		return state
-	}
 }
 
 // AddValidator adds a validator to the network. The validator is identified by
@@ -312,26 +294,6 @@ func (n *Network) InitNodes(rootDir string) error {
 
 		appcfg := app.DefaultAppConfig()
 		serverconfig.WriteConfigFile(filepath.Join(rootDir, val.Name, "app.toml"), appcfg)
-	}
-
-	return nil
-}
-
-// SaveValidatorsToFile saves the validators map as a JSON to the given file.
-func (n *Network) SaveValidatorsToFile(filename string) error {
-	// Open the file for writing. Create it if it doesn't exist.
-	file, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	// Encode the validators map to JSON and write it to the file.
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ") // Optional: format the JSON with indentation
-	err = encoder.Encode(n.validators)
-	if err != nil {
-		return err
 	}
 
 	return nil

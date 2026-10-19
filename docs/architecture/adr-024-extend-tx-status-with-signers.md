@@ -36,7 +36,7 @@ We decided to extend the ABCI `ExecTxResult` type to include a `signers` field, 
 
 The solution involved changes across three repositories:
 
-1. **cosmos-sdk** ([PR #694](https://github.com/celestiaorg/cosmos-sdk/pull/694)): Extend `ExecTxResult` in baseapp to extract and populate signers during transaction execution
+1. **cosmos-sdk** ([PR #694](https://github.com/celestiaorg/cosmos-sdk-archive/pull/694)): Extend `ExecTxResult` in baseapp to extract and populate signers during transaction execution
 2. **celestia-core** ([PR #2593](https://github.com/celestiaorg/celestia-core/pull/2593)): Extend protobuf definitions and block store to persist signer info
 3. **celestia-app** ([PR #6036](https://github.com/celestiaorg/celestia-app/pull/6036)): Update `TxClient` and gRPC services to expose signers in responses
 

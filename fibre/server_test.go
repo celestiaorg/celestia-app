@@ -1,8 +1,12 @@
 package fibre_test
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +17,7 @@ import (
 	"github.com/cometbft/cometbft/crypto"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,7 +68,7 @@ func makeTestServerWithConfig(t *testing.T, modify func(*fibre.ServerConfig)) (*
 		return privVal, nil
 	}
 
-	cfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+	cfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
 	}
 	if modify != nil {
@@ -96,6 +101,14 @@ func (m *mockStateClient) ChainID() string             { return m.chainID }
 
 func (m *mockStateClient) FullStakeStorageBudget(context.Context) (int64, error) {
 	return m.budget, nil
+}
+
+func (m *mockStateClient) NodeStatus(context.Context) (state.NodeStatus, error) {
+	return state.NodeStatus{}, nil
+}
+
+func (m *mockStateClient) ProviderRegistration(context.Context, core.Address) (state.ProviderRegistration, error) {
+	return state.ProviderRegistration{}, nil
 }
 
 // withStateBudget returns a ServerConfig hook that sets the storage budget the
@@ -156,4 +169,104 @@ func (m *testPrivValidator) SignProposal(chainID string, proposal *cmtproto.Prop
 
 func (m *testPrivValidator) GetAddress() core.Address {
 	return m.privKey.PubKey().Address()
+}
+
+func TestServerStartDerivesStoreIdentity(t *testing.T) {
+	var got fibre.StoreConfig
+	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		newState := cfg.StateClientFn
+		cfg.StateClientFn = func() (state.Client, error) {
+			client, err := newState()
+			return &startChainStateClient{Client: client}, err
+		}
+		cfg.StoreFn = func(ctx context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
+			require.Same(t, t.Context(), ctx)
+			got = scfg
+			return fibre.NewMemoryStore(scfg), nil
+		}
+	})
+	require.Equal(t, "started-chain", got.ObjectStorage.ChainID)
+	require.Equal(t, sdk.ConsAddress(validator.Address).String(), got.ObjectStorage.ValidatorAddress)
+}
+
+type startChainStateClient struct {
+	state.Client
+	chainID string
+}
+
+func (s *startChainStateClient) Start(ctx context.Context) error {
+	if err := s.Client.Start(ctx); err != nil {
+		return err
+	}
+	s.chainID = "started-chain"
+	return nil
+}
+
+func (s *startChainStateClient) ChainID() string { return s.chainID }
+
+func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
+	cfg := fibre.DefaultServerConfig()
+	cfg.ServerListenAddress = "127.0.0.1:0"
+	cfg.StateClientFn = func() (state.Client, error) {
+		return &mockStateClient{chainID: "test-chain"}, nil
+	}
+	cfg.SignerFn = func(string) (core.PrivValidator, error) {
+		return core.NewMockPV(), nil
+	}
+	wantErr := errors.New("cannot open store")
+	cfg.StoreFn = func(context.Context, fibre.StoreConfig) (*fibre.Store, error) { return nil, wantErr }
+	server, err := fibre.NewServer(cfg)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, server.Stop(context.Background())) })
+	require.ErrorIs(t, server.Start(t.Context()), wantErr)
+	require.Nil(t, server.Store())
+}
+
+func TestServerStartLogsStoreConfig(t *testing.T) {
+	var logs synchronizedLogBuffer
+	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.StorageBackend = "object"
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Bucket = "fibre-shards"
+		cfg.ObjectStorage.Prefix = "/fibre/./"
+	})
+
+	output := logs.String()
+	require.Contains(t, output, `msg="store ready"`)
+	require.Contains(t, output, "storage_backend=object")
+	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
+	require.Contains(t, output, "object_namespace.prefix=fibre")
+	require.NotContains(t, output, "object_namespace.prefix=/fibre/./")
+	require.Contains(t, output, "object_namespace.chain_id=celestia")
+	require.Contains(t, output, "object_namespace.validator_address="+sdk.ConsAddress(validator.Address).String())
+}
+
+func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
+	var logs synchronizedLogBuffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+	})
+
+	output := logs.String()
+	require.Contains(t, output, `msg="store ready" storage_backend=local`)
+	require.NotContains(t, output, "object_namespace")
+}
+
+// synchronizedLogBuffer allows assertions while background health checks log.
+type synchronizedLogBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *synchronizedLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *synchronizedLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }

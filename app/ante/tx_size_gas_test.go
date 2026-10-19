@@ -1,6 +1,7 @@
 package ante_test
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -13,10 +14,12 @@ import (
 	testutil "github.com/celestiaorg/celestia-app/v10/test/util"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	kmultisig "github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/crypto/types/multisig"
 	"github.com/cosmos/cosmos-sdk/testutil/testdata"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	xauthsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -183,4 +186,119 @@ func createTestTx(txBuilder client.TxBuilder, clientCtx client.Context, privs []
 	}
 
 	return txBuilder.GetTx(), nil
+}
+
+// sigTx is a SigVerifiableTx with fixed signatures or a signature read error.
+type sigTx struct {
+	xauthsigning.SigVerifiableTx
+	sigs []signing.SignatureV2
+	err  error
+}
+
+func (tx sigTx) GetSignaturesV2() ([]signing.SignatureV2, error) { return tx.sigs, tx.err }
+
+// unsupportedTx does not implement SigVerifiableTx.
+type unsupportedTx struct{ sdk.Tx }
+
+// runTxSizeGas runs the decorator on 100 tx bytes with the given gas limit. It
+// returns the gas consumed and whether next was called.
+func runTxSizeGas(t *testing.T, testApp *app.App, gasLimit uint64, tx sdk.Tx, simulate bool) (uint64, bool, error) {
+	t.Helper()
+	ctx := testApp.NewContext(false).
+		WithTxBytes(make([]byte, 100)).
+		WithGasMeter(storetypes.NewGasMeter(gasLimit))
+	nextCalled := false
+	next := func(ctx sdk.Context, _ sdk.Tx, sim bool) (sdk.Context, error) {
+		require.Equal(t, simulate, sim)
+		nextCalled = true
+		return ctx, nil
+	}
+	_, err := ante.NewConsumeGasForTxSizeDecorator(testApp.AccountKeeper).AnteHandle(ctx, tx, simulate, next)
+	return ctx.GasMeter().GasConsumed(), nextCalled, err
+}
+
+func TestConsumeGasForTxSizeEdgeCases(t *testing.T) {
+	testApp, _, _, err := setup()
+	require.NoError(t, err)
+
+	const txSizeGas = 100 * appconsts.TxSizeCostPerByte
+	// Each simulated signature reads the auth params, which costs store gas.
+	paramsCtx := testApp.NewContext(false).WithGasMeter(storetypes.NewInfiniteGasMeter())
+	sigLimit := testApp.AccountKeeper.GetParams(paramsCtx).TxSigLimit
+	paramsGas := paramsCtx.GasMeter().GasConsumed()
+	require.NotZero(t, paramsGas)
+	// An amino StdSignature with a secp256k1 pubkey is 106 bytes, plus 6.
+	singleSigGas := paramsGas + appconsts.TxSizeCostPerByte*(106+6)
+	// An amino StdSignature with a 2-of-2 multisig pubkey is 154 bytes, plus 6,
+	// charged TxSigLimit times.
+	multiSigGas := paramsGas + appconsts.TxSizeCostPerByte*(154+6)*sigLimit
+
+	priv1, _, _ := testdata.KeyTestPubAddr()
+	priv2, _, _ := testdata.KeyTestPubAddr()
+	pk1, pk2 := priv1.PubKey(), priv2.PubKey()
+	multisigPk := kmultisig.NewLegacyAminoPubKey(2, []cryptotypes.PubKey{pk1, pk2})
+	complete := &signing.SingleSignatureData{Signature: []byte{1}}
+	empty := &signing.SingleSignatureData{}
+
+	testCases := []struct {
+		name   string
+		sigs   []signing.SignatureV2
+		simGas uint64
+	}{
+		{"no signatures", nil, txSizeGas},
+		{"nil data and nil pubkey", []signing.SignatureV2{{}}, txSizeGas + singleSigGas},
+		{"empty single signature", []signing.SignatureV2{{PubKey: pk1, Data: empty}}, txSizeGas + singleSigGas},
+		{"complete single signature", []signing.SignatureV2{{PubKey: pk1, Data: complete}}, txSizeGas},
+		{"multisig without signatures", []signing.SignatureV2{{PubKey: pk1, Data: &signing.MultiSignatureData{}}}, txSizeGas + singleSigGas},
+		{"incomplete multisig", []signing.SignatureV2{{PubKey: pk1, Data: &signing.MultiSignatureData{Signatures: []signing.SignatureData{complete, empty}}}}, txSizeGas + singleSigGas},
+		{"incomplete nested multisig", []signing.SignatureV2{{PubKey: pk1, Data: &signing.MultiSignatureData{Signatures: []signing.SignatureData{complete, &signing.MultiSignatureData{Signatures: []signing.SignatureData{empty}}}}}}, txSizeGas + singleSigGas},
+		{"complete nested multisig", []signing.SignatureV2{{PubKey: pk1, Data: &signing.MultiSignatureData{Signatures: []signing.SignatureData{complete, &signing.MultiSignatureData{Signatures: []signing.SignatureData{complete}}}}}}, txSizeGas},
+		{"multisig pubkey", []signing.SignatureV2{{PubKey: multisigPk, Data: empty}}, txSizeGas + multiSigGas},
+		{"one of two signers incomplete", []signing.SignatureV2{{PubKey: pk1, Data: complete}, {PubKey: pk2}}, txSizeGas + singleSigGas},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tx := sigTx{sigs: tc.sigs}
+			// Repeated runs must charge the same gas.
+			for range 2 {
+				gas, nextCalled, err := runTxSizeGas(t, testApp, tc.simGas, tx, true)
+				require.NoError(t, err)
+				require.True(t, nextCalled)
+				require.Equal(t, tc.simGas, gas)
+
+				// Outside simulation only the tx bytes are charged.
+				gas, nextCalled, err = runTxSizeGas(t, testApp, txSizeGas, tx, false)
+				require.NoError(t, err)
+				require.True(t, nextCalled)
+				require.Equal(t, txSizeGas, gas)
+			}
+
+			require.PanicsWithValue(t, storetypes.ErrorOutOfGas{Descriptor: "txSize"}, func() {
+				_, _, _ = runTxSizeGas(t, testApp, tc.simGas-1, tx, true)
+			})
+		})
+	}
+
+	t.Run("unsupported tx type", func(t *testing.T) {
+		gas, nextCalled, err := runTxSizeGas(t, testApp, txSizeGas, unsupportedTx{}, false)
+		require.ErrorIs(t, err, sdkerrors.ErrTxDecode)
+		require.False(t, nextCalled)
+		require.Zero(t, gas)
+	})
+
+	t.Run("signature read error", func(t *testing.T) {
+		readErr := errors.New("bad signatures")
+		tx := sigTx{err: readErr}
+
+		gas, nextCalled, err := runTxSizeGas(t, testApp, txSizeGas, tx, true)
+		require.ErrorIs(t, err, readErr)
+		require.False(t, nextCalled)
+		require.Equal(t, txSizeGas, gas)
+
+		// Signatures are only read in simulate mode.
+		_, nextCalled, err = runTxSizeGas(t, testApp, txSizeGas, tx, false)
+		require.NoError(t, err)
+		require.True(t, nextCalled)
+	})
 }

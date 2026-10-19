@@ -32,7 +32,7 @@ func updateConfigCmd() *cobra.Command {
 		Long:       "Update configuration files (config.toml and app.toml) to be compatible with a specific app version.",
 		Example:    "celestia-appd update-config --home ~/.celestia-app\ncelestia-appd update-config --app-version 6 --home ~/.celestia-app --backup false",
 		Args:       cobra.NoArgs,
-		Deprecated: "required config values are now enforced at the binary level, so running update-config is no longer necessary when initialising a new node.",
+		Deprecated: "required config values are now enforced at the binary level, so running update-config is no longer necessary when initialising a new node. Use \"celestia-appd config sync\" instead.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			homeDir, err := cmd.Flags().GetString(flags.FlagHome)
 			if err != nil {
@@ -65,7 +65,7 @@ func updateConfig(homeDir, targetVersion string, backup bool) error {
 
 	updater, exists := updateRegistry[targetVersion]
 	if !exists {
-		return fmt.Errorf("unsupported target version: %s. Supported versions: %v", targetVersion, getSupportedVersions())
+		return fmt.Errorf("no config migration for app version %s; use \"celestia-appd config sync\" instead. Supported versions: %v", targetVersion, getSupportedVersions())
 	}
 
 	configDir := filepath.Join(homeDir, "config")

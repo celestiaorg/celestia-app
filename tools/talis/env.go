@@ -65,7 +65,8 @@ PROVIDER=digitalocean
 DIGITALOCEAN_TOKEN=
 
 # SSH Configuration (optional - will use defaults if not set)
-# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_PUB_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519
 # TALIS_SSH_KEY_NAME=your-username
 
 # DigitalOcean Spaces (optional - for payload distribution)
@@ -92,7 +93,8 @@ GOOGLE_CLOUD_PROJECT=
 GOOGLE_CLOUD_KEY_JSON_PATH=
 
 # SSH Configuration (optional - will use defaults if not set)
-# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_PUB_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519
 # TALIS_SSH_KEY_NAME=your-username
 
 # DigitalOcean Spaces (optional - for payload distribution)
@@ -124,9 +126,11 @@ AWS_SECRET_ACCESS_KEY=
 AWS_DEFAULT_REGION=us-east-1
 
 # SSH Configuration
-# TALIS_SSH_KEY_PATH is the local path to your SSH public key. The key is
+# TALIS_SSH_PUB_KEY_PATH is the local path to your SSH public key. The key is
 # imported to EC2 (once per region) under TALIS_SSH_KEY_NAME.
-# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_KEY_PATH is the matching private key, used to SSH into instances.
+# TALIS_SSH_PUB_KEY_PATH=~/.ssh/id_ed25519.pub
+# TALIS_SSH_KEY_PATH=~/.ssh/id_ed25519
 # TALIS_SSH_KEY_NAME=your-username
 
 # S3 Payload Bucket (optional — omit and use 'deploy --direct-payload-upload')

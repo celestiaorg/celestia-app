@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,10 +32,11 @@ import (
 	sdktypes "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdktx "github.com/cosmos/cosmos-sdk/types/tx"
-	paramtypes "github.com/cosmos/cosmos-sdk/x/params/types/proposal"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -1169,10 +1169,8 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 
 	networkMinPrice, err := QueryNetworkMinGasPrice(ctx, grpcConn)
 	if err != nil {
-		// check if the network version supports a global min gas
-		// price using a regex check. If not (i.e. v1) use the
-		// local price only
-		if strings.Contains(err.Error(), "unknown subspace: minfee") {
+		// v1 nodes don't serve x/minfee so use the local price only.
+		if status.Code(err) == codes.Unimplemented {
 			return localMinPrice, nil
 		}
 		return 0, err
@@ -1183,20 +1181,10 @@ func QueryMinimumGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float
 }
 
 func QueryNetworkMinGasPrice(ctx context.Context, grpcConn *grpc.ClientConn) (float64, error) {
-	paramsClient := paramtypes.NewQueryClient(grpcConn)
 	// NOTE: that we don't prove that this is the correct value
-	paramResponse, err := paramsClient.Params(ctx, &paramtypes.QueryParamsRequest{Subspace: minfeetypes.ModuleName, Key: string(minfeetypes.KeyNetworkMinGasPrice)})
+	resp, err := minfeetypes.NewQueryClient(grpcConn).NetworkMinGasPrice(ctx, &minfeetypes.QueryNetworkMinGasPrice{})
 	if err != nil {
-		return 0, fmt.Errorf("querying params module: %w", err)
+		return 0, fmt.Errorf("querying network min gas price: %w", err)
 	}
-
-	var networkMinPrice float64
-	// Value is empty if network min gas price is not supported i.e. v1 state machine.
-	if paramResponse.Param.Value != "" {
-		networkMinPrice, err = strconv.ParseFloat(strings.Trim(paramResponse.Param.Value, `"`), 64)
-		if err != nil {
-			return 0, fmt.Errorf("parsing network min gas price: %w", err)
-		}
-	}
-	return networkMinPrice, nil
+	return resp.NetworkMinGasPrice.Float64()
 }

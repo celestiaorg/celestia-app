@@ -70,34 +70,6 @@ func GenerateAccounts(count int) []string {
 	return accounts
 }
 
-func GetAddresses(keys keyring.Keyring) []sdk.AccAddress {
-	recs, err := keys.List()
-	if err != nil {
-		panic(err)
-	}
-	addresses := make([]sdk.AccAddress, 0, len(recs))
-	for _, rec := range recs {
-		address, err := rec.GetAddress()
-		if err != nil {
-			panic(err)
-		}
-		addresses = append(addresses, address)
-	}
-	return addresses
-}
-
-func GetAccountNames(keys keyring.Keyring) []string {
-	recs, err := keys.List()
-	if err != nil {
-		panic(err)
-	}
-	names := make([]string, 0, len(recs))
-	for _, rec := range recs {
-		names = append(names, rec.Name)
-	}
-	return names
-}
-
 func GetAddress(keys keyring.Keyring, account string) sdk.AccAddress {
 	rec, err := keys.Key(account)
 	if err != nil {

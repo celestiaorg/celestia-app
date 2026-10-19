@@ -51,11 +51,17 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		return *resp.Balance
 	}
-	escrow := func() *fibretypes.EscrowAccount {
-		resp, err := fibreQ.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{Signer: signer})
-		require.NoError(t, err)
-		require.True(t, resp.Found)
-		return resp.EscrowAccount
+	escrow := func(balance, available sdk.Coin) *fibretypes.EscrowAccount {
+		var acc *fibretypes.EscrowAccount
+		require.Eventually(t, func() bool {
+			resp, err := fibreQ.EscrowAccount(ctx, &fibretypes.QueryEscrowAccountRequest{Signer: signer})
+			if err != nil || !resp.Found {
+				return false
+			}
+			acc = resp.EscrowAccount
+			return acc.Balance.Equal(balance) && acc.AvailableBalance.Equal(available)
+		}, 5*time.Second, 100*time.Millisecond, "escrow balances should become visible to queries")
+		return acc
 	}
 	pendingWithdrawals := func() []fibretypes.Withdrawal {
 		resp, err := fibreQ.Withdrawals(ctx, &fibretypes.QueryWithdrawalsRequest{Signer: signer})
@@ -72,7 +78,7 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), depositResp.Code)
 
-	acc := escrow()
+	acc := escrow(deposit, deposit)
 	require.Equal(t, deposit, acc.Balance)
 	require.Equal(t, deposit, acc.AvailableBalance)
 
@@ -82,7 +88,7 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, uint32(0), reqResp.Code)
 
-	acc = escrow()
+	acc = escrow(deposit, deposit.Sub(withdraw))
 	require.Equal(t, deposit, acc.Balance, "total balance stays locked until the withdrawal executes")
 	require.Equal(t, deposit.Sub(withdraw), acc.AvailableBalance, "available balance drops by the requested amount")
 
@@ -96,7 +102,7 @@ func TestFibreWithdrawalLifecycle(t *testing.T) {
 		return len(pendingWithdrawals()) == 0
 	}, 60*time.Second, 500*time.Millisecond, "withdrawal should be auto-executed after the delay")
 
-	acc = escrow()
+	acc = escrow(deposit.Sub(withdraw), deposit.Sub(withdraw))
 	require.Equal(t, deposit.Sub(withdraw), acc.Balance, "total balance should drop by the withdrawn amount after execution")
 	require.Equal(t, deposit.Sub(withdraw), acc.AvailableBalance)
 

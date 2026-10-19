@@ -12,21 +12,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-func ReadRecentBlocks(ctx context.Context, rpcAddress string, blocks int64) ([]*types.Block, error) {
-	client, err := http.New(rpcAddress, "/websocket")
-	if err != nil {
-		return nil, err
-	}
-	status, err := client.Status(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if status.SyncInfo.LatestBlockHeight < blocks {
-		return nil, fmt.Errorf("latest block height %d is less than requested blocks %d", status.SyncInfo.LatestBlockHeight, blocks)
-	}
-	return ReadBlockHeights(ctx, rpcAddress, status.SyncInfo.LatestBlockHeight-blocks+1, status.SyncInfo.LatestBlockHeight)
-}
-
 func ReadBlockchain(ctx context.Context, rpcAddress string) ([]*types.Block, error) {
 	client, err := http.New(rpcAddress, "/websocket")
 	if err != nil {
@@ -131,21 +116,6 @@ func DecodeBlockData(data types.Data) ([]sdk.Tx, error) {
 		txs = append(txs, tx)
 	}
 	return txs, nil
-}
-
-func CalculateMeanGasFromRecentBlocks(ctx context.Context, rpcAddress, msgType string, blocks int64) (float64, int64, error) {
-	client, err := http.New(rpcAddress, "/websocket")
-	if err != nil {
-		return 0.0, 0, err
-	}
-	status, err := client.Status(ctx)
-	if err != nil {
-		return 0.0, 0, err
-	}
-	if status.SyncInfo.LatestBlockHeight <= blocks {
-		return 0.0, 0, fmt.Errorf("latest block height %d is less than %d", status.SyncInfo.LatestBlockHeight, blocks)
-	}
-	return CalculateMeanGas(ctx, rpcAddress, msgType, status.SyncInfo.LatestBlockHeight-blocks+1, status.SyncInfo.LatestBlockHeight)
 }
 
 func CalculateMeanGas(ctx context.Context, rpcAddress, msgType string, fromHeight, toHeight int64) (float64, int64, error) {

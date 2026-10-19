@@ -50,20 +50,6 @@ func TestAddress() sdk.AccAddress {
 	return sdk.AccAddress(bz)
 }
 
-func QueryWithoutProof(clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) { //nolint:staticcheck
-	hash, err := hex.DecodeString(hashHexStr)
-	if err != nil {
-		return nil, err
-	}
-
-	node, err := clientCtx.GetNode()
-	if err != nil {
-		return nil, err
-	}
-
-	return node.Tx(context.Background(), hash, false)
-}
-
 // QueryWithoutProofWithRetry polls for a tx by hash until it is indexed
 // or the context is cancelled.
 func QueryWithoutProofWithRetry(ctx context.Context, clientCtx client.Context, hashHexStr string) (*rpctypes.ResultTx, error) { //nolint:staticcheck

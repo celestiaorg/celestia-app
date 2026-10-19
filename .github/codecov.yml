@@ -1,1 +1,15 @@
 comment: false
+
+# Eligible coverage scope: production code only. Keep this in sync with
+# OUT_OF_SCOPE in scripts/test_cover.sh.
+ignore:
+  # Generated protobuf code.
+  - "**/*.pb.go"
+  - "**/*.pb.gw.go"
+  # Test utilities and one-off CLI tools.
+  - "test/**/*"
+  - "tools/**/*"
+  # Developer scripts, local devnet helpers and test vector generators.
+  - "scripts/**/*"
+  - "local_devnet/**/*"
+  - "pkg/rsema1d/cmd/testvectors/**/*"

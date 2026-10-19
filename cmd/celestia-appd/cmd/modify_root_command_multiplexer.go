@@ -6,11 +6,12 @@ import (
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v10/app"
-	embedding "github.com/celestiaorg/celestia-app/v10/internal/embedding"
+	"github.com/celestiaorg/celestia-app/v10/internal/embedding"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	multiplexer "github.com/celestiaorg/celestia-app/v10/multiplexer/cmd"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/server"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +37,29 @@ var interBlockCacheOffArgs = append([]string{"--inter-block-cache=false"}, defau
 // the cache to preserve the upgrade block's writes; running v3 with the cache
 // disabled discards those writes and forks replay. See issue #7770.
 var interBlockCacheOnArgs = append([]string{"--inter-block-cache=true"}, defaultArgs...)
+
+// unsupportedFlags returns the start flags that the embedded app for appVersion
+// doesn't define. TestUnsupportedFlagsMatchEmbeddedBinaries checks this table
+// against every current start flag and embedded binary when either changes.
+func unsupportedFlags(appVersion uint64) map[string]struct{} {
+	result := map[string]struct{}{
+		flagOTelEndpoint:             {},
+		FlagFibrePromiseCache:        {},
+		FlagPrivValGRPCAllowInsecure: {},
+	}
+	if appVersion <= 5 {
+		result[bypassOverridesFlagKey] = struct{}{}
+		result[DelayedPrecommitTimeoutFlag] = struct{}{}
+	}
+	if appVersion <= 3 {
+		result[flags.FlagLogNoColor] = struct{}{}
+		result[server.FlagMempoolMaxTxs] = struct{}{}
+		result[server.FlagQueryGasLimit] = struct{}{}
+		result[server.FlagShutdownGrace] = struct{}{}
+		result["with-comet"] = struct{}{}
+	}
+	return result
+}
 
 // modifyRootCommand enhances the root command with the pass through and multiplexer.
 func modifyRootCommand(rootCommand *cobra.Command) {
@@ -124,8 +148,23 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		fmt.Sprintf("--minimum-gas-prices=%v%s", appconsts.LegacyDefaultMinGasPrice, appconsts.BondDenom),
 	}, interBlockCacheOffArgs...)
 
+	// celestia-app v3 serves app versions 1, 2 and 3: it performs the v1 -> v2
+	// upgrade itself at --v2-upgrade-height and the v2 -> v3 upgrade via the
+	// signal module. Register all three explicitly so that GetForAppVersion
+	// never has to guess. The multiplexer keeps the v3 process running across
+	// these switches because they share the same Appd instance.
 	versions, err := abci.NewVersions(
 		abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  1,
+			StartArgs:   v3Args,
+		}, abci.Version{
+			Appd:        appdV3,
+			ABCIVersion: abci.ABCIClientVersion1,
+			AppVersion:  2,
+			StartArgs:   v3Args,
+		}, abci.Version{
 			Appd:        appdV3,
 			ABCIVersion: abci.ABCIClientVersion1,
 			AppVersion:  3,
@@ -164,6 +203,9 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 	if err != nil {
 		panic(err)
 	}
+	for i := range versions {
+		versions[i].UnsupportedFlags = unsupportedFlags(versions[i].AppVersion)
+	}
 
 	rootCommand.AddCommand(
 		multiplexer.NewPassthroughCmd(versions),
@@ -177,7 +219,7 @@ func modifyRootCommand(rootCommand *cobra.Command) {
 		appExporter,
 		server.StartCmdOptions{
 			AddFlags:            addStartFlags,
-			StartCommandHandler: multiplexer.New(versions),
+			StartCommandHandler: multiplexer.New(versions, rootCommand),
 		},
 	)
 }

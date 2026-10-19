@@ -2,6 +2,23 @@
 
 This directory contains a handful of scripts that may be helpful for contributors.
 
+## test_cover.sh
+
+Run `make test-coverage` from the repository root to generate `coverage.txt`.
+The script runs the full test suite serially, excluding `test/util` packages
+from test selection. Cross-package tests contribute coverage to the packages
+they exercise. Packages without tests remain in scope.
+Duplicate profile blocks are combined so their statements are counted once.
+
+Only production code is in scope. The script does not instrument `test/`,
+`tools/`, `scripts/`, `local_devnet/` or `pkg/rsema1d/cmd/testvectors`, and drops
+generated `*.pb.go` and `*.pb.gw.go` files. `.github/codecov.yml` ignores the
+same paths, so local and Codecov reports agree.
+
+The report is replaced only after all tests pass. A failed run leaves an existing
+report unchanged, so check the command's exit status before using the report.
+Run `bash scripts/test_cover_test.sh` for a small regression check of the script.
+
 ## build-run-single-node.sh
 
 This script will build the project and run a single node devnet. After running this script, the text output will contain a "Home directory" that you can use as a parameter for subsequent commands.

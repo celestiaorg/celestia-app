@@ -35,8 +35,8 @@ func TestCreateExecCommand(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, appdInstance)
 
-			cmd := appdInstance.CreateExecCommand("version")
-			require.NotNil(t, cmd)
+			cmd, err := appdInstance.CreateExecCommand("version")
+			require.NoError(t, err)
 
 			var outputBuffer bytes.Buffer
 			cmd.Stdout = &outputBuffer

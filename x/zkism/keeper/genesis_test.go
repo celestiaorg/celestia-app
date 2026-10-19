@@ -118,3 +118,25 @@ func (suite *KeeperTestSuite) TestExportGenesis() {
 	suite.Require().NoError(err)
 	suite.Require().ElementsMatch(expectedProofSubmitted, genesisState.Submissions)
 }
+
+func (suite *KeeperTestSuite) TestExportGenesisAllMessages() {
+	ismId := util.GenerateHexAddress([20]byte{0x01}, uint32(types.ModuleTypeZkISM), 0)
+	ism := types.InterchainSecurityModule{Id: ismId, Owner: "test"}
+	err := suite.zkISMKeeper.SetIsm(suite.ctx, ismId, ism)
+	suite.Require().NoError(err)
+
+	// more messages than the default query pagination limit
+	expectedMessages := make([]string, 0, 150)
+	for i := range 150 {
+		msgId := util.GenerateHexAddress([20]byte{0x02}, uint32(types.ModuleTypeZkISM), uint64(i))
+		err := suite.zkISMKeeper.SetMessageId(suite.ctx, ismId, msgId.Bytes())
+		suite.Require().NoError(err)
+
+		expectedMessages = append(expectedMessages, msgId.String())
+	}
+
+	genesisState, err := suite.zkISMKeeper.ExportGenesis(suite.ctx)
+	suite.Require().NoError(err)
+	suite.Require().Len(genesisState.Messages, 1)
+	suite.Require().ElementsMatch(expectedMessages, genesisState.Messages[0].Messages)
+}

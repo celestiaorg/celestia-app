@@ -21,7 +21,7 @@ import (
 var chainIDToSha256 = map[string]string{
 	appconsts.MainnetChainID: "9727aac9bbfb021ce7fc695a92f901986421283a891b89e0af97bc9fad187793",
 	appconsts.MochaChainID:   "82db3ac5ab8485e4784054bd10457533a64563f055c0d234a3134603a9c85d33",
-	appconsts.CortoChainID:   "5bfa9ef731c54e0a5f382988bb12fbbeac14de3f72e4bb2f2e04f16818a01ac3",
+	appconsts.CortoChainID:   "4325c418ae9bd02e5b1c87aef2805243096a1951e7908b464675623f13cba1d2",
 }
 
 func downloadGenesisCommand() *cobra.Command {

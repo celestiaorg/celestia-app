@@ -4,27 +4,21 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.6-alpine
+ARG BUILDER_IMAGE=docker.io/golang:1.26.9-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maximum square size of the docker image e.g.
-# docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
-ARG MAX_SQUARE_SIZE
-# Use build args to override the upgrade height delay of the docker image e.g.
-# docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
-ARG UPGRADE_HEIGHT_DELAY
 # the docker registry used for the embedded v3 binary.
 ARG CELESTIA_APP_REPOSITORY=ghcr.io/celestiaorg/celestia-app-standalone
 # NOTE: This version must be updated at the same time as the version in the
 # Makefile.
-ARG CELESTIA_VERSION_V3="v3.12.0"
+ARG CELESTIA_VERSION_V3="v3.13.0"
 ARG CELESTIA_VERSION_V4="v4.1.0"
 ARG CELESTIA_VERSION_V5="v5.0.12"
-ARG CELESTIA_VERSION_V6="v6.4.4"
-ARG CELESTIA_VERSION_V7="v7.0.2-mocha"
+ARG CELESTIA_VERSION_V6="v6.4.10"
+ARG CELESTIA_VERSION_V7="v7.0.3-mocha"
 ARG CELESTIA_VERSION_V8="v8.0.8"
-ARG CELESTIA_VERSION_V9="v9.0.7-corto"
+ARG CELESTIA_VERSION_V9="v9.0.8"
 
 # Stage 1: this base image contains already released v3 binaries which can be embedded in the multiplexer.
 FROM ${CELESTIA_APP_REPOSITORY}:${CELESTIA_VERSION_V3} AS base-v3
@@ -77,7 +71,8 @@ WORKDIR /celestia-app
 
 # cache go module dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+COPY docker/download-go-modules.sh /usr/local/bin/download-go-modules.sh
+RUN sh /usr/local/bin/download-go-modules.sh
 
 # copy source code after downloading modules (to leverage caching)
 COPY . .
@@ -119,7 +114,7 @@ RUN tar -cvzf internal/embedding/celestia-app_${TARGETOS}_v9_${TARGETARCH}.tar.g
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build DOWNLOAD=false
+    make -o mod build DOWNLOAD=false
 
 # Stage 3: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -82,12 +83,13 @@ func initCmd() *cobra.Command {
 				}
 
 				// Override SSH config from env vars if they exist
-				if envSSHKeyPath := os.Getenv(EnvVarSSHKeyPath); envSSHKeyPath != "" {
-					SSHPubKeyPath = envSSHKeyPath
-				}
 				if envSSHKeyName := os.Getenv(EnvVarSSHKeyName); envSSHKeyName != "" {
 					SSHKeyName = envSSHKeyName
 				}
+			}
+
+			if !cmd.Flags().Changed("ssh-pub-key-path") {
+				SSHPubKeyPath = resolveSSHPubKeyPath("", SSHPubKeyPath)
 			}
 
 			if err := initDirs(rootDir); err != nil {
@@ -294,7 +296,7 @@ func copyDir(src string, dest string) error {
 }
 
 // copyFile copies a single file from src to dest, preserving permissions and creating parent directories if needed.
-func copyFile(srcFile, destFile string, perm os.FileMode) error {
+func copyFile(srcFile, destFile string, perm os.FileMode) (err error) {
 	destDir := filepath.Dir(destFile)
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create parent directory %s: %w", destDir, err)
@@ -310,7 +312,11 @@ func copyFile(srcFile, destFile string, perm os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("failed to open destination file %s: %w", destFile, err)
 	}
-	defer dest.Close()
+	defer func() {
+		if closeErr := dest.Close(); closeErr != nil {
+			err = errors.Join(err, fmt.Errorf("failed to close destination file %s: %w", destFile, closeErr))
+		}
+	}()
 
 	if _, err = io.Copy(dest, src); err != nil {
 		return fmt.Errorf("failed to copy data: %w", err)
