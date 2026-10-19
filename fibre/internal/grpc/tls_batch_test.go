@@ -8,6 +8,7 @@ import (
 	"net"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
 	core "github.com/cometbft/cometbft/types"
@@ -39,6 +40,10 @@ func TestBatchingCredsOneSyscallPerWrite(t *testing.T) {
 	require.NoError(t, err)
 	defer ln.Close()
 
+	// Deadlines make a batching regression fail fast instead of hanging the suite.
+	const timeout = 10 * time.Second
+	deadline := time.Now().Add(timeout)
+
 	payload := make([]byte, uploadWriteBufferSize)
 	_, _ = rand.Read(payload)
 	received := make(chan []byte, 2)
@@ -48,6 +53,7 @@ func TestBatchingCredsOneSyscallPerWrite(t *testing.T) {
 			if err != nil {
 				return
 			}
+			_ = raw.SetDeadline(deadline)
 			go func() {
 				srv := tls.Server(raw, &tls.Config{Certificates: []tls.Certificate{cert}, MinVersion: tls.VersionTLS13, NextProtos: []string{"h2"}})
 				defer srv.Close()
@@ -63,6 +69,7 @@ func TestBatchingCredsOneSyscallPerWrite(t *testing.T) {
 	dial := func(verify func(tls.ConnectionState) error) (net.Conn, *countingConn, error) {
 		raw, err := net.Dial("tcp", ln.Addr().String())
 		require.NoError(t, err)
+		require.NoError(t, raw.SetDeadline(deadline))
 		counting := &countingConn{Conn: raw}
 		creds := batchingCreds{credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true, //nolint:gosec // identity is checked via VerifyConnection
@@ -82,7 +89,12 @@ func TestBatchingCredsOneSyscallPerWrite(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(payload), n)
 	require.Equal(t, int64(1), counting.writes.Load()-before)
-	require.True(t, bytes.Equal(payload, <-received))
+	select {
+	case got := <-received:
+		require.True(t, bytes.Equal(payload, got))
+	case <-time.After(timeout):
+		t.Fatal("server did not receive the payload")
+	}
 
 	// A wrong identity still fails the handshake.
 	other, err := core.NewMockPV().GetPubKey()
