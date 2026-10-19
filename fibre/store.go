@@ -236,7 +236,9 @@ func (s *Store) shardStatus(ctx context.Context, commitment Commitment, promiseH
 	return s.payloadStatus(ctx, commitment, promiseHash, false)
 }
 
-// uploadShardStatus leaves object presence unconfirmed for a conditional PUT.
+// uploadShardStatus leaves object presence unconfirmed when the upload's
+// conditional PUT goes to the same object backend. Markers for any other
+// backend are still checked, so a retry never copies a shard to a new backend.
 func (s *Store) uploadShardStatus(ctx context.Context, commitment Commitment, promiseHash []byte) (bool, bool, error) {
 	return s.payloadStatus(ctx, commitment, promiseHash, true)
 }
@@ -260,7 +262,7 @@ func (s *Store) payloadStatus(ctx context.Context, commitment Commitment, promis
 	if err != nil {
 		return false, false, err
 	}
-	if forUpload && backend.backendTag() != localBackendTag {
+	if forUpload && backend == s.shards.primary && backend.backendTag() == objectBackendTag {
 		return false, accounted, nil
 	}
 	has, err := backend.Has(ctx, commitment, promiseHash)
