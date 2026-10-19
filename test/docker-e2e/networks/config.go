@@ -46,7 +46,11 @@ func NewMochaConfig() *Config {
 		// header. These must be distinct providers: listing one host twice
 		// gives no redundancy, so a single slow/unavailable provider stalls
 		// state sync. Keep these in sync with the live mocha-5 testnet.
+		// The Celestia-operated archive RPC comes first because the
+		// third-party providers rate-limit CI runners, and a third provider
+		// keeps one witness alive when another returns 429.
 		RPCs: []string{
+			"https://rpc.celestia-mocha.com:443",
 			"https://rpc-mocha.pops.one:443",
 			"https://celestia-testnet-rpc.itrocket.net:443",
 		},
