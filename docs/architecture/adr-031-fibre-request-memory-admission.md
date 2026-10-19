@@ -29,7 +29,7 @@ Admit every request against a global, FIFO `semaphore.Weighted` byte budget (`ma
 
 ### Downloads
 
-In this change `DownloadShard` is admitted request-side only: its tiny request shrinks the reservation immediately. The response the handler builds (up to 132 MiB) is not yet counted; that is addressed by the download-accounting change (serve `DownloadShard` as a stream handler and reserve the response size until the stream ends).
+`DownloadShard` is served as a stream handler that also counts its response. It keeps the max reservation through the handler (so the shard the handler builds from storage is counted), shrinks the reservation to the response size once known, and releases it when the stream ends rather than at the handler's return. Verified against grpc v1.84.0: the server cancels the stream context in `finishStream`/`closeStream` after the handler returns (`http2_server.go:1338`/`1362`), so `context.AfterFunc(stream.Context(), release)` releases the reservation then without a goroutine leak. Because grpc's `SendMsg` returns as soon as the message is queued (`flowcontrol.go` `writeQuota.get` takes the whole message), the response bytes still draining to a slow reader after that point live in grpc's send buffer, not the budget — so a slow reader cannot pin the budget past the stream's end; those bytes are bounded by grpc connection flow control and `MaxConnectionAge`.
 
 ## Alternatives
 
@@ -57,6 +57,7 @@ In this change `DownloadShard` is admitted request-side only: its tiny request s
 
 ## References
 
-- PROTOCO-3014 — this change.
+- PROTOCO-3014 — request memory admission.
+- PROTOCO-3351 — download response accounting.
 - ADR-029 — Fibre upload occupancy (disk) limiting.
 - `fibre/internal/grpc/{admission.go,server.go,keyed_counter.go}`.
