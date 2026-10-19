@@ -12,6 +12,9 @@ import (
 // TestMmapAllocHugePageEligible checks that mmap'd slabs are advised for
 // transparent huge pages.
 func TestMmapAllocHugePageEligible(t *testing.T) {
+	if disableHugePage {
+		t.Skip("huge-page advice disabled by FIBRE_ROW_NO_HUGEPAGE")
+	}
 	mode, err := os.ReadFile("/sys/kernel/mm/transparent_hugepage/enabled")
 	if err != nil || strings.Contains(string(mode), "[never]") {
 		t.Skip("transparent huge pages unavailable")
