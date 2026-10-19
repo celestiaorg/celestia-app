@@ -72,6 +72,26 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 	}())
 	require.NoError(t, err)
 
+	// Two shapes that put the MsgPayForFibre type URL inside bytes that are
+	// not a pay-for-fibre tx, so the substring prefilter in parsePayForFibre
+	// cannot be what decides: a blob whose payload carries the string, and a
+	// BlobTx wrapping a real pay-for-fibre tx.
+	typeURLInBlob, err := squaretx.MarshalBlobTx([]byte("inner"), func() *share.Blob {
+		blob, err := share.NewBlob(testNamespace, []byte(fibretypes.MsgPayForFibreTypeURL), share.ShareVersionZero, nil)
+		require.NoError(t, err)
+		return blob
+	}())
+	require.NoError(t, err)
+
+	wrappedFibre, err := squaretx.MarshalBlobTx(
+		fibreTxBytes(t, signer, testNamespace.Bytes(), testCommitment),
+		func() *share.Blob {
+			blob, err := share.NewBlob(testNamespace, []byte("payload"), share.ShareVersionZero, nil)
+			require.NoError(t, err)
+			return blob
+		}())
+	require.NoError(t, err)
+
 	corpus := []struct {
 		name string
 		raw  []byte
@@ -86,6 +106,8 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 		{"blob tx, multi-share blob", blobTxBytes(t, rng, 2500)},
 		{"non-canonical blob tx", append(append([]byte(nil), oneBlob...), 0x78, 0x01)},
 		{"nested blob tx", nested},
+		{"blob tx whose blob carries the fibre type URL", typeURLInBlob},
+		{"blob tx wrapping a fibre tx", wrappedFibre},
 	}
 
 	for _, maxSquareSize := range []int{8, 64, 128} {

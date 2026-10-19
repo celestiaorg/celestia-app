@@ -3,11 +3,39 @@ package keeper
 import (
 	errorsmod "cosmossdk.io/errors"
 	"github.com/cometbft/cometbft/crypto/ed25519"
+	cmtmath "github.com/cometbft/cometbft/libs/math"
 	core "github.com/cometbft/cometbft/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	lru "github.com/hashicorp/golang-lru/v2"
 )
+
+// quorumFraction is the share of voting power a certificate must carry.
+var quorumFraction = cmtmath.Fraction{Numerator: 2, Denominator: 3}
+
+// certificateValidatorSet returns the converted validator set a certificate at
+// height is checked against, rejecting a signature list that cannot be
+// positional over it. It is the one place the sequential verifier and the
+// parallel pre-verification pass agree on those two things, so they cannot
+// drift apart.
+func (k Keeper) certificateValidatorSet(ctx sdk.Context, height int64, signatures [][]byte) (*convertedValidatorSet, error) {
+	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
+	if err != nil {
+		return nil, errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
+	}
+	converted, err := k.validatorSetAtHeight(height, historicalInfo.Valset)
+	if err != nil {
+		return nil, err
+	}
+	// The list is positional over the validator set, so more entries than
+	// validators is malformed. Rejecting up front also guarantees every index
+	// is in range, so a quorum short-circuit cannot skip a trailing entry.
+	if len(signatures) > len(converted.validators) {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(converted.validators))
+	}
+	return converted, nil
+}
 
 // validatorSetCacheSize is the number of heights whose converted validator set
 // is kept. Payment promises reference recent heights, so a few hundred entries

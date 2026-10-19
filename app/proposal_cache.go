@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"slices"
 	"sync"
 
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
@@ -86,21 +87,8 @@ func (c *proposalCache) Take(key proposalKey, txs [][]byte) *proposalArtifacts {
 	if entry == nil || entry.key != key {
 		return nil
 	}
-	if len(entry.blobTxs) != len(entry.txs) || !txsEqual(entry.txs, txs) {
+	if len(entry.blobTxs) != len(entry.txs) || !slices.EqualFunc(entry.txs, txs, bytes.Equal) {
 		return nil
 	}
 	return entry
-}
-
-// txsEqual reports whether two tx lists are byte for byte identical.
-func txsEqual(a, b [][]byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !bytes.Equal(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
 }

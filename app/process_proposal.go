@@ -10,7 +10,6 @@ import (
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -120,18 +119,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// failed check is not recorded, so the loop below still performs it and
 	// still decides. Any failure rejects the whole block, so the pass stops
 	// claiming work at the first one.
-	// A block may repeat one certificate across many PayForFibre txs;
-	// SeenCertificates holds that to one verification per distinct certificate.
+	// A block may repeat one certificate across many PayForFibre txs; the pass
+	// holds that to one verification per distinct certificate.
 	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
-		SeenCertificates:   make(map[sigcache.Key]struct{}, len(req.Txs)),
 	})
 
 	// One holder for the whole walk, so the context does not grow by a value
 	// per transaction.
-	decodedHolder := &fibretypes.DecodedHolder{}
-	ctx = fibretypes.WithDecodedHolder(ctx, decodedHolder)
+	certKeys := &fibretypes.CertKeyHolder{}
+	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
@@ -155,9 +153,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 		sdkTx, err := app.encodingConfig.TxConfig.TxDecoder()(sdkTxBytes)
 		ctx = ctx.WithTxBytes(sdkTxBytes)
-		// Hand the ante handler and the message server what was already
-		// decoded from this tx; nil clears the previous tx's value.
-		decodedHolder.Set(decoded[idx])
+		// Hand the ante handler the certificate key already derived from this
+		// tx; a nil view clears the previous tx's key.
+		certKeys.Set(decoded[idx])
 
 		if err != nil {
 			// An error here means that a tx was included in the block that is not decodable.
@@ -183,7 +181,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			_, isPFF := payForFibreMsg(sdkTx)
+			isPFF := fibretypes.PayForFibreMsg(sdkTx) != nil
 			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
