@@ -66,17 +66,23 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 		sigData    signing.SignatureData
 		txData     txsigning.TxData
 	}
-	jobs := make(chan workItem, 2*runtime.NumCPU())
-	var wg sync.WaitGroup
-	for range min(runtime.NumCPU(), len(txs)) {
-		wg.Go(func() {
-			for item := range jobs {
-				func() {
-					defer func() { _ = recover() }()
-					_ = verify(ctx, item.pubKey, item.signerData, item.sigData, signModeHandler, item.txData)
-				}()
-			}
-		})
+	// Account reads stay on this goroutine, which feeds workers that only
+	// verify. A worker starts with the first item it would take, so the pool
+	// is sized by the work found, up to GOMAXPROCS (not NumCPU, which in a
+	// CPU-limited container only adds goroutines contending for the same Ps).
+	maxWorkers := runtime.GOMAXPROCS(0)
+	jobs := make(chan workItem, 2*maxWorkers)
+	var (
+		wg      sync.WaitGroup
+		workers int
+	)
+	worker := func() {
+		for item := range jobs {
+			func() {
+				defer func() { _ = recover() }()
+				_ = verify(ctx, item.pubKey, item.signerData, item.sigData, signModeHandler, item.txData)
+			}()
+		}
 	}
 	defer func() {
 		close(jobs)
@@ -84,9 +90,6 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 		_ = recover() // malformed txs remain for the ante handler
 	}()
 	for _, tx := range txs {
-		if tx == nil {
-			continue
-		}
 		sigTx, ok := tx.(authsigning.Tx)
 		if !ok {
 			continue
@@ -125,6 +128,10 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 		adaptableTx, ok := tx.(authsigning.V2AdaptableTx)
 		if !ok {
 			continue
+		}
+		if workers < maxWorkers {
+			workers++
+			wg.Go(worker)
 		}
 		jobs <- workItem{
 			pubKey: pubKey,
