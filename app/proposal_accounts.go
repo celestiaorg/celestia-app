@@ -21,15 +21,18 @@ func (app *App) proposalAccountKeeper() authkeeper.AccountKeeper {
 	return keeper
 }
 
+// maxRememberedAccountSize bounds the bytes the codec keeps a copy of.
+const maxRememberedAccountSize = 4096
+
 type proposalAccountCodec struct {
 	collectionscodec.ValueCodec[sdk.AccountI]
+	// raw is the encoding of account; empty means nothing is remembered.
 	raw     []byte
 	account authtypes.BaseAccount
-	valid   bool
 }
 
 func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
-	if c.valid && bytes.Equal(raw, c.raw) {
+	if len(c.raw) > 0 && bytes.Equal(raw, c.raw) {
 		// Ante changes sequence and replaces the PubKey field; it does not
 		// mutate the public key itself. Give each caller its own account.
 		account := c.account
@@ -39,14 +42,7 @@ func (c *proposalAccountCodec) Decode(raw []byte) (sdk.AccountI, error) {
 	if err != nil {
 		return nil, err
 	}
-	base, ok := account.(*authtypes.BaseAccount)
-	if ok && len(raw) <= 4096 {
-		c.raw = append(c.raw[:0], raw...)
-		c.account = *base
-		c.valid = true
-	} else {
-		c.valid = false
-	}
+	c.remember(raw, account)
 	return account, nil
 }
 
@@ -56,13 +52,18 @@ func (c *proposalAccountCodec) Encode(account sdk.AccountI) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	base, ok := account.(*authtypes.BaseAccount)
-	if ok && len(raw) <= 4096 {
-		c.raw = append(c.raw[:0], raw...)
-		c.account = *base
-		c.valid = true
-	} else {
-		c.valid = false
-	}
+	c.remember(raw, account)
 	return raw, nil
+}
+
+// remember keeps a copy of a base account and its encoding, and forgets the
+// previous one otherwise.
+func (c *proposalAccountCodec) remember(raw []byte, account sdk.AccountI) {
+	base, ok := account.(*authtypes.BaseAccount)
+	if !ok || len(raw) > maxRememberedAccountSize {
+		c.raw = c.raw[:0]
+		return
+	}
+	c.raw = append(c.raw[:0], raw...)
+	c.account = *base
 }
