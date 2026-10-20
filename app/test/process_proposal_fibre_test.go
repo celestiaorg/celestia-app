@@ -117,6 +117,80 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 	}
 }
 
+// TestProcessProposalParallelSquare drives both square paths through
+// ProcessProposal. An all-PayForFibre block of at least minParallelSquareTxs
+// (100) unique txs builds its square alongside the ordered walk; a smaller one
+// builds it after. Each must accept exactly the reference square size and data
+// root, and the parallel build must not hold up a block the walk rejects.
+func TestProcessProposalParallelSquare(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping parallel square test in short mode.")
+	}
+
+	const parallelTxs = appconsts.MaxPayForFibreMessages
+	const sequentialTxs = 99 // one below minParallelSquareTxs
+	accounts := testfactory.GenerateAccounts(parallelTxs)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	txs := make([][]byte, 0, parallelTxs)
+	var forgedFirst []byte
+	for i, account := range accounts {
+		signer := newSigner(i)
+		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
+		txs = append(txs, newSignedPayForFibreTx(t, signer, account, true))
+		if i == 0 {
+			forgedFirst = newSignedPayForFibreTx(t, signer, account, false)
+		}
+	}
+
+	process := func(t *testing.T, txs [][]byte, dataRoot []byte, squareSize uint64) abci.ResponseProcessProposal_ProposalStatus {
+		t.Helper()
+		resp, err := testApp.ProcessProposal(&abci.RequestProcessProposal{
+			Height:       testApp.LastBlockHeight() + 1,
+			Time:         time.Now(),
+			Txs:          txs,
+			DataRootHash: dataRoot,
+			SquareSize:   squareSize,
+		})
+		require.NoError(t, err)
+		return resp.Status
+	}
+	reference := func(t *testing.T, txs [][]byte) ([]byte, uint64) {
+		t.Helper()
+		classifiedTxs, err := fibretypes.ClassifyTxs(txs)
+		require.NoError(t, err)
+		dataSquare, err := square.Construct(classifiedTxs, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+		require.NoError(t, err)
+		size, err := dataSquare.Size()
+		require.NoError(t, err)
+		return calculateNewDataHash(t, txs), uint64(size)
+	}
+
+	for name, block := range map[string][][]byte{
+		"parallel":   txs,
+		"sequential": txs[:sequentialTxs],
+	} {
+		t.Run(name, func(t *testing.T) {
+			root, size := reference(t, block)
+			wrongRoot := bytes.Clone(root)
+			wrongRoot[0] ^= 0xFF
+
+			require.Equal(t, abci.ResponseProcessProposal_ACCEPT, process(t, block, root, size))
+			require.Equal(t, abci.ResponseProcessProposal_REJECT, process(t, block, wrongRoot, size))
+			require.Equal(t, abci.ResponseProcessProposal_REJECT, process(t, block, root, size*2))
+		})
+	}
+
+	t.Run("parallel build of a block the walk rejects", func(t *testing.T) {
+		block := append([][]byte{forgedFirst}, txs[1:]...)
+		root, size := reference(t, block)
+		require.Equal(t, abci.ResponseProcessProposal_REJECT, process(t, block, root, size))
+	})
+}
+
 // TestProcessProposalWithPayForFibre covers valid PFF blocks and invalid tx shapes.
 func TestProcessProposalWithPayForFibre(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
