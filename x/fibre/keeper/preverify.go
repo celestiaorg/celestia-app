@@ -95,10 +95,8 @@ func (v verification) run() bool {
 	if !v.addTo(batch) {
 		return false
 	}
-	// Batch-only, as in runVerificationChunk: the entries are ZIP-215
-	// (cofactored), so every entry passing on its own implies the batch
-	// equation holds, and Verify's per-entry fallback could never turn a failed
-	// batch into a pass. It would only add work to a rejection.
+	// Batch-only: the entries are ZIP-215 (cofactored), so Verify's per-entry fallback
+	// could never turn a failed batch into a pass.
 	if batch, ok := batch.(*ed25519.BatchVerifier); ok {
 		return batch.VerifyBatchOnly(crypto.CReader())
 	}

@@ -18,17 +18,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestProposalPayForFibreAnteMatchesFinalizeBlock pins the flat ante walk a
-// single-message PayForFibre takes in ProcessProposal to the full chain
-// FinalizeBlock runs: same error, same gas, same sequence and balance after.
-// A decorator marked inert for that walk that starts doing work for a PFF, or
-// a decorator that starts doing work after next, makes the two differ.
-// The cases reach every decorator of the walk, so marking any of them inert
-// changes a result, with two exceptions. ExtensionOptions: no extension option
-// type is registered, so a tx carrying one never decodes. Validator
-// signatures: FinalizeBlock skips verifying them by design, so they stay
-// valid here; TestPayForFibreSigCacheRejectsMutatedCertificates covers the
-// proposal side.
+// TestProposalPayForFibreAnteMatchesFinalizeBlock pins the flat PFF walk to
+// FinalizeBlock's chain (error, gas, sequence, balance). Its cases reach every
+// decorator but ExtensionOptions (never decodes) and validator signatures (unchecked).
 func TestProposalPayForFibreAnteMatchesFinalizeBlock(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)

@@ -76,8 +76,7 @@ func NewAnteHandler(
 		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
-		// Contract: must be called after all decorators that consume gas.
-		// Note: does not consume gas from the gas meter.
+		// Contract: must be called after all decorators that consume gas; consumes none itself.
 		// Proposal PFF: inert, it has no MsgPayForBlobs.
 		inertForProposalPFF{blobante.NewMinGasPFBDecorator()},
 		// Ensure that the blob shares occupied by the tx <= the max shares
@@ -103,22 +102,15 @@ func NewAnteHandler(
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
-// inertForProposalPFF marks a decorator that does nothing - no check, write
-// or gas - for a single-message PayForFibre in ProcessProposal, outside
-// CheckTx and recheck. The flat walk in newAppAnteChain leaves it out; every
-// other path runs it unwrapped. Mark a decorator here, next to its
-// construction, only with the reason written beside it.
+// inertForProposalPFF marks a decorator that does nothing for a single-message
+// PayForFibre in ProcessProposal, so newAppAnteChain's flat walk skips it.
 type inertForProposalPFF struct {
 	sdk.AnteDecorator
 }
 
-// newAppAnteChain is sdk.ChainAnteDecorators(panicHandler, setUp, chain...),
-// except for a single-message PayForFibre in ProcessProposal: that runs chain
-// as a flat loop inside the two wrappers, without the decorators marked
-// inertForProposalPFF. The flat loop hands every decorator a terminal next, so
-// no decorator in chain may do work after calling next, and each must call next
-// unless it returns an error: one that returns early without it stops the
-// regular chain but not the loop.
+// newAppAnteChain is sdk.ChainAnteDecorators(panicHandler, setUp, chain...), but
+// runs a single-message PayForFibre in ProcessProposal through chain minus inert
+// decorators as a flat loop: each must call next unless it errors, and do no work after.
 func newAppAnteChain(panicHandler HandlePanicDecorator, setUp ante.SetUpContextDecorator, chain ...sdk.AnteDecorator) sdk.AnteHandler {
 	all := []sdk.AnteDecorator{panicHandler, setUp}
 	var pffChain []sdk.AnteDecorator

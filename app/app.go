@@ -744,9 +744,8 @@ func (app *App) GetScopedIBCKeeper() capabilitykeeper.ScopedKeeper {
 	return app.ScopedIBCKeeper
 }
 
-// newAnteHandler returns the ante handler that validates transactions,
-// including in PrepareProposal and ProcessProposal. accountKeeper is a
-// parameter so a proposal path can hand in a reader of its own.
+// newAnteHandler returns the ante handler that validates transactions, including in
+// the proposal phases; accountKeeper is a parameter so a proposal path can pass its own.
 func (app *App) newAnteHandler(accountKeeper authkeeper.AccountKeeper, signModeHandler *txsigning.HandlerMap) sdk.AnteHandler {
 	return ante.NewAnteHandler(
 		accountKeeper,
