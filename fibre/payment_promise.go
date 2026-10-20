@@ -125,6 +125,13 @@ func (p *PaymentPromise) ToProto() (*types.PaymentPromise, error) {
 // Validate performs stateless validation on the [PaymentPromise].
 // It verifies all field constraints and validates the [PaymentPromise.Signature] using [PaymentPromise.SignerKey].
 func (p *PaymentPromise) Validate() error {
+	return p.ValidateWith((*secp256k1.PubKey).VerifySignature)
+}
+
+// ValidateWith is [PaymentPromise.Validate] with verify checking the signature
+// over the sign bytes. It is for a faster verifier that accepts exactly what
+// the SDK verifier accepts; every other check stays the same code.
+func (p *PaymentPromise) ValidateWith(verify func(key *secp256k1.PubKey, msg, sig []byte) bool) error {
 	// signer key must be valid secp256k1 public key (33 bytes)
 	if p.SignerKey == nil {
 		return fmt.Errorf("signer key must be %d bytes, got 0", secp256k1.PubKeySize)
@@ -172,7 +179,7 @@ func (p *PaymentPromise) Validate() error {
 	}
 
 	// verify signature using secp256k1
-	if !p.SignerKey.VerifySignature(signBytes, p.Signature) {
+	if !verify(p.SignerKey, signBytes, p.Signature) {
 		return errors.New("signature verification failed")
 	}
 

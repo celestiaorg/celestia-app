@@ -98,7 +98,7 @@ type verification struct {
 // run reports whether every check in this item passed.
 func (v verification) run() bool {
 	if v.promise != nil {
-		return v.promise.Validate() == nil
+		return verifyPromise(v.promise)
 	}
 	if len(v.pubKeys) == 1 {
 		// A batch of one costs more than a plain verification.
