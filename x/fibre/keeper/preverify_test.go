@@ -619,6 +619,33 @@ func TestDecodePayForFibre(t *testing.T) {
 	require.Nil(t, keeper.DecodePayForFibre(raw[:len(raw)/2]))
 }
 
+// TestPromiseHashReuse pins ProcessProposal's promise-hash reuse: the decoded
+// view's hash is fibre.PaymentPromise.Hash, and the keeper uses it only for the
+// promise inside the view decoded from ctx.TxBytes().
+func TestPromiseHashReuse(t *testing.T) {
+	f := newPreverifyFixture(t)
+	msg := f.signedMessage(t, 1)
+	d := f.decodedMessage(t, msg)
+
+	pp := fibre.PaymentPromise{}
+	require.NoError(t, pp.FromProto(&msg.PaymentPromise))
+	want, err := pp.Hash()
+	require.NoError(t, err)
+	require.Equal(t, want, d.PromiseHash())
+
+	holder := &types.CertKeyHolder{}
+	holder.Set(d)
+	ctx := types.WithCertKeyHolder(f.ctx.WithExecMode(sdk.ExecModeProcessProposal), holder).WithTxBytes(d.Raw)
+	require.Same(t, d, types.DecodedPayForFibreFromContext(ctx))
+	require.Nil(t, types.DecodedPayForFibreFromContext(ctx.WithTxBytes(f.txBytesFor(t, f.signedMessage(t, 2)))))
+
+	f.keeper.SetProcessedPayment(ctx, types.ProcessedPayment{PaymentPromiseHash: want, ProcessedAt: ctx.BlockTime()})
+	require.True(t, f.keeper.IsPaymentPromiseProcessed(ctx, &d.Msg.PaymentPromise))
+	// Another promise checked while this view is attached keeps its own hash.
+	other := f.signedMessage(t, 2)
+	require.False(t, f.keeper.IsPaymentPromiseProcessed(ctx, &other.PaymentPromise))
+}
+
 // TestPreverifyDecodedMatchesPreverifySignatures checks the decoded entry point
 // records the same cache entries as the byte-level one.
 func TestPreverifyDecodedMatchesPreverifySignatures(t *testing.T) {
