@@ -52,9 +52,8 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 	}
 }
 
-// PreverifyTxSignatures fills the signature cache for single-signer direct-sign
-// transactions before ante checks their sequence or fees. That is sound because
-// the key binds every sign-bytes input; the ordered ante handler still decides.
+// PreverifyTxSignatures warms the signature cache for single-signer direct-sign txs
+// before ante runs; sound because the key binds every sign-bytes input.
 func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx) {
 	if sigCache == nil {
 		return
@@ -66,10 +65,8 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 		sigData    signing.SignatureData
 		txData     txsigning.TxData
 	}
-	// Account reads stay on this goroutine, which feeds workers that only
-	// verify. A worker starts with the first item it would take, so the pool
-	// is sized by the work found, up to GOMAXPROCS (not NumCPU, which in a
-	// CPU-limited container only adds goroutines contending for the same Ps).
+	// Account reads stay on this goroutine; the verify-only pool is sized by the work
+	// found, up to GOMAXPROCS (NumCPU over-subscribes a CPU-limited container).
 	maxWorkers := runtime.GOMAXPROCS(0)
 	jobs := make(chan workItem, 2*maxWorkers)
 	var (

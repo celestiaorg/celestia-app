@@ -19,9 +19,8 @@ func executeTxMsgs(ctx sdk.Context, sdkTx sdk.Tx, router baseapp.MessageRouter) 
 	return nil
 }
 
-// runMsgs executes msgs directly on ctx, so a failure can leave partial
-// writes; a caller that must not keep them branches first.
-// A nil router skips execution for tests.
+// runMsgs executes msgs directly on ctx, so a caller that must not keep a failure's
+// partial writes branches first. A nil router skips execution for tests.
 func runMsgs(ctx sdk.Context, msgs []sdk.Msg, router baseapp.MessageRouter) (err error) {
 	if router == nil {
 		return nil

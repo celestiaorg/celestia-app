@@ -113,9 +113,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
 	})()
 
-	// SDK decoding is independent per tx. Prefetch only parseable PayForFibre
-	// txs, which the count below bounds by the block limit before any is
-	// decoded. Results are consumed in block order below.
+	// SDK decoding is independent per tx: prefetch only parseable PayForFibre txs, which
+	// the count below bounds by the block limit; results are consumed in block order.
 	var decodeCandidates []int
 	for idx, d := range decoded {
 		if d == nil {
@@ -142,9 +141,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if decodeErrs[idx] != nil {
 			return
 		}
-		// The SDK wrapper computes signers lazily. Prime its byte-bound cache
-		// here while each tx has one worker; ante still reports any signer
-		// error, or panic, in block order.
+		// Prime the SDK wrapper's lazy signer cache while each tx has one worker; ante still
+		// reports any signer error or panic in block order.
 		defer func() { _ = recover() }()
 		if sigTx, ok := sdkTxs[idx].(authsigning.SigVerifiableTx); ok {
 			_, _ = sigTx.GetSigners()
@@ -158,9 +156,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		StopOnFirstFailure: true,
 	})
 	waitDecode()
-	// Gated on there being candidates at all, not on the fibre pass queuing
-	// work: it queues nothing when every certificate is already cached, but
-	// the tx signatures still are not.
+	// Gated on candidates, not on queued fibre work: with every certificate cached the
+	// fibre pass queues nothing, but tx signatures still need warming.
 	if len(decodeCandidates) > 0 {
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	}
@@ -248,16 +245,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			// Settle after ante so later promises see the updated state and the tx
-			// pays the same gas it would in FinalizeBlock. This ante pass is also
-			// the consensus enforcement point for PFF validator signatures:
-			// FinalizeBlock never re-verifies them (see
-			// FibreSignatureVerificationDecorator), so removing it would let a
-			// proposer settle promises without a validator quorum.
-			//
-			// A PayForFibre runs straight on the proposal branch, without a
-			// per-tx cache branch: any failure rejects the whole proposal,
-			// and the branch with it, so there are no writes to roll back.
+			// Settle after ante so later promises see the updated state and the tx pays
+			// FinalizeBlock's gas. This ante pass is the only consensus check of PFF validator
+			// signatures. No per-tx branch: any failure rejects the whole proposal.
 			if isPFF {
 				if execErr := runMsgs(ctx, msgs, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
@@ -362,12 +352,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	return accept(), nil
 }
 
-// forEachParallel calls fn(i) once for every i in [0, n) across up to
-// GOMAXPROCS goroutines and returns a function that waits for them. GOMAXPROCS,
-// not NumCPU: in a container limited to a fraction of the host the latter only
-// adds goroutines contending for the same Ps. A panic in fn is re-raised by
-// wait on the caller's goroutine, so ProcessProposal's recover rejects the block
-// exactly as it would had fn run inline.
+// forEachParallel calls fn(i) for every i in [0, n) on up to GOMAXPROCS goroutines;
+// the returned wait re-raises a panic from fn on the caller's goroutine.
 func forEachParallel(n int, fn func(i int)) (wait func()) {
 	var (
 		next     atomic.Int64
