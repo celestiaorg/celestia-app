@@ -87,6 +87,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	// Decode every tx once, up front. Oversize txs are left to the loop, which
 	// rejects them without decoding.
+	var maybePFF []int
 	for idx, rawTx := range req.Txs {
 		if len(rawTx) > appconsts.MaxTxSize {
 			continue
@@ -101,13 +102,14 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				blobTxs[idx] = decodedBlob
 			}
 		}
+		if blobTxs[idx] == nil {
+			maybePFF = append(maybePFF, idx)
+		}
 	}
 	// Each pay-for-fibre decode depends only on its own bytes. The blob scan
 	// above already reported malformed blob txs, in block order.
-	forEachParallel(len(req.Txs), func(idx int) {
-		if len(req.Txs[idx]) > appconsts.MaxTxSize || blobTxs[idx] != nil {
-			return
-		}
+	forEachParallel(len(maybePFF), func(i int) {
+		idx := maybePFF[i]
 		decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
 	})()
 
