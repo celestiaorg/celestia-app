@@ -391,10 +391,8 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
-// TestPreverifySignaturesRecordsEachTransaction covers one accepted message, one
-// with a forged certificate and one the pass bails out of. All three share a
-// combined batch, so the forgery costs every entry in it - work, not correctness.
-// One worker keeps them in one chunk; with more, chunks shrink to one item.
+// TestPreverifySignaturesRecordsEachTransaction covers an accepted, a forged and a
+// bailed-out message in one batch, on one worker so they share a chunk.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	prev := runtime.GOMAXPROCS(1)
 	t.Cleanup(func() { runtime.GOMAXPROCS(prev) })
@@ -433,11 +431,8 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, accepted))
 }
 
-// TestPreverifySignaturesReusesVerifierAfterFailure covers a chunk that fails
-// followed by one that succeeds: the batch verifier is shared across chunks, so
-// a failure must not leave it unusable. One worker, so the chunk after the
-// failed one runs on the same verifier; with more, each chunk can get its own
-// and the test passes without a Reset.
+// TestPreverifySignaturesReusesVerifierAfterFailure checks a failing chunk does not
+// break the shared batch verifier for the next; one worker keeps both on it.
 func TestPreverifySignaturesReusesVerifierAfterFailure(t *testing.T) {
 	prev := runtime.GOMAXPROCS(1)
 	t.Cleanup(func() { runtime.GOMAXPROCS(prev) })
