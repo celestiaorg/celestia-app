@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"runtime"
 	"testing"
 	"time"
 
@@ -431,8 +432,12 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 
 // TestPreverifySignaturesReusesVerifierAfterFailure covers a chunk that fails
 // followed by one that succeeds: the batch verifier is shared across chunks, so
-// a failure must not leave it unusable.
+// a failure must not leave it unusable. One worker, so the chunk after the
+// failed one runs on the same verifier; with more, each chunk can get its own
+// and the test passes without a Reset.
 func TestPreverifySignaturesReusesVerifierAfterFailure(t *testing.T) {
+	prev := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() { runtime.GOMAXPROCS(prev) })
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	f.msg.ValidatorSignatures[129] = make([]byte, 64)
 	f.refreshCertKey(t)
