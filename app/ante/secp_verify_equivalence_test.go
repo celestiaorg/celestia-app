@@ -4,6 +4,7 @@ package ante
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math/big"
 	"math/rand"
 	"testing"
@@ -16,8 +17,7 @@ import (
 // TestNativeSecp256k1AcceptanceIsSubsetOfSDK checks a cgo build accepts exactly
 // what a nocgo build accepts: every native acceptance is also an SDK one.
 func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
-	order, ok := new(big.Int).SetString("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16)
-	require.True(t, ok)
+	order := nativesecp.S256().N
 	halfOrder := new(big.Int).Rsh(order, 1)
 
 	sdkAccepts := func(key *secp256k1.PubKey, msg, sig []byte) bool {
@@ -47,8 +47,26 @@ func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
 		return out, true
 	}
 
+	var sdkOnly int
+	// check asserts the property for one input and counts the inputs only the
+	// SDK accepts: the non-canonical encodings the fallback exists for.
+	check := func(key *secp256k1.PubKey, msg, sig []byte, input string) {
+		t.Helper()
+		var native, sdk bool
+		require.NotPanics(t, func() {
+			native = nativeAccepts(key, msg, sig)
+			sdk = sdkAccepts(key, msg, sig)
+		}, input)
+		require.False(t, native && !sdk, "native accepted what the SDK rejects: %s", input)
+		// What a cgo build actually accepts is the union, and it must equal
+		// what a nocgo build accepts, which is the SDK's set.
+		require.Equal(t, sdk, unionAccepts(key, msg, sig), "cgo and nocgo disagree: %s", input)
+		if sdk && !native {
+			sdkOnly++
+		}
+	}
+
 	rng := rand.New(rand.NewSource(11))
-	var nativeOnly, sdkOnly int
 
 	for i := range 256 {
 		priv := secp256k1.GenPrivKey()
@@ -105,30 +123,50 @@ func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
 
 		for keyName, key := range keys {
 			for sigName, candidate := range variants {
-				var native, sdk bool
-				require.NotPanics(t, func() {
-					native = nativeAccepts(key, msg, candidate)
-					sdk = sdkAccepts(key, msg, candidate)
-				}, "iteration %d, key %q, signature %q", i, keyName, sigName)
-
-				require.False(t, native && !sdk,
-					"native accepted what the SDK rejects: iteration %d, key %q, signature %q",
-					i, keyName, sigName)
-				// What a cgo build actually accepts is the union, and it must
-				// equal what a nocgo build accepts, which is the SDK's set.
-				require.Equal(t, sdk, unionAccepts(key, msg, candidate),
-					"cgo and nocgo disagree: iteration %d, key %q, signature %q",
-					i, keyName, sigName)
-				switch {
-				case native && !sdk:
-					nativeOnly++
-				case sdk && !native:
-					sdkOnly++
-				}
+				check(key, msg, candidate, fmt.Sprintf("iteration %d, key %q, signature %q", i, keyName, sigName))
 			}
 		}
 	}
 
-	require.Zero(t, nativeOnly)
-	t.Logf("sdk-only acceptances (expected, covered by the fallback): %d", sdkOnly)
+	// A random signature's r or s plus the order almost never fits in 32
+	// bytes, so the loop above cannot reach the non-canonical encodings.
+	// Build signatures with small r and s instead: pick (r, s), recover the
+	// key they are valid for, then add the order to either scalar.
+	nonCanonical := 0
+	for r := int64(1); nonCanonical < 16; r++ {
+		msg := make([]byte, 64)
+		_, err := rng.Read(msg)
+		require.NoError(t, err)
+		hash := sha256.Sum256(msg)
+		recoverable := make([]byte, 65)
+		big.NewInt(r).FillBytes(recoverable[:32])
+		big.NewInt(r + 1000).FillBytes(recoverable[32:64])
+		uncompressed, err := nativesecp.RecoverPubkey(hash[:], recoverable)
+		if err != nil {
+			continue // r is not the x-coordinate of a curve point
+		}
+		x := new(big.Int).SetBytes(uncompressed[1:33])
+		y := new(big.Int).SetBytes(uncompressed[33:])
+		key := &secp256k1.PubKey{Key: nativesecp.CompressPubkey(x, y)}
+		sig := recoverable[:64]
+		require.True(t, sdkAccepts(key, msg, sig), "constructed signature must verify, r = %d", r)
+
+		for name, spec := range map[string]struct {
+			half int
+			v    *big.Int
+		}{
+			"canonical": {0, big.NewInt(r)},
+			"r + order": {0, new(big.Int).Add(big.NewInt(r), order)},
+			"s + order": {1, new(big.Int).Add(big.NewInt(r+1000), order)},
+		} {
+			candidate, ok := setScalar(sig, spec.half, spec.v)
+			require.True(t, ok)
+			check(key, msg, candidate, fmt.Sprintf("r = %d, signature %q", r, name))
+		}
+		nonCanonical++
+	}
+
+	// Two non-canonical encodings per constructed signature, and nothing else
+	// is SDK-only: the fallback is exercised, and only where it is meant to be.
+	require.Equal(t, 2*nonCanonical, sdkOnly)
 }
