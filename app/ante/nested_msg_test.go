@@ -8,6 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -31,6 +32,7 @@ func TestNestedMsgDecorator(t *testing.T) {
 	proposalWithNestedProposal := newMsgSubmitProposal(t, newMsgSubmitProposal(t, &banktypes.MsgSend{}))
 	proposalWithPayForBlobs := newMsgSubmitProposal(t, &blobtypes.MsgPayForBlobs{})
 	proposalWithPayForFibre := newMsgSubmitProposal(t, &fibretypes.MsgPayForFibre{})
+	proposalWithZKProof := newMsgSubmitProposal(t, &zkismtypes.MsgUpdateInterchainSecurityModule{})
 	msgExecWithProposal := authz.NewMsgExec(sdk.AccAddress{}, []sdk.Msg{newMsgSubmitProposal(t, &banktypes.MsgSend{})})
 
 	tests := []struct {
@@ -96,6 +98,11 @@ func TestNestedMsgDecorator(t *testing.T) {
 		{
 			name:    "Reject proposal with MsgPayForFibre",
 			msg:     proposalWithPayForFibre,
+			wantErr: sdkerrors.ErrNotSupported,
+		},
+		{
+			name:    "Reject proposal with ZK proof",
+			msg:     proposalWithZKProof,
 			wantErr: sdkerrors.ErrNotSupported,
 		},
 		{

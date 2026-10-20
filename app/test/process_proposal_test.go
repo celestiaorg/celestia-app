@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/bcp-innovations/hyperlane-cosmos/util"
 	"github.com/celestiaorg/celestia-app/v10/app"
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -19,6 +20,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
+	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
@@ -411,7 +413,7 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	// Create enough accounts so each sends exactly one tx (avoids sequence collisions).
 	// +2 accounts are grantees for the authz MsgExec txs built below, +3 sign the
 	// MsgModuleQuerySafe txs and +4 sign the ICA and tight-gas txs.
-	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 9
+	numberOfAccounts := (appconsts.MaxSDKMessages + 1) + (appconsts.MaxPFBMessages + 1) + 11
 	accounts := testfactory.GenerateAccounts(numberOfAccounts)
 	consensusParams := app.DefaultConsensusParams()
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(consensusParams, 128, accounts...)
@@ -499,6 +501,25 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 	msgExecExceedsTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages+1)
 	accountIndex++
 	msgExecAtLimitTx := buildMsgExecTx(accountIndex, appconsts.MaxSDKMessages)
+	accountIndex++
+
+	buildZKProofTx := func(accIdx, count int) []byte {
+		msgs := make([]sdk.Msg, count)
+		for i := range msgs {
+			msgs[i] = &zkismtypes.MsgUpdateInterchainSecurityModule{
+				Id:     util.CreateMockHexAddress("ism", int64(i+1)),
+				Proof:  make([]byte, zkismtypes.ProofBytesLen),
+				Signer: addrs[accIdx].String(),
+			}
+		}
+		rawTx, _, err := signers[accIdx].CreateTx(msgs, user.SetGasLimit(10000000), user.SetFee(10000))
+		require.NoError(t, err)
+		return rawTx
+	}
+
+	zkProofsExceedTx := buildZKProofTx(accountIndex, appconsts.MaxZKProofMessages+1)
+	accountIndex++
+	zkProofsAtLimitTx := buildZKProofTx(accountIndex, appconsts.MaxZKProofMessages)
 	accountIndex++
 
 	// Build a tx with a single MsgModuleQuerySafe weighing totalWeight. The
@@ -609,6 +630,18 @@ func TestProcessProposalCappingNumberOfMessages(t *testing.T) {
 		{
 			name:           "accept authz MsgExec flattening to exactly MaxSDKMessages",
 			txs:            [][]byte{msgExecAtLimitTx},
+			expectedResult: abci.ResponseProcessProposal_ACCEPT,
+			validSquare:    true,
+		},
+		{
+			name:           "reject block exceeding MaxZKProofMessages",
+			txs:            [][]byte{zkProofsExceedTx},
+			expectedResult: abci.ResponseProcessProposal_REJECT,
+			validSquare:    true,
+		},
+		{
+			name:           "accept block at exactly MaxZKProofMessages",
+			txs:            [][]byte{zkProofsAtLimitTx},
 			expectedResult: abci.ResponseProcessProposal_ACCEPT,
 			validSquare:    true,
 		},

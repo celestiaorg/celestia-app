@@ -11,4 +11,7 @@ const (
 
 	// MaxSDKMessages arbitrary high numbers for running benchmarks.
 	MaxSDKMessages = 999999999999
+
+	// MaxZKProofMessages arbitrary high numbers for running benchmarks.
+	MaxZKProofMessages = 999999999999
 )

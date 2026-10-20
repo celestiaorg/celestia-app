@@ -67,6 +67,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	var (
 		sdkMessageCount int
+		zkProofMsgCount int
 		pfbMessageCount int
 		pffMessageCount int
 		pffTxCount      int
@@ -191,6 +192,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 					return reject(), nil
 				}
 			} else {
+				zkProofMsgCount += countZKProofMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
+				if zkProofMsgCount > appconsts.MaxZKProofMessages {
+					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max ZK proof message count of %d", appconsts.MaxZKProofMessages))
+					return reject(), nil
+				}
 				sdkMessageCount += countExecutableMsgs(ctx, app.IBCKeeper.ChannelKeeper, msgs)
 				if sdkMessageCount > appconsts.MaxSDKMessages {
 					logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max SDK message count of %d", appconsts.MaxSDKMessages))

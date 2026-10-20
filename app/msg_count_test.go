@@ -6,6 +6,7 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -211,6 +212,42 @@ func TestCountExecutableMsgs(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ck := fakeChannelKeeper{encoding: tc.encoding}
 			require.Equal(t, tc.expected, countExecutableMsgs(sdk.Context{}, ck, tc.msgs))
+		})
+	}
+}
+
+func TestCountZKProofMsgs(t *testing.T) {
+	cdc := encoding.MakeConfig(ModuleEncodingRegisters...).Codec
+	update := func() sdk.Msg { return &zkismtypes.MsgUpdateInterchainSecurityModule{} }
+	submit := func() sdk.Msg { return &zkismtypes.MsgSubmitMessages{} }
+	execWith := func(msgs ...sdk.Msg) sdk.Msg {
+		exec := authz.NewMsgExec(sdk.AccAddress{}, msgs)
+		return &exec
+	}
+	icaPacket := func(msgs []proto.Message, enc string) sdk.Msg {
+		payload, err := icatypes.SerializeCosmosTx(cdc, msgs, enc)
+		require.NoError(t, err)
+		data := icatypes.InterchainAccountPacketData{Type: icatypes.EXECUTE_TX, Data: payload}
+		packet := channeltypes.NewPacket(data.GetBytes(), 1, "icacontroller-test", "channel-0", icatypes.HostPortID, "channel-1", clienttypes.ZeroHeight(), 0)
+		return channeltypes.NewMsgRecvPacket(packet, nil, clienttypes.ZeroHeight(), "signer")
+	}
+
+	tests := []struct {
+		name     string
+		msgs     []sdk.Msg
+		encoding string
+		want     int
+	}{
+		{name: "direct", msgs: []sdk.Msg{update(), &banktypes.MsgSend{}, submit()}, want: 2},
+		{name: "authz", msgs: []sdk.Msg{execWith(update(), &banktypes.MsgSend{}, submit())}, want: 2},
+		{name: "protobuf ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
+		{name: "JSON ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
+		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, countZKProofMsgs(sdk.Context{}, fakeChannelKeeper{encoding: tc.encoding}, tc.msgs))
 		})
 	}
 }
