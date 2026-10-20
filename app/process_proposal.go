@@ -176,7 +176,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// them, so a mixed block allocates nothing here. That loop also rejected
 	// any block over maxPFF.
 	if cached == nil && pffTxCount == len(req.Txs) && len(req.Txs) >= 100 {
-		uniqueCerts := make(map[sigcache.Key]struct{}, len(req.Txs))
 		uniquePromises := make(map[sigcache.Key]struct{}, len(req.Txs))
 		parallel := true
 		for i, d := range decoded {
@@ -184,16 +183,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				parallel = false
 				break
 			}
-			// Both keys, not just the certificate: two txs sharing a promise
-			// under different signature sets have distinct certificate keys,
-			// and the walk rejects the repeated promise anyway.
-			_, certSeen := uniqueCerts[d.CertKey]
-			_, promiseSeen := uniquePromises[d.PromiseKey]
-			if certSeen || promiseSeen {
+			// The promise key, not the certificate key: two txs sharing a
+			// promise under different signature sets have distinct certificate
+			// keys, and the walk rejects the repeated promise anyway. The
+			// certificate key covers the whole promise, so a repeated one is a
+			// repeated promise too.
+			if _, seen := uniquePromises[d.PromiseKey]; seen {
 				parallel = false
 				break
 			}
-			uniqueCerts[d.CertKey] = struct{}{}
 			uniquePromises[d.PromiseKey] = struct{}{}
 		}
 		if parallel {
