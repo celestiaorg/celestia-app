@@ -9,8 +9,10 @@ import (
 )
 
 // TestPayForFibreEventMatchesTypedEvent checks the hand-built event against the
-// SDK's own conversion of the typed one. The event is consensus-visible, so a
-// new field must fail here rather than change what indexers see.
+// SDK's own conversion of the typed one. Events are not part of the results
+// hash (celestia-core hashes only Code, Data, GasWanted and GasUsed), but
+// indexers and clients read them, so a new field must fail here rather than
+// change what they see.
 func TestPayForFibreEventMatchesTypedEvent(t *testing.T) {
 	cases := []struct {
 		name           string
@@ -37,13 +39,9 @@ func TestPayForFibreEventMatchesTypedEvent(t *testing.T) {
 			})
 			require.NoError(t, err)
 
+			// The whole event, so the attributes' Index flag is compared too.
 			got := PayForFibreEvent(tc.signer, tc.namespace, tc.commitment, tc.validatorCount)
-			require.Equal(t, want.Type, got.Type)
-			require.Equal(t, len(want.Attributes), len(got.Attributes))
-			for i := range want.Attributes {
-				require.Equal(t, want.Attributes[i].Key, got.Attributes[i].Key, "attribute %d key", i)
-				require.Equal(t, want.Attributes[i].Value, got.Attributes[i].Value, "attribute %d value", i)
-			}
+			require.Equal(t, want, got)
 		})
 	}
 }
