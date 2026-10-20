@@ -248,7 +248,7 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 }
 
 func TestServerStartLogsNormalizedObjectConfig(t *testing.T) {
-	var logs bytes.Buffer
+	var logs synchronizedLogBuffer
 	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
@@ -266,7 +266,7 @@ func TestServerStartLogsNormalizedObjectConfig(t *testing.T) {
 }
 
 func TestServerStartDoesNotLogPartialObjectConfig(t *testing.T) {
-	var logs bytes.Buffer
+	var logs synchronizedLogBuffer
 	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"

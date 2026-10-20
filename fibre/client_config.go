@@ -1,6 +1,7 @@
 package fibre
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log/slog"
@@ -78,6 +79,14 @@ type ClientConfig struct {
 	// Escrow configures client-side escrow auto-funding so uploads don't fail
 	// when the escrow account runs low.
 	Escrow EscrowConfig
+
+	// AcquirePutMemory, if set, admits each Put before it encodes the blob, so
+	// callers can bound how many encoded blobs are in memory at once. It should
+	// block until capacity is available or ctx is done. Fibre calls the returned
+	// release exactly once, when the blob's encoded storage is freed: after the
+	// last upload to a validator finishes, which may be after Put returns. Waiting
+	// for PayForFibre confirmation holds no capacity.
+	AcquirePutMemory func(ctx context.Context) (release func(), err error)
 }
 
 // defaultEscrowConfig derives escrow auto-funding defaults from the protocol

@@ -42,7 +42,8 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			var releaseOnce sync.Once
 			unblock := func() { releaseOnce.Do(func() { close(release) }) }
 			var clients atomic.Int64
-			client, txClient, settlement := newLifetimePutClient(t, func(next fibregrpc.NewClientFn) fibregrpc.NewClientFn {
+			gate := &putMemoryGate{}
+			client, txClient, settlement := newLifetimePutClient(t, gate.acquire, func(next fibregrpc.NewClientFn) fibregrpc.NewClientFn {
 				return func(ctx context.Context, val *coretypes.Validator) (fibregrpc.Client, error) {
 					c, err := next(ctx, val)
 					if err != nil || clients.Add(1) != 1 {
@@ -69,6 +70,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			}()
 			awaitLifetimeSignal(t, entered)
 			awaitLifetimeSignal(t, settlement.entered)
+			require.EqualValues(t, 1, gate.active.Load(), "quorum must not release a delayed reader's admission")
 
 			if canceled {
 				cancel()
@@ -78,6 +80,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 				case <-time.After(10 * time.Second):
 					t.Fatal("Put did not stop waiting for confirmation")
 				}
+				require.EqualValues(t, 1, gate.active.Load(), "cancellation must not release storage still in use")
 			}
 
 			// Reusing the same pool shape must not overwrite the delayed RPC's rows.
@@ -87,6 +90,7 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			unblock()
 			require.NoError(t, <-checked)
 			client.Await()
+			require.Zero(t, gate.active.Load())
 			if !canceled {
 				require.Eventually(t, func() bool {
 					runtime.GC()
@@ -109,6 +113,53 @@ func TestPutReleasesPayloadAfterLastReaderBeforeConfirmation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestPutMemoryAdmissionFailuresReleaseCapacity(t *testing.T) {
+	gate := &putMemoryGate{}
+	client, txClient, _ := newLifetimePutClient(t, gate.acquire, nil)
+	_, err := fibre.Put(t.Context(), client, txClient, testNamespace, nil)
+	require.Error(t, err)
+	require.Zero(t, gate.active.Load(), "encoding failure must release admission")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = fibre.Put(ctx, client, txClient, testNamespace, []byte("canceled"))
+	require.ErrorIs(t, err, context.Canceled)
+	require.Zero(t, gate.active.Load())
+
+	acquired := gate.acquired.Load()
+	require.NoError(t, client.Stop(t.Context()))
+	_, err = fibre.Put(t.Context(), client, txClient, testNamespace, []byte("closed"))
+	require.ErrorIs(t, err, fibre.ErrClientClosed)
+	require.Equal(t, acquired, gate.acquired.Load(), "closed client must fail before admission")
+}
+
+func TestPutUnstartedClientFailsBeforeAdmission(t *testing.T) {
+	cfg := fibre.DefaultClientConfig()
+	cfg.AcquirePutMemory = func(ctx context.Context) (func(), error) {
+		<-ctx.Done() // capacity never frees: reaching here would hang until timeout
+		return nil, ctx.Err()
+	}
+	client, err := fibre.NewClient(makeTestKeyring(t), cfg)
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	_, err = fibre.Put(ctx, client, nil, testNamespace, []byte("unstarted"))
+	require.ErrorContains(t, err, "not started")
+	require.NoError(t, ctx.Err(), "Put waited for admission")
+}
+
+// putMemoryGate is an unbounded AcquirePutMemory that counts admissions.
+type putMemoryGate struct{ active, acquired atomic.Int64 }
+
+func (g *putMemoryGate) acquire(ctx context.Context) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	g.active.Add(1)
+	g.acquired.Add(1)
+	return func() { g.active.Add(-1) }, nil
 }
 
 type delayedUploadReader struct {
@@ -138,11 +189,12 @@ func (c *delayedUploadReader) UploadShard(ctx context.Context, req *types.Upload
 	return c.Client.UploadShard(ctx, req, opts...)
 }
 
-func newLifetimePutClient(t *testing.T, wrap func(fibregrpc.NewClientFn) fibregrpc.NewClientFn) (*fibre.Client, *user.TxClient, *lifetimeSettlementServer) {
+func newLifetimePutClient(t *testing.T, acquire func(context.Context) (func(), error), wrap func(fibregrpc.NewClientFn) fibregrpc.NewClientFn) (*fibre.Client, *user.TxClient, *lifetimeSettlementServer) {
 	t.Helper()
 	kr := makeTestKeyring(t)
 	validators, keys := makeTestValidators(t, 4)
 	cfg := fibre.DefaultClientConfig()
+	cfg.AcquirePutMemory = acquire
 	cfg.NewClientFn = makeMockClientFn(validators, keys)
 	if wrap != nil {
 		cfg.NewClientFn = wrap(cfg.NewClientFn)

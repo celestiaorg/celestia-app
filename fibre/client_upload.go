@@ -77,7 +77,7 @@ func WithAwaitAllSignatures() UploadOption {
 // Returns [ErrNoKeyring] if the client has no keyring.
 func (c *Client) Upload(ctx context.Context, ns share.Namespace, blob *Blob, opts ...UploadOption) (result SignedPaymentPromise, err error) {
 	if !c.started.Load() {
-		return result, errors.New("fibre: client is not started")
+		return result, errClientNotStarted
 	}
 	if c.closed.Load() {
 		return result, ErrClientClosed
