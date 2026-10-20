@@ -357,7 +357,7 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 	for i := start; i < end; i++ {
 		item := items[i]
 		if item.promise != nil {
-			if verifyPromise(item.promise) {
+			if item.run() {
 				results[i].Store(true)
 			} else {
 				allValid = false

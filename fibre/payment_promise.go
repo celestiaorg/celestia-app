@@ -125,6 +125,13 @@ func (p *PaymentPromise) ToProto() (*types.PaymentPromise, error) {
 // Validate performs stateless validation on the [PaymentPromise].
 // It verifies all field constraints and validates the [PaymentPromise.Signature] using [PaymentPromise.SignerKey].
 func (p *PaymentPromise) Validate() error {
+	return p.ValidateWith((*secp256k1.PubKey).VerifySignature)
+}
+
+// ValidateWith is [PaymentPromise.Validate] with verify checking the signature
+// over the sign bytes. It is for a faster verifier that accepts exactly what
+// the SDK verifier accepts; every other check stays the same code.
+func (p *PaymentPromise) ValidateWith(verify func(key *secp256k1.PubKey, msg, sig []byte) bool) error {
 	// signer key must be valid secp256k1 public key (33 bytes)
 	if p.SignerKey == nil {
 		return fmt.Errorf("signer key must be %d bytes, got 0", secp256k1.PubKeySize)
@@ -137,8 +144,8 @@ func (p *PaymentPromise) Validate() error {
 	if p.ChainID == "" {
 		return errors.New("chain id must not be empty")
 	}
-	if len(p.ChainID) > MaxChainIDSize {
-		return fmt.Errorf("chain id length %d exceeds maximum %d", len(p.ChainID), MaxChainIDSize)
+	if len(p.ChainID) > maxChainIDSize {
+		return fmt.Errorf("chain id length %d exceeds maximum %d", len(p.ChainID), maxChainIDSize)
 	}
 
 	// upload size must be positive
@@ -172,7 +179,7 @@ func (p *PaymentPromise) Validate() error {
 	}
 
 	// verify signature using secp256k1
-	if !p.SignerKey.VerifySignature(signBytes, p.Signature) {
+	if !verify(p.SignerKey, signBytes, p.Signature) {
 		return errors.New("signature verification failed")
 	}
 
@@ -182,7 +189,7 @@ func (p *PaymentPromise) Validate() error {
 const (
 	// MaxPaymentPromiseSize is the theoretical maximum size of all PaymentPromise fields
 	// (excluding encoding overhead, like protobuf)
-	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + MaxChainIDSize
+	MaxPaymentPromiseSize = signBytesFixedSize + signatureSize + maxChainIDSize
 
 	// signBytesPrefix is prepended to the sign bytes to ensure the resulting signed message
 	// can't be confused with a consensus message (domain separation).
@@ -191,12 +198,9 @@ const (
 	// Format: signerPubKey(33) + namespace(29) + blobSize(4) + commitment(32) + blobVersion(4) + height(8) + timestamp(15)
 	signBytesFixedSize = secp256k1.PubKeySize + share.NamespaceSize + 4 + 32 + 4 + 8 + 15
 
-	// MaxChainIDSize is the maximum allowed chain ID length.
+	// maxChainIDSize is the maximum allowed chain ID length.
 	// Examples: "celestia" (8), "mocha-4" (7), "corto-1" (7)
-	//
-	// Exported because the native secp256k1 fast path must apply exactly these
-	// checks; a drifting bound is a cgo/nocgo acceptance split.
-	MaxChainIDSize = types.MaxChainIDSize
+	maxChainIDSize = types.MaxChainIDSize
 
 	// signatureSize is the size of a secp256k1 signature in compact format (32 bytes r + 32 bytes s)
 	signatureSize = types.PromiseSignatureSize
