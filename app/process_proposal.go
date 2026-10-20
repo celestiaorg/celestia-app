@@ -157,12 +157,23 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	}
 	if verifyPFF != nil {
-		var verificationWG sync.WaitGroup
-		verificationWG.Go(func() {
-			defer func() { _ = recover() }()
+		// The workers inside the pass recover their own panics. Anything else
+		// (the single-item path, recording) used to panic on this goroutine
+		// and reject through the recover above; re-raise it here after the
+		// walk so it still does, rather than vanishing with the goroutine.
+		var verifyPanic any
+		verifyDone := make(chan struct{})
+		go func() {
+			defer close(verifyDone)
+			defer func() { verifyPanic = recover() }()
 			verifyPFF()
-		})
-		defer verificationWG.Wait()
+		}()
+		defer func() {
+			<-verifyDone
+			if verifyPanic != nil {
+				panic(verifyPanic)
+			}
+		}()
 	}
 
 	// One holder for the whole walk, so the context does not grow by a value
