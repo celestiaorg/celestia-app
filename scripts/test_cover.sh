@@ -8,10 +8,11 @@ MODULE=$(GOWORK=off go list -m)
 # shard holds the slowest test packages; "rest" runs every other package, so a
 # new package is always covered. Keep the matrix in test-coverage.yml in sync.
 # Avoid associative arrays: macOS ships Bash 3.2.
-SHARD_NAMES="app-test txsim user"
+SHARD_NAMES="app-test fibre-tools txsim user"
 shard_packages() {
     case "$1" in
         app-test) echo "app/test" ;;
+        fibre-tools) echo "fibre/... tools/..." ;;
         txsim) echo "test/txsim test/ledger test/cmd/txsim" ;;
         user) echo "pkg/user" ;;
     esac
@@ -48,12 +49,19 @@ COVER_PKGS=$(printf '%s\n' "$SCOPE_PKGS" | paste -sd, -)
 # eligible scope, so every shard reports the same blocks.
 SHARD=${COVER_SHARD:-}
 if [[ -n "$SHARD" ]]; then
-    SHARDED=$(for name in $SHARD_NAMES; do shard_packages "$name"; done | tr ' ' '\n' | sed "s|^|$MODULE/|")
     if [[ "$SHARD" == "rest" ]]; then
+        # -e lists the other shards even if one names a package that is missing.
+        SHARDED=$(for name in $SHARD_NAMES; do shard_packages "$name"; done |
+            tr ' ' '\n' | sed "s|^|$MODULE/|" | xargs go list -e)
         PKGS=$(printf '%s\n' "$PKGS" | grep -vxF "$SHARDED" || true)
     elif [[ -n "$(shard_packages "$SHARD")" ]]; then
-        # A renamed or deleted package fails go test instead of shrinking the shard.
-        PKGS=$(shard_packages "$SHARD" | tr ' ' '\n' | sed "s|^|$MODULE/|")
+        # A renamed or deleted package fails go list instead of shrinking the shard.
+        LISTED=$(shard_packages "$SHARD" | tr ' ' '\n' | sed "s|^|$MODULE/|" | xargs go list)
+        if [[ -n "$LISTED" ]]; then
+            PKGS=$(printf '%s\n' "$PKGS" | grep -xF "$LISTED" || true)
+        else
+            PKGS=""
+        fi
     else
         echo "unknown coverage shard: $SHARD" >&2
         exit 1
