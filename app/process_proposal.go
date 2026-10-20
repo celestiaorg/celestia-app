@@ -112,14 +112,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	})()
 
 	// SDK decoding is independent per tx. Prefetch only parseable PayForFibre
-	// txs, capped at the block limit so a rejected block cannot make us decode
-	// an unbounded number. Results are consumed in block order below.
-	decodeCandidates := make([]int, 0, min(len(req.Txs), max(0, maxPFF)))
+	// txs, which the count below bounds by the block limit before any is
+	// decoded. Results are consumed in block order below.
+	var decodeCandidates []int
 	for idx, d := range decoded {
-		if d != nil && (maxPFF <= 0 || len(decodeCandidates) < maxPFF) {
-			decodeCandidates = append(decodeCandidates, idx)
-		}
-		if decoded[idx] == nil {
+		if d == nil {
 			continue
 		}
 
@@ -132,6 +129,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
 			return reject(), nil
 		}
+		decodeCandidates = append(decodeCandidates, idx)
 	}
 	sdkTxs := make([]sdk.Tx, len(req.Txs))
 	decodeErrs := make([]error, len(req.Txs))
@@ -190,8 +188,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			sdkTxBytes = blobTx.Tx
 		}
 
+		// Pay-for-fibre txs were decoded above; every other tx is decoded here.
 		sdkTx, err := sdkTxs[idx], decodeErrs[idx]
-		if sdkTx == nil && err == nil {
+		if decoded[idx] == nil {
 			sdkTx, err = decoder(sdkTxBytes)
 		}
 		ctx = ctx.WithTxBytes(sdkTxBytes)
