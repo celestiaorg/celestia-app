@@ -154,16 +154,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// Gated on there being candidates at all, not on the fibre pass preparing
 	// work: it prepares nothing when every certificate is already cached, but
 	// the tx signatures still are not.
-	if verifyPFF != nil || len(decodeCandidates) > 0 {
+	if len(decodeCandidates) > 0 {
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
-		if verifyPFF != nil {
-			var verificationWG sync.WaitGroup
-			verificationWG.Go(func() {
-				defer func() { _ = recover() }()
-				verifyPFF()
-			})
-			defer verificationWG.Wait()
-		}
+	}
+	if verifyPFF != nil {
+		var verificationWG sync.WaitGroup
+		verificationWG.Go(func() {
+			defer func() { _ = recover() }()
+			verifyPFF()
+		})
+		defer verificationWG.Wait()
 	}
 
 	// One holder for the whole walk, so the context does not grow by a value
