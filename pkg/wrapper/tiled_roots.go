@@ -11,6 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
+	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/rsmt2d"
 	"golang.org/x/sync/errgroup"
 )
@@ -18,17 +19,6 @@ import (
 const rootTileWidth = 16
 
 type tiledNode [2*share.NamespaceSize + sha256.Size]byte
-
-// paritySharesNamespace is the namespace nmt collapses rather than propagates
-// when it is a node's maximum. Derived from share, not spelled out: a literal
-// would stop matching if the namespace size changed, giving a different root.
-var paritySharesNamespace = share.ParitySharesNamespace.Bytes()
-
-func init() {
-	if len(paritySharesNamespace) != share.NamespaceSize {
-		panic("wrapper: parity namespace is not NamespaceSize bytes")
-	}
-}
 
 // ComputeRoots extends a square and computes its roots, sharing leaf hashes
 // between rows and columns. Nondefault trees use the original implementation.
@@ -140,13 +130,14 @@ func extendForTiledRoots(data [][]byte, n int) ([][]byte, error) {
 
 func tiledParent(left, right *tiledNode) (out tiledNode) {
 	var input [1 + 2*len(tiledNode{})]byte
-	input[0] = 1
+	input[0] = nmt.NodePrefix
 	copy(input[1:], left[:])
 	copy(input[1+len(left):], right[:])
 	digest := sha256.Sum256(input[:])
 	copy(out[:share.NamespaceSize], left[:share.NamespaceSize])
+	// IgnoreMaxNamespace: a parity right child does not raise the maximum.
 	maximum := right[share.NamespaceSize : 2*share.NamespaceSize]
-	if bytes.Equal(right[:share.NamespaceSize], paritySharesNamespace) {
+	if bytes.Equal(right[:share.NamespaceSize], share.ParitySharesNamespace.Bytes()) {
 		maximum = left[share.NamespaceSize : 2*share.NamespaceSize]
 	}
 	copy(out[share.NamespaceSize:], maximum)
@@ -168,14 +159,14 @@ func tiledRoots(cells [][]byte, width, concurrency int) ([][]byte, [][]byte) {
 	count := width / rootTileWidth
 	rows := make([]tiledNode, width*count)
 	cols := make([]tiledNode, width*count)
-	parityNS := share.ParitySharesNamespace.Bytes()
+	parityNS := share.ParitySharesNamespace.Bytes() // the namespace resizeableBufferTree gives parity cells
 	var next atomic.Int64
 	var workers sync.WaitGroup
 	for range min(runtime.NumCPU(), concurrency, count*count) {
 		workers.Go(func() {
 			var tile [rootTileWidth * rootTileWidth]tiledNode
 			var axis [rootTileWidth]tiledNode
-			var input [1 + share.NamespaceSize + share.ShareSize]byte
+			input := [1 + share.NamespaceSize + share.ShareSize]byte{nmt.LeafPrefix}
 			for {
 				job := int(next.Add(1)) - 1
 				if job >= count*count {
