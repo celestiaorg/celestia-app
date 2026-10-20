@@ -43,7 +43,7 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 			return nil
 		}
 		verificationKey := pubKey
-		if _, single := sigData.(*signing.SingleSignatureData); single && inProcessProposal(ctx) {
+		if inProcessProposal(ctx) {
 			verificationKey = txVerificationPubKey(pubKey)
 		}
 		if err := authsigning.VerifySignature(ctx, verificationKey, signerData, sigData, handler, txData); err != nil {
@@ -147,18 +147,13 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 	}
 }
 
-// inProcessProposal reports whether ctx is an SDK context running in
-// ProcessProposal. The verifier takes a plain context.Context, so unwrapping
-// could panic; an unreadable exec mode just keeps the ordinary key.
+// inProcessProposal reports whether ctx carries an SDK context running in
+// ProcessProposal. An sdk.Context answers the key with itself. Unlike
+// sdk.UnwrapSDKContext this never panics: without an SDK context the ordinary
+// key is kept.
 func inProcessProposal(ctx context.Context) bool {
-	sdkCtx, ok := ctx.(sdk.Context)
-	if !ok {
-		sdkCtx, ok = ctx.Value(sdk.SdkContextKey).(sdk.Context)
-		if !ok {
-			return false
-		}
-	}
-	return sdkCtx.ExecMode() == sdk.ExecModeProcessProposal
+	sdkCtx, ok := ctx.Value(sdk.SdkContextKey).(sdk.Context)
+	return ok && sdkCtx.ExecMode() == sdk.ExecModeProcessProposal
 }
 
 // txSigCacheKey covers every input the sign bytes are derived from, plus the
