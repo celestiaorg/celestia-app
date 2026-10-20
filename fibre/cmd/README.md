@@ -504,6 +504,10 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.upload_shard.bytes` | Counter (By) | — | Total shard row bytes stored |
 | `fibre.server.upload_shard.rejected` | Counter | `reason` | UploadShard RPCs rejected by the storage limiter |
 | `fibre.server.request.rejected` | Counter | `method`, `reason` | gRPC requests rejected by memory admission (`per_ip`, `memory_timeout`, `memory_overflow`) |
+| `fibre.server.request.reserved_bytes` | Gauge (By) | — | Request bytes reserved against `max_request_memory` |
+| `fibre.server.request.admission.waiting` | Gauge | — | Requests waiting for memory budget |
+| `fibre.server.connections.open` | Gauge | — | Open gRPC connections |
+| `fibre.server.connections.rejected` | Counter | `reason` | Connections rejected by the global (`global`) or per-IP (`per_ip`) cap |
 | `fibre.server.upload_shard.dupe_hits` | Counter | `stage` | UploadShard RPCs for an already stored shard |
 | `fibre.server.upload_shard.occupancy_bytes` | Gauge (By) | — | Shard bytes tracked by the storage limiter (on-disk plus reserved) |
 | `fibre.server.upload_shard.budget_bytes` | Gauge (By) | — | Current per-node storage budget |

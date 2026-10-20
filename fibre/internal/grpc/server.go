@@ -64,6 +64,7 @@ var (
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
+	conns                *limitedListener
 	adm                  *admission
 	intercept            grpc.UnaryServerInterceptor // wraps every handler; nil for none
 	done                 chan struct{}               // closed when Serve returns
@@ -85,8 +86,10 @@ func Listen(listenAddr string, maxConnectionsPerIP, maxConcurrentStreams int, ad
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
+	conns := newLimitedListener(listener, globalConnLimit, maxConnectionsPerIP)
 	return &Server{
-		listener:             newLimitedListener(listener, globalConnLimit, maxConnectionsPerIP),
+		listener:             conns,
+		conns:                conns,
 		adm:                  adm,
 		maxConcurrentStreams: uint32(maxConcurrentStreams),
 	}, nil
@@ -202,6 +205,26 @@ func msgSize(v any) int64 {
 		return int64(proto.Size(m))
 	}
 	return 0
+}
+
+// Stats is a snapshot of the admission and connection limiters.
+type Stats struct {
+	ReservedBytes   int64 // request bytes reserved against the budget
+	WaitingRequests int64 // requests waiting for budget
+	OpenConns       int64 // admitted open connections
+	RejectedGlobal  int64 // connections rejected by the global cap, total
+	RejectedPerIP   int64 // connections rejected by the per-IP cap, total
+}
+
+// Stats returns the limiters' current counts.
+func (s *Server) Stats() Stats {
+	return Stats{
+		ReservedBytes:   s.adm.reserved.Load(),
+		WaitingRequests: s.adm.waiting.Load(),
+		OpenConns:       s.conns.open.Load(),
+		RejectedGlobal:  s.conns.rejectedGlobal.Load(),
+		RejectedPerIP:   s.conns.rejectedPerIP.Load(),
+	}
 }
 
 // Done is closed once Serve returned. Err then says why; nil after Stop.

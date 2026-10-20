@@ -201,3 +201,19 @@ func TestDownloadHoldsMaxUntilReturn(t *testing.T) {
 	close(svc.release)
 	require.Eventually(t, func() bool { return srv.adm.reserved.Load() == 0 }, 2*time.Second, 10*time.Millisecond)
 }
+
+// TestServerStats: Stats reports live reservations and open connections.
+func TestServerStats(t *testing.T) {
+	const msg = 1 << 16
+	svc := &fakeFibre{entered: make(chan struct{}, 1), release: make(chan struct{})}
+	srv, conn := startServer(t, AdmissionConfig{Budget: msg, MaxMessage: msg}, svc)
+	go func() {
+		_, _ = types.NewFibreClient(conn).DownloadShard(context.Background(), &types.DownloadShardRequest{})
+	}()
+	<-svc.entered
+	st := srv.Stats()
+	require.EqualValues(t, msg, st.ReservedBytes)
+	require.EqualValues(t, 1, st.OpenConns)
+	close(svc.release)
+	require.Eventually(t, func() bool { return srv.Stats().ReservedBytes == 0 }, 2*time.Second, 10*time.Millisecond)
+}
