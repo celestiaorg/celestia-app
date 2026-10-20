@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"sync/atomic"
 
@@ -20,6 +21,11 @@ import (
 // it only from here to 200.
 const minParallelSquareTxs = 100
 
+// errProposalSquareCancelled marks a build stopped between stages. Its zero
+// size and root must never reach the proposer's claims: SquareSize 0 with an
+// empty data root would match them.
+var errProposalSquareCancelled = errors.New("proposal square build cancelled")
+
 type proposalSquareResult struct {
 	size uint64
 	root []byte
@@ -28,7 +34,8 @@ type proposalSquareResult struct {
 
 // buildProposalSquare computes the exact square and DAH ProcessProposal checks,
 // reading tx bytes and decoded views only. A panic is returned rather than
-// crashing the node; a build cancelled between stages returns a zero result.
+// crashing the node; a build cancelled between stages returns
+// errProposalSquareCancelled.
 func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre, maxSquareSize int, expectedSize uint64, cancel *atomic.Bool) (result proposalSquareResult) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -43,7 +50,7 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 		return result
 	}
 	if cancel.Load() {
-		return result
+		return proposalSquareResult{err: errProposalSquareCancelled}
 	}
 	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
@@ -51,7 +58,7 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 		return result
 	}
 	if cancel.Load() {
-		return result
+		return proposalSquareResult{err: errProposalSquareCancelled}
 	}
 	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
 	if err != nil {
@@ -63,7 +70,7 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 		return result
 	}
 	if cancel.Load() {
-		return result
+		return proposalSquareResult{err: errProposalSquareCancelled}
 	}
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
