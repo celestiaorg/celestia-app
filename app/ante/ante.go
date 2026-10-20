@@ -116,7 +116,9 @@ type inertForProposalPFF struct {
 // except for a single-message PayForFibre in ProcessProposal: that runs chain
 // as a flat loop inside the two wrappers, without the decorators marked
 // inertForProposalPFF. The flat loop hands every decorator a terminal next, so
-// no decorator in chain may do work after calling next.
+// no decorator in chain may do work after calling next, and each must call next
+// unless it returns an error: one that returns early without it stops the
+// regular chain but not the loop.
 func newAppAnteChain(panicHandler HandlePanicDecorator, setUp ante.SetUpContextDecorator, chain ...sdk.AnteDecorator) sdk.AnteHandler {
 	all := []sdk.AnteDecorator{panicHandler, setUp}
 	var pffChain []sdk.AnteDecorator
