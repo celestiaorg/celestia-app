@@ -46,11 +46,9 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 // PreverifyDecoded is PreverifySignatures over txs the caller already decoded,
 // so the phase decodes each tx once. nil entries are skipped.
 func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) {
-	verify := k.PreparePreverification(ctx, decoded, opts)
-	if verify == nil {
-		return
+	if verify := k.PreparePreverification(ctx, decoded, opts); verify != nil {
+		verify()
 	}
-	verify()
 }
 
 // PreparePreverification collects state-dependent inputs synchronously. The
