@@ -42,7 +42,7 @@ import (
 
 var (
 	// ForwardingRelayerImage is the docker container image for the forwarding relayer service.
-	ForwardingRelayerImage = container.NewImage("ghcr.io/celestiaorg/forwarding-relayer", "v0.2.0", "0:0")
+	ForwardingRelayerImage = container.NewImage("ghcr.io/celestiaorg/forwarding-relayer", "v0.2.11", "0:0")
 
 	// NOTE: This a workaround as using the chain name "celestia" causes configuration overlay issues
 	// with the Hyperlane agents container. This can be reverted when the following issue is addressed.
@@ -277,7 +277,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           forwardingRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			Port: "8080",
 		},
@@ -306,7 +306,7 @@ func (s *HyperlaneTestSuite) ConfigureForwardRelayer(ctx context.Context, chain 
 		Logger:          s.logger,
 		DockerClient:    s.client,
 		DockerNetworkID: s.network,
-		Image:           forwardingRelayerImage(),
+		Image:           ForwardingRelayerImage,
 		Settings: hyperlane.ForwardRelayerSettings{
 			CelestiaGRPC:  fmt.Sprintf("http://%s", networkInfo.Internal.GRPCAddress()),
 			BackendURL:    fmt.Sprintf("http://%s:%s", backend.HostName(), "8080"),

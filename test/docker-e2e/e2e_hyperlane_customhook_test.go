@@ -5,14 +5,11 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"os"
-	"strings"
 	"testing"
 
 	sdkmath "cosmossdk.io/math"
 	hyputil "github.com/bcp-innovations/hyperlane-cosmos/util"
 	pdtypes "github.com/bcp-innovations/hyperlane-cosmos/x/core/02_post_dispatch/types"
-	"github.com/celestiaorg/tastora/framework/docker/container"
 	"github.com/celestiaorg/tastora/framework/docker/cosmos"
 	"github.com/celestiaorg/tastora/framework/docker/hyperlane"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -22,24 +19,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// forwardingRelayerImage resolves the forwarding-relayer image. It is overridable via
-// FORWARDING_RELAYER_IMAGE=repo:tag so the custom-hook e2e can run against a branch build
-// (e.g. ghcr.io/celestiaorg/forwarding-relayer:custom-igp-hook) that supports CUSTOM_IGP_HOOK.
-func forwardingRelayerImage() container.Image {
-	if v := os.Getenv("FORWARDING_RELAYER_IMAGE"); v != "" {
-		if repo, tag, ok := strings.Cut(v, ":"); ok {
-			return container.NewImage(repo, tag, "0:0")
-		}
-	}
-	return ForwardingRelayerImage
-}
-
 // TestHyperlaneForwardingCustomHook is the real-relaying proof of the x/forwarding
-// custom_hook_id change: a forward routed through the patched forwarding-relayer
+// custom_hook_id change: a forward routed through the forwarding-relayer
 // (configured with CUSTOM_IGP_HOOK = the custom IGP) pays the custom IGP on Celestia — not the
 // mailbox default hook — and is still delivered on the destination EVM chain by the
-// Hyperlane relayer agent. Requires the patched celestia image (CELESTIA_TAG) and the
-// patched forwarding-relayer image (FORWARDING_RELAYER_IMAGE).
+// Hyperlane relayer agent. Requires the patched celestia image (CELESTIA_TAG).
 func (s *HyperlaneTestSuite) TestHyperlaneForwardingCustomHook() {
 	t := s.T()
 	if testing.Short() {
