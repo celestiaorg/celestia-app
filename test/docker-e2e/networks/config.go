@@ -51,14 +51,13 @@ func NewMochaConfig() *Config {
 		// state sync. Keep these in sync with the live mocha-5 testnet.
 		// The Celestia-operated archive RPC comes first because the
 		// third-party providers rate-limit CI runners, and a third provider
-		// keeps one witness alive when another returns 429.
+		// keeps one witness alive when another returns 429. It is also an
+		// archival node, so FetchArchivePeers finds a second archive peer
+		// besides itrocket.
 		RPCs: []string{
 			"https://rpc.celestia-mocha.com:443",
 			"https://rpc-mocha.pops.one:443",
 			"https://celestia-testnet-rpc.itrocket.net:443",
-			// Celestia's archival node, so FetchArchivePeers always finds a
-			// second archive peer besides itrocket.
-			"https://rpc.celestia-mocha.com:443",
 		},
 		// seeds provide dynamic peer discovery — the node contacts a seed,
 		// gets a fresh list of currently-alive peers, and connects. This is
