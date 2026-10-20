@@ -7,9 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBuildProposalSquareCancelledIsAnError pins that a cancelled build reports
-// an error. Its result is otherwise zero, and a zero size and root would match
-// a proposal claiming SquareSize 0 with an empty data root.
+// TestBuildProposalSquareCancelledIsAnError pins that a cancelled build errors: its
+// zero size and root would match a proposal claiming SquareSize 0.
 func TestBuildProposalSquareCancelledIsAnError(t *testing.T) {
 	var cancel atomic.Bool
 	cancel.Store(true)

@@ -165,17 +165,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	certKeys := &fibretypes.CertKeyHolder{}
 	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
-	// The data root depends only on immutable tx bytes, so build it while the
-	// ordered walk runs. Duplicate and malformed txs take the sequential path,
-	// so a cheap rejection does not start extra square work.
+	// The data root depends only on immutable tx bytes, so build it during the walk;
+	// duplicate and malformed txs take the sequential path, starting no extra work.
 	var (
 		square       proposalSquareResult
 		squareDone   chan struct{}
 		squareCancel atomic.Bool
 	)
-	// Only an all-PayForFibre block qualifies; the decode loop above counted
-	// them, so a mixed block allocates nothing here. That loop also rejected
-	// any block over maxPFF.
+	// Only an all-PayForFibre block (counted, and capped at maxPFF, by the decode loop)
+	// qualifies, so a mixed block allocates nothing here.
 	if cached == nil && pffTxCount == len(req.Txs) && len(req.Txs) >= minParallelSquareTxs {
 		uniquePromises := make(map[sigcache.Key]struct{}, len(req.Txs))
 		parallel := true
@@ -184,11 +182,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				parallel = false
 				break
 			}
-			// The promise key, not the certificate key: two txs sharing a
-			// promise under different signature sets have distinct certificate
-			// keys, and the walk rejects the repeated promise anyway. The
-			// certificate key covers the whole promise, so a repeated one is a
-			// repeated promise too.
+			// The promise key: a promise repeated under different signature sets has distinct
+			// certificate keys, and the walk rejects it anyway.
 			if _, seen := uniquePromises[d.PromiseKey]; seen {
 				parallel = false
 				break

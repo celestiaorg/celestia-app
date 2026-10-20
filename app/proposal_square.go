@@ -13,17 +13,12 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 )
 
-// minParallelSquareTxs is the smallest all-PayForFibre block whose square
-// ProcessProposal builds alongside the ordered walk. It keeps the goroutine and
-// the dedup scan off small blocks, which have little square work to hide. The
-// value is a judgement, not a measurement: the overlap was measured on a
-// 5,800-PFF block, and with MaxPayForFibreMessages at 200 a default build takes
-// it only from here to 200.
+// minParallelSquareTxs is the smallest all-PayForFibre block whose square is built
+// alongside the walk. A judgement, not a measurement: small blocks have little to hide.
 const minParallelSquareTxs = 100
 
-// errProposalSquareCancelled marks a build stopped between stages. Its zero
-// size and root must never reach the proposer's claims: SquareSize 0 with an
-// empty data root would match them.
+// errProposalSquareCancelled marks a build stopped between stages; its zero size and
+// root must never reach the proposer's claims, which SquareSize 0 would match.
 var errProposalSquareCancelled = errors.New("proposal square build cancelled")
 
 type proposalSquareResult struct {
@@ -32,10 +27,8 @@ type proposalSquareResult struct {
 	err  error
 }
 
-// buildProposalSquare computes the exact square and DAH ProcessProposal checks,
-// reading tx bytes and decoded views only. A panic is returned rather than
-// crashing the node; a build cancelled between stages returns
-// errProposalSquareCancelled.
+// buildProposalSquare computes the square and DAH ProcessProposal checks from tx
+// bytes and decoded views only; a panic or cancellation is returned as an error.
 func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre, maxSquareSize int, expectedSize uint64, cancel *atomic.Bool) (result proposalSquareResult) {
 	defer func() {
 		if r := recover(); r != nil {

@@ -117,11 +117,8 @@ func TestProcessProposalCappingPayForFibreMessages(t *testing.T) {
 	}
 }
 
-// TestProcessProposalParallelSquare drives both square paths through
-// ProcessProposal. An all-PayForFibre block of at least minParallelSquareTxs
-// (100) unique txs builds its square alongside the ordered walk; a smaller one
-// builds it after. Each must accept exactly the reference square size and data
-// root, and the parallel build must not hold up a block the walk rejects.
+// TestProcessProposalParallelSquare drives both square paths through ProcessProposal:
+// each must accept exactly the reference root and not hold up a rejected block.
 func TestProcessProposalParallelSquare(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping parallel square test in short mode.")

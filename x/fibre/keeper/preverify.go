@@ -295,13 +295,8 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 		return verified
 	}
 
-	// Results are collected in atomic.Bool and copied out at the end rather
-	// than written straight into verified. The atomics are not what makes this
-	// safe - each index has exactly one writer, and Wait orders the reads - but
-	// a plain []bool packs 64 results to a cache line, and workers claim
-	// consecutive chunks of chunkSize indices, so eight workers write to the
-	// same line. That cost about 1% of ProcessProposal over a full block when
-	// workers claimed one index at a time, measured; leave it as it is.
+	// atomic.Bool, not []bool: workers write adjacent results, and packed bools
+	// false-share one cache line (about 1% of ProcessProposal, measured).
 	results := make([]atomic.Bool, len(items))
 
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
@@ -320,9 +315,8 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 			// A worker panic must not take the node down: its unfinished items stay unverified
 			// and the sequential path redoes them.
 			defer func() { _ = recover() }()
-			// NewBatchVerifier always returns *BatchVerifier. If that changed,
-			// the recover above would leave every item unverified, which the
-			// preverify tests catch as a cache that never warms.
+			// NewBatchVerifier always returns *BatchVerifier; otherwise every item stays
+			// unverified, which the preverify tests catch as a cache that never warms.
 			batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			for {
 				i := int(next.Add(int64(chunkSize))) - chunkSize
@@ -347,16 +341,14 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 // ed25519 batch, at a time.
 const maxChunkSize = 8
 
-// verificationChunkSize shrinks chunks until every proc has one, so a few items
-// (CheckTx's promise and certificate) still run in parallel rather than in one
-// chunk on one worker.
+// verificationChunkSize shrinks chunks until every proc has one, so CheckTx's
+// promise and certificate still verify in parallel.
 func verificationChunkSize(items, procs int) int {
 	return min(maxChunkSize, max(1, (items+procs-1)/procs))
 }
 
-// runVerificationChunk combines a few certificate batches. A failed combined
-// batch leaves their cache entries unset; the ordered path verifies them again
-// and remains the authority on the block's validity.
+// runVerificationChunk combines a few certificate batches; a failed combined batch
+// leaves their entries unset for the ordered path, which still decides.
 func runVerificationChunk(items []verification, results []atomic.Bool, start, end int, batch *ed25519.BatchVerifier) bool {
 	batch.Reset()
 	allValid := true
