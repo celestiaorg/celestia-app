@@ -325,9 +325,9 @@ func TestPreverifySignaturesIsSafeToSkip(t *testing.T) {
 	}
 }
 
-// batchBoundaryValidators makes the 2/3 quorum prefix 67 signatures, so a
-// certificate is split across a full 64-signature batch and a short one.
-const batchBoundaryValidators = 100
+// batchBoundaryValidators makes the 2/3 quorum prefix 134 signatures, so a
+// certificate is split across a full 128-signature batch and a short one.
+const batchBoundaryValidators = 200
 
 // newMessage returns a valid message for the same validator set, set apart
 // from the fixture's by adding delta to its blob size, so one call can carry
@@ -362,8 +362,8 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}{
 		"all signatures valid":           {corrupt: -1, wantCached: true},
 		"failure in the first batch":     {corrupt: 0, wantCached: false},
-		"failure on the batch boundary":  {corrupt: 63, wantCached: false},
-		"failure in the second batch":    {corrupt: 65, wantCached: false},
+		"failure on the batch boundary":  {corrupt: 127, wantCached: false},
+		"failure in the second batch":    {corrupt: 129, wantCached: false},
 		"failure past the quorum prefix": {corrupt: batchBoundaryValidators - 1, wantCached: true},
 	}
 
@@ -401,7 +401,7 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 
 	// The pass queues this one's items and then fails one of them.
 	forged := f.newMessage(t, 2)
-	forged.ValidatorSignatures[65] = make([]byte, 64)
+	forged.ValidatorSignatures[129] = make([]byte, 64)
 	forgedKey, err := forged.SigCacheKey()
 	require.NoError(t, err)
 
@@ -434,7 +434,7 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 // a failure must not leave it unusable.
 func TestPreverifySignaturesReusesVerifierAfterFailure(t *testing.T) {
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
-	f.msg.ValidatorSignatures[65] = make([]byte, 64)
+	f.msg.ValidatorSignatures[129] = make([]byte, 64)
 	f.refreshCertKey(t)
 
 	// Each certificate makes two batch items at this validator count, so five
