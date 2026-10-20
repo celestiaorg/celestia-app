@@ -76,14 +76,17 @@ func extendForTiledRoots(data [][]byte, n int) ([][]byte, error) {
 	codec := appconsts.DefaultCodec()
 	var group errgroup.Group
 	group.SetLimit(max(1, runtime.NumCPU()/2))
-	for i := range n {
-		group.Go(func() error {
-			parity, err := codec.Encode(cells[i*w : i*w+n])
+	extendRow := func(r int) func() error {
+		return func() error {
+			parity, err := codec.Encode(cells[r*w : r*w+n])
 			if err == nil {
-				copy(cells[i*w+n:(i+1)*w], parity)
+				copy(cells[r*w+n:(r+1)*w], parity)
 			}
 			return err
-		})
+		}
+	}
+	for r := range n {
+		group.Go(extendRow(r))
 	}
 	for i := range n {
 		group.Go(func() error {
@@ -104,13 +107,7 @@ func extendForTiledRoots(data [][]byte, n int) ([][]byte, error) {
 		return nil, err
 	}
 	for r := n; r < w; r++ {
-		group.Go(func() error {
-			parity, err := codec.Encode(cells[r*w : r*w+n])
-			if err == nil {
-				copy(cells[r*w+n:(r+1)*w], parity)
-			}
-			return err
-		})
+		group.Go(extendRow(r))
 	}
 	return cells, group.Wait()
 }
