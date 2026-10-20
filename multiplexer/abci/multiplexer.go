@@ -15,6 +15,7 @@ import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v9/app/observability"
 	"github.com/celestiaorg/celestia-app/v9/multiplexer/internal"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -135,6 +136,10 @@ func (m *Multiplexer) Start() error {
 		return err
 	}
 
+	if err := m.syncAppVersion(); err != nil {
+		return err
+	}
+
 	if m.isGrpcOnly() {
 		m.logger.Info("starting node in gRPC only mode; CometBFT is disabled")
 		m.svrCfg.GRPC.Enable = true
@@ -236,6 +241,42 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	return m.initRemoteGrpcConn()
+}
+
+// syncAppVersion switches to the app version in the app's committed state when
+// it is newer than the one from CometBFT state. This happens when the node
+// stopped after the app committed an upgrade but before CometBFT saved its state.
+func (m *Multiplexer) syncAppVersion() error {
+	app, err := m.getApp()
+	if err != nil {
+		return fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
+	}
+	info, err := app.Info(&abci.RequestInfo{})
+	if err != nil {
+		return fmt.Errorf("failed to get app info: %w", err)
+	}
+	if info.AppVersion <= m.appVersion {
+		return nil
+	}
+
+	m.logger.Info("switching to app version from committed app state", "from_app_version", m.appVersion, "to_app_version", info.AppVersion)
+	m.appVersion = info.AppVersion
+	m.nextAppVersion = info.AppVersion
+	if m.isNativeApp() {
+		return nil
+	}
+
+	if _, err := m.versions.GetForAppVersion(m.appVersion); errors.Is(err, ErrNoVersionFound) {
+		// Start enables the gRPC and API servers for the native app after the comet node starts.
+		if err := m.stopEmbeddedApp(); err != nil {
+			return fmt.Errorf("failed to stop embedded app: %w", err)
+		}
+		_, err := m.startNativeApp()
+		return err
+	}
+
+	_, err = m.getApp()
+	return err
 }
 
 // removeStart removes the first argument (the binary name) and the start argument from args.
