@@ -295,8 +295,13 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 		return verified
 	}
 
-	// atomic.Bool, not []bool: workers write adjacent results, and packed bools
-	// false-share one cache line (about 1% of ProcessProposal, measured).
+	// Results are collected in atomic.Bool and copied out at the end rather
+	// than written straight into verified. The atomics are not what makes this
+	// safe - each index has exactly one writer, and Wait orders the reads - but
+	// a plain []bool packs 64 results to a cache line, and workers claim
+	// consecutive chunks of chunkSize indices, so eight workers write to the
+	// same line. That cost about 1% of ProcessProposal over a full block when
+	// workers claimed one index at a time, measured; leave it as it is.
 	results := make([]atomic.Bool, len(items))
 
 	const chunkSize = 8
