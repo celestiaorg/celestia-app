@@ -394,7 +394,10 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 // TestPreverifySignaturesRecordsEachTransaction covers one accepted message, one
 // with a forged certificate and one the pass bails out of. All three share a
 // combined batch, so the forgery costs every entry in it - work, not correctness.
+// One worker keeps them in one chunk; with more, chunks shrink to one item.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
+	prev := runtime.GOMAXPROCS(1)
+	t.Cleanup(func() { runtime.GOMAXPROCS(prev) })
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	accepted := f.newMessage(t, 1)
 	acceptedKey, err := accepted.SigCacheKey()
