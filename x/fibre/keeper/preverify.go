@@ -95,8 +95,13 @@ func (v verification) run() bool {
 	if !v.addTo(batch) {
 		return false
 	}
-	// A failing batch falls back to verifying each entry, so the verdict is the
-	// same one the sequential walk reaches.
+	// Batch-only, as in runVerificationChunk: the entries are ZIP-215
+	// (cofactored), so every entry passing on its own implies the batch
+	// equation holds, and Verify's per-entry fallback could never turn a failed
+	// batch into a pass. It would only add work to a rejection.
+	if batch, ok := batch.(*ed25519.BatchVerifier); ok {
+		return batch.VerifyBatchOnly(crypto.CReader())
+	}
 	allValid, _ := batch.Verify()
 	return allValid
 }
@@ -371,7 +376,7 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 		return allValid
 	}
 	if batchReady {
-		if valid, _ := batch.Verify(); valid {
+		if batch.VerifyBatchOnly(crypto.CReader()) {
 			for i := start; i < end; i++ {
 				if items[i].promise == nil {
 					results[i].Store(true)
