@@ -16,12 +16,9 @@ func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 	return DerivePayForFibre(raw, msg)
 }
 
-// DerivePayForFibre derives cache inputs from an already decoded transaction.
-// The caller must supply the message decoded from raw.
+// DerivePayForFibre is DecodePayForFibre for a caller that already holds the
+// non-nil message decoded from raw.
 func DerivePayForFibre(raw []byte, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
-	if msg == nil {
-		return nil
-	}
 	certKey, certKeyed := sigcache.Key{}, false
 	if key, err := msg.SigCacheKey(); err == nil {
 		certKey, certKeyed = key, true
