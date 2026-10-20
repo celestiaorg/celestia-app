@@ -111,6 +111,43 @@ assert_no_temporary_profile() {
 }
 assert_no_temporary_profile
 
+# Shards run disjoint packages, and merging them must reproduce the full report.
+mkdir -p app/test
+cat > app/test/app_test.go <<'EOF'
+package test
+import (
+    "testing"
+    "example.com/coveragefixture/app"
+)
+func TestHandlers(t *testing.T) { _ = app.PrepareProposalHandler() + app.ProcessProposalHandler() }
+EOF
+bash "$SCRIPT_DIR/test_cover.sh"
+mv coverage.txt full.txt
+mkdir -p shards
+COVER_SHARD=app-test bash "$SCRIPT_DIR/test_cover.sh" > shard.log 2>&1
+mv coverage.txt shards/app-test.txt
+COVER_SHARD=rest bash "$SCRIPT_DIR/test_cover.sh" > shard.log 2>&1
+# -coverpkg lists every scoped package in each result line, so match the tested package.
+grep -qE '^ok[[:space:]]+example.com/coveragefixture/consumer[[:space:]]' shard.log
+if grep -qE '^ok[[:space:]]+example.com/coveragefixture/app/test[[:space:]]' shard.log; then
+    echo "rest shard ran a package owned by another shard" >&2
+    exit 1
+fi
+mv coverage.txt shards/rest.txt
+bash "$SCRIPT_DIR/merge_coverage.sh" coverage.txt shards/app-test.txt shards/rest.txt
+cmp full.txt coverage.txt
+if cmp -s full.txt shards/rest.txt; then
+    echo "app-test shard did not contribute coverage" >&2
+    exit 1
+fi
+if COVER_SHARD=unknown bash "$SCRIPT_DIR/test_cover.sh" > shard.log 2>&1; then
+    echo "unknown coverage shard unexpectedly passed" >&2
+    exit 1
+fi
+bash "$SCRIPT_DIR/test_cover.sh" --list-shards | grep -qx rest
+assert_no_temporary_profile
+rm -rf app/test shards full.txt
+
 # A failed run must neither replace a previous report nor publish a partial one.
 cp coverage.txt previous.txt
 cat > consumer/failure_test.go <<'EOF'
