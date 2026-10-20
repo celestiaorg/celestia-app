@@ -151,7 +151,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
-	waitDecode()
 	// Gated on there being candidates at all, not on the fibre pass preparing
 	// work: it prepares nothing when every certificate is already cached, but
 	// the tx signatures still are not.
