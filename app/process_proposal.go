@@ -99,18 +99,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			}
 		}
 	}
-	// Pick the pay-for-fibre txs before scheduling bounded SDK decoding.
-	// Certificate inputs are then derived from that same decoded message.
+	// Inspect the envelope before scheduling bounded SDK decoding. Certificate
+	// inputs are then derived from that same decoded message.
 	var decodeCandidates []int
 	for idx, rawTx := range req.Txs {
-		if len(rawTx) > appconsts.MaxTxSize || blobTxs[idx] != nil || !fibretypes.IsPayForFibreTx(rawTx) {
+		if len(rawTx) > appconsts.MaxTxSize || blobTxs[idx] != nil || !pffDecodeCandidate(rawTx) {
 			continue
 		}
 
 		// Reject an over-full proposal here rather than after decoding every
-		// tx. Same verdict and same bound: IsPayForFibreTx accepts a tx only
-		// when it carries exactly one MsgPayForFibre, which is what the loop
-		// counts.
+		// tx. Same verdict and same bound, since pffDecodeCandidate counts
+		// exactly what the loop counts: one MsgPayForFibre per tx.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
