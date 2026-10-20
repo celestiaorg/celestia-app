@@ -109,8 +109,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 
 		// Reject an over-full proposal here rather than after decoding every
-		// tx. Same verdict and same bound, since pffDecodeCandidate counts
-		// exactly what the loop counts: one MsgPayForFibre per tx.
+		// tx. Same verdict and same bound: pffDecodeCandidate counts the txs
+		// carrying exactly one MsgPayForFibre, which is what the loop counts,
+		// plus any whose MsgPayForFibre bytes are malformed, which the loop
+		// rejects as undecodable.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
