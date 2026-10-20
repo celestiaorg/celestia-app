@@ -169,7 +169,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// ordered walk runs. Duplicate and malformed txs take the sequential path,
 	// so a cheap rejection does not start extra square work.
 	var (
-		squareDone   chan proposalSquareResult
+		square       proposalSquareResult
+		squareDone   chan struct{}
 		squareCancel atomic.Bool
 	)
 	// Only an all-PayForFibre block qualifies; the decode loop above counted
@@ -195,19 +196,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			uniquePromises[d.PromiseKey] = struct{}{}
 		}
 		if parallel {
-			squareDone = make(chan proposalSquareResult, 1)
-			// buildProposalSquare turns a panic into its result, so this
-			// always sends and the drain below never blocks forever.
+			squareDone = make(chan struct{})
 			go func() {
-				squareDone <- app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+				defer close(squareDone)
+				square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
 			}()
 			defer func() {
-				if squareDone != nil {
-					// Cancel before waiting, so a proposal rejected at its
-					// first tx does not pay for a whole square first.
-					squareCancel.Store(true)
-					<-squareDone
-				}
+				// Cancel before waiting, so a proposal rejected at its first
+				// tx does not pay for a whole square first.
+				squareCancel.Store(true)
+				<-squareDone
 			}()
 		}
 	}
@@ -351,12 +349,10 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return accept(), nil
 	}
 
-	var square proposalSquareResult
 	if squareDone == nil {
 		square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
 	} else {
-		square = <-squareDone
-		squareDone = nil
+		<-squareDone
 	}
 	if square.err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, square.stage, square.err)
