@@ -263,11 +263,8 @@ func marshalTx(t *testing.T, msgs ...*codectypes.Any) []byte {
 	return txBytes
 }
 
-// TestParsePayForFibreRejectsBlobTxCarryingTheTypeURL pins the two shapes that
-// put the MsgPayForFibre type URL inside bytes that are not a pay-for-fibre
-// tx. The substring prefilter admits both as candidates - it is an
-// over-approximation, and must stay one - so what rejects them is the BlobTx
-// check behind it. Misclassifying either would change the data root.
+// TestParsePayForFibreRejectsBlobTxCarryingTheTypeURL pins two non-PFF shapes the
+// type-URL prefilter admits; misclassifying either would change the data root.
 func TestParsePayForFibreRejectsBlobTxCarryingTheTypeURL(t *testing.T) {
 	signer, err := bech32.EncodeFromBase256("celestia", testSignerRaw)
 	require.NoError(t, err)

@@ -72,10 +72,8 @@ func TestClassifyTxsDecodedMatchesClassifyTxs(t *testing.T) {
 	}())
 	require.NoError(t, err)
 
-	// Two shapes that put the MsgPayForFibre type URL inside bytes that are
-	// not a pay-for-fibre tx, so the substring prefilter in parsePayForFibre
-	// cannot be what decides: a blob whose payload carries the string, and a
-	// BlobTx wrapping a real pay-for-fibre tx.
+	// Non-PFF shapes carrying the MsgPayForFibre type URL: a blob whose payload
+	// carries the string, and a BlobTx wrapping a real pay-for-fibre tx.
 	typeURLInBlob, err := squaretx.MarshalBlobTx([]byte("inner"), func() *share.Blob {
 		blob, err := share.NewBlob(testNamespace, []byte(fibretypes.MsgPayForFibreTypeURL), share.ShareVersionZero, nil)
 		require.NoError(t, err)

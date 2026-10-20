@@ -11,10 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// BenchmarkParsePayForFibreOverBlobTx measures the parse over the shape that
-// dominates a real block and is never a pay-for-fibre tx. Every caller that
-// scans a whole block walks these, PreBlocker's warming pass most of all, so
-// what this costs is paid per block on every node.
+// BenchmarkParsePayForFibreOverBlobTx measures the parse over blob txs, which
+// dominate real blocks and which PreBlocker's warming pass scans whole.
 func BenchmarkParsePayForFibreOverBlobTx(b *testing.B) {
 	for _, size := range []int{100 << 10, 500 << 10, 1 << 20} {
 		raw := blobTxOfSize(b, size)

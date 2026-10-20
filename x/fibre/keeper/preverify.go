@@ -152,12 +152,8 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
 	valSets := make(map[int64]*convertedValidatorSet)
-	// A pass over many messages may meet one certificate repeatedly; collect
-	// each distinct one once. Deduping is always right here, so it is not a
-	// caller's decision: a repeated certificate carries a repeated promise, so
-	// the first occurrence warms both keys.
-	// Sized to what the pass can actually cover, not to the input: the bound
-	// below caps how many messages are collected, however many are handed in.
+	// Collect each distinct certificate once: a repeat carries the same promise,
+	// so the first occurrence warms both keys. Sized by the pass's message cap.
 	var seenCerts map[sigcache.Key]struct{}
 	if opts.Certificates && len(decoded) > 1 {
 		seenCerts = make(map[sigcache.Key]struct{}, min(len(decoded), appconsts.MaxPayForFibreCandidates))
@@ -292,13 +288,8 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 		return verified
 	}
 
-	// Results are collected in atomic.Bool and copied out at the end rather
-	// than written straight into verified. The atomics are not what makes this
-	// safe - each index has exactly one writer, and Wait orders the reads - but
-	// a plain []bool packs 64 results to a cache line, and workers claim
-	// consecutive indices, so every one of them writes to the same line. That
-	// costs about 1% of ProcessProposal over a full block, measured; leave it
-	// as it is.
+	// atomic.Bool, not []bool: workers write adjacent results, and packed bools
+	// false-share one cache line (about 1% of ProcessProposal, measured).
 	results := make([]atomic.Bool, len(items))
 
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
@@ -312,9 +303,8 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	)
 	for range workers {
 		wg.Go(func() {
-			// Nothing here should panic, but a worker that does must not take
-			// the node down: its unfinished items stay unverified and the
-			// sequential path redoes them.
+			// A worker panic must not take the node down: its unfinished items stay unverified
+			// and the sequential path redoes them.
 			defer func() { _ = recover() }()
 			for {
 				i := int(next.Add(1)) - 1

@@ -29,9 +29,8 @@ func DecodedFromMsg(msg *types.MsgPayForFibre, certKey sigcache.Key) *types.Deco
 	return decodedFrom(msg, certKey, true)
 }
 
-// decodedFrom builds the view around msg, deriving the promise sign bytes and
-// key. A promise too malformed to key leaves both unset; the sequential
-// verifier still reports it.
+// decodedFrom builds the view around msg with the promise sign bytes and key, both
+// unset when the promise is too malformed to key (the sequential verifier reports it).
 func decodedFrom(msg *types.MsgPayForFibre, certKey sigcache.Key, certKeyed bool) *types.DecodedPayForFibre {
 	d := &types.DecodedPayForFibre{Msg: msg, CertKey: certKey, CertKeyed: certKeyed}
 	promise := &fibre.PaymentPromise{}

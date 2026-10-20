@@ -856,9 +856,8 @@ func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
 	}
 }
 
-// TestCheckTxPayForFibreRecheck admits a payment promise and rechecks it, so
-// the recheck takes the pay-for-fibre shortcut, and checks that bytes that are
-// not a well formed pay-for-fibre take the full path.
+// TestCheckTxPayForFibreRecheck checks that a rechecked payment promise takes the
+// pay-for-fibre shortcut and bytes that are not one take the full path.
 func TestCheckTxPayForFibreRecheck(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	// One account per case: CheckTx bumps the signer's sequence in the check
@@ -873,9 +872,8 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
-	// The shortcut is taken on the shape alone, so it applies to a
-	// pay-for-fibre the node never admitted. Nothing is skipped that the
-	// bytes have not already settled, so the verdict is the same either way.
+	// The shortcut keys on the shape alone, so it also applies to a pay-for-fibre the
+	// node never admitted; the verdict is the same either way.
 	t.Run("a recheck that was never admitted still reaches the same verdict", func(t *testing.T) {
 		txBytes := newSignedPayForFibreTx(t, newSigner(1), accounts[1], true)
 		require.True(t, fibretypes.IsPayForFibreTx(txBytes))
@@ -885,9 +883,8 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
 	})
 
-	// Skipping countExecutableMsgs is sound for a single MsgPayForFibre alone,
-	// because that always scores 1 against MaxSDKMessages. A tx of any other
-	// shape must take the full path on every recheck.
+	// Skipping countExecutableMsgs is sound only for a lone MsgPayForFibre (always 1
+	// against MaxSDKMessages); any other shape takes the full path on every recheck.
 	t.Run("a non PayForFibre tx takes the full path", func(t *testing.T) {
 		addr := testfactory.GetAddress(kr, accounts[2])
 		send := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))

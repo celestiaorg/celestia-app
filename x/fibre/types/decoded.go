@@ -18,9 +18,8 @@ type DecodedPayForFibre struct {
 	// CertKeyed is false when the certificate could not be keyed.
 	CertKey   sigcache.Key
 	CertKeyed bool
-	// PromiseSignBytes is what the validators signed, PromiseKey the promise's
-	// cache key. Both are unset when the promise is too malformed to key, so
-	// PromiseSignBytes being empty is what says PromiseKey means nothing.
+	// PromiseSignBytes is what the validators signed, PromiseKey the promise's cache key;
+	// both are unset (empty PromiseSignBytes) when the promise is too malformed to key.
 	PromiseSignBytes []byte
 	PromiseKey       sigcache.Key
 }
@@ -30,9 +29,8 @@ func (d *DecodedPayForFibre) PromiseKeyed() bool {
 	return len(d.PromiseSignBytes) > 0
 }
 
-// FibreTx returns the tx with its synthesized system blob. Each caller builds
-// it at most once, so it is derived rather than memoized: the view then has no
-// mutable field, and the pre-verification pass can share it across every CPU.
+// FibreTx returns the tx with its synthesized system blob. It is derived, not
+// memoized, so the view has no mutable field and can be shared across CPUs.
 func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
 	systemBlob, err := d.Msg.SystemBlob()
 	if err != nil {
@@ -43,13 +41,8 @@ func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
 
 type certKeyContextKey struct{}
 
-// CertKeyHolder carries the certificate cache key of the transaction being
-// processed through a sequential walk, so the context takes one value for the
-// whole walk instead of one per transaction. Not safe for concurrent use.
-//
-// The key is all the ante handler reads back, so that is all this carries: the
-// decoded view itself stays an ordinary value, passed by slice to the
-// pre-verification pass and the classifier.
+// CertKeyHolder carries the certificate cache key of the tx a sequential walk is
+// processing: one context value per walk. Not safe for concurrent use.
 type CertKeyHolder struct {
 	raw []byte
 	key sigcache.Key
@@ -74,18 +67,16 @@ func WithCertKeyHolder(ctx sdk.Context, h *CertKeyHolder) sdk.Context {
 	return ctx.WithValue(certKeyContextKey{}, h)
 }
 
-// WithCertKey attaches d's certificate key to ctx for a single transaction.
-// Prefer [WithCertKeyHolder] where a loop processes many transactions on one
-// context: a value per transaction would make the context chain grow with it.
+// WithCertKey attaches d's certificate key to ctx for a single transaction; a loop
+// over many should use [WithCertKeyHolder] so the context chain does not grow.
 func WithCertKey(ctx sdk.Context, d *DecodedPayForFibre) sdk.Context {
 	h := &CertKeyHolder{}
 	h.Set(d)
 	return WithCertKeyHolder(ctx, h)
 }
 
-// CertKeyFromContext returns the certificate cache key attached to ctx, but
-// only if it was derived from exactly ctx.TxBytes(), never one left by another
-// transaction.
+// CertKeyFromContext returns the certificate cache key attached to ctx, only if it
+// was derived from exactly ctx.TxBytes().
 func CertKeyFromContext(ctx sdk.Context) (sigcache.Key, bool) {
 	if ctx.Context() == nil {
 		return sigcache.Key{}, false

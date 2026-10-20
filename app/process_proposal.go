@@ -114,13 +114,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 	}
 
-	// Verify the block's pay-for-fibre signatures across every CPU before the
-	// sequential loop reaches them. This only warms the signature cache: a
-	// failed check is not recorded, so the loop below still performs it and
-	// still decides. Any failure rejects the whole block, so the pass stops
-	// claiming work at the first one.
-	// A block may repeat one certificate across many PayForFibre txs; the pass
-	// holds that to one verification per distinct certificate.
+	// Warm the signature cache across every CPU, once per distinct certificate; the
+	// loop below still decides.
 	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,

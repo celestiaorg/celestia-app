@@ -29,22 +29,8 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		return responseCheckTxWithEvents(errors.Wrapf(apperr.ErrTxExceedsMaxSize, "tx size %d bytes is larger than the application's configured MaxTxSize of %d bytes for version %d", len(tx), maxTxSize, appconsts.Version), 0, 0, []abci.Event{}, false), nil
 	}
 
-	// A recheck of a PayForFibre runs on bytes a previous CheckTx admitted, so
-	// this wrapper's work is skipped: the blob-tx unmarshal, the decode, the
-	// SDK message count and the shape check. Three of the four are pure
-	// functions of the bytes, which already passed them at admission. The
-	// fourth, countExecutableMsgs, reads state - and that is what the gate is
-	// for: a single MsgPayForFibre always scores 1 against MaxSDKMessages,
-	// whereas another tx's count can change between the two calls.
-	//
-	// IsPayForFibreTx answers the gate straight from the bytes, so there is
-	// nothing to carry between CheckTx and the recheck. What this costs is the
-	// signer address and sequence on the response: BaseApp does not derive
-	// them, and the mempool does not read them back on a recheck - it keeps
-	// the ones admission reported (see handleRecheckResult in celestia-core's
-	// cat mempool, "we do not update the transaction with any of the values
-	// returned in recheck tx"). A mempool that started reading them would need
-	// this shortcut to derive them again.
+	// A PayForFibre recheck skips this wrapper: its checks only depend on bytes
+	// CheckTx already admitted, and the mempool ignores signer/sequence on recheck.
 	if req.Type == abci.CheckTxType_Recheck && fibretypes.IsPayForFibreTx(tx) {
 		return app.BaseApp.CheckTx(req)
 	}

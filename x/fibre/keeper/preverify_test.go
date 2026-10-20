@@ -519,9 +519,7 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 }
 
 // TestPreverifyDeduplicatesRepeatedCertificates checks a repeated certificate
-// costs one verification, and that deduplication leaves the cache exactly as a
-// single copy would. The pass dedupes on its own, so there is nothing for a
-// caller to switch on or get wrong.
+// costs one verification and leaves the cache exactly as a single copy would.
 func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	const repeats = 8
 
@@ -543,9 +541,8 @@ func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	require.Equal(t, single.cache.Len(), deduped.cache.Len(),
 		"deduplication must not change what ends up cached")
 
-	// Skipping a repeat drops that message's whole contribution, promise
-	// included, which is safe: the sequential loop still decides every check
-	// the pass leaves uncached.
+	// Skipping a repeat drops its promise too, which is safe: the sequential loop still
+	// decides every check the pass leaves uncached.
 	require.NoError(t, deduped.keeper.ValidatePayForFibreSignatures(deduped.ctx, deduped.msg),
 		"and the sequential path still accepts it")
 }
