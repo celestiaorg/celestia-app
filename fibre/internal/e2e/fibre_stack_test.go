@@ -58,6 +58,7 @@ func startFibreStack(t *testing.T, cctx testnode.Context, ecfg encoding.Config, 
 		&fixedHostRegistry{addr: server.ListenAddress()},
 		func() string { return client.ChainID() },
 		clientCfg.MaxMessageSize,
+		fibre.DefaultProtocolParams.MaxRowsPerValidator(), fibre.DefaultProtocolParams.MerkleProofDepth(),
 		nil,
 	)
 	client, err = fibre.NewClient(cctx.Keyring, clientCfg)

@@ -188,6 +188,10 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 
 // Validate validates the ServerConfig and sets default values for unset fields.
 func (cfg *ServerConfig) Validate() error {
+	if cfg.MaxMessageSize <= 0 || int64(cfg.MaxMessageSize) > math.MaxInt32 {
+		return fmt.Errorf("MaxMessageSize must be between 1 and %d", math.MaxInt32)
+	}
+
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")
 	}

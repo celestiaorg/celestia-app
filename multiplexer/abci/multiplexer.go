@@ -15,6 +15,7 @@ import (
 	"syscall"
 
 	"cosmossdk.io/log"
+	appcodec "github.com/celestiaorg/celestia-app/v10/app/grpc/codec"
 	"github.com/celestiaorg/celestia-app/v10/app/observability"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -415,8 +416,13 @@ func (m *Multiplexer) startGRPCServer() (*grpc.Server, client.Context, error) {
 
 	m.clientContext = m.clientContext.WithGRPCClient(grpcClient)
 	m.logger.Debug("gRPC client assigned to client context", "target", m.svrCfg.GRPC.Address)
+	boundedCodec, err := appcodec.New(codec.NewProtoCodec(m.clientContext.InterfaceRegistry).GRPCCodec())
+	if err != nil {
+		return nil, m.clientContext, err
+	}
 	grpcSrv, err := servergrpc.NewGRPCServer(m.clientContext, m.nativeApp, m.svrCfg.GRPC, servergrpc.WithGRPCServerOptions(
 		grpc.ChainUnaryInterceptor(observability.UnaryPrometheusInterceptor()),
+		grpc.ForceServerCodec(boundedCodec),
 	))
 	if err != nil {
 		return nil, m.clientContext, err

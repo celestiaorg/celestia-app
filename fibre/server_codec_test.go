@@ -12,7 +12,7 @@ import (
 // TestServerCodecLimits checks the row and proof limits used by the server.
 func TestServerCodecLimits(t *testing.T) {
 	p := DefaultProtocolParams
-	codec := fibregrpc.NewServerCodec(p.MaxRowsPerValidator(), p.MerkleProofDepth())
+	codec := fibregrpc.NewServerCodec(p.MaxRowsPerValidator(), p.MerkleProofDepth(), p.MaxMessageSize())
 
 	unmarshal := func(rows, proofsPerRow int) error {
 		proof := make([][]byte, proofsPerRow)
