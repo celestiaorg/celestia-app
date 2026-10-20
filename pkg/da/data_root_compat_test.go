@@ -19,7 +19,8 @@ import (
 
 // TestDataRootCompatibilityVectors pins data roots for fixed squares. Each root
 // is computed with fresh trees, a fresh tree pool, and a tree pool that is
-// reused across square sizes and has just failed a root computation.
+// reused across square sizes and has just failed a root computation, and
+// through TreePool.ComputeRoots on both pools.
 func TestDataRootCompatibilityVectors(t *testing.T) {
 	// emptyRoot equals the hash pinned in TestMinDataAvailabilityHeader.
 	const emptyRoot = "3d96b7d238e7e0456f6af8e7cdf0a67bd6cf9c2089ecb559c659dcaa1f880353"
@@ -99,6 +100,17 @@ func TestDataRootCompatibilityVectors(t *testing.T) {
 			reused, err := dataRoot(tc.shares, withPool(reusedPool))
 			require.NoError(t, err)
 			require.True(t, fresh.Equals(&reused), "reused pool after failure")
+
+			// ProcessProposal's path: the tiled roots at n >= 8, else the
+			// pooled trees.
+			for name, pool := range map[string]*wrapper.TreePool{"fresh pool": freshPool, "reused pool": reusedPool} {
+				rows, columns, err := pool.ComputeRoots(tc.shares)
+				require.NoError(t, err, name)
+				require.Equal(t, fresh.RowRoots, rows, name)
+				require.Equal(t, fresh.ColumnRoots, columns, name)
+				computed := DataAvailabilityHeader{RowRoots: rows, ColumnRoots: columns}
+				require.Equal(t, tc.want, hex.EncodeToString(computed.Hash()), name)
+			}
 		})
 	}
 }
