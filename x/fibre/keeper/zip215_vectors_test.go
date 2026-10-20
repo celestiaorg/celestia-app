@@ -10,12 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// smallOrderEncodings are the 14 encodings of the 8 small-order points: the 8
-// canonical ones plus 6 non-canonical ones (sign bit set on a point whose x is
-// 0, or y >= p). ZIP-215's test vectors are every (A, R) pair of them with
-// s = 0 over the message "Zcash"; a ZIP-215 verifier accepts all 196. They are
-// the vectors curve25519-voi ships as testdata/zip215.json.gz, generated here
-// rather than copied.
+// smallOrderEncodings are the 14 encodings (8 canonical) of the 8 small-order points;
+// every (A, R) pair with s = 0 over "Zcash" is a ZIP-215 vector, all 196 accepted.
 var smallOrderEncodings = []string{
 	"0100000000000000000000000000000000000000000000000000000000000000",
 	"ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
@@ -34,11 +30,8 @@ var smallOrderEncodings = []string{
 	"eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 }
 
-// speccheckCases are the 12 edge cases of "Taming the many EdDSAs"
-// (Chalkias et al.), as curve25519-voi ships them in
-// testdata/speccheck_cases.json.gz, with ZIP-215's expected verdicts: small
-// and mixed order A and R, cofactored-only acceptance, non-canonical S and
-// non-canonical A and R encodings.
+// speccheckCases are the 12 edge cases of "Taming the many EdDSAs" (curve25519-voi's
+// speccheck_cases.json.gz), with ZIP-215's expected verdicts.
 var speccheckCases = []struct {
 	message, publicKey, signature string
 	zip215                        bool
@@ -87,9 +80,8 @@ func zip215Vectors(t *testing.T) []vector {
 // PubKey.VerifySignature.
 func single(v vector) bool { return v.key.VerifySignature(v.msg, v.sig) }
 
-// batchAccepts is runVerificationChunk's certificate check: celestia-core's
-// batch verifier, reset per chunk, rejecting when any Add fails, then
-// VerifyBatchOnly.
+// batchAccepts is runVerificationChunk's certificate check: celestia-core's batch
+// verifier, reset per chunk, rejecting on any failed Add, then VerifyBatchOnly.
 func batchAccepts(verifier *ed25519.BatchVerifier, vectors []vector) bool {
 	verifier.Reset()
 	for _, v := range vectors {
@@ -104,9 +96,8 @@ func newBatchVerifier() *ed25519.BatchVerifier {
 	return ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 }
 
-// TestZIP215Vectors runs the ZIP-215 and speccheck vectors through the batch
-// verifier and the single verifier: both must give ZIP-215's verdict, alone,
-// repeated under one key and all together.
+// TestZIP215Vectors requires ZIP-215's verdict from the batch and single verifiers
+// on the ZIP-215 and speccheck vectors, alone, repeated under one key and together.
 func TestZIP215Vectors(t *testing.T) {
 	verifier := newBatchVerifier()
 
@@ -126,10 +117,8 @@ func TestZIP215Vectors(t *testing.T) {
 	}
 }
 
-// TestBatchEqualsConjunctionOfSingles draws random batches from the vectors
-// above plus honest, tampered and random signatures, some under repeated
-// keys, and requires the batch verdict to equal the AND of the single
-// verdicts. One verifier is reused throughout, so Reset is exercised too.
+// TestBatchEqualsConjunctionOfSingles requires each random batch's verdict to equal
+// the AND of its single verdicts, reusing one verifier throughout.
 func TestBatchEqualsConjunctionOfSingles(t *testing.T) {
 	rng := mathrand.New(mathrand.NewSource(215))
 	corpus := zip215Vectors(t)

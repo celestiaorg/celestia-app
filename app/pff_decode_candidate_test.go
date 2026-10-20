@@ -14,10 +14,7 @@ import (
 )
 
 // TestPFFDecodeCandidateAgreesWithIsPayForFibreTx pins the fast path against
-// IsPayForFibreTx, the check main's pre-pass counts with. They may differ on
-// one shape only: a plain single-message tx whose MsgPayForFibre bytes are
-// malformed. The fast path counts it; the SDK decoder then fails on it, so
-// ProcessProposal rejects the block either way.
+// IsPayForFibreTx; they differ only on malformed MsgPayForFibre bytes, rejected anyway.
 func TestPFFDecodeCandidateAgreesWithIsPayForFibreTx(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	decode := txConfig.TxDecoder()

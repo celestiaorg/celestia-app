@@ -51,9 +51,8 @@ func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayFor
 	}
 }
 
-// PreparePreverification collects state-dependent inputs synchronously. The
-// returned work reads no SDK state and may run alongside the ordered ante walk.
-// A nil function means all requested verifications were already cached or skipped.
+// PreparePreverification collects state-dependent inputs synchronously and returns
+// work that reads no SDK state, or nil when everything requested is cached or skipped.
 func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) func() {
 	if k.sigCache == nil {
 		return nil

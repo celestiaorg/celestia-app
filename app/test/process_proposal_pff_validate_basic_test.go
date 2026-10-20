@@ -16,13 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestProcessProposalRejectsPFFFailingValidateBasic: a single-signer PFF with
-// one extra raw signature fails the SDK wrapper's ValidateBasic ("wrong number
-// of signers; expected 1, got 2"). FinalizeBlock fails the tx, so
-// ProcessProposal, which reuses the PFF txs it decoded up front, must reject
-// the block too. A regression guard: any proposal-side tx view that stopped
-// exposing sdk.HasValidateBasic would make the ValidateBasicDecorator skip the
-// tx, and this block would be accepted.
+// TestProcessProposalRejectsPFFFailingValidateBasic: a PFF with an extra signature
+// fails ValidateBasic, so ProcessProposal must reject it as FinalizeBlock does.
 func TestProcessProposalRejectsPFFFailingValidateBasic(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)
