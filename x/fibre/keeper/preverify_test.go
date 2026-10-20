@@ -390,13 +390,9 @@ func TestPreverifySignaturesAcrossBatchBoundary(t *testing.T) {
 	}
 }
 
-// TestPreverifySignaturesRecordsEachTransaction covers a call carrying three
-// messages: one accepted, one whose certificate carries a forged signature,
-// and one the pass bails out of before it queues anything. A failure in one
-// must not keep the accepted one from being recorded, must record neither of
-// the failing messages' keys, and must not let either message's rollback
-// truncate the accepted message's items - which is why the accepted message
-// is placed first.
+// TestPreverifySignaturesRecordsEachTransaction covers one accepted message, one
+// with a forged certificate and one the pass bails out of. All three share a
+// combined batch, so the forgery costs every entry in it - work, not correctness.
 func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 	accepted := f.newMessage(t, 1)
@@ -420,13 +416,51 @@ func TestPreverifySignaturesRecordsEachTransaction(t *testing.T) {
 		f.txBytesFor(t, accepted), f.txBytesFor(t, forged), f.txBytesFor(t, bailed),
 	}, keeper.PreverifyOptions{Certificates: true})
 
-	require.True(t, f.cache.Has(acceptedKey), "the valid certificate must still be recorded")
-	require.True(t, f.cache.Has(promiseSigCacheKey(t, accepted)), "and so must its promise")
+	require.False(t, f.cache.Has(acceptedKey),
+		"a chunk is all or nothing, so the valid certificate in it is not recorded either")
+	require.False(t, f.cache.Has(promiseSigCacheKey(t, accepted)), "nor the promise it carried")
 	require.False(t, f.cache.Has(forgedKey), "the forged certificate must not be recorded")
 	require.False(t, f.cache.Has(promiseSigCacheKey(t, forged)), "nor the promise it carried")
 	require.False(t, f.cache.Has(bailedKey), "the bailed-out certificate must not be recorded")
 	require.False(t, f.cache.Has(promiseSigCacheKey(t, bailed)), "nor the promise it carried")
-	require.Equal(t, 2, f.cache.Len(), "exactly the accepted message's two entries")
+	require.Zero(t, f.cache.Len(), "the whole chunk went unrecorded")
+	// Losing a cache entry costs work, never correctness: the ordered verifier
+	// still accepts the valid message.
+	require.NoError(t, f.keeper.ValidatePayForFibreSignatures(f.ctx, accepted))
+}
+
+// TestPreverifySignaturesReusesVerifierAfterFailure covers a chunk that fails
+// followed by one that succeeds: the batch verifier is shared across chunks, so
+// a failure must not leave it unusable.
+func TestPreverifySignaturesReusesVerifierAfterFailure(t *testing.T) {
+	f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
+	f.msg.ValidatorSignatures[65] = make([]byte, 64)
+	f.refreshCertKey(t)
+
+	// Each certificate makes two batch items at this validator count, so five
+	// transactions produce more items than one chunk holds.
+	messages := make([]*types.MsgPayForFibre, 0, 5)
+	messages = append(messages, f.msg)
+	for i := range 4 {
+		messages = append(messages, f.newMessage(t, uint32(i)+1))
+	}
+
+	txs := make([][]byte, 0, len(messages))
+	for _, msg := range messages {
+		txs = append(txs, f.txBytesFor(t, msg))
+	}
+	f.keeper.PreverifySignatures(f.ctx, txs, keeper.PreverifyOptions{Certificates: true})
+
+	require.False(t, f.cache.Has(f.certKey), "the invalid certificate must not be recorded")
+	recorded := 0
+	for _, msg := range messages[1:] {
+		key, err := msg.SigCacheKey()
+		require.NoError(t, err)
+		if f.cache.Has(key) {
+			recorded++
+		}
+	}
+	require.Positive(t, recorded, "a chunk after the failed one must still record its certificates")
 }
 
 // TestPreverifySignaturesRecordsNothingForRejectedMessages covers the shapes in
