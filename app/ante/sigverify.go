@@ -53,8 +53,8 @@ func cachedVerifier(sigCache *sigcache.Cache) ante.SignatureVerifier {
 }
 
 // PreverifyTxSignatures fills the signature cache for single-signer direct-sign
-// transactions. A miss or a failed check just leaves the decision to the
-// ordered ante handler.
+// transactions before ante checks their sequence or fees. That is sound because
+// the key binds every sign-bytes input; the ordered ante handler still decides.
 func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandler *txsigning.HandlerMap, sigCache *sigcache.Cache, txs []sdk.Tx) {
 	if sigCache == nil {
 		return
