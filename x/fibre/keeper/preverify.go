@@ -92,15 +92,24 @@ func (v verification) run() bool {
 	}
 
 	batch := ed25519.NewBatchVerifier()
-	for i, pubKey := range v.pubKeys {
-		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
-			return false
-		}
+	if !v.addTo(batch) {
+		return false
 	}
 	// A failing batch falls back to verifying each entry, so the verdict is the
 	// same one the sequential walk reaches.
 	allValid, _ := batch.Verify()
 	return allValid
+}
+
+// addTo queues the item's validator signatures on batch and reports whether
+// it took every one.
+func (v verification) addTo(batch crypto.BatchVerifier) bool {
+	for i, pubKey := range v.pubKeys {
+		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // verificationGroup is one message's contribution to the pass. Its keys are
@@ -347,15 +356,7 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 			continue
 		}
 		certificates++
-		if !batchReady {
-			continue
-		}
-		for j, pubKey := range item.pubKeys {
-			if batch.Add(pubKey, item.message, item.signatures[j]) != nil {
-				batchReady = false
-				break
-			}
-		}
+		batchReady = batchReady && item.addTo(batch)
 	}
 	if certificates == 0 {
 		return allValid
