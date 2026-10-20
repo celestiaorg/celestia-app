@@ -90,9 +90,16 @@ updates:
     # cosmos-sdk is replaced by the celestiaorg/cosmos-sdk fork, and the
     # cosmossdk.io/* modules must stay at versions compatible with that fork.
     # Newer upstream versions fail to compile against it.
+    #
+    # iavl minor and major bumps must match the iavl line that the
+    # celestiaorg/cosmos-sdk store fork is built against. iavl v1.3+ requires a
+    # newer cosmossdk.io/core and fails to compile. Patch bumps stay enabled and
+    # app/iavl_test.go pins the iavl behavior celestia-app depends on.
     ignore:
       - dependency-name: "github.com/cosmos/cosmos-sdk"
       - dependency-name: "cosmossdk.io/*"
+      - dependency-name: "github.com/cosmos/iavl"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     labels:
       - dependencies
   - package-ecosystem: gomod
@@ -115,5 +122,7 @@ updates:
     ignore:
       - dependency-name: "github.com/cosmos/cosmos-sdk"
       - dependency-name: "cosmossdk.io/*"
+      - dependency-name: "github.com/cosmos/iavl"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     labels:
       - dependencies
