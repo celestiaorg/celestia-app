@@ -104,35 +104,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 	// Each pay-for-fibre decode depends only on its own bytes. The blob scan
 	// above already reported malformed blob txs, in block order.
-	var fibreNext atomic.Int64
-	var fibreDecodeWG sync.WaitGroup
-	var fibreDecodePanicked atomic.Bool
-	for range min(runtime.NumCPU(), len(req.Txs)) {
-		fibreDecodeWG.Go(func() {
-			for {
-				idx := int(fibreNext.Add(1)) - 1
-				if idx >= len(req.Txs) {
-					return
-				}
-				if len(req.Txs[idx]) > appconsts.MaxTxSize || blobTxs[idx] != nil {
-					continue
-				}
-				func() {
-					defer func() {
-						if recover() != nil {
-							fibreDecodePanicked.Store(true)
-						}
-					}()
-					decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
-				}()
-			}
-		})
-	}
-	fibreDecodeWG.Wait()
-	if fibreDecodePanicked.Load() {
-		logInvalidPropBlock(app.Logger(), blockHeader, "caught panic while decoding PayForFibre tx")
-		return reject(), nil
-	}
+	forEachParallel(len(req.Txs), func(idx int) {
+		if len(req.Txs[idx]) > appconsts.MaxTxSize || blobTxs[idx] != nil {
+			return
+		}
+		decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
+	})()
 
 	// SDK decoding is independent per tx. Prefetch only parseable PayForFibre
 	// txs, capped at the block limit so a rejected block cannot make us decode
@@ -159,39 +136,20 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	sdkTxs := make([]sdk.Tx, len(req.Txs))
 	decodeErrs := make([]error, len(req.Txs))
 	decoder := app.encodingConfig.TxConfig.TxDecoder()
-	var decodeNext atomic.Int64
-	var decodeWG sync.WaitGroup
-	for range min(runtime.NumCPU(), len(decodeCandidates)) {
-		decodeWG.Go(func() {
-			for {
-				candidate := int(decodeNext.Add(1)) - 1
-				if candidate >= len(decodeCandidates) {
-					return
-				}
-				idx := decodeCandidates[candidate]
-				rawTx := req.Txs[idx]
-				func() {
-					defer func() {
-						if r := recover(); r != nil {
-							decodeErrs[idx] = fmt.Errorf("transaction decoder panic: %v", r)
-						}
-					}()
-					sdkTxs[idx], decodeErrs[idx] = decoder(rawTx)
-					if decodeErrs[idx] == nil {
-						// The SDK wrapper computes signers lazily. Prime its
-						// byte-bound cache here while each tx has one worker;
-						// ante still reports any signer error in block order.
-						func() {
-							defer func() { _ = recover() }()
-							if sigTx, ok := sdkTxs[idx].(authsigning.SigVerifiableTx); ok {
-								_, _ = sigTx.GetSigners()
-							}
-						}()
-					}
-				}()
-			}
-		})
-	}
+	waitDecode := forEachParallel(len(decodeCandidates), func(candidate int) {
+		idx := decodeCandidates[candidate]
+		sdkTxs[idx], decodeErrs[idx] = decoder(req.Txs[idx])
+		if decodeErrs[idx] != nil {
+			return
+		}
+		// The SDK wrapper computes signers lazily. Prime its byte-bound cache
+		// here while each tx has one worker; ante still reports any signer
+		// error, or panic, in block order.
+		defer func() { _ = recover() }()
+		if sigTx, ok := sdkTxs[idx].(authsigning.SigVerifiableTx); ok {
+			_, _ = sigTx.GetSigners()
+		}
+	})
 
 	// Warm the signature cache across every CPU, once per distinct certificate; the
 	// loop below still decides.
@@ -199,7 +157,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
-	decodeWG.Wait()
+	waitDecode()
 	// Gated on there being candidates at all, not on the fibre pass queuing
 	// work: it queues nothing when every certificate is already cached, but
 	// the tx signatures still are not.
@@ -398,6 +356,38 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	}
 
 	return accept(), nil
+}
+
+// forEachParallel calls fn(i) once for every i in [0, n) across up to
+// GOMAXPROCS goroutines and returns a function that waits for them. GOMAXPROCS,
+// not NumCPU: in a container limited to a fraction of the host the latter only
+// adds goroutines contending for the same Ps. A panic in fn is re-raised by
+// wait on the caller's goroutine, so ProcessProposal's recover rejects the block
+// exactly as it would had fn run inline.
+func forEachParallel(n int, fn func(i int)) (wait func()) {
+	var (
+		next     atomic.Int64
+		panicked atomic.Pointer[any]
+		wg       sync.WaitGroup
+	)
+	for range min(runtime.GOMAXPROCS(0), n) {
+		wg.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicked.CompareAndSwap(nil, &r)
+				}
+			}()
+			for i := int(next.Add(1)) - 1; i < n; i = int(next.Add(1)) - 1 {
+				fn(i)
+			}
+		})
+	}
+	return func() {
+		wg.Wait()
+		if r := panicked.Load(); r != nil {
+			panic(*r)
+		}
+	}
 }
 
 func hasPFB(msgs []sdk.Msg) (*blobtypes.MsgPayForBlobs, bool) {
