@@ -12,6 +12,14 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 )
 
+// minParallelSquareTxs is the smallest all-PayForFibre block whose square
+// ProcessProposal builds alongside the ordered walk. It keeps the goroutine and
+// the dedup scan off small blocks, which have little square work to hide. The
+// value is a judgement, not a measurement: the overlap was measured on a
+// 5,800-PFF block, and with MaxPayForFibreMessages at 200 a default build takes
+// it only from here to 200.
+const minParallelSquareTxs = 100
+
 type proposalSquareResult struct {
 	size uint64
 	root []byte
