@@ -128,9 +128,8 @@ func (p *PaymentPromise) Validate() error {
 	return p.ValidateWith((*secp256k1.PubKey).VerifySignature)
 }
 
-// ValidateWith is [PaymentPromise.Validate] with verify checking the signature
-// over the sign bytes. It is for a faster verifier that accepts exactly what
-// the SDK verifier accepts; every other check stays the same code.
+// ValidateWith is [PaymentPromise.Validate] with verify checking the signature, for
+// a faster verifier accepting exactly what the SDK's does; other checks are shared.
 func (p *PaymentPromise) ValidateWith(verify func(key *secp256k1.PubKey, msg, sig []byte) bool) error {
 	// signer key must be valid secp256k1 public key (33 bytes)
 	if p.SignerKey == nil {

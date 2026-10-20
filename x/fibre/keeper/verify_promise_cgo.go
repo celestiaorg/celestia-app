@@ -16,13 +16,8 @@ func verifyPromise(p *fibre.PaymentPromise) bool {
 	return p.ValidateWith(VerifySecp256k1) == nil
 }
 
-// VerifySecp256k1 reports whether sig is key's signature over msg. It tries
-// libsecp256k1 first and the SDK verifier whenever that does not accept, so it
-// accepts native ∪ SDK. Every native acceptance is also an SDK one
-// (TestNativeSecp256k1AcceptanceIsSubsetOfSDK), so the union is the SDK's set
-// and a cgo build accepts exactly what a nocgo build does. The fallback keeps
-// the SDK's acceptance of non-canonical scalar encodings, which libsecp256k1
-// rejects. It is the one native predicate: app/ante uses it for tx signatures.
+// VerifySecp256k1 tries libsecp256k1, then the SDK verifier; native acceptance is a
+// subset of the SDK's, so cgo and nocgo builds accept the same signatures.
 func VerifySecp256k1(key *secp256k1.PubKey, msg, sig []byte) bool {
 	if len(key.Key) == secp256k1.PubKeySize && (key.Key[0] == 2 || key.Key[0] == 3) {
 		hash := sha256.Sum256(msg)

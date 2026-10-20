@@ -13,9 +13,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// The vectors below are built with plain affine arithmetic over math/big, so
-// their construction trusts neither verifier under test. nil is the point at
-// infinity.
+// The vectors are built with plain affine arithmetic over math/big, trusting neither
+// verifier under test. nil is the point at infinity.
 var (
 	curveP    = nativesecp.S256().P
 	curveN    = nativesecp.S256().N
@@ -138,11 +137,8 @@ func checkNativeSubset(t testing.TB, key *secp256k1.PubKey, msg, sig []byte, inp
 	return native, sdk
 }
 
-// TestNativeSecp256k1AdversarialVectors pins both verdicts on inputs built to
-// sit on every edge where libsecp256k1 and the SDK's decred verifier could
-// differ: the x(R) >= N case of the r comparison, the low-s boundary, the
-// largest r and smallest s, a verification sum that doubles or cancels,
-// non-canonical key and scalar encodings, and keys native never sees.
+// TestNativeSecp256k1AdversarialVectors pins both verdicts on inputs at every edge
+// where libsecp256k1 and the SDK's decred verifier could differ.
 func TestNativeSecp256k1AdversarialVectors(t *testing.T) {
 	rng := rand.New(rand.NewSource(6))
 	randMsg := func() []byte {
@@ -225,9 +221,8 @@ func TestNativeSecp256k1AdversarialVectors(t *testing.T) {
 		require.Equal(t, v.wantSDK, sdk, "sdk: %s", v.name)
 	}
 
-	// A compressed key whose x is P + k, a non-canonical encoding of the point
-	// with x = k. Its discrete log is unknown, so no signature can be built;
-	// what matters is that native's parser refuses it before any equation.
+	// A compressed key with x = P + k, a non-canonical encoding of x = k with unknown
+	// discrete log: native's parser must refuse it before any equation.
 	var small *point
 	k := int64(1)
 	for ; small == nil; k++ {

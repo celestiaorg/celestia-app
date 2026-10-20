@@ -215,9 +215,8 @@ func TestCachedVerifierExecModeTolerateNonSDKContext(t *testing.T) {
 	require.False(t, inProcessProposal(context.Background()))
 }
 
-// TestCachedVerifierExecModeReadsSDKContext covers the other side: when an SDK
-// context is attached, ProcessProposal is recognised either as the context
-// itself or through the context value, and no other exec mode is.
+// TestCachedVerifierExecModeReadsSDKContext checks ProcessProposal is recognised
+// from an SDK context, as the context or its value, and no other exec mode is.
 func TestCachedVerifierExecModeReadsSDKContext(t *testing.T) {
 	handler := txsigning.NewHandlerMap(direct.SignModeHandler{})
 	inputs := signedInputs(t, handler)

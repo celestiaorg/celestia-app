@@ -147,10 +147,8 @@ func PreverifyTxSignatures(ctx sdk.Context, ak ante.AccountKeeper, signModeHandl
 	}
 }
 
-// inProcessProposal reports whether ctx carries an SDK context running in
-// ProcessProposal. An sdk.Context answers the key with itself. Unlike
-// sdk.UnwrapSDKContext this never panics: without an SDK context the ordinary
-// key is kept.
+// inProcessProposal reports whether ctx carries an SDK context in ProcessProposal,
+// without sdk.UnwrapSDKContext's panic when it carries none.
 func inProcessProposal(ctx context.Context) bool {
 	sdkCtx, ok := ctx.Value(sdk.SdkContextKey).(sdk.Context)
 	return ok && sdkCtx.ExecMode() == sdk.ExecModeProcessProposal

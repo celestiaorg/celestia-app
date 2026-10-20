@@ -128,10 +128,8 @@ func TestNativeSecp256k1AcceptanceIsSubsetOfSDK(t *testing.T) {
 		}
 	}
 
-	// A random signature's r or s plus the order almost never fits in 32
-	// bytes, so the loop above cannot reach the non-canonical encodings.
-	// Build signatures with small r and s instead: pick (r, s), recover the
-	// key they are valid for, then add the order to either scalar.
+	// Random r or s plus the order rarely fits in 32 bytes, so build small (r, s),
+	// recover their key, and add the order to either scalar.
 	nonCanonical := 0
 	for r := int64(1); nonCanonical < 16; r++ {
 		msg := make([]byte, 64)
