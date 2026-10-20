@@ -355,7 +355,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		<-squareDone
 	}
 	if square.err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, square.stage, square.err)
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build proposal square", square.err)
 		return reject(), nil
 	}
 

@@ -13,10 +13,9 @@ import (
 )
 
 type proposalSquareResult struct {
-	size  uint64
-	root  []byte
-	stage string
-	err   error
+	size uint64
+	root []byte
+	err  error
 }
 
 // buildProposalSquare computes the exact square and DAH ProcessProposal checks,
@@ -25,15 +24,14 @@ type proposalSquareResult struct {
 func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, decoded []*fibretypes.DecodedPayForFibre, maxSquareSize int, expectedSize uint64, cancel *atomic.Bool) (result proposalSquareResult) {
 	defer func() {
 		if r := recover(); r != nil {
-			result.stage = "panic while building proposal square"
-			result.err = fmt.Errorf("%v", r)
+			result.err = fmt.Errorf("panic while building proposal square: %v", r)
 		}
 	}()
 
 	// go-square no longer decodes Cosmos SDK transactions itself.
 	classifiedTxs, err := fibretypes.ClassifyTxsDecoded(txs, blobTxs, decoded)
 	if err != nil {
-		result.stage, result.err = "failed to classify transactions:", err
+		result.err = fmt.Errorf("failed to classify transactions: %w", err)
 		return result
 	}
 	if cancel.Load() {
@@ -41,7 +39,7 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 	}
 	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
 	if err != nil {
-		result.stage, result.err = "failed to build data square:", err
+		result.err = fmt.Errorf("failed to build data square: %w", err)
 		return result
 	}
 	if cancel.Load() {
@@ -49,7 +47,7 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 	}
 	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
 	if err != nil {
-		result.stage, result.err = "failure to compute extended data square from transactions:", err
+		result.err = fmt.Errorf("failure to compute extended data square from transactions: %w", err)
 		return result
 	}
 	result.size = uint64(eds.Width()) / 2
@@ -61,7 +59,7 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 	}
 	dah, err := da.NewDataAvailabilityHeader(eds)
 	if err != nil {
-		result.stage, result.err = "failure to create new data availability header", err
+		result.err = fmt.Errorf("failure to create new data availability header: %w", err)
 		return result
 	}
 	result.root = dah.Hash()
