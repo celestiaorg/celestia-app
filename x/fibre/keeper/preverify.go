@@ -304,10 +304,11 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	// workers claimed one index at a time, measured; leave it as it is.
 	results := make([]atomic.Bool, len(items))
 
-	const chunkSize = 8
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
-	workers := min(runtime.GOMAXPROCS(0), (len(items)+chunkSize-1)/chunkSize)
+	procs := runtime.GOMAXPROCS(0)
+	chunkSize := verificationChunkSize(len(items), procs)
+	workers := min(procs, (len(items)+chunkSize-1)/chunkSize)
 
 	var (
 		next    atomic.Int64
@@ -324,7 +325,7 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 			// preverify tests catch as a cache that never warms.
 			batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			for {
-				i := int(next.Add(chunkSize)) - chunkSize
+				i := int(next.Add(int64(chunkSize))) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
@@ -340,6 +341,17 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 		verified[i] = results[i].Load()
 	}
 	return verified
+}
+
+// maxChunkSize is how many items one worker claims, and combines into one
+// ed25519 batch, at a time.
+const maxChunkSize = 8
+
+// verificationChunkSize shrinks chunks until every proc has one, so a few items
+// (CheckTx's promise and certificate) still run in parallel rather than in one
+// chunk on one worker.
+func verificationChunkSize(items, procs int) int {
+	return min(maxChunkSize, max(1, (items+procs-1)/procs))
 }
 
 // runVerificationChunk combines a few certificate batches. A failed combined
