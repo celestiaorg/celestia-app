@@ -9,10 +9,7 @@ import (
 )
 
 // TestPayForFibreEventMatchesTypedEvent checks the hand-built event against the
-// SDK's own conversion of the typed one. Events are not part of the results
-// hash (celestia-core hashes only Code, Data, GasWanted and GasUsed), but
-// indexers and clients read them, so a new field must fail here rather than
-// change what they see.
+// SDK's conversion of the typed one, so a new field fails here, not in indexers.
 func TestPayForFibreEventMatchesTypedEvent(t *testing.T) {
 	cases := []struct {
 		name           string

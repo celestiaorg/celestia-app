@@ -79,9 +79,8 @@ func TestPreverifyTxSignaturesMatchesColdAnteDecision(t *testing.T) {
 	tests := map[string]struct {
 		tx         authsigning.Tx
 		wantAccept bool
-		// wantWarm is whether the signature verifies, which is not the same as
-		// the ante handler accepting: a wrong-sequence signature is still valid
-		// for the bytes it signed.
+		// wantWarm is whether the signature verifies, not whether ante accepts: a
+		// wrong-sequence signature is still valid for the bytes it signed.
 		wantWarm bool
 	}{
 		"valid signature":      {valid, true, true},

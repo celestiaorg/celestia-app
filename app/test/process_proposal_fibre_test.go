@@ -554,10 +554,8 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 	}
 }
 
-// TestProcessProposalPayForFibreTxSignature checks that pre-verifying PFF tx
-// signatures only warms the cache: every tx-signature and sequence rejection
-// the ordered ante handler makes still rejects the proposal, including after
-// the same tx body verified.
+// TestProcessProposalPayForFibreTxSignature checks that PFF tx-signature
+// pre-verification only warms the cache: every ante rejection still rejects.
 func TestProcessProposalPayForFibreTxSignature(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	accounts := testfactory.GenerateAccounts(1)
