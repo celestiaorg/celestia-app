@@ -53,13 +53,20 @@ func (app *App) buildProposalSquare(txs [][]byte, blobTxs []*blobtx.BlobTx, deco
 	if cancel.Load() {
 		return proposalSquareResult{err: errProposalSquareCancelled}
 	}
-	size, rows, columns, err := app.TreePool().ComputeRoots(share.ToBytes(dataSquare), expectedSize)
+	// The share count fixes the width, so a wrong size is rejected before any
+	// extension work.
+	size, err := dataSquare.Size()
 	if err != nil {
-		result.err = fmt.Errorf("failure to compute data roots from transactions: %w", err)
+		result.err = fmt.Errorf("failed to size data square: %w", err)
 		return result
 	}
-	result.size = size
+	result.size = uint64(size)
 	if result.size != expectedSize {
+		return result
+	}
+	rows, columns, err := app.TreePool().ComputeRoots(share.ToBytes(dataSquare))
+	if err != nil {
+		result.err = fmt.Errorf("failure to compute data roots from transactions: %w", err)
 		return result
 	}
 	if cancel.Load() {

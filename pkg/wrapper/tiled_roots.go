@@ -20,41 +20,35 @@ const rootTileWidth = 16
 
 type tiledNode [2*share.NamespaceSize + sha256.Size]byte
 
-// ComputeRoots extends a square and computes its roots, sharing leaf hashes
-// between rows and columns. Nondefault trees use the original implementation.
-func (p *TreePool) ComputeRoots(data [][]byte, expectedSize uint64) (uint64, [][]byte, [][]byte, error) {
+// ComputeRoots extends a square and returns its row and column roots, sharing
+// each leaf hash between its row and its column. Squares the tiled path was not
+// derived for, and pools with nondefault trees, take rsmt2d and the pooled
+// trees, as ExtendSharesWithTreePool does.
+func (p *TreePool) ComputeRoots(data [][]byte) (rows, cols [][]byte, err error) {
 	if len(data) == 0 || len(data)&(len(data)-1) != 0 {
-		return 0, nil, nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(data))
+		return nil, nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(data))
 	}
 	n, err := square.Size(len(data))
 	if err != nil {
-		return 0, nil, nil, err
+		return nil, nil, err
 	}
 	if p.defaultRoots && n >= rootTileWidth/2 && n <= 512 && n*n == len(data) && tiledInput(data, n) {
 		cells, err := extendForTiledRoots(data, n)
 		if err != nil {
-			return 0, nil, nil, err
+			return nil, nil, err
 		}
-		if uint64(n) != expectedSize {
-			return uint64(n), nil, nil, nil
-		}
-		rows, cols := tiledRoots(cells, 2*n, p.poolSize)
-		return uint64(n), rows, cols, nil
+		rows, cols = tiledRoots(cells, 2*n, p.poolSize)
+		return rows, cols, nil
 	}
 	eds, err := rsmt2d.ComputeExtendedDataSquareWithBuffer(data, appconsts.DefaultCodec(), p)
 	if err != nil {
-		return 0, nil, nil, err
+		return nil, nil, err
 	}
-	size := uint64(eds.Width() / 2)
-	if size != expectedSize {
-		return size, nil, nil, nil
+	if rows, err = eds.RowRoots(); err != nil {
+		return nil, nil, err
 	}
-	rows, err := eds.RowRoots()
-	if err != nil {
-		return size, nil, nil, err
-	}
-	cols, err := eds.ColRoots()
-	return size, rows, cols, err
+	cols, err = eds.ColRoots()
+	return rows, cols, err
 }
 
 // tiledInput establishes the leaf size and namespace order on both axes.

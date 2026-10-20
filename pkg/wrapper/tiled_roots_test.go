@@ -30,11 +30,8 @@ func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 				require.NoError(t, err)
 				want, err := da.NewDataAvailabilityHeader(eds)
 				require.NoError(t, err)
-				expectedSize := uint64(eds.Width()) / 2
-
-				size, rows, columns, err := pool.ComputeRoots(data, expectedSize)
+				rows, columns, err := pool.ComputeRoots(data)
 				require.NoError(t, err)
-				require.Equal(t, expectedSize, size)
 				require.Equal(t, want.RowRoots, rows, "row roots differ at n=%d", n)
 				require.Equal(t, want.ColumnRoots, columns, "column roots differ at n=%d", n)
 
@@ -58,11 +55,11 @@ func TestComputeRootsRejectsNonSquareInput(t *testing.T) {
 	pool, err := wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 	require.NoError(t, err)
 
-	_, _, _, err = pool.ComputeRoots(nil, 0)
+	_, _, err = pool.ComputeRoots(nil)
 	require.Error(t, err)
 
 	// not a power of two
-	_, _, _, err = pool.ComputeRoots(make([][]byte, 3), 2)
+	_, _, err = pool.ComputeRoots(make([][]byte, 3))
 	require.Error(t, err)
 }
 
