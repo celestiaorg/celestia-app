@@ -305,12 +305,10 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 			// A worker panic must not take the node down: its unfinished items stay unverified
 			// and the sequential path redoes them.
 			defer func() { _ = recover() }()
-			// Comma-ok: a failed assertion would panic every worker and show up
-			// only as a cache that never warms. Fall back to the per-item path.
-			batch, batchOK := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
-			if !batchOK {
-				batch = nil
-			}
+			// NewBatchVerifier always returns *BatchVerifier. If that changed,
+			// the recover above would leave every item unverified, which the
+			// preverify tests catch as a cache that never warms.
+			batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			for {
 				i := int(next.Add(chunkSize)) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
@@ -334,18 +332,6 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 // batch leaves their cache entries unset; the ordered path verifies them again
 // and remains the authority on the block's validity.
 func runVerificationChunk(items []verification, results []atomic.Bool, start, end int, batch *ed25519.BatchVerifier) bool {
-	if batch == nil {
-		// The per-item path the caller's comma-ok assertion falls back to.
-		allValid := true
-		for i := start; i < end; i++ {
-			if items[i].run() {
-				results[i].Store(true)
-				continue
-			}
-			allValid = false
-		}
-		return allValid
-	}
 	batch.Reset()
 	allValid := true
 	batchReady := true
