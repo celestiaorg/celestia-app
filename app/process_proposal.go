@@ -108,11 +108,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			continue
 		}
 
-		// Reject an over-full proposal here rather than after decoding every
-		// tx. Same verdict and same bound: pffDecodeCandidate counts the txs
-		// carrying exactly one MsgPayForFibre, which is what the loop counts,
-		// plus any whose MsgPayForFibre bytes are malformed, which the loop
-		// rejects as undecodable.
+		// Reject an over-full proposal before decoding. Same bound: pffDecodeCandidate also
+		// counts malformed PayForFibre txs, which the loop rejects anyway.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
@@ -132,9 +129,8 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if msg := fibretypes.PayForFibreMsg(sdkTxs[idx]); msg != nil {
 			decoded[idx] = fibrekeeper.DerivePayForFibre(req.Txs[idx], msg)
 		}
-		// The SDK wrapper computes signers lazily. Prime its byte-bound cache
-		// here while each tx has one worker; ante still reports any signer
-		// error, or panic, in block order.
+		// Prime the SDK wrapper's lazy signer cache while each tx has one worker; ante still
+		// reports any signer error or panic in block order.
 		defer func() { _ = recover() }()
 		if sigTx, ok := sdkTxs[idx].(authsigning.SigVerifiableTx); ok {
 			_, _ = sigTx.GetSigners()
@@ -143,26 +139,20 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	waitDecode()
 
-	// Verify the block's pay-for-fibre signatures across every CPU alongside the
-	// sequential loop. This only warms the cache; the loop still decides. Any
-	// failure rejects the block, so the pass stops at the first one.
-	// A block may repeat one certificate across many PayForFibre txs; the pass
-	// holds that to one verification per distinct certificate.
+	// Warm the signature cache across every CPU alongside the sequential loop, once per
+	// distinct certificate; the loop still decides.
 	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
-	// Gated on there being candidates at all, not on the fibre pass preparing
-	// work: it prepares nothing when every certificate is already cached, but
-	// the tx signatures still are not.
+	// Gated on candidates, not on prepared fibre work: with every certificate cached the
+	// fibre pass prepares nothing, but tx signatures still need warming.
 	if len(decodeCandidates) > 0 {
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
 	}
 	if verifyPFF != nil {
-		// The workers inside the pass recover their own panics. Anything else
-		// (the single-item path, recording) used to panic on this goroutine
-		// and reject through the recover above; re-raise it here after the
-		// walk so it still does, rather than vanishing with the goroutine.
+		// The pass's workers recover their own panics; re-raise any other after the walk
+		// so the recover above still rejects the block.
 		var verifyPanic any
 		verifyDone := make(chan struct{})
 		go func() {
