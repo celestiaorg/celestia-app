@@ -172,12 +172,15 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		squareDone   chan proposalSquareResult
 		squareCancel atomic.Bool
 	)
-	if cached == nil && len(req.Txs) >= 100 && (maxPFF <= 0 || len(req.Txs) <= maxPFF) {
+	// Only an all-PayForFibre block qualifies; the decode loop above counted
+	// them, so a mixed block allocates nothing here. That loop also rejected
+	// any block over maxPFF.
+	if cached == nil && pffTxCount == len(req.Txs) && len(req.Txs) >= 100 {
 		uniqueCerts := make(map[sigcache.Key]struct{}, len(req.Txs))
 		uniquePromises := make(map[sigcache.Key]struct{}, len(req.Txs))
 		parallel := true
 		for i, d := range decoded {
-			if d == nil || !d.CertKeyed || !d.PromiseKeyed() || sdkTxs[i] == nil || decodeErrs[i] != nil {
+			if !d.CertKeyed || !d.PromiseKeyed() || sdkTxs[i] == nil || decodeErrs[i] != nil {
 				parallel = false
 				break
 			}
