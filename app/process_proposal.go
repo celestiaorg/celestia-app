@@ -224,8 +224,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				return reject(), nil
 			}
 
-			pffMsg := fibretypes.PayForFibreMsg(sdkTx)
-			isPFF := pffMsg != nil
+			isPFF := fibretypes.PayForFibreMsg(sdkTx) != nil
 			if isPFF {
 				pffMessageCount++
 				if maxPFF > 0 && pffMessageCount > maxPFF {
@@ -255,8 +254,12 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 			// FinalizeBlock never re-verifies them (see
 			// FibreSignatureVerificationDecorator), so removing it would let a
 			// proposer settle promises without a validator quorum.
+			//
+			// A PayForFibre runs straight on the proposal branch, without a
+			// per-tx cache branch: any failure rejects the whole proposal,
+			// and the branch with it, so there are no writes to roll back.
 			if isPFF {
-				if execErr := executeProposalPFF(ctx, pffMsg, app.MsgServiceRouter()); execErr != nil {
+				if execErr := runMsgs(ctx, msgs, app.MsgServiceRouter()); execErr != nil {
 					logInvalidPropBlockError(app.Logger(), blockHeader, fmt.Sprintf("fibre settlement failed %d", idx), execErr)
 					return reject(), nil
 				}
