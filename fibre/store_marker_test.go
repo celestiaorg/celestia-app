@@ -281,6 +281,79 @@ func TestPruneBeforeSkipsInvalidMarkerAndPrunesValidEntry(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestPrunePreservesIntegrityAndDeletionErrors(t *testing.T) {
+	for _, throughServer := range []bool{false, true} {
+		name := "store"
+		if throughServer {
+			name = "server"
+		}
+		t.Run(name, func(t *testing.T) {
+			store := newMarkerTestStore(t)
+			local := storeLocalBackend(t, store)
+			commitment := generateCommitment()
+			pruneAt := time.Now().Add(-time.Hour)
+			var size int64
+			for i := range 4 {
+				hash := binary.BigEndian.AppendUint64(nil, uint64(i))
+				size = writeMarkerTestShard(t, store, commitment, hash)
+				marker := encodeShardMarkerForBackend(localBackendTag, size)
+				if i >= 2 {
+					marker = []byte{1, 2}
+				}
+				setPruneEntry(t, store, pruneAt, commitment, hash, marker)
+			}
+			backend := &failingDeleteBackend{shardBackend: local, failures: 1, attempts: make(map[uint64]int)}
+			store.shards.primary = backend
+			if throughServer {
+				occ := newOccupancy(0)
+				occ.seed(2 * size)
+				provider := sdkmetric.NewMeterProvider()
+				metrics, err := newServerMetrics(provider.Meter("prune-test"), occ)
+				require.NoError(t, err)
+				var logs strings.Builder
+				server := &Server{store: store, occ: occ, metrics: metrics, log: slog.New(slog.NewTextHandler(&logs, nil))}
+				server.prune(t.Context())
+				require.Equal(t, size, occ.usage())
+				require.Contains(t, logs.String(), "prune skipped corrupt shard markers")
+				require.Contains(t, logs.String(), "prune retained failed payload deletions")
+				require.NotContains(t, logs.String(), "level=ERROR")
+				for line := range strings.SplitSeq(logs.String(), "\n") {
+					if strings.Contains(line, "prune skipped corrupt shard markers") {
+						require.Contains(t, line, "2 corrupt shard markers")
+						require.NotContains(t, line, os.ErrPermission.Error())
+					}
+					if strings.Contains(line, "prune retained failed payload deletions") {
+						require.Contains(t, line, os.ErrPermission.Error())
+						require.NotContains(t, line, ErrStoreIntegrity.Error())
+					}
+				}
+			} else {
+				pruned, freed, err := store.PruneBefore(t.Context(), time.Now())
+				require.ErrorIs(t, err, ErrStoreIntegrity)
+				require.ErrorIs(t, err, os.ErrPermission)
+				require.IsType(t, &partialDeleteError{}, err)
+				require.ErrorContains(t, err, "2 corrupt shard markers")
+				require.Equal(t, 1, pruned)
+				require.Equal(t, size, freed)
+			}
+			for i := range 4 {
+				hash := binary.BigEndian.AppendUint64(nil, uint64(i))
+				requirePruneEntry(t, store, pruneAt, commitment, hash, i != 1)
+				has, err := local.Has(t.Context(), commitment, hash)
+				require.NoError(t, err)
+				require.Equal(t, i != 1, has)
+			}
+			backend.failures = 0
+			pruned, freed, err := store.PruneBefore(t.Context(), time.Now())
+			require.ErrorIs(t, err, ErrStoreIntegrity)
+			require.NotErrorIs(t, err, os.ErrPermission)
+			require.Equal(t, 1, pruned)
+			require.Equal(t, size, freed)
+			requirePruneEntry(t, store, pruneAt, commitment, binary.BigEndian.AppendUint64(nil, 0), false)
+		})
+	}
+}
+
 func TestPruneBeforeHonoursCancellation(t *testing.T) {
 	store := newMarkerTestStore(t)
 	commitment := generateCommitment()
