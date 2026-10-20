@@ -7,13 +7,18 @@ MODULE=$(GOWORK=off go list -m)
 # CI splits the suite into shards that run on separate runners. Each named
 # shard holds the slowest test packages; "rest" runs every other package, so a
 # new package is always covered. Keep the matrix in test-coverage.yml in sync.
-declare -A SHARDS=(
-    [app-test]="app/test"
-    [user]="pkg/user"
-    [txsim]="test/txsim test/ledger test/cmd/txsim"
-)
+# Avoid associative arrays: macOS ships Bash 3.2.
+SHARD_NAMES="app-test txsim user"
+shard_packages() {
+    case "$1" in
+        app-test) echo "app/test" ;;
+        txsim) echo "test/txsim test/ledger test/cmd/txsim" ;;
+        user) echo "pkg/user" ;;
+    esac
+}
 if [[ "${1:-}" == "--list-shards" ]]; then
-    printf '%s\n' "${!SHARDS[@]}" rest | LC_ALL=C sort
+    # shellcheck disable=SC2086
+    printf '%s\n' $SHARD_NAMES rest
     exit 0
 fi
 
@@ -43,12 +48,12 @@ COVER_PKGS=$(printf '%s\n' "$SCOPE_PKGS" | paste -sd, -)
 # eligible scope, so every shard reports the same blocks.
 SHARD=${COVER_SHARD:-}
 if [[ -n "$SHARD" ]]; then
-    SHARDED=$(printf '%s\n' "${SHARDS[@]}" | tr ' ' '\n' | sed "s|^|$MODULE/|")
+    SHARDED=$(for name in $SHARD_NAMES; do shard_packages "$name"; done | tr ' ' '\n' | sed "s|^|$MODULE/|")
     if [[ "$SHARD" == "rest" ]]; then
         PKGS=$(printf '%s\n' "$PKGS" | grep -vxF "$SHARDED" || true)
-    elif [[ -n "${SHARDS[$SHARD]+set}" ]]; then
+    elif [[ -n "$(shard_packages "$SHARD")" ]]; then
         # A renamed or deleted package fails go test instead of shrinking the shard.
-        PKGS=$(printf '%s\n' "${SHARDS[$SHARD]}" | tr ' ' '\n' | sed "s|^|$MODULE/|")
+        PKGS=$(shard_packages "$SHARD" | tr ' ' '\n' | sed "s|^|$MODULE/|")
     else
         echo "unknown coverage shard: $SHARD" >&2
         exit 1
