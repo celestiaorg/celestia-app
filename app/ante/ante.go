@@ -1,8 +1,6 @@
 package ante
 
 import (
-	"fmt"
-
 	circuitante "cosmossdk.io/x/circuit/ante"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	txsigning "cosmossdk.io/x/tx/signing"
@@ -73,62 +71,65 @@ func NewAnteHandler(
 		NewCachedSigVerificationDecorator(accountKeeper, signModeHandler, sigCache),
 		// Reject MsgPayForBlobs, MsgPayForFibre, MsgExec, or MsgSubmitProposal
 		// wrapped inside a MsgExec or MsgSubmitProposal.
-		NewNestedMsgDecorator(),
+		// Proposal PFF: inert, it has no MsgExec or MsgSubmitProposal.
+		inertForProposalPFF{NewNestedMsgDecorator()},
 		// Charge deterministic gas for MsgPayForFibre checks.
 		fibreante.NewFibreSignatureGasDecorator(),
 		// Ensure that the tx's gas limit is > the gas consumed based on the blob size(s).
 		// Contract: must be called after all decorators that consume gas.
 		// Note: does not consume gas from the gas meter.
-		blobante.NewMinGasPFBDecorator(),
+		// Proposal PFF: inert, it has no MsgPayForBlobs.
+		inertForProposalPFF{blobante.NewMinGasPFBDecorator()},
 		// Ensure that the blob shares occupied by the tx <= the max shares
 		// available to blob data in a data square.
-		blobante.NewBlobShareDecorator(blobKeeper),
+		// Proposal PFF: inert, it only runs in CheckTx.
+		inertForProposalPFF{blobante.NewBlobShareDecorator(blobKeeper)},
 		// Reject unsettleable MsgPayForFibre txs in CheckTx and recheck to keep
 		// replayed or stale promises out of the mempool.
-		fibreante.NewFibreStatefulValidationDecorator(fibreKeeper),
+		// Proposal PFF: inert, it only runs in CheckTx and recheck.
+		inertForProposalPFF{fibreante.NewFibreStatefulValidationDecorator(fibreKeeper)},
 		// Verify uncached MsgPayForFibre validator signatures.
 		fibreante.NewFibreSigVerificationDecorator(fibreKeeper, sigCache),
 		// Ensure that txs with MsgSubmitProposal/MsgExec have at least one message and param filters are applied.
-		NewParamFilterDecorator(paramFilters),
+		// Proposal PFF: inert, it has no MsgExec or MsgSubmitProposal.
+		inertForProposalPFF{NewParamFilterDecorator(paramFilters)},
 		// Side effect: increment the nonce for all tx signers.
 		ante.NewIncrementSequenceDecorator(accountKeeper),
 		// Ensure that the tx is not an IBC packet or update message that has already been processed.
-		ibcante.NewRedundantRelayDecorator(channelKeeper),
+		// Proposal PFF: inert, it only runs in CheckTx and recheck.
+		inertForProposalPFF{ibcante.NewRedundantRelayDecorator(channelKeeper)},
 	)
 }
 
 var DefaultSigVerificationGasConsumer = ante.DefaultSigVerificationGasConsumer
 
-// newAppAnteChain flattens the proposal PFF walk after the two panic-handling
-// wrappers. All remaining decorators above only return next or an error;
-// decorators with work after next must stay outside the flat walk.
-func newAppAnteChain(chain ...sdk.AnteDecorator) sdk.AnteHandler {
-	// The flat walk calls chain[2:] with a terminal next, so the panic handler
-	// and gas-meter setup must sit exactly here. Asserting it turns a reorder
-	// of NewAnteHandler into a startup panic, not a silent divergence.
-	if len(chain) < 2 {
-		panic("ante chain must start with the panic handler and the context setup")
-	}
-	if _, ok := chain[0].(HandlePanicDecorator); !ok {
-		panic(fmt.Sprintf("ante chain[0] must be HandlePanicDecorator, got %T", chain[0]))
-	}
-	if _, ok := chain[1].(ante.SetUpContextDecorator); !ok {
-		panic(fmt.Sprintf("ante chain[1] must be ante.SetUpContextDecorator, got %T", chain[1]))
-	}
+// inertForProposalPFF marks a decorator that does nothing - no check, write
+// or gas - for a single-message PayForFibre in ProcessProposal, outside
+// CheckTx and recheck. The flat walk in newAppAnteChain leaves it out; every
+// other path runs it unwrapped. Mark a decorator here, next to its
+// construction, only with the reason written beside it.
+type inertForProposalPFF struct {
+	sdk.AnteDecorator
+}
 
-	regular := sdk.ChainAnteDecorators(chain...)
-	pffChain := make([]sdk.AnteDecorator, 0, len(chain)-2)
-	for _, decorator := range chain[2:] {
-		switch decorator.(type) {
-		case *NestedMsgDecorator, ParamFilterDecorator,
-			blobante.MinGasPFBDecorator, blobante.BlobShareDecorator,
-			fibreante.FibreStatefulValidationDecorator, ibcante.RedundantRelayDecorator:
-			// These perform no checks, writes, or gas consumption for a
-			// single PFF in ProcessProposal outside CheckTx/ReCheckTx.
-		default:
-			pffChain = append(pffChain, decorator)
+// newAppAnteChain is sdk.ChainAnteDecorators(panicHandler, setUp, chain...),
+// except for a single-message PayForFibre in ProcessProposal: that runs chain
+// as a flat loop inside the two wrappers, without the decorators marked
+// inertForProposalPFF. The flat loop hands every decorator a terminal next, so
+// no decorator in chain may do work after calling next.
+func newAppAnteChain(panicHandler HandlePanicDecorator, setUp ante.SetUpContextDecorator, chain ...sdk.AnteDecorator) sdk.AnteHandler {
+	all := []sdk.AnteDecorator{panicHandler, setUp}
+	var pffChain []sdk.AnteDecorator
+	for _, decorator := range chain {
+		if inert, ok := decorator.(inertForProposalPFF); ok {
+			all = append(all, inert.AnteDecorator)
+			continue
 		}
+		all = append(all, decorator)
+		pffChain = append(pffChain, decorator)
 	}
+	regular := sdk.ChainAnteDecorators(all...)
+
 	terminal := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
 		return ctx, nil
 	}
@@ -143,12 +144,12 @@ func newAppAnteChain(chain ...sdk.AnteDecorator) sdk.AnteHandler {
 		return ctx, nil
 	}
 	setup := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
-		return chain[1].AnteHandle(ctx, tx, simulate, walk)
+		return setUp.AnteHandle(ctx, tx, simulate, walk)
 	}
 	return func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		if ctx.ExecMode() != sdk.ExecModeProcessProposal || ctx.IsCheckTx() || ctx.IsReCheckTx() || fibretypes.PayForFibreMsg(tx) == nil {
 			return regular(ctx, tx, simulate)
 		}
-		return chain[0].AnteHandle(ctx, tx, simulate, setup)
+		return panicHandler.AnteHandle(ctx, tx, simulate, setup)
 	}
 }
