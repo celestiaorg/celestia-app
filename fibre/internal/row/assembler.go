@@ -56,18 +56,19 @@ func NewAssembler(originalRows, parityRows, maxRowSize, treeBufferSize int) (*As
 // bytes for a header before its data, full middle rows alias data
 // directly (zero-copy), a truncated trailing row is copied into a
 // partial buffer, and any further empty rows share one zeroed row.
-// rows[originalRows:] are zeroed parity rows from a pooled slab.
+// rows[originalRows:] are parity rows from a pooled slab; their contents
+// are unspecified until the encoder overwrites them.
 //
 // The caller must not modify data or rows until [Assembly.Free] is called.
 // Rows that alias data or the shared zero row are immutable.
 func (a *Assembler) Assemble(data []byte, rowSize, firstRowOffset int) *Assembly {
 	rows := make([][]byte, a.originalRows+a.parityRows)
 
-	// pull one slab worth of buffers and zero them. Partial buffers must
-	// be zeroed because we only write the data-backed portion below; the
-	// parity rows because the encoder expects them clean on entry.
+	// pull one slab worth of buffers. Only the partial buffers need zeroing
+	// (we write just their data-backed portion below); Leopard overwrites
+	// parity rows without reading them.
 	pooled := a.rowsPool.Get(a.parityRows+partialRows, rowSize)
-	for _, p := range pooled {
+	for _, p := range pooled[:partialRows] {
 		clear(p)
 	}
 
