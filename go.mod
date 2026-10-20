@@ -46,6 +46,7 @@ require (
 	github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v8 v8.2.0
 	github.com/cosmos/ibc-go/modules/capability v1.0.1
 	github.com/cosmos/ibc-go/v8 v8.7.0
+	github.com/cosmos/ics23/go v0.11.0
 	github.com/creachadair/tomledit v0.0.29
 	github.com/digitalocean/godo v1.224.0
 	github.com/filecoin-project/go-clock v0.1.0
@@ -200,7 +201,6 @@ require (
 	github.com/cockroachdb/swiss v0.0.0-20260820225851-333444432258 // indirect
 	github.com/cockroachdb/tokenbucket v0.0.0-20250429170803-42689b6311bb // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	github.com/cosmos/ics23/go v0.11.0 // indirect
 	github.com/cosmos/ledger-cosmos-go v0.15.0 // indirect
 	github.com/creachadair/atomicfile v0.3.8 // indirect
 	github.com/curioswitch/go-reassign v0.3.0 // indirect
