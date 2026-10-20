@@ -195,19 +195,11 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 		if parallel {
 			squareDone = make(chan proposalSquareResult, 1)
-			go func(done chan<- proposalSquareResult) {
-				// The send must happen on every path: a goroutine that died
-				// without sending would block the drain below forever.
-				result := proposalSquareResult{
-					stage: "panic while building proposal square",
-					err:   fmt.Errorf("proposal square builder did not finish"),
-				}
-				defer func() {
-					_ = recover()
-					done <- result
-				}()
-				result = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
-			}(squareDone)
+			// buildProposalSquare turns a panic into its result, so this
+			// always sends and the drain below never blocks forever.
+			go func() {
+				squareDone <- app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+			}()
 			defer func() {
 				if squareDone != nil {
 					// Cancel before waiting, so a proposal rejected at its
