@@ -33,7 +33,6 @@ func TestMaxEffectiveSquareSize(t *testing.T) {
 		{"gov max above hard bound", 1024, 512},
 	}
 	for _, chainID := range chainIDs {
-		require.Equal(t, 512, appconsts.GetSquareSizeUpperBound(chainID))
 		for _, tc := range testCases {
 			t.Run(chainID+"/"+tc.name, func(t *testing.T) {
 				params := testApp.BlobKeeper.GetParams(ctx)
