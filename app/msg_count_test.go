@@ -6,6 +6,9 @@ import (
 
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -79,6 +82,12 @@ func TestCountExecutableMsgs(t *testing.T) {
 		}
 		return icahosttypes.NewMsgModuleQuerySafe("", requests)
 	}
+	zkismSubmitWith := func(n int) sdk.Msg {
+		values := zkismtypes.StateMembershipValues{MessageIds: make([][32]byte, n)}
+		bz, err := values.Marshal()
+		require.NoError(t, err)
+		return &zkismtypes.MsgSubmitMessages{PublicValues: bz}
+	}
 
 	testCases := []struct {
 		name string
@@ -91,6 +100,31 @@ func TestCountExecutableMsgs(t *testing.T) {
 			name:     "plain messages count as one each",
 			msgs:     []sdk.Msg{send(), send(), send()},
 			expected: 3,
+		},
+		{
+			name:     "ZKISM submission counts each authorized message",
+			msgs:     []sdk.Msg{zkismSubmitWith(5)},
+			expected: 5,
+		},
+		{
+			name:     "empty ZKISM submission counts as one",
+			msgs:     []sdk.Msg{zkismSubmitWith(0)},
+			expected: 1,
+		},
+		{
+			name:     "malformed ZKISM submission counts as over the limit",
+			msgs:     []sdk.Msg{&zkismtypes.MsgSubmitMessages{PublicValues: []byte("invalid")}},
+			expected: appconsts.MaxSDKMessages + 1,
+		},
+		{
+			name:     "ZKISM submissions share the block workload limit",
+			msgs:     []sdk.Msg{zkismSubmitWith(300), zkismSubmitWith(300)},
+			expected: appconsts.MaxSDKMessages,
+		},
+		{
+			name:     "ZKISM submission inside MsgExec counts its messages",
+			msgs:     []sdk.Msg{msgExecWith(zkismSubmitWith(5))},
+			expected: 6,
 		},
 		{
 			name:     "MsgExec counts its inner messages plus itself",
@@ -210,9 +244,24 @@ func TestCountExecutableMsgs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ck := fakeChannelKeeper{encoding: tc.encoding}
-			require.Equal(t, tc.expected, countExecutableMsgs(sdk.Context{}, ck, tc.msgs))
+			ctx := sdk.Context{}.WithBlockHeader(tmproto.Header{
+				Version: version.Consensus{App: appconsts.ZKISMFanoutLimitVersion},
+			})
+			require.Equal(t, tc.expected, countExecutableMsgs(ctx, ck, tc.msgs))
 		})
 	}
+}
+
+func TestCountExecutableMsgsPreservesLegacyZKISMWeight(t *testing.T) {
+	values := zkismtypes.StateMembershipValues{MessageIds: make([][32]byte, 10)}
+	bz, err := values.Marshal()
+	require.NoError(t, err)
+	msg := &zkismtypes.MsgSubmitMessages{PublicValues: bz}
+	ctx := sdk.Context{}.WithBlockHeader(tmproto.Header{
+		Version: version.Consensus{App: appconsts.ZKISMFanoutLimitVersion - 1},
+	})
+
+	require.Equal(t, 1, countExecutableMsgs(ctx, fakeChannelKeeper{}, []sdk.Msg{msg}))
 }
 
 // TestCountICAPacketMsgsNeverUndercounts checks the counter against the decoder

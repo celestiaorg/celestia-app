@@ -5,6 +5,7 @@ import (
 
 	storetypes "cosmossdk.io/store/types"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
+	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
@@ -63,6 +64,18 @@ func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 		return 1 + len(msg.Requests)
 	case *channeltypes.MsgRecvPacket:
 		return 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
+	case *zkismtypes.MsgSubmitMessages:
+		if ctx.BlockHeader().Version.App < appconsts.ZKISMFanoutLimitVersion {
+			return 1
+		}
+		var values zkismtypes.StateMembershipValues
+		if err := values.UnmarshalWithLimit(msg.PublicValues, zkismtypes.MaxMessageIdsCount); err != nil {
+			return appconsts.MaxSDKMessages + 1
+		}
+		if len(values.MessageIds) == 0 {
+			return 1
+		}
+		return len(values.MessageIds)
 	}
 	return 1
 }

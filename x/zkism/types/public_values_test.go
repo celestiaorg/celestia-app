@@ -108,18 +108,48 @@ func TestStateMembershipPublicValuesUnmarshalRejectsShortInputs(t *testing.T) {
 }
 
 func TestStateMembershipPublicValuesUnmarshalCountLimit(t *testing.T) {
-	// Create a crafted payload with count exceeding MaxMessageIdsCount
+	// Create a crafted payload with count exceeding LegacyMaxMessageIdsCount.
 	// Format: StateRoot (32 bytes) + MerkleTreeAddress (32 bytes) + count (8 bytes little-endian)
 	payload := make([]byte, 72)
 	copy(payload[0:32], bytes.Repeat([]byte{0x01}, 32))  // StateRoot
 	copy(payload[32:64], bytes.Repeat([]byte{0x02}, 32)) // MerkleTreeAddress
 
-	// Set count to MaxMessageIdsCount + 1 (little-endian uint64)
-	overLimitCount := uint64(types.MaxMessageIdsCount + 1)
+	// Set count to LegacyMaxMessageIdsCount + 1 (little-endian uint64).
+	overLimitCount := uint64(types.LegacyMaxMessageIdsCount + 1)
 	binary.LittleEndian.PutUint64(payload[64:72], overLimitCount)
 
 	var decoded types.StateMembershipValues
 	err := decoded.Unmarshal(payload)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "exceeds maximum allowed")
+}
+
+func TestStateMembershipPublicValuesUnmarshalAtCountLimit(t *testing.T) {
+	expected := types.StateMembershipValues{
+		StateRoot:         [32]byte{0x01},
+		MerkleTreeAddress: [32]byte{0x02},
+		MessageIds:        make([][32]byte, types.MaxMessageIdsCount),
+	}
+	for i := range expected.MessageIds {
+		binary.LittleEndian.PutUint64(expected.MessageIds[i][:8], uint64(i))
+	}
+
+	bz, err := expected.Marshal()
+	require.NoError(t, err)
+	require.Len(t, bz, 72+types.MaxMessageIdsCount*32)
+
+	var decoded types.StateMembershipValues
+	require.NoError(t, decoded.UnmarshalWithLimit(bz, types.MaxMessageIdsCount))
+	require.Equal(t, expected, decoded)
+}
+
+func TestStateMembershipPublicValuesUnmarshalRejectsVersionedCountLimit(t *testing.T) {
+	values := types.StateMembershipValues{MessageIds: make([][32]byte, types.MaxMessageIdsCount+1)}
+	bz, err := values.Marshal()
+	require.NoError(t, err)
+
+	var decoded types.StateMembershipValues
+	err = decoded.UnmarshalWithLimit(bz, types.MaxMessageIdsCount)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "exceeds maximum allowed")
 }

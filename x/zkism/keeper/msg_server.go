@@ -6,6 +6,7 @@ import (
 
 	"cosmossdk.io/collections"
 	errorsmod "cosmossdk.io/errors"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
@@ -116,8 +117,13 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 		return nil, errorsmod.Wrapf(types.ErrIsmNotFound, "failed to get ism: %s", msg.Id.String())
 	}
 
+	maxMessageIds := uint64(types.LegacyMaxMessageIdsCount)
+	if sdk.UnwrapSDKContext(ctx).BlockHeader().Version.App >= appconsts.ZKISMFanoutLimitVersion {
+		maxMessageIds = types.MaxMessageIdsCount
+	}
+
 	var publicValues types.StateMembershipValues
-	if err := publicValues.Unmarshal(msg.PublicValues); err != nil {
+	if err := publicValues.UnmarshalWithLimit(msg.PublicValues, maxMessageIds); err != nil {
 		return nil, errorsmod.Wrap(sdkerrors.ErrInvalidType, err.Error())
 	}
 

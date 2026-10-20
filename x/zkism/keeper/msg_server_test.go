@@ -6,9 +6,12 @@ import (
 
 	"cosmossdk.io/collections"
 	"github.com/bcp-innovations/hyperlane-cosmos/util"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
+	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
+	"github.com/cometbft/cometbft/proto/tendermint/version"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -209,6 +212,22 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 					Id:           ism.Id,
 					Proof:        proofBz,
 					PublicValues: []byte("invalid"),
+				}
+			},
+			expError: sdkerrors.ErrInvalidType,
+		},
+		{
+			name: "too many message ids after version activation",
+			setupTest: func() {
+				suite.ctx = suite.ctx.WithBlockHeader(tmproto.Header{
+					Version: version.Consensus{App: appconsts.ZKISMFanoutLimitVersion},
+				})
+				msg = &types.MsgSubmitMessages{
+					Id:    ism.Id,
+					Proof: proofBz,
+					PublicValues: marshalStateMembershipValues(suite, pubValues, func(v *types.StateMembershipValues) {
+						v.MessageIds = make([][32]byte, types.MaxMessageIdsCount+1)
+					}),
 				}
 			},
 			expError: sdkerrors.ErrInvalidType,

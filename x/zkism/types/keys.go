@@ -30,13 +30,22 @@ const (
 	// 2 * 8 bytes (length prefixes) + 2 * MaxStateBytes = 5012 bytes
 	MaxStateTransitionValuesBytes = (2 * 8) + (2 * MaxStateBytes)
 
-	// MaxMessageIdsCount is the maximum number of message IDs allowed in a StateMembershipValues.
-	MaxMessageIdsCount = 1_000_000
+	// MaxMessageIdsCount is the maximum number of message IDs allowed in a
+	// StateMembershipValues starting with app version 11. Keep this aligned with
+	// the per-block SDK message workload limit: each ID produces a
+	// consensus-state write and event data.
+	MaxMessageIdsCount = 600
+
+	// LegacyMaxMessageIdsCount preserves the decoding limit used through app
+	// version 10 so historical blocks continue to replay identically.
+	LegacyMaxMessageIdsCount = 1_000_000
 
 	// MaxStateMembershipValuesBytes is the maximum size permitted for public values payloads associated
 	// with state membership proofs.
-	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + MaxMessageIdsCount * 32 (MessageIds)
-	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (MaxMessageIdsCount * 32)
+	// Calculated as: 32 (StateRoot) + 32 (MerkleTreeAddress) + 8 (count) + LegacyMaxMessageIdsCount * 32 (MessageIds).
+	// This remains at the legacy limit because ValidateBasic has no app-version
+	// context. The message handler applies the lower versioned limit.
+	MaxStateMembershipValuesBytes = 32 + 32 + 8 + (LegacyMaxMessageIdsCount * 32)
 
 	// groth16VkeyCurvePointsSize is the size of the 6 curve points that
 	// precede the G1.K length prefix in a serialized BN254 verifying key.

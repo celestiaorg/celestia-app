@@ -125,6 +125,12 @@ func (v *StateMembershipValues) Marshal() ([]byte, error) {
 // This function expects the input byte slice to be encoded using Rust bincode's
 // default configuration: (little-endian, fixed-width integers, length-prefixed slices).
 func (v *StateMembershipValues) Unmarshal(data []byte) error {
+	return v.UnmarshalWithLimit(data, LegacyMaxMessageIdsCount)
+}
+
+// UnmarshalWithLimit decodes a StateMembershipValues while bounding the
+// number of message IDs before allocating their backing slice.
+func (v *StateMembershipValues) UnmarshalWithLimit(data []byte, maxMessageIds uint64) error {
 	buf := bytes.NewReader(data)
 
 	// Use io.ReadFull on fixed-size fields. bytes.Reader.Read returns (n, nil)
@@ -143,8 +149,8 @@ func (v *StateMembershipValues) Unmarshal(data []byte) error {
 		return fmt.Errorf("read message ids length: %w", err)
 	}
 
-	if count > MaxMessageIdsCount {
-		return fmt.Errorf("message ids count %d exceeds maximum allowed %d", count, MaxMessageIdsCount)
+	if count > maxMessageIds {
+		return fmt.Errorf("message ids count %d exceeds maximum allowed %d", count, maxMessageIds)
 	}
 
 	// Use int64 to avoid uint64 wrap on count*32.
