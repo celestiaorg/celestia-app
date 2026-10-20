@@ -2,6 +2,7 @@ package wrapper_test
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math/rand"
 	"reflect"
 	"testing"
@@ -9,20 +10,22 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/require"
 )
 
 // TestComputeRootsMatchesUntiledRoots is the correctness gate for sharing NMT
 // leaf hashes: one square where the tiled path disagrees with the established
-// one forks the network. Roots must be byte-identical at every square size.
+// one forks the network. Roots must be byte-identical at every admitted square
+// size, 1 through SquareSizeUpperBound.
 func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 	pool, err := wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 	require.NoError(t, err)
 
-	for _, n := range []int{1, 2, 4, 8, 16, 32, 64} {
-		for _, layout := range []string{"random", "repeated", "max namespace", "identical"} {
-			t.Run(layoutName(n, layout), func(t *testing.T) {
+	for n := 1; n <= appconsts.SquareSizeUpperBound; n *= 2 {
+		for _, layout := range []string{"random", "repeated", "max namespace", "identical", "row and column order only"} {
+			t.Run(fmt.Sprintf("%s/n=%d", layout, n), func(t *testing.T) {
 				data := squareOf(t, n, layout)
 
 				// the established path: extend, then build the header
@@ -30,6 +33,7 @@ func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 				require.NoError(t, err)
 				want, err := da.NewDataAvailabilityHeader(eds)
 				require.NoError(t, err)
+
 				rows, columns, err := pool.ComputeRoots(data)
 				require.NoError(t, err)
 				require.Equal(t, want.RowRoots, rows, "row roots differ at n=%d", n)
@@ -61,22 +65,20 @@ func TestComputeRootsRejectsNonSquareInput(t *testing.T) {
 	// not a power of two
 	_, _, err = pool.ComputeRoots(make([][]byte, 3))
 	require.Error(t, err)
-}
 
-func layoutName(n int, layout string) string {
-	return layout + "/n=" + itoa(n)
-}
+	// a power of two that is not a square
+	_, _, err = pool.ComputeRoots(squareOf(t, 8, "identical")[:32])
+	require.Error(t, err)
 
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var out []byte
-	for n > 0 {
-		out = append([]byte{byte('0' + n%10)}, out...)
-		n /= 10
-	}
-	return string(out)
+	// out of namespace order, in a square the tiled path would otherwise take
+	data := squareOf(t, 8, "repeated")
+	data[0], data[len(data)-1] = data[len(data)-1], data[0]
+	eds, err := da.ExtendSharesWithTreePool(data, pool)
+	require.NoError(t, err)
+	_, err = da.NewDataAvailabilityHeader(eds)
+	require.ErrorContains(t, err, "lexicographically ordered")
+	_, _, err = pool.ComputeRoots(data)
+	require.ErrorContains(t, err, "lexicographically ordered")
 }
 
 // squareOf builds n*n namespace-ordered shares in the requested layout.
@@ -87,6 +89,15 @@ func squareOf(t *testing.T, n int, layout string) [][]byte {
 	namespaces := make([][]byte, count)
 
 	switch layout {
+	case "random":
+		// random namespaces and contents, sorted
+		return testfactory.GenerateRandNamespacedRawData(count)
+	case "row and column order only":
+		// ordered along rows and columns but not across row ends, so not in
+		// row-major order
+		for i := range namespaces {
+			namespaces[i] = namespaceFor(t, i/n+i%n+1)
+		}
 	case "identical":
 		ns := namespaceFor(t, 1)
 		for i := range namespaces {
@@ -105,9 +116,7 @@ func squareOf(t *testing.T, n int, layout string) [][]byte {
 			namespaces[i] = namespaceFor(t, i+1)
 		}
 	default:
-		for i := range namespaces {
-			namespaces[i] = namespaceFor(t, i+1)
-		}
+		t.Fatalf("unknown layout %q", layout)
 	}
 
 	shares := make([][]byte, count)
