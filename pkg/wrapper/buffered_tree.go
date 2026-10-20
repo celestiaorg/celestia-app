@@ -1,9 +1,7 @@
 package wrapper
 
 import (
-	"crypto/sha256"
 	"fmt"
-	"reflect"
 	"runtime"
 	"slices"
 
@@ -17,7 +15,9 @@ import (
 type TreePool struct {
 	availableNMTs chan *resizeableBufferTree
 	poolSize      int
-	defaultRoots  bool
+	// defaultRoots is set when the trees use no extra nmt options, so
+	// ComputeRoots may compute their roots without them.
+	defaultRoots bool
 	// opts is the fully resolved nmt option list, built once in NewTreePool so
 	// concurrent acquires can share it safely.
 	opts []nmt.Option
@@ -39,7 +39,7 @@ func NewTreePool(initSquareSize uint, poolSize int, opts ...nmt.Option) (*TreePo
 	pool := &TreePool{
 		availableNMTs: make(chan *resizeableBufferTree, poolSize),
 		poolSize:      poolSize,
-		defaultRoots:  len(opts) == 0 && reflect.ValueOf(appconsts.NewBaseHashFunc).Pointer() == reflect.ValueOf(sha256.New).Pointer(),
+		defaultRoots:  len(opts) == 0,
 		opts: append(slices.Clone(opts), nmt.NamespaceIDSize(share.NamespaceSize),
 			nmt.IgnoreMaxNamespace(true), nmt.ReuseBuffers(true)),
 	}

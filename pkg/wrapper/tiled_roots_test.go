@@ -1,7 +1,9 @@
 package wrapper_test
 
 import (
+	"crypto/sha256"
 	"math/rand"
+	"reflect"
 	"testing"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
@@ -41,6 +43,13 @@ func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 			})
 		}
 	}
+}
+
+// TestTiledRootsHashFunction pins the assumption the tiled path rests on: it
+// hashes with sha256 directly, while the trees it must match hash with
+// appconsts.NewBaseHashFunc.
+func TestTiledRootsHashFunction(t *testing.T) {
+	require.Equal(t, reflect.ValueOf(sha256.New).Pointer(), reflect.ValueOf(appconsts.NewBaseHashFunc).Pointer())
 }
 
 // TestComputeRootsRejectsNonSquareInput checks anything the tiled path was not

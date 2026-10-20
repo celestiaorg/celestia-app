@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"reflect"
 	"runtime"
 	"sync"
 	"sync/atomic"
@@ -41,7 +40,7 @@ func (p *TreePool) ComputeRoots(data [][]byte, expectedSize uint64) (uint64, [][
 	if err != nil {
 		return 0, nil, nil, err
 	}
-	if p.defaultRoots && reflect.ValueOf(appconsts.NewBaseHashFunc).Pointer() == reflect.ValueOf(sha256.New).Pointer() && n >= rootTileWidth/2 && n <= 512 && n*n == len(data) && tiledInput(data, n) {
+	if p.defaultRoots && n >= rootTileWidth/2 && n <= 512 && n*n == len(data) && tiledInput(data, n) {
 		cells, err := extendForTiledRoots(data, n)
 		if err != nil {
 			return 0, nil, nil, err
