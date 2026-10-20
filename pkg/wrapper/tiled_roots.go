@@ -25,14 +25,14 @@ type tiledNode [2*share.NamespaceSize + sha256.Size]byte
 // derived for, and pools with nondefault trees, take rsmt2d and the pooled
 // trees, as ExtendSharesWithTreePool does.
 func (p *TreePool) ComputeRoots(data [][]byte) (rows, cols [][]byte, err error) {
-	if len(data) == 0 || len(data)&(len(data)-1) != 0 {
+	if !square.IsPowerOfTwo(len(data)) {
 		return nil, nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(data))
 	}
 	n, err := square.Size(len(data))
 	if err != nil {
 		return nil, nil, err
 	}
-	if p.defaultRoots && n >= rootTileWidth/2 && n <= 512 && n*n == len(data) && tiledInput(data, n) {
+	if p.defaultRoots && n >= rootTileWidth/2 && n <= appconsts.SquareSizeUpperBound && n*n == len(data) && tiledInput(data) {
 		cells, err := extendForTiledRoots(data, n)
 		if err != nil {
 			return nil, nil, err
@@ -51,22 +51,15 @@ func (p *TreePool) ComputeRoots(data [][]byte) (rows, cols [][]byte, err error) 
 	return rows, cols, err
 }
 
-// tiledInput establishes the leaf size and namespace order on both axes.
-func tiledInput(data [][]byte, n int) bool {
-	for _, cell := range data {
+// tiledInput establishes the leaf size and namespace order. Row-major order
+// over the whole square implies order along every row and every column.
+func tiledInput(data [][]byte) bool {
+	for i, cell := range data {
 		if len(cell) != share.ShareSize {
 			return false
 		}
-	}
-	for r := range n {
-		for c := range n {
-			ns := data[r*n+c][:share.NamespaceSize]
-			if c > 0 && bytes.Compare(data[r*n+c-1][:share.NamespaceSize], ns) > 0 {
-				return false
-			}
-			if r > 0 && bytes.Compare(data[(r-1)*n+c][:share.NamespaceSize], ns) > 0 {
-				return false
-			}
+		if i > 0 && bytes.Compare(data[i-1][:share.NamespaceSize], cell[:share.NamespaceSize]) > 0 {
+			return false
 		}
 	}
 	return true
