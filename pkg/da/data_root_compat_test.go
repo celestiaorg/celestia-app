@@ -17,10 +17,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDataRootCompatibilityVectors pins data roots for fixed squares. Each root
-// is computed with fresh trees, a fresh tree pool, and a tree pool that is
-// reused across square sizes and has just failed a root computation, and
-// through TreePool.ComputeRoots on both pools.
+// TestDataRootCompatibilityVectors pins data roots for fixed squares, computed with
+// fresh trees, fresh and failed-then-reused pools, and TreePool.ComputeRoots.
 func TestDataRootCompatibilityVectors(t *testing.T) {
 	// emptyRoot equals the hash pinned in TestMinDataAvailabilityHeader.
 	const emptyRoot = "3d96b7d238e7e0456f6af8e7cdf0a67bd6cf9c2089ecb559c659dcaa1f880353"

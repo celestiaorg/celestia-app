@@ -619,9 +619,8 @@ func TestDecodePayForFibre(t *testing.T) {
 	require.Nil(t, keeper.DecodePayForFibre(raw[:len(raw)/2]))
 }
 
-// TestPromiseHashReuse pins ProcessProposal's promise-hash reuse: the decoded
-// view's hash is fibre.PaymentPromise.Hash, and the keeper uses it only for the
-// promise inside the view decoded from ctx.TxBytes().
+// TestPromiseHashReuse pins that the decoded hash is fibre.PaymentPromise.Hash and
+// that the keeper reuses it only for the view decoded from ctx.TxBytes().
 func TestPromiseHashReuse(t *testing.T) {
 	f := newPreverifyFixture(t)
 	msg := f.signedMessage(t, 1)

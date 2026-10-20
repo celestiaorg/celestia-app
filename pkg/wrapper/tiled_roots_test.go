@@ -15,10 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestComputeRootsMatchesUntiledRoots is the correctness gate for sharing NMT
-// leaf hashes: one square where the tiled path disagrees with the established
-// one forks the network. Roots must be byte-identical at every admitted square
-// size, 1 through SquareSizeUpperBound.
+// TestComputeRootsMatchesUntiledRoots requires tiled roots byte-identical to the
+// established path at every square size: one mismatch forks the network.
 func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 	pool, err := wrapper.DefaultPreallocatedTreePool(uint(appconsts.SquareSizeUpperBound))
 	require.NoError(t, err)
@@ -46,9 +44,8 @@ func TestComputeRootsMatchesUntiledRoots(t *testing.T) {
 	}
 }
 
-// TestTiledRootsHashFunction pins the assumption the tiled path rests on: it
-// hashes with sha256 directly, while the trees it must match hash with
-// appconsts.NewBaseHashFunc.
+// TestTiledRootsHashFunction pins that appconsts.NewBaseHashFunc is sha256, which
+// the tiled path hashes with directly.
 func TestTiledRootsHashFunction(t *testing.T) {
 	require.Equal(t, reflect.ValueOf(sha256.New).Pointer(), reflect.ValueOf(appconsts.NewBaseHashFunc).Pointer())
 }

@@ -11,9 +11,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// DecodedPayForFibre is a MsgPayForFibre tx decoded once per ABCI phase, so
-// later steps reuse it instead of deriving it again. Every field comes from
-// Raw and must stay immutable for the phase.
+// DecodedPayForFibre is a MsgPayForFibre tx decoded once per ABCI phase for later
+// steps to reuse. Every field comes from Raw and stays immutable for the phase.
 type DecodedPayForFibre struct {
 	Raw []byte
 	Msg *MsgPayForFibre
@@ -35,10 +34,8 @@ func (d *DecodedPayForFibre) PromiseKeyed() bool {
 	return len(d.PromiseSignBytes) > 0
 }
 
-// PromiseHash returns the payment promise hash, fibre.PaymentPromise.Hash's
-// sha256(SignBytes || Signature), from the sign bytes the decode already
-// derived. Nil when the promise is unkeyed or unsigned: the canonical path
-// then reports the error.
+// PromiseHash returns PaymentPromise.Hash from the sign bytes the decode derived,
+// or nil when the promise is unkeyed or unsigned.
 func (d *DecodedPayForFibre) PromiseHash() []byte {
 	if d.Msg == nil || !d.PromiseKeyed() || len(d.Msg.PaymentPromise.Signature) == 0 {
 		return nil
@@ -52,10 +49,8 @@ func (d *DecodedPayForFibre) PromiseHash() []byte {
 	return d.promiseHash[:]
 }
 
-// FibreTx returns the tx with its synthesized system blob. Each caller builds
-// it at most once, so it is derived rather than memoized: the view then has no
-// unguarded mutable field, and the pre-verification pass can share it across
-// every CPU.
+// FibreTx returns the tx with its synthesized system blob. It is derived, not
+// memoized, so the view has no unguarded mutable field and can be shared across CPUs.
 func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
 	systemBlob, err := d.Msg.SystemBlob()
 	if err != nil {
@@ -66,12 +61,8 @@ func (d *DecodedPayForFibre) FibreTx() (*squaretx.FibreTx, error) {
 
 type certKeyContextKey struct{}
 
-// CertKeyHolder carries the decoded view of the transaction being processed
-// through a sequential walk, so the context takes one value for the whole walk
-// instead of one per transaction. Not safe for concurrent use.
-//
-// The ante handler reads back the certificate key; the payment promise checks
-// read back the promise hash.
+// CertKeyHolder carries the decoded view of the tx a sequential walk is processing:
+// one context value per walk. Not safe for concurrent use.
 type CertKeyHolder struct {
 	decoded *DecodedPayForFibre
 }

@@ -20,10 +20,8 @@ const rootTileWidth = 16
 
 type tiledNode [2*share.NamespaceSize + sha256.Size]byte
 
-// ComputeRoots extends a square and returns its row and column roots, sharing
-// each leaf hash between its row and its column. Squares the tiled path was not
-// derived for, and pools with nondefault trees, take rsmt2d and the pooled
-// trees, as ExtendSharesWithTreePool does.
+// ComputeRoots extends a square and returns its row and column roots, sharing each
+// leaf hash between them. Uncovered sizes and nondefault trees take the rsmt2d path.
 func (p *TreePool) ComputeRoots(data [][]byte) (rows, cols [][]byte, err error) {
 	if !square.IsPowerOfTwo(len(data)) {
 		return nil, nil, fmt.Errorf("number of shares is not a power of 2: got %d", len(data))
