@@ -189,6 +189,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	for i, tx := range blobTxs {
+		// validateBlobTx keeps only single-PFB blob txs, so nothing more fits once the cap is reached.
+		if pfbMessageCount >= appconsts.MaxPFBMessages {
+			break
+		}
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(tx.Tx), "error", err)
