@@ -32,9 +32,10 @@ func TestPrepareProposalDifferential(t *testing.T) {
 		numMultiSends = 200
 		numBlobs      = 2*appconsts.MaxPFBMessages + 50
 		numPFFs       = 2*appconsts.MaxPayForFibreMessages + 50
+		numExpiring   = 2 * appconsts.MaxSDKMessages
 	)
 	// One account per tx, so a dropped tx never breaks a later tx's sequence.
-	accounts := testfactory.GenerateAccounts(numSends + numMultiSends + numBlobs + numPFFs)
+	accounts := testfactory.GenerateAccounts(numSends + numMultiSends + numBlobs + numPFFs + numExpiring)
 	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, accounts...)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 
@@ -51,13 +52,14 @@ func TestPrepareProposalDifferential(t *testing.T) {
 		next++
 		return name, testfactory.GetAddress(kr, name)
 	}
-	sendTx := func(msgs int) []byte {
+	sendTx := func(msgs int, opts ...user.TxOption) []byte {
 		_, addr := nextAccount()
 		sends := make([]sdk.Msg, msgs)
 		for i := range sends {
 			sends[i] = banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
 		}
-		rawTx, _, err := signer.CreateTx(sends, user.SetGasLimit(uint64(msgs)*100_000), user.SetFee(uint64(msgs)*10_000))
+		opts = append([]user.TxOption{user.SetGasLimit(uint64(msgs) * 100_000), user.SetFee(uint64(msgs) * 10_000)}, opts...)
+		rawTx, _, err := signer.CreateTx(sends, opts...)
 		require.NoError(t, err)
 		return rawTx
 	}
@@ -84,6 +86,12 @@ func TestPrepareProposalDifferential(t *testing.T) {
 		name, addr := nextAccount()
 		seedFibreEscrow(t, testApp, addr, 1_000_000)
 		pffs[i] = newSignedPayForFibreTx(t, signer, name, true)
+	}
+	// expiring txs pass CheckTx at the committed height but fail ante in the proposal, so
+	// they are never included and must not push included txs out.
+	expiring := make([][]byte, numExpiring)
+	for i := range expiring {
+		expiring[i] = sendTx(1, user.SetTimeoutHeight(uint64(testApp.LastBlockHeight())))
 	}
 
 	// interleave takes one tx from each list in turn until all are used.
@@ -122,6 +130,8 @@ func TestPrepareProposalDifferential(t *testing.T) {
 		{"pff-over-cap", pffs, appconsts.MaxPayForFibreMessages},
 		{"all-over-cap-interleaved", interleave(sends, blobs, pffs), 1000},
 		{"all-over-cap-concatenated", append(append(append([][]byte{}, blobs...), pffs...), sends...), 1000},
+		{"expiring-flood", append(append(append(append([][]byte{}, expiring...), sends[:10]...), blobs[:5]...), pffs[:5]...), 20},
+		{"expiring-interleaved-over-cap", interleave(expiring, sends), appconsts.MaxSDKMessages},
 	}
 	for _, w := range workloads {
 		t.Run(w.name, func(t *testing.T) {

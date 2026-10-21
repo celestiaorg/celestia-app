@@ -126,9 +126,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		if sdkMessageCount >= appconsts.MaxSDKMessages {
 			break
 		}
+		// separateTxsDecoded leaves these undecoded; drop what it drops on a full decode.
 		sdkTx, err := dec(tx)
 		if err != nil {
-			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			continue
+		}
+		if _, has := hasPFB(sdkTx.GetMsgs()); has || countMsgPayForFibre(sdkTx) > 0 {
 			continue
 		}
 
@@ -186,9 +189,6 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	for i, tx := range blobTxs {
-		if pfbMessageCount >= appconsts.MaxPFBMessages {
-			break
-		}
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -286,10 +286,10 @@ type decodedFibreTx struct {
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
-//   - transactions past their class's candidate bound
 //
-// Pay-for-fibre txs carry their decoded forms so later steps reuse them.
-// decodePFF may be nil.
+// Normal txs whose first message is not a MsgPayForFibre are not decoded here; Fill
+// filters them when it reaches them. Pay-for-fibre txs carry their decoded forms so
+// later steps reuse them. decodePFF may be nil.
 func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF func([]byte) *fibretypes.DecodedPayForFibre, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
@@ -315,22 +315,15 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
 				continue
 			}
-			// Candidates arrive in priority order, so the bound drops the lowest priority first.
-			if len(blobTxs) >= appconsts.MaxPFBCandidates {
-				continue
-			}
 			blobTxs = append(blobTxs, bTx)
 			rawBlobTxs = append(rawBlobTxs, rawTx)
 			continue
 		}
 
-		// Apply the class bound before the full decode. A wrong peek only moves a tx between
-		// budgets; a failed one is bounded after the decode.
-		if isPFF, ok := firstMsgIsPayForFibre(rawTx); ok {
-			if isPFF && len(payForFibreTxs) >= appconsts.MaxPayForFibreCandidates ||
-				!isPFF && len(normalTxs) >= appconsts.MaxSDKCandidates {
-				continue
-			}
+		// Fill decodes these lazily and stops at the SDK cap; a failed peek takes the full decode.
+		if isPFF, ok := firstMsgIsPayForFibre(rawTx); ok && !isPFF {
+			normalTxs = append(normalTxs, rawTx)
+			continue
 		}
 
 		sdkTx, err := dec(rawTx)
@@ -367,9 +360,6 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 			continue
 		}
 
-		if len(normalTxs) >= appconsts.MaxSDKCandidates {
-			continue
-		}
 		normalTxs = append(normalTxs, rawTx)
 	}
 	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
@@ -450,9 +440,6 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 
 	for _, entry := range payForFibreTxs {
-		if pffMessageCount >= appconsts.MaxPayForFibreMessages {
-			break
-		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
 
 		// The system blob comes from the decoded view, or from parsing when

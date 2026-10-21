@@ -10,6 +10,8 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/encoding"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
+	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/cosmos/cosmos-sdk/client"
@@ -76,55 +78,68 @@ func (c countingTxConfig) TxDecoder() sdk.TxDecoder {
 	}
 }
 
-// TestCandidateBoundsBoundDecoding pins that an over-cap workload decodes at most the bounds.
-func TestCandidateBoundsBoundDecoding(t *testing.T) {
+// TestFillStopsSDKDecodesAtCap pins that SDK txs are decoded only by the SDK loop, and only
+// until the SDK cap is full.
+func TestFillStopsSDKDecodesAtCap(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
-
-	const extra = 50
-	sdkTxs := make([][]byte, appconsts.MaxSDKCandidates+extra)
-	for i := range sdkTxs {
-		sdkTxs[i] = newNormalTx(t, txConfig)
+	txs := make([][]byte, 2*appconsts.MaxSDKMessages+50)
+	for i := range txs {
+		txs[i] = newNormalTx(t, txConfig)
 	}
-	blobTxs := make([][]byte, appconsts.MaxPFBCandidates+extra)
-	for i := range blobTxs {
-		blobTxs[i] = newBlobTx(t, txConfig)
+
+	var calls int
+	normal, _, _, _ := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, nil, txs)
+	require.Equal(t, txs, normal)
+	require.Zero(t, calls)
+
+	kept := newTestFill(t, countingTxConfig{txConfig, &calls}, txs)
+	require.Equal(t, txs[:appconsts.MaxSDKMessages], kept)
+	require.Equal(t, appconsts.MaxSDKMessages, calls)
+}
+
+// TestFillDropsLazySDKTxs pins that the SDK loop drops what separateTxsDecoded drops on a full decode.
+func TestFillDropsLazySDKTxs(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	ns := share.MustNewV0Namespace([]byte("lazy"))
+	blob, err := share.NewBlob(ns, []byte("blob"), share.ShareVersionZero, nil)
+	require.NoError(t, err)
+	pfb, err := blobtypes.NewMsgPayForBlobs(newMsgSend().FromAddress, appconsts.Version, blob)
+	require.NoError(t, err)
+	pff := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), "test")
+	field := func(num protowire.Number, v []byte) []byte {
+		return protowire.AppendBytes(protowire.AppendTag(nil, num, protowire.BytesType), v)
 	}
-	pffTxs := make([][]byte, appconsts.MaxPayForFibreCandidates+extra)
-	for i := range pffTxs {
-		pffTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
+	unknownMsgTx := field(txRawBodyField, field(txBodyMsgsField, field(anyTypeURLField, []byte("/unknown.Msg"))))
+
+	send := newNormalTx(t, txConfig)
+	txs := [][]byte{
+		unknownMsgTx,
+		newUnsignedTx(t, txConfig, pfb),
+		newUnsignedTx(t, txConfig, newMsgSend(), pff),
+		send,
 	}
-	all := append(append(append([][]byte{}, sdkTxs...), blobTxs...), pffTxs...)
+	for _, tx := range txs[:3] {
+		isPFF, ok := firstMsgIsPayForFibre(tx)
+		require.True(t, ok)
+		require.False(t, isPFF)
+	}
+	require.Equal(t, [][]byte{send}, newTestFill(t, txConfig, txs))
+}
 
-	t.Run("separateTxsDecoded", func(t *testing.T) {
-		var calls int
-		normal, blobs, _, pffs := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, nil, all)
-		require.Equal(t, sdkTxs[:appconsts.MaxSDKCandidates], normal)
-		require.Len(t, blobs, appconsts.MaxPFBCandidates)
-		require.Len(t, pffs, appconsts.MaxPayForFibreCandidates)
-		require.Equal(t, appconsts.MaxSDKCandidates+appconsts.MaxPayForFibreCandidates, calls)
-	})
-
-	t.Run("Fill", func(t *testing.T) {
-		alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
-		var calls int
-		fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, countingTxConfig{txConfig, &calls}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-		require.NoError(t, err)
-		ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
-		ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
-
-		kept := fsb.Fill(ctx, all, math.MaxInt64)
-		require.Len(t, kept, appconsts.MaxSDKMessages+appconsts.MaxPFBMessages+appconsts.MaxPayForFibreMessages)
-		// The class loops stop decoding once their cap is reached.
-		require.Equal(t, appconsts.MaxSDKCandidates+appconsts.MaxPayForFibreCandidates+
-			appconsts.MaxSDKMessages+appconsts.MaxPFBMessages, calls)
-	})
+// newTestFill runs Fill with an ante handler that accepts every tx.
+func newTestFill(t *testing.T, txConfig client.TxConfig, txs [][]byte) [][]byte {
+	t.Helper()
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+	ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
+	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
+	return fsb.Fill(ctx, txs, math.MaxInt64)
 }
 
 // TestFillKeepsSmallerTxAfterOverflow pins that a tx overflowing the cap does not end the loop.
 func TestFillKeepsSmallerTxAfterOverflow(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
-	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) { return ctx, nil }
-
 	txs := make([][]byte, 0, appconsts.MaxSDKMessages+1)
 	for range appconsts.MaxSDKMessages - 1 {
 		txs = append(txs, newNormalTx(t, txConfig))
@@ -133,12 +148,7 @@ func TestFillKeepsSmallerTxAfterOverflow(t *testing.T) {
 	last := newNormalTx(t, txConfig)
 	txs = append(txs, twoMsgTx, last)
 
-	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
-	require.NoError(t, err)
-	ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
-	ctx := sdk.NewContext(ms, cmtproto.Header{}, false, log.NewNopLogger())
-
-	kept := fsb.Fill(ctx, txs, math.MaxInt64)
+	kept := newTestFill(t, txConfig, txs)
 	require.Len(t, kept, appconsts.MaxSDKMessages)
 	require.Equal(t, last, kept[len(kept)-1])
 	require.NotContains(t, kept, twoMsgTx)
