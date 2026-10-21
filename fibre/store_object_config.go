@@ -126,6 +126,17 @@ func openObjectBackend(ctx context.Context, cfg StoreConfig, db *pebbledb.DB) (s
 func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	client, err := newS3Client(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(cfg.Bucket)}); err != nil {
+		return nil, fmt.Errorf("checking object storage bucket %q: %w", cfg.Bucket, err)
+	}
+	return client, nil
+}
+
+func newS3Client(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, error) {
 	httpClient := awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
 		tr.ForceAttemptHTTP2 = false
 		tr.TLSClientConfig.NextProtos = []string{"http/1.1"}
@@ -146,9 +157,6 @@ func newObjectClient(ctx context.Context, cfg ObjectStorageConfig) (*s3.Client, 
 	client := s3.NewFromConfig(awsConfig, func(options *s3.Options) {
 		options.BaseEndpoint = aws.String(cfg.Endpoint)
 	})
-	if _, err := client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(cfg.Bucket)}); err != nil {
-		return nil, fmt.Errorf("checking object storage bucket %q: %w", cfg.Bucket, err)
-	}
 	return client, nil
 }
 

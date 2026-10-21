@@ -140,6 +140,18 @@ truncated. Set `--limit 0` to list all matching markers. Both commands require
 the Fibre server to be stopped because Pebble allows only one process to hold
 the store lock.
 
+Check the currently configured object storage destination and credentials with:
+
+```sh
+fibre store check-bucket
+```
+
+The command reports the bucket-level check and the canary `PUT` and `DELETE`
+separately. It writes the canary under `<prefix>/.fibre-check/` and does not
+open Pebble, so Fibre can remain running. The configured credentials must allow
+writes and deletes under `<prefix>/.fibre-check/`, even if normal shard access
+is restricted to a validator-specific path.
+
 ## Config
 
 The config file is at `$FIBRE_HOME/config/server_config.toml` (default `~/.celestia-fibre/config/server_config.toml`).

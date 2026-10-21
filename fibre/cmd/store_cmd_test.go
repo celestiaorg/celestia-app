@@ -3,14 +3,41 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/celestiaorg/celestia-app/v10/fibre"
 	pebbledb "github.com/cockroachdb/pebble/v2"
 	"github.com/stretchr/testify/require"
 )
+
+func TestWriteObjectStorageCheck(t *testing.T) {
+	result := fibre.ObjectStorageCheckResult{
+		CanaryKey:     "fibre/.fibre-check/canary",
+		HeadBucketErr: errors.New("access denied"),
+	}
+	var output bytes.Buffer
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.Regexp(t, `(?m)^head bucket\s+failed\s+access denied$`, output.String())
+	require.Regexp(t, `(?m)^put canary\s+ok\s*$`, output.String())
+	require.Regexp(t, `(?m)^delete canary\s+ok\s*$`, output.String())
+	require.Contains(t, output.String(), result.CanaryKey)
+}
+
+func TestWriteObjectStorageCheckReportsIndependentDelete(t *testing.T) {
+	result := fibre.ObjectStorageCheckResult{
+		CanaryKey:       "fibre/.fibre-check/canary",
+		PutCanaryErr:    errors.New("put denied"),
+		DeleteCanaryErr: errors.New("delete denied"),
+	}
+	var output bytes.Buffer
+	require.NoError(t, writeObjectStorageCheck(&output, result))
+	require.Regexp(t, `(?m)^put canary\s+failed\s+put denied$`, output.String())
+	require.Regexp(t, `(?m)^delete canary\s+failed\s+delete denied$`, output.String())
+}
 
 func TestStoreStatsCmdDoesNotInitializeHome(t *testing.T) {
 	home := t.TempDir()

@@ -14,9 +14,55 @@ import (
 )
 
 func newStoreCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "store", Short: "Inspect the Fibre store"}
-	cmd.AddCommand(newStoreStatsCmd(), newStoreMarkersCmd())
+	cmd := &cobra.Command{Use: "store", Short: "Inspect the Fibre store and object storage"}
+	cmd.AddCommand(newStoreStatsCmd(), newStoreMarkersCmd(), newStoreCheckBucketCmd())
 	return cmd
+}
+
+func newStoreCheckBucketCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "check-bucket",
+		Short: "Check object storage connectivity and permissions",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			home, err := cmd.Flags().GetString(flagHome)
+			if err != nil {
+				return fmt.Errorf("get %q flag: %w", flagHome, err)
+			}
+			cfg := fibre.DefaultServerConfig()
+			if err := cfg.Load(fibre.DefaultConfigPath(home)); err != nil {
+				return err
+			}
+			result, err := fibre.CheckObjectStorage(cmd.Context(), cfg.ObjectStorage)
+			if err != nil {
+				return err
+			}
+			if err := writeObjectStorageCheck(cmd.OutOrStdout(), result); err != nil {
+				return err
+			}
+			return result.Err()
+		},
+	}
+}
+
+func writeObjectStorageCheck(out io.Writer, result fibre.ObjectStorageCheckResult) error {
+	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(w, "CHECK\tSTATUS\tERROR")
+	writeCheckResult(w, "head bucket", result.HeadBucketErr)
+	writeCheckResult(w, "put canary", result.PutCanaryErr)
+	writeCheckResult(w, "delete canary", result.DeleteCanaryErr)
+	fmt.Fprintf(w, "canary key\t%s\t\n", result.CanaryKey)
+	return w.Flush()
+}
+
+func writeCheckResult(w io.Writer, name string, err error) {
+	status := "ok"
+	message := ""
+	if err != nil {
+		status = "failed"
+		message = err.Error()
+	}
+	fmt.Fprintf(w, "%s\t%s\t%s\n", name, status, message)
 }
 
 func newStoreStatsCmd() *cobra.Command {
