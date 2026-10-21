@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -45,15 +46,28 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 // PreverifyDecoded is PreverifySignatures over txs the caller already decoded,
 // so the phase decodes each tx once. nil entries are skipped.
 func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) {
-	if k.sigCache == nil {
-		return
+	if verify := k.PreparePreverification(ctx, decoded, opts); verify != nil {
+		verify()
 	}
+}
 
+// PreparePreverification collects state-dependent inputs synchronously and returns
+// work that reads no SDK state, or nil when everything requested is cached or skipped.
+func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) func() {
+	if k.sigCache == nil {
+		return nil
+	}
 	work := k.collectVerifications(ctx, decoded, opts)
 	if len(work.items) == 0 {
-		return
+		return nil
 	}
-	work.record(k.sigCache, runVerifications(work.items, opts.StopOnFirstFailure))
+	return func() {
+		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(results []atomic.Bool, start, end int) {
+			work.record(k.sigCache, func(i int) bool { return results[i].Load() }, start, end)
+		})
+		// Groups crossing worker boundaries are published after all workers finish.
+		work.record(k.sigCache, func(i int) bool { return verified[i] }, 0, len(work.items))
+	}
 }
 
 // PreverifyPayForFibreMsg runs the pass over one message the caller holds, and
@@ -67,11 +81,9 @@ func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFib
 		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
 }
 
-// batchSize is how many validator signatures one work item verifies together.
-// Batching amortises the fixed cost of the multiscalar multiplication; keeping
-// items small still leaves far more of them than there are CPUs, so no core
-// idles waiting on a transaction with few signatures.
-const batchSize = 64
+// batchSize is how many validator signatures one work item batch-verifies: 128
+// covers a 100-validator quorum in one item and still leaves more items than CPUs.
+const batchSize = 128
 
 // verification is one independent unit of work: either a payment promise's
 // stateless validation, which carries its secp256k1 check, or a batch of
@@ -94,15 +106,24 @@ func (v verification) run() bool {
 	}
 
 	batch := ed25519.NewBatchVerifier()
-	for i, pubKey := range v.pubKeys {
-		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
-			return false
-		}
+	if !v.addTo(batch) {
+		return false
 	}
 	// A failing batch falls back to verifying each entry, so the verdict is the
 	// same one the sequential walk reaches.
 	allValid, _ := batch.Verify()
 	return allValid
+}
+
+// addTo queues the item's validator signatures on batch and reports whether
+// it took every one.
+func (v verification) addTo(batch crypto.BatchVerifier) bool {
+	for i, pubKey := range v.pubKeys {
+		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // verificationGroup is one message's contribution to the pass. Its keys are
@@ -122,12 +143,20 @@ type preverification struct {
 	groups []verificationGroup
 }
 
-// record adds the cache entries of every group whose items all succeeded.
-func (p *preverification) record(cache SigCache, verified []bool) {
-	for _, group := range p.groups {
+// record adds the cache entries of every group whose items all succeeded and
+// that lies wholly inside [start, end).
+func (p *preverification) record(cache SigCache, verified func(int) bool, start, end int) {
+	first := sort.Search(len(p.groups), func(i int) bool { return p.groups[i].first >= start })
+	for _, group := range p.groups[first:] {
+		if group.first >= end {
+			break
+		}
+		if group.end > end {
+			continue
+		}
 		complete := true
 		for i := group.first; i < group.end; i++ {
-			if !verified[i] {
+			if !verified(i) {
 				complete = false
 				break
 			}
@@ -280,7 +309,7 @@ func (k Keeper) appendCertificateItems(
 // Items are independent and each result is stored at its own index, so the
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
-func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
+func runVerifications(items []verification, stopOnFirstFailure bool, publish func([]atomic.Bool, int, int)) []bool {
 	verified := make([]bool, len(items))
 	if len(items) == 1 {
 		// One item has nothing to spread; the fan-out would be pure overhead.
@@ -294,7 +323,9 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
-	workers := min(runtime.GOMAXPROCS(0), len(items))
+	procs := runtime.GOMAXPROCS(0)
+	chunkSize := verificationChunkSize(len(items), procs)
+	workers := min(procs, (len(items)+chunkSize-1)/chunkSize)
 
 	var (
 		next    atomic.Int64
@@ -306,18 +337,19 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 			// A worker panic must not take the node down: its unfinished items stay unverified
 			// and the sequential path redoes them.
 			defer func() { _ = recover() }()
+			// NewBatchVerifier always returns *BatchVerifier; otherwise every item stays
+			// unverified, which the preverify tests catch as a cache that never warms.
+			batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			for {
-				i := int(next.Add(1)) - 1
+				i := int(next.Add(int64(chunkSize))) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
-				if items[i].run() {
-					results[i].Store(true)
-					continue
-				}
-				if stopOnFirstFailure {
+				end := min(i+chunkSize, len(items))
+				if !runVerificationChunk(items, results, i, end, batch) && stopOnFirstFailure {
 					aborted.Store(true)
 				}
+				publish(results, i, end)
 			}
 		})
 	}
@@ -327,4 +359,50 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 		verified[i] = results[i].Load()
 	}
 	return verified
+}
+
+// maxChunkSize is how many items one worker claims, and combines into one
+// ed25519 batch, at a time.
+const maxChunkSize = 8
+
+// verificationChunkSize shrinks chunks until every proc has one, so CheckTx's
+// promise and certificate still verify in parallel.
+func verificationChunkSize(items, procs int) int {
+	return min(maxChunkSize, max(1, (items+procs-1)/procs))
+}
+
+// runVerificationChunk combines a few certificate batches; a failed combined batch
+// leaves their entries unset for the ordered path, which still decides.
+func runVerificationChunk(items []verification, results []atomic.Bool, start, end int, batch *ed25519.BatchVerifier) bool {
+	batch.Reset()
+	allValid := true
+	batchReady := true
+	certificates := 0
+	for i := start; i < end; i++ {
+		item := items[i]
+		if item.promise != nil {
+			if item.run() {
+				results[i].Store(true)
+			} else {
+				allValid = false
+			}
+			continue
+		}
+		certificates++
+		batchReady = batchReady && item.addTo(batch)
+	}
+	if certificates == 0 {
+		return allValid
+	}
+	if batchReady {
+		if valid, _ := batch.Verify(); valid {
+			for i := start; i < end; i++ {
+				if items[i].promise == nil {
+					results[i].Store(true)
+				}
+			}
+			return allValid
+		}
+	}
+	return false
 }
