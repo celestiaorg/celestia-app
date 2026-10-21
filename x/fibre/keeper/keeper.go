@@ -383,7 +383,11 @@ func promiseSigCacheKey(pp *fibre.PaymentPromise) (sigcache.Key, bool) {
 	if err != nil {
 		return sigcache.Key{}, false
 	}
-	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature), true
+	return promiseSigCacheKeyFromSignBytes(pp, signBytes), true
+}
+
+func promiseSigCacheKeyFromSignBytes(pp *fibre.PaymentPromise, signBytes []byte) sigcache.Key {
+	return sigcache.NewKey(sigcache.PromiseSignature, pp.SignerKey.Bytes(), signBytes, pp.Signature)
 }
 
 // GetProcessedPaymentsByTimeIterator returns an iterator for all processed payments up to the given time

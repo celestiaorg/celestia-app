@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -790,6 +791,21 @@ func (suite *ABCITestSuite) TestGenesisRoundTripPreservesFreshnessFloor() {
 	got, err = suite.keeper.GetPromiseFreshnessFloor(suite.ctx)
 	suite.NoError(err)
 	suite.True(got.IsZero(), "a zero exported floor must remain unset after import")
+}
+
+func (suite *ABCITestSuite) TestInitGenesisRejectsNonCanonicalSigner() {
+	signer := sdk.AccAddress([]byte("genesis_signer______")).String()
+	balance := sdk.NewCoin("utia", math.NewInt(1000))
+	genesis := types.DefaultGenesis()
+	genesis.EscrowAccounts = []types.EscrowAccount{{
+		Signer:           strings.ToUpper(signer),
+		Balance:          balance,
+		AvailableBalance: balance,
+	}}
+
+	suite.Panics(func() { suite.keeper.InitGenesis(suite.ctx, *genesis) })
+	_, found := suite.keeper.GetEscrowAccount(suite.ctx, strings.ToUpper(signer))
+	suite.False(found, "no escrow account is written under the uppercase key")
 }
 
 func (suite *ABCITestSuite) TestBeginBlocker_PruneEmptyState() {

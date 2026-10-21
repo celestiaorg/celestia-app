@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -170,7 +171,7 @@ func TestPaymentPromiseValidateBasic(t *testing.T) {
 	commitment := generateCommitment()
 	blobVersion := BlobVersionZero
 	creationTimestamp := time.Now()
-	signature := []byte("valid-signature")
+	signature := bytes.Repeat([]byte{0x01}, PromiseSignatureSize)
 	height := int64(100)
 	chainId := "test"
 
@@ -327,6 +328,38 @@ func TestPaymentPromiseValidateBasic(t *testing.T) {
 				Signature:         []byte{},
 				Height:            height,
 				ChainId:           chainId,
+			},
+			wantErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			// secp256k1 verifies the compact form only, so this one could
+			// never have been accepted; it is now rejected before any hashing.
+			name: "signature of the wrong size",
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				BlobVersion:       blobVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         bytes.Repeat([]byte{0x01}, PromiseSignatureSize+1),
+				Height:            height,
+				ChainId:           chainId,
+			},
+			wantErr: sdkerrors.ErrInvalidRequest,
+		},
+		{
+			name: "chain ID over the maximum",
+			msg: PaymentPromise{
+				SignerPublicKey:   signerPublicKey,
+				Namespace:         namespace,
+				BlobSize:          blobSize,
+				Commitment:        commitment,
+				BlobVersion:       blobVersion,
+				CreationTimestamp: creationTimestamp,
+				Signature:         signature,
+				Height:            height,
+				ChainId:           strings.Repeat("c", MaxChainIDSize+1),
 			},
 			wantErr: sdkerrors.ErrInvalidRequest,
 		},
@@ -590,7 +623,7 @@ func generatePaymentPromise(t *testing.T) PaymentPromise {
 		Commitment:        generateCommitment(),
 		BlobVersion:       uint32(share.ShareVersionZero),
 		CreationTimestamp: time.Now(),
-		Signature:         []byte("valid-signature"),
+		Signature:         bytes.Repeat([]byte{0x01}, PromiseSignatureSize),
 		Height:            100,
 		ChainId:           "celestia-test",
 	}

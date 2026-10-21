@@ -38,6 +38,9 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		s.log.WarnContext(ctx, "payment promise verification failed", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "payment promise verification failed")
+		if isUnavailable(err) {
+			return nil, status.Error(grpccodes.InvalidArgument, "payment promise verification failed: app unavailable")
+		}
 		return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("payment promise verification failed: %v", err))
 	}
 
@@ -68,7 +71,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.ErrorContext(ctx, "failed to check store for existing shard", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
-		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+		return nil, status.Error(grpccodes.Internal, "failed to check if store has the commitment")
 	}
 
 	if has {
@@ -80,6 +83,9 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 			log.WarnContext(ctx, "shard assignment verification failed", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "shard assignment verification failed")
+			if isUnavailable(err) {
+				return nil, status.Error(grpccodes.InvalidArgument, "shard assignment verification failed: dependency unavailable")
+			}
 			return nil, status.Error(grpccodes.InvalidArgument, fmt.Sprintf("shard assignment verification failed: %v", err))
 		}
 		span.AddEvent("assignment_verified")
@@ -109,7 +115,7 @@ func (s *Server) UploadShard(ctx context.Context, req *types.UploadShardRequest)
 		log.ErrorContext(ctx, "failed to sign payment promise", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to sign payment promise")
-		return nil, status.Error(grpccodes.Internal, fmt.Sprintf("failed to sign payment promise: %v", err))
+		return nil, status.Error(grpccodes.Internal, "failed to sign payment promise")
 	}
 	span.AddEvent("signature_generated")
 
@@ -139,7 +145,7 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 		log.ErrorContext(ctx, "failed to check store for existing shard after locking", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "store presence check failed")
-		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to check if store has the commitment: %v", err))
+		return status.Error(grpccodes.Internal, "failed to check if store has the commitment")
 	}
 	if has {
 		s.observeDuplicateUpload(ctx, log, "after_verification")
@@ -172,12 +178,12 @@ func (s *Server) storeShard(ctx context.Context, log *slog.Logger, promise *Paym
 			log.WarnContext(ctx, "store upload aborted by client cancellation", "error", err)
 			span.RecordError(err)
 			span.SetStatus(codes.Error, "store upload aborted")
-			return status.Error(cancellationCode(ctxErr), fmt.Sprintf("store upload aborted: %v", err))
+			return status.Error(cancellationCode(ctxErr), "store upload aborted")
 		}
 		log.ErrorContext(ctx, "failed to store upload data", "error", err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to store upload data")
-		return status.Error(grpccodes.Internal, fmt.Sprintf("failed to store upload data: %v", err))
+		return status.Error(grpccodes.Internal, "failed to store upload data")
 	}
 	s.metrics.observeStoreOp(ctx, s.metrics.storePutDuration, storePutStart, true)
 	span.AddEvent("shard_stored")
@@ -209,6 +215,12 @@ func (s *Server) observeDuplicateUpload(ctx context.Context, log *slog.Logger, s
 // many clients that hit a full store at the same time.
 func retryAfterHint() time.Duration {
 	return pruneInterval + time.Duration(rand.Int64N(int64(pruneInterval/2)))
+}
+
+// isUnavailable reports whether err comes from failing to reach the app node or
+// the signer, whose transport errors carry their address and stay in the server logs.
+func isUnavailable(err error) bool {
+	return status.Code(err) == grpccodes.Unavailable
 }
 
 // cancellationCode maps a context cancellation cause to the matching gRPC

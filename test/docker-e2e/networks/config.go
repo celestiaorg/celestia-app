@@ -21,27 +21,23 @@ type Config struct {
 	Seeds     string
 	// Peers are persistent peers that keep the full block history. Block
 	// syncing from genesis needs at least one of them because most public
-	// peers are pruned and cannot serve block 1.
+	// peers are pruned and cannot serve block 1. They are a fallback for
+	// FetchArchivePeers, which reads the live addresses off the RPCs.
 	Peers string
 }
 
-// mochaPeers are persistent peers for mocha-5 that retain the full block
-// history, so a node block syncing from genesis can fetch block 1. Most
-// public mocha peers are pruned and cannot serve it.
+// mochaPeers are the fallback archive peers for mocha-5, used when the RPCs
+// cannot be reached. Most public mocha-5 peers are pruned to roughly the last
+// 3000 blocks, so keep at least two independent operators here: with a single
+// archive peer, the genesis sync test fails whenever that one node ignores our
+// dials. Do not grow this list with peers whose RPC /status reports
+// earliest_block_height = 1 without checking what the p2p address itself
+// serves — a node can expose the full history over RPC and still run in seed
+// mode, which disconnects before sending a block.
 var mochaPeers = strings.Join([]string{
-	"037dec108882cf0b291d3f4677246c8b0b68a356@149.50.96.5:12056",
-	"53849d640006381d7bdca4d0de9506596c8d59af@188.40.66.173:11656",
-	"5de6dcfb9ab6c4d8882596b2ad42cef2b67afc76@139.84.244.61:26656",
-	"73e3f071fc2246608642a675bd9ecaee5a489641@216.152.153.85:26656",
-	"7bfeb36f013e1030f0e8e2987540a86d2576e90a@69.72.83.18:27656",
-	"b402fe40f3474e9e208840702e1b7aa37f2edc4b@65.109.69.119:14656",
-	"b44257612a1546750e8d7a12e4df6e3771f3542a@216.106.185.180:11656",
-	"c6247d57a922d070dabbbbc0d4d470e1ee7683df@14.6.2.60:26656",
-	"d5519e378247dfb61dfe90652d1fe3e2b3005a5b@176.9.127.54:12056",
-	"daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:11656",
-	"dbd78d7c61f1789814685d5ed37fb39ff054177d@135.181.227.236:39656",
-	"ea9994ae9cd191cff268a885580cd58562000c41@203.209.219.89:656",
-	"ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656",
+	"daf2cecee2bd7f1b3bf94839f993f807c6b15fbf@celestia-testnet-peer.itrocket.net:26656",
+	// Celestia's own archival consensus node, which also serves rpc.celestia-mocha.com.
+	"ed8359cd707c622b0a9250824e311ee1fdb65ba0@consensus.celestia-mocha.com:26656",
 }, ",")
 
 // NewMochaConfig returns a Config for the mocha testnet
@@ -53,7 +49,13 @@ func NewMochaConfig() *Config {
 		// header. These must be distinct providers: listing one host twice
 		// gives no redundancy, so a single slow/unavailable provider stalls
 		// state sync. Keep these in sync with the live mocha-5 testnet.
+		// The Celestia-operated archive RPC comes first because the
+		// third-party providers rate-limit CI runners, and a third provider
+		// keeps one witness alive when another returns 429. It is also an
+		// archival node, so FetchArchivePeers finds a second archive peer
+		// besides itrocket.
 		RPCs: []string{
+			"https://rpc.celestia-mocha.com:443",
 			"https://rpc-mocha.pops.one:443",
 			"https://celestia-testnet-rpc.itrocket.net:443",
 		},
@@ -62,7 +64,7 @@ func NewMochaConfig() *Config {
 		// more resilient than hardcoded persistent peers which go stale.
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/main/mocha-5/seeds.txt
 		Seeds: "ee9f90974f85c59d3861fc7f7edb10894f6ac3c8@84.32.215.148:26656,b402fe40f3474e9e208840702e1b7aa37f2edc4b@celestia-testnet-seed.itrocket.net:14656",
-		// Archive nodes (earliest_block_height = 1 on their RPC /status).
+		// Fallback archive peers; FetchArchivePeers is preferred.
 		Peers: mochaPeers,
 	}
 }
@@ -101,7 +103,22 @@ func NewMainnetConfig() *Config {
 		},
 		// Keep in sync with https://github.com/celestiaorg/networks/blob/master/celestia/seeds.txt
 		Seeds: "acca7837e4eb5f9dc7f5a94ed1d82edda6931ff8@seed.celestia.pops.one:26656,12ad7c73c7e1f2460941326937a039139aa78884@celestia-mainnet-seed.itrocket.net:40656,9b1d22c3a78487d1a664a4b6a331fce527d14fb4@seed.celestia.mainnet.dteam.tech:27656",
-		// Archive nodes (earliest_block_height = 1 on their RPC /status).
-		Peers: "acca7837e4eb5f9dc7f5a94ed1d82edda6931ff8@seed.celestia.pops.one:26656,d535cbf8d0efd9100649aa3f53cb5cbab33ef2d6@celestia-mainnet-peer.itrocket.net:26656,ff016c95251136c729a1f6e60d6dda6db0aeb666@195.154.218.184:26656,e0c570997f9c4ecc3b1c4c0f5fbb2681031e5353@157.180.10.38:40656",
+		// Fallback archive peers; FetchArchivePeers is preferred.
+		Peers: mainnetPeers,
 	}
 }
+
+// mainnetPeers are archive nodes (earliest_block_height = 1). Public mainnet
+// nodes usually have every inbound slot taken, and a node with full slots
+// accepts the TCP connection but never completes the handshake. Each extra
+// archive peer is another chance that one has a free slot during the test.
+// Seeds stay out of this list even when they keep the full history: they
+// disconnect right after the address exchange and never serve a block, so as
+// persistent peers they only cause a reconnect loop.
+var mainnetPeers = strings.Join([]string{
+	"d535cbf8d0efd9100649aa3f53cb5cbab33ef2d6@celestia-mainnet-peer.itrocket.net:26656",
+	"e0c570997f9c4ecc3b1c4c0f5fbb2681031e5353@157.180.10.38:40656", // LithiumDigital archive
+	// Celestia DA-proxy archival backends (pruning = "nothing", min-retain-blocks = 0).
+	"ff016c95251136c729a1f6e60d6dda6db0aeb666@195.154.218.184:26656", // da-proxy-rpc-2-mainnet
+	"e8a2bc3681108f862371286094d90018487edeb7@195.154.103.170:26656", // da-proxy-rpc-1-mainnet
+}, ",")

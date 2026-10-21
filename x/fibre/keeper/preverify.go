@@ -2,16 +2,17 @@ package keeper
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 	"sync/atomic"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
+	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtmath "github.com/cometbft/cometbft/libs/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -20,9 +21,8 @@ type PreverifyOptions struct {
 	// Certificates also verifies validator signature sets. FinalizeBlock never
 	// checks them, so it leaves this off.
 	Certificates bool
-	// StopOnFirstFailure abandons a round once a check in it fails. It skips
-	// only items no worker has claimed yet, so it saves nothing where the items
-	// are fewer than the workers - one transaction's quorum prefix, say.
+	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
+	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
 }
 
@@ -34,25 +34,56 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 	if k.sigCache == nil {
 		return
 	}
-
-	work := k.collectVerifications(ctx, txs, opts)
-	if len(work.promiseItems) == 0 && len(work.certItems) == 0 {
-		return
+	decoded := make([]*types.DecodedPayForFibre, 0, len(txs))
+	for _, rawTx := range txs {
+		if d := DecodePayForFibre(rawTx); d != nil {
+			decoded = append(decoded, d)
+		}
 	}
-
-	// Promises first: a message whose promise fails is rejected before the
-	// sequential verifier reaches its certificate, so verifying that
-	// certificate is work no path needs.
-	promiseVerified := runVerifications(work.promiseItems, opts.StopOnFirstFailure)
-	certVerified := work.verifyCertificates(promiseVerified, opts.StopOnFirstFailure)
-	work.record(k.sigCache, promiseVerified, certVerified)
+	k.PreverifyDecoded(ctx, decoded, opts)
 }
 
-// batchSize is how many validator signatures one work item verifies together.
-// Batching amortises the fixed cost of the multiscalar multiplication; keeping
-// items small still leaves far more of them than there are CPUs, so no core
-// idles waiting on a transaction with few signatures.
-const batchSize = 64
+// PreverifyDecoded is PreverifySignatures over txs the caller already decoded,
+// so the phase decodes each tx once. nil entries are skipped.
+func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) {
+	if verify := k.PreparePreverification(ctx, decoded, opts); verify != nil {
+		verify()
+	}
+}
+
+// PreparePreverification collects state-dependent inputs synchronously and returns
+// work that reads no SDK state, or nil when everything requested is cached or skipped.
+func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) func() {
+	if k.sigCache == nil {
+		return nil
+	}
+	work := k.collectVerifications(ctx, decoded, opts)
+	if len(work.items) == 0 {
+		return nil
+	}
+	return func() {
+		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(results []atomic.Bool, start, end int) {
+			work.record(k.sigCache, func(i int) bool { return results[i].Load() }, start, end)
+		})
+		// Groups crossing worker boundaries are published after all workers finish.
+		work.record(k.sigCache, func(i int) bool { return verified[i] }, 0, len(work.items))
+	}
+}
+
+// PreverifyPayForFibreMsg runs the pass over one message the caller holds, and
+// records it when every check passes. certKey must be msg's own key, or the
+// entry would claim verification of a message the pass never saw.
+func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFibre, certKey sigcache.Key) {
+	if k.sigCache == nil {
+		return
+	}
+	k.PreverifyDecoded(ctx, []*types.DecodedPayForFibre{DecodedFromMsg(msg, certKey)},
+		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
+}
+
+// batchSize is how many validator signatures one work item batch-verifies: 128
+// covers a 100-validator quorum in one item and still leaves more items than CPUs.
+const batchSize = 128
 
 // verification is one independent unit of work: either a payment promise's
 // stateless validation, which carries its secp256k1 check, or a batch of
@@ -74,90 +105,62 @@ func (v verification) run() bool {
 		return v.pubKeys[0].VerifySignature(v.message, v.signatures[0])
 	}
 
-	batch := ed25519.NewBatchVerifier()
+	batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
+	if !v.addTo(batch) {
+		return false
+	}
+	return verifyBatchOnly(batch)
+}
+
+// verifyBatchOnly checks the batch equation alone: Verify's fallback re-verifies
+// every entry serially for a vector the pass discards, on a rejection that
+// replays for free. A false verdict only costs a cache entry.
+func verifyBatchOnly(batch *ed25519.BatchVerifier) bool {
+	return batch.VerifyBatchOnly(crypto.CReader())
+}
+
+// addTo queues the item's validator signatures on batch and reports whether
+// it took every one.
+func (v verification) addTo(batch crypto.BatchVerifier) bool {
 	for i, pubKey := range v.pubKeys {
 		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
 			return false
 		}
 	}
-	// The pass needs one bit, not which entry failed, and Verify's fallback
-	// re-verifies every entry serially to build a vector this discards. A
-	// batch-equation false negative only costs a cache entry.
-	if bv, ok := batch.(*ed25519.BatchVerifier); ok {
-		return bv.VerifyBatchOnly(crypto.CReader())
-	}
-	allValid, _ := batch.Verify()
-	return allValid
+	return true
 }
 
 // verificationGroup is one message's contribution to the pass. Its keys are
-// recorded together, and only when every item it queued succeeded: a message
-// that fails a check the pass performed for it must buy no cache entry at all,
-// or unverifiable spam could evict the entries of accepted messages.
+// recorded together, and only when every item in [first, end) succeeded: a
+// message that fails a check the pass performed for it must buy no cache
+// entry at all, or unverifiable spam could evict the entries of accepted
+// messages.
 type verificationGroup struct {
-	keys []sigcache.Key
-	// promiseIdx indexes promiseItems, or is -1 when the promise is cached.
-	promiseIdx int
-	// certFirst and certEnd bound this message's items in certItems.
-	certFirst int
-	certEnd   int
+	keys  []sigcache.Key
+	first int
+	end   int
 }
 
-// preverification is the work collected for one block, split into the rounds it
-// runs in: a certificate is verified only once its message's promise has been.
+// preverification is the work collected for one block.
 type preverification struct {
-	promiseItems []verification
-	certItems    []verification
-	groups       []verificationGroup
+	items  []verification
+	groups []verificationGroup
 }
 
-// rollback drops the items group queued, so a message the pass abandons leaves
-// no work behind.
-func (p *preverification) rollback(group verificationGroup) {
-	if group.promiseIdx >= 0 {
-		p.promiseItems = p.promiseItems[:group.promiseIdx]
-	}
-	p.certItems = p.certItems[:group.certFirst]
-}
-
-// verifyCertificates runs the certificate items of every message whose promise
-// passed, and reports the verdict per item. The items of a failed promise never
-// run and stay false.
-func (p *preverification) verifyCertificates(promiseVerified []bool, stopOnFirstFailure bool) []bool {
-	verified := make([]bool, len(p.certItems))
-	var (
-		selected []int
-		items    []verification
-	)
-	for _, group := range p.groups {
-		if group.promiseIdx >= 0 && !promiseVerified[group.promiseIdx] {
-			continue
+// record adds the cache entries of every group whose items all succeeded and
+// that lies wholly inside [start, end).
+func (p *preverification) record(cache SigCache, verified func(int) bool, start, end int) {
+	first := sort.Search(len(p.groups), func(i int) bool { return p.groups[i].first >= start })
+	for _, group := range p.groups[first:] {
+		if group.first >= end {
+			break
 		}
-		for i := group.certFirst; i < group.certEnd; i++ {
-			selected = append(selected, i)
-			items = append(items, p.certItems[i])
-		}
-	}
-	if len(items) == 0 {
-		return verified
-	}
-	for i, ok := range runVerifications(items, stopOnFirstFailure) {
-		verified[selected[i]] = ok
-	}
-	return verified
-}
-
-// record adds the cache entries of every group whose items all succeeded. Never
-// cache the negatives: a false verdict also covers an item no worker claimed,
-// and a batch-equation false negative, and both would reject a valid tx.
-func (p *preverification) record(cache SigCache, promiseVerified, certVerified []bool) {
-	for _, group := range p.groups {
-		if group.promiseIdx >= 0 && !promiseVerified[group.promiseIdx] {
+		if group.end > end {
 			continue
 		}
 		complete := true
-		for i := group.certFirst; i < group.certEnd; i++ {
-			if !certVerified[i] {
+		for i := group.first; i < group.end; i++ {
+			if !verified(i) {
 				complete = false
 				break
 			}
@@ -173,60 +176,78 @@ func (p *preverification) record(cache SigCache, promiseVerified, certVerified [
 
 // collectVerifications builds the work queue. Every state read happens here,
 // sequentially on ctx, so the workers touch nothing but their own inputs.
-func (k Keeper) collectVerifications(ctx sdk.Context, txs [][]byte, opts PreverifyOptions) *preverification {
+func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) *preverification {
+	// Backstop for a caller that does not bound its input. Both proposal
+	// callers already do, so this never truncates a legitimate pass.
+	covered := 0
+
 	work := &preverification{}
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
 	valSets := make(map[int64]*convertedValidatorSet)
+	// Collect each distinct certificate once: a repeat carries the same promise,
+	// so the first occurrence warms both keys. Sized by the pass's message cap.
+	var seenCerts map[sigcache.Key]struct{}
+	if opts.Certificates && len(decoded) > 1 {
+		seenCerts = make(map[sigcache.Key]struct{}, min(len(decoded), appconsts.MaxPayForFibreCandidates))
+	}
 
-	for _, rawTx := range txs {
-		msg, ok := types.ParsePayForFibreMsg(rawTx)
-		if !ok {
+	for _, d := range decoded {
+		if d == nil || !d.PromiseKeyed() {
 			continue
 		}
+		if covered >= appconsts.MaxPayForFibreCandidates {
+			break
+		}
+		if seenCerts != nil && d.CertKeyed {
+			if _, seen := seenCerts[d.CertKey]; seen {
+				continue
+			}
+			seenCerts[d.CertKey] = struct{}{}
+		}
+
+		msg := d.Msg
 
 		promise := &fibre.PaymentPromise{}
 		if err := promise.FromProto(&msg.PaymentPromise); err != nil {
 			continue
 		}
-		promiseKey, keyed := promiseSigCacheKey(promise)
-		if !keyed {
-			continue
-		}
 
-		group := verificationGroup{promiseIdx: -1, certFirst: len(work.certItems)}
-		group.certEnd = group.certFirst
-		if !k.sigCache.Has(promiseKey) {
-			group.promiseIdx = len(work.promiseItems)
-			work.promiseItems = append(work.promiseItems, verification{promise: promise})
-			group.keys = append(group.keys, promiseKey)
+		// Count only what the pass takes on, not what it skipped.
+		covered++
+
+		first := len(work.items)
+		var keys []sigcache.Key
+		if !k.sigCache.Has(d.PromiseKey) {
+			work.items = append(work.items, verification{promise: promise})
+			keys = append(keys, d.PromiseKey)
 		}
 
 		if opts.Certificates {
-			certKey, err := msg.SigCacheKey()
-			if err != nil {
+			if !d.CertKeyed {
 				// A certificate the pass cannot name is one it cannot gate the
 				// promise on. The sequential verifier still decides.
-				work.rollback(group)
+				work.items = work.items[:first]
 				continue
 			}
-			if !k.sigCache.Has(certKey) {
-				if !k.appendCertificateItems(ctx, work, valSets, promise, msg) {
+			if !k.sigCache.Has(d.CertKey) {
+				if !k.appendCertificateItems(ctx, work, valSets, d.PromiseSignBytes, msg, first) {
 					// Returns false exactly where the sequential verifier
 					// rejects the message, so this message records nothing -
 					// its promise included.
-					work.rollback(group)
+					work.items = work.items[:first]
 					continue
 				}
-				group.certEnd = len(work.certItems)
-				group.keys = append(group.keys, certKey)
+				keys = append(keys, d.CertKey)
 			}
 			// A cached certificate is already settled, so the promise is all
 			// that is left to warm.
 		}
 
-		if len(group.keys) > 0 {
-			work.groups = append(work.groups, group)
+		if len(keys) > 0 {
+			work.groups = append(work.groups, verificationGroup{
+				keys: keys, first: first, end: len(work.items),
+			})
 		}
 	}
 	return work
@@ -240,41 +261,32 @@ func (k Keeper) appendCertificateItems(
 	ctx sdk.Context,
 	work *preverification,
 	valSets map[int64]*convertedValidatorSet,
-	promise *fibre.PaymentPromise,
+	signBytes []byte,
 	msg *types.MsgPayForFibre,
+	first int,
 ) bool {
 	height := msg.PaymentPromise.Height
 	converted, ok := valSets[height]
 	if !ok {
-		historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
-		if err != nil {
-			return false
-		}
-		if converted, err = k.validatorSetAtHeight(height, historicalInfo.Valset); err != nil {
+		var err error
+		if converted, err = k.certificateValidatorSet(ctx, height, msg.ValidatorSignatures); err != nil {
 			return false
 		}
 		valSets[height] = converted
-	}
-
-	// The list is positional over the validator set, so more entries than
-	// validators is malformed.
-	if len(msg.ValidatorSignatures) > len(converted.validators) {
-		return false
-	}
-
-	signBytes, err := promise.SignBytes()
-	if err != nil {
+	} else if len(msg.ValidatorSignatures) > len(converted.validators) {
+		// certificateValidatorSet applies this to the heights it resolves; a
+		// height already in valSets still has to pass it.
 		return false
 	}
 
 	valSet := validator.Set{ValidatorSet: converted.set, Height: uint64(height)}
-	minVotingPower := valSet.MinRequiredVotingPower(cmtmath.Fraction{Numerator: 2, Denominator: 3})
+	minVotingPower := valSet.MinRequiredVotingPower(quorumFraction)
 	prefix, quorumMet := validator.QuorumPrefix(converted.validators, msg.ValidatorSignatures, minVotingPower)
 	if !quorumMet {
 		return false
 	}
 
-	certFirst := len(work.certItems)
+	certFirst := len(work.items)
 	batch := verification{message: signBytes}
 	for i := range prefix {
 		signature := msg.ValidatorSignatures[i]
@@ -284,66 +296,117 @@ func (k Keeper) appendCertificateItems(
 		batch.pubKeys = append(batch.pubKeys, converted.validators[i].PubKey)
 		batch.signatures = append(batch.signatures, signature)
 		if len(batch.pubKeys) == batchSize {
-			work.certItems = append(work.certItems, batch)
+			work.items = append(work.items, batch)
 			batch = verification{message: signBytes}
 		}
 	}
 	if len(batch.pubKeys) > 0 {
-		work.certItems = append(work.certItems, batch)
+		work.items = append(work.items, batch)
 	}
 	// Guard against a certificate whose quorum prefix carried no signature at
-	// all: recording its key would claim verification of nothing.
-	return len(work.certItems) > certFirst
+	// all: recording its key would claim verification of nothing. first is the
+	// promise item, which is why the count starts after it.
+	return len(work.items) > certFirst
 }
 
 // runVerifications runs items across every CPU and reports which succeeded.
 // Items are independent and each result is stored at its own index, so the
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
-func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
+func runVerifications(items []verification, stopOnFirstFailure bool, publish func([]atomic.Bool, int, int)) []bool {
+	verified := make([]bool, len(items))
+	if len(items) == 1 {
+		// One item has nothing to spread; the fan-out would be pure overhead.
+		verified[0] = items[0].run()
+		return verified
+	}
+
+	// atomic.Bool, not []bool: workers write adjacent results, and packed bools
+	// false-share one cache line (about 1% of ProcessProposal, measured).
 	results := make([]atomic.Bool, len(items))
+
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
-	workers := min(runtime.GOMAXPROCS(0), len(items))
+	procs := runtime.GOMAXPROCS(0)
+	chunkSize := verificationChunkSize(len(items), procs)
+	workers := min(procs, (len(items)+chunkSize-1)/chunkSize)
 
 	var (
-		next     atomic.Int64
-		aborted  atomic.Bool
-		panicked atomic.Value
-		wg       sync.WaitGroup
+		next    atomic.Int64
+		aborted atomic.Bool
+		wg      sync.WaitGroup
 	)
 	for range workers {
 		wg.Go(func() {
-			// Nothing here should panic, but a worker that does must not take
-			// the node down: its unfinished items stay unverified and the
-			// sequential path redoes them. The value is kept so the caller can
-			// report it - a recurring panic would otherwise show up only as a
-			// cache that never warms.
-			defer func() {
-				if r := recover(); r != nil {
-					panicked.CompareAndSwap(nil, r)
-				}
-			}()
+			// A worker panic must not take the node down: its unfinished items stay unverified
+			// and the sequential path redoes them.
+			defer func() { _ = recover() }()
+			// NewBatchVerifier always returns *BatchVerifier; otherwise every item stays
+			// unverified, which the preverify tests catch as a cache that never warms.
+			batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			for {
-				i := int(next.Add(1)) - 1
+				i := int(next.Add(int64(chunkSize))) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
-				if items[i].run() {
-					results[i].Store(true)
-					continue
-				}
-				if stopOnFirstFailure {
+				end := min(i+chunkSize, len(items))
+				if !runVerificationChunk(items, results, i, end, batch) && stopOnFirstFailure {
 					aborted.Store(true)
 				}
+				publish(results, i, end)
 			}
 		})
 	}
 	wg.Wait()
 
-	verified := make([]bool, len(items))
 	for i := range results {
 		verified[i] = results[i].Load()
 	}
 	return verified
+}
+
+// maxChunkSize is how many items one worker claims, and combines into one
+// ed25519 batch, at a time.
+const maxChunkSize = 8
+
+// verificationChunkSize shrinks chunks until every proc has one, so CheckTx's
+// promise and certificate still verify in parallel.
+func verificationChunkSize(items, procs int) int {
+	return min(maxChunkSize, max(1, (items+procs-1)/procs))
+}
+
+// runVerificationChunk combines a few certificate batches; a failed combined batch
+// leaves their entries unset for the ordered path, which still decides.
+func runVerificationChunk(items []verification, results []atomic.Bool, start, end int, batch *ed25519.BatchVerifier) bool {
+	batch.Reset()
+	allValid := true
+	batchReady := true
+	certificates := 0
+	for i := start; i < end; i++ {
+		item := items[i]
+		if item.promise != nil {
+			if item.run() {
+				results[i].Store(true)
+			} else {
+				allValid = false
+			}
+			continue
+		}
+		certificates++
+		batchReady = batchReady && item.addTo(batch)
+	}
+	if certificates == 0 {
+		return allValid
+	}
+	if batchReady {
+		if verifyBatchOnly(batch) {
+			for i := start; i < end; i++ {
+				if items[i].promise == nil {
+					results[i].Store(true)
+				}
+			}
+			return allValid
+		}
+	}
+	return false
 }

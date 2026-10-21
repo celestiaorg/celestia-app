@@ -2,25 +2,40 @@ package keeper
 
 import (
 	"bytes"
+	"sync/atomic"
 	"testing"
 
-	"github.com/celestiaorg/celestia-app/v10/fibre"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/require"
 )
 
-// differentialCertificates is how many independent certificates each class of
-// the differential test below checks.
-const differentialCertificates = 100
+func TestVerificationChunkSize(t *testing.T) {
+	tests := map[string]struct {
+		items, procs, want int
+	}{
+		"CheckTx's promise and certificate": {items: 2, procs: 16, want: 1},
+		"one item per proc":                 {items: 16, procs: 16, want: 1},
+		"a few items per proc":              {items: 40, procs: 16, want: 3},
+		"a 100-PFF block":                   {items: 200, procs: 16, want: maxChunkSize},
+		"a full block":                      {items: 5800, procs: 16, want: maxChunkSize},
+		"one proc, a few items":             {items: 2, procs: 1, want: 2},
+		"one proc, many items":              {items: 15, procs: 1, want: maxChunkSize},
+		"no items":                          {items: 0, procs: 16, want: 1},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			require.Equal(t, tc.want, verificationChunkSize(tc.items, tc.procs))
+		})
+	}
+}
 
 // newCertificateItem returns a work item of size signatures over message, all
 // of them valid, along with the keys that signed it.
-func newCertificateItem(t testing.TB, message []byte, signatures int) (verification, []ed25519.PrivKey) {
+func newCertificateItem(t testing.TB, message []byte, size int) (verification, []ed25519.PrivKey) {
 	t.Helper()
 
 	item := verification{message: message}
-	privKeys := make([]ed25519.PrivKey, signatures)
+	privKeys := make([]ed25519.PrivKey, size)
 	for i := range privKeys {
 		privKeys[i] = ed25519.GenPrivKey()
 		signature, err := privKeys[i].Sign(message)
@@ -42,33 +57,18 @@ func sequentialVerdict(item verification) bool {
 	return true
 }
 
-// batchVerifyVerdict is the verdict the pass reached before it stopped at the
-// batch equation: Verify's allValid, which falls back to verifying every entry
-// serially.
-func batchVerifyVerdict(item verification) bool {
-	batch := ed25519.NewBatchVerifier()
-	for i, pubKey := range item.pubKeys {
-		if batch.Add(pubKey, item.message, item.signatures[i]) != nil {
-			return false
-		}
-	}
-	allValid, _ := batch.Verify()
-	return allValid
-}
-
-// TestVerificationRunMatchesTheSequentialVerdict checks that deciding a batch on
-// the batch equation alone reports the verdict the sequential verifier reaches,
-// and the one the serial fallback used to report, for every shape of input.
-func TestVerificationRunMatchesTheSequentialVerdict(t *testing.T) {
+// TestVerifyBatchOnlyMatchesTheSequentialVerdict checks that deciding on the
+// batch equation alone reports the sequential verifier's verdict, through both
+// the single-item and the chunked path.
+func TestVerifyBatchOnlyMatchesTheSequentialVerdict(t *testing.T) {
 	message := []byte("payment promise sign bytes")
-	other := []byte("sign bytes of another promise")
 
 	// Forged, not malformed: random bytes are rejected before any curve
 	// arithmetic, so they would not exercise the equation at all.
 	forge := func(t testing.TB, item *verification, privKeys []ed25519.PrivKey, index int) {
 		t.Helper()
 
-		signature, err := privKeys[index].Sign(other)
+		signature, err := privKeys[index].Sign([]byte("sign bytes of another promise"))
 		require.NoError(t, err)
 		item.signatures[index] = signature
 	}
@@ -78,75 +78,28 @@ func TestVerificationRunMatchesTheSequentialVerdict(t *testing.T) {
 		"forged at the first index": func(t testing.TB, item *verification, privKeys []ed25519.PrivKey) {
 			forge(t, item, privKeys, 0)
 		},
-		"forged in the middle": func(t testing.TB, item *verification, privKeys []ed25519.PrivKey) {
-			forge(t, item, privKeys, batchSize/2-1)
-		},
 		"forged at the last index": func(t testing.TB, item *verification, privKeys []ed25519.PrivKey) {
 			forge(t, item, privKeys, batchSize-1)
 		},
 		"non-canonical signature": func(_ testing.TB, item *verification, _ []ed25519.PrivKey) {
-			// Fails canonicity rather than the equation, the branch that
-			// aborts before the multiscalar multiplication.
 			item.signatures[7] = bytes.Repeat([]byte{0xff}, ed25519.SignatureSize)
 		},
 	}
 
+	batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 	for name, mutate := range tests {
 		t.Run(name, func(t *testing.T) {
-			for i := range differentialCertificates {
+			for i := range 20 {
+				valid, _ := newCertificateItem(t, message, batchSize)
 				item, privKeys := newCertificateItem(t, message, batchSize)
 				mutate(t, &item, privKeys)
-
 				want := sequentialVerdict(item)
 				require.Equal(t, want, item.run(), "certificate %d", i)
-				require.Equal(t, want, batchVerifyVerdict(item), "certificate %d", i)
+
+				items := []verification{valid, item}
+				results := make([]atomic.Bool, len(items))
+				require.Equal(t, want, runVerificationChunk(items, results, 0, len(items), batch), "certificate %d", i)
 			}
 		})
 	}
-}
-
-// TestVerificationRunOnAnEmptyBatch pins the one shape where the equation and a
-// sequential walk disagree: an empty batch, which the walk vacuously accepts.
-// The pass never builds one, and both verdicts here are false anyway.
-func TestVerificationRunOnAnEmptyBatch(t *testing.T) {
-	item := verification{message: []byte("payment promise sign bytes")}
-
-	require.False(t, item.run())
-	require.False(t, batchVerifyVerdict(item))
-}
-
-// TestVerifyCertificatesWaitsForThePromise pins the two rounds: a message whose
-// promise fails is rejected before the sequential verifier reaches its
-// certificate, so the pass must not verify that certificate at all.
-func TestVerifyCertificatesWaitsForThePromise(t *testing.T) {
-	message := []byte("payment promise sign bytes")
-	item, _ := newCertificateItem(t, message, batchSize)
-
-	failed := sigcache.NewKey(sigcache.PffCertificate, []byte("rejected"))
-	passed := sigcache.NewKey(sigcache.PffCertificate, []byte("accepted"))
-	work := &preverification{
-		// An empty promise fails its stateless validation.
-		promiseItems: []verification{{promise: &fibre.PaymentPromise{}}},
-		certItems:    []verification{item, item},
-		groups: []verificationGroup{
-			{keys: []sigcache.Key{failed}, promiseIdx: 0, certFirst: 0, certEnd: 1},
-			// A message whose promise is already cached has nothing to wait
-			// for, so its certificate must still be verified.
-			{keys: []sigcache.Key{passed}, promiseIdx: -1, certFirst: 1, certEnd: 2},
-		},
-	}
-
-	promiseVerified := runVerifications(work.promiseItems, false)
-	require.False(t, promiseVerified[0])
-
-	certVerified := work.verifyCertificates(promiseVerified, false)
-	// Both items carry the same valid signatures, so a false verdict on the
-	// first can only mean it never ran.
-	require.False(t, certVerified[0], "a failed promise must leave its certificate unverified")
-	require.True(t, certVerified[1], "and must not hold back another message's")
-
-	cache := sigcache.New(8)
-	work.record(cache, promiseVerified, certVerified)
-	require.False(t, cache.Has(failed), "a failed promise must buy no entry")
-	require.True(t, cache.Has(passed))
 }

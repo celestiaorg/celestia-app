@@ -23,7 +23,7 @@ func NewFibreSignatureGasDecorator() FibreSignatureGasDecorator {
 }
 
 func (FibreSignatureGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if msg := PayForFibreMessage(tx); msg != nil {
+	if msg := fibretypes.PayForFibreMsg(tx); msg != nil {
 		consumeDeterministicFibreSignatureGas(ctx, msg)
 	}
 	return next(ctx, tx, simulate)
@@ -51,6 +51,11 @@ type FibreSignatureVerificationDecorator struct {
 // FibreKeeper verifies PFF signatures.
 type FibreKeeper interface {
 	ValidatePayForFibreSignatures(ctx sdk.Context, msg *fibretypes.MsgPayForFibre) error
+	ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error
+	// PreverifyPayForFibreMsg verifies msg's signatures across every CPU and
+	// records them if they all pass. It reports nothing: the caller reads the
+	// cache, and ValidatePayForFibreSignatures still decides.
+	PreverifyPayForFibreMsg(ctx sdk.Context, msg *fibretypes.MsgPayForFibre, certKey sigcache.Key)
 }
 
 // PffSigCache tracks PFF certificates whose signatures were already checked.
@@ -68,20 +73,41 @@ func NewFibreSigVerificationDecorator(
 }
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := PayForFibreMessage(tx)
+	msg := fibretypes.PayForFibreMsg(tx)
 	if msg == nil || simulate || skipsSignatureVerification(ctx.ExecMode()) {
 		return next(ctx, tx, simulate)
 	}
 
-	cacheKey, err := msg.SigCacheKey()
-	if err != nil {
-		return ctx, err
+	// Reuse the key this phase already derived for this tx, if any.
+	cacheKey, ok := fibretypes.CertKeyFromContext(ctx)
+	if !ok {
+		var err error
+		cacheKey, err = msg.SigCacheKey()
+		if err != nil {
+			return ctx, err
+		}
 	}
 	if d.pffSigCache.Has(cacheKey) {
+		// The cache covers the signatures, not whether the validator set they
+		// were checked against is still stored.
+		if err := d.k.ValidateValidatorSetAvailable(withInfiniteGasMeter(ctx), msg.PaymentPromise.Height); err != nil {
+			return ctx, err
+		}
 		return next(ctx, tx, simulate)
 	}
 
-	if err = d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
+	// CheckTx reaches this once gas, fees, authentication and fibre admission
+	// have passed, so the pass is spent on an otherwise admissible tx. After
+	// the lookup, never before: warming a cached entry is pure loss. The other
+	// phases pre-verify their whole block, and recheck has nothing to warm.
+	if ctx.IsCheckTx() && !ctx.IsReCheckTx() {
+		d.k.PreverifyPayForFibreMsg(withInfiniteGasMeter(ctx), msg, cacheKey)
+		if d.pffSigCache.Has(cacheKey) {
+			return next(ctx, tx, simulate)
+		}
+	}
+
+	if err := d.k.ValidatePayForFibreSignatures(withInfiniteGasMeter(ctx), msg); err != nil {
 		return ctx, err
 	}
 	d.pffSigCache.Add(cacheKey)
@@ -113,7 +139,7 @@ func NewFibreStatefulValidationDecorator(k FibrePromiseKeeper) FibreStatefulVali
 }
 
 func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := PayForFibreMessage(tx)
+	msg := fibretypes.PayForFibreMsg(tx)
 	if msg == nil || simulate || !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
@@ -129,15 +155,4 @@ func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx,
 // is not constrained by the tx's gas limit.
 func withInfiniteGasMeter(ctx sdk.Context) sdk.Context {
 	return ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-}
-
-// PayForFibreMessage returns tx's MsgPayForFibre, or nil if tx is not a
-// single-message PFF transaction.
-func PayForFibreMessage(tx sdk.Tx) *fibretypes.MsgPayForFibre {
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return nil
-	}
-	pff, _ := msgs[0].(*fibretypes.MsgPayForFibre)
-	return pff
 }

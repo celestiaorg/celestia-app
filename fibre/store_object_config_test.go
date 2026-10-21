@@ -96,12 +96,36 @@ func TestObjectStorageConfigValidate(t *testing.T) {
 			cfg := testObjectStorageConfig()
 			tc.modify(&cfg)
 			require.Error(t, cfg.Validate())
+			_, configured := cfg.validated()
+			require.False(t, configured)
 		})
 	}
 	cfg := testObjectStorageConfig()
 	cfg.RequestTimeout = 0
+	original := cfg
+	validated, configured := cfg.validated()
+	require.True(t, configured)
+	require.Equal(t, original, cfg, "configured must validate a copy")
+	require.Equal(t, defaultObjectRequestTimeout, validated.RequestTimeout)
 	require.NoError(t, cfg.Validate())
 	require.Equal(t, defaultObjectRequestTimeout, cfg.RequestTimeout)
+}
+
+func TestObjectStorageEndpointHost(t *testing.T) {
+	for _, tc := range []struct {
+		endpoint string
+		host     string
+	}{
+		{"https://account.r2.cloudflarestorage.com/path", "account.r2.cloudflarestorage.com"},
+		{"https://s3.example.com:8443", "s3.example.com"},
+		{"https://[2001:db8::1]:8443", "2001:db8::1"},
+		{"https://%", ""},
+	} {
+		t.Run(tc.endpoint, func(t *testing.T) {
+			cfg := ObjectStorageConfig{objectNamespace: objectNamespace{Endpoint: tc.endpoint}}
+			require.Equal(t, tc.host, cfg.endpointHost())
+		})
+	}
 }
 
 func TestObjectStorageConfigNormalisesWhitespace(t *testing.T) {
@@ -398,6 +422,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	localCommitment := promise.Commitment
 	store, err := NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	require.False(t, store.shards.objectMarkersPresent)
 	require.Empty(t, logs.String())
 	require.NoError(t, store.Put(t.Context(), promise, shard, pruneAt))
 	require.NoError(t, store.Close())
@@ -420,6 +445,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 	require.NoError(t, store.Close())
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	require.False(t, store.shards.objectMarkersPresent)
 	require.Contains(t, logs.String(), "level=WARN")
 	require.Contains(t, logs.String(), "Changing storage_backend only affects new shards")
 	logs.Reset()
@@ -453,6 +479,7 @@ func TestStoreConfiguredBackendSwitch(t *testing.T) {
 			changed.ObjectStorage.Endpoint += "/"
 			opened, err := NewStore(t.Context(), changed)
 			require.NoError(t, err)
+			require.True(t, opened.shards.objectMarkersPresent)
 			got, err := opened.Get(t.Context(), promise.Commitment)
 			require.NoError(t, err)
 			require.Equal(t, shard, got)
@@ -613,6 +640,7 @@ func TestStoreLocalDoesNotLoadAWSConfig(t *testing.T) {
 	require.NoError(t, store.Close())
 	store, err = NewStore(t.Context(), cfg)
 	require.NoError(t, err)
+	require.False(t, store.shards.objectMarkersPresent)
 	require.NoError(t, store.Close())
 	cfg.StorageBackend = "object"
 	cfg.ObjectStorage = testObjectStorageConfig()

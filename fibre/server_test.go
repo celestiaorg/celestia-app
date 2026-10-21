@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -222,11 +223,12 @@ func TestServerStartFailsWhenStoreCannotOpen(t *testing.T) {
 }
 
 func TestServerStartLogsStoreConfig(t *testing.T) {
-	var logs bytes.Buffer
+	var logs synchronizedLogBuffer
 	_, _, validator := makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 		cfg.StorageBackend = "object"
-		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com/api"
+		cfg.ObjectStorage.Region = "auto"
 		cfg.ObjectStorage.Bucket = "fibre-shards"
 		cfg.ObjectStorage.Prefix = "/fibre/./"
 	})
@@ -234,6 +236,10 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 	output := logs.String()
 	require.Contains(t, output, `msg="store ready"`)
 	require.Contains(t, output, "storage_backend=object")
+	require.Contains(t, output, "object_configured=true")
+	require.Contains(t, output, "object_markers_present=false")
+	require.Contains(t, output, "object_namespace.endpoint_host=account.r2.cloudflarestorage.com")
+	require.NotContains(t, output, "https://account.r2.cloudflarestorage.com/api")
 	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
 	require.Contains(t, output, "object_namespace.prefix=fibre")
 	require.NotContains(t, output, "object_namespace.prefix=/fibre/./")
@@ -241,13 +247,66 @@ func TestServerStartLogsStoreConfig(t *testing.T) {
 	require.Contains(t, output, "object_namespace.validator_address="+sdk.ConsAddress(validator.Address).String())
 }
 
+func TestServerStartLogsNormalizedObjectConfig(t *testing.T) {
+	var logs synchronizedLogBuffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Region = " auto "
+		cfg.ObjectStorage.Bucket = " fibre-shards "
+		cfg.ObjectStorage.Prefix = " /fibre/./ "
+	})
+
+	output := logs.String()
+	require.Contains(t, output, "object_configured=true")
+	require.Contains(t, output, "object_namespace.bucket=fibre-shards")
+	require.Contains(t, output, "object_namespace.prefix=fibre")
+	require.NotContains(t, output, `object_namespace.bucket=" fibre-shards "`)
+	require.NotContains(t, output, `object_namespace.prefix=" /fibre/./ "`)
+}
+
+func TestServerStartDoesNotLogPartialObjectConfig(t *testing.T) {
+	var logs synchronizedLogBuffer
+	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
+		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
+		cfg.ObjectStorage.Endpoint = "https://account.r2.cloudflarestorage.com"
+		cfg.ObjectStorage.Bucket = "fibre-shards"
+		cfg.ObjectStorage.Prefix = "fibre"
+	})
+
+	output := logs.String()
+	require.Contains(t, output, "object_configured=false")
+	require.Contains(t, output, `msg="object storage configuration is invalid"`)
+	require.Contains(t, output, "object_storage.region is required")
+	require.NotContains(t, output, "object_namespace")
+}
+
 func TestServerStartDoesNotLogObjectNamespaceForLocalStorage(t *testing.T) {
-	var logs bytes.Buffer
+	var logs synchronizedLogBuffer
 	makeTestServerWithConfig(t, func(cfg *fibre.ServerConfig) {
 		cfg.Log = slog.New(slog.NewTextHandler(&logs, nil))
 	})
 
 	output := logs.String()
-	require.Contains(t, output, `msg="store ready" storage_backend=local`)
+	require.Contains(t, output, `msg="store ready" storage_backend=local object_configured=false object_markers_present=false`)
+	require.NotContains(t, output, "object storage configuration is invalid")
 	require.NotContains(t, output, "object_namespace")
+}
+
+// synchronizedLogBuffer allows assertions while background health checks log.
+type synchronizedLogBuffer struct {
+	mu     sync.Mutex
+	buffer bytes.Buffer
+}
+
+func (b *synchronizedLogBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.Write(p)
+}
+
+func (b *synchronizedLogBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buffer.String()
 }

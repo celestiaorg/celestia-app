@@ -17,16 +17,19 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
+	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	coretypes "github.com/cometbft/cometbft/types"
 	"github.com/cosmos/cosmos-sdk/client"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
@@ -629,6 +632,87 @@ func TestCheckTxBlobTxCacheAdmission(t *testing.T) {
 	assert.True(t, fromCacheAfterCheckTx(validTx), "a blob tx passing CheckTx must be cached")
 }
 
+// TestBlobTxCacheAcrossABCIPhases checks that a blob tx cached by CheckTx gets
+// the same proposal validity, gas and state as an uncached one, and that a
+// committed tx is still rejected while it remains cached.
+func TestBlobTxCacheAcrossABCIPhases(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(2)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, queryAccountInfo(testApp, accounts, kr))
+	coldAddr, warmAddr := testfactory.GetAddress(kr, accounts[0]), testfactory.GetAddress(kr, accounts[1])
+
+	ns := share.MustNewV0Namespace(bytes.Repeat([]byte{1}, share.NamespaceVersionZeroIDSize))
+	coldTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(0), []share.Namespace{ns}, []int{100})[0]
+	warmTx := blobfactory.RandBlobTxsWithNamespacesAndSigner(newSigner(1), []share.Namespace{ns}, []int{100})[0]
+	require.Len(t, warmTx, len(coldTx), "equal tx sizes make gas comparable")
+
+	// mutatedTx keeps warmTx's signed tx bytes but swaps in a same-size blob.
+	warmBlobTx, _, err := tx.UnmarshalBlobTx(warmTx)
+	require.NoError(t, err)
+	mutatedBlob, err := share.NewV0Blob(ns, bytes.Repeat([]byte{0xFF}, 100))
+	require.NoError(t, err)
+	mutatedTx, err := tx.MarshalBlobTx(warmBlobTx.Tx, mutatedBlob)
+	require.NoError(t, err)
+
+	fromCache := func(rawTx []byte) bool {
+		blobTx, _, err := tx.UnmarshalBlobTx(rawTx)
+		require.NoError(t, err)
+		cached, err := testApp.ValidateBlobTxWithCache(blobTx)
+		require.NoError(t, err)
+		return cached
+	}
+
+	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: warmTx})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+	_, err = testApp.CheckTx(&abci.RequestCheckTx{Type: abci.CheckTxType_New, Tx: mutatedTx})
+	require.ErrorIs(t, err, blobtypes.ErrInvalidShareCommitment)
+	require.True(t, fromCache(warmTx))
+	require.False(t, fromCache(coldTx))
+
+	for _, tc := range []struct {
+		txs  [][]byte
+		want abci.ResponseProcessProposal_ProposalStatus
+	}{
+		{txs: [][]byte{coldTx, warmTx}, want: abci.ResponseProcessProposal_ACCEPT},
+		{txs: [][]byte{coldTx, mutatedTx}, want: abci.ResponseProcessProposal_REJECT},
+	} {
+		res, err := testApp.ProcessProposal(processProposalRequest(t, testApp, tc.txs))
+		require.NoError(t, err)
+		require.Equal(t, tc.want, res.Status)
+	}
+
+	balance := func(addr sdk.AccAddress) sdkmath.Int {
+		ctx := testApp.NewUncachedContext(false, cmtproto.Header{})
+		return testApp.BankKeeper.GetBalance(ctx, addr, appconsts.BondDenom).Amount
+	}
+	coldBefore, warmBefore := balance(coldAddr), balance(warmAddr)
+	// Separate blocks keep each tx first in its block, so gas is comparable.
+	coldRes := commitBlock(t, testApp, coldTx).TxResults
+	warmRes := commitBlock(t, testApp, warmTx).TxResults
+	require.Len(t, coldRes, 1)
+	require.Len(t, warmRes, 1)
+	require.Equal(t, abci.CodeTypeOK, coldRes[0].Code, coldRes[0].Log)
+	require.Equal(t, abci.CodeTypeOK, warmRes[0].Code, warmRes[0].Log)
+	assert.Equal(t, coldRes[0].GasWanted, warmRes[0].GasWanted)
+	assert.Equal(t, coldRes[0].GasUsed, warmRes[0].GasUsed)
+	assert.Equal(t, coldBefore.Sub(balance(coldAddr)), warmBefore.Sub(balance(warmAddr)))
+	assert.Equal(t, uint64(1), testutil.DirectQueryAccount(testApp, coldAddr).GetSequence())
+	assert.Equal(t, uint64(1), testutil.DirectQueryAccount(testApp, warmAddr).GetSequence())
+
+	// The committed tx stays cached, yet every phase rejects its replay.
+	require.True(t, fromCache(warmTx))
+	res, err := testApp.ProcessProposal(processProposalRequest(t, testApp, [][]byte{warmTx}))
+	require.NoError(t, err)
+	assert.Equal(t, abci.ResponseProcessProposal_REJECT, res.Status)
+	for _, checkType := range []abci.CheckTxType{abci.CheckTxType_New, abci.CheckTxType_Recheck} {
+		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Type: checkType, Tx: warmTx})
+		require.NoError(t, err)
+		assert.Equal(t, sdkerrors.ErrWrongSequence.ABCICode(), resp.Code, resp.Log)
+	}
+}
+
 func createSigner(t *testing.T, kr keyring.Keyring, accountName string, enc client.TxConfig, accNum uint64) *user.Signer {
 	t.Helper()
 
@@ -701,9 +785,79 @@ func TestCheckTxPayForFibre(t *testing.T) {
 	})
 }
 
-// TestCheckTxPayForFibreRecheck admits a payment promise and rechecks it, so
-// the recheck is served from the admitted bytes, and checks that bytes that
-// differ from the admitted ones take the full path.
+// TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission covers the ante
+// ordering the pre-pass depends on: the fibre signature decorator runs behind
+// every decorator that rejects a transaction more cheaply, so a tx rejected for
+// gas, fees or admission is never charged for its signature work.
+func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(3)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	commitBlock(t, testApp)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	newSigner := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)
+
+	// Gas that covers the signature checks but not the rest of the ante pass,
+	// so the rejection cannot be mistaken for the signature bound.
+	signatureGas := fibretypes.EstimateGasForPayForFibreSignatureVerification(1)
+
+	tests := map[string]struct {
+		account   int
+		escrow    bool
+		opts      []user.TxOption
+		wantAdmit bool
+	}{
+		"no escrow account": {
+			account: 0,
+			escrow:  false,
+			opts:    []user.TxOption{user.SetGasLimit(1_000_000), user.SetFee(4_000)},
+		},
+		"gas above the signature estimate but below the ante total": {
+			account: 1,
+			escrow:  true,
+			opts:    []user.TxOption{user.SetGasLimit(signatureGas + 1), user.SetFee(4_000)},
+		},
+		// The control: an admitted tx does reach the signature checks.
+		"admitted tx": {
+			account:   2,
+			escrow:    true,
+			opts:      []user.TxOption{user.SetGasLimit(1_000_000), user.SetFee(4_000)},
+			wantAdmit: true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if tc.escrow {
+				seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[tc.account]), 1_000_000)
+			}
+			txBytes := newSignedPayForFibreTxWithOpts(t, newSigner(tc.account), accounts[tc.account], true, tc.opts...)
+
+			decoded := fibrekeeper.DecodePayForFibre(txBytes)
+			require.NotNil(t, decoded)
+			require.True(t, decoded.CertKeyed)
+			require.True(t, decoded.PromiseKeyed())
+
+			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
+			require.NoError(t, err)
+			if tc.wantAdmit {
+				require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
+				require.True(t, testApp.HasVerifiedSignature(decoded.CertKey))
+				require.True(t, testApp.HasVerifiedSignature(decoded.PromiseKey))
+				return
+			}
+
+			require.NotEqual(t, abci.CodeTypeOK, resp.Code, resp.Log)
+			require.False(t, testApp.HasVerifiedSignature(decoded.CertKey),
+				"a rejected tx must not have its certificate verified")
+			require.False(t, testApp.HasVerifiedSignature(decoded.PromiseKey),
+				"a rejected tx must not have its promise signature verified")
+		})
+	}
+}
+
+// TestCheckTxPayForFibreRecheck checks that a rechecked payment promise takes the
+// pay-for-fibre shortcut and bytes that are not one take the full path.
 func TestCheckTxPayForFibreRecheck(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	// One account per case: CheckTx bumps the signer's sequence in the check
@@ -718,33 +872,29 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
-	// Both cases below run before anything is admitted, so the cache is known
-	// empty and what they assert is that nothing was recorded.
-
-	// A recheck that missed is walking a working set larger than the cache, so
-	// recording it would evict the entries that same pass is about to ask for.
-	t.Run("a recheck that was never admitted is not recorded", func(t *testing.T) {
+	// The shortcut keys on the shape alone, so it also applies to a pay-for-fibre the
+	// node never admitted; the verdict is the same either way.
+	t.Run("a recheck that was never admitted still reaches the same verdict", func(t *testing.T) {
 		txBytes := newSignedPayForFibreTx(t, newSigner(1), accounts[1], true)
+		require.True(t, fibretypes.IsPayForFibreTx(txBytes))
 
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-		require.Zero(t, testApp.PffTxCacheLen())
 	})
 
-	// Only a PayForFibre is recorded. Skipping countExecutableMsgs is sound
-	// for that shape alone, so a tx of any other shape must take the full path
-	// on every recheck.
-	t.Run("a non PayForFibre tx is not recorded", func(t *testing.T) {
+	// Skipping countExecutableMsgs is sound only for a lone MsgPayForFibre (always 1
+	// against MaxSDKMessages); any other shape takes the full path on every recheck.
+	t.Run("a non PayForFibre tx takes the full path", func(t *testing.T) {
 		addr := testfactory.GetAddress(kr, accounts[2])
 		send := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
 		txBytes, _, err := newSigner(2).CreateTx([]sdk.Msg{send}, user.SetGasLimit(200_000), user.SetFee(4_000))
 		require.NoError(t, err)
+		require.False(t, fibretypes.IsPayForFibreTx(txBytes))
 
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-		require.Zero(t, testApp.PffTxCacheLen())
 	})
 
 	txBytes := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
@@ -752,28 +902,23 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-	require.NotEmpty(t, resp.Address)
-	require.Equal(t, 1, testApp.PffTxCacheLen(), "an admitted PayForFibre is recorded")
-	admittedAddr, admittedSeq := resp.Address, resp.Sequence
+	require.NotEmpty(t, resp.Address, "admission reports the signer the mempool keys its sender on")
 
-	// Each committed block resets the check state and the mempool rechecks
-	// the still pending tx against it. A recheck reports the signer data the
-	// admitting CheckTx derived, which the mempool keys its sender on.
+	// Each committed block resets the check state and the mempool rechecks the
+	// still pending tx against it.
 	for range 3 {
 		commitBlock(t, testApp)
 		resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-		require.Equal(t, admittedAddr, resp.Address)
-		require.Equal(t, admittedSeq, resp.Sequence)
-		require.Equal(t, 1, testApp.PffTxCacheLen(), "a passing recheck keeps the entry")
 	}
 
-	// Truncated bytes cannot be served from the admitted entry: they take the
-	// full path and fail to decode, and leave the entry they missed alone.
-	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes[:len(txBytes)-1], Type: abci.CheckTxType_Recheck})
+	// Truncated bytes are not a well formed pay-for-fibre, so they take the
+	// full path and fail there.
+	truncated := txBytes[:len(txBytes)-1]
+	require.False(t, fibretypes.IsPayForFibreTx(truncated))
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: truncated, Type: abci.CheckTxType_Recheck})
 	require.True(t, err != nil || resp.Code != abci.CodeTypeOK)
-	require.Equal(t, 1, testApp.PffTxCacheLen())
 }
 
 // TestCheckTxPayForFibreReplay settles a payment promise in a committed block
@@ -836,7 +981,6 @@ func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-	require.Equal(t, 1, testApp.PffTxCacheLen())
 
 	// Commit an empty block timestamped past the promise timeout but within
 	// the freshness window, so the promise is expired rather than too old.
@@ -846,7 +990,6 @@ func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 	require.Contains(t, resp.Log, "payment promise expired")
-	require.Zero(t, testApp.PffTxCacheLen(), "a failed recheck drops the entry")
 }
 
 // commitBlock finalizes and commits a block of txs stamped time.Now, so the

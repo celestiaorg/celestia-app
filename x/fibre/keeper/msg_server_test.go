@@ -3,6 +3,7 @@ package keeper_test
 import (
 	"bytes"
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,6 +114,37 @@ func (suite *MsgServerTestSuite) TestDepositToEscrow() {
 		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
 	})
 
+	suite.T().Run("uppercase signer deposits to the same escrow account", func(t *testing.T) {
+		upperTestSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           upperTestSigner,
+			Balance:          depositAmount,
+			AvailableBalance: depositAmount,
+		})
+
+		upperSigner := strings.ToUpper(upperTestSigner)
+		msg := &types.MsgDepositToEscrow{
+			Signer: upperSigner,
+			Amount: depositAmount,
+		}
+
+		resp, err := suite.msgServer.DepositToEscrow(suite.ctx, msg)
+		suite.NoError(err)
+		suite.NotNil(resp)
+
+		// No second account keyed by the uppercase string
+		_, found := suite.keeper.GetEscrowAccount(suite.ctx, upperSigner)
+		suite.False(found)
+
+		// The deposit landed in the account settlement reads
+		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, upperTestSigner)
+		suite.True(found)
+		suite.Equal(upperTestSigner, escrowAccount.Signer)
+		expectedBalance := depositAmount.Add(depositAmount)
+		suite.Equal(expectedBalance, escrowAccount.Balance)
+		suite.Equal(expectedBalance, escrowAccount.AvailableBalance)
+	})
+
 	suite.T().Run("invalid signer address", func(t *testing.T) {
 		msg := &types.MsgDepositToEscrow{
 			Signer: "invalid-address",
@@ -217,6 +249,33 @@ func (suite *MsgServerTestSuite) TestRequestWithdrawal() {
 		suite.Error(err)
 		suite.Nil(resp)
 		suite.Contains(err.Error(), "insufficient available balance")
+	})
+
+	suite.T().Run("uppercase signer withdraws from the same escrow account", func(t *testing.T) {
+		upperTestSigner := sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String()
+		suite.keeper.SetEscrowAccount(suite.ctx, types.EscrowAccount{
+			Signer:           upperTestSigner,
+			Balance:          depositAmount,
+			AvailableBalance: depositAmount,
+		})
+
+		msg := &types.MsgRequestWithdrawal{
+			Signer: strings.ToUpper(upperTestSigner),
+			Amount: withdrawAmount,
+		}
+
+		resp, err := suite.msgServer.RequestWithdrawal(suite.ctx, msg)
+		suite.NoError(err)
+		suite.NotNil(resp)
+
+		// The withdrawal is stored under the canonical signer
+		withdrawal, found := suite.keeper.GetWithdrawal(suite.ctx, upperTestSigner, suite.ctx.BlockTime())
+		suite.True(found)
+		suite.Equal(upperTestSigner, withdrawal.Signer)
+
+		escrowAccount, found := suite.keeper.GetEscrowAccount(suite.ctx, upperTestSigner)
+		suite.True(found)
+		suite.Equal(depositAmount.Sub(withdrawAmount), escrowAccount.AvailableBalance)
 	})
 
 	suite.T().Run("duplicate withdrawal request at same timestamp", func(t *testing.T) {
@@ -482,6 +541,15 @@ func (suite *MsgServerTestSuite) TestValidatePayForFibreSignatures() {
 		err := suite.keeper.ValidatePayForFibreSignatures(suite.ctx, msg)
 		suite.Error(err)
 		suite.Contains(err.Error(), "failed to get historical validator set")
+
+		// A sig cache hit checks only availability and must fail the same way.
+		availErr := suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height)
+		suite.ErrorIs(availErr, sdkerrors.ErrInvalidRequest)
+		suite.Equal(err.Error(), availErr.Error())
+	})
+
+	suite.T().Run("validator set available", func(t *testing.T) {
+		suite.NoError(suite.keeper.ValidateValidatorSetAvailable(suite.ctx, paymentPromise.Height))
 	})
 }
 

@@ -105,8 +105,7 @@ func protoPromiseKey(t *testing.T, promise *types.PaymentPromise) sigcache.Key {
 // its own leaves no entry: the promise signature is the submitter's own, so it
 // alone says nothing about whether the message around it will be accepted.
 // Recording is the caller's decision, taken behind the remaining checks (see
-// TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum and
-// TestValidatePaymentPromiseRecordsPromiseBehindReservation).
+// TestValidatePayForFibreSignaturesRecordsPromiseBehindQuorum).
 func TestValidatePromiseStatelessRecordsNothing(t *testing.T) {
 	cache := newCountingSigCache()
 	k := newPromiseKeeper(cache)

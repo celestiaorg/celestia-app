@@ -12,10 +12,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// quorumPrefixSignatures is how many of batchBoundaryValidators equal
-// validators the 2/3 quorum takes, so the last signature the verifier looks at
-// is at index quorumPrefixSignatures-1.
-const quorumPrefixSignatures = 67
+// benchmarkValidators is the mainnet validator set size. Its 2/3 quorum takes
+// quorumPrefixSignatures equal validators, all in one verification batch.
+const (
+	benchmarkValidators    = 100
+	quorumPrefixSignatures = 67
+)
 
 // rotatingMessages is how many distinct transactions a benchmark cycles
 // through, against a signature cache far smaller, so a message's entries are
@@ -27,9 +29,7 @@ const (
 
 // withCacheCapacity returns a view of the same chain state and message with a
 // cache of the given size.
-func (f *preverifyFixture) withCacheCapacity(t testing.TB, capacity int) *preverifyFixture {
-	t.Helper()
-
+func (f *preverifyFixture) withCacheCapacity(capacity int) *preverifyFixture {
 	fresh := *f
 	fresh.cache = sigcache.New(capacity)
 	fresh.keeper = keeper.NewKeeper(codec.NewProtoCodec(codectypes.NewInterfaceRegistry()), f.storeKey,
@@ -63,7 +63,7 @@ func (f *preverifyFixture) forgePromiseSignature(t testing.TB, msg *types.MsgPay
 // without the pre-pass. The rejected classes are the ones to read: a tx that
 // fails the ante handler is never charged, so its bytes replay for free.
 func BenchmarkPayForFibreSignatureVerification(b *testing.B) {
-	f := newPreverifyFixtureWithValidators(b, batchBoundaryValidators)
+	f := newPreverifyFixtureWithValidators(b, benchmarkValidators)
 
 	tests := []struct {
 		name    string
@@ -84,14 +84,6 @@ func BenchmarkPayForFibreSignatureVerification(b *testing.B) {
 			},
 		},
 		{
-			// The batch boundary: the item carrying it is full, so the serial
-			// fallback it used to trigger paid for all 64 entries.
-			name: "forged validator signature at the batch boundary",
-			corrupt: func(t testing.TB, f *preverifyFixture, msg *types.MsgPayForFibre) {
-				f.forgeValidatorSignature(t, msg, batchSizeIndex)
-			},
-		},
-		{
 			// The sequential verifier's own worst case: it verifies the whole
 			// quorum prefix before it reaches the forged signature.
 			name: "forged validator signature at the last quorum index",
@@ -103,21 +95,19 @@ func BenchmarkPayForFibreSignatureVerification(b *testing.B) {
 
 	for _, tc := range tests {
 		msgs := make([]*types.MsgPayForFibre, rotatingMessages)
-		txs := make([][][]byte, rotatingMessages)
 		certKeys := make([]sigcache.Key, rotatingMessages)
 		for i := range msgs {
 			msgs[i] = f.newMessage(b, uint32(i+1))
 			if tc.corrupt != nil {
 				tc.corrupt(b, f, msgs[i])
 			}
-			txs[i] = [][]byte{f.txBytesFor(b, msgs[i])}
 			certKey, err := msgs[i].SigCacheKey()
 			require.NoError(b, err)
 			certKeys[i] = certKey
 		}
 
 		// Assert the verdict once, so no class can go vacuous.
-		verdict := f.withCacheCapacity(b, benchmarkCacheCapacity)
+		verdict := f.withCacheCapacity(benchmarkCacheCapacity)
 		require.Equal(b, tc.accept,
 			verdict.keeper.ValidatePayForFibreSignatures(verdict.ctx, msgs[0]) == nil, tc.name)
 
@@ -127,24 +117,21 @@ func BenchmarkPayForFibreSignatureVerification(b *testing.B) {
 				name = tc.name + "/prepass"
 			}
 			b.Run(name, func(b *testing.B) {
-				fixture := f.withCacheCapacity(b, benchmarkCacheCapacity)
+				fixture := f.withCacheCapacity(benchmarkCacheCapacity)
 				// Warm the per-height validator set conversion, which a node
 				// serving a stream of promises at recent heights has warm.
-				fixture.keeper.PreverifySignatures(fixture.ctx, txs[0],
-					keeper.PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
+				fixture.keeper.PreverifyPayForFibreMsg(fixture.ctx, msgs[0], certKeys[0])
 
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					// The ante decorator's sequence: look the certificate up,
-					// verify it sequentially on a miss, record it on success.
+					// The ante decorator's sequence on a cache miss.
 					index := i % rotatingMessages
 					if prepass {
-						fixture.keeper.PreverifySignatures(fixture.ctx, txs[index],
-							keeper.PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
-					}
-					if fixture.cache.Has(certKeys[index]) {
-						continue
+						fixture.keeper.PreverifyPayForFibreMsg(fixture.ctx, msgs[index], certKeys[index])
+						if fixture.cache.Has(certKeys[index]) {
+							continue
+						}
 					}
 					if fixture.keeper.ValidatePayForFibreSignatures(fixture.ctx, msgs[index]) == nil {
 						fixture.cache.Add(certKeys[index])
@@ -154,6 +141,3 @@ func BenchmarkPayForFibreSignatureVerification(b *testing.B) {
 		}
 	}
 }
-
-// batchSizeIndex is the last index of a full verification batch.
-const batchSizeIndex = 63

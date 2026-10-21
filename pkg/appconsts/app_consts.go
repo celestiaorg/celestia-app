@@ -64,8 +64,6 @@ const (
 	// after a MsgTryUpgrade to activate the next version. Assuming a block
 	// interval of ~2.6 seconds, this is 7 days.
 	MainnetUpgradeHeightDelay = int64(232_616)
-	// Deprecated: Use MainnetUpgradeHeightDelay instead.
-	UpgradeHeightDelay = MainnetUpgradeHeightDelay
 	// MempoolSize determines the default max mempool size.
 	MempoolSize = 400 * mebibyte // 400 MiB
 	// UnbondingTime is the time a validator must wait to unbond in a proof of
@@ -78,10 +76,6 @@ const (
 	// BlockMaxBytes is the governance-modifiable max number of bytes in a block.
 	// Set via the v9 upgrade handler.
 	BlockMaxBytes = 32 * mebibyte
-
-	// MaxSquareSize is the governance-modifiable max square size. Set via the
-	// v9 upgrade handler to handle 32 MiB blocks.
-	MaxSquareSize uint64 = 256
 )
 
 // MinCommissionRate is 20%.

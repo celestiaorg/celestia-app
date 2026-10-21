@@ -101,7 +101,7 @@ func TestSeparateTxsFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxs(log.NewNopLogger(), txConfig, tc.rawTxs)
+			normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, tc.rawTxs)
 			require.Len(t, normalTxs, tc.wantNorm)
 			require.Len(t, blobTxs, tc.wantBlob)
 			require.Len(t, rawBlobTxs, tc.wantBlob)
@@ -295,6 +295,29 @@ func TestFilteredSquareBuilderFillMaxPayForFibreMessages(t *testing.T) {
 	require.Len(t, kept, appconsts.MaxPayForFibreMessages)
 }
 
+// TestSeparateTxsDecodedBoundsPayForFibreCandidates pins the bound on the
+// candidate list, which is what bounds the pre-verification pass that reads it.
+func TestSeparateTxsDecodedBoundsPayForFibreCandidates(t *testing.T) {
+	encConf := encoding.MakeConfig(ModuleEncodingRegisters...)
+	txConfig := encConf.TxConfig
+
+	require.Greater(t, appconsts.MaxPayForFibreCandidates, appconsts.MaxPayForFibreMessages,
+		"the candidate bound must leave headroom over the block limit")
+
+	rawTxs := make([][]byte, appconsts.MaxPayForFibreCandidates+1)
+	for i := range rawTxs {
+		rawTxs[i] = blobfactory.UnsignedPayForFibreTx(t, txConfig)
+	}
+
+	_, _, _, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, rawTxs)
+	require.Len(t, payForFibreTxs, appconsts.MaxPayForFibreCandidates)
+
+	// The bound drops the tail, so the kept candidates are the highest priority.
+	for i, entry := range payForFibreTxs {
+		require.Equal(t, rawTxs[i], entry.raw, "candidate %d is not the one at that position in the input", i)
+	}
+}
+
 // newMultiPayForFibreTx creates an unsigned SDK tx containing two MsgPayForFibre messages for testing.
 func newMultiPayForFibreTx(t *testing.T, txConfig client.TxConfig) []byte {
 	t.Helper()
@@ -387,6 +410,20 @@ func TestFilteredSquareBuilderFillRollback(t *testing.T) {
 			anteWriteReject: [][]byte{pff2},
 			wantKept:        [][]byte{pff1, pff3},
 			wantEscrows:     [][]byte{pff1, pff3},
+		},
+		{
+			name:            "ante write before rejection is discarded for a normal tx",
+			squareSize:      64,
+			txs:             [][]byte{norm1, norm2, norm3},
+			anteWriteReject: [][]byte{norm2},
+			wantKept:        [][]byte{norm1, norm3},
+		},
+		{
+			name:            "ante write before rejection is discarded for a blob tx",
+			squareSize:      64,
+			txs:             [][]byte{blob1, blob2, blob3},
+			anteWriteReject: [][]byte{blob2},
+			wantKept:        [][]byte{blob1, blob3},
 		},
 		{
 			name:        "consecutive settlement and ante failures",

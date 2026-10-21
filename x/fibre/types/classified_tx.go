@@ -1,6 +1,7 @@
 package types
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
@@ -8,20 +9,59 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	squaretx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cosmos/btcutil/bech32"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	cosmostx "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // MsgPayForFibreTypeURL is the Cosmos SDK message type URL for MsgPayForFibre.
 const MsgPayForFibreTypeURL = "/celestia.fibre.v1.MsgPayForFibre"
 
+// msgPayForFibreTypeURL is MsgPayForFibreTypeURL as bytes, for the substring
+// prefilter in parsePayForFibre.
+var msgPayForFibreTypeURL = []byte(MsgPayForFibreTypeURL)
+
 // ClassifyTxs classifies raw transactions for square construction, marking
 // pay-for-fibre transactions and synthesizing their system blobs. go-square
 // no longer decodes Cosmos SDK transactions, so the application classifies
 // them and passes the result in.
 func ClassifyTxs(txs [][]byte) ([]square.ClassifiedTx, error) {
+	return ClassifyTxsDecoded(txs, nil, nil)
+}
+
+// ClassifyTxsDecoded is ClassifyTxs for a caller that already decoded the txs.
+// blobTxs and decoded are index aligned with txs; nil entries fall back to parsing.
+// blobTxs[i] is trusted as the decode of txs[i]: a wrong one changes the data root.
+func ClassifyTxsDecoded(txs [][]byte, blobTxs []*squaretx.BlobTx, decoded []*DecodedPayForFibre) ([]square.ClassifiedTx, error) {
+	if len(blobTxs) != 0 && len(blobTxs) != len(txs) {
+		return nil, fmt.Errorf("blob txs (%d) are not index aligned with txs (%d)", len(blobTxs), len(txs))
+	}
+	if len(decoded) != 0 && len(decoded) != len(txs) {
+		return nil, fmt.Errorf("decoded pay-for-fibre txs (%d) are not index aligned with txs (%d)", len(decoded), len(txs))
+	}
+	hasBlobTxs, hasDecoded := len(blobTxs) != 0, len(decoded) != 0
+
 	classified := make([]square.ClassifiedTx, len(txs))
 	for i, rawTx := range txs {
-		fibreTx, isFibreTx, err := TryParseFibreTx(rawTx)
+		var (
+			fibreTx   *squaretx.FibreTx
+			isFibreTx bool
+			err       error
+		)
+		switch {
+		case hasBlobTxs && blobTxs[i] != nil:
+			// A blob tx is never a pay-for-fibre tx; hand go-square the
+			// decode the caller already has.
+			classified[i], err = square.NewClassifiedBlobTx(rawTx, blobTxs[i])
+			if err != nil {
+				return nil, fmt.Errorf("classifying blob tx at index %d: %w", i, err)
+			}
+			continue
+		case hasDecoded && decoded[i] != nil:
+			isFibreTx = true
+			fibreTx, err = decoded[i].FibreTx()
+		default:
+			fibreTx, isFibreTx, err = TryParseFibreTx(rawTx)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("parsing fibre tx at index %d: %w", i, err)
 		}
@@ -53,15 +93,28 @@ func (msg *MsgPayForFibre) SigCacheKey() (sigcache.Key, error) {
 	return sigcache.NewKey(sigcache.PffCertificate, bz), nil
 }
 
-// ParsePayForFibreMsg returns the MsgPayForFibre carried by plain Cosmos SDK Tx
-// bytes, or false when there is none or it is malformed. It decodes with plain
-// proto, so it is safe to call concurrently and needs no SDK tx decoder.
-func ParsePayForFibreMsg(txBytes []byte) (*MsgPayForFibre, bool) {
-	msg, isFibreTx, err := parsePayForFibre(txBytes)
-	if !isFibreTx || err != nil {
-		return nil, false
+// PayForFibreMsg returns tx's MsgPayForFibre, or nil when tx is not a
+// single-message pay-for-fibre transaction.
+func PayForFibreMsg(tx sdk.Tx) *MsgPayForFibre {
+	msgs := tx.GetMsgs()
+	if len(msgs) != 1 {
+		return nil
 	}
-	return msg, true
+	msg, _ := msgs[0].(*MsgPayForFibre)
+	return msg
+}
+
+// ParsePayForFibreTx decodes the single MsgPayForFibre carried by txBytes. The
+// bool reports whether txBytes is a fibre tx; an error means it is one but malformed.
+func ParsePayForFibreTx(txBytes []byte) (*MsgPayForFibre, bool, error) {
+	return parsePayForFibre(txBytes)
+}
+
+// IsPayForFibreTx reports whether txBytes are a well formed pay-for-fibre tx,
+// without the SDK tx decoder. A malformed MsgPayForFibre is not one.
+func IsPayForFibreTx(txBytes []byte) bool {
+	msg, isPFF, err := parsePayForFibre(txBytes)
+	return isPFF && err == nil && msg != nil
 }
 
 // TryParseFibreTx attempts to detect a MsgPayForFibre message inside plain
@@ -92,6 +145,12 @@ func TryParseFibreTx(txBytes []byte) (fibreTx *squaretx.FibreTx, isFibreTx bool,
 // second result reports whether txBytes is a fibre tx at all; an error means it
 // is one but the message is malformed.
 func parsePayForFibre(txBytes []byte) (*MsgPayForFibre, bool, error) {
+	// The type URL is a verbatim subrange of TxRaw, so bytes without it cannot carry a
+	// MsgPayForFibre; checking first skips unmarshalling (and blob copies) for the rest.
+	if !bytes.Contains(txBytes, msgPayForFibreTypeURL) {
+		return nil, false, nil
+	}
+
 	// Decode the way the SDK's tx decoder does: the outer TxRaw carries
 	// body_bytes as an opaque scalar (a repeated occurrence resolves to the
 	// last one), which is then unmarshalled into a TxBody. Decoding into the
@@ -119,13 +178,9 @@ func parsePayForFibre(txBytes []byte) (*MsgPayForFibre, bool, error) {
 		return nil, false, nil
 	}
 
-	// BlobTx bytes are wire-compatible with TxRaw and can reach here, so rule
-	// them out before accepting: a BlobTx is never a fibre tx, even one
-	// crafted so that its inner tx carries a MsgPayForFibre. The check is last
-	// because it is the expensive one - it decodes every blob payload - and
-	// only a tx that already looks like a PayForFibre can need it. Ordinary
-	// blob traffic leaves after the type URL comparison above.
-	if _, isBlobTx, _ := squaretx.UnmarshalBlobTx(txBytes); isBlobTx {
+	// A BlobTx is never a fibre tx, even if its inner tx carries a MsgPayForFibre.
+	// HasBlobTxTypeID is UnmarshalBlobTx's own test, without rebuilding the blobs.
+	if squaretx.HasBlobTxTypeID(txBytes) {
 		return nil, false, nil
 	}
 

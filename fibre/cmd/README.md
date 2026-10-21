@@ -11,7 +11,7 @@ Before starting, make sure:
 - [ ] The node's application gRPC endpoint is enabled in `app.toml` — see [Node connections](#node-connections).
 - [ ] The node's privval gRPC endpoint is enabled — see [Signing](#signing). If the consensus key lives in an external KMS, the KMS must support the privval `SignRawBytes` message; see the [release notes](../../docs/release-notes/release-notes.md) for the KMS policy.
 - [ ] The fibre listen port (default `7980`) is reachable by clients from outside your network.
-- [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set gets no budget and no traffic.
+- [ ] Your validator is bonded. The server derives its storage budget from your stake; a validator outside the active set receives no assignments for new uploads. At startup, if no budget can be derived because the validator is absent, the current server warns and runs without a storage limit until a budget can be derived.
 
 We recommend storing fibre server data and celestia-app data on separate disks. This prevents unexpected storage growth in either service from consuming the disk space available to the other. Use `--home` or `FIBRE_HOME` to place the fibre home directory on a separate disk (see [Start](#start)).
 
@@ -465,6 +465,7 @@ Resource attributes exported with every trace: `service.name=fibre`, `service.ve
 | `fibre.server.download_shard.bytes` | Counter (By) | — | Total shard row bytes served |
 | `fibre.server.store.put.duration` | Histogram (s) | `success` | Store write latency |
 | `fibre.server.store.get.duration` | Histogram (s) | `success` | Store read latency |
+| `fibre.server.store.backend` | Gauge | `backend`, `object_configured` | Configured primary shard storage backend |
 | `fibre.server.backend.get.duration` | Histogram (s) | `backend`, `outcome` | Backend GET latency through payload reading, decoding and closing |
 | `fibre.server.backend.get.in_flight` | UpDownCounter | `backend` | Concurrent backend GET calls |
 | `fibre.server.backend.get.bytes` | Counter (By) | `backend` | Encoded bytes consumed, including partial failures and buffered reads |

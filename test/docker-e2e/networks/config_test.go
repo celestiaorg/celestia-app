@@ -60,6 +60,32 @@ func TestMochaConfigPeers(t *testing.T) {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
 	}
+	// A single archive peer makes genesis sync fail whenever that node ignores
+	// our dials (celestia-app#8142).
+	if n := len(nodeIDs(config.Peers)); n < 2 {
+		t.Errorf("Expected at least 2 distinct archive peers, got %d", n)
+	}
+	assertNoSeedsInPeers(t, config)
+}
+
+// assertNoSeedsInPeers verifies no seed is also listed as a persistent peer. A
+// seed disconnects right after the address exchange, so as a persistent peer it
+// only produces a reconnect loop that buries the rest of the node's logs.
+func assertNoSeedsInPeers(t *testing.T, config *Config) {
+	t.Helper()
+
+	seeds := make(map[string]bool)
+	for seed := range strings.SplitSeq(config.Seeds, ",") {
+		if id, _, found := strings.Cut(seed, "@"); found {
+			seeds[id] = true
+		}
+	}
+	for peer := range strings.SplitSeq(config.Peers, ",") {
+		id, _, found := strings.Cut(peer, "@")
+		if found && seeds[id] {
+			t.Errorf("Seed %s is also listed as a persistent peer: seeds never serve blocks", id)
+		}
+	}
 }
 
 // TestMainnetConfig verifies the mainnet config has the chain ID, seeds, and
@@ -87,4 +113,5 @@ func TestMainnetConfig(t *testing.T) {
 			t.Errorf("Expected peer in id@host:port form, got: %s", peer)
 		}
 	}
+	assertNoSeedsInPeers(t, config)
 }
