@@ -17,9 +17,17 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
+)
+
+// Field numbers of TxRaw.body_bytes, TxBody.messages and Any.type_url.
+const (
+	txRawBodyField  = 1
+	txBodyMsgsField = 1
+	anyTypeURLField = 1
 )
 
 func TestFirstMsgIsPayForFibre(t *testing.T) {
@@ -28,8 +36,9 @@ func TestFirstMsgIsPayForFibre(t *testing.T) {
 	pffTx := blobfactory.UnsignedPayForFibreTx(t, txConfig)
 	emptyBodyTx := newUnsignedTx(t, txConfig)
 	sendTx := newNormalTx(t, txConfig)
-	pffBody, ok := protoBytesField(pffTx, txRawBodyField, false)
-	require.True(t, ok)
+	var pffRaw txtypes.TxRaw
+	require.NoError(t, pffRaw.Unmarshal(pffTx))
+	pffBody := pffRaw.BodyBytes
 	pffMsg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), "test")
 	bodyField := func(body []byte) []byte {
 		return protowire.AppendBytes(protowire.AppendTag(nil, txRawBodyField, protowire.BytesType), body)

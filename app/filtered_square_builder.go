@@ -12,7 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"google.golang.org/protobuf/encoding/protowire"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
@@ -366,59 +366,20 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
 }
 
-// Field numbers of TxRaw.body_bytes, TxBody.messages and Any.type_url.
-const (
-	txRawBodyField  = 1
-	txBodyMsgsField = 1
-	anyTypeURLField = 1
-)
-
 var payForFibreTypeURL = sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})
 
-// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre, read
-// from the wire format without decoding the tx. ok is false if the bytes do not parse.
+// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre without
+// unpacking the messages. ok is false if the TxRaw or TxBody does not unmarshal.
 func firstMsgIsPayForFibre(rawTx []byte) (isPFF, ok bool) {
-	body, ok := protoBytesField(rawTx, txRawBodyField, false)
-	if !ok {
+	var raw txtypes.TxRaw
+	if err := raw.Unmarshal(rawTx); err != nil {
 		return false, false
 	}
-	msg, ok := protoBytesField(body, txBodyMsgsField, true)
-	if !ok {
+	var body txtypes.TxBody
+	if err := body.Unmarshal(raw.BodyBytes); err != nil {
 		return false, false
 	}
-	typeURL, ok := protoBytesField(msg, anyTypeURLField, false)
-	if !ok {
-		return false, false
-	}
-	return string(typeURL) == payForFibreTypeURL, true
-}
-
-// protoBytesField returns the first length-delimited value of field num if first is set, else the
-// last (what a decoder keeps for a singular field). ok is false if bz is malformed.
-func protoBytesField(bz []byte, num protowire.Number, first bool) (val []byte, ok bool) {
-	for len(bz) > 0 {
-		n, typ, l := protowire.ConsumeTag(bz)
-		if l < 0 || typ == protowire.StartGroupType || typ == protowire.EndGroupType {
-			return nil, false
-		}
-		bz = bz[l:]
-		if n == num && typ == protowire.BytesType {
-			v, l := protowire.ConsumeBytes(bz)
-			if l < 0 {
-				return nil, false
-			}
-			if first {
-				return v, true
-			}
-			val, bz = v, bz[l:]
-			continue
-		}
-		if l = protowire.ConsumeFieldValue(n, typ, bz); l < 0 {
-			return nil, false
-		}
-		bz = bz[l:]
-	}
-	return val, true
+	return len(body.Messages) > 0 && body.Messages[0].TypeUrl == payForFibreTypeURL, true
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
