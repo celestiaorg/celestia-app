@@ -12,6 +12,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	"github.com/cosmos/gogoproto/proto"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
@@ -243,6 +244,11 @@ func TestCountZKProofMsgs(t *testing.T) {
 		{name: "protobuf ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: 2},
 		{name: "JSON ICA", msgs: []sdk.Msg{icaPacket([]proto.Message{update(), &banktypes.MsgSend{}, submit()}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: 2},
 		{name: "ICA authz fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA authz fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{execWith(update()).(*authz.MsgExec)}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA gov proposal fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA gov proposal fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&govv1.MsgSubmitProposal{}}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA recv packet fails closed", msgs: []sdk.Msg{icaPacket([]proto.Message{&channeltypes.MsgRecvPacket{}}, icatypes.EncodingProtobuf)}, encoding: icatypes.EncodingProtobuf, want: appconsts.MaxZKProofMessages + 1},
+		{name: "ICA recv packet fails closed JSON", msgs: []sdk.Msg{icaPacket([]proto.Message{&channeltypes.MsgRecvPacket{}}, icatypes.EncodingProto3JSON)}, encoding: icatypes.EncodingProto3JSON, want: appconsts.MaxZKProofMessages + 1},
 	}
 
 	for _, tc := range tests {

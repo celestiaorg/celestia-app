@@ -8,6 +8,7 @@ import (
 	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	icahosttypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/host/types"
 	icatypes "github.com/cosmos/ibc-go/v8/modules/apps/27-interchain-accounts/types"
 	channeltypes "github.com/cosmos/ibc-go/v8/modules/core/04-channel/types"
@@ -237,10 +238,7 @@ func countProtoZKProofMsgs(bz []byte) int {
 			if !ok {
 				return -1
 			}
-			// MsgExec fan-out is not enabled by default for ICA. Fail closed if
-			// governance enables it rather than letting inner proof work bypass
-			// this wire-level counter.
-			if typeURL == sdk.MsgTypeURL(&authz.MsgExec{}) {
+			if isFanOutTypeURL(typeURL) {
 				return appconsts.MaxZKProofMessages + 1
 			}
 			if isZKProofTypeURL(typeURL) {
@@ -284,6 +282,16 @@ func protoAnyTypeURL(bz []byte) (string, bool) {
 		bz = bz[n:]
 	}
 	return typeURL, typeURL != ""
+}
+
+// isFanOutTypeURL reports whether a message dispatches further messages, which
+// the wire-level ICA counter cannot see into. None are on the default ICA allow
+// list, so fail closed if governance allows one rather than letting inner proof
+// work bypass the counter. See TestIcaAllowMessagesExcludeFanOutMsgs.
+func isFanOutTypeURL(typeURL string) bool {
+	return typeURL == sdk.MsgTypeURL(&authz.MsgExec{}) ||
+		typeURL == sdk.MsgTypeURL(&govv1.MsgSubmitProposal{}) ||
+		typeURL == sdk.MsgTypeURL(&channeltypes.MsgRecvPacket{})
 }
 
 func isZKProofTypeURL(typeURL string) bool {
@@ -345,7 +353,7 @@ func countJSONZKProofMsgs(bz []byte) int {
 		if msg.TypeURL == "" {
 			return -1
 		}
-		if msg.TypeURL == sdk.MsgTypeURL(&authz.MsgExec{}) {
+		if isFanOutTypeURL(msg.TypeURL) {
 			return appconsts.MaxZKProofMessages + 1
 		}
 		if isZKProofTypeURL(msg.TypeURL) {
