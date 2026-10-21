@@ -20,6 +20,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -106,6 +107,39 @@ func setHistoricalEntries(t *testing.T, testApp *app.App, entries uint32) {
 	require.NoError(t, err)
 	params.HistoricalEntries = entries
 	require.NoError(t, testApp.StakingKeeper.SetParams(ctx, params))
+}
+
+// TestValidatorSetAvailableAgreesWithStaking checks the fibre existence check,
+// through the app's wiring, against staking's own read at every kind of height.
+func TestValidatorSetAvailableAgreesWithStaking(t *testing.T) {
+	testApp, _ := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams())
+	setHistoricalEntries(t, testApp, 2)
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	ctx := uncachedContext(testApp)
+	current := testApp.LastBlockHeight()
+
+	stored := map[int64]bool{}
+	for height := int64(-1); height <= current+1; height++ {
+		_, getErr := testApp.StakingKeeper.GetHistoricalInfo(ctx, height)
+		availErr := testApp.FibreKeeper.ValidateValidatorSetAvailable(ctx, height)
+		stored[height] = getErr == nil
+		if getErr == nil {
+			require.NoError(t, availErr, "height %d", height)
+			continue
+		}
+		require.ErrorIs(t, getErr, stakingtypes.ErrNoHistoricalInfo, "height %d", height)
+		require.ErrorContains(t, availErr, "failed to get historical validator set at height", "height %d", height)
+		require.ErrorContains(t, availErr, getErr.Error(), "height %d", height)
+	}
+	// Pruned, oldest kept, current, future, zero and negative must all have been covered.
+	require.Equal(t, map[int64]bool{-1: false, 0: false, 1: false, 2: false, 3: false, 4: true, 5: true, 6: false}, stored)
+
+	// Production reads through cachekv, so check that branch too.
+	checkCtx := testApp.NewContext(true)
+	require.NoError(t, testApp.FibreKeeper.ValidateValidatorSetAvailable(checkCtx, current))
+	require.ErrorContains(t, testApp.FibreKeeper.ValidateValidatorSetAvailable(checkCtx, 1), "failed to get historical validator set at height 1")
 }
 
 // buildGasParityTxs returns a MsgSend tx and two same-sized MsgPayForFibre txs.
