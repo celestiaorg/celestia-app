@@ -72,6 +72,9 @@ func (app *App) CheckTx(req *abci.RequestCheckTx) (*abci.ResponseCheckTx, error)
 		err := fmt.Errorf("checkState not set")
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), err
 	}
+	// The raw check state carries no consensus params; load them so version
+	// gated message weights match the proposal handlers.
+	checkTxCtx = checkTxCtx.WithConsensusParams(app.GetConsensusParams(checkTxCtx))
 	if msgCount := countExecutableMsgs(checkTxCtx, app.IBCKeeper.ChannelKeeper, sdkTx.GetMsgs()); msgCount > appconsts.MaxSDKMessages {
 		err := errors.Wrapf(apperr.ErrTxExceedsMaxSDKMessages, "tx contains %d messages, limit is %d", msgCount, appconsts.MaxSDKMessages)
 		return responseCheckTxWithEvents(err, 0, 0, []abci.Event{}, false), nil

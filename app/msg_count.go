@@ -65,7 +65,9 @@ func leafWeight(ctx sdk.Context, ck channelKeeper, msg sdk.Msg) int {
 	case *channeltypes.MsgRecvPacket:
 		return 1 + countICAPacketMsgs(ctx, ck, msg.Packet)
 	case *zkismtypes.MsgSubmitMessages:
-		if ctx.BlockHeader().Version.App < appconsts.ZKISMFanoutLimitVersion {
+		// BaseApp leaves the header version empty; the active app version
+		// lives in the consensus params.
+		if ctx.ConsensusParams().Version.GetApp() < appconsts.ZKISMFanoutLimitVersion {
 			return 1
 		}
 		var values zkismtypes.StateMembershipValues

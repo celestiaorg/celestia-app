@@ -118,7 +118,9 @@ func (m msgServer) SubmitMessages(ctx context.Context, msg *types.MsgSubmitMessa
 	}
 
 	maxMessageIds := uint64(types.LegacyMaxMessageIdsCount)
-	if sdk.UnwrapSDKContext(ctx).BlockHeader().Version.App >= appconsts.ZKISMFanoutLimitVersion {
+	// BaseApp leaves the header version empty; the active app version lives in
+	// the consensus params.
+	if sdk.UnwrapSDKContext(ctx).ConsensusParams().Version.GetApp() >= appconsts.ZKISMFanoutLimitVersion {
 		maxMessageIds = types.MaxMessageIdsCount
 	}
 

@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
 	zkismtypes "github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -244,9 +243,7 @@ func TestCountExecutableMsgs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			ck := fakeChannelKeeper{encoding: tc.encoding}
-			ctx := sdk.Context{}.WithBlockHeader(tmproto.Header{
-				Version: version.Consensus{App: appconsts.ZKISMFanoutLimitVersion},
-			})
+			ctx := withAppVersion(appconsts.ZKISMFanoutLimitVersion)
 			require.Equal(t, tc.expected, countExecutableMsgs(ctx, ck, tc.msgs))
 		})
 	}
@@ -257,11 +254,17 @@ func TestCountExecutableMsgsPreservesLegacyZKISMWeight(t *testing.T) {
 	bz, err := values.Marshal()
 	require.NoError(t, err)
 	msg := &zkismtypes.MsgSubmitMessages{PublicValues: bz}
-	ctx := sdk.Context{}.WithBlockHeader(tmproto.Header{
-		Version: version.Consensus{App: appconsts.ZKISMFanoutLimitVersion - 1},
-	})
+	ctx := withAppVersion(appconsts.ZKISMFanoutLimitVersion - 1)
 
 	require.Equal(t, 1, countExecutableMsgs(ctx, fakeChannelKeeper{}, []sdk.Msg{msg}))
+}
+
+// withAppVersion sets the app version the way BaseApp exposes it at runtime:
+// through the consensus params, not the block header.
+func withAppVersion(appVersion uint64) sdk.Context {
+	return sdk.Context{}.WithConsensusParams(tmproto.ConsensusParams{
+		Version: &tmproto.VersionParams{App: appVersion},
+	})
 }
 
 // TestCountICAPacketMsgsNeverUndercounts checks the counter against the decoder

@@ -11,7 +11,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/keeper"
 	"github.com/celestiaorg/celestia-app/v10/x/zkism/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
-	"github.com/cometbft/cometbft/proto/tendermint/version"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
@@ -219,9 +219,7 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 		{
 			name: "too many message ids after version activation",
 			setupTest: func() {
-				suite.ctx = suite.ctx.WithBlockHeader(tmproto.Header{
-					Version: version.Consensus{App: appconsts.ZKISMFanoutLimitVersion},
-				})
+				suite.ctx = withAppVersion(suite.ctx, appconsts.ZKISMFanoutLimitVersion)
 				msg = &types.MsgSubmitMessages{
 					Id:    ism.Id,
 					Proof: proofBz,
@@ -231,6 +229,22 @@ func (suite *KeeperTestSuite) TestSubmitMessages() {
 				}
 			},
 			expError: sdkerrors.ErrInvalidType,
+		},
+		{
+			name: "message ids above the limit are not rejected at decode before version activation",
+			setupTest: func() {
+				suite.ctx = withAppVersion(suite.ctx, appconsts.ZKISMFanoutLimitVersion-1)
+				msg = &types.MsgSubmitMessages{
+					Id:    ism.Id,
+					Proof: proofBz,
+					PublicValues: marshalStateMembershipValues(suite, pubValues, func(v *types.StateMembershipValues) {
+						v.MessageIds = make([][32]byte, types.MaxMessageIdsCount+1)
+					}),
+				}
+			},
+			// Decoding succeeds under the legacy limit, so the handler reaches
+			// proof verification, which fails because the public values changed.
+			expError: types.ErrInvalidProof,
 		},
 		{
 			name: "duplicate submission rejected",
@@ -417,4 +431,12 @@ func marshalStateMembershipValues(suite *KeeperTestSuite, bz []byte, modify func
 	out, err := values.Marshal()
 	suite.Require().NoError(err)
 	return out
+}
+
+// withAppVersion sets the app version the way BaseApp exposes it at runtime:
+// through the consensus params, not the block header.
+func withAppVersion(ctx sdk.Context, appVersion uint64) sdk.Context {
+	return ctx.WithConsensusParams(tmproto.ConsensusParams{
+		Version: &tmproto.VersionParams{App: appVersion},
+	})
 }
