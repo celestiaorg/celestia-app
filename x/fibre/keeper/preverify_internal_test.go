@@ -1,8 +1,11 @@
 package keeper
 
 import (
+	"sync/atomic"
 	"testing"
 
+	"github.com/cometbft/cometbft/crypto"
+	"github.com/cometbft/cometbft/crypto/ed25519"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,5 +26,37 @@ func TestVerificationChunkSize(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			require.Equal(t, tc.want, verificationChunkSize(tc.items, tc.procs))
 		})
+	}
+}
+
+// TestRunVerificationsSurvivesWorkerPanics pins what ProcessProposal relies on: a
+// panicking worker dies alone, and its unfinished items stay unverified for the walk.
+func TestRunVerificationsSurvivesWorkerPanics(t *testing.T) {
+	message := []byte("sign bytes")
+	items := make([]verification, 64)
+	valid := make([]bool, len(items))
+	for i := range items {
+		priv := ed25519.GenPrivKey()
+		signature, err := priv.Sign(message)
+		require.NoError(t, err)
+		if valid[i] = i%5 != 0; !valid[i] {
+			signature[0] ^= 0x01
+		}
+		items[i] = verification{message: message, pubKeys: []crypto.PubKey{priv.PubKey()}, signatures: [][]byte{signature}}
+	}
+
+	for _, stopOnFirstFailure := range []bool{false, true} {
+		var published atomic.Int32
+		var verified []bool
+		require.NotPanics(t, func() {
+			verified = runVerifications(items, stopOnFirstFailure, func([]atomic.Bool, int, int) {
+				published.Add(1)
+				panic("publish panic")
+			})
+		})
+		require.Positive(t, published.Load(), "no worker panicked")
+		for i, ok := range verified {
+			require.False(t, ok && !valid[i], "item %d: invalid signature reported verified", i)
+		}
 	}
 }
