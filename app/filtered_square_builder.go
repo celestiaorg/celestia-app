@@ -90,7 +90,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		for _, tx := range txs {
 			txProtoSize := coretypes.ComputeProtoSizeForTxs([]coretypes.Tx{tx})
 			if currentTxBytes+txProtoSize > maxTxBytes {
-				logger.Debug("skipping tx because it was too large to fit in the block", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+				logger.Debug("skipping tx because it was too large to fit in the block", "tx", lazyTxHash(tx))
 				continue
 			}
 			currentTxBytes += txProtoSize
@@ -123,7 +123,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	for _, tx := range normalTxs {
 		sdkTx, err := dec(tx)
 		if err != nil {
-			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+			logger.Error("decoding already checked transaction", "tx", lazyTxHash(tx), "error", err)
 			continue
 		}
 
@@ -133,12 +133,12 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		msgTypes := msgTypes(sdkTx)
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
-			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			logger.Debug("skipping tx because the max SDK message count was reached", "tx", lazyTxHash(tx))
 			continue
 		}
 
 		if !fsb.builder.AppendTx(tx) {
-			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
+			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(tx))
 			continue
 		}
 
@@ -152,7 +152,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		if err != nil {
 			logger.Error(
 				"filtering already checked transaction",
-				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
+				"tx", lazyTxHash(tx),
 				"error", err,
 				"msgs", msgTypes,
 			)
@@ -171,7 +171,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// message keeps the tx (gas only), so ignore the error.
 		if containsFibreStateMsg(sdkTx) {
 			if err := executeTxMsgs(ctx, sdkTx, fsb.msgRouter); err != nil {
-				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
+				logger.Debug("fibre state msg did not settle in proposal; keeping tx", "tx", lazyTxHash(tx), "error", err)
 			}
 		}
 
@@ -183,7 +183,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	for i, tx := range blobTxs {
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
-			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(tx.Tx), "error", err)
 			continue
 		}
 
@@ -191,24 +191,24 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = ctx.WithTxBytes(tx.Tx)
 
 		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
-			logger.Debug("skipping blob tx because the max pfb message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			logger.Debug("skipping blob tx because the max pfb message count was reached", "tx", lazyTxHash(tx.Tx))
 			continue
 		}
 
 		if fsb.validateBlobTx != nil {
 			if _, err := fsb.validateBlobTx(tx); err != nil {
-				logger.Error("dropping invalid blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
+				logger.Error("dropping invalid blob tx", "tx", lazyTxHash(tx.Tx), "error", err)
 				continue
 			}
 		}
 
 		ok, err := fsb.builder.AppendBlobTx(tx)
 		if err != nil {
-			logger.Debug("skipping blob tx due to error", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "err", err)
+			logger.Debug("skipping blob tx due to error", "tx", lazyTxHash(tx.Tx), "err", err)
 			continue
 		}
 		if !ok {
-			logger.Debug("skipping tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()))
+			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(tx.Tx))
 			continue
 		}
 
@@ -219,7 +219,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// of the anteHandlers which is logged.
 		if err != nil {
 			logger.Error(
-				"filtering already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err,
+				"filtering already checked blob transaction", "tx", lazyTxHash(tx.Tx), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			err = fsb.builder.RevertLastBlobTx()
@@ -302,7 +302,7 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 				// Drop malformed blob txs. Matches ProcessProposalHandler.
 				// CheckTx should have rejected this; reaching here indicates a
 				// regression so log + count it for visibility.
-				logger.Error("dropping malformed blob tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
+				logger.Error("dropping malformed blob tx", "tx", lazyTxHash(rawTx), "err", err)
 				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
 				continue
 			}
@@ -328,13 +328,13 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 			// reads it is bounded too. Candidates arrive in mempool priority
 			// order, so the drop takes the lowest priority first.
 			if len(payForFibreTxs) >= appconsts.MaxPayForFibreCandidates {
-				logger.Debug("dropping pay-for-fibre tx because the candidate bound was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+				logger.Debug("dropping pay-for-fibre tx because the candidate bound was reached", "tx", lazyTxHash(rawTx))
 				continue
 			}
 			// Reuse the predicate ProcessProposal enforces so a proposer never
 			// builds a block its own ProcessProposal would reject.
 			if err := validatePayForFibreTxShape(sdkTx); err != nil {
-				logger.Debug("dropping invalid pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "err", err)
+				logger.Debug("dropping invalid pay-for-fibre tx", "tx", lazyTxHash(rawTx), "err", err)
 				continue
 			}
 			entry := decodedFibreTx{raw: rawTx, sdkTx: sdkTx}
@@ -386,16 +386,16 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 			fibreTx, isFibreTx, err = fibretypes.TryParseFibreTx(rawTx)
 		}
 		if err != nil {
-			logger.Error("synthesizing fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			logger.Error("synthesizing fibre tx", "tx", lazyTxHash(rawTx), "error", err)
 			continue
 		}
 		if !isFibreTx {
-			logger.Error("expected pay-for-fibre tx", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+			logger.Error("expected pay-for-fibre tx", "tx", lazyTxHash(rawTx))
 			continue
 		}
 
 		if pffMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPayForFibreMessages {
-			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+			logger.Debug("skipping pay-for-fibre tx because the max PayForFibre message count was reached", "tx", lazyTxHash(rawTx))
 			continue
 		}
 
@@ -407,11 +407,11 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {
-			logger.Error("appending pay-for-fibre transaction to builder", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()), "error", err)
+			logger.Error("appending pay-for-fibre transaction to builder", "tx", lazyTxHash(rawTx), "error", err)
 			continue
 		}
 		if !ok {
-			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the square", "tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()))
+			logger.Debug("skipping pay-for-fibre tx because it was too large to fit in the square", "tx", lazyTxHash(rawTx))
 			continue
 		}
 
@@ -419,7 +419,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		if err != nil {
 			logger.Error(
 				"filtering already checked pay-for-fibre transaction",
-				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
+				"tx", lazyTxHash(rawTx),
 				"error", err,
 				"msgs", msgTypes(sdkTx),
 			)
@@ -438,7 +438,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		if err := executeTxMsgs(txCtx, sdkTx, fsb.msgRouter); err != nil {
 			logger.Error(
 				"dropping pay-for-fibre tx: promise cannot settle on the proposal state (e.g. escrow overdrawn or promise already processed)",
-				"tx", tmbytes.HexBytes(coretypes.Tx(rawTx).Hash()),
+				"tx", lazyTxHash(rawTx),
 				"error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "unsettleable_pay_for_fibre_txs")
@@ -454,4 +454,17 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	}
 
 	return fibreTxs
+}
+
+// lazyTxHash defers hashing a transaction until a log line is written, so
+// lines below the logger's level cost nothing. It renders like the hash's
+// tmbytes.HexBytes.
+type lazyTxHash []byte
+
+func (h lazyTxHash) String() string {
+	return tmbytes.HexBytes(coretypes.Tx(h).Hash()).String()
+}
+
+func (h lazyTxHash) MarshalJSON() ([]byte, error) {
+	return tmbytes.HexBytes(coretypes.Tx(h).Hash()).MarshalJSON()
 }
