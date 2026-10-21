@@ -27,7 +27,6 @@ const (
 const (
 	EventComposeHash = "compose-hash"
 	EventOsImageHash = "os-image-hash"
-	EventMrKms       = "mr-kms"
 	EventKeyProvider = "key-provider"
 )
 

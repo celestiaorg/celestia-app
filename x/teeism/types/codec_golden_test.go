@@ -40,7 +40,6 @@ type rustVectors struct {
 		MrTd        string `json:"mr_td"`
 		OsImageHash string `json:"os_image_hash"`
 		ComposeHash string `json:"compose_hash"`
-		MrKms       string `json:"mr_kms"`
 		KeyProvider string `json:"key_provider"`
 		Digest      string `json:"digest"`
 	} `json:"identity"`
@@ -163,7 +162,6 @@ func TestIdentityDigestMatchesRust(t *testing.T) {
 		MrTd:        unhex(t, v.Identity.MrTd),
 		OsImageHash: unhex(t, v.Identity.OsImageHash),
 		ComposeHash: unhex(t, v.Identity.ComposeHash),
-		MrKms:       unhex(t, v.Identity.MrKms),
 		KeyProvider: unhex(t, v.Identity.KeyProvider),
 	}
 	require.NoError(t, id.Validate())
@@ -178,7 +176,6 @@ func TestIdentityDigestMatchesRust(t *testing.T) {
 		"mr_td":         func(i *types.EnclaveIdentity) { i.MrTd[0] ^= 1 },
 		"os_image_hash": func(i *types.EnclaveIdentity) { i.OsImageHash[0] ^= 1 },
 		"compose_hash":  func(i *types.EnclaveIdentity) { i.ComposeHash[0] ^= 1 },
-		"mr_kms":        func(i *types.EnclaveIdentity) { i.MrKms[0] ^= 1 },
 		"key_provider":  func(i *types.EnclaveIdentity) { i.KeyProvider[0] ^= 1 },
 	} {
 		t.Run("digest depends on "+name, func(t *testing.T) {
@@ -186,7 +183,6 @@ func TestIdentityDigestMatchesRust(t *testing.T) {
 				MrTd:        append([]byte{}, id.MrTd...),
 				OsImageHash: append([]byte{}, id.OsImageHash...),
 				ComposeHash: append([]byte{}, id.ComposeHash...),
-				MrKms:       append([]byte{}, id.MrKms...),
 				KeyProvider: append([]byte{}, id.KeyProvider...),
 			}
 			mutate(other)

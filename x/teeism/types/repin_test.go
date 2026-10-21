@@ -15,7 +15,6 @@ func identityFor(b byte) *types.EnclaveIdentity {
 		MrTd:        fill(types.MrTdLen),
 		OsImageHash: fill(32),
 		ComposeHash: fill(32),
-		MrKms:       fill(32),
 		KeyProvider: fill(16),
 	}
 }

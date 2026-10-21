@@ -26,8 +26,10 @@ message EnclaveIdentity {
   bytes os_image_hash = 2;
   // hash of the compose file, which pins our container image digest.
   bytes compose_hash = 3;
-  // which KMS may release this application's keys.
-  bytes mr_kms = 4;
+  // Field 4 was mr_kms, the KMS measurement dstack 0.5 recorded. dstack 0.6
+  // no longer emits it; the KMS stays pinned through key_provider.
+  reserved 4;
+  reserved "mr_kms";
   // which key-provider mode the CVM booted with.
   bytes key_provider = 5;
 }

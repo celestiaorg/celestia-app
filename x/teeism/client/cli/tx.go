@@ -21,7 +21,6 @@ type identitySpec struct {
 	MrTd        string `json:"mr_td"`
 	OsImageHash string `json:"os_image_hash"`
 	ComposeHash string `json:"compose_hash"`
-	MrKms       string `json:"mr_kms"`
 	KeyProvider string `json:"key_provider"`
 }
 
@@ -35,7 +34,6 @@ func (spec identitySpec) decode() (*types.EnclaveIdentity, error) {
 		{"mr_td", spec.MrTd, &identity.MrTd},
 		{"os_image_hash", spec.OsImageHash, &identity.OsImageHash},
 		{"compose_hash", spec.ComposeHash, &identity.ComposeHash},
-		{"mr_kms", spec.MrKms, &identity.MrKms},
 		{"key_provider", spec.KeyProvider, &identity.KeyProvider},
 	} {
 		v, err := decodeHexString(f.src)
@@ -93,7 +91,6 @@ Every value is hex, with or without a 0x prefix.
       "mr_td": "0x...",
       "os_image_hash": "0x...",
       "compose_hash": "0x...",
-      "mr_kms": "0x...",
       "key_provider": "0x..."
     }
   }`),
@@ -154,7 +151,6 @@ value hex, with or without a 0x prefix:
     "mr_td": "0x...",
     "os_image_hash": "0x...",
     "compose_hash": "0x...",
-    "mr_kms": "0x...",
     "key_provider": "0x..."
   }`),
 		Example: fmt.Sprintf("%s tx %s update-identity 0x...2b ./identity.json --from owner", version.AppName, types.ModuleName),

@@ -103,7 +103,6 @@ func TestRealQuoteYieldsAPinnableIdentity(t *testing.T) {
 	}{
 		{types.EventOsImageHash, &id.OsImageHash},
 		{types.EventComposeHash, &id.ComposeHash},
-		{types.EventMrKms, &id.MrKms},
 		{types.EventKeyProvider, &id.KeyProvider},
 	} {
 		v, ok := types.GetEventValue(log, f.name)
@@ -181,14 +180,12 @@ func TestRealQuoteRejectsTampering(t *testing.T) {
 		compose, ok := types.GetEventValue(log, types.EventComposeHash)
 		require.True(t, ok)
 		osImage, _ := types.GetEventValue(log, types.EventOsImageHash)
-		mrKms, _ := types.GetEventValue(log, types.EventMrKms)
 		keyProvider, _ := types.GetEventValue(log, types.EventKeyProvider)
 
 		other := &types.EnclaveIdentity{
 			MrTd:        append([]byte{}, measured.MrTd[:]...),
 			OsImageHash: osImage,
 			ComposeHash: append([]byte{}, compose...),
-			MrKms:       mrKms,
 			KeyProvider: keyProvider,
 		}
 		other.ComposeHash[0] ^= 0x01

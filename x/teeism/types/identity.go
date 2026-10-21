@@ -8,26 +8,26 @@ import (
 )
 
 // identityDomainTag separates this digest from every other sha256 in the system.
-// It matches the tag the enclave and its circuits use, so an identity digest
-// computed here is the same 32 bytes the enclave writes into its ISM state.
-const identityDomainTag = "tee-isms/enclave-identity/v1"
+// v2 is the dstack 0.6 identity: v1 also pinned dstack 0.5's mr-kms event, which
+// 0.6 no longer records.
+const identityDomainTag = "tee-isms/enclave-identity/v2"
 
 // MrTdLen is the length of the TD build-time measurement.
 const MrTdLen = 48
 
 // pinnedEvents pairs each pinned event-log key with the value this identity
-// requires. The order is fixed because it is hashed.
-func (id *EnclaveIdentity) pinnedEvents() [4]struct {
+// requires. The order is fixed because it is hashed. The KMS is pinned through
+// key-provider, which names the KMS's key.
+func (id *EnclaveIdentity) pinnedEvents() [3]struct {
 	Name  string
 	Value []byte
 } {
-	return [4]struct {
+	return [3]struct {
 		Name  string
 		Value []byte
 	}{
 		{EventOsImageHash, id.OsImageHash},
 		{EventComposeHash, id.ComposeHash},
-		{EventMrKms, id.MrKms},
 		{EventKeyProvider, id.KeyProvider},
 	}
 }

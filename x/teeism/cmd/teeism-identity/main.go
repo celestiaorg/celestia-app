@@ -20,7 +20,6 @@ type identityJSON struct {
 	MrTd        string `json:"mr_td"`
 	OsImageHash string `json:"os_image_hash"`
 	ComposeHash string `json:"compose_hash"`
-	MrKms       string `json:"mr_kms"`
 	KeyProvider string `json:"key_provider"`
 }
 
@@ -60,7 +59,6 @@ func run(path string) error {
 		{"mr_td", in.MrTd, &id.MrTd},
 		{"os_image_hash", in.OsImageHash, &id.OsImageHash},
 		{"compose_hash", in.ComposeHash, &id.ComposeHash},
-		{"mr_kms", in.MrKms, &id.MrKms},
 		{"key_provider", in.KeyProvider, &id.KeyProvider},
 	} {
 		v, err := hex.DecodeString(strings.TrimPrefix(f.src, "0x"))
