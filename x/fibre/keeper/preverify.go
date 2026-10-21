@@ -105,14 +105,18 @@ func (v verification) run() bool {
 		return v.pubKeys[0].VerifySignature(v.message, v.signatures[0])
 	}
 
-	batch := ed25519.NewBatchVerifier()
+	batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 	if !v.addTo(batch) {
 		return false
 	}
-	// A failing batch falls back to verifying each entry, so the verdict is the
-	// same one the sequential walk reaches.
-	allValid, _ := batch.Verify()
-	return allValid
+	return verifyBatchOnly(batch)
+}
+
+// verifyBatchOnly checks the batch equation alone: Verify's fallback re-verifies
+// every entry serially for a vector the pass discards, on a rejection that
+// replays for free. A false verdict only costs a cache entry.
+func verifyBatchOnly(batch *ed25519.BatchVerifier) bool {
+	return batch.VerifyBatchOnly(crypto.CReader())
 }
 
 // addTo queues the item's validator signatures on batch and reports whether
@@ -395,7 +399,7 @@ func runVerificationChunk(items []verification, results []atomic.Bool, start, en
 		return allValid
 	}
 	if batchReady {
-		if valid, _ := batch.Verify(); valid {
+		if verifyBatchOnly(batch) {
 			for i := start; i < end; i++ {
 				if items[i].promise == nil {
 					results[i].Store(true)
