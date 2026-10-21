@@ -24,6 +24,8 @@ const DefaultKeyName = "default-fibre"
 var (
 	// ErrClientClosed is returned when an operation is attempted on a closed client.
 	ErrClientClosed = errors.New("fibre: client is closed")
+	// errClientNotStarted is returned when Upload or Put is called before Start.
+	errClientNotStarted = errors.New("fibre: client is not started")
 	// ErrNoKeyring is returned when Upload or Put is called without a keyring.
 	ErrNoKeyring = errors.New("fibre: keyring is required for uploads")
 	// ErrKeyNotFound is returned when the configured key is not found in the keyring.

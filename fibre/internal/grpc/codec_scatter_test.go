@@ -3,6 +3,7 @@ package grpc
 import (
 	"bytes"
 	"math/rand"
+	"reflect"
 	"testing"
 	"time"
 
@@ -294,5 +295,58 @@ func TestScatterMarshalBufferCount(t *testing.T) {
 	}
 	if aliased != rows {
 		t.Fatalf("%d row data buffers are views, want %d", aliased, rows)
+	}
+}
+
+// TestScatterCodecCoversAllFields fails when a field is added to a message the
+// scatter codec hand-encodes. Update marshalUploadShardRequestScatter and
+// blobRowSize/blobShardSize, then this count.
+func TestScatterCodecCoversAllFields(t *testing.T) {
+	for typ, want := range map[reflect.Type]int{
+		reflect.TypeFor[types.UploadShardRequest](): 2,
+		reflect.TypeFor[types.BlobShard]():          2,
+		reflect.TypeFor[types.BlobRow]():            3,
+	} {
+		if got := typ.NumField(); got != want {
+			t.Errorf("%s has %d fields, scatter codec handles %d", typ.Name(), got, want)
+		}
+	}
+}
+
+func scatterTestRequest(rows, depth int) *types.UploadShardRequest {
+	shard := &types.BlobShard{Rlcs: make([]byte, 64)}
+	for i := range rows {
+		row := &types.BlobRow{Index: uint32(i), Data: make([]byte, 1024)}
+		for range depth {
+			row.Proof = append(row.Proof, make([]byte, 32))
+		}
+		shard.Rows = append(shard.Rows, row)
+	}
+	return &types.UploadShardRequest{Promise: &types.PaymentPromise{ChainId: "x"}, Shard: shard}
+}
+
+// TestScatterMarshalAllocsConstant checks that allocations do not grow with
+// the number of buffer views: views are not boxed one by one.
+func TestScatterMarshalAllocsConstant(t *testing.T) {
+	allocs := func(rows int) float64 {
+		req := scatterTestRequest(rows, 14)
+		return testing.AllocsPerRun(20, func() {
+			if _, err := marshalUploadShardRequestScatter(req); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+	if small, large := allocs(16), allocs(256); large != small {
+		t.Fatalf("allocs grew with rows: %v at 16 rows, %v at 256 rows", small, large)
+	}
+}
+
+func BenchmarkScatterMarshal(b *testing.B) {
+	req := scatterTestRequest(168, 14)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := marshalUploadShardRequestScatter(req); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

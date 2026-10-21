@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"cosmossdk.io/math"
@@ -155,11 +156,32 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 // uploadPut releases its blob ownership before transaction settlement.
 func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (BlobID, SignedPaymentPromise, error) {
 	span := trace.SpanFromContext(ctx)
+	// Check lifecycle before admission so an unusable client fails fast instead
+	// of waiting for capacity.
+	if !c.started.Load() {
+		return nil, SignedPaymentPromise{}, errClientNotStarted
+	}
+	if c.closed.Load() {
+		return nil, SignedPaymentPromise{}, ErrClientClosed
+	}
+	release, err := c.acquirePutMemory(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Put memory admission failed")
+		return nil, SignedPaymentPromise{}, err
+	}
 	blob, err := NewBlob(data, DefaultBlobConfigV0())
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to encode blob")
+		release()
 		return nil, SignedPaymentPromise{}, err
+	}
+	// Release admission with the encoded storage, after the last upload reader.
+	free := blob.releaseFn
+	blob.releaseFn = func() {
+		free()
+		release()
 	}
 	defer blob.Free()
 
@@ -232,4 +254,24 @@ func retryPFFBroadcast(ctx context.Context, broadcast func(context.Context) (*sd
 		resp, err = broadcast(ctx)
 	}
 	return resp, err
+}
+
+// acquirePutMemory runs [ClientConfig.AcquirePutMemory], if set. The returned
+// release is never nil and is safe to call more than once.
+func (c *Client) acquirePutMemory(ctx context.Context) (func(), error) {
+	acquire := c.Config.AcquirePutMemory
+	if acquire == nil {
+		return func() {}, nil
+	}
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("put_memory_wait_started")
+	release, err := acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring Put memory: %w", err)
+	}
+	span.AddEvent("put_memory_acquired")
+	if release == nil {
+		return func() {}, nil
+	}
+	return sync.OnceFunc(release), nil
 }

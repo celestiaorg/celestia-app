@@ -1,7 +1,8 @@
 # Coverage reports and staged checks
 
-[Coverage CI](../.github/workflows/test-coverage.yml) runs the full serial suite
-on main, PRs targeting main, and the merge queue. It preserves the corrected
+[Coverage CI](../.github/workflows/test-coverage.yml) runs the full serial suite,
+split into shards on parallel runners and merged into one report, on main, PRs
+targeting main, and the merge queue. It preserves the corrected
 [cross-package instrumentation and production scope](../scripts/README.md#test_coversh).
 Tests in other packages credit the production code they execute. Generated code,
 test utilities, and developer tools remain excluded.
