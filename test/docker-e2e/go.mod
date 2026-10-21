@@ -1,6 +1,6 @@
 module celestiaorg/celestia-app/test/docker-e2e
 
-go 1.26.9
+go 1.26.10
 
 require (
 	cosmossdk.io/math v1.5.3
