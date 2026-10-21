@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
@@ -121,9 +122,17 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	)
 
 	for _, tx := range normalTxs {
+		// CheckTx rejects txs without messages, so every tx here weighs at least one message
+		// and nothing more fits once the cap is reached.
+		if sdkMessageCount >= appconsts.MaxSDKMessages {
+			break
+		}
+		// separateTxsDecoded leaves these undecoded; drop what it drops on a full decode.
 		sdkTx, err := dec(tx)
 		if err != nil {
-			logger.Error("decoding already checked transaction", "tx", lazyTxHash(tx), "error", err)
+			continue
+		}
+		if _, has := hasPFB(sdkTx.GetMsgs()); has || countMsgPayForFibre(sdkTx) > 0 {
 			continue
 		}
 
@@ -278,8 +287,9 @@ type decodedFibreTx struct {
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
 //
-// Pay-for-fibre txs carry their decoded forms so later steps reuse them.
-// decodePFF may be nil.
+// Normal txs whose first message is not a MsgPayForFibre are not decoded here; Fill
+// filters them when it reaches them. Pay-for-fibre txs carry their decoded forms so
+// later steps reuse them. decodePFF may be nil.
 func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF func([]byte) *fibretypes.DecodedPayForFibre, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
 	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
@@ -307,6 +317,12 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 			}
 			blobTxs = append(blobTxs, bTx)
 			rawBlobTxs = append(rawBlobTxs, rawTx)
+			continue
+		}
+
+		// Fill decodes these lazily and stops at the SDK cap; a failed peek takes the full decode.
+		if isPFF, ok := firstMsgIsPayForFibre(rawTx); ok && !isPFF {
+			normalTxs = append(normalTxs, rawTx)
 			continue
 		}
 
@@ -347,6 +363,22 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 		normalTxs = append(normalTxs, rawTx)
 	}
 	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
+}
+
+var payForFibreTypeURL = sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})
+
+// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre without
+// unpacking the messages. ok is false if the TxRaw or TxBody does not unmarshal.
+func firstMsgIsPayForFibre(rawTx []byte) (isPFF, ok bool) {
+	var raw txtypes.TxRaw
+	if err := raw.Unmarshal(rawTx); err != nil {
+		return false, false
+	}
+	var body txtypes.TxBody
+	if err := body.Unmarshal(raw.BodyBytes); err != nil {
+		return false, false
+	}
+	return len(body.Messages) > 0 && body.Messages[0].TypeUrl == payForFibreTypeURL, true
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
