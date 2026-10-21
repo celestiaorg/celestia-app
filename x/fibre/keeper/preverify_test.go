@@ -56,7 +56,7 @@ type preverifyFixture struct {
 // withFreshCache returns a second view of the same chain state and message with
 // an empty signature cache, so a run with the pre-pass can be compared against
 // one without it.
-func (f *preverifyFixture) withFreshCache(t testing.TB) *preverifyFixture {
+func (f *preverifyFixture) withFreshCache(t *testing.T) *preverifyFixture {
 	t.Helper()
 
 	fresh := *f
@@ -71,7 +71,7 @@ func (f *preverifyFixture) withFreshCache(t testing.TB) *preverifyFixture {
 // behind rather than only asking whether the certificate is there.
 // TestPreverifySignaturesSkipsCertificatesWhenNotRequested pins it against the
 // keeper's own derivation, so the two cannot drift apart unnoticed.
-func promiseSigCacheKey(t testing.TB, msg *types.MsgPayForFibre) sigcache.Key {
+func promiseSigCacheKey(t *testing.T, msg *types.MsgPayForFibre) sigcache.Key {
 	t.Helper()
 
 	pp := fibre.PaymentPromise{}
@@ -82,7 +82,7 @@ func promiseSigCacheKey(t testing.TB, msg *types.MsgPayForFibre) sigcache.Key {
 }
 
 // refreshCertKey re-derives the certificate key after the message was mutated.
-func (f *preverifyFixture) refreshCertKey(t testing.TB) {
+func (f *preverifyFixture) refreshCertKey(t *testing.T) {
 	t.Helper()
 
 	certKey, err := f.msg.SigCacheKey()
@@ -90,7 +90,7 @@ func (f *preverifyFixture) refreshCertKey(t testing.TB) {
 	f.certKey = certKey
 }
 
-func newPreverifyFixture(t testing.TB) *preverifyFixture {
+func newPreverifyFixture(t *testing.T) *preverifyFixture {
 	t.Helper()
 
 	return newPreverifyFixtureWithValidators(t, numPreverifyValidators)
@@ -98,7 +98,7 @@ func newPreverifyFixture(t testing.TB) *preverifyFixture {
 
 // newPreverifyFixtureWithValidators builds the fixture with a chosen validator
 // count, so a certificate can be made to span more than one verification batch.
-func newPreverifyFixtureWithValidators(t testing.TB, validators int) *preverifyFixture {
+func newPreverifyFixtureWithValidators(t *testing.T, validators int) *preverifyFixture {
 	t.Helper()
 
 	storeKey := storetypes.NewKVStoreKey(types.StoreKey)
@@ -175,7 +175,7 @@ func newPreverifyFixtureWithValidators(t testing.TB, validators int) *preverifyF
 
 // signedMessage returns a fully signed message distinguished by nonce, so a
 // test can build as many distinct certificates as it needs.
-func (f *preverifyFixture) signedMessage(t testing.TB, nonce int) *types.MsgPayForFibre {
+func (f *preverifyFixture) signedMessage(t *testing.T, nonce int) *types.MsgPayForFibre {
 	t.Helper()
 
 	promise := f.msg.PaymentPromise
@@ -200,7 +200,7 @@ func (f *preverifyFixture) signedMessage(t testing.TB, nonce int) *types.MsgPayF
 
 // decodedMessage encodes msg into a transaction and decodes it the way every
 // pre-verification caller does.
-func (f *preverifyFixture) decodedMessage(t testing.TB, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
+func (f *preverifyFixture) decodedMessage(t *testing.T, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
 	t.Helper()
 	d := keeper.DecodePayForFibre(f.txBytesFor(t, msg))
 	require.NotNil(t, d)
@@ -209,7 +209,7 @@ func (f *preverifyFixture) decodedMessage(t testing.TB, msg *types.MsgPayForFibr
 
 // txBytes wraps the fixture's message in the minimal Cosmos tx encoding that
 // ParsePayForFibreMsg reads.
-func (f *preverifyFixture) txBytes(t testing.TB) []byte {
+func (f *preverifyFixture) txBytes(t *testing.T) []byte {
 	t.Helper()
 
 	return f.txBytesFor(t, f.msg)
@@ -217,7 +217,7 @@ func (f *preverifyFixture) txBytes(t testing.TB) []byte {
 
 // txBytesFor wraps any message in the same encoding, so one call can carry
 // several transactions.
-func (f *preverifyFixture) txBytesFor(t testing.TB, msg *types.MsgPayForFibre) []byte {
+func (f *preverifyFixture) txBytesFor(t *testing.T, msg *types.MsgPayForFibre) []byte {
 	t.Helper()
 
 	value, err := msg.Marshal()
@@ -333,7 +333,7 @@ const batchBoundaryValidators = 200
 // newMessage returns a valid message for the same validator set, set apart
 // from the fixture's by adding delta to its blob size, so one call can carry
 // several distinct promises and certificates.
-func (f *preverifyFixture) newMessage(t testing.TB, delta uint32) *types.MsgPayForFibre {
+func (f *preverifyFixture) newMessage(t *testing.T, delta uint32) *types.MsgPayForFibre {
 	t.Helper()
 
 	promise := f.msg.PaymentPromise
