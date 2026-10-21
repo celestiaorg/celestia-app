@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"cosmossdk.io/math"
@@ -101,50 +102,10 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	)
 	defer span.End()
 
-	// encoding section
-	blob, err := NewBlob(data, DefaultBlobConfigV0())
+	blobID, signedPromise, err := uploadPut(ctx, c, txClient, ns, data)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to encode blob")
 		return result, err
 	}
-	defer blob.Free()
-
-	blobID := blob.ID()
-	span.AddEvent("blob_encoded", trace.WithAttributes(
-		attribute.String("blob_id", blobID.String()),
-		attribute.Int("row_size", blob.RowSize()),
-	))
-
-	// Escrow admission: debit this promise's settlement cost before signing and
-	// uploading. Credited back (via the deferred abort) on any error before the
-	// promise is signed; once signed the funds are committed and stay debited.
-	// No-op when AutoFund is disabled.
-	reservation, err := c.admitEscrow(ctx, txClient, blob)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "escrow admission failed")
-		return result, err
-	}
-	defer reservation.abort()
-
-	// Commit the reservation the moment the promise is client-signed and about to
-	// be dispatched (via the beforeFanout hook), not after Upload returns: once a
-	// validator can hold the signed promise it may land on-chain through the
-	// timeout path even if the fanout errors, so crediting the budget back on
-	// such an error would let a later Put overspend the escrow.
-	signedPromise, err := c.Upload(ctx, ns, blob,
-		WithKeyName(txClient.DefaultAccountName()),
-		withBeforeDispatch(func() { reservation.signed = true }),
-	)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to upload blob")
-		return result, err
-	}
-	span.AddEvent("blob_uploaded", trace.WithAttributes(
-		attribute.Int("sigs_amount", len(signedPromise.ValidatorSignatures)),
-	))
 
 	// broadcast PayForFibre transaction
 	promiseProto, err := signedPromise.ToProto()
@@ -192,6 +153,77 @@ func Put(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Names
 	}, nil
 }
 
+// uploadPut releases its blob ownership before transaction settlement.
+func uploadPut(ctx context.Context, c *Client, txClient *user.TxClient, ns share.Namespace, data []byte) (BlobID, SignedPaymentPromise, error) {
+	span := trace.SpanFromContext(ctx)
+	// Check lifecycle before admission so an unusable client fails fast instead
+	// of waiting for capacity.
+	if !c.started.Load() {
+		return nil, SignedPaymentPromise{}, errClientNotStarted
+	}
+	if c.closed.Load() {
+		return nil, SignedPaymentPromise{}, ErrClientClosed
+	}
+	release, err := c.acquirePutMemory(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Put memory admission failed")
+		return nil, SignedPaymentPromise{}, err
+	}
+	blob, err := NewBlob(data, DefaultBlobConfigV0())
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to encode blob")
+		release()
+		return nil, SignedPaymentPromise{}, err
+	}
+	// Release admission with the encoded storage, after the last upload reader.
+	free := blob.releaseFn
+	blob.releaseFn = func() {
+		free()
+		release()
+	}
+	defer blob.Free()
+
+	blobID := blob.ID()
+	span.AddEvent("blob_encoded", trace.WithAttributes(
+		attribute.String("blob_id", blobID.String()),
+		attribute.Int("row_size", blob.RowSize()),
+	))
+
+	// Escrow admission: debit this promise's settlement cost before signing and
+	// uploading. Credited back (via the deferred abort) on any error before the
+	// promise is signed; once signed the funds are committed and stay debited.
+	// No-op when AutoFund is disabled.
+	reservation, err := c.admitEscrow(ctx, txClient, blob)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "escrow admission failed")
+		return nil, SignedPaymentPromise{}, err
+	}
+	defer reservation.abort()
+
+	// Commit the reservation the moment the promise is client-signed and about to
+	// be dispatched (via the beforeFanout hook), not after Upload returns: once a
+	// validator can hold the signed promise it may land on-chain through the
+	// timeout path even if the fanout errors, so crediting the budget back on
+	// such an error would let a later Put overspend the escrow.
+	signedPromise, err := c.Upload(ctx, ns, blob,
+		WithKeyName(txClient.DefaultAccountName()),
+		withBeforeDispatch(func() { reservation.signed = true }),
+	)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to upload blob")
+		return nil, SignedPaymentPromise{}, err
+	}
+	span.AddEvent("blob_uploaded", trace.WithAttributes(
+		attribute.Int("sigs_amount", len(signedPromise.ValidatorSignatures)),
+	))
+
+	return blobID, signedPromise, nil
+}
+
 // pffBroadcastAttempts and pffBroadcastRetryDelay bound the re-broadcast of a
 // PayForFibre rejected because the promise's signing height is not yet
 // committed app-side.
@@ -222,4 +254,24 @@ func retryPFFBroadcast(ctx context.Context, broadcast func(context.Context) (*sd
 		resp, err = broadcast(ctx)
 	}
 	return resp, err
+}
+
+// acquirePutMemory runs [ClientConfig.AcquirePutMemory], if set. The returned
+// release is never nil and is safe to call more than once.
+func (c *Client) acquirePutMemory(ctx context.Context) (func(), error) {
+	acquire := c.Config.AcquirePutMemory
+	if acquire == nil {
+		return func() {}, nil
+	}
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent("put_memory_wait_started")
+	release, err := acquire(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("acquiring Put memory: %w", err)
+	}
+	span.AddEvent("put_memory_acquired")
+	if release == nil {
+		return func() {}, nil
+	}
+	return sync.OnceFunc(release), nil
 }

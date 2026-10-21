@@ -17,6 +17,7 @@ import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app/observability"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
+	abci "github.com/cometbft/cometbft/abci/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	"github.com/cometbft/cometbft/node"
 	"github.com/cometbft/cometbft/p2p"
@@ -36,6 +37,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	"github.com/cosmos/cosmos-sdk/version"
 	"github.com/hashicorp/go-metrics"
+	"github.com/spf13/pflag"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -77,6 +79,8 @@ type Multiplexer struct {
 	cmNode *node.Node
 	// versions is a list of versions which contain all embedded binaries.
 	versions Versions
+	// startFlags contains the operator flags parsed by Cobra, reused on upgrades.
+	startFlags *pflag.FlagSet
 	// conn is a grpc client connection and used when creating remote ABCI connections.
 	conn *grpc.ClientConn
 	// ctx is the context which is passed to the comet, grpc and api server starting functions.
@@ -96,21 +100,23 @@ type Multiplexer struct {
 }
 
 // NewMultiplexer creates a new Multiplexer.
-func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCtx client.Context, appCreator servertypes.AppCreator, versions Versions, chainID string, applicationVersion uint64) (*Multiplexer, error) {
+func NewMultiplexer(svrCtx *server.Context, svrCfg serverconfig.Config, clientCtx client.Context, appCreator servertypes.AppCreator, versions Versions, chainID string, applicationVersion uint64, startFlags *pflag.FlagSet) (*Multiplexer, error) {
 	if err := versions.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid versions: %w", err)
 	}
 
 	mp := &Multiplexer{
-		svrCtx:        svrCtx,
-		svrCfg:        svrCfg,
-		clientContext: clientCtx,
-		appCreator:    appCreator,
-		logger:        svrCtx.Logger.With("multiplexer"),
-		nativeApp:     nil, // app will be initialized if required by the multiplexer.
-		versions:      versions,
-		chainID:       chainID,
-		appVersion:    applicationVersion,
+		svrCtx:         svrCtx,
+		svrCfg:         svrCfg,
+		clientContext:  clientCtx,
+		appCreator:     appCreator,
+		logger:         svrCtx.Logger.With("multiplexer"),
+		nativeApp:      nil, // app will be initialized if required by the multiplexer.
+		versions:       versions,
+		startFlags:     startFlags,
+		chainID:        chainID,
+		appVersion:     applicationVersion,
+		nextAppVersion: applicationVersion,
 	}
 
 	return mp, nil
@@ -138,6 +144,10 @@ func (m *Multiplexer) Start() error {
 
 	// startApp starts the underlying application, either native or embedded.
 	if err := m.startApp(); err != nil {
+		return err
+	}
+
+	if err := m.syncAppVersion(); err != nil {
 		return err
 	}
 
@@ -225,11 +235,11 @@ func (m *Multiplexer) startApp() error {
 	}
 
 	if currentVersion.Appd.IsStopped() {
-		programArgs := removeStart(os.Args)
+		programArgs := currentVersion.GetStartArgs(m.startFlags)
 
 		// start an embedded app.
-		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", currentVersion.GetStartArgs(programArgs))
-		if err := currentVersion.Appd.Start(currentVersion.GetStartArgs(programArgs)...); err != nil {
+		m.logger.Debug("starting embedded app", "app_version", currentVersion.AppVersion, "args", programArgs)
+		if err := currentVersion.Appd.Start(programArgs...); err != nil {
 			return fmt.Errorf("failed to start app: %w", err)
 		}
 
@@ -252,6 +262,42 @@ func (m *Multiplexer) startApp() error {
 		return fmt.Errorf("embedded app for version %d exited while starting", currentVersion.AppVersion)
 	}
 	return nil
+}
+
+// syncAppVersion switches to the app version in the app's committed state when
+// it is newer than the one from CometBFT state. This happens when the node
+// stopped after the app committed an upgrade but before CometBFT saved its state.
+func (m *Multiplexer) syncAppVersion() error {
+	app, err := m.getApp()
+	if err != nil {
+		return fmt.Errorf("failed to get app for version %d: %w", m.appVersion, err)
+	}
+	info, err := app.Info(&abci.RequestInfo{})
+	if err != nil {
+		return fmt.Errorf("failed to get app info: %w", err)
+	}
+	if info.AppVersion <= m.appVersion {
+		return nil
+	}
+
+	m.logger.Info("switching to app version from committed app state", "from_app_version", m.appVersion, "to_app_version", info.AppVersion)
+	m.appVersion = info.AppVersion
+	m.nextAppVersion = info.AppVersion
+	if m.isNativeApp() {
+		return nil
+	}
+
+	if _, err := m.versions.GetForAppVersion(m.appVersion); errors.Is(err, ErrNoVersionFound) {
+		// Start enables the gRPC and API servers for the native app after the comet node starts.
+		if err := m.stopEmbeddedApp(); err != nil {
+			return fmt.Errorf("failed to stop embedded app: %w", err)
+		}
+		_, err := m.startNativeApp()
+		return err
+	}
+
+	_, err = m.getApp()
+	return err
 }
 
 // watchEmbeddedApp watches a just-started embedded app and surfaces an
@@ -295,21 +341,6 @@ func (m *Multiplexer) watchEmbeddedApp(appVersion uint64, exited <-chan error) {
 			return nil
 		}
 	})
-}
-
-// removeStart removes the first argument (the binary name) and the start argument from args.
-func removeStart(args []string) []string {
-	if len(args) == 0 {
-		return args
-	}
-	result := []string{}
-	args = args[1:] // remove the first argument (the binary name)
-	for _, arg := range args {
-		if arg != "start" {
-			result = append(result, arg)
-		}
-	}
-	return result
 }
 
 // initRemoteGrpcConn initializes a gRPC connection to the remote application client and configures transport credentials.
@@ -559,18 +590,21 @@ func (m *Multiplexer) startEmbeddedApp(version Version) error {
 
 	if version.Appd.IsStopped() {
 		for _, preHandler := range version.PreHandlers {
-			preCmd := version.Appd.CreateExecCommand(preHandler)
-			if err := preCmd.Run(); err != nil {
+			preCmd, err := version.Appd.CreateExecCommand(preHandler)
+			if err == nil {
+				err = preCmd.Run()
+			}
+			if err != nil {
 				m.logger.Warn("PreHandler failed, continuing without successful PreHandler", "err", err)
 				// Continue anyway as the pre-handler might be optional
 			}
 		}
 
 		// start the new app
-		programArgs := removeStart(os.Args)
+		programArgs := version.GetStartArgs(m.startFlags)
 
-		m.logger.Info("Starting app for version", "app_version", version.AppVersion, "args", version.GetStartArgs(programArgs))
-		if err := version.Appd.Start(version.GetStartArgs(programArgs)...); err != nil {
+		m.logger.Info("Starting app for version", "app_version", version.AppVersion, "args", programArgs)
+		if err := version.Appd.Start(programArgs...); err != nil {
 			return fmt.Errorf("failed to start app for version %d: %w", m.appVersion, err)
 		}
 

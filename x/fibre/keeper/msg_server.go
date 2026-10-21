@@ -8,9 +8,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"github.com/cometbft/cometbft/crypto/ed25519"
 	cmtmath "github.com/cometbft/cometbft/libs/math"
-	core "github.com/cometbft/cometbft/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -37,12 +35,16 @@ func (ms msgServer) DepositToEscrow(goCtx context.Context, msg *types.MsgDeposit
 	if err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
 	}
+	// Key the escrow account by the canonical address string. msg.Signer may be
+	// the uppercase form of the same bech32 address, and settlement looks the
+	// account up by sdk.AccAddress(pubKey.Address()).String().
+	signer := signerAddr.String()
 
 	// Get or create escrow account
-	escrowAccount, found := ms.GetEscrowAccount(ctx, msg.Signer)
+	escrowAccount, found := ms.GetEscrowAccount(ctx, signer)
 	if !found {
 		escrowAccount = types.EscrowAccount{
-			Signer:           msg.Signer,
+			Signer:           signer,
 			Balance:          sdk.NewCoin(msg.Amount.Denom, math.ZeroInt()),
 			AvailableBalance: sdk.NewCoin(msg.Amount.Denom, math.ZeroInt()),
 		}
@@ -61,7 +63,7 @@ func (ms msgServer) DepositToEscrow(goCtx context.Context, msg *types.MsgDeposit
 	ms.SetEscrowAccount(ctx, escrowAccount)
 
 	// Emit event
-	event := types.NewEventDepositToEscrow(msg.Signer, msg.Amount)
+	event := types.NewEventDepositToEscrow(signer, msg.Amount)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		return nil, err
 	}
@@ -73,10 +75,17 @@ func (ms msgServer) DepositToEscrow(goCtx context.Context, msg *types.MsgDeposit
 func (ms msgServer) RequestWithdrawal(goCtx context.Context, msg *types.MsgRequestWithdrawal) (*types.MsgRequestWithdrawalResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
+	// Use the canonical address string, see DepositToEscrow.
+	signerAddr, err := sdk.AccAddressFromBech32(msg.Signer)
+	if err != nil {
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid signer address: %s", err)
+	}
+	signer := signerAddr.String()
+
 	// Get escrow account
-	escrowAccount, found := ms.GetEscrowAccount(ctx, msg.Signer)
+	escrowAccount, found := ms.GetEscrowAccount(ctx, signer)
 	if !found {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", msg.Signer)
+		return nil, errorsmod.Wrapf(sdkerrors.ErrNotFound, "escrow account not found for signer: %s", signer)
 	}
 
 	// Check if sufficient available balance
@@ -89,16 +98,16 @@ func (ms msgServer) RequestWithdrawal(goCtx context.Context, msg *types.MsgReque
 	requestedTimestamp := ctx.BlockTime()
 
 	// Verify no existing withdrawal request at current timestamp (prevents key collision)
-	_, existing := ms.GetWithdrawal(ctx, msg.Signer, requestedTimestamp)
+	_, existing := ms.GetWithdrawal(ctx, signer, requestedTimestamp)
 	if existing {
-		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "withdrawal request already exists for signer %s at timestamp %v", msg.Signer, requestedTimestamp)
+		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "withdrawal request already exists for signer %s at timestamp %v", signer, requestedTimestamp)
 	}
 
 	availableTimestamp := requestedTimestamp.Add(params.WithdrawalDelay)
 
 	// Create withdrawal request with available timestamp
 	withdrawal := types.Withdrawal{
-		Signer:             msg.Signer,
+		Signer:             signer,
 		Amount:             msg.Amount,
 		RequestedTimestamp: requestedTimestamp,
 		AvailableTimestamp: availableTimestamp,
@@ -112,7 +121,7 @@ func (ms msgServer) RequestWithdrawal(goCtx context.Context, msg *types.MsgReque
 	ms.SetWithdrawal(ctx, withdrawal)
 
 	// Emit event
-	event := types.NewEventWithdrawFromEscrowRequest(msg.Signer, msg.Amount, requestedTimestamp, availableTimestamp)
+	event := types.NewEventWithdrawFromEscrowRequest(signer, msg.Amount, requestedTimestamp, availableTimestamp)
 	if err := ctx.EventManager().EmitTypedEvent(event); err != nil {
 		return nil, err
 	}
@@ -131,7 +140,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := pp.Validate(); err != nil {
+	if err := ms.validatePromiseStatelessDecoded(ctx, &pp, &msg.PaymentPromise); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 
@@ -185,16 +194,27 @@ func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPay
 	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
 	}
-	if err := pp.Validate(); err != nil {
+	if err := k.validatePromiseStatelessDecoded(ctx, &pp, &msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
-	signBytes, err := pp.SignBytes()
-	if err != nil {
-		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
+	// Reuse the sign bytes a decoded view already derived for this tx.
+	var signBytes []byte
+	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.Msg == msg && d.PromiseSignBytes != nil {
+		signBytes = d.PromiseSignBytes
+	} else {
+		var err error
+		signBytes, err = pp.SignBytes()
+		if err != nil {
+			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
+		}
 	}
 	if err := k.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
 	}
+	// Recorded only behind the quorum check: a genuine promise wrapped in a
+	// forged certificate is rejected, and a rejected message must not buy an
+	// entry.
+	k.recordVerifiedPromise(&pp)
 	return nil
 }
 
@@ -209,7 +229,7 @@ func (ms msgServer) PaymentPromiseTimeout(goCtx context.Context, msg *types.MsgP
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := pp.Validate(); err != nil {
+	if err := ms.ValidatePromiseStateless(&pp); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 
@@ -333,7 +353,6 @@ func (ms msgServer) deductPaymentFromEscrow(ctx sdk.Context, escrowAccount *type
 }
 
 // calculatePaymentAmount calculates the payment amount for a fibre blob based on its size.
-// TODO: this assumes 1 utia per gas which may not be correct.
 func (ms msgServer) calculatePaymentAmount(_ sdk.Context, blobSize uint32) sdk.Coin {
 	return types.PaymentAmount(blobSize)
 }
@@ -345,6 +364,15 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 	return types.EstimateGasForPayForFibre(blobSize)
 }
 
+// ValidateValidatorSetAvailable returns an error if the validator set at height
+// is no longer stored, matching the error ValidatePayForFibreSignatures returns.
+func (k Keeper) ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error {
+	if _, err := k.stakingKeeper.GetHistoricalInfo(ctx, height); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: failed to get historical validator set at height %d: %s", height, err)
+	}
+	return nil
+}
+
 // validateValidatorSignatures checks signatures against the validator set at height.
 func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
 	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
@@ -352,28 +380,16 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 		return errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
 	}
 
-	// Convert SDK validators to CometBFT validators
-	cmtValidators := make([]*core.Validator, len(historicalInfo.Valset))
-	for i, val := range historicalInfo.Valset {
-		consPubKey, err := val.ConsPubKey()
-		if err != nil {
-			return errorsmod.Wrapf(err, "failed to get consensus public key for validator %s", val.GetOperator())
-		}
-
-		// Create CometBFT ed25519 public key from bytes
-		pubKeyBytes := consPubKey.Bytes()
-		if len(pubKeyBytes) != ed25519.PubKeySize {
-			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "invalid ed25519 public key size for validator %s", val.GetOperator())
-		}
-
-		cmtPubKey := ed25519.PubKey(pubKeyBytes)
-		cmtValidators[i] = core.NewValidator(cmtPubKey, val.Tokens.Int64())
+	// Convert SDK validators to CometBFT validators, reusing an earlier
+	// conversion of the same height.
+	converted, err := k.validatorSetAtHeight(height, historicalInfo.Valset)
+	if err != nil {
+		return err
 	}
+	cmtValidators := converted.validators
 
-	// Create validator set
-	cmtValSet := core.NewValidatorSet(cmtValidators)
 	valSet := validator.Set{
-		ValidatorSet: cmtValSet,
+		ValidatorSet: converted.set,
 		Height:       uint64(height),
 	}
 

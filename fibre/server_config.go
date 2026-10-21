@@ -1,13 +1,18 @@
 package fibre
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"math"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"time"
 
 	fibregrpc "github.com/celestiaorg/celestia-app/v10/fibre/internal/grpc"
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/sign"
@@ -20,7 +25,22 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const DefaultConfigFileName = "server_config.toml"
+const (
+	DefaultConfigFileName = "server_config.toml"
+	// EnvHome is the environment variable that overrides the Fibre home directory.
+	EnvHome = "FIBRE_HOME"
+	// DefaultHomeDir is the Fibre home directory name under the user's home.
+	DefaultHomeDir = ".celestia-fibre"
+)
+
+// DefaultHome returns the default Fibre home directory.
+func DefaultHome() string {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return DefaultHomeDir
+	}
+	return filepath.Join(userHome, DefaultHomeDir)
+}
 
 // DefaultConfigPath returns the default config file path for the given home directory.
 func DefaultConfigPath(home string) string {
@@ -35,14 +55,28 @@ type ServerConfig struct {
 	ServerListenAddress string `toml:"server_listen_address" comment:"ServerListenAddress is the TCP address where the server listens for requests."`
 	// SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint.
 	SignerGRPCAddress string `toml:"signer_grpc_address" comment:"SignerGRPCAddress is the gRPC address of the validator's PrivValidatorAPI endpoint."`
+	// SignerGRPCCAFile is the PEM CA certificate used to verify the validator node's
+	// server certificate. Set all three TLS files for mTLS; leave all empty for plaintext (localhost only).
+	SignerGRPCCAFile string `toml:"signer_grpc_ca_file" comment:"SignerGRPCCAFile is the PEM CA certificate used to verify the validator node's server certificate. Set all three TLS files for mTLS; leave all empty for plaintext (localhost only)."`
+	// SignerGRPCCertFile is the PEM client certificate presented to the validator node.
+	SignerGRPCCertFile string `toml:"signer_grpc_cert_file" comment:"SignerGRPCCertFile is the PEM client certificate presented to the validator node."`
+	// SignerGRPCKeyFile is the PEM private key for the client certificate.
+	SignerGRPCKeyFile string `toml:"signer_grpc_key_file" comment:"SignerGRPCKeyFile is the PEM private key for the client certificate."`
+	// SignerGRPCAllowInsecure allows a plaintext signer connection to a non-localhost address.
+	// DANGER: only use on a network that already restricts access to the signer endpoint.
+	SignerGRPCAllowInsecure bool `toml:"signer_grpc_allow_insecure" comment:"SignerGRPCAllowInsecure allows a plaintext signer connection to a non-localhost address. DANGER: only use on a network that already restricts access to the signer endpoint."`
+	// MinUploadSize is the local minimum padded upload size, excluding parity, in bytes.
+	MinUploadSize int `toml:"min_upload_size" comment:"Minimum padded Fibre upload size in bytes, including header and excluding parity (default 262144). Restart Fibre after changing."`
 	// UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS.
 	UploadVerifyWorkers int `toml:"upload_verify_workers" comment:"UploadVerifyWorkers caps concurrent shard verifications. Defaults to GOMAXPROCS."`
 	// MaxConnections caps total concurrent gRPC connections.
 	MaxConnections int `toml:"max_connections" comment:"Max concurrent gRPC connections (default 16). Raise above 16 to keep slots free for downloads during uploads; higher values raise RAM use. See the README for sizing."`
 	// MaxConcurrentStreams caps concurrent gRPC streams per connection.
 	MaxConcurrentStreams int `toml:"max_concurrent_streams" comment:"Max concurrent gRPC streams per connection (default 13). With max_connections it bounds worst-case RAM (~product x 132 MiB)."`
+	// Health configures the readiness checks behind the gRPC health service.
+	Health HealthConfig `toml:"health" comment:"Dependency checks behind the gRPC health service."`
 
-	StoreConfig `toml:"-"`
+	StoreConfig
 
 	// LivenessThreshold is the fraction of stake needed for reconstruction (typically 1/3).
 	LivenessThreshold cmtmath.Fraction `toml:"-"`
@@ -59,19 +93,21 @@ type ServerConfig struct {
 
 	// StoreFn creates the persistent [Store] for the server.
 	// If nil, defaults to [NewStore].
-	StoreFn func(StoreConfig) (*Store, error) `toml:"-"`
+	StoreFn func(context.Context, StoreConfig) (*Store, error) `toml:"-"`
 	// StateClientFn creates a [StateClient] for communicating with a celestia-app node.
 	// It is called during server construction.
 	StateClientFn func() (state.Client, error) `toml:"-"`
 	// SignerFn creates a [core.PrivValidator] for the given chain ID.
 	// It is called during [Server.Start] after the chain ID is auto-detected.
+	// If nil, the server dials the privval gRPC signer configured by the
+	// Signer* fields.
 	// If the returned value implements io.Closer, it will be closed during [Server.Stop].
 	SignerFn func(chainID string) (core.PrivValidator, error) `toml:"-"`
 
 	// UnlimitedBudget disables the storage limiter: an emergency off switch. When
 	// false, the server derives its per-node budget from the
 	// FullStakeStorageBudget governance parameter via the state client.
-	UnlimitedBudget bool `toml:"unlimited_budget"`
+	UnlimitedBudget bool `toml:"unlimited_budget" comment:"UnlimitedBudget disables the storage limiter: an emergency off switch. When false, the per-node budget comes from the FullStakeStorageBudget governance parameter."`
 	// Log is the logger for the server.
 	// If nil, slog.Default() will be used.
 	Log *slog.Logger `toml:"-"`
@@ -81,6 +117,47 @@ type ServerConfig struct {
 	// Meter is the OpenTelemetry meter for recording metrics.
 	// If nil, otel.Meter("fibre-server") will be used.
 	Meter metric.Meter `toml:"-"`
+
+	health healthSettings // parsed Health, populated by Validate
+}
+
+// HealthConfig configures the readiness checks. Durations use Go syntax such as "10s".
+type HealthConfig struct {
+	CheckInterval string `toml:"check_interval" comment:"How often the app node, Fibre module, signer, validator membership, provider registration and store are checked."`
+	ProbeTimeout  string `toml:"probe_timeout" comment:"Deadline of each check."`
+	MaxBlockAge   string `toml:"max_block_age" comment:"Maximum age of the app node's latest block before the chain is reported as stalled. Tune it to the network's block time."`
+}
+
+type healthSettings struct {
+	checkInterval, probeTimeout, maxBlockAge time.Duration
+}
+
+// DefaultHealthConfig returns the default [HealthConfig].
+func DefaultHealthConfig() HealthConfig {
+	return HealthConfig{CheckInterval: "10s", ProbeTimeout: "3s", MaxBlockAge: "2m"}
+}
+
+func (cfg HealthConfig) parse() (healthSettings, error) {
+	var s healthSettings
+	var err error
+	if s.checkInterval, err = parsePositiveDuration("check_interval", cfg.CheckInterval); err != nil {
+		return s, err
+	}
+	if s.probeTimeout, err = parsePositiveDuration("probe_timeout", cfg.ProbeTimeout); err != nil {
+		return s, err
+	}
+	if s.maxBlockAge, err = parsePositiveDuration("max_block_age", cfg.MaxBlockAge); err != nil {
+		return s, err
+	}
+	return s, nil
+}
+
+func parsePositiveDuration(name, value string) (time.Duration, error) {
+	d, err := time.ParseDuration(value)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("health.%s must be a positive duration, got %q", name, value)
+	}
+	return d, nil
 }
 
 // DefaultServerConfig returns a [ServerConfig] with default values.
@@ -95,12 +172,14 @@ func NewServerConfigFromParams(p ProtocolParams) ServerConfig {
 		AppGRPCAddress:       "127.0.0.1:9090",
 		ServerListenAddress:  "0.0.0.0:7980",
 		SignerGRPCAddress:    "127.0.0.1:26669",
+		Health:               DefaultHealthConfig(),
 		StoreConfig:          DefaultStoreConfig(),
 		LivenessThreshold:    p.LivenessThreshold,
 		MinRowsPerValidator:  p.MinRowsPerValidator(),
 		OriginalRows:         p.Rows,
 		MaxShardSize:         p.MaxShardSize(),
 		MaxMessageSize:       p.MaxMessageSize(),
+		MinUploadSize:        p.Rows * p.MinRowSize,
 		UploadVerifyWorkers:  runtime.GOMAXPROCS(0),
 		MaxConnections:       fibregrpc.DefaultMaxConnections,
 		MaxConcurrentStreams: fibregrpc.DefaultMaxConcurrentStreams,
@@ -113,6 +192,11 @@ func (cfg *ServerConfig) Validate() error {
 	if cfg.ServerListenAddress == "" {
 		return fmt.Errorf("server listen address is required")
 	}
+	health, err := cfg.Health.parse()
+	if err != nil {
+		return fmt.Errorf("health config: %w", err)
+	}
+	cfg.health = health
 
 	if cfg.Log == nil {
 		cfg.Log = slog.Default().WithGroup("fibre-server")
@@ -139,19 +223,26 @@ func (cfg *ServerConfig) Validate() error {
 			return fmt.Errorf("app gRPC address is required for default state client")
 		}
 		cfg.StateClientFn = func() (state.Client, error) {
-			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log)
+			return fibregrpc.NewAppClient(cfg.AppGRPCAddress, cfg.Log, nil)
 		}
 	}
 
+	// The default signer is built in [ServerConfig.newSigner] from the final
+	// field values rather than cached here, so later changes to the config
+	// can't bypass these checks.
 	if cfg.SignerFn == nil {
-		if cfg.SignerGRPCAddress == "" {
-			return fmt.Errorf("signer_grpc_address is required")
+		tlsCfg, err := cfg.signerTLSConfig()
+		if err != nil {
+			return err
 		}
-		cfg.SignerFn = func(chainID string) (core.PrivValidator, error) {
-			return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, cfg.Log)
+		if tlsCfg.Empty() && !dialsLocalhost(cfg.SignerGRPCAddress) {
+			cfg.Log.Warn("signer gRPC uses plaintext to a non-localhost address", "address", cfg.SignerGRPCAddress)
 		}
 	}
 
+	if cfg.MinUploadSize < 1 || cfg.MinUploadSize > DefaultProtocolParams.MaxBlobSize {
+		return fmt.Errorf("min_upload_size must be between 1 and %d bytes, got %d", DefaultProtocolParams.MaxBlobSize, cfg.MinUploadSize)
+	}
 	if cfg.UploadVerifyWorkers < 1 {
 		return fmt.Errorf("upload_verify_workers must be at least 1, got %d", cfg.UploadVerifyWorkers)
 	}
@@ -167,6 +258,67 @@ func (cfg *ServerConfig) Validate() error {
 	return nil
 }
 
+// rootify resolves a relative file path against the given root directory.
+// Absolute and empty paths are returned unchanged.
+func rootify(path, root string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(root, path)
+}
+
+// dialsLocalhost reports whether the TCP address points at a loopback interface.
+// Only loopback IP literals qualify. Hostnames, including "localhost", are
+// rejected because gRPC resolves them at dial time and the resolver may map
+// them to a non-loopback address.
+func dialsLocalhost(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && ip.IsLoopback()
+}
+
+// signerTLSConfig checks the signer address and TLS policy and returns the
+// TLS config to dial the signer with. An empty config means plaintext.
+func (cfg *ServerConfig) signerTLSConfig() (*sign.TLSConfig, error) {
+	if cfg.SignerGRPCAddress == "" {
+		return nil, fmt.Errorf("signer_grpc_address is required")
+	}
+	tlsSet := cfg.SignerGRPCCAFile != "" || cfg.SignerGRPCCertFile != "" || cfg.SignerGRPCKeyFile != ""
+	tlsComplete := cfg.SignerGRPCCAFile != "" && cfg.SignerGRPCCertFile != "" && cfg.SignerGRPCKeyFile != ""
+	if tlsSet && !tlsComplete {
+		return nil, fmt.Errorf("signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file must be set together")
+	}
+	if !tlsSet && !dialsLocalhost(cfg.SignerGRPCAddress) && !cfg.SignerGRPCAllowInsecure {
+		msg := fmt.Sprintf("signer_grpc_address %q is not localhost: set signer_grpc_ca_file, signer_grpc_cert_file and signer_grpc_key_file to use mutual TLS, or set signer_grpc_allow_insecure to force plaintext", cfg.SignerGRPCAddress)
+		if host, _, err := net.SplitHostPort(cfg.SignerGRPCAddress); err == nil && strings.EqualFold(host, "localhost") {
+			msg += `; only loopback IP literals count as localhost, so use "127.0.0.1" instead of "localhost" to keep plaintext`
+		}
+		return nil, errors.New(msg)
+	}
+	return &sign.TLSConfig{
+		CAFile:   rootify(cfg.SignerGRPCCAFile, cfg.Path),
+		CertFile: rootify(cfg.SignerGRPCCertFile, cfg.Path),
+		KeyFile:  rootify(cfg.SignerGRPCKeyFile, cfg.Path),
+	}, nil
+}
+
+// newSigner returns the signer for chainID. It uses [ServerConfig.SignerFn]
+// if set, otherwise dials the privval gRPC signer, re-checking the transport
+// policy against the current field values.
+func (cfg *ServerConfig) newSigner(chainID string) (core.PrivValidator, error) {
+	if cfg.SignerFn != nil {
+		return cfg.SignerFn(chainID)
+	}
+	tlsCfg, err := cfg.signerTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	return sign.NewGRPCClient(cfg.SignerGRPCAddress, chainID, tlsCfg, cfg.Log)
+}
+
 // Load reads the TOML config file at path into the receiver, overriding only
 // the TOML-visible fields (those without `toml:"-"`).
 // If the file does not exist, Load is a no-op and returns no error.
@@ -179,9 +331,15 @@ func (cfg *ServerConfig) Load(path string) error {
 	if err != nil {
 		return fmt.Errorf("read config file %s: %w", path, err)
 	}
-	if err := toml.Unmarshal(data, cfg); err != nil {
+	loaded := *cfg
+	decoder := toml.NewDecoder(bytes.NewReader(data)).DisallowUnknownFields()
+	if err := decoder.Decode(&loaded); err != nil {
+		if strictErr, ok := errors.AsType[*toml.StrictMissingError](err); ok {
+			return fmt.Errorf("decode config file %s: %w\n%s", path, err, strictErr.String())
+		}
 		return fmt.Errorf("decode config file %s: %w", path, err)
 	}
+	*cfg = loaded
 	return nil
 }
 

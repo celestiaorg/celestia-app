@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/abci"
+	"github.com/celestiaorg/celestia-app/v10/multiplexer/appd"
 	"github.com/celestiaorg/celestia-app/v10/multiplexer/internal"
 	dbm "github.com/cometbft/cometbft-db"
 	cmtcfg "github.com/cometbft/cometbft/config"
@@ -14,11 +16,12 @@ import (
 	"github.com/cosmos/cosmos-sdk/server"
 	serverconfig "github.com/cosmos/cosmos-sdk/server/config"
 	"github.com/cosmos/cosmos-sdk/server/types"
+	"github.com/spf13/pflag"
 	tmnode "github.com/tendermint/tendermint/node"
 	tmtypes "github.com/tendermint/tendermint/types"
 )
 
-func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator) error {
+func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Context, appCreator types.AppCreator, startFlags *pflag.FlagSet) error {
 	svrCfg, err := getAndValidateConfig(svrCtx)
 	if err != nil {
 		return err
@@ -30,8 +33,9 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	}
 
 	svrCtx.Logger.Info("initializing multiplexer", "app_version", appVersion, "chain_id", chainID)
+	pruneStaleBinaries(versions, svrCtx.Logger)
 
-	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion)
+	multiplexer, err := abci.NewMultiplexer(svrCtx, svrCfg, clientCtx, appCreator, versions, chainID, appVersion, startFlags)
 	if err != nil {
 		return err
 	}
@@ -48,6 +52,23 @@ func start(versions abci.Versions, svrCtx *server.Context, clientCtx client.Cont
 	}
 
 	return nil
+}
+
+// pruneStaleBinaries removes extracted binaries that are no longer embedded.
+func pruneStaleBinaries(versions abci.Versions, logger log.Logger) {
+	keep := make([]string, 0, len(versions))
+	for _, version := range versions {
+		if version.Appd != nil {
+			keep = append(keep, version.Appd.Version())
+		}
+	}
+	removed, err := appd.PruneStaleBinaries(keep)
+	if err != nil {
+		logger.Warn("failed to remove stale embedded binaries", "err", err)
+	}
+	for _, dir := range removed {
+		logger.Info("removed stale embedded binary", "dir", dir)
+	}
 }
 
 // getState opens the db and fetches the existing state.

@@ -1,6 +1,7 @@
 package e2e_test
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"testing"
@@ -40,7 +41,7 @@ func startFibreStack(t *testing.T, cctx testnode.Context, ecfg encoding.Config, 
 	serverCfg.AppGRPCAddress = grpcAddr
 	serverCfg.ServerListenAddress = "127.0.0.1:0"
 	serverCfg.SignerFn = func(_ string) (core.PrivValidator, error) { return filePV, nil }
-	serverCfg.StoreFn = func(scfg fibre.StoreConfig) (*fibre.Store, error) {
+	serverCfg.StoreFn = func(_ context.Context, scfg fibre.StoreConfig) (*fibre.Store, error) {
 		return fibre.NewMemoryStore(scfg), nil
 	}
 	server, err := fibre.NewServer(serverCfg)

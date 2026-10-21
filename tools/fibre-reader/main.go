@@ -44,6 +44,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+const (
+	otlpMetricsPath = "/v1/metrics"
+	otlpTracesPath  = "/v1/traces"
+)
+
 type config struct {
 	rpcEndpoint         string
 	grpcEndpoint        string
@@ -581,7 +586,7 @@ func newReaderMetrics() (*readerMetrics, error) {
 }
 
 func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Context), error) {
-	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint))
+	exp, err := otlpmetrichttp.New(ctx, otlpmetrichttp.WithEndpointURL(endpoint), otlpmetrichttp.WithURLPath(otlpMetricsPath))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP metric exporter: %w", err)
 	}
@@ -614,7 +619,7 @@ func setupOTelMetrics(ctx context.Context, endpoint string) (func(context.Contex
 }
 
 func setupOTelTracing(ctx context.Context, endpoint string) (func(context.Context), error) {
-	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint))
+	exp, err := otlptracehttp.New(ctx, otlptracehttp.WithEndpointURL(endpoint), otlptracehttp.WithURLPath(otlpTracesPath))
 	if err != nil {
 		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}

@@ -91,6 +91,10 @@ talis fibre-txsim --instances 4 \
 | `--duration`     | `0`                 | How long to run (`0` = until killed)                                     |
 | `--key-prefix`   | `fibre`             | Key name prefix in keyring (keys are named `<prefix>-0`, `<prefix>-1`, ...) |
 
+`talis fibre-txsim` accepts `--otel-metrics-path` and `--otel-traces-path`.
+Defaults are `/v1/metrics` and `/v1/traces`. Each value replaces the endpoint URL path, including any proxy prefix.
+Talis forwards only explicitly supplied path flags. Custom paths require remote binaries that support these flags.
+
 Each concurrent worker gets its own signing key and account (e.g. `fibre-0`, `fibre-1`, ...), eliminating sequence number conflicts.
 
 Each instance runs inside a tmux session called `fibre-txsim` on the remote validator. To stop all instances:
@@ -196,6 +200,10 @@ Run `fibre-throughput` from your local machine to poll blocks and print per-bloc
 ```sh
 talis fibre-throughput
 ```
+
+With observability enabled, live runs add **Successful PFF Inclusion** (blob bytes/sec) to the Throughput panel.
+This requires `discard_abci_responses = false` under `[storage]` on every selected validator, with block results available.
+Run one monitor per experiment without `--start-height`.
 
 This connects to the first validator's RPC endpoint and prints a line per block:
 

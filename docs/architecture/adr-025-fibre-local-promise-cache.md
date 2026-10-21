@@ -115,7 +115,7 @@ Repeated submissions for the same signer amplify this into a DoS on the state st
 
 #### Related Improvements
 
-- Sweeps read directly from app state, which can block gRPC requests during cache re-seeding. Implementing read-only state snapshots for gRPC queries ([celestiaorg/cosmos-sdk#728](https://github.com/celestiaorg/cosmos-sdk/issues/728)) would avoid contention between sweep reads and consensus writes.
+- Sweeps read directly from app state, which can block gRPC requests during cache re-seeding. Implementing read-only state snapshots for gRPC queries ([celestiaorg/cosmos-sdk#100](https://github.com/celestiaorg/cosmos-sdk/issues/100)) would avoid contention between sweep reads and consensus writes.
 - **Persisting the cache to disk.** The cache ideally could be backed by a prefixed namespace in the node's DB (outside IAVL) instead of living purely in memory. This would preserve reservations across restarts, eliminating the temporary loss of double-spend protection after restart. It would also allow atomic batch writes for consistency and survive process crashes without re-sweeping all active signers.
 
 ### Option B: Reduced Expiration Window (No Code Changes)

@@ -12,6 +12,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/user"
 	"github.com/celestiaorg/celestia-app/v10/test/util/blobfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/random"
+	"github.com/celestiaorg/celestia-app/v10/test/util/testfactory"
 	"github.com/celestiaorg/celestia-app/v10/test/util/testnode"
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/stretchr/testify/require"
@@ -41,7 +42,7 @@ func TestParallelTxSubmission(t *testing.T) {
 
 	// Generate test blobs
 	numJobs := 10
-	blobs := blobfactory.ManyRandBlobs(random.New(), blobfactory.Repeat(1024, numJobs)...)
+	blobs := blobfactory.ManyRandBlobs(random.New(), testfactory.Repeat(1024, numJobs)...)
 
 	// Submit jobs in parallel using goroutines
 	var wg sync.WaitGroup

@@ -4,16 +4,10 @@
 #
 # Separating the builder and runtime image allows the runtime image to be
 # considerably smaller because it doesn't need to have Golang installed.
-ARG BUILDER_IMAGE=docker.io/golang:1.26.6-alpine
+ARG BUILDER_IMAGE=docker.io/golang:1.26.10-alpine
 ARG RUNTIME_IMAGE=docker.io/alpine:3.22
 ARG TARGETOS
 ARG TARGETARCH
-# Use build args to override the maximum square size of the docker image e.g.
-# docker build --build-arg MAX_SQUARE_SIZE=64 -t celestia-app:latest .
-ARG MAX_SQUARE_SIZE
-# Use build args to override the upgrade height delay of the docker image e.g.
-# docker build --build-arg UPGRADE_HEIGHT_DELAY=1000 -t celestia-app:latest .
-ARG UPGRADE_HEIGHT_DELAY
 
 # Stage 1: Build the celestia-appd binary inside a builder image that will be discarded later.
 # Ignore hadolint rule because hadolint can't parse the variable.
@@ -37,14 +31,15 @@ WORKDIR /celestia-app
 
 # cache go module dependencies
 COPY go.mod go.sum ./
-RUN go mod download
+COPY docker/download-go-modules.sh /usr/local/bin/download-go-modules.sh
+RUN sh /usr/local/bin/download-go-modules.sh
 
 # copy source code after downloading modules (to leverage caching)
 COPY . .
 
 RUN uname -a &&\
     CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    make build-standalone
+    make -o mod build-standalone
 
 # Stage 2: Create a minimal image to run the celestia-appd binary
 # Ignore hadolint rule because hadolint can't parse the variable.

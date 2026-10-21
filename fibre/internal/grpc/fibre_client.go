@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/fibre/internal/tlsid"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
@@ -89,7 +90,9 @@ func DefaultNewClientFn(hostReg validator.HostRegistry, chainID func() string, m
 		}
 
 		conn, err := grpclib.NewClient(host.String(),
-			grpclib.WithTransportCredentials(credentials.NewTLS(tlsCfg)),
+			grpclib.WithIdleTimeout(20*time.Second),
+			grpclib.WithTransportCredentials(batchingCreds{credentials.NewTLS(tlsCfg)}),
+			grpclib.WithWriteBufferSize(uploadWriteBufferSize),
 			grpclib.WithStatsHandler(otelgrpc.NewClientHandler()),
 			grpclib.WithDefaultCallOptions(
 				grpclib.MaxCallRecvMsgSize(maxMsgSize),

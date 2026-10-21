@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v10/app"
@@ -21,9 +23,11 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 	configDir := filepath.Join(tempDir, "config")
 	require.NoError(t, os.MkdirAll(configDir, 0o755))
 
-	// Create a config with test-specific values
+	// Create a config with test-specific values, including a gossip sleep
+	// written by an older binary.
 	cfg := app.DefaultConsensusConfig()
 	cfg.SetRoot(tempDir)
+	cfg.Consensus.PeerGossipSleepDuration = 100 * time.Millisecond
 
 	// Write the config to disk
 	configPath := filepath.Join(configDir, "config.toml")
@@ -61,4 +65,25 @@ func TestOverrideConsensusConfig_Integration(t *testing.T) {
 	assert.Equal(t, appconsts.TimeoutPrecommit, modifiedCfg.Consensus.TimeoutPrecommit)
 	assert.Equal(t, appconsts.TimeoutPrecommitDelta, modifiedCfg.Consensus.TimeoutPrecommitDelta)
 	assert.Equal(t, appconsts.TimeoutCommit, modifiedCfg.Consensus.TimeoutCommit)
+	assert.Equal(t, 10*time.Millisecond, modifiedCfg.Consensus.PeerGossipSleepDuration)
+}
+
+func TestOverrideConsensusTimeoutsLogsChangedValues(t *testing.T) {
+	cfg := app.DefaultConsensusConfig()
+	cfg.Consensus.TimeoutCommit = 10 * time.Second
+	cfg.Consensus.TimeoutPrevote = 20 * time.Second
+
+	sctx := server.NewDefaultContext()
+	sctx.Config = cfg
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(context.WithValue(context.Background(), server.ServerContextKey, sctx))
+
+	var buf bytes.Buffer
+	require.NoError(t, overrideConsensusTimeouts(cmd, log.NewLogger(&buf, log.ColorOption(false))))
+
+	assert.Contains(t, buf.String(), "configured=10s enforced="+appconsts.TimeoutCommit.String()+" name=timeout_commit")
+	assert.Contains(t, buf.String(), "configured=20s enforced="+appconsts.TimeoutPrevote.String()+" name=timeout_prevote")
+	assert.NotContains(t, buf.String(), "timeout_propose")
+	assert.Equal(t, appconsts.TimeoutCommit, cfg.Consensus.TimeoutCommit)
+	assert.Equal(t, appconsts.TimeoutPrevote, cfg.Consensus.TimeoutPrevote)
 }

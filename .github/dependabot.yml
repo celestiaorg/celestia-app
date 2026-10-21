@@ -6,17 +6,35 @@ version: 2
 # queue small; major bumps are deliberately left ungrouped so a breaking change
 # gets its own pull request rather than being buried in a batch.
 #
-# Every entry runs on Monday so the batches land together instead of trickling
+# Version-update entries run on Monday so the batches land together instead of trickling
 # in across the week.
 updates:
+  # Rust: configure security-update titles without enabling version updates.
+  - package-ecosystem: cargo
+    directories:
+      - "/tools/rust-fibre-txsim"
+      - "/tools/lumina-latency-monitor"
+    commit-message:
+      prefix: "chore(deps): [medium] "
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 0
+    labels:
+      - dependencies
+
   # Docker
   - package-ecosystem: docker
     directories:
       - "/docker"
       - "/docker/devnet"
+    commit-message:
+      prefix: "chore(deps): [medium] "
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       docker:
@@ -35,9 +53,13 @@ updates:
   # fails the `Analyze (go)` job until both land.
   - package-ecosystem: github-actions
     directory: "/"
+    commit-message:
+      prefix: "chore(deps): [medium] "
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       github-actions:
@@ -52,9 +74,13 @@ updates:
   # Go
   - package-ecosystem: gomod
     directory: "/"
+    commit-message:
+      prefix: "chore(deps): [high] "
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       go-deps:
@@ -66,16 +92,27 @@ updates:
     # cosmos-sdk is replaced by the celestiaorg/cosmos-sdk fork, and the
     # cosmossdk.io/* modules must stay at versions compatible with that fork.
     # Newer upstream versions fail to compile against it.
+    #
+    # iavl minor and major bumps must match the iavl line that the
+    # celestiaorg/cosmos-sdk store fork is built against. iavl v1.3+ requires a
+    # newer cosmossdk.io/core and fails to compile. Patch bumps stay enabled and
+    # app/iavl_test.go pins the iavl behavior celestia-app depends on.
     ignore:
       - dependency-name: "github.com/cosmos/cosmos-sdk"
       - dependency-name: "cosmossdk.io/*"
+      - dependency-name: "github.com/cosmos/iavl"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     labels:
       - dependencies
   - package-ecosystem: gomod
     directory: "test/docker-e2e"
+    commit-message:
+      prefix: "chore(deps): [medium] "
     schedule:
       interval: weekly
       day: monday
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     groups:
       go-deps-docker-e2e:
@@ -87,5 +124,7 @@ updates:
     ignore:
       - dependency-name: "github.com/cosmos/cosmos-sdk"
       - dependency-name: "cosmossdk.io/*"
+      - dependency-name: "github.com/cosmos/iavl"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
     labels:
       - dependencies

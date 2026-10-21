@@ -1,15 +1,12 @@
 package fibre
 
 import (
-	"bufio"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"github.com/cockroachdb/pebble/v2/vfs"
 )
 
 // On-disk shard format (custom binary, all big-endian):
@@ -204,19 +201,4 @@ func readShardBinary(r io.Reader) (*types.BlobShard, error) {
 	}
 
 	return shard, nil
-}
-
-// readShardFile returns [ErrStoreNotFound] when the file is missing.
-func readShardFile(filesystem vfs.FS, path string) (*types.BlobShard, error) {
-	f, err := filesystem.Open(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, ErrStoreNotFound
-		}
-		return nil, err
-	}
-	defer f.Close()
-	// Buffered so the many 4-byte length-prefix reads don't each become a
-	// syscall; bufio bypasses the buffer for large reads.
-	return readShardBinary(bufio.NewReaderSize(f, 1<<20))
 }
