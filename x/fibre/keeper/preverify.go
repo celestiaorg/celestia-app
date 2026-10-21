@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"runtime"
+	"sort"
 	"sync"
 	"sync/atomic"
 
@@ -45,15 +46,28 @@ func (k Keeper) PreverifySignatures(ctx sdk.Context, txs [][]byte, opts Preverif
 // PreverifyDecoded is PreverifySignatures over txs the caller already decoded,
 // so the phase decodes each tx once. nil entries are skipped.
 func (k Keeper) PreverifyDecoded(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) {
-	if k.sigCache == nil {
-		return
+	if verify := k.PreparePreverification(ctx, decoded, opts); verify != nil {
+		verify()
 	}
+}
 
+// PreparePreverification collects state-dependent inputs synchronously and returns
+// work that reads no SDK state, or nil when everything requested is cached or skipped.
+func (k Keeper) PreparePreverification(ctx sdk.Context, decoded []*types.DecodedPayForFibre, opts PreverifyOptions) func() {
+	if k.sigCache == nil {
+		return nil
+	}
 	work := k.collectVerifications(ctx, decoded, opts)
 	if len(work.items) == 0 {
-		return
+		return nil
 	}
-	work.record(k.sigCache, runVerifications(work.items, opts.StopOnFirstFailure))
+	return func() {
+		verified := runVerifications(work.items, opts.StopOnFirstFailure, func(results []atomic.Bool, start, end int) {
+			work.record(k.sigCache, func(i int) bool { return results[i].Load() }, start, end)
+		})
+		// Groups crossing worker boundaries are published after all workers finish.
+		work.record(k.sigCache, func(i int) bool { return verified[i] }, 0, len(work.items))
+	}
 }
 
 // PreverifyPayForFibreMsg runs the pass over one message the caller holds, and
@@ -129,12 +143,20 @@ type preverification struct {
 	groups []verificationGroup
 }
 
-// record adds the cache entries of every group whose items all succeeded.
-func (p *preverification) record(cache SigCache, verified []bool) {
-	for _, group := range p.groups {
+// record adds the cache entries of every group whose items all succeeded and
+// that lies wholly inside [start, end).
+func (p *preverification) record(cache SigCache, verified func(int) bool, start, end int) {
+	first := sort.Search(len(p.groups), func(i int) bool { return p.groups[i].first >= start })
+	for _, group := range p.groups[first:] {
+		if group.first >= end {
+			break
+		}
+		if group.end > end {
+			continue
+		}
 		complete := true
 		for i := group.first; i < group.end; i++ {
-			if !verified[i] {
+			if !verified(i) {
 				complete = false
 				break
 			}
@@ -287,7 +309,7 @@ func (k Keeper) appendCertificateItems(
 // Items are independent and each result is stored at its own index, so the
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
-func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
+func runVerifications(items []verification, stopOnFirstFailure bool, publish func([]atomic.Bool, int, int)) []bool {
 	verified := make([]bool, len(items))
 	if len(items) == 1 {
 		// One item has nothing to spread; the fan-out would be pure overhead.
@@ -323,9 +345,11 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
-				if !runVerificationChunk(items, results, i, min(i+chunkSize, len(items)), batch) && stopOnFirstFailure {
+				end := min(i+chunkSize, len(items))
+				if !runVerificationChunk(items, results, i, end, batch) && stopOnFirstFailure {
 					aborted.Store(true)
 				}
+				publish(results, i, end)
 			}
 		})
 	}

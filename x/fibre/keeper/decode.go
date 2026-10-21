@@ -13,6 +13,12 @@ func DecodePayForFibre(raw []byte) *types.DecodedPayForFibre {
 	if !isPFF || err != nil {
 		return nil
 	}
+	return DerivePayForFibre(raw, msg)
+}
+
+// DerivePayForFibre is DecodePayForFibre for a caller that already holds the
+// non-nil message decoded from raw.
+func DerivePayForFibre(raw []byte, msg *types.MsgPayForFibre) *types.DecodedPayForFibre {
 	certKey, certKeyed := sigcache.Key{}, false
 	if key, err := msg.SigCacheKey(); err == nil {
 		certKey, certKeyed = key, true

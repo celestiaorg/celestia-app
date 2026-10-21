@@ -84,7 +84,6 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 
 	// Decode every tx once, up front. Oversize txs are left to the loop, which
 	// rejects them without decoding.
-	var maybePFF []int
 	for idx, rawTx := range req.Txs {
 		if len(rawTx) > appconsts.MaxTxSize {
 			continue
@@ -99,29 +98,17 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 				blobTxs[idx] = decodedBlob
 			}
 		}
-		if blobTxs[idx] == nil {
-			maybePFF = append(maybePFF, idx)
-		}
 	}
-	// Each pay-for-fibre decode depends only on its own bytes. The blob scan
-	// above already reported malformed blob txs, in block order.
-	forEachParallel(len(maybePFF), func(i int) {
-		idx := maybePFF[i]
-		decoded[idx] = fibrekeeper.DecodePayForFibre(req.Txs[idx])
-	})()
-
-	// SDK decoding is independent per tx: prefetch only parseable PayForFibre txs, which
-	// the count below bounds by the block limit; results are consumed in block order.
+	// Inspect the envelope before scheduling bounded SDK decoding. Certificate
+	// inputs are then derived from that same decoded message.
 	var decodeCandidates []int
-	for idx, d := range decoded {
-		if d == nil {
+	for idx, rawTx := range req.Txs {
+		if len(rawTx) > appconsts.MaxTxSize || blobTxs[idx] != nil || !pffDecodeCandidate(rawTx) {
 			continue
 		}
 
-		// Reject an over-full proposal here rather than in the loop below,
-		// which only runs after every tx is decoded and pre-verified. Same
-		// verdict, same bound: DecodePayForFibre accepts a tx only when it
-		// carries exactly one MsgPayForFibre, which is what the loop counts.
+		// Reject an over-full proposal before decoding. Same bound: pffDecodeCandidate also
+		// counts malformed PayForFibre txs, which the loop rejects anyway.
 		pffTxCount++
 		if maxPFF > 0 && pffTxCount > maxPFF {
 			logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("block exceeds max PayForFibre message count of %d", maxPFF))
@@ -138,6 +125,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		if decodeErrs[idx] != nil {
 			return
 		}
+		if msg := fibretypes.PayForFibreMsg(sdkTxs[idx]); msg != nil {
+			decoded[idx] = fibrekeeper.DerivePayForFibre(req.Txs[idx], msg)
+		}
 		// Prime the SDK wrapper's lazy signer cache while each tx has one worker; ante still
 		// reports any signer error or panic in block order.
 		defer func() { _ = recover() }()
@@ -146,17 +136,35 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		}
 	})
 
-	// Warm the signature cache across every CPU, once per distinct certificate; the
-	// loop below still decides.
-	app.FibreKeeper.PreverifyDecoded(ctx, decoded, fibrekeeper.PreverifyOptions{
+	waitDecode()
+
+	// Warm the signature cache across every CPU alongside the sequential loop, once per
+	// distinct certificate; the loop still decides.
+	verifyPFF := app.FibreKeeper.PreparePreverification(ctx, decoded, fibrekeeper.PreverifyOptions{
 		Certificates:       true,
 		StopOnFirstFailure: true,
 	})
-	waitDecode()
-	// Gated on candidates, not on queued fibre work: with every certificate cached the
-	// fibre pass queues nothing, but tx signatures still need warming.
+	// Gated on candidates, not on prepared fibre work: with every certificate cached the
+	// fibre pass prepares nothing, but tx signatures still need warming.
 	if len(decodeCandidates) > 0 {
 		ante.PreverifyTxSignatures(ctx, app.AccountKeeper, app.GetTxConfig().SignModeHandler(), app.sigCache, sdkTxs)
+	}
+	if verifyPFF != nil {
+		// The pass's workers recover their own panics; re-raise any other after the walk
+		// so the recover above still rejects the block.
+		var verifyPanic any
+		verifyDone := make(chan struct{})
+		go func() {
+			defer close(verifyDone)
+			defer func() { verifyPanic = recover() }()
+			verifyPFF()
+		}()
+		defer func() {
+			<-verifyDone
+			if verifyPanic != nil {
+				panic(verifyPanic)
+			}
+		}()
 	}
 
 	// One holder for the whole walk, so the context does not grow by a value
