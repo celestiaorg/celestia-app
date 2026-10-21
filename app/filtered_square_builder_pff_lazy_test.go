@@ -3,6 +3,7 @@ package app
 import (
 	"errors"
 	"math"
+	"strconv"
 	"testing"
 
 	"cosmossdk.io/log"
@@ -16,17 +17,21 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 	dbm "github.com/cosmos/cosmos-db"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/stretchr/testify/require"
 )
 
 // pffFill runs Fill with decodePFF counting its calls and preverifyPFF recording its input
-// when preverify is set. The ante handler rejects the txs in reject.
+// when preverify is set. The ante handler rejects the txs in reject; router settles the messages.
 type pffFill struct {
 	txConfig     client.TxConfig
 	preverify    bool
 	reject       map[string]bool
+	router       baseapp.MessageRouter
+	anteCalls    int
 	sdkDecodes   int
 	pffDecodes   int
 	preverified  [][]byte
@@ -36,12 +41,13 @@ type pffFill struct {
 func (p *pffFill) run(t *testing.T, txs [][]byte) [][]byte {
 	t.Helper()
 	handler := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		p.anteCalls++
 		if p.reject[string(ctx.TxBytes())] {
 			return ctx, errors.New("rejected")
 		}
 		return ctx, nil
 	}
-	fsb, err := NewFilteredSquareBuilder(handler, nil, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	fsb, err := NewFilteredSquareBuilder(handler, p.router, countingTxConfig{p.txConfig, &p.sdkDecodes}, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
 	require.NoError(t, err)
 	fsb.decodePFF = func(raw []byte) *fibretypes.DecodedPayForFibre {
 		p.pffDecodes++
@@ -135,4 +141,41 @@ func TestFillPreverifiesTheCandidateSet(t *testing.T) {
 	fill.run(t, txs)
 	require.True(t, fill.preverifyRan)
 	require.Equal(t, want, fill.preverified)
+}
+
+// settleOnceRouter settles each payment promise once, like the processed-payment record.
+type settleOnceRouter map[string]bool
+
+func (r settleOnceRouter) Handler(sdk.Msg) baseapp.MsgServiceHandler {
+	return func(_ sdk.Context, msg sdk.Msg) (*sdk.Result, error) {
+		key := string(msg.(*fibretypes.MsgPayForFibre).PaymentPromise.SignerPublicKey.Key)
+		if r[key] {
+			return nil, errors.New("promise already processed")
+		}
+		r[key] = true
+		return &sdk.Result{}, nil
+	}
+}
+
+func (settleOnceRouter) HandlerByTypeURL(string) baseapp.MsgServiceHandler { return nil }
+
+// TestFillSkipsSettledPromiseCopies pins that copies of a promise already settled in the proposal
+// skip the ante: a flood of one promise in many txs costs one ante, not one per copy.
+func TestFillSkipsSettledPromiseCopies(t *testing.T) {
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	msg := blobfactory.NewMsgPayForFibre(t, secp256k1.GenPrivKey().PubKey().(*secp256k1.PubKey), "test")
+	copies := make([][]byte, 2*appconsts.MaxPayForFibreCandidates)
+	for i := range copies {
+		builder := txConfig.NewTxBuilder()
+		require.NoError(t, builder.SetMsgs(msg))
+		builder.SetMemo(strconv.Itoa(i))
+		raw, err := txConfig.TxEncoder()(builder.GetTx())
+		require.NoError(t, err)
+		copies[i] = raw
+	}
+	other := blobfactory.UnsignedPayForFibreTx(t, txConfig)
+
+	fill := &pffFill{txConfig: txConfig, preverify: true, router: settleOnceRouter{}}
+	require.Equal(t, [][]byte{copies[0], other}, fill.run(t, append(copies, other)))
+	require.Equal(t, 2, fill.anteCalls)
 }

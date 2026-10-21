@@ -3,6 +3,7 @@ package app
 import (
 	"cosmossdk.io/log"
 	"github.com/celestiaorg/celestia-app/v11/pkg/appconsts"
+	"github.com/celestiaorg/celestia-app/v11/pkg/sigcache"
 	fibretypes "github.com/celestiaorg/celestia-app/v11/x/fibre/types"
 	square "github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/tx"
@@ -422,6 +423,8 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 	logger := ctx.Logger().With("app/filtered-square-builder")
 	var pffMessageCount int
 	fibreTxs := make([][]byte, 0, min(len(payForFibreTxs), appconsts.MaxPayForFibreMessages))
+	// A promise settles once; a later copy would fail settlement, so skip it before the ante.
+	settled := make(map[sigcache.Key]struct{})
 
 	for i := range payForFibreTxs {
 		// Every tx decodeFibreTx accepts weighs exactly one message, so nothing more fits.
@@ -433,6 +436,11 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			continue
 		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
+		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
+			if _, ok := settled[entry.decoded.PromiseKey]; ok {
+				continue
+			}
+		}
 
 		// The system blob comes from the decoded view, or from parsing when
 		// there is none. decodeFibreTx guarantees exactly one
@@ -505,6 +513,9 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			continue
 		}
 		commit()
+		if entry.decoded != nil && entry.decoded.PromiseKeyed() {
+			settled[entry.decoded.PromiseKey] = struct{}{}
+		}
 
 		pffMessageCount += len(sdkTx.GetMsgs())
 		fibreTxs = append(fibreTxs, rawTx)
