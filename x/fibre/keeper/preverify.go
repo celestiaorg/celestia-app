@@ -92,15 +92,24 @@ func (v verification) run() bool {
 	}
 
 	batch := ed25519.NewBatchVerifier()
-	for i, pubKey := range v.pubKeys {
-		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
-			return false
-		}
+	if !v.addTo(batch) {
+		return false
 	}
 	// A failing batch falls back to verifying each entry, so the verdict is the
 	// same one the sequential walk reaches.
 	allValid, _ := batch.Verify()
 	return allValid
+}
+
+// addTo queues the item's validator signatures on batch and reports whether
+// it took every one.
+func (v verification) addTo(batch crypto.BatchVerifier) bool {
+	for i, pubKey := range v.pubKeys {
+		if batch.Add(pubKey, v.message, v.signatures[i]) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // verificationGroup is one message's contribution to the pass. Its keys are
@@ -292,7 +301,9 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
-	workers := min(runtime.GOMAXPROCS(0), len(items))
+	procs := runtime.GOMAXPROCS(0)
+	chunkSize := verificationChunkSize(len(items), procs)
+	workers := min(procs, (len(items)+chunkSize-1)/chunkSize)
 
 	var (
 		next    atomic.Int64
@@ -304,16 +315,15 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 			// A worker panic must not take the node down: its unfinished items stay unverified
 			// and the sequential path redoes them.
 			defer func() { _ = recover() }()
+			// NewBatchVerifier always returns *BatchVerifier; otherwise every item stays
+			// unverified, which the preverify tests catch as a cache that never warms.
+			batch := ed25519.NewBatchVerifier().(*ed25519.BatchVerifier)
 			for {
-				i := int(next.Add(1)) - 1
+				i := int(next.Add(int64(chunkSize))) - chunkSize
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
 					return
 				}
-				if items[i].run() {
-					results[i].Store(true)
-					continue
-				}
-				if stopOnFirstFailure {
+				if !runVerificationChunk(items, results, i, min(i+chunkSize, len(items)), batch) && stopOnFirstFailure {
 					aborted.Store(true)
 				}
 			}
@@ -325,4 +335,50 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 		verified[i] = results[i].Load()
 	}
 	return verified
+}
+
+// maxChunkSize is how many items one worker claims, and combines into one
+// ed25519 batch, at a time.
+const maxChunkSize = 8
+
+// verificationChunkSize shrinks chunks until every proc has one, so CheckTx's
+// promise and certificate still verify in parallel.
+func verificationChunkSize(items, procs int) int {
+	return min(maxChunkSize, max(1, (items+procs-1)/procs))
+}
+
+// runVerificationChunk combines a few certificate batches; a failed combined batch
+// leaves their entries unset for the ordered path, which still decides.
+func runVerificationChunk(items []verification, results []atomic.Bool, start, end int, batch *ed25519.BatchVerifier) bool {
+	batch.Reset()
+	allValid := true
+	batchReady := true
+	certificates := 0
+	for i := start; i < end; i++ {
+		item := items[i]
+		if item.promise != nil {
+			if item.run() {
+				results[i].Store(true)
+			} else {
+				allValid = false
+			}
+			continue
+		}
+		certificates++
+		batchReady = batchReady && item.addTo(batch)
+	}
+	if certificates == 0 {
+		return allValid
+	}
+	if batchReady {
+		if valid, _ := batch.Verify(); valid {
+			for i := start; i < end; i++ {
+				if items[i].promise == nil {
+					results[i].Store(true)
+				}
+			}
+			return allValid
+		}
+	}
+	return false
 }

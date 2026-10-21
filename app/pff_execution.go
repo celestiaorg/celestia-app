@@ -31,7 +31,6 @@ func runMsgs(ctx sdk.Context, msgs []sdk.Msg, router baseapp.MessageRouter) (err
 			err = fmt.Errorf("recovered panic while executing messages: %v", r)
 		}
 	}()
-	ctx = ctx.WithEventManager(sdk.NewEventManager())
 	for _, msg := range msgs {
 		handler := router.Handler(msg)
 		if handler == nil {

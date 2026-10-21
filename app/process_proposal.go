@@ -13,12 +13,9 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/da"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	squarev4 "github.com/celestiaorg/go-square/v4"
-	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	abci "github.com/cometbft/cometbft/abci/types"
 	tmproto "github.com/cometbft/cometbft/proto/tendermint/types"
@@ -167,6 +164,26 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	certKeys := &fibretypes.CertKeyHolder{}
 	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
+	// The data root depends only on the tx bytes and the decodes above, so build it
+	// during the walk; a cache hit already has it.
+	var (
+		square       proposalSquareResult
+		squareDone   = make(chan struct{})
+		squareCancel atomic.Bool
+	)
+	if cached == nil {
+		go func() {
+			defer close(squareDone)
+			square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+		}()
+		defer func() {
+			// Cancel before waiting, so a proposal rejected at its first
+			// tx does not pay for a whole square first.
+			squareCancel.Store(true)
+			<-squareDone
+		}()
+	}
+
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
 	// blobTxs have no PFBs present and all txs are less than or equal to the max tx size limit
 	for idx, rawTx := range req.Txs {
@@ -306,23 +323,9 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return accept(), nil
 	}
 
-	// Classify txs (marking pay-for-fibre txs and synthesizing their system
-	// blobs) before constructing the square; go-square no longer decodes
-	// Cosmos SDK transactions itself.
-	classifiedTxs, err := fibretypes.ClassifyTxsDecoded(req.Txs, blobTxs, decoded)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to classify transactions:", err)
-		return reject(), nil
-	}
-	dataSquare, err := squarev4.Construct(classifiedTxs, maxSquareSize, appconsts.SubtreeRootThreshold)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build data square:", err)
-		return reject(), nil
-	}
-
-	eds, err := da.ExtendSharesWithTreePool(share.ToBytes(dataSquare), app.TreePool())
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to compute extended data square from transactions:", err)
+	<-squareDone
+	if square.err != nil {
+		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build proposal square", square.err)
 		return reject(), nil
 	}
 
@@ -330,22 +333,16 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	// the halved EDS width rather than the doubled proposer value: doubling an
 	// attacker controlled uint64 wraps, so SquareSize and SquareSize+2^63 would
 	// otherwise be indistinguishable.
-	if uint64(eds.Width())/2 != req.SquareSize {
+	if square.size != req.SquareSize {
 		logInvalidPropBlock(app.Logger(), blockHeader, "proposed square size differs from calculated square size")
-		return reject(), nil
-	}
-
-	dah, err := da.NewDataAvailabilityHeader(eds)
-	if err != nil {
-		logInvalidPropBlockError(app.Logger(), blockHeader, "failure to create new data availability header", err)
 		return reject(), nil
 	}
 
 	// by comparing the hashes we know the computed IndexWrappers (with the share indexes of the PFB's blobs)
 	// are identical and that square layout is consistent. This also means that the share commitment rules
 	// have been followed and thus each blobs share commitment should be valid
-	if !bytes.Equal(dah.Hash(), req.DataRootHash) {
-		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, dah.Hash()))
+	if !bytes.Equal(square.root, req.DataRootHash) {
+		logInvalidPropBlock(app.Logger(), blockHeader, fmt.Sprintf("proposed data root %X differs from calculated data root %X", req.DataRootHash, square.root))
 		return reject(), nil
 	}
 

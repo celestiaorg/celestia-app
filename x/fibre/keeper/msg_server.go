@@ -178,8 +178,18 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 	ms.SetProcessedPayment(ctx, processedPayment)
 
-	// Emit event
-	ctx.EventManager().EmitEvent(types.PayForFibreEvent(signerAddr, msg.PaymentPromise.Namespace, msg.PaymentPromise.Commitment, uint32(len(msg.ValidatorSignatures))))
+	// ProcessProposal returns only ACCEPT or REJECT, and its per-transaction
+	// event manager is discarded. FinalizeBlock still emits the payment event.
+	if ctx.ExecMode() != sdk.ExecModeProcessProposal {
+		// PayForFibreEvent rather than EmitTypedEvent: the same event without the
+		// per-payment protobuf JSON marshal and map decode.
+		ctx.EventManager().EmitEvent(types.PayForFibreEvent(
+			signerAddr,
+			msg.PaymentPromise.Namespace,
+			msg.PaymentPromise.Commitment,
+			uint32(len(msg.ValidatorSignatures)),
+		))
+	}
 
 	return &types.MsgPayForFibreResponse{}, nil
 }
