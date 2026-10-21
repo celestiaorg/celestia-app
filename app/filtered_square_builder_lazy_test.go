@@ -34,6 +34,14 @@ func TestFirstMsgIsPayForFibre(t *testing.T) {
 	bodyField := func(body []byte) []byte {
 		return protowire.AppendBytes(protowire.AppendTag(nil, txRawBodyField, protowire.BytesType), body)
 	}
+	anyURLs := func(urls ...string) []byte {
+		var a []byte
+		for _, u := range urls {
+			a = protowire.AppendBytes(protowire.AppendTag(a, anyTypeURLField, protowire.BytesType), []byte(u))
+		}
+		return bodyField(protowire.AppendBytes(protowire.AppendTag(nil, txBodyMsgsField, protowire.BytesType), a))
+	}
+	sendURL := sdk.MsgTypeURL(&banktypes.MsgSend{})
 
 	tests := []struct {
 		name      string
@@ -49,6 +57,9 @@ func TestFirstMsgIsPayForFibre(t *testing.T) {
 		{"empty body", emptyBodyTx, false, true},
 		// A decoder keeps the last body, so an earlier one must not decide the class.
 		{"pay-for-fibre body then MsgSend body", append(bodyField(pffBody), sendTx...), false, true},
+		// A decoder keeps the last type URL of an Any.
+		{"type URL MsgSend then pay-for-fibre", anyURLs(sendURL, payForFibreTypeURL), true, true},
+		{"type URL pay-for-fibre then MsgSend", anyURLs(payForFibreTypeURL, sendURL), false, true},
 		{"empty bytes", nil, false, true},
 		{"garbage", []byte("garbage"), false, false},
 		{"truncated", pffTx[:len(pffTx)/2], false, false},

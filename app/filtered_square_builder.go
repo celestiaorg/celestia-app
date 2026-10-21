@@ -122,7 +122,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	)
 
 	for _, tx := range normalTxs {
-		// Every tx weighs at least one message, so nothing more fits once the cap is reached.
+		// CheckTx rejects txs without messages, so every tx here weighs at least one message
+		// and nothing more fits once the cap is reached.
 		if sdkMessageCount >= appconsts.MaxSDKMessages {
 			break
 		}
@@ -392,8 +393,8 @@ func firstMsgIsPayForFibre(rawTx []byte) (isPFF, ok bool) {
 	return string(typeURL) == payForFibreTypeURL, true
 }
 
-// protoBytesField returns the first, or else the last (what a decoder keeps for a singular
-// field), length-delimited value of field num in bz. ok is false if bz is malformed.
+// protoBytesField returns the first length-delimited value of field num if first is set, else the
+// last (what a decoder keeps for a singular field). ok is false if bz is malformed.
 func protoBytesField(bz []byte, num protowire.Number, first bool) (val []byte, ok bool) {
 	for len(bz) > 0 {
 		n, typ, l := protowire.ConsumeTag(bz)
