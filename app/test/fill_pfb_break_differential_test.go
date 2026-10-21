@@ -62,6 +62,10 @@ func TestPrepareProposalDifferentialPFB(t *testing.T) {
 	}
 	// expiring blob txs pass CheckTx at the committed height but fail ante in the proposal.
 	expiring := blobTxs(numExpiring, 100, 300_000, user.SetTimeoutHeight(uint64(testApp.LastBlockHeight())))
+	isExpiring := make(map[string]bool, len(expiring))
+	for _, tx := range expiring {
+		isExpiring[string(tx)] = true
+	}
 	small := blobTxs(numSmall, 100, 300_000)
 	heavy := blobTxs(numHeavy, 8_500, 300_000)
 	// big blobs fill the square before the PFB cap.
@@ -107,6 +111,7 @@ func TestPrepareProposalDifferentialPFB(t *testing.T) {
 			for i, tx := range prepared.Txs {
 				idx, ok := index[string(tx)]
 				require.True(t, ok, "output tx %d is not an input", i)
+				require.False(t, isExpiring[string(tx)], "expiring tx %d kept", idx)
 				kept[i] = fmt.Sprint(idx)
 			}
 			digest := sha256.Sum256([]byte(fmt.Sprintf("%d|%s", prepared.SquareSize, strings.Join(kept, ","))))
