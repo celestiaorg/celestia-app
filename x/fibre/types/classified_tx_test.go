@@ -262,3 +262,47 @@ func marshalTx(t *testing.T, msgs ...*codectypes.Any) []byte {
 	require.NoError(t, err)
 	return txBytes
 }
+
+// TestParsePayForFibreRejectsBlobTxCarryingTheTypeURL pins two non-PFF shapes the
+// type-URL prefilter admits; misclassifying either would change the data root.
+func TestParsePayForFibreRejectsBlobTxCarryingTheTypeURL(t *testing.T) {
+	signer, err := bech32.EncodeFromBase256("celestia", testSignerRaw)
+	require.NoError(t, err)
+
+	blobOf := func(data []byte) *share.Blob {
+		blob, err := share.NewBlob(testNamespace, data, share.ShareVersionZero, nil)
+		require.NoError(t, err)
+		return blob
+	}
+	fibreTx := marshalTx(t, fibreMsgAny(t, signer, testNamespace.Bytes(), testCommitment))
+
+	// The prefilter must not be what decides: both carry the type URL.
+	typeURLInBlob, err := squaretx.MarshalBlobTx([]byte("inner"), blobOf([]byte(fibretypes.MsgPayForFibreTypeURL)))
+	require.NoError(t, err)
+	wrappedFibre, err := squaretx.MarshalBlobTx(fibreTx, blobOf([]byte("payload")))
+	require.NoError(t, err)
+
+	for name, raw := range map[string][]byte{
+		"blob payload carries the type URL": typeURLInBlob,
+		"blob tx wrapping a fibre tx":       wrappedFibre,
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.True(t, bytes.Contains(raw, []byte(fibretypes.MsgPayForFibreTypeURL)),
+				"the vector must reach the checks behind the prefilter")
+			_, isBlobTx, err := squaretx.UnmarshalBlobTx(raw)
+			require.True(t, isBlobTx, "the vector must be a blob tx")
+			require.NoError(t, err)
+
+			_, isFibreTx, err := fibretypes.TryParseFibreTx(raw)
+			require.NoError(t, err)
+			require.False(t, isFibreTx, "a blob tx is never a fibre tx")
+			require.False(t, fibretypes.IsPayForFibreTx(raw))
+		})
+	}
+
+	// And the real thing still parses, so the prefilter has no false negative.
+	_, isFibreTx, err := fibretypes.TryParseFibreTx(fibreTx)
+	require.NoError(t, err)
+	require.True(t, isFibreTx)
+	require.True(t, fibretypes.IsPayForFibreTx(fibreTx))
+}

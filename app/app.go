@@ -215,9 +215,6 @@ type App struct {
 	configurator  module.Configurator
 	// txCache caches blob transaction from CheckTx to be reused in ProcessProposal
 	txCache *TxCache
-	// pffTxCache remembers admitted PayForFibre txs so a recheck skips the
-	// stateless work. It is in memory only.
-	pffTxCache *pffTxCache
 	// proposalCache lets the proposer's own ProcessProposal compare against the
 	// artifacts PrepareProposal built instead of recomputing them.
 	proposalCache *proposalCache
@@ -276,7 +273,6 @@ func New(
 		tkeys:                   tkeys,
 		memKeys:                 memKeys,
 		txCache:                 NewTxCache(),
-		pffTxCache:              newPffTxCache(maxTxs),
 		proposalCache:           newProposalCache(),
 		sigCache:                NewSigCache(maxTxs),
 		delayedPrecommitTimeout: delayedPrecommitTimeout,
