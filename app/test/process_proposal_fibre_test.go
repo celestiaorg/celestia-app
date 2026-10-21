@@ -734,13 +734,7 @@ func TestProcessProposalPayForFibreTxSignature(t *testing.T) {
 	valid := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-3*time.Second),
 		user.SetGasLimit(1_000_000), user.SetFee(4_000))
 
-	var raw txtypes.TxRaw
-	require.NoError(t, raw.Unmarshal(valid))
-	require.Len(t, raw.Signatures, 1)
-	raw.Signatures[0] = bytes.Clone(raw.Signatures[0])
-	raw.Signatures[0][len(raw.Signatures[0])-1] ^= 0x01
-	tampered, err := raw.Marshal()
-	require.NoError(t, err)
+	tampered := withCorruptTxSignature(t, valid)
 
 	require.NoError(t, signer.IncrementSequence(accounts[0]))
 	aheadOfSequence := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-2*time.Second),
