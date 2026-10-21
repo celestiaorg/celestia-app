@@ -23,6 +23,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	"github.com/stretchr/testify/require"
@@ -550,5 +551,57 @@ func processProposalRequest(t testing.TB, testApp *app.App, txs [][]byte) *abci.
 		Txs:          txs,
 		DataRootHash: calculateNewDataHash(t, txs),
 		SquareSize:   uint64(squareSize),
+	}
+}
+
+// TestProcessProposalPayForFibreTxSignature checks that PFF tx-signature
+// pre-verification only warms the cache: every ante rejection still rejects.
+func TestProcessProposalPayForFibreTxSignature(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	base := time.Now()
+	valid := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-3*time.Second),
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+
+	var raw txtypes.TxRaw
+	require.NoError(t, raw.Unmarshal(valid))
+	require.Len(t, raw.Signatures, 1)
+	raw.Signatures[0] = bytes.Clone(raw.Signatures[0])
+	raw.Signatures[0][len(raw.Signatures[0])-1] ^= 0x01
+	tampered, err := raw.Marshal()
+	require.NoError(t, err)
+
+	require.NoError(t, signer.IncrementSequence(accounts[0]))
+	aheadOfSequence := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-2*time.Second),
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+	require.NoError(t, signer.SetSequence(accounts[0], infos[0].Sequence))
+	underpaid := newSignedPayForFibreTxAt(t, signer, accounts[0], true, base.Add(-time.Second),
+		user.SetGasLimit(1_000_000), user.SetFee(0))
+	pair := newPayForFibreTxPair(t, signer, accounts[0], base.Add(-5*time.Second), base.Add(-4*time.Second))
+
+	tests := []struct {
+		name           string
+		txs            [][]byte
+		expectedStatus abci.ResponseProcessProposal_ProposalStatus
+	}{
+		// Runs first, so its signature is cached for the cases below.
+		{"accept a valid pay-for-fibre", [][]byte{valid}, abci.ResponseProcessProposal_ACCEPT},
+		{"reject a tampered tx signature over a verified body", [][]byte{tampered}, abci.ResponseProcessProposal_REJECT},
+		{"reject a validly signed tx ahead of the account sequence", [][]byte{aheadOfSequence}, abci.ResponseProcessProposal_REJECT},
+		{"reject a validly signed tx paying below the minimum gas price", [][]byte{underpaid}, abci.ResponseProcessProposal_REJECT},
+		{"accept one signer's txs in sequence order", pair, abci.ResponseProcessProposal_ACCEPT},
+		{"reject one signer's txs out of sequence order", [][]byte{pair[1], pair[0]}, abci.ResponseProcessProposal_REJECT},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			resp, err := testApp.ProcessProposal(processProposalRequest(t, testApp, tc.txs))
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedStatus, resp.Status)
+		})
 	}
 }

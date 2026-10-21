@@ -67,11 +67,9 @@ func (k Keeper) PreverifyPayForFibreMsg(ctx sdk.Context, msg *types.MsgPayForFib
 		PreverifyOptions{Certificates: true, StopOnFirstFailure: true})
 }
 
-// batchSize is how many validator signatures one work item verifies together.
-// Batching amortises the fixed cost of the multiscalar multiplication; keeping
-// items small still leaves far more of them than there are CPUs, so no core
-// idles waiting on a transaction with few signatures.
-const batchSize = 64
+// batchSize is how many validator signatures one work item batch-verifies: 128
+// covers a 100-validator quorum in one item and still leaves more items than CPUs.
+const batchSize = 128
 
 // verification is one independent unit of work: either a payment promise's
 // stateless validation, which carries its secp256k1 check, or a batch of
