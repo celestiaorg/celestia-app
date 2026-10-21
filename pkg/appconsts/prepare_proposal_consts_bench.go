@@ -11,4 +11,10 @@ const (
 
 	// MaxSDKMessages arbitrary high numbers for running benchmarks.
 	MaxSDKMessages = 999999999999
+
+	// MaxPFBCandidates arbitrary high numbers for running benchmarks.
+	MaxPFBCandidates = 2 * MaxPFBMessages
+
+	// MaxSDKCandidates arbitrary high numbers for running benchmarks.
+	MaxSDKCandidates = 2 * MaxSDKMessages
 )

@@ -12,4 +12,12 @@ const (
 
 	// MaxSDKMessages is the maximum number of SDK messages, aside from PFBs, that a block can contain.
 	MaxSDKMessages = 600
+
+	// MaxPFBCandidates is the maximum number of blob transactions a proposer considers for one
+	// block. It is above MaxPFBMessages because candidates can fail validation or not fit the square.
+	MaxPFBCandidates = 2 * MaxPFBMessages
+
+	// MaxSDKCandidates is the maximum number of other non-PayForFibre transactions a proposer
+	// considers for one block. It is above MaxSDKMessages for the same reason.
+	MaxSDKCandidates = 2 * MaxSDKMessages
 )

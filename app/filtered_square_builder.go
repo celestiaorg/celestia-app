@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
@@ -121,6 +122,10 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	)
 
 	for _, tx := range normalTxs {
+		// Every tx weighs at least one message, so nothing more fits once the cap is reached.
+		if sdkMessageCount >= appconsts.MaxSDKMessages {
+			break
+		}
 		sdkTx, err := dec(tx)
 		if err != nil {
 			logger.Error("decoding already checked transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()), "error", err)
@@ -181,6 +186,9 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	for i, tx := range blobTxs {
+		if pfbMessageCount >= appconsts.MaxPFBMessages {
+			break
+		}
 		sdkTx, err := dec(tx.Tx)
 		if err != nil {
 			logger.Error("decoding already checked blob transaction", "tx", tmbytes.HexBytes(coretypes.Tx(tx.Tx).Hash()), "error", err)
@@ -278,6 +286,7 @@ type decodedFibreTx struct {
 //   - transactions containing MsgPayForFibre mixed with other messages
 //   - transactions containing more than one MsgPayForFibre
 //   - transactions whose payment promise fails stateless validation
+//   - transactions past their class's candidate bound
 //
 // Pay-for-fibre txs carry their decoded forms so later steps reuse them.
 // decodePFF may be nil.
@@ -306,9 +315,22 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
 				continue
 			}
+			// Candidates arrive in priority order, so the bound drops the lowest priority first.
+			if len(blobTxs) >= appconsts.MaxPFBCandidates {
+				continue
+			}
 			blobTxs = append(blobTxs, bTx)
 			rawBlobTxs = append(rawBlobTxs, rawTx)
 			continue
+		}
+
+		// Apply the class bound before the full decode. A wrong peek only moves a tx between
+		// budgets; a failed one is bounded after the decode.
+		if isPFF, ok := firstMsgIsPayForFibre(rawTx); ok {
+			if isPFF && len(payForFibreTxs) >= appconsts.MaxPayForFibreCandidates ||
+				!isPFF && len(normalTxs) >= appconsts.MaxSDKCandidates {
+				continue
+			}
 		}
 
 		sdkTx, err := dec(rawTx)
@@ -345,9 +367,67 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, decodePFF f
 			continue
 		}
 
+		if len(normalTxs) >= appconsts.MaxSDKCandidates {
+			continue
+		}
 		normalTxs = append(normalTxs, rawTx)
 	}
 	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
+}
+
+// Field numbers of TxRaw.body_bytes, TxBody.messages and Any.type_url.
+const (
+	txRawBodyField  = 1
+	txBodyMsgsField = 1
+	anyTypeURLField = 1
+)
+
+var payForFibreTypeURL = sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})
+
+// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre, read
+// from the wire format without decoding the tx. ok is false if the bytes do not parse.
+func firstMsgIsPayForFibre(rawTx []byte) (isPFF, ok bool) {
+	body, ok := protoBytesField(rawTx, txRawBodyField, false)
+	if !ok {
+		return false, false
+	}
+	msg, ok := protoBytesField(body, txBodyMsgsField, true)
+	if !ok {
+		return false, false
+	}
+	typeURL, ok := protoBytesField(msg, anyTypeURLField, false)
+	if !ok {
+		return false, false
+	}
+	return string(typeURL) == payForFibreTypeURL, true
+}
+
+// protoBytesField returns the first, or else the last (what a decoder keeps for a singular
+// field), length-delimited value of field num in bz. ok is false if bz is malformed.
+func protoBytesField(bz []byte, num protowire.Number, first bool) (val []byte, ok bool) {
+	for len(bz) > 0 {
+		n, typ, l := protowire.ConsumeTag(bz)
+		if l < 0 || typ == protowire.StartGroupType || typ == protowire.EndGroupType {
+			return nil, false
+		}
+		bz = bz[l:]
+		if n == num && typ == protowire.BytesType {
+			v, l := protowire.ConsumeBytes(bz)
+			if l < 0 {
+				return nil, false
+			}
+			if first {
+				return v, true
+			}
+			val, bz = v, bz[l:]
+			continue
+		}
+		if l = protowire.ConsumeFieldValue(n, typ, bz); l < 0 {
+			return nil, false
+		}
+		bz = bz[l:]
+	}
+	return val, true
 }
 
 // countMsgPayForFibre returns the number of MsgPayForFibre messages in a transaction.
@@ -370,6 +450,9 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 	fibreTxs := make([][]byte, 0, len(payForFibreTxs))
 
 	for _, entry := range payForFibreTxs {
+		if pffMessageCount >= appconsts.MaxPayForFibreMessages {
+			break
+		}
 		rawTx, sdkTx := entry.raw, entry.sdkTx
 
 		// The system blob comes from the decoded view, or from parsing when
