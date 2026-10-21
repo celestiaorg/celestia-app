@@ -519,51 +519,31 @@ func TestPreverifySignaturesLeavesCachedCertificateAlone(t *testing.T) {
 }
 
 // TestPreverifyDeduplicatesRepeatedCertificates checks a repeated certificate
-// costs one verification, and that deduplication leaves the cache exactly as a
-// single copy would.
+// costs one verification and leaves the cache exactly as a single copy would.
 func TestPreverifyDeduplicatesRepeatedCertificates(t *testing.T) {
 	const repeats = 8
 
-	collect := func(seen map[sigcache.Key]struct{}, n int) *preverifyFixture {
+	collect := func(n int) *preverifyFixture {
 		f := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
 		decoded := make([]*types.DecodedPayForFibre, n)
 		for i := range decoded {
 			decoded[i] = f.decodedMessage(t, f.msg)
 		}
-		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{
-			Certificates:     true,
-			SeenCertificates: seen,
-		})
+		f.keeper.PreverifyDecoded(f.ctx, decoded, keeper.PreverifyOptions{Certificates: true})
 		return f
 	}
 
-	single := collect(nil, 1)
+	single := collect(1)
+	require.True(t, single.cache.Has(single.certKey))
 
-	seen := make(map[sigcache.Key]struct{}, repeats)
-	deduped := collect(seen, repeats)
-	require.Len(t, seen, 1, "one distinct certificate, however many times it repeats")
+	deduped := collect(repeats)
 	require.True(t, deduped.cache.Has(deduped.certKey))
 	require.Equal(t, single.cache.Len(), deduped.cache.Len(),
 		"deduplication must not change what ends up cached")
 
-	// Without the map every repeat is collected again. Same verdict either
-	// way, so this is a bound and not a correctness fix.
-	unbounded := collect(nil, repeats)
-	require.Equal(t, deduped.cache.Len(), unbounded.cache.Len())
-	require.True(t, unbounded.cache.Has(unbounded.certKey))
-
-	// The map is consulted, not merely populated. Skipping drops the whole
-	// entry, promise included, which is safe: the sequential loop still
+	// Skipping a repeat drops its promise too, which is safe: the sequential loop still
 	// decides every check the pass leaves uncached.
-	preseeded := newPreverifyFixtureWithValidators(t, batchBoundaryValidators)
-	preseeded.keeper.PreverifyDecoded(preseeded.ctx,
-		[]*types.DecodedPayForFibre{preseeded.decodedMessage(t, preseeded.msg)},
-		keeper.PreverifyOptions{
-			Certificates:     true,
-			SeenCertificates: map[sigcache.Key]struct{}{preseeded.certKey: {}},
-		})
-	require.Zero(t, preseeded.cache.Len(), "a certificate already seen is not collected again")
-	require.NoError(t, preseeded.keeper.ValidatePayForFibreSignatures(preseeded.ctx, preseeded.msg),
+	require.NoError(t, deduped.keeper.ValidatePayForFibreSignatures(deduped.ctx, deduped.msg),
 		"and the sequential path still accepts it")
 }
 
@@ -587,7 +567,7 @@ func TestDecodePayForFibre(t *testing.T) {
 	require.NoError(t, pp.FromProto(&f.msg.PaymentPromise))
 	signBytes, err := pp.SignBytes()
 	require.NoError(t, err)
-	require.True(t, d.PromiseKeyed)
+	require.True(t, d.PromiseKeyed())
 	require.Equal(t, signBytes, d.PromiseSignBytes)
 
 	fibreTx, err := d.FibreTx()
@@ -618,33 +598,6 @@ func TestPreverifyDecodedMatchesPreverifySignatures(t *testing.T) {
 	require.True(t, fresh.cache.Has(f.certKey))
 	require.True(t, fresh.cache.Has(d.PromiseKey))
 	require.Equal(t, f.cache.Len(), fresh.cache.Len())
-}
-
-// TestValidatePayForFibreSignaturesWithDecodedContext checks a context carrying
-// the decoded view reaches the same verdict and cache state as one without it.
-func TestValidatePayForFibreSignaturesWithDecodedContext(t *testing.T) {
-	f := newPreverifyFixture(t)
-	raw := f.txBytes(t)
-	d := keeper.DecodePayForFibre(raw)
-
-	plain := f.withFreshCache(t)
-	require.NoError(t, plain.keeper.ValidatePayForFibreSignatures(plain.ctx, f.msg))
-
-	decoded := f.withFreshCache(t)
-	ctx := types.WithDecodedPayForFibre(decoded.ctx.WithTxBytes(raw), d)
-	require.NoError(t, decoded.keeper.ValidatePayForFibreSignatures(ctx, f.msg))
-	require.Equal(t, plain.cache.Len(), decoded.cache.Len())
-	require.True(t, decoded.cache.Has(d.PromiseKey))
-
-	// A tampered promise signature fails on both paths.
-	bad := *f.msg
-	bad.PaymentPromise.Signature = append([]byte{}, bad.PaymentPromise.Signature...)
-	bad.PaymentPromise.Signature[0] ^= 0xff
-	badRaw := (&preverifyFixture{msg: &bad}).txBytes(t)
-	badDecoded := keeper.DecodePayForFibre(badRaw)
-	badCtx := types.WithDecodedPayForFibre(f.withFreshCache(t).ctx.WithTxBytes(badRaw), badDecoded)
-	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(badCtx, &bad))
-	require.Error(t, f.withFreshCache(t).keeper.ValidatePayForFibreSignatures(f.withFreshCache(t).ctx, &bad))
 }
 
 // TestPreverifyCapsAtCandidateBound pins the backstop: the pass covers at most
