@@ -71,6 +71,9 @@ func (b *objectBackend) Put(ctx context.Context, commitment Commitment, promiseH
 		IfNoneMatch:   aws.String("*"),
 	}, func(options *s3.Options) {
 		options.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+		// Send the body without waiting for 100 Continue; only a rare duplicate
+		// rejected by IfNoneMatch wastes part of an upload.
+		options.ContinueHeaderThresholdBytes = -1
 		// Avoid hashing the full shard for SigV4 signing.
 		options.APIOptions = append(options.APIOptions, v4.SwapComputePayloadSHA256ForUnsignedPayloadMiddleware)
 	})

@@ -54,6 +54,29 @@ func TestObjectBackendPutContentLength(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestObjectBackendPutWithoutExpectContinue(t *testing.T) {
+	// Above the SDK's 2 MiB threshold, so the default client would send Expect: 100-continue.
+	shard := &types.BlobShard{Rows: []*types.BlobRow{{Data: bytes.Repeat([]byte("data"), 3<<18)}}}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if expect := r.Header.Get("Expect"); expect != "" {
+			t.Errorf("unexpected Expect header %q", expect)
+		}
+		_, _ = io.Copy(io.Discard, r.Body)
+	}))
+	defer server.Close()
+	client := s3.New(s3.Options{
+		Region:       "us-east-1",
+		Credentials:  credentials.NewStaticCredentialsProvider("test", "test", ""),
+		BaseEndpoint: aws.String(server.URL),
+		UsePathStyle: true,
+		HTTPClient:   server.Client(),
+	})
+	backend := newObjectBackend(client, objectNamespace{Bucket: "bucket", Prefix: "prefix", ChainID: "chain", ValidatorAddress: "validator"})
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	require.NoError(t, backend.Put(ctx, Commitment{}, []byte{1}, shard))
+}
+
 func TestObjectBackendPutRetry(t *testing.T) {
 	for _, secondStatus := range []int{http.StatusOK, http.StatusPreconditionFailed, http.StatusServiceUnavailable} {
 		t.Run(http.StatusText(secondStatus), func(t *testing.T) {
