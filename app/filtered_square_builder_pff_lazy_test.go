@@ -138,7 +138,7 @@ func TestFillPreverifiesTheCandidateSet(t *testing.T) {
 	}
 
 	fill := &pffFill{txConfig: txConfig, preverify: true}
-	fill.run(t, txs)
+	require.Equal(t, want[:appconsts.MaxPayForFibreMessages], fill.run(t, txs))
 	require.True(t, fill.preverifyRan)
 	require.Equal(t, want, fill.preverified)
 }

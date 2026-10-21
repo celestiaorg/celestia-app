@@ -288,8 +288,8 @@ type decodedFibreTx struct {
 	checked, valid bool
 }
 
-// decodeFibreTx decodes e once and reports whether it is a pay-for-fibre tx ProcessProposal accepts
-// the shape of. decodePFF and the shape check are stateless, so when this runs does not matter.
+// decodeFibreTx decodes e once and reports whether ProcessProposal accepts its shape.
+// decodePFF and the shape check are stateless, so when this runs does not matter.
 func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDecoder, e *decodedFibreTx) bool {
 	if e.checked {
 		return e.valid
@@ -298,9 +298,6 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 	if e.sdkTx == nil {
 		sdkTx, err := dec(e.raw)
 		if err != nil {
-			return false
-		}
-		if _, has := hasPFB(sdkTx.GetMsgs()); has {
 			return false
 		}
 		e.sdkTx = sdkTx
@@ -442,9 +439,9 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, dec s
 			}
 		}
 
-		// The system blob comes from the decoded view, or from parsing when
-		// there is none. decodeFibreTx guarantees exactly one
-		// MsgPayForFibre, so isFibreTx is always true.
+		// The system blob comes from the decoded view, or from parsing when there is none. Only txs
+		// with a MsgPayForFibre are routed here and the shape check allows no other message,
+		// so isFibreTx is always true.
 		var (
 			fibreTx   *tx.FibreTx
 			isFibreTx = true
