@@ -13,7 +13,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/app/ante"
 	apperr "github.com/celestiaorg/celestia-app/v10/app/errors"
 	"github.com/celestiaorg/celestia-app/v10/pkg/appconsts"
-	"github.com/celestiaorg/celestia-app/v10/pkg/sigcache"
 	blobtypes "github.com/celestiaorg/celestia-app/v10/x/blob/types"
 	fibrekeeper "github.com/celestiaorg/celestia-app/v10/x/fibre/keeper"
 	fibretypes "github.com/celestiaorg/celestia-app/v10/x/fibre/types"
@@ -165,44 +164,24 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 	certKeys := &fibretypes.CertKeyHolder{}
 	ctx = fibretypes.WithCertKeyHolder(ctx, certKeys)
 
-	// The data root depends only on immutable tx bytes, so build it during the walk;
-	// duplicate and malformed txs take the sequential path, starting no extra work.
+	// The data root depends only on the tx bytes and the decodes above, so build it
+	// during the walk; a cache hit already has it.
 	var (
 		square       proposalSquareResult
-		squareDone   chan struct{}
+		squareDone   = make(chan struct{})
 		squareCancel atomic.Bool
 	)
-	// Only an all-PayForFibre block (counted, and capped at maxPFF, by the decode loop)
-	// qualifies, so a mixed block allocates nothing here.
-	if cached == nil && pffTxCount == len(req.Txs) && len(req.Txs) >= minParallelSquareTxs {
-		uniquePromises := make(map[sigcache.Key]struct{}, len(req.Txs))
-		parallel := true
-		for i, d := range decoded {
-			if !d.CertKeyed || !d.PromiseKeyed() || sdkTxs[i] == nil || decodeErrs[i] != nil {
-				parallel = false
-				break
-			}
-			// The promise key: a promise repeated under different signature sets has distinct
-			// certificate keys, and the walk rejects it anyway.
-			if _, seen := uniquePromises[d.PromiseKey]; seen {
-				parallel = false
-				break
-			}
-			uniquePromises[d.PromiseKey] = struct{}{}
-		}
-		if parallel {
-			squareDone = make(chan struct{})
-			go func() {
-				defer close(squareDone)
-				square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
-			}()
-			defer func() {
-				// Cancel before waiting, so a proposal rejected at its first
-				// tx does not pay for a whole square first.
-				squareCancel.Store(true)
-				<-squareDone
-			}()
-		}
+	if cached == nil {
+		go func() {
+			defer close(squareDone)
+			square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
+		}()
+		defer func() {
+			// Cancel before waiting, so a proposal rejected at its first
+			// tx does not pay for a whole square first.
+			squareCancel.Store(true)
+			<-squareDone
+		}()
 	}
 
 	// iterate over all txs and ensure that all blobTxs are valid, PFBs are correctly signed, non
@@ -344,11 +323,7 @@ func (app *App) ProcessProposalHandler(ctx sdk.Context, req *abci.RequestProcess
 		return accept(), nil
 	}
 
-	if squareDone == nil {
-		square = app.buildProposalSquare(req.Txs, blobTxs, decoded, maxSquareSize, req.SquareSize, &squareCancel)
-	} else {
-		<-squareDone
-	}
+	<-squareDone
 	if square.err != nil {
 		logInvalidPropBlockError(app.Logger(), blockHeader, "failed to build proposal square", square.err)
 		return reject(), nil

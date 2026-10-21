@@ -13,10 +13,6 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 )
 
-// minParallelSquareTxs is the smallest all-PayForFibre block whose square is built
-// alongside the walk. A judgement, not a measurement: small blocks have little to hide.
-const minParallelSquareTxs = 100
-
 // errProposalSquareCancelled marks a build stopped between stages; its zero size and
 // root must never reach the proposer's claims, which SquareSize 0 would match.
 var errProposalSquareCancelled = errors.New("proposal square build cancelled")
