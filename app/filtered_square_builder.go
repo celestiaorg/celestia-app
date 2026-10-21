@@ -130,7 +130,6 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// Set the tx size on the context before calling the AnteHandler
 		ctx = ctx.WithTxBytes(tx)
 
-		msgTypes := msgTypes(sdkTx)
 		execMsgCount := countExecutableMsgs(ctx, fsb.chanKeep, sdkTx.GetMsgs())
 		if sdkMessageCount+execMsgCount > appconsts.MaxSDKMessages {
 			logger.Debug("skipping tx because the max SDK message count was reached", "tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()))
@@ -154,7 +153,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 				"filtering already checked transaction",
 				"tx", tmbytes.HexBytes(coretypes.Tx(tx).Hash()),
 				"error", err,
-				"msgs", msgTypes,
+				"msgs", msgTypes(sdkTx),
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_std_txs")
 			err = fsb.builder.RevertLastTx()
@@ -403,7 +402,7 @@ func processFibreTxsForSquare(fsb *FilteredSquareBuilder, ctx sdk.Context, payFo
 		// behind for the txs that follow it.
 		txCtx, commit := ctx.CacheContext()
 		txCtx = txCtx.WithTxBytes(rawTx)
-		txCtx = fibretypes.WithDecodedPayForFibre(txCtx, entry.decoded)
+		txCtx = fibretypes.WithCertKey(txCtx, entry.decoded)
 
 		ok, err := fsb.builder.AppendFibreTx(fibreTx)
 		if err != nil {

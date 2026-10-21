@@ -8,7 +8,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	"github.com/celestiaorg/celestia-app/v10/fibre/validator"
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	cmtmath "github.com/cometbft/cometbft/libs/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
@@ -140,7 +139,7 @@ func (ms msgServer) PayForFibre(goCtx context.Context, msg *types.MsgPayForFibre
 	}
 
 	// Perform stateless validation (signature verification, format checks, etc.)
-	if err := ms.validatePromiseStatelessDecoded(ctx, &pp, &msg.PaymentPromise); err != nil {
+	if err := ms.ValidatePromiseStateless(&pp); err != nil {
 		return nil, errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
 
@@ -194,19 +193,12 @@ func (k Keeper) ValidatePayForFibreSignatures(ctx sdk.Context, msg *types.MsgPay
 	if err := pp.FromProto(&msg.PaymentPromise); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to convert payment promise: %s", err)
 	}
-	if err := k.validatePromiseStatelessDecoded(ctx, &pp, &msg.PaymentPromise); err != nil {
+	if err := k.ValidatePromiseStateless(&pp); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "payment promise validation failed: %s", err)
 	}
-	// Reuse the sign bytes a decoded view already derived for this tx.
-	var signBytes []byte
-	if d := types.DecodedPayForFibreFromContext(ctx); d != nil && d.Msg == msg && d.PromiseSignBytes != nil {
-		signBytes = d.PromiseSignBytes
-	} else {
-		var err error
-		signBytes, err = pp.SignBytes()
-		if err != nil {
-			return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
-		}
+	signBytes, err := pp.SignBytes()
+	if err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "failed to get validator sign bytes: %s", err)
 	}
 	if err := k.validateValidatorSignatures(ctx, signBytes, msg.PaymentPromise.Height, msg.ValidatorSignatures); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: %s", err)
@@ -375,14 +367,7 @@ func (k Keeper) ValidateValidatorSetAvailable(ctx sdk.Context, height int64) err
 
 // validateValidatorSignatures checks signatures against the validator set at height.
 func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, height int64, signatures [][]byte) error {
-	historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
-	if err != nil {
-		return errorsmod.Wrapf(err, "failed to get historical validator set at height %d", height)
-	}
-
-	// Convert SDK validators to CometBFT validators, reusing an earlier
-	// conversion of the same height.
-	converted, err := k.validatorSetAtHeight(height, historicalInfo.Valset)
+	converted, err := k.certificateValidatorSet(ctx, height, signatures)
 	if err != nil {
 		return err
 	}
@@ -393,16 +378,7 @@ func (k Keeper) validateValidatorSignatures(ctx sdk.Context, signBytes []byte, h
 		Height:       uint64(height),
 	}
 
-	// Create signature set with 2/3+ thresholds
-	twoThirds := cmtmath.Fraction{Numerator: 2, Denominator: 3}
-	sigSet := valSet.NewSignatureSet(twoThirds, signBytes)
-
-	// The list is positional over the validator set, so more entries than
-	// validators is malformed. Rejecting up front also guarantees every index is
-	// in range, so the quorum short-circuit below cannot skip a trailing entry.
-	if len(signatures) > len(cmtValidators) {
-		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "signature count %d exceeds validator count %d", len(signatures), len(cmtValidators))
-	}
+	sigSet := valSet.NewSignatureSet(quorumFraction, signBytes)
 
 	// Add all provided signatures to the signature set
 	for i, signature := range signatures {

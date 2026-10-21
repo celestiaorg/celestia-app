@@ -12,7 +12,6 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
 	"github.com/cometbft/cometbft/crypto"
 	"github.com/cometbft/cometbft/crypto/ed25519"
-	cmtmath "github.com/cometbft/cometbft/libs/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -24,9 +23,6 @@ type PreverifyOptions struct {
 	// StopOnFirstFailure stops claiming work once a check fails. Set it where a
 	// single bad signature rejects the whole block, so the rest is wasted.
 	StopOnFirstFailure bool
-	// SeenCertificates skips certificates already collected, so a repeated
-	// certificate costs one verification. The caller supplies an empty map.
-	SeenCertificates map[sigcache.Key]struct{}
 }
 
 // PreverifySignatures verifies the MsgPayForFibre signatures in txs across
@@ -156,19 +152,25 @@ func (k Keeper) collectVerifications(ctx sdk.Context, decoded []*types.DecodedPa
 	// Promises in one block usually share a few heights; read and convert each
 	// validator set once.
 	valSets := make(map[int64]*convertedValidatorSet)
+	// Collect each distinct certificate once: a repeat carries the same promise,
+	// so the first occurrence warms both keys. Sized by the pass's message cap.
+	var seenCerts map[sigcache.Key]struct{}
+	if opts.Certificates && len(decoded) > 1 {
+		seenCerts = make(map[sigcache.Key]struct{}, min(len(decoded), appconsts.MaxPayForFibreCandidates))
+	}
 
 	for _, d := range decoded {
-		if d == nil || !d.PromiseKeyed {
+		if d == nil || !d.PromiseKeyed() {
 			continue
 		}
 		if covered >= appconsts.MaxPayForFibreCandidates {
 			break
 		}
-		if opts.SeenCertificates != nil && d.CertKeyed {
-			if _, seen := opts.SeenCertificates[d.CertKey]; seen {
+		if seenCerts != nil && d.CertKeyed {
+			if _, seen := seenCerts[d.CertKey]; seen {
 				continue
 			}
-			opts.SeenCertificates[d.CertKey] = struct{}{}
+			seenCerts[d.CertKey] = struct{}{}
 		}
 
 		msg := d.Msg
@@ -233,24 +235,19 @@ func (k Keeper) appendCertificateItems(
 	height := msg.PaymentPromise.Height
 	converted, ok := valSets[height]
 	if !ok {
-		historicalInfo, err := k.stakingKeeper.GetHistoricalInfo(ctx, height)
-		if err != nil {
-			return false
-		}
-		if converted, err = k.validatorSetAtHeight(height, historicalInfo.Valset); err != nil {
+		var err error
+		if converted, err = k.certificateValidatorSet(ctx, height, msg.ValidatorSignatures); err != nil {
 			return false
 		}
 		valSets[height] = converted
-	}
-
-	// The list is positional over the validator set, so more entries than
-	// validators is malformed.
-	if len(msg.ValidatorSignatures) > len(converted.validators) {
+	} else if len(msg.ValidatorSignatures) > len(converted.validators) {
+		// certificateValidatorSet applies this to the heights it resolves; a
+		// height already in valSets still has to pass it.
 		return false
 	}
 
 	valSet := validator.Set{ValidatorSet: converted.set, Height: uint64(height)}
-	minVotingPower := valSet.MinRequiredVotingPower(cmtmath.Fraction{Numerator: 2, Denominator: 3})
+	minVotingPower := valSet.MinRequiredVotingPower(quorumFraction)
 	prefix, quorumMet := validator.QuorumPrefix(converted.validators, msg.ValidatorSignatures, minVotingPower)
 	if !quorumMet {
 		return false
@@ -284,29 +281,31 @@ func (k Keeper) appendCertificateItems(
 // outcome never depends on scheduling. An item that does not run stays false,
 // which only costs a cache entry.
 func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
+	verified := make([]bool, len(items))
+	if len(items) == 1 {
+		// One item has nothing to spread; the fan-out would be pure overhead.
+		verified[0] = items[0].run()
+		return verified
+	}
+
+	// atomic.Bool, not []bool: workers write adjacent results, and packed bools
+	// false-share one cache line (about 1% of ProcessProposal, measured).
 	results := make([]atomic.Bool, len(items))
+
 	// GOMAXPROCS, not NumCPU: in a container limited to a fraction of the host
 	// the latter would start goroutines that only contend for the same Ps.
 	workers := min(runtime.GOMAXPROCS(0), len(items))
 
 	var (
-		next     atomic.Int64
-		aborted  atomic.Bool
-		panicked atomic.Value
-		wg       sync.WaitGroup
+		next    atomic.Int64
+		aborted atomic.Bool
+		wg      sync.WaitGroup
 	)
 	for range workers {
 		wg.Go(func() {
-			// Nothing here should panic, but a worker that does must not take
-			// the node down: its unfinished items stay unverified and the
-			// sequential path redoes them. The value is kept so the caller can
-			// report it - a recurring panic would otherwise show up only as a
-			// cache that never warms.
-			defer func() {
-				if r := recover(); r != nil {
-					panicked.CompareAndSwap(nil, r)
-				}
-			}()
+			// A worker panic must not take the node down: its unfinished items stay unverified
+			// and the sequential path redoes them.
+			defer func() { _ = recover() }()
 			for {
 				i := int(next.Add(1)) - 1
 				if i >= len(items) || (stopOnFirstFailure && aborted.Load()) {
@@ -324,7 +323,6 @@ func runVerifications(items []verification, stopOnFirstFailure bool) []bool {
 	}
 	wg.Wait()
 
-	verified := make([]bool, len(items))
 	for i := range results {
 		verified[i] = results[i].Load()
 	}
