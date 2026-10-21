@@ -1,17 +1,28 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"text/tabwriter"
 	"time"
 
+	"github.com/aws/smithy-go"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/celestiaorg/celestia-app/v10/fibre"
 	toml "github.com/pelletier/go-toml/v2"
 	"github.com/spf13/cobra"
 )
+
+type objectStorageCheckError struct {
+	cause error
+}
+
+func (e *objectStorageCheckError) Error() string { return "object storage check failed" }
+func (e *objectStorageCheckError) Unwrap() error { return e.cause }
 
 func newStoreCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "store", Short: "Inspect the Fibre store and object storage"}
@@ -40,29 +51,50 @@ func newStoreCheckBucketCmd() *cobra.Command {
 			if err := writeObjectStorageCheck(cmd.OutOrStdout(), result); err != nil {
 				return err
 			}
-			return result.Err()
+			if err := result.Err(); err != nil {
+				return &objectStorageCheckError{cause: err}
+			}
+			return nil
 		},
 	}
 }
 
 func writeObjectStorageCheck(out io.Writer, result fibre.ObjectStorageCheckResult) error {
 	w := tabwriter.NewWriter(out, 0, 4, 2, ' ', 0)
-	fmt.Fprintln(w, "CHECK\tSTATUS\tERROR")
+	fmt.Fprintln(w, "CHECK\tSTATUS")
 	writeCheckResult(w, "head bucket", result.HeadBucketErr)
 	writeCheckResult(w, "put canary", result.PutCanaryErr)
 	writeCheckResult(w, "delete canary", result.DeleteCanaryErr)
-	fmt.Fprintf(w, "canary key\t%s\t\n", result.CanaryKey)
+	fmt.Fprintf(w, "\ncanary key: %s\n", result.CanaryKey)
 	return w.Flush()
 }
 
 func writeCheckResult(w io.Writer, name string, err error) {
 	status := "ok"
-	message := ""
 	if err != nil {
 		status = "failed"
-		message = err.Error()
 	}
-	fmt.Fprintf(w, "%s\t%s\t%s\n", name, status, message)
+	fmt.Fprintf(w, "%s\t%s\n", name, status)
+	if err != nil {
+		fmt.Fprintf(w, "  %s\n", formatObjectStorageError(err))
+	}
+}
+
+func formatObjectStorageError(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "request timed out"
+	}
+	if dnsErr, ok := errors.AsType[*net.DNSError](err); ok {
+		return fmt.Sprintf("DNS lookup failed for %s: %s", dnsErr.Name, dnsErr.Err)
+	}
+	if apiErr, ok := errors.AsType[smithy.APIError](err); ok {
+		message := fmt.Sprintf("%s: %s", apiErr.ErrorCode(), apiErr.ErrorMessage())
+		if responseErr, ok := errors.AsType[*smithyhttp.ResponseError](err); ok && responseErr.HTTPStatusCode() != 0 {
+			return fmt.Sprintf("HTTP %d %s", responseErr.HTTPStatusCode(), message)
+		}
+		return message
+	}
+	return err.Error()
 }
 
 func newStoreStatsCmd() *cobra.Command {
