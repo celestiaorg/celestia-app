@@ -16,7 +16,7 @@ import (
 	"github.com/celestiaorg/celestia-app/v10/pkg/wrapper"
 	sharev2 "github.com/celestiaorg/go-square/v2/share"
 	sh "github.com/celestiaorg/go-square/v4/share"
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

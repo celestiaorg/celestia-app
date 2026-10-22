@@ -13,7 +13,7 @@ import (
 	"github.com/celestiaorg/go-square/v4"
 	"github.com/celestiaorg/go-square/v4/share"
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 	"github.com/cometbft/cometbft/crypto/merkle"
 )
 

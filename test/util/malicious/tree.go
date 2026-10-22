@@ -9,7 +9,7 @@ import (
 	"github.com/celestiaorg/go-square/v4/share"
 	"github.com/celestiaorg/nmt"
 	"github.com/celestiaorg/nmt/namespace"
-	"github.com/celestiaorg/rsmt2d"
+	"github.com/celestiaorg/celestia-app/rsmt2d"
 )
 
 // BlindTree is a wrapper around the erasured NMT that skips verification of
