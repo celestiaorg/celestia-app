@@ -160,6 +160,13 @@ func newRollbackHome(t *testing.T) *testnode.Config {
 // runNode runs the node until block height until and returns the app hash after each executed height.
 func runNode(t *testing.T, cfg *testnode.Config, creator servertypes.AppCreator, until int64) map[int64][]byte {
 	t.Helper()
+	// Fresh ports per start: while the node is stopped, a test in another package can take the old ones.
+	tm := cfg.TmConfig
+	tm.RPC.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
+	tm.P2P.ListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
+	tm.RPC.GRPCListenAddress = fmt.Sprintf("tcp://127.0.0.1:%d", testnode.GetDeterministicPort())
+	tm.PrivValidatorGRPCListenAddr = fmt.Sprintf("127.0.0.1:%d", testnode.GetDeterministicPort())
+
 	utc := cfg.UniversalTestingConfig
 	utc.AppCreator = creator
 	node, capp, err := testnode.NewCometNode(cfg.TmConfig.RootDir, &utc)
