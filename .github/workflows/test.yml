@@ -31,7 +31,7 @@ jobs:
       - uses: ./.github/actions/setup-go
         with:
           module-directory: test/docker-e2e
-      - name: Compile E2E tests and run network helper tests
+      - name: Compile E2E tests and run helper tests
         working-directory: test/docker-e2e
         run: |
           go test -run '^$' ./...

@@ -3,6 +3,7 @@ package docker_e2e
 import (
 	"bytes"
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/internal"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -605,19 +606,21 @@ func (s *HyperlaneTestSuite) GetDomainForChain(ctx context.Context, chainName st
 func (s *HyperlaneTestSuite) AssertBankBalance(ctx context.Context, chain *cosmos.Chain, address string, denom string, expected sdkmath.Int) {
 	s.T().Helper()
 
-	s.Require().Eventually(func() bool {
+	err := internal.WaitFor(ctx, time.Minute, time.Second, func(ctx context.Context) (bool, error) {
 		balance := s.QueryBankBalance(ctx, chain, address, denom)
-		return balance.Equal(expected)
-	}, time.Minute, time.Second, "unexpected bank balance, expected: ", expected)
+		return balance.Equal(expected), nil
+	})
+	s.Require().NoError(err, "unexpected bank balance, expected: %s", expected)
 }
 
 func (s *HyperlaneTestSuite) AssertERC20Balance(ctx context.Context, chain *EvolveEVMChain, erc20Address ethcommon.Address, account ethcommon.Address, expected *big.Int) {
 	s.T().Helper()
 
-	s.Require().Eventually(func() bool {
+	err := internal.WaitFor(ctx, time.Minute, time.Second, func(ctx context.Context) (bool, error) {
 		balance := s.QueryERC20Balance(ctx, chain, erc20Address, account)
-		return balance.Cmp(expected) == 0
-	}, time.Minute, time.Second, "unexpected erc20 balance, expected: ", expected)
+		return balance.Cmp(expected) == 0, nil
+	})
+	s.Require().NoError(err, "unexpected erc20 balance, expected: %s", expected)
 }
 
 func (s *HyperlaneTestSuite) QueryForwardingAddress(ctx context.Context, chain *cosmos.Chain, tokenId string, domain uint32, recipient string) string {
