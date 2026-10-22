@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"context"
+	"errors"
 
 	"github.com/cometbft/cometbft/crypto/ed25519"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -53,4 +54,14 @@ func (m *MockStakingKeeper) GetHistoricalInfo(ctx context.Context, height int64)
 		}
 	}
 	return stakingtypes.HistoricalInfo{}, nil
+}
+
+// HasHistoricalInfo derives from GetHistoricalInfo, so a test that fakes a
+// missing height through GetHistoricalInfoFn covers both.
+func (m *MockStakingKeeper) HasHistoricalInfo(ctx context.Context, height int64) (bool, error) {
+	_, err := m.GetHistoricalInfo(ctx, height)
+	if errors.Is(err, stakingtypes.ErrNoHistoricalInfo) {
+		return false, nil
+	}
+	return err == nil, err
 }

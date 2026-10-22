@@ -15,4 +15,6 @@ type BankKeeper interface {
 
 type StakingKeeper interface {
 	GetHistoricalInfo(ctx context.Context, height int64) (stakingtypes.HistoricalInfo, error)
+	// HasHistoricalInfo reports whether GetHistoricalInfo would find height, without decoding it.
+	HasHistoricalInfo(ctx context.Context, height int64) (bool, error)
 }

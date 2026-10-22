@@ -771,3 +771,47 @@ func TestProcessProposalPayForFibreTxSignature(t *testing.T) {
 		})
 	}
 }
+
+// TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned pins the
+// invariant behind the signature cache: a node that admitted the tx must vote
+// like one that never saw it once the promise height's history is pruned.
+func TestProcessProposalPayForFibreVotesTheSameAfterHistoryIsPruned(t *testing.T) {
+	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
+	accounts := testfactory.GenerateAccounts(1)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSet(app.DefaultConsensusParams(), accounts...)
+	infos := queryAccountInfo(testApp, accounts, kr)
+	signer := newSignerFactory(t, kr, enc.TxConfig, accounts, infos)(0)
+	seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, accounts[0]), 1_000_000)
+
+	// Keep two historical entries so the promise height (1) is pruned while
+	// still inside PaymentPromiseHeightWindow. The chain clock runs from genesis.
+	setHistoricalEntries(t, testApp, 2)
+	pffTx := newSignedPayForFibreTxAt(t, signer, accounts[0], true,
+		testutil.GenesisTime.Add(time.Second),
+		user.SetGasLimit(1_000_000), user.SetFee(4_000))
+
+	// Admitting it warms the cache, the only difference between the two nodes.
+	checkResp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: pffTx, Type: abci.CheckTxType_New})
+	require.NoError(t, err)
+	require.Equal(t, abci.CodeTypeOK, checkResp.Code, checkResp.Log)
+	require.Equal(t, abci.ResponseProcessProposal_ACCEPT, processProposalStatus(t, testApp, pffTx))
+
+	for testApp.LastBlockHeight() < 5 {
+		execBlock(t, testApp, func(sdk.Context) {})
+	}
+	_, err = testApp.StakingKeeper.GetHistoricalInfo(uncachedContext(testApp), 1)
+	require.Error(t, err, "the promise height must be pruned for this test to mean anything")
+
+	// A node that never ran CheckTx finds no historical info, so this one must not either.
+	require.Equal(t, abci.ResponseProcessProposal_REJECT, processProposalStatus(t, testApp, pffTx))
+}
+
+// processProposalStatus proposes txs at the chain's clock and returns the vote.
+func processProposalStatus(t *testing.T, testApp *app.App, txs ...[]byte) abci.ResponseProcessProposal_ProposalStatus {
+	t.Helper()
+	req := processProposalRequest(t, testApp, txs)
+	req.Time = testutil.GenesisTime.Add(time.Duration(req.Height) * time.Second)
+	resp, err := testApp.ProcessProposal(req)
+	require.NoError(t, err)
+	return resp.Status
+}

@@ -11,6 +11,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 )
 
 var _ types.MsgServer = msgServer{}
@@ -366,8 +367,21 @@ func EstimateGasForPayForFibre(blobSize uint32) uint64 {
 // ValidateValidatorSetAvailable returns an error if the validator set at height
 // is no longer stored, matching the error ValidatePayForFibreSignatures returns.
 func (k Keeper) ValidateValidatorSetAvailable(ctx sdk.Context, height int64) error {
-	if _, err := k.stakingKeeper.GetHistoricalInfo(ctx, height); err != nil {
+	if err := k.checkHistoricalInfo(ctx, height); err != nil {
 		return errorsmod.Wrapf(sdkerrors.ErrInvalidRequest, "validator signature validation failed: failed to get historical validator set at height %d: %s", height, err)
+	}
+	return nil
+}
+
+// checkHistoricalInfo returns the error GetHistoricalInfo would for a missing
+// height, skipping the decode of a validator set the caller does not need.
+func (k Keeper) checkHistoricalInfo(ctx sdk.Context, height int64) error {
+	found, err := k.stakingKeeper.HasHistoricalInfo(ctx, height)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return stakingtypes.ErrNoHistoricalInfo
 	}
 	return nil
 }
