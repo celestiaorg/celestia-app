@@ -12,15 +12,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSeparateTxsDropsNonCanonicalBlobTx(t *testing.T) {
+func TestFillDropsNonCanonicalBlobTx(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	padded := appendUnknownProtoField(newBlobTx(t, txConfig), 4096)
 
-	normalTxs, blobTxs, rawBlobTxs, pffTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, [][]byte{padded})
+	normalTxs, rawBlobTxs, pffTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, [][]byte{padded})
 	require.Empty(t, normalTxs)
 	require.Empty(t, pffTxs)
-	require.Empty(t, blobTxs, "a non-canonically encoded blob tx must be dropped")
-	require.Empty(t, rawBlobTxs, "a non-canonically encoded blob tx must be dropped")
+	require.Equal(t, [][]byte{padded}, rawBlobTxs, "classified as a blob tx by its type ID")
+	require.Empty(t, newTestFill(t, txConfig, [][]byte{padded}), "a non-canonically encoded blob tx must be dropped")
 }
 
 // TestBlobTxCanonicalEncodingGolden pins the canonical encoding of a fixed blob

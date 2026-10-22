@@ -101,9 +101,8 @@ func TestSeparateTxsFibre(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, tc.rawTxs)
+			normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, tc.rawTxs)
 			require.Len(t, normalTxs, tc.wantNorm)
-			require.Len(t, blobTxs, tc.wantBlob)
 			require.Len(t, rawBlobTxs, tc.wantBlob)
 			// Fill drops what decodeFibreTx rejects.
 			var valid int
