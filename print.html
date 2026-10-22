@@ -5749,7 +5749,7 @@ celestia-appd query fibre is-payment-processed [payment-promise-hash]
 <li>The host part must be non-empty.</li>
 <li>The port must be numeric and in the range <code>[1, 65535]</code>.</li>
 <li>The normal transaction path rejects scheme-prefixed or path-bearing hosts because they do not match canonical <code>host:port</code> form.</li>
-<li>The message handler requires the validator operator address to exist in the staking keeper, derives the validator consensus address, and stores the host under that consensus address.</li>
+<li>The message handler requires the validator operator address to exist in the staking keeper and the validator to be bonded, derives the validator consensus address, and stores the host under that consensus address.</li>
 </ul>
 <h2 id="events-7"><a class="header" href="#events-7">Events</a></h2>
 <h3 id="set-fibre-provider-info"><a class="header" href="#set-fibre-provider-info">Set Fibre Provider Info</a></h3>
