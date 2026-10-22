@@ -23,7 +23,7 @@ func NewFibreSignatureGasDecorator() FibreSignatureGasDecorator {
 }
 
 func (FibreSignatureGasDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if msg := PayForFibreMessage(tx); msg != nil {
+	if msg := fibretypes.PayForFibreMsg(tx); msg != nil {
 		consumeDeterministicFibreSignatureGas(ctx, msg)
 	}
 	return next(ctx, tx, simulate)
@@ -73,16 +73,14 @@ func NewFibreSigVerificationDecorator(
 }
 
 func (d FibreSignatureVerificationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := PayForFibreMessage(tx)
+	msg := fibretypes.PayForFibreMsg(tx)
 	if msg == nil || simulate || skipsSignatureVerification(ctx.ExecMode()) {
 		return next(ctx, tx, simulate)
 	}
 
-	// Reuse the key a decoded view already derived for this tx, if any.
-	var cacheKey sigcache.Key
-	if decoded := fibretypes.DecodedPayForFibreFromContext(ctx); decoded != nil && decoded.CertKeyed {
-		cacheKey = decoded.CertKey
-	} else {
+	// Reuse the key this phase already derived for this tx, if any.
+	cacheKey, ok := fibretypes.CertKeyFromContext(ctx)
+	if !ok {
 		var err error
 		cacheKey, err = msg.SigCacheKey()
 		if err != nil {
@@ -141,7 +139,7 @@ func NewFibreStatefulValidationDecorator(k FibrePromiseKeeper) FibreStatefulVali
 }
 
 func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	msg := PayForFibreMessage(tx)
+	msg := fibretypes.PayForFibreMsg(tx)
 	if msg == nil || simulate || !ctx.IsCheckTx() {
 		return next(ctx, tx, simulate)
 	}
@@ -157,15 +155,4 @@ func (d FibreStatefulValidationDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx,
 // is not constrained by the tx's gas limit.
 func withInfiniteGasMeter(ctx sdk.Context) sdk.Context {
 	return ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-}
-
-// PayForFibreMessage returns tx's MsgPayForFibre, or nil if tx is not a
-// single-message PFF transaction.
-func PayForFibreMessage(tx sdk.Tx) *fibretypes.MsgPayForFibre {
-	msgs := tx.GetMsgs()
-	if len(msgs) != 1 {
-		return nil
-	}
-	pff, _ := msgs[0].(*fibretypes.MsgPayForFibre)
-	return pff
 }
