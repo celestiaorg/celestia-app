@@ -445,7 +445,9 @@ func TestEvictions(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, txInfo.Status, core.TxStatusCommitted)
 	}
+}
 
+func TestEvictionConfirmation(t *testing.T) {
 	t.Run("gets nonce mismatch during eviction and gets confirmed in the meantime", func(t *testing.T) {
 		expectedTxHash := "test-tx-hash-123" // This matches what our mock server returns
 
