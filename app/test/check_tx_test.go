@@ -836,7 +836,7 @@ func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
 			decoded := fibrekeeper.DecodePayForFibre(txBytes)
 			require.NotNil(t, decoded)
 			require.True(t, decoded.CertKeyed)
-			require.True(t, decoded.PromiseKeyed)
+			require.True(t, decoded.PromiseKeyed())
 
 			resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 			require.NoError(t, err)
@@ -856,9 +856,8 @@ func TestCheckTxPayForFibreVerifiesSignaturesOnlyAfterAdmission(t *testing.T) {
 	}
 }
 
-// TestCheckTxPayForFibreRecheck admits a payment promise and rechecks it, so
-// the recheck is served from the admitted bytes, and checks that bytes that
-// differ from the admitted ones take the full path.
+// TestCheckTxPayForFibreRecheck checks that a rechecked payment promise takes the
+// pay-for-fibre shortcut and bytes that are not one take the full path.
 func TestCheckTxPayForFibreRecheck(t *testing.T) {
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	// One account per case: CheckTx bumps the signer's sequence in the check
@@ -873,33 +872,29 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 		seedFibreEscrow(t, testApp, testfactory.GetAddress(kr, account), 1_000_000)
 	}
 
-	// Both cases below run before anything is admitted, so the cache is known
-	// empty and what they assert is that nothing was recorded.
-
-	// A recheck that missed is walking a working set larger than the cache, so
-	// recording it would evict the entries that same pass is about to ask for.
-	t.Run("a recheck that was never admitted is not recorded", func(t *testing.T) {
+	// The shortcut keys on the shape alone, so it also applies to a pay-for-fibre the
+	// node never admitted; the verdict is the same either way.
+	t.Run("a recheck that was never admitted still reaches the same verdict", func(t *testing.T) {
 		txBytes := newSignedPayForFibreTx(t, newSigner(1), accounts[1], true)
+		require.True(t, fibretypes.IsPayForFibreTx(txBytes))
 
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-		require.Zero(t, testApp.PffTxCacheLen())
 	})
 
-	// Only a PayForFibre is recorded. Skipping countExecutableMsgs is sound
-	// for that shape alone, so a tx of any other shape must take the full path
-	// on every recheck.
-	t.Run("a non PayForFibre tx is not recorded", func(t *testing.T) {
+	// Skipping countExecutableMsgs is sound only for a lone MsgPayForFibre (always 1
+	// against MaxSDKMessages); any other shape takes the full path on every recheck.
+	t.Run("a non PayForFibre tx takes the full path", func(t *testing.T) {
 		addr := testfactory.GetAddress(kr, accounts[2])
 		send := banktypes.NewMsgSend(addr, addr, sdk.NewCoins(sdk.NewInt64Coin(appconsts.BondDenom, 1)))
 		txBytes, _, err := newSigner(2).CreateTx([]sdk.Msg{send}, user.SetGasLimit(200_000), user.SetFee(4_000))
 		require.NoError(t, err)
+		require.False(t, fibretypes.IsPayForFibreTx(txBytes))
 
 		resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-		require.Zero(t, testApp.PffTxCacheLen())
 	})
 
 	txBytes := newSignedPayForFibreTx(t, newSigner(0), accounts[0], true)
@@ -907,28 +902,23 @@ func TestCheckTxPayForFibreRecheck(t *testing.T) {
 	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-	require.NotEmpty(t, resp.Address)
-	require.Equal(t, 1, testApp.PffTxCacheLen(), "an admitted PayForFibre is recorded")
-	admittedAddr, admittedSeq := resp.Address, resp.Sequence
+	require.NotEmpty(t, resp.Address, "admission reports the signer the mempool keys its sender on")
 
-	// Each committed block resets the check state and the mempool rechecks
-	// the still pending tx against it. A recheck reports the signer data the
-	// admitting CheckTx derived, which the mempool keys its sender on.
+	// Each committed block resets the check state and the mempool rechecks the
+	// still pending tx against it.
 	for range 3 {
 		commitBlock(t, testApp)
 		resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck})
 		require.NoError(t, err)
 		require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-		require.Equal(t, admittedAddr, resp.Address)
-		require.Equal(t, admittedSeq, resp.Sequence)
-		require.Equal(t, 1, testApp.PffTxCacheLen(), "a passing recheck keeps the entry")
 	}
 
-	// Truncated bytes cannot be served from the admitted entry: they take the
-	// full path and fail to decode, and leave the entry they missed alone.
-	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes[:len(txBytes)-1], Type: abci.CheckTxType_Recheck})
+	// Truncated bytes are not a well formed pay-for-fibre, so they take the
+	// full path and fail there.
+	truncated := txBytes[:len(txBytes)-1]
+	require.False(t, fibretypes.IsPayForFibreTx(truncated))
+	resp, err = testApp.CheckTx(&abci.RequestCheckTx{Tx: truncated, Type: abci.CheckTxType_Recheck})
 	require.True(t, err != nil || resp.Code != abci.CodeTypeOK)
-	require.Equal(t, 1, testApp.PffTxCacheLen())
 }
 
 // TestCheckTxPayForFibreReplay settles a payment promise in a committed block
@@ -991,7 +981,6 @@ func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	resp, err := testApp.CheckTx(&abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_New})
 	require.NoError(t, err)
 	require.Equal(t, abci.CodeTypeOK, resp.Code, resp.Log)
-	require.Equal(t, 1, testApp.PffTxCacheLen())
 
 	// Commit an empty block timestamped past the promise timeout but within
 	// the freshness window, so the promise is expired rather than too old.
@@ -1001,7 +990,6 @@ func TestCheckTxPayForFibreRecheckExpiry(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEqual(t, abci.CodeTypeOK, resp.Code)
 	require.Contains(t, resp.Log, "payment promise expired")
-	require.Zero(t, testApp.PffTxCacheLen(), "a failed recheck drops the entry")
 }
 
 // commitBlock finalizes and commits a block of txs stamped time.Now, so the

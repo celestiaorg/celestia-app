@@ -1,7 +1,10 @@
 package app
 
 import (
+	"bytes"
+	"io"
 	"math"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -22,6 +25,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -263,6 +267,84 @@ func TestFilteredSquareBuilderFillMaxTxBytes(t *testing.T) {
 
 			kept := fsb.Fill(ctx, tc.txs, tc.maxTxBytes)
 			require.Len(t, kept, tc.wantKept)
+		})
+	}
+}
+
+// skippedBlobTxsFixture builds 64 blob transactions of 1 MiB each, more than
+// fit in a block, and a context whose logger drops debug lines.
+func skippedBlobTxsFixture(tb testing.TB) (client.TxConfig, sdk.Context, [][]byte) {
+	tb.Helper()
+	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
+	ns := share.MustNewV0Namespace([]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10})
+	txs := make([][]byte, 64)
+	for i := range txs {
+		blob, err := share.NewBlob(ns, bytes.Repeat([]byte{byte(i)}, 1<<20), share.ShareVersionZero, nil)
+		require.NoError(tb, err)
+		msg, err := blobtypes.NewMsgPayForBlobs(sdk.AccAddress(secp256k1.GenPrivKey().PubKey().Address()).String(), appconsts.Version, blob)
+		require.NoError(tb, err)
+		builder := txConfig.NewTxBuilder()
+		require.NoError(tb, builder.SetMsgs(msg))
+		rawSdkTx, err := txConfig.TxEncoder()(builder.GetTx())
+		require.NoError(tb, err)
+		txs[i], err = tx.MarshalBlobTx(rawSdkTx, blob)
+		require.NoError(tb, err)
+	}
+	logger := log.NewLogger(io.Discard, log.LevelOption(zerolog.InfoLevel))
+	ms := store.NewCommitMultiStore(dbm.NewMemDB(), log.NewNopLogger(), metrics.NewNoOpMetrics())
+	return txConfig, sdk.NewContext(ms, cmtproto.Header{}, false, logger), txs
+}
+
+// Hashing a skipped blob tx decodes its whole envelope, so Fill allocated
+// several times the block's tx bytes when it hashed every skipped tx for a
+// debug line that was then dropped.
+func TestFillDoesNotHashSkippedTxsBelowLogLevel(t *testing.T) {
+	txConfig, ctx, txs := skippedBlobTxsFixture(t)
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+	var txBytes uint64
+	for _, raw := range txs {
+		txBytes += uint64(len(raw))
+	}
+	fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, appconsts.SquareSizeUpperBound, appconsts.SubtreeRootThreshold)
+	require.NoError(t, err)
+
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	kept := fsb.Fill(ctx, txs, 8<<20)
+	runtime.ReadMemStats(&after)
+
+	require.Less(t, len(kept), len(txs), "nothing was skipped")
+	allocated := after.TotalAlloc - before.TotalAlloc
+	require.Less(t, allocated, txBytes, "Fill allocated %d bytes for %d bytes of txs", allocated, txBytes)
+}
+
+// BenchmarkFillSkippedBlobTxs measures Fill on a block that has more blob
+// transactions than fit, so most are skipped and only logged at debug level.
+func BenchmarkFillSkippedBlobTxs(b *testing.B) {
+	txConfig, ctx, txs := skippedBlobTxsFixture(b)
+	alwaysPass := func(ctx sdk.Context, _ sdk.Tx, _ bool) (sdk.Context, error) {
+		return ctx, nil
+	}
+
+	for _, bc := range []struct {
+		name          string
+		maxSquareSize int
+		maxTxBytes    int64
+	}{
+		{name: "max tx bytes", maxSquareSize: appconsts.SquareSizeUpperBound, maxTxBytes: 8 << 20},
+		{name: "square size", maxSquareSize: 128, maxTxBytes: 0},
+	} {
+		b.Run(bc.name, func(b *testing.B) {
+			for b.Loop() {
+				fsb, err := NewFilteredSquareBuilder(alwaysPass, nil, txConfig, fakeChannelKeeper{}, bc.maxSquareSize, appconsts.SubtreeRootThreshold)
+				require.NoError(b, err)
+				if kept := fsb.Fill(ctx, txs, bc.maxTxBytes); len(kept) >= len(txs) {
+					b.Fatalf("kept all %d txs; nothing was skipped", len(kept))
+				}
+			}
 		})
 	}
 }
