@@ -17,7 +17,6 @@ import (
 	"github.com/celestiaorg/tastora/framework/docker/ibc/relayer"
 	"github.com/celestiaorg/tastora/framework/testutil/query"
 	"github.com/celestiaorg/tastora/framework/testutil/sdkacc"
-	"github.com/celestiaorg/tastora/framework/testutil/wait"
 	tastoratypes "github.com/celestiaorg/tastora/framework/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
@@ -27,6 +26,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/internal"
 )
 
 const (
@@ -132,7 +132,7 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	expectedChainABalance := initialChainABalance.Sub(amt).SubRaw(feePaid)
 	s.T().Logf("Waiting for PFM multi-hop transfer to complete...")
 
-	err = wait.ForCondition(ctx, 3*time.Minute, time.Second, func() (bool, error) {
+	err = internal.WaitFor(ctx, 3*time.Minute, time.Second, func(ctx context.Context) (bool, error) {
 		finalChainCRecipientBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
 		delta := finalChainCRecipientBalance.Sub(initialChainCRecipientBalance)
 		if !delta.Equal(amt) {
