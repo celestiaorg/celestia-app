@@ -17,6 +17,7 @@ import (
 	blobtx "github.com/celestiaorg/go-square/v4/tx"
 	"github.com/cometbft/cometbft/abci/types"
 	"github.com/cometbft/cometbft/crypto"
+	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/stretchr/testify/require"
 )
 
@@ -330,7 +331,7 @@ func benchmarkProcessProposalPFBHalfSecond(b *testing.B, count, size int) {
 // of valid PFB transactions.
 func generatePayForBlobTransactions(b *testing.B, count, size int) (*app.App, [][]byte) {
 	account := "test"
-	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndMaxSquareSize(app.DefaultConsensusParams(), 128, account)
+	testApp, kr := testutil.SetupTestAppWithGenesisValSetAndBaseAppOptions(app.DefaultConsensusParams(), 128, []func(*baseapp.BaseApp){baseapp.DisableOptimisticExecution()}, account)
 	addr := testfactory.GetAddress(kr, account)
 	enc := encoding.MakeConfig(app.ModuleEncodingRegisters...)
 	acc := testutil.DirectQueryAccount(testApp, addr)
