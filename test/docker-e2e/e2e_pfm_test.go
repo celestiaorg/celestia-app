@@ -132,7 +132,7 @@ func (s *PFMTestSuite) TestPFMMultiHop() {
 	expectedChainABalance := initialChainABalance.Sub(amt).SubRaw(feePaid)
 	s.T().Logf("Waiting for PFM multi-hop transfer to complete...")
 
-	err = wait.ForCondition(ctx, 3*time.Minute, 10*time.Second, func() (bool, error) {
+	err = wait.ForCondition(ctx, 3*time.Minute, time.Second, func() (bool, error) {
 		finalChainCRecipientBalance := s.getBalance(ctx, s.chainC, walletC.GetFormattedAddress(), denomOnC)
 		delta := finalChainCRecipientBalance.Sub(initialChainCRecipientBalance)
 		if !delta.Equal(amt) {
@@ -184,8 +184,9 @@ func (s *PFMTestSuite) TearDownTest() {
 	}
 
 	if s.hermes != nil {
-		if err := s.hermes.Remove(ctx); err != nil {
-			s.T().Logf("Error stopping hermes: %v", err)
+		// Force-remove: hermes ignores SIGTERM, so a graceful stop waits out 30s.
+		if err := s.hermes.RemoveContainer(ctx); err != nil {
+			s.T().Logf("Error removing hermes: %v", err)
 		}
 	}
 }

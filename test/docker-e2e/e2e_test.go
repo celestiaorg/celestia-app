@@ -119,7 +119,7 @@ func (s *CelestiaTestSuite) CreateTxSim(ctx context.Context, chain tastoratypes.
 func (s *CelestiaTestSuite) requireTxSimRunning(ctx context.Context, containerName string) {
 	t := s.T()
 	const (
-		stabilizationPeriod = 10 * time.Second
+		stabilizationPeriod = 3 * time.Second
 		pollInterval        = 1 * time.Second
 	)
 
@@ -211,7 +211,7 @@ func (s *CelestiaTestSuite) GetLatestBlockHeight(ctx context.Context, statusClie
 // The method periodically checks the node's sync status. Returns an error if the timeout is exceeded.
 // Returns nil when the provided condition function returns true.
 func (s *CelestiaTestSuite) WaitForSync(ctx context.Context, client rpcclient.Client, syncTimeout time.Duration, syncCondition func(coretypes.SyncInfo) bool) error {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, syncTimeout)
