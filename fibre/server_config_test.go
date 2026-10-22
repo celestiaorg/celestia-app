@@ -89,30 +89,47 @@ func TestServerConfigValidateGRPCSigner(t *testing.T) {
 
 func TestServerConfigConnectionDefaults(t *testing.T) {
 	cfg := DefaultServerConfig()
-	assert.Equal(t, fibregrpc.DefaultMaxConnections, cfg.MaxConnections)
+	assert.Equal(t, fibregrpc.DefaultMaxConnectionsPerIP, cfg.MaxConnectionsPerIP)
 	assert.Equal(t, fibregrpc.DefaultMaxConcurrentStreams, cfg.MaxConcurrentStreams)
 }
 
 func TestServerConfigValidateConnectionCaps(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.Path = t.TempDir()
-	cfg.MaxConnections = 0
 
+	cfg.MaxConnectionsPerIP = 0 // disabled, valid
+	require.NoError(t, cfg.Validate())
+
+	cfg.MaxConnectionsPerIP = -1
 	err := cfg.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "max_connections must be at least 1")
+	assert.Contains(t, err.Error(), "max_connections_per_ip must not be negative")
 
-	cfg.MaxConnections = fibregrpc.DefaultMaxConnections
+	cfg.MaxConnectionsPerIP = fibregrpc.DefaultMaxConnectionsPerIP
 	cfg.MaxConcurrentStreams = 0
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "max_concurrent_streams must be at least 1")
 
-	tooBig := uint64(math.MaxUint32) + 1
-	cfg.MaxConcurrentStreams = int(tooBig)
+	cfg.MaxConcurrentStreams = int(uint64(math.MaxUint32) + 1)
 	err = cfg.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must not exceed")
+}
+
+// TestServerConfigLegacyMaxConnectionsLoads: a legacy config with the deprecated
+// max_connections key still loads, and the value is ignored.
+func TestServerConfigLegacyMaxConnectionsLoads(t *testing.T) {
+	configPath := DefaultConfigPath(t.TempDir())
+	legacy := DefaultServerConfig()
+	legacy.MaxConnections = 16 // as origin/main persisted it
+	require.NoError(t, legacy.Save(configPath))
+
+	loaded := DefaultServerConfig()
+	require.NoError(t, loaded.Load(configPath))
+	require.Equal(t, 16, loaded.MaxConnections)
+	loaded.Path = t.TempDir()
+	require.NoError(t, loaded.Validate())
 }
 
 func TestServerConfigValidateNoSigner(t *testing.T) {

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/celestiaorg/celestia-app/v10/x/fibre/types"
-	"golang.org/x/net/netutil"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/keepalive"
@@ -19,13 +18,18 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Connection and stream caps bound how many requests run at once; request receive
-// memory is bounded by the admission byte budget. See ADR-031.
+// Connection caps are for safety and fairness only; request receive memory is
+// bounded by the admission byte budget. See ADR-031.
 const (
-	// DefaultMaxConnections is the default total connection cap.
-	DefaultMaxConnections = 16
-	// DefaultMaxConcurrentStreams is the default per-connection stream cap.
-	DefaultMaxConcurrentStreams = 13
+	// DefaultMaxConnections is the default value of the deprecated max_connections
+	// knob (ignored; the global cap is fixed).
+	DefaultMaxConnections = 0
+	// DefaultMaxConnectionsPerIP caps connections per source IP (IPv6 by /64).
+	DefaultMaxConnectionsPerIP = 16
+	// DefaultMaxConcurrentStreams bounds per-connection stream concurrency only.
+	DefaultMaxConcurrentStreams = 100
+	// globalConnLimit is a fixed fd-safety cap, not a memory bound.
+	globalConnLimit = 4096
 
 	// Fixed receive windows (>=65535) disable BDP tuning; the stream window only
 	// bounds a paused stream, since RecvMsg grants a whole-message window.
@@ -53,6 +57,7 @@ var (
 type Server struct {
 	server               *grpc.Server
 	listener             net.Listener
+	connLimiter          *ConnLimiter
 	adm                  *admission
 	done                 chan struct{} // closed when Serve returns
 	err                  error         // why Serve returned; valid once done is closed
@@ -62,16 +67,20 @@ type Server struct {
 // Listen creates a [Server] bound to listenAddr. The underlying [grpc.Server]
 // is created lazily by [Server.Register] so callers can defer building
 // credentials until after the listener address is known (e.g., for TLS certs
-// that depend on a chain ID resolved at startup).
-func Listen(listenAddr string, maxConnections, maxConcurrentStreams int) (*Server, error) {
+// that depend on a chain ID resolved at startup). Connections are bounded by a
+// fail-fast [ConnLimiter]: a fixed global fd-safety cap and a per-IP cap
+// (maxConnectionsPerIP, 0 to disable).
+func Listen(listenAddr string, maxConnectionsPerIP, maxConcurrentStreams int) (*Server, error) {
 	listener, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		return nil, fmt.Errorf("listen on %s: %w", listenAddr, err)
 	}
-	// Cap total connections so a peer cannot dodge the per-connection stream cap
-	// by opening many connections.
-	listener = netutil.LimitListener(listener, maxConnections)
-	return &Server{listener: listener, maxConcurrentStreams: uint32(maxConcurrentStreams)}, nil
+	limiter := newConnLimiter(globalConnLimit, maxConnectionsPerIP)
+	return &Server{
+		listener:             newLimitedListener(listener, limiter),
+		connLimiter:          limiter,
+		maxConcurrentStreams: uint32(maxConcurrentStreams),
+	}, nil
 }
 
 // Register builds the [grpc.Server] and registers the fibre service, gating every

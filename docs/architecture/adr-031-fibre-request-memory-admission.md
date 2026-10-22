@@ -31,6 +31,10 @@ Admit every request against a global, FIFO `semaphore.Weighted` byte budget (`ma
 
 `DownloadShard` is served as a stream handler that also counts its response. It keeps the max reservation through the handler (so the shard the handler builds from storage is counted), shrinks the reservation to the response size once known, and releases it when the stream ends rather than at the handler's return. Verified against grpc v1.84.0: the server cancels the stream context in `finishStream`/`closeStream` after the handler returns (`http2_server.go:1338`/`1362`), so `context.AfterFunc(stream.Context(), release)` releases the reservation then without a goroutine leak. Because grpc's `SendMsg` returns as soon as the message is queued (`flowcontrol.go` `writeQuota.get` takes the whole message), the response bytes still draining to a slow reader after that point live in grpc's send buffer, not the budget — so a slow reader cannot pin the budget past the stream's end; those bytes are bounded by grpc connection flow control and `MaxConnectionAge`.
 
+### Connections
+
+With memory bounded by the byte budget, the connection cap no longer needs to be a tight memory bound, so the old `netutil.LimitListener(max_connections)` (default 16) — a pre-auth DoS where one peer could hold every slot and starve honest clients (PROTOCO-2220), and which blocked downloads during uploads (PROTOCO-2706) — is replaced by a fail-fast listener: a fixed global fd-safety cap (4096) plus a per-IP cap (`max_connections_per_ip`, default 16, IPv6 by /64, sharing the admission `keyedCounter`). Over-cap connections are closed immediately rather than parked. `max_connections` is retained as a deprecated, ignored key; `max_concurrent_streams` default is raised to 100.
+
 ## Alternatives
 
 - **Tighter connection cap** keeps memory coupled to connections and remains a pre-auth DoS; rejected.
@@ -59,5 +63,6 @@ Admit every request against a global, FIFO `semaphore.Weighted` byte budget (`ma
 
 - PROTOCO-3014 — request memory admission.
 - PROTOCO-3351 — download response accounting.
+- PROTOCO-2220, PROTOCO-2706 — connection limits.
 - ADR-029 — Fibre upload occupancy (disk) limiting.
 - `fibre/internal/grpc/{admission.go,server.go,keyed_counter.go}`.
