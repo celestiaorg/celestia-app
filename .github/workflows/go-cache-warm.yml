@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - main
+      - rachid/ci-speed-combined
     paths:
       - go.sum
       - test/docker-e2e/go.sum
