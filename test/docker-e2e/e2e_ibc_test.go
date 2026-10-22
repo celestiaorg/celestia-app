@@ -32,6 +32,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"celestiaorg/celestia-app/test/docker-e2e/dockerchain"
+	"celestiaorg/celestia-app/test/docker-e2e/internal"
 )
 
 func TestIBCTestSuite(t *testing.T) {
@@ -345,8 +346,8 @@ func (s *IBCTestSuite) transferAndVerify(
 		txResponse.Code, txResponse.RawLog)
 
 	expectedBalance := initialBalance.Add(transferAmount)
-	var finalBalance sdkmath.Int
-	err = wait.ForCondition(ctx, 30*time.Second, time.Second, func() (bool, error) {
+	finalBalance := initialBalance
+	err = internal.WaitFor(ctx, 30*time.Second, time.Second, func(ctx context.Context) (bool, error) {
 		finalBalance = s.getBalance(ctx, destChain, destWallet.GetFormattedAddress(), ibcDenom)
 		return finalBalance.Equal(expectedBalance), nil
 	})
@@ -497,7 +498,7 @@ func (s *IBCTestSuite) verifyICARegistration(ctx context.Context) string {
 
 	// The query fails until the relayer completes the ICA channel handshake.
 	var address string
-	err := wait.ForCondition(ctx, 90*time.Second, time.Second, func() (bool, error) {
+	err := internal.WaitFor(ctx, 90*time.Second, time.Second, func(ctx context.Context) (bool, error) {
 		resp, err := queryClient.InterchainAccount(ctx, &icacontrollertypes.QueryInterchainAccountRequest{
 			Owner:        controllerWallet.GetFormattedAddress(),
 			ConnectionId: s.connection.ConnectionID,
@@ -589,8 +590,8 @@ func (s *IBCTestSuite) performICABankSend(ctx context.Context, icaAddress string
 
 	s.T().Logf("ICA bank send successful! TxHash: %s", txResponse.TxHash)
 
-	var finalBalance sdkmath.Int
-	err = wait.ForCondition(ctx, 60*time.Second, time.Second, func() (bool, error) {
+	finalBalance := initialBalance
+	err = internal.WaitFor(ctx, 60*time.Second, time.Second, func(ctx context.Context) (bool, error) {
 		finalBalance = s.getBalance(ctx, s.chainA, recipientWallet.GetFormattedAddress(), "utia")
 		return finalBalance.GT(initialBalance), nil
 	})
