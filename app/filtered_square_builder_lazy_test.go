@@ -108,7 +108,7 @@ func TestFillStopsSDKDecodesAtCap(t *testing.T) {
 	}
 
 	var calls int
-	normal, _, _, _ := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, txs)
+	normal, _, _ := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, &calls}, txs)
 	require.Equal(t, txs, normal)
 	require.Zero(t, calls)
 

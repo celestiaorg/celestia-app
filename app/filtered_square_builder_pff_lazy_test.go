@@ -81,7 +81,7 @@ func TestFillStopsPFFDecodesAtCap(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	txs := newPFFs(t, txConfig, 2*appconsts.MaxPayForFibreCandidates)
 
-	_, _, _, entries := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, new(int)}, txs)
+	_, _, entries := separateTxsDecoded(log.NewNopLogger(), countingTxConfig{txConfig, new(int)}, txs)
 	require.Len(t, entries, len(txs))
 	for i, e := range entries {
 		require.Equal(t, txs[i], e.raw)

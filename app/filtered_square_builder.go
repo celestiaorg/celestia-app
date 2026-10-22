@@ -13,7 +13,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/telemetry"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // FilteredSquareBuilder filters txs and blobs using a copy of the state and tx validity
@@ -101,7 +100,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	}
 
 	// note that there is an additional filter step for tx size of raw txs here
-	normalTxs, blobTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
+	normalTxs, rawBlobTxs, payForFibreTxs := separateTxsDecoded(logger, fsb.txConfig, filteredByMaxBytes)
 	dec := fsb.txConfig.TxDecoder()
 
 	// Warm the signature cache across every CPU before filling. Failures are
@@ -193,39 +192,48 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		n++
 	}
 
-	for i, tx := range blobTxs {
+	var keptBlobTxs []*tx.BlobTx
+	for _, rawTx := range rawBlobTxs {
 		// validateBlobTx keeps only single-PFB blob txs, so nothing more fits once the cap is reached.
 		if pfbMessageCount >= appconsts.MaxPFBMessages {
 			break
 		}
-		sdkTx, err := dec(tx.Tx)
+		bTx, _, err := tx.UnmarshalBlobTx(rawTx)
 		if err != nil {
-			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(tx.Tx), "error", err)
+			// Drop malformed blob txs. Matches ProcessProposalHandler. CheckTx should have
+			// rejected this; reaching here indicates a regression so log + count it.
+			logger.Error("dropping malformed blob tx", "tx", lazyTxHash(rawTx), "err", err)
+			telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
+			continue
+		}
+		sdkTx, err := dec(bTx.Tx)
+		if err != nil {
+			logger.Error("decoding already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err)
 			continue
 		}
 
 		// Set the tx size on the context before calling the AnteHandler
-		ctx = ctx.WithTxBytes(tx.Tx)
+		ctx = ctx.WithTxBytes(bTx.Tx)
 
 		if pfbMessageCount+len(sdkTx.GetMsgs()) > appconsts.MaxPFBMessages {
-			logger.Debug("skipping blob tx because the max pfb message count was reached", "tx", lazyTxHash(tx.Tx))
+			logger.Debug("skipping blob tx because the max pfb message count was reached", "tx", lazyTxHash(bTx.Tx))
 			continue
 		}
 
 		if fsb.validateBlobTx != nil {
-			if _, err := fsb.validateBlobTx(tx); err != nil {
-				logger.Error("dropping invalid blob tx", "tx", lazyTxHash(tx.Tx), "error", err)
+			if _, err := fsb.validateBlobTx(bTx); err != nil {
+				logger.Error("dropping invalid blob tx", "tx", lazyTxHash(bTx.Tx), "error", err)
 				continue
 			}
 		}
 
-		ok, err := fsb.builder.AppendBlobTx(tx)
+		ok, err := fsb.builder.AppendBlobTx(bTx)
 		if err != nil {
-			logger.Debug("skipping blob tx due to error", "tx", lazyTxHash(tx.Tx), "err", err)
+			logger.Debug("skipping blob tx due to error", "tx", lazyTxHash(bTx.Tx), "err", err)
 			continue
 		}
 		if !ok {
-			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(tx.Tx))
+			logger.Debug("skipping tx because it was too large to fit in the square", "tx", lazyTxHash(bTx.Tx))
 			continue
 		}
 
@@ -236,7 +244,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		// of the anteHandlers which is logged.
 		if err != nil {
 			logger.Error(
-				"filtering already checked blob transaction", "tx", lazyTxHash(tx.Tx), "error", err,
+				"filtering already checked blob transaction", "tx", lazyTxHash(bTx.Tx), "error", err,
 			)
 			telemetry.IncrCounter(1, "prepare_proposal", "invalid_blob_txs")
 			err = fsb.builder.RevertLastBlobTx()
@@ -249,8 +257,8 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 		ctx = txCtx.WithMultiStore(ctx.MultiStore()).WithEventManager(ctx.EventManager())
 
 		pfbMessageCount += len(sdkTx.GetMsgs())
-		rawBlobTxs[m] = rawBlobTxs[i]
-		blobTxs[m] = blobTxs[i]
+		rawBlobTxs[m] = rawTx
+		keptBlobTxs = append(keptBlobTxs, bTx)
 		m++
 	}
 
@@ -258,7 +266,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 
 	kept := make([][]byte, 0, n+m+len(fibreTxs))
 	kept = append(kept, normalTxs[:n]...)
-	// separateTxsDecoded only keeps canonically encoded blob txs, so the raw bytes
+	// UnmarshalBlobTx only accepts canonically encoded blob txs, so the raw bytes
 	// are identical to re-marshaling the decoded blob txs and can be reused.
 	kept = append(kept, rawBlobTxs[:m]...)
 	kept = append(kept, fibreTxs...)
@@ -266,7 +274,7 @@ func (fsb *FilteredSquareBuilder) Fill(ctx sdk.Context, txs [][]byte, maxTxBytes
 	// Record where the decoded blob txs ended up so ProcessProposal reuses
 	// them. Only blob txs occupy this range; normal and fibre txs stay nil.
 	fsb.keptBlobTxs = make([]*tx.BlobTx, len(kept))
-	copy(fsb.keptBlobTxs[n:n+m], blobTxs[:m])
+	copy(fsb.keptBlobTxs[n:n+m], keptBlobTxs)
 	return kept
 }
 
@@ -315,7 +323,7 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 	return true
 }
 
-// separateTxsDecoded decodes raw tendermint txs into normal, blob, and
+// separateTxsDecoded separates raw tendermint txs into normal, blob, and
 // pay-for-fibre txs.
 // This function filters out:
 //   - transactions that exceed MaxTxSize
@@ -323,10 +331,10 @@ func (fsb *FilteredSquareBuilder) decodeFibreTx(logger log.Logger, dec sdk.TxDec
 //   - non-blob transactions containing MsgPayForBlobs
 //
 // Txs whose first message parses from the wire are not decoded here; Fill decodes and
-// filters them when it reaches them (pay-for-fibre txs through decodeFibreTx).
-func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs [][]byte, blobTxs []*tx.BlobTx, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
+// filters them when it reaches them (pay-for-fibre txs through decodeFibreTx). Blob txs
+// are only classified by their type ID; Fill decodes them and drops malformed ones.
+func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]byte) (normalTxs, rawBlobTxs [][]byte, payForFibreTxs []decodedFibreTx) {
 	normalTxs = make([][]byte, 0, len(rawTxs))
-	blobTxs = make([]*tx.BlobTx, 0, len(rawTxs))
 	rawBlobTxs = make([][]byte, 0, len(rawTxs))
 	payForFibreTxs = make([]decodedFibreTx, 0, len(rawTxs))
 	dec := txConfig.TxDecoder()
@@ -339,17 +347,8 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]
 			continue
 		}
 
-		bTx, isBlob, err := tx.UnmarshalBlobTx(rawTx)
-		if isBlob {
-			if err != nil {
-				// Drop malformed blob txs. Matches ProcessProposalHandler.
-				// CheckTx should have rejected this; reaching here indicates a
-				// regression so log + count it for visibility.
-				logger.Error("dropping malformed blob tx", "tx", lazyTxHash(rawTx), "err", err)
-				telemetry.IncrCounter(1, "prepare_proposal", "malformed_blob_txs")
-				continue
-			}
-			blobTxs = append(blobTxs, bTx)
+		// The same predicate as UnmarshalBlobTx's isBlob, without decoding the blobs.
+		if tx.HasBlobTxTypeID(rawTx) {
 			rawBlobTxs = append(rawBlobTxs, rawTx)
 			continue
 		}
@@ -383,19 +382,19 @@ func separateTxsDecoded(logger log.Logger, txConfig client.TxConfig, rawTxs [][]
 
 		normalTxs = append(normalTxs, rawTx)
 	}
-	return normalTxs, blobTxs, rawBlobTxs, payForFibreTxs
+	return normalTxs, rawBlobTxs, payForFibreTxs
 }
 
 var payForFibreTypeURL = sdk.MsgTypeURL(&fibretypes.MsgPayForFibre{})
 
-// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre without
-// unpacking the messages. ok is false if the TxRaw or TxBody does not unmarshal.
+// firstMsgIsPayForFibre reports whether the first message of rawTx is a MsgPayForFibre, decoding
+// only the body and the type URLs. ok is false if either does not unmarshal.
 func firstMsgIsPayForFibre(rawTx []byte) (isPFF, ok bool) {
-	var raw txtypes.TxRaw
+	var raw fibretypes.TxRawBody
 	if err := raw.Unmarshal(rawTx); err != nil {
 		return false, false
 	}
-	var body txtypes.TxBody
+	var body fibretypes.TxBodyTypeURLs
 	if err := body.Unmarshal(raw.BodyBytes); err != nil {
 		return false, false
 	}
