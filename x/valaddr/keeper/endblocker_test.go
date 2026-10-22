@@ -62,8 +62,9 @@ func newTestKeeper(t *testing.T, staking types.StakingKeeper, blockTime time.Tim
 }
 
 // TestRemoveFibreProviders covers each branch of the validator-lifecycle
-// sweep: removed validators and long-jailed validators are deleted, while
-// bonded and briefly-jailed validators keep their registration.
+// sweep: removed validators and validators not bonded past the grace period
+// (jailed or not, including never-bonded ones) are deleted, while bonded,
+// unbonding, and briefly-jailed validators keep their registration.
 func TestRemoveFibreProviders(t *testing.T) {
 	blockTime := time.Date(2026, 6, 23, 0, 0, 0, 0, time.UTC)
 
@@ -71,6 +72,9 @@ func TestRemoveFibreProviders(t *testing.T) {
 	shortJail := sdk.ConsAddress("short_jail_validator")
 	longJail := sdk.ConsAddress("long_jail_validator_")
 	removed := sdk.ConsAddress("removed_validator__")
+	neverBonded := sdk.ConsAddress("never_bonded_valid")
+	longUnbonded := sdk.ConsAddress("long_unbonded_valid")
+	unbonding := sdk.ConsAddress("unbonding_validator")
 
 	staking := mockStakingKeeper{byCons: map[string]stakingtypes.Validator{
 		// Active validator -> kept.
@@ -87,6 +91,18 @@ func TestRemoveFibreProviders(t *testing.T) {
 			Jailed:        true,
 			UnbondingTime: blockTime.Add(-types.UnbondedGracePeriod - 24*time.Hour),
 		},
+		// Created but never bonded (zero UnbondingTime) -> deleted.
+		neverBonded.String(): {Status: stakingtypes.Unbonded},
+		// Unbonded without being jailed, past the grace period -> deleted.
+		longUnbonded.String(): {
+			Status:        stakingtypes.Unbonded,
+			UnbondingTime: blockTime.Add(-types.UnbondedGracePeriod - 24*time.Hour),
+		},
+		// Still unbonding -> kept.
+		unbonding.String(): {
+			Status:        stakingtypes.Unbonding,
+			UnbondingTime: blockTime.Add(21 * 24 * time.Hour),
+		},
 		// `removed` is intentionally absent -> GetValidatorByConsAddr returns
 		// ErrNoValidatorFound -> deleted.
 	}}
@@ -94,7 +110,7 @@ func TestRemoveFibreProviders(t *testing.T) {
 	k, ctx := newTestKeeper(t, staking, blockTime)
 
 	info := types.FibreProviderInfo{Host: "host.example.com:7980"}
-	for _, consAddr := range []sdk.ConsAddress{bonded, shortJail, longJail, removed} {
+	for _, consAddr := range []sdk.ConsAddress{bonded, shortJail, longJail, removed, neverBonded, longUnbonded, unbonding} {
 		require.NoError(t, k.SetFibreProviderInfo(ctx, consAddr, info))
 	}
 
@@ -109,52 +125,9 @@ func TestRemoveFibreProviders(t *testing.T) {
 	assertPresent(shortJail, true) // jailed within grace
 	assertPresent(longJail, false) // jailed past grace
 	assertPresent(removed, false)  // removed from staking
-}
-
-// TestRemoveFibreProviders_NotJailed verifies that non-bonded validators are
-// swept regardless of jail status: a never-bonded validator (zero
-// UnbondingTime) is deleted immediately, an unbonded validator past the grace
-// period is deleted, and a validator still unbonding keeps its registration.
-func TestRemoveFibreProviders_NotJailed(t *testing.T) {
-	blockTime := time.Date(2026, 6, 23, 0, 0, 0, 0, time.UTC)
-
-	neverBonded := sdk.ConsAddress("never_bonded_valid")
-	longUnbonded := sdk.ConsAddress("long_unbonded_valid")
-	unbonding := sdk.ConsAddress("unbonding_validator")
-
-	staking := mockStakingKeeper{byCons: map[string]stakingtypes.Validator{
-		// Created but never bonded -> deleted.
-		neverBonded.String(): {Status: stakingtypes.Unbonded},
-		// Unbonded without being jailed, past the grace period -> deleted.
-		longUnbonded.String(): {
-			Status:        stakingtypes.Unbonded,
-			UnbondingTime: blockTime.Add(-types.UnbondedGracePeriod - 24*time.Hour),
-		},
-		// Still unbonding -> kept.
-		unbonding.String(): {
-			Status:        stakingtypes.Unbonding,
-			UnbondingTime: blockTime.Add(21 * 24 * time.Hour),
-		},
-	}}
-
-	k, ctx := newTestKeeper(t, staking, blockTime)
-	for _, consAddr := range []sdk.ConsAddress{neverBonded, longUnbonded, unbonding} {
-		require.NoError(t, k.SetFibreProviderInfo(ctx, consAddr, types.FibreProviderInfo{Host: "h:1"}))
-	}
-
-	require.NoError(t, k.RemoveStaleFibreProviders(ctx))
-
-	for _, tc := range []struct {
-		consAddr sdk.ConsAddress
-		want     bool
-	}{
-		{neverBonded, false},
-		{longUnbonded, false},
-		{unbonding, true},
-	} {
-		_, found := k.GetFibreProviderInfo(ctx, tc.consAddr)
-		require.Equal(t, tc.want, found, "consAddr %s", tc.consAddr)
-	}
+	assertPresent(neverBonded, false)
+	assertPresent(longUnbonded, false)
+	assertPresent(unbonding, true)
 }
 
 // TestRemoveFibreProviders_GracePeriodBoundary verifies the entry survives
