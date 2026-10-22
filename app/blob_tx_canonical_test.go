@@ -16,7 +16,7 @@ func TestSeparateTxsDropsNonCanonicalBlobTx(t *testing.T) {
 	txConfig := encoding.MakeConfig(ModuleEncodingRegisters...).TxConfig
 	padded := appendUnknownProtoField(newBlobTx(t, txConfig), 4096)
 
-	normalTxs, blobTxs, rawBlobTxs, pffTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, nil, [][]byte{padded})
+	normalTxs, blobTxs, rawBlobTxs, pffTxs := separateTxsDecoded(log.NewNopLogger(), txConfig, [][]byte{padded})
 	require.Empty(t, normalTxs)
 	require.Empty(t, pffTxs)
 	require.Empty(t, blobTxs, "a non-canonically encoded blob tx must be dropped")
