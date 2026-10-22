@@ -263,7 +263,10 @@ func (suite *TxClientTestSuite) TestConfirmTx() {
 		require.NoError(t, err)
 		assertTxInTxTracker(t, suite.txClient, resp.TxHash, suite.txClient.DefaultAccountName(), seqBeforeBroadcast)
 
-		_, err = suite.txClient.ConfirmTx(ctx, resp.TxHash)
+		// Expire before the next block so the fast-polling client can't see the commit.
+		confirmCtx, confirmCancel := context.WithTimeout(ctx, time.Millisecond)
+		defer confirmCancel()
+		_, err = suite.txClient.ConfirmTx(confirmCtx, resp.TxHash)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), context.DeadlineExceeded.Error())
 	})
@@ -489,7 +492,7 @@ func TestEvictions(t *testing.T) {
 			},
 		}
 
-		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(5*time.Second))
+		mockTxClient, conns := setupTxClientWithMockServers(t, []BroadcastHandler{nil}, responseSequences, user.WithPollTime(100*time.Millisecond), user.WithEvictionPollTimeout(2*time.Second))
 		defer conns[0].Close()
 
 		ctx := context.Background()
