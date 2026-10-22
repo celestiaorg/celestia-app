@@ -41,7 +41,7 @@ message MsgSetFibreProviderInfo {
 
 Validation rules:
 
-1. `signer` must be a valid `celestiavaloper` address, and a validator with that operator address must exist in staking state. The transaction is signed by the validator's account key (the account address underlying the operator address).
+1. `signer` must be a valid `celestiavaloper` address, and a validator with that operator address must exist in staking state and be bonded (in the active set). Unbonded and jailed validators cannot register or update a host. The transaction is signed by the validator's account key (the account address underlying the operator address).
 1. `host` must be in `host:port` form: a non-empty host part (IP literal or DNS name — both work, see the [transport security notes](../../fibre/cmd/README.md#transport-security-tls)) followed by a numeric port in the range [1, 65535]. Schemes (`http://`, `dns:///`, …) and URL paths are rejected.
 1. `host` must be at most 100 characters.
 

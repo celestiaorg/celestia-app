@@ -70,7 +70,7 @@ Validation rules:
 - The host part must be non-empty.
 - The port must be numeric and in the range `[1, 65535]`.
 - The normal transaction path rejects scheme-prefixed or path-bearing hosts because they do not match canonical `host:port` form.
-- The message handler requires the validator operator address to exist in the staking keeper, derives the validator consensus address, and stores the host under that consensus address.
+- The message handler requires the validator operator address to exist in the staking keeper and the validator to be bonded, derives the validator consensus address, and stores the host under that consensus address.
 
 ## Events
 
